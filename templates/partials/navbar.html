@@ -22,6 +22,11 @@
       <a href="{{ url_for('warehouses.list_warehouses') }}" class="nav-link">المستودعات</a>
     </li>
     {% endif %}
+    {% if current_user.has_permission('manage_expenses') %}
+    <li class="nav-item">
+      <a href="{{ url_for('expenses.index') }}" class="nav-link">المصاريف</a>
+    </li>
+    {% endif %}
   </ul>
 
   <ul class="navbar-nav mr-auto">
