@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <title>وصل دفع #{{ payment.id }}</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; }
+    .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+    .header h1 { margin: 0; color: #2c3e50; }
+    .company-info { margin-bottom: 30px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: right; }
+    th { background: #f2f2f2; }
+    .total-row { background: #f8f9fa; font-weight: bold; }
+    .footer { text-align: center; font-size: 0.9em; color: #6c757d; border-top: 1px solid #ddd; padding-top: 10px; }
+    .signature { margin-top: 50px; text-align: left; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>وصل دفع</h1>
+    <h2>رقم الوصل: #{{ payment.id }}</h2>
+  </div>
+
+  <div class="company-info">
+    <p><strong>شركة:</strong> شركة المتجر الذكي</p>
+    <p><strong>عنوان:</strong> غزة، فلسطين</p>
+    <p><strong>هاتف:</strong> 123456789</p>
+    <p><strong>تاريخ:</strong> {{ now.strftime('%Y-%m-%d %H:%M') }}</p>
+  </div>
+
+  <table>
+    <tr><th>المبلغ الكلي</th><td>{{ payment.total_amount }} {{ payment.currency }}</td></tr>
+    <tr><th>التاريخ</th><td>{{ payment.payment_date.strftime('%Y-%m-%d %H:%M') }}</td></tr>
+    <tr><th>الطريقة</th><td>{{ payment.method }}</td></tr>
+    <tr><th>الجهة</th><td>
+      {% if payment.entity_type=='customer' and payment.customer %}عميل: {{ payment.customer.name }}
+      {% elif payment.entity_type=='supplier' and payment.supplier %}مورد: {{ payment.supplier.name }}
+      {% else %}{{ payment.entity_type }}{% endif %}
+    </td></tr>
+    <tr><th>الحالة</th><td>{{ payment.status }}</td></tr>
+    <tr><th>الاتجاه</th><td>{{ 'وارد' if payment.direction=='IN' else 'صادر' }}</td></tr>
+    <tr><th>المرجع</th><td>{{ payment.reference or '---' }}</td></tr>
+    <tr><th>الملاحظات</th><td>{{ payment.notes or '---' }}</td></tr>
+  </table>
+
+  <h3>تفاصيل الدفعات الجزئية:</h3>
+  <table>
+    <thead>
+      <tr><th>#</th><th>المبلغ</th><th>طريقة</th><th>تفاصيل</th></tr>
+    </thead>
+    <tbody>
+      {% for split in payment.splits %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ split.amount }} {{ payment.currency }}</td>
+        <td>{{ split.method }}</td>
+        <td>
+          {% if split.method=='cheque' and split.details %}
+            رقم شيك: {{ split.details.check_number }}<br>
+            بنك: {{ split.details.check_bank }}<br>
+            استحقاق: {{ split.details.due_date }}
+          {% elif split.method=='bank' and split.details %}
+            تحويل: {{ split.details.bank_transfer_ref }}
+          {% elif split.method=='card' and split.details %}
+            بطاقة: {{ split.details.card_number }}
+          {% else %}
+            ---
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      <tr class="total-row">
+        <td colspan="3">المجموع</td>
+        <td>{{ payment.total_amount }} {{ payment.currency }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="signature">
+    <p>توقيع المستلم: ____________</p>
+    <p>الاسم: ____________</p>
+    <p>التاريخ: ____________</p>
+  </div>
+
+  <div class="footer">
+    <p>© {{ now.year }} نظام إدارة المدفوعات - شركة المتجر الذكي</p>
+  </div>
+</body>
+</html>

@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% block title %}{{ form._obj and 'تعديل' or 'إنشاء' }} فاتورة{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <h3 class="mb-4"><i class="fas fa-file-invoice me-2"></i>
+    {{ form._obj and 'تعديل فاتورة #' ~ form._obj.id or 'إنشاء فاتورة جديدة' }}
+  </h3>
+  <form method="post" class="row g-3 needs-validation" novalidate>
+    {{ form.csrf_token }}
+
+    <div class="col-md-4">
+      <label class="form-label">{{ form.source.label.text }}</label>
+      {{ form.source(class="form-select select2", required=True) }}
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">{{ form.customer_id.label.text }}</label>
+      {{ form.customer_id(class="form-select select2", required=True) }}
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">{{ form.supplier_id.label.text }}</label>
+      {{ form.supplier_id(class="form-select select2") }}
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">{{ form.partner_id.label.text }}</label>
+      {{ form.partner_id(class="form-select select2") }}
+    </div>
+
+    <div class="col-md-2">
+      <label class="form-label">{{ form.sale_id.label.text }}</label>
+      {{ form.sale_id(class="form-control") }}
+    </div>
+    <div class="col-md-2">
+      <label class="form-label">{{ form.service_id.label.text }}</label>
+      {{ form.service_id(class="form-control") }}
+    </div>
+    <div class="col-md-2">
+      <label class="form-label">{{ form.preorder_id.label.text }}</label>
+      {{ form.preorder_id(class="form-control") }}
+    </div>
+
+    <div class="col-md-3">
+      <label class="form-label">{{ form.date.label.text }}</label>
+      {{ form.date(class="form-control") }}
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">{{ form.due_date.label.text }}</label>
+      {{ form.due_date(class="form-control") }}
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">{{ form.status.label.text }}</label>
+      {{ form.status(class="form-select", required=True) }}
+    </div>
+    <div class="col-md-3">
+      <div class="form-check mt-2">
+        {{ form.is_cancelled(class="form-check-input") }}
+        <label class="form-check-label">{{ form.is_cancelled.label.text }}</label>
+      </div>
+    </div>
+
+    <hr class="mt-4 mb-3 w-100">
+
+    <h5>بنود الفاتورة</h5>
+    <div id="invoice-lines">
+      {% for entry in form.lines %}
+        {% include 'invoices/_line.html' with ln=entry.form %}
+      {% endfor %}
+    </div>
+    {% if current_user.has_permission(form._obj and 'edit_invoice' or 'add_invoice') %}
+      <button type="button" id="add-line" class="btn btn-outline-primary btn-sm mb-3">
+        <i class="fa fa-plus"></i> إضافة بند
+      </button>
+    {% endif %}
+
+    <div class="col-md-4">
+      <label class="form-label">{{ form.total_amount.label.text }}</label>
+      {{ form.total_amount(class="form-control", readonly=True) }}
+    </div>
+
+    <div class="col-12">
+      {% if current_user.has_permission(form._obj and 'edit_invoice' or 'add_invoice') %}
+        <button type="submit" class="btn btn-success px-4">
+          <i class="fas fa-save me-1"></i> حفظ
+        </button>
+      {% endif %}
+      <a href="{{ url_for('invoices.list_invoices') }}" class="btn btn-secondary px-4">إلغاء</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // تفعيل select2
+  $('.select2').select2({ theme: 'bootstrap4', width: '100%' });
+
+  // إضافة/حذف بنود وحساب المجموع التلقائي
+  const container = document.getElementById('invoice-lines');
+  document.getElementById('add-line').addEventListener('click', () => {
+    const idx = container.children.length;
+    fetch(`{{ url_for('invoices.invoice_new') }}?prototype=1`)
+      .then(r => r.text())
+      .then(html => {
+        container.insertAdjacentHTML('beforeend', html.replace(/__prefix__/g, idx));
+      });
+  });
+  container.addEventListener('input', recalcTotal);
+  container.addEventListener('click', e => {
+    if (e.target.closest('.remove-line')) {
+      e.target.closest('.invoice-line').remove();
+      recalcTotal();
+    }
+  });
+  function recalcTotal() {
+    let sum = 0;
+    container.querySelectorAll('.invoice-line').forEach(row => {
+      const q = parseFloat(row.querySelector('[name$="-quantity"]').value) || 0;
+      const u = parseFloat(row.querySelector('[name$="-unit_price"]').value) || 0;
+      const t = parseFloat(row.querySelector('[name$="-tax_rate"]').value) || 0;
+      const d = parseFloat(row.querySelector('[name$="-discount"]').value) || 0;
+      let gross = q * u;
+      let disc = gross * d / 100;
+      let taxed = (gross - disc) * (1 + t / 100);
+      sum += taxed;
+    });
+    document.querySelector('[name="total_amount"]').value = sum.toFixed(2);
+  }
+  recalcTotal();
+});
+</script>
+{% endblock %}

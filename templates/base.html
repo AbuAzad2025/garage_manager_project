@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>{% block title %}نظام إدارة الكراج{% endblock %}</title>
+  <meta name="csrf-token" content="{{ csrf_token() }}"/>
+
+  <!-- favicon -->
+  <link rel="icon" href="{{ url_for('static', filename='img/logo.png') }}"/>
+
+  <!-- خطوط -->
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/>
+
+  <!-- AdminLTE & FontAwesome -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/css/adminlte.min.css') }}"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/fontawesome-free/css/all.min.css') }}"/>
+
+  <!-- DataTables CSS -->
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css"/>
+  <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.3.6/css/buttons.dataTables.min.css"/>
+
+  <!-- CSS المشروع -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/service.css') }}"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/reporting.css') }}"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sales.css') }}"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/warehouses.css') }}"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}"/>
+
+  {% block head %}{% endblock %}
+</head>
+<body class="hold-transition sidebar-mini layout-fixed font-lato">
+  <div class="wrapper">
+
+    {% include 'partials/navbar.html' %}
+    {% include 'partials/sidebar.html' %}
+
+    <div class="content-wrapper p-3">
+      {# رسائل النظام #}
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, msg in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+              {{ msg }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      {% block breadcrumb %}{% endblock %}
+      <section class="content">
+        {% block content %}{% endblock %}
+      </section>
+    </div>
+
+    {% include 'partials/footer.html' %}
+  </div>
+
+  <!-- jQuery, Bootstrap, AdminLTE -->
+  <script src="{{ url_for('static', filename='adminlte/plugins/jquery/jquery.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='adminlte/plugins/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='adminlte/js/adminlte.min.js') }}"></script>
+
+  <!-- Chart.js -->
+  <script src="{{ url_for('static', filename='adminlte/plugins/chart.js/Chart.min.js') }}"></script>
+
+  <!-- DataTables JS -->
+  <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/buttons/2.3.6/js/dataTables.buttons.min.js"></script>
+  <script src="https://cdn.datatables.net/buttons/2.3.6/js/buttons.html5.min.js"></script>
+
+  <!-- JS المشروع -->
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/customers.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/services.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/payments.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/payment_form.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/reporting.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/app.reports.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/sales.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/service.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/service_detail.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/service_form.js') }}"></script>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

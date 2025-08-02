@@ -1,0 +1,27 @@
+/* static/css/warehouses.css */
+
+.partner-group {
+    display: none;
+}
+
+.card-shadow {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.badge-status {
+    font-size: 0.9rem;
+    padding: 0.4em 0.6em;
+}
+
+.table-actions {
+    min-width: 120px;
+}
+
+.select2-container--bootstrap4 .select2-selection {
+    border: 1px solid #ced4da;
+    height: calc(1.5em + 0.75rem + 2px);
+}
+
+.select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered {
+    line-height: calc(1.5em + 0.75rem);
+}

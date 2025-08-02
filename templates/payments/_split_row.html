@@ -1,0 +1,26 @@
+<tr>
+  <td>{{ s.amount }} {{ payment.currency }}</td>
+  <td>{{ s.method }}</td>
+  <td>
+    {% if s.method=='cheque' and s.details %}
+      رقم الشيك: {{ s.details.check_number }}<br>
+      البنك: {{ s.details.check_bank }}<br>
+      استحقاق: {{ s.details.due_date }}
+    {% elif s.method=='bank' and s.details %}
+      تحويل: {{ s.details.bank_transfer_ref }}
+    {% elif s.method=='card' and s.details %}
+      بطاقة: {{ s.details.card_number }}
+    {% else %}
+      ---
+    {% endif %}
+  </td>
+  <td>
+    <button
+      type="button"
+      class="btn btn-sm btn-danger remove-split"
+      data-split-id="{{ s.id }}"
+    >
+      حذف
+    </button>
+  </td>
+</tr>

@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">إتمام عملية الشراء</h5>
+                        <span class="badge bg-primary">الخطوة 2 من 2</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-lg-7 border-end-lg">
+                            <h6 class="mb-3">معلومات الدفع</h6>
+                            <form method="POST" id="payment-form">
+                                {{ form.hidden_tag() }}
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">اسم صاحب البطاقة</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                        {{ form.card_holder(class="form-control", placeholder="كما هو مدون على البطاقة") }}
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">رقم البطاقة</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-credit-card"></i></span>
+                                        {{ form.card_number(class="form-control", placeholder="1234 5678 9012 3456") }}
+                                    </div>
+                                </div>
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">تاريخ الانتهاء</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="fas fa-calendar"></i></span>
+                                            {{ form.expiry(class="form-control", placeholder="MM/YY") }}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">رمز التحقق (CVV)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                            {{ form.cvv(class="form-control", placeholder="123") }}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-check mb-4">
+                                    {{ form.save_card(class="form-check-input") }}
+                                    <label class="form-check-label">حفظ معلومات البطاقة للمرة القادمة</label>
+                                </div>
+                                
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-primary btn-lg py-3">
+                                        تأكيد الدفع و إتمام الطلب
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                        
+                        <div class="col-lg-5">
+                            <h6 class="mb-3">ملخص الطلب</h6>
+                            <div class="card border">
+                                <div class="card-body">
+                                    <ul class="list-group list-group-flush">
+                                        {% for item in cart.items %}
+                                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                            <div>
+                                                <h6 class="mb-0">{{ item.product.name }}</h6>
+                                                <small class="text-muted">{{ item.quantity }} × {{ "%.2f"|format(item.price) }}</small>
+                                            </div>
+                                            <span>{{ "%.2f"|format(item.quantity * item.price) }} شيكل</span>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                    
+                                    <div class="d-flex justify-content-between mt-3">
+                                        <span>المجموع الفرعي:</span>
+                                        <span>{{ "%.2f"|format(cart.subtotal) }} شيكل</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <span>الشحن:</span>
+                                        <span>0.00 شيكل</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <span>الضريبة:</span>
+                                        <span>0.00 شيكل</span>
+                                    </div>
+                                    <hr>
+                                    <div class="d-flex justify-content-between fw-bold">
+                                        <span>المجموع الكلي:</span>
+                                        <span>{{ "%.2f"|format(cart.subtotal) }} شيكل</span>
+                                    </div>
+                                    
+                                    <div class="alert alert-info mt-3 mb-0">
+                                        <div class="d-flex justify-content-between">
+                                            <span>المبلغ المطلوب:</span>
+                                            <span class="fw-bold">{{ "%.2f"|format(prepaid_amount) }} شيكل</span>
+                                        </div>
+                                        <small class="d-block text-muted mt-1">
+                                            (20% من إجمالي قيمة الطلب)
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('shop.cart') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-right me-2"></i> العودة للسلة
+                </a>
+                <a href="{{ url_for('shop.catalog') }}" class="btn btn-link text-muted">
+                    <i class="fas fa-shopping-bag me-2"></i> مواصلة التسوق
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('payment-form');
+    
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // عرض رسالة تحميل
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري معالجة الدفع...';
+        submitBtn.disabled = true;
+        
+        // محاكاة عملية الدفع (في الواقع سيكون اتصال ببوابة الدفع)
+        setTimeout(() => {
+            // في التطبيق الحقيقي، هنا سيتم إرسال البيانات لبوابة الدفع
+            form.submit();
+        }, 2000);
+    });
+    
+    // تنسيق رقم البطاقة
+    const cardNumberInput = document.querySelector('input[name="card_number"]');
+    cardNumberInput.addEventListener('input', function() {
+        let value = this.value.replace(/\D/g, '');
+        value = value.replace(/(\d{4})(?=\d)/g, '$1 ');
+        this.value = value.substring(0, 19);
+    });
+    
+    // تنسيق تاريخ الانتهاء
+    const expiryInput = document.querySelector('input[name="expiry"]');
+    expiryInput.addEventListener('input', function() {
+        let value = this.value.replace(/\D/g, '');
+        if (value.length > 2) {
+            value = value.substring(0, 2) + '/' + value.substring(2, 4);
+        }
+        this.value = value.substring(0, 5);
+    });
+});
+</script>
+{% endblock %}

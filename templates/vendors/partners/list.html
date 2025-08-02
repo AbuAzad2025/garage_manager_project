@@ -1,0 +1,139 @@
+{# File: templates/vendors/partners/list.html #}
+{% extends 'base.html' %}
+
+{% block title %}الشركاء{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  {% set total_balance = 0 %}
+  {% set total_debit = 0 %}
+  {% set total_credit = 0 %}
+  {% for p in partners %}
+    {% set total_balance = total_balance + p.net_balance %}
+    {% if p.net_balance < 0 %}
+      {% set total_debit = total_debit + (-p.net_balance) %}
+    {% else %}
+      {% set total_credit = total_credit + p.net_balance %}
+    {% endif %}
+  {% endfor %}
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card bg-primary text-white p-3 mb-3">
+        <h5 class="mb-1">عدد الشركاء</h5>
+        <h3>{{ partners|length }}</h3>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-info text-white p-3 mb-3">
+        <h5 class="mb-1">الرصيد الصافي</h5>
+        <h3>{{ total_balance|round(2) }}</h3>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-danger text-white p-3 mb-3">
+        <h5 class="mb-1">مستحق للسحب</h5>
+        <h3>{{ total_debit|round(2) }}</h3>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-success text-white p-3 mb-3">
+        <h5 class="mb-1">مستحق قبض</h5>
+        <h3>{{ total_credit|round(2) }}</h3>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-between mb-3">
+    <input id="partnerSearch" type="text" class="form-control w-25" placeholder="بحث سريع...">
+    {% if current_user.has_permission('manage_vendors') %}
+      <a href="{{ url_for('vendors.partners_create') }}" class="btn btn-success">
+        <i class="fas fa-plus me-1"></i> شريك جديد
+      </a>
+    {% endif %}
+  </div>
+
+  {% if partners %}
+    <div class="card shadow-sm">
+      <div class="card-body p-0">
+        <table class="table table-striped mb-0" id="partnersTable">
+          <thead class="table-dark">
+            <tr>
+              <th>#</th>
+              <th>الاسم</th>
+              <th>الهاتف</th>
+              <th>الرصيد</th>
+              <th>عمليات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in partners %}
+              <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ p.name }}</td>
+                <td>{{ p.phone_number or '-' }}</td>
+                <td>
+                  <span class="badge
+                    {% if p.net_balance < 0 %}bg-danger
+                    {% elif p.net_balance == 0 %}bg-secondary
+                    {% else %}bg-success{% endif %}">
+                    {{ '%.2f'|format(p.net_balance) }}
+                  </span>
+                </td>
+                <td class="text-nowrap">
+                  {# زر دفع (صادر OUT) #}
+                  <a href="{{ url_for('payments.create_payment', entity_type='partner', entity_id=p.id, direction='OUT') }}"
+                     class="btn btn-sm btn-primary" title="دفع">
+                    <i class="fas fa-coins"></i>
+                  </a>
+                  {# زر عرض الدفعات #}
+                  <a href="{{ url_for('vendors.partner_payments', id=p.id) }}"
+                     class="btn btn-sm btn-warning" title="دفعات">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                  </a>
+                  {% if current_user.has_permission('manage_vendors') %}
+                    <a href="{{ url_for('vendors.partners_edit', id=p.id) }}"
+                       class="btn btn-sm btn-outline-secondary" title="تعديل">
+                      <i class="fas fa-edit"></i>
+                    </a>
+                    <form method="post"
+                          action="{{ url_for('vendors.partners_delete', id=p.id) }}"
+                          class="d-inline"
+                          onsubmit="return confirm('حذف الشريك؟');">
+                      {{ csrf_token() }}
+                      <button class="btn btn-sm btn-outline-danger" title="حذف">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </form>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% else %}
+    <div class="alert alert-info">
+      لا يوجد شركاء.
+      {% if current_user.has_permission('manage_vendors') %}
+        <a href="{{ url_for('vendors.partners_create') }}" class="alert-link">أضف شريك جديد</a>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  $(function(){
+    var table = $('#partnersTable').DataTable({
+      order: [[0,'asc']],
+      pageLength: 10,
+      language: { url: '/static/datatables/Arabic.json' }
+    });
+    $('#partnerSearch').on('keyup', function(){
+      table.search(this.value).draw();
+    });
+  });
+</script>
+{% endblock %}

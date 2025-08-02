@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h1 class="h3 mb-4">طلباتي</h1>
+    
+    {% if preorders %}
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>رقم الطلب</th>
+                            <th>التاريخ</th>
+                            <th class="text-center">المنتجات</th>
+                            <th class="text-end">المجموع</th>
+                            <th class="text-center">الحالة</th>
+                            <th class="text-center">الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in preorders %}
+                        <tr>
+                            <td>{{ order.order_number }}</td>
+                            <td>{{ order.created_at.strftime('%Y-%m-%d') }}</td>
+                            <td class="text-center">{{ order.items|length }}</td>
+                            <td class="text-end">{{ "%.2f"|format(order.total_amount) }} شيكل</td>
+                            <td class="text-center">
+                                <span class="badge bg-{{ 
+                                    'success' if order.status == 'FULFILLED' else 
+                                    'warning' if order.status == 'CONFIRMED' else 
+                                    'info' if order.status == 'PENDING' else 
+                                    'danger' 
+                                }}">
+                                    {{ 
+                                        'مكتمل' if order.status == 'FULFILLED' else 
+                                        'مؤكد' if order.status == 'CONFIRMED' else 
+                                        'قيد الانتظار' if order.status == 'PENDING' else 
+                                        'ملغي' 
+                                    }}
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <a href="{{ url_for('shop.preorder_receipt', preorder_id=order.id) }}" 
+                                   class="btn btn-sm btn-outline-primary"
+                                   title="عرض الوصل">
+                                    <i class="fas fa-receipt"></i>
+                                </a>
+                                {% if order.status == 'PENDING' %}
+                                <button class="btn btn-sm btn-outline-danger"
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#cancelModal{{ order.id }}"
+                                        title="إلغاء الطلب">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        
+                        <!-- Modal for Cancel Order -->
+                        <div class="modal fade" id="cancelModal{{ order.id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">تأكيد الإلغاء</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <p>هل أنت متأكد من رغبتك في إلغاء الطلب رقم <strong>{{ order.order_number }}</strong>؟</p>
+                                        <p class="text-danger"><small>ملاحظة: قد يتم خصم نسبة من العربون في حال الإلغاء بعد فترة معينة.</small></p>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">تراجع</button>
+                                        <form method="POST" action="{{ url_for('shop.cancel_preorder', preorder_id=order.id) }}">
+                                            <button type="submit" class="btn btn-danger">تأكيد الإلغاء</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="card shadow-sm text-center py-5">
+        <div class="card-body">
+            <i class="fas fa-clipboard-list fa-4x text-muted mb-4"></i>
+            <h4 class="mb-3">لا توجد طلبات سابقة</h4>
+            <p class="text-muted mb-4">يمكنك البدء بالتسوق وإنشاء طلبك الأول</p>
+            <a href="{{ url_for('shop.catalog') }}" class="btn btn-primary px-4">
+                تصفح المنتجات
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

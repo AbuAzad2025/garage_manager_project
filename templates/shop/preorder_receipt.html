@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="text-center mb-5">
+                <h1 class="mb-3">وصل استلام الحجز</h1>
+                <div class="d-flex justify-content-center">
+                    <div class="bg-light p-3 rounded d-inline-block">
+                        <span class="badge bg-primary fs-6">رقم الطلب: {{ preorder.order_number }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">تفاصيل الطلب</h5>
+                        <span class="badge bg-{{ 
+                            'success' if preorder.status == 'FULFILLED' else 
+                            'warning' if preorder.status == 'CONFIRMED' else 
+                            'info' if preorder.status == 'PENDING' else 
+                            'danger' 
+                        }}">
+                            {{ 
+                                'مكتمل' if preorder.status == 'FULFILLED' else 
+                                'مؤكد' if preorder.status == 'CONFIRMED' else 
+                                'قيد الانتظار' if preorder.status == 'PENDING' else 
+                                'ملغي' 
+                            }}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6>معلومات العميل</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>الاسم:</strong> {{ preorder.customer.name }}</li>
+                                <li><strong>الهاتف:</strong> {{ preorder.customer.phone }}</li>
+                                <li><strong>البريد الإلكتروني:</strong> {{ preorder.customer.email }}</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>معلومات الطلب</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>تاريخ الطلب:</strong> {{ preorder.created_at.strftime('%Y-%m-%d %H:%M') }}</li>
+                                <li><strong>طريقة الدفع:</strong> {{ preorder.payment_method }}</li>
+                                <li><strong>حالة الدفع:</strong> {{ 'مدفوع' if preorder.payment_status == 'PAID' else 'جزئي' }}</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>المنتج</th>
+                                    <th class="text-center">الكمية</th>
+                                    <th class="text-end">السعر</th>
+                                    <th class="text-end">الإجمالي</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in preorder.items %}
+                                <tr>
+                                    <td>{{ item.product.name }}</td>
+                                    <td class="text-center">{{ item.quantity }}</td>
+                                    <td class="text-end">{{ "%.2f"|format(item.price) }}</td>
+                                    <td class="text-end">{{ "%.2f"|format(item.quantity * item.price) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr>
+                                    <th colspan="3" class="text-end">المجموع الفرعي:</th>
+                                    <th class="text-end">{{ "%.2f"|format(preorder.total_amount) }}</th>
+                                </tr>
+                                <tr>
+                                    <th colspan="3" class="text-end">المبلغ المدفوع:</th>
+                                    <th class="text-end text-success">{{ "%.2f"|format(preorder.prepaid_amount) }}</th>
+                                </tr>
+                                <tr>
+                                    <th colspan="3" class="text-end">المتبقي عند الاستلام:</th>
+                                    <th class="text-end">{{ "%.2f"|format(preorder.total_amount - preorder.prepaid_amount) }}</th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    
+                    <div class="alert alert-info mt-4">
+                        <h6 class="alert-heading">تعليمات الاستلام</h6>
+                        <p class="mb-0">
+                            يُرجى إحضار هذا الوصل عند استلام الطلب من فرعنا. يمكنك استلام طلبك بدءاً من تاريخ 
+                            <strong>{{ preorder.expected_date.strftime('%Y-%m-%d') }}</strong>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-center gap-3">
+                <button class="btn btn-primary" onclick="window.print()">
+                    <i class="fas fa-print me-2"></i> طباعة الوصل
+                </button>
+                <a href="{{ url_for('shop.preorder_list') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-list me-2"></i> العودة لقائمة الطلبات
+                </a>
+                <a href="{{ url_for('shop.catalog') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-shopping-bag me-2"></i> مواصلة التسوق
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    .container, .container * {
+        visibility: visible;
+    }
+    .container {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+    }
+    .no-print {
+        display: none !important;
+    }
+}
+</style>
+{% endblock %}

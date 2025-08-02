@@ -1,0 +1,60 @@
+{# templates/restore_db.html #}
+{% extends 'base.html' %}
+{% block title %}استعادة قاعدة البيانات{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="card shadow">
+    <div class="card-header bg-danger text-white">
+      <h4 class="mb-0"><i class="fas fa-database"></i> استعادة قاعدة البيانات</h4>
+    </div>
+
+    <div class="card-body">
+      <p class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle"></i>
+        ⚠️ <strong>تحذير:</strong> سيتم استبدال جميع البيانات الحالية بالنسخة الاحتياطية المحددة.  
+        يرجى التأكد قبل المتابعة.
+      </p>
+
+      <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+        {{ form.hidden_tag() }}
+        
+        <div class="mb-3">
+          {{ form.db_file.label(class="form-label fw-bold") }}
+          {{ form.db_file(class="form-control") }}
+          {% if form.db_file.errors %}
+            <div class="invalid-feedback d-block">
+              {% for err in form.db_file.errors %}
+                <i class="fas fa-times-circle"></i> {{ err }}<br>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+
+        <div class="d-flex justify-content-start mt-3">
+          <button type="submit" class="btn btn-danger me-2">
+            <i class="fas fa-upload"></i> استعادة الآن
+          </button>
+          <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">
+            <i class="fas fa-times"></i> إلغاء
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script>
+    // ✅ تحسين واجهة رفع الملفات
+    document.querySelector('input[type="file"]').addEventListener('change', function(e){
+      if(this.files.length){
+        this.classList.add('is-valid');
+      } else {
+        this.classList.remove('is-valid');
+      }
+    });
+  </script>
+{% endblock %}

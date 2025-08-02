@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block title %}الحجوزات المسبقة{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>الحجوزات المسبقة</h2>
+    {% if current_user.has_permission('add_preorder') %}
+    <a href="{{ url_for('parts.preorder_create') }}" class="btn btn-success">
+      <i class="fas fa-plus"></i> حجز جديد
+    </a>
+    {% endif %}
+  </div>
+  <div class="table-responsive">
+    <table id="preorders-table" class="table table-bordered table-hover">
+      <thead class="thead-light">
+        <tr>
+          <th>رمز الحجز</th><th>الجهة</th><th>القطعة</th><th>كمية</th>
+          <th>مدفوع</th><th>حالة</th><th>تاريخ</th><th>إجراءات</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for p in preorders %}
+        <tr>
+          <td>{{ p.reservation_code }}</td>
+          <td>
+            {% if p.customer %}{{ p.customer.name }}
+            {% elif p.supplier %}{{ p.supplier.name }}
+            {% elif p.partner %}{{ p.partner.name }}{% endif %}
+          </td>
+          <td>{{ p.product.name }}</td>
+          <td>{{ p.quantity }}</td>
+          <td>{{ "%.2f"|format(p.prepaid_amount) }}</td>
+          <td>{{ p.is_fulfilled and 'منفّذ' or 'قيد التنفيذ' }}</td>
+          <td>{{ p.created_at.strftime('%Y-%m-%d') }}</td>
+          <td>
+            <a href="{{ url_for('parts.preorder_detail', preorder_id=p.id) }}" class="btn btn-sm btn-info">
+              <i class="fas fa-eye"></i>
+            </a>
+            {% if not p.is_fulfilled and current_user.has_permission('delete_preorder') %}
+            <form method="post" action="{{ url_for('parts.preorder_cancel', preorder_id=p.id) }}"
+                  class="d-inline" onsubmit="return confirm('إلغاء الحجز؟');">
+              <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(function(){
+  $('#preorders-table').DataTable({
+    responsive:true,
+    pageLength:10,
+    order:[[6,'desc']],
+    dom:'Bfrtip',
+    buttons:['excel','pdf'],
+    language:{url:'//cdn.datatables.net/plug-ins/1.10.21/i18n/Arabic.json'}
+  });
+});
+</script>
+{% endblock %}

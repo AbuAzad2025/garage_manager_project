@@ -1,0 +1,118 @@
+/* File: static/css/style.css */
+
+/* 1. CSS Variables */
+:root {
+  --font-family-ar: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  --sidebar-link-default: #e0e0e0;
+  --sidebar-link-hover: #ffffff;
+  --sidebar-link-hover-bg: rgba(255, 255, 255, 0.1);
+  --content-bg: #f4f6f9;
+  --content-text: #343a40;
+  --card-header-bg: #343a40;
+  --card-header-text: #f8f9fa;
+  --footer-bg: #f4f6f9;
+  --dark-bg: #343a40;
+  --dark-sidebar-bg: #1e282c;
+  --dark-content-bg: #2e3b4e;
+  --dark-text: #c2c7d0;
+  --dark-text-alt: #e0e0e0;
+  --dark-bg-alt: #273143;
+}
+
+/* 2. Base RTL & Typography */
+body {
+  direction: rtl;
+  font-family: var(--font-family-ar);
+}
+
+/* 3. Sidebar & Navbar Overrides */
+.main-sidebar { overflow-x: visible; }
+.main-sidebar .nav-link {
+  color: var(--sidebar-link-default);
+  white-space: normal;
+  word-break: break-word;
+  text-align: right;
+  padding-left: 1rem;
+  padding-right: 0.5rem;
+}
+.main-sidebar .nav-link .nav-icon { margin-right: 0.5rem; margin-left: 0; }
+.main-sidebar .nav-link:hover,
+.main-sidebar .nav-link.active {
+  background-color: var(--sidebar-link-hover-bg);
+  color: var(--sidebar-link-hover);
+}
+.brand-link .brand-text {
+  white-space: normal;
+  text-align: center;
+  display: block;
+}
+
+/* 4. Content Wrapper & Small Boxes */
+.content-wrapper {
+  background-color: var(--content-bg);
+  color: var(--content-text);
+}
+.content-wrapper .small-box .inner h3,
+.content-wrapper .small-box .inner p {
+  color: var(--content-text);
+}
+
+/* 5. Card Headers */
+.card .card-header {
+  background-color: var(--card-header-bg);
+  color: var(--card-header-text);
+}
+
+/* 6. Footer */
+.main-footer {
+  background-color: var(--footer-bg);
+  padding: 10px 0;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+/* 7. Dark Mode Overrides */
+.dark-mode { background-color: var(--dark-bg) !important; color: var(--dark-text) !important; }
+.dark-mode .main-sidebar { background-color: var(--dark-sidebar-bg) !important; }
+.dark-mode .content-wrapper { background-color: var(--dark-content-bg) !important; }
+.dark-mode .content-wrapper *,
+.dark-mode .content-wrapper .small-box .inner h3,
+.dark-mode .content-wrapper .small-box .inner p {
+  color: var(--dark-text-alt) !important;
+}
+.dark-mode .card .card-header {
+  background-color: var(--dark-bg-alt) !important;
+  color: var(--dark-text-alt) !important;
+}
+
+/* 8. Navbar Brand (شعار الكراج) */
+.navbar-brand {
+  display: flex;
+  align-items: center;
+}
+.garage-logo {
+  margin-left: auto; /* يدفعه لليمين */
+}
+.garage-img {
+  height: 40px;
+  width: auto;
+  margin-left: 0.5rem;
+}
+.garage-text {
+  font-size: 0.9rem;
+  font-weight: bold;
+  line-height: 1.2;
+  text-align: right;
+  color: #343a40;
+  margin: 0;
+}
+
+/* 9. Footer logo (شعار شركة آزاد) */
+.footer-logo {
+  padding: 0.25rem 1rem;
+}
+.footer-logo-img {
+  height: 80px; /* عدّل الارتفاع هنا حسب الحاجة */
+  width: auto;
+  display: block;
+}

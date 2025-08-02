@@ -1,0 +1,82 @@
+{# File: templates/vendors/suppliers/list.html #}
+{% extends 'base.html' %}
+
+{% block title %}قائمة الموردين{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="fw-bold"><i class="fas fa-truck-loading me-2"></i> الموردون</h2>
+    <a href="{{ url_for('vendors.suppliers_create') }}" class="btn btn-success">
+      <i class="fas fa-plus"></i> إضافة مورد
+    </a>
+  </div>
+
+  <form method="get" class="row g-2 mb-4">
+    <div class="col-md-4">
+      <input type="text" name="search" value="{{ search }}" class="form-control"
+             placeholder="ابحث بالاسم أو الهاتف...">
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-primary"><i class="fas fa-search"></i> بحث</button>
+    </div>
+  </form>
+
+  <div class="card shadow-sm rounded-4">
+    <div class="card-body p-0">
+      <table class="table table-hover table-bordered align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>#</th>
+            <th>الاسم</th>
+            <th>الهاتف</th>
+            <th>الرصيد</th>
+            <th>إجراءات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for supplier in suppliers %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ supplier.name }}</td>
+            <td>{{ supplier.phone or '—' }}</td>
+            <td>{{ supplier.net_balance|round(2) }}</td>
+            <td class="text-nowrap">
+              {# زر دفع (صادر OUT) #}
+              <a href="{{ url_for('payments.create_payment', entity_type='supplier', entity_id=supplier.id, direction='OUT') }}"
+                 class="btn btn-sm btn-primary" title="دفع">
+                <i class="fas fa-coins"></i>
+              </a>
+              {# عرض دفعات المورد #}
+              <a href="{{ url_for('vendors.supplier_payments', id=supplier.id) }}"
+                 class="btn btn-sm btn-warning" title="دفعات">
+                <i class="fas fa-file-invoice-dollar"></i>
+              </a>
+              {# تعديل #}
+              <a href="{{ url_for('vendors.suppliers_edit', id=supplier.id) }}"
+                 class="btn btn-sm btn-outline-secondary" title="تعديل">
+                <i class="fas fa-edit"></i>
+              </a>
+              {# حذف مع CSRF #}
+              <form method="post"
+                    action="{{ url_for('vendors.suppliers_delete', id=supplier.id) }}"
+                    style="display:inline;"
+                    onsubmit="return confirm('هل أنت متأكد من حذف هذا المورد؟');">
+                {{ csrf_token() }}
+                <button type="submit" class="btn btn-sm btn-danger" title="حذف">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" class="text-center">لا توجد بيانات لعرضها</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

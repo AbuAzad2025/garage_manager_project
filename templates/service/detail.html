@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}تفاصيل طلب الصيانة{% endblock %}
+{% block page_header %}طلب رقم {{ service.id }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('service.list_requests') }}">طلبات الصيانة</a></li>
+<li class="breadcrumb-item active">تفاصيل</li>
+{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/service.css') }}">
+
+<div class="container my-4">
+  <!-- معلومات أساسية -->
+  <div class="row mb-3">
+    <div class="col-md-6">
+      <table class="table table-bordered">
+        <tr>
+          <th>العميل</th>
+          <td>{{ service.name or (service.customer.name if service.customer else '—') }}</td>
+        </tr>
+        <tr>
+          <th>رقم الجوال</th>
+          <td>{{ service.phone or (service.customer.phone if service.customer else '—') }}</td>
+        </tr>
+        <tr>
+          <th>البريد الإلكتروني</th>
+          <td>{{ service.email or (service.customer.email if service.customer else '—') }}</td>
+        </tr>
+        <tr><th>نوع المعدة</th><td>{{ service.vehicle_type }}</td></tr>
+        <tr><th>موديل</th><td>{{ service.vehicle_model or '—' }}</td></tr>
+        <tr><th>لوحة</th><td>{{ service.vehicle_vrn }}</td></tr>
+        <tr>
+          <th>الحالة</th>
+          <td><span class="badge badge-{{ service.status|lower }}">{{ service.status_label }}</span></td>
+        </tr>
+        <tr><th>تاريخ البدء</th><td>{{ service.start_time or '—' }}</td></tr>
+        <tr><th>تاريخ الإكمال</th><td>{{ service.end_time or '—' }}</td></tr>
+      </table>
+    </div>
+    <div class="col-md-6">
+      <strong>وصف المشكلة:</strong>
+      <div class="border p-2 mb-2">{{ service.problem_description or '—' }}</div>
+      <strong>ملاحظات المهندس:</strong>
+      <div class="border p-2 mb-2">{{ service.engineer_notes or '—' }}</div>
+      <strong>ملاحظات إضافية:</strong>
+      <div class="border p-2 bg-light">{{ service.description or '—' }}</div>
+    </div>
+  </div>
+
+  <!-- الجداول الجزئية -->
+  <div class="mb-3">{% include 'service/partials/_parts_table.html' %}</div>
+  <div class="mb-3">{% include 'service/partials/_tasks_table.html' %}</div>
+  <div class="mb-3">{% include 'service/partials/_payments_table.html' %}</div>
+  <div class="mb-3">{% include 'service/partials/_summary_card.html' %}</div>
+
+  <!-- أزرار الإجراءات -->
+  <div class="mt-3 actions">
+    {% if current_user.has_permission('manage_service') %}
+    <a href="{{ url_for('service.create_invoice', rid=service.id) }}" class="btn btn-success">إنشاء فاتورة</a>
+    <a href="{{ url_for('service.add_payment', rid=service.id) }}" class="btn btn-primary">تسجيل دفعة</a>
+    {% endif %}
+
+    <a id="previewReceiptBtn" data-url="{{ url_for('service.receipt', rid=service.id) }}" class="btn btn-info">معاينة سند القبض</a>
+    <a href="{{ url_for('service.export_pdf', rid=service.id) }}" target="_blank" class="btn btn-dark">طباعة PDF</a>
+
+    <!-- ✅ زر تحميل إيصال الصيانة PDF الجديد -->
+    <a href="{{ url_for('service.download_receipt', rid=service.id) }}" class="btn btn-outline-primary">
+      تحميل إيصال الصيانة (PDF)
+    </a>
+
+    {% if current_user.has_permission('manage_service') %}
+    <a href="{{ url_for('service.edit', rid=service.id) }}" class="btn btn-warning">تعديل</a>
+    <form action="{{ url_for('service.delete_request', rid=service.id) }}" method="post" style="display:inline;" onsubmit="return confirm('تأكيد الحذف؟');">
+      <button class="btn btn-danger">حذف</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/service_detail.js') }}"></script>
+{% endblock %}

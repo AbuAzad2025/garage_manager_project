@@ -1,0 +1,185 @@
+<link rel="stylesheet" href="sales.css">
+{% extends 'base.html' %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-10">
+      <div class="card shadow-lg rounded-4 border-0">
+        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+          <h3><i class="fas fa-file-invoice me-2"></i> {{ title }}</h3>
+          <span class="badge bg-secondary">{{ form.status.data or 'مسودة' }}</span>
+        </div>
+        <div class="card-body bg-light">
+          <form method="post" id="saleForm" class="needs-validation" novalidate>
+            {{ form.hidden_tag() }}
+
+            <!-- بيانات الفاتورة -->
+            <div class="row g-3 mb-4">
+              <div class="col-md-4">
+                <div class="form-floating">
+                  {{ form.sale_date(class="form-control", type="date") }}
+                  <label>تاريخ البيع</label>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-floating">
+                  {{ form.customer_id(class="form-select select2") }}
+                  <label>العميل</label>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-floating">
+                  {{ form.seller_id(class="form-select") }}
+                  <label>البائع</label>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-floating">
+                  {{ form.currency(class="form-select") }}
+                  <label>العملة</label>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-floating">
+                  {{ form.status(class="form-select") }}
+                  <label>الحالة</label>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-floating">
+                  {{ form.tax_rate(class="form-control", id="taxRate") }}
+                  <label>نسبة الضريبة (%)</label>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-floating">
+                  {{ form.shipping_cost(class="form-control", id="shippingCost") }}
+                  <label>تكلفة الشحن</label>
+                </div>
+              </div>
+            </div>
+
+            <!-- بنود الفاتورة -->
+            <div class="card mb-4">
+              <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-list me-2"></i> بنود الفاتورة</h5>
+                <button type="button" id="addLine" class="btn btn-sm btn-outline-primary">
+                  <i class="fas fa-plus me-1"></i> إضافة بند
+                </button>
+              </div>
+              <div class="card-body overflow-auto" style="white-space: nowrap;">
+                <div id="saleLines" class="d-inline-block" style="min-width:100%;">
+                  {% for line in form.lines %}
+                  <div class="sale-line row g-2 mb-2 p-2 border rounded" data-index="{{ loop.index0 }}">
+                    <div class="col-md-4 d-inline-block">{{ line.product_id(class="form-select") }}</div>
+                    <div class="col-md-2 d-inline-block">{{ line.warehouse_id(class="form-select") }}</div>
+                    <div class="col-md-1 d-inline-block">{{ line.quantity(class="form-control quantity-input", min="1") }}</div>
+                    <div class="col-md-1 d-inline-block">{{ line.unit_price(class="form-control price-input", min="0", step="0.01") }}</div>
+                    <div class="col-md-1 d-inline-block">{{ line.discount_rate(class="form-control discount-input", min="0", max="100") }}</div>
+                    <div class="col-md-1 d-inline-block">{{ line.tax_rate(class="form-control tax-input", min="0", max="100") }}</div>
+                    <div class="col-md-2 d-inline-block d-flex gap-1">
+                      <button type="button" class="btn btn-sm btn-outline-danger remove-line"><i class="fas fa-trash"></i></button>
+                      <span class="drag-handle btn btn-sm btn-outline-secondary"><i class="fas fa-arrows-alt"></i></span>
+                    </div>
+                  </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+
+            <!-- ملخص الفاتورة -->
+            <div class="row justify-content-end mb-3">
+              <div class="col-md-5">
+                <table class="table table-bordered">
+                  <tr>
+                    <th class="text-end">المجموع الفرعي:</th>
+                    <td id="subtotal">0.00 {{ form.currency.data }}</td>
+                  </tr>
+                  <tr>
+                    <th class="text-end">الضريبة ({{ form.tax_rate.data or 0 }}%):</th>
+                    <td id="taxAmount">0.00 {{ form.currency.data }}</td>
+                  </tr>
+                  <tr>
+                    <th class="text-end">الشحن:</th>
+                    <td id="shippingCostDisplay">{{ "{:,.2f}".format(form.shipping_cost.data or 0) }} {{ form.currency.data }}</td>
+                  </tr>
+                  <tr class="table-success fw-bold">
+                    <th class="text-end">الإجمالي النهائي:</th>
+                    <td id="totalAmount">0.00 {{ form.currency.data }}</td>
+                  </tr>
+                </table>
+              </div>
+            </div>
+
+            <!-- عناوين وملاحظات -->
+            <div class="row mb-4">
+              <div class="col-md-6">{{ form.shipping_address(class="form-control", rows="2", placeholder="عنوان الشحن") }}</div>
+              <div class="col-md-6">{{ form.billing_address(class="form-control", rows="2", placeholder="عنوان الفواتير") }}</div>
+            </div>
+            <div class="mb-4">{{ form.notes(class="form-control", rows="3", placeholder="ملاحظات") }}</div>
+
+            <!-- زر الحفظ -->
+            <div class="d-flex justify-content-between mt-4">
+              {{ form.submit(class="btn btn-success px-4") }}
+              <a href="{{ url_for('sales.list_sales') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-times me-2"></i> إلغاء
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  new Sortable(document.getElementById('saleLines'), { handle: '.drag-handle', animation:150, ghostClass:'sortable-ghost' });
+  let idx = {{ form.lines.entries|length }};
+  document.getElementById('addLine').onclick = () => {
+    const div = document.createElement('div');
+    div.className='sale-line row g-2 mb-2 p-2 border rounded'; div.dataset.index=idx;
+    div.innerHTML=`
+      <div class="col-md-4 d-inline-block"><select name="lines-${idx}-product_id" class="form-select"><option>اختر</option>{% for p in products %}<option value="{{p.id}}">{{p.name}}</option>{% endfor %}</select></div>
+      <div class="col-md-2 d-inline-block"><select name="lines-${idx}-warehouse_id" class="form-select"><option>اختر</option>{% for w in warehouses %}<option value="{{w.id}}">{{w.name}}</option>{% endfor %}</select></div>
+      <div class="col-md-1 d-inline-block"><input name="lines-${idx}-quantity" type="number" min="1" class="form-control"/></div>
+      <div class="col-md-1 d-inline-block"><input name="lines-${idx}-unit_price" type="number" min="0" step="0.01" class="form-control"/></div>
+      <div class="col-md-1 d-inline-block"><input name="lines-${idx}-discount_rate" type="number" min="0" max="100" class="form-control"/></div>
+      <div class="col-md-1 d-inline-block"><input name="lines-${idx}-tax_rate" type="number" min="0" max="100" class="form-control"/></div>
+      <div class="col-md-2 d-inline-block d-flex gap-1"><button type="button" class="btn btn-sm btn-outline-danger remove-line"><i class="fas fa-trash"></i></button><span class="drag-handle btn btn-sm btn-outline-secondary"><i class="fas fa-arrows-alt"></i></span></div>`;
+    document.getElementById('saleLines').append(div);
+    div.querySelector('.remove-line').onclick = ()=>{div.remove();calc();};
+    div.querySelectorAll('input').forEach(i=>i.oninput=calc);
+    idx++;
+  };
+  document.querySelectorAll('.remove-line').forEach(b=>b.onclick=()=>{b.closest('.sale-line').remove();calc();});
+  function calc(){
+    let sub=0; document.querySelectorAll('.sale-line').forEach(r=>{
+      const q=+r.querySelector('[name$="-quantity"]').value||0, p=+r.querySelector('[name$="-unit_price"]').value||0, d=+r.querySelector('[name$="-discount_rate"]').value||0;
+      sub+=q*p*(1-d/100);
+    });
+    const t=+document.getElementById('taxRate').value||0, s=+document.getElementById('shippingCost').value||0;
+    const tax=sub*(t/100), tot=sub+tax+s;
+    document.getElementById('subtotal').textContent=sub.toFixed(2);
+    document.getElementById('taxAmount').textContent=tax.toFixed(2);
+    document.getElementById('shippingCostDisplay').textContent=s.toFixed(2);
+    document.getElementById('totalAmount').textContent=tot.toFixed(2);
+  }
+  document.querySelectorAll('#saleLines input,#taxRate,#shippingCost').forEach(i=>i.oninput=calc);
+  calc();
+  document.getElementById('saleForm').onsubmit=e=>{ if(!document.querySelector('.sale-line')){ alert('أضف بنداً'); e.preventDefault(); } };
+});
+</script>
+{% endblock %}
+
+{% block styles %}
+<style>
+.sortable-ghost { opacity: .5; background: #c8ebfb; }
+.border-danger { border: 1px solid #dc3545!important; }
+</style>
+{% endblock %}

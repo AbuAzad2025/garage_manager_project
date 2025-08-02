@@ -1,0 +1,51 @@
+{% extends 'warehouses/base.html' %}
+{% block title %}تحويلات {{ warehouse.name }}{% endblock %}
+
+{% block warehouses_content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>
+    <i class="fa fa-exchange-alt text-info"></i>
+    تحويلات مستودع {{ warehouse.name }}
+    <span class="badge bg-secondary">{{ transfers|length }}</span>
+  </h2>
+  {% if current_user.has_permission('manage_inventory') %}
+    <a href="{{ url_for('warehouses.list_transfers', warehouse_id=warehouse.id) }}"
+       class="btn btn-success">
+      <i class="fa fa-random"></i> إضافة تحويل
+    </a>
+  {% endif %}
+</div>
+
+<table id="transfersTable" class="table table-striped align-middle">
+  <thead class="bg-info text-white">
+    <tr>
+      <th>#</th><th>التاريخ</th><th>الصنف</th><th>من</th>
+      <th>إلى</th><th>الكمية</th><th>المستخدم</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for t in transfers %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ t.transfer_date.strftime('%Y-%m-%d') }}</td>
+        <td>{{ t.product.name }}</td>
+        <td>{{ t.source_warehouse.name }}</td>
+        <td>{{ t.destination_warehouse.name }}</td>
+        <td>{{ t.quantity }}</td>
+        <td>{{ t.user.username if t.user else '—' }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script>
+    $(function () {
+      $('#transfersTable').DataTable({
+        language:{url:'//cdn.datatables.net/plug-ins/1.10.25/i18n/Arabic.json'}
+      });
+    });
+  </script>
+{% endblock %}

@@ -1,0 +1,211 @@
+<link rel="stylesheet" href="sales.css">
+        <!-- قالب إنشاء فاتورة جديدة (new.html) -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card sale-card">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0"><i class="fas fa-file-invoice me-2"></i> إنشاء فاتورة مبيعات جديدة</h4>
+                        <span class="badge bg-light">مسودة</span>
+                    </div>
+                    
+                    <div class="card-body">
+                        <form>
+                            <div class="row mb-4">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">العميل</label>
+                                    <select class="form-select">
+                                        <option value="">اختر عميلاً</option>
+                                        <option selected>محمد أحمد</option>
+                                        <option>علي حسن</option>
+                                        <option>سارة محمد</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">البائع</label>
+                                    <select class="form-select">
+                                        <option value="">اختر بائعاً</option>
+                                        <option selected>خالد محمود</option>
+                                        <option>أحمد سعيد</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">العملة</label>
+                                    <select class="form-select">
+                                        <option>شيكل (ILS)</option>
+                                        <option>دولار (USD)</option>
+                                        <option>ريال (SAR)</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">تاريخ الفاتورة</label>
+                                    <input type="date" class="form-control" value="2023-11-15">
+                                </div>
+                                
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">حالة الفاتورة</label>
+                                    <select class="form-select">
+                                        <option>مسودة</option>
+                                        <option>مؤكدة</option>
+                                        <option>مدفوعة</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">نسبة الضريبة (%)</label>
+                                    <input type="number" class="form-control" value="15">
+                                </div>
+                                
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">تكلفة الشحن</label>
+                                    <input type="number" class="form-control" value="50">
+                                </div>
+                            </div>
+                            
+                            <div class="card mb-4">
+                                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0"><i class="fas fa-list me-2"></i> بنود الفاتورة</h5>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="addLine">
+                                        <i class="fas fa-plus me-1"></i> إضافة بند
+                                    </button>
+                                </div>
+                                
+                                <div class="card-body" id="saleLines">
+                                    <div class="sale-line">
+                                        <div class="row g-3">
+                                            <div class="col-md-4">
+                                                <select class="form-select">
+                                                    <option value="">اختر منتجاً</option>
+                                                    <option selected>شاشة كمبيوتر 24 بوصة</option>
+                                                    <option>لوحة مفاتيح لاسلكية</option>
+                                                    <option>ماوس لاسلكي</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <select class="form-select">
+                                                    <option value="">اختر مخزناً</option>
+                                                    <option selected>المخزن الرئيسي</option>
+                                                    <option>مخزن الفرع الشرقي</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-1">
+                                                <input type="number" class="form-control" min="1" value="2">
+                                            </div>
+                                            <div class="col-md-1">
+                                                <input type="number" class="form-control" min="0" step="0.01" value="1200">
+                                            </div>
+                                            <div class="col-md-1">
+                                                <input type="number" class="form-control" min="0" max="100" value="10">
+                                            </div>
+                                            <div class="col-md-1">
+                                                <input type="number" class="form-control" min="0" max="100" value="15">
+                                            </div>
+                                            <div class="col-md-2 d-flex gap-1">
+                                                <button type="button" class="btn btn-sm btn-outline-danger remove-line">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                                <span class="drag-handle btn btn-sm btn-outline-secondary">
+                                                    <i class="fas fa-arrows-alt"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="sale-line">
+                                        <div class="row g-3">
+                                            <div class="col-md-4">
+                                                <select class="form-select">
+                                                    <option value="">اختر منتجاً</option>
+                                                    <option>شاشة كمبيوتر 24 بوصة</option>
+                                                    <option selected>لوحة مفاتيح لاسلكية</option>
+                                                    <option>ماوس لاسلكي</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <select class="form-select">
+                                                    <option value="">اختر مخزناً</option>
+                                                    <option selected>المخزن الرئيسي</option>
+                                                    <option>مخزن الفرع الشرقي</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-1">
+                                                <input type="number" class="form-control" min="1" value="3">
+                                            </div>
+                                            <div class="col-md-1">
+                                                <input type="number" class="form-control" min="0" step="0.01" value="350">
+                                            </div>
+                                            <div class="col-md-1">
+                                                <input type="number" class="form-control" min="0" max="100" value="5">
+                                            </div>
+                                            <div class="col-md-1">
+                                                <input type="number" class="form-control" min="0" max="100" value="15">
+                                            </div>
+                                            <div class="col-md-2 d-flex gap-1">
+                                                <button type="button" class="btn btn-sm btn-outline-danger remove-line">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                                <span class="drag-handle btn btn-sm btn-outline-secondary">
+                                                    <i class="fas fa-arrows-alt"></i>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row justify-content-end mb-3">
+                                <div class="col-md-5">
+                                    <div class="card summary-card">
+                                        <div class="card-body">
+                                            <table class="table table-borderless mb-0">
+                                                <tr>
+                                                    <th class="text-end">المجموع الفرعي:</th>
+                                                    <td id="subtotal">3,450.00</td>
+                                                </tr>
+                                                <tr>
+                                                    <th class="text-end">الضريبة (15%):</th>
+                                                    <td id="taxAmount">517.50</td>
+                                                </tr>
+                                                <tr>
+                                                    <th class="text-end">الشحن:</th>
+                                                    <td id="shippingCostDisplay">50.00</td>
+                                                </tr>
+                                                <tr class="fw-bold">
+                                                    <th class="text-end">الإجمالي النهائي:</th>
+                                                    <td id="totalAmount" class="text-success">4,017.50</td>
+                                                </tr>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">ملاحظات</label>
+                                <textarea class="form-control" rows="3" placeholder="أي ملاحظات إضافية..."></textarea>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between mt-4">
+                                <button type="submit" class="btn btn-success px-4 btn-action">
+                                    <i class="fas fa-save me-2"></i> حفظ الفاتورة
+                                </button>
+                                <a href="#" class="btn btn-outline-secondary btn-action">
+                                    <i class="fas fa-times me-2"></i> إلغاء
+                                </a>
+                            </div>
+                        </form>
+                        
+                        <!-- زر الدفع الموحد بعد الحفظ -->
+                        <div class="mt-4 p-3 bg-light rounded text-center">
+                            <h5><i class="fas fa-money-bill-wave me-2"></i> الدفع الموحد</h5>
+                            <p class="mb-3">بعد حفظ الفاتورة، يمكنك تسجيل دفعة عبر نظام الدفع الموحد</p>
+                            <button class="btn btn-primary">
+                                <i class="fas fa-money-bill-wave me-1"></i> تسجيل دفعة
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>

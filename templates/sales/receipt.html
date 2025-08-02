@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>فاتورة مبيعات - {{ sale.sale_number }}</title>
+  <style>
+    @page { size: A4; margin: 0; }
+    @media print {
+      body { margin: 1cm; }
+      .no-print { display: none; }
+    }
+    body {
+      font-family: 'Arial', sans-serif;
+      background: #f8f9fa;
+      color: #333;
+      line-height: 1.6;
+    }
+    .receipt-container {
+      max-width: 900px;
+      margin: 20px auto;
+      padding: 20px;
+      background: #fff;
+      border: 1px solid #ddd;
+      box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.1);
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #333;
+    }
+    .company-info { text-align: left; font-size: 14px; }
+    .company-logo { max-height: 80px; }
+    .invoice-title { font-size: 28px; font-weight: bold; margin: 0; }
+    .invoice-info, .customer-info, table, .notes, .signature, .print-actions {
+      font-size: 14px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ddd;
+      text-align: center;
+    }
+    th { background: #f1f3f5; font-weight: bold; }
+    tfoot td { background: #f8f9fa; font-weight: bold; }
+    .total-row { font-size: 18px; background: #e9ecef; }
+    .notes {
+      margin-top: 20px;
+      background: #f8f9fa;
+      border: 1px dashed #ccc;
+      padding: 10px;
+    }
+    .signature {
+      margin-top: 50px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .signature-box {
+      width: 45%;
+      text-align: center;
+      border-top: 1px solid #333;
+      padding-top: 40px;
+    }
+    .print-actions {
+      margin-top: 20px;
+      text-align: center;
+    }
+    .btn {
+      padding: 8px 16px;
+      border-radius: 5px;
+      text-decoration: none;
+      font-size: 14px;
+      margin: 5px;
+      display: inline-block;
+    }
+    .btn-primary { background: #0d6efd; color: #fff; }
+    .btn-secondary { background: #6c757d; color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="receipt-container">
+    <div class="header">
+      <div>
+        <h1 class="invoice-title">فاتورة مبيعات</h1>
+        <div class="invoice-info">
+          <p><strong>رقم الفاتورة:</strong> {{ sale.sale_number }}</p>
+          <p><strong>التاريخ:</strong> {{ sale.date.strftime('%Y-%m-%d') }}</p>
+        </div>
+      </div>
+      <div class="company-info">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" class="company-logo" alt="Logo">
+        <p><strong>شركة النظم المتكاملة</strong></p>
+        <p>الرياض - السعودية</p>
+        <p>هاتف: 0111234567</p>
+      </div>
+    </div>
+
+    <div class="customer-info">
+      <p><strong>اسم العميل:</strong> {{ sale.customer.name if sale.customer else '-' }}</p>
+      <p><strong>هاتف العميل:</strong> {{ sale.customer.phone if sale.customer else '-' }}</p>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>الصنف</th>
+          <th>المخزن</th>
+          <th>الكمية</th>
+          <th>سعر الوحدة</th>
+          <th>خصم (%)</th>
+          <th>ضريبة (%)</th>
+          <th>الإجمالي</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for line in sale.lines %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ line.product.name }}</td>
+          <td>{{ line.warehouse.name }}</td>
+          <td>{{ line.quantity }}</td>
+          <td>{{ "{:,.2f}".format(line.unit_price) }} {{ sale.currency }}</td>
+          <td>{{ line.discount_rate }}</td>
+          <td>{{ line.tax_rate }}</td>
+          <td>{{ "{:,.2f}".format(line.quantity * line.unit_price) }} {{ sale.currency }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="7" class="text-end">المجموع الفرعي:</td>
+          <td>{{ "{:,.2f}".format(sale.subtotal) }} {{ sale.currency }}</td>
+        </tr>
+        <tr>
+          <td colspan="7" class="text-end">الضريبة ({{ sale.tax_rate }}%):</td>
+          <td>{{ "{:,.2f}".format(sale.tax_amount) }} {{ sale.currency }}</td>
+        </tr>
+        <tr>
+          <td colspan="7" class="text-end">الشحن:</td>
+          <td>{{ "{:,.2f}".format(sale.shipping_cost) }} {{ sale.currency }}</td>
+        </tr>
+        <tr class="total-row">
+          <td colspan="7" class="text-end">الإجمالي النهائي:</td>
+          <td>{{ "{:,.2f}".format(sale.total) }} {{ sale.currency }}</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <div class="notes">
+      <p><strong>ملاحظات:</strong> {{ sale.notes or 'لا توجد ملاحظات' }}</p>
+    </div>
+
+    <div class="signature">
+      <div class="signature-box">
+        توقيع البائع<br>
+        الاسم: {{ sale.seller.username if sale.seller else '________' }}
+      </div>
+      <div class="signature-box">
+        توقيع العميل<br>
+        الاسم: _____________
+      </div>
+    </div>
+
+    <div class="print-actions no-print">
+      <button onclick="window.print()" class="btn btn-primary">
+        <i class="fas fa-print"></i> طباعة
+      </button>
+      <a href="{{ url_for('sales.sale_detail', id=sale.id) }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> رجوع
+      </a>
+    </div>
+  </div>
+</body>
+</html>

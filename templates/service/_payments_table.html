@@ -1,0 +1,39 @@
+<div class="card mb-3 shadow-sm">
+  <div class="card-header bg-secondary text-white fw-bold">
+    <i class="fa fa-credit-card"></i> الدفعات
+  </div>
+  <div class="card-body p-0">
+    {% if service.payments %}
+    <table class="table table-sm table-striped mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>تاريخ الدفع</th>
+          <th>المبلغ</th>
+          <th>العملة</th>
+          <th>الطريقة</th>
+          <th>الحالة</th>
+          <th>ملاحظات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pay in service.payments %}
+        <tr>
+          <td>{{ pay.payment_date.strftime("%Y-%m-%d") if pay.payment_date else '—' }}</td>
+          <td>{{ '%.2f'|format(pay.amount or 0) }}</td>
+          <td>{{ pay.currency or '₪' }}</td>
+          <td>{{ pay.method or '—' }}</td>
+          <td>
+            <span class="badge {% if pay.status == 'COMPLETED' %}bg-success{% else %}bg-warning{% endif %}">
+              {{ pay.status or 'غير محدد' }}
+            </span>
+          </td>
+          <td>{{ pay.notes or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="p-3 text-center text-muted">لا توجد دفعات مسجلة لهذا الطلب</div>
+    {% endif %}
+  </div>
+</div>

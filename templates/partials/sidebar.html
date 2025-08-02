@@ -1,0 +1,71 @@
+<aside class="main-sidebar sidebar-dark-primary elevation-4">
+  <a href="{{ url_for('main.dashboard') }}" class="brand-link text-center">
+    <img src="{{ url_for('static', filename='img/logo.png') }}" class="brand-image img-circle elevation-3">
+    <span class="brand-text font-weight-light">🚗 كراج السيارات</span>
+  </a>
+  <div class="sidebar">
+    <nav class="mt-2">
+      <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview">
+        <li class="nav-item">
+          <a href="{{ url_for('main.dashboard') }}" class="nav-link">
+            <i class="nav-icon fas fa-tachometer-alt"></i><p>لوحة التحكم</p>
+          </a>
+        </li>
+        {% if current_user.has_permission('manage_customers') %}
+        <li class="nav-item">
+          <a href="{{ url_for('customers.list_customers') }}" class="nav-link">
+            <i class="nav-icon fas fa-users"></i><p>العملاء</p>
+          </a>
+        </li>
+        {% endif %}
+        {% if current_user.has_permission('manage_vendors') %}
+        <li class="nav-item">
+          <a href="{{ url_for('vendors.suppliers_list') }}" class="nav-link">
+            <i class="nav-icon fas fa-truck"></i><p>الموردون / التجار</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_for('vendors.partners_list') }}" class="nav-link">
+            <i class="nav-icon fas fa-handshake"></i><p>الشركاء</p>
+          </a>
+        </li>
+        {% endif %}
+        {% if current_user.has_permission('manage_service') %}
+        <li class="nav-item">
+          <a href="{{ url_for('service.list_requests') }}" class="nav-link">
+            <i class="nav-icon fas fa-tools"></i><p>طلبات الصيانة</p>
+          </a>
+        </li>
+        {% endif %}
+        {% if current_user.has_permission('manage_sales') %}
+        <li class="nav-item">
+          <a href="{{ url_for('sales.list_sales') }}" class="nav-link">
+            <i class="nav-icon fas fa-file-invoice-dollar"></i><p>المبيعات</p>
+          </a>
+        </li>
+        {% endif %}
+        {% if current_user.has_permission('manage_payments') %}
+        <li class="nav-item">
+          <a href="{{ url_for('payments.index') }}" class="nav-link">
+            <i class="nav-icon fas fa-money-check-alt"></i><p>الدفعات</p>
+          </a>
+        </li>
+        {% endif %}
+        {% if current_user.has_permission('manage_reports') %}
+        <li class="nav-item">
+          <a href="{{ url_for('reports.index') }}" class="nav-link">
+            <i class="nav-icon fas fa-chart-line"></i><p>التقارير</p>
+          </a>
+        </li>
+        {% endif %}
+        {% if current_user.has_permission('manage_users') %}
+        <li class="nav-item">
+          <a href="{{ url_for('users.list_users') }}" class="nav-link">
+            <i class="nav-icon fas fa-users-cog"></i><p>المستخدمون</p>
+          </a>
+        </li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+</aside>

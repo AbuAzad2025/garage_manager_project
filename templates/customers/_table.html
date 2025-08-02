@@ -1,0 +1,49 @@
+<table id="customersTable" class="table table-hover align-middle text-center">
+  <thead class="table-light">
+    <tr>
+      <th>#</th><th>الاسم</th><th>الجوال</th><th>البريد</th>
+      <th>التصنيف</th><th>الرصيد</th><th>الحالة</th><th>إجراءات</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in customers %}
+    <tr>
+      <td>{{ c.id }}</td>
+      <td class="text-start">
+        <a href="{{ url_for('customers.customer_detail', id=c.id) }}">{{ c.name }}</a>
+      </td>
+      <td>{{ c.phone or '-' }}</td>
+      <td>{{ c.email or '-' }}</td>
+      <td>{{ c.category }}</td>
+      <td class="fw-bold {% if c.balance>0 %}text-danger{% else %}text-success{% endif %}">
+        {{ c.balance|format_currency }}
+      </td>
+      <td>
+        {% if c.credit_status=='معلق' %}
+          <span class="badge bg-danger">معلق</span>
+        {% else %}
+          <span class="badge bg-success">نشط</span>
+        {% endif %}
+      </td>
+      <td>
+        <div class="btn-group btn-group-sm">
+          <a href="{{ url_for('customers.customer_whatsapp', id=c.id) }}" class="btn btn-success" title="واتساب">
+            <i class="fab fa-whatsapp"></i>
+          </a>
+          <a href="{{ url_for('customers.edit_customer', id=c.id) }}" class="btn btn-warning" title="تعديل">
+            <i class="fas fa-edit"></i>
+          </a>
+          <button class="btn btn-danger delete-btn" data-id="{{ c.id }}" title="حذف">
+            <i class="fas fa-trash"></i>
+          </button>
+          <a href="{{ url_for('customers.export_customer_vcf', id=c.id) }}" class="btn btn-outline-success" title="VCF">
+            <i class="fas fa-download"></i>
+          </a>
+        </div>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="8">لا توجد نتائج.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>

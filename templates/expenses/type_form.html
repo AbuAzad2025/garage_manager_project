@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block title %}{{ is_edit and 'تعديل نوع مصروف' or 'إضافة نوع مصروف' }}{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <h2>{{ is_edit and 'تعديل نوع مصروف' or 'إضافة نوع مصروف' }}</h2>
+  <form method="post">
+    {{ form.csrf_token }}
+    <div class="row g-3">
+      <div class="col-md-6">
+        {{ form.name.label(class="form-label") }}
+        {{ form.name(class="form-control") }}
+      </div>
+      <div class="col-md-6">
+        {{ form.description.label(class="form-label") }}
+        {{ form.description(class="form-control") }}
+      </div>
+    </div>
+    <div class="mt-4">
+      <button class="btn btn-primary">{{ is_edit and 'تحديث' or 'حفظ' }}</button>
+      <a href="{{ url_for('expenses.types_list') }}" class="btn btn-secondary">إلغاء</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

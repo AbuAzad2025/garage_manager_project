@@ -1,0 +1,50 @@
+/* print.css */
+
+body {
+  font-family: sans-serif;
+  direction: rtl;
+  text-align: right;
+}
+
+.receipt-container {
+  max-width: 800px;
+  margin: auto;
+  padding: 20px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+}
+
+th {
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: center;
+}
+
+td {
+  border: 1px solid #ddd;
+  padding: 8px;
+}
+
+td.numeric {
+  text-align: right;
+}
+
+.summary p,
+.summary h3 {
+  margin: 0.5rem 0;
+}
+
+.signature-block {
+  margin-top: 50px;
+}
+
+@media print {
+  .no-print, button, a {
+    display: none !important;
+  }
+}

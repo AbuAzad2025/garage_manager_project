@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}{{ is_edit and 'تعديل موظف' or 'إضافة موظف' }}{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <h2>{{ is_edit and 'تعديل موظف' or 'إضافة موظف' }}</h2>
+  <form method="post">
+    {{ form.csrf_token }}
+    <div class="row g-3">
+      <div class="col-md-4">
+        {{ form.name.label(class="form-label") }}
+        {{ form.name(class="form-control") }}
+      </div>
+      <div class="col-md-4">
+        {{ form.position.label(class="form-label") }}
+        {{ form.position(class="form-control") }}
+      </div>
+      <div class="col-md-4">
+        {{ form.phone.label(class="form-label") }}
+        {{ form.phone(class="form-control") }}
+      </div>
+      <div class="col-md-4">
+        {{ form.bank_name.label(class="form-label") }}
+        {{ form.bank_name(class="form-control") }}
+      </div>
+      <div class="col-md-4">
+        {{ form.account_number.label(class="form-label") }}
+        {{ form.account_number(class="form-control") }}
+      </div>
+      <div class="col-md-4">
+        {{ form.notes.label(class="form-label") }}
+        {{ form.notes(class="form-control") }}
+      </div>
+    </div>
+    <div class="mt-4">
+      <button class="btn btn-primary">{{ is_edit and 'تحديث' or 'حفظ' }}</button>
+      <a href="{{ url_for('expenses.employees_list') }}" class="btn btn-secondary">إلغاء</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

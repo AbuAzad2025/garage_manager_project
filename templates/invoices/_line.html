@@ -1,0 +1,24 @@
+<div class="row invoice-line gx-2 mb-2">
+  <div class="col-md-5">
+    {{ ln.description.label }}{{ ln.description(class="form-control") }}
+  </div>
+  <div class="col-md-1">
+    {{ ln.quantity.label }}{{ ln.quantity(class="form-control", min=1) }}
+  </div>
+  <div class="col-md-2">
+    {{ ln.unit_price.label }}{{ ln.unit_price(class="form-control", step="0.01") }}
+  </div>
+  <div class="col-md-2">
+    {{ ln.tax_rate.label }}{{ ln.tax_rate(class="form-control", step="0.01") }}
+  </div>
+  <div class="col-md-1">
+    {{ ln.discount.label }}{{ ln.discount(class="form-control", step="0.01") }}
+  </div>
+  <div class="col-md-1 d-flex align-items-end">
+    {% if current_user.has_permission(form._obj and 'edit_invoice' or 'add_invoice') %}
+      <button type="button" class="btn btn-sm btn-danger remove-line">
+        <i class="fas fa-trash"></i>
+      </button>
+    {% endif %}
+  </div>
+</div>

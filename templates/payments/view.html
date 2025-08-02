@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% block title %}تفاصيل الدفعة #{{ payment.id }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="card">
+    <div class="card-header bg-primary text-white">
+      <h3>💰 تفاصيل الدفعة #{{ payment.id }}</h3>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6">
+          <p><strong>المبلغ الكلي:</strong> {{ payment.total_amount }} {{ payment.currency }}</p>
+          <p><strong>التاريخ:</strong> {{ payment.payment_date.strftime('%Y-%m-%d %H:%M') }}</p>
+          <p><strong>الطريقة الرئيسية:</strong> {{ payment.method }}</p>
+          <p><strong>الحالة:</strong>
+            <span class="badge 
+              {% if payment.status == 'COMPLETED' %}bg-success
+              {% elif payment.status == 'PENDING' %}bg-warning
+              {% elif payment.status == 'FAILED' %}bg-danger
+              {% else %}bg-secondary{% endif %}">
+              {{ payment.status }}
+            </span>
+          </p>
+        </div>
+        <div class="col-md-6">
+          <p><strong>الاتجاه:</strong>
+            <span class="badge {% if payment.direction == 'IN' %}bg-success{% else %}bg-danger{% endif %}">
+              {{ 'وارد' if payment.direction == 'IN' else 'صادر' }}
+            </span>
+          </p>
+          <p><strong>الجهة:</strong>
+            {% if payment.entity_type == 'customer' and payment.customer %}
+              عميل: {{ payment.customer.name }}
+            {% elif payment.entity_type == 'supplier' and payment.supplier %}
+              مورد: {{ payment.supplier.name }}
+            {% elif payment.entity_type == 'partner' and payment.partner %}
+              شريك: {{ payment.partner.name }}
+            {% elif payment.entity_type == 'shipment' and payment.shipment %}
+              شحنة: #{{ payment.shipment.shipment_number }}
+            {% elif payment.entity_type == 'expense' and payment.expense %}
+              مصروف: {{ payment.expense.description }}
+            {% elif payment.entity_type == 'loan' and payment.loan_settlement %}
+              تسوية دين: #{{ payment.loan_settlement.id }}
+            {% else %}
+              {{ payment.entity_type }}
+            {% endif %}
+          </p>
+          <p><strong>المرجع:</strong> {{ payment.reference or '---' }}</p>
+          <p><strong>الملاحظات:</strong> {{ payment.notes or '---' }}</p>
+        </div>
+      </div>
+
+      <h4 class="mt-4">💳 الدفعات الجزئية:</h4>
+      <table class="table table-bordered table-hover">
+        <thead class="table-light">
+          <tr>
+            <th>المبلغ</th><th>الطريقة</th><th>التفاصيل</th><th>إجراءات</th>
+          </tr>
+        </thead>
+        <tbody id="splitsTable">
+          {% for s in payment.splits %}
+            {% include "payments/_split_row.html" %}
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div class="mt-4 d-flex justify-content-between">
+        <div>
+          <a href="{{ url_for('payments.download_receipt', payment_id=payment.id) }}" class="btn btn-info">📄 تحميل الوصل</a>
+          <a href="{{ url_for('payments.edit_payment', payment_id=payment.id) }}" class="btn btn-warning">✏️ تعديل الدفعة</a>
+        </div>
+        <form method="POST" action="{{ url_for('payments.delete_payment', payment_id=payment.id) }}">
+          <button type="submit" class="btn btn-danger" onclick="return confirm('هل أنت متأكد؟')">🗑️ حذف الدفعة</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll('.remove-split').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!confirm('هل أنت متأكد من حذف هذه الدفعة الجزئية؟')) return;
+      const splitId = btn.dataset.splitId;
+      fetch(`/payments/split/${splitId}/delete`, { method: 'DELETE' })
+        .then(r => r.json()).then(j => {
+          if (j.status==='success') btn.closest('tr').remove();
+          else alert('فشل: ' + j.message);
+        });
+    });
+  });
+</script>
+{% endblock %}

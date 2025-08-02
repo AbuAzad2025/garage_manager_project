@@ -1,0 +1,65 @@
+{# templates/customers/account_statement.html #}
+{% extends 'base.html' %}
+
+{% block title %}كشف حساب العميل{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb bg-white px-3 py-2 rounded mb-4">
+    <li class="breadcrumb-item"><a href="{{ url_for('customers.list_customers') }}">العملاء</a></li>
+    <li class="breadcrumb-item active">كشف حساب {{ customer.name }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h2>كشف حساب {{ customer.name }}</h2>
+
+  <h4 class="mt-4">الفواتير</h4>
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>رقم الفاتورة</th>
+        <th>التاريخ</th>
+        <th class="text-end">المبلغ</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for inv in invoices %}
+      <tr>
+        <td>{{ inv.invoice_number }}</td>
+        <td>{{ inv.invoice_date.strftime('%Y-%m-%d') }}</td>
+        <td class="text-end">{{ "{:,.2f}".format(inv.total_amount) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h4 class="mt-4">الدفعات</h4>
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>رقم الدفع</th>
+        <th>التاريخ</th>
+        <th class="text-end">المبلغ</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for pay in payments %}
+      <tr>
+        <td>{{ pay.payment_number or pay.id }}</td>
+        <td>{{ pay.payment_date.strftime('%Y-%m-%d') }}</td>
+        <td class="text-end">{{ "{:,.2f}".format(pay.total_amount) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="alert alert-info mt-4">
+    <strong>إجمالي الفواتير:</strong> {{ "{:,.2f}".format(total_invoices) }}<br>
+    <strong>إجمالي الدفعات:</strong> {{ "{:,.2f}".format(total_payments) }}<br>
+    <strong>الرصيد المتبقي:</strong> {{ "{:,.2f}".format(balance) }}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,50 @@
+<div class="card mb-3 shadow-sm">
+  <div class="card-header bg-primary text-white fw-bold">
+    <i class="fa fa-cogs"></i> قطع الغيار
+  </div>
+  <div class="card-body p-0">
+    {% if service.parts %}
+    <table class="table table-sm table-striped mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>المخزن</th>
+          <th>القطعة</th>
+          <th>الشريك</th>
+          <th>نسبة الشريك</th>
+          <th>الكمية</th>
+          <th>سعر الوحدة</th>
+          <th>الإجمالي</th>
+          <th>بعد خصم الشريك</th>
+          {% if current_user.has_permission('manage_service') %}
+          <th>إجراء</th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for part in service.parts %}
+        <tr>
+          <td>{{ part.warehouse.name if part.warehouse else '—' }}</td>
+          <td>{{ part.part.name if part.part else '—' }}</td>
+          <td>{{ part.partner.name if part.partner else '—' }}</td>
+          <td>{{ part.share_percentage|default(0) }}%</td>
+          <td>{{ part.quantity }}</td>
+          <td>{{ '%.2f'|format(part.unit_price or 0) }}</td>
+          <td>{{ '%.2f'|format(part.line_total or 0) }}</td>
+          <td>{{ '%.2f'|format(part.net_total or 0) }}</td>
+          {% if current_user.has_permission('manage_service') %}
+          <td>
+            <form method="post" action="{{ url_for('service.delete_part', pid=part.id) }}" 
+                  onsubmit="return confirm('هل أنت متأكد من حذف القطعة؟');">
+              <button class="btn btn-danger btn-sm"><i class="fa fa-trash"></i></button>
+            </form>
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="p-3 text-center text-muted">لا توجد قطع مسجلة لهذا الطلب</div>
+    {% endif %}
+  </div>
+</div>

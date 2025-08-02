@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block title %}قسيمة #{{ preorder.reservation_code }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2>قسيمة حجز {{ preorder.reservation_code }}</h2>
+  <dl class="row">
+    <dt class="col-sm-3">الجهة</dt>
+    <dd class="col-sm-9">
+      {% if preorder.customer %}{{ preorder.customer.name }}
+      {% elif preorder.supplier %}{{ preorder.supplier.name }}
+      {% elif preorder.partner %}{{ preorder.partner.name }}{% endif %}
+    </dd>
+    <dt class="col-sm-3">القطعة</dt>
+    <dd class="col-sm-9">{{ preorder.product.name }}</dd>
+    <dt class="col-sm-3">كمية</dt>
+    <dd class="col-sm-9">{{ preorder.quantity }}</dd>
+    <dt class="col-sm-3">السعر للوحدة</dt>
+    <dd class="col-sm-9">{{ "%.2f"|format(preorder.product.price) }}</dd>
+    <dt class="col-sm-3">الإجمالي قبل ضريبة</dt>
+    <dd class="col-sm-9">{{ "%.2f"|format(preorder.quantity * preorder.product.price) }}</dd>
+    <dt class="col-sm-3">نسبة الضريبة</dt>
+    <dd class="col-sm-9">{{ preorder.tax_rate or 0 }}%</dd>
+    <dt class="col-sm-3">الإجمالي بعد ضريبة</dt>
+    <dd class="col-sm-9">
+      {{ "%.2f"|format(preorder.quantity * preorder.product.price * (1 + (preorder.tax_rate or 0)/100)) }}
+    </dd>
+    <dt class="col-sm-3">مدفوع</dt>
+    <dd class="col-sm-9">{{ "%.2f"|format(preorder.prepaid_amount) }}</dd>
+    <dt class="col-sm-3">متبقي</dt>
+    <dd class="col-sm-9">
+      {{ "%.2f"|format((preorder.quantity * preorder.product.price * (1 + (preorder.tax_rate or 0)/100)) - preorder.prepaid_amount) }}
+    </dd>
+    <dt class="col-sm-3">الحالة</dt>
+    <dd class="col-sm-9">{{ preorder.is_fulfilled and 'منفّذ' or 'قيد التنفيذ' }}</dd>
+    <dt class="col-sm-3">تاريخ</dt>
+    <dd class="col-sm-9">{{ preorder.created_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+  </dl>
+
+  <h4>سند العربون</h4>
+  <table class="table table-bordered">
+    <thead><tr><th>التاريخ</th><th>المبلغ</th><th>الطريقة</th><th>ملاحظة</th></tr></thead>
+    <tbody>
+      {% for pay in preorder.payments %}
+      <tr>
+        <td>{{ pay.date.strftime('%Y-%m-%d') }}</td>
+        <td>{{ "%.2f"|format(pay.amount) }}</td>
+        <td>{{ pay.method }}</td>
+        <td>{{ pay.note or '–' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="text-center">لا دفعات</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <a href="{{ url_for('parts.preorders_list') }}" class="btn btn-secondary">عودة</a>
+
+  {% if not preorder.is_fulfilled and current_user.has_permission('edit_preorder') %}
+  <form method="post" action="{{ url_for('parts.preorder_fulfill', preorder_id=preorder.id) }}"
+        class="d-inline" onsubmit="return confirm('تنفيذ الحجز؟');">
+    <button class="btn btn-success">تنفيذ</button>
+  </form>
+  {% endif %}
+
+  {% if not preorder.is_fulfilled and current_user.has_permission('delete_preorder') %}
+  <form method="post" action="{{ url_for('parts.preorder_cancel', preorder_id=preorder.id) }}"
+        class="d-inline" onsubmit="return confirm('إلغاء الحجز؟');">
+    <button class="btn btn-danger">إلغاء</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,91 @@
+<!-- File: templates/users/list.html -->
+{% extends 'base.html' %}
+
+{% block title %}إدارة المستخدمين{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">
+  <a href="{{ url_for('main.dashboard') }}">الرئيسية</a>
+</li>
+<li class="breadcrumb-item active">المستخدمون</li>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% if current_user.has_permission('admin_access') %}
+    <a href="{{ url_for('users.create_user') }}" class="btn btn-success mb-3">
+      <i class="fas fa-user-plus"></i> إضافة مستخدم جديد
+    </a>
+  {% endif %}
+
+  <table id="users-table" class="table table-striped table-bordered">
+    <thead>
+      <tr>
+        <th>اسم المستخدم</th>
+        <th>البريد الإلكتروني</th>
+        <th>الدور</th>
+        <th>صلاحيات إضافية</th>
+        <th>تاريخ الإنشاء</th>
+        {% if current_user.has_permission('admin_access') %}
+          <th>إجراءات</th>
+        {% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for user in users %}
+        <tr>
+          <td>{{ user.username }}</td>
+          <td>{{ user.email }}</td>
+          <td>{{ user.role.name if user.role else '-' }}</td>
+          <td>
+            {% if user.extra_permissions|length %}
+              {{ user.extra_permissions|map(attribute='name')|join(', ') }}
+            {% else %}
+              -
+            {% endif %}
+          </td>
+          <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+          {% if current_user.has_permission('admin_access') %}
+            <td class="text-center">
+              <a
+                href="{{ url_for('users.edit_user', user_id=user.id) }}"
+                class="btn btn-sm btn-primary"
+                title="تعديل"
+              ><i class="fas fa-edit"></i></a>
+              <form
+                action="{{ url_for('users.delete_user', user_id=user.id) }}"
+                method="post"
+                class="d-inline"
+                onsubmit="return confirm('هل أنت متأكد من حذف هذا المستخدم؟');"
+              >
+                <input
+                  type="hidden"
+                  name="csrf_token"
+                  value="{{ csrf_token() }}"
+                >
+                <button type="submit" class="btn btn-sm btn-danger" title="حذف">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+              </form>
+            </td>
+          {% endif %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  $(document).ready(function(){
+    $('#users-table').DataTable({
+      dom: 'Bfrtip',
+      buttons: ['excel','pdf'],
+      language: {
+        url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/Arabic.json"
+      }
+    });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}المخازن{% endblock %}
+
+{% block head %}
+  {{ super() }}
+  <link rel="stylesheet"
+        href="{{ url_for('static', filename='adminlte/plugins/datatables-bs4/css/dataTables.bootstrap4.min.css') }}">
+  <link rel="stylesheet"
+        href="{{ url_for('static', filename='adminlte/plugins/datatables-responsive/css/responsive.bootstrap4.min.css') }}">
+  <link rel="stylesheet"
+        href="{{ url_for('static', filename='adminlte/plugins/select2/css/select2.min.css') }}">
+  <link rel="stylesheet"
+        href="{{ url_for('static', filename='adminlte/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
+  <link rel="stylesheet"
+        href="{{ url_for('static', filename='css/warehouses.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <ul class="nav nav-pills mb-4">
+    <li class="nav-item">
+      <a class="nav-link {% if request.endpoint == 'warehouses.list_warehouses' %}active{% endif %}"
+         href="{{ url_for('warehouses.list_warehouses') }}">قائمة المستودعات</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if request.endpoint == 'warehouses.create_warehouse' %}active{% endif %}"
+         href="{{ url_for('warehouses.create_warehouse') }}">إضافة مستودع جديد</a>
+    </li>
+    {% if warehouse %}
+      <li class="nav-item">
+        <a class="nav-link {% if request.endpoint == 'warehouses.warehouse_detail' %}active{% endif %}"
+           href="{{ url_for('warehouses.warehouse_detail', warehouse_id=warehouse.id) }}">تفاصيل المخزن</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if request.endpoint == 'warehouses.list_warehouse_shipments' %}active{% endif %}"
+           href="{{ url_for('warehouses.list_warehouse_shipments', warehouse_id=warehouse.id) }}">الشحنات</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if request.endpoint == 'warehouses.list_transfers' %}active{% endif %}"
+           href="{{ url_for('warehouses.list_transfers', warehouse_id=warehouse.id) }}">التحويلات</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if request.endpoint == 'warehouses.import_products' %}active{% endif %}"
+           href="{{ url_for('warehouses.import_products', warehouse_id=warehouse.id) }}">استيراد منتجات</a>
+      </li>
+    {% endif %}
+  </ul>
+
+  {% block warehouses_content %}{% endblock %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='adminlte/plugins/datatables/jquery.dataTables.min.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='adminlte/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='adminlte/plugins/datatables-responsive/js/dataTables.responsive.min.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='adminlte/plugins/datatables-responsive/js/responsive.bootstrap4.min.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='adminlte/plugins/select2/js/select2.full.min.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='adminlte/plugins/select2/js/i18n/ar.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/warehouses.js') }}" defer></script>
+{% endblock %}

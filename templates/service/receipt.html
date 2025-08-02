@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}إيصال صيانة{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/service.css') }}">
+
+<div class="container my-4">
+  <h3 class="text-center mb-4">سند قبض / طلب صيانة رقم {{ service.id }}</h3>
+
+  <div class="row">
+    <div class="col-md-6">
+      <table class="table table-sm">
+        <tr>
+          <th>العميل</th>
+          <td>{{ service.name or (service.customer.name if service.customer else '—') }}</td>
+        </tr>
+        <tr>
+          <th>رقم الجوال</th>
+          <td>{{ service.phone or (service.customer.phone if service.customer else '—') }}</td>
+        </tr>
+        <tr>
+          <th>البريد الإلكتروني</th>
+          <td>{{ service.email or (service.customer.email if service.customer else '—') }}</td>
+        </tr>
+        <tr><th>المعدة</th><td>{{ service.vehicle_type }} – {{ service.vehicle_model }}</td></tr>
+        <tr><th>اللوحة</th><td>{{ service.vehicle_vrn }}</td></tr>
+        <tr><th>الحالة</th><td>{{ service.status_label }}</td></tr>
+      </table>
+    </div>
+    <div class="col-md-6">
+      <strong>وصف المشكلة:</strong>
+      <div class="border p-2 mb-2">{{ service.problem_description }}</div>
+      <strong>تقرير المهندس:</strong>
+      <div class="border p-2 mb-2">{{ service.engineer_notes }}</div>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- تفاصيل -->
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>النوع</th>
+        <th>الوصف</th>
+        <th>الشريك</th>
+        <th>نسبة الشريك</th>
+        <th>الكمية</th>
+        <th>سعر الوحدة</th>
+        <th>الإجمالي</th>
+        <th>صافي بعد خصم الشريك</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for part in service.parts %}
+      <tr>
+        <td>قطعة</td>
+        <td>{{ part.part.name }}</td>
+        <td>{{ part.partner.name if part.partner else '—' }}</td>
+        <td>{{ part.share_percentage|default(0) }}%</td>
+        <td>{{ part.quantity }}</td>
+        <td>{{ '%.2f'|format(part.unit_price or 0) }}</td>
+        <td>{{ '%.2f'|format(part.line_total or 0) }}</td>
+        <td>{{ '%.2f'|format(part.line_total * (1 - (part.share_percentage or 0)/100)) }}</td>
+      </tr>
+      {% endfor %}
+      {% for task in service.tasks %}
+      <tr>
+        <td>مهمة</td>
+        <td>{{ task.description }}</td>
+        <td>—</td>
+        <td>—</td>
+        <td>{{ task.quantity }}</td>
+        <td>{{ '%.2f'|format(task.unit_price or 0) }}</td>
+        <td>{{ '%.2f'|format(task.line_total or 0) }}</td>
+        <td>{{ '%.2f'|format(task.line_total or 0) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- المجموعات -->
+  <div class="d-flex justify-content-end flex-column align-items-end">
+    <div class="me-4"><strong>الإجمالي قبل خصم الشريك:</strong> {{ '%.2f'|format(subtotal or 0) }} ₪</div>
+    <div class="me-4 text-primary"><strong>الصافي بعد خصم الشريك:</strong> {{ '%.2f'|format(net_subtotal or 0) }} ₪</div>
+    <div class="me-4"><strong>الضريبة:</strong> {{ '%.2f'|format(tax_amount or 0) }} ₪</div>
+    <div class="fs-5"><strong>الإجمالي النهائي:</strong> <span class="text-success">{{ '%.2f'|format(total_amount or 0) }} ₪</span></div>
+  </div>
+
+  <div class="text-center mt-4 actions">
+    <button class="btn btn-dark" onclick="window.print()">🖨️ طباعة الإيصال</button>
+  </div>
+</div>
+{% endblock %}

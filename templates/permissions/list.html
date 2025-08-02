@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block title %}إدارة الأذونات{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+  <h2>الأذونات</h2>
+
+  {# زر إضافة إذن جديد (إن وجد الصلاحية) #}
+  {% if current_user.has_permission('manage_permissions') %}
+  <div class="mb-3">
+    <a href="{{ url_for('permissions.create') }}" class="btn btn-primary">
+      إضافة إذن جديد
+    </a>
+  </div>
+  {% endif %}
+
+  <table id="permissions-table" class="table table-bordered table-hover">
+    <thead>
+      <tr>
+        <th>اسم الإذن</th>
+        <th>إجراءات</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in permissions %}
+      <tr>
+        <td>{{ p.name }}</td>
+        <td>
+          {# تعديل #}
+          {% if current_user.has_permission('manage_permissions') %}
+            <a href="{{ url_for('permissions.edit', permission_id=p.id) }}"
+               class="btn btn-sm btn-warning">تعديل</a>
+          {% endif %}
+          {# حذف #}
+          {% if current_user.has_permission('manage_permissions') %}
+            <form action="{{ url_for('permissions.delete', permission_id=p.id) }}"
+                  method="post" style="display:inline;"
+                  onsubmit="return confirm('هل تريد حذف هذا الإذن؟');">
+              {{ csrf_token() }}
+              <button class="btn btn-sm btn-danger">حذف</button>
+            </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', ()=>{
+  $('#permissions-table').DataTable({
+    dom: 'Bfrtip',
+    buttons: ['excel','pdf'],
+    language: { url:'//cdn.datatables.net/plug-ins/1.10.21/i18n/Arabic.json' }
+  });
+});
+</script>
+{% endblock %}

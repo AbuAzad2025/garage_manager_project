@@ -1,0 +1,15 @@
+/* badge colors for statuses */
+.badge-pending       { background: #6c757d; }
+.badge-in_transit    { background: #17a2b8; }
+.badge-delivered     { background: #28a745; }
+.badge-cancelled     { background: #dc3545; }
+
+/* compact table */
+#shipmentsTable td, #shipmentsTable th {
+  vertical-align: middle;
+}
+
+/* dynamic form spacing */
+.partner-entry, .item-entry {
+  margin-bottom: 0.5rem;
+}

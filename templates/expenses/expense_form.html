@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block title %}{{ is_edit and 'تعديل مصروف' or 'إضافة مصروف' }}{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <h2>{{ is_edit and 'تعديل مصروف' or 'إضافة مصروف' }}</h2>
+  <form method="post" id="expense-form">
+    {{ form.csrf_token }}
+    <div class="row g-3">
+      <div class="col-md-2">
+        {{ form.date.label(class="form-label") }}
+        {{ form.date(class="form-control") }}
+      </div>
+      <div class="col-md-2">
+        {{ form.amount.label(class="form-label") }}
+        {{ form.amount(class="form-control") }}
+      </div>
+      <div class="col-md-2">
+        {{ form.type_id.label(class="form-label") }}
+        {{ form.type_id(class="form-select", id="type_id") }}
+      </div>
+      <div class="col-md-2" id="employee-field">
+        {{ form.employee_id.label(class="form-label") }}
+        {{ form.employee_id(class="form-select") }}
+      </div>
+      <div class="col-md-2">
+        {{ form.paid_to.label(class="form-label") }}
+        {{ form.paid_to(class="form-control") }}
+      </div>
+      <div class="col-md-2">
+        {{ form.payment_method.label(class="form-label") }}
+        {{ form.payment_method(class="form-select") }}
+      </div>
+      <div class="col-md-2">
+        {{ form.payment_details.label(class="form-label") }}
+        {{ form.payment_details(class="form-control") }}
+      </div>
+      <div class="col-md-2">
+        {{ form.description.label(class="form-label") }}
+        {{ form.description(class="form-control") }}
+      </div>
+      <div class="col-md-2">
+        {{ form.tax_invoice_number.label(class="form-label") }}
+        {{ form.tax_invoice_number(class="form-control") }}
+      </div>
+      <div class="col-md-2">
+        {{ form.notes.label(class="form-label") }}
+        {{ form.notes(class="form-control") }}
+      </div>
+    </div>
+    <div class="mt-4">
+      <button class="btn btn-primary">{{ is_edit and 'تحديث' or 'حفظ' }}</button>
+      <a href="{{ url_for('expenses.index') }}" class="btn btn-secondary">إلغاء</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(function(){
+  function toggleEmployeeField(){
+    var txt = $("#type_id option:selected").text();
+    if(txt.trim() === "راتب"){
+      $("#employee-field").show();
+      $("#employee-field select").prop("disabled", false);
+    } else {
+      $("#employee-field").hide();
+      $("#employee-field select").prop("disabled", true).val(0);
+    }
+  }
+  $("#type_id").change(toggleEmployeeField);
+  toggleEmployeeField();
+});
+</script>
+{% endblock %}

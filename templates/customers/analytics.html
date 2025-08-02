@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% block title %}تحليلات العميل{% endblock %}
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb bg-white px-3 py-2 rounded mb-4">
+    <li class="breadcrumb-item"><a href="{{ url_for('customers.list_customers') }}">العملاء</a></li>
+    <li class="breadcrumb-item active">تحليلات {{ customer.name }}</li>
+  </ol>
+</nav>
+{% endblock %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-md-4">
+    <div class="small-box bg-info">
+      <div class="inner">
+        <h3>{{ total_purchases|format_currency }}</h3>
+        <p>إجمالي المشتريات</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="small-box bg-success">
+      <div class="inner">
+        <h3>{{ total_payments|format_currency }}</h3>
+        <p>إجمالي الدفعات</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="small-box bg-warning">
+      <div class="inner">
+        <h3>{{ avg_purchase|format_currency }}</h3>
+        <p>متوسط قيمة فاتورة</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <canvas id="purchasesChart"></canvas>
+  </div>
+  <div class="col-md-6">
+    <canvas id="paymentsChart"></canvas>
+  </div>
+
+  <div class="col-12">
+    <h5 class="mt-4">فئات المشتريات</h5>
+    <table class="table table-striped">
+      <thead>
+        <tr><th>الفئة</th><th>عدد</th><th>الإجمالي</th><th>%</th></tr>
+      </thead>
+      <tbody>
+        {% for cat in purchase_categories %}
+        <tr>
+          <td>{{ cat.name }}</td>
+          <td>{{ cat.count }}</td>
+          <td>{{ cat.total|format_currency }}</td>
+          <td>{{ cat.percentage|round(2) }}%</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script>
+  const monthsP = {{ purchases_months|map(attribute='month')|list|tojson }};
+  const dataP = {{ purchases_months|map(attribute='total')|list|tojson }};
+  const ctx1 = document.getElementById('purchasesChart');
+  new Chart(ctx1, { type:'line', data:{labels:monthsP, datasets:[{
+    label:'مشتريات', data:dataP,
+    backgroundColor:'rgba(54,162,235,0.2)', borderColor:'rgba(54,162,235,1)', fill:true
+  }]} });
+
+  const monthsPay = {{ payments_months|map(attribute='month')|list|tojson }};
+  const dataPay = {{ payments_months|map(attribute='total')|list|tojson }};
+  const ctx2 = document.getElementById('paymentsChart');
+  new Chart(ctx2, { type:'line', data:{labels:monthsPay, datasets:[{
+    label:'دفعات', data:dataPay,
+    backgroundColor:'rgba(75,192,192,0.2)', borderColor:'rgba(75,192,192,1)', fill:true
+  }]} });
+</script>
+{% endblock %}

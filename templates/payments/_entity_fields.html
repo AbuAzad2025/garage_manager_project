@@ -1,0 +1,60 @@
+{# File: templates/payments/_entity_fields.html #}
+{% if form.entity_type.data == 'customer' %}
+  <div class="mb-3">
+    {{ form.customer_id.label(class="form-label") }}
+    {{ form.customer_id(class="form-select") }}
+    {% if form.customer_id.data %}
+      <input type="hidden" name="entity_id" value="{{ form.customer_id.data.id }}">
+    {% endif %}
+  </div>
+
+{% elif form.entity_type.data == 'supplier' %}
+  <div class="mb-3">
+    {{ form.supplier_id.label(class="form-label") }}
+    {{ form.supplier_id(class="form-select") }}
+    {% if form.supplier_id.data %}
+      <input type="hidden" name="entity_id" value="{{ form.supplier_id.data.id }}">
+    {% endif %}
+  </div>
+
+{% elif form.entity_type.data == 'partner' %}
+  <div class="mb-3">
+    {{ form.partner_id.label(class="form-label") }}
+    {{ form.partner_id(class="form-select") }}
+    {% if form.partner_id.data %}
+      <input type="hidden" name="entity_id" value="{{ form.partner_id.data.id }}">
+    {% endif %}
+  </div>
+
+{% elif form.entity_type.data == 'shipment' %}
+  <div class="mb-3">
+    {{ form.shipment_id.label(class="form-label") }}
+    {{ form.shipment_id(class="form-select") }}
+    {% if form.shipment_id.data %}
+      <input type="hidden" name="entity_id" value="{{ form.shipment_id.data.id }}">
+    {% endif %}
+  </div>
+
+{% elif form.entity_type.data == 'expense' %}
+  <div class="mb-3">
+    {{ form.expense_id.label(class="form-label") }}
+    {{ form.expense_id(class="form-select") }}
+    {% if form.expense_id.data %}
+      <input type="hidden" name="entity_id" value="{{ form.expense_id.data.id }}">
+    {% endif %}
+  </div>
+
+{% elif form.entity_type.data == 'loan' %}
+  <div class="mb-3">
+    {{ form.loan_settlement_id.label(class="form-label") }}
+    {{ form.loan_settlement_id(class="form-select") }}
+    {% if form.loan_settlement_id.data %}
+      <input type="hidden" name="entity_id" value="{{ form.loan_settlement_id.data.id }}">
+    {% endif %}
+  </div>
+
+{% else %}
+  <div class="alert alert-info">
+    اختر نوع الكيان لرؤية الحقول المناسبة
+  </div>
+{% endif %}
