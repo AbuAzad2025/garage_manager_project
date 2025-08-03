@@ -1,0 +1,101 @@
+/* static/css/shop.css */
+
+/* الخط العام */
+body {
+    background-color: #f8f9fa;
+    font-family: 'Tajawal', sans-serif;
+    color: #333;
+}
+
+/* كروت المنتجات */
+.card {
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-8px);
+}
+
+/* صورة الكارت */
+.card-img-top {
+    height: 200px;
+    object-fit: cover;
+    border-bottom: 1px solid #ddd;
+}
+
+/* عنوان المنتج */
+.card-title {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #1a237e;
+}
+
+/* وصف المنتج */
+.card-text {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+/* شريط السعر والتوفر */
+.badge.bg-success {
+    background: linear-gradient(135deg, #1a237e, #311b92);
+    font-size: 0.9rem;
+    padding: 0.4em 0.7em;
+    border-radius: 12px;
+}
+
+.badge.bg-danger {
+    background: #dc3545;
+    font-size: 0.9rem;
+    padding: 0.4em 0.7em;
+    border-radius: 12px;
+}
+
+/* أزرار إضافة للسلة */
+.btn-primary {
+    background: linear-gradient(135deg, #1a237e, #311b92);
+    border: none;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #283593, #4527a0);
+}
+
+/* مربع البحث */
+#search {
+    max-width: 300px;
+}
+
+/* عداد السلة في الشريط العلوي */
+.quantity-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    font-size: 0.75rem;
+    padding: 0.25em 0.4em;
+}
+
+/* تحكم في عرض الكروت حسب الشاشة */
+@media (max-width: 576px) {
+    .row-cols-1 > * {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+}
+
+@media (min-width: 577px) and (max-width: 991px) {
+    .row-cols-md-2 > * {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+}
+
+@media (min-width: 992px) {
+    .row-cols-lg-4 > * {
+        flex: 0 0 25%;
+        max-width: 25%;
+    }
+}

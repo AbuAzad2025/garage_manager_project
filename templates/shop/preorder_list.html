@@ -1,4 +1,8 @@
-{% extends 'base.html' %}
+{% extends 'shop/base.html' %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
+{% endblock %}
 
 {% block content %}
 <div class="container">
@@ -59,12 +63,12 @@
                         </tr>
                         
                         <!-- Modal for Cancel Order -->
-                        <div class="modal fade" id="cancelModal{{ order.id }}" tabindex="-1">
+                        <div class="modal fade" id="cancelModal{{ order.id }}" tabindex="-1" aria-hidden="true">
                             <div class="modal-dialog">
                                 <div class="modal-content">
                                     <div class="modal-header">
                                         <h5 class="modal-title">تأكيد الإلغاء</h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
                                     </div>
                                     <div class="modal-body">
                                         <p>هل أنت متأكد من رغبتك في إلغاء الطلب رقم <strong>{{ order.order_number }}</strong>؟</p>

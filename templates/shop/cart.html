@@ -1,4 +1,8 @@
-{% extends 'base.html' %}
+{% extends 'shop/base.html' %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
+{% endblock %}
 
 {% block content %}
 <div class="container">
