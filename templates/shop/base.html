@@ -66,9 +66,22 @@
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li><a class="dropdown-item" href="{{ url_for('shop.preorder_list') }}">طلباتي</a></li>
                         <li><hr class="dropdown-divider" /></li>
-                        <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">تسجيل الخروج</a></li>
+
+                        <!-- ✅ زر تسجيل خروج يستخدم POST مع CSRF -->
+                        <li>
+                          <a href="#" class="dropdown-item text-danger"
+                             onclick="event.preventDefault(); document.getElementById('logout-form-shop').submit();">
+                             تسجيل الخروج
+                          </a>
+                        </li>
                     </ul>
                 </div>
+
+                <!-- ✅ نموذج الخروج المخفي -->
+                <form id="logout-form-shop" action="{{ url_for('auth.logout') }}" method="POST" style="display:none;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                </form>
+
                 {% else %}
                 <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light">
                     <i class="fas fa-sign-in-alt me-2"></i>تسجيل الدخول

@@ -1,5 +1,3 @@
-# File: app.py
-
 import os
 from datetime import datetime
 
@@ -34,6 +32,8 @@ from routes.payments    import payments_bp
 from routes.permissions import permissions_bp
 from routes.roles       import roles_bp
 
+from flask_wtf.csrf import generate_csrf  # ✅ أضفنا الاستيراد هنا
+
 
 class MyAnonymousUser(AnonymousUserMixin):
     def has_permission(self, perm_name):
@@ -63,6 +63,12 @@ def create_app():
     app.jinja_env.filters['qr_to_base64'] = qr_to_base64
     app.jinja_env.globals['now'] = datetime.utcnow
 
+    # ✅ حقن CSRF Token في كل القوالب
+    @app.context_processor
+    def inject_csrf_token():
+        return dict(csrf_token=generate_csrf)
+
+    # ✅ تسجيل الـ Blueprints
     for bp in (
         auth_bp, main_bp, users_bp, service_bp, customers_bp,
         sales_bp, notes_bp, reports_bp, shop_bp, expenses_bp,

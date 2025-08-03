@@ -7,6 +7,14 @@
     <li class="nav-item d-none d-sm-inline-block">
       <a href="{{ url_for('main.dashboard') }}" class="nav-link">لوحة التحكم</a>
     </li>
+
+    <!-- ✅ رابط جديد للتسوق -->
+    <li class="nav-item d-none d-sm-inline-block">
+      <a href="{{ url_for('shop.catalog') }}" class="nav-link">
+        <i class="fas fa-store"></i> المتجر
+      </a>
+    </li>
+
     {% if current_user.has_permission('manage_service') %}
     <li class="nav-item">
       <a href="{{ url_for('service.list_requests') }}" class="nav-link">الصيانة</a>
@@ -39,11 +47,17 @@
         <a href="{{ url_for('users.list_users') }}" class="dropdown-item">المستخدمون</a>
         {% endif %}
         <div class="dropdown-divider"></div>
+
+        <!-- ✅ زر تسجيل خروج -->
         <a href="#" class="dropdown-item"
            onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
           تسجيل خروج
         </a>
-        <form id="logout-form" action="{{ url_for('auth.logout') }}" method="POST" style="display:none;"></form>
+
+        <!-- ✅ نموذج الخروج مع CSRF Token صحيح -->
+        <form id="logout-form" action="{{ url_for('auth.logout') }}" method="POST" style="display:none;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        </form>
       </div>
     </li>
   </ul>
