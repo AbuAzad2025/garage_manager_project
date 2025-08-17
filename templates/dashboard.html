@@ -1,6 +1,6 @@
-{# templates/dashboard.html #}
 {% extends 'base.html' %}
 {% block title %}لوحة التحكم{% endblock %}
+{% block page_title %}لوحة التحكم{% endblock %}
 
 {% block breadcrumb %}
 <li class="breadcrumb-item active">الرئيسية</li>
@@ -10,7 +10,6 @@
 <div class="container-fluid">
 
   <div class="row">
-    {% if has_perm('manage_service') %}
     <div class="col-lg-3 col-6">
       <div class="small-box bg-info">
         <div class="inner">
@@ -23,10 +22,7 @@
         </a>
       </div>
     </div>
-    {% endif %}
 
-    {# يكفي فحص view_warehouses لأن aliases عندنا توسّعها إلى manage_* أيضاً #}
-    {% if has_perm('view_warehouses') %}
     <div class="col-lg-3 col-6">
       <div class="small-box bg-warning">
         <div class="inner">
@@ -39,9 +35,7 @@
         </a>
       </div>
     </div>
-    {% endif %}
 
-    {% if has_perm('manage_exchange') %}
     <div class="col-lg-3 col-6">
       <div class="small-box bg-secondary">
         <div class="inner">
@@ -54,9 +48,7 @@
         </a>
       </div>
     </div>
-    {% endif %}
 
-    {% if has_perm('manage_sales') and has_perm('view_reports') %}
     <div class="col-lg-3 col-6">
       <div class="small-box bg-success">
         <div class="inner">
@@ -64,16 +56,14 @@
           <p>إيرادات اليوم</p>
         </div>
         <div class="icon"><i class="fas fa-dollar-sign"></i></div>
-        <a href="{{ url_for_any('reports_bp.index','reports.index','reports_bp.sales','reports.sales') }}" class="small-box-footer">
+        <a href="{{ url_for('reports_bp.universal') }}" class="small-box-footer">
           عرض التقارير <i class="fas fa-arrow-circle-left"></i>
         </a>
       </div>
     </div>
-    {% endif %}
   </div>
 
   <div class="row">
-    {% if has_perm('manage_sales') and has_perm('view_reports') %}
     <div class="col-lg-6 mb-4">
       <div class="card">
         <div class="card-header bg-danger text-white">إيرادات الأسبوع</div>
@@ -86,9 +76,7 @@
         </div>
       </div>
     </div>
-    {% endif %}
 
-    {% if has_perm('manage_service') and has_perm('view_reports') %}
     <div class="col-lg-6 mb-4">
       <div class="card">
         <div class="card-header bg-primary text-white">طلبات الصيانة الأسبوعية</div>
@@ -101,10 +89,8 @@
         </div>
       </div>
     </div>
-    {% endif %}
   </div>
 
-  {% if has_perm('manage_service') %}
   <div class="card">
     <div class="card-header">آخر 5 طلبات صيانة</div>
     <div class="card-body p-0">
@@ -128,7 +114,7 @@
       </table>
     </div>
   </div>
-  {% endif %}
+
 </div>
 {% endblock %}
 

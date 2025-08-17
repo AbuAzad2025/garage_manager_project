@@ -1,4 +1,11 @@
-<!-- File: templates/partials/footer.html -->
-<footer class="main-footer text-center bg-white py-2 shadow-sm">
-  <strong>© {{ now().year }} نظام إدارة الكراج.</strong> جميع الحقوق محفوظة.
+<footer class="main-footer text-center" dir="rtl">
+  <strong>
+    <img src="{{ url_for('static', filename='img/azad_logo.png') }}"
+         alt="Azad Logo"
+         style="height:30px; vertical-align:middle; margin-left:8px;">
+    شركة أزاد للنظم الذكية &copy; 2025
+  </strong>
+  <div class="float-none mt-2">
+    للتواصل: 0562150193
+  </div>
 </footer>

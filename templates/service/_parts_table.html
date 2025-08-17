@@ -7,14 +7,13 @@
     <table class="table table-sm table-striped mb-0 align-middle">
       <thead class="table-light">
         <tr>
-          <th>المخزن</th>
+          <th>المستودع</th>
           <th>القطعة</th>
-          <th>الشريك</th>
-          <th>نسبة الشريك</th>
           <th>الكمية</th>
           <th>سعر الوحدة</th>
+          <th>الخصم %</th>
+          <th>الضريبة %</th>
           <th>الإجمالي</th>
-          <th>بعد خصم الشريك</th>
           {% if current_user.has_permission('manage_service') %}
           <th style="width:80px">إجراء</th>
           {% endif %}
@@ -22,19 +21,15 @@
       </thead>
       <tbody>
         {% for part in service.parts %}
-          {% set line = part.line_total
-                        if part.line_total is not none
-                        else ((part.quantity or 0) * (part.unit_price or 0) * (1 - (part.discount or 0)/100)) %}
-          {% set net_line = line * (1 - (part.share_percentage or 0)/100) %}
+          {% set line = part.line_total %}
           <tr>
             <td>{{ part.warehouse.name if part.warehouse else '—' }}</td>
-            <td>{{ part.part.name      if part.part      else '—' }}</td>
-            <td>{{ part.partner.name   if part.partner   else '—' }}</td>
-            <td>{{ (part.share_percentage or 0)|round(0, 'floor') }}%</td>
+            <td>{{ part.part.name if part.part else '—' }}</td>
             <td>{{ part.quantity or 0 }}</td>
-            <td>{{ '%.2f'|format(part.unit_price or 0) }}</td>
-            <td>{{ '%.2f'|format(line) }}</td>
-            <td>{{ '%.2f'|format(net_line) }}</td>
+            <td>{{ '%.2f'|format((part.unit_price or 0)|float) }}</td>
+            <td>{{ (part.discount or 0)|float|round(2, 'floor') }}</td>
+            <td>{{ (part.tax_rate or 0)|float|round(2, 'floor') }}</td>
+            <td>{{ '%.2f'|format((line or 0)|float) }}</td>
             {% if current_user.has_permission('manage_service') %}
             <td>
               <form method="post" action="{{ url_for('service.delete_part', pid=part.id) }}" class="d-inline">

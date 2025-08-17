@@ -301,8 +301,16 @@ def create_request():
 @login_required
 @permission_required('manage_service')
 def view_request(rid):
-    service=_get_or_404(ServiceRequest,rid,options=[joinedload(ServiceRequest.customer),joinedload(ServiceRequest.parts).joinedload(ServicePart.part),joinedload(ServiceRequest.tasks)])
-    return render_template('service/view.html',service=service)
+    service = _get_or_404(
+        ServiceRequest, rid,
+        options=[
+            joinedload(ServiceRequest.customer),
+            joinedload(ServiceRequest.parts).joinedload(ServicePart.part),
+            joinedload(ServiceRequest.parts).joinedload(ServicePart.warehouse),  # <- مٌضاف
+            joinedload(ServiceRequest.tasks),
+        ]
+    )
+    return render_template('service/view.html', service=service)
 
 @service_bp.route('/<int:rid>/receipt',methods=['GET'])
 @login_required
@@ -569,13 +577,11 @@ def log_service_action(service, action, old_data=None, new_data=None):
 
 
 def generate_service_receipt_pdf(service_request):
-    # استيراد متأخر لتفادي فشل تحميل الموديل إن كانت reportlab غير منصّبة
     try:
         from reportlab.lib.pagesizes import A4
         from reportlab.lib.units import mm
         from reportlab.pdfgen import canvas
     except Exception:
-        # Fallback: PDF بسيط صالح تقنياً للعرض حتى لو reportlab غير متوفر
         return b"%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF"
 
     buffer = io.BytesIO()
@@ -585,101 +591,93 @@ def generate_service_receipt_pdf(service_request):
     c.setFont("Helvetica-Bold", 16)
     c.drawString(20*mm, height - 20*mm, "إيصال صيانة")
 
-    # بيانات الطلب
     c.setFont("Helvetica", 10)
     y = height - 30*mm
     c.drawString(20*mm, y, f"رقم الطلب: {service_request.service_number}")
     c.drawString(120*mm, y, f"التاريخ: {service_request.request_date.strftime('%Y-%m-%d') if service_request.request_date else ''}")
     y -= 8*mm
     c.drawString(20*mm, y, f"العميل: {service_request.customer.name if service_request.customer else (service_request.name or '-')}")
-    c.drawString(120*mm, y, f"لوحة المركبة: {service_request.vehicle_vrn}")
+    c.drawString(120*mm, y, f"لوحة المركبة: {service_request.vehicle_vrn or ''}")
 
-    # جدول القطع
+    # القطع
     y -= 12*mm
     c.setFont("Helvetica-Bold", 11)
     c.drawString(20*mm, y, "القطع المُركّبة")
     y -= 6*mm
     c.setFont("Helvetica", 9)
-    c.drawString(20*mm, y, "الصنف")
-    c.drawString(60*mm, y, "الشريك")
-    c.drawString(95*mm, y, "نسبة")
-    c.drawString(110*mm, y, "الكمية")
-    c.drawString(125*mm, y, "سعر")
-    c.drawString(145*mm, y, "الإجمالي")
-    c.drawString(170*mm, y, "الصافي")
+    headers = [("الصنف", 20), ("المخزن", 70), ("الكمية", 110), ("سعر", 125), ("خصم%", 145), ("ضريبة%", 160), ("الإجمالي", 175)]
+    for h, x in headers:
+        c.drawString(x*mm, y, h)
     y -= 4*mm
-    c.line(20*mm, y, 190*mm, y)
+    c.line(20*mm, y, 200*mm, y)
     y -= 6*mm
 
-    net_subtotal = 0.0
     parts_total = 0.0
-    for part in service_request.parts or []:
-        line_total = float(part.line_total or 0)
-        partner_share = float(part.share_percentage or 0)
-        net_line = line_total * (1 - partner_share / 100)
+    for part in getattr(service_request, "parts", []) or []:
+        qty  = int(part.quantity or 0)
+        u    = float(part.unit_price or 0)
+        disc = float(part.discount or 0)
+        taxr = float(part.tax_rate or 0)
+        gross = qty * u
+        disc_amount = gross * (disc/100.0)
+        taxable = gross - disc_amount
+        tax_amount = taxable * (taxr/100.0)
+        line_total = taxable + tax_amount
         parts_total += line_total
-        net_subtotal += net_line
 
-        c.drawString(20*mm, y, (getattr(part.part, 'name', '') or str(part.part_id))[:20])
-        c.drawString(60*mm, y, getattr(part.partner, 'name', '—') or '—')
-        c.drawRightString(105*mm, y, f"{partner_share:.0f}%")
-        c.drawRightString(120*mm, y, str(part.quantity))
-        c.drawRightString(140*mm, y, f"{float(part.unit_price):.2f}")
-        c.drawRightString(165*mm, y, f"{line_total:.2f}")
-        c.drawRightString(190*mm, y, f"{net_line:.2f}")
+        c.drawString(20*mm, y, (getattr(part.part, 'name', '') or str(part.part_id))[:25])
+        c.drawString(70*mm, y, getattr(part.warehouse, 'name', '—') or '—')
+        c.drawRightString(120*mm, y, str(qty))
+        c.drawRightString(140*mm, y, f"{u:.2f}")
+        c.drawRightString(155*mm, y, f"{disc:.0f}")
+        c.drawRightString(170*mm, y, f"{taxr:.0f}")
+        c.drawRightString(195*mm, y, f"{line_total:.2f}")
         y -= 6*mm
         if y < 40*mm:
-            c.showPage()
-            y = height - 20*mm
+            c.showPage(); y = height - 20*mm; c.setFont("Helvetica", 9)
 
-    # جدول المهام
+    # المهام
     y -= 8*mm
     c.setFont("Helvetica-Bold", 11)
     c.drawString(20*mm, y, "المهام")
     y -= 6*mm
     c.setFont("Helvetica", 9)
-    c.drawString(20*mm, y, "الوصف")
-    c.drawString(95*mm, y, "الكمية")
-    c.drawString(125*mm, y, "سعر")
-    c.drawString(145*mm, y, "الإجمالي")
-    c.drawString(170*mm, y, "الصافي")
+    headers = [("الوصف", 20), ("الكمية", 110), ("سعر", 125), ("خصم%", 145), ("ضريبة%", 160), ("الإجمالي", 175)]
+    for h, x in headers:
+        c.drawString(x*mm, y, h)
     y -= 4*mm
-    c.line(20*mm, y, 190*mm, y)
+    c.line(20*mm, y, 200*mm, y)
     y -= 6*mm
 
     tasks_total = 0.0
-    for task in service_request.tasks or []:
-        line_total = float(task.line_total or 0)
+    for task in getattr(service_request, "tasks", []) or []:
+        qty  = int(task.quantity or 1)
+        u    = float(task.unit_price or 0)
+        disc = float(task.discount or 0)
+        taxr = float(task.tax_rate or 0)
+        gross = qty * u
+        disc_amount = gross * (disc/100.0)
+        taxable = gross - disc_amount
+        tax_amount = taxable * (taxr/100.0)
+        line_total = taxable + tax_amount
         tasks_total += line_total
-        net_subtotal += line_total
 
-        c.drawString(20*mm, y, (task.description or '')[:25])
-        c.drawRightString(115*mm, y, str(task.quantity or 1))
-        c.drawRightString(140*mm, y, f"{float(task.unit_price or 0):.2f}")
-        c.drawRightString(165*mm, y, f"{line_total:.2f}")
-        c.drawRightString(190*mm, y, f"{line_total:.2f}")
+        c.drawString(20*mm, y, (task.description or '')[:40])
+        c.drawRightString(120*mm, y, str(qty))
+        c.drawRightString(140*mm, y, f"{u:.2f}")
+        c.drawRightString(155*mm, y, f"{disc:.0f}")
+        c.drawRightString(170*mm, y, f"{taxr:.0f}")
+        c.drawRightString(195*mm, y, f"{line_total:.2f}")
         y -= 6*mm
         if y < 40*mm:
-            c.showPage()
-            y = height - 20*mm
+            c.showPage(); y = height - 20*mm; c.setFont("Helvetica", 9)
 
     subtotal = parts_total + tasks_total
-    tax = net_subtotal * float(service_request.tax_rate or 0) / 100
-    total = net_subtotal + tax
 
     y -= 10*mm
     c.setFont("Helvetica-Bold", 11)
-    c.drawRightString(160*mm, y, "الإجمالي قبل خصم الشريك:")
-    c.drawRightString(190*mm, y, f"{subtotal:.2f}")
-    y -= 6*mm
-    c.drawRightString(160*mm, y, "الصافي بعد خصم الشريك:")
-    c.drawRightString(190*mm, y, f"{net_subtotal:.2f}")
-    y -= 6*mm
-    c.drawRightString(160*mm, y, f"الضريبة ({float(service_request.tax_rate or 0):.0f}%):")
-    c.drawRightString(190*mm, y, f"{tax:.2f}")
-    y -= 6*mm
-    c.drawRightString(160*mm, y, "الإجمالي النهائي:")
-    c.drawRightString(190*mm, y, f"{total:.2f}")
+    c.drawRightString(160*mm, y, "الإجمالي الكلي:")
+    c.drawRightString(195*mm, y, f"{subtotal:.2f}")
 
     c.showPage()
     c.save()

@@ -2,7 +2,7 @@ import json
 from datetime import datetime, timedelta
 from typing import Optional
 from urllib.parse import urlparse, urljoin
-
+from sqlalchemy import select
 from flask import (
     Blueprint,
     current_app,
@@ -214,12 +214,11 @@ def send_password_reset_email(user: User) -> None:
         current_app.logger.error("فشل إرسال بريد إعادة التعيين: %s", e)
 
 
-from sqlalchemy import select
-
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     ip = _get_client_ip()
 
+    # حظر مؤقت بعد محاولات فاشلة كثيرة
     if is_blocked(ip) or is_blocked_for_request():
         form = LoginForm()
         flash("❌ تم حظر محاولات الدخول مؤقتًا، حاول بعد 10 دقائق.", "danger")
@@ -228,25 +227,26 @@ def login():
 
     form = LoginForm()
 
+    # إذا كان مسجل دخول أصلاً
     if request.method == "GET" and current_user.is_authenticated:
         clear_attempts(ip)
         clear_attempts_for_request()
-
         actor = current_user._get_current_object()
-        if isinstance(actor, Customer):
-            return _redirect_back_or("shop.catalog")
-        return _redirect_back_or("main.dashboard")
+        return _redirect_back_or("shop.catalog" if isinstance(actor, Customer) else "main.dashboard")
 
     if request.method == "POST":
         identifier = _get_login_identifier(form)
         password = request.form.get("password", "")
 
+        # جلب المستخدم بالاسم أو البريد
         user = None
         if identifier:
             stmt = select(User).where((User.username == identifier) | (User.email == identifier))
             user = db.session.execute(stmt).scalars().first()
 
+        # تحقق كلمة المرور
         if user and user.check_password(password):
+            # تفعيل تذكرني إن وجد
             remember = False
             if hasattr(form, "remember_me"):
                 try:
@@ -254,24 +254,27 @@ def login():
                 except Exception:
                     remember = False
 
+            # لو فيه جلسة لمستخدم آخر
             if current_user.is_authenticated and getattr(current_user, "id", None) != user.id:
                 logout_user()
 
             login_user(user, remember=remember)
+
+            # تحديث آخر تسجيل دخول (غير معطِّل عند الفشل)
             try:
                 user.last_login = datetime.utcnow()
                 db.session.commit()
             except Exception:
                 db.session.rollback()
+
             clear_attempts(ip)
             clear_attempts_for_request()
             _audit("login.success", ok=True, user_id=user.id)
 
-            actor = user  # المستخدم الحقيقي
-            if isinstance(actor, Customer):
-                return _redirect_back_or("shop.catalog")
-            return _redirect_back_or("main.dashboard")
+            actor = user
+            return _redirect_back_or("shop.catalog" if isinstance(actor, Customer) else "main.dashboard")
 
+        # فشل التحقق
         record_attempt(ip)
         _audit("login.failed", ok=False, note=f"id={identifier or ''}")
         flash("❌ بيانات الدخول غير صحيحة.", "danger")

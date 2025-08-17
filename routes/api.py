@@ -120,6 +120,18 @@ def warehouses():
     rows = qry.order_by(Warehouse.name).limit(_limit()).all()
     return jsonify(_as_options(rows, "name"))
 
+@bp.get("/warehouses/<int:wid>/products")
+@login_required
+@limiter.limit("60/minute")
+def products_by_warehouse(wid):
+    rows = (
+        Product.query.join(StockLevel, StockLevel.product_id == Product.id)
+        .filter(StockLevel.warehouse_id == wid, StockLevel.quantity > 0)
+        .order_by(Product.name)
+        .limit(_limit(100))
+        .all()
+    )
+    return jsonify(_as_options(rows, "name", extra=lambda p: {"price": float(p.price or 0), "sku": p.sku}))
 @bp.get("/users")
 @login_required
 @limiter.limit("60/minute")

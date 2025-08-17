@@ -1,11 +1,6 @@
-<!-- File: templates/users/form.html -->
 {% extends 'base.html' %}
 
 {% block title %}
-  {{ 'تعديل مستخدم' if user_id else 'إضافة مستخدم جديد' }}
-{% endblock %}
-
-{% block page_header %}
   {{ 'تعديل مستخدم' if user_id else 'إضافة مستخدم جديد' }}
 {% endblock %}
 
@@ -14,7 +9,7 @@
   <a href="{{ url_for('main.dashboard') }}">الرئيسية</a>
 </li>
 <li class="breadcrumb-item">
-  <a href="{{ url_for('users.list_users') }}">المستخدمون</a>
+  <a href="{{ url_for('users_bp.list_users') }}">المستخدمون</a>
 </li>
 <li class="breadcrumb-item active">
   {{ 'تعديل' if user_id else 'إضافة' }}
@@ -26,9 +21,9 @@
   <form
     method="post"
     action="{% if user_id %}
-               {{ url_for('users.edit_user', user_id=user_id) }}
+               {{ url_for('users_bp.edit_user', user_id=user_id) }}
              {% else %}
-               {{ url_for('users.create_user') }}
+               {{ url_for('users_bp.create_user') }}
              {% endif %}"
   >
     {{ form.hidden_tag() }}
@@ -92,7 +87,7 @@
     <button type="submit" class="btn btn-success">
       {{ 'تحديث' if user_id else 'إنشاء' }}
     </button>
-    <a href="{{ url_for('users.list_users') }}" class="btn btn-secondary ms-2">
+    <a href="{{ url_for('users_bp.list_users') }}" class="btn btn-secondary ms-2">
       إلغاء
     </a>
   </form>

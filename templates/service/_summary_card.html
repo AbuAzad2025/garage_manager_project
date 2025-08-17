@@ -1,30 +1,21 @@
-{# نحسب المجاميع هنا لضمان الاستقلالية #}
-{% set ns = namespace(parts_total=0, tasks_total=0, net_sub=0) %}
+{% set ns = namespace(parts_total=0.0, tasks_total=0.0, net_sub=0.0) %}
 
-{# القطع #}
 {% for p in service.parts or [] %}
-  {% set line = p.line_total
-                if p.line_total is not none
-                else ((p.quantity or 0) * (p.unit_price or 0) * (1 - (p.discount or 0)/100)) %}
-  {% set net_line = line * (1 - (p.share_percentage or 0)/100) %}
+  {% set line = (p.line_total or 0)|float %}
   {% set ns.parts_total = ns.parts_total + line %}
-  {% set ns.net_sub     = ns.net_sub + net_line %}
+  {% set ns.net_sub = ns.net_sub + line %}
 {% endfor %}
 
-{# المهام #}
 {% for t in service.tasks or [] %}
-  {% set line = t.line_total
-                if t.line_total is not none
-                else ((t.quantity or 0) * (t.unit_price or 0) * (1 - (t.discount or 0)/100)) %}
+  {% set line = (t.line_total or 0)|float %}
   {% set ns.tasks_total = ns.tasks_total + line %}
-  {% set ns.net_sub     = ns.net_sub + line %}
+  {% set ns.net_sub = ns.net_sub + line %}
 {% endfor %}
 
-{% set subtotal     = ns.parts_total + ns.tasks_total %}
-{% set net_subtotal = ns.net_sub %}
-{% set tax_rate     = (service.tax_rate or 0)|float %}
-{% set tax_amount   = net_subtotal * (tax_rate/100.0) %}
-{% set total_amount = net_subtotal + tax_amount %}
+{% set subtotal = ns.parts_total + ns.tasks_total %}
+{% set tax_rate = (service.tax_rate or 0)|float %}
+{% set tax_amount = ns.net_sub * (tax_rate/100.0) %}
+{% set total_amount = ns.net_sub + tax_amount %}
 
 <div class="card mb-3 shadow-sm">
   <div class="card-header bg-info text-white fw-bold">
@@ -36,8 +27,8 @@
       <span class="fw-bold">{{ '%.2f'|format(subtotal) }} ₪</span>
     </div>
     <div class="d-flex justify-content-between mb-2">
-      <span>صافي بعد خصم الشريك:</span>
-      <span class="fw-bold text-primary">{{ '%.2f'|format(net_subtotal) }} ₪</span>
+      <span>صافي قبل الضريبة:</span>
+      <span class="fw-bold text-primary">{{ '%.2f'|format(ns.net_sub) }} ₪</span>
     </div>
     <div class="d-flex justify-content-between mb-2">
       <span>نسبة الضريبة:</span>

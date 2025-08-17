@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
-
-from flask import has_request_context
+from flask import has_request_context, current_app
+import uuid
 from flask_login import current_user, UserMixin
 from sqlalchemy import (
     Boolean,
@@ -572,25 +572,25 @@ class Partner(db.Model, TimestampMixin, AuditMixin):
     invoices          = relationship('Invoice', back_populates='partner')
     shipment_partners = relationship('ShipmentPartner', back_populates='partner')
 
-    warehouse_shares  = relationship(
+    warehouse_shares = relationship(
         'WarehousePartnerShare',
         back_populates='partner',
         cascade='all, delete-orphan',
-        overlaps="shares,partner"
+        overlaps="shares,product_shares"
     )
-    # alias مكافئ حتى لا تتعطل أي أكواد قديمة كانت تتوقع الاسم shares
-    shares            = relationship(
+    shares = relationship(
         'WarehousePartnerShare',
         back_populates='partner',
         cascade='all, delete-orphan',
-        overlaps="warehouse_shares,partner"
+        overlaps="warehouse_shares,product_shares"
     )
-
-    product_shares    = relationship(
+    product_shares = relationship(
         'ProductPartnerShare',
         back_populates='partner',
-        cascade='all, delete-orphan'
+        cascade='all, delete-orphan',
+        overlaps="shares,warehouse_shares"
     )
+
     product_links     = relationship(
         'ProductPartner',
         back_populates='partner',
@@ -1026,7 +1026,12 @@ class WarehousePartnerShare(db.Model, TimestampMixin):
     share_amount = db.Column(db.Numeric(12, 2), nullable=True)
     notes = db.Column(db.Text)
 
-    partner = db.relationship('Partner', back_populates='shares')
+    partner = db.relationship(
+        'Partner',
+        back_populates='shares',
+        overlaps="product_shares,warehouse_shares,shares"
+    )
+
     warehouse = db.relationship('Warehouse', back_populates='partner_shares')
     product = db.relationship('Product', foreign_keys=[product_id], viewonly=True)
 

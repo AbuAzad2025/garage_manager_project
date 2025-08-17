@@ -1,84 +1,171 @@
-{# templates/partials/sidebar.html #}
-<aside class="main-sidebar sidebar-dark-primary elevation-4">
+<!-- Main Sidebar Container -->
+<aside class="main-sidebar sidebar-dark-primary elevation-4" dir="rtl">
+
+  <!-- Brand Logo -->
   <a href="{{ url_for('main.dashboard') }}" class="brand-link text-center">
-    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo"
-         class="brand-image img-circle elevation-3" style="opacity:.8">
-    <span class="brand-text font-weight-light">نظام إدارة الكراج</span>
+    <img src="{{ url_for('static', filename='img/logo.png') }}"
+         alt="Garage Logo"
+         class="brand-image img-circle elevation-3"
+         style="opacity:.9; max-height:45px;">
+    <span class="brand-text font-weight-light d-block">نظام إدارة الكراج</span>
   </a>
 
+  <!-- Sidebar -->
   <div class="sidebar">
+
+    <!-- User panel -->
+    <div class="user-panel mt-3 pb-3 mb-3 d-flex justify-content-end">
+      <div class="info text-right">
+        <a href="{{ url_for('users_bp.profile') }}" class="d-block">
+          {{ current_user.username if current_user.is_authenticated else "ضيف" }}
+        </a>
+      </div>
+      <div class="image">
+        <img src="{{ url_for('static', filename='img/azad_logo.png') }}"
+             class="img-circle elevation-2"
+             alt="User Image">
+      </div>
+    </div>
+
+    <!-- Sidebar Menu -->
     <nav class="mt-2">
-      <ul class="nav nav-pills nav-sidebar flex-column" role="menu">
+      <ul class="nav nav-pills nav-sidebar flex-column text-right"
+          data-widget="treeview"
+          role="menu"
+          data-accordion="false">
 
+        <!-- Dashboard -->
         <li class="nav-item">
-          <a href="{{ url_for('main.dashboard') }}" class="nav-link">
-            <i class="nav-icon fas fa-tachometer-alt"></i><p>لوحة التحكم</p>
+          <a href="{{ url_for('main.dashboard') }}"
+             class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}">
+            <i class="nav-icon fas fa-tachometer-alt"></i>
+            <p>لوحة التحكم</p>
           </a>
         </li>
 
+        <!-- العملاء -->
         <li class="nav-item">
-          <a href="{{ url_for_any('service.index','service_bp.index') }}" class="nav-link">
-            <i class="nav-icon fas fa-tools"></i><p>طلبات الصيانة</p>
+          <a href="{{ url_for('customers_bp.list_customers') }}"
+             class="nav-link {% if request.blueprint == 'customers_bp' %}active{% endif %}">
+            <i class="nav-icon fas fa-users"></i>
+            <p>العملاء</p>
           </a>
         </li>
 
+        <!-- الخدمات -->
         <li class="nav-item">
-          <a href="{{ url_for_any('warehouse_bp.list','warehouses.list','warehouses.index') }}" class="nav-link">
-            <i class="nav-icon fas fa-warehouse"></i><p>المستودعات</p>
+          <a href="{{ url_for('service.list_requests') }}"
+             class="nav-link {% if request.blueprint == 'service' %}active{% endif %}">
+            <i class="nav-icon fas fa-tools"></i>
+            <p>الخدمات</p>
           </a>
         </li>
 
+        <!-- المبيعات -->
         <li class="nav-item">
-          <a href="{{ url_for_any('sales.index','sales_bp.index') }}" class="nav-link">
-            <i class="nav-icon fas fa-shopping-cart"></i><p>المبيعات</p>
+          <a href="{{ url_for('sales_bp.list_sales') }}"
+             class="nav-link {% if request.blueprint == 'sales_bp' %}active{% endif %}">
+            <i class="nav-icon fas fa-shopping-cart"></i>
+            <p>المبيعات</p>
           </a>
         </li>
 
+        <!-- النفقات -->
         <li class="nav-item">
-          <a href="{{ url_for_any('expenses.index','expenses_bp.index') }}" class="nav-link">
-            <i class="nav-icon fas fa-receipt"></i><p>المصاريف</p>
+          <a href="{{ url_for('expenses_bp.list_expenses') }}"
+             class="nav-link {% if request.blueprint == 'expenses_bp' %}active{% endif %}">
+            <i class="nav-icon fas fa-receipt"></i>
+            <p>النفقات</p>
           </a>
         </li>
 
+        <!-- الموردين -->
         <li class="nav-item">
-          <a href="{{ url_for_any('payments.index','payments_bp.index') }}" class="nav-link">
-            <i class="nav-icon fas fa-money-bill-wave"></i><p>الدفعات</p>
+          <a href="{{ url_for('vendors_bp.suppliers_list') }}"
+             class="nav-link {% if request.blueprint == 'vendors_bp' %}active{% endif %}">
+            <i class="nav-icon fas fa-truck"></i>
+            <p>الموردين</p>
           </a>
         </li>
 
+        <!-- الشركاء -->
         <li class="nav-item">
-          <a href="{{ url_for_any('reports.ar_aging','reports_bp.ar_aging','reports.index','reports_bp.index') }}" class="nav-link">
-            <i class="nav-icon fas fa-chart-bar"></i><p>التقارير</p>
+          <a href="{{ url_for('vendors_bp.partners_list') }}"
+             class="nav-link {% if request.blueprint == 'vendors_bp' %}active{% endif %}">
+            <i class="nav-icon fas fa-handshake"></i>
+            <p>الشركاء</p>
           </a>
         </li>
 
-        {# صلاحيات النسخ/الاستعادة — نعتمد aliases الموحّدة من has_perm #}
-        {% set can_backup = has_perm('backup_database') %}
-        {% set can_restore = has_perm('restore_database') %}
-
-        {% if can_backup or can_restore %}
-          <li class="nav-header">النسخ الاحتياطي</li>
-
-          {% if can_backup %}
-          <li class="nav-item">
-            <a href="{{ url_for('main.backup_db') }}" class="nav-link">
-              <i class="nav-icon fas fa-download"></i><p>تنزيل نسخة</p>
-            </a>
-          </li>
-          {% endif %}
-
-          {% if can_restore %}
-          <li class="nav-item">
-            <a href="{{ url_for('main.restore_db') }}" class="nav-link">
-              <i class="nav-icon fas fa-upload"></i><p>استعادة</p>
-            </a>
-          </li>
-          {% endif %}
-        {% endif %}
-
+        <!-- الشحنات -->
         <li class="nav-item">
-          <a href="{{ url_for_any('shop.index','shop_bp.index') }}" class="nav-link">
-            <i class="nav-icon fas fa-store"></i><p>المتجر</p>
+          <a href="{{ url_for('shipments_bp.list_shipments') }}"
+             class="nav-link {% if request.blueprint == 'shipments_bp' %}active{% endif %}">
+            <i class="nav-icon fas fa-shipping-fast"></i>
+            <p>الشحنات</p>
+          </a>
+        </li>
+
+        <!-- المستودعات -->
+        <li class="nav-item">
+          <a href="{{ url_for('warehouse_bp.list') }}"
+             class="nav-link {% if request.blueprint == 'warehouse_bp' %}active{% endif %}">
+            <i class="nav-icon fas fa-warehouse"></i>
+            <p>المستودعات</p>
+          </a>
+        </li>
+
+        <!-- الدفعات -->
+        <li class="nav-item">
+          <a href="{{ url_for('payments.list_payments') }}"
+             class="nav-link {% if request.blueprint == 'payments' %}active{% endif %}">
+            <i class="nav-icon fas fa-money-bill-wave"></i>
+            <p>الدفعات</p>
+          </a>
+        </li>
+
+        <!-- التقارير -->
+        <li class="nav-item">
+          <a href="{{ url_for('reports_bp.universal') }}"
+             class="nav-link {% if request.blueprint == 'reports_bp' %}active{% endif %}">
+            <i class="nav-icon fas fa-chart-line"></i>
+            <p>التقارير</p>
+          </a>
+        </li>
+
+        <!-- الملاحظات -->
+        <li class="nav-item">
+          <a href="{{ url_for('notes_bp.list_notes') }}"
+             class="nav-link {% if request.blueprint == 'notes_bp' %}active{% endif %}">
+            <i class="nav-icon fas fa-sticky-note"></i>
+            <p>الملاحظات</p>
+          </a>
+        </li>
+
+        <!-- النسخ الاحتياطي -->
+        <li class="nav-item">
+          <a href="{{ url_for('main.backup_db') }}"
+             class="nav-link {% if request.endpoint in ['main.backup_db','main.restore_db'] %}active{% endif %}">
+            <i class="nav-icon fas fa-database"></i>
+            <p>النسخ الاحتياطي</p>
+          </a>
+        </li>
+
+        <!-- المستخدمون -->
+        <li class="nav-item">
+          <a href="{{ url_for('users_bp.list_users') }}"
+             class="nav-link {% if request.blueprint == 'users_bp' %}active{% endif %}">
+            <i class="nav-icon fas fa-user-cog"></i>
+            <p>المستخدمون</p>
+          </a>
+        </li>
+
+        <!-- المتجر -->
+        <li class="nav-item">
+          <a href="{{ url_for('shop.catalog') }}"
+             class="nav-link {% if request.blueprint == 'shop' %}active{% endif %}">
+            <i class="nav-icon fas fa-store"></i>
+            <p>المتجر</p>
           </a>
         </li>
 
