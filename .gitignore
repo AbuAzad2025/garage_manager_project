@@ -45,3 +45,8 @@ junit.xml
 # أنظمة تشغيل
 .DS_Store
 Thumbs.db
+
+# binaries & artifacts
+*.zip
+artifacts/
+
