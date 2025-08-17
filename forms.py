@@ -125,32 +125,31 @@ class AjaxSelectMultipleField(SelectMultipleField):
 def only_digits(s: str) -> str:
     return re.sub(r"\D", "", s or "")
 
-def luhn_check(s):
-    s = "".join(ch for ch in str(s) if ch.isdigit())
-    if not 13 <= len(s) <= 19: return False
-    tot = 0
-    rev = s[::-1]
-    for i, ch in enumerate(rev):
-        d = int(ch)
-        if i % 2 == 1:
-            d *= 2
-            if d > 9: d -= 9
-        tot += d
-    return tot % 10 == 0
-
-def is_valid_expiry_mm_yy(v):
-    try:
-        v = v.strip()
-        if len(v) != 5 or v[2] != "/": return False
-        mm, yy = int(v[:2]), int(v[3:])
-        if not 1 <= mm <= 12: return False
-        now = datetime.utcnow()
-        y = 2000 + yy
-        if y < now.year: return False
-        if y == now.year and mm < now.month: return False
-        return True
-    except Exception:
+def luhn_check(card_number: str) -> bool:
+    digits = [int(ch) for ch in str(card_number) if ch.isdigit()]
+    if not 13 <= len(digits) <= 19:
         return False
+    checksum = 0
+    for i, d in enumerate(reversed(digits)):
+        if i % 2:
+            d *= 2
+            if d > 9:
+                d -= 9
+        checksum += d
+    return checksum % 10 == 0
+
+def is_valid_expiry_mm_yy(value: str) -> bool:
+    value = (value or "").strip()
+    if not re.fullmatch(r"\d{2}/\d{2}", value):
+        return False
+    mm, yy = map(int, value.split("/"))
+    if not 1 <= mm <= 12:
+        return False
+    now = datetime.utcnow()
+    year = 2000 + yy
+    if year < now.year or (year == now.year and mm < now.month):
+        return False
+    return True
     
 # --------- Import/Restore ----------
 class CustomerImportForm(FlaskForm):

@@ -56,7 +56,6 @@ def _init_sentry(app: Flask) -> None:
     try:
         import sentry_sdk
         from sentry_sdk.integrations.flask import FlaskIntegration
-
         sentry_sdk.init(
             dsn=dsn,
             integrations=[FlaskIntegration()],
@@ -115,6 +114,7 @@ def create_app(config_object=Config, test_config=None) -> Flask:
     csrf.init_app(app)
 
     app.config.setdefault("RATELIMIT_STORAGE_URI", os.getenv("RATELIMIT_STORAGE_URI", "memory://"))
+    app.config.setdefault("RATELIMIT_HEADERS_ENABLED", True)
     if app.config.get("TESTING"):
         app.config["RATELIMIT_ENABLED"] = False
     limiter.init_app(app)
@@ -180,6 +180,8 @@ def create_app(config_object=Config, test_config=None) -> Flask:
 
         def has_perm(code: str) -> bool:
             try:
+                if not code:
+                    return False
                 u = current_user
                 if not getattr(u, "is_authenticated", False):
                     return False
@@ -248,8 +250,12 @@ def create_app(config_object=Config, test_config=None) -> Flask:
 
     CORS(
         app,
-        resources={r"/api/*": {"origins": app.config.get("CORS_ORIGINS", "*"),
-                               "supports_credentials": app.config.get("CORS_SUPPORTS_CREDENTIALS", True)}},
+        resources={
+            r"/api/*": {
+                "origins": app.config.get("CORS_ORIGINS", "*"),
+                "supports_credentials": app.config.get("CORS_SUPPORTS_CREDENTIALS", True),
+            }
+        },
     )
 
     @login_manager.user_loader

@@ -9,6 +9,15 @@ from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from extensions import db
 from models import User, Role, Permission, Customer
 from routes import auth as auth_mod
+import uuid
+
+def generate_unique_customer_data(prefix="cust"):
+    unique = str(uuid.uuid4())[:8]
+    return {
+        "name": f"{prefix}_{unique}",
+        "email": f"{prefix}_{unique}@example.com",
+        "phone": f"059{unique[:6]}"
+    }
 
 
 def create_user(username="u1", email="u1@example.com", password="P@ssw0rd"):
@@ -110,7 +119,8 @@ def test_login_redirect_if_authenticated_user_direct_call(app):
             auth_mod.current_user = orig
 
 def test_login_redirect_if_authenticated_customer_direct_call(app):
-    c = Customer(name="cust", email="cust@example.com", phone="059", is_online=True, is_active=True)
+    data = generate_unique_customer_data()
+    c = Customer(name=data["name"], email=data["email"], phone=data["phone"], is_online=True, is_active=True)
     c.set_password("x")
     db.session.add(c)
     db.session.commit()
@@ -291,11 +301,12 @@ def test_customer_register_authenticated_user_redirects(client):
     assert urlparse(r.location).path == url_for("shop.catalog")
 
 def test_customer_register_post_success_monkeypatched_form(client, monkeypatch):
+    rnd = str(uuid.uuid4().int)[:6]
     class DummyCustomerForm:
-        name     = types.SimpleNamespace(data="Ali")
-        email    = types.SimpleNamespace(data="ali@example.com")
-        phone    = types.SimpleNamespace(data="0590000000")
-        whatsapp = types.SimpleNamespace(data="0590000000")
+        name     = types.SimpleNamespace(data=f"Ali{rnd}")
+        email    = types.SimpleNamespace(data=f"ali{rnd}@example.com")
+        phone    = types.SimpleNamespace(data=f"059{rnd}")
+        whatsapp = types.SimpleNamespace(data=f"059{rnd}")
         address  = types.SimpleNamespace(data="Gaza")
         password = types.SimpleNamespace(data="Al1!Al1!")
         def validate_on_submit(self): return True

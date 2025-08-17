@@ -214,6 +214,8 @@ def send_password_reset_email(user: User) -> None:
         current_app.logger.error("فشل إرسال بريد إعادة التعيين: %s", e)
 
 
+from sqlalchemy import select
+
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     ip = _get_client_ip()
@@ -229,24 +231,20 @@ def login():
     if request.method == "GET" and current_user.is_authenticated:
         clear_attempts(ip)
         clear_attempts_for_request()
-        if isinstance(current_user._get_current_object(), Customer):
-            return _redirect_back_or_any("shop.index", "shop_bp.index")
+
+        actor = current_user._get_current_object()
+        if isinstance(actor, Customer):
+            return _redirect_back_or("shop.catalog")
         return _redirect_back_or("main.dashboard")
 
     if request.method == "POST":
         identifier = _get_login_identifier(form)
         password = request.form.get("password", "")
 
-        form_is_valid = True
-        if hasattr(form, "validate"):
-            try:
-                form_is_valid = bool(form.validate())
-            except Exception:
-                form_is_valid = False
-
         user = None
-        if form_is_valid and identifier:
-            user = User.query.filter((User.username == identifier) | (User.email == identifier)).first()
+        if identifier:
+            stmt = select(User).where((User.username == identifier) | (User.email == identifier))
+            user = db.session.execute(stmt).scalars().first()
 
         if user and user.check_password(password):
             remember = False
@@ -268,6 +266,10 @@ def login():
             clear_attempts(ip)
             clear_attempts_for_request()
             _audit("login.success", ok=True, user_id=user.id)
+
+            actor = user  # المستخدم الحقيقي
+            if isinstance(actor, Customer):
+                return _redirect_back_or("shop.catalog")
             return _redirect_back_or("main.dashboard")
 
         record_attempt(ip)
@@ -276,7 +278,6 @@ def login():
 
     return render_template("auth/login.html", form=form)
 
-
 @auth_bp.route("/logout", methods=["POST"])
 @login_required
 def logout():
@@ -284,7 +285,6 @@ def logout():
     logout_user()
     flash("تم تسجيل الخروج بنجاح.", "info")
     return redirect(url_for("auth.login"))
-
 
 @auth_bp.route("/register", methods=["GET", "POST"])
 @login_required
@@ -318,12 +318,11 @@ def register():
 
     return render_template("auth/register.html", form=form)
 
-
 @auth_bp.route("/register/customer", methods=["GET", "POST"])
 def customer_register():
     if current_user.is_authenticated and isinstance(current_user._get_current_object(), User):
         flash("أنت مسجل دخول بالفعل.", "info")
-        return _redirect_back_or_any("shop.index", "shop_bp.index")
+        return redirect(url_for("shop.catalog"))  # ✅ تعديل هنا
 
     form = CustomerFormOnline()
     if form.validate_on_submit():
@@ -343,10 +342,9 @@ def customer_register():
         login_user(customer)
         _audit("customer.register", ok=True, customer_id=customer.id)
         flash("✅ تم إنشاء حسابك بنجاح! يمكنك الآن استخدام المتجر.", "success")
-        return _redirect_back_or_any("shop.index", "shop_bp.index")
+        return redirect(url_for("shop.catalog"))  # ✅ تعديل هنا أيضًا
 
     return render_template("auth/customer_register.html", form=form)
-
 
 @auth_bp.route("/password_reset_request", methods=["GET", "POST"])
 def password_reset_request():

@@ -258,19 +258,25 @@ def permission_required(*permission_names):
         return wrapped
     return decorator
 
-def clear_user_permission_cache(user_id: int):
-    if redis_client:
-        try:
-            redis_client.delete(f"user_permissions:{user_id}")
-        except Exception:
-            pass
+def clear_user_permission_cache(user_id: int) -> None:
+    if not redis_client:
+        return
+    try:
+        redis_client.delete(f"user_permissions:{user_id}")
+    except Exception:
+        current_app.logger.exception(
+            "Failed to clear permission cache for user %s", user_id
+        )
 
-def clear_role_permission_cache(role_id: int):
-    if redis_client:
-        try:
-            redis_client.delete(f"role_permissions:{role_id}")
-        except Exception:
-            pass
+def clear_role_permission_cache(role_id: int) -> None:
+    if not redis_client:
+        return
+    try:
+        redis_client.delete(f"role_permissions:{role_id}")
+    except Exception:
+        current_app.logger.exception(
+            "Failed to clear permission cache for role %s", role_id
+        )
 
 def clear_users_cache_by_role(role_id: int):
     if not redis_client:
