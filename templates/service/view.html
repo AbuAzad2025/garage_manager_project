@@ -1,3 +1,4 @@
+{# templates/service/view.html #}
 {% extends "base.html" %}
 {% block title %}تفاصيل طلب الصيانة{% endblock %}
 {% block page_header %}طلب {{ service.service_number or ('#' ~ service.id) }}{% endblock %}
@@ -6,6 +7,10 @@
   {{ super() }}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/service.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}">
+
+  {# 🔹 Select2 CSS #}
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2/css/select2.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 {% endblock %}
 
 {% block breadcrumb %}
@@ -126,9 +131,19 @@
 
 {% block scripts %}
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  {# 🔹 Select2 JS قبل service.js #}
+  <script src="{{ url_for('static', filename='adminlte/plugins/select2/js/select2.full.min.js') }}"></script>
+
   <script src="{{ url_for('static', filename='js/service.js') }}"></script>
+
   <script>
     document.addEventListener("DOMContentLoaded", function(){
+      // فحص سريع: لو Select2 ما تحمل لأي سبب
+      if (!window.jQuery || !jQuery.fn.select2) {
+        console.warn('Select2 لم يُحمّل. تأكد من المسارات إلى ملفات CSS/JS.');
+      }
+
       const btn = document.getElementById("printReceiptBtn");
       if(btn){
         btn.addEventListener("click", function(){

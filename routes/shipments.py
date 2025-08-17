@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+ # -*- coding: utf-8 -*-
 from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, abort
 from flask_login import login_required
@@ -12,6 +12,18 @@ from utils import permission_required, format_currency
 
 shipments_bp = Blueprint("shipments_bp", __name__, url_prefix="/shipments")
 
+
+def _apply_arrival(sh: Shipment) -> None:
+    from models import StockLevel  # تجنب الاستيراد الدائري
+    for it in sh.items:
+        if not (it.product_id and it.warehouse_id and (it.quantity or 0) > 0):
+            continue
+        sl = StockLevel.query.filter_by(product_id=it.product_id, warehouse_id=it.warehouse_id).first()
+        if not sl:
+            sl = StockLevel(product_id=it.product_id, warehouse_id=it.warehouse_id, quantity=0, reserved_quantity=0)
+            db.session.add(sl)
+            db.session.flush()
+        sl.quantity = (sl.quantity or 0) + int(it.quantity or 0)
 def _wants_json() -> bool:
     accept = request.headers.get("Accept", "")
     return ("application/json" in accept and "text/html" not in accept) or (request.args.get("format") == "json")
@@ -98,12 +110,17 @@ def list_shipments():
 def create_shipment():
     form = ShipmentForm()
     pre_dest_id = request.args.get("destination_id", type=int)
+
     if request.method == "GET":
-        if not getattr(form.items, "entries", []): form.items.append_entry()
-        if not getattr(form.partner_links, "entries", []): form.partner_links.append_entry()
+        if not getattr(form.items, "entries", []):
+            form.items.append_entry()
+        if not getattr(form.partner_links, "entries", []):
+            form.partner_links.append_entry()
+
     _fill_selects_for_form(form)
     if pre_dest_id and hasattr(form, "destination_id") and not form.destination_id.data:
         form.destination_id.data = pre_dest_id
+
     if form.validate_on_submit():
         sh = Shipment(
             shipment_number=form.shipment_number.data or _next_shipment_number(),
@@ -124,6 +141,7 @@ def create_shipment():
             notes=form.notes.data,
         )
         db.session.add(sh); db.session.flush()
+
         for entry in getattr(form.items, "entries", []):
             f = getattr(entry, "form", entry)
             db.session.add(ShipmentItem(
@@ -134,6 +152,7 @@ def create_shipment():
                 unit_cost=f.unit_cost.data or 0,
                 declared_value=f.declared_value.data or 0,
             ))
+
         for entry in getattr(form.partner_links, "entries", []):
             f = getattr(entry, "form", entry)
             if f.partner_id.data:
@@ -149,6 +168,11 @@ def create_shipment():
                     expiry_date=f.expiry_date.data,
                     notes=f.notes.data,
                 ))
+
+        # لو أنشئت الشحنة مباشرة بوضع ARRIVED طبّق المخزون الآن
+        if (sh.status or "").upper() == "ARRIVED":
+            _apply_arrival(sh)
+
         try:
             db.session.commit()
             flash("✅ تم إنشاء الشحنة بنجاح", "success")
@@ -156,6 +180,7 @@ def create_shipment():
             return redirect(url_for("warehouse_bp.detail", warehouse_id=dest_id)) if dest_id else redirect(url_for("shipments_bp.list_shipments"))
         except SQLAlchemyError as e:
             db.session.rollback(); flash(f"⚠️ خطأ أثناء إنشاء الشحنة: {e}", "danger")
+
     return render_template("warehouses/shipment_form.html", form=form, shipment=None)
 
 @shipments_bp.route("/<int:id>/edit", methods=["GET", "POST"], endpoint="edit_shipment")
@@ -163,6 +188,8 @@ def create_shipment():
 @permission_required("manage_warehouses")
 def edit_shipment(id: int):
     sh = _sa_get_or_404(Shipment, id, options=[joinedload(Shipment.items), joinedload(Shipment.partners)])
+    old_status = (sh.status or "").upper()
+
     form = ShipmentForm(obj=sh)
     if request.method == "GET":
         form.partner_links.entries.clear()
@@ -178,8 +205,11 @@ def edit_shipment(id: int):
                 "product_id": i.product_id, "warehouse_id": i.warehouse_id, "quantity": i.quantity,
                 "unit_cost": i.unit_cost, "declared_value": i.declared_value,
             })
+
     _fill_selects_for_form(form)
+
     if form.validate_on_submit():
+        sh.shipment_number = form.shipment_number.data or sh.shipment_number or _next_shipment_number()
         sh.shipment_date = form.shipment_date.data
         sh.expected_arrival = form.expected_arrival.data
         sh.actual_arrival = form.actual_arrival.data
@@ -195,7 +225,9 @@ def edit_shipment(id: int):
         sh.insurance = form.insurance.data
         sh.total_value = form.total_value.data
         sh.notes = form.notes.data
+
         sh.partners.clear(); sh.items.clear(); db.session.flush()
+
         for entry in getattr(form.partner_links, "entries", []):
             f = getattr(entry, "form", entry)
             if f.partner_id.data:
@@ -210,6 +242,7 @@ def edit_shipment(id: int):
                     expiry_date=f.expiry_date.data,
                     notes=f.notes.data,
                 ))
+
         for entry in getattr(form.items, "entries", []):
             f = getattr(entry, "form", entry)
             sh.items.append(ShipmentItem(
@@ -219,6 +252,11 @@ def edit_shipment(id: int):
                 unit_cost=f.unit_cost.data or 0,
                 declared_value=f.declared_value.data or 0,
             ))
+
+        new_status = (sh.status or "").upper()
+        if new_status == "ARRIVED" and old_status != "ARRIVED":
+            _apply_arrival(sh)
+
         try:
             db.session.commit()
             flash("✅ تم تحديث بيانات الشحنة", "success")
@@ -226,6 +264,7 @@ def edit_shipment(id: int):
             return redirect(url_for("warehouse_bp.detail", warehouse_id=dest_id)) if dest_id else redirect(url_for("shipments_bp.list_shipments"))
         except SQLAlchemyError as e:
             db.session.rollback(); flash(f"⚠️ خطأ أثناء التحديث: {e}", "danger")
+
     return render_template("warehouses/shipment_form.html", form=form, shipment=sh)
 
 @shipments_bp.route("/<int:id>/delete", methods=["POST"], endpoint="delete_shipment")

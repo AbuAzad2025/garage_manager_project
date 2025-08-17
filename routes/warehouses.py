@@ -227,7 +227,6 @@ def products(id):
 @login_required
 @permission_required("manage_inventory")
 def add_product(id):
-    """إضافة صنف إلى مستودع (يدعم أنواع المستودعات المختلفة)."""
     warehouse_id = id
     warehouse = _get_or_404(Warehouse, warehouse_id)
     form = ProductForm()
@@ -245,34 +244,45 @@ def add_product(id):
 
         elif warehouse.warehouse_type == WarehouseType.PARTNER.value:
             if form.validate_on_submit():
-                partner_ids = request.form.getlist("partner_id")
-                shares = request.form.getlist("share_percentage")
+                partner_ids   = request.form.getlist("partner_id")
+                shares        = request.form.getlist("share_percentage")
+                share_amounts = request.form.getlist("share_amount")
+                notes_list    = request.form.getlist("notes")
 
                 product = Product()
                 form.populate_obj(product)
                 db.session.add(product)
                 db.session.flush()
 
-                for partner_id, share in zip(partner_ids, shares):
+                for idx, (partner_id, share) in enumerate(zip(partner_ids, shares)):
                     try:
-                        pid = int(partner_id)
+                        pid  = int(partner_id)
                         perc = float(share or 0)
                     except ValueError:
                         continue
+                    try:
+                        amt = float(share_amounts[idx]) if idx < len(share_amounts) and share_amounts[idx] not in (None, "", "None") else 0.0
+                    except Exception:
+                        amt = 0.0
+                    note = notes_list[idx].strip() if idx < len(notes_list) and notes_list[idx] not in (None, "", "None") else None
                     db.session.add(
                         ProductPartnerShare(
-                            product_id=product.id, partner_id=pid, share_percentage=perc, notes=None
+                            product_id=product.id,
+                            partner_id=pid,
+                            share_percentage=perc,
+                            share_amount=amt,
+                            notes=note
                         )
                     )
                 db.session.commit()
-                flash("✅ تمت إضافة القطعة مع الشركاء بنجاح", "success")
+                flash("✅ تمت إضافة القطعة مع مساهمات الشركاء بنجاح", "success")
                 return redirect(url_for("warehouse_bp.add_product", id=warehouse.id))
 
         elif warehouse.warehouse_type == WarehouseType.EXCHANGE.value:
             if form.validate_on_submit():
-                vendor_names = request.form.getlist("vendor_name")
+                supplier_ids  = request.form.getlist("supplier_id")
                 vendor_phones = request.form.getlist("vendor_phone")
-                vendor_paid = request.form.getlist("vendor_paid")
+                vendor_paid   = request.form.getlist("vendor_paid")
                 vendor_prices = request.form.getlist("vendor_price")
 
                 product = Product()
@@ -280,7 +290,27 @@ def add_product(id):
                 db.session.add(product)
                 db.session.flush()
 
-                for name, phone, paid, price in zip(vendor_names, vendor_phones, vendor_paid, vendor_prices):
+                maxlen = max(len(supplier_ids or []), len(vendor_phones or []), len(vendor_paid or []), len(vendor_prices or []), 1)
+                for i in range(maxlen):
+                    sid   = (supplier_ids[i]  if i < len(supplier_ids)  else None)
+                    phone = (vendor_phones[i] if i < len(vendor_phones) else None)
+                    paid  = (vendor_paid[i]   if i < len(vendor_paid)   else None)
+                    price = (vendor_prices[i] if i < len(vendor_prices) else None)
+
+                    sname = None
+                    if sid and str(sid).isdigit():
+                        sup = db.session.get(Supplier, int(sid))
+                        if sup:
+                            sname = sup.name
+
+                    note_parts = []
+                    if sid and str(sid).isdigit():
+                        note_parts.append(f"SupplierID:{sid}{'('+sname+')' if sname else ''}")
+                    if phone: note_parts.append(f"phone:{phone}")
+                    if paid:  note_parts.append(f"paid:{paid}")
+                    if price: note_parts.append(f"price:{price}")
+                    note_txt = " | ".join(note_parts) if note_parts else None
+
                     db.session.add(
                         ExchangeTransaction(
                             product_id=product.id,
@@ -288,17 +318,19 @@ def add_product(id):
                             partner_id=None,
                             quantity=form.quantity.data,
                             direction="IN",
-                            notes=f"Trader: {name} / {phone} / paid:{paid} / price:{price}",
+                            notes=note_txt
                         )
                     )
+
                 db.session.commit()
-                flash("✅ تمت إضافة القطعة وعمليات التبادل بنجاح", "success")
+                flash("✅ تمت إضافة القطعة وربط بيانات التبادل (اختيار مورّد/تاجر موجود أو بيانات يدوية)", "success")
                 return redirect(url_for("warehouse_bp.add_product", id=warehouse.id))
 
     if warehouse.warehouse_type == WarehouseType.PARTNER.value:
-        partners_forms = [PartnerShareForm() for _ in range(1)]
+        partners_forms = [ProductPartnerShareForm()]
     elif warehouse.warehouse_type == WarehouseType.EXCHANGE.value:
-        exchange_vendors_forms = [ExchangeVendorForm() for _ in range(1)]
+        exchange_vendors_forms = [ExchangeVendorForm()]
+
     return render_template(
         "warehouses/add_product.html",
         form=form,
@@ -306,8 +338,7 @@ def add_product(id):
         partners_forms=partners_forms,
         exchange_vendors_forms=exchange_vendors_forms,
     )
-
-
+     
 @warehouse_bp.route("/<int:id>/import", methods=["GET", "POST"], endpoint="import_products")
 @login_required
 @permission_required("manage_inventory")

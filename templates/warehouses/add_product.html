@@ -1,53 +1,172 @@
+{# templates/warehouses/add_product.html #}
 {% extends 'warehouses/base.html' %}
 {% block title %}إضافة منتج - {{ warehouse.name }}{% endblock %}
 {% block page_title %}إضافة منتج - {{ warehouse.name }}{% endblock %}
 
 {% block content %}
-<form method="POST" novalidate>
+{% set wtype = (warehouse.warehouse_type.value if warehouse.warehouse_type is not string else warehouse.warehouse_type)|upper %}
+
+<form method="POST" novalidate id="add-product-form" data-wtype="{{ wtype }}">
   {{ form.hidden_tag() }}
 
-  <div class="mb-2">{{ form.name.label }} {{ form.name(class="form-control") }}</div>
-  <div class="mb-2">{{ form.sku.label }} {{ form.sku(class="form-control") }}</div>
-  <div class="mb-2">{{ form.price.label }} {{ form.price(class="form-control") }}</div>
-  <div class="mb-2">{{ form.tax_rate.label }} {{ form.tax_rate(class="form-control") }}</div>
-
-  {# نطبع بعض الحقول المفيدة (اختيارية) #}
-  <div class="row">
-    <div class="col-md-6 mb-2">{{ form.brand.label }} {{ form.brand(class="form-control") }}</div>
-    <div class="col-md-6 mb-2">{{ form.part_number.label }} {{ form.part_number(class="form-control") }}</div>
+  <div class="alert alert-info mb-3">
+    نوع المستودع: <strong>{{ wtype }}</strong>
   </div>
 
-  {% set wtype = (warehouse.warehouse_type.value if warehouse.warehouse_type is not string else warehouse.warehouse_type)|upper %}
-  {% if wtype == 'PARTNER' %}
-    <hr><h5>مساهمات الشركاء</h5>
-    <div id="partners-container">
+  <div class="card mb-3">
+    <div class="card-header">التعريف / المعرّفات</div>
+    <div class="card-body">
+      <div class="row g-2">
+        <div class="col-md-6">{{ form.name.label }} {{ form.name(class="form-control") }}</div>
+        <div class="col-md-3">{{ form.sku.label }} {{ form.sku(class="form-control") }}</div>
+        <div class="col-md-3">{{ form.barcode.label }} {{ form.barcode(class="form-control") }}</div>
+        <div class="col-md-4">{{ form.part_number.label }} {{ form.part_number(class="form-control") }}</div>
+        <div class="col-md-4">{{ form.serial_no.label }} {{ form.serial_no(class="form-control") }}</div>
+        <div class="col-md-4">{{ form.chassis_number.label }} {{ form.chassis_number(class="form-control") }}</div>
+        <div class="col-md-6">{{ form.commercial_name.label }} {{ form.commercial_name(class="form-control") }}</div>
+        <div class="col-md-6">{{ form.brand.label }} {{ form.brand(class="form-control") }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header">الوصف والتصنيف</div>
+    <div class="card-body">
+      <div class="mb-2">{{ form.description.label }} {{ form.description(class="form-control") }}</div>
+      <div class="row g-2">
+        <div class="col-md-4">
+          {{ form.category_id.label }}
+          {{ form.category_id(class_="select2", class="form-control") }}
+        </div>
+        <div class="col-md-4">
+          {{ form.vehicle_type_id.label }}
+          {{ form.vehicle_type_id(class_="select2", class="form-control") }}
+        </div>
+        <div class="col-md-2">{{ form.condition.label }} {{ form.condition(class="form-select") }}</div>
+        <div class="col-md-2">{{ form.origin_country.label }} {{ form.origin_country(class="form-control") }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header">التسعير والضرائب</div>
+    <div class="card-body">
+      <div class="row g-2">
+        <div class="col-md-3">{{ form.price.label }} {{ form.price(class="form-control") }}</div>
+        <div class="col-md-3">{{ form.unit_price_before_tax.label }} {{ form.unit_price_before_tax(class="form-control") }}</div>
+        <div class="col-md-2">{{ form.tax_rate.label }} {{ form.tax_rate(class="form-control") }}</div>
+        <div class="col-md-2">{{ form.min_price.label }} {{ form.min_price(class="form-control") }}</div>
+        <div class="col-md-2">{{ form.max_price.label }} {{ form.max_price(class="form-control") }}</div>
+      </div>
+      <div class="row g-2 mt-2">
+        <div class="col-md-3">{{ form.cost_before_shipping.label }} {{ form.cost_before_shipping(class="form-control") }}</div>
+        <div class="col-md-3">{{ form.cost_after_shipping.label }} {{ form.cost_after_shipping(class="form-control") }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header">المخزون والحدود</div>
+    <div class="card-body">
+      <div class="row g-2">
+        <div class="col-md-2">{{ form.quantity.label }} {{ form.quantity(class="form-control") }}</div>
+        <div class="col-md-2">{{ form.on_hand.label }} {{ form.on_hand(class="form-control") }}</div>
+        <div class="col-md-2">{{ form.reserved_quantity.label }} {{ form.reserved_quantity(class="form-control") }}</div>
+        <div class="col-md-3">{{ form.min_qty.label }} {{ form.min_qty(class="form-control") }}</div>
+        <div class="col-md-3">{{ form.reorder_point.label }} {{ form.reorder_point(class="form-control") }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header">المواصفات</div>
+    <div class="card-body">
+      <div class="row g-2">
+        <div class="col-md-3">{{ form.weight.label }} {{ form.weight(class="form-control") }}</div>
+        <div class="col-md-3">{{ form.dimensions.label }} {{ form.dimensions(class="form-control") }}</div>
+        <div class="col-md-3">{{ form.warranty_period.label }} {{ form.warranty_period(class="form-control") }}</div>
+        <div class="col-md-3 d-flex align-items-center gap-3">
+          <div class="form-check">{{ form.is_active(class="form-check-input", id="is_active_id") }} <label class="form-check-label" for="is_active_id">{{ form.is_active.label.text }}</label></div>
+          <div class="form-check">{{ form.is_digital(class="form-check-input", id="is_digital_id") }} <label class="form-check-label" for="is_digital_id">{{ form.is_digital.label.text }}</label></div>
+          <div class="form-check">{{ form.is_exchange(class="form-check-input", id="is_exchange_id") }} <label class="form-check-label" for="is_exchange_id">{{ form.is_exchange.label.text }}</label></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header">الموردون</div>
+    <div class="card-body">
+      <div class="row g-2">
+        <div class="col-md-4">
+          {{ form.supplier_id.label }}
+          {{ form.supplier_id(class_="select2", class="form-control") }}
+        </div>
+        <div class="col-md-4">
+          {{ form.supplier_international_id.label }}
+          {{ form.supplier_international_id(class_="select2", class="form-control") }}
+        </div>
+        <div class="col-md-4">
+          {{ form.supplier_local_id.label }}
+          {{ form.supplier_local_id(class_="select2", class="form-control") }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# PARTNER only #}
+  <div class="card mb-3 d-none" id="partner-section">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span>مساهمات الشركاء</span>
+      <div class="d-flex gap-2">
+        <a href="{{ url_for('vendors_bp.partners_create') }}" class="btn btn-sm btn-outline-primary" target="_blank">شريك جديد</a>
+        <button type="button" id="add-partner-btn" class="btn btn-sm btn-secondary">إضافة صف شريك</button>
+      </div>
+    </div>
+    <div class="card-body" id="partners-container">
       {% for p_form in partners_forms %}
       <div class="partner-entry border rounded p-2 mb-2">
-        {{ p_form.partner_id.label }} {{ p_form.partner_id(class="form-control") }}
-        {{ p_form.share_percentage.label }} {{ p_form.share_percentage(class="form-control") }}
-        {{ p_form.notes.label }} {{ p_form.notes(class="form-control") }}
+        {{ p_form.partner_id.label }} {{ p_form.partner_id(class_="select2", class="form-control") }}
+        <div class="row g-2 mt-1">
+          <div class="col-md-4">{{ p_form.share_percentage.label }} {{ p_form.share_percentage(class="form-control") }}</div>
+          <div class="col-md-4">{{ p_form.share_amount.label }} {{ p_form.share_amount(class="form-control") }}</div>
+          <div class="col-md-4">{{ p_form.notes.label }} {{ p_form.notes(class="form-control") }}</div>
+        </div>
         <button type="button" class="btn btn-sm btn-danger remove-partner-btn mt-2">حذف</button>
       </div>
       {% endfor %}
     </div>
-    <button type="button" id="add-partner-btn" class="btn btn-secondary mt-2">إضافة شريك</button>
-  {% endif %}
+  </div>
 
-  {% if wtype == 'EXCHANGE' %}
-    <hr><h5>تجار التبادل</h5>
-    <div id="vendors-container">
+  {# EXCHANGE only #}
+  <div class="card mb-3 d-none" id="exchange-section">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span>تجّار/مورِّدون للتبادل</span>
+      <div class="d-flex gap-2">
+        <a href="{{ url_for('vendors_bp.suppliers_create') }}" class="btn btn-sm btn-outline-primary" target="_blank">مورّد جديد</a>
+        <button type="button" id="add-vendor-btn" class="btn btn-sm btn-secondary">إضافة صف تاجر/مورّد</button>
+      </div>
+    </div>
+    <div class="card-body" id="vendors-container">
       {% for v_form in exchange_vendors_forms %}
       <div class="vendor-entry border rounded p-2 mb-2">
-        {{ v_form.vendor_name.label }} {{ v_form.vendor_name(class="form-control") }}
-        {{ v_form.vendor_phone.label }} {{ v_form.vendor_phone(class="form-control") }}
-        {{ v_form.vendor_paid.label }} {{ v_form.vendor_paid(class="form-control") }}
-        {{ v_form.vendor_price.label }} {{ v_form.vendor_price(class="form-control") }}
+        <div class="row g-2">
+          <div class="col-md-6">
+            <label>اختر المورّد / التاجر</label>
+            <select name="supplier_id" class="form-control select2" data-url="{{ url_for('api.search_suppliers') }}"></select>
+          </div>
+          <div class="col-md-6">{{ v_form.vendor_phone.label }} {{ v_form.vendor_phone(class="form-control") }}</div>
+          <div class="col-md-6">{{ v_form.vendor_paid.label }} {{ v_form.vendor_paid(class="form-control") }}</div>
+          <div class="col-md-6">{{ v_form.vendor_price.label }} {{ v_form.vendor_price(class="form-control") }}</div>
+          <div class="col-12">
+            <small class="text-muted">يمكن ترك الحقول النصية فارغة إذا اخترت مورّدًا موجودًا.</small>
+          </div>
+        </div>
         <button type="button" class="btn btn-sm btn-danger remove-vendor-btn mt-2">حذف</button>
       </div>
       {% endfor %}
     </div>
-    <button type="button" id="add-vendor-btn" class="btn btn-secondary mt-2">إضافة تاجر</button>
-  {% endif %}
+  </div>
 
   <div class="mt-3">
     <button class="btn btn-primary">حفظ المنتج</button>
@@ -55,22 +174,33 @@
   </div>
 </form>
 
-{# قوالب ديناميكية للـ JS #}
 <template id="partner-template">
   <div class="partner-entry border rounded p-2 mb-2">
-    <label>الشريك</label><input type="text" name="partner_id" class="form-control" />
-    <label>نسبة المشاركة</label><input type="number" step="0.01" name="share_percentage" class="form-control" />
-    <label>ملاحظات</label><input type="text" name="notes" class="form-control" />
+    <label>الشريك</label>
+    <select name="partner_id" class="form-control select2" data-url="{{ url_for('api.search_partners') }}"></select>
+    <div class="row g-2 mt-1">
+      <div class="col-md-4"><label>نسبة المشاركة</label><input type="number" step="0.01" name="share_percentage" class="form-control" /></div>
+      <div class="col-md-4"><label>قيمة المساهمة</label><input type="number" step="0.01" name="share_amount" class="form-control" /></div>
+      <div class="col-md-4"><label>ملاحظات</label><input type="text" name="notes" class="form-control" /></div>
+    </div>
     <button type="button" class="btn btn-sm btn-danger remove-partner-btn mt-2">حذف</button>
   </div>
 </template>
 
 <template id="vendor-template">
   <div class="vendor-entry border rounded p-2 mb-2">
-    <label>اسم التاجر</label><input type="text" name="vendor_name" class="form-control" />
-    <label>الهاتف</label><input type="text" name="vendor_phone" class="form-control" />
-    <label>المبلغ المدفوع</label><input type="number" step="0.01" name="vendor_paid" class="form-control" />
-    <label>السعر</label><input type="number" step="0.01" name="vendor_price" class="form-control" />
+    <div class="row g-2">
+      <div class="col-md-6">
+        <label>اختر المورّد / التاجر</label>
+        <select name="supplier_id" class="form-control select2" data-url="{{ url_for('api.search_suppliers') }}"></select>
+      </div>
+      <div class="col-md-6"><label>الهاتف</label><input type="text" name="vendor_phone" class="form-control" /></div>
+      <div class="col-md-6"><label>المبلغ المدفوع</label><input type="number" step="0.01" name="vendor_paid" class="form-control" /></div>
+      <div class="col-md-6"><label>السعر</label><input type="number" step="0.01" name="vendor_price" class="form-control" /></div>
+      <div class="col-12">
+        <small class="text-muted">اختر مورّدًا أو املأ البيانات يدويًا.</small>
+      </div>
+    </div>
     <button type="button" class="btn btn-sm btn-danger remove-vendor-btn mt-2">حذف</button>
   </div>
 </template>
@@ -78,4 +208,5 @@
 
 {% block scripts %}
   {{ super() }}
+  <script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
 {% endblock %}

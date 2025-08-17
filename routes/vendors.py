@@ -44,9 +44,19 @@ def suppliers_create():
     if form.validate_on_submit():
         supplier = Supplier(); form.populate_obj(supplier); db.session.add(supplier)
         try:
-            db.session.commit(); flash("✅ تم إضافة المورد بنجاح", "success"); return redirect(url_for("vendors_bp.suppliers_list"))
+            db.session.commit()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('modal') == '1':
+                return jsonify({"success": True, "id": supplier.id, "name": supplier.name})
+            flash("✅ تم إضافة المورد بنجاح", "success")
+            return redirect(url_for("vendors_bp.suppliers_list"))
         except SQLAlchemyError as e:
-            db.session.rollback(); flash(f"❌ خطأ أثناء إضافة المورد: {e}", "danger")
+            db.session.rollback()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('modal') == '1':
+                return jsonify({"success": False, "errors": {"__all__": [str(e)]}}), 400
+            flash(f"❌ خطأ أثناء إضافة المورد: {e}", "danger")
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('modal') == '1':
+        html = render_template("vendors/suppliers/form.html", form=form, supplier=None)
+        return jsonify({"success": True, "html": html})
     return render_template("vendors/suppliers/form.html", form=form, supplier=None)
 
 @vendors_bp.route("/suppliers/<int:id>/edit", methods=["GET", "POST"], endpoint="suppliers_edit")
@@ -113,9 +123,19 @@ def partners_create():
     if form.validate_on_submit():
         partner = Partner(); form.populate_obj(partner); db.session.add(partner)
         try:
-            db.session.commit(); flash("✅ تم إضافة الشريك بنجاح", "success"); return redirect(url_for("vendors_bp.partners_list"))
+            db.session.commit()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('modal') == '1':
+                return jsonify({"success": True, "id": partner.id, "name": partner.name})
+            flash("✅ تم إضافة الشريك بنجاح", "success")
+            return redirect(url_for("vendors_bp.partners_list"))
         except SQLAlchemyError as e:
-            db.session.rollback(); flash(f"❌ خطأ أثناء إضافة الشريك: {e}", "danger")
+            db.session.rollback()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('modal') == '1':
+                return jsonify({"success": False, "errors": {"__all__": [str(e)]}}), 400
+            flash(f"❌ خطأ أثناء إضافة الشريك: {e}", "danger")
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('modal') == '1':
+        html = render_template("vendors/partners/form.html", form=form, partner=None)
+        return jsonify({"success": True, "html": html})
     return render_template("vendors/partners/form.html", form=form, partner=None)
 
 @vendors_bp.route("/partners/<int:id>/edit", methods=["GET", "POST"], endpoint="partners_edit")

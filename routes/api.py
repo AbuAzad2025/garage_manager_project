@@ -103,6 +103,26 @@ def products():
     rows = qry.order_by(Product.name).limit(_limit()).all()
     return jsonify(_as_options(rows, "name", extra=lambda p: {"price": float(p.price or 0), "sku": p.sku}))
 
+@bp.get("/products/<int:pid>/info", endpoint="product_info")
+@login_required
+@limiter.limit("60/minute")
+def product_info(pid: int):
+    p = db.session.get(Product, pid)
+    if not p:
+        return jsonify({"error": "Not Found"}), 404
+    wid = request.args.get("warehouse_id", type=int)
+    available = None
+    if wid:
+        sl = StockLevel.query.filter_by(product_id=pid, warehouse_id=wid).first()
+        available = (sl.quantity if sl else 0)
+    return jsonify({
+        "id": p.id,
+        "name": p.name,
+        "sku": p.sku,
+        "price": float(p.price or 0),
+        "available": (int(available) if available is not None else None)
+    })
+
 
 @bp.get("/search_categories", endpoint="search_categories")
 @login_required
@@ -128,20 +148,27 @@ def warehouses():
     rows = qry.order_by(Warehouse.name).limit(_limit()).all()
     return jsonify(_as_options(rows, "name"))
 
-
 @bp.get("/warehouses/<int:wid>/products")
 @login_required
 @limiter.limit("60/minute")
 def products_by_warehouse(wid: int):
     rows = (
-        Product.query.join(StockLevel, StockLevel.product_id == Product.id)
+        db.session.query(Product, StockLevel.quantity)
+        .join(StockLevel, StockLevel.product_id == Product.id)
         .filter(StockLevel.warehouse_id == wid, StockLevel.quantity > 0)
         .order_by(Product.name)
         .limit(_limit(default=100, max_=200))
         .all()
     )
-    return jsonify(_as_options(rows, "name", extra=lambda p: {"price": float(p.price or 0), "sku": p.sku}))
-
+    return jsonify([
+        {
+            "id": p.id,
+            "text": p.name,
+            "price": float(p.price or 0),
+            "sku": p.sku,
+            "available": int(qty or 0),
+        } for p, qty in rows
+    ])
 
 @bp.get("/users")
 @login_required
