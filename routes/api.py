@@ -1,5 +1,4 @@
 # File: routes/api.py
-# -*- coding: utf-8 -*-
 from flask import Blueprint, request, jsonify, current_app
 from flask_login import login_required
 from sqlalchemy import or_
@@ -8,13 +7,15 @@ from extensions import db, limiter
 from models import (
     Customer, Supplier, Partner, Product, Warehouse, User, Employee,
     Invoice, ServiceRequest, SupplierLoanSettlement, ProductCategory, Payment,
-    EquipmentType
+    EquipmentType, StockLevel
 )
 
 bp = Blueprint("api", __name__, url_prefix="/api")
 
+
 def _q() -> str:
     return (request.args.get("q") or "").strip()
+
 
 def _limit(default: int = 20, max_: int = 50) -> int:
     try:
@@ -23,13 +24,14 @@ def _limit(default: int = 20, max_: int = 50) -> int:
         n = default
     return max(1, min(n, max_))
 
+
 def _as_options(rows, label_attr: str = "name", extra=None):
     extra = extra or (lambda o: {})
     out = []
     for o in rows:
         label = getattr(o, label_attr, None)
         if not label:
-            for cand in ("name","username","invoice_number","service_number","sale_number","cart_id","order_number"):
+            for cand in ("name", "username", "invoice_number", "service_number", "sale_number", "cart_id", "order_number"):
                 label = getattr(o, cand, None)
                 if label:
                     break
@@ -37,6 +39,7 @@ def _as_options(rows, label_attr: str = "name", extra=None):
             label = str(getattr(o, "id", ""))
         out.append({"id": o.id, "text": str(label), **extra(o)})
     return out
+
 
 @bp.get("/customers")
 @bp.get("/search_customers", endpoint="search_customers")
@@ -51,8 +54,9 @@ def customers():
     rows = qry.order_by(Customer.name).limit(_limit()).all()
     return jsonify(_as_options(rows, "name"))
 
+
 @bp.get("/suppliers")
-@bp.get("/search_suppliers")
+@bp.get("/search_suppliers", endpoint="search_suppliers")
 @login_required
 @limiter.limit("60/minute")
 def suppliers():
@@ -64,8 +68,9 @@ def suppliers():
     rows = qry.order_by(Supplier.name).limit(_limit()).all()
     return jsonify(_as_options(rows, "name"))
 
+
 @bp.get("/partners")
-@bp.get("/search_partners")
+@bp.get("/search_partners", endpoint="search_partners")
 @login_required
 @limiter.limit("60/minute")
 def partners():
@@ -76,6 +81,7 @@ def partners():
         qry = qry.filter(or_(Partner.name.ilike(like), Partner.phone_number.ilike(like), Partner.identity_number.ilike(like)))
     rows = qry.order_by(Partner.name).limit(_limit()).all()
     return jsonify(_as_options(rows, "name"))
+
 
 @bp.get("/products")
 @bp.get("/search_products", endpoint="search_products")
@@ -97,7 +103,8 @@ def products():
     rows = qry.order_by(Product.name).limit(_limit()).all()
     return jsonify(_as_options(rows, "name", extra=lambda p: {"price": float(p.price or 0), "sku": p.sku}))
 
-@bp.get("/search_categories")
+
+@bp.get("/search_categories", endpoint="search_categories")
 @login_required
 @limiter.limit("60/minute")
 def categories():
@@ -107,6 +114,7 @@ def categories():
         qry = qry.filter(ProductCategory.name.ilike(f"%{q}%"))
     rows = qry.order_by(ProductCategory.name).limit(_limit()).all()
     return jsonify(_as_options(rows, "name"))
+
 
 @bp.get("/warehouses")
 @bp.get("/search_warehouses", endpoint="search_warehouses")
@@ -120,18 +128,21 @@ def warehouses():
     rows = qry.order_by(Warehouse.name).limit(_limit()).all()
     return jsonify(_as_options(rows, "name"))
 
+
 @bp.get("/warehouses/<int:wid>/products")
 @login_required
 @limiter.limit("60/minute")
-def products_by_warehouse(wid):
+def products_by_warehouse(wid: int):
     rows = (
         Product.query.join(StockLevel, StockLevel.product_id == Product.id)
         .filter(StockLevel.warehouse_id == wid, StockLevel.quantity > 0)
         .order_by(Product.name)
-        .limit(_limit(100))
+        .limit(_limit(default=100, max_=200))
         .all()
     )
     return jsonify(_as_options(rows, "name", extra=lambda p: {"price": float(p.price or 0), "sku": p.sku}))
+
+
 @bp.get("/users")
 @login_required
 @limiter.limit("60/minute")
@@ -144,6 +155,7 @@ def users():
     rows = qry.order_by(User.username).limit(_limit()).all()
     return jsonify(_as_options(rows, "username"))
 
+
 @bp.get("/employees")
 @login_required
 @limiter.limit("60/minute")
@@ -155,8 +167,9 @@ def employees():
     rows = qry.order_by(Employee.name).limit(_limit()).all()
     return jsonify(_as_options(rows, "name"))
 
+
 @bp.get("/equipment_types")
-@bp.get("/search_equipment_types")
+@bp.get("/search_equipment_types", endpoint="search_equipment_types")
 @login_required
 @limiter.limit("60/minute")
 def equipment_types():
@@ -173,6 +186,7 @@ def equipment_types():
         )
     rows = qry.order_by(EquipmentType.name).limit(_limit()).all()
     return jsonify(_as_options(rows, "name"))
+
 
 @bp.get("/invoices")
 @login_required
@@ -197,6 +211,7 @@ def invoices():
         ]
     )
 
+
 @bp.get("/services")
 @login_required
 @limiter.limit("60/minute")
@@ -209,6 +224,7 @@ def services():
     rows = qry.order_by(ServiceRequest.id.desc()).limit(_limit()).all()
     return jsonify([{"id": s.id, "text": s.service_number or f"SVC-{s.id}"} for s in rows])
 
+
 @bp.get("/loan_settlements")
 @login_required
 @limiter.limit("60/minute")
@@ -219,6 +235,7 @@ def loan_settlements():
         qry = qry.filter(SupplierLoanSettlement.id == int(q))
     rows = qry.order_by(SupplierLoanSettlement.id.desc()).limit(_limit()).all()
     return jsonify([{"id": x.id, "text": f"Settlement #{x.id}", "amount": float(x.settled_price or 0)} for x in rows])
+
 
 @bp.get("/search_payments")
 @login_required
@@ -243,13 +260,16 @@ def search_payments():
         ]
     )
 
+
 @bp.app_errorhandler(429)
 def ratelimit_handler(e):
     return jsonify({"error": "Too Many Requests", "detail": str(e.description)}), 429
 
+
 @bp.app_errorhandler(404)
 def not_found(e):
     return jsonify({"error": "Not Found"}), 404
+
 
 @bp.app_errorhandler(500)
 def server_error(e):

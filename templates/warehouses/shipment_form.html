@@ -1,6 +1,7 @@
+{# File: templates/warehouses/shipment_form.html #}
 {% extends 'warehouses/base.html' %}
-{% block title %}إنشاء/تعديل شحنة{% endblock %}
-{% block page_title %}إنشاء شحنة{% endblock %}
+{% block title %}{{ shipment and 'تعديل شحنة' or 'إنشاء شحنة' }}{% endblock %}
+{% block page_title %}{{ shipment and 'تعديل شحنة' or 'إنشاء شحنة' }}{% endblock %}
 
 {% block head_extra %}
   {{ super() }}
@@ -8,55 +9,149 @@
 {% endblock %}
 
 {% block content %}
-<p class="alert alert-info">※ إدارة الشحنات تتم عبر بلوبرنت الشحنات. إذا ظهرت هذه الصفحة مباشرة، احفظ وأعد التوجيه سيذهب لصفحة الشحنات.</p>
-
 <form method="POST" novalidate>
   {{ form.hidden_tag() }}
-  <div class="row">
-    <div class="col-md-4 mb-2">
-      {{ form.shipment_number.label }} {{ form.shipment_number(class="form-control") }}
-    </div>
-    <div class="col-md-4 mb-2">
-      {{ form.shipment_date.label }} {{ form.shipment_date(class="form-control") }}
-    </div>
-    <div class="col-md-4 mb-2">
-      {{ form.expected_arrival.label }} {{ form.expected_arrival(class="form-control") }}
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-4 mb-2">{{ form.shipment_number.label }} {{ form.shipment_number(class="form-control") }}</div>
+        <div class="col-md-4 mb-2">{{ form.shipment_date.label }} {{ form.shipment_date(class="form-control") }}</div>
+        <div class="col-md-4 mb-2">{{ form.expected_arrival.label }} {{ form.expected_arrival(class="form-control") }}</div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-4 mb-2">{{ form.actual_arrival.label }} {{ form.actual_arrival(class="form-control") }}</div>
+        <div class="col-md-4 mb-2">{{ form.origin.label }} {{ form.origin(class="form-control") }}</div>
+        <div class="col-md-4 mb-2">{{ form.destination_id.label }} {{ form.destination_id(class="form-control") }}</div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-4 mb-2">{{ form.carrier.label }} {{ form.carrier(class="form-control") }}</div>
+        <div class="col-md-4 mb-2">{{ form.tracking_number.label }} {{ form.tracking_number(class="form-control") }}</div>
+        <div class="col-md-4 mb-2">{{ form.status.label }} {{ form.status(class="form-control") }}</div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-3 mb-2">{{ form.value_before.label }} {{ form.value_before(class="form-control") }}</div>
+        <div class="col-md-3 mb-2">{{ form.shipping_cost.label }} {{ form.shipping_cost(class="form-control") }}</div>
+        <div class="col-md-3 mb-2">{{ form.customs.label }} {{ form.customs(class="form-control") }}</div>
+        <div class="col-md-3 mb-2">{{ form.vat.label }} {{ form.vat(class="form-control") }}</div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 mb-2">{{ form.insurance.label }} {{ form.insurance(class="form-control") }}</div>
+        <div class="col-md-6 mb-2">{{ form.total_value.label }} {{ form.total_value(class="form-control") }}</div>
+      </div>
+
+      <div class="mb-2">{{ form.notes.label }} {{ form.notes(class="form-control") }}</div>
     </div>
   </div>
 
-  <div class="row">
-    <div class="col-md-6 mb-2">
-      {{ form.origin.label }} {{ form.origin(class="form-control") }}
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <strong>العناصر</strong>
+      <button type="button" class="btn btn-sm btn-secondary" id="addItem">إضافة عنصر</button>
     </div>
-    <div class="col-md-6 mb-2">
-      {{ form.destination_id.label }} {{ form.destination_id(class="form-control") }}
+    <div class="card-body" id="itemsContainer">
+      {% for entry in form.items %}
+      <div class="item-entry border rounded p-2 mb-2">
+        <div class="row">
+          <div class="col-md-4 mb-2">{{ entry.product_id.label }} {{ entry.product_id(class="form-control") }}</div>
+          <div class="col-md-3 mb-2">{{ entry.warehouse_id.label }} {{ entry.warehouse_id(class="form-control") }}</div>
+          <div class="col-md-2 mb-2">{{ entry.quantity.label }} {{ entry.quantity(class="form-control") }}</div>
+          <div class="col-md-3 mb-2">{{ entry.unit_cost.label }} {{ entry.unit_cost(class="form-control") }}</div>
+        </div>
+        <div class="row">
+          <div class="col-md-3 mb-2">{{ entry.declared_value.label }} {{ entry.declared_value(class="form-control") }}</div>
+          <div class="col-md-9 d-flex align-items-end justify-content-end">
+            <button type="button" class="btn btn-sm btn-danger remove-item">حذف</button>
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <div class="item-entry border rounded p-2 mb-2">
+        <div class="row">
+          <div class="col-md-4 mb-2">{{ form.items.empty_form.product_id.label }} {{ form.items.empty_form.product_id(class="form-control") }}</div>
+          <div class="col-md-3 mb-2">{{ form.items.empty_form.warehouse_id.label }} {{ form.items.empty_form.warehouse_id(class="form-control") }}</div>
+          <div class="col-md-2 mb-2">{{ form.items.empty_form.quantity.label }} {{ form.items.empty_form.quantity(class="form-control") }}</div>
+          <div class="col-md-3 mb-2">{{ form.items.empty_form.unit_cost.label }} {{ form.items.empty_form.unit_cost(class="form-control") }}</div>
+        </div>
+        <div class="row">
+          <div class="col-md-3 mb-2">{{ form.items.empty_form.declared_value.label }} {{ form.items.empty_form.declared_value(class="form-control") }}</div>
+          <div class="col-md-9 d-flex align-items-end justify-content-end">
+            <button type="button" class="btn btn-sm btn-danger remove-item">حذف</button>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
     </div>
   </div>
 
-  <div class="row">
-    <div class="col-md-4 mb-2">
-      {{ form.status.label }} {{ form.status(class="form-control") }}
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <strong>الشركاء</strong>
+      <button type="button" class="btn btn-sm btn-secondary" id="addPartner">إضافة شريك</button>
     </div>
-    <div class="col-md-4 mb-2">
-      {{ form.shipping_cost.label }} {{ form.shipping_cost(class="form-control") }}
-    </div>
-    <div class="col-md-4 mb-2">
-      {{ form.vat.label }} {{ form.vat(class="form-control") }}
+    <div class="card-body" id="partnersContainer">
+      {% for entry in form.partner_links %}
+      <div class="partner-entry border rounded p-2 mb-2">
+        <div class="row">
+          <div class="col-md-4 mb-2">{{ entry.partner_id.label }} {{ entry.partner_id(class="form-control") }}</div>
+          <div class="col-md-4 mb-2">{{ entry.share_percentage.label }} {{ entry.share_percentage(class="form-control") }}</div>
+          <div class="col-md-4 mb-2">{{ entry.share_amount.label }} {{ entry.share_amount(class="form-control") }}</div>
+        </div>
+        <div class="row">
+          <div class="col-md-4 mb-2">{{ entry.identity_number.label }} {{ entry.identity_number(class="form-control") }}</div>
+          <div class="col-md-4 mb-2">{{ entry.phone_number.label }} {{ entry.phone_number(class="form-control") }}</div>
+          <div class="col-md-4 mb-2">{{ entry.address.label }} {{ entry.address(class="form-control") }}</div>
+        </div>
+        <div class="row">
+          <div class="col-md-4 mb-2">{{ entry.unit_price_before_tax.label }} {{ entry.unit_price_before_tax(class="form-control") }}</div>
+          <div class="col-md-4 mb-2">{{ entry.expiry_date.label }} {{ entry.expiry_date(class="form-control") }}</div>
+          <div class="col-md-4 mb-2">{{ entry.notes.label }} {{ entry.notes(class="form-control") }}</div>
+        </div>
+        <div class="text-end">
+          <button type="button" class="btn btn-sm btn-danger remove-partner">حذف</button>
+        </div>
+      </div>
+      {% else %}
+      <div class="partner-entry border rounded p-2 mb-2">
+        <div class="row">
+          <div class="col-md-4 mb-2">{{ form.partner_links.empty_form.partner_id.label }} {{ form.partner_links.empty_form.partner_id(class="form-control") }}</div>
+          <div class="col-md-4 mb-2">{{ form.partner_links.empty_form.share_percentage.label }} {{ form.partner_links.empty_form.share_percentage(class="form-control") }}</div>
+          <div class="col-md-4 mb-2">{{ form.partner_links.empty_form.share_amount.label }} {{ form.partner_links.empty_form.share_amount(class="form-control") }}</div>
+        </div>
+        <div class="row">
+          <div class="col-md-4 mb-2">{{ form.partner_links.empty_form.identity_number.label }} {{ form.partner_links.empty_form.identity_number(class="form-control") }}</div>
+          <div class="col-md-4 mb-2">{{ form.partner_links.empty_form.phone_number.label }} {{ form.partner_links.empty_form.phone_number(class="form-control") }}</div>
+          <div class="col-md-4 mb-2">{{ form.partner_links.empty_form.address.label }} {{ form.partner_links.empty_form.address(class="form-control") }}</div>
+        </div>
+        <div class="row">
+          <div class="col-md-4 mb-2">{{ form.partner_links.empty_form.unit_price_before_tax.label }} {{ form.partner_links.empty_form.unit_price_before_tax(class="form-control") }}</div>
+          <div class="col-md-4 mb-2">{{ form.partner_links.empty_form.expiry_date.label }} {{ form.partner_links.empty_form.expiry_date(class="form-control") }}</div>
+          <div class="col-md-4 mb-2">{{ form.partner_links.empty_form.notes.label }} {{ form.partner_links.empty_form.notes(class="form-control") }}</div>
+        </div>
+        <div class="text-end">
+          <button type="button" class="btn btn-sm btn-danger remove-partner">حذف</button>
+        </div>
+      </div>
+      {% endfor %}
     </div>
   </div>
 
-  <button class="btn btn-primary">حفظ</button>
-
-  {# 👇 التعديل هنا فقط #}
-  {% set wid = (warehouse.id if warehouse
-                else (request.view_args['warehouse_id'] if request.view_args and 'warehouse_id' in request.view_args else None)) %}
-  <a class="btn btn-secondary"
-     href="{{ url_for('warehouse_bp.detail', warehouse_id=wid) if wid else url_for('shipments_bp.list_shipments') }}">
-    رجوع
-  </a>
+  <div class="d-flex gap-2">
+    <button class="btn btn-primary">حفظ</button>
+    {% set wid = request.args.get('destination_id') or (shipment.destination_id if shipment else None) %}
+    <a class="btn btn-secondary"
+       href="{{ url_for('warehouse_bp.detail', warehouse_id=wid) if wid else url_for('shipments_bp.list_shipments') }}">
+      رجوع
+    </a>
+  </div>
 </form>
 {% endblock %}
 
 {% block scripts %}
-  <script src="{{ url_for('static', filename='js/shipments.js') }}" defer></script>
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/shipments.js') }}"></script>
 {% endblock %}

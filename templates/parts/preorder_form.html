@@ -1,70 +1,76 @@
-{% extends 'base.html' %}
-{% block title %}{{ form._obj and 'تعديل حجز' or 'حجز مسبق جديد' }}{% endblock %}
+{% extends 'warehouses/base.html' %}
+{% block title %}إنشاء حجز{% endblock %}
+{% block page_title %}إنشاء حجز مسبق{% endblock %}
+
+{% block head_extra %}
+  {{ super() }}
+  {# Select2 للـ AjaxSelectField #}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
+{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-  <h2>{{ form._obj and 'تعديل حجز' or 'إنشاء حجز مسبق' }}</h2>
-  <form method="post" novalidate>
-    {{ form.hidden_tag() }}
-    <div class="form-row">
-      <div class="form-group col-md-4">
-        {{ form.entity_type.label }} {{ form.entity_type(class="form-control") }}
+<form method="POST" novalidate>
+  {{ form.hidden_tag() }}
+
+  <div class="row">
+    <div class="col-md-4 mb-2">{{ form.reference.label }} {{ form.reference(class="form-control") }}</div>
+    <div class="col-md-4 mb-2">{{ form.preorder_date.label }} {{ form.preorder_date(class="form-control") }}</div>
+    <div class="col-md-4 mb-2">{{ form.expected_date.label }} {{ form.expected_date(class="form-control") }}</div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-4 mb-2">{{ form.status.label }} {{ form.status(class="form-control") }}</div>
+    <div class="col-md-4 mb-2">{{ form.entity_type.label }} {{ form.entity_type(class="form-control", id="entity_type") }}</div>
+    <div class="col-md-4 mb-2">
+      <div id="customer_group" class="mb-2">
+        {{ form.customer_id.label }} {{ form.customer_id(class="form-control select2") }}
       </div>
-      <div id="customer-group" class="form-group col-md-4">
-        {{ form.customer_id.label }} {{ form.customer_id(class="form-control") }}
+      <div id="supplier_group" class="mb-2" style="display:none">
+        {{ form.supplier_id.label }} {{ form.supplier_id(class="form-control select2") }}
       </div>
-      <div id="supplier-group" class="form-group col-md-4 d-none">
-        {{ form.supplier_id.label }} {{ form.supplier_id(class="form-control") }}
-      </div>
-      <div id="partner-group" class="form-group col-md-4 d-none">
-        {{ form.partner_id.label }} {{ form.partner_id(class="form-control") }}
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group col-md-6">
-        {{ form.product_id.label }} {{ form.product_id(class="form-control") }}
-      </div>
-      <div class="form-group col-md-6">
-        {{ form.warehouse_id.label }} {{ form.warehouse_id(class="form-control") }}
+      <div id="partner_group" class="mb-2" style="display:none">
+        {{ form.partner_id.label }}  {{ form.partner_id(class="form-control select2") }}
       </div>
     </div>
-    <div class="form-row">
-      <div class="form-group col-md-3">
-        {{ form.quantity.label }} {{ form.quantity(class="form-control", min=1) }}
-      </div>
-      <div class="form-group col-md-3">
-        {{ form.prepaid_amount.label }} {{ form.prepaid_amount(class="form-control", step="0.01") }}
-      </div>
-      <div class="form-group col-md-3">
-        {{ form.payment_method.label }} {{ form.payment_method(class="form-control") }}
-      </div>
-      <div class="form-group col-md-3">
-        {{ form.tax_rate.label }} {{ form.tax_rate(class="form-control", step="0.01") }}
-      </div>
-    </div>
-    <div class="form-group">
-      {{ form.notes.label }} {{ form.notes(class="form-control") }}
-    </div>
-    <button class="btn btn-primary">{{ form.submit.label.text }}</button>
-    <a href="{{ url_for('warehouse_bp.preorders_list') }}" class="btn btn-secondary">إلغاء</a>
-  </form>
-</div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-6 mb-2">{{ form.product_id.label }} {{ form.product_id(class="form-control select2") }}</div>
+    <div class="col-md-6 mb-2">{{ form.warehouse_id.label }} {{ form.warehouse_id(class="form-control select2") }}</div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-3 mb-2">{{ form.quantity.label }} {{ form.quantity(class="form-control") }}</div>
+    <div class="col-md-3 mb-2">{{ form.prepaid_amount.label }} {{ form.prepaid_amount(class="form-control") }}</div>
+    <div class="col-md-3 mb-2">{{ form.payment_method.label }} {{ form.payment_method(class="form-control") }}</div>
+    <div class="col-md-3 mb-2">{{ form.tax_rate.label }} {{ form.tax_rate(class="form-control") }}</div>
+  </div>
+
+  <div class="mb-2">{{ form.notes.label }} {{ form.notes(class="form-control") }}</div>
+
+  <button class="btn btn-primary">{{ form.submit.label.text or 'حفظ' }}</button>
+  <a class="btn btn-secondary" href="{{ url_for('warehouse_bp.preorders_list') }}">رجوع</a>
+</form>
 {% endblock %}
 
 {% block scripts %}
   {{ super() }}
-  <script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
   <script>
-    document.addEventListener("DOMContentLoaded", function() {
-      function toggleEntityFields() {
-        var et = document.querySelector('[name="entity_type"]').value;
-        document.getElementById('customer-group').classList.toggle('d-none', et!=='customer');
-        document.getElementById('supplier-group').classList.toggle('d-none', et!=='supplier');
-        document.getElementById('partner-group').classList.toggle('d-none', et!=='partner');
+    (function(){
+      // تفعيل Select2
+      if (window.jQuery) {
+        $('.select2').each(function(){ try { $(this).select2({ width: '100%' }); } catch(e){} });
       }
-      var sel = document.querySelector('[name="entity_type"]');
-      sel.addEventListener('change', toggleEntityFields);
-      toggleEntityFields();
-    });
+      // إظهار/إخفاء حسب نوع الجهة
+      function toggleEntityGroups() {
+        var t = document.getElementById('entity_type').value;
+        document.getElementById('customer_group').style.display = (t === 'customer') ? '' : 'none';
+        document.getElementById('supplier_group').style.display = (t === 'supplier') ? '' : 'none';
+        document.getElementById('partner_group').style.display  = (t === 'partner')  ? '' : 'none';
+      }
+      document.getElementById('entity_type').addEventListener('change', toggleEntityGroups);
+      toggleEntityGroups();
+    })();
   </script>
 {% endblock %}

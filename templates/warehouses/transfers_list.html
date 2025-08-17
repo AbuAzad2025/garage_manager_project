@@ -1,82 +1,54 @@
-{# File: templates/warehouses/transfers_list.html #}
 {% extends 'warehouses/base.html' %}
-
-{% block title %}سجل التحويلات{% endblock %}
-{% block page_title %}سجل التحويلات — {{ warehouse.name }}{% endblock %}
-
-{% block styles %}
-  {{ super() }}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/warehouses.css') }}">
-{% endblock %}
+{% block title %}الحجوزات المسبقة{% endblock %}
+{% block page_title %}الحجوزات المسبقة{% endblock %}
 
 {% block content %}
-<div class="card">
-  <div class="card-body">
-
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <div>
-        <a class="btn btn-light" href="{{ url_for('warehouse_bp.detail', warehouse_id=warehouse.id) }}">
-          ↩ عودة لصفحة المستودع
-        </a>
-      </div>
-      <div>
-        <a href="{{ url_for('warehouse_bp.create_transfer', id=warehouse.id) }}" class="btn btn-primary">
-          تحويل جديد
-        </a>
-      </div>
-    </div>
-
-    {% if transfers and transfers|length %}
-      <table class="table table-striped" id="transfers-table">
-        <thead>
-          <tr>
-            <th>التاريخ</th>
-            <th>الصنف</th>
-            <th>من</th>
-            <th>إلى</th>
-            <th>الكمية</th>
-            <th>الاتجاه</th>
-            <th>ملاحظات</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for t in transfers %}
-          <tr>
-            <td>{{ (t.transfer_date or t.created_at or now())|format_datetime }}</td>
-            <td>
-              {% if t.product %}
-                <a href="{{ url_for('warehouse_bp.product_card', product_id=t.product_id) }}">
-                  {{ t.product.name }}
-                </a>
-              {% else %}
-                -
-              {% endif %}
-            </td>
-            <td>{{ t.source_warehouse.name if t.source_warehouse else t.source_id }}</td>
-            <td>{{ t.destination_warehouse.name if t.destination_warehouse else t.destination_id }}</td>
-            <td>{{ t.quantity }}</td>
-            <td>{{ t.direction }}</td>
-            <td>{{ t.notes or '' }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    {% else %}
-      <div class="alert alert-info mb-0">لا توجد تحويلات لهذا المستودع بعد.</div>
-    {% endif %}
-
-  </div>
+<div class="mb-2 text-end">
+  <a href="{{ url_for('warehouse_bp.preorder_create') }}" class="btn btn-primary">إنشاء حجز</a>
 </div>
+
+<table class="table table-striped" id="preorders-table">
+  <thead>
+    <tr>
+      <th>الكود</th>
+      <th>الجهة</th>
+      <th>الصنف</th>
+      <th>المستودع</th>
+      <th>الكمية</th>
+      <th>العربون</th>
+      <th>الحالة</th>
+      <th>تاريخ</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in preorders %}
+    <tr>
+      <td>
+        <a href="{{ url_for('warehouse_bp.preorder_detail', preorder_id=p.id) }}">
+          {{ p.reference or ('PR-' ~ p.id) }}
+        </a>
+      </td>
+      <td>
+        {% if p.customer %}عميل: {{ p.customer.name }}
+        {% elif p.supplier %}مورد: {{ p.supplier.name }}
+        {% elif p.partner %}شريك: {{ p.partner.name }}
+        {% else %}غير محدد{% endif %}
+      </td>
+      <td>{{ p.product.name if p.product else '—' }}</td>
+      <td>{{ p.warehouse.name if p.warehouse else '—' }}</td>
+      <td>{{ p.quantity or 0 }}</td>
+      <td>{{ '%.2f'|format(p.prepaid_amount or 0) }}</td>
+      <td>{{ p.status }}</td>
+      <td>{{ p.created_at.strftime('%Y-%m-%d') if p.created_at else '' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 {% endblock %}
 
 {% block scripts %}
   {{ super() }}
-  <script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
   <script>
-    (function() {
-      if (window.jQuery && $.fn.DataTable) {
-        $('#transfers-table').DataTable({ pageLength: 25 });
-      }
-    })();
+    $(function(){ $('#preorders-table').DataTable({pageLength:25, language:{url:'//cdn.datatables.net/plug-ins/1.13.6/i18n/ar.json'}}); });
   </script>
 {% endblock %}

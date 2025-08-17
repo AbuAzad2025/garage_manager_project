@@ -3,6 +3,20 @@
 {% block page_title %}تفاصيل المستودع: {{ warehouse.name }}{% endblock %}
 
 {% block content %}
+
+<!-- أزرار إدخال/استيراد/شحنة سريعة -->
+<div class="d-flex justify-content-end gap-2 mb-3">
+  <a href="{{ url_for('warehouse_bp.add_product', id=warehouse.id) }}" class="btn btn-outline-primary btn-sm">
+    <i class="fas fa-plus"></i> إضافة منتج
+  </a>
+  <a href="{{ url_for('warehouse_bp.import_products', id=warehouse.id) }}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-file-upload"></i> استيراد منتجات (CSV)
+  </a>
+  <a href="{{ url_for('shipments_bp.create_shipment', destination_id=warehouse.id) }}" class="btn btn-success btn-sm">
+    <i class="fas fa-truck-loading"></i> إنشاء شحنة
+  </a>
+</div>
+
 <div class="row">
   <!-- معلومات المستودع -->
   <div class="col-md-5">
@@ -30,7 +44,7 @@
           {{ stock_form.hidden_tag() }}
           <div class="row">
             <div class="col-md-6 mb-2">
-              {{ stock_form.product_id.label }} {{ stock_form.product_id(class="form-control") }}
+              {{ stock_form.product_id.label }} {{ stock_form.product_id(class="form-control select2", **{'data-endpoint': url_for('api.search_products')}) }}
               {% for err in stock_form.product_id.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
             </div>
             <div class="col-md-3 mb-2">
@@ -51,22 +65,21 @@
 
         <hr>
 
-        <!-- تحويل المخزون -->
+        <!-- تحويل المخزون (AJAX) -->
         <h5>إجراء تحويل</h5>
         <form id="transfer-form" action="{{ url_for('warehouse_bp.ajax_transfer', warehouse_id=warehouse.id) }}" method="POST" novalidate>
           {{ transfer_form.hidden_tag() }}
-          {# إخفاء الاتجاه لو الفورم يعتمد عليه #}
           {% if transfer_form.direction %}{{ transfer_form.direction(type="hidden") }}{% endif %}
           <div class="row">
             <div class="col-md-4 mb-2">
-              {{ transfer_form.product_id.label }} {{ transfer_form.product_id(class="form-control") }}
+              {{ transfer_form.product_id.label }} {{ transfer_form.product_id(class="form-control select2", **{'data-endpoint': url_for('api.search_products')}) }}
               {% for err in transfer_form.product_id.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
             </div>
             <div class="col-md-4 mb-2">
-              {{ transfer_form.source_id.label }} {{ transfer_form.source_id(class="form-control") }}
+              {{ transfer_form.source_id.label }} {{ transfer_form.source_id(class="form-control select2", **{'data-endpoint': url_for('api.search_warehouses')}) }}
             </div>
             <div class="col-md-4 mb-2">
-              {{ transfer_form.destination_id.label }} {{ transfer_form.destination_id(class="form-control") }}
+              {{ transfer_form.destination_id.label }} {{ transfer_form.destination_id(class="form-control select2", **{'data-endpoint': url_for('api.search_warehouses')}) }}
             </div>
           </div>
           <div class="row">
@@ -80,6 +93,48 @@
           </div>
           <button type="submit" class="btn btn-primary">تنفيذ التحويل</button>
         </form>
+
+        <hr>
+
+        <!-- تبادل/سحب/تصحيح (AJAX) -->
+        <h5>تبادل/سحب/تصحيح</h5>
+        <form id="exchange-form" action="{{ url_for('warehouse_bp.ajax_exchange', warehouse_id=warehouse.id) }}" method="POST" novalidate>
+          <div class="row">
+            <div class="col-md-4 mb-2">
+              <label class="form-label">المنتج</label>
+              <select name="product_id" class="form-control select2" required
+                      data-endpoint="{{ url_for('api.search_products') }}"></select>
+            </div>
+            <div class="col-md-4 mb-2">
+              <label class="form-label">الشريك (اختياري)</label>
+              <select name="partner_id" class="form-control select2"
+                      data-endpoint="{{ url_for('api.search_partners') }}"></select>
+            </div>
+            <div class="col-md-2 mb-2">
+              <label class="form-label">الكمية</label>
+              <input type="number" name="quantity" min="1" class="form-control" required>
+            </div>
+            <div class="col-md-2 mb-2">
+              <label class="form-label">الاتجاه</label>
+              <select name="direction" class="form-control">
+                <option value="IN">IN</option>
+                <option value="OUT">OUT</option>
+                <option value="ADJUSTMENT">ADJUSTMENT</option>
+              </select>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-3 mb-2">
+              <label class="form-label">سعر/تكلفة (اختياري)</label>
+              <input type="number" step="0.01" name="unit_cost" class="form-control">
+            </div>
+            <div class="col-md-9 mb-2">
+              <label class="form-label">ملاحظات</label>
+              <input type="text" name="notes" class="form-control">
+            </div>
+          </div>
+          <button class="btn btn-secondary">تسجيل العملية</button>
+        </form>
       </div>
     </div>
   </div>
@@ -90,35 +145,25 @@
 <!-- الشحنات المرتبطة -->
 <div class="d-flex justify-content-between align-items-center mb-2">
   <h4 class="mb-0">الشحنات</h4>
-  <a href="{{ url_for('shipments_bp.create_shipment', destination_id=warehouse.id) }}" class="btn btn-success">
-    إنشاء شحنة
-  </a>
+  <a href="{{ url_for('shipments_bp.create_shipment', destination_id=warehouse.id) }}" class="btn btn-success">إنشاء شحنة</a>
 </div>
 
 <table class="table table-bordered table-hover" id="shipments-table">
   <thead>
-    <tr>
-      <th>رقم الشحنة</th>
-      <th>تاريخ الشحنة</th>
-      <th>الوصول المتوقع</th>
-      <th>الحالة</th>
-      <th style="width:120px">إجراءات</th>
-    </tr>
+    <tr><th>رقم الشحنة</th><th>تاريخ الشحنة</th><th>الوصول المتوقع</th><th>الحالة</th><th style="width:120px">إجراءات</th></tr>
   </thead>
   <tbody>
     {% for s in (warehouse.shipments_received or []) %}
       <tr>
-        <td>
-          <a href="{{ url_for('shipments_bp.shipment_detail', id=s.id) }}">{{ s.shipment_number }}</a>
-        </td>
+        <td><a href="{{ url_for('shipments_bp.shipment_detail', id=s.id) }}">{{ s.shipment_number }}</a></td>
         <td>{{ s.shipment_date.strftime('%Y-%m-%d') if s.shipment_date }}</td>
         <td>{{ s.expected_arrival.strftime('%Y-%m-%d') if s.expected_arrival }}</td>
         <td>{{ s.status }}</td>
         <td>
           <a href="{{ url_for('shipments_bp.edit_shipment', id=s.id) }}" class="btn btn-sm btn-warning">تعديل</a>
-          <form method="POST" action="{{ url_for('shipments_bp.delete_shipment', id=s.id) }}" style="display:inline-block" onsubmit="return confirm('تأكيد حذف الشحنة؟');">
+          <form method="POST" action="{{ url_for('shipments_bp.delete_shipment', id=s.id) }}" style="display:inline-block" class="d-inline-block">
             {{ csrf_token() }}
-            <button type="submit" class="btn btn-sm btn-danger">حذف</button>
+            <button type="submit" class="btn btn-sm btn-danger btn-delete">حذف</button>
           </form>
         </td>
       </tr>
@@ -132,13 +177,13 @@
 {% block scripts %}
 <script>
   $(function () {
-    $('#shipments-table').DataTable({
-      pageLength: 10,
-      order: [[2, 'desc']],
-      language: {
-        url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/ar.json'
-      }
-    });
+    if (window.jQuery && $.fn.DataTable) {
+      $('#shipments-table').DataTable({
+        pageLength: 10,
+        order: [[2, 'desc']],
+        language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/ar.json' }
+      });
+    }
   });
 </script>
 {% endblock %}

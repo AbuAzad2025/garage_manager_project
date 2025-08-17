@@ -1,4 +1,3 @@
-{# File: templates/warehouses/form.html #}
 {% extends 'warehouses/base.html' %}
 {% block title %}{{ 'تعديل مستودع' if warehouse else 'مستودع جديد' }}{% endblock %}
 {% block page_title %}{{ 'تعديل مستودع' if warehouse else 'مستودع جديد' }}{% endblock %}
@@ -6,25 +5,88 @@
 {% block content %}
 <form method="post" novalidate>
   {{ form.hidden_tag() }}
+
   <div class="row">
     <div class="col-md-6">
-      <div class="mb-3">{{ form.name.label }} {{ form.name(class="form-control") }}{% for e in form.name.errors %}<div class="text-danger">{{ e }}</div>{% endfor %}</div>
-      <div class="mb-3">{{ form.warehouse_type.label }} {{ form.warehouse_type(class="form-control") }}</div>
-      <div class="mb-3">{{ form.location.label }} {{ form.location(class="form-control") }}</div>
-      <div class="mb-3">{{ form.capacity.label }} {{ form.capacity(class="form-control") }}</div>
-      <div class="mb-3">{{ form.is_active() }} {{ form.is_active.label }}</div>
+      <div class="mb-3">
+        {{ form.name.label }} 
+        {{ form.name(class="form-control") }}
+        {% for e in form.name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+      </div>
+
+      <div class="mb-3">
+        {{ form.warehouse_type.label }}
+        {{ form.warehouse_type(class="form-control", id="warehouse_type") }}
+        {% for e in form.warehouse_type.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+      </div>
+
+      <div class="mb-3">
+        {{ form.location.label }}
+        {{ form.location(class="form-control") }}
+        {% for e in form.location.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+      </div>
+
+      <div class="mb-3">
+        {{ form.capacity.label }}
+        {{ form.capacity(class="form-control") }}
+        {% for e in form.capacity.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+      </div>
+
+      <div class="mb-3 form-check">
+        {{ form.is_active(class="form-check-input", id="is_active") }}
+        <label class="form-check-label" for="is_active">{{ form.is_active.label.text }}</label>
+      </div>
     </div>
+
     <div class="col-md-6">
-      <div class="mb-3">{{ form.parent_id.label }} {{ form.parent_id(class="form-control") }}</div>
-      <div class="mb-3">{{ form.partner_id.label }} {{ form.partner_id(class="form-control") }}</div>
-      <div class="mb-3">{{ form.share_percent.label }} {{ form.share_percent(class="form-control") }}</div>
+      <div class="mb-3">
+        {{ form.parent_id.label }}
+        {{ form.parent_id(class="form-control") }}
+        {% for e in form.parent_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+      </div>
+
+      <div class="mb-3" id="partner_row">
+        {{ form.partner_id.label }}
+        {{ form.partner_id(class="form-control", id="partner_id") }}
+        {% for e in form.partner_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+      </div>
+
+      <div class="mb-3" id="share_row">
+        {{ form.share_percent.label }}
+        {{ form.share_percent(class="form-control", id="share_percent") }}
+        {% for e in form.share_percent.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+      </div>
     </div>
   </div>
+
   <button class="btn btn-primary">حفظ</button>
   <a class="btn btn-secondary" href="{{ url_for('warehouse_bp.list') }}">رجوع</a>
 </form>
 {% endblock %}
 
 {% block scripts %}
-  <script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
+{{ super() }}
+<script>
+  (function(){
+    const typeEl = document.getElementById('warehouse_type');
+    const partnerRow = document.getElementById('partner_row');
+    const shareRow = document.getElementById('share_row');
+    const partnerInput = document.getElementById('partner_id');
+    const shareInput = document.getElementById('share_percent');
+
+    function togglePartner() {
+      const isPartner = (typeEl?.value || '').toUpperCase() === 'PARTNER';
+      partnerRow.style.display = isPartner ? '' : 'none';
+      shareRow.style.display = isPartner ? '' : 'none';
+      if (!isPartner) {
+        if (partnerInput) partnerInput.value = '';
+        if (shareInput) shareInput.value = '';
+      }
+    }
+    if (typeEl) {
+      togglePartner();
+      typeEl.addEventListener('change', togglePartner);
+    }
+  })();
+</script>
 {% endblock %}
