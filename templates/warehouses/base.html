@@ -1,62 +1,61 @@
-{% extends 'base.html' %}
-{% block title %}المخازن{% endblock %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}نظام إدارة المستودعات{% endblock %}</title>
 
-{% block head %}
-  {{ super() }}
-  <link rel="stylesheet"
-        href="{{ url_for('static', filename='adminlte/plugins/datatables-bs4/css/dataTables.bootstrap4.min.css') }}">
-  <link rel="stylesheet"
-        href="{{ url_for('static', filename='adminlte/plugins/datatables-responsive/css/responsive.bootstrap4.min.css') }}">
-  <link rel="stylesheet"
-        href="{{ url_for('static', filename='adminlte/plugins/select2/css/select2.min.css') }}">
-  <link rel="stylesheet"
-        href="{{ url_for('static', filename='adminlte/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
-  <link rel="stylesheet"
-        href="{{ url_for('static', filename='css/warehouses.css') }}">
-{% endblock %}
+    <link rel="icon" href="{{ url_for('static', filename='img/logo.png') }}" />
 
-{% block content %}
-<div class="container-fluid">
-  <ul class="nav nav-pills mb-4">
-    <li class="nav-item">
-      <a class="nav-link {% if request.endpoint == 'warehouses.list_warehouses' %}active{% endif %}"
-         href="{{ url_for('warehouses.list_warehouses') }}">قائمة المستودعات</a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if request.endpoint == 'warehouses.create_warehouse' %}active{% endif %}"
-         href="{{ url_for('warehouses.create_warehouse') }}">إضافة مستودع جديد</a>
-    </li>
-    {% if warehouse %}
-      <li class="nav-item">
-        <a class="nav-link {% if request.endpoint == 'warehouses.warehouse_detail' %}active{% endif %}"
-           href="{{ url_for('warehouses.warehouse_detail', warehouse_id=warehouse.id) }}">تفاصيل المخزن</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link {% if request.endpoint == 'warehouses.list_warehouse_shipments' %}active{% endif %}"
-           href="{{ url_for('warehouses.list_warehouse_shipments', warehouse_id=warehouse.id) }}">الشحنات</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link {% if request.endpoint == 'warehouses.list_transfers' %}active{% endif %}"
-           href="{{ url_for('warehouses.list_transfers', warehouse_id=warehouse.id) }}">التحويلات</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link {% if request.endpoint == 'warehouses.import_products' %}active{% endif %}"
-           href="{{ url_for('warehouses.import_products', warehouse_id=warehouse.id) }}">استيراد منتجات</a>
-      </li>
-    {% endif %}
-  </ul>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/css/adminlte.min.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/fontawesome-free/css/all.min.css') }}" />
 
-  {% block warehouses_content %}{% endblock %}
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/warehouses.css') }}" />
+    {% block head_extra %}{% endblock %}
+</head>
+<body class="hold-transition sidebar-mini layout-fixed">
+<div class="wrapper">
+    {% include 'partials/navbar.html' %}
+    {% include 'partials/sidebar.html' %}
+
+    <div class="content-wrapper">
+        <section class="content-header">
+            <div class="container-fluid">
+                <h1>{% block page_title %}المستودعات{% endblock %}</h1>
+            </div>
+        </section>
+
+        <section class="content">
+            <div class="container-fluid">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                {% block content %}{% endblock %}
+            </div>
+        </section>
+    </div>
+
+    {% include 'partials/footer.html' %}
 </div>
-{% endblock %}
 
-{% block scripts %}
-  {{ super() }}
-  <script src="{{ url_for('static', filename='adminlte/plugins/datatables/jquery.dataTables.min.js') }}" defer></script>
-  <script src="{{ url_for('static', filename='adminlte/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js') }}" defer></script>
-  <script src="{{ url_for('static', filename='adminlte/plugins/datatables-responsive/js/dataTables.responsive.min.js') }}" defer></script>
-  <script src="{{ url_for('static', filename='adminlte/plugins/datatables-responsive/js/responsive.bootstrap4.min.js') }}" defer></script>
-  <script src="{{ url_for('static', filename='adminlte/plugins/select2/js/select2.full.min.js') }}" defer></script>
-  <script src="{{ url_for('static', filename='adminlte/plugins/select2/js/i18n/ar.js') }}" defer></script>
-  <script src="{{ url_for('static', filename='js/warehouses.js') }}" defer></script>
-{% endblock %}
+<script src="{{ url_for('static', filename='adminlte/plugins/jquery/jquery.min.js') }}"></script>
+<script src="{{ url_for('static', filename='adminlte/plugins/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+<script src="{{ url_for('static', filename='adminlte/js/adminlte.min.js') }}"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+<script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
+{% block scripts %}{% endblock %}
+
+</body>
+</html>

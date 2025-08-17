@@ -1,117 +1,131 @@
-{# File: templates/payments/list.html #}
 {% extends 'base.html' %}
-{% block title %}سندات الدفع{% endblock %}
+{% block title %}سندات الدفع{% if supplier %} — {{ supplier.name }}{% endif %}{% endblock %}
 
 {% block content %}
 <div class="container py-5">
+
+  <!-- العنوان والأزرار -->
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2 class="fw-bold">
-      <i class="fas fa-file-invoice-dollar me-2"></i>
-      سندات الدفع لـ {{ entity_name }} «{{ entity.name }}»
+    <h2 class="fw-bold mb-0">
+      <i class="fas fa-money-check-alt me-2"></i>
+      {% if supplier %}
+        سندات دفع المورد: <span class="text-primary">{{ supplier.name }}</span>
+      {% else %}
+        جميع سندات الدفع
+      {% endif %}
     </h2>
-    <a href="{{ url_for('payments.create_payment', entity_type=entity_type, entity_id=entity.id, direction='OUT') }}"
+
+    <a href="{% if supplier %}{{ url_for('payments.create_payment', entity_type='SUPPLIER', supplier_id=supplier.id) }}{% else %}{{ url_for('payments.create_payment') }}{% endif %}"
        class="btn btn-success">
-      <i class="fas fa-plus"></i> إضافة دفعة
+      <i class="fas fa-plus"></i> إضافة سند دفع
     </a>
   </div>
 
-  {# نجمع كل برامترات الفلترة لتمريرها في روابط الترحيل #}
-  {% set args = request.args.to_dict() %}
+  {% if supplier %}
+    <!-- مُدخلات خفية لتثبيت الفلترة بحسب المورد -->
+    <input type="hidden" id="prefilter_entity_type" value="SUPPLIER">
+    <input type="hidden" id="prefilter_entity_id" value="{{ supplier.id }}">
+  {% endif %}
 
-  <div class="mb-3">
-    <strong>إجمالي المدفوع:</strong>
-    {{ total_paid|round(2) }}
-    {% if pagination.total>0 %}{{ pagination.items[0].currency }}{% endif %}
-  </div>
-
-  <div class="card shadow-sm rounded-4">
-    <div class="card-body p-0">
-      {% if pagination.total == 0 %}
-        <p class="p-4 text-center">لا توجد دفعات حتى الآن.</p>
-      {% else %}
-        <table class="table table-hover table-bordered align-middle mb-0">
-          <thead class="table-light">
-            <tr>
-              <th>#</th>
-              <th>التاريخ</th>
-              <th>المبلغ</th>
-              <th>العملة</th>
-              <th>طريقة الدفع</th>
-              <th>اتجاه</th>
-              <th>الحالة</th>
-              <th>إجراءات</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for pay in pagination.items %}
-            <tr>
-              <td>{{ loop.index + (pagination.page-1)*pagination.per_page }}</td>
-              <td>{{ pay.payment_date.strftime('%Y-%m-%d') }}</td>
-              <td>{{ pay.total_amount|round(2) }}</td>
-              <td>{{ pay.currency }}</td>
-              <td>{{ pay.method.value }}</td>
-              <td>
-                <span class="badge {{ pay.direction.value=='IN' and 'bg-success' or 'bg-danger' }}">
-                  {{ pay.direction.value=='IN' and 'وارد' or 'صادر' }}
-                </span>
-              </td>
-              <td>
-                {% set st = pay.status.value %}
-                <span class="badge
-                  {% if st=='COMPLETED' %}bg-success
-                  {% elif st=='PENDING'   %}bg-warning
-                  {% elif st=='FAILED'    %}bg-danger
-                  {% else %}bg-secondary{% endif %}">
-                  {{ st }}
-                </span>
-              </td>
-              <td class="text-nowrap">
-                <a href="{{ url_for('payments.view_payment', payment_id=pay.id) }}"
-                   class="btn btn-sm btn-info">عرض</a>
-                <a href="{{ url_for('payments.edit_payment', payment_id=pay.id) }}"
-                   class="btn btn-sm btn-warning">تعديل</a>
-                <form method="post"
-                      action="{{ url_for('payments.delete_payment', payment_id=pay.id) }}"
-                      style="display:inline;" onsubmit="return confirm('هل تريد حذف هذه الدفعة؟');">
-                  {{ csrf_token() }}
-                  <button type="submit" class="btn btn-sm btn-danger">
-                    <i class="fas fa-trash"></i>
-                  </button>
-                </form>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-
-        <nav class="mt-3">
-          <ul class="pagination justify-content-center mb-0">
-            {% if pagination.has_prev %}
-              <li class="page-item">
-                <a class="page-link"
-                   href="{{ url_for(request.endpoint, id=entity.id, page=pagination.prev_num, **args) }}">السابق</a>
-              </li>
-            {% endif %}
-            {% for p in pagination.iter_pages() %}
-              {% if p %}
-                <li class="page-item {% if p==pagination.page %}active{% endif %}">
-                  <a class="page-link"
-                     href="{{ url_for(request.endpoint, id=entity.id, page=p, **args) }}">{{ p }}</a>
-                </li>
-              {% else %}
-                <li class="page-item disabled"><span class="page-link">…</span></li>
-              {% endif %}
-            {% endfor %}
-            {% if pagination.has_next %}
-              <li class="page-item">
-                <a class="page-link"
-                   href="{{ url_for(request.endpoint, id=entity.id, page=pagination.next_num, **args) }}">التالي</a>
-              </li>
-            {% endif %}
-          </ul>
-        </nav>
-      {% endif %}
+  <!-- فلاتر -->
+  <div class="row mb-4 g-2 align-items-end">
+    <div class="col-auto">
+      <label for="filterEntity" class="form-label">الكيان</label>
+      <select id="filterEntity" class="form-select">
+        <option value="">الكل</option>
+        <option value="CUSTOMER">عميل</option>
+        <option value="SUPPLIER">مورد</option>
+        <option value="PARTNER">شريك</option>
+        <option value="SALE">بيع</option>
+        <option value="SERVICE">صيانة</option>
+        <option value="EXPENSE">مصروف</option>
+        <option value="LOAN">تسوية قرض</option>
+        <option value="PREORDER">طلب مسبق</option>
+        <option value="SHIPMENT">شحنة</option>
+      </select>
+    </div>
+    <div class="col-auto">
+      <label for="filterStatus" class="form-label">الحالة</label>
+      <select id="filterStatus" class="form-select">
+        <option value="">الكل</option>
+        <option value="COMPLETED">مكتملة</option>
+        <option value="PENDING">قيد الانتظار</option>
+        <option value="FAILED">فاشلة</option>
+        <option value="REFUNDED">مُرجعة</option>
+      </select>
+    </div>
+    <div class="col-auto">
+      <label for="filterDirection" class="form-label">الاتجاه</label>
+      <select id="filterDirection" class="form-select">
+        <option value="">الكل</option>
+        <option value="IN">وارد</option>
+        <option value="OUT">صادر</option>
+      </select>
+    </div>
+    <div class="col-auto">
+      <label for="filterMethod" class="form-label">الطريقة</label>
+      <select id="filterMethod" class="form-select">
+        <option value="">الكل</option>
+        <option value="cash">نقداً</option>
+        <option value="cheque">شيك</option>
+        <option value="bank">تحويل بنكي</option>
+        <option value="card">بطاقة</option>
+        <option value="online">إلكتروني</option>
+      </select>
+    </div>
+    <div class="col-auto">
+      <label for="startDate" class="form-label">من تاريخ</label>
+      <input type="date" id="startDate" class="form-control">
+    </div>
+    <div class="col-auto">
+      <label for="endDate" class="form-label">إلى تاريخ</label>
+      <input type="date" id="endDate" class="form-control">
     </div>
   </div>
+
+  <!-- الجدول + الترقيم -->
+  <div class="card shadow-sm rounded-4">
+    <div class="card-body p-0">
+      <table id="paymentsTable" class="table table-hover table-bordered align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width:70px">#</th>
+            <th>التاريخ</th>
+            <th>المبلغ</th>
+            <th>العملة</th>
+            <th>الطريقة</th>
+            <th>الاتجاه</th>
+            <th>الحالة</th>
+            <th>الكيان</th>
+            <th style="width:110px">إجراءات</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="card-footer">
+      <nav>
+        <ul id="pagination" class="pagination justify-content-center mb-0"></ul>
+      </nav>
+    </div>
+  </div>
+
 </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/payments.js') }}"></script>
+  <script>
+    // في حال وجود مُرشّح المورد، نضبط حقل الكيان تلقائياً بدون تعطيله
+    document.addEventListener('DOMContentLoaded', function () {
+      var et = document.getElementById('prefilter_entity_type');
+      if (et && et.value && document.getElementById('filterEntity')) {
+        var sel = document.getElementById('filterEntity');
+        sel.value = et.value; // SUPPLIER
+        // ملاحظة: payments.js يظلّ المسؤول عن جلب البيانات بناءً على القيم الحالية
+        // إذا كان سكربت الجلب يعتمد على أحداث التغيير، يمكنك تفعيل السطر التالي:
+        // sel.dispatchEvent(new Event('change'));
+      }
+    });
+  </script>
 {% endblock %}

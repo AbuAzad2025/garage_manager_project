@@ -1,11 +1,12 @@
 {% extends 'base.html' %}
+
 {% block title %}إضافة عميل جديد{% endblock %}
 
 {% block breadcrumb %}
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb bg-white px-3 py-2 rounded mb-4">
     <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
-    <li class="breadcrumb-item"><a href="{{ url_for('customers.list_customers') }}">العملاء</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('customers_bp.list_customers') }}">العملاء</a></li>
     <li class="breadcrumb-item active">جديد</li>
   </ol>
 </nav>
@@ -16,18 +17,33 @@
   <div class="card-header bg-primary text-white">
     <h3 class="card-title"><i class="fas fa-user-plus me-2"></i>إضافة عميل جديد</h3>
   </div>
+
   <div class="card-body">
-    <form id="customer-create-form" method="post" novalidate>
+    {# ملخص أخطاء أعلى النموذج إن وجدت #}
+    {% if form.errors %}
+      <div class="alert alert-danger">
+        يرجى تصحيح الحقول المظللة أدناه.
+      </div>
+    {% endif %}
+
+    <form id="customer-create-form"
+          method="post"
+          action="{{ url_for('customers_bp.create_customer') }}"
+          novalidate>
       {% include 'customers/_form.html' %}
-      <div class="mt-4">
+      <div class="mt-4 d-flex gap-2">
         <button type="submit" class="btn btn-success">
           <i class="fas fa-save me-1"></i> حفظ
         </button>
-        <a href="{{ url_for('customers.list_customers') }}" class="btn btn-secondary">
+        <a href="{{ url_for('customers_bp.list_customers') }}" class="btn btn-secondary">
           إلغاء
         </a>
       </div>
     </form>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/customers.js') }}"></script>
 {% endblock %}

@@ -1,12 +1,11 @@
-{# templates/customers/account_statement.html #}
 {% extends 'base.html' %}
-
 {% block title %}كشف حساب العميل{% endblock %}
 
 {% block breadcrumb %}
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb bg-white px-3 py-2 rounded mb-4">
-    <li class="breadcrumb-item"><a href="{{ url_for('customers.list_customers') }}">العملاء</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('customers_bp.list_customers') }}">العملاء</a></li>
     <li class="breadcrumb-item active">كشف حساب {{ customer.name }}</li>
   </ol>
 </nav>
@@ -14,10 +13,10 @@
 
 {% block content %}
 <div class="container">
-  <h2>كشف حساب {{ customer.name }}</h2>
+  <h2 class="mb-3">كشف حساب {{ customer.name }}</h2>
 
   <h4 class="mt-4">الفواتير</h4>
-  <table class="table table-bordered">
+  <table class="table table-bordered align-middle">
     <thead>
       <tr>
         <th>رقم الفاتورة</th>
@@ -28,16 +27,18 @@
     <tbody>
       {% for inv in invoices %}
       <tr>
-        <td>{{ inv.invoice_number }}</td>
-        <td>{{ inv.invoice_date.strftime('%Y-%m-%d') }}</td>
-        <td class="text-end">{{ "{:,.2f}".format(inv.total_amount) }}</td>
+        <td>{{ inv.invoice_number or inv.id }}</td>
+        <td>{{ inv.invoice_date|format_date }}</td>
+        <td class="text-end">{{ inv.total_amount|format_currency }}</td>
       </tr>
+      {% else %}
+      <tr><td colspan="3" class="text-center">لا توجد فواتير.</td></tr>
       {% endfor %}
     </tbody>
   </table>
 
   <h4 class="mt-4">الدفعات</h4>
-  <table class="table table-bordered">
+  <table class="table table-bordered align-middle">
     <thead>
       <tr>
         <th>رقم الدفع</th>
@@ -49,17 +50,36 @@
       {% for pay in payments %}
       <tr>
         <td>{{ pay.payment_number or pay.id }}</td>
-        <td>{{ pay.payment_date.strftime('%Y-%m-%d') }}</td>
-        <td class="text-end">{{ "{:,.2f}".format(pay.total_amount) }}</td>
+        <td>{{ pay.payment_date|format_date }}</td>
+        <td class="text-end">{{ pay.total_amount|format_currency }}</td>
       </tr>
+      {% else %}
+      <tr><td colspan="3" class="text-center">لا توجد دفعات.</td></tr>
       {% endfor %}
     </tbody>
   </table>
 
   <div class="alert alert-info mt-4">
-    <strong>إجمالي الفواتير:</strong> {{ "{:,.2f}".format(total_invoices) }}<br>
-    <strong>إجمالي الدفعات:</strong> {{ "{:,.2f}".format(total_payments) }}<br>
-    <strong>الرصيد المتبقي:</strong> {{ "{:,.2f}".format(balance) }}
+    <strong>إجمالي الفواتير:</strong> {{ total_invoices|format_currency }}<br>
+    <strong>إجمالي الدفعات:</strong> {{ total_payments|format_currency }}<br>
+    <strong>الرصيد المتبقي:</strong>
+    <span class="fw-bold {% if balance>0 %}text-danger{% else %}text-success{% endif %}">
+      {{ balance|format_currency }}
+    </span>
+  </div>
+
+  <div class="mt-3 d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="{{ url_for('customers_bp.customer_detail', customer_id=customer.id) }}">
+      <i class="fas fa-arrow-left me-1"></i> عودة للتفاصيل
+    </a>
+    <a class="btn btn-primary" href="{{ url_for('customers_bp.list_customers') }}">
+      <i class="fas fa-users me-1"></i> قائمة العملاء
+    </a>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/customers.js') }}"></script>
 {% endblock %}

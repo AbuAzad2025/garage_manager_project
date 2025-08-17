@@ -13,13 +13,35 @@ __pycache__/
 .env
 *.env
 
-# ملفات وقواعد بيانات مؤقتة
+# قواعد بيانات وملفات مؤقتة
 *.sqlite3
 *.db
 *.log
+instance/
 
-# ملفات تحرير بيئة التطوير
+# مكتبات مثبتة (لو قررت تجرب بدون venv)
+site-packages/
+
+# كاش البايثون
+*.egg-info/
+*.egg
+dist/
+build/
+
+# كاش pytest والتغطية
+.pytest_cache/
+.coverage
+htmlcov/
+
+# تقارير أخرى
+reports/
+coverage.xml
+junit.xml
+
+# بيئات التطوير
 .idea/
 .vscode/
 
-# ملفات أخرى غير ضرورية (أضف المزيد حسب حاجتك)
+# أنظمة تشغيل
+.DS_Store
+Thumbs.db

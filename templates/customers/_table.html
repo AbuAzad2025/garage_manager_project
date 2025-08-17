@@ -1,49 +1,60 @@
-<table id="customersTable" class="table table-hover align-middle text-center">
-  <thead class="table-light">
+<table id="customersTable" class="table table-hover table-bordered align-middle mb-0 text-center">
+  <thead class="table-primary">
     <tr>
-      <th>#</th><th>الاسم</th><th>الجوال</th><th>البريد</th>
-      <th>التصنيف</th><th>الرصيد</th><th>الحالة</th><th>إجراءات</th>
+      <th>#</th>
+      <th>الاسم</th>
+      <th>الجوال</th>
+      <th>البريد</th>
+      <th>التصنيف</th>
+      <th>الرصيد</th>
+      <th>الحالة</th>
+      <th>تاريخ الإنشاء</th>
+      <th>العمليات</th>
     </tr>
   </thead>
   <tbody>
-    {% for c in customers %}
-    <tr>
-      <td>{{ c.id }}</td>
+    {% for customer in customers %}
+    <tr class="{% if not customer.is_active %}table-secondary{% endif %}">
+      <td>{{ loop.index + (pagination.page - 1) * pagination.per_page }}</td>
       <td class="text-start">
-        <a href="{{ url_for('customers.customer_detail', id=c.id) }}">{{ c.name }}</a>
+        <a href="{{ url_for('customers_bp.customer_detail', customer_id=customer.id) }}">{{ customer.name }}</a>
       </td>
-      <td>{{ c.phone or '-' }}</td>
-      <td>{{ c.email or '-' }}</td>
-      <td>{{ c.category }}</td>
-      <td class="fw-bold {% if c.balance>0 %}text-danger{% else %}text-success{% endif %}">
-        {{ c.balance|format_currency }}
+      <td>{{ customer.phone or '-' }}</td>
+      <td>{{ customer.email or '-' }}</td>
+      <td>{{ customer.category or '-' }}</td>
+      <td class="fw-bold {% if customer.balance > 0 %}text-danger{% else %}text-success{% endif %}">
+        {{ customer.balance|format_currency }}
       </td>
-      <td>
-        {% if c.credit_status=='معلق' %}
-          <span class="badge bg-danger">معلق</span>
-        {% else %}
-          <span class="badge bg-success">نشط</span>
-        {% endif %}
-      </td>
-      <td>
-        <div class="btn-group btn-group-sm">
-          <a href="{{ url_for('customers.customer_whatsapp', id=c.id) }}" class="btn btn-success" title="واتساب">
-            <i class="fab fa-whatsapp"></i>
-          </a>
-          <a href="{{ url_for('customers.edit_customer', id=c.id) }}" class="btn btn-warning" title="تعديل">
-            <i class="fas fa-edit"></i>
-          </a>
-          <button class="btn btn-danger delete-btn" data-id="{{ c.id }}" title="حذف">
+      <td>{{ customer.is_active|yes_no }}</td>
+      <td>{{ customer.created_at|format_date }}</td>
+      <td class="text-nowrap">
+        <div class="btn-group btn-group-sm" role="group">
+          <a href="{{ url_for('customers_bp.customer_detail', customer_id=customer.id) }}"
+             class="btn btn-info" title="تفاصيل"><i class="fas fa-eye"></i></a>
+          <a href="{{ url_for('customers_bp.edit_customer', customer_id=customer.id) }}"
+             class="btn btn-warning" title="تعديل"><i class="fas fa-edit"></i></a>
+          <button
+            type="button"
+            class="btn btn-danger delete-btn"
+            data-id="{{ customer.id }}"
+            data-delete-url="{{ url_for('customers_bp.delete_customer', id=customer.id) }}"
+            title="حذف"
+          >
             <i class="fas fa-trash"></i>
           </button>
-          <a href="{{ url_for('customers.export_customer_vcf', id=c.id) }}" class="btn btn-outline-success" title="VCF">
-            <i class="fas fa-download"></i>
-          </a>
+          <a href="{{ url_for('payments.create_payment', entity_type='customer', entity_id=customer.id) }}"
+             class="btn btn-success" title="دفع جديد"><i class="fas fa-coins"></i></a>
+          <a href="{{ url_for('customers_bp.account_statement', customer_id=customer.id) }}"
+             class="btn btn-outline-primary" title="كشف حساب"><i class="fas fa-file-invoice"></i></a>
+          <a href="{{ url_for('customers_bp.customer_whatsapp', customer_id=customer.id) }}"
+             class="btn btn-success" title="واتساب"><i class="fab fa-whatsapp"></i></a>
+          <a href="{{ url_for('customers_bp.export_customer_vcf', customer_id=customer.id) }}"
+             class="btn btn-outline-success" title="VCF"><i class="fas fa-download"></i></a>
         </div>
       </td>
     </tr>
     {% else %}
-    <tr><td colspan="8">لا توجد نتائج.</td></tr>
+    <tr><td colspan="9">لا توجد نتائج.</td></tr>
     {% endfor %}
   </tbody>
 </table>

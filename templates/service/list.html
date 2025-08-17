@@ -1,6 +1,12 @@
 {% extends "base.html" %}
 {% block title %}طلبات الصيانة{% endblock %}
 {% block page_header %}طلبات الصيانة{% endblock %}
+
+{% block head_extra %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/service.css') }}">
+{% endblock %}
+
 {% block breadcrumb %}
   <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
   <li class="breadcrumb-item active">طلبات الصيانة</li>
@@ -10,7 +16,7 @@
 <div class="container my-4">
   <h2 class="mb-4">طلبات الصيانة</h2>
 
-  {% if current_user.has_permission('manage_services') %}
+  {% if current_user.has_permission('manage_service') %}
   <div class="mb-3 d-flex gap-2 flex-wrap">
     <a href="{{ url_for('service.create_request') }}" class="btn btn-success">
       <i class="fa fa-plus"></i> إضافة طلب صيانة جديد
@@ -22,40 +28,90 @@
   </div>
   {% endif %}
 
-  <!-- فلاتر البحث -->
-  <form class="row g-2 align-items-end mb-3" method="get">
-    <div class="col-md-2">
-      <label for="search" class="form-label">بحث حر</label>
-      <input id="search" name="search" class="form-control" placeholder="ابحث..." value="{{ filter_values.search }}">
+  <!-- فلاتر البحث (مطابقة للراوت) -->
+  <form class="row g-3 align-items-end mb-3" method="get" action="{{ url_for('service.list_requests') }}">
+    <!-- الحالة (متعدد) -->
+    <div class="col-12 col-md-4">
+      <label class="form-label d-block">الحالة</label>
+      {% set selected_status = filter_values.status or [] %}
+      {% set status_opts = ['PENDING','DIAGNOSIS','IN_PROGRESS','COMPLETED','CANCELLED','ON_HOLD'] %}
+      <div class="d-flex flex-wrap gap-2">
+        {% for st in status_opts %}
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="status" id="st_{{st}}" value="{{st}}"
+                   {% if st in selected_status %}checked{% endif %}>
+            <label class="form-check-label" for="st_{{st}}">{{ status_labels.get(st, st) }}</label>
+          </div>
+        {% endfor %}
+      </div>
     </div>
-    <div class="col-md-2">
-      <label for="status" class="form-label">الحالة</label>
-      <select id="status" name="status" class="form-select">
+
+    <!-- الأولوية (متعدد) -->
+    <div class="col-12 col-md-4">
+      <label class="form-label d-block">الأولوية</label>
+      {% set selected_pri = filter_values.priority or [] %}
+      {% set pri_opts = ['LOW','MEDIUM','HIGH','URGENT'] %}
+      <div class="d-flex flex-wrap gap-2">
+        {% for pr in pri_opts %}
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="priority" id="pr_{{pr}}" value="{{pr}}"
+                   {% if pr in selected_pri %}checked{% endif %}>
+            <label class="form-check-label" for="pr_{{pr}}">{{ pr }}</label>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- العميل / الميكانيكي / لوحة المركبة -->
+    <div class="col-12 col-md-4">
+      <label for="customer" class="form-label">العميل (اسم/جوال)</label>
+      <input id="customer" name="customer" class="form-control" value="{{ filter_values.customer or '' }}" placeholder="اسم أو جوال">
+    </div>
+    <div class="col-12 col-md-4">
+      <label for="mechanic" class="form-label">الميكانيكي</label>
+      <select id="mechanic" name="mechanic" class="form-select">
         <option value="">الكل</option>
-        <option value="PENDING"    {% if filter_values.status=='PENDING' %}selected{% endif %}>معلق</option>
-        <option value="IN_PROGRESS"{% if filter_values.status=='IN_PROGRESS' %}selected{% endif %}>قيد التنفيذ</option>
-        <option value="COMPLETED"  {% if filter_values.status=='COMPLETED' %}selected{% endif %}>مكتمل</option>
-        <option value="CANCELLED"  {% if filter_values.status=='CANCELLED' %}selected{% endif %}>ملغي</option>
-      </select>
-    </div>
-    <div class="col-md-2">
-      <label for="date_from" class="form-label">من تاريخ</label>
-      <input type="date" id="date_from" name="date_from" class="form-control" value="{{ filter_values.date_from }}">
-    </div>
-    <div class="col-md-2">
-      <label for="date_to" class="form-label">إلى تاريخ</label>
-      <input type="date" id="date_to" name="date_to" class="form-control" value="{{ filter_values.date_to }}">
-    </div>
-    <div class="col-md-2">
-      <label for="warehouse_id" class="form-label">المخزن</label>
-      <select id="warehouse_id" name="warehouse_id" class="form-select">
-        <option value="">الكل</option>
-        {% for w in warehouses %}
-        <option value="{{ w.id }}" {% if filter_values.warehouse_id==w.id|string %}selected{% endif %}>{{ w.name }}</option>
+        {% for m in mechanics %}
+          <option value="{{ m.username }}" {% if filter_values.mechanic==m.username %}selected{% endif %}>
+            {{ m.username }}
+          </option>
         {% endfor %}
       </select>
     </div>
-    <div class="col-md-2">
+    <div class="col-12 col-md-4">
+      <label for="vrn" class="form-label">لوحة المركبة</label>
+      <input id="vrn" name="vrn" class="form-control" value="{{ filter_values.vrn or '' }}" placeholder="VRN">
+    </div>
+
+    <!-- المدة: اليوم/الأسبوع/الشهر -->
+    <div class="col-12 col-md-4">
+      <label for="date" class="form-label">الزمن</label>
+      <select id="date" name="date" class="form-select">
+        <option value="">الكل</option>
+        <option value="today" {% if filter_values.date=='today' %}selected{% endif %}>اليوم</option>
+        <option value="week"  {% if filter_values.date=='week' %}selected{% endif %}>هذا الأسبوع</option>
+        <option value="month" {% if filter_values.date=='month' %}selected{% endif %}>هذا الشهر</option>
+      </select>
+    </div>
+
+    <!-- الفرز -->
+    <div class="col-12 col-md-4">
+      <label for="sort" class="form-label">ترتيب حسب</label>
+      <select id="sort" name="sort" class="form-select">
+        <option value="request_date" {% if filter_values.sort=='request_date' %}selected{% endif %}>تاريخ الطلب</option>
+        <option value="priority"     {% if filter_values.sort=='priority' %}selected{% endif %}>الأولوية</option>
+        <option value="status"       {% if filter_values.sort=='status' %}selected{% endif %}>الحالة</option>
+      </select>
+    </div>
+    <div class="col-12 col-md-4">
+      <label for="order" class="form-label">الاتجاه</label>
+      <select id="order" name="order" class="form-select">
+        <option value="desc" {% if filter_values.order=='desc' %}selected{% endif %}>تنازلي</option>
+        <option value="asc"  {% if filter_values.order=='asc' %}selected{% endif %}>تصاعدي</option>
+      </select>
+    </div>
+
+    <div class="col-12 col-md-4">
       <button type="submit" class="btn btn-primary w-100">تصفية</button>
     </div>
   </form>
@@ -65,34 +121,43 @@
     <table id="servicesTable" class="table table-bordered table-hover align-middle">
       <thead class="table-light">
         <tr>
-          {% if current_user.has_permission('manage_services') %}
-          <th><input type="checkbox" id="selectAll"></th>
+          {% if current_user.has_permission('manage_service') %}
+            <th style="width:42px"><input type="checkbox" id="selectAll" /></th>
           {% endif %}
           <th>رقم الطلب</th>
           <th>العميل</th>
-          <th>نوع المعدة</th>
-          <th>الموديل</th>
+          <th>لوحة المركبة</th>
+          <th>الأولوية</th>
           <th>الحالة</th>
-          <th>الإجراءات</th>
+          <th style="width:220px">الإجراءات</th>
         </tr>
       </thead>
       <tbody>
         {% for s in requests %}
         <tr>
-          {% if current_user.has_permission('manage_services') %}
-          <td><input type="checkbox" class="row-select" value="{{ s.id }}"></td>
+          {% if current_user.has_permission('manage_service') %}
+            <td><input type="checkbox" class="row-select" value="{{ s.id }}" /></td>
           {% endif %}
           <td>{{ s.service_number }}</td>
-          <td>{{ s.customer.name if s.customer else '—' }}</td>
-          <td>{{ s.vehicle_type.name if s.vehicle_type else '—' }}</td>
-          <td>{{ s.vehicle_model or '—' }}</td>
-          <td><span class="badge bg-{{ priority_colors[s.priority] }}">{{ status_labels[s.status] }}</span></td>
+          <td>{{ s.customer.name if s.customer else (s.name or '—') }}</td>
+          <td>{{ s.vehicle_vrn or '—' }}</td>
           <td>
+            {% set p = (s.priority.value if s.priority is not string else s.priority)|upper %}
+            <span class="badge bg-{{ priority_colors.get(p, 'secondary') }}">{{ p }}</span>
+          </td>
+          <td>
+            {% set st = (s.status.value if s.status is not string else s.status)|upper %}
+            <span class="badge bg-secondary">{{ status_labels.get(st, st) }}</span>
+          </td>
+          <td class="d-flex flex-wrap gap-1">
             <a href="{{ url_for('service.view_request', rid=s.id) }}" class="btn btn-info btn-sm">عرض</a>
-            {% if current_user.has_permission('manage_services') %}
-            <a href="{{ url_for('service.edit_request', rid=s.id) }}" class="btn btn-warning btn-sm">تعديل</a>
-            <button class="btn btn-danger btn-sm btn-delete" data-id="{{ s.id }}">حذف</button>
-            <button class="btn btn-secondary btn-sm btn-archive" data-id="{{ s.id }}">أرشفة</button>
+            <a href="{{ url_for('service.view_receipt', rid=s.id) }}" class="btn btn-outline-secondary btn-sm">إيصال</a>
+            {% if current_user.has_permission('manage_service') %}
+              <!-- حذف -->
+              <form method="post" action="{{ url_for('service.delete_request', rid=s.id) }}" class="d-inline-block">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-danger btn-sm btn-delete">حذف</button>
+              </form>
             {% endif %}
           </td>
         </tr>
@@ -101,11 +166,28 @@
     </table>
   </div>
 </div>
+
+<!-- أنماط بسيطة (من ملفك السابق) لبادجات الحالة والطباعة -->
+<style>
+  .badge-pending { background-color:#6c757d; }
+  .badge-diagnosis { background-color:#17a2b8; }
+  .badge-in_progress { background-color:#0dcaf0; }
+  .badge-completed { background-color:#198754; }
+  .badge-cancelled { background-color:#dc3545; }
+  .badge-on_hold { background-color:#ffc107; }
+  @media print {
+    .btn, .breadcrumb, .page-header, .actions { display:none!important; }
+    body { font-size:14px; color:#000; }
+  }
+</style>
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
-<script src="{{ url_for('static', filename='js/services.js') }}"></script>
+  <!-- مكاتب لواجهة الجدول والتنبيهات -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/plug-ins/1.13.4/i18n/ar.json"></script>
+
+  <!-- سكربت موحد لوحدة الصيانة -->
+  <script src="{{ url_for('static', filename='js/service.js') }}"></script>
 {% endblock %}

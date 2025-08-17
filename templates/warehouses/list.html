@@ -1,91 +1,73 @@
+{# File: templates/warehouses/list.html #}
 {% extends 'warehouses/base.html' %}
+
 {% block title %}قائمة المستودعات{% endblock %}
+{% block page_title %}المستودعات{% endblock %}
 
-{% block warehouses_content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h2>
-    <i class="fa fa-warehouse text-primary"></i> إدارة المستودعات
-    <span class="badge bg-secondary ms-2">{{ warehouses|length }}</span>
-  </h2>
-  {% if current_user.has_permission('manage_warehouses') %}
-    <a href="{{ url_for('warehouses.create_warehouse') }}" class="btn btn-success">
-      <i class="fa fa-plus"></i> إضافة مستودع جديد
-    </a>
-  {% endif %}
+{% block head_extra %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/warehouses.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-body">
+
+    <form class="row g-2 mb-3" method="get" action="{{ url_for('warehouse_bp.list') }}">
+      <div class="col-md-3">
+        <select class="form-control" name="type">
+          <option value="">كل الأنواع</option>
+          <option value="MAIN"      {{ 'selected' if (filter_type|upper) == 'MAIN' }}>MAIN</option>
+          <option value="INVENTORY" {{ 'selected' if (filter_type|upper) == 'INVENTORY' }}>INVENTORY</option>
+          <option value="PARTNER"   {{ 'selected' if (filter_type|upper) == 'PARTNER' }}>PARTNER</option>
+          <option value="EXCHANGE"  {{ 'selected' if (filter_type|upper) == 'EXCHANGE' }}>EXCHANGE</option>
+        </select>
+      </div>
+      <div class="col-md-5">
+        <input class="form-control" type="text" name="search" placeholder="ابحث بالاسم" value="{{ search or '' }}">
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-primary w-100" type="submit">تصفية</button>
+      </div>
+      <div class="col-md-2">
+        <a class="btn btn-light w-100" href="{{ url_for('warehouse_bp.list') }}">إلغاء</a>
+      </div>
+    </form>
+
+    {% if warehouses and warehouses|length %}
+      <table class="table table-striped" id="warehouses-table">
+        <thead>
+          <tr>
+            <th>الاسم</th>
+            <th>النوع</th>
+            <th>نشط؟</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for w in warehouses %}
+          <tr>
+            <td><a href="{{ url_for('warehouse_bp.detail', warehouse_id=w.id) }}">{{ w.name }}</a></td>
+            <td>{{ w.warehouse_type }}</td>
+            <td>{{ '✓' if w.is_active else '✗' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="alert alert-info mb-0">لا توجد مستودعات.</div>
+    {% endif %}
+
+  </div>
 </div>
+{% endblock %}
 
-<div class="row g-2 mb-3">
-  <div class="col-md-3">
-    <input type="text" id="searchBox" class="form-control"
-           placeholder="ابحث عن مستودع أو شريك..." value="{{ search }}">
-  </div>
-  <div class="col-md-3">
-    <select id="typeFilter" class="form-select select2">
-      <option value="" {% if filter_type|default('') == '' %}selected{% endif %}>كل الأنواع</option>
-      <option value="MAIN"      {% if filter_type=='MAIN'      %}selected{% endif %}>رئيسي</option>
-      <option value="INVENTORY" {% if filter_type=='INVENTORY' %}selected{% endif %}>مخزون</option>
-      <option value="EXCHANGE"  {% if filter_type=='EXCHANGE'  %}selected{% endif %}>تبادل</option>
-      <option value="PARTNER"   {% if filter_type=='PARTNER'   %}selected{% endif %}>شريك</option>
-    </select>
-  </div>
-  <div class="col-md-3">
-    <select id="parentFilter" class="form-select select2">
-      <option value="">كل الآباء</option>
-      {% for w in warehouses if not w.parent_id %}
-        <option value="{{ w.id }}">{{ w.name }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <div class="col-md-3 d-flex gap-2">
-    <button id="applyFilters" class="btn btn-primary w-100">تصفية</button>
-    <a href="{{ url_for('warehouses.list_warehouses') }}" class="btn btn-outline-secondary w-100">إلغاء</a>
-  </div>
-</div>
-
-<table id="warehouseTable" class="table table-hover table-bordered align-middle bg-white">
-  <thead class="bg-primary text-white">
-    <tr>
-      <th>#</th><th>اسم المستودع</th><th>النوع</th><th>الشريك</th>
-      <th>الأب</th><th>الحالة</th><th>الإجراءات</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for w in warehouses %}
-      <tr>
-        <td>{{ loop.index }}</td>
-        <td><i class="fa fa-warehouse text-secondary"></i> {{ w.name }}</td>
-        <td>
-          <span class="badge
-            {% if w.warehouse_type=='MAIN' %}bg-primary
-            {% elif w.warehouse_type=='INVENTORY' %}bg-success
-            {% elif w.warehouse_type=='EXCHANGE' %}bg-warning
-            {% else %}bg-info{% endif %}">
-            {{ w.warehouse_type_display }}
-          </span>
-        </td>
-        <td>{{ w.partner.name if w.partner else '—' }}</td>
-        <td>{{ w.parent.name if w.parent else '—' }}</td>
-        <td>
-          <span class="badge {{ 'bg-success' if w.is_active else 'bg-danger' }}">
-            {{ 'مفعل' if w.is_active else 'غير مفعل' }}
-          </span>
-        </td>
-        <td class="table-actions">
-          <a href="{{ url_for('warehouses.warehouse_detail', warehouse_id=w.id) }}"
-             class="btn btn-sm btn-outline-info"><i class="fa fa-eye"></i></a>
-          {% if current_user.has_permission('manage_warehouses') %}
-            <a href="{{ url_for('warehouses.edit_warehouse', warehouse_id=w.id) }}"
-               class="btn btn-sm btn-outline-warning"><i class="fa fa-edit"></i></a>
-            <form method="post"
-                  action="{{ url_for('warehouses.delete_warehouse', warehouse_id=w.id) }}"
-                  style="display:inline" onsubmit="return confirm('هل أنت متأكد؟');">
-              {{ csrf_token() }}
-              <button class="btn btn-sm btn-outline-danger"><i class="fa fa-trash"></i></button>
-            </form>
-          {% endif %}
-        </td>
-      </tr>
-    {% endfor %}
-  </tbody>
-</table>
+{% block scripts %}
+  {{ super() }}
+  <script>
+    (function() {
+      if (window.jQuery && $.fn.DataTable) {
+        $('#warehouses-table').DataTable({ pageLength: 25 });
+      }
+    })();
+  </script>
 {% endblock %}

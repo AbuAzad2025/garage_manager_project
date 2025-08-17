@@ -1,45 +1,39 @@
-<link rel="stylesheet" href="sales.css">
+{# templates/sales/detail.html #}
 {% extends 'base.html' %}
 {% block title %}تفاصيل فاتورة {{ sale.sale_number }}{% endblock %}
+
+{% block head_extra %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sales.css') }}">
+{% endblock %}
 
 {% block content %}
 <div class="container py-5">
   <div class="card shadow-lg border-0 rounded-4">
     <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-      <h3><i class="fas fa-file-invoice-dollar me-2"></i> فاتورة {{ sale.sale_number }}</h3>
+      <h3 class="mb-0"><i class="fas fa-file-invoice-dollar me-2"></i> فاتورة {{ sale.sale_number }}</h3>
       <div>
-        <span class="badge bg-secondary me-2">{{ sale.currency }}</span>
-        {% set status_info = status_map.get(sale.status, ('', 'bg-secondary')) %}
-        <span class="badge {{ status_info.1 }}">{{ status_info.0 }}</span>
+        <span class="badge bg-dark me-2">{{ sale.currency }}</span>
+        <span class="badge {{ sale.status_class }}">{{ sale.status_label }}</span>
       </div>
     </div>
-    
+
     <div class="card-body bg-light">
-      <!-- معلومات الفاتورة -->
+      <!-- معلومات أساسية -->
       <div class="row mb-4 g-3">
-        <div class="col-md-4">
-          <p><strong>التاريخ:</strong> {{ sale.date.strftime('%Y-%m-%d') }}</p>
-        </div>
-        <div class="col-md-4">
-          <p><strong>العميل:</strong> {{ sale.customer.name if sale.customer else '-' }}</p>
-        </div>
-        <div class="col-md-4">
-          <p><strong>البائع:</strong> {{ sale.seller.username if sale.seller else '-' }}</p>
-        </div>
-        <div class="col-md-4">
-          <p><strong>نسبة الضريبة:</strong> {{ sale.tax_rate }}%</p>
-        </div>
-        <div class="col-md-4">
-          <p><strong>تكلفة الشحن:</strong> {{ sale.shipping_cost | number_format }} {{ sale.currency }}</p>
-        </div>
+        <div class="col-md-4"><p class="mb-0"><strong>التاريخ:</strong> {{ sale.date_iso }}</p></div>
+        <div class="col-md-4"><p class="mb-0"><strong>العميل:</strong> {{ sale.customer_name }}</p></div>
+        <div class="col-md-4"><p class="mb-0"><strong>البائع:</strong> {{ sale.seller_name }}</p></div>
+        <div class="col-md-4"><p class="mb-0"><strong>نسبة الضريبة:</strong> {{ sale.tax_rate or 0 }}%</p></div>
+        <div class="col-md-4"><p class="mb-0"><strong>تكلفة الشحن:</strong> {{ "%.2f"|format(sale.shipping_cost or 0) }} {{ sale.currency }}</p></div>
       </div>
 
       <hr>
-      
-      <!-- بنود الفاتورة -->
-      <h5><i class="fas fa-list me-2"></i> تفاصيل البنود</h5>
+
+      <!-- البنود -->
+      <h5 class="mb-2"><i class="fas fa-list me-2"></i> تفاصيل البنود</h5>
       <div class="table-responsive">
-        <table class="table table-bordered table-hover">
+        <table class="table table-bordered table-hover align-middle">
           <thead class="table-primary">
             <tr>
               <th>#</th>
@@ -56,50 +50,56 @@
             {% for line in sale.lines %}
             <tr>
               <td>{{ loop.index }}</td>
-              <td>{{ line.product.name }}</td>
-              <td>{{ line.warehouse.name }}</td>
+              <td>{{ line.product_name }}</td>
+              <td>{{ line.warehouse_name }}</td>
               <td>{{ line.quantity }}</td>
-              <td>{{ line.unit_price | number_format }} {{ sale.currency }}</td>
-              <td>{{ line.discount_rate }}</td>
-              <td>{{ line.tax_rate }}</td>
-              <td>{{ (line.quantity * line.unit_price) | number_format }} {{ sale.currency }}</td>
+              <td>{{ "%.2f"|format(line.unit_price or 0) }} {{ sale.currency }}</td>
+              <td>{{ line.discount_rate or 0 }}</td>
+              <td>{{ line.tax_rate or 0 }}</td>
+              <td>{{ line.line_total_fmt }} {{ sale.currency }}</td>
             </tr>
             {% endfor %}
           </tbody>
           <tfoot>
             <tr>
               <td colspan="7" class="text-end fw-bold">المجموع الفرعي:</td>
-              <td>{{ sale.subtotal | number_format }} {{ sale.currency }}</td>
+              <td>{{ "%.2f"|format((sale.subtotal or 0) if sale.subtotal is defined else (sale.total or 0) - (sale.shipping_cost or 0)) }} {{ sale.currency }}</td>
             </tr>
             <tr>
-              <td colspan="7" class="text-end fw-bold">الضريبة ({{ sale.tax_rate }}%):</td>
-              <td>{{ sale.tax_amount | number_format }} {{ sale.currency }}</td>
+              <td colspan="7" class="text-end fw-bold">الضريبة ({{ sale.tax_rate or 0 }}%):</td>
+              <td>{{ "%.2f"|format(sale.tax_amount or 0) }} {{ sale.currency }}</td>
             </tr>
             <tr>
               <td colspan="7" class="text-end fw-bold">الشحن:</td>
-              <td>{{ sale.shipping_cost | number_format }} {{ sale.currency }}</td>
+              <td>{{ "%.2f"|format(sale.shipping_cost or 0) }} {{ sale.currency }}</td>
             </tr>
             <tr class="table-success fw-bold">
               <td colspan="7" class="text-end">الإجمالي النهائي:</td>
-              <td>{{ sale.total | number_format }} {{ sale.currency }}</td>
+              <td>{{ "%.2f"|format(sale.total or 0) }} {{ sale.currency }}</td>
             </tr>
           </tfoot>
         </table>
       </div>
 
       <hr>
-      
+
       <!-- الدفعات -->
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5><i class="fas fa-money-bill-wave me-2"></i> سجل الدفعات</h5>
-        <a href="{{ url_for('payments.create_payment', entity_type='sale', entity_id=sale.id) }}" 
-           class="btn btn-sm btn-success">
-          <i class="fas fa-plus me-1"></i> إضافة دفعة
-        </a>
+      <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+        <h5 class="mb-0"><i class="fas fa-money-bill-wave me-2"></i> سجل الدفعات</h5>
+        <div class="d-flex gap-2">
+          <a class="btn btn-outline-primary btn-sm"
+             href="{{ url_for('payments.index', entity_type='SALE', entity_id=sale.id) }}">
+            <i class="fas fa-list me-1"></i> سجل الدفعات (الموحّد)
+          </a>
+          <a class="btn btn-success btn-sm"
+             href="{{ url_for('payments.create_payment', entity_type='SALE', entity_id=sale.id) }}">
+            <i class="fas fa-plus me-1"></i> إضافة دفعة
+          </a>
+        </div>
       </div>
-      
+
       <div class="table-responsive">
-        <table class="table table-sm">
+        <table class="table table-sm align-middle">
           <thead>
             <tr>
               <th>التاريخ</th>
@@ -109,50 +109,42 @@
             </tr>
           </thead>
           <tbody>
-            {% for payment in sale.payments %}
+            {% for p in sale.payments %}
             <tr>
-              <td>{{ payment.payment_date.strftime('%Y-%m-%d') }}</td>
-              <td>{{ payment.total_amount | number_format }} {{ sale.currency }}</td>
-              <td>
-                {% set method_label = payment_method_map.get(payment.method, payment.method) %}
-                {{ method_label }}
-              </td>
-              <td>
-                {% set status_info = payment_status_map.get(payment.status, ('', '')) %}
-                <span class="badge {{ status_info.1 }}">{{ status_info.0 }}</span>
-              </td>
+              <td>{{ p.date_formatted }}</td>
+              <td>{{ "%.2f"|format(p.total_amount or 0) }} {{ sale.currency }}</td>
+              <td>{{ p.method_label }}</td>
+              <td><span class="badge {{ p.status_class }}">{{ p.status_label }}</span></td>
             </tr>
             {% else %}
-            <tr>
-              <td colspan="4" class="text-center text-muted py-3">لا توجد دفعات مسجلة</td>
-            </tr>
+            <tr><td colspan="4" class="text-center text-muted py-3">لا توجد دفعات مسجلة</td></tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
-      
+
       <!-- ملخص الدفعات -->
       <div class="row justify-content-end mt-3">
         <div class="col-md-5">
           <table class="table table-bordered">
             <tr>
               <th class="text-end">المجموع المدفوع:</th>
-              <td>{{ sale.total_paid | number_format }} {{ sale.currency }}</td>
+              <td>{{ "%.2f"|format(sale.total_paid or 0) }} {{ sale.currency }}</td>
             </tr>
             <tr>
               <th class="text-end">المتبقي:</th>
               <td>
-                <span class="badge {{ 'bg-success' if sale.balance_due == 0 else 'bg-danger' }}">
-                  {{ sale.balance_due | number_format }} {{ sale.currency }}
+                <span class="badge {{ 'bg-success' if (sale.balance_due or 0) == 0 else 'bg-danger' }}">
+                  {{ "%.2f"|format(sale.balance_due or 0) }} {{ sale.currency }}
                 </span>
               </td>
             </tr>
           </table>
         </div>
       </div>
-      
+
       <hr>
-      
+
       <!-- الملاحظات -->
       <div class="mb-4">
         <label class="form-label fw-bold">ملاحظات</label>
@@ -160,22 +152,26 @@
           {{ sale.notes or 'لا توجد ملاحظات' }}
         </div>
       </div>
-      
-      <!-- أزرار الإجراءات -->
+
+      <!-- أزرار -->
       <div class="d-flex justify-content-between mt-4">
         <div>
-          <a href="{{ url_for('sales.edit_sale', id=sale.id) }}" class="btn btn-warning me-2">
+          <a href="{{ url_for('sales_bp.edit_sale', sale_id=sale.id) }}" class="btn btn-warning me-2">
             <i class="fas fa-edit me-1"></i> تعديل
           </a>
-          <a href="{{ url_for('sales.generate_invoice', id=sale.id) }}" class="btn btn-info me-2" target="_blank">
+          <a href="{{ url_for('sales_bp.generate_invoice', sale_id=sale.id) }}" target="_blank" class="btn btn-info me-2">
             <i class="fas fa-print me-1"></i> طباعة الفاتورة
           </a>
         </div>
-        <a href="{{ url_for('sales.list_sales') }}" class="btn btn-outline-secondary">
+        <a href="{{ url_for('sales_bp.list_sales') }}" class="btn btn-outline-secondary">
           <i class="fas fa-arrow-left me-1"></i> العودة للقائمة
         </a>
       </div>
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/sales.js') }}"></script>
 {% endblock %}

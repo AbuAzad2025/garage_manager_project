@@ -1,70 +1,87 @@
+{# templates/partials/sidebar.html #}
 <aside class="main-sidebar sidebar-dark-primary elevation-4">
   <a href="{{ url_for('main.dashboard') }}" class="brand-link text-center">
-    <img src="{{ url_for('static', filename='img/logo.png') }}" class="brand-image img-circle elevation-3">
-    <span class="brand-text font-weight-light">🚗 كراج السيارات</span>
+    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo"
+         class="brand-image img-circle elevation-3" style="opacity:.8">
+    <span class="brand-text font-weight-light">نظام إدارة الكراج</span>
   </a>
+
   <div class="sidebar">
     <nav class="mt-2">
-      <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview">
+      <ul class="nav nav-pills nav-sidebar flex-column" role="menu">
+
         <li class="nav-item">
           <a href="{{ url_for('main.dashboard') }}" class="nav-link">
             <i class="nav-icon fas fa-tachometer-alt"></i><p>لوحة التحكم</p>
           </a>
         </li>
-        {% if current_user.has_permission('manage_customers') %}
+
         <li class="nav-item">
-          <a href="{{ url_for('customers.list_customers') }}" class="nav-link">
-            <i class="nav-icon fas fa-users"></i><p>العملاء</p>
-          </a>
-        </li>
-        {% endif %}
-        {% if current_user.has_permission('manage_vendors') %}
-        <li class="nav-item">
-          <a href="{{ url_for('vendors.suppliers_list') }}" class="nav-link">
-            <i class="nav-icon fas fa-truck"></i><p>الموردون / التجار</p>
-          </a>
-        </li>
-        <li class="nav-item">
-          <a href="{{ url_for('vendors.partners_list') }}" class="nav-link">
-            <i class="nav-icon fas fa-handshake"></i><p>الشركاء</p>
-          </a>
-        </li>
-        {% endif %}
-        {% if current_user.has_permission('manage_service') %}
-        <li class="nav-item">
-          <a href="{{ url_for('service.list_requests') }}" class="nav-link">
+          <a href="{{ url_for_any('service.index','service_bp.index') }}" class="nav-link">
             <i class="nav-icon fas fa-tools"></i><p>طلبات الصيانة</p>
           </a>
         </li>
-        {% endif %}
-        {% if current_user.has_permission('manage_sales') %}
+
         <li class="nav-item">
-          <a href="{{ url_for('sales.list_sales') }}" class="nav-link">
-            <i class="nav-icon fas fa-file-invoice-dollar"></i><p>المبيعات</p>
+          <a href="{{ url_for_any('warehouse_bp.list','warehouses.list','warehouses.index') }}" class="nav-link">
+            <i class="nav-icon fas fa-warehouse"></i><p>المستودعات</p>
           </a>
         </li>
-        {% endif %}
-        {% if current_user.has_permission('manage_payments') %}
+
         <li class="nav-item">
-          <a href="{{ url_for('payments.index') }}" class="nav-link">
-            <i class="nav-icon fas fa-money-check-alt"></i><p>الدفعات</p>
+          <a href="{{ url_for_any('sales.index','sales_bp.index') }}" class="nav-link">
+            <i class="nav-icon fas fa-shopping-cart"></i><p>المبيعات</p>
           </a>
         </li>
-        {% endif %}
-        {% if current_user.has_permission('manage_reports') %}
+
         <li class="nav-item">
-          <a href="{{ url_for('reports.index') }}" class="nav-link">
-            <i class="nav-icon fas fa-chart-line"></i><p>التقارير</p>
+          <a href="{{ url_for_any('expenses.index','expenses_bp.index') }}" class="nav-link">
+            <i class="nav-icon fas fa-receipt"></i><p>المصاريف</p>
           </a>
         </li>
-        {% endif %}
-        {% if current_user.has_permission('manage_users') %}
+
         <li class="nav-item">
-          <a href="{{ url_for('users.list_users') }}" class="nav-link">
-            <i class="nav-icon fas fa-users-cog"></i><p>المستخدمون</p>
+          <a href="{{ url_for_any('payments.index','payments_bp.index') }}" class="nav-link">
+            <i class="nav-icon fas fa-money-bill-wave"></i><p>الدفعات</p>
           </a>
         </li>
+
+        <li class="nav-item">
+          <a href="{{ url_for_any('reports.ar_aging','reports_bp.ar_aging','reports.index','reports_bp.index') }}" class="nav-link">
+            <i class="nav-icon fas fa-chart-bar"></i><p>التقارير</p>
+          </a>
+        </li>
+
+        {# صلاحيات النسخ/الاستعادة #}
+        {% set can_backup = has_perm('backup_db') or has_perm('backup_database') %}
+        {% set can_restore = has_perm('restore_db') or has_perm('restore_database') %}
+
+        {% if can_backup or can_restore %}
+          <li class="nav-header">النسخ الاحتياطي</li>
+
+          {% if can_backup %}
+          <li class="nav-item">
+            <a href="{{ url_for('main.backup_db') }}" class="nav-link">
+              <i class="nav-icon fas fa-download"></i><p>تنزيل نسخة</p>
+            </a>
+          </li>
+          {% endif %}
+
+          {% if can_restore %}
+          <li class="nav-item">
+            <a href="{{ url_for('main.restore_db') }}" class="nav-link">
+              <i class="nav-icon fas fa-upload"></i><p>استعادة</p>
+            </a>
+          </li>
+          {% endif %}
         {% endif %}
+
+        <li class="nav-item">
+          <a href="{{ url_for_any('shop.index','shop_bp.index') }}" class="nav-link">
+            <i class="nav-icon fas fa-store"></i><p>المتجر</p>
+          </a>
+        </li>
+
       </ul>
     </nav>
   </div>

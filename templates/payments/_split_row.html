@@ -1,26 +1,26 @@
-<tr>
-  <td>{{ s.amount }} {{ payment.currency }}</td>
-  <td>{{ s.method }}</td>
+{% set m = getattr(s.method, 'value', s.method) %}
+{% set d = s.details or {} %}
+<tr id="split-{{ s.id }}">
+  <td>{{ loop.index }}. {{ '%.2f'|format(s.amount or 0) }} {{ payment.currency }}</td>
+  <td>{{ m|upper }}</td>
   <td>
-    {% if s.method=='cheque' and s.details %}
-      رقم الشيك: {{ s.details.check_number }}<br>
-      البنك: {{ s.details.check_bank }}<br>
-      استحقاق: {{ s.details.due_date }}
-    {% elif s.method=='bank' and s.details %}
-      تحويل: {{ s.details.bank_transfer_ref }}
-    {% elif s.method=='card' and s.details %}
-      بطاقة: {{ s.details.card_number }}
+    {% if m == 'cheque' %}
+      رقم الشيك: {{ d.get('check_number','—') }}<br>
+      البنك: {{ d.get('check_bank','—') }}<br>
+      الاستحقاق: {{ d.get('check_due_date','—')|default('—') }}
+    {% elif m == 'bank' %}
+      مرجع التحويل: {{ d.get('bank_transfer_ref','—') }}
+    {% elif m == 'card' %}
+      بطاقة رقم: ****{{ (d.get('card_number','')|string)[-4:] }}<br>
+      حامل البطاقة: {{ d.get('card_holder','—') }}<br>
+      انتهاء: {{ d.get('card_expiry','—') }}
+    {% elif m == 'online' %}
+      دفع إلكتروني ({{ d.get('gateway','—') }})
     {% else %}
-      ---
+      —
     {% endif %}
   </td>
   <td>
-    <button
-      type="button"
-      class="btn btn-sm btn-danger remove-split"
-      data-split-id="{{ s.id }}"
-    >
-      حذف
-    </button>
+    <button type="button" class="btn btn-sm btn-danger remove-split" data-split-id="{{ s.id }}">حذف</button>
   </td>
 </tr>

@@ -36,33 +36,30 @@
         <tr>
           <td>{{ user.username }}</td>
           <td>{{ user.email }}</td>
-          <td>{{ user.role.name if user.role else '-' }}</td>
+          <td>{{ user.role.name if user.role else '—' }}</td>
           <td>
-            {% if user.extra_permissions|length %}
-              {{ user.extra_permissions|map(attribute='name')|join(', ') }}
+            {% set perms = user.extra_permissions.all() %}
+            {% if perms %}
+              {{ perms | map(attribute='name') | join(', ') }}
             {% else %}
-              -
+              —
             {% endif %}
           </td>
           <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
           {% if current_user.has_permission('admin_access') %}
             <td class="text-center">
-              <a
-                href="{{ url_for('users.edit_user', user_id=user.id) }}"
-                class="btn btn-sm btn-primary"
-                title="تعديل"
-              ><i class="fas fa-edit"></i></a>
-              <form
-                action="{{ url_for('users.delete_user', user_id=user.id) }}"
-                method="post"
-                class="d-inline"
-                onsubmit="return confirm('هل أنت متأكد من حذف هذا المستخدم؟');"
-              >
-                <input
-                  type="hidden"
-                  name="csrf_token"
-                  value="{{ csrf_token() }}"
-                >
+              <a href="{{ url_for('users.user_detail', user_id=user.id) }}"
+                 class="btn btn-sm btn-info" title="تفاصيل">
+                <i class="fas fa-eye"></i>
+              </a>
+              <a href="{{ url_for('users.edit_user', user_id=user.id) }}"
+                 class="btn btn-sm btn-primary" title="تعديل">
+                <i class="fas fa-edit"></i>
+              </a>
+              <form action="{{ url_for('users.delete_user', user_id=user.id) }}"
+                    method="post" class="d-inline"
+                    onsubmit="return confirm('هل أنت متأكد من حذف هذا المستخدم؟');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-sm btn-danger" title="حذف">
                   <i class="fas fa-trash-alt"></i>
                 </button>
@@ -78,10 +75,10 @@
 
 {% block scripts %}
 <script>
-  $(document).ready(function(){
+  $(function(){
     $('#users-table').DataTable({
       dom: 'Bfrtip',
-      buttons: ['excel','pdf'],
+      buttons: ['excel', 'pdf'],
       language: {
         url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/Arabic.json"
       }

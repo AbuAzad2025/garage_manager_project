@@ -1,69 +1,11 @@
-{% extends 'base.html' %}
-{% block title %}تقرير ديناميكي ذكي{% endblock %}
+{% extends 'reports/dynamic.html' %}
 
-{% block content %}
-<div class="container mt-4">
-  <h2 class="mb-3"><i class="fas fa-chart-line"></i> تقرير ديناميكي لأي كيان</h2>
-
-  {% if current_user.has_permission('view_reports') %}
-  <form method="post" class="report-form shadow p-3 mb-4 bg-white rounded">
-    {{ form.hidden_tag() }}
-
-    <div class="row mb-3">
-      <div class="col-md-3">{{ form.table.label }} {{ form.table(class="form-select", id="select-table") }}</div>
-      <div class="col-md-3">{{ form.date_field.label }} {{ form.date_field(class="form-select", id="select-date-field") }}</div>
-      <div class="col-md-3">{{ form.start_date.label }} {{ form.start_date(class="form-control") }}</div>
-      <div class="col-md-3">{{ form.end_date.label }} {{ form.end_date(class="form-control") }}</div>
-    </div>
-
-    <div class="row mb-3">
-      <div class="col-md-9">{{ form.selected_fields.label }} {{ form.selected_fields(class="form-select", id="select-columns", multiple=true) }}</div>
-      <div class="col-md-3 d-flex align-items-end">
-        <button class="btn btn-primary me-2" name="submit"><i class="fas fa-search"></i> فلترة</button>
-        <button class="btn btn-success me-2" name="export_excel" value="1"><i class="fas fa-file-excel"></i> Excel</button>
-        <button class="btn btn-secondary" type="button" onclick="window.print()"><i class="fas fa-print"></i> طباعة</button>
-      </div>
-    </div>
-
-    <div class="row" id="extra-filters"></div>
-  </form>
-
-  <div id="report-table-container">
-    {% if data %}
-      <h5 class="mt-4">📊 الملخص:</h5>
-      <ul>
-        {% for k, v in summary.items() %}
-          <li><strong>{{ k }}</strong>: {{ v }}</li>
-        {% endfor %}
-      </ul>
-
-      <div class="table-responsive">
-        <table id="report-table" class="table table-bordered table-striped table-hover">
-          <thead class="table-dark">
-            <tr>{% for col in columns %}<th>{{ col }}</th>{% endfor %}</tr>
-          </thead>
-          <tbody>
-            {% for row in data %}
-              <tr>{% for col in columns %}<td>{{ row[col] }}</td>{% endfor %}</tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    {% elif data is not none %}
-      <div class="alert alert-info mt-4">ℹ️ لا توجد نتائج للفلتر المحدد.</div>
-    {% endif %}
-  </div>
-
-  {% else %}
-    <div class="alert alert-warning">⚠️ ليس لديك صلاحية لعرض هذا التقرير.</div>
-  {% endif %}
-</div>
+{% block head_extra %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/reporting.css') }}">
 {% endblock %}
 
 {% block scripts %}
-  <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
-  <script src="https://cdn.datatables.net/buttons/2.3.6/js/dataTables.buttons.min.js"></script>
-  <script src="https://cdn.datatables.net/buttons/2.3.6/js/buttons.html5.min.js"></script>
-  <script src="https://cdn.datatables.net/buttons/2.3.6/js/buttons.print.min.js"></script>
+  {{ super() }}
   <script src="{{ url_for('static', filename='js/reporting.js') }}"></script>
 {% endblock %}

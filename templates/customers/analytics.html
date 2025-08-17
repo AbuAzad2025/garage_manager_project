@@ -1,13 +1,17 @@
 {% extends 'base.html' %}
+
 {% block title %}تحليلات العميل{% endblock %}
+
 {% block breadcrumb %}
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb bg-white px-3 py-2 rounded mb-4">
-    <li class="breadcrumb-item"><a href="{{ url_for('customers.list_customers') }}">العملاء</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('customers_bp.list_customers') }}">العملاء</a></li>
     <li class="breadcrumb-item active">تحليلات {{ customer.name }}</li>
   </ol>
 </nav>
 {% endblock %}
+
 {% block content %}
 <div class="row g-4">
   <div class="col-md-4">
@@ -62,23 +66,24 @@
   </div>
 </div>
 {% endblock %}
-{% block scripts %}
-{{ super() }}
-<script>
-  const monthsP = {{ purchases_months|map(attribute='month')|list|tojson }};
-  const dataP = {{ purchases_months|map(attribute='total')|list|tojson }};
-  const ctx1 = document.getElementById('purchasesChart');
-  new Chart(ctx1, { type:'line', data:{labels:monthsP, datasets:[{
-    label:'مشتريات', data:dataP,
-    backgroundColor:'rgba(54,162,235,0.2)', borderColor:'rgba(54,162,235,1)', fill:true
-  }]} });
 
-  const monthsPay = {{ payments_months|map(attribute='month')|list|tojson }};
-  const dataPay = {{ payments_months|map(attribute='total')|list|tojson }};
-  const ctx2 = document.getElementById('paymentsChart');
-  new Chart(ctx2, { type:'line', data:{labels:monthsPay, datasets:[{
-    label:'دفعات', data:dataPay,
-    backgroundColor:'rgba(75,192,192,0.2)', borderColor:'rgba(75,192,192,1)', fill:true
-  }]} });
-</script>
+{% block scripts %}
+  {{ super() }}
+  <script>
+    const monthsP = {{ purchases_months|map(attribute='month')|list|tojson }};
+    const dataP   = {{ purchases_months|map(attribute='total')|list|tojson }};
+    const ctx1    = document.getElementById('purchasesChart');
+    new Chart(ctx1, {
+      type: 'line',
+      data: { labels: monthsP, datasets: [{ label: 'مشتريات', data: dataP, fill: true }] }
+    });
+
+    const monthsPay = {{ payments_months|map(attribute='month')|list|tojson }};
+    const dataPay   = {{ payments_months|map(attribute='total')|list|tojson }};
+    const ctx2      = document.getElementById('paymentsChart');
+    new Chart(ctx2, {
+      type: 'line',
+      data: { labels: monthsPay, datasets: [{ label: 'دفعات', data: dataPay, fill: true }] }
+    });
+  </script>
 {% endblock %}

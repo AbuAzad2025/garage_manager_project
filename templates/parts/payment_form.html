@@ -72,47 +72,52 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  function toggleEntityGroups() {
-    const type = document.querySelector('select[name="entity_type"]').value;
-    document.getElementById('customer-group').classList.toggle('d-none', type !== 'customer');
-    document.getElementById('supplier-group').classList.toggle('d-none', type !== 'supplier');
-    document.getElementById('partner-group').classList.toggle('d-none', type !== 'partner');
-  }
-  document.querySelector('select[name="entity_type"]').addEventListener('change', toggleEntityGroups);
-  toggleEntityGroups();
+  {{ super() }}
+  <!-- سكربتات الدفع المطلوبة للاختبارات والإنتاج -->
+  <script src="{{ url_for('static', filename='js/payment_form.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/payments.js') }}"></script>
 
-  const container = document.getElementById('split-methods-container');
-  document.getElementById('add-split-method-btn').addEventListener('click', () => {
-    const index = container.children.length;
-    const html = `
-      <div class="form-row split-method-entry mb-2">
-        <div class="col-md-4">
-          <select name="split_methods-${index}-method" class="form-control" required>
-            <option value="cash">نقداً</option>
-            <option value="card">بطاقة بنكية</option>
-            <option value="bank">تحويل بنكي</option>
-            <option value="cheque">شيك</option>
-            <option value="installment">تقسيط</option>
-            <option value="credit">ذمم</option>
-          </select>
-        </div>
-        <div class="col-md-4">
-          <input type="number" name="split_methods-${index}-amount" class="form-control" min="0" step="0.01" required>
-        </div>
-        <div class="col-md-4">
-          <button type="button" class="btn btn-danger btn-sm remove-split-method">حذف</button>
-        </div>
-      </div>`;
-    container.insertAdjacentHTML('beforeend', html);
-  });
-
-  container.addEventListener('click', (e) => {
-    if(e.target.classList.contains('remove-split-method')){
-      e.target.closest('.split-method-entry').remove();
+  <script>
+  document.addEventListener('DOMContentLoaded', function() {
+    function toggleEntityGroups() {
+      const type = document.querySelector('select[name="entity_type"]').value;
+      document.getElementById('customer-group').classList.toggle('d-none', type !== 'customer');
+      document.getElementById('supplier-group').classList.toggle('d-none', type !== 'supplier');
+      document.getElementById('partner-group').classList.toggle('d-none', type !== 'partner');
     }
+    document.querySelector('select[name="entity_type"]').addEventListener('change', toggleEntityGroups);
+    toggleEntityGroups();
+
+    const container = document.getElementById('split-methods-container');
+    document.getElementById('add-split-method-btn').addEventListener('click', () => {
+      const index = container.children.length;
+      const html = `
+        <div class="form-row split-method-entry mb-2">
+          <div class="col-md-4">
+            <select name="split_methods-${index}-method" class="form-control" required>
+              <option value="cash">نقداً</option>
+              <option value="card">بطاقة بنكية</option>
+              <option value="bank">تحويل بنكي</option>
+              <option value="cheque">شيك</option>
+              <option value="installment">تقسيط</option>
+              <option value="credit">ذمم</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <input type="number" name="split_methods-${index}-amount" class="form-control" min="0" step="0.01" required>
+          </div>
+          <div class="col-md-4">
+            <button type="button" class="btn btn-danger btn-sm remove-split-method">حذف</button>
+          </div>
+        </div>`;
+      container.insertAdjacentHTML('beforeend', html);
+    });
+
+    container.addEventListener('click', (e) => {
+      if(e.target.classList.contains('remove-split-method')){
+        e.target.closest('.split-method-entry').remove();
+      }
+    });
   });
-});
-</script>
+  </script>
 {% endblock %}

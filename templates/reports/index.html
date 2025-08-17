@@ -1,6 +1,11 @@
 {% extends 'base.html' %}
 {% block title %}مركز التقارير{% endblock %}
 
+{% block head_extra %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/reporting.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
   <h1 class="mb-4"><i class="fas fa-chart-bar"></i> مركز التقارير الشامل</h1>
@@ -8,19 +13,24 @@
   {% if current_user.has_permission('view_reports') %}
     <div class="list-group shadow p-3 bg-white rounded">
       {% for name in model_names %}
-        <a href="{{ url_for('reports.dynamic_report') }}?table={{ name }}" class="list-group-item list-group-item-action">
+        <a href="{{ url_for('reports_bp.dynamic_report') }}" 
+           onclick="event.preventDefault(); document.getElementById('form-{{ name }}').submit();" 
+           class="list-group-item list-group-item-action">
           <i class="fas fa-file-alt text-primary"></i> تقرير {{ name }}
         </a>
+        <form id="form-{{ name }}" action="{{ url_for('reports_bp.dynamic_report') }}" method="post" class="d-none">
+          {{ csrf_token() }}
+          <input type="hidden" name="table" value="{{ name }}">
+        </form>
       {% endfor %}
-    </div>
-
-    <div class="text-center mt-4">
-      <a href="{{ url_for('reports.dynamic_report') }}" class="btn btn-lg btn-primary">
-        <i class="fas fa-filter"></i> تقرير شامل بفلترة ذكية
-      </a>
     </div>
   {% else %}
     <div class="alert alert-warning">⚠️ ليس لديك صلاحية لعرض التقارير.</div>
   {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/reporting.js') }}"></script>
 {% endblock %}

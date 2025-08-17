@@ -1,60 +1,78 @@
-{# File: templates/payments/_entity_fields.html #}
-{% if form.entity_type.data == 'customer' %}
+{% set etype = (form.entity_type.data or '')|lower %}
+
+{% if etype == 'customer' %}
   <div class="mb-3">
-    {{ form.customer_id.label(class="form-label") }}
-    {{ form.customer_id(class="form-select") }}
-    {% if form.customer_id.data %}
-      <input type="hidden" name="entity_id" value="{{ form.customer_id.data.id }}">
-    {% endif %}
+    {% if form.customer_search is defined %}{{ form.customer_search.label(class="form-label") }}{{ form.customer_search(class="form-control") }}{% endif %}
+    {% for e in form.customer_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    {% if form.customer_id is defined %}{{ form.customer_id() }}{% endif %}
+    {% if form.entity_id   is defined %}{{ form.entity_id() }}{% endif %}
   </div>
 
-{% elif form.entity_type.data == 'supplier' %}
+{% elif etype == 'supplier' %}
   <div class="mb-3">
-    {{ form.supplier_id.label(class="form-label") }}
-    {{ form.supplier_id(class="form-select") }}
-    {% if form.supplier_id.data %}
-      <input type="hidden" name="entity_id" value="{{ form.supplier_id.data.id }}">
-    {% endif %}
+    {% if form.supplier_search is defined %}{{ form.supplier_search.label(class="form-label") }}{{ form.supplier_search(class="form-control") }}{% endif %}
+    {% for e in form.supplier_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    {% if form.supplier_id is defined %}{{ form.supplier_id() }}{% endif %}
+    {% if form.entity_id   is defined %}{{ form.entity_id() }}{% endif %}
   </div>
 
-{% elif form.entity_type.data == 'partner' %}
+{% elif etype == 'partner' %}
   <div class="mb-3">
-    {{ form.partner_id.label(class="form-label") }}
-    {{ form.partner_id(class="form-select") }}
-    {% if form.partner_id.data %}
-      <input type="hidden" name="entity_id" value="{{ form.partner_id.data.id }}">
-    {% endif %}
+    {% if form.partner_search is defined %}{{ form.partner_search.label(class="form-label") }}{{ form.partner_search(class="form-control") }}{% endif %}
+    {% for e in form.partner_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    {% if form.partner_id is defined %}{{ form.partner_id() }}{% endif %}
+    {% if form.entity_id  is defined %}{{ form.entity_id() }}{% endif %}
   </div>
 
-{% elif form.entity_type.data == 'shipment' %}
+{% elif etype == 'sale' %}
   <div class="mb-3">
-    {{ form.shipment_id.label(class="form-label") }}
-    {{ form.shipment_id(class="form-select") }}
-    {% if form.shipment_id.data %}
-      <input type="hidden" name="entity_id" value="{{ form.shipment_id.data.id }}">
+    {% if form.sale_search is defined %}{{ form.sale_search.label(class="form-label") }}{{ form.sale_search(class="form-control") }}{% else %}
+      <label class="form-label">دفعة لطلب بيع</label>
     {% endif %}
+    {% if form.sale_id  is defined %}{{ form.sale_id() }}{% endif %}
+    {% if form.entity_id is defined %}{{ form.entity_id(id="entity_id") }}{% endif %}
   </div>
 
-{% elif form.entity_type.data == 'expense' %}
+{% elif etype == 'service' %}
   <div class="mb-3">
-    {{ form.expense_id.label(class="form-label") }}
-    {{ form.expense_id(class="form-select") }}
-    {% if form.expense_id.data %}
-      <input type="hidden" name="entity_id" value="{{ form.expense_id.data.id }}">
-    {% endif %}
+    {% if form.service_search is defined %}{{ form.service_search.label(class="form-label") }}{{ form.service_search(class="form-control") }}{% endif %}
+    {% for e in form.service_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    {% if form.service_id is defined %}{{ form.service_id() }}{% endif %}
+    {% if form.entity_id  is defined %}{{ form.entity_id() }}{% endif %}
   </div>
 
-{% elif form.entity_type.data == 'loan' %}
+{% elif etype == 'shipment' %}
   <div class="mb-3">
-    {{ form.loan_settlement_id.label(class="form-label") }}
-    {{ form.loan_settlement_id(class="form-select") }}
-    {% if form.loan_settlement_id.data %}
-      <input type="hidden" name="entity_id" value="{{ form.loan_settlement_id.data.id }}">
-    {% endif %}
+    {% if form.shipment_search is defined %}{{ form.shipment_search.label(class="form-label") }}{{ form.shipment_search(class="form-control") }}{% endif %}
+    {% for e in form.shipment_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    {% if form.shipment_id is defined %}{{ form.shipment_id() }}{% endif %}
+    {% if form.entity_id   is defined %}{{ form.entity_id() }}{% endif %}
+  </div>
+
+{% elif etype == 'expense' %}
+  <div class="mb-3">
+    {% if form.expense_search is defined %}{{ form.expense_search.label(class="form-label") }}{{ form.expense_search(class="form-control") }}{% endif %}
+    {% for e in form.expense_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    {% if form.expense_id is defined %}{{ form.expense_id() }}{% endif %}
+    {% if form.entity_id   is defined %}{{ form.entity_id() }}{% endif %}
+  </div>
+
+{% elif etype == 'loan' %}
+  <div class="mb-3">
+    {% if form.loan_settlement_search is defined %}{{ form.loan_settlement_search.label(class="form-label") }}{{ form.loan_settlement_search(class="form-control") }}{% endif %}
+    {% for e in form.loan_settlement_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    {% if form.loan_settlement_id is defined %}{{ form.loan_settlement_id() }}{% endif %}
+    {% if form.entity_id         is defined %}{{ form.entity_id() }}{% endif %}
+  </div>
+
+{% elif etype == 'preorder' %}
+  <div class="mb-3">
+    {% if form.preorder_search is defined %}{{ form.preorder_search.label(class="form-label") }}{{ form.preorder_search(class="form-control") }}{% endif %}
+    {% for e in form.preorder_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    {% if form.preorder_id is defined %}{{ form.preorder_id() }}{% endif %}
+    {% if form.entity_id   is defined %}{{ form.entity_id() }}{% endif %}
   </div>
 
 {% else %}
-  <div class="alert alert-info">
-    اختر نوع الكيان لرؤية الحقول المناسبة
-  </div>
+  <div class="alert alert-info">اختر نوع الكيان لرؤية الحقول المناسبة</div>
 {% endif %}

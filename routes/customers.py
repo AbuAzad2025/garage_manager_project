@@ -3,10 +3,11 @@
 import csv
 import io
 import json
+import re
 from datetime import datetime
 from functools import wraps
 from dateutil.relativedelta import relativedelta
-
+import decimal
 from flask import (
     Blueprint, flash, jsonify, redirect,
     render_template, request, Response,
@@ -32,13 +33,33 @@ from utils import (
 )
 
 customers_bp = Blueprint(
-    'customers', __name__,
+    'customers_bp', __name__,
     url_prefix='/customers',
     template_folder='templates/customers'
 )
 
+def _get_or_404(model, ident, *options):
+    if options:
+        q = db.session.query(model)
+        for opt in options:
+            q = q.options(opt)
+        obj = q.filter_by(id=ident).first()
+    else:
+        obj = db.session.get(model, ident)
+    if obj is None:
+        abort(404)
+    return obj
+
+class CustomEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, decimal.Decimal):
+            return float(obj)
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return super().default(obj)
 # ---------------------- Rate Limiting ----------------------
 _last_attempts = {}
+
 def rate_limit(max_attempts=5, window=60):
     def decorator(f):
         @wraps(f)
@@ -54,28 +75,31 @@ def rate_limit(max_attempts=5, window=60):
         return wrapper
     return decorator
 
-# ---------------------- Helper Functions ----------------------
+# ---------------------- Helpers ----------------------
 def _serialize_dates(d):
     return {k: (v.isoformat() if isinstance(v, datetime) else v) for k, v in d.items()}
 
+from datetime import datetime as _dt
 
-# ---------------------- Audit Logging ----------------------
 def log_customer_action(cust, action, old_data=None, new_data=None):
-    if old_data is not None:
-        old_data = json.dumps(old_data, ensure_ascii=False)
-    if new_data is not None:
-        new_data = json.dumps(new_data, ensure_ascii=False)
+    old_json = json.dumps(old_data, ensure_ascii=False) if old_data else None
+    new_json = json.dumps(new_data, ensure_ascii=False, cls=CustomEncoder) if new_data else None
     entry = AuditLog(
-        user_id=current_user.id,
-        customer_id=cust.id,
-        action=action,
-        old_data=old_data,
-        new_data=new_data
+        timestamp   = _dt.utcnow(),
+        model_name  = 'Customer',
+        customer_id = cust.id,
+        record_id   = cust.id,
+        user_id     = current_user.id if getattr(current_user, 'is_authenticated', False) else None,
+        action      = action,
+        old_data    = old_json,
+        new_data    = new_json,
+        ip_address  = request.remote_addr,
+        user_agent  = request.headers.get('User-Agent'),
     )
     db.session.add(entry)
-    db.session.commit()
+    db.session.flush()
 
-# ---------------------- Routes ----------------------
+# ---------------------- List / Detail / Analytics ----------------------
 @customers_bp.route('/', methods=['GET'], endpoint='list_customers')
 @login_required
 @permission_required('manage_customers')
@@ -90,43 +114,37 @@ def list_customers():
     if 'is_active' in request.args:
         q = q.filter(Customer.is_active == (request.args.get('is_active') == '1'))
 
-    # pagination parameters
-    page     = request.args.get('page',     1,  type=int)
+    page     = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
-    pagination = q.order_by(Customer.id.desc()).paginate(
-        page=page, per_page=per_page, error_out=False
-    )
+    pagination = q.order_by(Customer.id.desc()).paginate(page=page, per_page=per_page, error_out=False)
 
-    # prepare args without 'page'
     args = request.args.to_dict(flat=True)
     args.pop('page', None)
 
-    return render_template(
-        'customers/list.html',
-        customers = pagination.items,
-        pagination = pagination,
-        args = args
-    )
+    if not pagination.items:
+        flash("⚠️ لا توجد بيانات لعرضها", "info")
+        return render_template('customers/list.html', customers=[], pagination=pagination, args=args)
 
-@customers_bp.route('/<int:id>', methods=['GET'], endpoint='customer_detail')
+    return render_template('customers/list.html', customers=pagination.items, pagination=pagination, args=args)
+
+@customers_bp.route('/<int:customer_id>', methods=['GET'], endpoint='customer_detail')
 @login_required
 @permission_required('manage_customers')
-def customer_detail(id):
-    customer = Customer.query.get_or_404(id)
+def customer_detail(customer_id):
+    customer = db.session.get(Customer, customer_id) or abort(404)
     return render_template('customers/detail.html', customer=customer)
 
-# ---------------------- Analytics ----------------------
-@customers_bp.route('/<int:id>/analytics', methods=['GET'], endpoint='customer_analytics')
+@customers_bp.route('/<int:customer_id>/analytics', methods=['GET'], endpoint='customer_analytics')
 @login_required
 @permission_required('manage_customers')
-def customer_analytics(id):
-    customer = Customer.query.get_or_404(id)
-    invoices = Invoice.query.filter_by(customer_id=id).all()
-    payments = Payment.query.filter_by(customer_id=id).all()
+def customer_analytics(customer_id):
+    customer = db.session.get(Customer, customer_id) or abort(404)
+    invoices = Invoice.query.filter_by(customer_id=customer_id).all()
+    payments = Payment.query.filter_by(customer_id=customer_id).all()
 
     total_purchases = sum(inv.total_amount for inv in invoices)
-    total_payments = sum(p.total_amount for p in payments)
-    avg_purchase = (total_purchases / len(invoices)) if invoices else 0
+    total_payments  = sum(p.total_amount   for p   in payments)
+    avg_purchase    = (total_purchases / len(invoices)) if invoices else 0
 
     cats = (
         db.session.query(
@@ -138,7 +156,7 @@ def customer_analytics(id):
         .join(Sale, Sale.id == SaleLine.sale_id)
         .join(Product, Product.id == SaleLine.product_id)
         .join(ProductCategory, ProductCategory.id == Product.category_id)
-        .filter(Sale.customer_id == id)
+        .filter(Sale.customer_id == customer_id)
         .group_by(ProductCategory.name)
         .all()
     )
@@ -152,9 +170,9 @@ def customer_analytics(id):
         for name, count, total in cats
     ]
 
-    today = datetime.utcnow()
+    today  = datetime.utcnow()
     months = [(today - relativedelta(months=i)).strftime('%Y-%m') for i in reversed(range(6))]
-    pm = {m: 0 for m in months}
+    pm     = {m: 0 for m in months}
     for inv in invoices:
         m = inv.invoice_date.strftime('%Y-%m')
         if m in pm:
@@ -179,8 +197,15 @@ def customer_analytics(id):
         payments_months=payments_months
     )
 
-# ---------------------- Create ----------------------
-@customers_bp.route('/new', methods=['GET', 'POST'], endpoint='create_customer')
+# ---------------------- Create / Edit / Delete ----------------------
+@customers_bp.route('/create', methods=['GET'], endpoint='create_form')
+@login_required
+@permission_required('manage_customers')
+def create_form():
+    form = CustomerForm()
+    return render_template('customers/new.html', form=form)
+
+@customers_bp.route('/create', methods=['POST'], endpoint='create_customer')
 @login_required
 @permission_required('manage_customers')
 def create_customer():
@@ -199,9 +224,8 @@ def create_customer():
             is_online=form.is_online.data,
             notes=form.notes.data
         )
-        if form.password.data:
+        if getattr(form, 'password', None) and form.password.data:
             cust.set_password(form.password.data)
-
         db.session.add(cust)
         try:
             db.session.commit()
@@ -211,23 +235,33 @@ def create_customer():
             return render_template('customers/new.html', form=form)
 
         log_customer_action(cust, 'CREATE', None, form.data)
-        flash('تمت إضافة العميل بنجاح', 'success')
-        return redirect(url_for('customers.list_customers'))
+        flash('تم إنشاء العميل بنجاح', 'success')
+        return redirect(url_for('customers_bp.list_customers'))
 
     return render_template('customers/new.html', form=form)
 
-# ---------------------- Edit ----------------------
-@customers_bp.route('/<int:id>/edit', methods=['GET', 'POST'], endpoint='edit_customer')
+@customers_bp.route('/<int:customer_id>/edit', methods=['GET', 'POST'], endpoint='edit_customer')
 @login_required
 @permission_required('manage_customers')
-def edit_customer(id):
-    cust = Customer.query.get_or_404(id)
+def edit_customer(customer_id):
+    cust = db.session.get(Customer, customer_id) or abort(404)
     form = CustomerForm(obj=cust)
     if form.validate_on_submit():
         old = cust.to_dict()
-        form.populate_obj(cust)
-        if form.password.data:
+        if getattr(form, 'password', None) and form.password.data:
             cust.set_password(form.password.data)
+        cust.name           = form.name.data
+        cust.phone          = form.phone.data
+        cust.email          = form.email.data
+        cust.address        = form.address.data
+        cust.whatsapp       = form.whatsapp.data
+        cust.category       = form.category.data
+        cust.credit_limit   = form.credit_limit.data or 0
+        cust.discount_rate  = form.discount_rate.data or 0
+        cust.is_active      = form.is_active.data
+        cust.is_online      = form.is_online.data
+        cust.notes          = form.notes.data
+
         try:
             db.session.commit()
         except SQLAlchemyError as e:
@@ -237,28 +271,24 @@ def edit_customer(id):
 
         log_customer_action(cust, 'UPDATE', old, cust.to_dict())
         flash('تم تعديل بيانات العميل', 'success')
-        return redirect(url_for('customers.customer_detail', id=id))
+        return redirect(url_for('customers_bp.customer_detail', customer_id=customer_id))
 
     return render_template('customers/edit.html', form=form, customer=cust)
 
-# ---------------------- Delete ----------------------
-@customers_bp.route('/<int:id>/delete', methods=['POST'], endpoint='delete_customer')
-@login_required
-@permission_required('manage_customers')
+@customers_bp.route('/<int:id>/delete', methods=['POST'])
 def delete_customer(id):
-    cust = Customer.query.get_or_404(id)
-    old = cust.to_dict()
-    log_customer_action(cust, 'DELETE', old, None)
-    db.session.delete(cust)
+    customer = db.session.get(Customer, id) or abort(404)
+    if customer.invoices or customer.payments:
+        flash("لا يمكن حذف العميل لأنه مرتبط بفواتير أو دفعات.", "danger")
+        return redirect(url_for("customers_bp.list_customers"))
     try:
+        db.session.delete(customer)
         db.session.commit()
-    except SQLAlchemyError as e:
+        flash("تم حذف العميل", "success")
+    except Exception as e:
         db.session.rollback()
-        flash(f'❌ خطأ أثناء حذف العميل: {e}', 'danger')
-        return redirect(url_for('customers.list_customers'))
-
-    flash('تم حذف العميل', 'warning')
-    return redirect(url_for('customers.list_customers'))
+        flash(f"❌ خطأ أثناء حذف العميل: {e}", "danger")
+    return redirect(url_for("customers_bp.list_customers"))
 
 # ---------------------- Import ----------------------
 @customers_bp.route('/import', methods=['GET', 'POST'], endpoint='import_customers')
@@ -266,107 +296,144 @@ def delete_customer(id):
 @permission_required('manage_customers')
 def import_customers():
     form = CustomerImportForm()
-    if form.validate_on_submit():
-        reader = csv.DictReader(io.StringIO(form.csv_file.data.read().decode('utf-8')))
-        count, errors = 0, []
-        for i, row in enumerate(reader, 1):
-            try:
-                c = Customer(
-                    name=row['name'], 
-                    phone=row.get('phone'), 
-                    email=row.get('email'),
-                    address=row.get('address'),
-                    whatsapp=row.get('whatsapp'),
-                    category=row.get('category', 'عادي'),
-                    is_active=row.get('is_active', 'True').lower() == 'true',
-                    notes=row.get('notes')
-                )
-                if row.get('password'): c.set_password(row['password'])
-                db.session.add(c); db.session.commit()
-                log_customer_action(c, "import", None, row); count += 1
-            except Exception as e:
-                db.session.rollback(); errors.append(f"سطر {i}: {e}")
-        flash(f'تم استيراد {count} عميل', 'success')
-        if errors: flash('; '.join(errors), 'warning')
-        return redirect(url_for('customers.list_customers'))
-    return render_template('customers/import.html', form=form)
+    if request.method == 'GET' or not form.validate_on_submit():
+        return render_template('customers/import.html', form=form)
 
-# ---------------------- WhatsApp Notification ----------------------
-@customers_bp.route('/<int:id>/send_whatsapp', methods=['GET'], endpoint='customer_whatsapp')
+    file_data = form.csv_file.data.read().decode('utf-8')
+    reader = csv.DictReader(io.StringIO(file_data))
+    count, errors = 0, []
+
+    for i, row in enumerate(reader, 1):
+        try:
+            name  = (row.get('name') or '').strip()
+            phone = (row.get('phone') or '').strip()
+            email = (row.get('email') or '').strip()
+            if not name or not phone or not email:
+                raise ValueError("حقول مطلوبة مفقودة: name / phone / email")
+
+            if len(phone) > 20:
+                raise ValueError("الهاتف يجب ألا يتجاوز 20 خانة")
+            whatsapp = (row.get('whatsapp') or '').strip()
+            if len(whatsapp) > 20:
+                raise ValueError("واتساب يجب ألا يتجاوز 20 خانة")
+            address = (row.get('address') or '').strip()
+            if len(address) > 200:
+                raise ValueError("العنوان يجب ألا يتجاوز 200 خانة")
+            notes = (row.get('notes') or '').strip()
+            if len(notes) > 500:
+                raise ValueError("الملاحظات يجب ألا تتجاوز 500 خانة")
+
+            if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+                raise ValueError("صيغة البريد الإلكتروني غير صحيحة")
+
+            category = (row.get('category') or 'عادي').strip()
+            if category not in ('عادي', 'فضي', 'ذهبي', 'مميز'):
+                category = 'عادي'
+
+            credit_limit_raw  = (row.get('credit_limit') or '').strip()
+            discount_rate_raw = (row.get('discount_rate') or '').strip()
+            credit_limit = float(credit_limit_raw) if credit_limit_raw else 0.0
+            if credit_limit < 0:
+                raise ValueError("حد الائتمان يجب أن يكون ≥ 0")
+            discount_rate = float(discount_rate_raw) if discount_rate_raw else 0.0
+            if not (0.0 <= discount_rate <= 100.0):
+                raise ValueError("معدل الخصم يجب أن يكون بين 0 و100")
+
+            if Customer.query.filter(or_(
+                Customer.phone == phone,
+                Customer.email == email
+            )).first():
+                raise ValueError("هاتف أو بريد مستخدم مسبقًا")
+
+            is_active = str(row.get('is_active', 'True')).strip().lower() in ('true','1','yes','y','on')
+
+            c = Customer(
+                name=name,
+                phone=phone,
+                email=email,
+                address=address,
+                whatsapp=whatsapp,
+                category=category,
+                credit_limit=credit_limit,
+                discount_rate=discount_rate,
+                is_active=is_active,
+                notes=notes
+            )
+            if row.get('password'):
+                c.set_password(row['password'])
+
+            db.session.add(c)
+            db.session.flush()
+            log_customer_action(c, "IMPORT", None, row)
+            count += 1
+
+        except Exception as e:
+            db.session.rollback()
+            errors.append(f"سطر {i}: {e}")
+
+    try:
+        db.session.commit()
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        errors.append(f"فشل حفظ الدفعة: {e}")
+
+    flash(f'تم استيراد {count} عميل', 'success')
+    if errors:
+        flash('; '.join(errors), 'warning')
+    return redirect(url_for('customers_bp.list_customers'))
+
+# ---------------------- Messaging ----------------------
+@customers_bp.route('/<int:customer_id>/send_whatsapp', methods=['GET'], endpoint='customer_whatsapp')
 @login_required
 @permission_required('manage_customers')
-def customer_whatsapp(id):
-    c = Customer.query.get_or_404(id)
-    send_whatsapp_message(c.whatsapp, f"رصيدك الحالي: {c.balance:,.2f}")
-    flash('تم إرسال رسالة واتساب', 'success')
-    return redirect(url_for('customers.customer_detail', id=id))
+def customer_whatsapp(customer_id):
+    c = db.session.get(Customer, customer_id) or abort(404)
+    if c.whatsapp:
+        send_whatsapp_message(c.whatsapp, f"رصيدك الحالي: {getattr(c, 'balance', 0):,.2f}")
+        flash('تم إرسال رسالة واتساب', 'success')
+    else:
+        flash('لا يوجد رقم واتساب للعميل', 'warning')
+    return redirect(url_for('customers_bp.customer_detail', customer_id=customer_id))
 
-def export_customers_csv(customers):
-    output = io.StringIO()
-    writer = csv.writer(output)
-    
-    # Header
-    writer.writerow([
-        'ID', 'Name', 'Category', 'Balance', 'Credit Limit',
-        'Created At', 'Last Activity', 'Status', 'Phone', 'Email'
-    ])
-    
-    # Data
-    for c in customers:
-        writer.writerow([
-            c.id, c.name, c.category, c.balance, c.credit_limit,
-            c.created_at, c.last_activity,
-            'نشط' if c.is_active else 'غير نشط',
-            c.phone, c.email
-        ])
-    
-    response = Response(
-        output.getvalue(),
-        mimetype='text/csv',
-        headers={'Content-Disposition': 'attachment; filename=customers_export.csv'}
+# ---------------------- VCF (single) ----------------------
+@customers_bp.route('/<int:customer_id>/export_vcf', methods=['GET'], endpoint='export_customer_vcf')
+@login_required
+@permission_required('manage_customers')
+def export_customer_vcf(customer_id):
+    c = db.session.get(Customer, customer_id) or abort(404)
+    safe_name = re.sub(r'[^A-Za-z0-9_.-]+', '_', (c.name or 'contact')).strip('_') or 'contact'
+    vcf = (
+        "BEGIN:VCARD\r\nVERSION:3.0\r\n"
+        f"FN:{c.name}\r\n"
+        f"TEL:{c.phone or ''}\r\n"
+        f"EMAIL:{c.email or ''}\r\n"
+        "END:VCARD\r\n"
     )
-    return response
-
-# ---------------------- Export VCF ----------------------
-@customers_bp.route('/<int:id>/export_vcf', methods=['GET'], endpoint='export_customer_vcf')
-@login_required
-@permission_required('manage_customers')
-def export_customer_vcf(id):
-    c = Customer.query.get_or_404(id)
-    vcf = f"BEGIN:VCARD\nVERSION:3.0\nN:{c.name}\nTEL:{c.phone or ''}\nEMAIL:{c.email or ''}\nEND:VCARD"
-    return Response(vcf, mimetype='text/vcard', headers={'Content-Disposition': f'attachment; filename={c.name}.vcf'})
+    return Response(
+        vcf,
+        mimetype='text/vcard; charset=utf-8',
+        headers={'Content-Disposition': f'attachment; filename={safe_name}.vcf'}
+    )
 
 # ---------------------- Account Statement ----------------------
-@customers_bp.route('/<int:id>/account_statement', methods=['GET'], endpoint='account_statement')
+@customers_bp.route('/<int:customer_id>/account_statement', methods=['GET'], endpoint='account_statement')
 @login_required
 @permission_required('manage_customers')
-def account_statement(id):
-    c = Customer.query.get_or_404(id)
-
-    # جلب الفواتير عن طريق استعلام مستقل (يدعم order_by)
-    invoices = Invoice.query \
-        .filter_by(customer_id=c.id) \
-        .order_by(Invoice.invoice_date) \
-        .all()
-
-    # دفعات العميل (بالترتيب الزمني)
-    payments = Payment.query \
-        .filter_by(customer_id=c.id) \
-        .order_by(Payment.payment_date) \
-        .all()
-
+def account_statement(customer_id):
+    c = db.session.get(Customer, customer_id) or abort(404)
+    invoices = Invoice.query.filter_by(customer_id=customer_id).order_by(Invoice.invoice_date).all()
+    payments = Payment.query.filter_by(customer_id=customer_id).order_by(Payment.payment_date).all()
     total_inv = sum(inv.total_amount for inv in invoices)
     total_pay = sum(p.total_amount for p in payments)
     balance   = total_inv - total_pay
-
     return render_template(
         'customers/account_statement.html',
-        customer       = c,
-        invoices       = invoices,
-        payments       = payments,
-        total_invoices = total_inv,
-        total_payments = total_pay,
-        balance        = balance
+        customer=c,
+        invoices=invoices,
+        payments=payments,
+        total_invoices=total_inv,
+        total_payments=total_pay,
+        balance=balance
     )
 # ---------------------- API ----------------------
 @customers_bp.route('/api/all', methods=['GET'], endpoint='api_customers')
@@ -374,9 +441,20 @@ def account_statement(id):
 @permission_required('manage_customers')
 def api_customers():
     q = Customer.query
-    if term := request.args.get('q'): q = q.filter(or_(Customer.name.ilike(f"%{term}%"), Customer.phone.ilike(f"%{term}%")))
-    pagination = q.order_by(Customer.name).paginate(page=request.args.get('page', 1, type=int), per_page=request.args.get('per_page', 20, type=int), error_out=False)
-    return jsonify({'results':[{'id':c.id,'text':c.name} for c in pagination.items],'pagination':{'more':pagination.has_next}})
+    if term := request.args.get('q'):
+        q = q.filter(or_(
+            Customer.name.ilike(f"%{term}%"),
+            Customer.phone.ilike(f"%{term}%")
+        ))
+    pagination = q.order_by(Customer.name).paginate(
+        page=request.args.get('page', 1, type=int),
+        per_page=request.args.get('per_page', 20, type=int),
+        error_out=False
+    )
+    return jsonify({
+        'results': [{'id': c.id, 'text': c.name} for c in pagination.items],
+        'pagination': {'more': pagination.has_next}
+    })
 
 # ---------------------- Advanced Filter ----------------------
 @customers_bp.route('/advanced_filter', methods=['GET'], endpoint='advanced_filter')
@@ -384,31 +462,43 @@ def api_customers():
 @permission_required('manage_customers')
 def advanced_filter():
     q = Customer.query
-
-    # —————— Apply filters ——————
     if balance_min := request.args.get('balance_min'):
         q = q.filter(Customer.balance >= float(balance_min))
     if balance_max := request.args.get('balance_max'):
         q = q.filter(Customer.balance <= float(balance_max))
+
+    # تواريخ بصيغة ISO
     if created_at_min := request.args.get('created_at_min'):
-        q = q.filter(Customer.created_at >= created_at_min)
+        try:
+            q = q.filter(Customer.created_at >= datetime.fromisoformat(created_at_min))
+        except ValueError:
+            pass
     if created_at_max := request.args.get('created_at_max'):
-        q = q.filter(Customer.created_at <= created_at_max)
+        try:
+            q = q.filter(Customer.created_at <= datetime.fromisoformat(created_at_max))
+        except ValueError:
+            pass
     if last_activity_min := request.args.get('last_activity_min'):
-        q = q.filter(Customer.last_activity >= last_activity_min)
+        try:
+            q = q.filter(Customer.last_activity >= datetime.fromisoformat(last_activity_min))
+        except ValueError:
+            pass
     if last_activity_max := request.args.get('last_activity_max'):
-        q = q.filter(Customer.last_activity <= last_activity_max)
+        try:
+            q = q.filter(Customer.last_activity <= datetime.fromisoformat(last_activity_max))
+        except ValueError:
+            pass
+
     if category := request.args.get('category'):
         q = q.filter(Customer.category == category)
     if status := request.args.get('status'):
         if status == 'active':
-            q = q.filter(Customer.is_active == True)
+            q = q.filter(Customer.is_active.is_(True))
         elif status == 'inactive':
-            q = q.filter(Customer.is_active == False)
+            q = q.filter(Customer.is_active.is_(False))
         elif status == 'credit_hold':
             q = q.filter(Customer.balance > Customer.credit_limit)
 
-    # —————— Pagination (so your template's pagination.pages works) ——————
     pagination = q.order_by(Customer.id.desc()).paginate(
         page=request.args.get('page', 1, type=int),
         per_page=request.args.get('per_page', 20, type=int),
@@ -416,7 +506,6 @@ def advanced_filter():
     )
     customers = pagination.items
 
-    # —————— CSV Export ——————
     if request.args.get('format') == 'csv':
         output = io.StringIO()
         writer = csv.writer(output)
@@ -432,39 +521,31 @@ def advanced_filter():
             headers={'Content-Disposition': 'attachment; filename=customers_advanced_filter.csv'}
         )
 
-    # —————— Render template with pagination ——————
-    return render_template(
-        'customers/advanced_filter.html',
-        customers=customers,
-        pagination=pagination
-    )
+    return render_template('customers/advanced_filter.html', customers=customers, pagination=pagination)
 
 # ---------------------- Export Reports ----------------------
-@customers_bp.route('/export', methods=['GET'])
+@customers_bp.route('/export', methods=['GET'], endpoint='export_customers')
+@login_required
+@permission_required('manage_customers')
 def export_customers():
     format_type = request.args.get('format', 'pdf')
     customers = Customer.query.all()
-    
     if format_type == 'pdf':
-        # توليد PDF باستخدام ReportLab
         return generate_pdf_report(customers)
     elif format_type == 'excel':
-        # توليد Excel باستخدام pandas
         return generate_excel_report(customers)
-    
     return jsonify([c.to_dict() for c in customers])
 
+# ---------------------- Export Contacts ----------------------
 @customers_bp.route('/export/contacts', methods=['GET', 'POST'], endpoint='export_contacts')
 @login_required
 @permission_required('manage_customers')
 def export_contacts():
     form = ExportContactsForm()
-    # إعداد اختيارات العملاء ديناميكيًا
     form.customer_ids.choices = [
         (c.id, f"{c.name} — {c.phone or ''}")
         for c in Customer.query.order_by(Customer.name).all()
     ]
-
     if form.validate_on_submit():
         ids    = form.customer_ids.data
         fields = form.fields.data
@@ -475,10 +556,9 @@ def export_contacts():
             return generate_vcf(customers, fields)
         elif fmt == 'csv':
             return generate_csv_contacts(customers, fields)
-        else:  # excel
+        else:
             return generate_excel_contacts(customers, fields)
 
-    # عند GET أو فشل التحقق
     return render_template(
         'customers/vcf_export.html',
         form=form,

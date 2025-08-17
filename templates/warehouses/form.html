@@ -1,80 +1,30 @@
+{# File: templates/warehouses/form.html #}
 {% extends 'warehouses/base.html' %}
-{% block title %}
-  {% if warehouse %}تعديل المستودع{% else %}إنشاء مستودع{% endif %}
-{% endblock %}
+{% block title %}{{ 'تعديل مستودع' if warehouse else 'مستودع جديد' }}{% endblock %}
+{% block page_title %}{{ 'تعديل مستودع' if warehouse else 'مستودع جديد' }}{% endblock %}
 
-{% block warehouses_content %}
-  <h2 class="mb-4">
-    {% if warehouse %}
-      <i class="fa fa-edit text-warning"></i> تعديل {{ warehouse.name }}
-    {% else %}
-      <i class="fa fa-plus text-success"></i> إنشاء مستودع جديد
-    {% endif %}
-  </h2>
-
-  <form method="post" autocomplete="off">
-    {{ form.hidden_tag() }}
-
-    <div class="row g-3">
-      <div class="col-md-6">
-        {{ form.name.label(class="form-label") }}
-        {{ form.name(class="form-control") }}
-        {% if form.name.errors %}<small class="text-danger">{{ form.name.errors[0] }}</small>{% endif %}
-      </div>
-      <div class="col-md-6">
-        {{ form.warehouse_type.label(class="form-label") }}
-        {{ form.warehouse_type(class="form-select") }}
-        {% if form.warehouse_type.errors %}<small class="text-danger">{{ form.warehouse_type.errors[0] }}</small>{% endif %}
-      </div>
-      <div class="col-md-6">
-        {{ form.location.label(class="form-label") }}
-        {{ form.location(class="form-control") }}
-        {% if form.location.errors %}<small class="text-danger">{{ form.location.errors[0] }}</small>{% endif %}
-      </div>
-      <div class="col-md-6">
-        {{ form.parent_id.label(class="form-label") }}
-        {{ form.parent_id(class="form-select select2") }}
-        {% if form.parent_id.errors %}<small class="text-danger">{{ form.parent_id.errors[0] }}</small>{% endif %}
-      </div>
-      <div class="col-md-6">
-        {{ form.partner_id.label(class="form-label") }}
-        {{ form.partner_id(class="form-select select2") }}
-        {% if form.partner_id.errors %}<small class="text-danger">{{ form.partner_id.errors[0] }}</small>{% endif %}
-      </div>
-      <div class="col-md-6">
-        {{ form.share_percent.label(class="form-label") }}
-        {{ form.share_percent(class="form-control", min=0, max=100) }}
-        {% if form.share_percent.errors %}<small class="text-danger">{{ form.share_percent.errors[0] }}</small>{% endif %}
-      </div>
-      <div class="col-md-6">
-        {{ form.capacity.label(class="form-label") }}
-        {{ form.capacity(class="form-control") }}
-        {% if form.capacity.errors %}<small class="text-danger">{{ form.capacity.errors[0] }}</small>{% endif %}
-      </div>
-      <div class="col-md-6">
-        {{ form.is_active.label(class="form-check-label") }}
-        <div class="form-check">
-          {{ form.is_active(class="form-check-input") }}
-        </div>
-        {% if form.is_active.errors %}<small class="text-danger">{{ form.is_active.errors[0] }}</small>{% endif %}
-      </div>
+{% block content %}
+<form method="post" novalidate>
+  {{ form.hidden_tag() }}
+  <div class="row">
+    <div class="col-md-6">
+      <div class="mb-3">{{ form.name.label }} {{ form.name(class="form-control") }}{% for e in form.name.errors %}<div class="text-danger">{{ e }}</div>{% endfor %}</div>
+      <div class="mb-3">{{ form.warehouse_type.label }} {{ form.warehouse_type(class="form-control") }}</div>
+      <div class="mb-3">{{ form.location.label }} {{ form.location(class="form-control") }}</div>
+      <div class="mb-3">{{ form.capacity.label }} {{ form.capacity(class="form-control") }}</div>
+      <div class="mb-3">{{ form.is_active() }} {{ form.is_active.label }}</div>
     </div>
-
-    <div class="mt-4">
-      <button type="submit" class="btn btn-primary">
-        <i class="fa fa-save"></i>
-        {% if warehouse %}تحديث{% else %}إنشاء{% endif %}
-      </button>
-      <a href="{{ url_for('warehouses.list_warehouses') }}" class="btn btn-secondary">إلغاء</a>
+    <div class="col-md-6">
+      <div class="mb-3">{{ form.parent_id.label }} {{ form.parent_id(class="form-control") }}</div>
+      <div class="mb-3">{{ form.partner_id.label }} {{ form.partner_id(class="form-control") }}</div>
+      <div class="mb-3">{{ form.share_percent.label }} {{ form.share_percent(class="form-control") }}</div>
     </div>
-  </form>
+  </div>
+  <button class="btn btn-primary">حفظ</button>
+  <a class="btn btn-secondary" href="{{ url_for('warehouse_bp.list') }}">رجوع</a>
+</form>
 {% endblock %}
 
 {% block scripts %}
-  {{ super() }}
-  <script>
-    $(function(){
-      $('.select2').select2({ theme: 'bootstrap4', width: '100%' });
-    });
-  </script>
+  <script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
 {% endblock %}

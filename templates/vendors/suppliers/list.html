@@ -1,20 +1,20 @@
-{# File: templates/vendors/suppliers/list.html #}
 {% extends 'base.html' %}
-
 {% block title %}قائمة الموردين{% endblock %}
 
 {% block content %}
 <div class="container py-5">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h2 class="fw-bold"><i class="fas fa-truck-loading me-2"></i> الموردون</h2>
-    <a href="{{ url_for('vendors.suppliers_create') }}" class="btn btn-success">
-      <i class="fas fa-plus"></i> إضافة مورد
-    </a>
+    {% if current_user.has_permission('manage_vendors') %}
+      <a href="{{ url_for('vendors_bp.suppliers_create') }}" class="btn btn-success">
+        <i class="fas fa-plus"></i> إضافة مورد
+      </a>
+    {% endif %}
   </div>
 
   <form method="get" class="row g-2 mb-4">
     <div class="col-md-4">
-      <input type="text" name="search" value="{{ search }}" class="form-control"
+      <input id="supplierSearch" type="text" name="search" value="{{ search }}" class="form-control"
              placeholder="ابحث بالاسم أو الهاتف...">
     </div>
     <div class="col-auto">
@@ -24,49 +24,62 @@
 
   <div class="card shadow-sm rounded-4">
     <div class="card-body p-0">
-      <table class="table table-hover table-bordered align-middle mb-0">
+      <table class="table table-hover table-bordered align-middle mb-0" id="suppliersTable">
         <thead class="table-light">
           <tr>
             <th>#</th>
             <th>الاسم</th>
             <th>الهاتف</th>
             <th>الرصيد</th>
-            <th>إجراءات</th>
+            <th style="width:280px">إجراءات</th>
           </tr>
         </thead>
         <tbody>
           {% for supplier in suppliers %}
           <tr>
             <td>{{ loop.index }}</td>
-            <td>{{ supplier.name }}</td>
-            <td>{{ supplier.phone or '—' }}</td>
-            <td>{{ supplier.net_balance|round(2) }}</td>
+            <td class="supplier-name">{{ supplier.name }}</td>
+            <td class="supplier-phone">{{ supplier.phone or '—' }}</td>
+            <td>
+              <span class="badge {% if supplier.net_balance < 0 %}bg-danger{% elif supplier.net_balance == 0 %}bg-secondary{% else %}bg-success{% endif %}">
+                {{ '%.2f'|format(supplier.net_balance) }}
+              </span>
+            </td>
             <td class="text-nowrap">
-              {# زر دفع (صادر OUT) #}
-              <a href="{{ url_for('payments.create_payment', entity_type='supplier', entity_id=supplier.id, direction='OUT') }}"
+              <a href="{{ url_for('vendors_bp.suppliers_pay', id=supplier.id) }}"
                  class="btn btn-sm btn-primary" title="دفع">
                 <i class="fas fa-coins"></i>
               </a>
-              {# عرض دفعات المورد #}
-              <a href="{{ url_for('vendors.supplier_payments', id=supplier.id) }}"
+              <a href="{{ url_for('vendors_bp.suppliers_payments', id=supplier.id) }}"
                  class="btn btn-sm btn-warning" title="دفعات">
                 <i class="fas fa-file-invoice-dollar"></i>
               </a>
-              {# تعديل #}
-              <a href="{{ url_for('vendors.suppliers_edit', id=supplier.id) }}"
-                 class="btn btn-sm btn-outline-secondary" title="تعديل">
-                <i class="fas fa-edit"></i>
-              </a>
-              {# حذف مع CSRF #}
-              <form method="post"
-                    action="{{ url_for('vendors.suppliers_delete', id=supplier.id) }}"
-                    style="display:inline;"
-                    onsubmit="return confirm('هل أنت متأكد من حذف هذا المورد؟');">
-                {{ csrf_token() }}
-                <button type="submit" class="btn btn-sm btn-danger" title="حذف">
-                  <i class="fas fa-trash"></i>
-                </button>
-              </form>
+              <button type="button"
+                      class="btn btn-sm btn-outline-success btn-settle"
+                      title="تسوية فورية"
+                      data-entity-type="supplier"
+                      data-id="{{ supplier.id }}"
+                      data-name="{{ supplier.name }}"
+                      data-balance="{{ '%.2f'|format(supplier.net_balance) }}"
+                      data-currency="{{ supplier.currency or 'ILS' }}">
+                <i class="fas fa-scale-balanced"></i> تسوية
+              </button>
+
+              {% if current_user.has_permission('manage_vendors') %}
+                <a href="{{ url_for('vendors_bp.suppliers_edit', id=supplier.id) }}"
+                   class="btn btn-sm btn-outline-secondary" title="تعديل">
+                  <i class="fas fa-edit"></i>
+                </a>
+                <form method="post"
+                      action="{{ url_for('vendors_bp.suppliers_delete', id=supplier.id) }}"
+                      style="display:inline;"
+                      onsubmit="return confirm('هل أنت متأكد من حذف هذا المورد؟');">
+                  {{ form.csrf_token }}
+                  <button type="submit" class="btn btn-sm btn-danger" title="حذف">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </form>
+              {% endif %}
             </td>
           </tr>
           {% else %}
@@ -79,4 +92,65 @@
     </div>
   </div>
 </div>
+
+{# URL الأساس لإنشاء سند الدفع #}
+<div id="vendors-config" data-pay-url="{{ url_for('payments.create_payment') }}"></div>
+
+{# مودال التسوية الموحد (نفسه المستخدم في الشركاء) #}
+<div class="modal fade" id="settlementModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4">
+      <div class="modal-header bg-light">
+        <h5 class="modal-title"><i class="fas fa-scale-balanced me-2"></i> تسوية رصيد</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2 text-muted small">الجهة: <span id="stlName"></span></div>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>الرصيد الحالي:</div>
+          <div id="stlBalance" class="fw-bold"></div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">المبلغ للتسوية</label>
+          <input type="number" step="0.01" min="0" class="form-control" id="stlAmount">
+          <div class="form-text">يتم تعبئته تلقائياً بـ |الرصيد| ويمكن تعديله.</div>
+        </div>
+
+        <div class="row g-2 mb-3">
+          <div class="col-md-6">
+            <label class="form-label">الاتجاه</label>
+            <div id="stlDirectionBadge"></div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">العملة</label>
+            <input type="text" class="form-control" id="stlCurrency" readonly>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">طريقة الدفع</label>
+          <select id="stlMethod" class="form-select">
+            <option value="cash">نقداً</option>
+            <option value="bank">تحويل بنكي</option>
+            <option value="cheque">شيك</option>
+            <option value="card">بطاقة</option>
+            <option value="online">إلكتروني</option>
+          </select>
+        </div>
+
+        <input type="hidden" id="stlEntityType">
+        <input type="hidden" id="stlEntityId">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" id="stlPrint"><i class="fas fa-print me-1"></i> طباعة كشف مختصر</button>
+        <button type="button" class="btn btn-success" id="stlConfirm"><i class="fas fa-check me-1"></i> إنشاء سند</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/vendors.js') }}"></script>
 {% endblock %}

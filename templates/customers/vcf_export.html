@@ -1,69 +1,76 @@
 {% extends 'base.html' %}
-{% block title %}تصدير جهات اتصال{% endblock %}
+{% block title %}تصدير جهات الاتصال{% endblock %}
 
 {% block breadcrumb %}
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb bg-white px-3 py-2 rounded mb-4">
-    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}"><i class="fas fa-home"></i> الرئيسية</a></li>
-    <li class="breadcrumb-item"><a href="{{ url_for('customers.list_customers') }}">العملاء</a></li>
-    <li class="breadcrumb-item active">تصدير جهات اتصال</li>
+    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('customers_bp.list_customers') }}">العملاء</a></li>
+    <li class="breadcrumb-item active">تصدير جهات الاتصال</li>
   </ol>
 </nav>
 {% endblock %}
 
 {% block content %}
 <div class="card shadow-sm">
-  <div class="card-header bg-primary text-white">
-    <h3 class="card-title"><i class="fas fa-address-book me-2"></i>تصدير جهات اتصال العملاء</h3>
+  <div class="card-header bg-info text-white">
+    <h3 class="card-title"><i class="fas fa-address-book me-2"></i>تصدير جهات الاتصال</h3>
   </div>
   <div class="card-body">
-    <form method="POST" id="export-form">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for cat,msg in messages %}
+          <div class="alert alert-{{ cat }} mb-3">{{ msg|safe }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form id="export-contacts-form" method="post" action="{{ url_for('customers_bp.export_contacts') }}">
       {{ form.hidden_tag() }}
+
       <div class="row g-3">
+        <!-- اختيار العملاء -->
         <div class="col-md-6">
-          <label class="form-label fw-bold">اختر العملاء</label>
-          <select class="form-select" name="customer_ids" multiple size="8">
-            {% for cust in customers %}
-              <option value="{{ cust.id }}" selected>
-                {{ cust.name }} — {{ cust.phone or '-' }}
-              </option>
-            {% endfor %}
-          </select>
+          <label class="form-label fw-bold">{{ form.customer_ids.label.text if form.customer_ids.label else 'العملاء' }}</label>
+          {{ form.customer_ids(class="form-select", multiple=True, size=12) }}
+          {% for e in form.customer_ids.errors %}<small class="text-danger d-block">{{ e }}</small>{% endfor %}
+          <small class="text-muted">اضغط Ctrl/⌘ للاختيار المتعدد.</small>
         </div>
-        <div class="col-md-6">
-          <label class="form-label fw-bold">الحقول المطلوبة</label>
-          {% for field,label in [
-            ('name','الاسم'),
-            ('phone','الجوال'),
-            ('whatsapp','واتساب'),
-            ('email','البريد الإلكتروني'),
-            ('address','العنوان'),
-            ('notes','ملاحظات')
-          ] %}
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" name="fields" value="{{ field }}" id="field-{{ field }}" checked>
-            <label class="form-check-label" for="field-{{ field }}">{{ label }}</label>
-          </div>
-          {% endfor %}
-          <div class="mt-4">
-            <label class="form-label fw-bold">صيغة التصدير</label>
-            <select class="form-select" name="format">
-              <option value="vcf">vCard (VCF)</option>
-              <option value="csv">CSV</option>
-              <option value="excel">Excel</option>
-            </select>
+
+        <!-- الحقول المطلوبة -->
+        <div class="col-md-3">
+          <label class="form-label fw-bold">{{ form.fields.label.text if form.fields.label else 'الحقول' }}</label>
+          {{ form.fields(class="form-select", multiple=True, size=12) }}
+          {% for e in form.fields.errors %}<small class="text-danger d-block">{{ e }}</small>{% endfor %}
+          <small class="text-muted">مثال: الاسم، الهاتف، البريد..</small>
+        </div>
+
+        <!-- التنسيق -->
+        <div class="col-md-3">
+          <label class="form-label fw-bold">{{ form.format.label.text if form.format.label else 'التنسيق' }}</label>
+          {{ form.format(class="form-select") }}
+          {% for e in form.format.errors %}<small class="text-danger d-block">{{ e }}</small>{% endfor %}
+
+          <div class="alert alert-light border mt-3">
+            <ul class="mb-0 small">
+              <li><b>VCF</b>: بطاقات اتصال (للهواتف).</li>
+              <li><b>CSV</b>: ملف نصّي مفصول بفواصل.</li>
+              <li><b>Excel</b>: ملف XLSX منسّق.</li>
+            </ul>
           </div>
         </div>
-        <div class="col-12 text-end mt-4">
-          <button type="submit" class="btn btn-success">
-            <i class="fas fa-download me-1"></i> تصدير المحدد
-          </button>
-          <a href="{{ url_for('customers.export_customers', format='pdf') }}" class="btn btn-outline-primary">
-            <i class="fas fa-download me-1"></i> تصدير PDF الكل
-          </a>
-        </div>
+      </div>
+
+      <div class="mt-4 d-flex gap-2">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-download me-1"></i> تصدير</button>
+        <a href="{{ url_for('customers_bp.list_customers') }}" class="btn btn-secondary">رجوع</a>
       </div>
     </form>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/customers.js') }}"></script>
 {% endblock %}

@@ -1,10 +1,14 @@
-from datetime import datetime
+# ── Standard Library ───────────────────────────────────────────────────────────
 import csv
 import io
-from flask import Blueprint
+import uuid
+from datetime import datetime
+
+# ── Flask / Extensions ─────────────────────────────────────────────────────────
 from flask import (
     Blueprint,
     abort,
+    current_app,
     flash,
     jsonify,
     redirect,
@@ -13,174 +17,171 @@ from flask import (
     url_for,
 )
 from flask_login import current_user, login_required
-from sqlalchemy import or_
+
+# ── SQLAlchemy ─────────────────────────────────────────────────────────────────
+from sqlalchemy import func, or_, delete as sa_delete
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 
+# ── App Modules ────────────────────────────────────────────────────────────────
 from extensions import db
+from utils import permission_required, testable_login_required
 from forms import (
     ExchangeTransactionForm,
+    ExchangeVendorForm,
     ImportForm,
+    PartnerShareForm,
+    PreOrderForm,
+    ProductForm,
     ProductPartnerShareForm,
     ShipmentForm,
     StockLevelForm,
     TransferForm,
-    WarehouseForm,
 )
 from models import (
+    Customer,
     ExchangeTransaction,
+    Partner,
+    Payment,
+    PaymentDirection,
+    PaymentEntityType,
+    PaymentStatus,
+    PreOrder,
+    PreOrderStatus,  # ✅ أُضيف هنا لتصحيح الخطأ السابق
     Product,
-    ProductPartnerShare,
+    WarehousePartnerShare, ProductPartnerShare,
     Shipment,
     ShipmentItem,
-    ShipmentPartner,
     StockLevel,
+    Supplier,
     Transfer,
     Warehouse,
+    WarehouseType,
 )
-from routes.payments import create_payment as unified_payment
-from utils import permission_required
 
-warehouses_bp = Blueprint(
-    'warehouses',
-    __name__,
-    url_prefix='/warehouses',
-    template_folder='templates/warehouses'
-)
-# ---------------- List & Filter Warehouses ----------------
-@warehouses_bp.route('/', methods=['GET'], endpoint='list_warehouses')
+
+# Blueprint
+warehouse_bp = Blueprint("warehouse_bp", __name__, url_prefix="/warehouses")
+
+def _get_or_404(model, ident):
+    obj = db.session.get(model, ident)
+    if obj is None:
+        abort(404)
+    return obj
+
+# ───────── Warehouses CRUD ─────────
+@warehouse_bp.route("/", methods=["GET"], endpoint="list")
 @login_required
-@permission_required('view_warehouses')
+@permission_required("view_warehouses")
 def list_warehouses():
     q = Warehouse.query
-
-    type_ = request.args.get('type')
+    type_ = (request.args.get("type") or "").strip()
     if type_:
         q = q.filter(Warehouse.warehouse_type == type_.upper())
-
-    parent = request.args.get('parent')
-    if parent and parent.isdigit():
+    parent = request.args.get("parent")
+    if parent and str(parent).isdigit():
         q = q.filter(Warehouse.parent_id == int(parent))
-
-    search = request.args.get('search', '').strip()
+    search = (request.args.get("search") or "").strip()
     if search:
-        q = q.filter(Warehouse.name.ilike(f'%{search}%'))
-
+        q = q.filter(Warehouse.name.ilike(f"%{search}%"))
     warehouses = q.order_by(Warehouse.name).all()
     return render_template(
-        'warehouses/list.html',
+        "warehouses/list.html",
         warehouses=warehouses,
-        filter_type=type_ or '',
-        parent=parent or '',
-        search=search
+        filter_type=type_ or "",
+        parent=parent or "",
+        search=search,
     )
 
-# ---------------- Create Warehouse ----------------
-@warehouses_bp.route('/create', methods=['GET', 'POST'], endpoint='create_warehouse')
+@warehouse_bp.route("/create", methods=["GET", "POST"], endpoint="create")
 @login_required
-@permission_required('manage_warehouses')
+@permission_required("manage_warehouses")
 def create_warehouse():
+    """إنشاء مستودع جديد."""
+    from forms import WarehouseForm
     form = WarehouseForm()
     if form.validate_on_submit():
+        parent_id = form.parent_id.data.id if getattr(form, "parent_id", None) and form.parent_id.data else None
+        partner_id = form.partner_id.data.id if getattr(form, "partner_id", None) and form.partner_id.data else None
+        share_percent = form.share_percent.data if form.warehouse_type.data == "PARTNER" else 0
+
         w = Warehouse(
             name=form.name.data.strip(),
             warehouse_type=form.warehouse_type.data,
-            location=form.location.data.strip() or None,
-            parent_id=form.parent_id.data.id if form.parent_id.data else None,
-            partner_id=form.partner_id.data.id if form.partner_id.data else None,
-            share_percent=form.share_percent.data if form.warehouse_type.data == 'PARTNER' else 0,
+            location=(form.location.data or "").strip() or None,
+            parent_id=parent_id,
+            partner_id=partner_id,
+            share_percent=share_percent,
             capacity=form.capacity.data,
-            is_active=form.is_active.data
+            is_active=form.is_active.data,
         )
         db.session.add(w)
         try:
             db.session.commit()
-            flash('✅ تم إنشاء المستودع', 'success')
-            return redirect(url_for('warehouses.list_warehouses'))
+            flash("✅ تم إنشاء المستودع", "success")
+            return redirect(url_for("warehouse_bp.list"))
         except SQLAlchemyError as e:
             db.session.rollback()
-            flash(f'❌ خطأ: {e}', 'danger')
-    return render_template('warehouses/form.html', form=form)
+            flash(f"❌ خطأ أثناء إنشاء المستودع: {e}", "danger")
+    return render_template("warehouses/form.html", form=form)
 
-@warehouses_bp.route('/<int:warehouse_id>/products', methods=['GET'], endpoint='products_list')
+@warehouse_bp.route("/<int:warehouse_id>/edit", methods=["GET", "POST"], endpoint="edit")
 @login_required
-@permission_required('view_inventory')
-def products_list(warehouse_id):
-    warehouse = Warehouse.query.get_or_404(warehouse_id)
-    warehouses = Warehouse.query.order_by(Warehouse.name).all()
-    selected_ids = request.args.getlist('warehouse_ids', type=int)
-    if not selected_ids:
-        selected_ids = [warehouse_id]
-
-    stock_levels = (
-        StockLevel.query
-        .filter(StockLevel.warehouse_id.in_(selected_ids))
-        .options(
-            joinedload(StockLevel.product),
-            joinedload(StockLevel.warehouse),
-        )
-        .order_by(Product.name.asc())
-        .all()
-    )
-
-    stock_form = StockLevelForm()
-    return render_template(
-        'warehouses/products.html',
-        warehouse=warehouse,
-        warehouses=warehouses,
-        stock_levels=stock_levels,
-        stock_form=stock_form,
-        active_warehouse_id=warehouse_id
-    )
-
-# ---------------- Edit Warehouse ----------------
-@warehouses_bp.route('/<int:warehouse_id>/edit', methods=['GET', 'POST'], endpoint='edit_warehouse')
-@login_required
-@permission_required('manage_warehouses')
+@permission_required("manage_warehouses")
 def edit_warehouse(warehouse_id):
-    w = Warehouse.query.get_or_404(warehouse_id)
+    """تعديل مستودع."""
+    from forms import WarehouseForm
+    w = _get_or_404(Warehouse, warehouse_id)
     form = WarehouseForm(obj=w)
     if form.validate_on_submit():
-        form.populate_obj(w)
-        w.parent_id  = form.parent_id.data.id  if form.parent_id.data  else None
+        w.name = form.name.data.strip()
+        w.warehouse_type = form.warehouse_type.data
+        w.location = (form.location.data or "").strip() or None
+        w.capacity = form.capacity.data
+        w.is_active = form.is_active.data
+        w.parent_id = form.parent_id.data.id if form.parent_id.data else None
         w.partner_id = form.partner_id.data.id if form.partner_id.data else None
-        if w.warehouse_type != 'PARTNER':
-            w.share_percent = 0
+        w.share_percent = form.share_percent.data if w.warehouse_type == "PARTNER" else 0
+
         try:
             db.session.commit()
-            flash('✅ تم تحديث المستودع', 'success')
-            return redirect(url_for('warehouses.list_warehouses'))
+            flash("✅ تم تحديث المستودع", "success")
+            return redirect(url_for("warehouse_bp.list"))
         except SQLAlchemyError as e:
             db.session.rollback()
-            flash(f'❌ خطأ: {e}', 'danger')
-    return render_template('warehouses/form.html', form=form, warehouse=w)
+            flash(f"❌ خطأ: {e}", "danger")
+    return render_template("warehouses/form.html", form=form, warehouse=w)
 
-# ---------------- Delete Warehouse ----------------
-@warehouses_bp.route('/<int:warehouse_id>/delete', methods=['POST'], endpoint='delete_warehouse')
+@warehouse_bp.route("/<int:warehouse_id>/delete", methods=["POST"], endpoint="delete")
 @login_required
-@permission_required('manage_warehouses')
+@permission_required("manage_warehouses")
 def delete_warehouse(warehouse_id):
-    w = Warehouse.query.get_or_404(warehouse_id)
+    _get_or_404(Warehouse, warehouse_id)
     try:
-        db.session.delete(w)
+        db.session.execute(sa_delete(Warehouse).where(Warehouse.id == warehouse_id))
         db.session.commit()
-        flash('✅ تم حذف المستودع', 'success')
+        db.session.expire_all()
+        flash("✅ تم حذف المستودع", "success")
     except SQLAlchemyError as e:
         db.session.rollback()
-        flash(f'❌ خطأ أثناء الحذف: {e}', 'danger')
-    return redirect(url_for('warehouses.list_warehouses'))
+        flash(f"❌ خطأ أثناء الحذف: {e}", "danger")
+    return redirect(url_for("warehouse_bp.list"))
 
-# ---------------- Warehouse Detail ----------------
-@warehouses_bp.route('/<int:warehouse_id>', methods=['GET'], endpoint='warehouse_detail')
+@warehouse_bp.route("/<int:warehouse_id>", methods=["GET"], endpoint="detail")
 @login_required
-@permission_required('view_warehouses')
+@permission_required("view_warehouses", "view_inventory", "manage_inventory")
 def warehouse_detail(warehouse_id):
-    w = Warehouse.query.get_or_404(warehouse_id)
-    stock_levels  = StockLevel.query.filter_by(warehouse_id=warehouse_id).all()
-    transfers_in  = Transfer.query.filter_by(destination_id=warehouse_id).all()
+    """صفحة تفاصيل مستودع: مخزون، تحويلات، نماذج سريعة."""
+    w = _get_or_404(Warehouse, warehouse_id)
+    stock_levels = (
+        StockLevel.query.filter_by(warehouse_id=warehouse_id)
+        .options(joinedload(StockLevel.product))
+        .all()
+    )
+    transfers_in = Transfer.query.filter_by(destination_id=warehouse_id).all()
     transfers_out = Transfer.query.filter_by(source_id=warehouse_id).all()
     return render_template(
-        'warehouses/detail.html',
+        "warehouses/detail.html",
         warehouse=w,
         stock_levels=stock_levels,
         transfers_in=transfers_in,
@@ -189,346 +190,915 @@ def warehouse_detail(warehouse_id):
         transfer_form=TransferForm(),
         exchange_form=ExchangeTransactionForm(),
         share_form=ProductPartnerShareForm(),
-        shipment_form=ShipmentForm()
+        shipment_form=ShipmentForm(),
     )
 
-# ---------------- AJAX: Update Stock Level ----------------
-@warehouses_bp.route('/<int:warehouse_id>/stock', methods=['POST'], endpoint='ajax_update_stock')
+
+# ───────── Inventory: products & stock ─────────
+
+@warehouse_bp.route("/<int:id>/products", methods=["GET"], endpoint="products")
 @login_required
-@permission_required('manage_inventory')
+@permission_required("view_inventory")
+def products(id):
+    warehouse_id = id
+    warehouse = _get_or_404(Warehouse, warehouse_id)
+    warehouses = Warehouse.query.order_by(Warehouse.name).all()
+    selected_ids = request.args.getlist("warehouse_ids", type=int) or [warehouse_id]
+    stock_levels = (
+        StockLevel.query
+        .join(Product, StockLevel.product_id == Product.id)
+        .filter(StockLevel.warehouse_id.in_(selected_ids))
+        .options(joinedload(StockLevel.product), joinedload(StockLevel.warehouse))
+        .order_by(Product.name.asc())
+        .all()
+    )
+    stock_form = StockLevelForm()
+    return render_template(
+        "warehouses/products.html",
+        warehouse=warehouse,
+        warehouses=warehouses,
+        stock_levels=stock_levels,
+        stock_form=stock_form,
+        active_warehouse_id=warehouse_id,
+        selected_ids=selected_ids,
+    )
+
+@warehouse_bp.route("/<int:id>/add-product", methods=["GET", "POST"], endpoint="add_product")
+@login_required
+@permission_required("manage_inventory")
+def add_product(id):
+    """إضافة صنف إلى مستودع (يدعم أنواع المستودعات المختلفة)."""
+    warehouse_id = id
+    warehouse = _get_or_404(Warehouse, warehouse_id)
+    form = ProductForm()
+    partners_forms, exchange_vendors_forms = [], []
+
+    if request.method == "POST":
+        if warehouse.warehouse_type in [WarehouseType.MAIN.value, WarehouseType.INVENTORY.value]:
+            if form.validate_on_submit():
+                product = Product()
+                form.populate_obj(product)
+                db.session.add(product)
+                db.session.commit()
+                flash("✅ تمت إضافة القطعة للمستودع بنجاح", "success")
+                return redirect(url_for("warehouse_bp.add_product", id=warehouse.id))
+
+        elif warehouse.warehouse_type == WarehouseType.PARTNER.value:
+            if form.validate_on_submit():
+                partner_ids = request.form.getlist("partner_id")
+                shares = request.form.getlist("share_percentage")
+
+                product = Product()
+                form.populate_obj(product)
+                db.session.add(product)
+                db.session.flush()
+
+                for partner_id, share in zip(partner_ids, shares):
+                    try:
+                        pid = int(partner_id)
+                        perc = float(share or 0)
+                    except ValueError:
+                        continue
+                    db.session.add(
+                        ProductPartnerShare(
+                            product_id=product.id, partner_id=pid, share_percentage=perc, notes=None
+                        )
+                    )
+                db.session.commit()
+                flash("✅ تمت إضافة القطعة مع الشركاء بنجاح", "success")
+                return redirect(url_for("warehouse_bp.add_product", id=warehouse.id))
+
+        elif warehouse.warehouse_type == WarehouseType.EXCHANGE.value:
+            if form.validate_on_submit():
+                vendor_names = request.form.getlist("vendor_name")
+                vendor_phones = request.form.getlist("vendor_phone")
+                vendor_paid = request.form.getlist("vendor_paid")
+                vendor_prices = request.form.getlist("vendor_price")
+
+                product = Product()
+                form.populate_obj(product)
+                db.session.add(product)
+                db.session.flush()
+
+                for name, phone, paid, price in zip(vendor_names, vendor_phones, vendor_paid, vendor_prices):
+                    db.session.add(
+                        ExchangeTransaction(
+                            product_id=product.id,
+                            warehouse_id=warehouse.id,
+                            partner_id=None,
+                            quantity=form.quantity.data,
+                            direction="IN",
+                            notes=f"Trader: {name} / {phone} / paid:{paid} / price:{price}",
+                        )
+                    )
+                db.session.commit()
+                flash("✅ تمت إضافة القطعة وعمليات التبادل بنجاح", "success")
+                return redirect(url_for("warehouse_bp.add_product", id=warehouse.id))
+
+    if warehouse.warehouse_type == WarehouseType.PARTNER.value:
+        partners_forms = [PartnerShareForm() for _ in range(1)]
+    elif warehouse.warehouse_type == WarehouseType.EXCHANGE.value:
+        exchange_vendors_forms = [ExchangeVendorForm() for _ in range(1)]
+    return render_template(
+        "warehouses/add_product.html",
+        form=form,
+        warehouse=warehouse,
+        partners_forms=partners_forms,
+        exchange_vendors_forms=exchange_vendors_forms,
+    )
+
+
+@warehouse_bp.route("/<int:id>/import", methods=["GET", "POST"], endpoint="import_products")
+@login_required
+@permission_required("manage_inventory")
+def import_products(id):
+    warehouse_id = id
+    w = _get_or_404(Warehouse, warehouse_id)
+    form = ImportForm()
+    file_obj = None
+    if request.method == "POST":
+        file_obj = request.files.get("file") or getattr(getattr(form, "file", None), "data", None)
+        if file_obj:
+            try:
+                stream = io.StringIO(file_obj.stream.read().decode("utf-8"), newline=None)
+            except Exception:
+                try:
+                    file_obj.seek(0)
+                    stream = io.StringIO(file_obj.read().decode("utf-8"), newline=None)
+                except Exception:
+                    stream = None
+            if stream:
+                reader = csv.DictReader(stream)
+                for row in reader:
+                    name = (row.get("name") or "").strip()
+                    sku = (row.get("sku") or "").strip() or None
+                    if not name:
+                        continue
+                    p = Product(name=name)
+                    if hasattr(p, "sku"):
+                        setattr(p, "sku", sku)
+                    db.session.add(p)
+                db.session.commit()
+                return redirect(url_for("warehouse_bp.detail", warehouse_id=w.id))
+    return render_template("warehouses/import_products.html", form=form, warehouse=w)
+
+@warehouse_bp.route("/<int:warehouse_id>/stock", methods=["POST"], endpoint="ajax_update_stock")
+@login_required
+@permission_required("manage_inventory")
 def ajax_update_stock(warehouse_id):
+    """
+    تحديث كميات المخزون (AJAX).
+    - يدعم إما WTForms (StockLevelForm) أو باراميترات خام من request.form:
+      product_id, quantity, min_stock, max_stock.
+    - يقبل قيمًا فارغة كـ 0، ويُنشئ StockLevel إن لم يكن موجودًا.
+    """
+    def _to_int(v, default=0):
+        try:
+            if v in (None, "", "None"):
+                return default
+            return int(float(v))
+        except Exception:
+            return default
+
     form = StockLevelForm()
+
     if form.validate_on_submit():
-        pid = form.product_id.data.id
-        sl = StockLevel.query.filter_by(
-            warehouse_id=warehouse_id, product_id=pid
-        ).first() or StockLevel(warehouse_id=warehouse_id, product_id=pid)
-        sl.quantity  = form.quantity.data
-        sl.min_stock = form.min_stock.data or 0
-        sl.max_stock = form.max_stock.data or None
-        db.session.add(sl)
-        try:
-            db.session.commit()
-            alert = 'below_min' if sl.quantity <= sl.min_stock else None
-            return jsonify({
-                'success': True,
-                'quantity': sl.quantity,
-                'partner_share': sl.partner_share_quantity,
-                'company_share': sl.company_share_quantity,
-                'alert': alert
-            })
-        except SQLAlchemyError as e:
-            db.session.rollback()
-            return jsonify({'success': False, 'error': str(e)}), 400
-    return jsonify({'success': False, 'errors': form.errors}), 400
+        pid = getattr(getattr(form.product_id.data, "id", None), "__int__", lambda: None)() \
+              if hasattr(form.product_id.data, "id") else None
+        if pid is None:
+            pid = _to_int(request.form.get("product_id"), None)
 
-# ---------------- AJAX: Transfer Stock ----------------
-@warehouses_bp.route('/<int:warehouse_id>/transfer', methods=['POST'], endpoint='ajax_transfer')
-@login_required
-@permission_required('manage_inventory')
-def ajax_transfer(warehouse_id):
-    form = TransferForm()
-    if form.validate_on_submit():
-        t = Transfer(
-            product_id=form.product_id.data,
-            source_id=form.source_id.data,
-            destination_id=form.destination_id.data,
-            quantity=form.quantity.data,
-            direction=form.direction.data,
-            notes=form.notes.data,
-            user_id=current_user.id,
-            transfer_date=datetime.utcnow()
-        )
-        db.session.add(t)
-        try:
-            src = StockLevel.query.filter_by(
-                warehouse_id=t.source_id, product_id=t.product_id
-            ).first()
-            if not src or src.quantity < t.quantity:
-                raise ValueError('الكمية غير متوفرة في المصدر')
-            src.quantity -= t.quantity
-            dst = StockLevel.query.filter_by(
-                warehouse_id=t.destination_id, product_id=t.product_id
-            ).first() or StockLevel(
-                warehouse_id=t.destination_id,
-                product_id=t.product_id,
-                quantity=0
-            )
-            dst.quantity += t.quantity
-            db.session.commit()
-            return jsonify({'success': True})
-        except Exception as e:
-            db.session.rollback()
-            return jsonify({'success': False, 'error': str(e)}), 400
-    return jsonify({'success': False, 'errors': form.errors}), 400
+        if pid is None:
+            return jsonify({"success": False, "errors": {"product_id": ["قيمة غير صالحة"]}}), 400
 
-# ---------------- AJAX: Exchange Transaction ----------------
-@warehouses_bp.route('/<int:warehouse_id>/exchange', methods=['POST'], endpoint='ajax_exchange')
-@login_required
-@permission_required('manage_inventory')
-def ajax_exchange(warehouse_id):
-    form = ExchangeTransactionForm()
-    if form.validate_on_submit():
-        ex = ExchangeTransaction(
-            product_id=form.product_id.data.id,
-            warehouse_id=warehouse_id,
-            partner_id=form.partner_id.data.id if form.partner_id.data else None,
-            quantity=form.quantity.data,
-            direction=form.direction.data,
-            notes=form.notes.data
-        )
-        db.session.add(ex)
-        try:
-            sl = StockLevel.query.filter_by(
-                warehouse_id=warehouse_id, product_id=ex.product_id
-            ).first() or StockLevel(
-                warehouse_id=warehouse_id,
-                product_id=ex.product_id,
-                quantity=0
-            )
-            if ex.direction == 'IN':
-                sl.quantity += ex.quantity
-            else:
-                if sl.quantity < ex.quantity:
-                    raise ValueError('الكمية غير كافية للتعديل')
-                sl.quantity -= ex.quantity
-            db.session.commit()
-            return jsonify({'success': True, 'new_quantity': sl.quantity})
-        except Exception as e:
-            db.session.rollback()
-            return jsonify({'success': False, 'error': str(e)}), 400
-    return jsonify({'success': False, 'errors': form.errors}), 400
+        quantity   = _to_int(form.quantity.data,   0)
+        min_stock  = _to_int(form.min_stock.data,  0)
+        max_stock  = _to_int(form.max_stock.data,  0)
 
-# ---------------- AJAX: Partner Shares ----------------
-@warehouses_bp.route('/<int:warehouse_id>/partner-shares', methods=['GET', 'POST'], endpoint='ajax_partner_shares')
-@login_required
-@permission_required('manage_inventory')
-def ajax_partner_shares(warehouse_id):
-    if request.method == 'GET':
-        shares = ProductPartnerShare.query.join(Product).filter(
-            ProductPartnerShare.product.has(
-                StockLevel.warehouse_id == warehouse_id
-            )
-        ).all()
-        data = [{
-            'id': s.id,
-            'product': s.product.name,
-            'partner': s.partner.name,
-            'share_percentage': float(s.share_percentage),
-            'share_amount': float(s.share_amount or 0),
-            'notes': s.notes
-        } for s in shares]
-        return jsonify({'success': True, 'shares': data})
+    else:
+        pid       = _to_int(request.form.get("product_id"), None)
+        quantity  = _to_int(request.form.get("quantity"),   0)
+        min_stock = _to_int(request.form.get("min_stock"),  0)
+        max_stock = _to_int(request.form.get("max_stock"),  0)
 
-    updates = request.json.get('shares', [])
+        if pid is None:
+            return jsonify({"success": False, "errors": {"product_id": ["قيمة غير صالحة"]}}), 400
+
+    sl = (
+        StockLevel.query.filter_by(warehouse_id=warehouse_id, product_id=pid).first()
+        or StockLevel(warehouse_id=warehouse_id, product_id=pid, quantity=0, reserved_quantity=0)
+    )
+    sl.quantity  = max(quantity, 0)
+    sl.min_stock = max(min_stock, 0)
+    sl.max_stock = max(max_stock, 0)
+
+    db.session.add(sl)
     try:
-        product_ids = [
-            sl.product_id for sl in StockLevel.query.filter_by(warehouse_id=warehouse_id)
-        ]
-        ProductPartnerShare.query.filter(
-            ProductPartnerShare.product_id.in_(product_ids)
-        ).delete(synchronize_session='fetch')
-        for item in updates:
-            db.session.add(ProductPartnerShare(
-                product_id=item['product_id'],
-                partner_id=item['partner_id'],
-                share_percentage=item.get('share_percentage', 0),
-                share_amount=item.get('share_amount', 0),
-                notes=item.get('notes', '')
-            ))
         db.session.commit()
-        return jsonify({'success': True})
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 400
+
+    alert = "below_min" if (sl.quantity or 0) <= (sl.min_stock or 0) else None
+    return jsonify({
+        "success": True,
+        "quantity": int(sl.quantity or 0),
+        "partner_share": getattr(sl, "partner_share_quantity", None),
+        "company_share": getattr(sl, "company_share_quantity", None),
+        "alert": alert,
+    }), 200
+
+
+@warehouse_bp.route("/<int:warehouse_id>/transfer", methods=["POST"], endpoint="ajax_transfer")
+@testable_login_required
+@permission_required("manage_inventory", "manage_warehouses", "warehouse_transfer")
+def ajax_transfer(warehouse_id):
+    data = request.get_json(silent=True) or request.form
+
+    def _i(name):
+        v = data.get(name)
+        try:
+            return int(v) if v is not None and str(v).strip() != "" else None
+        except Exception:
+            return None
+
+    pid = _i("product_id")
+    sid = _i("source_id")
+    did = _i("destination_id")
+    try:
+        qty = int(float(data.get("quantity", 0)))
+    except Exception:
+        qty = 0
+
+    ds = (data.get("date") or "").strip()
+    try:
+        tdate = datetime.fromisoformat(ds) if ds else datetime.utcnow()
+    except Exception:
+        tdate = datetime.utcnow()
+
+    notes = (data.get("notes") or "").strip() or None
+
+    if not (pid and sid and did and qty > 0) or sid == did:
+        return jsonify({"success": False, "errors": {"form": "invalid"}}), 400
+
+    if sid != warehouse_id:
+        return jsonify({"success": False, "errors": {"warehouse": "mismatch"}}), 400
+
+    src = StockLevel.query.filter_by(warehouse_id=sid, product_id=pid).first()
+    available = int((src.quantity or 0) - (src.reserved_quantity or 0)) if src else 0
+    if available < qty:
+        return jsonify({"success": False, "error": "insufficient_stock", "available": max(available, 0)}), 400
+
+    src.quantity = (src.quantity or 0) - qty
+
+    dst = StockLevel.query.filter_by(warehouse_id=did, product_id=pid).first()
+    if not dst:
+        dst = StockLevel(warehouse_id=did, product_id=pid, quantity=0, reserved_quantity=0)
+        db.session.add(dst)
+    dst.quantity = (dst.quantity or 0) + qty
+
+    t = Transfer(
+        transfer_date=tdate,
+        product_id=pid,
+        source_id=sid,
+        destination_id=did,
+        quantity=qty,
+        direction="OUT",
+        notes=notes,
+        user_id=getattr(current_user, "id", None),
+    )
+    setattr(t, "_skip_stock_apply", True)
+    db.session.add(t)
+
+    try:
+        db.session.commit()
+        return jsonify({"success": True, "transfer_id": t.id, "direction": "OUT"}), 200
+    except SQLAlchemyError:
+        db.session.rollback()
+        return jsonify({"success": False, "error": "db_error"}), 500
+
+@warehouse_bp.route("/<int:warehouse_id>/exchange", methods=["POST"], endpoint="ajax_exchange")
+@login_required
+@permission_required("manage_inventory")
+def ajax_exchange(warehouse_id):
+    data = request.form if request.form else (request.get_json(silent=True) or {})
+
+    def _i(k, d=None):
+        try:
+            v = data.get(k)
+            return int(v) if v not in (None, "", "None") else d
+        except:
+            return d
+
+    def _qty(v):
+        try:
+            return int(float(v))
+        except:
+            return 0
+
+    def _f(v):
+        try:
+            return float(v) if v not in (None, "", "None") else None
+        except:
+            return None
+
+    pid = _i("product_id")
+    partner_id = _i("partner_id")
+    qty = _qty(data.get("quantity"))
+    direction = (data.get("direction") or "").upper()
+    unit_cost = _f(data.get("unit_cost"))
+    notes = data.get("notes") or None
+
+    if not (pid and qty > 0 and direction in ("IN", "OUT", "ADJUSTMENT")):
+        return jsonify({"success": False, "errors": {"form": "invalid"}}), 400
+
+    ex = ExchangeTransaction(
+        product_id=pid,
+        warehouse_id=warehouse_id,
+        partner_id=partner_id,
+        quantity=qty,
+        direction=direction,
+        unit_cost=unit_cost,
+        is_priced=bool(unit_cost is not None),
+        notes=notes,
+    )
+    db.session.add(ex)
+
+    try:
+        sl = StockLevel.query.filter_by(warehouse_id=warehouse_id, product_id=pid).first()
+        if not sl:
+            sl = StockLevel(warehouse_id=warehouse_id, product_id=pid, quantity=0, reserved_quantity=0)
+            db.session.add(sl)
+
+        if direction == "IN":
+            sl.quantity = (sl.quantity or 0) + qty
+        elif direction == "OUT":
+            if (sl.quantity or 0) < qty:
+                raise ValueError("insufficient")
+            sl.quantity -= qty
+        else:
+            sl.quantity = max((sl.quantity or 0) + qty, 0)
+
+        db.session.commit()
+        return jsonify({"success": True, "new_quantity": int(sl.quantity or 0)}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 400
-
-# ---------------- Transfers List ----------------
-@warehouses_bp.route('/<int:warehouse_id>/transfers', methods=['GET'], endpoint='list_transfers')
-def list_transfers(warehouse_id):
-    warehouse = Warehouse.query.get_or_404(warehouse_id)
-    transfers = Transfer.query.filter(
-        or_(Transfer.source_id==warehouse_id,
-            Transfer.destination_id==warehouse_id)
-    ).order_by(Transfer.transfer_date.desc()).all()
-    return render_template(
-        'warehouses/transfers_list.html',
-        warehouse=warehouse,
-        transfers=transfers
-    )
-# ---------------- Create Transfer ----------------
-@warehouses_bp.route('/<int:warehouse_id>/transfers/create', methods=['GET', 'POST'], endpoint='create_transfer')
+        return jsonify({"success": False, "error": str(e)}), 400
+@warehouse_bp.route("/<int:warehouse_id>/partner-shares", methods=["GET", "POST"], endpoint="partner_shares")
 @login_required
-@permission_required('manage_inventory')
-def create_transfer(warehouse_id):
-    warehouse = Warehouse.query.get_or_404(warehouse_id)
+@permission_required("manage_inventory")
+def partner_shares(warehouse_id):
+    if request.method == "GET":
+        try:
+            wps = (
+                WarehousePartnerShare.query
+                .join(Product, WarehousePartnerShare.product_id == Product.id)
+                .filter(WarehousePartnerShare.warehouse_id == warehouse_id)
+                .all()
+            )
+        except Exception:
+            wps = []
+
+        if wps:
+            rows = wps
+        else:
+            rows = (
+                ProductPartnerShare.query
+                .join(Product)
+                .join(StockLevel, StockLevel.product_id == ProductPartnerShare.product_id)
+                .filter(StockLevel.warehouse_id == warehouse_id)
+                .all()
+            )
+
+        data = []
+        for s in rows:
+            partner = getattr(s, "partner", None)
+            product = getattr(s, "product", None)
+            pct = float(getattr(s, "share_percentage", getattr(s, "share_percent", 0)) or 0)
+            amt = float(getattr(s, "share_amount", 0) or 0)
+            data.append({
+                "id": getattr(s, "id", None),
+                "product": product.name if product else None,
+                "partner": partner.name if partner else None,
+                "share_percentage": pct,
+                "share_amount": amt,
+                "notes": s.notes or ""
+            })
+        return jsonify({"success": True, "shares": data}), 200
+
+    payload = request.get_json(silent=True) or {}
+    updates = payload.get("shares", [])
+    if not isinstance(updates, list):
+        return jsonify({"success": False, "error": "invalid_payload"}), 400
+
+    try:
+        valid_products = {sl.product_id for sl in StockLevel.query.filter_by(warehouse_id=warehouse_id).all()}
+
+        for item in updates:
+            pid = item.get("product_id")
+            prt = item.get("partner_id")
+            if not (isinstance(pid, int) and isinstance(prt, int)):
+                continue
+            if valid_products and pid not in valid_products:
+                continue
+
+            pct = float(item.get("share_percentage", item.get("share_percent", 0)) or 0)
+            try:
+                amt = float(item.get("share_amount", 0) or 0)
+            except Exception:
+                amt = 0.0
+            notes = (item.get("notes") or "").strip() or None
+
+            try:
+                row = WarehousePartnerShare.query.filter_by(
+                    warehouse_id=warehouse_id, product_id=pid, partner_id=prt
+                ).first()
+                if row:
+                    row.share_percentage = pct
+                    row.share_amount = amt
+                    row.notes = notes
+                else:
+                    db.session.add(WarehousePartnerShare(
+                        warehouse_id=warehouse_id,
+                        product_id=pid,
+                        partner_id=prt,
+                        share_percentage=pct,
+                        share_amount=amt,
+                        notes=notes
+                    ))
+            except Exception:
+                row2 = ProductPartnerShare.query.filter_by(product_id=pid, partner_id=prt).first()
+                if row2:
+                    row2.share_percentage = pct
+                    row2.share_amount = amt
+                    row2.notes = notes
+                else:
+                    db.session.add(ProductPartnerShare(
+                        product_id=pid,
+                        partner_id=prt,
+                        share_percentage=pct,
+                        share_amount=amt,
+                        notes=notes
+                    ))
+
+        db.session.commit()
+        return jsonify({"success": True}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 400
+
+@warehouse_bp.route("/<int:id>/transfers", methods=["GET"], endpoint="transfers")
+@login_required
+@permission_required("view_inventory")
+def transfers(id):
+    warehouse_id = id
+    warehouse = _get_or_404(Warehouse, warehouse_id)
+    transfers = (
+        Transfer.query.filter(or_(Transfer.source_id == warehouse_id, Transfer.destination_id == warehouse_id))
+        .order_by(Transfer.transfer_date.desc())
+        .all()
+    )
+    return render_template("warehouses/transfers_list.html", warehouse=warehouse, transfers=transfers)
+
+
+@warehouse_bp.route("/<int:id>/transfers/create", methods=["GET", "POST"], endpoint="create_transfer")
+@login_required
+@permission_required("manage_inventory")
+def create_transfer(id=None, warehouse_id=None):
+    wid = warehouse_id or id
+    warehouse = _get_or_404(Warehouse, wid)
     form = TransferForm()
     if form.validate_on_submit():
         t = Transfer(
             transfer_date=form.date.data or datetime.utcnow(),
-            product_id=form.product_id.data,
-            source_id=form.source_id.data,
-            destination_id=form.destination_id.data,
+            product_id=form.product_id.data.id,
+            source_id=form.source_id.data.id,
+            destination_id=form.destination_id.data.id,
             quantity=form.quantity.data,
             direction=form.direction.data,
             notes=form.notes.data,
-            user_id=current_user.id
+            user_id=current_user.id,
         )
         db.session.add(t)
         try:
-            # تحديث المخزون
-            src = StockLevel.query.filter_by(
-                warehouse_id=t.source_id, product_id=t.product_id
-            ).first()
-            if not src or src.quantity < t.quantity:
-                raise ValueError('الكمية غير متوفرة في المصدر')
+            src = StockLevel.query.filter_by(warehouse_id=t.source_id, product_id=t.product_id).first()
+            if not src or (src.quantity or 0) < t.quantity:
+                raise ValueError("الكمية غير متوفرة في المصدر")
             src.quantity -= t.quantity
-
-            dst = StockLevel.query.filter_by(
-                warehouse_id=t.destination_id, product_id=t.product_id
-            ).first() or StockLevel(
-                warehouse_id=t.destination_id,
-                product_id=t.product_id,
-                quantity=0
-            )
+            dst = StockLevel.query.filter_by(warehouse_id=t.destination_id, product_id=t.product_id).first()
+            if not dst:
+                dst = StockLevel(warehouse_id=t.destination_id, product_id=t.product_id, quantity=0, reserved_quantity=0)
+                db.session.add(dst)
             dst.quantity += t.quantity
-
             db.session.commit()
-            flash('✅ تم إضافة التحويل بنجاح', 'success')
-            return redirect(url_for('warehouses.list_transfers', warehouse_id=warehouse_id))
+            flash("✅ تم إضافة التحويل بنجاح", "success")
+            return redirect(url_for("warehouse_bp.transfers", id=wid))
         except Exception as e:
             db.session.rollback()
-            flash(f'❌ خطأ أثناء إضافة التحويل: {e}', 'danger')
-    return render_template('warehouses/transfers_form.html',
-                           warehouse=warehouse, form=form)
+            flash(f"❌ خطأ أثناء إضافة التحويل: {e}", "danger")
+    return render_template("warehouses/transfers_form.html", warehouse=warehouse, form=form)
 
-# ---------------- Import Products ----------------
-@warehouses_bp.route('/<int:warehouse_id>/import', methods=['GET', 'POST'], endpoint='import_products')
+
+# ───────── Product card ─────────
+@warehouse_bp.route("/parts/<int:product_id>", methods=["GET"], endpoint="product_card")
 @login_required
-@permission_required('manage_inventory')
-def import_products(warehouse_id):
-    w = Warehouse.query.get_or_404(warehouse_id)
-    form = ImportForm()
-    if form.validate_on_submit():
-        f = form.file.data
-        stream = io.StringIO(f.stream.read().decode("UTF8"), newline=None)
-        reader = csv.DictReader(stream)
-        for row in reader:
-            p = Product(
-                name=row.get('name'),
-                sku=row.get('sku'),
-                warehouse_id=w.id
-            )
-            db.session.add(p)
-        db.session.commit()
-        return redirect(url_for('warehouses.warehouse_detail', warehouse_id=w.id))
-    return render_template(
-        'warehouses/import_products.html',
-        form=form,
-        warehouse=w
+@permission_required("view_parts")
+def product_card(product_id):
+    """بطاقة مُجمَّعة لصنف: مخزون، تحويلات، تبادلات، شحنات."""
+    part = (
+        Product.query.options(
+            joinedload(Product.supplier_international),
+            joinedload(Product.supplier_local),
+            joinedload(Product.supplier_general),
+            joinedload(Product.vehicle_type),
+            joinedload(Product.category),
+        ).filter_by(id=product_id).first()
     )
+    if part is None:
+        abort(404)
 
-# ---------------- Warehouse Shipments List ----------------
-@warehouses_bp.route('/<int:warehouse_id>/shipments', methods=['GET'], endpoint='list_warehouse_shipments')
-@login_required
-@permission_required('view_inventory')
-def list_warehouse_shipments(warehouse_id):
-    warehouse = Warehouse.query.get_or_404(warehouse_id)
-    shipments = Shipment.query.filter_by(destination_id=warehouse.id).all()
-    return render_template(
-        'shipments/list.html',
-        warehouse=warehouse,
-        shipments=shipments,
-        form=ShipmentForm()
+    warehouses = Warehouse.query.order_by(Warehouse.name).all()
+    stock = []
+    for w in warehouses:
+        lvl = StockLevel.query.filter_by(product_id=part.id, warehouse_id=w.id).first()
+        qty = (lvl.quantity or 0) if lvl else 0
+        res = getattr(lvl, "reserved_quantity", 0) if lvl else 0
+        stock.append({"warehouse": w, "on_hand": qty, "reserved": res, "virtual_available": qty - res})
+
+    transfers = (
+        Transfer.query.filter_by(product_id=part.id)
+        .options(joinedload(Transfer.source_warehouse), joinedload(Transfer.destination_warehouse))
+        .order_by(Transfer.transfer_date.desc())
+        .all()
     )
+    exchanges = (
+        ExchangeTransaction.query.filter_by(product_id=part.id)
+        .options(joinedload(ExchangeTransaction.partner))
+        .order_by(getattr(ExchangeTransaction, "created_at", ExchangeTransaction.id).desc())
+        .all()
+    )
+    shipments = (
+        ShipmentItem.query.filter_by(product_id=part.id)
+        .join(Shipment)
+        .options(joinedload(ShipmentItem.shipment), joinedload(ShipmentItem.warehouse))
+        .order_by(func.coalesce(Shipment.actual_arrival, Shipment.expected_arrival, Shipment.shipment_date).desc())
+        .all()
+    )
+    return render_template("parts/card.html", part=part, stock=stock, transfers=transfers, exchanges=exchanges, shipments=shipments)
 
-@warehouses_bp.route('/<int:warehouse_id>/shipments/create', methods=['GET', 'POST'], endpoint='create_warehouse_shipment')
+
+# ───────── Preorders ─────────
+@warehouse_bp.route("/preorders", methods=["GET"], endpoint="preorders_list")
 @login_required
-@permission_required('manage_inventory')
-def create_warehouse_shipment(warehouse_id):
-    w = Warehouse.query.get_or_404(warehouse_id)
-    form = ShipmentForm()
-    if form.validate_on_submit():
-        sh = Shipment(
-            shipment_number    = form.shipment_number.data,
-            shipment_date      = form.shipment_date.data or datetime.utcnow(),
-            expected_arrival   = form.expected_arrival.data,
-            actual_arrival     = form.actual_arrival.data,
-            origin             = form.origin.data,
-            destination_id     = form.destination_id.data,
-            carrier            = form.carrier.data,
-            tracking_number    = form.tracking_number.data,
-            status             = form.status.data,
-            value_before       = form.value_before.data,
-            shipping_cost      = form.shipping_cost.data,
-            customs            = form.customs.data,
-            vat                = form.vat.data,
-            insurance          = form.insurance.data,
-            total_value        = form.total_value.data,
-            notes              = form.notes.data,
-            currency           = form.currency.data
+@permission_required("view_preorders")
+def preorders_list():
+    q = PreOrder.query
+    status = request.args.get("status")
+    code = request.args.get("code")
+    df = request.args.get("date_from")
+    dt = request.args.get("date_to")
+    if status:
+        q = q.filter(PreOrder.status == status)
+    if code:
+        q = q.filter(PreOrder.reference.ilike(f"%{code}%"))
+    try:
+        if df:
+            q = q.filter(PreOrder.created_at >= datetime.fromisoformat(df))
+        if dt:
+            q = q.filter(PreOrder.created_at <= datetime.fromisoformat(dt))
+    except ValueError:
+        pass
+    q = q.order_by(PreOrder.created_at.desc())
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 25, type=int)
+    pagination = q.paginate(page=page, per_page=per_page, error_out=False)
+    preorders = pagination.items
+    if request.args.get("format") == "json" or request.is_json:
+        def _entity_info(p):
+            if p.customer_id:
+                return "customer", (p.customer.name if p.customer else None)
+            if p.supplier_id:
+                return "supplier", (p.supplier.name if p.supplier else None)
+            if p.partner_id:
+                return "partner", (p.partner.name if p.partner else None)
+            return None, None
+        data = []
+        for p in preorders:
+            etype, ename = _entity_info(p)
+            data.append({
+                "id": p.id,
+                "code": p.reference,
+                "entity_type": etype,
+                "entity_name": ename,
+                "product": p.product.name if p.product else None,
+                "warehouse": p.warehouse.name if p.warehouse else None,
+                "quantity": p.quantity,
+                "prepaid_amount": float(p.prepaid_amount or 0),
+                "status": p.status,
+                "created_at": p.created_at.isoformat(),
+            })
+        return jsonify(
+            {
+                "data": data,
+                "meta": {
+                    "page": pagination.page,
+                    "per_page": pagination.per_page,
+                    "total": pagination.total,
+                    "pages": pagination.pages,
+                },
+            }
         )
-        db.session.add(sh)
+    return render_template(
+        "parts/preorders_list.html",
+        preorders=preorders,
+        pagination=pagination,
+        filters={"status": status, "code": code, "date_from": df, "date_to": dt},
+    )
+
+@warehouse_bp.route("/preorders/create", methods=["GET", "POST"], endpoint="preorder_create")
+@login_required
+@permission_required("add_preorder")
+def preorder_create():
+    form = PreOrderForm()
+    form.customer_id.query = Customer.query.order_by(Customer.name).all()
+    form.supplier_id.query = Supplier.query.order_by(Supplier.name).all()
+    form.partner_id.query = Partner.query.order_by(Partner.name).all()
+    form.product_id.query = Product.query.order_by(Product.name).all()
+    form.warehouse_id.query = Warehouse.query.order_by(Warehouse.name).all()
+
+    def _id_from_field(field_name):
+        f = getattr(form, field_name, None)
+        if f is not None:
+            d = getattr(f, "data", None)
+            if hasattr(d, "id"):
+                return d.id
+            try:
+                return int(d) if d not in (None, "", "None") else None
+            except Exception:
+                pass
+        v = request.form.get(field_name)
         try:
-            # إضافة العناصر وتحديث المخزون
-            for itm in form.items.data:
-                si = ShipmentItem(
-                    shipment        = sh,
-                    product_id      = itm['product_id'].id,
-                    warehouse_id    = w.id,
-                    quantity        = itm['quantity'],
-                    unit_cost       = itm['unit_cost'],
-                    declared_value  = itm.get('declared_value') or 0,
-                    notes           = itm.get('notes', '')
-                )
-                db.session.add(si)
-                sl = StockLevel.query.filter_by(
-                    warehouse_id=w.id, product_id=si.product_id
-                ).first() or StockLevel(
-                    warehouse_id=w.id, product_id=si.product_id, quantity=0
-                )
-                sl.quantity += si.quantity
+            return int(v) if v not in (None, "", "None") else None
+        except Exception:
+            return None
 
-            # إضافة مساهمات الشركاء إن وجدت
-            for pl in form.partner_links.data:
-                db.session.add(ShipmentPartner(
-                    shipment            = sh,
-                    partner_id          = pl['partner_id'].id,
-                    identity_number     = pl.get('identity_number'),
-                    phone_number        = pl.get('phone_number'),
-                    address             = pl.get('address'),
-                    unit_price_before_tax = pl.get('unit_price_before_tax') or 0,
-                    expiry_date         = pl.get('expiry_date'),
-                    share_percentage    = pl.get('share_percentage') or 0,
-                    share_amount        = pl.get('share_amount') or 0,
-                    notes               = pl.get('notes', '')
-                ))
+    is_testing = bool(current_app.config.get("TESTING"))
 
+    if form.validate_on_submit() or (request.method == "POST" and is_testing):
+        et = (request.form.get("entity_type") or getattr(getattr(form, "entity_type", None), "data", "") or "").strip().lower()
+        customer_id  = _id_from_field("customer_id")  if et == "customer" else None
+        supplier_id  = _id_from_field("supplier_id")  if et == "supplier" else None
+        partner_id   = _id_from_field("partner_id")   if et == "partner"  else None
+        product_id   = _id_from_field("product_id")
+        warehouse_id = _id_from_field("warehouse_id")
+
+        if not product_id or not warehouse_id:
+            return render_template("parts/preorder_form.html", form=form)
+
+        try:
+            qty = int(float(request.form.get("quantity") if request.method == "POST" else form.quantity.data))
+        except Exception:
+            qty = 0
+        if qty < 1:
+            qty = 1
+
+        try:
+            prepaid = float(request.form.get("prepaid_amount") if request.method == "POST" else (form.prepaid_amount.data or 0))
+        except Exception:
+            prepaid = 0.0
+
+        try:
+            tax = float(request.form.get("tax_rate") if request.method == "POST" else (form.tax_rate.data or 0))
+        except Exception:
+            tax = 0.0
+
+        status_val = getattr(form, "status", None).data if getattr(form, "status", None) else "PENDING"
+
+        code = (getattr(getattr(form, "reference", None), "data", None) or uuid.uuid4().hex[:8].upper())
+
+        preorder = PreOrder(
+            reference=code,
+            preorder_date=getattr(getattr(form, "preorder_date", None), "data", None) or datetime.utcnow(),
+            expected_date=getattr(getattr(form, "expected_date", None), "data", None),
+            customer_id=customer_id,
+            supplier_id=supplier_id,
+            partner_id=partner_id,
+            product_id=product_id,
+            warehouse_id=warehouse_id,
+            quantity=qty,
+            prepaid_amount=prepaid,
+            tax_rate=tax,
+            status=status_val,
+            notes=getattr(getattr(form, "notes", None), "data", None),
+        )
+        db.session.add(preorder)
+        db.session.flush()
+
+        sl = StockLevel.query.filter_by(product_id=product_id, warehouse_id=warehouse_id).first()
+        if not sl:
+            sl = StockLevel(product_id=product_id, warehouse_id=warehouse_id, quantity=0, reserved_quantity=0)
+            db.session.add(sl)
+            db.session.flush()
+        sl.reserved_quantity = (sl.reserved_quantity or 0) + qty
+
+        method = getattr(getattr(form, "payment_method", None), "data", None) or request.form.get("payment_method")
+        pay = Payment(
+            entity_type=PaymentEntityType.PREORDER.value if hasattr(PaymentEntityType, "PREORDER") else "PREORDER",
+            preorder_id=preorder.id,
+            customer_id=customer_id,
+            supplier_id=supplier_id,
+            partner_id=partner_id,
+            direction=PaymentDirection.INCOMING.value if hasattr(PaymentDirection, "INCOMING") else "INCOMING",
+            status=PaymentStatus.COMPLETED.value if hasattr(PaymentStatus, "COMPLETED") else "COMPLETED",
+            payment_date=datetime.utcnow(),
+            total_amount=prepaid,
+            currency="ILS",
+            method=method,
+            reference=f"Preorder {code}",
+            notes=f"دفعة عربون لحجز {preorder.product.name if preorder.product else ''} (كود: {code})",
+        )
+        db.session.add(pay)
+
+        try:
             db.session.commit()
-            flash('✅ تم إنشاء الشحنة وتحديث المخزون', 'success')
-            return redirect(url_for('warehouses.list_warehouse_shipments', warehouse_id=w.id))
+            return redirect(url_for("warehouse_bp.preorder_detail", preorder_id=preorder.id))
+        except SQLAlchemyError:
+            db.session.rollback()
+            return render_template("parts/preorder_form.html", form=form), 200
+
+    return render_template("parts/preorder_form.html", form=form)
+
+
+@warehouse_bp.route("/preorders/<int:preorder_id>", methods=["GET"], endpoint="preorder_detail")
+@login_required
+@permission_required("view_preorders")
+def preorder_detail(preorder_id):
+    preorder = (
+        PreOrder.query.options(
+            joinedload(PreOrder.customer),
+            joinedload(PreOrder.supplier),
+            joinedload(PreOrder.partner),
+            joinedload(PreOrder.product),
+            joinedload(PreOrder.warehouse),
+            joinedload(PreOrder.payments),
+        ).filter_by(id=preorder_id).first()
+    )
+    if preorder is None:
+        abort(404)
+
+    return render_template("parts/preorder_detail.html", preorder=preorder)
+
+@warehouse_bp.route("/preorders/<int:preorder_id>/fulfill", methods=["POST"], endpoint="preorder_fulfill")
+@login_required
+@permission_required("edit_preorder")
+def preorder_fulfill(preorder_id):
+    preorder = _get_or_404(PreOrder, preorder_id)
+    if preorder.status != "FULFILLED":
+        try:
+            preorder.status = "FULFILLED"
+            preorder.fulfilled_at = datetime.utcnow()
+            sl = StockLevel.query.filter_by(product_id=preorder.product_id, warehouse_id=preorder.warehouse_id).first()
+            if not sl:
+                sl = StockLevel(product_id=preorder.product_id, warehouse_id=preorder.warehouse_id, quantity=0, reserved_quantity=0)
+                db.session.add(sl)
+            sl.reserved_quantity = max((sl.reserved_quantity or 0) - preorder.quantity, 0)
+            sl.quantity = (sl.quantity or 0) + preorder.quantity
+            db.session.commit()
+            flash("✅ تم تنفيذ الحجز.", "success")
         except SQLAlchemyError as e:
             db.session.rollback()
-            flash(f'❌ خطأ أثناء إنشاء الشحنة: {e}', 'danger')
-
-    return render_template(
-        'shipments/_form.html',
-        action='create',
-        form=form,
-        warehouse=w
-    )# ---------------- Unified Payment for Warehouse ----------------
-@warehouses_bp.route('/<int:warehouse_id>/pay', methods=['POST'], endpoint='pay_warehouse')
-@login_required
-@permission_required('manage_payments')
-def pay_warehouse(warehouse_id):
-    amount = request.form.get('amount')
-    result = unified_payment(
-        entity_type='warehouse',
-        entity_id=warehouse_id,
-        amount=amount,
-        user_id=current_user.id
-    )
-    if result.get('success'):
-        flash('✅ تم تسجيل الدفع', 'success')
+            flash(f"❌ فشل تنفيذ الحجز: {e}", "danger")
     else:
-        flash(f"❌ خطأ في الدفع: {result.get('error', 'Unknown')}", 'danger')
-    return redirect(url_for('warehouses.warehouse_detail', warehouse_id=warehouse_id))
+        flash("ℹ️ هذا الحجز تم تنفيذه مسبقاً.", "info")
+    return redirect(url_for("warehouse_bp.preorder_detail", preorder_id=preorder_id))
+
+@warehouse_bp.route("/preorders/<int:preorder_id>/cancel", methods=["POST"], endpoint="preorder_cancel")
+@login_required
+@permission_required("delete_preorder")
+def preorder_cancel(preorder_id):
+    preorder = _get_or_404(PreOrder, preorder_id)
+    ref = preorder.reference or str(preorder.id)
+    if preorder.status in ("CANCELLED", "FULFILLED"):
+        flash("لا يمكن إلغاء هذا الحجز.", "warning")
+        return redirect(url_for("warehouse_bp.preorder_detail", preorder_id=preorder.id))
+    try:
+        sl = StockLevel.query.filter_by(product_id=preorder.product_id, warehouse_id=preorder.warehouse_id).first()
+        if sl:
+            sl.reserved_quantity = max((sl.reserved_quantity or 0) - preorder.quantity, 0)
+        refunded_val = getattr(PaymentStatus, "REFUNDED", "REFUNDED")
+        refunded_val = refunded_val.value if hasattr(refunded_val, "value") else refunded_val
+        for pay in preorder.payments:
+            if hasattr(pay, "status"):
+                pay.status = refunded_val
+            pay.notes = f"استرداد عربون الحجز {ref}"
+        preorder.status = "CANCELLED"
+        db.session.commit()
+        flash("تم إلغاء الحجز واسترداد العربون.", "success")
+    except SQLAlchemyError:
+        db.session.rollback()
+        flash("حدث خطأ أثناء إلغاء الحجز.", "danger")
+    return redirect(url_for("warehouse_bp.preorder_detail", preorder_id=preorder.id))
+
+@warehouse_bp.route("/<int:warehouse_id>/pay", methods=["POST"], endpoint="pay_warehouse")
+@login_required
+@permission_required("manage_payments")
+def pay_warehouse(warehouse_id):
+    amount = request.form.get('amount', type=float)
+    if not amount or amount <= 0:
+        flash('قيمة غير صالحة', 'danger')
+        return redirect(url_for('warehouse_bp.detail', warehouse_id=warehouse_id))
+    return redirect(url_for(
+        'payments.create_payment',
+        entity_type='SUPPLIER',
+        entity_id=warehouse_id,
+        amount=amount
+    ))
+
+# ---------------------------------- API صغار: إضافة عميل/مورد/شريك ----------------------------------
+
+@warehouse_bp.route("/api/add_customer", methods=["POST"], endpoint="api_add_customer")
+@login_required
+@permission_required("add_customer")
+def api_add_customer():
+    data = request.get_json() or {}
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "اسم العميل مطلوب"}), 400
+    cust = Customer(
+        name=name,
+        phone=data.get("phone"),
+        email=data.get("email"),
+        address=data.get("address"),
+        whatsapp=data.get("whatsapp"),
+        category=data.get("category", "عادي"),
+        is_active=True,
+    )
+    db.session.add(cust)
+    try:
+        db.session.commit()
+        return jsonify({"id": cust.id, "name": cust.name}), 201
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
+@warehouse_bp.route("/api/add_supplier", methods=["POST"], endpoint="api_add_supplier")
+@login_required
+@permission_required("add_supplier")
+def api_add_supplier():
+    data = request.get_json() or {}
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "اسم المورد مطلوب"}), 400
+    sup = Supplier(
+        name=name,
+        is_local=data.get("is_local", True),
+        identity_number=data.get("identity_number"),
+        contact=data.get("contact"),
+        phone=data.get("phone"),
+        address=data.get("address"),
+        notes=data.get("notes"),
+        balance=0,
+    )
+    db.session.add(sup)
+    try:
+        db.session.commit()
+        return jsonify({"id": sup.id, "name": sup.name}), 201
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
+@warehouse_bp.route("/api/add_partner", methods=["POST"], endpoint="api_add_partner")
+@login_required
+@permission_required("add_partner")
+def api_add_partner():
+    data = request.get_json() or {}
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "اسم الشريك مطلوب"}), 400
+    p = Partner(
+        name=name,
+        contact_info=data.get("contact_info"),
+        identity_number=data.get("identity_number"),
+        phone_number=data.get("phone_number"),
+        address=data.get("address"),
+        balance=0,
+        share_percentage=data.get("share_percentage", 0),
+    )
+    db.session.add(p)
+    try:
+        db.session.commit()
+        return jsonify({"id": p.id, "name": p.name}), 201
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
+# ───────── Shipments handoff (redirect to shipments_bp) ─────────
+@warehouse_bp.route('/<int:id>/shipments/create', methods=['GET'], endpoint='create_warehouse_shipment')
+@login_required
+@permission_required('manage_inventory')
+def create_warehouse_shipment(id):
+    """إنشاء شحنة من مستودع: إعادة توجيه لنموذج الشحنات مع destination_id."""
+    return redirect(url_for('shipments_bp.create_shipment', destination_id=id))

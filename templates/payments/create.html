@@ -1,36 +1,32 @@
-{# File: templates/payments/create.html #}
-{% extends 'base.html' %}
-
-{% block title %}
-  {% if payment %}تعديل دفعة{% else %}إنشاء دفعة{% endif %}
-{% endblock %}
+{% extends "base.html" %}
+{% block title %}{% if payment %}تعديل دفعة{% else %}إنشاء دفعة{% endif %}{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
   <h3 class="mb-4">
-    {% if payment %}
-      ✏️ تعديل دفعة #{{ payment.id }}
-    {% else %}
-      ➕ إضافة دفعة جديدة
-    {% endif %}
+    {% if payment %}✏️ تعديل دفعة #{{ payment.id }}{% else %}➕ إضافة دفعة جديدة{% endif %}
   </h3>
 
   {% if entity_info %}
   <div class="card mb-4 border-primary">
-    <div class="card-header bg-primary text-white">
-      <h5 class="mb-0">📄 معلومات {{ entity_info.type|capitalize }} المرتبطة</h5>
-    </div>
+    <div class="card-header bg-primary text-white"><h5 class="mb-0">📄 معلومات مرتبطة</h5></div>
     <div class="card-body">
       <div class="row gy-2">
-        {% if entity_info.type in ['sale','invoice'] %}
-          <div class="col-md-4"><strong>رقم الفاتورة:</strong> {{ entity_info.number }}</div>
-          <div class="col-md-4"><strong>تاريخها:</strong> {{ entity_info.date }}</div>
-          <div class="col-md-4"><strong>الإجمالي:</strong> {{ entity_info.total|number_format }} {{ entity_info.currency }}</div>
-          <div class="col-md-4"><strong>المدفوع:</strong> {{ entity_info.paid|number_format }} {{ entity_info.currency }}</div>
-          <div class="col-md-4"><strong>المتبقي:</strong> {{ entity_info.balance|number_format }} {{ entity_info.currency }}</div>
-        {% elif entity_info.type=='customer' %}
-          <div class="col-md-6"><strong>اسم العميل:</strong> {{ entity_info.name }}</div>
-          <div class="col-md-6"><strong>رصيده:</strong> {{ entity_info.balance|number_format }}</div>
+        {% if entity_info.number %}
+          <div class="col-md-4"><strong>الرقم:</strong> {{ entity_info.number }}</div>
+          {% if entity_info.date %}<div class="col-md-4"><strong>التاريخ:</strong> {{ entity_info.date }}</div>{% endif %}
+          {% if entity_info.total is defined %}<div class="col-md-4"><strong>الإجمالي:</strong> {{ '%.2f'|format(entity_info.total) }} {{ entity_info.currency or '' }}</div>{% endif %}
+          {% if entity_info.paid  is defined %}<div class="col-md-4"><strong>المدفوع:</strong> {{ '%.2f'|format(entity_info.paid) }} {{ entity_info.currency or '' }}</div>{% endif %}
+          {% if entity_info.balance is defined %}<div class="col-md-4"><strong>المتبقي:</strong> {{ '%.2f'|format(entity_info.balance) }} {{ entity_info.currency or '' }}</div>{% endif %}
+          {% if entity_info.balance_due is defined %}<div class="col-md-4"><strong>المتبقي:</strong> {{ '%.2f'|format(entity_info.balance_due) }} {{ entity_info.currency or '' }}</div>{% endif %}
+          {% if entity_info.amount is defined and not entity_info.total %}<div class="col-md-4"><strong>المبلغ:</strong> {{ '%.2f'|format(entity_info.amount) }}</div>{% endif %}
+        {% elif entity_info.name %}
+          <div class="col-md-6"><strong>الاسم:</strong> {{ entity_info.name }}</div>
+          {% if entity_info.balance is defined %}<div class="col-md-6"><strong>الرصيد:</strong> {{ '%.2f'|format(entity_info.balance) }}</div>{% endif %}
+        {% elif entity_info.type == 'expense' %}
+          <div class="col-md-4"><strong>رقم المصروف:</strong> {{ entity_info.number }}</div>
+          <div class="col-md-4"><strong>التاريخ:</strong> {{ entity_info.date }}</div>
+          <div class="col-md-4"><strong>القيمة:</strong> {{ '%.2f'|format(entity_info.amount) }}</div>
         {% endif %}
       </div>
     </div>
@@ -39,56 +35,31 @@
 
   <form method="POST" id="paymentForm">
     {{ form.hidden_tag() }}
-    <input type="hidden"
-           id="current_entity_id"
-           name="current_entity_id"
-           value="{{ form.entity_id.data }}">
+    {{ form.entity_id(id="entity_id") }}
 
     <div class="row">
       <div class="col-md-6">
         <div class="card mb-4">
           <div class="card-header">📝 المعلومات الأساسية</div>
           <div class="card-body">
-            <div class="mb-3">
-              {{ form.entity_type.label(class="form-label") }}
-              {{ form.entity_type(id="entity_type", class="form-select") }}
-              {% for e in form.entity_type.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-            </div>
-            <div class="mb-3">
-              {{ form.direction.label(class="form-label") }}
-              {{ form.direction(class="form-select") }}
-              {% for e in form.direction.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-            </div>
-            <div class="mb-3">
-              {{ form.status.label(class="form-label") }}
-              {{ form.status(class="form-select") }}
-              {% for e in form.status.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-            </div>
-            <div class="mb-3">
-              {{ form.payment_date.label(class="form-label") }}
-              {{ form.payment_date(class="form-control") }}
-              {% for e in form.payment_date.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-            </div>
-            <div class="mb-3">
-              {{ form.total_amount.label(class="form-label") }}
-              {{ form.total_amount(class="form-control", step="0.01") }}
-              {% for e in form.total_amount.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-            </div>
-            <div class="mb-3">
-              {{ form.currency.label(class="form-label") }}
-              {{ form.currency(class="form-control") }}
-              {% for e in form.currency.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-            </div>
-            <div class="mb-3">
-              {{ form.method.label(class="form-label") }}
-              {{ form.method(class="form-select") }}
-              {% for e in form.method.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-            </div>
-            <div class="mb-3">
-              {{ form.notes.label(class="form-label") }}
-              {{ form.notes(class="form-control", rows="3") }}
-              {% for e in form.notes.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-            </div>
+            {% for field in [form.entity_type, form.direction, form.status, form.payment_date, form.total_amount, form.currency, form.method, form.notes] %}
+              <div class="mb-3">
+                {{ field.label(class="form-label") }}
+                {% if field.type in ["SelectField", "QuerySelectField"] %}
+                  {{ field(class="form-select") }}
+                {% elif field.name == "payment_date" %}
+                  {{ field(type="date", class="form-control", value=field.data or "") }}
+                {% elif field.type == "TextAreaField" %}
+                  {{ field(class="form-control") }}
+                {% else %}
+                  {{ field(class="form-control") }}
+                {% endif %}
+                {% if field.name == 'total_amount' %}
+                  <div id="splitSum" class="form-text"></div>
+                {% endif %}
+                {% for e in field.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+              </div>
+            {% endfor %}
           </div>
         </div>
       </div>
@@ -97,58 +68,49 @@
         <div class="card mb-4">
           <div class="card-header">👥 الجهة المرتبطة</div>
           <div class="card-body" id="entityFields">
-            {% include 'payments/_entity_fields.html' %}
+            {% include "payments/_entity_fields.html" %}
           </div>
         </div>
       </div>
     </div>
 
     <div class="card mb-4">
-      <div class="card-header">💳 الدفعات الجزئية</div>
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>💳 الدفعات الجزئية</span>
+        <small class="text-muted">بحد أقصى 3 طرق دفع</small>
+      </div>
       <div class="card-body">
         <div id="splitsContainer">
           {% for split in form.splits %}
-          <div class="split-form border p-3 mb-3">
+          <div class="split-form border p-3 mb-3 rounded" data-index="{{ loop.index0 }}">
             <h5>الدفعة الجزئية #{{ loop.index }}</h5>
             <div class="row gy-2">
               <div class="col-md-4">
                 {{ split.method.label(class="form-label") }}
-                {{ split.method(class="form-select") }}
-                {% for e in split.method.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                {{ split.method(class="form-select split-method") }}
               </div>
               <div class="col-md-4">
                 {{ split.amount.label(class="form-label") }}
                 {{ split.amount(class="form-control", step="0.01") }}
-                {% for e in split.amount.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
               </div>
               <div class="col-md-4 d-flex align-items-end">
                 <button type="button" class="btn btn-danger remove-split" {% if loop.first %}disabled{% endif %}>حذف</button>
               </div>
             </div>
-            <div class="split-details mt-3" style="display: none;">
+
+            <div class="split-details mt-3" style="display:none;">
               <div class="row gy-2">
-                <div class="col-md-4">
-                  {{ split.check_number.label(class="form-label") }}
-                  {{ split.check_number(class="form-control") }}
-                </div>
-                <div class="col-md-4">
-                  {{ split.check_bank.label(class="form-label") }}
-                  {{ split.check_bank(class="form-control") }}
-                </div>
-                <div class="col-md-4">
-                  {{ split.check_due_date.label(class="form-label") }}
-                  {{ split.check_due_date(class="form-control") }}
-                </div>
+                <div class="col-md-4">{{ split.check_number.label(class="form-label") }}{{ split.check_number(class="form-control") }}</div>
+                <div class="col-md-4">{{ split.check_bank.label(class="form-label") }}{{ split.check_bank(class="form-control") }}</div>
+                <div class="col-md-4">{{ split.check_due_date.label(class="form-label") }}{{ split.check_due_date(class="form-control") }}</div>
               </div>
               <div class="row gy-2 mt-2">
-                <div class="col-md-6">
-                  {{ split.card_number.label(class="form-label") }}
-                  {{ split.card_number(class="form-control") }}
-                </div>
-                <div class="col-md-6">
-                  {{ split.bank_transfer_ref.label(class="form-label") }}
-                  {{ split.bank_transfer_ref(class="form-control") }}
-                </div>
+                <div class="col-md-6">{{ split.card_number.label(class="form-label") }}{{ split.card_number(class="form-control") }}</div>
+                <div class="col-md-6">{{ split.bank_transfer_ref.label(class="form-label") }}{{ split.bank_transfer_ref(class="form-control") }}</div>
+              </div>
+              <div class="row gy-2 mt-2">
+                <div class="col-md-6">{{ split.card_holder.label(class="form-label") }}{{ split.card_holder(class="form-control") }}</div>
+                <div class="col-md-6">{{ split.card_expiry.label(class="form-label") }}{{ split.card_expiry(class="form-control", placeholder="MM/YY") }}</div>
               </div>
             </div>
           </div>

@@ -1,5 +1,8 @@
+<!-- File: templates/expenses/type_form.html -->
 {% extends 'base.html' %}
+
 {% block title %}{{ is_edit and 'تعديل نوع مصروف' or 'إضافة نوع مصروف' }}{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
   <h2>{{ is_edit and 'تعديل نوع مصروف' or 'إضافة نوع مصروف' }}</h2>
@@ -16,9 +19,19 @@
       </div>
     </div>
     <div class="mt-4">
-      <button class="btn btn-primary">{{ is_edit and 'تحديث' or 'حفظ' }}</button>
-      <a href="{{ url_for('expenses.types_list') }}" class="btn btn-secondary">إلغاء</a>
+      <button class="btn btn-primary">
+        {{ is_edit and 'تحديث' or 'حفظ' }}
+      </button>
+      <a href="{{ url_for('expenses_bp.types_list') }}" class="btn btn-secondary">
+        إلغاء
+      </a>
     </div>
   </form>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // لا إعدادات جافاسكربت إضافية حالياً
+</script>
 {% endblock %}

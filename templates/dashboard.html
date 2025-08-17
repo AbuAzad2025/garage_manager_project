@@ -1,45 +1,149 @@
-<!-- File: templates/dashboard.html -->
+{# templates/dashboard.html #}
 {% extends 'base.html' %}
 {% block title %}لوحة التحكم{% endblock %}
+
 {% block breadcrumb %}
 <li class="breadcrumb-item active">الرئيسية</li>
 {% endblock %}
+
 {% block content %}
 <div class="container-fluid">
+
   <div class="row">
     {% if current_user.has_permission('manage_service') %}
-    <div class="col-lg-3 col-6"><div class="small-box bg-info"><div class="inner"><h3>{{ recent_services|length }}</h3><p>طلبات الصيانة المعلقة</p></div><div class="icon"><i class="fas fa-tools"></i></div><a href="{{ url_for('service.list_requests') }}" class="small-box-footer">عرض التفاصيل <i class="fas fa-arrow-circle-left"></i></a></div></div>
+    <div class="col-lg-3 col-6">
+      <div class="small-box bg-info">
+        <div class="inner">
+          <h3>{{ recent_services|length }}</h3>
+          <p>طلبات الصيانة المعلقة</p>
+        </div>
+        <div class="icon"><i class="fas fa-tools"></i></div>
+        <a href="{{ url_for('service.list_requests') }}" class="small-box-footer">
+          عرض التفاصيل <i class="fas fa-arrow-circle-left"></i>
+        </a>
+      </div>
+    </div>
     {% endif %}
-    {% if current_user.has_permission('manage_warehouses') %}
-    <div class="col-lg-3 col-6"><div class="small-box bg-warning"><div class="inner"><h3>{{ low_stock|length }}</h3><p>قطع المخزون المنخفض</p></div><div class="icon"><i class="fas fa-boxes"></i></div><a href="{{ url_for('warehouses.list_warehouses') }}" class="small-box-footer">إدارة المستودعات <i class="fas fa-arrow-circle-left"></i></a></div></div>
+
+    {% if current_user.has_permission('manage_warehouses') or current_user.has_permission('view_warehouses') %}
+    <div class="col-lg-3 col-6">
+      <div class="small-box bg-warning">
+        <div class="inner">
+          <h3>{{ low_stock|length }}</h3>
+          <p>قطع المخزون المنخفض</p>
+        </div>
+        <div class="icon"><i class="fas fa-boxes"></i></div>
+        <a href="{{ url_for('warehouse_bp.list') }}" class="small-box-footer">
+          إدارة المستودعات <i class="fas fa-arrow-circle-left"></i>
+        </a>
+      </div>
+    </div>
     {% endif %}
+
     {% if current_user.has_permission('manage_exchange') %}
-    <div class="col-lg-3 col-6"><div class="small-box bg-secondary"><div class="inner"><h3>{{ pending_exchanges }}</h3><p>طلبات التبادل المعلقة</p></div><div class="icon"><i class="fas fa-exchange-alt"></i></div><a href="{{ url_for('shipments.list_shipments') }}" class="small-box-footer">عرض التفاصيل <i class="fas fa-arrow-circle-left"></i></a></div></div>
+    <div class="col-lg-3 col-6">
+      <div class="small-box bg-secondary">
+        <div class="inner">
+          <h3>{{ pending_exchanges }}</h3>
+          <p>طلبات التبادل المعلقة</p>
+        </div>
+        <div class="icon"><i class="fas fa-exchange-alt"></i></div>
+        <a href="{{ url_for('shipments_bp.list_shipments') }}" class="small-box-footer">
+          عرض التفاصيل <i class="fas fa-arrow-circle-left"></i>
+        </a>
+      </div>
+    </div>
     {% endif %}
+
     {% if current_user.has_permission('manage_sales') and current_user.has_permission('view_reports') %}
-    <div class="col-lg-3 col-6"><div class="small-box bg-success"><div class="inner"><h3>{{ today_revenue|round(2) }}</h3><p>إيرادات اليوم</p></div><div class="icon"><i class="fas fa-dollar-sign"></i></div><a href="{{ url_for('reports.index') }}" class="small-box-footer">عرض التقارير <i class="fas fa-arrow-circle-left"></i></a></div></div>
+    <div class="col-lg-3 col-6">
+      <div class="small-box bg-success">
+        <div class="inner">
+          <h3>{{ today_revenue|round(2) }}</h3>
+          <p>إيرادات اليوم</p>
+        </div>
+        <div class="icon"><i class="fas fa-dollar-sign"></i></div>
+        <a href="{{ url_for_any('reports_bp.index','reports.index','reports_bp.sales','reports.sales') }}" class="small-box-footer">
+          عرض التقارير <i class="fas fa-arrow-circle-left"></i>
+        </a>
+      </div>
+    </div>
     {% endif %}
   </div>
+
   <div class="row">
     {% if current_user.has_permission('manage_sales') and current_user.has_permission('view_reports') %}
-    <div class="col-lg-6 mb-4"><div class="card"><div class="card-header bg-danger text-white">إيرادات الأسبوع</div><div class="card-body"><canvas class="chartjs-chart" data-chart-type="line" data-label="إيرادات الأسبوع" data-labels='{{ revenue_labels|tojson }}' data-values='{{ revenue_values|tojson }}'></canvas></div></div></div>
+    <div class="col-lg-6 mb-4">
+      <div class="card">
+        <div class="card-header bg-danger text-white">إيرادات الأسبوع</div>
+        <div class="card-body">
+          <canvas class="chartjs-chart"
+                  data-chart-type="line"
+                  data-label="إيرادات الأسبوع"
+                  data-labels='{{ revenue_labels|tojson }}'
+                  data-values='{{ revenue_values|tojson }}'></canvas>
+        </div>
+      </div>
+    </div>
     {% endif %}
+
     {% if current_user.has_permission('manage_service') and current_user.has_permission('view_reports') %}
-    <div class="col-lg-6 mb-4"><div class="card"><div class="card-header bg-primary text-white">طلبات الصيانة الأسبوعية</div><div class="card-body"><canvas class="chartjs-chart" data-chart-type="bar" data-label="طلبات الصيانة" data-labels='{{ service_metrics.day_labels|default([])|tojson }}' data-values='{{ service_metrics.day_counts|default([])|tojson }}'></canvas></div></div></div>
+    <div class="col-lg-6 mb-4">
+      <div class="card">
+        <div class="card-header bg-primary text-white">طلبات الصيانة الأسبوعية</div>
+        <div class="card-body">
+          <canvas class="chartjs-chart"
+                  data-chart-type="bar"
+                  data-label="طلبات الصيانة"
+                  data-labels='{{ service_metrics.day_labels|default([])|tojson }}'
+                  data-values='{{ service_metrics.day_counts|default([])|tojson }}'></canvas>
+        </div>
+      </div>
+    </div>
     {% endif %}
   </div>
+
   {% if current_user.has_permission('manage_service') %}
-  <div class="card"><div class="card-header">آخر 5 طلبات صيانة</div><div class="card-body p-0"><table class="table table-striped mb-0"><thead><tr><th>رقم الطلب</th><th>السيارة</th><th>الحالة</th><th>بداية</th><th>إجراءات</th></tr></thead><tbody>{% for s in recent_services[:5] %}<tr><td>{{ s.id }}</td><td>{{ s.vehicle_vrn }}</td><td>{{ s.status_label }}</td><td>{{ s.started_at.strftime('%Y-%m-%d') if s.started_at }}</td><td><a href="{{ url_for('service.service_report', rid=s.id) }}" class="btn btn-sm btn-info">عرض</a></td></tr>{% endfor %}</tbody></table></div></div>
+  <div class="card">
+    <div class="card-header">آخر 5 طلبات صيانة</div>
+    <div class="card-body p-0">
+      <table class="table table-striped mb-0">
+        <thead>
+          <tr><th>رقم الطلب</th><th>السيارة</th><th>الحالة</th><th>بداية</th><th>إجراءات</th></tr>
+        </thead>
+        <tbody>
+          {% for s in recent_services[:5] %}
+          <tr>
+            <td>{{ s.id }}</td>
+            <td>{{ s.vehicle_vrn }}</td>
+            <td>{{ s.status_label }}</td>
+            <td>{{ s.started_at.strftime('%Y-%m-%d') if s.started_at }}</td>
+            <td>
+              <a href="{{ url_for('service.service_report', rid=s.id) }}" class="btn btn-sm btn-info">عرض</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
   {% endif %}
 </div>
 {% endblock %}
+
 {% block scripts %}
 <script>
 document.querySelectorAll('.chartjs-chart').forEach(function(canvas){
   const type = canvas.dataset.chartType;
-  const labels = JSON.parse(canvas.dataset.labels);
-  const data = JSON.parse(canvas.dataset.values);
-  new Chart(canvas.getContext('2d'), { type: type, data: { labels: labels, datasets: [{ label: canvas.dataset.label, data: data }] } });
+  const labels = JSON.parse(canvas.dataset.labels || '[]');
+  const data = JSON.parse(canvas.dataset.values || '[]');
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  new Chart(ctx, {
+    type: type,
+    data: { labels: labels, datasets: [{ label: canvas.dataset.label, data: data }] },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
 });
 </script>
 {% endblock %}

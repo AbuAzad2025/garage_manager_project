@@ -4,7 +4,7 @@
   </div>
   <div class="card-body p-0">
     {% if service.payments %}
-    <table class="table table-sm table-striped mb-0">
+    <table class="table table-sm table-striped mb-0 align-middle">
       <thead class="table-light">
         <tr>
           <th>تاريخ الدفع</th>
@@ -17,18 +17,20 @@
       </thead>
       <tbody>
         {% for pay in service.payments %}
-        <tr>
-          <td>{{ pay.payment_date.strftime("%Y-%m-%d") if pay.payment_date else '—' }}</td>
-          <td>{{ '%.2f'|format(pay.amount or 0) }}</td>
-          <td>{{ pay.currency or '₪' }}</td>
-          <td>{{ pay.method or '—' }}</td>
-          <td>
-            <span class="badge {% if pay.status == 'COMPLETED' %}bg-success{% else %}bg-warning{% endif %}">
-              {{ pay.status or 'غير محدد' }}
-            </span>
-          </td>
-          <td>{{ pay.notes or '—' }}</td>
-        </tr>
+          {% set method = (pay.method.value if pay.method is not string and pay.method is not none else pay.method) or '—' %}
+          {% set status = (pay.status.value if pay.status is not string and pay.status is not none else pay.status) or '—' %}
+          <tr>
+            <td>{{ pay.payment_date and pay.payment_date.strftime("%Y-%m-%d") or '—' }}</td>
+            <td>{{ '%.2f'|format(pay.amount or 0) }}</td>
+            <td>{{ pay.currency or '₪' }}</td>
+            <td>{{ method }}</td>
+            <td>
+              <span class="badge {% if status == 'COMPLETED' %}bg-success{% elif status == 'PENDING' %}bg-warning{% else %}bg-secondary{% endif %}">
+                {{ status }}
+              </span>
+            </td>
+            <td>{{ pay.notes or '—' }}</td>
+          </tr>
         {% endfor %}
       </tbody>
     </table>

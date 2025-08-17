@@ -1,29 +1,35 @@
-<link rel="stylesheet" href="sales.css">
+{# templates/sales/list.html #}
 {% extends 'base.html' %}
 {% block title %}قائمة فواتير المبيعات{% endblock %}
+
+{% block head_extra %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sales.css') }}">
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">
   <div class="card shadow-lg border-0 rounded-4">
     <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-      <h3><i class="fas fa-file-invoice me-2"></i> فواتير المبيعات</h3>
-      <a href="{{ url_for('sales.create_sale') }}" class="btn btn-light">
+      <h3 class="mb-0"><i class="fas fa-file-invoice me-2"></i> فواتير المبيعات</h3>
+      <a href="{{ url_for('sales_bp.create_sale') }}" class="btn btn-light">
         <i class="fas fa-plus-circle me-1"></i> إنشاء فاتورة
       </a>
     </div>
+
     <div class="card-body bg-light">
-      <form id="filterForm" class="row g-3 mb-4">
+      <form id="filterForm" class="row g-3 mb-4" method="get" action="{{ url_for('sales_bp.list_sales') }}">
         <div class="col-md-3">
           <input type="text" name="invoice_no" class="form-control" placeholder="رقم الفاتورة" value="{{ request.args.get('invoice_no','') }}">
         </div>
         <div class="col-md-3">
-          <input type="text" name="customer" class="form-control" placeholder="اسم العميل" value="{{ request.args.get('customer','') }}">
+          <input type="text" name="customer" class="form-control" placeholder="اسم العميل/الهاتف" value="{{ request.args.get('customer','') }}">
         </div>
         <div class="col-md-2">
           <select name="status" class="form-select">
             <option value="all">كل الحالات</option>
-            {% for st, lbl in status_map.items() %}
-            <option value="{{ st }}" {% if request.args.get('status')==st %}selected{% endif %}>{{ lbl.0 }}</option>
+            {% for st, (lbl, _cls) in status_map.items() %}
+              <option value="{{ st }}" {% if request.args.get('status')==st %}selected{% endif %}>{{ lbl }}</option>
             {% endfor %}
           </select>
         </div>
@@ -40,42 +46,39 @@
       </form>
 
       <div class="table-responsive">
-        <table class="table table-hover">
+        <table class="table table-hover align-middle">
           <thead class="table-light">
             <tr>
               <th>رقم</th>
-              <th>تاريخ</th>
-              <th>عميل</th>
+              <th>التاريخ</th>
+              <th>العميل</th>
               <th>الإجمالي</th>
               <th>مدفوع</th>
               <th>متبقي</th>
-              <th>حالة</th>
-              <th>إجراءات</th>
+              <th>الحالة</th>
+              <th class="text-center">إجراءات</th>
             </tr>
           </thead>
           <tbody>
             {% for sale in sales %}
             <tr>
               <td>{{ sale.sale_number }}</td>
-              <td>{{ sale.date.strftime('%Y-%m-%d') }}</td>
-              <td>{{ sale.customer.name if sale.customer else '-' }}</td>
-              <td>{{ "{:,.2f}".format(sale.total) }} {{ sale.currency }}</td>
-              <td>{{ "{:,.2f}".format(sale.total_paid) }} {{ sale.currency }}</td>
+              <td>{{ sale.date_iso }}</td>
+              <td>{{ sale.customer_name }}</td>
+              <td>{{ "%.2f"|format(sale.total or 0) }} {{ sale.currency }}</td>
+              <td>{{ "%.2f"|format(sale.total_paid or 0) }} {{ sale.currency }}</td>
               <td>
-                <span class="badge {{ 'bg-success' if sale.balance_due==0 else 'bg-danger' }}">
-                  {{ "{:,.2f}".format(sale.balance_due) }} {{ sale.currency }}
+                <span class="badge {{ 'bg-success' if (sale.balance_due or 0) == 0 else 'bg-danger' }}">
+                  {{ "%.2f"|format(sale.balance_due or 0) }} {{ sale.currency }}
                 </span>
               </td>
-              <td>
-                {% set info = status_map.get(sale.status,('', 'bg-secondary')) %}
-                <span class="badge {{ info.1 }}">{{ info.0 }}</span>
-              </td>
-              <td>
+              <td><span class="badge {{ sale.status_class }}">{{ sale.status_label }}</span></td>
+              <td class="text-center">
                 <div class="btn-group">
-                  <a href="{{ url_for('sales.sale_detail',id=sale.id) }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a>
-                  <a href="{{ url_for('sales.edit_sale',id=sale.id) }}" class="btn btn-sm btn-outline-warning"><i class="fas fa-edit"></i></a>
-                  <a href="{{ url_for('sales.generate_invoice',id=sale.id) }}" class="btn btn-sm btn-outline-info"><i class="fas fa-print"></i></a>
-                  <a href="{{ url_for('payments.create_payment',entity_type='sale',entity_id=sale.id) }}" class="btn btn-sm btn-success"><i class="fas fa-money-bill-wave"></i></a>
+                  <a href="{{ url_for('sales_bp.sale_detail', id=sale.id) }}" class="btn btn-sm btn-outline-primary" title="عرض"><i class="fas fa-eye"></i></a>
+                  <a href="{{ url_for('sales_bp.edit_sale', id=sale.id) }}" class="btn btn-sm btn-outline-warning" title="تعديل"><i class="fas fa-edit"></i></a>
+                  <a href="{{ url_for('sales_bp.generate_invoice', id=sale.id) }}" class="btn btn-sm btn-outline-info" title="طباعة"><i class="fas fa-print"></i></a>
+                  <a href="{{ url_for('payments.create_payment', entity_type='SALE', entity_id=sale.id) }}" class="btn btn-sm btn-success" title="إضافة دفعة"><i class="fas fa-money-bill-wave"></i></a>
                 </div>
               </td>
             </tr>
@@ -86,38 +89,36 @@
         </table>
       </div>
 
+      {% if pagination.pages > 1 %}
       <nav class="mt-3">
         <ul class="pagination justify-content-center">
           {% if pagination.has_prev %}
-          <li class="page-item"><a class="page-link" href="{{ url_for('sales.list_sales', page=pagination.prev_num, **request.args) }}">السابق</a></li>
+            <li class="page-item">
+              <a class="page-link" href="{{ url_for('sales_bp.list_sales', page=pagination.prev_num, **request.args) }}">السابق</a>
+            </li>
           {% endif %}
           {% for num in pagination.iter_pages() %}
-          <li class="page-item {% if num==pagination.page %}active{% endif %}">
-            <a class="page-link" href="{{ url_for('sales.list_sales', page=num, **request.args) }}">{{ num }}</a>
-          </li>
+            {% if num %}
+              <li class="page-item {% if num == pagination.page %}active{% endif %}">
+                <a class="page-link" href="{{ url_for('sales_bp.list_sales', page=num, **request.args) }}">{{ num }}</a>
+              </li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
           {% endfor %}
           {% if pagination.has_next %}
-          <li class="page-item"><a class="page-link" href="{{ url_for('sales.list_sales', page=pagination.next_num, **request.args) }}">التالي</a></li>
+            <li class="page-item">
+              <a class="page-link" href="{{ url_for('sales_bp.list_sales', page=pagination.next_num, **request.args) }}">التالي</a>
+            </li>
           {% endif %}
         </ul>
       </nav>
-
+      {% endif %}
     </div>
   </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script>
-$(function(){
-  $('#filterForm').submit(function(e){
-    e.preventDefault();
-    const p=new URLSearchParams($(this).serialize());
-    window.location.href="{{ url_for('sales.list_sales') }}?"+p;
-  });
-  $('#filterForm button[type="reset"]').click(function(){
-    window.location.href="{{ url_for('sales.list_sales') }}";
-  });
-});
-</script>
+  <script src="{{ url_for('static', filename='js/sales.js') }}"></script>
 {% endblock %}

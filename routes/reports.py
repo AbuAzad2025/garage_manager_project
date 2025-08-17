@@ -1,103 +1,132 @@
 # File: routes/reports.py
-
-import json, io, pandas as pd
 from datetime import datetime
-from flask import Blueprint, render_template, request, send_file, jsonify
-from flask_login import login_required, current_user
-from extensions import db
-from forms import UniversalReportForm
-from utils import permission_required
-from reports import advanced_report
-from models import AuditLog
+from flask import Blueprint, render_template, request, jsonify
+from sqlalchemy.orm import class_mapper
+
+from models import (
+    Expense,
+    OnlinePreOrder,
+    Sale,
+    ServiceRequest,
+    Customer,
+)
+from reports import advanced_report, ar_aging_report, sales_report
 
 reports_bp = Blueprint(
-    'reports',
+    "reports_bp",
     __name__,
-    url_prefix='/reports',
-    template_folder='../templates/reports'
+    url_prefix="/reports",
+    template_folder="templates/reports",
 )
 
-def log_report_generation(user_id, model, filters, summary):
-    db.session.add(AuditLog(
-        user_id=user_id,
-        action='generate_report',
-        new_data=json.dumps(
-            {'model': model, 'filters': filters, 'summary': summary},
-            ensure_ascii=False
-        )
-    ))
-    db.session.commit()
+_MODEL_LOOKUP = {
+    "Expense": Expense,
+    "Shop": OnlinePreOrder,
+    "Sale": Sale,
+    "Service": ServiceRequest,
+    "AR_Aging": Customer,
+}
 
-@reports_bp.route('/', endpoint='index')
-@login_required
-@permission_required('view_reports')
-def index():
-    model_names = ['Customer', 'Sale', 'Expense', 'ServiceRequest', 'OnlinePreOrder']
-    return render_template('reports/index.html', model_names=model_names)
+def _parse_date(s: str | None):
+    if not s:
+        return None
+    try:
+        return datetime.strptime(s, "%Y-%m-%d").date()
+    except Exception:
+        return None
 
-@reports_bp.route('/dynamic', methods=['GET', 'POST'], endpoint='dynamic_report')
-@login_required
-@permission_required('view_reports')
+@reports_bp.route("/", methods=["GET"], endpoint="universal")
+def universal():
+    model_names = list(_MODEL_LOOKUP.keys())
+    return render_template("reports/index.html", model_names=model_names)
+
+@reports_bp.route("/custom", methods=["GET"], endpoint="custom")
+def custom():
+    model_names = list(_MODEL_LOOKUP.keys())
+    return render_template("reports/index.html", model_names=model_names)
+
+@reports_bp.route("/dynamic", methods=["POST", "GET"], endpoint="dynamic_report")
 def dynamic_report():
-    form = UniversalReportForm()
-    data, summary, columns = [], {}, []
-    if form.validate_on_submit():
-        try:
-            result = advanced_report(
-                model=form.get_model(),
-                date_field=form.date_field.data,
-                start_date=form.start_date.data,
-                end_date=form.end_date.data,
-                filters=form.get_filters(),
-                columns=form.selected_fields.data,
-                aggregates=form.get_aggregates()
-            )
-            data, summary = result['data'], result['summary']
-            columns = list(data[0].keys()) if data else []
-            log_report_generation(
-                current_user.id,
-                form.table.data,
-                form.get_filters(),
-                summary
-            )
-            if 'export_excel' in request.form:
-                df = pd.DataFrame(data)
-                output = io.BytesIO()
-                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                    df.to_excel(writer, index=False, sheet_name='Data')
-                    if summary:
-                        pd.DataFrame([summary]).to_excel(
-                            writer, index=False, sheet_name='Summary'
-                        )
-                output.seek(0)
-                return send_file(
-                    output,
-                    download_name=f"report_{datetime.now():%Y%m%d_%H%M%S}.xlsx",
-                    as_attachment=True
-                )
-        except Exception as e:
-            return render_template(
-                'reports/dynamic_report.html',
-                form=form,
-                error=str(e)
-            )
+    model_names = list(_MODEL_LOOKUP.keys())
+
+    if request.method == "POST":
+        model_name = request.form.get("table")
+        start_raw = request.form.get("start_date")
+        end_raw = request.form.get("end_date")
+        start_date = _parse_date(start_raw)
+        end_date = _parse_date(end_raw)
+
+        like_filters = {
+            k: v
+            for k, v in request.form.items()
+            if k not in ("table", "date_field", "start_date", "end_date", "csrf_token", "selected_fields")
+            and v not in (None, "")
+        }
+
+        rpt = advanced_report(
+            model=_MODEL_LOOKUP.get(model_name),
+            date_field=request.form.get("date_field") or None,
+            start_date=start_date,
+            end_date=end_date,
+            filters=None,
+            like_filters=like_filters,
+            columns=request.form.getlist("selected_fields"),
+            aggregates={"count": ["id"]},
+        )
+        return render_template(
+            "reports/dynamic.html",
+            data=rpt.get("data"),
+            summary=rpt.get("summary"),
+            columns=request.form.getlist("selected_fields"),
+            model_names=model_names,
+            selected_table=model_name,
+            start_date=start_raw,
+            end_date=end_raw,
+        )
+
     return render_template(
-        'reports/dynamic_report.html',
-        form=form,
-        data=data,
-        summary=summary,
-        columns=columns
+        "reports/dynamic.html",
+        data=None,
+        summary=None,
+        columns=[],
+        model_names=model_names,
+        selected_table=model_names[0] if model_names else None,
+        start_date="",
+        end_date="",
     )
 
-@reports_bp.route('/api/model_fields')
-@login_required
-@permission_required('view_reports')
-def api_model_fields():
-    try:
-        return jsonify(
-            UniversalReportForm.get_model_metadata(
-                request.args.get('model')
-            )
-        )
-    except Exception:
-        return jsonify([])
+@reports_bp.route("/sales", methods=["GET"])
+def sales():
+    start = _parse_date(request.args.get("start"))
+    end = _parse_date(request.args.get("end"))
+    rpt = sales_report(start, end)
+    return render_template("reports/sales.html", **rpt)
+
+@reports_bp.route("/ar-aging", methods=["GET"])
+def ar_aging():
+    start = _parse_date(request.args.get("start"))
+    end = _parse_date(request.args.get("end"))
+    rpt = ar_aging_report(start_date=start, end_date=end)
+    return render_template(
+        "reports/ar_aging.html",
+        data=rpt.get("data", []),
+        totals=rpt.get("totals", {}),
+        as_of=rpt.get("as_of"),
+        start=request.args.get("start", ""),
+        end=request.args.get("end", ""),
+    )
+
+@reports_bp.route("/api/model_fields", methods=["GET"])
+def model_fields():
+    model_name = request.args.get("model", "").strip()
+    if not model_name:
+        return jsonify({"models": list(_MODEL_LOOKUP.keys())}), 200
+
+    model = _MODEL_LOOKUP.get(model_name)
+    if not model:
+        return jsonify({"error": "Unknown model", "models": list(_MODEL_LOOKUP.keys())}), 404
+
+    mapper = class_mapper(model)
+    columns = [col.key for col in mapper.columns]
+    date_fields = [c for c in columns if "date" in c]
+    return jsonify({"columns": columns, "date_fields": date_fields}), 200

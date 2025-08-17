@@ -1,131 +1,141 @@
-from flask import Blueprint, flash, redirect, render_template, request, url_for, abort
-from flask_login import login_required
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import joinedload
-
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, abort
+from flask_login import login_required, current_user
+from sqlalchemy.exc import IntegrityError
 from extensions import db
+from models import Role, Permission, AuditLog
 from forms import RoleForm
-from models import Permission, Role, User
-from utils import permission_required, clear_user_permission_cache
+from utils import permission_required, clear_role_permission_cache
 
-roles_bp = Blueprint(
-    'roles',
-    __name__,
-    template_folder='templates/roles'
-)
+roles_bp = Blueprint('roles', __name__, url_prefix='/roles')
 
-@roles_bp.route('/', methods=['GET'], endpoint='list')
+
+def _get_or_404(model, ident):
+    obj = db.session.get(model, ident)
+    if obj is None:
+        abort(404)
+    return obj
+
+
+@roles_bp.route('/', methods=['GET'], endpoint='list_roles')
 @login_required
 @permission_required('manage_roles')
-def list():
-    roles = (
-        Role.query
-            .options(joinedload(Role.permissions))
-            .order_by(Role.name)
-            .all()
-    )
-    return render_template('roles/list.html', roles=roles)
+def list_roles():
+    q = Role.query
+    search = request.args.get('search', '')
+    if search:
+        q = q.filter(Role.name.ilike(f"%{search}%"))
+    roles = q.order_by(Role.name).all()
+    return render_template('roles/list.html', roles=roles, search=search)
 
-@roles_bp.route('/create', methods=['GET', 'POST'], endpoint='create')
+
+@roles_bp.route('/create', methods=['GET', 'POST'], endpoint='create_role')
 @login_required
 @permission_required('manage_roles')
-def create():
+def create_role():
     form = RoleForm()
-    all_permissions = Permission.query.order_by(Permission.name).all()
+    form.permissions.query = Permission.query.order_by(Permission.name).all()
     if form.validate_on_submit():
         try:
-            role = Role(
-                name=form.name.data,
-                description=form.description.data
-            )
-            selected = Permission.query.filter(
-                Permission.id.in_(form.permissions.data)
-            ).all()
-            role.permissions = selected
+            role = Role(name=form.name.data)
+            role.permissions = form.permissions.data
             db.session.add(role)
             db.session.commit()
-
-            # مسح كاش صلاحيات جميع المستخدمين
-            for (user_id,) in User.query.with_entities(User.id).all():
-                clear_user_permission_cache(user_id)
-
-            flash('تم إضافة الدور بنجاح.', 'success')
-            return redirect(url_for('roles.list'))
+            db.session.add(AuditLog(
+                model_name='Role',
+                record_id=role.id,
+                user_id=current_user.id,
+                action='CREATE',
+                old_data='',
+                new_data=f'name={role.name}'
+            ))
+            db.session.commit()
+            flash('تم إنشاء الدور بنجاح.', 'success')
+            return redirect(url_for('roles.list_roles'))
         except IntegrityError:
             db.session.rollback()
-            flash('اسم الدور مستخدم.', 'danger')
-        except SQLAlchemyError as e:
-            db.session.rollback()
-            flash(f'خطأ أثناء الإضافة: {e}', 'danger')
-    return render_template(
-        'roles/form.html',
-        form=form,
-        role_id=None,
-        all_permissions=all_permissions
-    )
+            flash('اسم الدور مستخدم بالفعل.', 'danger')
+    return render_template('roles/form.html', form=form, action='create')
 
-@roles_bp.route('/<int:role_id>/edit', methods=['GET', 'POST'], endpoint='edit')
+
+@roles_bp.route('/<int:role_id>/edit', methods=['GET', 'POST'], endpoint='edit_role')
 @login_required
 @permission_required('manage_roles')
-def edit(role_id):
-    role = Role.query.get_or_404(role_id)
+def edit_role(role_id):
+    role = _get_or_404(Role, role_id)
+    
+    # منع تعديل اسم الأدوار المحمية
+    protected_names = ['admin', 'super_admin']
+    is_protected = role.name in protected_names
+
     form = RoleForm(obj=role)
-    all_permissions = Permission.query.order_by(Permission.name).all()
+    form.permissions.query = Permission.query.order_by(Permission.name).all()
+
     if request.method == 'GET':
-        form.permissions.data = [p.id for p in role.permissions]
+        form.permissions.data = role.permissions
+
     if form.validate_on_submit():
         try:
+            # إذا الدور محمي، نمنع تغيير الاسم
+            if is_protected and form.name.data != role.name:
+                flash('لا يمكن تعديل اسم هذا الدور المحمي.', 'danger')
+                return render_template('roles/form.html', form=form, action='edit')
+
+            old_data = f"name={role.name}"
             role.name = form.name.data
-            role.description = form.description.data
-            selected = Permission.query.filter(
-                Permission.id.in_(form.permissions.data)
-            ).all()
-            role.permissions = selected
+            role.permissions = form.permissions.data
+
+            db.session.commit()
+            clear_role_permission_cache(role.id)
+
+            db.session.add(AuditLog(
+                model_name='Role',
+                record_id=role.id,
+                user_id=current_user.id,
+                action='UPDATE',
+                old_data=old_data,
+                new_data=f'name={role.name}'
+            ))
             db.session.commit()
 
-            # مسح كاش صلاحيات جميع المستخدمين
-            for (user_id,) in User.query.with_entities(User.id).all():
-                clear_user_permission_cache(user_id)
+            flash('تم تعديل الدور بنجاح.', 'success')
+            return redirect(url_for('roles.list_roles'))
 
-            flash('تم تحديث الدور.', 'success')
-            return redirect(url_for('roles.list'))
         except IntegrityError:
             db.session.rollback()
-            flash('اسم الدور مستخدم.', 'danger')
-        except SQLAlchemyError as e:
-            db.session.rollback()
-            flash(f'خطأ أثناء التحديث: {e}', 'danger')
-    return render_template(
-        'roles/form.html',
-        form=form,
-        role_id=role_id,
-        all_permissions=all_permissions
-    )
+            flash('اسم الدور مستخدم بالفعل.', 'danger')
 
-@roles_bp.route('/<int:role_id>/delete', methods=['POST'], endpoint='delete')
+    return render_template('roles/form.html', form=form, action='edit')
+
+
+@roles_bp.route('/<int:role_id>/delete', methods=['POST'], endpoint='delete_role')
 @login_required
 @permission_required('manage_roles')
-def delete(role_id):
-    role = Role.query.get_or_404(role_id)
-    # منع حذف الأدوار الأساسية
-    if role.name.lower() in ['developer', 'manager']:
-        flash('❌ لا يمكن حذف دور أساسي للنظام.', 'danger')
-        return redirect(url_for('roles.list'))
-    if request.method != 'POST':
-        abort(405)
+def delete_role(role_id):
+    role = _get_or_404(Role, role_id)
+
+    # منع حذف الأدوار المحمية
+    if role.name in ['admin', 'super_admin']:
+        flash('لا يمكن حذف هذا الدور.', 'danger')
+        return redirect(url_for('roles.list_roles'))
+
     try:
         db.session.delete(role)
         db.session.commit()
+        clear_role_permission_cache(role_id)
 
-        # مسح كاش صلاحيات جميع المستخدمين
-        for (user_id,) in User.query.with_entities(User.id).all():
-            clear_user_permission_cache(user_id)
+        db.session.add(AuditLog(
+            model_name='Role',
+            record_id=role.id,
+            user_id=current_user.id,
+            action='DELETE',
+            old_data=f'name={role.name}',
+            new_data=''
+        ))
+        db.session.commit()
 
         flash('تم حذف الدور.', 'warning')
     except IntegrityError:
         db.session.rollback()
-        flash('لا يمكن حذف الدور لارتباطه بمستخدمين أو صلاحيات.', 'danger')
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        flash(f'خطأ أثناء الحذف: {e}', 'danger')
-    return redirect(url_for('roles.list'))
+        flash('لا يمكن حذف هذا الدور بسبب ارتباطه ببيانات أخرى.', 'danger')
+
+    return redirect(url_for('roles.list_roles'))

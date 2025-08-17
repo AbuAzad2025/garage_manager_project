@@ -1,12 +1,11 @@
 <!DOCTYPE html>
-<html dir="rtl">
+<html dir="rtl" lang="ar">
 <head>
   <meta charset="utf-8">
   <title>وصل دفع #{{ payment.id }}</title>
   <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; }
+    body { font-family: Arial, sans-serif; line-height: 1.6; direction: rtl; text-align: right; }
     .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-    .header h1 { margin: 0; color: #2c3e50; }
     .company-info { margin-bottom: 30px; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
     th, td { border: 1px solid #ddd; padding: 8px; text-align: right; }
@@ -26,53 +25,59 @@
     <p><strong>شركة:</strong> شركة المتجر الذكي</p>
     <p><strong>عنوان:</strong> غزة، فلسطين</p>
     <p><strong>هاتف:</strong> 123456789</p>
-    <p><strong>تاريخ:</strong> {{ now.strftime('%Y-%m-%d %H:%M') }}</p>
+    <p><strong>تاريخ الطباعة:</strong> {{ now.strftime('%Y-%m-%d %H:%M') }}</p>
   </div>
 
+  {% set method_main = payment.method.value if payment.method and payment.method.value else payment.method %}
+  {% set status_main = payment.status.value if payment.status and payment.status.value else payment.status %}
+  {% set dir_main    = payment.direction.value if payment.direction and payment.direction.value else payment.direction %}
+
   <table>
-    <tr><th>المبلغ الكلي</th><td>{{ payment.total_amount }} {{ payment.currency }}</td></tr>
-    <tr><th>التاريخ</th><td>{{ payment.payment_date.strftime('%Y-%m-%d %H:%M') }}</td></tr>
-    <tr><th>الطريقة</th><td>{{ payment.method }}</td></tr>
-    <tr><th>الجهة</th><td>
-      {% if payment.entity_type=='customer' and payment.customer %}عميل: {{ payment.customer.name }}
-      {% elif payment.entity_type=='supplier' and payment.supplier %}مورد: {{ payment.supplier.name }}
-      {% else %}{{ payment.entity_type }}{% endif %}
-    </td></tr>
-    <tr><th>الحالة</th><td>{{ payment.status }}</td></tr>
-    <tr><th>الاتجاه</th><td>{{ 'وارد' if payment.direction=='IN' else 'صادر' }}</td></tr>
-    <tr><th>المرجع</th><td>{{ payment.reference or '---' }}</td></tr>
-    <tr><th>الملاحظات</th><td>{{ payment.notes or '---' }}</td></tr>
+    <tr><th>المبلغ الكلي</th><td>{{ '%.2f'|format(payment.total_amount or 0) }} {{ payment.currency }}</td></tr>
+    <tr><th>التاريخ</th><td>{{ payment.payment_date and payment.payment_date.strftime('%Y-%m-%d') or '—' }}</td></tr>
+    <tr><th>طريقة الدفع (رئيسية)</th><td>{{ method_main or '—' }}</td></tr>
+    <tr><th>الجهة</th><td>{{ payment.entity_label() or (payment.entity_type|capitalize) }}</td></tr>
+    <tr><th>الحالة</th><td>{{ status_main }}</td></tr>
+    <tr><th>الاتجاه</th><td>{{ 'وارد' if dir_main in ['IN','INCOMING'] else 'صادر' }}</td></tr>
+    <tr><th>المرجع</th><td>{{ payment.reference or '—' }}</td></tr>
+    <tr><th>الملاحظات</th><td>{{ payment.notes or '—' }}</td></tr>
   </table>
 
-  <h3>تفاصيل الدفعات الجزئية:</h3>
+  <h3>💳 تفاصيل الدفعات الجزئية:</h3>
   <table>
     <thead>
       <tr><th>#</th><th>المبلغ</th><th>طريقة</th><th>تفاصيل</th></tr>
     </thead>
     <tbody>
       {% for split in payment.splits %}
+      {% set m = split.method.value if split.method and split.method.value else split.method %}
+      {% set d = split.details or {} %}
       <tr>
         <td>{{ loop.index }}</td>
-        <td>{{ split.amount }} {{ payment.currency }}</td>
-        <td>{{ split.method }}</td>
+        <td>{{ '%.2f'|format(split.amount or 0) }} {{ payment.currency }}</td>
+        <td>{{ (m or '—')|upper }}</td>
         <td>
-          {% if split.method=='cheque' and split.details %}
-            رقم شيك: {{ split.details.check_number }}<br>
-            بنك: {{ split.details.check_bank }}<br>
-            استحقاق: {{ split.details.due_date }}
-          {% elif split.method=='bank' and split.details %}
-            تحويل: {{ split.details.bank_transfer_ref }}
-          {% elif split.method=='card' and split.details %}
-            بطاقة: {{ split.details.card_number }}
+          {% if m == 'cheque' %}
+            رقم شيك: {{ d.get('check_number','—') }}<br>
+            بنك: {{ d.get('check_bank','—') }}<br>
+            استحقاق: {{ d.get('check_due_date') or d.get('due_date') or '—' }}
+          {% elif m == 'bank' %}
+            تحويل: {{ d.get('bank_transfer_ref','—') }}
+          {% elif m == 'card' %}
+            بطاقة: ****{{ (d.get('card_number','')|string)[-4:] }}<br>
+            حامل: {{ d.get('card_holder','—') }}<br>
+            انتهاء: {{ d.get('card_expiry','—') }}
+          {% elif m == 'online' %}
+            دفع إلكتروني ({{ d.get('gateway','—') }})
           {% else %}
-            ---
+            —
           {% endif %}
         </td>
       </tr>
       {% endfor %}
       <tr class="total-row">
         <td colspan="3">المجموع</td>
-        <td>{{ payment.total_amount }} {{ payment.currency }}</td>
+        <td>{{ '%.2f'|format(payment.total_amount or 0) }} {{ payment.currency }}</td>
       </tr>
     </tbody>
   </table>

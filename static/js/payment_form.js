@@ -1,108 +1,135 @@
 // File: static/js/payment_form.js
-document.addEventListener('DOMContentLoaded', function() {
-  // تحديث حقول الكيان ديناميكياً بناءً على النوع والقيمة الحالية
-  const entityTypeSelect = document.querySelector('#entity_type');
-  const entityIdHidden = document.querySelector('#current_entity_id');
+document.addEventListener('DOMContentLoaded', function () {
+  const MAX_SPLITS = 3;
 
-  function updateEntityFields() {
-    if (!entityTypeSelect) return;
-    const type = entityTypeSelect.value;
-    const id = entityIdHidden ? entityIdHidden.value : '';
-    fetch(`/payments/entity-fields?type=${encodeURIComponent(type)}&entity_id=${encodeURIComponent(id)}`)
-      .then(res => res.text())
-      .then(html => {
-        document.querySelector('#entityFields').innerHTML = html;
-        initEntityFields();
-      });
+  const container  = document.getElementById('splitsContainer');
+  const addBtn     = document.getElementById('addSplit');
+  const form       = document.getElementById('paymentForm');
+  const template   = container.querySelector('.split-form')?.cloneNode(true);
+  const entityWrap = document.getElementById('entityFields');
+  const totalInput = document.querySelector('[name="total_amount"]');
+
+  function toggleAddBtn() {
+    const count = container.querySelectorAll('.split-form').length;
+    if (addBtn) addBtn.disabled = count >= MAX_SPLITS;
   }
 
-  if (entityTypeSelect) {
-    entityTypeSelect.addEventListener('change', updateEntityFields);
+  function refreshSplits() {
+    container.querySelectorAll('.split-form').forEach((el, i) => {
+      el.dataset.index = i;
+      const title = el.querySelector('h5');
+      if (title) title.textContent = `الدفعة الجزئية #${i + 1}`;
+      el.querySelectorAll('input,select,textarea').forEach(inp => {
+        if (!inp.name) return;
+        const parts = inp.name.split('-');
+        const field = parts.pop();
+        inp.name = `splits-${i}-${field}`;
+        inp.id   = `splits-${i}-${field}`;
+      });
+      const btn = el.querySelector('.remove-split');
+      if (btn) btn.disabled = (i === 0);
+    });
+    toggleAddBtn();
+    updateSplitSumHint();
   }
 
-  // إضافة دفعة جزئية جديدة عبر استنساخ النموذج الأخير
-  const addSplitBtn = document.querySelector('#addSplit');
-  if (addSplitBtn) {
-    addSplitBtn.addEventListener('click', function() {
-      const container = document.querySelector('#splitsContainer');
-      const splitForms = container.querySelectorAll('.split-form');
-      const lastForm = splitForms[splitForms.length - 1];
-      const newForm = lastForm.cloneNode(true);
-      const index = splitForms.length + 1;
+  function createSplitElement() {
+    const idx   = container.querySelectorAll('.split-form').length;
+    const clone = template.cloneNode(true);
+    clone.dataset.index = idx;
+    clone.querySelectorAll('input,select,textarea').forEach(el => {
+      if (el.tagName === 'SELECT') el.selectedIndex = 0;
+      else el.value = '';
+      if (!el.name) return;
+      const parts = el.name.split('-');
+      const field = parts.pop();
+      el.name = `splits-${idx}-${field}`;
+      el.id   = `splits-${idx}-${field}`;
+    });
+    const details = clone.querySelector('.split-details');
+    if (details) details.style.display = 'none';
+    return clone;
+  }
 
-      // تحديث العنوان والحقول
-      newForm.querySelector('h5').textContent = `الدفعة الجزئية #${index}`;
-      newForm.querySelectorAll('input, select, textarea').forEach(input => {
-        if (input.type === 'checkbox') {
-          input.checked = false;
-        } else {
-          input.value = '';
-        }
-        if (input.name) {
-          input.name = input.name.replace(/splits-\d+-/, `splits-${index - 1}-`);
-        }
-        if (input.id) {
-          input.id = input.id.replace(/splits-\d+-/, `splits-${index - 1}-`);
-        }
-      });
+  function showHideDetails(selectEl) {
+    const wrapper = selectEl.closest('.split-form');
+    const details = wrapper?.querySelector('.split-details');
+    if (!details) return;
+    const v = (selectEl.value || '').toLowerCase();
+    details.style.display = ['cheque', 'bank', 'card'].includes(v) ? 'block' : 'none';
+  }
 
-      attachSplitEvents(newForm);
+  function updateSplitSumHint() {
+    if (!totalInput) return;
+    const hint = document.getElementById('splitSum') || (() => {
+      const small = document.createElement('div');
+      small.className = 'form-text';
+      small.id = 'splitSum';
+      totalInput.parentElement.appendChild(small);
+      return small;
+    })();
 
-      // تمكين زر الحذف للنموذج الجديد
-      const removeBtn = newForm.querySelector('.remove-split');
-      if (removeBtn) removeBtn.disabled = false;
+    let sum = 0;
+    container.querySelectorAll('.split-form').forEach(el => {
+      const val = parseFloat((el.querySelector('[name$="-amount"]')?.value || '').replace(',', '.')) || 0;
+      sum += val;
+    });
 
-      container.appendChild(newForm);
-      reindexSplits();
+    const total = parseFloat((totalInput.value || '').replace(',', '.')) || 0;
+    hint.textContent = `مجموع الدفعات الجزئية: ${sum.toFixed(2)} — المبلغ الكلي: ${total.toFixed(2)}`;
+    hint.style.color = Math.abs(sum - total) < 0.01 ? '' : '#b02a37';
+  }
+
+  if (addBtn) {
+    addBtn.addEventListener('click', () => {
+      const count = container.querySelectorAll('.split-form').length;
+      if (count >= MAX_SPLITS) return;
+      container.appendChild(createSplitElement());
+      refreshSplits();
     });
   }
 
-  // إعادة ترقيم عناوين الدفعات الجزئية بعد حذف أو إضافة
-  function reindexSplits() {
-    document.querySelectorAll('.split-form').forEach((form, idx) => {
-      form.querySelector('h5').textContent = `الدفعة الجزئية #${idx + 1}`;
-    });
-  }
-
-  // ربط أحداث لكل نموذج دفعة جزئية (عرض التفاصيل أو حذف)
-  function attachSplitEvents(splitForm) {
-    const methodSelect = splitForm.querySelector('select[name$="method"]');
-    const detailsDiv = splitForm.querySelector('.split-details');
-    if (methodSelect && detailsDiv) {
-      methodSelect.addEventListener('change', function() {
-        detailsDiv.style.display = (this.value === 'check') ? 'block' : 'none';
-      });
-      detailsDiv.style.display = (methodSelect.value === 'check') ? 'block' : 'none';
+  container.addEventListener('click', e => {
+    if (e.target.matches('.remove-split')) {
+      e.preventDefault();
+      const row = e.target.closest('.split-form');
+      if (!row) return;
+      row.remove();
+      refreshSplits();
     }
-    const removeBtn = splitForm.querySelector('.remove-split');
-    if (removeBtn) {
-      removeBtn.addEventListener('click', function() {
-        if (document.querySelectorAll('.split-form').length > 1) {
-          splitForm.remove();
-          reindexSplits();
-        }
-      });
-    }
-  }
+  });
 
-  // تهيئة جميع نماذج السبلت الموجودة عند التحميل
-  function initSplitForms() {
-    document.querySelectorAll('.split-form').forEach(attachSplitEvents);
-  }
+  container.addEventListener('change', e => {
+    if (e.target.matches('select')) showHideDetails(e.target);
+    if (e.target.matches('[name$="-amount"]')) updateSplitSumHint();
+    if (e.target.matches('[name$="-method"]')) updateSplitSumHint();
+  });
 
-  // ربط أحداث الحقول الديناميكية للكيان (customer، supplier، ...)
-  function initEntityFields() {
-    document.querySelectorAll('#entityFields select').forEach(select => {
-      select.addEventListener('change', function() {
-        const hidden = this.closest('.mb-3').querySelector('input[name="entity_id"]');
-        if (hidden) hidden.value = this.value;
-        if (entityIdHidden) entityIdHidden.value = this.value;
+  if (totalInput) totalInput.addEventListener('input', updateSplitSumHint);
+
+  const entityTypeSelect = document.querySelector('[name="entity_type"]');
+  function reloadEntityFields() {
+    if (!entityTypeSelect || !entityWrap) return;
+    const type = entityTypeSelect.value || '';
+    const eid  = document.getElementById('entity_id')?.value || '';
+    fetch(`/payments/entity-fields?type=${encodeURIComponent(type)}&entity_id=${encodeURIComponent(eid)}`)
+      .then(r => r.text())
+      .then(html => { entityWrap.innerHTML = html; })
+      .catch(() => {});
+  }
+  if (entityTypeSelect) entityTypeSelect.addEventListener('change', reloadEntityFields);
+
+  if (form) {
+    form.addEventListener('submit', () => {
+      container.querySelectorAll('.split-form').forEach(el => {
+        const m = (el.querySelector('[name$="-method"]')?.value || '').trim();
+        const a = (el.querySelector('[name$="-amount"]')?.value || '').trim();
+        if (!m && !a) el.remove();
       });
+      refreshSplits();
     });
   }
 
-  // التهيئة الأولية
-  updateEntityFields();
-  initSplitForms();
-  initEntityFields();
+  container.querySelectorAll('.split-form select').forEach(sel => showHideDetails(sel));
+  refreshSplits();
 });

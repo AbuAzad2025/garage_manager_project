@@ -1,145 +1,144 @@
-{# File: templates/warehouses/detail.html #}
 {% extends 'warehouses/base.html' %}
-{% block title %}تفاصيل المخزن{% endblock %}
+{% block title %}تفاصيل المستودع: {{ warehouse.name }}{% endblock %}
+{% block page_title %}تفاصيل المستودع: {{ warehouse.name }}{% endblock %}
 
-{% block warehouses_content %}
+{% block content %}
 <div class="row">
-
-  <!-- معلومات المخزن -->
-  <div class="col-md-4">
-    <div class="card shadow-sm">
-      <div class="card-header bg-primary text-white">
-        <h5 class="mb-0">معلومات المخزن</h5>
-      </div>
+  <!-- معلومات المستودع -->
+  <div class="col-md-5">
+    <div class="card">
       <div class="card-body">
-        <dl class="row small mb-0">
-          <dt class="col-sm-4">الاسم</dt>
-          <dd class="col-sm-8">{{ warehouse.name }}</dd>
-
-          <dt class="col-sm-4">النوع</dt>
-          <dd class="col-sm-8">{{ warehouse.warehouse_type_display }}</dd>
-
-          <dt class="col-sm-4">الموقع</dt>
-          <dd class="col-sm-8">{{ warehouse.location or '—' }}</dd>
-
-          <dt class="col-sm-4">المخزن الأب</dt>
-          <dd class="col-sm-8">
-            {{ warehouse.parent.name if warehouse.parent else '—' }}
-          </dd>
-
-          <dt class="col-sm-4">الشريك</dt>
-          <dd class="col-sm-8">
-            {{ warehouse.partner.name if warehouse.partner else '—' }}
-          </dd>
-
-          <dt class="col-sm-4">نسبة الشريك</dt>
-          <dd class="col-sm-8">{{ warehouse.share_percent or 0 }}%</dd>
-
-          <dt class="col-sm-4">الحالة</dt>
-          <dd class="col-sm-8">
-            <span class="badge {{ 'bg-success' if warehouse.is_active else 'bg-secondary' }}">
-              {{ 'مفعل' if warehouse.is_active else 'غير مفعل' }}
-            </span>
-          </dd>
-        </dl>
-
-        {% if current_user.has_permission('manage_warehouses') %}
-          <a href="{{ url_for('warehouses.edit_warehouse', warehouse_id=warehouse.id) }}"
-             class="btn btn-warning w-100 mt-3">
-            <i class="fa fa-edit"></i> تعديل
-          </a>
-        {% endif %}
-
-        {% if current_user.has_permission('manage_inventory') %}
-          <a href="{{ url_for('warehouses.create_warehouse_shipment', warehouse_id=warehouse.id) }}"
-             class="btn btn-outline-success w-100 mt-2">
-            <i class="fas fa-truck-loading"></i> إدخال شحنة
-          </a>
-        {% endif %}
+        <h5 class="mb-3">معلومات المستودع</h5>
+        <ul class="list-group">
+          <li class="list-group-item"><strong>الاسم:</strong> {{ warehouse.name }}</li>
+          <li class="list-group-item"><strong>النوع:</strong> {{ warehouse.warehouse_type }}</li>
+          <li class="list-group-item"><strong>الموقع:</strong> {{ warehouse.location or '-' }}</li>
+          <li class="list-group-item"><strong>السعة:</strong> {{ warehouse.capacity or '-' }}</li>
+          <li class="list-group-item"><strong>الحالة:</strong> {{ 'نشط' if warehouse.is_active else 'غير نشط' }}</li>
+        </ul>
       </div>
     </div>
   </div>
 
-  <!-- المخزون والتحويلات -->
-  <div class="col-md-8">
+  <!-- نماذج التحديث السريعة -->
+  <div class="col-md-7">
+    <div class="card">
+      <div class="card-body">
+        <!-- تحديث المخزون -->
+        <h5>تحديث مستويات المخزون</h5>
+        <form class="stock-level-form" action="{{ url_for('warehouse_bp.ajax_update_stock', warehouse_id=warehouse.id) }}" method="POST" novalidate>
+          {{ stock_form.hidden_tag() }}
+          <div class="row">
+            <div class="col-md-6 mb-2">
+              {{ stock_form.product_id.label }} {{ stock_form.product_id(class="form-control") }}
+              {% for err in stock_form.product_id.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+            </div>
+            <div class="col-md-3 mb-2">
+              {{ stock_form.quantity.label }} {{ stock_form.quantity(class="form-control") }}
+              {% for err in stock_form.quantity.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+            </div>
+            <div class="col-md-3 mb-2">
+              {{ stock_form.min_stock.label }} {{ stock_form.min_stock(class="form-control") }}
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-3 mb-2">
+              {{ stock_form.max_stock.label }} {{ stock_form.max_stock(class="form-control") }}
+            </div>
+          </div>
+          <button type="submit" class="btn btn-success">تحديث</button>
+        </form>
 
-    <!-- المخزون الحالي -->
-    <div class="card shadow-sm mb-4">
-      <div class="card-header bg-info text-white">
-        <h5 class="mb-0">المخزون الحالي</h5>
-      </div>
-      <div class="card-body p-0">
-        <table class="table table-striped mb-0 small">
-          <thead class="table-light">
-            <tr>
-              <th>القطعة</th>
-              <th class="text-center">الكمية</th>
-              <th class="text-center">الحد الأدنى</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for p in stock_levels %}
-              <tr>
-                <td>{{ p.product.name }}</td>
-                <td class="text-center">{{ p.quantity }}</td>
-                <td class="text-center">{{ p.min_stock or '—' }}</td>
-              </tr>
-            {% else %}
-              <tr>
-                <td colspan="3" class="text-center text-muted">لا توجد بيانات</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+        <hr>
+
+        <!-- تحويل المخزون -->
+        <h5>إجراء تحويل</h5>
+        <form id="transfer-form" action="{{ url_for('warehouse_bp.ajax_transfer', warehouse_id=warehouse.id) }}" method="POST" novalidate>
+          {{ transfer_form.hidden_tag() }}
+          {# إخفاء الاتجاه لو الفورم يعتمد عليه #}
+          {% if transfer_form.direction %}{{ transfer_form.direction(type="hidden") }}{% endif %}
+          <div class="row">
+            <div class="col-md-4 mb-2">
+              {{ transfer_form.product_id.label }} {{ transfer_form.product_id(class="form-control") }}
+              {% for err in transfer_form.product_id.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+            </div>
+            <div class="col-md-4 mb-2">
+              {{ transfer_form.source_id.label }} {{ transfer_form.source_id(class="form-control") }}
+            </div>
+            <div class="col-md-4 mb-2">
+              {{ transfer_form.destination_id.label }} {{ transfer_form.destination_id(class="form-control") }}
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-3 mb-2">
+              {{ transfer_form.quantity.label }} {{ transfer_form.quantity(class="form-control") }}
+              {% for err in transfer_form.quantity.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+            </div>
+            <div class="col-md-9 mb-2">
+              {{ transfer_form.notes.label }} {{ transfer_form.notes(class="form-control") }}
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary">تنفيذ التحويل</button>
+        </form>
       </div>
     </div>
-
-    <!-- التحويلات (آخر 20) -->
-    <div class="card shadow-sm mb-4">
-      <div class="card-header bg-secondary text-white">
-        <h6 class="mb-0">التحويلات (آخر 20)</h6>
-      </div>
-      <div class="card-body p-0">
-        <table class="table table-sm table-hover mb-0 small">
-          <thead class="table-light">
-            <tr>
-              <th>الصنف</th>
-              <th>من</th>
-              <th>إلى</th>
-              <th class="text-center">الكمية</th>
-              <th>التاريخ</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for t in transfers_in[:10] %}
-              <tr>
-                <td>{{ t.product.name }}</td>
-                <td>{{ t.source_warehouse.name }}</td>
-                <td>{{ t.destination_warehouse.name }}</td>
-                <td class="text-center">{{ t.quantity }}</td>
-                <td>{{ t.transfer_date.strftime('%Y-%m-%d') }}</td>
-              </tr>
-            {% endfor %}
-            {% for t in transfers_out[:10] %}
-              <tr class="table-warning">
-                <td>{{ t.product.name }}</td>
-                <td>{{ t.source_warehouse.name }}</td>
-                <td>{{ t.destination_warehouse.name }}</td>
-                <td class="text-center">{{ t.quantity }}</td>
-                <td>{{ t.transfer_date.strftime('%Y-%m-%d') }}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    {% if current_user.has_permission('manage_inventory') %}
-      <div class="alert alert-info small">
-        <i class="fas fa-info-circle"></i> لاستخدام الشحنات والتحويلات، اضغط الأزرار أعلاه.
-      </div>
-    {% endif %}
-
   </div>
 </div>
+
+<hr>
+
+<!-- الشحنات المرتبطة -->
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <h4 class="mb-0">الشحنات</h4>
+  <a href="{{ url_for('shipments_bp.create_shipment', destination_id=warehouse.id) }}" class="btn btn-success">
+    إنشاء شحنة
+  </a>
+</div>
+
+<table class="table table-bordered table-hover" id="shipments-table">
+  <thead>
+    <tr>
+      <th>رقم الشحنة</th>
+      <th>تاريخ الشحنة</th>
+      <th>الوصول المتوقع</th>
+      <th>الحالة</th>
+      <th style="width:120px">إجراءات</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in (warehouse.shipments_received or []) %}
+      <tr>
+        <td>
+          <a href="{{ url_for('shipments_bp.shipment_detail', id=s.id) }}">{{ s.shipment_number }}</a>
+        </td>
+        <td>{{ s.shipment_date.strftime('%Y-%m-%d') if s.shipment_date }}</td>
+        <td>{{ s.expected_arrival.strftime('%Y-%m-%d') if s.expected_arrival }}</td>
+        <td>{{ s.status }}</td>
+        <td>
+          <a href="{{ url_for('shipments_bp.edit_shipment', id=s.id) }}" class="btn btn-sm btn-warning">تعديل</a>
+          <form method="POST" action="{{ url_for('shipments_bp.delete_shipment', id=s.id) }}" style="display:inline-block" onsubmit="return confirm('تأكيد حذف الشحنة؟');">
+            {{ csrf_token() }}
+            <button type="submit" class="btn btn-sm btn-danger">حذف</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5" class="text-center">لا توجد سجلات</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  $(function () {
+    $('#shipments-table').DataTable({
+      pageLength: 10,
+      order: [[2, 'desc']],
+      language: {
+        url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/ar.json'
+      }
+    });
+  });
+</script>
 {% endblock %}

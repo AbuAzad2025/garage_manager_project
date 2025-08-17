@@ -4,48 +4,69 @@
 {% block content %}
 <div class="container-fluid mt-4">
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2>الحجوزات المسبقة</h2>
+    <h2 class="mb-0">الحجوزات المسبقة</h2>
     {% if current_user.has_permission('add_preorder') %}
-    <a href="{{ url_for('parts.preorder_create') }}" class="btn btn-success">
-      <i class="fas fa-plus"></i> حجز جديد
-    </a>
+      <a href="{{ url_for('warehouse_bp.preorder_create') }}" class="btn btn-success">
+        <i class="fas fa-plus"></i> حجز جديد
+      </a>
     {% endif %}
   </div>
+
   <div class="table-responsive">
-    <table id="preorders-table" class="table table-bordered table-hover">
-      <thead class="thead-light">
+    <table id="preorders-table" class="table table-bordered table-hover align-middle">
+      <thead class="table-light">
         <tr>
-          <th>رمز الحجز</th><th>الجهة</th><th>القطعة</th><th>كمية</th>
-          <th>مدفوع</th><th>حالة</th><th>تاريخ</th><th>إجراءات</th>
+          <th>الكود</th>
+          <th>الجهة</th>
+          <th>القطعة</th>
+          <th class="text-end">الكمية</th>
+          <th class="text-end">المدفوع</th>
+          <th>الحالة</th>
+          <th>التاريخ</th>
+          <th class="text-center">إجراءات</th>
         </tr>
       </thead>
       <tbody>
-      {% for p in preorders %}
-        <tr>
-          <td>{{ p.reservation_code }}</td>
-          <td>
-            {% if p.customer %}{{ p.customer.name }}
-            {% elif p.supplier %}{{ p.supplier.name }}
-            {% elif p.partner %}{{ p.partner.name }}{% endif %}
-          </td>
-          <td>{{ p.product.name }}</td>
-          <td>{{ p.quantity }}</td>
-          <td>{{ "%.2f"|format(p.prepaid_amount) }}</td>
-          <td>{{ p.is_fulfilled and 'منفّذ' or 'قيد التنفيذ' }}</td>
-          <td>{{ p.created_at.strftime('%Y-%m-%d') }}</td>
-          <td>
-            <a href="{{ url_for('parts.preorder_detail', preorder_id=p.id) }}" class="btn btn-sm btn-info">
-              <i class="fas fa-eye"></i>
-            </a>
-            {% if not p.is_fulfilled and current_user.has_permission('delete_preorder') %}
-            <form method="post" action="{{ url_for('parts.preorder_cancel', preorder_id=p.id) }}"
-                  class="d-inline" onsubmit="return confirm('إلغاء الحجز؟');">
-              <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
-            </form>
-            {% endif %}
-          </td>
-        </tr>
-      {% endfor %}
+        {% for p in preorders %}
+          {% set code = p.reservation_code or p.reference or '-' %}
+          {% set entity_name = (p.customer and p.customer.name) or (p.supplier and p.supplier.name) or (p.partner and p.partner.name) or '-' %}
+          {% set status_val = (p.status.value if p.status is defined and p.status is not string else p.status) or 'PENDING' %}
+          {% set status_ar = {
+              'PENDING':'قيد التنفيذ','CONFIRMED':'مؤكد','FULFILLED':'منفّذ',
+              'CANCELLED':'ملغي','PARTIAL':'مدفوع جزئياً','PAID':'مدفوع'
+            }[status_val] if status_val in ['PENDING','CONFIRMED','FULFILLED','CANCELLED','PARTIAL','PAID'] else status_val %}
+          {% set status_class = {
+              'PENDING':'secondary','CONFIRMED':'primary','FULFILLED':'success',
+              'CANCELLED':'danger','PARTIAL':'warning','PAID':'success'
+            }[status_val] if status_val in ['PENDING','CONFIRMED','FULFILLED','CANCELLED','PARTIAL','PAID'] else 'light' %}
+
+          <tr>
+            <td class="fw-semibold">{{ code }}</td>
+            <td>{{ entity_name }}</td>
+            <td>{{ (p.product and p.product.name) or '-' }}</td>
+            <td class="text-end">{{ p.quantity or 0 }}</td>
+            <td class="text-end">{{ '%.2f'|format(p.prepaid_amount or 0) }}</td>
+            <td><span class="badge bg-{{ status_class }}">{{ status_ar }}</span></td>
+            <td>{{ (p.created_at and p.created_at.strftime('%Y-%m-%d')) or '' }}</td>
+            <td class="text-center">
+              <a href="{{ url_for('warehouse_bp.preorder_detail', preorder_id=p.id) }}"
+                 class="btn btn-sm btn-outline-info" title="عرض">
+                <i class="fas fa-eye"></i>
+              </a>
+              {% if status_val not in ['CANCELLED','FULFILLED'] and current_user.has_permission('delete_preorder') %}
+                <form method="post"
+                      action="{{ url_for('warehouse_bp.preorder_cancel', preorder_id=p.id) }}"
+                      class="d-inline"
+                      onsubmit="return confirm('تأكيد إلغاء الحجز؟');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-sm btn-outline-danger" title="إلغاء">
+                    <i class="fas fa-times"></i>
+                  </button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
       </tbody>
     </table>
   </div>
@@ -53,16 +74,21 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-$(function(){
-  $('#preorders-table').DataTable({
-    responsive:true,
-    pageLength:10,
-    order:[[6,'desc']],
-    dom:'Bfrtip',
-    buttons:['excel','pdf'],
-    language:{url:'//cdn.datatables.net/plug-ins/1.10.21/i18n/Arabic.json'}
-  });
-});
-</script>
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
+  <script>
+    $(function () {
+      const $tbl = $('#preorders-table');
+      if ($.fn.DataTable && !$tbl.hasClass('dataTable')) {
+        $tbl.DataTable({
+          responsive: true,
+          pageLength: 10,
+          order: [[6, 'desc']],
+          language: { url: '//cdn.datatables.net/plug-ins/1.10.21/i18n/Arabic.json' },
+          dom: 'Bfrtip',
+          buttons: ['excel', 'pdf']
+        });
+      }
+    });
+  </script>
 {% endblock %}

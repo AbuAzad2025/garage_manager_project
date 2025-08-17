@@ -4,7 +4,7 @@
   </div>
   <div class="card-body p-0">
     {% if service.tasks %}
-    <table class="table table-sm table-striped mb-0">
+    <table class="table table-sm table-striped mb-0 align-middle">
       <thead class="table-light">
         <tr>
           <th>الوصف</th>
@@ -12,27 +12,31 @@
           <th>الكمية</th>
           <th>سعر الوحدة</th>
           <th>الإجمالي</th>
-          {% if current_user.has_permission('manage_services') %}
-          <th>إجراء</th>
+          {% if current_user.has_permission('manage_service') %}
+          <th style="width:80px">إجراء</th>
           {% endif %}
         </tr>
       </thead>
       <tbody>
         {% for task in service.tasks %}
-        <tr>
-          <td>{{ task.description or '—' }}</td>
-          <td>{{ task.note or '—' }}</td>
-          <td>{{ task.quantity }}</td>
-          <td>{{ '%.2f'|format(task.unit_price or 0) }}</td>
-          <td>{{ '%.2f'|format(task.line_total or 0) }}</td>
-          {% if current_user.has_permission('manage_services') %}
-          <td>
-            <form method="post" action="{{ url_for('service.delete_task', tid=task.id) }}" onsubmit="return confirm('هل أنت متأكد من حذف المهمة؟');">
-              <button class="btn btn-danger btn-sm"><i class="fa fa-trash"></i></button>
-            </form>
-          </td>
-          {% endif %}
-        </tr>
+          {% set line = task.line_total
+                        if task.line_total is not none
+                        else ((task.quantity or 0) * (task.unit_price or 0) * (1 - (task.discount or 0)/100)) %}
+          <tr>
+            <td>{{ task.description or '—' }}</td>
+            <td>{{ task.note or '—' }}</td>
+            <td>{{ task.quantity or 1 }}</td>
+            <td>{{ '%.2f'|format(task.unit_price or 0) }}</td>
+            <td>{{ '%.2f'|format(line) }}</td>
+            {% if current_user.has_permission('manage_service') %}
+            <td>
+              <form method="post" action="{{ url_for('service.delete_task', tid=task.id) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-danger btn-sm btn-delete"><i class="fa fa-trash"></i></button>
+              </form>
+            </td>
+            {% endif %}
+          </tr>
         {% endfor %}
       </tbody>
     </table>

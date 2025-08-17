@@ -1,94 +1,113 @@
 {% extends "base.html" %}
 {% block title %}إيصال صيانة{% endblock %}
 
-{% block content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/service.css') }}">
+{% block head_extra %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}">
+{% endblock %}
 
+{% block content %}
 <div class="container my-4">
-  <h3 class="text-center mb-4">سند قبض / طلب صيانة رقم {{ service.id }}</h3>
+  <h3 class="text-center mb-4">سند صيانة / طلب {{ service.service_number or ('#' ~ service.id) }}</h3>
+
+  {% set STATUS_LABELS = {
+    'PENDING':'معلق','DIAGNOSIS':'تشخيص','IN_PROGRESS':'قيد التنفيذ',
+    'COMPLETED':'مكتمل','CANCELLED':'ملغي','ON_HOLD':'مؤجل'
+  } %}
 
   <div class="row">
     <div class="col-md-6">
       <table class="table table-sm">
-        <tr>
-          <th>العميل</th>
-          <td>{{ service.name or (service.customer.name if service.customer else '—') }}</td>
-        </tr>
-        <tr>
-          <th>رقم الجوال</th>
-          <td>{{ service.phone or (service.customer.phone if service.customer else '—') }}</td>
-        </tr>
-        <tr>
-          <th>البريد الإلكتروني</th>
-          <td>{{ service.email or (service.customer.email if service.customer else '—') }}</td>
-        </tr>
-        <tr><th>المعدة</th><td>{{ service.vehicle_type }} – {{ service.vehicle_model }}</td></tr>
-        <tr><th>اللوحة</th><td>{{ service.vehicle_vrn }}</td></tr>
-        <tr><th>الحالة</th><td>{{ service.status_label }}</td></tr>
+        <tr><th style="width:120px">العميل</th><td>{{ service.name or (service.customer.name if service.customer else '—') }}</td></tr>
+        <tr><th>الجوال</th><td>{{ service.phone or (service.customer.phone if service.customer else '—') }}</td></tr>
+        <tr><th>البريد</th><td>{{ service.email or (service.customer.email if service.customer else '—') }}</td></tr>
+        <tr><th>المعدة</th><td>{{ service.vehicle_type.name if service.vehicle_type else '—' }} – {{ service.vehicle_model or '—' }}</td></tr>
+        <tr><th>اللوحة</th><td>{{ service.vehicle_vrn or '—' }}</td></tr>
+        {% set st = (service.status.value if service.status is not string else service.status)|upper %}
+        <tr><th>الحالة</th><td>{{ STATUS_LABELS.get(st, st) }}</td></tr>
       </table>
     </div>
     <div class="col-md-6">
       <strong>وصف المشكلة:</strong>
-      <div class="border p-2 mb-2">{{ service.problem_description }}</div>
+      <div class="border p-2 mb-2">{{ service.problem_description or '—' }}</div>
       <strong>تقرير المهندس:</strong>
-      <div class="border p-2 mb-2">{{ service.engineer_notes }}</div>
+      <div class="border p-2 mb-2">{{ service.diagnosis or service.engineer_notes or '—' }}</div>
     </div>
   </div>
 
   <hr>
 
-  <!-- تفاصيل -->
-  <table class="table table-bordered">
-    <thead>
-      <tr>
-        <th>النوع</th>
-        <th>الوصف</th>
-        <th>الشريك</th>
-        <th>نسبة الشريك</th>
-        <th>الكمية</th>
-        <th>سعر الوحدة</th>
-        <th>الإجمالي</th>
-        <th>صافي بعد خصم الشريك</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for part in service.parts %}
-      <tr>
-        <td>قطعة</td>
-        <td>{{ part.part.name }}</td>
-        <td>{{ part.partner.name if part.partner else '—' }}</td>
-        <td>{{ part.share_percentage|default(0) }}%</td>
-        <td>{{ part.quantity }}</td>
-        <td>{{ '%.2f'|format(part.unit_price or 0) }}</td>
-        <td>{{ '%.2f'|format(part.line_total or 0) }}</td>
-        <td>{{ '%.2f'|format(part.line_total * (1 - (part.share_percentage or 0)/100)) }}</td>
-      </tr>
-      {% endfor %}
-      {% for task in service.tasks %}
-      <tr>
-        <td>مهمة</td>
-        <td>{{ task.description }}</td>
-        <td>—</td>
-        <td>—</td>
-        <td>{{ task.quantity }}</td>
-        <td>{{ '%.2f'|format(task.unit_price or 0) }}</td>
-        <td>{{ '%.2f'|format(task.line_total or 0) }}</td>
-        <td>{{ '%.2f'|format(task.line_total or 0) }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <!-- تفاصيل السطور -->
+  <div class="table-responsive">
+    <table class="table table-bordered table-sm">
+      <thead>
+        <tr>
+          <th>النوع</th><th>الوصف</th><th>الشريك</th><th>نسبة الشريك</th>
+          <th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th><th>الصافي</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set ns = namespace(parts_total=0.0, tasks_total=0.0, net_sub=0.0) %}
 
-  <!-- المجموعات -->
+        {# قطع الغيار #}
+        {% for part in service.parts or [] %}
+          {% set qty   = (part.quantity or 0)|float %}
+          {% set price = (part.unit_price or 0)|float %}
+          {% set disc  = (part.discount or 0)|float %}
+          {% set share = (part.share_percentage or 0)|float %}
+          {% set line      = qty * price * (1 - (disc / 100.0)) %}
+          {% set net_line  = line * (1 - (share / 100.0)) %}
+          {% set ns.parts_total = ns.parts_total + line %}
+          {% set ns.net_sub     = ns.net_sub + net_line %}
+          <tr>
+            <td>قطعة</td>
+            <td>{{ part.part.name if part.part else ('#' ~ part.part_id) }}</td>
+            <td>{{ part.partner.name if part.partner else '—' }}</td>
+            <td>{{ (share)|round(0, 'floor') }}%</td>
+            <td>{{ qty|round(2) }}</td>
+            <td>{{ '%.2f'|format(price) }}</td>
+            <td>{{ '%.2f'|format(line) }}</td>
+            <td>{{ '%.2f'|format(net_line) }}</td>
+          </tr>
+        {% endfor %}
+
+        {# المهام #}
+        {% for task in service.tasks or [] %}
+          {% set qty   = (task.quantity or 0)|float %}
+          {% set price = (task.unit_price or 0)|float %}
+          {% set disc  = (task.discount or 0)|float %}
+          {% set line  = qty * price * (1 - (disc / 100.0)) %}
+          {% set ns.tasks_total = ns.tasks_total + line %}
+          <tr>
+            <td>مهمة</td>
+            <td>{{ task.description or '—' }}</td>
+            <td>—</td>
+            <td>—</td>
+            <td>{{ qty|round(2) }}</td>
+            <td>{{ '%.2f'|format(price) }}</td>
+            <td>{{ '%.2f'|format(line) }}</td>
+            <td>{{ '%.2f'|format(line) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% set subtotal     = (ns.parts_total + ns.tasks_total) %}
+  {% set net_subtotal = (ns.net_sub + ns.tasks_total) %}
+  {% set tax_rate     = (service.tax_rate or 0)|float %}
+  {% set tax_amount   = net_subtotal * (tax_rate / 100.0) %}
+  {% set total_amount = net_subtotal + tax_amount %}
+
   <div class="d-flex justify-content-end flex-column align-items-end">
-    <div class="me-4"><strong>الإجمالي قبل خصم الشريك:</strong> {{ '%.2f'|format(subtotal or 0) }} ₪</div>
-    <div class="me-4 text-primary"><strong>الصافي بعد خصم الشريك:</strong> {{ '%.2f'|format(net_subtotal or 0) }} ₪</div>
-    <div class="me-4"><strong>الضريبة:</strong> {{ '%.2f'|format(tax_amount or 0) }} ₪</div>
-    <div class="fs-5"><strong>الإجمالي النهائي:</strong> <span class="text-success">{{ '%.2f'|format(total_amount or 0) }} ₪</span></div>
+    <div class="me-4"><strong>الإجمالي قبل خصم الشريك:</strong> {{ '%.2f'|format(subtotal) }} ₪</div>
+    <div class="me-4 text-primary"><strong>الصافي بعد خصم الشريك:</strong> {{ '%.2f'|format(net_subtotal) }} ₪</div>
+    <div class="me-4"><strong>الضريبة ({{ tax_rate|round(0,'floor') }}%):</strong> {{ '%.2f'|format(tax_amount) }} ₪</div>
+    <div class="fs-5"><strong>الإجمالي النهائي:</strong> <span class="text-success">{{ '%.2f'|format(total_amount) }} ₪</span></div>
   </div>
 
   <div class="text-center mt-4 actions">
-    <button class="btn btn-dark" onclick="window.print()">🖨️ طباعة الإيصال</button>
+    <button class="btn btn-dark" onclick="window.print()">🖨️ طباعة</button>
   </div>
 </div>
 {% endblock %}

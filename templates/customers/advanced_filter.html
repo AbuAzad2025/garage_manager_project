@@ -1,55 +1,114 @@
 {% extends 'base.html' %}
 {% block title %}فلتر متقدّم{% endblock %}
+
 {% block breadcrumb %}
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb bg-white px-3 py-2 rounded mb-4">
-    <li class="breadcrumb-item"><a href="{{ url_for('customers.list_customers') }}">العملاء</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('customers_bp.list_customers') }}">العملاء</a></li>
     <li class="breadcrumb-item active">فلتر متقدّم</li>
   </ol>
 </nav>
 {% endblock %}
+
 {% block content %}
 <div class="card shadow-sm">
   <div class="card-header bg-primary text-white">
     <h3 class="card-title"><i class="fas fa-filter me-2"></i>فلتر متقدّم</h3>
   </div>
   <div class="card-body">
-    <form id="customer-adv-search" class="row g-3 mb-4">
-      {% for field,label,placeholder in [
-          ('balance_min','رصيد أدنى','0'),
-          ('balance_max','رصيد أقصى','0'),
-          ('created_at_min','تاريخ إنشاء من','YYYY-MM-DD'),
-          ('created_at_max','تاريخ إنشاء إلى','YYYY-MM-DD'),
-          ('last_activity_min','آخر نشاط من','YYYY-MM-DD'),
-          ('last_activity_max','آخر نشاط إلى','YYYY-MM-DD'),
-        ] %}
-      <div class="col-md-4">
-        <label class="form-label fw-bold">{{ label }}</label>
-        <input type="date" name="{{ field }}"
-               value="{{ request.args.get(field,'') }}"
-               class="form-control" placeholder="{{ placeholder }}">
+    <form id="customer-adv-search" class="row g-3 mb-4" method="get" action="{{ url_for('customers_bp.advanced_filter') }}">
+      <!-- أرصدة -->
+      <div class="col-md-3">
+        <label class="form-label fw-bold">رصيد أدنى</label>
+        <input type="number" step="0.01" name="balance_min" value="{{ request.args.get('balance_min','') }}" class="form-control">
       </div>
-      {% endfor %}
-      <div class="col-md-4 d-flex gap-2">
-        <button type="submit" class="btn btn-primary w-100">تطبيق</button>
-        <button type="reset" class="btn btn-secondary w-100">إعادة</button>
+      <div class="col-md-3">
+        <label class="form-label fw-bold">رصيد أقصى</label>
+        <input type="number" step="0.01" name="balance_max" value="{{ request.args.get('balance_max','') }}" class="form-control">
       </div>
-      <div class="col-md-4">
-        <button id="export-results" class="btn btn-outline-success w-100">
-          تصدير CSV
+
+      <!-- تواريخ إنشاء -->
+      <div class="col-md-3">
+        <label class="form-label fw-bold">تاريخ إنشاء من</label>
+        <input type="date" name="created_at_min" value="{{ request.args.get('created_at_min','') }}" class="form-control">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-bold">تاريخ إنشاء إلى</label>
+        <input type="date" name="created_at_max" value="{{ request.args.get('created_at_max','') }}" class="form-control">
+      </div>
+
+      <!-- آخر نشاط -->
+      <div class="col-md-3">
+        <label class="form-label fw-bold">آخر نشاط من</label>
+        <input type="date" name="last_activity_min" value="{{ request.args.get('last_activity_min','') }}" class="form-control">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-bold">آخر نشاط إلى</label>
+        <input type="date" name="last_activity_max" value="{{ request.args.get('last_activity_max','') }}" class="form-control">
+      </div>
+
+      <!-- فئة وحالة (مطابقة للراوت) -->
+      <div class="col-md-3">
+        <label class="form-label fw-bold">الفئة</label>
+        <select name="category" class="form-select">
+          <option value="">الكل</option>
+          {% for cat in ['عادي','فضي','ذهبي','مميز'] %}
+            <option value="{{ cat }}" {{ 'selected' if request.args.get('category')==cat else '' }}>{{ cat }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-bold">الحالة</label>
+        <select name="status" class="form-select">
+          <option value="">الكل</option>
+          <option value="active" {{ 'selected' if request.args.get('status')=='active' else '' }}>نشط</option>
+          <option value="inactive" {{ 'selected' if request.args.get('status')=='inactive' else '' }}>غير نشط</option>
+          <option value="credit_hold" {{ 'selected' if request.args.get('status')=='credit_hold' else '' }}>معلق ائتمانيًا</option>
+        </select>
+      </div>
+
+      <!-- أزرار -->
+      <div class="col-12 d-flex flex-wrap gap-2">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-check me-1"></i>تطبيق</button>
+        <button type="reset" id="reset-adv-filter" class="btn btn-secondary">إعادة</button>
+        <button type="button" id="export-results" class="btn btn-outline-success">
+          <i class="fas fa-file-csv me-1"></i> تصدير CSV
         </button>
       </div>
     </form>
 
     {% include 'customers/_table.html' %}
 
-    {% if pagination.pages>1 %}
+    {% if pagination.pages > 1 %}
     <nav aria-label="Page navigation">
       <ul class="pagination justify-content-center mt-4">
-        <!-- pagination items as in list.html -->
+        {% if pagination.has_prev %}
+          <li class="page-item">
+            <a class="page-link" href="{{ url_for('customers_bp.advanced_filter', page=pagination.prev_num, **request.args.to_dict()) }}">السابق</a>
+          </li>
+        {% endif %}
+        {% for p in pagination.iter_pages() %}
+          {% if p %}
+            <li class="page-item {% if p == pagination.page %}active{% endif %}">
+              <a class="page-link" href="{{ url_for('customers_bp.advanced_filter', page=p, **request.args.to_dict()) }}">{{ p }}</a>
+            </li>
+          {% else %}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+          {% endif %}
+        {% endfor %}
+        {% if pagination.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="{{ url_for('customers_bp.advanced_filter', page=pagination.next_num, **request.args.to_dict()) }}">التالي</a>
+          </li>
+        {% endif %}
       </ul>
     </nav>
     {% endif %}
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/customers.js') }}"></script>
 {% endblock %}

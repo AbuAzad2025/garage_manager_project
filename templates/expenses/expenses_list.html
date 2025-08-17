@@ -1,49 +1,76 @@
 {% extends 'base.html' %}
+
 {% block title %}المصاريف/الرواتب/الجمارك{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
   <h2>كل المصاريف</h2>
+
   {% if current_user.has_permission('manage_expenses') %}
-  <a href="{{ url_for('expenses.add') }}" class="btn btn-success mb-3">
-    <i class="fas fa-plus"></i> إضافة مصروف
-  </a>
-  <a href="{{ url_for('expenses.types_list') }}" class="btn btn-secondary mb-3">
-    <i class="fas fa-tags"></i> أنواع المصاريف
-  </a>
-  <a href="{{ url_for('expenses.employees_list') }}" class="btn btn-secondary mb-3">
-    <i class="fas fa-users"></i> الموظفون
-  </a>
+  <div class="mb-3 d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('expenses_bp.create_expense') }}" class="btn btn-success">
+      <i class="fas fa-plus"></i> إضافة مصروف
+    </a>
+    <a href="{{ url_for('expenses_bp.types_list') }}" class="btn btn-secondary">
+      <i class="fas fa-tags"></i> أنواع المصاريف
+    </a>
+    <a href="{{ url_for('expenses_bp.employees_list') }}" class="btn btn-secondary">
+      <i class="fas fa-users"></i> الموظفون
+    </a>
+  </div>
   {% endif %}
-  <table id="expenses-table" class="table table-striped table-bordered">
+
+  <table id="expenses-table" class="table table-striped table-bordered align-middle">
     <thead>
       <tr>
-        <th>التاريخ</th><th>النوع</th><th>الموظف</th><th>الجهة</th>
-        <th>المبلغ</th><th>طريقة الدفع</th><th>تفاصيل الدفع</th>
-        <th>الوصف</th><th>ملاحظات</th><th>رقم الفاتورة</th><th>إجراءات</th>
+        <th>التاريخ</th>
+        <th>النوع</th>
+        <th>الموظف</th>
+        <th>الجهة</th>
+        <th>المبلغ</th>
+        <th>طريقة الدفع</th>
+        <th>دفع الآن</th>
+        <th>الوصف</th>
+        <th>ملاحظات</th>
+        <th>رقم الفاتورة</th>
+        <th>إجراءات</th>
       </tr>
     </thead>
     <tbody>
       {% for e in expenses %}
       <tr>
-        <td>{{ e.date.strftime('%Y-%m-%d') }}</td>
-        <td>{{ e.expense_type.name }}</td>
+        <td>{{ e.date|format_date }}</td>
+        <td>{{ e.type.name if e.type else '—' }}</td>
         <td>{{ e.employee.name if e.employee else '—' }}</td>
         <td>{{ e.paid_to or '—' }}</td>
-        <td>{{ "%.2f"|format(e.amount) }}</td>
-        <td>{{ e.payment_method }}</td>
-        <td>{{ e.payment_details or '—' }}</td>
+        <td>{{ e.amount|format_currency }}</td>
+        <td>{{ e.payment_method or '—' }}</td>
+        <td>
+          {% if current_user.has_permission('manage_payments') %}
+          <a href="{{ url_for('expenses_bp.pay', exp_id=e.id) }}" class="btn btn-sm btn-outline-success">
+            <i class="fas fa-money-bill-wave"></i> دفع
+          </a>
+          {% else %} — {% endif %}
+        </td>
         <td>{{ e.description or '—' }}</td>
         <td>{{ e.notes or '—' }}</td>
         <td>{{ e.tax_invoice_number or '—' }}</td>
-        <td>
+        <td class="text-nowrap">
+          <a href="{{ url_for('expenses_bp.detail', exp_id=e.id) }}" class="btn btn-sm btn-info" title="تفاصيل">
+            <i class="fas fa-eye"></i>
+          </a>
           {% if current_user.has_permission('manage_expenses') %}
-          <a href="{{ url_for('expenses.edit', exp_id=e.id) }}" class="btn btn-sm btn-info">
+          <a href="{{ url_for('expenses_bp.edit', exp_id=e.id) }}" class="btn btn-sm btn-warning" title="تعديل">
             <i class="fas fa-edit"></i>
           </a>
-          <form method="post" action="{{ url_for('expenses.delete', exp_id=e.id) }}"
-                style="display:inline;" onsubmit="return confirm('حذف المصروف؟');">
-            {{ form.csrf_token }}
-            <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+          <form method="post"
+                action="{{ url_for('expenses_bp.delete', exp_id=e.id) }}"
+                style="display:inline;"
+                onsubmit="return confirm('حذف المصروف؟');">
+            {{ csrf_token() }}
+            <button class="btn btn-sm btn-danger" title="حذف">
+              <i class="fas fa-trash"></i>
+            </button>
           </form>
           {% endif %}
         </td>
@@ -55,12 +82,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-  $(function(){
-    $('#expenses-table').DataTable({
-      dom:'Bfrtip', buttons:['excelHtml5','print'],
-      language:{ url:'//cdn.datatables.net/plug-ins/1.10.21/i18n/Arabic.json' }
-    });
-  });
-</script>
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/expenses.js') }}"></script>
 {% endblock %}

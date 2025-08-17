@@ -10,57 +10,106 @@
 {% block content %}
 <div class="container my-4">
   <h2 class="mb-3">{{ edit_mode and 'تعديل' or 'إضافة' }} طلب صيانة</h2>
-  <form method="POST" id="serviceForm" autocomplete="off">
+
+  <form method="POST" id="serviceForm" autocomplete="off" action="{{ url_for('service.create_request') }}">
     {{ form.hidden_tag() }}
 
-    <!-- ✅ اختيار العميل مع Ajax -->
+    <!-- اختيار/تعريف العميل -->
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        {{ form.customer_id.label(class="form-label") }}
+        {{ form.customer_id(class="form-select", id="customerSelect") }}
+        {% for e in form.customer_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+        <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="addCustomerBtn">
+          <i class="fa fa-user-plus"></i> إضافة عميل سريع
+        </button>
+        <div class="form-text">إن لم تختر عميلًا سيجري إنشاء عميل جديد من الحقول أدناه.</div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="row">
+          <div class="col-md-4 mb-3">
+            {{ form.name.label(class="form-label") }}
+            {{ form.name(class="form-control", placeholder="اسم العميل") }}
+            {% for e in form.name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-md-4 mb-3">
+            {{ form.phone.label(class="form-label") }}
+            {{ form.phone(class="form-control", placeholder="رقم الجوال") }}
+            {% for e in form.phone.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-md-4 mb-3">
+            {{ form.email.label(class="form-label") }}
+            {{ form.email(class="form-control", placeholder="البريد الإلكتروني") }}
+            {% for e in form.email.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- بيانات المركبة -->
+    <div class="row">
+      <div class="col-md-3 mb-3">
+        {{ form.vehicle_type_id.label(class="form-label") }}
+        {{ form.vehicle_type_id(class="form-select") }}
+      </div>
+      <div class="col-md-3 mb-3">
+        {{ form.vehicle_model.label(class="form-label") }}
+        {{ form.vehicle_model(class="form-control") }}
+      </div>
+      <div class="col-md-3 mb-3">
+        {{ form.vehicle_vrn.label(class="form-label") }}
+        {{ form.vehicle_vrn(class="form-control") }}
+      </div>
+      <div class="col-md-3 mb-3">
+        {{ form.chassis_number.label(class="form-label") }}
+        {{ form.chassis_number(class="form-control") }}
+      </div>
+    </div>
+
+    <!-- أوصاف -->
     <div class="mb-3">
-      {{ form.customer_id.label(class="form-label") }}
-      {{ form.customer_id(class="form-select", id="customerSelect") }}
-      {% for e in form.customer_id.errors %}<div class="text-danger">{{ e }}</div>{% endfor %}
-      <button type="button" class="btn btn-outline-primary btn-sm mt-1" id="addCustomerBtn">
-        <i class="fa fa-user-plus"></i> إضافة عميل
-      </button>
+      {{ form.problem_description.label(class="form-label") }}
+      {{ form.problem_description(class="form-control", rows=2) }}
+    </div>
+    <div class="mb-3">
+      {{ form.engineer_notes.label(class="form-label") }}
+      {{ form.engineer_notes(class="form-control", rows=2) }}
     </div>
 
-    <!-- ✅ بيانات العميل الجديدة (اختياريّة) -->
+    <!-- الحقول المحاسبية والحالة -->
     <div class="row">
-      <div class="col-md-4 mb-3">
-        {{ form.name.label(class="form-label") }}
-        {{ form.name(class="form-control", placeholder="اسم العميل") }}
-        {% for e in form.name.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
+      <div class="col-md-3 mb-3">
+        {{ form.priority.label(class="form-label") }}
+        {{ form.priority(class="form-select") }}
       </div>
-      <div class="col-md-4 mb-3">
-        {{ form.phone.label(class="form-label") }}
-        {{ form.phone(class="form-control", placeholder="رقم الجوال") }}
-        {% for e in form.phone.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
+      <div class="col-md-3 mb-3">
+        {{ form.estimated_duration.label(class="form-label") }}
+        {{ form.estimated_duration(class="form-control", type="number", min="0", step="1") }}
       </div>
-      <div class="col-md-4 mb-3">
-        {{ form.email.label(class="form-label") }}
-        {{ form.email(class="form-control", placeholder="البريد الإلكتروني") }}
-        {% for e in form.email.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
+      <div class="col-md-3 mb-3">
+        {{ form.estimated_cost.label(class="form-label") }}
+        {{ form.estimated_cost(class="form-control", type="number", min="0", step="0.01") }}
+      </div>
+      <div class="col-md-3 mb-3">
+        {{ form.tax_rate.label(class="form-label") }}
+        {{ form.tax_rate(class="form-control", type="number", min="0", step="0.01") }}
       </div>
     </div>
 
-    <!-- ✅ بيانات المركبة -->
     <div class="row">
-      <div class="col-md-3 mb-3">{{ form.vehicle_type_id.label }}{{ form.vehicle_type_id(class="form-select") }}</div>
-      <div class="col-md-3 mb-3">{{ form.vehicle_model.label }}{{ form.vehicle_model(class="form-control") }}</div>
-      <div class="col-md-3 mb-3">{{ form.vehicle_vrn.label }}{{ form.vehicle_vrn(class="form-control") }}</div>
-      <div class="col-md-3 mb-3">{{ form.chassis_number.label }}{{ form.chassis_number(class="form-control") }}</div>
+      <div class="col-md-6 mb-3">
+        {{ form.status.label(class="form-label") }}
+        {{ form.status(class="form-select") }}
+      </div>
+      <div class="col-md-6 mb-3">
+        {{ form.description.label(class="form-label") }}
+        {{ form.description(class="form-control", rows=2) }}
+      </div>
     </div>
 
-    <!-- ✅ أوصاف -->
-    <div class="mb-3">{{ form.problem_description.label }}{{ form.problem_description(class="form-control", rows=2) }}</div>
-    <div class="mb-3">{{ form.engineer_notes.label }}{{ form.engineer_notes(class="form-control", rows=2) }}</div>
-
-    <!-- ✅ الحالة والضريبة -->
-    <div class="row">
-      <div class="col-md-6 mb-3">{{ form.status.label }}{{ form.status(class="form-select") }}</div>
-      <div class="col-md-6 mb-3">{{ form.tax_rate.label }}{{ form.tax_rate(class="form-control") }}</div>
-    </div>
-
-    <!-- ✅ قطع الغيار (ديناميكية) مع الشريك -->
+    <!-- (اختياري) سطور ديناميكية إن كان الفورم يحتوي FieldList؛ لن تُستخدم في الراوت أثناء الإنشاء -->
+    {% if form.parts %}
     <div class="mb-3">
       <label class="form-label">القطع المستخدمة</label>
       <div id="parts-list">
@@ -80,8 +129,9 @@
       </div>
       <button type="button" class="btn btn-outline-success btn-sm" id="addPartBtn"><i class="fa fa-plus"></i> إضافة قطعة</button>
     </div>
+    {% endif %}
 
-    <!-- ✅ المهام (ديناميكية) -->
+    {% if form.tasks %}
     <div class="mb-3">
       <label class="form-label">المهام المنفذة</label>
       <div id="tasks-list">
@@ -98,76 +148,83 @@
       </div>
       <button type="button" class="btn btn-outline-success btn-sm" id="addTaskBtn"><i class="fa fa-plus"></i> إضافة مهمة</button>
     </div>
-
-    <!-- ✅ ملاحظات عامة -->
-    <div class="mb-3">{{ form.description.label }}{{ form.description(class="form-control", rows=2) }}</div>
+    {% endif %}
 
     <button type="submit" class="btn btn-primary">{{ edit_mode and 'تحديث' or 'حفظ' }}</button>
     <a href="{{ url_for('service.list_requests') }}" class="btn btn-secondary ms-2">إلغاء</a>
   </form>
 </div>
 
-<!-- ✅ مودال إضافة عميل جديد -->
-<div class="modal fade" id="customerModal" tabindex="-1">
+<!-- مودال إضافة عميل سريع (يملىء الحقول أعلاه فقط، بدون Ajax) -->
+<div class="modal fade" id="customerModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <form id="newCustomerForm">
-        <div class="modal-header"><h5 class="modal-title">إضافة عميل جديد</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-        <!-- استخدم جزء الفورم فقط بدون extends لتفادي تضارب القوالب -->
+        <div class="modal-header">
+          <h5 class="modal-title">إضافة عميل</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="close"></button>
+        </div>
         <div class="modal-body">
-          {%- with form=customer_form %}
-            {%- include 'customers/_form.html' %}
-          {%- endwith %}
+          <div class="mb-3">
+            <label class="form-label">الاسم</label>
+            <input type="text" class="form-control" id="c_name" placeholder="اسم العميل">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">الجوال</label>
+            <input type="text" class="form-control" id="c_phone" placeholder="05XXXXXXXX">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">البريد</label>
+            <input type="email" class="form-control" id="c_email" placeholder="example@mail.com">
+          </div>
+          <div class="form-text">سيتم استخدام هذه البيانات لإنشاء العميل عند حفظ الطلب إذا لم تحدد عميلًا من القائمة.</div>
         </div>
         <div class="modal-footer">
-          <button type="submit" class="btn btn-primary">حفظ العميل</button>
+          <button type="submit" class="btn btn-primary">استخدام البيانات</button>
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
         </div>
       </form>
     </div>
   </div>
 </div>
+
+<style>
+  @media print { .btn, .breadcrumb, .page-header { display:none!important; } }
+</style>
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="{{ url_for('static', filename='js/service_form.js') }}"></script>
-<script>
-$(function(){
-  // ✅ Select2 Ajax للعميل
-  $('#customerSelect').select2({
-    theme: "bootstrap-5",
-    ajax: {
-      url: "{{ url_for('customers.api_customers') }}",
-      dataType: 'json',
-      delay: 250,
-      data: params => ({ q: params.term }),
-      processResults: data => ({ results: data })
-    },
-    placeholder: "ابحث عن عميل",
-    allowClear: true,
-    language: "ar"
-  });
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="{{ url_for('static', filename='js/service.js') }}"></script>
+  <script>
+    // فتح المودال
+    document.getElementById('addCustomerBtn')?.addEventListener('click', () => {
+      const modal = new bootstrap.Modal(document.getElementById('customerModal'));
+      modal.show();
+    });
 
-  // ✅ فتح مودال إضافة عميل
-  $('#addCustomerBtn').click(()=> $('#customerModal').modal('show'));
+    // نقل بيانات العميل من المودال إلى الحقول الأساسية (بدون Ajax)
+    document.getElementById('newCustomerForm')?.addEventListener('submit', function(e){
+      e.preventDefault();
+      const name  = document.getElementById('c_name').value.trim();
+      const phone = document.getElementById('c_phone').value.trim();
+      const email = document.getElementById('c_email').value.trim();
 
-  // ✅ حفظ عميل جديد عبر Ajax
-  $('#newCustomerForm').submit(e=>{
-    e.preventDefault();
-    $.post("{{ url_for('customers.create_customer') }}", $(e.target).serialize())
-      .done(resp=>{
-        if(resp.success){
-          let opt = new Option(resp.customer.name, resp.customer.id, true, true);
-          $('#customerSelect').append(opt).trigger('change');
-          $('#customerModal').modal('hide');
-          toastr.success("تم إضافة العميل!");
-        } else toastr.error("فشل إضافة العميل!");
-      })
-      .fail(()=> toastr.error("حدث خطأ أثناء إضافة العميل!"));
-  });
-});
-</script>
+      // إفراغ اختيار العميل لإجبار الإنشاء وفق الراوت
+      const sel = document.getElementById('customerSelect');
+      if (sel) sel.value = '';
+
+      // تعبئة الحقول الرئيسية (مطابقة لأسماء الفورم)
+      const f = document.getElementById('serviceForm');
+      if (f) {
+        const setVal = (name, val) => { const el = f.querySelector(`[name="${name}"]`); if (el) el.value = val; };
+        setVal('name', name);
+        setVal('phone', phone);
+        setVal('email', email);
+      }
+
+      bootstrap.Modal.getInstance(document.getElementById('customerModal'))?.hide();
+      Swal.fire('تم', 'تم إدراج بيانات العميل في الطلب. احفظ الطلب لإتمام الإنشاء.', 'success');
+    });
+  </script>
 {% endblock %}

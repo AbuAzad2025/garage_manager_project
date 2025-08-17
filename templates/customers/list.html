@@ -1,121 +1,89 @@
 {% extends 'base.html' %}
+
 {% block title %}قائمة العملاء{% endblock %}
 
 {% block content %}
 <div class="container py-5">
+
+  {# ------------------------- رسائل التنبيه ------------------------- #}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category or 'info' }} alert-dismissible fade show my-2" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {# ------------------------- العنوان والأزرار ------------------------- #}
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h2 class="fw-bold"><i class="fas fa-users me-2"></i>قائمة العملاء</h2>
     <div class="btn-group" role="group">
-      <a href="{{ url_for('customers.create_customer') }}" class="btn btn-success">
+      <a href="{{ url_for('customers_bp.create_form') }}" class="btn btn-success">
         <i class="fas fa-user-plus"></i> إضافة عميل
       </a>
-      <a href="{{ url_for('customers.import_customers') }}" class="btn btn-secondary">
+      <a href="{{ url_for('customers_bp.import_customers') }}" class="btn btn-secondary">
         <i class="fas fa-file-csv"></i> استيراد CSV
       </a>
-      <a href="{{ url_for('customers.export_customers', format='excel') }}" class="btn btn-outline-primary">
+      <a href="{{ url_for('customers_bp.export_customers', format='excel') }}" class="btn btn-outline-primary">
         <i class="fas fa-file-excel"></i> تصدير Excel
       </a>
-      <a href="{{ url_for('customers.export_contacts') }}" class="btn btn-outline-info">
+      <a href="{{ url_for('customers_bp.export_contacts') }}" class="btn btn-outline-info">
         <i class="fas fa-address-book"></i> تصدير جهات الاتصال
       </a>
-      <a href="{{ url_for('customers.advanced_filter') }}" class="btn btn-outline-warning">
+      <a href="{{ url_for('customers_bp.advanced_filter') }}" class="btn btn-outline-warning">
         <i class="fas fa-filter"></i> بحث متقدم
       </a>
     </div>
   </div>
 
-  <!-- نموذج البحث البسيط -->
-  <form id="customer-adv-search" class="mb-3 row g-2" method="get">
-    <div class="col"><input type="text" name="name" class="form-control" placeholder="اسم العميل" value="{{ args.get('name','') }}"></div>
-    <div class="col"><input type="text" name="phone" class="form-control" placeholder="جوال" value="{{ args.get('phone','') }}"></div>
+  {# ------------------------- نموذج البحث ------------------------- #}
+  <form id="customer-adv-search" class="mb-3 row g-2" method="get" action="{{ url_for('customers_bp.list_customers') }}">
+    <div class="col">
+      <input type="text" name="name" class="form-control" placeholder="اسم العميل" value="{{ args.get('name','') }}">
+    </div>
+    <div class="col">
+      <input type="text" name="phone" class="form-control" placeholder="جوال" value="{{ args.get('phone','') }}">
+    </div>
     <div class="col">
       <select name="category" class="form-select">
         <option value="">كل التصنيفات</option>
         {% for cat in ['ذهبي','فضي','مميز','عادي'] %}
-          <option value="{{ cat }}" {% if args.get('category')==cat %}selected{% endif %}>{{ cat }}</option>
+          <option value="{{ cat }}" {% if args.get('category') == cat %}selected{% endif %}>{{ cat }}</option>
         {% endfor %}
       </select>
     </div>
     <div class="col">
       <select name="is_active" class="form-select">
         <option value="">كل الحالات</option>
-        <option value="1" {% if args.get('is_active')=='1' %}selected{% endif %}>نشط</option>
-        <option value="0" {% if args.get('is_active')=='0' %}selected{% endif %}>مؤرشف</option>
+        <option value="1" {% if args.get('is_active') == '1' %}selected{% endif %}>نشط</option>
+        <option value="0" {% if args.get('is_active') == '0' %}selected{% endif %}>غير نشط</option>
       </select>
     </div>
-    <div class="col-auto"><button class="btn btn-primary" type="submit"><i class="fas fa-search me-1"></i>بحث</button></div>
+    <div class="col-auto">
+      <button class="btn btn-primary" type="submit"><i class="fas fa-search me-1"></i>بحث</button>
+      <button class="btn btn-light" type="reset" id="reset-adv-filter">إعادة تعيين</button>
+    </div>
   </form>
 
+  {# ------------------------- جدول العملاء ------------------------- #}
   <div class="card shadow-sm rounded-4">
     <div class="card-body p-0">
-      <div class="table-responsive">
-        <table id="customersTable" class="table table-hover table-bordered align-middle mb-0">
-          <thead class="table-primary">
-            <tr>
-              <th>#</th><th>الاسم</th><th>الجوال</th><th>البريد</th>
-              <th>التصنيف</th><th>الرصيد</th><th>الحالة</th><th>العمليات</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for customer in customers %}
-            <tr class="{% if not customer.is_active %}table-secondary{% endif %}">
-              <td>{{ loop.index + (pagination.page - 1) * pagination.per_page }}</td>
-              <td>{{ customer.name }}</td>
-              <td>{{ customer.phone }}</td>
-              <td>{{ customer.email or '-' }}</td>
-              <td>{{ customer.category or '-' }}</td>
-              <td class="{% if customer.balance > 0 %}text-danger{% else %}text-success{% endif %}">
-                {{ customer.balance|format_currency }}
-              </td>
-              <td>
-                {% if customer.is_active %}
-                  <span class="badge bg-success">نشط</span>
-                {% else %}
-                  <span class="badge bg-secondary">مؤرشف</span>
-                {% endif %}
-              </td>
-              <td class="text-nowrap">
-                <div class="btn-group btn-group-sm" role="group">
-                  <a href="{{ url_for('customers.customer_detail', id=customer.id) }}"
-                     class="btn btn-info" title="تفاصيل"><i class="fas fa-eye"></i></a>
-                  <a href="{{ url_for('customers.edit_customer', id=customer.id) }}"
-                     class="btn btn-warning" title="تعديل"><i class="fas fa-edit"></i></a>
-                  <button type="button"
-                          class="btn btn-danger delete-btn"
-                          data-id="{{ customer.id }}"
-                          title="حذف">
-                    <i class="fas fa-trash"></i>
-                  </button>
-                  <a href="{{ url_for('payments.create_payment', entity_type='customer', entity_id=customer.id) }}"
-                     class="btn btn-success" title="دفع جديد">
-                    <i class="fas fa-coins"></i>
-                  </a>
-                  <a href="{{ url_for('customers.account_statement', id=customer.id) }}"
-                     class="btn btn-outline-primary" title="كشف حساب">
-                    <i class="fas fa-file-invoice"></i>
-                  </a>
-                </div>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+      {% include 'customers/_table.html' %}
 
-      <!-- ترقيم الصفحات -->
       <nav class="mt-3">
         <ul class="pagination justify-content-center mb-0">
           {% if pagination.has_prev %}
             <li class="page-item">
-              <a class="page-link"
-                 href="{{ url_for('customers.list_customers', page=pagination.prev_num, **args) }}">السابق</a>
+              <a class="page-link" href="{{ url_for('customers_bp.list_customers', page=pagination.prev_num, **args) }}">السابق</a>
             </li>
           {% endif %}
           {% for p in pagination.iter_pages() %}
             {% if p %}
               <li class="page-item {% if p == pagination.page %}active{% endif %}">
-                <a class="page-link"
-                   href="{{ url_for('customers.list_customers', page=p, **args) }}">{{ p }}</a>
+                <a class="page-link" href="{{ url_for('customers_bp.list_customers', page=p, **args) }}">{{ p }}</a>
               </li>
             {% else %}
               <li class="page-item disabled"><span class="page-link">…</span></li>
@@ -123,8 +91,7 @@
           {% endfor %}
           {% if pagination.has_next %}
             <li class="page-item">
-              <a class="page-link"
-                 href="{{ url_for('customers.list_customers', page=pagination.next_num, **args) }}">التالي</a>
+              <a class="page-link" href="{{ url_for('customers_bp.list_customers', page=pagination.next_num, **args) }}">التالي</a>
             </li>
           {% endif %}
         </ul>
@@ -133,27 +100,26 @@
   </div>
 </div>
 
-<!-- مودال تأكيد الحذف -->
-<form id="deleteForm" method="post" style="display:none;">
-  {{ csrf_token() }}
-  <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="deleteModalLabel">تأكيد الحذف</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
-        </div>
-        <div class="modal-body">
-          هل أنت متأكد أنك تريد حذف هذا العميل؟
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-          <button type="submit" class="btn btn-danger">حذف</button>
-        </div>
+{# ------------------------- نموذج الحذف ومودال التأكيد ------------------------- #}
+<form id="deleteForm" method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
+
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="deleteModalLabel">تأكيد الحذف</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+      </div>
+      <div class="modal-body">هل أنت متأكد أنك تريد حذف هذا العميل؟</div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+        <button type="button" class="btn btn-danger" id="confirmDelete">حذف</button>
       </div>
     </div>
   </div>
-</form>
+</div>
 {% endblock %}
 
 {% block scripts %}

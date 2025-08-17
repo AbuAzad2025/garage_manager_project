@@ -1,112 +1,119 @@
-# shipments.py
+# -*- coding: utf-8 -*-
 from datetime import datetime
-from flask import (
-    Blueprint, render_template, request, redirect,
-    url_for, flash, abort, jsonify
-)
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, abort
 from flask_login import login_required
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import or_
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import joinedload
 from extensions import db
 from forms import ShipmentForm
-from models import (
-    Shipment, ShipmentItem, ShipmentPartner,
-    Partner, Product, Warehouse
-)
+from models import Shipment, ShipmentItem, ShipmentPartner, Partner, Product, Warehouse
 from utils import permission_required, format_currency
 
-shipments_bp = Blueprint(
-    "shipments",
-    __name__,
-    url_prefix="/shipments",
-    template_folder="templates/shipments"
-)
+shipments_bp = Blueprint("shipments_bp", __name__, url_prefix="/shipments")
 
+def _wants_json() -> bool:
+    accept = request.headers.get("Accept", "")
+    return ("application/json" in accept and "text/html" not in accept) or (request.args.get("format") == "json")
 
-def _prepare_form(form: ShipmentForm):
-    """تهيئة QuerySelectFields الديناميكية"""
-    form.partner_links.partner_id.query = Partner.query.order_by(Partner.name).all()
-    form.items.product_id.query       = Product.query.order_by(Product.name).all()
-    form.items.warehouse_id.query     = Warehouse.query.order_by(Warehouse.name).all()
+def _sa_get_or_404(model, ident, options=None):
+    if options:
+        q = db.session.query(model)
+        for opt in (options if isinstance(options, (list, tuple)) else (options,)): q = q.options(opt)
+        obj = q.filter_by(id=ident).first()
+    else:
+        obj = db.session.get(model, ident)
+    if obj is None: abort(404)
+    return obj
 
+def _fill_selects_for_form(form: ShipmentForm) -> None:
+    products = Product.query.order_by(Product.name).all()
+    partners = Partner.query.order_by(Partner.name).all()
+    warehouses = Warehouse.query.order_by(Warehouse.name).all()
+    if hasattr(form, "destination_id"):
+        form.destination_id.choices = [(w.id, w.name) for w in warehouses]
+    if hasattr(form, "items"):
+        for entry in getattr(form.items, "entries", []):
+            f = getattr(entry, "form", entry)
+            f.product_id.choices = [(p.id, p.name) for p in products]
+            f.warehouse_id.choices = [(w.id, w.name) for w in warehouses]
+        if hasattr(form.items, "empty_form"):
+            form.items.empty_form.product_id.choices = [(p.id, p.name) for p in products]
+            form.items.empty_form.warehouse_id.choices = [(w.id, w.name) for w in warehouses]
+    if hasattr(form, "partner_links"):
+        for entry in getattr(form.partner_links, "entries", []):
+            f = getattr(entry, "form", entry)
+            f.partner_id.choices = [(p.id, p.name) for p in partners]
+        if hasattr(form.partner_links, "empty_form"):
+            form.partner_links.empty_form.partner_id.choices = [(p.id, p.name) for p in partners]
+
+def _next_shipment_number() -> str:
+    last = Shipment.query.order_by(Shipment.id.desc()).first()
+    next_id = (last.id + 1) if last else 1
+    return f"SH-{datetime.utcnow():%Y%m%d}-{next_id:04d}"
 
 @shipments_bp.route("/", methods=["GET"], endpoint="list_shipments")
 @login_required
-@permission_required("manage_shipments")
+@permission_required("manage_warehouses")
 def list_shipments():
-    """📦 قائمة الشحنات مع دعم البحث وPagination وJSON للـ DataTables"""
-    q = Shipment.query
-    status = request.args.get("status")
-    search = request.args.get("search", "")
-
-    if status:
-        q = q.filter(Shipment.status == status)
+    q = Shipment.query.options(
+        joinedload(Shipment.items),
+        joinedload(Shipment.partners).joinedload(ShipmentPartner.partner),
+        joinedload(Shipment.destination_warehouse),
+    )
+    status = (request.args.get("status") or "").strip()
+    search = (request.args.get("search") or "").strip()
+    if status: q = q.filter(Shipment.status == status)
     if search:
+        like = f"%{search}%"
         q = q.filter(or_(
-            Shipment.shipment_number.ilike(f"%{search}%"),
-            Shipment.tracking_number.ilike(f"%{search}%"),
-            Shipment.origin.ilike(f"%{search}%"),
-            Shipment.destination.ilike(f"%{search}%")
+            Shipment.shipment_number.ilike(like),
+            Shipment.tracking_number.ilike(like),
+            Shipment.origin.ilike(like),
+            Shipment.carrier.ilike(like),
+            Shipment.destination.ilike(like),
+            Shipment.destination_warehouse.has(Warehouse.name.ilike(like)),
         ))
-
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 20, type=int)
-    pagination = q.order_by(Shipment.expected_arrival.desc()) \
-                  .paginate(page=page, per_page=per_page, error_out=False)
-
-    if request.is_json or request.args.get("format") == "json":
+    pagination = q.order_by(Shipment.expected_arrival.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    if _wants_json():
         return jsonify({
             "data": [{
                 "id": s.id,
                 "number": s.shipment_number,
                 "status": s.status,
                 "origin": s.origin,
-                "destination": s.destination,
+                "destination": (s.destination_warehouse.name if s.destination_warehouse else (s.destination or None)),
                 "expected_arrival": s.expected_arrival.isoformat() if s.expected_arrival else None,
-                "total_value": format_currency(s.total_value or 0)
+                "total_value": float(s.total_value or 0),
             } for s in pagination.items],
-            "meta": {
-                "page": pagination.page,
-                "pages": pagination.pages,
-                "total": pagination.total
-            }
+            "meta": {"page": pagination.page, "pages": pagination.pages, "total": pagination.total}
         })
-
-    return render_template(
-        "shipments/list.html",
-        shipments=pagination.items,
-        pagination=pagination,
-        search=search,
-        status=status
-    )
-
+    return render_template("warehouses/shipments.html", shipments=pagination.items, pagination=pagination, search=search, status=status)
 
 @shipments_bp.route("/create", methods=["GET", "POST"], endpoint="create_shipment")
 @login_required
-@permission_required("manage_shipments")
+@permission_required("manage_warehouses")
 def create_shipment():
-    """➕ إنشاء شحنة جديدة"""
     form = ShipmentForm()
-    _prepare_form(form)
-
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-        return render_template("shipments/_form.html", form=form)
-
+    pre_dest_id = request.args.get("destination_id", type=int)
+    if request.method == "GET":
+        if not getattr(form.items, "entries", []): form.items.append_entry()
+        if not getattr(form.partner_links, "entries", []): form.partner_links.append_entry()
+    _fill_selects_for_form(form)
+    if pre_dest_id and hasattr(form, "destination_id") and not form.destination_id.data:
+        form.destination_id.data = pre_dest_id
     if form.validate_on_submit():
-        # رقم شحنة فريد
-        last = Shipment.query.order_by(Shipment.id.desc()).first()
-        next_id = last.id + 1 if last else 1
-        shipment_number = f"SH-{datetime.utcnow():%Y%m%d}-{next_id:04d}"
-
         sh = Shipment(
-            shipment_number=shipment_number,
-            origin=form.origin.data,
-            destination=form.destination.data,
-            carrier=form.carrier.data,
-            tracking_number=form.tracking_number.data,
+            shipment_number=form.shipment_number.data or _next_shipment_number(),
             shipment_date=form.shipment_date.data,
             expected_arrival=form.expected_arrival.data,
             actual_arrival=form.actual_arrival.data,
+            origin=form.origin.data,
+            destination_id=form.destination_id.data,
+            carrier=form.carrier.data,
+            tracking_number=form.tracking_number.data,
             status=form.status.data,
             value_before=form.value_before.data,
             shipping_cost=form.shipping_cost.data,
@@ -114,184 +121,149 @@ def create_shipment():
             vat=form.vat.data,
             insurance=form.insurance.data,
             total_value=form.total_value.data,
-            notes=form.notes.data
+            notes=form.notes.data,
         )
-        db.session.add(sh)
-
-        for entry in form.partner_links.entries:
-            ln = entry.form
-            sh.partner_links.append(ShipmentPartner(
-                partner_id=ln.partner_id.data.id,
-                share_percentage=ln.share_percentage.data or 0,
-                share_amount=ln.share_amount.data or 0
+        db.session.add(sh); db.session.flush()
+        for entry in getattr(form.items, "entries", []):
+            f = getattr(entry, "form", entry)
+            db.session.add(ShipmentItem(
+                shipment_id=sh.id,
+                product_id=f.product_id.data,
+                warehouse_id=f.warehouse_id.data,
+                quantity=f.quantity.data,
+                unit_cost=f.unit_cost.data or 0,
+                declared_value=f.declared_value.data or 0,
             ))
-
-        for entry in form.items.entries:
-            itm = entry.form
-            sh.items.append(ShipmentItem(
-                product_id=itm.product_id.data.id,
-                warehouse_id=itm.warehouse_id.data.id,
-                quantity=itm.quantity.data,
-                unit_cost=itm.unit_cost.data or 0
-            ))
-
+        for entry in getattr(form.partner_links, "entries", []):
+            f = getattr(entry, "form", entry)
+            if f.partner_id.data:
+                db.session.add(ShipmentPartner(
+                    shipment_id=sh.id,
+                    partner_id=f.partner_id.data,
+                    share_percentage=f.share_percentage.data or 0,
+                    share_amount=f.share_amount.data or 0,
+                    identity_number=f.identity_number.data,
+                    phone_number=f.phone_number.data,
+                    address=f.address.data,
+                    unit_price_before_tax=f.unit_price_before_tax.data or 0,
+                    expiry_date=f.expiry_date.data,
+                    notes=f.notes.data,
+                ))
         try:
             db.session.commit()
             flash("✅ تم إنشاء الشحنة بنجاح", "success")
-            return redirect(url_for("shipments.list_shipments"))
+            dest_id = sh.destination_id or pre_dest_id
+            return redirect(url_for("warehouse_bp.detail", warehouse_id=dest_id)) if dest_id else redirect(url_for("shipments_bp.list_shipments"))
         except SQLAlchemyError as e:
-            db.session.rollback()
-            flash(f"⚠️ خطأ: {e}", "danger")
-
-    return render_template("shipments/form.html", form=form, action="create")
-
+            db.session.rollback(); flash(f"⚠️ خطأ أثناء إنشاء الشحنة: {e}", "danger")
+    return render_template("warehouses/shipment_form.html", form=form, shipment=None)
 
 @shipments_bp.route("/<int:id>/edit", methods=["GET", "POST"], endpoint="edit_shipment")
 @login_required
-@permission_required("manage_shipments")
-def edit_shipment(id):
-    """✏️ تعديل شحنة"""
-    sh = Shipment.query.get_or_404(id)
+@permission_required("manage_warehouses")
+def edit_shipment(id: int):
+    sh = _sa_get_or_404(Shipment, id, options=[joinedload(Shipment.items), joinedload(Shipment.partners)])
     form = ShipmentForm(obj=sh)
-    _prepare_form(form)
-
     if request.method == "GET":
         form.partner_links.entries.clear()
-        for p in sh.partner_links:
+        for p in sh.partners:
             form.partner_links.append_entry({
-                "partner_id": p.partner_id,
-                "share_percentage": p.share_percentage,
-                "share_amount": p.share_amount
+                "partner_id": p.partner_id, "share_percentage": p.share_percentage, "share_amount": p.share_amount,
+                "identity_number": p.identity_number, "phone_number": p.phone_number, "address": p.address,
+                "unit_price_before_tax": p.unit_price_before_tax, "expiry_date": p.expiry_date, "notes": p.notes,
             })
         form.items.entries.clear()
         for i in sh.items:
             form.items.append_entry({
-                "product_id": i.product_id,
-                "warehouse_id": i.warehouse_id,
-                "quantity": i.quantity,
-                "unit_cost": i.unit_cost
+                "product_id": i.product_id, "warehouse_id": i.warehouse_id, "quantity": i.quantity,
+                "unit_cost": i.unit_cost, "declared_value": i.declared_value,
             })
-
+    _fill_selects_for_form(form)
     if form.validate_on_submit():
-        sh.origin            = form.origin.data
-        sh.destination       = form.destination.data
-        sh.carrier           = form.carrier.data
-        sh.tracking_number   = form.tracking_number.data
-        sh.shipment_date     = form.shipment_date.data
-        sh.expected_arrival  = form.expected_arrival.data
-        sh.actual_arrival    = form.actual_arrival.data
-        sh.status            = form.status.data
-        sh.value_before      = form.value_before.data
-        sh.shipping_cost     = form.shipping_cost.data
-        sh.customs           = form.customs.data
-        sh.vat               = form.vat.data
-        sh.insurance         = form.insurance.data
-        sh.total_value       = form.total_value.data
-        sh.notes             = form.notes.data
-
-        sh.partner_links.clear()
-        for entry in form.partner_links.entries:
-            ln = entry.form
-            sh.partner_links.append(ShipmentPartner(
-                partner_id=ln.partner_id.data.id,
-                share_percentage=ln.share_percentage.data or 0,
-                share_amount=ln.share_amount.data or 0
-            ))
-        sh.items.clear()
-        for entry in form.items.entries:
-            itm = entry.form
+        sh.shipment_date = form.shipment_date.data
+        sh.expected_arrival = form.expected_arrival.data
+        sh.actual_arrival = form.actual_arrival.data
+        sh.origin = form.origin.data
+        sh.destination_id = form.destination_id.data
+        sh.carrier = form.carrier.data
+        sh.tracking_number = form.tracking_number.data
+        sh.status = form.status.data
+        sh.value_before = form.value_before.data
+        sh.shipping_cost = form.shipping_cost.data
+        sh.customs = form.customs.data
+        sh.vat = form.vat.data
+        sh.insurance = form.insurance.data
+        sh.total_value = form.total_value.data
+        sh.notes = form.notes.data
+        sh.partners.clear(); sh.items.clear(); db.session.flush()
+        for entry in getattr(form.partner_links, "entries", []):
+            f = getattr(entry, "form", entry)
+            if f.partner_id.data:
+                sh.partners.append(ShipmentPartner(
+                    partner_id=f.partner_id.data,
+                    share_percentage=f.share_percentage.data or 0,
+                    share_amount=f.share_amount.data or 0,
+                    identity_number=f.identity_number.data,
+                    phone_number=f.phone_number.data,
+                    address=f.address.data,
+                    unit_price_before_tax=f.unit_price_before_tax.data or 0,
+                    expiry_date=f.expiry_date.data,
+                    notes=f.notes.data,
+                ))
+        for entry in getattr(form.items, "entries", []):
+            f = getattr(entry, "form", entry)
             sh.items.append(ShipmentItem(
-                product_id=itm.product_id.data.id,
-                warehouse_id=itm.warehouse_id.data.id,
-                quantity=itm.quantity.data,
-                unit_cost=itm.unit_cost.data or 0
+                product_id=f.product_id.data,
+                warehouse_id=f.warehouse_id.data,
+                quantity=f.quantity.data,
+                unit_cost=f.unit_cost.data or 0,
+                declared_value=f.declared_value.data or 0,
             ))
-
         try:
             db.session.commit()
             flash("✅ تم تحديث بيانات الشحنة", "success")
-            return redirect(url_for("shipments.shipment_detail", id=id))
+            dest_id = sh.destination_id
+            return redirect(url_for("warehouse_bp.detail", warehouse_id=dest_id)) if dest_id else redirect(url_for("shipments_bp.list_shipments"))
         except SQLAlchemyError as e:
-            db.session.rollback()
-            flash(f"⚠️ خطأ: {e}", "danger")
-
-    return render_template("shipments/form.html", form=form, shipment=sh, action="edit")
-
+            db.session.rollback(); flash(f"⚠️ خطأ أثناء التحديث: {e}", "danger")
+    return render_template("warehouses/shipment_form.html", form=form, shipment=sh)
 
 @shipments_bp.route("/<int:id>/delete", methods=["POST"], endpoint="delete_shipment")
 @login_required
-@permission_required("manage_shipments")
-def delete_shipment(id):
-    """🗑️ حذف شحنة"""
-    sh = Shipment.query.get_or_404(id)
-    sh.partner_links.clear()
-    sh.items.clear()
-    db.session.flush()
-    db.session.delete(sh)
+@permission_required("manage_warehouses")
+def delete_shipment(id: int):
+    sh = _sa_get_or_404(Shipment, id)
+    dest_id = sh.destination_id
     try:
-        db.session.commit()
-        flash("⚠️ تم حذف الشحنة بنجاح", "warning")
+        sh.partners.clear(); sh.items.clear(); db.session.flush(); db.session.delete(sh); db.session.commit()
+        flash("🗑️ تم حذف الشحنة", "warning")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        flash(f"خطأ أثناء الحذف: {e}", "danger")
-    return redirect(url_for("shipments.list_shipments"))
-
+        db.session.rollback(); flash(f"خطأ أثناء الحذف: {e}", "danger")
+    return redirect(url_for("warehouse_bp.detail", warehouse_id=dest_id)) if dest_id else redirect(url_for("shipments_bp.list_shipments"))
 
 @shipments_bp.route("/<int:id>", methods=["GET"], endpoint="shipment_detail")
 @login_required
-@permission_required("manage_shipments")
-def shipment_detail(id):
-    """📄 تفاصيل الشحنة مع دفعاتها"""
-    sh = Shipment.query.options(
-        db.joinedload(Shipment.items),
-        db.joinedload(Shipment.partner_links).joinedload(ShipmentPartner.partner),
-        db.joinedload(Shipment.payments)
-    ).get_or_404(id)
-    total_paid = sum(p.amount for p in sh.payments)
-    return render_template(
-        "shipments/detail.html",
-        shipment=sh,
-        total_paid=total_paid,
-        format_currency=format_currency
-    )
-
-
-@shipments_bp.route("/<int:id>/payments", methods=["GET"], endpoint="shipment_payments")
-@login_required
-@permission_required("manage_shipments")
-def shipment_payments(id):
-    """💰 دفعات شحنة معينة (تكامل مع بلوبيرنت الدفع الموحد)"""
-    sh = Shipment.query.get_or_404(id)
-    payments = sh.payments.order_by(Shipment.payments.property.mapper.class_.payment_date.desc()).all()
-    total_paid = sum(p.amount for p in payments)
-    return render_template(
-        "payments/list.html",
-        entity=sh,
-        payments=payments,
-        total_paid=total_paid,
-        entity_type="shipment",
-        entity_name="الشحنة"
-    )
-
-
-@shipments_bp.route("/<int:id>/pay_customs", methods=["POST"], endpoint="pay_customs")
-@login_required
-@permission_required("manage_shipments")
-def pay_customs(id):
-    """
-    🔸 دفع جمارك الشحنة عبر النظام الموحد.
-    يوجه المستخدم إلى نموذج إنشاء دفعة مسبق التهيئة.
-    """
-    sh = Shipment.query.get_or_404(id)
-    if not sh.customs or sh.customs <= 0:
-        flash("لا توجد جمارك للدفع لهذه الشحنة.", "warning")
-        return redirect(url_for("shipments.shipment_detail", id=id))
-
-    return redirect(
-        url_for(
-            "payments.create_payment",
-            entity_type="shipment_customs",
-            entity_id=sh.id,
-            amount=sh.customs
-        )
-    )
+@permission_required("manage_warehouses")
+def shipment_detail(id: int):
+    sh = _sa_get_or_404(Shipment, id, options=[
+        joinedload(Shipment.items).joinedload(ShipmentItem.product),
+        joinedload(Shipment.partners).joinedload(ShipmentPartner.partner),
+        joinedload(Shipment.destination_warehouse),
+    ])
+    total_paid = sum(float(p.total_amount or 0) for p in getattr(sh, "payments", []))
+    if _wants_json():
+        return jsonify({
+            "shipment": {
+                "id": sh.id,
+                "number": sh.shipment_number,
+                "status": sh.status,
+                "origin": sh.origin,
+                "destination": (sh.destination_warehouse.name if sh.destination_warehouse else (sh.destination or None)),
+                "expected_arrival": sh.expected_arrival.isoformat() if sh.expected_arrival else None,
+                "total_value": float(sh.total_value or 0),
+                "items": [{"product": (it.product.name if it.product else None), "warehouse_id": it.warehouse_id, "quantity": it.quantity, "unit_cost": float(it.unit_cost or 0), "declared_value": float(it.declared_value or 0)} for it in sh.items],
+                "partners": [{"partner": (ln.partner.name if ln.partner else None), "share_percentage": float(ln.share_percentage or 0), "share_amount": float(ln.share_amount or 0)} for ln in sh.partners],
+                "total_paid": total_paid,
+            }
+        })
+    return render_template("warehouses/shipment_detail.html", shipment=sh, total_paid=total_paid, format_currency=format_currency)

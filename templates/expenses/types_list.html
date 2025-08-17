@@ -1,14 +1,15 @@
 {% extends 'base.html' %}
+
 {% block title %}أنواع المصاريف{% endblock %}
 {% block content %}
 <div class="container mt-4">
   <h2>أنواع المصاريف</h2>
   {% if current_user.has_permission('manage_expenses') %}
-  <a href="{{ url_for('expenses.add_type') }}" class="btn btn-success mb-3">
+  <a href="{{ url_for('expenses_bp.add_type') }}" class="btn btn-success mb-3">
     <i class="fas fa-plus"></i> إضافة نوع
   </a>
   {% endif %}
-  <table id="types-table" class="table table-striped table-bordered">
+  <table id="types-table" class="table table-striped table-bordered align-middle">
     <thead>
       <tr><th>الاسم</th><th>الوصف</th><th>إجراءات</th></tr>
     </thead>
@@ -17,14 +18,14 @@
       <tr>
         <td>{{ t.name }}</td>
         <td>{{ t.description or '—' }}</td>
-        <td>
+        <td class="text-nowrap">
           {% if current_user.has_permission('manage_expenses') %}
-          <a href="{{ url_for('expenses.edit_type', type_id=t.id) }}" class="btn btn-sm btn-info">
+          <a href="{{ url_for('expenses_bp.edit_type', type_id=t.id) }}" class="btn btn-sm btn-info">
             <i class="fas fa-edit"></i>
           </a>
-          <form method="post" action="{{ url_for('expenses.delete_type', type_id=t.id) }}"
+          <form method="post" action="{{ url_for('expenses_bp.delete_type', type_id=t.id) }}"
                 style="display:inline;" onsubmit="return confirm('حذف النوع؟');">
-            {{ form.csrf_token }}
+            {{ csrf_token() }}
             <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
           </form>
           {% endif %}
@@ -37,12 +38,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-  $(function(){
-    $('#types-table').DataTable({
-      dom:'Bfrtip', buttons:['excelHtml5','print'],
-      language:{ url:'//cdn.datatables.net/plug-ins/1.10.21/i18n/Arabic.json' }
-    });
-  });
-</script>
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/expenses.js') }}"></script>
 {% endblock %}
