@@ -1,0 +1,32 @@
+{% extends 'warehouses/base.html' %}
+{% block title %}الحجوزات المسبقة{% endblock %}
+{% block page_title %}الحجوزات المسبقة{% endblock %}
+
+{% block content %}
+<div class="mb-2 text-end">
+  <a href="{{ url_for('warehouse_bp.preorder_create') }}" class="btn btn-primary">إنشاء حجز</a>
+</div>
+<table class="table table-striped" id="preorders-table">
+  <thead><tr><th>الكود</th><th>الجهة</th><th>الصنف</th><th>المستودع</th><th>الكمية</th><th>العربون</th><th>الحالة</th><th>تاريخ</th></tr></thead>
+  <tbody>
+    {% for p in preorders %}
+    <tr>
+      <td><a href="{{ url_for('warehouse_bp.preorder_detail', preorder_id=p.id) }}">{{ p.reservation_code }}</a></td>
+      <td>{{ p.entity_type }}</td>
+      <td>{{ p.product.name }}</td>
+      <td>{{ p.warehouse.name }}</td>
+      <td>{{ p.quantity }}</td>
+      <td>{{ p.prepaid_amount }}</td>
+      <td>{{ p.status }}</td>
+      <td>{{ p.created_at.strftime('%Y-%m-%d') if p.created_at }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(function(){ $('#preorders-table').DataTable({pageLength:25}); });
+</script>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block title %}تفاصيل الملاحظة{% endblock %}
+
+{% set entity_labels = {
+  'CUSTOMER':'عميل','SALE':'بيع','PRODUCT':'منتج','SUPPLIER':'مورد','PARTNER':'شريك',
+  'INVOICE':'فاتورة','SHIPMENT':'شحنة','SERVICE':'صيانة','USER':'مستخدم','OTHER':'أخرى'
+} %}
+{% set prio_labels = {'LOW':'منخفضة','MEDIUM':'متوسطة','HIGH':'عالية','URGENT':'عاجلة'} %}
+
+{% block content %}
+<h1 class="mb-4"><i class="fas fa-sticky-note"></i> تفاصيل الملاحظة</h1>
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <div class="d-flex justify-content-between small text-muted mb-2">
+      <span><i class="fas fa-user"></i> {{ (note.author.username if note.author else '-') }}</span>
+      <span><i class="fas fa-clock"></i> {{ note.created_at.strftime('%Y-%m-%d %H:%M') if note.created_at else '-' }}</span>
+    </div>
+
+    <p class="mb-3">{{ note.content or '-' }}</p>
+
+    <div class="row g-3">
+      <div class="col-md-3"><strong>مثبّت:</strong> {{ 'نعم' if note.is_pinned else 'لا' }}</div>
+      <div class="col-md-3"><strong>الأولوية:</strong> {{ prio_labels.get(note.priority, note.priority or '-') }}</div>
+      <div class="col-md-3"><strong>نوع الكيان:</strong> {{ entity_labels.get(note.entity_type, note.entity_type or '-') }}</div>
+      <div class="col-md-3"><strong>معرّف الكيان:</strong> {{ note.entity_id or '-' }}</div>
+    </div>
+  </div>
+  <div class="card-footer bg-transparent d-flex gap-2">
+    <a href="{{ url_for('notes_bp.list_notes') }}" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-right"></i> رجوع إلى الملاحظات
+    </a>
+  </div>
+</div>
+{% endblock %}

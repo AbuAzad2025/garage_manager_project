@@ -1,0 +1,69 @@
+{% extends 'warehouses/base.html' %}
+{% block title %}إضافة منتج - {{ warehouse.name }}{% endblock %}
+{% block page_title %}إضافة منتج - {{ warehouse.name }}{% endblock %}
+
+{% block content %}
+<form method="POST" novalidate>
+  {{ form.hidden_tag() }}
+  <div class="mb-2">{{ form.name.label }} {{ form.name(class="form-control") }}</div>
+  <div class="mb-2">{{ form.sku.label }} {{ form.sku(class="form-control") }}</div>
+  <div class="mb-2">{{ form.quantity.label }} {{ form.quantity(class="form-control") }}</div>
+
+  {% if warehouse.warehouse_type == 'PARTNER' %}
+  <hr><h5>مساهمات الشركاء</h5>
+  <div id="partners-container">
+    {% for p_form in partners_forms %}
+    <div class="partner-entry border rounded p-2 mb-2">
+      {{ p_form.partner_id.label }} {{ p_form.partner_id(class="form-control") }}
+      {{ p_form.share_percentage.label }} {{ p_form.share_percentage(class="form-control") }}
+      {{ p_form.partner_phone.label }} {{ p_form.partner_phone(class="form-control") }}
+      {{ p_form.partner_identity.label }} {{ p_form.partner_identity(class="form-control") }}
+      <button type="button" class="btn btn-sm btn-danger remove-partner-btn mt-2">حذف</button>
+    </div>
+    {% endfor %}
+  </div>
+  <button type="button" id="add-partner-btn" class="btn btn-secondary mt-2">إضافة شريك</button>
+  {% endif %}
+
+  {% if warehouse.warehouse_type == 'EXCHANGE' %}
+  <hr><h5>تجار التبادل</h5>
+  <div id="vendors-container">
+    {% for v_form in exchange_vendors_forms %}
+    <div class="vendor-entry border rounded p-2 mb-2">
+      {{ v_form.vendor_name.label }} {{ v_form.vendor_name(class="form-control") }}
+      {{ v_form.vendor_phone.label }} {{ v_form.vendor_phone(class="form-control") }}
+      {{ v_form.vendor_paid.label }} {{ v_form.vendor_paid(class="form-control") }}
+      {{ v_form.vendor_price.label }} {{ v_form.vendor_price(class="form-control") }}
+      <button type="button" class="btn btn-sm btn-danger remove-vendor-btn mt-2">حذف</button>
+    </div>
+    {% endfor %}
+  </div>
+  <button type="button" id="add-vendor-btn" class="btn btn-secondary mt-2">إضافة تاجر</button>
+  {% endif %}
+
+  <div class="mt-3">
+    <button class="btn btn-primary">حفظ المنتج</button>
+    <a class="btn btn-secondary" href="{{ url_for('warehouse_bp.products', warehouse_id=warehouse.id) }}">عودة</a>
+  </div>
+</form>
+
+<template id="partner-template">
+  <div class="partner-entry border rounded p-2 mb-2">
+    <label>الشريك</label><input type="text" name="partner_id" class="form-control" />
+    <label>نسبة المشاركة</label><input type="number" step="0.01" name="share_percentage" class="form-control" />
+    <label>الهاتف</label><input type="text" name="partner_phone" class="form-control" />
+    <label>رقم الهوية</label><input type="text" name="partner_identity" class="form-control" />
+    <button type="button" class="btn btn-sm btn-danger remove-partner-btn mt-2">حذف</button>
+  </div>
+</template>
+
+<template id="vendor-template">
+  <div class="vendor-entry border rounded p-2 mb-2">
+    <label>اسم التاجر</label><input type="text" name="vendor_name" class="form-control" />
+    <label>الهاتف</label><input type="text" name="vendor_phone" class="form-control" />
+    <label>المبلغ المدفوع</label><input type="number" step="0.01" name="vendor_paid" class="form-control" />
+    <label>السعر</label><input type="number" step="0.01" name="vendor_price" class="form-control" />
+    <button type="button" class="btn btn-sm btn-danger remove-vendor-btn mt-2">حذف</button>
+  </div>
+</template>
+{% endblock %}

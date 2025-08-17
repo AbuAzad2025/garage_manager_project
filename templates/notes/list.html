@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block title %}الملاحظات{% endblock %}
+
+{% block content %}
+<h1 class="mb-4"><i class="fas fa-sticky-note"></i> الملاحظات</h1>
+
+<div id="alertBox" class="alert d-none" role="alert"></div>
+
+{% include 'notes/_form.html' with context %}
+
+<hr class="my-4">
+
+<ul class="list-group" id="notesList">
+  {% if notes %}
+    {% for note in notes %}
+      <li class="list-group-item fade-in">
+        <div class="d-flex justify-content-between small text-muted mb-1">
+          <span><i class="fas fa-user"></i> {{ note.author.username }}</span>
+          <span><i class="fas fa-clock"></i> {{ note.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+        </div>
+        <p class="mb-0">{{ note.content }}</p>
+      </li>
+    {% endfor %}
+  {% else %}
+    <li class="list-group-item text-center text-muted">لا توجد ملاحظات حتى الآن.</li>
+  {% endif %}
+</ul>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function () {
+  const form = document.getElementById('noteForm');
+  const alertBox = document.getElementById('alertBox');
+
+  function showAlert(msg, type) {
+    alertBox.textContent = msg;
+    alertBox.className = 'alert alert-' + type;
+    if (type === 'success') setTimeout(() => alertBox.className = 'alert d-none', 2000);
+  }
+
+  function clearErrors() {
+    const invalids = form.querySelectorAll('.is-invalid');
+    invalids.forEach(el => el.classList.remove('is-invalid'));
+    const feedbacks = form.querySelectorAll('.invalid-feedback.dynamic');
+    feedbacks.forEach(el => el.remove());
+  }
+
+  function addFieldError(fieldName, message) {
+    const input = form.querySelector('[name="' + fieldName + '"]');
+    if (!input) return;
+    input.classList.add('is-invalid');
+    const fb = document.createElement('div');
+    fb.className = 'invalid-feedback dynamic';
+    fb.textContent = message;
+    if (input.parentElement) input.parentElement.appendChild(fb);
+  }
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    clearErrors();
+
+    try {
+      const res = await fetch(form.action, {
+        method: 'POST',
+        body: new FormData(form),
+        headers: {'X-Requested-With': 'XMLHttpRequest'}
+      });
+      const result = await res.json();
+
+      if (result.success) {
+        showAlert('تم إضافة الملاحظة بنجاح', 'success');
+
+        const ul = document.getElementById('notesList');
+        const li = document.createElement('li');
+        li.className = 'list-group-item fade-in';
+        li.innerHTML = `
+          <div class="d-flex justify-content-between small text-muted mb-1">
+            <span><i class="fas fa-user"></i> ${result.note.author}</span>
+            <span><i class="fas fa-clock"></i> ${result.note.created_at}</span>
+          </div>
+          <p class="mb-0"></p>
+        `;
+        li.querySelector('p').textContent = result.note.content;
+        if (ul.querySelector('.text-center')) ul.innerHTML = '';
+        ul.prepend(li);
+        form.reset();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        if (result.errors) {
+          Object.entries(result.errors).forEach(([k, v]) => addFieldError(k, Array.isArray(v) ? v[0] : v));
+        }
+        showAlert('فشل الإضافة. تحقق من البيانات.', 'danger');
+      }
+    } catch (_) {
+      showAlert('حدث خطأ غير متوقع!', 'danger');
+    }
+  });
+})();
+</script>
+<style>
+.fade-in { animation: fadein 0.7s; }
+@keyframes fadein { from { opacity: 0 } to { opacity: 1 } }
+</style>
+{% endblock %}

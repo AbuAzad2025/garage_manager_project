@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+
+{% block title %}تفاصيل الشحنة{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">
+  <a href="{{ url_for('shipments_bp.list_shipments') }}">الشحنات</a>
+</li>
+<li class="breadcrumb-item active">{{ shipment.shipment_number }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0">تفاصيل الشحنة</h4>
+  <div class="btn-group">
+    <a href="{{ url_for('shipments_bp.edit_shipment', id=shipment.id) }}" class="btn btn-warning">تعديل</a>
+    <form method="POST" action="{{ url_for('shipments_bp.delete_shipment', id=shipment.id) }}" onsubmit="return confirm('تأكيد حذف الشحنة؟');" class="d-inline">
+      {{ csrf_token() }}
+      <button type="submit" class="btn btn-danger">حذف</button>
+    </form>
+    <a href="{{ url_for('shipments_bp.list_shipments') }}" class="btn btn-secondary">رجوع</a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <dl class="row mb-0">
+      <dt class="col-sm-3">رقم الشحنة</dt>
+      <dd class="col-sm-9">{{ shipment.shipment_number }}</dd>
+
+      <dt class="col-sm-3">من</dt>
+      <dd class="col-sm-9">{{ shipment.origin or '-' }}</dd>
+
+      <dt class="col-sm-3">إلى</dt>
+      <dd class="col-sm-9">
+        {# يدعم الحالتين: FK لمستودع أو نص حر #}
+        {% if shipment.destination_warehouse %}
+          {{ shipment.destination_warehouse.name }}
+        {% else %}
+          {{ shipment.destination or '-' }}
+        {% endif %}
+      </dd>
+
+      <dt class="col-sm-3">الحالة</dt>
+      <dd class="col-sm-9">{{ shipment.status }}</dd>
+
+      <dt class="col-sm-3">تاريخ الشحن</dt>
+      <dd class="col-sm-9">
+        {{ shipment.shipment_date.strftime('%Y-%m-%d') if shipment.shipment_date else '-' }}
+      </dd>
+
+      <dt class="col-sm-3">متوقع الوصول</dt>
+      <dd class="col-sm-9">
+        {{ shipment.expected_arrival.strftime('%Y-%m-%d') if shipment.expected_arrival else '-' }}
+      </dd>
+
+      <dt class="col-sm-3">الوصول الفعلي</dt>
+      <dd class="col-sm-9">
+        {{ shipment.actual_arrival.strftime('%Y-%m-%d') if shipment.actual_arrival else '-' }}
+      </dd>
+
+      <dt class="col-sm-3">قيمة البضائع</dt>
+      <dd class="col-sm-9">{{ format_currency(shipment.value_before or 0) }}</dd>
+
+      <dt class="col-sm-3">كلفة الشحن</dt>
+      <dd class="col-sm-9">{{ format_currency(shipment.shipping_cost or 0) }}</dd>
+
+      <dt class="col-sm-3">الجمارك</dt>
+      <dd class="col-sm-9">{{ format_currency(shipment.customs or 0) }}</dd>
+
+      <dt class="col-sm-3">VAT</dt>
+      <dd class="col-sm-9">{{ format_currency(shipment.vat or 0) }}</dd>
+
+      <dt class="col-sm-3">التأمين</dt>
+      <dd class="col-sm-9">{{ format_currency(shipment.insurance or 0) }}</dd>
+
+      <dt class="col-sm-3">الإجمالي</dt>
+      <dd class="col-sm-9">{{ format_currency(shipment.total_value or 0) }}</dd>
+
+      <dt class="col-sm-3">ملاحظات</dt>
+      <dd class="col-sm-9">{{ shipment.notes or '-' }}</dd>
+    </dl>
+
+    <hr>
+
+    <h5 class="mt-2">العناصر</h5>
+    <div class="table-responsive">
+      <table class="table table-sm table-bordered align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>المنتج</th>
+            <th>المستودع</th>
+            <th class="text-center">الكمية</th>
+            <th class="text-end">سعر الوحدة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for i in shipment.items %}
+          <tr>
+            <td>{{ i.product.name }}</td>
+            <td>{{ i.warehouse.name }}</td>
+            <td class="text-center">{{ i.quantity }}</td>
+            <td class="text-end">{{ format_currency(i.unit_cost or 0) }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-center">لا توجد عناصر</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <h5 class="mt-3">الشركاء</h5>
+    <ul class="mb-0">
+      {% for p in shipment.partner_links %}
+        <li>
+          {{ p.partner.name }} – {{ (p.share_percentage or 0)|round(2) }}%
+          {% if p.share_amount %} = {{ format_currency(p.share_amount) }}{% endif %}
+        </li>
+      {% else %}
+        <li class="text-muted">لا توجد مساهمات شركاء</li>
+      {% endfor %}
+    </ul>
+
+    <hr>
+
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('shipments_bp.shipment_payments', id=shipment.id) }}" class="btn btn-outline-success">
+        عرض الدفعات ({{ format_currency(total_paid or 0) }})
+      </a>
+      <a href="{{ url_for('shipments_bp.pay_customs', id=shipment.id) }}" class="btn btn-outline-primary">
+        دفع جمارك
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

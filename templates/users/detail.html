@@ -1,0 +1,66 @@
+<!-- File: templates/users/detail.html -->
+{% extends 'base.html' %}
+
+{% block title %}تفاصيل المستخدم{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item">
+  <a href="{{ url_for('main.dashboard') }}">الرئيسية</a>
+</li>
+<li class="breadcrumb-item">
+  <a href="{{ url_for('users.list_users') }}">المستخدمون</a>
+</li>
+<li class="breadcrumb-item active">تفاصيل {{ user.username }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">تفاصيل المستخدم</h3>
+      <div class="card-tools">
+        <a href="{{ url_for('users.edit_user', user_id=user.id) }}" class="btn btn-sm btn-primary">
+          <i class="fas fa-edit"></i> تعديل
+        </a>
+        <a href="{{ url_for('users.list_users') }}" class="btn btn-sm btn-secondary">
+          <i class="fas fa-arrow-left"></i> العودة للقائمة
+        </a>
+      </div>
+    </div>
+    <div class="card-body">
+      <dl class="row">
+        <dt class="col-sm-3">اسم المستخدم</dt>
+        <dd class="col-sm-9">{{ user.username }}</dd>
+
+        <dt class="col-sm-3">البريد الإلكتروني</dt>
+        <dd class="col-sm-9">{{ user.email }}</dd>
+
+        <dt class="col-sm-3">الدور</dt>
+        <dd class="col-sm-9">{{ user.role.name if user.role else '—' }}</dd>
+
+        <dt class="col-sm-3">صلاحيات إضافية</dt>
+        <dd class="col-sm-9">
+          {% set perms = user.extra_permissions.all() %}
+          {% if perms %}
+            {{ perms|map(attribute='name')|join(', ') }}
+          {% else %}
+            —
+          {% endif %}
+        </dd>
+
+        <dt class="col-sm-3">تاريخ الإنشاء</dt>
+        <dd class="col-sm-9">{{ user.created_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+
+        <dt class="col-sm-3">آخر تسجيل دخول</dt>
+        <dd class="col-sm-9">
+          {% if user.last_login %}
+            {{ user.last_login.strftime('%Y-%m-%d %H:%M') }}
+          {% else %}
+            —
+          {% endif %}
+        </dd>
+      </dl>
+    </div>
+  </div>
+</div>
+{% endblock %}

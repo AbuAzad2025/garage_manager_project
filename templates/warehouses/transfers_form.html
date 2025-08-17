@@ -1,0 +1,30 @@
+{# File: templates/warehouses/transfers_form.html #}
+{% extends 'warehouses/base.html' %}
+{% block title %}تحويل جديد{% endblock %}
+{% block page_title %}تحويل جديد - {{ warehouse.name }}{% endblock %}
+
+{% block head_extra %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/warehouses.css') }}">
+{% endblock %}
+
+{% block content %}
+<form method="post" novalidate>
+  {{ form.hidden_tag() }}
+  <div class="row">
+    <div class="col-md-4 mb-2">{{ form.product_id.label }} {{ form.product_id(class="form-control") }}</div>
+    <div class="col-md-4 mb-2">{{ form.source_id.label }} {{ form.source_id(class="form-control") }}</div>
+    <div class="col-md-4 mb-2">{{ form.destination_id.label }} {{ form.destination_id(class="form-control") }}</div>
+  </div>
+  <div class="row">
+    <div class="col-md-3 mb-2">{{ form.quantity.label }} {{ form.quantity(class="form-control") }}</div>
+    <div class="col-md-9 mb-2">{{ form.notes.label }} {{ form.notes(class="form-control") }}</div>
+  </div>
+  <button class="btn btn-primary">حفظ</button>
+  <a class="btn btn-secondary" href="{{ url_for('warehouse_bp.transfers', id=warehouse.id) }}">رجوع</a>
+</form>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,35 @@
+<form id="noteForm" method="post" action="{{ url_for('notes_bp.create_note') }}" novalidate autocomplete="off">
+  {{ form.csrf_token }}
+
+  <div class="mb-3">
+    {{ form.content.label(class="form-label") }}
+    {{ form.content(class="form-control", rows=3, placeholder="أضف ملاحظة…") }}
+    {% for e in form.content.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+  </div>
+
+  <div class="row g-3">
+    <div class="col-md-4">
+      {{ form.entity_type.label(class="form-label") }}
+      {{ form.entity_type(class="form-select") }}
+      {% for e in form.entity_type.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    </div>
+    <div class="col-md-4">
+      {{ form.entity_id.label(class="form-label") }}
+      {{ form.entity_id(class="form-control", placeholder="ID") }}
+      {% for e in form.entity_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    </div>
+    <div class="col-md-4">
+      {{ form.priority.label(class="form-label") }}
+      {{ form.priority(class="form-select") }}
+      {% for e in form.priority.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    </div>
+  </div>
+
+  <div class="form-check my-3">
+    {{ form.is_pinned(class="form-check-input", id="isPinned") }}
+    <label class="form-check-label" for="isPinned">{{ form.is_pinned.label.text }}</label>
+    {% for e in form.is_pinned.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+  </div>
+
+  {{ form.submit(class="btn btn-primary px-4") }}
+</form>

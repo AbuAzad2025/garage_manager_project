@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}تفاصيل طلب الصيانة{% endblock %}
+{% block page_header %}طلب {{ service.service_number or ('#' ~ service.id) }}{% endblock %}
+
+{% block head_extra %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/service.css') }}">
+{% endblock %}
+
+{% block head_extra %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}">
+{% endblock %}
+
+{% block breadcrumb %}
+  <li class="breadcrumb-item"><a href="{{ url_for('service.list_requests') }}">طلبات الصيانة</a></li>
+  <li class="breadcrumb-item active">تفاصيل</li>
+{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+
+  {% set STATUS_LABELS = {
+    'PENDING':'معلق','DIAGNOSIS':'تشخيص','IN_PROGRESS':'قيد التنفيذ',
+    'COMPLETED':'مكتمل','CANCELLED':'ملغي','ON_HOLD':'مؤجل'
+  } %}
+
+  <div class="row mb-3">
+    <div class="col-md-6">
+      <table class="table table-bordered table-sm">
+        <tr><th style="width:140px">رقم الطلب</th><td>{{ service.service_number or ('#' ~ service.id) }}</td></tr>
+        <tr><th>العميل</th><td>{{ service.name or (service.customer.name if service.customer else '—') }}</td></tr>
+        <tr><th>الجوال</th><td>{{ service.phone or (service.customer.phone if service.customer else '—') }}</td></tr>
+        <tr><th>البريد</th><td>{{ service.email or (service.customer.email if service.customer else '—') }}</td></tr>
+        <tr><th>نوع المعدة</th><td>{{ service.vehicle_type.name if service.vehicle_type else '—' }}</td></tr>
+        <tr><th>الموديل</th><td>{{ service.vehicle_model or '—' }}</td></tr>
+        <tr><th>اللوحة</th><td>{{ service.vehicle_vrn or '—' }}</td></tr>
+        {% set st = (service.status.value if service.status is not string else service.status)|upper %}
+        <tr><th>الحالة</th><td><span class="badge bg-secondary">{{ STATUS_LABELS.get(st, st) }}</span></td></tr>
+        <tr><th>بدأت</th><td>{{ service.start_time and service.start_time.strftime('%Y-%m-%d %H:%M') or '—' }}</td></tr>
+        <tr><th>اكتملت</th><td>{{ service.end_time and service.end_time.strftime('%Y-%m-%d %H:%M') or '—' }}</td></tr>
+      </table>
+    </div>
+    <div class="col-md-6">
+      <strong>وصف المشكلة:</strong>
+      <div class="border p-2 mb-2">{{ service.problem_description or '—' }}</div>
+      <strong>ملاحظات المهندس/التشخيص:</strong>
+      <div class="border p-2 mb-2">{{ service.diagnosis or service.engineer_notes or '—' }}</div>
+      <strong>ملاحظات إضافية:</strong>
+      <div class="border p-2 bg-light">{{ service.description or '—' }}</div>
+    </div>
+  </div>
+
+  <div class="mb-3 d-flex flex-wrap gap-2 actions">
+    <a href="{{ url_for('service.add_payment', rid=service.id) }}" class="btn btn-primary">تسجيل دفعة</a>
+
+    <!-- أزلنا زر إنشاء فاتورة بالكامل -->
+
+    <form class="d-inline" method="post" action="{{ url_for('service.toggle_service', rid=service.id, action='start') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-outline-info">بدء الصيانة</button>
+    </form>
+    <form class="d-inline" method="post" action="{{ url_for('service.toggle_service', rid=service.id, action='complete') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-outline-success">إكمال الصيانة</button>
+    </form>
+
+    <button id="previewReceiptBtn" data-url="{{ url_for('service.view_receipt', rid=service.id) }}" class="btn btn-info">معاينة الإيصال</button>
+    <a href="{{ url_for('service.export_pdf', rid=service.id) }}" target="_blank" class="btn btn-dark">طباعة PDF</a>
+    <a href="{{ url_for('service.download_receipt', rid=service.id) }}" class="btn btn-outline-primary">تحميل إيصال الصيانة (PDF)</a>
+
+    {% if current_user.has_permission('manage_service') %}
+    <form action="{{ url_for('service.delete_request', rid=service.id) }}" method="post" class="d-inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-danger btn-delete">حذف الطلب</button>
+    </form>
+    {% endif %}
+  </div>
+
+  <div class="mb-3">{% include 'service/_parts_table.html' %}</div>
+
+  {% if current_user.has_permission('manage_service') %}
+  <form method="post" action="{{ url_for('service.add_part', rid=service.id) }}" class="border rounded p-3 mb-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-3"><label class="form-label">المخزن</label><select class="form-select" name="warehouse_id" required></select></div>
+      <div class="col-md-3"><label class="form-label">القطعة</label><select class="form-select" name="part_id" required></select></div>
+      <div class="col-md-2"><label class="form-label">الكمية</label><input type="number" class="form-control" name="quantity" min="1" value="1" required></div>
+      <div class="col-md-2"><label class="form-label">سعر الوحدة</label><input type="number" class="form-control" name="unit_price" step="0.01" min="0" required></div>
+      <div class="col-md-2"><label class="form-label">خصم %</label><input type="number" class="form-control" name="discount" step="0.01" min="0"></div>
+      <div class="col-md-3"><label class="form-label">الشريك</label><select class="form-select" name="partner_id"></select></div>
+      <div class="col-md-2"><label class="form-label">نسبة الشريك %</label><input type="number" class="form-control" name="share_percentage" step="0.01" min="0"></div>
+      <div class="col-md-5"><label class="form-label">ملاحظة</label><input type="text" class="form-control" name="note"></div>
+      <div class="col-auto"><button class="btn btn-success">إضافة قطعة</button></div>
+    </div>
+  </form>
+  {% endif %}
+
+  <div class="mb-3">{% include 'service/_tasks_table.html' %}</div>
+
+  {% if current_user.has_permission('manage_service') %}
+  <form method="post" action="{{ url_for('service.add_task', rid=service.id) }}" class="border rounded p-3 mb-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-6"><label class="form-label">الوصف</label><input type="text" class="form-control" name="description" required></div>
+      <div class="col-md-2"><label class="form-label">الكمية</label><input type="number" class="form-control" name="quantity" min="1" value="1" required></div>
+      <div class="col-md-2"><label class="form-label">سعر الوحدة</label><input type="number" class="form-control" name="unit_price" step="0.01" min="0" required></div>
+      <div class="col-md-2"><label class="form-label">خصم %</label><input type="number" class="form-control" name="discount" step="0.01" min="0"></div>
+      <div class="col-md-2"><label class="form-label">ضريبة %</label><input type="number" class="form-control" name="tax_rate" step="0.01" min="0"></div>
+      <div class="col-auto"><button class="btn btn-success">إضافة مهمة</button></div>
+    </div>
+  </form>
+  {% endif %}
+
+  <div class="mb-3">{% include 'service/_payments_table.html' %}</div>
+  <div class="mb-3">{% include 'service/_summary_card.html' %}</div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="{{ url_for('static', filename='js/service.js') }}"></script>
+{% endblock %}

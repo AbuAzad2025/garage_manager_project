@@ -1,0 +1,62 @@
+{% extends 'warehouses/base.html' %}
+{% block title %}إنشاء/تعديل شحنة{% endblock %}
+{% block page_title %}إنشاء شحنة{% endblock %}
+
+{% block head_extra %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/shipments.css') }}">
+{% endblock %}
+
+{% block content %}
+<p class="alert alert-info">※ إدارة الشحنات تتم عبر بلوبرنت الشحنات. إذا ظهرت هذه الصفحة مباشرة، احفظ وأعد التوجيه سيذهب لصفحة الشحنات.</p>
+
+<form method="POST" novalidate>
+  {{ form.hidden_tag() }}
+  <div class="row">
+    <div class="col-md-4 mb-2">
+      {{ form.shipment_number.label }} {{ form.shipment_number(class="form-control") }}
+    </div>
+    <div class="col-md-4 mb-2">
+      {{ form.shipment_date.label }} {{ form.shipment_date(class="form-control") }}
+    </div>
+    <div class="col-md-4 mb-2">
+      {{ form.expected_arrival.label }} {{ form.expected_arrival(class="form-control") }}
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-6 mb-2">
+      {{ form.origin.label }} {{ form.origin(class="form-control") }}
+    </div>
+    <div class="col-md-6 mb-2">
+      {{ form.destination_id.label }} {{ form.destination_id(class="form-control") }}
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-4 mb-2">
+      {{ form.status.label }} {{ form.status(class="form-control") }}
+    </div>
+    <div class="col-md-4 mb-2">
+      {{ form.shipping_cost.label }} {{ form.shipping_cost(class="form-control") }}
+    </div>
+    <div class="col-md-4 mb-2">
+      {{ form.vat.label }} {{ form.vat(class="form-control") }}
+    </div>
+  </div>
+
+  <button class="btn btn-primary">حفظ</button>
+
+  {# 👇 التعديل هنا فقط #}
+  {% set wid = (warehouse.id if warehouse
+                else (request.view_args['warehouse_id'] if request.view_args and 'warehouse_id' in request.view_args else None)) %}
+  <a class="btn btn-secondary"
+     href="{{ url_for('warehouse_bp.detail', warehouse_id=wid) if wid else url_for('shipments_bp.list_shipments') }}">
+    رجوع
+  </a>
+</form>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/shipments.js') }}" defer></script>
+{% endblock %}

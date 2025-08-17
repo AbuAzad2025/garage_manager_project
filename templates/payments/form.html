@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% block title %}{{ payment and 'تعديل دفعة' or 'إضافة دفعة' }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2>{{ payment and 'تعديل دفعة' or 'إضافة دفعة' }}</h2>
+
+  <form id="paymentForm" method="post" novalidate>
+    {{ form.hidden_tag() }}
+
+    <div class="row g-3">
+      <div class="col-md-3">
+        {{ form.entity_type.label }}
+        {{ form.entity_type(class="form-select") }}
+      </div>
+
+      <div class="col-md-9">
+        {# حقول الجهة الديناميكية (يُعاد تحميلها عبر /payments/entity-fields) #}
+        <div id="entityFields">
+          {% include 'payments/_entity_fields.html' %}
+        </div>
+      </div>
+    </div>
+
+    <hr class="my-4"/>
+
+    <div class="row g-3">
+      <div class="col-md-3">
+        {{ form.total_amount.label }}
+        {{ form.total_amount(class="form-control", min="0", step="0.01") }}
+      </div>
+      <div class="col-md-3">
+        {{ form.currency.label }}
+        {{ form.currency(class="form-select") }}
+      </div>
+      <div class="col-md-6">
+        {# مرونة: بعض النماذج اسمها note وبعضها notes/receipt_number/reference #}
+        {% if form.reference is defined %}
+          {{ form.reference.label }} {{ form.reference(class="form-control") }}
+        {% endif %}
+        {% if form.receipt_number is defined %}
+          <div class="mt-2">
+            {{ form.receipt_number.label }} {{ form.receipt_number(class="form-control") }}
+          </div>
+        {% endif %}
+        <div class="mt-2">
+          {{ (form.note if form.note is defined else form.notes).label }}
+          {{ (form.note if form.note is defined else form.notes)(class="form-control") }}
+        </div>
+      </div>
+    </div>
+
+    <hr class="my-4"/>
+
+    <h5 class="mb-3">طرق الدفع</h5>
+    <div id="splitsContainer">
+      {% for sp in form.splits %}
+      <div class="split-form border rounded p-3 mb-3">
+        <h6 class="mb-3">الدفعة الجزئية #{{ loop.index }}</h6>
+        <div class="row g-3">
+          <div class="col-md-4">
+            {{ sp.method.label }} {{ sp.method(class="form-select") }}
+          </div>
+          <div class="col-md-4">
+            {{ sp.amount.label }} {{ sp.amount(class="form-control", min="0", step="0.01") }}
+          </div>
+          <div class="col-md-4 d-flex align-items-end">
+            <button type="button" class="btn btn-outline-danger remove-split">حذف</button>
+          </div>
+        </div>
+
+        <div class="split-details mt-3">
+          <div class="row g-3">
+            {% if sp.check_number is defined %}
+              <div class="col-md-4">{{ sp.check_number.label }} {{ sp.check_number(class="form-control") }}</div>
+              <div class="col-md-4">{{ sp.check_bank.label }} {{ sp.check_bank(class="form-control") }}</div>
+              <div class="col-md-4">{{ sp.check_due_date.label }} {{ sp.check_due_date(class="form-control") }}</div>
+            {% endif %}
+            {% if sp.card_number is defined %}
+              <div class="col-md-4">{{ sp.card_number.label }} {{ sp.card_number(class="form-control") }}</div>
+              <div class="col-md-4">{{ sp.card_holder.label }} {{ sp.card_holder(class="form-control") }}</div>
+              <div class="col-md-4">{{ sp.card_expiry.label }} {{ sp.card_expiry(class="form-control") }}</div>
+            {% endif %}
+            {% if sp.bank_transfer_ref is defined %}
+              <div class="col-md-4">{{ sp.bank_transfer_ref.label }} {{ sp.bank_transfer_ref(class="form-control") }}</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <button id="addSplit" type="button" class="btn btn-secondary mb-3">إضافة طريقة دفع</button>
+
+    <div class="d-flex gap-2 mt-2">
+      {% if (not payment and current_user.has_permission('add_payment'))
+            or (payment and current_user.has_permission('edit_payment')) %}
+        <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
+      {% endif %}
+      <a href="{{ url_for('payments.index') }}" class="btn btn-outline-secondary">إلغاء</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <!-- مطلوب للاختبارات والإنتاج -->
+  <script src="{{ url_for('static', filename='js/payment_form.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/payments.js') }}"></script>
+{% endblock %}
