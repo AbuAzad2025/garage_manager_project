@@ -54,9 +54,9 @@
   </ul>
 
   <ul class="navbar-nav ml-auto">
-    {# صلاحيات النسخ/الاستعادة #}
-    {% set can_backup = has_perm('backup_db') or has_perm('backup_database') %}
-    {% set can_restore = has_perm('restore_db') or has_perm('restore_database') %}
+    {# صلاحيات النسخ/الاستعادة — نعتمد aliases الموحّدة من has_perm #}
+    {% set can_backup = has_perm('backup_database') %}
+    {% set can_restore = has_perm('restore_database') %}
 
     {% if can_backup or can_restore %}
     <li class="nav-item dropdown">
@@ -92,7 +92,7 @@
            onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
           <i class="fas fa-sign-out-alt"></i> تسجيل خروج
         </a>
-        <form id="logout-form" action={{ url_for('auth.logout') }} method="POST" style="display:none;">
+        <form id="logout-form" action="{{ url_for('auth.logout') }}" method="POST" style="display:none;">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         </form>
       </div>

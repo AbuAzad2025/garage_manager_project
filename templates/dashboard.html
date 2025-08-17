@@ -10,7 +10,7 @@
 <div class="container-fluid">
 
   <div class="row">
-    {% if current_user.has_permission('manage_service') %}
+    {% if has_perm('manage_service') %}
     <div class="col-lg-3 col-6">
       <div class="small-box bg-info">
         <div class="inner">
@@ -25,7 +25,8 @@
     </div>
     {% endif %}
 
-    {% if current_user.has_permission('manage_warehouses') or current_user.has_permission('view_warehouses') %}
+    {# يكفي فحص view_warehouses لأن aliases عندنا توسّعها إلى manage_* أيضاً #}
+    {% if has_perm('view_warehouses') %}
     <div class="col-lg-3 col-6">
       <div class="small-box bg-warning">
         <div class="inner">
@@ -40,7 +41,7 @@
     </div>
     {% endif %}
 
-    {% if current_user.has_permission('manage_exchange') %}
+    {% if has_perm('manage_exchange') %}
     <div class="col-lg-3 col-6">
       <div class="small-box bg-secondary">
         <div class="inner">
@@ -55,7 +56,7 @@
     </div>
     {% endif %}
 
-    {% if current_user.has_permission('manage_sales') and current_user.has_permission('view_reports') %}
+    {% if has_perm('manage_sales') and has_perm('view_reports') %}
     <div class="col-lg-3 col-6">
       <div class="small-box bg-success">
         <div class="inner">
@@ -72,7 +73,7 @@
   </div>
 
   <div class="row">
-    {% if current_user.has_permission('manage_sales') and current_user.has_permission('view_reports') %}
+    {% if has_perm('manage_sales') and has_perm('view_reports') %}
     <div class="col-lg-6 mb-4">
       <div class="card">
         <div class="card-header bg-danger text-white">إيرادات الأسبوع</div>
@@ -87,7 +88,7 @@
     </div>
     {% endif %}
 
-    {% if current_user.has_permission('manage_service') and current_user.has_permission('view_reports') %}
+    {% if has_perm('manage_service') and has_perm('view_reports') %}
     <div class="col-lg-6 mb-4">
       <div class="card">
         <div class="card-header bg-primary text-white">طلبات الصيانة الأسبوعية</div>
@@ -103,7 +104,7 @@
     {% endif %}
   </div>
 
-  {% if current_user.has_permission('manage_service') %}
+  {% if has_perm('manage_service') %}
   <div class="card">
     <div class="card-header">آخر 5 طلبات صيانة</div>
     <div class="card-body p-0">

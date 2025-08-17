@@ -4,7 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from extensions import db
 from models import Role, Permission, AuditLog
 from forms import RoleForm
-from utils import permission_required, clear_role_permission_cache
+from utils import permission_required, clear_role_permission_cache, clear_users_cache_by_role
 
 roles_bp = Blueprint('roles', __name__, url_prefix='/roles')
 
@@ -40,6 +40,10 @@ def create_role():
             role.permissions = form.permissions.data
             db.session.add(role)
             db.session.commit()
+
+            clear_role_permission_cache(role.id)
+            clear_users_cache_by_role(role.id)
+
             db.session.add(AuditLog(
                 model_name='Role',
                 record_id=role.id,
@@ -62,8 +66,6 @@ def create_role():
 @permission_required('manage_roles')
 def edit_role(role_id):
     role = _get_or_404(Role, role_id)
-    
-    # منع تعديل اسم الأدوار المحمية
     protected_names = ['admin', 'super_admin']
     is_protected = role.name in protected_names
 
@@ -75,7 +77,6 @@ def edit_role(role_id):
 
     if form.validate_on_submit():
         try:
-            # إذا الدور محمي، نمنع تغيير الاسم
             if is_protected and form.name.data != role.name:
                 flash('لا يمكن تعديل اسم هذا الدور المحمي.', 'danger')
                 return render_template('roles/form.html', form=form, action='edit')
@@ -86,6 +87,7 @@ def edit_role(role_id):
 
             db.session.commit()
             clear_role_permission_cache(role.id)
+            clear_users_cache_by_role(role.id)
 
             db.session.add(AuditLog(
                 model_name='Role',
@@ -113,22 +115,24 @@ def edit_role(role_id):
 def delete_role(role_id):
     role = _get_or_404(Role, role_id)
 
-    # منع حذف الأدوار المحمية
     if role.name in ['admin', 'super_admin']:
         flash('لا يمكن حذف هذا الدور.', 'danger')
         return redirect(url_for('roles.list_roles'))
 
     try:
+        old_data = f'name={role.name}'
         db.session.delete(role)
         db.session.commit()
+
         clear_role_permission_cache(role_id)
+        clear_users_cache_by_role(role_id)
 
         db.session.add(AuditLog(
             model_name='Role',
-            record_id=role.id,
+            record_id=role_id,
             user_id=current_user.id,
             action='DELETE',
-            old_data=f'name={role.name}',
+            old_data=old_data,
             new_data=''
         ))
         db.session.commit()

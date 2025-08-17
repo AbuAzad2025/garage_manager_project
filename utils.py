@@ -36,11 +36,9 @@ def init_app(app):
         decode_responses=True,
     )
 
-
 def send_email_notification(subject: str, recipients: list[str], body: str, html: str | None = None):
     msg = Message(subject=subject, recipients=recipients, body=body, html=html)
     mail.send(msg)
-
 
 def format_currency(value):
     try:
@@ -48,13 +46,11 @@ def format_currency(value):
     except Exception:
         return "0.00 ₪"
 
-
 def format_percent(value):
     try:
         return f"{float(value):.2f}%"
     except Exception:
         return "0.00%"
-
 
 def format_date(value, fmt="%Y-%m-%d"):
     try:
@@ -62,17 +58,14 @@ def format_date(value, fmt="%Y-%m-%d"):
     except Exception:
         return "-"
 
-
 def format_datetime(value, fmt="%Y-%m-%d %H:%M"):
     try:
         return value.strftime(fmt) if value else ""
     except Exception:
         return ""
 
-
 def yes_no(value):
     return "نشط" if value else "مؤرشف"
-
 
 def status_label(status):
     m = {
@@ -85,7 +78,6 @@ def status_label(status):
     }
     return m.get(str(status).lower(), str(status))
 
-
 def qr_to_base64(value: str) -> str:
     img = qrcode.make(value)
     buf = io.BytesIO()
@@ -93,11 +85,9 @@ def qr_to_base64(value: str) -> str:
     buf.seek(0)
     return base64.b64encode(buf.read()).decode("ascii")
 
-
 def recent_notes(limit: int = 5):
     from models import Note
     return Note.query.order_by(Note.created_at.desc()).limit(limit).all()
-
 
 def send_whatsapp_message(to_number: str, body: str) -> bool:
     sid = current_app.config.get("TWILIO_ACCOUNT_SID")
@@ -114,7 +104,6 @@ def send_whatsapp_message(to_number: str, body: str) -> bool:
         flash(f"❌ خطأ أثناء إرسال واتساب: {e.msg}", "danger")
         return False
 
-
 def generate_excel_report(data, filename: str = "report.xlsx") -> Response:
     buffer = io.BytesIO()
     rows = [item.to_dict() if hasattr(item, "to_dict") else dict(item) for item in data]
@@ -130,19 +119,21 @@ _SUPER_ROLES = {"developer", "owner", "admin", "super_admin"}
 
 _PERMISSION_ALIASES = {
     "view_warehouses": {"view_warehouses", "view_inventory", "manage_inventory", "manage_warehouses"},
-    "view_inventory":  {"view_inventory",  "manage_inventory", "manage_warehouses"},
-    "manage_inventory":{"manage_inventory","manage_warehouses","manage_stock","warehouse_transfer"},
-    "warehouse_transfer":{"warehouse_transfer","manage_inventory","manage_warehouses"},
+    "view_inventory": {"view_inventory", "manage_inventory", "manage_warehouses"},
+    "manage_inventory": {"manage_inventory", "manage_warehouses", "manage_stock", "warehouse_transfer"},
+    "warehouse_transfer": {"warehouse_transfer", "manage_inventory", "manage_warehouses"},
     "view_parts": {"view_parts", "view_inventory", "manage_inventory"},
     "view_preorders": {"view_preorders", "view_inventory", "manage_inventory"},
-    "add_preorder":   {"add_preorder", "manage_inventory"},
-    "edit_preorder":  {"edit_preorder", "manage_inventory"},
-    "delete_preorder":{"delete_preorder", "manage_inventory"},
+    "add_preorder": {"add_preorder", "manage_inventory"},
+    "edit_preorder": {"edit_preorder", "manage_inventory"},
+    "delete_preorder": {"delete_preorder", "manage_inventory"},
     "add_customer": {"add_customer", "manage_customers"},
     "add_supplier": {"add_supplier", "manage_vendors"},
-    "add_partner":  {"add_partner",  "manage_vendors"},
+    "add_partner": {"add_partner", "manage_vendors"},
     "manage_shipments": {"manage_shipments", "manage_inventory", "manage_warehouses"},
-    "manage_payments":  {"manage_payments",  "manage_sales"},
+    "manage_payments": {"manage_payments", "manage_sales"},
+    "backup_database": {"backup_database", "backup", "backup_db", "download_backup", "db_backup"},
+    "restore_database": {"restore_database", "restore", "restore_db", "upload_backup", "db_restore"},
 }
 
 def _expand_perms(*names):
@@ -164,10 +155,13 @@ def _iter_rel(rel):
 def _fetch_permissions_from_db(user):
     perms = set()
     if getattr(user, "role", None):
-        for p in _iter_rel(user.role.permissions):
-            name = getattr(p, "name", None) or getattr(p, "code", None)
-            if name:
-                perms.add(str(name).lower())
+        try:
+            perms |= get_role_permissions(user.role)
+        except Exception:
+            for p in _iter_rel(user.role.permissions):
+                name = getattr(p, "name", None) or getattr(p, "code", None)
+                if name:
+                    perms.add(str(name).lower())
     extra_rel = getattr(user, "extra_permissions", None)
     if extra_rel is not None:
         for p in _iter_rel(extra_rel):
@@ -243,7 +237,7 @@ def permission_required(*permission_names):
                 user_perms = set()
             if needed.issubset(user_perms) or (user_perms & needed):
                 return f(*args, **kwargs)
-            if hasattr(current_user, 'has_permission') and callable(getattr(current_user, 'has_permission')):
+            if hasattr(current_user, "has_permission") and callable(getattr(current_user, "has_permission")):
                 for p in needed:
                     if current_user.has_permission(p):
                         return f(*args, **kwargs)
@@ -270,6 +264,7 @@ def clear_user_permission_cache(user_id: int):
             redis_client.delete(f"user_permissions:{user_id}")
         except Exception:
             pass
+
 def clear_role_permission_cache(role_id: int):
     if redis_client:
         try:
@@ -277,13 +272,25 @@ def clear_role_permission_cache(role_id: int):
         except Exception:
             pass
 
+def clear_users_cache_by_role(role_id: int):
+    if not redis_client:
+        return
+    try:
+        from models import User
+        ids = [uid for (uid,) in db.session.query(User.id).filter(User.role_id == role_id).all()]
+        for uid in ids:
+            try:
+                redis_client.delete(f"user_permissions:{uid}")
+            except Exception:
+                pass
+    except Exception:
+        pass
 
 def get_role_permissions(role) -> set:
     if not role:
         return set()
     key = f"role_permissions:{role.id}"
     rc = redis_client
-
     if rc:
         try:
             cached = rc.smembers(key)
@@ -291,13 +298,11 @@ def get_role_permissions(role) -> set:
                 return {str(x).lower() for x in cached}
         except Exception:
             pass
-
     perms = set()
     for p in _iter_rel(getattr(role, "permissions", [])):
         name = getattr(p, "name", None) or getattr(p, "code", None)
         if name:
             perms.add(str(name).lower())
-
     try:
         if rc:
             rc.delete(key)
@@ -306,7 +311,6 @@ def get_role_permissions(role) -> set:
             rc.expire(key, 300)
     except Exception:
         pass
-
     return perms
 
 def log_customer_action(cust, action: str, old_data: dict | None = None, new_data: dict | None = None) -> None:
@@ -346,7 +350,6 @@ def log_audit(model_name: str, record_id: int, action: str, old_data: dict | Non
     db.session.add(entry)
     db.session.commit()
 
-
 def prepare_payment_form_choices(form):
     form.currency.choices = [('ILS', 'ILS'), ('USD', 'USD'), ('EUR', 'EUR')]
     form.method.choices = [('cash', 'cash'), ('cheque', 'cheque'), ('bank', 'bank'), ('card', 'card'), ('online', 'online')]
@@ -357,7 +360,6 @@ def prepare_payment_form_choices(form):
         ('SALE', 'SALE'), ('INVOICE', 'INVOICE'), ('EXPENSE', 'EXPENSE'),
         ('SHIPMENT', 'SHIPMENT'), ('PREORDER', 'PREORDER'), ('SERVICE', 'SERVICE'), ('LOAN', 'LOAN'),
     ]
-
 
 def update_entity_balance(entity: str, eid: int) -> float:
     total_paid = (
@@ -377,7 +379,6 @@ def update_entity_balance(entity: str, eid: int) -> float:
         pass
     return float(total_paid)
 
-
 def customer_required(f):
     @login_required
     @wraps(f)
@@ -389,7 +390,6 @@ def customer_required(f):
             abort(403)
         return f(*args, **kwargs)
     return wrapper
-
 
 def generate_pdf_report(data):
     buffer = io.BytesIO()
@@ -418,7 +418,6 @@ def generate_pdf_report(data):
         mimetype="application/pdf",
         headers={"Content-Disposition": "attachment; filename=report.pdf"},
     )
-
 
 def generate_vcf(customers, fields, filename: str = "contacts.vcf"):
     cards = []
@@ -458,7 +457,6 @@ def generate_vcf(customers, fields, filename: str = "contacts.vcf"):
     resp.headers["Content-Disposition"] = f"attachment; filename={filename}"
     return resp
 
-
 def generate_csv_contacts(customers, fields):
     buffer = io.StringIO()
     w = csv.writer(buffer)
@@ -470,7 +468,6 @@ def generate_csv_contacts(customers, fields):
         mimetype="text/csv",
         headers={"Content-Disposition": "attachment; filename=contacts.csv"},
     )
-
 
 def generate_excel_contacts(customers, fields):
     from openpyxl import Workbook
@@ -487,7 +484,6 @@ def generate_excel_contacts(customers, fields):
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=contacts.xlsx"},
     )
-
 
 def testable_login_required(f):
     @wraps(f)

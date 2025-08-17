@@ -52,9 +52,9 @@
           </a>
         </li>
 
-        {# صلاحيات النسخ/الاستعادة #}
-        {% set can_backup = has_perm('backup_db') or has_perm('backup_database') %}
-        {% set can_restore = has_perm('restore_db') or has_perm('restore_database') %}
+        {# صلاحيات النسخ/الاستعادة — نعتمد aliases الموحّدة من has_perm #}
+        {% set can_backup = has_perm('backup_database') %}
+        {% set can_restore = has_perm('restore_database') %}
 
         {% if can_backup or can_restore %}
           <li class="nav-header">النسخ الاحتياطي</li>

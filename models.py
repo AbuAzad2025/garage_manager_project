@@ -1,9 +1,8 @@
 import enum
 from datetime import datetime
 
-from flask import has_request_context, current_app
+from flask import has_request_context
 from flask_login import current_user, UserMixin
-import uuid
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
@@ -146,6 +145,7 @@ class TimestampMixin:
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
+
 class AuditMixin:
     @classmethod
     def __declare_last__(cls):
@@ -160,8 +160,8 @@ class AuditMixin:
                     record_id=target.id,
                     user_id=uid,
                     action="UPDATE",
-                    old_data=str(target._previous_state),
-                    new_data=str(target.current_state),
+                    old_data=str(getattr(target, "_previous_state", "")),
+                    new_data=str(getattr(target, "current_state", "")),
                 )
                 db.session.add(log)
                 db.session.flush()
@@ -204,12 +204,17 @@ class Role(db.Model):
             return False
         target = (perm_name or "").strip().lower()
         for p in self.permissions or []:
-            if target == (p.code or "").strip().lower() or target == (p.name or "").strip().lower():
+            code_l = (getattr(p, "code", "") or "").strip().lower()
+            name_l = (getattr(p, "name", "") or "").strip().lower()
+            if target in {code_l, name_l}:
                 return True
         return False
 
     def __repr__(self):
         return f"<Role {self.name}>"
+
+
+SUPER_ROLES = {"developer", "owner", "admin", "super_admin"}
 
 
 class User(db.Model, UserMixin, TimestampMixin):
@@ -233,6 +238,14 @@ class User(db.Model, UserMixin, TimestampMixin):
     service_requests = db.relationship("ServiceRequest", back_populates="mechanic", lazy="dynamic")
     sales = db.relationship("Sale", back_populates="seller", cascade="all, delete-orphan")
 
+    @validates("email")
+    def _v_email(self, key, value):
+        return (value or "").strip().lower()
+
+    @validates("username")
+    def _v_username(self, key, value):
+        return (value or "").strip()
+
     def set_password(self, password: str) -> None:
         method = "scrypt"
         try:
@@ -253,12 +266,35 @@ class User(db.Model, UserMixin, TimestampMixin):
             return False
 
     def has_permission(self, name: str) -> bool:
-        if self.role and self.role.name == "super_admin":
+        target = (name or "").strip().lower()
+        if not target:
+            return False
+        role_name = (getattr(self.role, "name", "") or "").strip().lower()
+        if role_name in SUPER_ROLES:
             return True
-        if self.role and self.role.has_permission(name):
+        if self.role and self.role.has_permission(target):
             return True
-        return self.extra_permissions.filter_by(name=name).first() is not None
-
+        try:
+            from sqlalchemy import or_
+            return (
+                self.extra_permissions.filter(
+                    or_(
+                        func.lower(Permission.name) == target,
+                        func.lower(Permission.code) == target,
+                    )
+                ).first()
+                is not None
+            )
+        except Exception:
+            try:
+                for p in self.extra_permissions or []:
+                    code_l = (getattr(p, "code", "") or "").strip().lower()
+                    name_l = (getattr(p, "name", "") or "").strip().lower()
+                    if target in {code_l, name_l}:
+                        return True
+            except Exception:
+                pass
+            return False
 
 @event.listens_for(User, "before_insert")
 def _dedupe_user_on_insert(mapper, connection, target):
@@ -274,15 +310,12 @@ def _dedupe_user_on_insert(mapper, connection, target):
         if not base:
             return base
         value, i = base, 2
-
-        # أثناء الاختبار: قيّد البحث على نفس الدور لتجنّب بيانات قديمة من أدوار أخرى
         if _testing() and getattr(target, "role_id", None):
             sql = text(f"SELECT 1 FROM users WHERE {field} = :v AND role_id = :rid LIMIT 1")
             params = lambda v: {"v": v, "rid": target.role_id}
         else:
             sql = text(f"SELECT 1 FROM users WHERE {field} = :v LIMIT 1")
             params = lambda v: {"v": v}
-
         while connection.execute(sql, params(value)).scalar():
             if field == "email" and "@" in base:
                 local, domain = base.split("@", 1)
@@ -293,8 +326,8 @@ def _dedupe_user_on_insert(mapper, connection, target):
         return value
 
     target.username = _next_available("username", getattr(target, "username", ""))
-    target.email    = _next_available("email",    getattr(target, "email", ""))
-    
+    target.email = _next_available("email", getattr(target, "email", ""))
+
 class Customer(db.Model, UserMixin, TimestampMixin, AuditMixin):
     __tablename__ = "customers"
     id = Column(Integer, primary_key=True)

@@ -16,6 +16,7 @@ from flask import (
 from flask_login import current_user, login_required, login_user, logout_user
 from flask_mail import Message
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from werkzeug.routing import BuildError
 
 from extensions import db, mail
 from forms import (
@@ -30,9 +31,7 @@ from utils import permission_required
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
-# ----------------------------------------------------------------------
-# Helpers
-# ----------------------------------------------------------------------
+
 def _sa_get_or_404(model, ident):
     obj = db.session.get(model, ident)
     if obj is None:
@@ -62,11 +61,27 @@ def _get_client_ip() -> str:
     return request.remote_addr or "0.0.0.0"
 
 
+def _url_for_any(*endpoints, **values):
+    for ep in endpoints:
+        try:
+            return url_for(ep, **values)
+        except BuildError:
+            continue
+    return url_for("main.dashboard", **values)
+
+
 def _redirect_back_or(default_endpoint: str, **kwargs):
     nxt = request.args.get("next")
     if nxt and _is_safe_url(nxt):
         return redirect(nxt)
     return redirect(url_for(default_endpoint, **kwargs))
+
+
+def _redirect_back_or_any(*endpoints, **kwargs):
+    nxt = request.args.get("next")
+    if nxt and _is_safe_url(nxt):
+        return redirect(nxt)
+    return redirect(_url_for_any(*endpoints, **kwargs))
 
 
 def _get_login_identifier(form: LoginForm) -> Optional[str]:
@@ -82,9 +97,6 @@ def _get_login_identifier(form: LoginForm) -> Optional[str]:
     return (val or "").strip() or None
 
 
-# ----------------------------------------------------------------------
-# Rate limiting (in-memory)
-# ----------------------------------------------------------------------
 login_attempts: dict[str, tuple[int, datetime]] = {}
 MAX_ATTEMPTS = 5
 BLOCK_TIME = timedelta(minutes=10)
@@ -139,9 +151,6 @@ def is_blocked_for_request() -> bool:
     return False
 
 
-# ----------------------------------------------------------------------
-# Optional audit logging
-# ----------------------------------------------------------------------
 def _audit(kind: str, ok: bool, user_id: Optional[int] = None, note: str = "", customer_id: Optional[int] = None) -> None:
     try:
         from models import AuditLog, Customer, User  # type: ignore
@@ -185,9 +194,6 @@ def _audit(kind: str, ok: bool, user_id: Optional[int] = None, note: str = "", c
             current_app.logger.info("audit skipped: %r", e)
 
 
-# ----------------------------------------------------------------------
-# Password reset mail
-# ----------------------------------------------------------------------
 def send_password_reset_email(user: User) -> None:
     serializer = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
     token = serializer.dumps(user.id, salt="password-reset-salt")
@@ -204,18 +210,14 @@ def send_password_reset_email(user: User) -> None:
     )
     try:
         mail.send(msg)
-    except Exception as e:  # pragma: no cover
+    except Exception as e:
         current_app.logger.error("فشل إرسال بريد إعادة التعيين: %s", e)
 
 
-# ----------------------------------------------------------------------
-# Routes
-# ----------------------------------------------------------------------
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     ip = _get_client_ip()
 
-    # 1) الحظر
     if is_blocked(ip) or is_blocked_for_request():
         form = LoginForm()
         flash("❌ تم حظر محاولات الدخول مؤقتًا، حاول بعد 10 دقائق.", "danger")
@@ -224,15 +226,13 @@ def login():
 
     form = LoginForm()
 
-    # ✅ GET فقط: لو مسجّل دخول → حولني
     if request.method == "GET" and current_user.is_authenticated:
         clear_attempts(ip)
         clear_attempts_for_request()
         if isinstance(current_user._get_current_object(), Customer):
-            return _redirect_back_or("shop.catalog")
+            return _redirect_back_or_any("shop.index", "shop_bp.index")
         return _redirect_back_or("main.dashboard")
 
-    # ✅ POST: اسمح بالتبديل حتى لو في جلسة حالية
     if request.method == "POST":
         identifier = _get_login_identifier(form)
         password = request.form.get("password", "")
@@ -256,11 +256,15 @@ def login():
                 except Exception:
                     remember = False
 
-            # 👇 مهم: بدّل الجلسة لو مستخدم مختلف
             if current_user.is_authenticated and getattr(current_user, "id", None) != user.id:
                 logout_user()
 
             login_user(user, remember=remember)
+            try:
+                user.last_login = datetime.utcnow()
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
             clear_attempts(ip)
             clear_attempts_for_request()
             _audit("login.success", ok=True, user_id=user.id)
@@ -271,6 +275,7 @@ def login():
         flash("❌ بيانات الدخول غير صحيحة.", "danger")
 
     return render_template("auth/login.html", form=form)
+
 
 @auth_bp.route("/logout", methods=["POST"])
 @login_required
@@ -305,7 +310,7 @@ def register():
             _audit("user.create", ok=True, user_id=user.id, note=f"role={selected_role and selected_role.name}")
             flash("✅ تم إنشاء الحساب الداخلي بنجاح.", "success")
             return redirect(url_for("users.list_users"))
-        except Exception as e:  # pragma: no cover
+        except Exception as e:
             db.session.rollback()
             current_app.logger.error("register commit failed: %s", e)
             _audit("user.create", ok=False, note="db commit failed")
@@ -318,7 +323,7 @@ def register():
 def customer_register():
     if current_user.is_authenticated and isinstance(current_user._get_current_object(), User):
         flash("أنت مسجل دخول بالفعل.", "info")
-        return redirect(url_for("shop.catalog"))
+        return _redirect_back_or_any("shop.index", "shop_bp.index")
 
     form = CustomerFormOnline()
     if form.validate_on_submit():
@@ -338,7 +343,7 @@ def customer_register():
         login_user(customer)
         _audit("customer.register", ok=True, customer_id=customer.id)
         flash("✅ تم إنشاء حسابك بنجاح! يمكنك الآن استخدام المتجر.", "success")
-        return redirect(url_for("shop.catalog"))
+        return _redirect_back_or_any("shop.index", "shop_bp.index")
 
     return render_template("auth/customer_register.html", form=form)
 
@@ -389,7 +394,4 @@ def password_reset(token: str):
     return render_template("auth/password_reset.html", form=form)
 
 
-# ----------------------------------------------------------------------
-# Expose for testing
-# ----------------------------------------------------------------------
 login_attempts_ref = login_attempts

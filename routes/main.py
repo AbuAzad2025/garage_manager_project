@@ -6,7 +6,6 @@ from flask import Blueprint, current_app, flash, redirect, render_template, send
 from flask_login import current_user, login_required
 from sqlalchemy import Date, cast, func
 
-import reports
 from extensions import db
 from forms import RestoreForm
 from models import Customer, ExchangeTransaction, Note, Product, Sale, ServiceRequest, Supplier, StockLevel
@@ -52,7 +51,8 @@ def dashboard():
     if current_user.has_permission("manage_sales"):
         recent_sales = Sale.query.order_by(Sale.sale_date.desc()).limit(5).all()
         try:
-            srep = reports.sales_report(start, end) or {}
+            from routes import reports as _reports
+            srep = _reports.sales_report(start, end) or {}
         except Exception:
             srep = {}
         revenue_labels = srep.get("daily_labels", [])
@@ -95,7 +95,8 @@ def dashboard():
         }
         recent_notes = Note.query.order_by(Note.created_at.desc()).limit(5).all()
         try:
-            customer_metrics = reports.ar_aging_report(start, end)
+            from routes import reports as _reports
+            customer_metrics = _reports.ar_aging_report(start, end)
         except Exception:
             customer_metrics = {}
 
@@ -164,7 +165,7 @@ def restore_db():
         db_path = uri.replace("sqlite:///", "")
         try:
             db.session.commit()
-            db.session.close()
+            db.session.remove()
             db.engine.dispose()
             form.db_file.data.save(db_path)
             flash("تمت الاستعادة بنجاح. قد تحتاج لإعادة تشغيل التطبيق.", "success")

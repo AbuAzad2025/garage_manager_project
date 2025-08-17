@@ -13,11 +13,13 @@ users_bp = Blueprint('users', __name__, url_prefix='/users', template_folder='te
 def _get_or_404(model, ident, options=None):
     q = db.session.query(model)
     if options:
-        for opt in options: q = q.options(opt)
+        for opt in options:
+            q = q.options(opt)
         obj = q.filter_by(id=ident).first()
     else:
         obj = db.session.get(model, ident)
-    if obj is None: abort(404)
+    if obj is None:
+        abort(404)
     return obj
 
 @users_bp.route('/', methods=['GET'], endpoint='list_users')
@@ -35,10 +37,11 @@ def list_users():
     users = pagination.items
     if request.args.get('format') == 'json' or request.is_json:
         return jsonify({
-            'data': [{'id':u.id,'username':u.username,'email':u.email,'role':(u.role.name if u.role else None),'extra_permissions':[p.name for p in u.extra_permissions]} for u in users],
-            'meta': {'page':pagination.page,'per_page':pagination.per_page,'total':pagination.total,'pages':pagination.pages,'has_next':pagination.has_next,'has_prev':pagination.has_prev}
+            'data': [{'id': u.id, 'username': u.username, 'email': u.email, 'role': (u.role.name if u.role else None), 'extra_permissions': [p.name for p in u.extra_permissions.all()]} for u in users],
+            'meta': {'page': pagination.page, 'per_page': pagination.per_page, 'total': pagination.total, 'pages': pagination.pages, 'has_next': pagination.has_next, 'has_prev': pagination.has_prev}
         })
-    args = request.args.to_dict(flat=True); args.pop('page', None)
+    args = request.args.to_dict(flat=True)
+    args.pop('page', None)
     return render_template('users/list.html', users=users, pagination=pagination, search=term, args=args)
 
 @users_bp.route('/<int:user_id>', methods=['GET'], endpoint='user_detail')
@@ -54,27 +57,34 @@ def user_detail(user_id):
 def api_users():
     q = User.query
     term = request.args.get('q', '')
-    if term: q = q.filter(User.username.ilike(f"%{term}%"))
+    if term:
+        q = q.filter(User.username.ilike(f"%{term}%"))
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
     pagination = q.order_by(User.username).paginate(page=page, per_page=per_page, error_out=False)
-    return jsonify({'results':[{'id':u.id,'text':u.username} for u in pagination.items],'pagination':{'more':pagination.has_next}})
+    return jsonify({'results': [{'id': u.id, 'text': u.username} for u in pagination.items], 'pagination': {'more': pagination.has_next}})
 
 @users_bp.route('/create', methods=['GET', 'POST'], endpoint='create_user')
 @login_required
 @permission_required('manage_users')
 def create_user():
     form = UserForm()
-    roles_q = Role.query.order_by(Role.name); perms_q = Permission.query.order_by(Permission.name)
-    form.role.query = roles_q.all(); form.extra_permissions.query = perms_q.all()
-    if request.method == 'GET': form.extra_permissions.data = []
+    roles_q = Role.query.order_by(Role.name)
+    perms_q = Permission.query.order_by(Permission.name)
+    form.role.query = roles_q.all()
+    form.extra_permissions.query = perms_q.all()
+    if request.method == 'GET':
+        form.extra_permissions.data = []
     if form.validate_on_submit():
         try:
             user = User(username=form.username.data, email=form.email.data, role=form.role.data)
-            if form.password.data: user.set_password(form.password.data)
-            db.session.add(user); db.session.flush()
+            if form.password.data:
+                user.set_password(form.password.data)
+            db.session.add(user)
+            db.session.flush()
             selected_ids = [int(x) for x in request.form.getlist('extra_permissions') if x.isdigit()]
-            if selected_ids: user.extra_permissions = Permission.query.filter(Permission.id.in_(selected_ids)).all()
+            if selected_ids:
+                user.extra_permissions = Permission.query.filter(Permission.id.in_(selected_ids)).all()
             db.session.commit()
             clear_user_permission_cache(user.id)
             db.session.add(AuditLog(model_name="User", record_id=user.id, user_id=current_user.id, action="CREATE", old_data="", new_data=f"username={user.username}"))
@@ -84,9 +94,11 @@ def create_user():
                 return jsonify(id=user.id, username=user.username), 201
             return redirect(url_for('users.list_users'))
         except IntegrityError:
-            db.session.rollback(); flash('اسم المستخدم أو البريد الإلكتروني مستخدم.', 'danger')
+            db.session.rollback()
+            flash('اسم المستخدم أو البريد الإلكتروني مستخدم.', 'danger')
         except Exception as e:
-            db.session.rollback(); flash(f'خطأ أثناء الإضافة: {e}', 'danger')
+            db.session.rollback()
+            flash(f'خطأ أثناء الإضافة: {e}', 'danger')
     all_permissions = perms_q.all()
     return render_template('users/form.html', form=form, action='create', user_id=None, all_permissions=all_permissions)
 
@@ -96,16 +108,21 @@ def create_user():
 def edit_user(user_id):
     user = _get_or_404(User, user_id)
     form = UserForm(obj=user)
-    roles_q = Role.query.order_by(Role.name); perms_q = Permission.query.order_by(Permission.name)
-    form.role.query = roles_q.all(); form.extra_permissions.query = perms_q.all()
+    roles_q = Role.query.order_by(Role.name)
+    perms_q = Permission.query.order_by(Permission.name)
+    form.role.query = roles_q.all()
+    form.extra_permissions.query = perms_q.all()
     if request.method == 'GET':
         form.role.data = user.role
         form.extra_permissions.data = [p.id for p in user.extra_permissions.all()]
     if form.validate_on_submit():
         try:
             old_data = f"{user.username},{user.email}"
-            user.username = form.username.data; user.email = form.email.data; user.role = form.role.data
-            if form.password.data: user.set_password(form.password.data)
+            user.username = form.username.data
+            user.email = form.email.data
+            user.role = form.role.data
+            if form.password.data:
+                user.set_password(form.password.data)
             selected_ids = [int(x) for x in request.form.getlist('extra_permissions') if x.isdigit()]
             user.extra_permissions = Permission.query.filter(Permission.id.in_(selected_ids)).all() if selected_ids else []
             db.session.commit()
@@ -115,9 +132,11 @@ def edit_user(user_id):
             flash('تم تحديث المستخدم.', 'success')
             return redirect(url_for('users.list_users'))
         except IntegrityError:
-            db.session.rollback(); flash('لا يمكن استخدام هذا البريد/الاسم.', 'danger')
+            db.session.rollback()
+            flash('لا يمكن استخدام هذا البريد/الاسم.', 'danger')
         except Exception as e:
-            db.session.rollback(); flash(f'خطأ أثناء التحديث: {e}', 'danger')
+            db.session.rollback()
+            flash(f'خطأ أثناء التحديث: {e}', 'danger')
     all_permissions = perms_q.all()
     return render_template('users/form.html', form=form, action='edit', user_id=user_id, all_permissions=all_permissions)
 
@@ -131,13 +150,18 @@ def delete_user(user_id):
         return redirect(url_for('users.list_users'))
     try:
         old_data = f"{user.username},{user.email}"
-        user.extra_permissions = []; db.session.flush(); db.session.delete(user); db.session.commit()
+        user.extra_permissions = []
+        db.session.flush()
+        db.session.delete(user)
+        db.session.commit()
         clear_user_permission_cache(user_id)
         db.session.add(AuditLog(model_name="User", record_id=user_id, user_id=current_user.id, action="DELETE", old_data=old_data, new_data=""))
         db.session.commit()
         flash('تم حذف المستخدم.', 'warning')
     except IntegrityError:
-        db.session.rollback(); flash('لا يمكن حذف المستخدم لوجود معاملات مرتبطة به.', 'danger')
+        db.session.rollback()
+        flash('لا يمكن حذف المستخدم لوجود معاملات مرتبطة به.', 'danger')
     except Exception as e:
-        db.session.rollback(); flash(f'حدث خطأ أثناء الحذف: {e}', 'danger')
+        db.session.rollback()
+        flash(f'حدث خطأ أثناء الحذف: {e}', 'danger')
     return redirect(url_for('users.list_users'))
