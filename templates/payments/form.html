@@ -104,12 +104,16 @@
 
             <div class="split-details mt-3" style="display:none;">
               <div class="row gy-2">
-                {% for fname in ['check_number', 'check_bank', 'check_due_date', 'card_number', 'bank_transfer_ref', 'card_holder', 'card_expiry'] %}
-                  {% set field = split[fname] if fname in split else None %}
+                {% for fname in ['check_number','check_bank','check_due_date','card_number','bank_transfer_ref','card_holder','card_expiry'] %}
+                  {% set field = (split|attr(fname))|default(None, true) %}
                   {% if field %}
-                    <div class="col-md-4">
+                    <div class="col-md-4" data-field="{{ fname }}">
                       {{ field.label(class="form-label") }}
-                      {{ field(class="form-control") }}
+                      {% if fname == 'check_due_date' %}
+                        {{ field(type="date", class="form-control") }}
+                      {% else %}
+                        {{ field(class="form-control") }}
+                      {% endif %}
                     </div>
                   {% endif %}
                 {% endfor %}
