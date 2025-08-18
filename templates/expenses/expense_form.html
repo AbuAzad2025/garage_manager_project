@@ -1,101 +1,124 @@
-{% extends 'base.html' %}
-
-{% block title %}{{ 'تعديل مصروف' if is_edit else 'إضافة مصروف' }}{% endblock %}
+{% extends "base.html" %}
+{% block title %}{{ is_edit and 'تعديل مصروف' or 'إضافة مصروف' }}{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
-  <h2>{{ 'تعديل مصروف' if is_edit else 'إضافة مصروف' }}</h2>
-
-  {% if form.errors %}
-    <div class="alert alert-danger">يرجى تصحيح الحقول المظللة أدناه.</div>
-  {% endif %}
-
-  <form method="post" id="expense-form" novalidate>
+  <h3 class="mb-4">{{ is_edit and '✏️ تعديل مصروف' or '➕ إضافة مصروف' }}</h3>
+  <form method="POST" id="expenseForm">
     {{ form.hidden_tag() }}
 
-    <div class="row g-3">
-      <div class="col-md-2">
-        {{ form.date.label(class="form-label") }}
-        {{ form.date(class="form-control", required=form.date.flags.required) }}
-        {% for e in form.date.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
+    <div class="row">
+      <div class="col-md-6">
+        <div class="card mb-4">
+          <div class="card-header">📝 البيانات الأساسية</div>
+          <div class="card-body">
+            <div class="mb-3">{{ form.date.label(class="form-label") }}{{ form.date(type="date", class="form-control") }}{% for e in form.date.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+            <div class="mb-3">{{ form.amount.label(class="form-label") }}{{ form.amount(class="form-control", step="0.01") }}{% for e in form.amount.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+            <div class="mb-3">
+              {{ form.type_id.label(class="form-label") }}
+              {{ form.type_id(class="form-select", id="type_id") }}
+              {% for e in form.type_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="mb-3">{{ form.paid_to.label(class="form-label") }}{{ form.paid_to(class="form-control") }}{% for e in form.paid_to.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+
+            <div class="mb-3">
+              {{ form.payment_method.label(class="form-label") }}
+              {{ form.payment_method(class="form-select", id="payment_method") }}
+              {% for e in form.payment_method.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div id="methodDetails" class="row gy-2" style="display:none;">
+              <div class="col-md-4" data-field="check_number">
+                {{ form.check_number.label(class="form-label") }}
+                {{ form.check_number(class="form-control") }}
+                {% for e in form.check_number.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+              </div>
+              <div class="col-md-4" data-field="check_bank">
+                {{ form.check_bank.label(class="form-label") }}
+                {{ form.check_bank(class="form-control") }}
+                {% for e in form.check_bank.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+              </div>
+              <div class="col-md-4" data-field="check_due_date">
+                {{ form.check_due_date.label(class="form-label") }}
+                {{ form.check_due_date(type="date", class="form-control") }}
+                {% for e in form.check_due_date.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+              </div>
+
+              <div class="col-md-6" data-field="bank_transfer_ref">
+                {{ form.bank_transfer_ref.label(class="form-label") }}
+                {{ form.bank_transfer_ref(class="form-control") }}
+                {% for e in form.bank_transfer_ref.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+              </div>
+
+              <div class="col-md-4" data-field="card_number">
+                {{ form.card_number.label(class="form-label") }}
+                {{ form.card_number(class="form-control") }}
+                {% for e in form.card_number.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+              </div>
+              <div class="col-md-4" data-field="card_holder">
+                {{ form.card_holder.label(class="form-label") }}
+                {{ form.card_holder(class="form-control") }}
+                {% for e in form.card_holder.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+              </div>
+              <div class="col-md-4" data-field="card_expiry">
+                {{ form.card_expiry.label(class="form-label") }}
+                {{ form.card_expiry(class="form-control", placeholder="MM/YY") }}
+                {% for e in form.card_expiry.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+              </div>
+
+              <div class="col-md-4" data-field="online_gateway">
+                {{ form.online_gateway.label(class="form-label") }}
+                {{ form.online_gateway(class="form-control") }}
+                {% for e in form.online_gateway.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+              </div>
+              <div class="col-md-4" data-field="online_ref">
+                {{ form.online_ref.label(class="form-label") }}
+                {{ form.online_ref(class="form-control") }}
+                {% for e in form.online_ref.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+              </div>
+            </div>
+
+            <div class="mb-3">{{ form.payment_details.label(class="form-label") }}{{ form.payment_details(class="form-control") }}{% for e in form.payment_details.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+          </div>
+        </div>
       </div>
 
-      <div class="col-md-2">
-        {{ form.amount.label(class="form-label") }}
-        {{ form.amount(class="form-control", inputmode="decimal", required=form.amount.flags.required) }}
-        {% for e in form.amount.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
-      </div>
+      <div class="col-md-6">
+        <div class="card mb-4">
+          <div class="card-header">🔗 ربطات إضافية</div>
+          <div class="card-body">
+            <div id="employee-field" class="mb-3">
+              {{ form.employee_id.label(class="form-label") }}
+              {{ form.employee_id(class="form-control") }}
+              {% for e in form.employee_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="mb-3">
+              {{ form.warehouse_id.label(class="form-label") }}
+              {{ form.warehouse_id(class="form-control") }}
+              {% for e in form.warehouse_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="mb-3">
+              {{ form.partner_id.label(class="form-label") }}
+              {{ form.partner_id(class="form-control") }}
+              {% for e in form.partner_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
 
-      <div class="col-md-2">
-        {{ form.type_id.label(class="form-label") }}
-        {{ form.type_id(class="form-select", id="type_id", required=form.type_id.flags.required) }}
-        {% for e in form.type_id.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
-      </div>
-
-      <div class="col-md-2" id="employee-field">
-        {{ form.employee_id.label(class="form-label") }}
-        {{ form.employee_id(class="form-select") }}
-        {% for e in form.employee_id.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
-      </div>
-
-      <div class="col-md-2">
-        {{ form.paid_to.label(class="form-label") }}
-        {{ form.paid_to(class="form-control") }}
-        {% for e in form.paid_to.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
-      </div>
-
-      <div class="col-md-2">
-        {{ form.payment_method.label(class="form-label") }}
-        {{ form.payment_method(class="form-select", required=form.payment_method.flags.required) }}
-        {% for e in form.payment_method.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
-      </div>
-
-      <div class="col-md-3">
-        {{ form.payment_details.label(class="form-label") }}
-        {{ form.payment_details(class="form-control") }}
-        {% for e in form.payment_details.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
-      </div>
-
-      <div class="col-md-3">
-        {{ form.description.label(class="form-label") }}
-        {{ form.description(class="form-control") }}
-        {% for e in form.description.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
-      </div>
-
-      <div class="col-md-3">
-        {{ form.tax_invoice_number.label(class="form-label") }}
-        {{ form.tax_invoice_number(class="form-control") }}
-        {% for e in form.tax_invoice_number.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
-      </div>
-
-      <div class="col-md-3">
-        {{ form.notes.label(class="form-label") }}
-        {{ form.notes(class="form-control", rows="2") }}
-        {% for e in form.notes.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
-      </div>
-
-      <div class="col-md-3">
-        {{ form.warehouse_id.label(class="form-label") }}
-        {{ form.warehouse_id(class="form-select") }}
-        {% for e in form.warehouse_id.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
-      </div>
-
-      <div class="col-md-3">
-        {{ form.partner_id.label(class="form-label") }}
-        {{ form.partner_id(class="form-select") }}
-        {% for e in form.partner_id.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
+            <div class="mb-3">{{ form.description.label(class="form-label") }}{{ form.description(class="form-control") }}{% for e in form.description.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+            <div class="mb-3">{{ form.tax_invoice_number.label(class="form-label") }}{{ form.tax_invoice_number(class="form-control") }}{% for e in form.tax_invoice_number.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+            <div class="mb-3">{{ form.notes.label(class="form-label") }}{{ form.notes(class="form-control") }}{% for e in form.notes.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="mt-4 d-flex gap-2">
-      <button class="btn btn-primary">{{ 'تحديث' if is_edit else 'حفظ' }}</button>
-      <a href="{{ url_for('expenses_bp.list_expenses') }}" class="btn btn-secondary">إلغاء</a>
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-success">{{ is_edit and '💾 حفظ التعديلات' or '💾 حفظ المصروف' }}</button>
+      <a class="btn btn-outline-secondary" href="{{ url_for('expenses_bp.list_expenses') }}">إلغاء</a>
     </div>
   </form>
 </div>
 {% endblock %}
 
 {% block scripts %}
-  {{ super() }}
   <script src="{{ url_for('static', filename='js/expenses.js') }}"></script>
 {% endblock %}

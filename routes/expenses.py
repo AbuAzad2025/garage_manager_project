@@ -10,7 +10,6 @@ from forms import EmployeeForm, ExpenseTypeForm, ExpenseForm
 from models import Employee, ExpenseType, Expense, AuditLog
 from utils import permission_required
 
-
 expenses_bp = Blueprint(
     'expenses_bp',
     __name__,
@@ -29,8 +28,6 @@ def _get_or_404(model, ident, *options):
     if obj is None:
         abort(404)
     return obj
-# ────────────────────── سجل الأحداث ──────────────────────
-# اسم الدالة: log_expense_action
 
 def log_expense_action(exp: Expense, action: str, old_data=None, new_data=None):
     if not getattr(exp, "id", None):
@@ -47,8 +44,6 @@ def log_expense_action(exp: Expense, action: str, old_data=None, new_data=None):
     db.session.add(entry)
     db.session.flush()
 
-
-# ────────────────────── إدارة الموظفين ──────────────────────
 @expenses_bp.route('/employees', methods=['GET'], endpoint='employees_list')
 @login_required
 @permission_required('manage_expenses')
@@ -196,11 +191,11 @@ def add():
         form.populate_obj(exp)
         if not form.employee_id.data: exp.employee_id = None
         if not form.warehouse_id.data: exp.warehouse_id = None
-        if not form.partner_id.data: exp.partner_id = None
+        if not form.partner_id.data:   exp.partner_id = None
         db.session.add(exp)
         try:
             db.session.flush()
-            log_expense_action(exp, 'add', None, {'amount': str(exp.amount),'type': exp.type_id,'date': exp.date.isoformat()})
+            log_expense_action(exp, 'add', None, {'amount': str(exp.amount), 'type': exp.type_id, 'date': exp.date.isoformat()})
             db.session.commit()
             flash("✅ تمت إضافة المصروف", "success")
             return redirect(url_for('expenses_bp.list_expenses'))
@@ -221,10 +216,10 @@ def edit(exp_id):
         form.populate_obj(exp)
         if not form.employee_id.data: exp.employee_id = None
         if not form.warehouse_id.data: exp.warehouse_id = None
-        if not form.partner_id.data: exp.partner_id = None
+        if not form.partner_id.data:   exp.partner_id = None
         try:
             db.session.flush()
-            log_expense_action(exp, 'edit', old_data, {'amount': str(exp.amount),'type': exp.type_id,'date': exp.date.isoformat()})
+            log_expense_action(exp, 'edit', old_data, {'amount': str(exp.amount), 'type': exp.type_id, 'date': exp.date.isoformat()})
             db.session.commit()
             flash("✅ تم تعديل المصروف", "success")
             return redirect(url_for('expenses_bp.list_expenses'))
@@ -248,15 +243,9 @@ def delete(exp_id):
         db.session.rollback()
         flash(f"❌ خطأ في حذف المصروف: {err}", "danger")
     return redirect(url_for('expenses_bp.list_expenses'))
-# ────────────────────── تحويل الدفع إلى الدفع الموحد ──────────────────────
-# اسم الدالة: pay
 
 @expenses_bp.route('/<int:exp_id>/pay', methods=['GET'], endpoint='pay')
 @login_required
 @permission_required('manage_expenses')
 def pay(exp_id):
-    return redirect(url_for(
-        'payments.create_payment',
-        entity_type='expense',
-        entity_id=exp_id
-    ))
+    return redirect(url_for('payments.create_payment', entity_type='EXPENSE', entity_id=exp_id))

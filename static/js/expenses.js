@@ -1,7 +1,6 @@
 /* File: static/js/expenses.js */
-
 document.addEventListener('DOMContentLoaded', function () {
-  // ====== إظهار/إخفاء حقل الموظف في نموذج المصروف ======
+  // ====== إظهار/إخفاء حقل الموظف (لو نوع المصروف راتب) ======
   const typeSel = document.getElementById('type_id');
   const employeeField = document.getElementById('employee-field');
   const employeeSelect = employeeField ? employeeField.querySelector('select') : null;
@@ -21,11 +20,53 @@ document.addEventListener('DOMContentLoaded', function () {
   typeSel && typeSel.addEventListener('change', toggleEmployeeField);
   toggleEmployeeField();
 
-  // ====== DataTables موحّد لكل جداول وحدة المصاريف ======
+  // ====== تفاصيل طريقة الدفع الديناميكية ======
+  const METHOD_FIELDS = {
+    cash:   [],
+    cheque: ['check_number','check_bank','check_due_date'],
+    bank:   ['bank_transfer_ref'],
+    card:   ['card_number','card_holder','card_expiry'],
+    online: ['online_gateway','online_ref'],
+    other:  []
+  };
+
+  const methodSel = document.getElementById('payment_method');
+  const detailsWrap = document.getElementById('methodDetails');
+
+  function applyMethodDetails(method) {
+    if (!detailsWrap) return;
+    const need = new Set(METHOD_FIELDS[method] || []);
+    let any = false;
+    detailsWrap.querySelectorAll('[data-field]').forEach(box => {
+      const fname = box.dataset.field;
+      const show = need.has(fname);
+      const inp = box.querySelector('input,select,textarea');
+      box.style.display = show ? '' : 'none';
+      if (inp) {
+        if (show) {
+          inp.disabled = false;
+        } else {
+          inp.value = '';
+          inp.disabled = true;
+        }
+      }
+      if (show) any = true;
+    });
+    detailsWrap.style.display = any ? '' : 'none';
+  }
+
+  if (methodSel) {
+    applyMethodDetails((methodSel.value || '').toLowerCase());
+    methodSel.addEventListener('change', () => {
+      applyMethodDetails((methodSel.value || '').toLowerCase());
+    });
+  }
+
+  // ====== DataTables لو موجود ======
   if (!(window.jQuery && $.fn && $.fn.DataTable)) return;
 
   const hasButtons = $.fn.dataTable && $.fn.dataTable.Buttons;
-  const langUrl = "/static/datatables/Arabic.json"; // نفس مسار وحدة العملاء
+  const langUrl = "/static/datatables/Arabic.json";
 
   function initDT(tableEl, extraOpts) {
     const lastCol = tableEl.tHead ? tableEl.tHead.rows[0].cells.length - 1 : null;
@@ -36,7 +77,7 @@ document.addEventListener('DOMContentLoaded', function () {
       autoWidth: false
     };
     if (lastCol !== null) {
-      baseOpts.columnDefs = [{ orderable: false, targets: [lastCol] }]; // عمود الإجراءات
+      baseOpts.columnDefs = [{ orderable: false, targets: [lastCol] }];
     }
     if (hasButtons) {
       baseOpts.dom = "Bfrtip";
