@@ -189,13 +189,16 @@ def add():
     if form.validate_on_submit():
         exp = Expense()
         form.populate_obj(exp)
-        if not form.employee_id.data: exp.employee_id = None
-        if not form.warehouse_id.data: exp.warehouse_id = None
-        if not form.partner_id.data:   exp.partner_id = None
+        if not form.employee_id.data:
+            exp.employee_id = None
         db.session.add(exp)
         try:
             db.session.flush()
-            log_expense_action(exp, 'add', None, {'amount': str(exp.amount), 'type': exp.type_id, 'date': exp.date.isoformat()})
+            log_expense_action(exp, 'add', None, {
+                'amount': str(exp.amount),
+                'type': exp.type_id,
+                'date': exp.date.isoformat()
+            })
             db.session.commit()
             flash("✅ تمت إضافة المصروف", "success")
             return redirect(url_for('expenses_bp.list_expenses'))
@@ -214,12 +217,15 @@ def edit(exp_id):
     form.type_id.choices = [(t.id, t.name) for t in ExpenseType.query.order_by(ExpenseType.name).all()]
     if form.validate_on_submit():
         form.populate_obj(exp)
-        if not form.employee_id.data: exp.employee_id = None
-        if not form.warehouse_id.data: exp.warehouse_id = None
-        if not form.partner_id.data:   exp.partner_id = None
+        if not form.employee_id.data:
+            exp.employee_id = None
         try:
             db.session.flush()
-            log_expense_action(exp, 'edit', old_data, {'amount': str(exp.amount), 'type': exp.type_id, 'date': exp.date.isoformat()})
+            log_expense_action(exp, 'edit', old_data, {
+                'amount': str(exp.amount),
+                'type': exp.type_id,
+                'date': exp.date.isoformat()
+            })
             db.session.commit()
             flash("✅ تم تعديل المصروف", "success")
             return redirect(url_for('expenses_bp.list_expenses'))

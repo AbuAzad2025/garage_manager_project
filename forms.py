@@ -2,7 +2,7 @@ import re
 from datetime import datetime
 from flask import url_for
 from flask_wtf import FlaskForm
-from flask_wtf.file import FileAllowed, FileField  # ابقِها فقط إذا فعلاً عندك رفع ملفات
+from flask_wtf.file import FileAllowed, FileField
 from wtforms import (
     BooleanField, DateField, DecimalField, FieldList, FormField, HiddenField,
     IntegerField, PasswordField, SelectField, SelectMultipleField,
@@ -36,79 +36,118 @@ class AjaxSelectField(SelectField):
     def __init__(self, label=None, validators=None, endpoint=None, get_label=None,
                  allow_blank=False, coerce=int, choices=None, validate_id=None, **kw):
         super().__init__(label, validators=validators or [], coerce=coerce, choices=(choices or []), **kw)
-        self.endpoint, self.get_label, self.allow_blank, self._validate_id = endpoint, get_label, allow_blank, validate_id
+        self.endpoint = endpoint
+        self.get_label = get_label
+        self.allow_blank = allow_blank
+        self._validate_id = validate_id
+
     def __call__(self, **kwargs):
         try:
-            if self.endpoint and 'data-url' not in kwargs: kwargs['data-url'] = url_for(self.endpoint)
-        except Exception: pass
+            if self.endpoint and 'data-url' not in kwargs:
+                kwargs['data-url'] = url_for(self.endpoint)
+        except Exception:
+            pass
         cls = kwargs.pop('class_', '') or kwargs.get('class', '')
         kwargs['class'] = (cls + ' ajax-select form-control').strip()
         return super().__call__(**kwargs)
+
     def process_formdata(self, valuelist):
-        if not valuelist: return super().process_formdata(valuelist)
+        if not valuelist:
+            return super().process_formdata(valuelist)
         raw = valuelist[0]
-        if raw in (None, '', 'None'): self.data = None; return
-        try: self.data = self.coerce(raw)
-        except (ValueError, TypeError): self.data = raw
+        if raw in (None, '', 'None'):
+            self.data = None
+            return
+        try:
+            self.data = self.coerce(raw)
+        except (ValueError, TypeError):
+            self.data = raw
+
     def pre_validate(self, form):
-        if self.allow_blank and (self.data in (None, '', 'None')): return
+        if self.allow_blank and (self.data in (None, '', 'None')):
+            return
         if not self.choices:
             if self._validate_id and self.data not in (None, '', 'None'):
-                if not self._validate_id(self.data): raise ValidationError("قيمة غير صالحة.")
+                if not self._validate_id(self.data):
+                    raise ValidationError("قيمة غير صالحة.")
             return
         return super().pre_validate(form)
+
 
 class AjaxSelectMultipleField(SelectMultipleField):
     def __init__(self, label=None, validators=None, endpoint=None, get_label=None,
                  coerce=int, choices=None, validate_id_many=None, **kw):
         super().__init__(label, validators=validators or [], coerce=coerce, choices=(choices or []), **kw)
-        self.endpoint, self.get_label, self._validate_id_many = endpoint, get_label, validate_id_many
+        self.endpoint = endpoint
+        self.get_label = get_label
+        self._validate_id_many = validate_id_many
+
     def __call__(self, **kwargs):
         try:
-            if self.endpoint and 'data-url' not in kwargs: kwargs['data-url'] = url_for(self.endpoint)
-        except Exception: pass
+            if self.endpoint and 'data-url' not in kwargs:
+                kwargs['data-url'] = url_for(self.endpoint)
+        except Exception:
+            pass
         kwargs['multiple'] = True
         cls = kwargs.pop('class_', '') or kwargs.get('class', '')
         kwargs['class'] = (cls + ' ajax-select form-control').strip()
         return super().__call__(**kwargs)
+
     def process_formdata(self, valuelist):
         values = []
         for v in (valuelist or []):
-            if v in (None, '', 'None'): continue
-            try: values.append(self.coerce(v))
-            except (ValueError, TypeError): continue
+            if v in (None, '', 'None'):
+                continue
+            try:
+                values.append(self.coerce(v))
+            except (ValueError, TypeError):
+                continue
         self.data = values
+
     def pre_validate(self, form):
         if not self.choices and self._validate_id_many:
-            if self.data and not self._validate_id_many(self.data): raise ValidationError("قائمة قيم غير صالحة.")
+            if self.data and not self._validate_id_many(self.data):
+                raise ValidationError("قائمة قيم غير صالحة.")
             return
         return super().pre_validate(form)
+
 
 def only_digits(s: str) -> str:
     return re.sub(r"\D", "", s or "")
 
+
 def luhn_check(num: str) -> bool:
     num = re.sub(r"\D+", "", num or "")
-    if not num: return False
+    if not num:
+        return False
     s, alt = 0, False
     for d in num[::-1]:
         n = ord(d) - 48
-        if alt: n *= 2; n = n - 9 if n > 9 else n
-        s += n; alt = not alt
+        if alt:
+            n *= 2
+            if n > 9:
+                n -= 9
+        s += n
+        alt = not alt
     return s % 10 == 0
+
 
 def is_valid_expiry_mm_yy(s: str) -> bool:
     s = (s or "").strip()
     m = re.fullmatch(r"(\d{2})\s*/\s*(\d{2})", s)
-    if not m: return False
+    if not m:
+        return False
     mm, yy = int(m.group(1)), int(m.group(2))
-    if not (1 <= mm <= 12): return False
-    year, now = 2000 + yy, datetime.utcnow()
-    last_day = 28
+    if not (1 <= mm <= 12):
+        return False
+    year = 2000 + yy
+    now = datetime.utcnow()
     for d in (31, 30, 29, 28):
-        try: datetime(year, mm, d); last_day = d; break
-        except ValueError: continue
-    exp = datetime(year, mm, last_day, 23, 59, 59)
+        try:
+            exp = datetime(year, mm, d, 23, 59, 59)
+            break
+        except ValueError:
+            continue
     return exp >= now
 
 class CustomerImportForm(FlaskForm):
