@@ -124,13 +124,47 @@
           </a>
         </li>
 
-        <!-- التقارير -->
-        <li class="nav-item">
+        {# التقارير — أبقينا الرابط الأصلي وأضفنا شجرة فرعية #}
+        {% set is_reports = (request.blueprint == 'reports_bp') %}
+        <li class="nav-item has-treeview {% if is_reports %}menu-open{% endif %}">
           <a href="{{ url_for('reports_bp.universal') }}"
-             class="nav-link {% if request.blueprint == 'reports_bp' %}active{% endif %}">
+             class="nav-link {% if is_reports and request.endpoint == 'reports_bp.universal' %}active{% endif %}">
             <i class="nav-icon fas fa-chart-line"></i>
-            <p>التقارير</p>
+            <p>
+              التقارير
+              <i class="right fas fa-angle-left"></i>
+            </p>
           </a>
+          <ul class="nav nav-treeview" style="{% if is_reports %}display:block{% else %}display:none{% endif %}">
+            <li class="nav-item">
+              <a href="{{ url_for('reports_bp.universal') }}"
+                 class="nav-link {% if request.endpoint == 'reports_bp.universal' %}active{% endif %}">
+                <i class="far fa-circle nav-icon"></i>
+                <p>مركز التقارير</p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="{{ url_for('reports_bp.dynamic_report') }}"
+                 class="nav-link {% if request.endpoint == 'reports_bp.dynamic_report' %}active{% endif %}">
+                <i class="far fa-circle nav-icon"></i>
+                <p>تقرير ديناميكي</p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="{{ url_for('reports_bp.ar_aging') }}"
+                 class="nav-link {% if request.endpoint == 'reports_bp.ar_aging' %}active{% endif %}">
+                <i class="far fa-circle nav-icon"></i>
+                <p>أعمار الذمم</p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="{{ url_for('reports_bp.sales') }}"
+                 class="nav-link {% if request.endpoint == 'reports_bp.sales' %}active{% endif %}">
+                <i class="far fa-circle nav-icon"></i>
+                <p>مبيعات</p>
+              </a>
+            </li>
+          </ul>
         </li>
 
         <!-- الملاحظات -->

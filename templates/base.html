@@ -11,6 +11,8 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/overlayScrollbars/css/OverlayScrollbars.min.css') }}">
 
   {% block styles %}{% endblock %}
+  {# 👇 إضافة بسيطة لدعم حقن CSS إضافي من قوالب التقارير #}
+  {% block head_extra %}{% endblock %}
 </head>
 <body class="hold-transition sidebar-mini layout-fixed">
 
