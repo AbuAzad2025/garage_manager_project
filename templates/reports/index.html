@@ -1,35 +1,44 @@
+<!-- File: templates/reports/index.html -->
 {% extends 'base.html' %}
-{% block title %}مركز التقارير{% endblock %}
-
+{% block title %}التقارير{% endblock %}
 {% block head_extra %}
   {{ super() }}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/reporting.css') }}">
 {% endblock %}
-
 {% block content %}
 <div class="container mt-4">
-  <h1 class="mb-4"><i class="fas fa-chart-bar"></i> مركز التقارير الشامل</h1>
-
-  {% if current_user.has_permission('view_reports') %}
-    <div class="list-group shadow p-3 bg-white rounded">
-      {% for name in model_names %}
-        <a href="{{ url_for('reports_bp.dynamic_report') }}" 
-           onclick="event.preventDefault(); document.getElementById('form-{{ name }}').submit();" 
-           class="list-group-item list-group-item-action">
-          <i class="fas fa-file-alt text-primary"></i> تقرير {{ name }}
-        </a>
-        <form id="form-{{ name }}" action="{{ url_for('reports_bp.dynamic_report') }}" method="post" class="d-none">
-          {{ csrf_token() }}
-          <input type="hidden" name="table" value="{{ name }}">
-        </form>
-      {% endfor %}
+  <h2 class="mb-3">مركز التقارير</h2>
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">تقرير ديناميكي</h5>
+          <p class="card-text">اختر الجدول والحقول والفترة الزمنيّة وأنشئ جدولًا مخصّصًا.</p>
+          <a href="{{ url_for('reports_bp.dynamic_report') }}" class="btn btn-primary">فتح</a>
+        </div>
+      </div>
     </div>
-  {% else %}
-    <div class="alert alert-warning">⚠️ ليس لديك صلاحية لعرض التقارير.</div>
-  {% endif %}
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">أعمار الذمم</h5>
+          <p class="card-text">تحليل أرصدة العملاء حسب سلال الأعمار.</p>
+          <a href="{{ url_for('reports_bp.ar_aging') }}" class="btn btn-outline-primary">عرض</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">مبيعات يومية</h5>
+          <p class="card-text">منحنى الإيراد اليومي وإجمالي الفترة.</p>
+          <a href="{{ url_for('reports_bp.sales') }}" class="btn btn-outline-secondary">عرض</a>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}
-
 {% block scripts %}
   {{ super() }}
   <script src="{{ url_for('static', filename='js/reporting.js') }}"></script>

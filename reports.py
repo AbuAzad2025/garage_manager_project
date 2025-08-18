@@ -1,5 +1,4 @@
 # File: reports.py
-
 from __future__ import annotations
 
 from collections import defaultdict
@@ -150,6 +149,28 @@ def shop_report(start_date: date, end_date: date):
         end_date=end_date,
         aggregates={"sum": ["prepaid_amount", "total_amount"], "count": ["id"]},
     )
+
+def payment_summary_report(start_date: date | None, end_date: date | None):
+    """ملخّص المدفوعات حسب طريقة الدفع خلال فترة زمنية."""
+    start_date = _parse_date_like(start_date) or date.min
+    end_date = _parse_date_like(end_date) or date.max
+
+    q = (
+        db.session.query(
+            Payment.method.label("method"),
+            func.sum(func.coalesce(Payment.total_amount, 0)).label("total"),
+        )
+        .filter(Payment.status == "COMPLETED")
+        .filter(cast(Payment.payment_date, Date).between(start_date, end_date))
+        .group_by(Payment.method)
+        .order_by(Payment.method)
+    )
+    rows = q.all()
+    return {
+        "methods": [r.method for r in rows],
+        "totals": [float(r.total) for r in rows],
+        "grand_total": sum(float(r.total) for r in rows),
+    }
 
 
 def sales_report(start_date: date | None, end_date: date | None):

@@ -1160,8 +1160,18 @@ class PreOrder(db.Model, TimestampMixin):
 
     @hybrid_property
     def total_paid(self):
-        return sum(float(getattr(p, "total_amount", 0) or 0) for p in self.payments) if self.payments else 0
-
+        completed_val = getattr(PaymentStatus, "COMPLETED", "COMPLETED")
+        completed_val = getattr(completed_val, "value", completed_val)
+        return (
+            sum(
+                float(getattr(p, "total_amount", 0) or 0)
+                for p in self.payments
+                if getattr(getattr(p, "status", None), "value", getattr(p, "status", None))
+                == completed_val
+            )
+            if self.payments
+            else 0
+        )
     @hybrid_property
     def balance_due(self):
         return float(self.total_with_tax) - float(self.total_paid)
@@ -1227,8 +1237,18 @@ class Sale(db.Model, TimestampMixin, AuditMixin):
 
     @hybrid_property
     def total_paid(self):
-        return sum(float(getattr(p, "total_amount", 0) or 0) for p in self.payments) if self.payments else 0
-
+        completed_val = getattr(PaymentStatus, "COMPLETED", "COMPLETED")
+        completed_val = getattr(completed_val, "value", completed_val)
+        return (
+            sum(
+                float(getattr(p, "total_amount", 0) or 0)
+                for p in self.payments
+                if getattr(getattr(p, "status", None), "value", getattr(p, "status", None))
+                == completed_val
+            )
+            if self.payments
+            else 0
+        )
     @hybrid_property
     def balance_due(self):
         return float(self.total) - float(self.total_paid)
@@ -1560,7 +1580,15 @@ class Payment(db.Model):
     def __repr__(self):
         return f"<Payment {self.payment_number or self.id} - {self.total_amount} {self.currency}>"
 
-
+@event.listens_for(Payment, 'before_insert')
+@event.listens_for(Payment, 'before_update')
+def validate_splits_total(mapper, connection, target):
+    """Ensure split amounts sum exactly to the payment's total."""
+    splits = getattr(target, 'splits', None) or []
+    if splits:
+        total = sum((s.amount or 0) for s in splits)
+        if (target.total_amount or 0) != total:
+            raise ValueError('sum of split amounts must equal total_amount')
 @event.listens_for(Payment, 'before_insert')
 def _before_insert_payment(mapper, connection, target):
     base_dt = target.payment_date or datetime.utcnow()

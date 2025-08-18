@@ -1,59 +1,74 @@
-$(function () {
-  // جلب الجداول والحقول
-  function updateFields() {
-    let table = $('#select-table').val();
-    $.getJSON('/reports/api/model_fields', { model: table }, function (data) {
-      let dateSelect = $('#select-date-field').empty()
-                         .append($('<option>', { value: '', text: '—' }));
-      (data.date_fields || []).forEach(f => 
-        dateSelect.append($('<option>', { value: f, text: f }))
-      );
+// File: static/js/reporting.js
+(function () {
+  // تحميل الحقول وحقول التاريخ حسب الموديل
+  function fetchModelFields(model) {
+    if (!model) return;
+    fetch(`/reports/api/model_fields?model=${encodeURIComponent(model)}`)
+      .then((r) => r.json())
+      .then((json) => {
+        const selCols = document.getElementById('selected_fields');
+        const selDate = document.getElementById('date_field');
+        if (!selCols || !selDate) return;
 
-      let colsSelect = $('#select-columns').empty();
-      (data.columns || []).forEach(c =>
-        colsSelect.append($('<option>', { value: c, text: c }))
-      );
+        // columns
+        selCols.innerHTML = '';
+        (json.columns || []).forEach((c) => {
+          const opt = document.createElement('option');
+          opt.value = c;
+          opt.textContent = c;
+          selCols.appendChild(opt);
+        });
 
-      let extra = $('#extra-filters').empty();
-      (data.columns || []).forEach(c => {
-        extra.append(`
-          <div class="col-md-3 mb-2">
-            <input name="${c}" class="form-control" placeholder="فلترة حسب ${c}">
-          </div>`);
+        // date fields
+        const current = selDate.value;
+        selDate.innerHTML = '<option value="">—</option>';
+        (json.date_fields || []).forEach((d) => {
+          const opt = document.createElement('option');
+          opt.value = d;
+          opt.textContent = d;
+          selDate.appendChild(opt);
+        });
+        // keep previous if exists
+        const keep = Array.from(selDate.options).some(o => o.value === current);
+        if (keep) selDate.value = current;
+
+        // لو عندك DataTables متوفر، فعّل لاحقاً بعد بناء الجدول
+      })
+      .catch(() => {});
+  }
+
+  // تفعيل Chart.js للكانفسات التي تحمل data-*
+  function initCharts() {
+    if (typeof Chart === 'undefined') return;
+    document.querySelectorAll('canvas.chartjs-chart').forEach(function (el) {
+      var ctx = el.getContext('2d');
+      var labels = JSON.parse(el.getAttribute('data-labels') || '[]');
+      var values = JSON.parse(el.getAttribute('data-values') || '[]');
+      var dsLabel = el.getAttribute('data-dataset-label') || '';
+      new Chart(ctx, {
+        type: el.dataset.type || 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: dsLabel,
+            data: values,
+            borderWidth: 2,
+            fill: true
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
       });
     });
   }
 
-  $('#select-table').change(updateFields);
-  if ($('#select-table').length) updateFields();
-
-  // تفعيل DataTables
-  if ($('#report-table').length) {
-    $('#report-table').DataTable({
-      dom: 'Bfrtip',
-      buttons: ['excelHtml5', 'print'],
-      paging: true,
-      searching: true,
-      responsive: true,
-      language: { url: '//cdn.datatables.net/plug-ins/1.10.21/i18n/Arabic.json' }
-    });
-  }
-
-  // تفعيل Chart.js
-  $('canvas.chartjs-chart').each(function () {
-    var ctx = this.getContext('2d');
-    new Chart(ctx, {
-      type: $(this).data('type'),
-      data: {
-        labels: JSON.parse($(this).attr('data-labels')),
-        datasets: [{
-          label: $(this).data('dataset-label'),
-          data: JSON.parse($(this).attr('data-values')),
-          borderWidth: 2,
-          fill: true
-        }]
-      },
-      options: { responsive: true, maintainAspectRatio: false }
-    });
+  document.addEventListener('DOMContentLoaded', function () {
+    const tableSel = document.getElementById('table');
+    if (tableSel) {
+      fetchModelFields(tableSel.value);
+      tableSel.addEventListener('change', function () {
+        fetchModelFields(this.value);
+      });
+    }
+    initCharts();
   });
-});
+})();
