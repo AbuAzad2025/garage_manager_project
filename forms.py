@@ -1,16 +1,18 @@
-# forms.py
-import os, re
+import re
 from datetime import datetime
 from flask import url_for
 from flask_wtf import FlaskForm
-from flask_wtf.file import FileAllowed, FileField
+from flask_wtf.file import FileAllowed, FileField  # ابقِها فقط إذا فعلاً عندك رفع ملفات
 from wtforms import (
     BooleanField, DateField, DecimalField, FieldList, FormField, HiddenField,
     IntegerField, PasswordField, SelectField, SelectMultipleField,
-    StringField, SubmitField, TextAreaField, ValidationError,
+    StringField, SubmitField, TextAreaField,
 )
-from wtforms.validators import DataRequired, Email, EqualTo, Length, NumberRange, Optional
+from wtforms.validators import (
+    DataRequired, Email, EqualTo, Length, NumberRange, Optional, ValidationError
+)
 from wtforms_sqlalchemy.fields import QuerySelectField, QuerySelectMultipleField
+
 from models import (
     Customer, Supplier, Partner, Employee, EquipmentType, Expense, OnlineCart,
     Permission, Role, Product, ProductCategory, Shipment, StockLevel,
