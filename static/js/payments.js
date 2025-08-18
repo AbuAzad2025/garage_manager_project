@@ -5,7 +5,6 @@ document.addEventListener('DOMContentLoaded', function () {
     '#filterMethod', '#startDate', '#endDate'
   ];
 
-  // بدون INVOICE
   const ENTITY_ENUM = {
     customer: 'CUSTOMER',
     supplier: 'SUPPLIER',
@@ -17,6 +16,7 @@ document.addEventListener('DOMContentLoaded', function () {
     preorder: 'PREORDER',
     shipment: 'SHIPMENT'
   };
+
   const AR_STATUS = {
     COMPLETED: 'مكتملة',
     PENDING:   'قيد الانتظار',
@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const ei = qs.get('entity_id') || '';
     return { entity_type: ENTITY_ENUM[et] || '', entity_id: ei || '' };
   }
+
   const ctx = inferEntityContext();
 
   const entSel = document.querySelector('#filterEntity');
@@ -52,8 +53,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const wrap = document.createElement('div');
     wrap.className = 'col-auto d-flex gap-2';
     wrap.innerHTML = `
-      <button id="btnPrint" class="btn btn-outline-secondary"><i class="fas fa-print me-1"></i> طباعة كشف</button>
-      <button id="btnExportCsv" class="btn btn-outline-success"><i class="fas fa-file-csv me-1"></i> تصدير CSV</button>
+      <button id="btnPrint" class="btn btn-outline-secondary">
+        <i class="fas fa-print me-1"></i> طباعة كشف
+      </button>
+      <button id="btnExportCsv" class="btn btn-outline-success">
+        <i class="fas fa-file-csv me-1"></i> تصدير CSV
+      </button>
     `;
     filtersRow.appendChild(wrap);
 
@@ -64,7 +69,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
   filterSelectors.forEach(sel => {
     const el = document.querySelector(sel);
-    if (el) el.addEventListener('change', () => { updateUrlQuery(); loadPayments(1); });
+    if (el) el.addEventListener('change', () => {
+      updateUrlQuery();
+      loadPayments(1);
+    });
   });
 
   function normalizeEntity(val) {
@@ -73,14 +81,21 @@ document.addEventListener('DOMContentLoaded', function () {
     return ENTITY_ENUM[k] || val.toString().toUpperCase();
   }
 
+  function normDir(v) {
+    v = (v || '').toUpperCase();
+    if (v === 'IN') return 'INCOMING';
+    if (v === 'OUT') return 'OUTGOING';
+    return v;
+  }
+
   function currentFilters(page = 1) {
     const raw = {
-      entity_type:  normalizeEntity(document.querySelector('#filterEntity')?.value || ctx.entity_type || ''),
-      status:       document.querySelector('#filterStatus')?.value || '',
-      direction:    document.querySelector('#filterDirection')?.value || '',
-      method:       document.querySelector('#filterMethod')?.value || '',
-      start_date:   document.querySelector('#startDate')?.value || '',
-      end_date:     document.querySelector('#endDate')?.value || '',
+      entity_type: normalizeEntity(document.querySelector('#filterEntity')?.value || ctx.entity_type || ''),
+      status:      document.querySelector('#filterStatus')?.value || '',
+      direction:   normDir(document.querySelector('#filterDirection')?.value || ''),
+      method:      document.querySelector('#filterMethod')?.value || '',
+      start_date:  document.querySelector('#startDate')?.value || '',
+      end_date:    document.querySelector('#endDate')?.value || '',
       page
     };
     if (ctx.entity_id) raw.entity_id = ctx.entity_id;
@@ -90,7 +105,9 @@ document.addEventListener('DOMContentLoaded', function () {
   function updateUrlQuery() {
     const raw = currentFilters();
     const params = new URLSearchParams();
-    Object.entries(raw).forEach(([k, v]) => { if (v && k !== 'page') params.append(k, v); });
+    Object.entries(raw).forEach(([k, v]) => {
+      if (v && k !== 'page') params.append(k, v);
+    });
     history.replaceState(null, '', location.pathname + (params.toString() ? ('?' + params.toString()) : ''));
   }
 
@@ -100,7 +117,6 @@ document.addEventListener('DOMContentLoaded', function () {
     Object.entries(raw).forEach(([k, v]) => { if (v) params.append(k, v); });
 
     setLoading(true);
-
     fetch(`/payments/?${params.toString()}`, { headers: { 'Accept': 'application/json' } })
       .then(r => r.json())
       .then(data => {
@@ -119,21 +135,28 @@ document.addEventListener('DOMContentLoaded', function () {
     const tbody = document.querySelector('#paymentsTable tbody');
     if (!tbody) return;
     if (is) {
-      tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm me-2"></div>جارِ التحميل…</td></tr>`;
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="9" class="text-center text-muted py-4">
+            <div class="spinner-border spinner-border-sm me-2"></div>
+            جارِ التحميل…
+          </td>
+        </tr>`;
     }
   }
 
   function badgeForDirection(dir) {
-    return (dir === 'IN' || dir === 'INCOMING')
+    const v = (dir || '').toUpperCase();
+    return (v === 'IN' || v === 'INCOMING')
       ? '<span class="badge bg-success">وارد</span>'
       : '<span class="badge bg-danger">صادر</span>';
   }
 
   function badgeForStatus(st) {
     const cls = st === 'COMPLETED' ? 'bg-success'
-             : st === 'PENDING'   ? 'bg-warning text-dark'
-             : st === 'FAILED'    ? 'bg-danger'
-             : 'bg-secondary';
+      : st === 'PENDING'   ? 'bg-warning text-dark'
+      : st === 'FAILED'    ? 'bg-danger'
+      : 'bg-secondary';
     const txt = AR_STATUS[st] || st;
     return `<span class="badge ${cls}">${txt}</span>`;
   }
@@ -244,7 +267,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       const now = new Date();
-      const ymd = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+      const ymd = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
       a.href = url;
       a.download = `statement_${(ctx.entity_type || 'ALL').toLowerCase()}_${ctx.entity_id || 'all'}_${ymd}.csv`;
       document.body.appendChild(a);

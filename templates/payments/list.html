@@ -1,10 +1,10 @@
+<!-- File: templates/payments/list.html -->
 {% extends 'base.html' %}
 {% block title %}سندات الدفع{% if supplier %} — {{ supplier.name }}{% endif %}{% endblock %}
 
 {% block content %}
 <div class="container py-5">
 
-  <!-- العنوان والأزرار -->
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h2 class="fw-bold mb-0">
       <i class="fas fa-money-check-alt me-2"></i>
@@ -15,19 +15,17 @@
       {% endif %}
     </h2>
 
-    <a href="{% if supplier %}{{ url_for('payments.create_payment', entity_type='SUPPLIER', supplier_id=supplier.id) }}{% else %}{{ url_for('payments.create_payment') }}{% endif %}"
+    <a href="{% if supplier %}{{ url_for('payments.create_payment', entity_type='SUPPLIER', entity_id=supplier.id) }}{% else %}{{ url_for('payments.create_payment') }}{% endif %}"
        class="btn btn-success">
       <i class="fas fa-plus"></i> إضافة سند دفع
     </a>
   </div>
 
   {% if supplier %}
-    <!-- مُدخلات خفية لتثبيت الفلترة بحسب المورد -->
     <input type="hidden" id="prefilter_entity_type" value="SUPPLIER">
     <input type="hidden" id="prefilter_entity_id" value="{{ supplier.id }}">
   {% endif %}
 
-  <!-- فلاتر -->
   <div class="row mb-4 g-2 align-items-end">
     <div class="col-auto">
       <label for="filterEntity" class="form-label">الكيان</label>
@@ -58,8 +56,8 @@
       <label for="filterDirection" class="form-label">الاتجاه</label>
       <select id="filterDirection" class="form-select">
         <option value="">الكل</option>
-        <option value="IN">وارد</option>
-        <option value="OUT">صادر</option>
+        <option value="INCOMING">وارد</option>
+        <option value="OUTGOING">صادر</option>
       </select>
     </div>
     <div class="col-auto">
@@ -83,7 +81,6 @@
     </div>
   </div>
 
-  <!-- الجدول + الترقيم -->
   <div class="card shadow-sm rounded-4">
     <div class="card-body p-0">
       <table id="paymentsTable" class="table table-hover table-bordered align-middle mb-0">
@@ -116,15 +113,11 @@
 {% block scripts %}
   <script src="{{ url_for('static', filename='js/payments.js') }}"></script>
   <script>
-    // في حال وجود مُرشّح المورد، نضبط حقل الكيان تلقائياً بدون تعطيله
     document.addEventListener('DOMContentLoaded', function () {
       var et = document.getElementById('prefilter_entity_type');
       if (et && et.value && document.getElementById('filterEntity')) {
         var sel = document.getElementById('filterEntity');
-        sel.value = et.value; // SUPPLIER
-        // ملاحظة: payments.js يظلّ المسؤول عن جلب البيانات بناءً على القيم الحالية
-        // إذا كان سكربت الجلب يعتمد على أحداث التغيير، يمكنك تفعيل السطر التالي:
-        // sel.dispatchEvent(new Event('change'));
+        sel.value = et.value;
       }
     });
   </script>

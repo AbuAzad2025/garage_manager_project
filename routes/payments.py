@@ -583,4 +583,5 @@ def create_expense_payment(exp_id):
         db.session.rollback()
         if _wants_json(): return jsonify(status="error",message=str(e)),400
         flash(f"❌ خطأ أثناء تسجيل الدفع: {e}","danger")
-        return render_template("payments/form.html",form=form,entity_info=entity_info)
+        return render_template("payments/form.html",form=form,entity_info=entity_info)
+
