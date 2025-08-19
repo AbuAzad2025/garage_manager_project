@@ -1,37 +1,25 @@
-<!-- File: templates/expenses/type_form.html -->
 {% extends 'base.html' %}
-
 {% block title %}{{ is_edit and 'تعديل نوع مصروف' or 'إضافة نوع مصروف' }}{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
-  <h2>{{ is_edit and 'تعديل نوع مصروف' or 'إضافة نوع مصروف' }}</h2>
+  <h2 class="mb-3">{{ is_edit and 'تعديل نوع مصروف' or 'إضافة نوع مصروف' }}</h2>
   <form method="post">
-    {{ form.csrf_token }}
-    <div class="row g-3">
-      <div class="col-md-6">
-        {{ form.name.label(class="form-label") }}
-        {{ form.name(class="form-control") }}
+    {{ form.hidden_tag() }}
+    <div class="card">
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">{{ form.name.label(class="form-label") }}{{ form.name(class="form-control") }}</div>
+          <div class="col-md-6">{{ form.description.label(class="form-label") }}{{ form.description(class="form-control") }}</div>
+        </div>
       </div>
-      <div class="col-md-6">
-        {{ form.description.label(class="form-label") }}
-        {{ form.description(class="form-control") }}
+      <div class="card-footer d-flex gap-2">
+        <button class="btn btn-primary">{{ is_edit and 'تحديث' or 'حفظ' }}</button>
+        <a href="{{ url_for('expenses_bp.types_list') }}" class="btn btn-secondary">إلغاء</a>
       </div>
-    </div>
-    <div class="mt-4">
-      <button class="btn btn-primary">
-        {{ is_edit and 'تحديث' or 'حفظ' }}
-      </button>
-      <a href="{{ url_for('expenses_bp.types_list') }}" class="btn btn-secondary">
-        إلغاء
-      </a>
     </div>
   </form>
 </div>
 {% endblock %}
 
-{% block scripts %}
-<script>
-  // لا إعدادات جافاسكربت إضافية حالياً
-</script>
-{% endblock %}
+{% block scripts %}{{ super() }}{% endblock %}

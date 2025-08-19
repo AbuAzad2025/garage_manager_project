@@ -1,7 +1,10 @@
 import enum
-from datetime import datetime
-from flask import has_request_context, current_app
+import hashlib
+import re
 import uuid
+from datetime import datetime
+
+from flask import current_app, has_request_context
 from flask_login import current_user, UserMixin
 from sqlalchemy import (
     Boolean,
@@ -23,7 +26,13 @@ from sqlalchemy import (
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship, validates
 from werkzeug.security import generate_password_hash, check_password_hash
+
 from extensions import db
+
+try:
+    from cryptography.fernet import Fernet
+except Exception:
+    Fernet = None
 
 
 class PaymentMethod(enum.Enum):
@@ -2016,28 +2025,155 @@ class OnlinePreOrderItem(db.Model):
 
 class OnlinePayment(db.Model, TimestampMixin):
     __tablename__ = 'online_payments'
+
     id = db.Column(db.Integer, primary_key=True)
-    payment_ref = db.Column(db.String(100), unique=True)
-    order_id = db.Column(db.Integer, db.ForeignKey('online_preorders.id'), nullable=False)
+    payment_ref = db.Column(db.String(100), unique=True, index=True)
+    order_id = db.Column(db.Integer, db.ForeignKey('online_preorders.id'), nullable=False, index=True)
     amount = db.Column(db.Numeric(12, 2), nullable=False)
     currency = db.Column(db.String(10), default='ILS')
     method = db.Column(db.String(50))
     gateway = db.Column(db.String(50))
     status = db.Column(
-        db.Enum(
-            'PENDING', 'SUCCESS', 'FAILED', 'REFUNDED',
-            name='online_payment_status',
-            values_callable=lambda vals: list(vals)
-        ),
+        db.Enum('PENDING', 'SUCCESS', 'FAILED', 'REFUNDED',
+               name='online_payment_status',
+               values_callable=lambda vals: list(vals)),
         default='PENDING',
-        nullable=False
+        nullable=False,
+        index=True
     )
     transaction_data = db.Column(db.JSON)
     processed_at = db.Column(DateTime)
+    card_last4 = db.Column(db.String(4), index=True)
+    card_encrypted = db.Column(db.LargeBinary)
+    card_expiry = db.Column(db.String(5))
+    cardholder_name = db.Column(db.String(128))
+    card_brand = db.Column(db.String(20))
+    card_fingerprint = db.Column(db.String(64), index=True)
+
     order = db.relationship('OnlinePreOrder', back_populates='payments')
 
+    __table_args__ = (
+        db.Index('ix_online_payments_order_status', 'order_id', 'status'),
+    )
+
+    @staticmethod
+    def _luhn_check(pan_digits: str) -> bool:
+        if not pan_digits or not pan_digits.isdigit():
+            return False
+        s, alt = 0, False
+        for d in pan_digits[::-1]:
+            n = ord(d) - 48
+            if alt:
+                n *= 2
+                if n > 9:
+                    n -= 9
+            s += n
+            alt = not alt
+        return s % 10 == 0
+
+    @staticmethod
+    def _is_valid_expiry_mm_yy(exp: str) -> bool:
+        if not exp or not re.match(r'^\d{2}/\d{2}$', exp):
+            return False
+        mm, yy = exp.split('/')
+        try:
+            mm = int(mm)
+            yy = int('20' + yy)
+            if not (1 <= mm <= 12):
+                return False
+            now = datetime.utcnow()
+            y, m = now.year, now.month
+            return (yy > y) or (yy == y and mm >= m)
+        except Exception:
+            return False
+
+    @staticmethod
+    def _detect_brand(pan_digits: str) -> str:
+        if not pan_digits:
+            return 'UNKNOWN'
+        if pan_digits.startswith('4'):
+            return 'VISA'
+        i2 = int(pan_digits[:2]) if len(pan_digits) >= 2 else -1
+        i4 = int(pan_digits[:4]) if len(pan_digits) >= 4 else -1
+        if 51 <= i2 <= 55 or (2221 <= i4 <= 2720):
+            return 'MASTERCARD'
+        if i2 in (34, 37):
+            return 'AMEX'
+        return 'UNKNOWN'
+
+    @staticmethod
+    def _get_fernet():
+        try:
+            key = current_app.config.get('CARD_ENC_KEY')
+            if not key or Fernet is None:
+                return None
+            if isinstance(key, str):
+                key = key.encode('utf-8')
+            return Fernet(key)
+        except Exception:
+            return None
+
+    def set_card_details(self, pan: str | None, holder: str | None, expiry_mm_yy: str | None, *, validate: bool = True) -> None:
+        pan_digits = ''.join((pan or '')).strip()
+        pan_digits = ''.join(ch for ch in pan_digits if ch.isdigit())
+        self.cardholder_name = (holder or '').strip() or None
+        self.card_expiry = (expiry_mm_yy or '').strip() or None
+        if pan_digits:
+            if validate and not self._luhn_check(pan_digits):
+                raise ValueError("Invalid card number (Luhn check failed)")
+            self.card_last4 = pan_digits[-4:]
+            self.card_fingerprint = hashlib.sha256(pan_digits.encode('utf-8')).hexdigest()
+            self.card_brand = self._detect_brand(pan_digits)
+            f = self._get_fernet()
+            self.card_encrypted = f.encrypt(pan_digits.encode('utf-8')) if f else None
+        else:
+            self.card_last4 = None
+            self.card_fingerprint = None
+            self.card_brand = None
+            self.card_encrypted = None
+        if self.card_expiry and validate and not self._is_valid_expiry_mm_yy(self.card_expiry):
+            raise ValueError("Invalid card expiry (MM/YY)")
+
+    def decrypt_card_number(self) -> str | None:
+        if not self.card_encrypted:
+            return None
+        f = self._get_fernet()
+        if not f:
+            return None
+        try:
+            return f.decrypt(self.card_encrypted).decode('utf-8')
+        except Exception:
+            return None
+
+    def masked_card(self) -> str | None:
+        return f"**** **** **** {self.card_last4}" if self.card_last4 else None
+
+    @property
+    def has_encrypted_card(self) -> bool:
+        return bool(self.card_encrypted)
+
     def __repr__(self):
-        return f"<OnlinePayment {self.payment_ref}>"
+        ref = self.payment_ref or f"OP-{self.id}"
+        return f"<OnlinePayment {ref} {self.amount} {self.currency} {self.status}>"
+
+@event.listens_for(OnlinePayment, 'before_insert')
+def _online_payment_before_insert(mapper, connection, target: 'OnlinePayment'):
+    if not getattr(target, 'payment_ref', None):
+        base_dt = datetime.utcnow()
+        prefix = base_dt.strftime("PAY%Y%m%d")
+        count = connection.execute(
+            text("SELECT COUNT(*) FROM online_payments WHERE payment_ref LIKE :pfx"),
+            {"pfx": f"{prefix}-%"}
+        ).scalar() or 0
+        target.payment_ref = f"{prefix}-{count+1:04d}"
+    if target.status in ('SUCCESS', 'FAILED', 'REFUNDED') and not target.processed_at:
+        target.processed_at = datetime.utcnow()
+
+@event.listens_for(OnlinePayment, 'before_update')
+def _online_payment_before_update(mapper, connection, target: 'OnlinePayment'):
+    if target.status in ('SUCCESS', 'FAILED', 'REFUNDED') and not target.processed_at:
+        target.processed_at = datetime.utcnow()
+
 
 class ExpenseType(db.Model):
     __tablename__ = 'expense_types'

@@ -1,6 +1,11 @@
+{# templates/shop/cart.html #}
 {% extends 'shop/base.html' %}
+
 {% block title %}سلة التسوق{% endblock %}
-{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
+{% endblock %}
 
 {% block content %}
 <h1 class="h3 mb-4">سلة التسوق</h1>
@@ -9,12 +14,25 @@
 <div class="row">
   <div class="col-lg-8">
     <div class="card shadow-sm mb-4">
-      <div class="card-header bg-white py-3"><h5 class="mb-0">المنتجات المختارة</h5></div>
+      <div class="card-header bg-white py-3 d-flex justify-content-between">
+        <h5 class="mb-0">المنتجات المختارة</h5>
+        {% if shop_is_super_admin %}
+          <a href="{{ url_for('shop.admin_orders') }}" class="btn btn-sm btn-danger">
+            <i class="fas fa-list"></i> إدارة الطلبات
+          </a>
+        {% endif %}
+      </div>
       <div class="card-body">
         <div class="table-responsive">
           <table class="table align-middle">
             <thead>
-              <tr><th>المنتج</th><th class="text-center">الكمية</th><th class="text-end">السعر</th><th class="text-end">الإجمالي</th><th></th></tr>
+              <tr>
+                <th>المنتج</th>
+                <th class="text-center">الكمية</th>
+                <th class="text-end">السعر</th>
+                <th class="text-end">الإجمالي</th>
+                <th></th>
+              </tr>
             </thead>
             <tbody>
               {% for item in items %}
@@ -22,18 +40,26 @@
                 <td>
                   <div class="d-flex align-items-center">
                     <img src="{{ url_for('static', filename='products/' + item.product.image) if item.product.image else url_for('static', filename='products/default.png') }}"
-                         class="rounded me-3" width="60" height="60" style="object-fit:cover;">
-                    <div><h6 class="mb-0">{{ item.product.name }}</h6><small class="text-muted">{{ item.product.sku }}</small></div>
+                         class="rounded me-3" width="60" height="60" style="object-fit:cover;"
+                         onerror="this.onerror=null;this.src='{{ url_for('static', filename='products/default.png') }}'">
+                    <div>
+                      <h6 class="mb-0">{{ item.product.name }}</h6>
+                      <small class="text-muted">{{ item.product.sku }}</small>
+                    </div>
                   </div>
                 </td>
                 <td class="text-center">
                   <form method="POST" action="{{ url_for('shop.update_cart_item', item_id=item.id) }}" class="d-inline-flex">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="input-group input-group-sm">
-                      <button class="btn btn-outline-secondary btn-step" type="button" data-dir="-1"><i class="fas fa-minus"></i></button>
+                      <button class="btn btn-outline-secondary btn-step" type="button" data-dir="-1">
+                        <i class="fas fa-minus"></i>
+                      </button>
                       <input type="number" name="quantity" class="form-control text-center qty-input"
                              value="{{ item.quantity }}" min="1" style="width:80px">
-                      <button class="btn btn-outline-secondary btn-step" type="button" data-dir="1"><i class="fas fa-plus"></i></button>
+                      <button class="btn btn-outline-secondary btn-step" type="button" data-dir="1">
+                        <i class="fas fa-plus"></i>
+                      </button>
                       <button type="submit" class="btn btn-outline-primary">تحديث</button>
                     </div>
                   </form>
@@ -43,7 +69,9 @@
                 <td class="text-center">
                   <form method="POST" action="{{ url_for('shop.remove_from_cart', item_id=item.id) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                      <i class="fas fa-trash"></i>
+                    </button>
                   </form>
                 </td>
               </tr>
@@ -57,22 +85,37 @@
 
   <div class="col-lg-4">
     <div class="card shadow-sm sticky-top" style="top:100px;">
-      <div class="card-header bg-white py-3"><h5 class="mb-0">ملخص الطلب</h5></div>
+      <div class="card-header bg-white py-3">
+        <h5 class="mb-0">ملخص الطلب</h5>
+      </div>
       <div class="card-body">
-        <div class="d-flex justify-content-between mb-2"><span>المجموع الفرعي:</span><span>{{ '%.2f'|format(subtotal) }} شيكل</span></div>
-        <div class="d-flex justify-content-between mb-2"><span>الشحن:</span><span>0.00 شيكل</span></div>
-        <div class="d-flex justify-content-between mb-2"><span>الضريبة:</span><span>0.00 شيكل</span></div>
+        <div class="d-flex justify-content-between mb-2">
+          <span>المجموع الفرعي:</span>
+          <span>{{ '%.2f'|format(subtotal) }} شيكل</span>
+        </div>
+        <div class="d-flex justify-content-between mb-2">
+          <span>الشحن:</span><span>0.00 شيكل</span>
+        </div>
+        <div class="d-flex justify-content-between mb-2">
+          <span>الضريبة:</span><span>0.00 شيكل</span>
+        </div>
         <hr>
-        <div class="d-flex justify-content-between fw-bold mb-3"><span>المجموع الكلي:</span><span>{{ '%.2f'|format(subtotal) }} شيكل</span></div>
+        <div class="d-flex justify-content-between fw-bold mb-3">
+          <span>المجموع الكلي:</span>
+          <span>{{ '%.2f'|format(subtotal) }} شيكل</span>
+        </div>
 
         <div class="alert alert-info">
           <div class="d-flex justify-content-between">
-            <span>المبلغ المطلوب للحجز:</span><span class="fw-bold">{{ '%.2f'|format(prepaid_amount) }} شيكل</span>
+            <span>المبلغ المطلوب للحجز:</span>
+            <span class="fw-bold">{{ '%.2f'|format(prepaid_amount) }} شيكل</span>
           </div>
           <small class="d-block text-muted mt-1">(لا يقل عن 20% من إجمالي قيمة الطلب)</small>
         </div>
 
-        <a href="{{ url_for('shop.checkout') }}" class="btn btn-primary w-100 py-3">إتمام عملية الشراء</a>
+        {% if not shop_is_super_admin %}
+          <a href="{{ url_for('shop.checkout') }}" class="btn btn-primary w-100 py-3">إتمام عملية الشراء</a>
+        {% endif %}
         <a href="{{ url_for('shop.catalog') }}" class="btn btn-outline-secondary w-100 mt-2">العودة للتسوق</a>
       </div>
     </div>

@@ -1,54 +1,92 @@
+{# templates/shop/pay_online.html #}
 {% extends 'shop/base.html' %}
 {% block title %}إتمام الشراء{% endblock %}
-{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
+{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
   <div class="col-lg-10">
     <div class="card shadow-sm border-0 mb-4">
-      <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">إتمام عملية الشراء</h5><span class="badge bg-primary">الخطوة 2 من 2</span>
+      <div class="card-header bg-white py-3 d-flex flex-wrap gap-2 justify-content-between align-items-center">
+        <h5 class="mb-0">إتمام عملية الشراء</h5>
+        <span class="badge bg-primary">الخطوة 2 من 2</span>
+        {% if shop_is_super_admin %}
+          {# رابط متابعة المدفوعات/التقارير للسوبر أدمن. إذا عندك روت مختلف خليه كما هو عندك #}
+          <a href="{{ url_for('admin_reports.cards') if 'admin_reports.cards' in current_app.view_functions else url_for('shop.admin_payments') }}"
+             class="btn btn-sm btn-warning">
+            <i class="fas fa-credit-card"></i> متابعة المدفوعات
+          </a>
+        {% endif %}
       </div>
+
       <div class="card-body">
         <div class="row">
-          <div class="col-lg-7 border-end-lg">
-            <h6 class="mb-3">معلومات الدفع</h6>
-            <form method="POST" id="payment-form">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="col-lg-7 border-end">
+            {% if not shop_is_super_admin %}
+              <h6 class="mb-3">معلومات الدفع</h6>
 
-              <div class="mb-3">
-                <label class="form-label">طريقة الدفع</label>
-                {{ form.payment_method(class="form-select", id="payment-method") }}
-              </div>
+              <form method="POST" id="payment-form" novalidate>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-              <div id="card-fields">
                 <div class="mb-3">
-                  <label class="form-label">اسم صاحب البطاقة</label>
-                  <div class="input-group"><span class="input-group-text"><i class="fas fa-user"></i></span>{{ form.card_holder(class="form-control", placeholder="كما هو مدون على البطاقة") }}</div>
+                  <label class="form-label">طريقة الدفع</label>
+                  {{ form.payment_method(class="form-select", id="payment-method") }}
                 </div>
-                <div class="mb-3">
-                  <label class="form-label">رقم البطاقة</label>
-                  <div class="input-group"><span class="input-group-text"><i class="fas fa-credit-card"></i></span>{{ form.card_number(class="form-control", placeholder="1234 5678 9012 3456") }}</div>
-                </div>
-                <div class="row mb-3">
-                  <div class="col-md-6">
-                    <label class="form-label">تاريخ الانتهاء</label>
-                    <div class="input-group"><span class="input-group-text"><i class="fas fa-calendar"></i></span>{{ form.expiry(class="form-control", placeholder="MM/YY") }}</div>
-                  </div>
-                  <div class="col-md-6">
-                    <label class="form-label">رمز التحقق (CVV)</label>
-                    <div class="input-group"><span class="input-group-text"><i class="fas fa-lock"></i></span>{{ form.cvv(class="form-control", placeholder="123") }}</div>
-                  </div>
-                </div>
-              </div>
 
-              {{ form.shipping_address(class="form-control mb-2", placeholder="عنوان الشحن (اختياري)") }}
-              {{ form.billing_address(class="form-control mb-3", placeholder="عنوان الفاتورة (اختياري)") }}
+                <div id="card-fields">
+                  <div class="mb-3">
+                    <label class="form-label">اسم صاحب البطاقة</label>
+                    <div class="input-group">
+                      <span class="input-group-text"><i class="fas fa-user"></i></span>
+                      {{ form.card_holder(class="form-control", placeholder="كما هو مدون على البطاقة") }}
+                    </div>
+                  </div>
 
-              <div class="d-grid">
-                <button type="submit" class="btn btn-primary btn-lg py-3">تأكيد الدفع و إتمام الطلب</button>
+                  <div class="mb-3">
+                    <label class="form-label">رقم البطاقة</label>
+                    <div class="input-group">
+                      <span class="input-group-text"><i class="fas fa-credit-card"></i></span>
+                      {{ form.card_number(class="form-control", placeholder="1234 5678 9012 3456") }}
+                    </div>
+                  </div>
+
+                  <div class="row mb-3">
+                    <div class="col-md-6">
+                      <label class="form-label">تاريخ الانتهاء</label>
+                      <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-calendar"></i></span>
+                        {{ form.expiry(class="form-control", placeholder="MM/YY") }}
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">رمز التحقق (CVV)</label>
+                      <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                        {{ form.cvv(class="form-control", placeholder="123") }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {{ form.shipping_address(class="form-control mb-2", placeholder="عنوان الشحن (اختياري)") }}
+                {{ form.billing_address(class="form-control mb-3", placeholder="عنوان الفاتورة (اختياري)") }}
+                {{ form.transaction_data(class="form-control mb-3", placeholder="بيانات إضافية للبوابة (JSON)") }}
+
+                <div class="d-grid">
+                  <button type="submit" class="btn btn-primary btn-lg py-3">
+                    تأكيد الدفع و إتمام الطلب
+                  </button>
+                </div>
+              </form>
+            {% else %}
+              <div class="alert alert-info mb-0">
+                👑 أنت في وضع السوبر أدمن — لا حاجة لإدخال بيانات دفع هنا.
+                استخدم زر <strong>متابعة المدفوعات</strong> لمراجعة العمليات والتقارير.
               </div>
-            </form>
+            {% endif %}
           </div>
 
           <div class="col-lg-5">
@@ -58,31 +96,57 @@
                 <ul class="list-group list-group-flush">
                   {% for item in cart.items %}
                   <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-                    <div><h6 class="mb-0">{{ item.product.name }}</h6><small class="text-muted">{{ item.quantity }} × {{ '%.2f'|format(item.price or 0) }}</small></div>
+                    <div>
+                      <h6 class="mb-0">{{ item.product.name }}</h6>
+                      <small class="text-muted">{{ item.quantity }} × {{ '%.2f'|format(item.price or 0) }}</small>
+                    </div>
                     <span>{{ '%.2f'|format((item.quantity or 0) * (item.price or 0)) }} شيكل</span>
                   </li>
                   {% endfor %}
                 </ul>
-                <div class="d-flex justify-content-between mt-3"><span>المجموع الفرعي:</span><span>{{ '%.2f'|format(subtotal) }} شيكل</span></div>
-                <div class="d-flex justify-content-between"><span>الشحن:</span><span>0.00 شيكل</span></div>
-                <div class="d-flex justify-content-between"><span>الضريبة:</span><span>0.00 شيكل</span></div>
+
+                <div class="d-flex justify-content-between mt-3">
+                  <span>المجموع الفرعي:</span>
+                  <span>{{ '%.2f'|format(subtotal) }} شيكل</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span>الشحن:</span><span>0.00 شيكل</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span>الضريبة:</span><span>0.00 شيكل</span>
+                </div>
                 <hr>
-                <div class="d-flex justify-content-between fw-bold"><span>المجموع الكلي:</span><span>{{ '%.2f'|format(subtotal) }} شيكل</span></div>
+                <div class="d-flex justify-content-between fw-bold">
+                  <span>المجموع الكلي:</span>
+                  <span>{{ '%.2f'|format(subtotal) }} شيكل</span>
+                </div>
+
                 <div class="alert alert-info mt-3 mb-0">
-                  <div class="d-flex justify-content-between"><span>المبلغ المطلوب (عربون):</span><span class="fw-bold">{{ '%.2f'|format(prepaid_amount) }} شيكل</span></div>
-                  <small class="d-block text-muted mt-1">(لا يقل عن 20% من إجمالي قيمة الطلب)</small>
+                  <div class="d-flex justify-content-between">
+                    <span>المبلغ المطلوب (عربون):</span>
+                    <span class="fw-bold">{{ '%.2f'|format(prepaid_amount) }} شيكل</span>
+                  </div>
+                  <small class="d-block text-muted mt-1">
+                    (لا يقل عن 20% من إجمالي قيمة الطلب)
+                  </small>
                 </div>
               </div>
             </div>
+
+            <div class="d-flex justify-content-between mt-3">
+              <a href="{{ url_for('shop.cart') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-right me-2"></i> العودة للسلة
+              </a>
+              <a href="{{ url_for('shop.catalog') }}" class="btn btn-link text-muted">
+                <i class="fas fa-shopping-bag me-2"></i> مواصلة التسوق
+              </a>
+            </div>
           </div>
-        </div> <!-- row -->
+
+        </div>
       </div>
     </div>
 
-    <div class="d-flex justify-content-between">
-      <a href="{{ url_for('shop.cart') }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-right me-2"></i> العودة للسلة</a>
-      <a href="{{ url_for('shop.catalog') }}" class="btn btn-link text-muted"><i class="fas fa-shopping-bag me-2"></i> مواصلة التسوق</a>
-    </div>
   </div>
 </div>
 {% endblock %}

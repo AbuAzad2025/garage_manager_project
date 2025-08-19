@@ -1,36 +1,38 @@
-{# templates/sales/detail.html #}
+{# File: templates/sales/detail.html #}
 {% extends 'base.html' %}
 {% block title %}تفاصيل فاتورة {{ sale.sale_number }}{% endblock %}
 
 {% block head_extra %}
   {{ super() }}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/sales.css') }}">
+  <style>
+    .card{border:0;border-radius:1rem;box-shadow:0 0.5rem 1rem rgba(0,0,0,.08)}
+    .table tfoot td{background:#f8f9fa;font-weight:700}
+  </style>
 {% endblock %}
 
 {% block content %}
-<div class="container py-5">
-  <div class="card shadow-lg border-0 rounded-4">
+<div class="container py-4">
+  <div class="card rounded-4">
     <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
       <h3 class="mb-0"><i class="fas fa-file-invoice-dollar me-2"></i> فاتورة {{ sale.sale_number }}</h3>
-      <div>
-        <span class="badge bg-dark me-2">{{ sale.currency }}</span>
+      <div class="d-flex gap-2 align-items-center">
+        <span class="badge bg-dark">{{ sale.currency }}</span>
         <span class="badge {{ sale.status_class }}">{{ sale.status_label }}</span>
       </div>
     </div>
 
     <div class="card-body bg-light">
-      <!-- معلومات أساسية -->
-      <div class="row mb-4 g-3">
-        <div class="col-md-4"><p class="mb-0"><strong>التاريخ:</strong> {{ sale.date_iso }}</p></div>
-        <div class="col-md-4"><p class="mb-0"><strong>العميل:</strong> {{ sale.customer_name }}</p></div>
-        <div class="col-md-4"><p class="mb-0"><strong>البائع:</strong> {{ sale.seller_name }}</p></div>
-        <div class="col-md-4"><p class="mb-0"><strong>نسبة الضريبة:</strong> {{ sale.tax_rate or 0 }}%</p></div>
-        <div class="col-md-4"><p class="mb-0"><strong>تكلفة الشحن:</strong> {{ "%.2f"|format(sale.shipping_cost or 0) }} {{ sale.currency }}</p></div>
+      <div class="row mb-3 g-3">
+        <div class="col-md-4"><strong>التاريخ:</strong> {{ sale.date_iso }}</div>
+        <div class="col-md-4"><strong>العميل:</strong> {{ sale.customer_name }}</div>
+        <div class="col-md-4"><strong>البائع:</strong> {{ sale.seller_name }}</div>
+        <div class="col-md-4"><strong>نسبة الضريبة:</strong> {{ sale.tax_rate or 0 }}%</div>
+        <div class="col-md-4"><strong>تكلفة الشحن:</strong> {{ "%.2f"|format(sale.shipping_cost or 0) }} {{ sale.currency }}</div>
       </div>
 
       <hr>
 
-      <!-- البنود -->
       <h5 class="mb-2"><i class="fas fa-list me-2"></i> تفاصيل البنود</h5>
       <div class="table-responsive">
         <table class="table table-bordered table-hover align-middle">
@@ -62,20 +64,20 @@
           </tbody>
           <tfoot>
             <tr>
-              <td colspan="7" class="text-end fw-bold">المجموع الفرعي:</td>
+              <td colspan="7" class="text-end">المجموع الفرعي:</td>
               <td>{{ "%.2f"|format((sale.subtotal or 0) if sale.subtotal is defined else (sale.total or 0) - (sale.shipping_cost or 0)) }} {{ sale.currency }}</td>
             </tr>
             <tr>
-              <td colspan="7" class="text-end fw-bold">الضريبة ({{ sale.tax_rate or 0 }}%):</td>
+              <td colspan="7" class="text-end">الضريبة ({{ sale.tax_rate or 0 }}%):</td>
               <td>{{ "%.2f"|format(sale.tax_amount or 0) }} {{ sale.currency }}</td>
             </tr>
             <tr>
-              <td colspan="7" class="text-end fw-bold">الشحن:</td>
+              <td colspan="7" class="text-end">الشحن:</td>
               <td>{{ "%.2f"|format(sale.shipping_cost or 0) }} {{ sale.currency }}</td>
             </tr>
-            <tr class="table-success fw-bold">
-              <td colspan="7" class="text-end">الإجمالي النهائي:</td>
-              <td>{{ "%.2f"|format(sale.total or 0) }} {{ sale.currency }}</td>
+            <tr class="table-success">
+              <td colspan="7" class="text-end fw-bold">الإجمالي النهائي:</td>
+              <td class="fw-bold">{{ "%.2f"|format(sale.total or 0) }} {{ sale.currency }}</td>
             </tr>
           </tfoot>
         </table>
@@ -83,13 +85,12 @@
 
       <hr>
 
-      <!-- الدفعات -->
       <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
         <h5 class="mb-0"><i class="fas fa-money-bill-wave me-2"></i> سجل الدفعات</h5>
         <div class="d-flex gap-2">
           <a class="btn btn-outline-primary btn-sm"
-             href="{{ url_for('payments.index', entity_type='SALE', entity_id=sale.id) }}">
-            <i class="fas fa-list me-1"></i> سجل الدفعات (الموحّد)
+             href="{{ url_for('sales_bp.sale_payments', id=sale.id) }}">
+            <i class="fas fa-list me-1"></i> السجل الخاص بهذه الفاتورة
           </a>
           <a class="btn btn-success btn-sm"
              href="{{ url_for('payments.create_payment', entity_type='SALE', entity_id=sale.id) }}">
@@ -123,7 +124,6 @@
         </table>
       </div>
 
-      <!-- ملخص الدفعات -->
       <div class="row justify-content-end mt-3">
         <div class="col-md-5">
           <table class="table table-bordered">
@@ -145,33 +145,40 @@
 
       <hr>
 
-      <!-- الملاحظات -->
       <div class="mb-4">
         <label class="form-label fw-bold">ملاحظات</label>
-        <div class="border rounded p-3 bg-light">
+        <div class="border rounded p-3 bg-white">
           {{ sale.notes or 'لا توجد ملاحظات' }}
         </div>
       </div>
 
-      <!-- أزرار -->
       <div class="d-flex justify-content-between mt-4">
-        <div>
-          <a href="{{ url_for('sales_bp.edit_sale', sale_id=sale.id) }}" class="btn btn-warning me-2">
+        <div class="d-flex gap-2 flex-wrap">
+          <a href="{{ url_for('sales_bp.edit_sale', id=sale.id) }}" class="btn btn-warning">
             <i class="fas fa-edit me-1"></i> تعديل
           </a>
-          <a href="{{ url_for('sales_bp.generate_invoice', sale_id=sale.id) }}" target="_blank" class="btn btn-info me-2">
+          <a href="{{ url_for('sales_bp.generate_invoice', id=sale.id) }}" target="_blank" class="btn btn-info text-white">
             <i class="fas fa-print me-1"></i> طباعة الفاتورة
           </a>
+          {% if sale.status == 'DRAFT' %}
+          <form method="post" action="{{ url_for('sales_bp.change_status', id=sale.id, status='CONFIRMED') }}" class="d-inline">
+            {{ csrf_token() }}
+            <button type="submit" class="btn btn-success"><i class="fas fa-check me-1"></i> تأكيد</button>
+          </form>
+          {% endif %}
+          {% if sale.status in ['DRAFT','CONFIRMED'] %}
+          <form method="post" action="{{ url_for('sales_bp.change_status', id=sale.id, status='CANCELLED') }}" class="d-inline" onsubmit="return confirm('تأكيد إلغاء الفاتورة؟')">
+            {{ csrf_token() }}
+            <button type="submit" class="btn btn-outline-danger"><i class="fas fa-ban me-1"></i> إلغاء</button>
+          </form>
+          {% endif %}
         </div>
         <a href="{{ url_for('sales_bp.list_sales') }}" class="btn btn-outline-secondary">
           <i class="fas fa-arrow-left me-1"></i> العودة للقائمة
         </a>
       </div>
+
     </div>
   </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-  <script src="{{ url_for('static', filename='js/sales.js') }}"></script>
 {% endblock %}

@@ -20,7 +20,7 @@ from models import (
     PaymentMethod, PaymentStatus, PaymentDirection, PaymentEntityType,
     InvoiceSource, InvoiceStatus, Payment,
 )
-from utils import prepare_payment_form_choices
+from utils import prepare_payment_form_choices, luhn_check, is_valid_expiry_mm_yy
 
 def unique_email_validator(model, field_name='email'):
     def _validator(form, field):
@@ -644,58 +644,69 @@ class ExpenseTypeForm(FlaskForm):
     description = StringField('وصف اختياري',     validators=[Optional()])
     submit      = SubmitField('حفظ')
 
+
 class ExpenseForm(FlaskForm):
-    date            = DateField('التاريخ', validators=[DataRequired()])
+    date            = DateField('التاريخ', format='%Y-%m-%d', validators=[DataRequired()])
     amount          = DecimalField('المبلغ', validators=[DataRequired(), NumberRange(min=0)])
     type_id         = SelectField('نوع المصروف', coerce=int, validators=[DataRequired()])
 
-    employee_id     = AjaxSelectField('الموظف',   endpoint='api.employees',  get_label='name', validators=[Optional()])
-    paid_to         = StringField('مدفوع إلى',    validators=[Optional(), Length(max=200)])
+    employee_id     = AjaxSelectField('الموظف', endpoint='api.employees', get_label='name', validators=[Optional()])
+    paid_to         = StringField('مدفوع إلى',  validators=[Optional(), Length(max=200)])
 
-    payment_method  = SelectField('طريقة الدفع',
-                        choices=[('cash','نقدًا'),('cheque','شيك'),('bank','تحويل بنكي'),('card','بطاقة/ائتمان'),('online','إلكتروني'),('other','أخرى')],
-                        validators=[DataRequired()])
+    payment_method  = SelectField(
+        'طريقة الدفع',
+        choices=[
+            ('cash','نقدًا'),
+            ('cheque','شيك'),
+            ('bank','تحويل بنكي'),
+            ('card','بطاقة/ائتمان'),
+            ('online','إلكتروني'),
+            ('other','أخرى')
+        ],
+        validators=[DataRequired()]
+    )
 
     # تفاصيل حسب الطريقة
-    check_number     = StringField('رقم الشيك', validators=[Optional()])
-    check_bank       = StringField('البنك', validators=[Optional()])
-    check_due_date   = DateField('تاريخ الاستحقاق', validators=[Optional()])
+    check_number      = StringField('رقم الشيك',         validators=[Optional()])
+    check_bank        = StringField('البنك',             validators=[Optional()])
+    check_due_date    = DateField('تاريخ الاستحقاق',     format='%Y-%m-%d', validators=[Optional()])
 
-    bank_transfer_ref= StringField('مرجع التحويل', validators=[Optional()])
+    bank_transfer_ref = StringField('مرجع التحويل',      validators=[Optional(), Length(max=100)])
 
-    card_number      = StringField('رقم البطاقة', validators=[Optional()])
-    card_holder      = StringField('اسم حامل البطاقة', validators=[Optional()])
-    card_expiry      = StringField('MM/YY', validators=[Optional(), Length(max=10)])
+    card_number       = StringField('رقم البطاقة',       validators=[Optional(), Length(max=19)])
+    card_holder       = StringField('اسم حامل البطاقة',  validators=[Optional(), Length(max=100)])
+    card_expiry       = StringField('MM/YY',              validators=[Optional(), Length(max=10)])
 
-    online_gateway   = StringField('بوابة الدفع', validators=[Optional(), Length(max=50)])
-    online_ref       = StringField('مرجع العملية', validators=[Optional(), Length(max=100)])
+    online_gateway    = StringField('بوابة الدفع',       validators=[Optional(), Length(max=50)])
+    online_ref        = StringField('مرجع العملية',       validators=[Optional(), Length(max=100)])
 
-    payment_details = StringField('تفاصيل إضافية', validators=[Optional(), Length(max=255)])
+    payment_details   = StringField('تفاصيل إضافية',     validators=[Optional(), Length(max=255)])
 
-    description     = StringField('وصف مختصر', validators=[Optional(), Length(max=200)])
-    notes           = TextAreaField('ملاحظات', validators=[Optional()])
-    tax_invoice_number = StringField('رقم فاتورة ضريبية', validators=[Optional(), Length(max=100)])
+    description       = StringField('وصف مختصر',          validators=[Optional(), Length(max=200)])
+    notes             = TextAreaField('ملاحظات',          validators=[Optional()])
+    tax_invoice_number= StringField('رقم فاتورة ضريبية',  validators=[Optional(), Length(max=100)])
 
-    warehouse_id    = AjaxSelectField('المستودع', endpoint='api.warehouses', get_label='name', validators=[Optional()])
-    partner_id      = AjaxSelectField('الشريك',   endpoint='api.partners',   get_label='name', validators=[Optional()])
+    # احذف الحقول التالية إذا ما بدك تربط بمستودع/شريك
+    warehouse_id      = AjaxSelectField('المستودع', endpoint='api.warehouses', get_label='name', validators=[Optional()])
+    partner_id        = AjaxSelectField('الشريك',   endpoint='api.partners',   get_label='name', validators=[Optional()])
 
-    submit          = SubmitField('حفظ')
+    submit            = SubmitField('حفظ')
 
     def validate(self, **kw):
-        ok = super().validate(**kw)
-        if not ok:
+        if not super().validate(**kw):
             return False
 
-        m = (self.payment_method.data or '').lower()
+        m = (self.payment_method.data or '').strip().lower()
+
         if m == 'cheque':
-            miss = []
-            if not self.check_number.data: miss.append('check_number')
-            if not self.check_bank.data:   miss.append('check_bank')
-            if not self.check_due_date.data: miss.append('check_due_date')
-            if miss:
-                if 'check_number' in miss: self.check_number.errors.append('❌ أدخل رقم الشيك')
-                if 'check_bank'   in miss: self.check_bank.errors.append('❌ أدخل اسم البنك')
-                if 'check_due_date' in miss: self.check_due_date.errors.append('❌ أدخل تاريخ الاستحقاق')
+            if not self.check_number.data:
+                self.check_number.errors.append('❌ أدخل رقم الشيك')
+                return False
+            if not self.check_bank.data:
+                self.check_bank.errors.append('❌ أدخل اسم البنك')
+                return False
+            if not self.check_due_date.data:
+                self.check_due_date.errors.append('❌ أدخل تاريخ الاستحقاق')
                 return False
 
         elif m == 'bank':
@@ -704,7 +715,8 @@ class ExpenseForm(FlaskForm):
                 return False
 
         elif m == 'card':
-            if not self.card_number.data or not self.card_number.data.isdigit() or not luhn_check(self.card_number.data):
+            num = (self.card_number.data or '').replace(' ', '')
+            if not num.isdigit() or not luhn_check(num):
                 self.card_number.errors.append('❌ رقم البطاقة غير صالح')
                 return False
             if self.card_expiry.data and not is_valid_expiry_mm_yy(self.card_expiry.data):
@@ -712,10 +724,11 @@ class ExpenseForm(FlaskForm):
                 return False
 
         elif m == 'online':
-            # اختياريين، لكن لو واحد موجود الآخر لازم موجود
-            if (self.online_gateway.data and not self.online_ref.data) or (self.online_ref.data and not self.online_gateway.data):
-                if not self.online_gateway.data: self.online_gateway.errors.append('❌ أدخل بوابة الدفع')
-                if not self.online_ref.data:     self.online_ref.errors.append('❌ أدخل مرجع العملية')
+            g = (self.online_gateway.data or '').strip()
+            r = (self.online_ref.data or '').strip()
+            if (g and not r) or (r and not g):
+                if not g: self.online_gateway.errors.append('❌ أدخل بوابة الدفع')
+                if not r: self.online_ref.errors.append('❌ أدخل مرجع العملية')
                 return False
 
         return True

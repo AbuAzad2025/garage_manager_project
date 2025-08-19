@@ -41,6 +41,7 @@ from routes.payments import payments_bp
 from routes.permissions import permissions_bp
 from routes.roles import roles_bp
 from routes.api import bp as api_bp
+from routes.admin_reports import admin_reports_bp
 
 
 class MyAnonymousUser(AnonymousUserMixin):
@@ -260,6 +261,7 @@ def create_app(config_object=Config, test_config=None) -> Flask:
         payments_bp,
         permissions_bp,
         roles_bp,
+        admin_reports_bp,
     ):
         app.register_blueprint(bp)
 

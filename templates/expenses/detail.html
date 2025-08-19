@@ -1,92 +1,64 @@
 {% extends 'base.html' %}
-
 {% block title %}تفاصيل المصروف #{{ expense.id }}{% endblock %}
 
-{% block breadcrumb %}
-<nav aria-label="breadcrumb">
-  <ol class="breadcrumb bg-white px-3 py-2 rounded mb-4">
-    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
-    <li class="breadcrumb-item"><a href="{{ url_for('expenses_bp.list_expenses') }}">المصاريف</a></li>
-    <li class="breadcrumb-item active">مصروف #{{ expense.id }}</li>
-  </ol>
-</nav>
-{% endblock %}
-
 {% block content %}
-<div class="card shadow-sm">
-  <div class="card-header bg-primary text-white">
-    <h3 class="card-title"><i class="fas fa-receipt me-2"></i>تفاصيل المصروف</h3>
-  </div>
-  <div class="card-body">
-    <dl class="row mb-4">
-      <dt class="col-sm-3 text-end">التاريخ</dt>
-      <dd class="col-sm-9">{{ expense.date|format_datetime }}</dd>
+<div class="container mt-4">
+  <div class="card card-outline card-primary">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h3 class="card-title mb-0"><i class="fas fa-file-invoice-dollar me-2"></i>تفاصيل المصروف</h3>
+      <div class="d-flex gap-2">
+        <a href="{{ url_for('expenses_bp.list_expenses') }}" class="btn btn-outline-secondary">
+          <i class="fas fa-arrow-right"></i> رجوع
+        </a>
+        {% if current_user.has_permission('manage_payments') %}
+        <a href="{{ url_for('expenses_bp.pay', exp_id=expense.id) }}" class="btn btn-success">
+          <i class="fas fa-money-bill-wave me-1"></i> دفع
+        </a>
+        {% endif %}
+        {% if current_user.has_permission('manage_expenses') %}
+        <a href="{{ url_for('expenses_bp.edit', exp_id=expense.id) }}" class="btn btn-warning">
+          <i class="fas fa-edit me-1"></i> تعديل
+        </a>
+        <form method="post" action="{{ url_for('expenses_bp.delete', exp_id=expense.id) }}"
+              style="display:inline;" onsubmit="return confirm('حذف المصروف؟');">
+          {{ csrf_token() }}
+          <button class="btn btn-danger"><i class="fas fa-trash me-1"></i> حذف</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    <div class="card-body">
+      <dl class="row mb-0">
+        <dt class="col-sm-3 text-end">التاريخ</dt>
+        <dd class="col-sm-9">{{ expense.date|format_datetime }}</dd>
 
-      <dt class="col-sm-3 text-end">المبلغ</dt>
-      <dd class="col-sm-9">{{ expense.amount|format_currency }} {{ expense.currency }}</dd>
+        <dt class="col-sm-3 text-end">المبلغ</dt>
+        <dd class="col-sm-9">{{ expense.amount|format_currency }}</dd>
 
-      <dt class="col-sm-3 text-end">النوع</dt>
-      <dd class="col-sm-9">{{ expense.type.name if expense.type else '—' }}</dd>
+        <dt class="col-sm-3 text-end">النوع</dt>
+        <dd class="col-sm-9">{{ expense.type.name if expense.type else '—' }}</dd>
 
-      <dt class="col-sm-3 text-end">الموظف</dt>
-      <dd class="col-sm-9">{{ expense.employee.name if expense.employee else '—' }}</dd>
+        <dt class="col-sm-3 text-end">الموظف</dt>
+        <dd class="col-sm-9">{{ expense.employee.name if expense.employee else '—' }}</dd>
 
-      <dt class="col-sm-3 text-end">المستودع</dt>
-      <dd class="col-sm-9">{{ expense.warehouse.name if expense.warehouse else '—' }}</dd>
+        <dt class="col-sm-3 text-end">مدفوع إلى</dt>
+        <dd class="col-sm-9">{{ expense.paid_to or '—' }}</dd>
 
-      <dt class="col-sm-3 text-end">الشريك</dt>
-      <dd class="col-sm-9">{{ expense.partner.name if expense.partner else '—' }}</dd>
+        <dt class="col-sm-3 text-end">طريقة الدفع</dt>
+        <dd class="col-sm-9">{{ expense.payment_method or '—' }}</dd>
 
-      <dt class="col-sm-3 text-end">مدفوع إلى</dt>
-      <dd class="col-sm-9">{{ expense.paid_to or '—' }}</dd>
+        <dt class="col-sm-3 text-end">تفاصيل الدفع</dt>
+        <dd class="col-sm-9">{{ expense.payment_details or '—' }}</dd>
 
-      <dt class="col-sm-3 text-end">طريقة الدفع</dt>
-      <dd class="col-sm-9">{{ expense.payment_method or '—' }}</dd>
+        <dt class="col-sm-3 text-end">الوصف</dt>
+        <dd class="col-sm-9">{{ expense.description or '—' }}</dd>
 
-      <dt class="col-sm-3 text-end">تفاصيل الدفع</dt>
-      <dd class="col-sm-9">{{ expense.payment_details or '—' }}</dd>
+        <dt class="col-sm-3 text-end">ملاحظات</dt>
+        <dd class="col-sm-9">{{ expense.notes or '—' }}</dd>
 
-      <dt class="col-sm-3 text-end">الوصف</dt>
-      <dd class="col-sm-9">{{ expense.description or '—' }}</dd>
-
-      <dt class="col-sm-3 text-end">ملاحظات</dt>
-      <dd class="col-sm-9">{{ expense.notes or '—' }}</dd>
-
-      <dt class="col-sm-3 text-end">رقم فاتورة ضريبية</dt>
-      <dd class="col-sm-9">{{ expense.tax_invoice_number or '—' }}</dd>
-
-      <dt class="col-sm-3 text-end">المدفوع</dt>
-      <dd class="col-sm-9">{{ expense.total_paid|format_currency }}</dd>
-
-      <dt class="col-sm-3 text-end">الرصيد</dt>
-      <dd class="col-sm-9">
-        <span class="fw-bold {% if expense.balance>0 %}text-danger{% else %}text-success{% endif %}">
-          {{ expense.balance|format_currency }}
-        </span>
-      </dd>
-    </dl>
-
-    <div class="d-flex flex-wrap gap-2">
-      <a href="{{ url_for('expenses_bp.list_expenses') }}" class="btn btn-outline-secondary">
-        <i class="fas fa-arrow-left me-1"></i> رجوع
-      </a>
-
-      {% if current_user.has_permission('manage_payments') %}
-      <a href="{{ url_for('expenses_bp.pay', exp_id=expense.id) }}" class="btn btn-success">
-        <i class="fas fa-money-bill-wave me-1"></i> دفع
-      </a>
-      {% endif %}
-
-      {% if current_user.has_permission('manage_expenses') %}
-      <a href="{{ url_for('expenses_bp.edit', exp_id=expense.id) }}" class="btn btn-warning">
-        <i class="fas fa-edit me-1"></i> تعديل
-      </a>
-      <form method="post" action="{{ url_for('expenses_bp.delete', exp_id=expense.id) }}"
-            style="display:inline;" onsubmit="return confirm('حذف المصروف؟');">
-        {{ csrf_token() }}
-        <button class="btn btn-danger"><i class="fas fa-trash me-1"></i> حذف</button>
-      </form>
-      {% endif %}
+        <dt class="col-sm-3 text-end">رقم فاتورة ضريبية</dt>
+        <dd class="col-sm-9">{{ expense.tax_invoice_number or '—' }}</dd>
+      </dl>
     </div>
   </div>
 </div>

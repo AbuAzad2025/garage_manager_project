@@ -18,6 +18,15 @@
       const l=document.createElement('link'); l.rel='stylesheet'; l.href=href; document.head.appendChild(l);
     }
   }
+  function loadJQueryOnce(){
+    return new Promise(res=>{
+      if(window.jQuery) return res();
+      const s=document.createElement('script');
+      s.src='https://cdn.jsdelivr.net/npm/jquery@3.6.4/dist/jquery.min.js';
+      s.onload=()=>res();
+      document.head.appendChild(s);
+    });
+  }
 
   // ============ صفحة القائمة ============
   (function initList(){
@@ -42,21 +51,16 @@
     const form = qs('#saleForm');
     if(!form) return;
 
-    // Select2 (اختياري)
+    // تحميل Select2 (و jQuery عند الحاجة)
     const wantsSelect2 = !!document.querySelector('#saleForm .select2');
-    if (wantsSelect2) {
-      loadCssOnce('https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css');
-      loadCssOnce('https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme@1.5.2/dist/select2-bootstrap4.min.css');
-      loadScriptOnce('https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js')
-        .then(()=>{
-          if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
-            const $ = window.jQuery;
-            $('#saleForm select.select2').select2({ theme:'bootstrap-5', width:'100%', language:'ar' });
-          }
-        });
-    }
+    const select2Ready = wantsSelect2
+      ? loadJQueryOnce()
+          .then(()=>loadCssOnce('https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css'))
+          .then(()=>loadCssOnce('https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme@1.5.2/dist/select2-bootstrap4.min.css'))
+          .then(()=>loadScriptOnce('https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js'))
+      : Promise.resolve();
 
-    // Sortable (اختياري للسحب لإعادة الترتيب)
+    // Sortable (للسحب وإعادة الترتيب)
     loadScriptOnce('https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js').then(()=>{
       const cont = qs('#saleLines');
       if(cont && window.Sortable){
@@ -86,7 +90,11 @@
     }
     function clearRow(row){
       qsa('input[type="number"],input[type="text"]',row).forEach(el=>{ el.value=''; });
-      qsa('select',row).forEach(s=>{ s.selectedIndex=0; s.dispatchEvent(new Event('change')); });
+      qsa('select',row).forEach(s=>{
+        s.selectedIndex=0;
+        s.dispatchEvent(new Event('change'));
+      });
+      const badge=row.querySelector('.stock-badge'); if(badge) badge.textContent='';
     }
     function addLine(){
       const rows = qsa('.sale-line',wrap);
@@ -94,8 +102,8 @@
       const clone = rows[rows.length-1].cloneNode(true);
       clearRow(clone);
       renumberRow(clone, currentMaxIndex()+1);
-      bindRow(clone);
       wrap.appendChild(clone);
+      bindRow(clone);
       recalc();
     }
     function removeLine(row){
@@ -106,71 +114,137 @@
       recalc();
     }
 
+    function initAjaxSelect($el, {endpoint, placeholder}){
+      $el.select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        language: 'ar',
+        allowClear: !!$el.data('allow-clear'),
+        placeholder: placeholder || $el.data('placeholder') || '',
+        ajax: {
+          delay: 200,
+          transport: function (params, success, failure) {
+            const url = (typeof endpoint === 'function') ? endpoint() : endpoint;
+            params.url = url;
+            return jQuery.ajax(params).then(success).catch(failure);
+          },
+          data: params => ({ q: params.term || '', limit: 50 }),
+          processResults: data => ({ results: data })
+        }
+      });
+    }
+
     function bindRow(row){
+      // أزرار
       const rm = row.querySelector('.remove-line');
       if(rm) on(rm,'click',()=>removeLine(row));
+
+      // الحقول الرقمية
       const nums = qsa('.quantity-input,.price-input,.discount-input,.tax-input',row);
       nums.forEach(el=>{ on(el,'input',recalc); on(el,'change',recalc); });
 
-      // ملء سعر الوحدة تلقائيًا لو كانت الـ <option data-price="...">
-      const prodSel = row.querySelector('select[name$="-product_id"]');
-      const priceInp = row.querySelector('input[name$="-unit_price"]');
-      if (prodSel && priceInp) {
-        on(prodSel,'change',()=>{
-          const opt = prodSel.options[prodSel.selectedIndex];
-          const p = toNum(opt?.dataset?.price || '');
-          if (p>0 && !priceInp.value) { priceInp.value = p.toFixed(2); recalc(); }
-        });
-      }
+      // Select2 داخل السطر
+      select2Ready.then(()=>{
+        if(!(window.jQuery && window.jQuery.fn && window.jQuery.fn.select2)) return;
+        const $ = window.jQuery;
+        const $wh = $(row).find('select.warehouse-select');
+        const $pd = $(row).find('select.product-select');
 
-      // جلب توفر المستودع اختياريًا (لو أردت)
-      const whSel = row.querySelector('select[name$="-warehouse_id"]');
-      if (prodSel && whSel) {
-        const fetchAvail = async () => {
-          const pid = toNum(prodSel.value);
-          const wid = toNum(whSel.value);
-          if (!(pid && wid)) return;
-          try {
+        if ($wh.length) {
+          initAjaxSelect($wh, {
+            endpoint: () => $wh.data('endpoint') || '/api/warehouses',
+            placeholder: $wh.data('placeholder') || 'اختر المستودع'
+          });
+        }
+
+        const initProducts = () => {
+          if (!$pd.length) return;
+          const wid = $wh.val();
+          const endpoint = wid ? `/api/warehouses/${wid}/products`
+                               : ($pd.data('endpoint') || '/api/products');
+          try { $pd.select2('destroy'); } catch(_){}
+          initAjaxSelect($pd, {
+            endpoint: () => endpoint,
+            placeholder: $pd.data('placeholder') || 'اختر الصنف'
+          });
+
+          // عند اختيار الصنف: عَبّي السعر وأظهر المتاح
+          $pd.on('select2:select', (e) => {
+            const data = e.params?.data || {};
+            const priceInp = row.querySelector('input[name$="-unit_price"]');
+            if (priceInp && !priceInp.value && typeof data.price !== 'undefined') {
+              const p = toNum(data.price);
+              if (p>0) { priceInp.value = p.toFixed(2); recalc(); }
+            }
+            updateAvailability();
+          });
+        };
+
+        initProducts();
+
+        if ($wh.length) {
+          $wh.on('change', () => {
+            if ($pd.length) { $pd.val(null).trigger('change'); }
+            initProducts();
+            updateAvailability();
+          });
+        }
+
+        const updateAvailability = async () => {
+          const badge = row.querySelector('.stock-badge');
+          if (!badge) return;
+          const pid = toNum($pd.val());
+          const wid = toNum($wh.val());
+          if (!(pid && wid)) { badge.textContent=''; return; }
+          try{
             const res = await fetch(`/api/products/${pid}/info?warehouse_id=${wid}`, {headers:{'Accept':'application/json'}});
             const data = await res.json();
-            const available = Number.isFinite(+data.available) ? +data.available : null;
-            const badgeSel = row.querySelector('.stock-badge');
-            if (badgeSel) badgeSel.textContent = (available===null?'':'متاح: '+available);
-          } catch(_){}
+            const avail = Number.isFinite(+data.available)? +data.available : null;
+            badge.textContent = (avail===null?'':'متاح: '+avail);
+          }catch(_){ badge.textContent=''; }
         };
-        on(prodSel,'change',fetchAvail);
-        on(whSel,'change',fetchAvail);
-      }
+      });
     }
 
     function bindAll(){ qsa('.sale-line',wrap).forEach(bindRow); }
+
     function recalc(){
+      // مجموع صافي البنود (بدون ضريبة السطر لتجنب الازدواج؛ الضريبة العامة فقط)
       let sub=0;
       qsa('.sale-line',wrap).forEach(row=>{
         const q=toNum(qs('[name$="-quantity"]',row)?.value);
         const p=toNum(qs('[name$="-unit_price"]',row)?.value);
         let d=toNum(qs('[name$="-discount_rate"]',row)?.value); d=Math.max(0,Math.min(100,d));
-        let t=toNum(qs('[name$="-tax_rate"]',row)?.value); t=Math.max(0,Math.min(100,t));
-        const net = q*p*(1-d/100);
-        const lineTotal = net*(1+t/100);
-        sub += lineTotal;
+        sub += q*p*(1-d/100);
       });
-      // ضريبة عامة + شحن على مستوى الفاتورة
       let globalTax = toNum(qs('#taxRate')?.value); globalTax=Math.max(0,Math.min(100,globalTax));
       const shipping = toNum(qs('#shippingCost')?.value);
       const taxAmt = sub*(globalTax/100);
       const total = sub + taxAmt + shipping;
 
-      const set=(sel,val,suffix='')=>{
+      const set=(sel,val)=>{
         const el=qs(sel); if(!el) return;
         const curr = (qs('select[name="currency"]')?.value) || '';
-        el.textContent = Number(val).toFixed(2) + (curr?` ${curr}`:'') + suffix;
+        el.textContent = Number(val).toFixed(2) + (curr?` ${curr}`:'');
       };
       set('#subtotal', sub);
       set('#taxAmount', taxAmt);
       set('#shippingCostDisplay', shipping);
       set('#totalAmount', total);
     }
+
+    // تهيئة Select2 العامة للحقول العلوية: العميل/البائع
+    select2Ready.then(()=>{
+      if(!(window.jQuery && window.jQuery.fn && window.jQuery.fn.select2)) return;
+      const $ = window.jQuery;
+      $('#saleForm select.ajax-select').each(function(){
+        const $el = $(this);
+        if ($el.closest('.sale-line').length) return; // خطوط الفاتورة تُهيّأ في bindRow
+        const endpoint = $el.data('endpoint');
+        if(!endpoint) return;
+        initAjaxSelect($el, { endpoint, placeholder: $el.data('placeholder') || '' });
+      });
+    });
 
     bindAll();
     if (addBtn) on(addBtn,'click',addLine);

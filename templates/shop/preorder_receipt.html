@@ -1,90 +1,86 @@
 {% extends 'shop/base.html' %}
-{% block title %}وصل الحجز{% endblock %}
+{% block title %}وصل الطلب #{{ preorder.order_number }}{% endblock %}
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
-<style>
-@media print{
-  body *{visibility:hidden}
-  .print-area,.print-area *{visibility:visible}
-  .print-area{position:absolute;left:0;top:0;width:100%}
-  .no-print{display:none!important}
-}
-</style>
 {% endblock %}
 
 {% block content %}
-<div class="container print-area">
-  <div class="row justify-content-center">
-    <div class="col-lg-8">
-      <div class="text-center mb-5">
-        <h1 class="mb-3">وصل استلام الحجز</h1>
-        <div class="d-flex justify-content-center">
-          <div class="bg-light p-3 rounded d-inline-block">
-            <span class="badge bg-primary fs-6">رقم الطلب: {{ preorder.order_number }}</span>
+<div class="row justify-content-center">
+  <div class="col-lg-10">
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">وصل الطلب</h5>
+        <span class="badge bg-{{ 'success' if preorder.status=='FULFILLED' else 'warning' if preorder.status=='CONFIRMED' else 'info' if preorder.status=='PENDING' else 'danger' }}">
+          {{ 'مكتمل' if preorder.status=='FULFILLED' else 'مؤكد' if preorder.status=='CONFIRMED' else 'قيد الانتظار' if preorder.status=='PENDING' else 'ملغي' }}
+        </span>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <!-- تفاصيل الطلب -->
+          <div class="col-md-6 mb-3">
+            <h6>تفاصيل الطلب</h6>
+            <ul class="list-unstyled">
+              <li><strong>رقم الطلب:</strong> {{ preorder.order_number }}</li>
+              <li><strong>التاريخ:</strong> {{ preorder.created_at.strftime('%Y-%m-%d %H:%M') if preorder.created_at else '' }}</li>
+              <li><strong>الحالة:</strong> {{ preorder.status }}</li>
+            </ul>
+          </div>
+
+          <!-- تفاصيل الزبون -->
+          <div class="col-md-6 mb-3">
+            <h6>تفاصيل الزبون</h6>
+            <ul class="list-unstyled">
+              <li><strong>الاسم:</strong> {{ preorder.customer.name if preorder.customer else '' }}</li>
+              <li><strong>الهاتف:</strong> {{ preorder.customer.phone if preorder.customer else '' }}</li>
+              <li><strong>البريد:</strong> {{ preorder.customer.email if preorder.customer else '' }}</li>
+            </ul>
           </div>
         </div>
-      </div>
 
-      <div class="card shadow-sm border-0 mb-4">
-        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-          <h5 class="mb-0">تفاصيل الطلب</h5>
-          <span class="badge bg-{{ 'success' if preorder.status=='FULFILLED' else 'warning' if preorder.status=='CONFIRMED' else 'info' if preorder.status=='PENDING' else 'danger' }}">
-            {{ 'مكتمل' if preorder.status=='FULFILLED' else 'مؤكد' if preorder.status=='CONFIRMED' else 'قيد الانتظار' if preorder.status=='PENDING' else 'ملغي' }}
-          </span>
+        <hr>
+
+        <!-- المنتجات -->
+        <h6 class="mb-3">المنتجات</h6>
+        <div class="table-responsive">
+          <table class="table table-bordered">
+            <thead><tr><th>المنتج</th><th class="text-center">الكمية</th><th class="text-end">السعر</th><th class="text-end">الإجمالي</th></tr></thead>
+            <tbody>
+              {% for item in preorder.items %}
+              <tr>
+                <td>{{ item.product.name }}</td>
+                <td class="text-center">{{ item.quantity }}</td>
+                <td class="text-end">{{ '%.2f'|format(item.price or 0) }}</td>
+                <td class="text-end">{{ '%.2f'|format((item.quantity or 0) * (item.price or 0)) }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
-        <div class="card-body">
-          <div class="row mb-4">
-            <div class="col-md-6">
-              <h6>معلومات العميل</h6>
-              <ul class="list-unstyled">
-                <li><strong>الاسم:</strong> {{ preorder.customer.name }}</li>
-                <li><strong>الهاتف:</strong> {{ preorder.customer.phone }}</li>
-                <li><strong>البريد الإلكتروني:</strong> {{ preorder.customer.email }}</li>
-              </ul>
+
+        <div class="row mt-3">
+          <div class="col-md-6">
+            <div class="alert alert-info">
+              <div class="d-flex justify-content-between">
+                <span>المبلغ المطلوب كعربون:</span>
+                <span class="fw-bold">{{ '%.2f'|format(preorder.prepaid_amount or 0) }} شيكل</span>
+              </div>
+              <small class="d-block text-muted mt-1">(لا يقل عن 20% من إجمالي قيمة الطلب)</small>
             </div>
-            <div class="col-md-6">
-              <h6>معلومات الطلب</h6>
-              <ul class="list-unstyled">
-                <li><strong>تاريخ الطلب:</strong> {{ preorder.created_at.strftime('%Y-%m-%d %H:%M') if preorder.created_at else '' }}</li>
-                <li><strong>طريقة الدفع:</strong> {{ preorder.payment_method }}</li>
-                <li><strong>حالة الدفع:</strong> {{ 'مدفوع' if preorder.payment_status=='PAID' else 'جزئي' if preorder.payment_status=='PARTIAL' else 'قيد الانتظار' }}</li>
-              </ul>
-            </div>
           </div>
-
-          <div class="table-responsive">
-            <table class="table table-bordered">
-              <thead><tr><th>المنتج</th><th class="text-center">الكمية</th><th class="text-end">السعر</th><th class="text-end">الإجمالي</th></tr></thead>
-              <tbody>
-                {% for item in preorder.items %}
-                <tr>
-                  <td>{{ item.product.name }}</td>
-                  <td class="text-center">{{ item.quantity }}</td>
-                  <td class="text-end">{{ '%.2f'|format(item.price or 0) }}</td>
-                  <td class="text-end">{{ '%.2f'|format((item.quantity or 0) * (item.price or 0)) }}</td>
-                </tr>
-                {% endfor %}
-              </tbody>
-              <tfoot class="table-light">
-                <tr><th colspan="3" class="text-end">المجموع الفرعي:</th><th class="text-end">{{ '%.2f'|format(preorder.total_amount or 0) }}</th></tr>
-                <tr><th colspan="3" class="text-end">المبلغ المدفوع (عربون):</th><th class="text-end text-success">{{ '%.2f'|format(preorder.prepaid_amount or 0) }}</th></tr>
-                <tr><th colspan="3" class="text-end">المتبقي عند الاستلام:</th><th class="text-end">{{ '%.2f'|format((preorder.total_amount or 0) - (preorder.prepaid_amount or 0)) }}</th></tr>
-              </tfoot>
-            </table>
-          </div>
-
-          <div class="alert alert-info mt-4">
-            <h6 class="alert-heading">تعليمات الاستلام</h6>
-            <p class="mb-0">يُرجى إحضار هذا الوصل عند الاستلام. سيتم التواصل معك لتحديد موعد ومكان التسليم.</p>
+          <div class="col-md-6 text-end">
+            <p><strong>المجموع الكلي: </strong> {{ '%.2f'|format(preorder.total_amount or 0) }} شيكل</p>
           </div>
         </div>
       </div>
+    </div>
 
-      <div class="d-flex justify-content-center gap-3 no-print">
-        <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print me-2"></i> طباعة الوصل</button>
-        <a href="{{ url_for('shop.preorder_list') }}" class="btn btn-outline-secondary"><i class="fas fa-list me-2"></i> العودة لقائمة الطلبات</a>
-        <a href="{{ url_for('shop.catalog') }}" class="btn btn-outline-primary"><i class="fas fa-shopping-bag me-2"></i> مواصلة التسوق</a>
-      </div>
+    <div class="d-flex justify-content-between">
+      <a href="{{ url_for('shop.preorder_list') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-right me-2"></i> الرجوع لقائمة الطلبات
+      </a>
+      <button onclick="window.print()" class="btn btn-primary">
+        <i class="fas fa-print me-2"></i> طباعة الوصل
+      </button>
     </div>
   </div>
 </div>
@@ -92,5 +88,4 @@
 
 {% block scripts %}
   {{ super() }}
-  <script src="{{ url_for('static', filename='js/shop.js') }}"></script>
 {% endblock %}

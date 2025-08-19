@@ -58,10 +58,15 @@
     var expiry = form.querySelector('input[name="expiry"]');
 
     function toggleCardFields() {
-      var m = methodSel ? methodSel.value : "online";
+      var m = methodSel ? methodSel.value : "card";
       cardFields.style.display = (m === "card") ? "" : "none";
     }
-    if (methodSel) methodSel.addEventListener("change", toggleCardFields);
+
+    if (methodSel) {
+      methodSel.value = "card";
+      Array.prototype.slice.call(methodSel.options).forEach(function(opt){ opt.disabled = opt.value !== "card"; });
+      methodSel.addEventListener("change", toggleCardFields);
+    }
     toggleCardFields();
 
     if (cardNumber) {
@@ -79,7 +84,7 @@
       });
     }
 
-    form.addEventListener("submit", function (e) {
+    form.addEventListener("submit", function () {
       var btn = form.querySelector('button[type="submit"]');
       if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري معالجة الدفع...'; }
     });

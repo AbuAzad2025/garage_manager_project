@@ -30,6 +30,16 @@ from twilio.rest import Client
 from extensions import db, mail
 from models import PaymentStatus, Payment, PaymentSplit
 
+# ==== Card helpers (Luhn / Expiry / Encryption) ====
+import re
+import hashlib
+from datetime import datetime
+from flask import current_app
+
+try:
+    from cryptography.fernet import Fernet
+except Exception:
+    Fernet = None
 
 redis_client: redis.Redis | None = None
 
@@ -735,6 +745,94 @@ def generate_excel_contacts(customers, fields):
         headers={"Content-Disposition": "attachment; filename=contacts.xlsx"},
     )
 
+def luhn_check(card_number: str) -> bool:
+    """تحقق Luhn لرقم البطاقة (digits only)."""
+    if not card_number:
+        return False
+    digits = "".join(ch for ch in card_number if ch.isdigit())
+    if not digits:
+        return False
+    s, alt = 0, False
+    for d in digits[::-1]:
+        n = ord(d) - 48
+        if alt:
+            n *= 2
+            if n > 9:
+                n -= 9
+        s += n
+        alt = not alt
+    return (s % 10) == 0
+
+def is_valid_expiry_mm_yy(s: str) -> bool:
+    """تحقق من MM/YY وأنه في الحاضر/المستقبل (UTC)."""
+    if not s or not re.match(r"^\d{2}/\d{2}$", s):
+        return False
+    mm_str, yy_str = s.split("/")
+    try:
+        mm = int(mm_str)
+        yy = int("20" + yy_str)
+        if not (1 <= mm <= 12):
+            return False
+        now = datetime.utcnow()
+        y, m = now.year, now.month
+        # نعتبر الشهر الحالي صالح
+        return (yy > y) or (yy == y and mm >= m)
+    except Exception:
+        return False
+
+def get_fernet():
+    """أرجع كائن Fernet بناءً على CARD_ENC_KEY من الإعدادات. قد يرجع None."""
+    key = current_app.config.get("CARD_ENC_KEY")
+    if not key or Fernet is None:
+        return None
+    if isinstance(key, str):
+        key = key.encode("utf-8")
+    try:
+        return Fernet(key)
+    except Exception:
+        return None
+
+def encrypt_card_number(pan: str) -> bytes | None:
+    """شفر رقم البطاقة (PAN). يرجع None إن لم يكن التشفير مفعّل."""
+    f = get_fernet()
+    if not f:
+        return None
+    digits = "".join(ch for ch in (pan or "") if ch.isdigit())
+    if not digits:
+        return None
+    return f.encrypt(digits.encode("utf-8"))
+
+def decrypt_card_number(token: bytes) -> str | None:
+    """فك تشفير PAN. يرجع None إن لم يكن التشفير مفعّل/فشل."""
+    f = get_fernet()
+    if not f or not token:
+        return None
+    try:
+        return f.decrypt(token).decode("utf-8")
+    except Exception:
+        return None
+
+def card_fingerprint(pan: str) -> str | None:
+    """بصمة SHA-256 لرقم البطاقة (لا تتطلب فك تشفير لاحقًا)."""
+    digits = "".join(ch for ch in (pan or "") if ch.isdigit())
+    if not digits:
+        return None
+    return hashlib.sha256(digits.encode("utf-8")).hexdigest()
+
+def detect_card_brand(pan: str) -> str:
+    """كشف ماركة البطاقة بشكل مبسط."""
+    digits = "".join(ch for ch in (pan or "") if ch.isdigit())
+    if not digits:
+        return "UNKNOWN"
+    if digits.startswith("4"):
+        return "VISA"
+    i2 = int(digits[:2]) if len(digits) >= 2 else -1
+    i4 = int(digits[:4]) if len(digits) >= 4 else -1
+    if 51 <= i2 <= 55 or (2221 <= i4 <= 2720):
+        return "MASTERCARD"
+    if i2 in (34, 37):
+        return "AMEX"
+    return "UNKNOWN"
 
 def testable_login_required(f):
     """

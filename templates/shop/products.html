@@ -1,0 +1,120 @@
+{# templates/shop/products.html #}
+{% extends 'shop/base.html' %}
+{% block title %}قائمة المنتجات{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-4">
+  <h1 class="h3 mb-0">قائمة المنتجات</h1>
+
+  <div class="d-flex align-items-center gap-2 ms-auto">
+    <div class="input-group w-auto">
+      <input type="text" id="search" class="form-control" placeholder="ابحث بالاسم...">
+      <button class="btn btn-outline-primary" type="button"><i class="fas fa-search"></i></button>
+    </div>
+
+    {% if shop_is_super_admin %}
+      <div class="btn-group" role="group" aria-label="admin actions">
+        <a href="{{ url_for('shop.admin_products') }}" class="btn btn-danger">
+          <i class="fas fa-cogs me-1"></i> إدارة المنتجات
+        </a>
+        <a href="{{ url_for('admin_reports.cards') }}" class="btn btn-warning">
+          <i class="fas fa-chart-line me-1"></i> تقارير البطاقات
+        </a>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle" id="products-table">
+        <thead>
+          <tr>
+            <th>الصورة</th>
+            <th>الاسم</th>
+            <th class="text-end">السعر</th>
+            <th class="text-center">الحالة</th>
+            <th class="text-center">المخزون</th>
+            {% if shop_is_super_admin %}
+              <th class="text-center">إجراءات</th>
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody id="products-container">
+          {% for p in products %}
+          {% set avail = avail_map.get(p.id, 0) %}
+          <tr class="product-row" data-name="{{ p.name|lower }}">
+            <td style="width:84px;">
+              <img src="{{ url_for('static', filename='products/' + p.image) if p.image else url_for('static', filename='products/default.png') }}"
+                   class="rounded" width="64" height="64" style="object-fit:cover;"
+                   onerror="this.onerror=null;this.src='{{ url_for('static', filename='products/default.png') }}'">
+            </td>
+            <td>
+              <div class="fw-semibold">{{ p.name }}</div>
+              {% if p.description %}<div class="text-muted small">{{ p.description|truncate(80) }}</div>{% endif %}
+            </td>
+            <td class="text-end">{{ '%.2f'|format(p.price or 0) }} شيكل</td>
+            <td class="text-center">
+              {% if p.is_active %}
+                <span class="badge bg-success">مفعل</span>
+              {% else %}
+                <span class="badge bg-secondary">غير مفعل</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if avail > 0 %}
+                <span class="badge bg-info">{{ avail }}</span>
+              {% else %}
+                <span class="badge bg-danger">غير متوفر</span>
+              {% endif %}
+            </td>
+
+            {% if shop_is_super_admin %}
+            <td class="text-center">
+              <div class="btn-group btn-group-sm">
+                <a href="{{ url_for('shop.admin_product_edit', pid=p.id) }}" class="btn btn-warning" title="تعديل">
+                  <i class="fas fa-edit"></i>
+                </a>
+                <form method="POST" action="{{ url_for('shop.admin_product_delete', pid=p.id) }}"
+                      onsubmit="return confirm('تأكيد حذف {{ p.name }}؟ لا يمكن التراجع.');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-danger" title="حذف"><i class="fas fa-trash"></i></button>
+                </form>
+              </div>
+            </td>
+            {% endif %}
+          </tr>
+          {% else %}
+          <tr><td colspan="{{ 6 if shop_is_super_admin else 5 }}" class="text-center text-muted py-4">لا توجد منتجات</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script>
+  (function(){
+    var search = document.getElementById('search');
+    var rows = Array.prototype.slice.call(document.querySelectorAll('#products-container .product-row'));
+    if(!search) return;
+    function run(){
+      var q = (search.value || '').trim().toLowerCase();
+      rows.forEach(function(r){
+        var name = r.getAttribute('data-name') || '';
+        r.style.display = name.indexOf(q) !== -1 ? '' : 'none';
+      });
+    }
+    search.addEventListener('input', function(){ setTimeout(run, 120); });
+  })();
+  </script>
+  <script src="{{ url_for('static', filename='js/shop.js') }}"></script>
+{% endblock %}
