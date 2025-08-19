@@ -42,6 +42,8 @@ def app():
         'PROPAGATE_EXCEPTIONS': True,
         'LOGIN_DISABLED': False,
         'PERMISSION_DISABLED': False,
+        'SERVER_NAME': 'localhost',
+
     }
     application = create_app(cfg)
 
