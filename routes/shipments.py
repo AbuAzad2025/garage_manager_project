@@ -104,6 +104,9 @@ def list_shipments():
         })
     return render_template("warehouses/shipments.html", shipments=pagination.items, pagination=pagination, search=search, status=status)
 
+# Alias expected by tests
+shipments_bp.add_url_rule("/", endpoint="shipments", view_func=list_shipments)
+
 @shipments_bp.route("/create", methods=["GET", "POST"], endpoint="create_shipment")
 @login_required
 @permission_required("manage_warehouses")

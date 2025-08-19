@@ -8,6 +8,7 @@ from flask_cors import CORS
 from flask_login import AnonymousUserMixin, current_user
 from flask_wtf.csrf import generate_csrf
 from jinja2 import ChoiceLoader, FileSystemLoader
+from sqlalchemy import event
 
 from config import Config
 from extensions import db, migrate, login_manager, socketio, mail, csrf, limiter
@@ -23,7 +24,7 @@ from utils import (
     _expand_perms as _perm_expand,
 )
 from cli import seed_roles
-from models import User, Role, Customer
+from models import User, Role, Permission, Customer
 
 from routes.auth import auth_bp
 from routes.main import main_bp
@@ -43,6 +44,7 @@ from routes.permissions import permissions_bp
 from routes.roles import roles_bp
 from routes.api import bp as api_bp
 from routes.admin_reports import admin_reports_bp
+from routes.parts import parts_bp
 
 
 class MyAnonymousUser(AnonymousUserMixin):
@@ -66,10 +68,6 @@ def _init_sentry(app: Flask) -> None:
     except ImportError:
         app.logger.warning("Sentry SDK not installed; skipping Sentry init.")
 
-@app.route('/favicon.ico')
-def favicon():
-    return send_from_directory(os.path.join(current_app.static_folder), 'favicon.ico', mimetype='image/vnd.microsoft.icon')
-
 def create_app(config_object=Config, test_config=None) -> Flask:
     if isinstance(config_object, dict) and test_config is None:
         test_config = config_object
@@ -81,6 +79,18 @@ def create_app(config_object=Config, test_config=None) -> Flask:
         app.config.update(test_config)
 
     app.config.setdefault("JSON_AS_ASCII", False)
+    
+    if app.config.get("SERVER_NAME"):
+        from urllib.parse import urlparse
+
+        def _relative_url_for(self, endpoint, **values):
+            rv = Flask.url_for(self, endpoint, **values)
+            if not values.get("_external"):
+                parsed = urlparse(rv)
+                rv = parsed.path + ("?" + parsed.query if parsed.query else "")
+            return rv
+
+        app.url_for = _relative_url_for.__get__(app, Flask)
 
     app.testing = app.config.get("TESTING", False)
     if app.testing:
@@ -106,6 +116,14 @@ def create_app(config_object=Config, test_config=None) -> Flask:
 
     db.init_app(app)
     migrate.init_app(app, db)
+
+    @event.listens_for(db.session.__class__, "before_attach")
+    def _dedupe_entities(session, instance):
+        if isinstance(instance, (Role, Permission)) and getattr(instance, 'id', None) is not None:
+            key = session.identity_key(instance.__class__, (instance.id,))
+            existing = session.identity_map.get(key)
+            if existing is not None and existing is not instance:
+                session.expunge(existing)
 
     login_manager.init_app(app)
     login_manager.login_view = "auth.login"
@@ -265,9 +283,15 @@ def create_app(config_object=Config, test_config=None) -> Flask:
         payments_bp,
         permissions_bp,
         roles_bp,
+        parts_bp,
         admin_reports_bp,
     ):
         app.register_blueprint(bp)
+
+    # Legacy endpoint aliases for backward compatibility
+    app.add_url_rule(
+        '/users/', endpoint='users.list_users', view_func=app.view_functions['users_bp.list_users']
+    )
 
     CORS(
         app,
@@ -290,7 +314,12 @@ def create_app(config_object=Config, test_config=None) -> Flask:
             app.logger.warning("HTTP %s %s → %s", resp.status_code, request.path, loc or "")
         return resp
 
+    @app.teardown_appcontext
+    def _cleanup(exception=None):
+        db.session.remove()
+        
     @app.errorhandler(403)
+
     def _forbidden(e):
         app.logger.error("403 FORBIDDEN: %s", request.path)
         try:

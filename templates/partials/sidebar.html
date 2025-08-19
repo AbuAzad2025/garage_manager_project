@@ -177,13 +177,24 @@
         </li>
 
         <!-- النسخ الاحتياطي -->
-        <li class="nav-item">
+        {% if current_user.has_permission('backup_database') %}
+            <li class="nav-item">
           <a href="{{ url_for('main.backup_db') }}"
              class="nav-link {% if request.endpoint in ['main.backup_db','main.restore_db'] %}active{% endif %}">
             <i class="nav-icon fas fa-database"></i>
             <p>النسخ الاحتياطي</p>
           </a>
         </li>
+        {% endif %}
+        {% if current_user.has_permission('restore_database') %}
+        <li class="nav-item">
+          <a href="{{ url_for('main.restore_db') }}"
+             class="nav-link {% if request.endpoint == 'main.restore_db' %}active{% endif %}">
+            <i class="nav-icon fas fa-upload"></i>
+            <p>استعادة النسخ</p>
+          </a>
+        </li>
+        {% endif %}
 
         <!-- المستخدمون -->
         <li class="nav-item">

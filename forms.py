@@ -356,7 +356,8 @@ class splitEntryForm(FlaskForm):
                 msg = '❌ يجب إدخال بيانات الشيك كاملة'
                 self.check_number.errors.append([msg])
                 self.check_bank.errors.append([msg])
-                self.check_due_date.errors.append(msg)                ok = False
+                self.check_due_date.errors.append(msg)
+                ok = False
         elif m == 'card':
             if not self.card_number.data or not self.card_number.data.isdigit() or not luhn_check(self.card_number.data):
                 self.card_number.errors.append("❌ رقم البطاقة غير صالح"); ok = False

@@ -774,6 +774,11 @@ class Product(db.Model, TimestampMixin, AuditMixin):
     chassis_number = Column(String(100))
     serial_no = Column(String(100), unique=True)
     barcode = Column(String(100), unique=True)
+    unit = Column(String(50))
+    category_name = Column(String(100))
+    purchase_price = Column(Numeric(12, 2), default=0)
+    selling_price = Column(Numeric(12, 2), default=0)
+    notes = Column(Text)    
     image = Column(String(255))
     cost_before_shipping = Column(Numeric(12, 2), default=0)
     cost_after_shipping = Column(Numeric(12, 2), default=0)
@@ -824,6 +829,15 @@ class Product(db.Model, TimestampMixin, AuditMixin):
     online_cart_items = relationship('OnlineCartItem', back_populates='product')
     online_preorder_items = relationship('OnlinePreOrderItem', back_populates='product')
     stock_levels = relationship('StockLevel', back_populates='product')
+
+    def __init__(self, **kwargs):
+        # Accept simple form fields used in tests
+        self.category_name = kwargs.pop('category', None)
+        self.unit = kwargs.pop('unit', None)
+        self.purchase_price = kwargs.pop('purchase_price', 0)
+        self.selling_price = kwargs.pop('selling_price', kwargs.get('price', 0))
+        self.notes = kwargs.pop('notes', None)
+        super().__init__(**kwargs)
 
     @hybrid_property
     def total_partner_percentage(self):
