@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 from datetime import datetime
+from flask import send_from_directory
 from flask import Flask, url_for, request, current_app, render_template
 from werkzeug.routing import BuildError
 from flask_cors import CORS
@@ -65,6 +66,9 @@ def _init_sentry(app: Flask) -> None:
     except ImportError:
         app.logger.warning("Sentry SDK not installed; skipping Sentry init.")
 
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(current_app.static_folder), 'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 def create_app(config_object=Config, test_config=None) -> Flask:
     if isinstance(config_object, dict) and test_config is None:

@@ -41,6 +41,7 @@
 
 {% block scripts %}
   {{ super() }}
+  <script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
   <script>
     (function(){
       if (window.jQuery && $.fn.DataTable) {

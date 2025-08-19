@@ -65,6 +65,7 @@ def suppliers_create():
 def suppliers_edit(id):
     supplier = _get_or_404(Supplier, id)
     form = SupplierForm(obj=supplier)
+    form.obj_id = supplier.id
     if form.validate_on_submit():
         form.populate_obj(supplier)
         try:
@@ -144,6 +145,7 @@ def partners_create():
 def partners_edit(id):
     partner = _get_or_404(Partner, id)
     form = PartnerForm(obj=partner)
+    form.obj_id = partner.id
     if form.validate_on_submit():
         form.populate_obj(partner)
         try:

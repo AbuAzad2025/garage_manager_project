@@ -43,9 +43,14 @@ def app():
         'LOGIN_DISABLED': False,
         'PERMISSION_DISABLED': False,
         'SERVER_NAME': 'localhost',
-
+        'SQLALCHEMY_DATABASE_URI': 'sqlite://',
     }
     application = create_app(cfg)
+    # Ensure all tables are created before tests run
+    with application.app_context():
+        db.create_all()
+
+
 
     # اختياري: تجاوز Auth/Perms لمسارات /api فقط أثناء الاختبار
     @application.before_request

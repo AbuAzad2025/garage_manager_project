@@ -1,0 +1,42 @@
+<!-- File: templates/reports/sales.html -->
+{% extends 'base.html' %}
+{% block title %}تقرير المبيعات{% endblock %}
+
+{% set _labels = labels or daily_labels or [] %}
+{% set _values = values or daily_values or [] %}
+{% set _total  = total  or total_revenue or 0 %}
+
+{% block head_extra %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/reporting.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-3"><i class="fas fa-chart-bar"></i> مبيعات حسب اليوم</h2>
+
+  <form class="row g-2 mb-3" method="get">
+    <div class="col-auto">
+      <input type="date" name="start" class="form-control" placeholder="من">
+    </div>
+    <div class="col-auto">
+      <input type="date" name="end" class="form-control" placeholder="إلى">
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-primary">تطبيق</button>
+    </div>
+  </form>
+
+  <canvas class="chartjs-chart" data-type="line"
+          data-labels='{{ _labels|tojson }}'
+          data-values='{{ _values|tojson }}'
+          data-dataset-label="الإيراد اليومي"
+          style="height:400px;"></canvas>
+  <p class="mt-3"><strong>إجمالي الإيراد: </strong>{{ _total }}</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/reporting.js') }}"></script>
+{% endblock %}

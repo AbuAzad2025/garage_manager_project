@@ -3,6 +3,11 @@
 {% block title %}شحنة جديدة{% endblock %}
 {% block page_title %}شحنة جديدة{% endblock %}
 
+{% block head_extra %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/shipments.css') }}">
+{% endblock %}
+
 {% macro item_row(sf, idx) -%}
 <div class="shipment-item border rounded p-2 mb-2" data-index="{{ idx }}">
   <div class="row g-2 align-items-end">
@@ -219,6 +224,7 @@
 
 {% block scripts %}
 {{ super() }}
+<script src="{{ url_for('static', filename='js/shipments.js') }}"></script>
 <script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {

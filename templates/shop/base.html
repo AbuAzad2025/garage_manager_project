@@ -4,14 +4,11 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>{% block title %}متجرنا الإلكتروني{% endblock %}</title>
-
-  <!-- Bootstrap & Icons & Font -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet"/>
-
   {% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}"/>{% endblock %}
-
   <style>
     body{background:#f8f9fa;font-family:'Tajawal',sans-serif;color:#333}
     .navbar{background:linear-gradient(135deg,#1a237e,#311b92)}
@@ -23,7 +20,6 @@
 </head>
 <body>
 
-  <!-- Navbar -->
   <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
     <div class="container">
       <a class="navbar-brand" href="{{ url_for('shop.catalog') }}">
@@ -36,7 +32,6 @@
 
       <div class="collapse navbar-collapse" id="shopNav">
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-          <!-- روابط عامة -->
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('shop.catalog') }}">المنتجات</a>
           </li>
@@ -47,8 +42,7 @@
             </li>
           {% endif %}
 
-          {% if shop_is_super_admin %}
-            <!-- روابط السوبر أدمن -->
+          {% if shop_is_super_admin|default(false) %}
             <li class="nav-item dropdown">
               <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                 <i class="fas fa-shield-halved me-1"></i>لوحة الإدارة
@@ -69,20 +63,16 @@
         </ul>
 
         <div class="d-flex align-items-center gap-3">
-          <!-- Cart -->
           <a href="{{ url_for('shop.cart') }}" class="btn btn-light position-relative" title="سلة المشتريات">
             <i class="fas fa-shopping-cart"></i>
-            <span class="quantity-badge badge bg-danger rounded-circle">{{ cart_count }}</span>
+            <span class="quantity-badge badge bg-danger rounded-circle">{{ cart_count|default(0)|int }}</span>
           </a>
 
+          {% set _dn = (current_user.name or current_user.username) if current_user.is_authenticated else '' %}
           {% if current_user.is_authenticated %}
-            <!-- User dropdown (بدون getattr) -->
             <div class="dropdown">
               <button class="btn btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                <i class="fas fa-user me-2"></i>
-                {{ (current_user.name if current_user.is_authenticated and current_user.name
-                    else (current_user.username if current_user.is_authenticated and current_user.username
-                    else '')) }}
+                <i class="fas fa-user me-2"></i>{{ _dn }}
               </button>
               <ul class="dropdown-menu dropdown-menu-end">
                 <li><a class="dropdown-item" href="{{ url_for('shop.preorder_list') }}">طلباتي</a></li>
@@ -108,23 +98,20 @@
     </div>
   </nav>
 
-  <!-- Main -->
   <main class="container py-4">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, message in messages %}
-          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          <div class="alert alert-{{ category or 'info' }} alert-dismissible fade show" role="alert">
             {{ message }}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
           </div>
         {% endfor %}
       {% endif %}
     {% endwith %}
-
     {% block content %}{% endblock %}
   </main>
 
-  <!-- Footer -->
   <footer class="footer py-4 mt-5">
     <div class="container text-center">
       <p class="mb-0">جميع الحقوق محفوظة &copy; متجرنا الإلكتروني</p>
@@ -136,7 +123,6 @@
     </div>
   </footer>
 
-  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="{{ url_for('static', filename='js/shop.js') }}" defer></script>
   {% block scripts %}{% endblock %}

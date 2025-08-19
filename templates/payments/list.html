@@ -21,6 +21,10 @@
     </a>
   </div>
 
+  {% if total_paid is not none %}
+    <div class="alert alert-info">إجمالي المدفوع: {{ '%.2f'|format(total_paid) }}</div>
+  {% endif %}
+
   {% if supplier %}
     <input type="hidden" id="prefilter_entity_type" value="SUPPLIER">
     <input type="hidden" id="prefilter_entity_id" value="{{ supplier.id }}">

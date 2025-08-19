@@ -255,6 +255,18 @@ def remove_from_cart(item_id):
         db.session.rollback()
         return _resp(f"خطأ أثناء الحذف: {e}", "danger", to="shop.cart")
 
+@shop_bp.route('/admin/products/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_product(id):
+    product = db.session.get(Product, id) or abort(404)
+    form = ProductForm(obj=product)
+    if form.validate_on_submit():
+        form.populate_obj(product)
+        db.session.commit()
+        flash('تم الحفظ بنجاح', 'success')
+        return redirect(url_for('shop.admin_products'))
+    return render_template('shop/admin/product_edit.html', form=form, product=product)
+
 @shop_bp.route("/checkout", methods=["GET", "POST"], endpoint="checkout")
 @online_customer_required
 def checkout():

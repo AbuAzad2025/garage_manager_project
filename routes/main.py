@@ -1,17 +1,43 @@
+# routes/main.py
 import os
 import sqlite3
 from datetime import date, datetime, timedelta
 
-from flask import Blueprint, current_app, flash, redirect, render_template, send_file, url_for
+from flask import (
+    Blueprint,
+    current_app,
+    flash,
+    redirect,
+    render_template,
+    send_file,
+    send_from_directory,
+    url_for,
+)
 from flask_login import current_user, login_required
 from sqlalchemy import Date, cast, func
 
 from extensions import db
 from forms import RestoreForm
-from models import Customer, ExchangeTransaction, Note, Product, Sale, ServiceRequest, Supplier, StockLevel
+from models import (
+    Customer,
+    ExchangeTransaction,
+    Note,
+    Product,
+    Sale,
+    ServiceRequest,
+    Supplier,
+    StockLevel,
+)
 from utils import permission_required
 
 main_bp = Blueprint("main", __name__, template_folder="templates")
+
+
+@main_bp.route("/favicon.ico")
+def favicon():
+    return send_from_directory(
+        current_app.static_folder, "favicon.ico", mimetype="image/vnd.microsoft.icon"
+    )
 
 
 @main_bp.route("/", methods=["GET"], endpoint="dashboard")
@@ -52,6 +78,7 @@ def dashboard():
         recent_sales = Sale.query.order_by(Sale.sale_date.desc()).limit(5).all()
         try:
             from routes import reports as _reports
+
             srep = _reports.sales_report(start, end) or {}
         except Exception:
             srep = {}
@@ -96,6 +123,7 @@ def dashboard():
         recent_notes = Note.query.order_by(Note.created_at.desc()).limit(5).all()
         try:
             from routes import reports as _reports
+
             customer_metrics = _reports.ar_aging_report(start, end)
         except Exception:
             customer_metrics = {}
@@ -136,7 +164,9 @@ def backup_db():
                         f.write(f"{line}\n")
             finally:
                 raw.close()
-            return send_file(out_path, as_attachment=True, download_name=f"backup_{ts}.sql")
+            return send_file(
+                out_path, as_attachment=True, download_name=f"backup_{ts}.sql"
+            )
         out_path = os.path.join(current_app.instance_path, f"backup_{ts}.db")
         os.makedirs(current_app.instance_path, exist_ok=True)
         db.session.commit()
@@ -147,7 +177,9 @@ def backup_db():
         finally:
             src.close()
             dst.close()
-        return send_file(out_path, as_attachment=True, download_name=os.path.basename(out_path))
+        return send_file(
+            out_path, as_attachment=True, download_name=os.path.basename(out_path)
+        )
     flash("قاعدة البيانات ليست SQLite.", "warning")
     return redirect(url_for("main.dashboard")), 303
 

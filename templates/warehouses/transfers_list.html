@@ -2,6 +2,11 @@
 {% block title %}الحجوزات المسبقة{% endblock %}
 {% block page_title %}الحجوزات المسبقة{% endblock %}
 
+{% block head_extra %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/warehouses.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="mb-2 text-end">
   <a href="{{ url_for('warehouse_bp.preorder_create') }}" class="btn btn-primary">إنشاء حجز</a>
@@ -48,6 +53,7 @@
 
 {% block scripts %}
   {{ super() }}
+  <script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
   <script>
     $(function(){ $('#preorders-table').DataTable({pageLength:25, language:{url:'//cdn.datatables.net/plug-ins/1.13.6/i18n/ar.json'}}); });
   </script>

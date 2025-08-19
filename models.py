@@ -237,7 +237,7 @@ class User(db.Model, UserMixin, TimestampMixin):
     is_active = db.Column(db.Boolean, default=True)
     last_login = db.Column(db.DateTime)
 
-    role = db.relationship("Role", backref="users")
+    role = db.relationship("Role", backref="users", lazy="joined")
     extra_permissions = db.relationship(
         "Permission",
         secondary=user_permissions,

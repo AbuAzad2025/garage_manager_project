@@ -34,7 +34,7 @@ build/
 htmlcov/
 
 # تقارير أخرى
-reports/
+/reports/
 coverage.xml
 junit.xml
 

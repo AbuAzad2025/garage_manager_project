@@ -1,0 +1,77 @@
+<!-- File: templates/reports/ar_aging.html -->
+{% extends 'base.html' %}
+{% block title %}تقرير أعمار الذمم{% endblock %}
+
+{% block head_extra %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/reporting.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0"><i class="fas fa-users"></i> تقرير أعمار الذمم</h2>
+    {% if as_of %}<small class="text-muted">حتى: {{ as_of }}</small>{% endif %}
+  </div>
+
+  <form class="row g-2 mb-3" method="get">
+    <div class="col-auto">
+      <input type="date" class="form-control" name="start" value="{{ start or '' }}" placeholder="من">
+    </div>
+    <div class="col-auto">
+      <input type="date" class="form-control" name="end" value="{{ end or '' }}" placeholder="إلى">
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-primary">تطبيق</button>
+    </div>
+    <div class="col-auto ms-auto">
+      <a class="btn btn-outline-secondary" href="{{ url_for('reports_bp.export_ar_aging_csv', start=start, end=end) }}"><i class="fas fa-file-csv"></i> CSV</a>
+    </div>
+  </form>
+
+  <div class="table-responsive">
+    <table class="table table-bordered table-hover align-middle">
+      <thead class="table-dark">
+        <tr>
+          <th>العميل</th>
+          <th class="text-end">0-30</th>
+          <th class="text-end">31-60</th>
+          <th class="text-end">61-90</th>
+          <th class="text-end">90+</th>
+          <th class="text-end">الإجمالي</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in data %}
+          {% set bk = row.buckets or {} %}
+          <tr>
+            <td>{{ row.customer }}</td>
+            <td class="text-end">{{ '%.2f'|format(bk.get('0-30', 0)) }}</td>
+            <td class="text-end">{{ '%.2f'|format(bk.get('31-60', 0)) }}</td>
+            <td class="text-end">{{ '%.2f'|format(bk.get('61-90', 0)) }}</td>
+            <td class="text-end">{{ '%.2f'|format(bk.get('90+', 0)) }}</td>
+            <td class="text-end fw-bold">{{ '%.2f'|format(row.balance or 0) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+      {% if totals %}
+      <tfoot>
+        <tr class="table-light">
+          <th>المجاميع</th>
+          <th class="text-end">{{ '%.2f'|format(totals.get('0-30', 0)) }}</th>
+          <th class="text-end">{{ '%.2f'|format(totals.get('31-60', 0)) }}</th>
+          <th class="text-end">{{ '%.2f'|format(totals.get('61-90', 0)) }}</th>
+          <th class="text-end">{{ '%.2f'|format(totals.get('90+', 0)) }}</th>
+          <th class="text-end fw-bold">{{ '%.2f'|format(totals.get('total', 0)) }}</th>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/reporting.js') }}"></script>
+{% endblock %}
