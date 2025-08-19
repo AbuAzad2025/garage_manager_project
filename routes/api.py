@@ -124,7 +124,7 @@ def product_info(pid: int):
     })
 
 
-@bp.get("/search_categories", endpoint="search_categories")
+@bp.get("/search_categories", endpoint="categories")
 @login_required
 @limiter.limit("60/minute")
 def categories():

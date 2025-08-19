@@ -1,3 +1,4 @@
+import os
 import re
 from datetime import datetime
 from flask import url_for
@@ -413,11 +414,17 @@ class PaymentForm(FlaskForm):
         super().__init__(*args,**kwargs)
         prepare_payment_form_choices(self)
         if not self.splits.entries: self.splits.append_entry()
-        et = (self.entity_type.data or "").upper(); dirv = (self.direction.data or "").upper()
+        et = (self.entity_type.data or "").upper()
+        dirv = (self.direction.data or "").upper()
+        if dirv in {"IN", "OUT"}:
+            self.direction.data = "INCOMING" if dirv == "IN" else "OUTGOING"
+            dirv = self.direction.data
         if et and not dirv:
-            if et in self._incoming_entities: self.direction.data = "INCOMING"
-            elif et in self._outgoing_entities: self.direction.data = "OUTGOING"
-
+            if et in self._incoming_entities:
+                self.direction.data = "INCOMING"
+            elif et in self._outgoing_entities:
+                self.direction.data = "OUTGOING"
+                
     def _get_entity_ids(self):
         return {'customer_id':self.customer_id.data,'supplier_id':self.supplier_id.data,'partner_id':self.partner_id.data,'shipment_id':self.shipment_id.data,'expense_id':self.expense_id.data,'loan_settlement_id':self.loan_settlement_id.data,'sale_id':self.sale_id.data,'invoice_id':self.invoice_id.data,'preorder_id':self.preorder_id.data,'service_id':self.service_id.data}
 

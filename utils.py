@@ -53,11 +53,16 @@ def init_app(app):
     app.jinja_env.filters["format_datetime"] = format_datetime
     app.jinja_env.filters["yes_no"] = yes_no
     app.jinja_env.filters["status_label"] = status_label
-    redis_client = redis.StrictRedis.from_url(
-        app.config.get("REDIS_URL", "redis://localhost:6379/0"),
-        decode_responses=True,
-    )
-
+    try:
+        rc = redis.StrictRedis.from_url(
+            app.config.get("REDIS_URL", "redis://localhost:6379/0"),
+            decode_responses=True,
+        )
+        if getattr(rc, "ping", None):
+            rc.ping()
+        redis_client = rc
+    except Exception:
+        redis_client = None
 
 def send_email_notification(
     subject: str,

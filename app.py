@@ -297,6 +297,8 @@ def create_app(config_object=Config, test_config=None) -> Flask:
     @app.errorhandler(404)
     def _not_found(e):
         app.logger.error("404 NOT FOUND: %s", request.path)
+        if request.path.startswith("/api/") or request.accept_mimetypes.best == "application/json":
+            return {"error": "Not Found"}, 404
         try:
             return render_template("errors/404.html", path=request.path), 404
         except Exception:
