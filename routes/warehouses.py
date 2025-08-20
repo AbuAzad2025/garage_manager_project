@@ -97,32 +97,52 @@ def list_warehouses():
 @login_required
 @permission_required("manage_warehouses")
 def create_warehouse():
-    """إنشاء مستودع جديد."""
     from forms import WarehouseForm
     form = WarehouseForm()
+
     if form.validate_on_submit():
-        parent_id = form.parent_id.data.id if getattr(form, "parent_id", None) and form.parent_id.data else None
-        partner_id = form.partner_id.data.id if getattr(form, "partner_id", None) and form.partner_id.data else None
-        share_percent = form.share_percent.data if form.warehouse_type.data == "PARTNER" else 0
+        parent_id = None
+        if getattr(form, "parent_id", None) and getattr(form.parent_id, "data", None):
+            parent_obj = form.parent_id.data
+            parent_id = getattr(parent_obj, "id", None)
+
+        partner_id = None
+        if getattr(form, "partner_id", None) and getattr(form.partner_id, "data", None):
+            partner_obj = form.partner_id.data
+            partner_id = getattr(partner_obj, "id", None)
+
+        wh_type = (form.warehouse_type.data or "").strip().upper()
+        share_percent = form.share_percent.data if wh_type == "PARTNER" else 0
 
         w = Warehouse(
-            name=form.name.data.strip(),
-            warehouse_type=form.warehouse_type.data,
-            location=(form.location.data or "").strip() or None,
+            name=(form.name.data or "").strip(),
+            warehouse_type=wh_type,
+            location=((form.location.data or "").strip() or None),
             parent_id=parent_id,
             partner_id=partner_id,
             share_percent=share_percent,
             capacity=form.capacity.data,
-            is_active=form.is_active.data,
+            is_active=True if form.is_active.data is None else bool(form.is_active.data),
         )
         db.session.add(w)
         try:
             db.session.commit()
-            flash("✅ تم إنشاء المستودع", "success")
+            # اعمل log وflash بالـ id حتى تتأكد أنه انحفظ
+            current_app.logger.info("Created warehouse id=%s name=%s type=%s", w.id, w.name, w.warehouse_type)
+            flash(f"✅ تم إنشاء المستودع (ID={w.id})", "success")
+            # IMPORTANT: ارجع للقائمة من دون فلاتر حتى تشوف كل شيء
             return redirect(url_for("warehouse_bp.list"))
         except SQLAlchemyError as e:
             db.session.rollback()
-            flash(f"❌ خطأ أثناء إنشاء المستودع: {e}", "danger")
+            current_app.logger.exception("Create warehouse failed")
+            flash(f"❌ خطأ أثناء إنشاء المستودع: {e.__class__.__name__}", "danger")
+
+    # لو POST وفشل التحقق، اعرض الأخطاء
+    if request.method == "POST" and form.errors:
+        for field, errs in form.errors.items():
+            for err in errs:
+                flash(f"{field}: {err}", "danger")
+
     return render_template("warehouses/form.html", form=form)
 
 @warehouse_bp.route("/<int:warehouse_id>/edit", methods=["GET", "POST"], endpoint="edit")

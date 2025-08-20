@@ -2,6 +2,7 @@
 from flask import Blueprint, request, jsonify, current_app
 from flask_login import login_required
 from sqlalchemy import or_
+from typing import Callable, Iterable, List, Dict, Any, Optional
 
 from extensions import db, limiter
 from models import (
@@ -13,11 +14,15 @@ from models import (
 bp = Blueprint("api", __name__, url_prefix="/api")
 
 
+# -------------------- Helpers --------------------
+
 def _q() -> str:
+    """Read search query from ?q=..."""
     return (request.args.get("q") or "").strip()
 
 
 def _limit(default: int = 20, max_: int = 50) -> int:
+    """Safe limit parser with clamp."""
     try:
         n = int(request.args.get("limit", default))
     except Exception:
@@ -25,83 +30,99 @@ def _limit(default: int = 20, max_: int = 50) -> int:
     return max(1, min(n, max_))
 
 
-def _as_options(rows, label_attr: str = "name", extra=None):
+def _as_options(rows: Iterable[Any], label_attr: str = "name", extra: Optional[Callable[[Any], Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
+    """
+    Convert ORM rows to [{id, text, ...extra}] for select2-like UIs.
+    Tries common label fallbacks if label_attr is missing.
+    """
     extra = extra or (lambda o: {})
-    out = []
+    out: List[Dict[str, Any]] = []
     for o in rows:
         label = getattr(o, label_attr, None)
         if not label:
+            # Common fallbacks
             for cand in ("name", "username", "invoice_number", "service_number", "sale_number", "cart_id", "order_number"):
                 label = getattr(o, cand, None)
                 if label:
                     break
         if not label:
             label = str(getattr(o, "id", ""))
+
         out.append({"id": o.id, "text": str(label), **extra(o)})
     return out
 
+
+def _ilike_filters(model, fields: List[str], q: str):
+    """Build OR ILIKE filters for given model fields."""
+    like = f"%{q}%"
+    return [getattr(model, f).ilike(like) for f in fields if hasattr(model, f)]
+
+
+def search_model(model, fields: List[str], label_attr: str = "name", default_order_attr: Optional[str] = None, limit_default: int = 20, limit_max: int = 50, extra: Optional[Callable[[Any], Dict[str, Any]]] = None):
+    """
+    Generic search endpoint builder.
+    - model: SQLAlchemy model
+    - fields: list of field names to ILIKE
+    - label_attr: used for display text
+    - default_order_attr: if None, uses label_attr
+    """
+    q = _q()
+    qry = model.query
+    if q:
+        qry = qry.filter(or_(*_ilike_filters(model, fields, q)))
+    order_attr = default_order_attr or label_attr
+    qry = qry.order_by(getattr(model, order_attr))
+    rows = qry.limit(_limit(default=limit_default, max_=limit_max)).all()
+    return jsonify(_as_options(rows, label_attr, extra=extra))
+
+
+# -------------------- Customers --------------------
 
 @bp.get("/customers")
 @bp.get("/search_customers", endpoint="search_customers")
 @login_required
 @limiter.limit("60/minute")
 def customers():
-    q = _q()
-    qry = Customer.query
-    if q:
-        like = f"%{q}%"
-        qry = qry.filter(or_(Customer.name.ilike(like), Customer.phone.ilike(like), Customer.email.ilike(like)))
-    rows = qry.order_by(Customer.name).limit(_limit()).all()
-    return jsonify(_as_options(rows, "name"))
+    return search_model(Customer, ["name", "phone", "email"], label_attr="name")
 
+
+# -------------------- Suppliers --------------------
 
 @bp.get("/suppliers")
 @bp.get("/search_suppliers", endpoint="search_suppliers")
 @login_required
 @limiter.limit("60/minute")
 def suppliers():
-    q = _q()
-    qry = Supplier.query
-    if q:
-        like = f"%{q}%"
-        qry = qry.filter(or_(Supplier.name.ilike(like), Supplier.phone.ilike(like), Supplier.identity_number.ilike(like)))
-    rows = qry.order_by(Supplier.name).limit(_limit()).all()
-    return jsonify(_as_options(rows, "name"))
+    # Supplier has identity_number & phone
+    return search_model(Supplier, ["name", "phone", "identity_number"], label_attr="name")
 
+
+# -------------------- Partners --------------------
 
 @bp.get("/partners")
 @bp.get("/search_partners", endpoint="search_partners")
 @login_required
 @limiter.limit("60/minute")
 def partners():
-    q = _q()
-    qry = Partner.query
-    if q:
-        like = f"%{q}%"
-        qry = qry.filter(or_(Partner.name.ilike(like), Partner.phone_number.ilike(like), Partner.identity_number.ilike(like)))
-    rows = qry.order_by(Partner.name).limit(_limit()).all()
-    return jsonify(_as_options(rows, "name"))
+    # Partner has phone_number & identity_number
+    return search_model(Partner, ["name", "phone_number", "identity_number"], label_attr="name")
 
+
+# -------------------- Products --------------------
 
 @bp.get("/products")
 @bp.get("/search_products", endpoint="search_products")
 @login_required
 @limiter.limit("60/minute")
 def products():
-    q = _q()
-    qry = Product.query
-    if q:
-        like = f"%{q}%"
-        qry = qry.filter(
-            or_(
-                Product.name.ilike(like),
-                Product.sku.ilike(like),
-                Product.part_number.ilike(like),
-                Product.barcode.ilike(like),
-            )
-        )
-    rows = qry.order_by(Product.name).limit(_limit()).all()
-    return jsonify(_as_options(rows, "name", extra=lambda p: {"price": float(p.price or 0), "sku": p.sku}))
+    # Keep extra info (price, sku) in options
+    return search_model(
+        Product,
+        ["name", "sku", "part_number", "barcode"],
+        label_attr="name",
+        extra=lambda p: {"price": float(p.price or 0), "sku": p.sku}
+    )
+
 
 @bp.get("/products/<int:pid>/info", endpoint="product_info")
 @login_required
@@ -110,43 +131,40 @@ def product_info(pid: int):
     p = db.session.get(Product, pid)
     if not p:
         return jsonify({"error": "Not Found"}), 404
+
     wid = request.args.get("warehouse_id", type=int)
     available = None
     if wid:
         sl = StockLevel.query.filter_by(product_id=pid, warehouse_id=wid).first()
         available = (sl.quantity if sl else 0)
+
     return jsonify({
         "id": p.id,
         "name": p.name,
         "sku": p.sku,
         "price": float(p.price or 0),
-        "available": (int(available) if available is not None else None)
+        "available": (int(available) if available is not None else None),
     })
 
+
+# -------------------- Categories --------------------
 
 @bp.get("/search_categories", endpoint="categories")
 @login_required
 @limiter.limit("60/minute")
 def categories():
-    q = _q()
-    qry = ProductCategory.query
-    if q:
-        qry = qry.filter(ProductCategory.name.ilike(f"%{q}%"))
-    rows = qry.order_by(ProductCategory.name).limit(_limit()).all()
-    return jsonify(_as_options(rows, "name"))
+    return search_model(ProductCategory, ["name"], label_attr="name")
 
+
+# -------------------- Warehouses --------------------
 
 @bp.get("/warehouses")
 @bp.get("/search_warehouses", endpoint="search_warehouses")
 @login_required
 @limiter.limit("60/minute")
 def warehouses():
-    q = _q()
-    qry = Warehouse.query
-    if q:
-        qry = qry.filter(Warehouse.name.ilike(f"%{q}%"))
-    rows = qry.order_by(Warehouse.name).limit(_limit()).all()
-    return jsonify(_as_options(rows, "name"))
+    return search_model(Warehouse, ["name"], label_attr="name")
+
 
 @bp.get("/warehouses/<int:wid>/products")
 @login_required
@@ -170,50 +188,36 @@ def products_by_warehouse(wid: int):
         } for p, qty in rows
     ])
 
+
+# -------------------- Users --------------------
+
 @bp.get("/users")
 @login_required
 @limiter.limit("60/minute")
 def users():
-    q = _q()
-    qry = User.query
-    if q:
-        like = f"%{q}%"
-        qry = qry.filter(or_(User.username.ilike(like), User.email.ilike(like)))
-    rows = qry.order_by(User.username).limit(_limit()).all()
-    return jsonify(_as_options(rows, "username"))
+    return search_model(User, ["username", "email"], label_attr="username")
 
+
+# -------------------- Employees --------------------
 
 @bp.get("/employees")
 @login_required
 @limiter.limit("60/minute")
 def employees():
-    q = _q()
-    qry = Employee.query
-    if q:
-        qry = qry.filter(Employee.name.ilike(f"%{q}%"))
-    rows = qry.order_by(Employee.name).limit(_limit()).all()
-    return jsonify(_as_options(rows, "name"))
+    return search_model(Employee, ["name"], label_attr="name")
 
+
+# -------------------- Equipment Types --------------------
 
 @bp.get("/equipment_types")
 @bp.get("/search_equipment_types", endpoint="search_equipment_types")
 @login_required
 @limiter.limit("60/minute")
 def equipment_types():
-    q = _q()
-    qry = EquipmentType.query
-    if q:
-        like = f"%{q}%"
-        qry = qry.filter(
-            or_(
-                EquipmentType.name.ilike(like),
-                EquipmentType.model_number.ilike(like),
-                EquipmentType.chassis_number.ilike(like),
-            )
-        )
-    rows = qry.order_by(EquipmentType.name).limit(_limit()).all()
-    return jsonify(_as_options(rows, "name"))
+    return search_model(EquipmentType, ["name", "model_number", "chassis_number"], label_attr="name")
 
+
+# -------------------- Invoices --------------------
 
 @bp.get("/invoices")
 @login_required
@@ -239,18 +243,34 @@ def invoices():
     )
 
 
+# -------------------- Services --------------------
+
 @bp.get("/services")
 @login_required
 @limiter.limit("60/minute")
 def services():
+    """
+    Search services by service_number or textual fields.
+    (Removed non-existent ServiceRequest.vehicle_vrn)
+    """
     q = _q()
     qry = ServiceRequest.query
     if q:
         like = f"%{q}%"
-        qry = qry.filter(or_(ServiceRequest.service_number.ilike(like), ServiceRequest.vehicle_vrn.ilike(like)))
+        qry = qry.filter(
+            or_(
+                ServiceRequest.service_number.ilike(like),
+                ServiceRequest.problem_description.ilike(like),
+                ServiceRequest.diagnosis.ilike(like),
+                ServiceRequest.resolution.ilike(like),
+                ServiceRequest.notes.ilike(like),
+            )
+        )
     rows = qry.order_by(ServiceRequest.id.desc()).limit(_limit()).all()
     return jsonify([{"id": s.id, "text": s.service_number or f"SVC-{s.id}"} for s in rows])
 
+
+# -------------------- Supplier Loan Settlements --------------------
 
 @bp.get("/loan_settlements")
 @login_required
@@ -261,8 +281,17 @@ def loan_settlements():
     if q.isdigit():
         qry = qry.filter(SupplierLoanSettlement.id == int(q))
     rows = qry.order_by(SupplierLoanSettlement.id.desc()).limit(_limit()).all()
-    return jsonify([{"id": x.id, "text": f"Settlement #{x.id}", "amount": float(x.settled_price or 0)} for x in rows])
+    return jsonify([
+        {
+            "id": x.id,
+            "text": f"Settlement #{x.id}",
+            "amount": float(x.settled_price or 0)
+        }
+        for x in rows
+    ])
 
+
+# -------------------- Payments --------------------
 
 @bp.get("/search_payments")
 @login_required
@@ -287,6 +316,8 @@ def search_payments():
         ]
     )
 
+
+# -------------------- Error Handlers --------------------
 
 @bp.app_errorhandler(429)
 def ratelimit_handler(e):

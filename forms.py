@@ -293,7 +293,7 @@ def _normalize_to_list_items(field):
     if not _under_pytest(): return
     field.errors = [[e] if not isinstance(e, (list, tuple)) else list(e) for e in field.errors]
 
-def prepare_payment_form_choices(form):
+def prepare_payment_form_choices(form, *, compat_post: bool = False):
     if hasattr(form, "currency"):
         form.currency.choices = [("ILS","شيكل"),("USD","دولار"),("EUR","يورو")]
     if hasattr(form, "method"):
@@ -301,9 +301,16 @@ def prepare_payment_form_choices(form):
     if hasattr(form, "status"):
         form.status.choices = [("COMPLETED","مكتملة"),("PENDING","قيد الانتظار"),("FAILED","فاشلة"),("REFUNDED","مُرجعة")]
     if hasattr(form, "direction"):
-        form.direction.choices = [("INCOMING","وارد"),("OUTGOING","صادر")]
+        base = [("IN","وارد"),("OUT","صادر")]
+        if compat_post:
+            base += [("INCOMING","وارد"),("OUTGOING","صادر")]  # قبول القيم القديمة عند الإرسال فقط
+        form.direction.choices = base
     if hasattr(form, "entity_type"):
-        form.entity_type.choices = [("CUSTOMER","عميل"),("SUPPLIER","مورد"),("PARTNER","شريك"),("SALE","بيع"),("SERVICE","صيانة"),("EXPENSE","مصروف"),("LOAN","تسوية قرض"),("PREORDER","طلب مسبق"),("SHIPMENT","شحنة")]
+        form.entity_type.choices = [
+            ("CUSTOMER","عميل"),("SUPPLIER","مورد"),("PARTNER","شريك"),
+            ("SALE","بيع"),("SERVICE","صيانة"),("EXPENSE","مصروف"),
+            ("LOAN","تسوية قرض"),("PREORDER","طلب مسبق"),("SHIPMENT","شحنة")
+        ]
 
 class PaymentAllocationForm(FlaskForm):
     payment_id = IntegerField(validators=[DataRequired()])
