@@ -1,6 +1,4 @@
-// static/js/warehouses.js
 document.addEventListener('DOMContentLoaded', () => {
-  // ========== إشعارات بسيطة ==========
   function showNotification(message, type = 'info') {
     let container = document.getElementById('notification-container');
     if (!container) {
@@ -15,10 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const alert = document.createElement('div');
     alert.className = `alert alert-${type} alert-dismissible fade show`;
     alert.role = 'alert';
-    alert.innerHTML = `
-      ${message}
-      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    `;
+    alert.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
     container.appendChild(alert);
     setTimeout(() => {
       alert.classList.remove('show');
@@ -42,12 +37,11 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         showNotification(`خطأ: ${data.error || JSON.stringify(data.errors)}`, 'danger');
       }
-    } catch (err) {
+    } catch {
       showNotification('حدث خطأ في الاتصال بالخادم', 'danger');
     }
   }
 
-  // ===== نماذج AJAX موجودة سابقاً =====
   document.querySelectorAll('.stock-level-form').forEach(form => {
     form.addEventListener('submit', e => {
       e.preventDefault();
@@ -71,7 +65,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // ===== تحميل/حفظ مشاركات الشركاء في صفحة المستودع =====
   async function loadPartnerShares(warehouseId) {
     try {
       const res = await fetch(`/warehouses/${warehouseId}/partner-shares`);
@@ -80,7 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const tbody = document.querySelector('#partner-shares-table tbody');
       if (!tbody) return;
       tbody.innerHTML = '';
-      data.shares.forEach(s => {
+      (data.shares || []).forEach(s => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${s.product || ''}</td>
@@ -132,7 +125,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (table) loadPartnerShares(partnerSharesForm.dataset.warehouseId);
   }
 
-  // ===== إدارة ديناميكية (شركاء/تجّار) في صفحات أخرى =====
   const partnersContainerLegacy = document.getElementById('partners-container');
   const addPartnerBtnLegacy = document.getElementById('add-partner-btn');
   const partnerTemplateLegacy = document.getElementById('partner-template')?.content;
@@ -143,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     partnersContainerLegacy.addEventListener('click', e => {
       if (e.target.classList.contains('remove-partner-btn')) {
-        e.target.closest('.partner-entry').remove();
+        e.target.closest('.partner-entry')?.remove();
       }
     });
   }
@@ -158,17 +150,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     vendorsContainerLegacy.addEventListener('click', e => {
       if (e.target.classList.contains('remove-vendor-btn')) {
-        e.target.closest('.vendor-entry').remove();
+        e.target.closest('.vendor-entry')?.remove();
       }
     });
   }
 
-  // ===== Select2 AJAX إن توفر =====
-  function initSelect2In(root=document) {
+  function initSelect2In(root = document) {
     if (window.jQuery && jQuery.fn.select2) {
-      jQuery(root).find('.select2').each(function(){
+      jQuery(root).find('.select2').each(function () {
         const $el = jQuery(this);
-        const endpoint = $el.data('url') || $el.attr('data-url'); // AjaxSelectField يضيف data-url
+        const endpoint = $el.data('url') || $el.attr('data-url');
         if (endpoint) {
           $el.select2({
             width: '100%',
@@ -192,9 +183,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   initSelect2In(document);
 
-  // ===== DataTables (اختياري) =====
   if (window.jQuery && jQuery.fn.DataTable) {
-    jQuery('.datatable').each(function(){
+    jQuery('.datatable').each(function () {
       jQuery(this).DataTable({
         pageLength: 25,
         order: [],
@@ -203,7 +193,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // ===== تأكيد حذف عام =====
   document.addEventListener('click', (e) => {
     const btn = e.target.closest('.btn-delete');
     if (!btn) return;
@@ -223,7 +212,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ====================== صفحة الشحنات ======================
   if (window.__SHIPMENT_PAGE__) {
     const itemsContainer = document.getElementById('items-container');
     const partnersContainer = document.getElementById('partners-container');
@@ -233,10 +221,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnAddPartner = document.getElementById('btn-add-partner');
     const barcodeInput = document.getElementById('barcode-input');
 
+    function safeReplaceAll(str, find, rep) {
+      if (typeof str.replaceAll === 'function') return str.replaceAll(find, rep);
+      return str.split(find).join(rep);
+    }
+
     function addItemRow() {
       if (!itemsContainer || !tplItem) return;
       const idx = parseInt(itemsContainer.getAttribute('data-index') || '0', 10);
-      let html = tplItem.innerHTML.replaceAll('__index__', idx);
+      let html = safeReplaceAll(tplItem.innerHTML, '__index__', String(idx));
       const wrapper = document.createElement('div');
       wrapper.innerHTML = html.trim();
       const row = wrapper.firstElementChild;
@@ -250,7 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function addPartnerRow() {
       if (!partnersContainer || !tplPartner) return;
       const idx = parseInt(partnersContainer.getAttribute('data-index') || '0', 10);
-      let html = tplPartner.innerHTML.replaceAll('__index__', idx);
+      let html = safeReplaceAll(tplPartner.innerHTML, '__index__', String(idx));
       const wrapper = document.createElement('div');
       wrapper.innerHTML = html.trim();
       const row = wrapper.firstElementChild;
@@ -269,13 +262,15 @@ document.addEventListener('DOMContentLoaded', () => {
         qtySum += qty;
         costSum += (qty * cost);
       });
-      const n = (v) => Number(v || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-      document.getElementById('items-count')?.innerText = String(count);
-      document.getElementById('items-qty-sum')?.innerText = String(qtySum);
-      document.getElementById('items-cost-sum')?.innerText = n(costSum);
+      const format = (v) => Number(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const elCount = document.getElementById('items-count');
+      const elQty = document.getElementById('items-qty-sum');
+      const elCost = document.getElementById('items-cost-sum');
+      if (elCount) elCount.innerText = String(count);
+      if (elQty) elQty.innerText = String(qtySum);
+      if (elCost) elCost.innerText = format(costSum);
     }
 
-    // إضافة/حذف بنود
     btnAddItem?.addEventListener('click', () => addItemRow());
     itemsContainer?.addEventListener('click', (e) => {
       const btn = e.target.closest('.btn-remove-item');
@@ -284,12 +279,10 @@ document.addEventListener('DOMContentLoaded', () => {
       recalcItemsSummary();
     });
 
-    // حساب الإجماليات عند تغيير الكمية/التكلفة
     itemsContainer?.addEventListener('input', (e) => {
       if (e.target.matches('.item-qty') || e.target.matches('.item-cost')) recalcItemsSummary();
     });
 
-    // إضافة/حذف شركاء
     btnAddPartner?.addEventListener('click', () => addPartnerRow());
     partnersContainer?.addEventListener('click', (e) => {
       const btn = e.target.closest('.btn-remove-partner');
@@ -297,7 +290,6 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.closest('.shipment-partner')?.remove();
     });
 
-    // سكان باركود/بحث سريع: حط القيمة في أول Select2 للمنتج بالصف الأخير
     barcodeInput?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -317,7 +309,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // تهيئة أولية للإجماليات
     recalcItemsSummary();
   }
 });

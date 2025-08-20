@@ -9,6 +9,7 @@ from decimal import Decimal
 # -------------------- Third-party --------------------
 from flask import url_for
 from flask_wtf import FlaskForm
+from flask_wtf.file import FileAllowed, FileField
 from wtforms import (
     StringField, TextAreaField, PasswordField, SelectField, SelectMultipleField,
     DateField, DateTimeField, DecimalField, IntegerField, BooleanField,
@@ -21,19 +22,20 @@ from sqlalchemy import func
 try:
     from wtforms_sqlalchemy.fields import QuerySelectField
 except Exception:
-    QuerySelectField = SelectField  # fallback
+    QuerySelectField = SelectField
 
 # -------------------- Local --------------------
 from models import (
     Role, User,
-    Customer, Supplier, Partner, Warehouse,
-    Sale, ShipmentItem, ShipmentPartner, ServiceRequest, PreOrder,
-    InvoiceLine, SaleLine, Product,
+    Customer, Supplier, Partner, Warehouse, StockLevel,
+    Sale, SaleLine, ShipmentItem, ShipmentPartner,
+    ServiceRequest, PreOrder, InvoiceLine, Product,
     Payment, PaymentSplit,
     PaymentMethod, PaymentStatus, PaymentDirection, PaymentEntityType,
     InvoiceStatus, InvoiceSource, PaymentProgress,
     ServiceStatus, ServicePriority,
     PreOrderStatus, ProductCondition,
+    TransferDirection, WarehouseType,
 )
 from utils import luhn_check, is_valid_expiry_mm_yy
 try:
@@ -41,7 +43,6 @@ try:
 except Exception:
     AjaxSelectField = SelectField
     AjaxSelectMultipleField = SelectMultipleField
-
 
 # ==================== Choices ====================
 CURRENCY_CHOICES = [("ILS", "ILS"), ("USD", "USD"), ("EUR", "EUR"), ("JOD", "JOD")]
