@@ -1042,6 +1042,20 @@ class Product(db.Model, TimestampMixin, AuditMixin):
     def __repr__(self):
         return f"<Product {self.name}>"
 
+@event.listens_for(Product, 'before_insert')
+@event.listens_for(Product, 'before_update')
+def _product_sync_prices(mapper, connection, target: Product):
+    # لو أحد السعرين مفقود، خليه من الآخر
+    if target.price is None and target.selling_price is not None:
+        target.price = target.selling_price
+    if target.selling_price is None and target.price is not None:
+        target.selling_price = target.price
+    # أمان: لا تدع السالب
+    if target.price is None:
+        target.price = 0
+    if target.selling_price is None:
+        target.selling_price = target.price
+
 
 class Warehouse(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'warehouses'
@@ -1488,31 +1502,32 @@ class ProductPartner(db.Model):
 class PreOrder(db.Model, TimestampMixin):
     __tablename__ = 'preorders'
 
-    id             = db.Column(db.Integer, primary_key=True)
-    reference      = db.Column(db.String(50), unique=True)
-    preorder_date  = db.Column(db.DateTime, default=datetime.utcnow)
-    expected_date  = db.Column(db.DateTime)
+    id            = db.Column(db.Integer, primary_key=True)
+    reference     = db.Column(db.String(50), unique=True)
+    preorder_date = db.Column(db.DateTime, default=datetime.utcnow)
+    expected_date = db.Column(db.DateTime)
 
-    customer_id    = db.Column(db.Integer, db.ForeignKey('customers.id'))
-    supplier_id    = db.Column(db.Integer, db.ForeignKey('suppliers.id'))
-    partner_id     = db.Column(db.Integer, db.ForeignKey('partners.id'))
-    product_id     = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
-    warehouse_id   = db.Column(db.Integer, db.ForeignKey('warehouses.id'), nullable=False)
+    customer_id  = db.Column(db.Integer, db.ForeignKey('customers.id'))
+    supplier_id  = db.Column(db.Integer, db.ForeignKey('suppliers.id'))
+    partner_id   = db.Column(db.Integer, db.ForeignKey('partners.id'))
+    product_id   = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
+    warehouse_id = db.Column(db.Integer, db.ForeignKey('warehouses.id'), nullable=False)
 
     quantity       = db.Column(db.Integer, nullable=False)
     prepaid_amount = db.Column(db.Numeric(12, 2), default=0)
     tax_rate       = db.Column(db.Numeric(5, 2), default=0)
-    status         = db.Column(sa_str_enum(PreOrderStatus, name='preorder_status'), default=PreOrderStatus.PENDING.value)
+    status         = db.Column(sa_str_enum(PreOrderStatus, name='preorder_status'),
+                               default=PreOrderStatus.PENDING.value)
     notes          = db.Column(db.Text)
 
     customer  = db.relationship('Customer', back_populates='preorders')
     supplier  = db.relationship('Supplier', back_populates='preorders')
-    partner   = db.relationship('Partner', back_populates='preorders')
-    product   = db.relationship('Product', back_populates='preorders')
+    partner   = db.relationship('Partner',   back_populates='preorders')
+    product   = db.relationship('Product',   back_populates='preorders')
     warehouse = db.relationship('Warehouse', back_populates='preorders')
 
     payments = db.relationship('Payment', back_populates='preorder', cascade='all,delete-orphan')
-    sale     = db.relationship('Sale', back_populates='preorder', uselist=False)
+    sale     = db.relationship('Sale',    back_populates='preorder', uselist=False)
     invoice  = db.relationship('Invoice', back_populates='preorder', uselist=False)
 
     __table_args__ = (
@@ -1568,9 +1583,8 @@ class PreOrder(db.Model, TimestampMixin):
     def __repr__(self):
         return f"<PreOrder {self.reference or self.id}>"
 
-
 @event.listens_for(PreOrder, 'before_insert')
-def _preorder_before_insert(mapper, connection, target: 'PreOrder'):
+def _preorder_before_insert(mapper, connection, target):
     if getattr(target, 'reference', None):
         return
     prefix = datetime.utcnow().strftime("PRE%Y%m%d")
@@ -1578,7 +1592,8 @@ def _preorder_before_insert(mapper, connection, target: 'PreOrder'):
         text("SELECT COUNT(*) FROM preorders WHERE reference LIKE :pfx"),
         {"pfx": f"{prefix}-%"}
     ).scalar() or 0
-    target.reference = f"{prefix}-{count+1:04d}"
+    target.reference = f"{prefix}-{count + 1:04d}"
+
 
 class Sale(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'sales'
@@ -1892,6 +1907,20 @@ class InvoiceLine(db.Model):
 
     def __repr__(self):
         return f"<InvoiceLine {self.description}>"
+
+# -------------------- Events (Invoice) --------------------
+@event.listens_for(Invoice, 'before_insert')
+@event.listens_for(Invoice, 'before_update')
+def _invoice_normalize_and_total(mapper, connection, target: "Invoice"):
+    target.currency = (target.currency or 'ILS').upper()
+    try:
+        total = sum(q(l.line_total) for l in (target.lines or []))
+    except Exception:
+        # fallback لو q مش متاحة
+        from decimal import Decimal
+        total = sum(Decimal(str(getattr(l, 'line_total', 0) or 0)) for l in (target.lines or []))
+    target.total_amount = total
+
 # ===================== Payment =====================
 class Payment(db.Model):
     __tablename__ = 'payments'
@@ -3410,6 +3439,21 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
     notes           = db.Column(db.Text)
     tax_invoice_number = db.Column(db.String(100), index=True)
 
+    # --- تفاصيل الدفع الدقيقة (مطابقة للفورم) ---
+    check_number      = db.Column(db.String(100))
+    check_bank        = db.Column(db.String(100))
+    check_due_date    = db.Column(db.Date)
+
+    bank_transfer_ref = db.Column(db.String(100))
+
+    # نخزّن فقط آخر 4 أرقام في هذا الحقل (لا نحفظ البطاقة كاملة)
+    card_number       = db.Column(db.String(8))
+    card_holder       = db.Column(db.String(120))
+    card_expiry       = db.Column(db.String(10))  # MM/YY أو MM/YYYY
+
+    online_gateway    = db.Column(db.String(50))
+    online_ref        = db.Column(db.String(100))
+
     employee  = db.relationship('Employee', back_populates='expenses')
     type      = db.relationship('ExpenseType', back_populates='expenses')
     warehouse = db.relationship('Warehouse', back_populates='expenses')
@@ -3517,6 +3561,17 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
             "description": self.description,
             "notes": self.notes,
             "tax_invoice_number": self.tax_invoice_number,
+            # تفاصيل الدفع الآمنة
+            "check_number": self.check_number,
+            "check_bank": self.check_bank,
+            "check_due_date": self.check_due_date.isoformat() if self.check_due_date else None,
+            "bank_transfer_ref": self.bank_transfer_ref,
+            "card_number": self.card_number,  # آخر 4 فقط
+            "card_holder": self.card_holder,
+            "card_expiry": self.card_expiry,
+            "online_gateway": self.online_gateway,
+            "online_ref": self.online_ref,
+            # مشتقات
             "total_paid": self.total_paid,
             "balance": self.balance,
             "is_paid": self.is_paid,
@@ -3524,15 +3579,31 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
 
 
 @event.listens_for(Expense, 'before_insert')
-def _expense_before_insert(mapper, connection, target: 'Expense'):
-    target.payment_method = (target.payment_method or 'cash').lower()
-    target.currency = (target.currency or 'ILS').upper()
-
-
 @event.listens_for(Expense, 'before_update')
-def _expense_before_update(mapper, connection, target: 'Expense'):
+def _expense_normalize(mapper, connection, target: 'Expense'):
     target.payment_method = (target.payment_method or 'cash').lower()
     target.currency = (target.currency or 'ILS').upper()
+
+    m = target.payment_method
+    # تنظيف الحقول حسب طريقة الدفع
+    if m != 'cheque':
+        target.check_number = None
+        target.check_bank = None
+        target.check_due_date = None
+    if m != 'bank':
+        target.bank_transfer_ref = None
+    if m != 'card':
+        target.card_holder = None
+        target.card_expiry = None
+        target.card_number = None
+    if m != 'online':
+        target.online_gateway = None
+        target.online_ref = None
+
+    # في حالة البطاقة: خزّن آخر 4 أرقام فقط
+    if m == 'card' and target.card_number:
+        digits = ''.join(ch for ch in (target.card_number or '') if ch.isdigit())
+        target.card_number = (digits[-4:] if digits else None)
 
 # ===================== Audit Log Model =====================
 
