@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
 from datetime import datetime
-from flask import send_from_directory
 from flask import Flask, url_for, request, current_app, render_template
 from werkzeug.routing import BuildError
 from flask_cors import CORS

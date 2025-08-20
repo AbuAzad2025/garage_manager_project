@@ -79,10 +79,10 @@ class InvoiceStatus(str, enum.Enum):
 
 
 class PaymentProgress(str, enum.Enum):
-    PENDING = "PENDING"
-    PARTIAL = "PARTIAL"
-    PAID    = "PAID"
-
+    PENDING  = "PENDING"
+    PARTIAL  = "PARTIAL"
+    PAID     = "PAID"
+    REFUNDED = "REFUNDED"
 
 class SaleStatus(str, enum.Enum):
     DRAFT     = "DRAFT"

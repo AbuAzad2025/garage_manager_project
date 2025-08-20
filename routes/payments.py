@@ -34,9 +34,18 @@ def _get_or_404(model, ident, options=None):
         abort(404)
     return obj
 
-def _norm_dir(v: str | None) -> str | None:
-    v = (v or "").upper()
-    return {"IN": "IN", "OUT": "OUT", "INCOMING": "IN", "OUTGOING": "OUT"}.get(v, None)
+def _norm_dir(val):
+    if val is None:
+        return None
+    v = val
+    if hasattr(val, "value"):
+        v = val.value
+    v = str(v).strip().upper()
+    if v in ("IN", "INCOMING", "INCOME", "RECEIVE"):
+        return "IN"
+    if v in ("OUT", "OUTGOING", "PAY", "PAYMENT", "EXPENSE"):
+        return "OUT"
+    return v  # fallback (يبقى كما هو)
 
 def _clean_details(d: dict | None):
     if not d:
@@ -50,19 +59,6 @@ def _clean_details(d: dict | None):
         else:
             cleaned[k] = str(v)
     return cleaned or None
-
-def _norm_dir(val):
-    if val is None:
-        return None
-    v = val
-    if hasattr(val, "value"):
-        v = val.value
-    v = str(v).strip().upper()
-    if v in ("IN", "INCOMING", "INCOME", "RECEIVE"):
-        return "IN"
-    if v in ("OUT", "OUTGOING", "PAY", "PAYMENT", "EXPENSE"):
-        return "OUT"
-    return v  # fallback (يبقى كما هو)
 
 @payments_bp.before_request
 def _auto_login_for_tests_payments():
