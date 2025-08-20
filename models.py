@@ -4,19 +4,16 @@ from __future__ import annotations
 import enum
 import json
 import re
-import uuid
-import hashlib
-from datetime import datetime, date, timedelta
+from datetime import datetime, timedelta
 
 # -------------------- Third-party --------------------
 from flask import current_app, has_request_context, request
 from flask_login import current_user, UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy.exc import IntegrityError
 
 from sqlalchemy import (
-    Boolean, CheckConstraint, Column, DateTime, Enum, ForeignKey, Integer, Numeric,
-    String, Text, and_, event, func, or_, select, text, update, insert, inspect
+    Boolean, CheckConstraint, Column, DateTime, ForeignKey, Integer, Numeric,
+    String, Text, and_, event, func, or_, select, text, update, inspect
 )
 from sqlalchemy.orm import relationship, validates, Session as _SA_Session
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -43,6 +40,7 @@ except Exception:
     Fernet = None
 
 # -------------------- Helpers --------------------
+
 def sa_str_enum(enum_or_values, *, name: str):
     """SQLAlchemy String-backed Enum (portable, validates strings)."""
     vals = [e.value for e in enum_or_values] if hasattr(enum_or_values, "__members__") else list(enum_or_values)
@@ -2159,7 +2157,6 @@ def _payment_guard(mapper, connection, target: "Payment"):
     target.card_expiry = None
 
 # ===================== Shipments =====================
-
 class Shipment(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'shipments'
 
@@ -2188,16 +2185,18 @@ class Shipment(db.Model, TimestampMixin, AuditMixin):
 
     sale_id          = db.Column(db.Integer, db.ForeignKey('sales.id'), index=True)
 
-    # علاقات
+    # العلاقات
     items     = db.relationship('ShipmentItem', back_populates='shipment', cascade='all, delete-orphan')
     partners  = db.relationship('ShipmentPartner', back_populates='shipment', cascade='all, delete-orphan')
     payments  = db.relationship('Payment', back_populates='shipment')
     sale      = db.relationship('Sale', back_populates='shipments')
-    destination_warehouse = db.relationship('Warehouse', back_populates='shipments_received',
-                                            foreign_keys=[destination_id])
+    destination_warehouse = db.relationship(
+        'Warehouse',
+        back_populates='shipments_received',
+        foreign_keys=[destination_id]
+    )
 
     __table_args__ = (
-        # السماح فقط بهذه الحالات (غير كاسر للبيانات إن احتفظت بالنصوص)
         db.CheckConstraint(
             "status IN ('PENDING','IN_TRANSIT','ARRIVED','CANCELLED')",
             name='chk_shipment_status_allowed'
@@ -2229,7 +2228,7 @@ class Shipment(db.Model, TimestampMixin, AuditMixin):
         if self.status == 'ARRIVED' and not self.actual_arrival:
             self.actual_arrival = datetime.utcnow()
 
-    # تطبيق المخزون عند الوصول (نسخة ORM للاستخدام من حدث الحالة)
+    # تطبيق المخزون عند الوصول
     def _apply_arrival_stock(self):
         for it in (self.items or []):
             lvl = (StockLevel.query
@@ -2237,7 +2236,12 @@ class Shipment(db.Model, TimestampMixin, AuditMixin):
                    .with_for_update()
                    .first())
             if not lvl:
-                lvl = StockLevel(product_id=it.product_id, warehouse_id=it.warehouse_id, quantity=0, reserved_quantity=0)
+                lvl = StockLevel(
+                    product_id=it.product_id,
+                    warehouse_id=it.warehouse_id,
+                    quantity=0,
+                    reserved_quantity=0
+                )
                 db.session.add(lvl)
                 db.session.flush()
             lvl.quantity = int(lvl.quantity or 0) + int(it.quantity or 0)
@@ -2258,6 +2262,8 @@ class Shipment(db.Model, TimestampMixin, AuditMixin):
     def __repr__(self):
         return f"<Shipment {self.shipment_number or self.id}>"
 
+
+# ==================== Events ====================
 
 @event.listens_for(Shipment, 'before_insert')
 def _shipment_before_insert(mapper, connection, target: 'Shipment'):
@@ -2288,18 +2294,14 @@ def _shipment_status_stock(target: Shipment, value, oldvalue, initiator):
     newv = (getattr(value, 'value', value) or '').upper()
     oldv = (getattr(oldvalue, 'value', oldvalue) or '').upper()
     if newv == 'ARRIVED' and oldv != 'ARRIVED':
-        # ختم الوصول وتحديث الوقت
         if not getattr(target, 'actual_arrival', None):
             target.actual_arrival = datetime.utcnow()
-        # تطبيق المخزون (ORM)
         try:
             target._apply_arrival_stock()
         except Exception as e:
             raise
     elif oldv == 'ARRIVED' and newv != 'ARRIVED':
-        # عكس المخزون (ORM)
         target._revert_arrival_stock()
-
 
 class ShipmentItem(db.Model):
     __tablename__ = 'shipment_items'
@@ -2383,8 +2385,18 @@ class ShipmentPartner(db.Model, TimestampMixin):
     __tablename__ = 'shipment_partners'
 
     id              = db.Column(db.Integer, primary_key=True)
-    shipment_id     = db.Column(db.Integer, db.ForeignKey('shipments.id', ondelete='CASCADE'), nullable=False, index=True)
-    partner_id      = db.Column(db.Integer, db.ForeignKey('partners.id', ondelete='CASCADE'), nullable=False, index=True)
+    shipment_id     = db.Column(
+        db.Integer,
+        db.ForeignKey('shipments.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True
+    )
+    partner_id      = db.Column(
+        db.Integer,
+        db.ForeignKey('partners.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True
+    )
 
     identity_number = db.Column(db.String(100))
     phone_number    = db.Column(db.String(20))
@@ -2393,22 +2405,30 @@ class ShipmentPartner(db.Model, TimestampMixin):
     unit_price_before_tax = db.Column(db.Numeric(12, 2))
     expiry_date     = db.Column(db.Date)
 
-    share_percentage= db.Column(db.Numeric(5, 2), default=0)
-    share_amount    = db.Column(db.Numeric(12, 2), default=0)
+    share_percentage= db.Column(db.Numeric(5, 2), default=0)     # نسبة الشريك %
+    share_amount    = db.Column(db.Numeric(12, 2), default=0)    # المبلغ المباشر إن وُجد
 
     notes           = db.Column(db.Text)
 
     __table_args__ = (
-        db.CheckConstraint('share_percentage >= 0 AND share_percentage <= 100', name='chk_shipment_partner_share'),
-        db.UniqueConstraint('shipment_id', 'partner_id', name='uq_shipment_partner_unique'),  # منع تكرار الشريك في نفس الشحنة
+        db.CheckConstraint(
+            'share_percentage >= 0 AND share_percentage <= 100',
+            name='chk_shipment_partner_share'
+        ),
+        db.UniqueConstraint(
+            'shipment_id', 'partner_id',
+            name='uq_shipment_partner_unique'
+        ),  # منع تكرار الشريك في نفس الشحنة
         db.Index('ix_shipment_partner_pair', 'shipment_id', 'partner_id'),
     )
 
+    # العلاقات
     partner  = db.relationship('Partner', back_populates='shipment_partners')
     shipment = db.relationship('Shipment', back_populates='partners')
 
     @hybrid_property
     def share_value(self):
+        """قيمة حصة الشريك النهائية: إما مبلغ مباشر أو محسوبة من النسبة."""
         if self.share_amount and float(self.share_amount) > 0:
             return float(self.share_amount)
         return (float(self.unit_price_before_tax or 0) * float(self.share_percentage or 0)) / 100.0

@@ -156,6 +156,7 @@ def only_digits(s: str) -> str:
 class UnifiedDateTimeField(DateTimeField):
     def __init__(self, label=None, validators=None, format="%Y-%m-%d %H:%M", **kwargs):
         super().__init__(label, validators, format, **kwargs)
+
     def process_formdata(self, valuelist):
         if valuelist:
             date_str = " ".join(valuelist)
@@ -185,6 +186,7 @@ if _ExtAjaxSelectField is None:
             self.get_label = get_label
             self.allow_blank = allow_blank
             self._validate_id = validate_id
+
         def __call__(self, **kwargs):
             try:
                 if self.endpoint and "data-url" not in kwargs:
@@ -194,6 +196,7 @@ if _ExtAjaxSelectField is None:
             cls = kwargs.pop("class_", "") or kwargs.get("class", "")
             kwargs["class"] = (cls + " ajax-select form-control").strip()
             return super().__call__(**kwargs)
+
         def process_formdata(self, valuelist):
             if not valuelist:
                 return super().process_formdata(valuelist)
@@ -205,6 +208,7 @@ if _ExtAjaxSelectField is None:
                 self.data = self.coerce(raw)
             except (ValueError, TypeError):
                 self.data = raw
+
         def pre_validate(self, form):
             if self.allow_blank and (self.data in (None, "", "None")):
                 return
@@ -225,6 +229,7 @@ if _ExtAjaxSelectMultipleField is None:
             self.endpoint = endpoint
             self.get_label = get_label
             self._validate_id_many = validate_id_many
+
         def __call__(self, **kwargs):
             try:
                 if self.endpoint and "data-url" not in kwargs:
@@ -235,6 +240,7 @@ if _ExtAjaxSelectMultipleField is None:
             cls = kwargs.pop("class_", "") or kwargs.get("class", "")
             kwargs["class"] = (cls + " ajax-select form-control").strip()
             return super().__call__(**kwargs)
+
         def process_formdata(self, valuelist):
             values = []
             for v in (valuelist or []):
@@ -245,6 +251,7 @@ if _ExtAjaxSelectMultipleField is None:
                 except (ValueError, TypeError):
                     continue
             self.data = values
+
         def pre_validate(self, form):
             if not self.choices and self._validate_id_many:
                 if self.data and not self._validate_id_many(self.data):
@@ -253,7 +260,6 @@ if _ExtAjaxSelectMultipleField is None:
             return super().pre_validate(form)
 else:
     AjaxSelectMultipleField = _ExtAjaxSelectMultipleField
-
 
 class CustomerImportForm(FlaskForm):
     csv_file = FileField('CSV', validators=[DataRequired()])

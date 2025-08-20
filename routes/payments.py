@@ -1,3 +1,4 @@
+# routes/payments.py
 from datetime import date, datetime
 import io
 
@@ -13,14 +14,15 @@ from sqlalchemy.orm import joinedload
 from extensions import db
 from forms import PaymentForm
 from models import (
-    Customer, Expense, Invoice, InvoiceStatus, Partner, Payment, PaymentDirection,
-    PaymentEntityType, PaymentMethod, PaymentSplit, PaymentStatus, Permission,
+    Customer, Expense, Invoice, Partner, Payment, PaymentDirection,
+    PaymentMethod, PaymentSplit, PaymentStatus, Permission,
     PreOrder, PreOrderStatus, Role, Sale, ServiceRequest, ServiceStatus, Shipment,
     Supplier, User,
 )
 from utils import log_audit, permission_required, update_entity_balance
 
 payments_bp = Blueprint("payments", __name__, url_prefix="/payments")
+
 
 def _get_or_404(model, ident, options=None):
     q = db.session.query(model)

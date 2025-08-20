@@ -19,7 +19,6 @@ from sqlalchemy import Date, cast, func
 from extensions import db
 from forms import RestoreForm
 from models import (
-    Customer,
     ExchangeTransaction,
     Note,
     Product,
@@ -31,6 +30,7 @@ from models import (
 from utils import permission_required
 
 main_bp = Blueprint("main", __name__, template_folder="templates")
+
 
 
 @main_bp.route("/favicon.ico")

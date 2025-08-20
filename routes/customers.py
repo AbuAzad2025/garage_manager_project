@@ -17,7 +17,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_, func
 from sqlalchemy.exc import SQLAlchemyError
 
-from extensions import db, mail
+from extensions import db
 from forms import CustomerForm, CustomerImportForm, ExportContactsForm
 from models import (
     Customer, AuditLog, Invoice,
@@ -26,11 +26,11 @@ from models import (
 )
 from utils import (
     permission_required, send_whatsapp_message,
-    send_email_notification,
     generate_pdf_report, generate_excel_report,
     generate_vcf, generate_csv_contacts,
     generate_excel_contacts
 )
+
 
 customers_bp = Blueprint(
     'customers_bp', __name__,
