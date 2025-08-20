@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 # -------------------- Stdlib --------------------
+import json
 import re
 from datetime import datetime, date
 from decimal import Decimal
@@ -9,21 +10,38 @@ from decimal import Decimal
 from flask import url_for
 from flask_wtf import FlaskForm
 from wtforms import (
-    StringField, DateField, DateTimeField, DecimalField, IntegerField,
-    TextAreaField, SelectField, SelectMultipleField, BooleanField,
-    HiddenField, FieldList, FormField
+    StringField, TextAreaField, PasswordField, SelectField, SelectMultipleField,
+    DateField, DateTimeField, DecimalField, IntegerField, BooleanField,
+    HiddenField, FieldList, FormField, SubmitField
 )
 from wtforms.validators import (
     DataRequired, Optional, Length, NumberRange, Email, ValidationError, EqualTo
 )
 from sqlalchemy import func
+try:
+    from wtforms_sqlalchemy.fields import QuerySelectField
+except Exception:
+    QuerySelectField = SelectField  # fallback
 
 # -------------------- Local --------------------
 from models import (
+    Role, User,
+    Customer, Supplier, Partner, Warehouse,
+    Sale, ShipmentItem, ShipmentPartner, ServiceRequest, PreOrder,
+    InvoiceLine, SaleLine, Product,
+    Payment, PaymentSplit,
     PaymentMethod, PaymentStatus, PaymentDirection, PaymentEntityType,
-    InvoiceStatus, InvoiceSource, PaymentProgress, ServiceStatus, ServicePriority,
-    TransferDirection, WarehouseType, PreOrderStatus, ProductCondition,
+    InvoiceStatus, InvoiceSource, PaymentProgress,
+    ServiceStatus, ServicePriority,
+    PreOrderStatus, ProductCondition,
 )
+from utils import luhn_check, is_valid_expiry_mm_yy
+try:
+    from widgets import AjaxSelectField, AjaxSelectMultipleField
+except Exception:
+    AjaxSelectField = SelectField
+    AjaxSelectMultipleField = SelectMultipleField
+
 
 # ==================== Choices ====================
 CURRENCY_CHOICES = [("ILS", "ILS"), ("USD", "USD"), ("EUR", "EUR"), ("JOD", "JOD")]
