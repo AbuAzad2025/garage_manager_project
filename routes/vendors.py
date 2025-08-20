@@ -1,5 +1,5 @@
 # File: routes/vendors.py
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, abort
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, abort, jsonify
 from flask_login import login_required
 from flask_wtf import FlaskForm
 from sqlalchemy import or_, func
