@@ -1,50 +1,87 @@
-from __future__ import annotations
-
-# -------------------- Stdlib --------------------
+# -------------------- Standard library --------------------
 import json
-import re
-from datetime import time as _t
-from datetime import datetime, date
-from decimal import Decimal
 import os
+import re
+from datetime import date, datetime, time as _t
+from decimal import Decimal
 
 # -------------------- Third-party --------------------
 from flask import url_for
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileField
+from sqlalchemy import func
 from wtforms import (
-    StringField, TextAreaField, PasswordField, SelectField, SelectMultipleField,
-    DateField, DateTimeField, DecimalField, IntegerField, BooleanField,
-    HiddenField, FieldList, FormField, SubmitField
+    BooleanField,
+    DateField,
+    DateTimeField,
+    DecimalField,
+    FieldList,
+    FormField,
+    HiddenField,
+    IntegerField,
+    PasswordField,
+    SelectField,
+    SelectMultipleField,
+    StringField,
+    SubmitField,
+    TextAreaField,
 )
 from wtforms.validators import (
-    DataRequired, Optional, Length, NumberRange, Email, ValidationError, EqualTo
+    DataRequired,
+    Email,
+    EqualTo,
+    Length,
+    NumberRange,
+    Optional,
+    ValidationError,
 )
-from sqlalchemy import func
+
 try:
     from wtforms_sqlalchemy.fields import QuerySelectField
-except Exception:
+except Exception:  # fallback إذا لم تتوفر الإضافة
     QuerySelectField = SelectField
 
 # -------------------- Local --------------------
 from models import (
-    Role, Employee, ExpenseType, Expense, User, SaleStatus,
-    Customer, Supplier, Partner, Warehouse, StockLevel,
-    Sale, SaleLine, ShipmentItem, ShipmentPartner,
-    ServiceRequest, PreOrder, InvoiceLine, Product,
-    Payment, PaymentSplit,
-    PaymentMethod, PaymentStatus, PaymentDirection, PaymentEntityType,
-    InvoiceStatus, InvoiceSource, PaymentProgress,
-    ServiceStatus, ServicePriority,
-    PreOrderStatus, ProductCondition,
-    TransferDirection, WarehouseType,
+    Customer,
+    Employee,
+    Expense,
+    ExpenseType,
+    InvoiceLine,
+    InvoiceStatus,
+    InvoiceSource,
+    Partner,
+    Payment,
+    PaymentDirection,
+    PaymentEntityType,
+    PaymentMethod,
+    PaymentProgress,
+    PaymentSplit,
+    PaymentStatus,
+    PreOrder,
+    PreOrderStatus,
+    Product,
+    ProductCondition,
+    Role,
+    Sale,
+    SaleLine,
+    SaleStatus,
+    ServicePriority,
+    ServiceRequest,
+    ServiceStatus,
+    ShipmentItem,
+    ShipmentPartner,
+    StockLevel,
+    Supplier,
+    TransferDirection,
+    Warehouse,
+    WarehouseType,
 )
-from utils import luhn_check, is_valid_expiry_mm_yy
-try:
-    from widgets import AjaxSelectField, AjaxSelectMultipleField
-except Exception:
-    AjaxSelectField = SelectField
-    AjaxSelectMultipleField = SelectMultipleField
+from utils import (
+    is_valid_expiry_mm_yy,
+    luhn_check,
+    prepare_payment_form_choices,
+)
 
 # ==================== Choices ====================
 CURRENCY_CHOICES = [("ILS", "ILS"), ("USD", "USD"), ("EUR", "EUR"), ("JOD", "JOD")]
@@ -67,8 +104,8 @@ def prepare_payment_form_choices(form):
         "CANCELLED": "أُلغي",
         "REFUNDED": "مسترد",
     }
-    form.method.choices = [(m.value, _ar_label(m.value, method_labels)) for m in PaymentMethod]
-    form.status.choices = [(s.value, _ar_label(s.value, status_labels)) for s in PaymentStatus]
+    form.method.choices    = [(m.value, _ar_label(m.value, method_labels)) for m in PaymentMethod]
+    form.status.choices    = [(s.value, _ar_label(s.value, status_labels)) for s in PaymentStatus]
     form.direction.choices = [("IN", "وارد (IN)"), ("OUT", "صادر (OUT)")]
     if not getattr(form, "entity_type", None) or not form.entity_type.choices:
         form.entity_type.choices = [
@@ -101,29 +138,6 @@ NOTE_PRIORITY_CHOICES        = [("LOW", "LOW"), ("MEDIUM", "MEDIUM"), ("HIGH", "
 def _percent_validator(): return NumberRange(min=0, max=100)
 def _nonneg_decimal():    return NumberRange(min=0)
 
-def Unique(model, field_name, message=None, case_insensitive=False):
-    def _validator(form, field):
-        value = field.data
-        if value is None or (isinstance(value, str) and value.strip() == ""):
-            return
-        col = getattr(model, field_name)
-        q = model.query
-        if case_insensitive and isinstance(value, str):
-            q = q.filter(func.lower(col) == value.strip().lower())
-        else:
-            q = q.filter(col == value)
-        current_id = None
-        try:
-            if getattr(form, "id", None) and form.id.data:
-                current_id = int(form.id.data)
-        except Exception:
-            current_id = None
-        if current_id:
-            q = q.filter(model.id != current_id)
-        if q.first() is not None:
-            raise ValidationError(message or "القيمة موجودة مسبقًا")
-    return _validator
-
 def unique_email_validator(model, field_name="email", allow_null=False, case_insensitive=True):
     def _validator(form, field):
         val = (field.data or "").strip()
@@ -152,7 +166,36 @@ def unique_email_validator(model, field_name="email", allow_null=False, case_ins
 def only_digits(s: str) -> str:
     return re.sub(r"\D", "", s or "")
 
-# ==================== Fields ====================
+# ==================== Fields / Ajax Fallbacks ====================
+class Unique:
+    """
+    Validator: يتأكد من فرادة قيمة حقل لموديل/عمود معيّن.
+    يدعم تجاهل السجل الحالي عند التعديل (form.id) وخيار case-insensitive.
+    """
+    def __init__(self, model, field_name: str, message: str = None, case_insensitive: bool = False):
+        self.model = model
+        self.field_name = field_name
+        self.message = message or "هذه القيمة مستخدمة مسبقًا"
+        self.case_insensitive = case_insensitive
+
+    def __call__(self, form, field):
+        value = field.data
+        if value in (None, ""):
+            return
+        column = getattr(self.model, self.field_name)
+        q = self.model.query
+        if self.case_insensitive and isinstance(value, str):
+            q = q.filter(func.lower(column) == value.lower())
+        else:
+            q = q.filter(column == value)
+
+        obj_id = getattr(form, "id", None).data if hasattr(form, "id") else None
+        if obj_id and str(obj_id).strip().isdigit():
+            q = q.filter(self.model.id != int(obj_id))
+
+        if q.first() is not None:
+            raise ValidationError(self.message)
+
 class UnifiedDateTimeField(DateTimeField):
     def __init__(self, label=None, validators=None, format="%Y-%m-%d %H:%M", **kwargs):
         super().__init__(label, validators, format, **kwargs)
@@ -261,9 +304,6 @@ if _ExtAjaxSelectMultipleField is None:
 else:
     AjaxSelectMultipleField = _ExtAjaxSelectMultipleField
 
-class CustomerImportForm(FlaskForm):
-    csv_file = FileField('CSV', validators=[DataRequired()])
-    submit = SubmitField('Import')
 
 class ProductImportForm(FlaskForm):
     csv_file = FileField('CSV', validators=[DataRequired(), FileAllowed(['csv'], 'CSV only!')])
@@ -398,36 +438,71 @@ class PermissionForm(FlaskForm):
 # --------- Customers / Suppliers / Partners ----------
 class CustomerForm(FlaskForm):
     id             = HiddenField()
-    name           = StringField('اسم العميل', validators=[DataRequired(message="هذا الحقل مطلوب"), Length(max=100)])
-    phone          = StringField('الهاتف', validators=[
-                        DataRequired(message="الهاتف مطلوب"),
-                        Length(max=20, message="أقصى طول 20 رقم"),
-                        Unique(Customer, "phone", message="رقم الهاتف مستخدم مسبقًا", case_insensitive=False)
-                    ])
-    email          = StringField('البريد الإلكتروني', validators=[
-                        DataRequired(message="هذا الحقل مطلوب"),
-                        Email(message="صيغة البريد غير صحيحة"),
-                        Length(max=120),
-                        Unique(Customer, "email", message="البريد مستخدم مسبقًا", case_insensitive=True)
-                    ])
+    name           = StringField(
+        'اسم العميل',
+        validators=[DataRequired(message="هذا الحقل مطلوب"), Length(max=100)]
+    )
+    phone          = StringField(
+        'الهاتف',
+        validators=[
+            DataRequired(message="الهاتف مطلوب"),
+            Length(max=20, message="أقصى طول 20 رقم"),
+            Unique(Customer, "phone", message="رقم الهاتف مستخدم مسبقًا", case_insensitive=False)
+        ]
+    )
+    email          = StringField(
+        'البريد الإلكتروني',
+        validators=[
+            DataRequired(message="هذا الحقل مطلوب"),
+            Email(message="صيغة البريد غير صحيحة"),
+            Length(max=120),
+            Unique(Customer, "email", message="البريد مستخدم مسبقًا", case_insensitive=True)
+        ]
+    )
     address        = StringField('العنوان', validators=[Optional(), Length(max=200, message="أقصى طول 200 حرف")])
-    whatsapp       = StringField('واتساب', validators=[DataRequired(message="رقم الواتساب مطلوب"), Length(max=20, message="أقصى طول 20 رقم")])
-    category       = SelectField('تصنيف العميل', choices=[('عادي','عادي'),('فضي','فضي'),('ذهبي','ذهبي'),('مميز','مميز')], default='عادي')
-    credit_limit   = DecimalField('حد الائتمان', places=2, validators=[Optional(), NumberRange(min=0, message="يجب أن يكون ≥ 0")])
-    discount_rate  = DecimalField('معدل الخصم (%)', places=2, validators=[Optional(), NumberRange(min=0, max=100, message="بين 0 و100")])
-    currency       = SelectField('العملة', choices=[('ILS', 'شيكل'), ('USD', 'دولار'), ('JOD', 'دينار')], default='ILS', validators=[DataRequired(message='العملة مطلوبة')])
+
+    # واتساب اختياري؛ سننسخه من الهاتف تلقائيًا إن تُرك فارغًا
+    whatsapp       = StringField('واتساب', validators=[Optional(), Length(max=20, message="أقصى طول 20 رقم")])
+
+    category       = SelectField(
+        'تصنيف العميل',
+        choices=[('عادي','عادي'),('فضي','فضي'),('ذهبي','ذهبي'),('مميز','مميز')],
+        default='عادي'
+    )
+    credit_limit   = DecimalField(
+        'حد الائتمان', places=2,
+        validators=[Optional(), NumberRange(min=0, message="يجب أن يكون ≥ 0")]
+    )
+    discount_rate  = DecimalField(
+        'معدل الخصم (%)', places=2,
+        validators=[Optional(), NumberRange(min=0, max=100, message="بين 0 و100")]
+    )
+    currency       = SelectField(
+        'العملة', choices=CURRENCY_CHOICES, default='ILS',
+        validators=[DataRequired(message='العملة مطلوبة')]
+    )
     is_active      = BooleanField('نشط', default=True)
     is_online      = BooleanField('عميل أونلاين', default=False)
     notes          = TextAreaField('ملاحظات', validators=[Optional(), Length(max=500, message="أقصى طول 500 حرف")])
+
     password       = PasswordField('كلمة المرور', validators=[Optional(), Length(min=6, message="الحد الأدنى 6 أحرف")])
     confirm        = PasswordField('تأكيد كلمة المرور', validators=[Optional(), EqualTo('password', message='يجب أن تتطابق كلمتا المرور')])
+
     submit         = SubmitField('حفظ العميل')
 
+    # --------- Validations ---------
     def validate_password(self, field):
+        # كلمة المرور مطلوبة عند الإنشاء فقط (لا يوجد id)
         is_create = not (self.id.data and str(self.id.data).strip().isdigit())
         if is_create and not field.data:
             raise ValidationError("كلمة المرور مطلوبة عند إنشاء عميل جديد")
 
+    def validate_whatsapp(self, field):
+        # لو تُرك الواتساب فارغًا، انسخه من الهاتف
+        if not (field.data and str(field.data).strip()):
+            field.data = (self.phone.data or "").strip()
+
+    # --------- Mapping helper ---------
     def apply_to(self, customer: Customer) -> Customer:
         customer.name          = (self.name.data or "").strip()
         customer.phone         = (self.phone.data or "").strip()
@@ -444,6 +519,33 @@ class CustomerForm(FlaskForm):
         if self.password.data:
             customer.set_password(self.password.data)
         return customer
+
+class CustomerImportForm(FlaskForm):
+    csv_file = FileField('CSV', validators=[DataRequired(), FileAllowed(['csv'], 'CSV فقط')])
+    submit   = SubmitField('استيراد')
+
+class ExportContactsForm(FlaskForm):
+    customer_ids = SelectMultipleField('العملاء', coerce=int, validators=[DataRequired(message="اختر عميلًا واحدًا على الأقل")])
+    fields = SelectMultipleField(
+        'الحقول',
+        choices=[
+            ('id', 'ID'),
+            ('name', 'الاسم'),
+            ('phone', 'الهاتف'),
+            ('whatsapp', 'واتساب'),
+            ('email', 'البريد'),
+            ('address', 'العنوان'),
+            ('category', 'التصنيف'),
+        ],
+        default=['name','phone','email']
+    )
+    format = SelectField(
+        'الصيغة',
+        choices=[('vcf','VCF'), ('csv','CSV'), ('excel','Excel')],
+        default='vcf',
+        validators=[DataRequired()]
+    )
+    submit = SubmitField('تصدير')
     
 class ProductSupplierLoanForm(FlaskForm):
     product_id            = AjaxSelectField('المنتج', endpoint='api.products', get_label='name', validators=[DataRequired()])
@@ -587,6 +689,7 @@ class SplitEntryForm(FlaskForm):
 
         return base_ok and ok
 
+
 class PaymentForm(FlaskForm):
     payment_number = StringField(validators=[Optional(), Length(max=50)])
     payment_date   = DateTimeField(format="%Y-%m-%d %H:%M", default=datetime.utcnow, validators=[DataRequired()])
@@ -604,6 +707,7 @@ class PaymentForm(FlaskForm):
     direction = SelectField(validators=[DataRequired()])
 
     entity_type = SelectField(validators=[DataRequired()])
+    entity_id   = HiddenField(validators=[Optional()])
 
     customer_search = StringField(validators=[Optional(), Length(max=100)])
     customer_id     = HiddenField()
@@ -629,14 +733,14 @@ class PaymentForm(FlaskForm):
     receipt_number = StringField(validators=[Optional(), Length(max=50)])
     reference      = StringField(validators=[Optional(), Length(max=100)])
 
-    check_number     = StringField(validators=[Optional(), Length(max=100)])
-    check_bank       = StringField(validators=[Optional(), Length(max=100)])
-    check_due_date   = DateField(format="%Y-%m-%d", validators=[Optional()])
+    check_number   = StringField(validators=[Optional(), Length(max=100)])
+    check_bank     = StringField(validators=[Optional(), Length(max=100)])
+    check_due_date = DateField(format="%Y-%m-%d", validators=[Optional()])
 
-    card_number      = StringField(validators=[Optional(), Length(max=100)])
-    card_holder      = StringField(validators=[Optional(), Length(max=100)])
-    card_expiry      = StringField(validators=[Optional(), Length(max=10)])
-    card_cvv         = StringField(validators=[Optional(), Length(min=3, max=4)])
+    card_number = StringField(validators=[Optional(), Length(max=100)])
+    card_holder = StringField(validators=[Optional(), Length(max=100)])
+    card_expiry = StringField(validators=[Optional(), Length(max=10)])
+    card_cvv    = StringField(validators=[Optional(), Length(min=3, max=4)])
 
     bank_transfer_ref = StringField(validators=[Optional(), Length(max=100)])
     created_by        = HiddenField()
@@ -663,15 +767,27 @@ class PaymentForm(FlaskForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         prepare_payment_form_choices(self)
+
         if not self.splits.entries:
             self.splits.append_entry()
-        et = (self.entity_type.data or "").upper()
+
+        et   = (self.entity_type.data or "").upper()
         dirv = (self.direction.data or "").upper()
         if et and dirv not in {"IN", "OUT"}:
             if et in self._incoming_entities:
                 self.direction.data = "IN"
             elif et in self._outgoing_entities:
                 self.direction.data = "OUT"
+
+        self._sync_entity_id_for_render()
+
+    # -------------- Helpers --------------
+    def _nz(self, v):
+        if v is None:
+            return ""
+        if isinstance(v, str):
+            return v.strip()
+        return str(v)
 
     def _get_entity_ids(self):
         return {
@@ -687,16 +803,61 @@ class PaymentForm(FlaskForm):
             "service_id": self.service_id.data,
         }
 
+    @staticmethod
+    def _norm_dir(val):
+        if val is None:
+            return None
+        v = val.value if hasattr(val, "value") else val
+        v = str(v).strip().upper()
+        if v in ("IN", "INCOMING", "INCOME", "RECEIVE"):
+            return "IN"
+        if v in ("OUT", "OUTGOING", "PAY", "PAYMENT", "EXPENSE"):
+            return "OUT"
+        return v
+
+    @classmethod
+    def _dir_to_db(cls, v: str | None):
+        vv = cls._norm_dir(v)
+        if vv == "IN":
+            return "INCOMING"
+        if vv == "OUT":
+            return "OUTGOING"
+        return vv
+
+    def _sync_entity_id_for_render(self):
+        et = (self.entity_type.data or "").upper()
+        field_name = self._entity_field_map.get(et)
+        if field_name:
+            raw = getattr(self, field_name).data
+            self.entity_id.data = "" if raw is None else (raw if isinstance(raw, str) else str(raw))
+        else:
+            self.entity_id.data = ""
+
+    def _push_entity_id_to_specific(self):
+        et = (self.entity_type.data or "").upper()
+        field_name = self._entity_field_map.get(et)
+        if not field_name:
+            return
+        rid = self._nz(self.entity_id.data)
+        if rid:
+            for k in self._get_entity_ids().keys():
+                setattr(getattr(self, k), "data", rid if k == field_name else "")
+
+    # -------------- Validation --------------
     def validate(self, extra_validators=None):
         if not (self.method.data or "").strip() and getattr(self, "splits", None):
             for entry in self.splits:
                 fm = entry.form
-                try: amt = float(fm.amount.data or 0)
-                except Exception: amt = 0.0
+                try:
+                    amt = float(fm.amount.data or 0)
+                except Exception:
+                    amt = 0.0
                 mv = (getattr(fm, "method").data or "").strip()
                 if amt > 0 and mv:
                     self.method.data = mv
                     break
+
+        self._push_entity_id_to_specific()
 
         if not super().validate(extra_validators=extra_validators):
             return False
@@ -730,12 +891,7 @@ class PaymentForm(FlaskForm):
                 getattr(self, field_name).errors.append("❌ يجب اختيار المرجع المناسب للكيان المحدد.")
             return False
 
-        def _nz(v):
-            if v is None: return ""
-            if isinstance(v, str): return v.strip()
-            return str(v)
-
-        filled = [k for k, v in entity_ids.items() if _nz(v)]
+        filled = [k for k, v in entity_ids.items() if self._nz(v)]
         if len(filled) > 1:
             for k in filled:
                 if k != field_name:
@@ -755,40 +911,50 @@ class PaymentForm(FlaskForm):
 
         if m in {"CHEQUE", "CHECK"}:
             if not (self.check_number.data or "").strip():
-                self.check_number.errors.append("أدخل رقم الشيك."); return False
+                self.check_number.errors.append("أدخل رقم الشيك.")
+                return False
             if not (self.check_bank.data or "").strip():
-                self.check_bank.errors.append("أدخل اسم البنك."); return False
+                self.check_bank.errors.append("أدخل اسم البنك.")
+                return False
             if not self.check_due_date.data:
-                self.check_due_date.errors.append("أدخل تاريخ استحقاق الشيك."); return False
+                self.check_due_date.errors.append("أدخل تاريخ استحقاق الشيك.")
+                return False
             if self.payment_date.data and self.check_due_date.data < self.payment_date.data.date():
-                self.check_due_date.errors.append("تاريخ الاستحقاق لا يمكن أن يسبق تاريخ الدفعة."); return False
+                self.check_due_date.errors.append("تاريخ الاستحقاق لا يمكن أن يسبق تاريخ الدفعة.")
+                return False
 
         if m == "CARD":
             num = (self.card_number.data or "").replace(" ", "").replace("-", "")
             if not num or not num.isdigit() or not luhn_check(num):
-                self.card_number.errors.append("رقم البطاقة غير صالح."); return False
+                self.card_number.errors.append("رقم البطاقة غير صالح.")
+                return False
             if not (self.card_holder.data or "").strip():
-                self.card_holder.errors.append("أدخل اسم حامل البطاقة."); return False
+                self.card_holder.errors.append("أدخل اسم حامل البطاقة.")
+                return False
             exp = (self.card_expiry.data or "").strip()
             if not exp or not is_valid_expiry_mm_yy(exp):
-                self.card_expiry.errors.append("تاريخ الانتهاء بصيغة MM/YY وغير منتهي."); return False
+                self.card_expiry.errors.append("تاريخ الانتهاء بصيغة MM/YY وغير منتهي.")
+                return False
             cvv = (self.card_cvv.data or "").strip()
             if not (cvv.isdigit() and len(cvv) in (3, 4)):
-                self.card_cvv.errors.append("CVV غير صالح."); return False
+                self.card_cvv.errors.append("CVV غير صالح.")
+                return False
 
         if m in {"BANK", "TRANSFER", "WIRE"}:
             if not (self.bank_transfer_ref.data or "").strip():
-                self.bank_transfer_ref.errors.append("أدخل مرجع التحويل البنكي."); return False
+                self.bank_transfer_ref.errors.append("أدخل مرجع التحويل البنكي.")
+                return False
 
+        self._sync_entity_id_for_render()
         return True
 
     def selected_entity(self):
         etype = (self.entity_type.data or "").upper()
         field = self._entity_field_map.get(etype)
-        val = getattr(self, field).data if field else None
+        val = getattr(self, field).data if field else (self.entity_id.data if self.entity_id.data else None)
         return etype, (int(val) if val is not None and str(val).isdigit() else None)
 
-    def apply_to(self, payment: Payment) -> Payment:
+    def apply_to(self, payment: "Payment") -> "Payment":
         payment.payment_number = (self.payment_number.data or "").strip() or payment.payment_number
         payment.payment_date   = self.payment_date.data
         payment.subtotal       = self.subtotal.data or 0
@@ -798,12 +964,13 @@ class PaymentForm(FlaskForm):
         payment.currency       = (self.currency.data or "ILS").upper()
         payment.method         = (self.method.data or None)
         payment.status         = (self.status.data or None)
-        payment.direction      = (self.direction.data or None)
+        payment.direction      = self._dir_to_db(self.direction.data) if self.direction.data else getattr(payment, "direction", None)
         payment.entity_type    = (self.entity_type.data or None)
         payment.reference      = (self.reference.data or "").strip() or None
         payment.receipt_number = (self.receipt_number.data or "").strip() or None
         payment.notes          = (self.notes.data or "").strip() or None
 
+        self._push_entity_id_to_specific()
         etype = (self.entity_type.data or "").upper()
         field_name = self._entity_field_map.get(etype)
         ids = self._get_entity_ids()
@@ -844,7 +1011,7 @@ class PaymentForm(FlaskForm):
                         "card_expiry": (fm.card_expiry.data or "").strip() or None,
                         "card_last4":  (num[-4:] if num else None),
                     }
-                elif sm == "BANK":
+                elif sm in {"BANK", "TRANSFER", "WIRE"}:
                     det = {"bank_transfer_ref": (fm.bank_transfer_ref.data or "").strip() or None}
                 new_splits.append(PaymentSplit(method=sm, amount=amt, details=det or None))
         payment.splits = new_splits
