@@ -1,8 +1,8 @@
-"""initial schema
+"""fresh init
 
-Revision ID: fd6694f664cd
+Revision ID: 22428e07f512
 Revises: 
-Create Date: 2025-08-19 19:56:22.923071
+Create Date: 2025-08-21 00:20:12.272881
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'fd6694f664cd'
+revision = '22428e07f512'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -21,9 +21,9 @@ def upgrade():
     op.create_table('customers',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
-    sa.Column('phone', sa.String(length=20), nullable=True),
-    sa.Column('whatsapp', sa.String(length=20), nullable=True),
-    sa.Column('email', sa.String(length=120), nullable=True),
+    sa.Column('phone', sa.String(length=20), nullable=False),
+    sa.Column('whatsapp', sa.String(length=20), nullable=False),
+    sa.Column('email', sa.String(length=120), nullable=False),
     sa.Column('address', sa.String(length=200), nullable=True),
     sa.Column('password_hash', sa.String(length=128), nullable=True),
     sa.Column('category', sa.String(length=20), nullable=True),
@@ -39,6 +39,12 @@ def upgrade():
     sa.UniqueConstraint('email'),
     sa.UniqueConstraint('phone')
     )
+    with op.batch_alter_table('customers', schema=None) as batch_op:
+        batch_op.create_index('ix_customers_active_online', ['is_active', 'is_online'], unique=False)
+        batch_op.create_index(batch_op.f('ix_customers_created_at'), ['created_at'], unique=False)
+        batch_op.create_index('ix_customers_name', ['name'], unique=False)
+        batch_op.create_index(batch_op.f('ix_customers_updated_at'), ['updated_at'], unique=False)
+
     op.create_table('employees',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
@@ -54,7 +60,10 @@ def upgrade():
     sa.PrimaryKeyConstraint('id')
     )
     with op.batch_alter_table('employees', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_employees_created_at'), ['created_at'], unique=False)
         batch_op.create_index(batch_op.f('ix_employees_email'), ['email'], unique=True)
+        batch_op.create_index('ix_employees_name', ['name'], unique=False)
+        batch_op.create_index(batch_op.f('ix_employees_updated_at'), ['updated_at'], unique=False)
 
     op.create_table('equipment_types',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -68,12 +77,24 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('name')
     )
+    with op.batch_alter_table('equipment_types', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_equipment_types_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_equipment_types_updated_at'), ['updated_at'], unique=False)
+
     op.create_table('expense_types',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
-    sa.Column('description', sa.String(length=200), nullable=True),
+    sa.Column('description', sa.Text(), nullable=True),
+    sa.Column('is_active', sa.Boolean(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
+    with op.batch_alter_table('expense_types', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_expense_types_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_expense_types_name'), ['name'], unique=True)
+        batch_op.create_index(batch_op.f('ix_expense_types_updated_at'), ['updated_at'], unique=False)
+
     op.create_table('partners',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
@@ -92,17 +113,22 @@ def upgrade():
     sa.UniqueConstraint('phone_number')
     )
     with op.batch_alter_table('partners', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_partners_created_at'), ['created_at'], unique=False)
         batch_op.create_index(batch_op.f('ix_partners_email'), ['email'], unique=True)
+        batch_op.create_index('ix_partners_name', ['name'], unique=False)
+        batch_op.create_index(batch_op.f('ix_partners_updated_at'), ['updated_at'], unique=False)
 
     op.create_table('permissions',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
     sa.Column('code', sa.String(length=100), nullable=True),
     sa.Column('description', sa.String(length=255), nullable=True),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('code'),
-    sa.UniqueConstraint('name')
+    sa.PrimaryKeyConstraint('id')
     )
+    with op.batch_alter_table('permissions', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_permissions_code'), ['code'], unique=True)
+        batch_op.create_index(batch_op.f('ix_permissions_name'), ['name'], unique=True)
+
     op.create_table('product_categories',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
@@ -114,14 +140,21 @@ def upgrade():
     sa.ForeignKeyConstraint(['parent_id'], ['product_categories.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    with op.batch_alter_table('product_categories', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_product_categories_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_product_categories_updated_at'), ['updated_at'], unique=False)
+
     op.create_table('roles',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=50), nullable=False),
     sa.Column('description', sa.String(length=200), nullable=True),
-    sa.Column('is_default', sa.Boolean(), nullable=True),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('name')
+    sa.Column('is_default', sa.Boolean(), nullable=False),
+    sa.PrimaryKeyConstraint('id')
     )
+    with op.batch_alter_table('roles', schema=None) as batch_op:
+        batch_op.create_index('ix_roles_default_name', ['is_default', 'name'], unique=False)
+        batch_op.create_index(batch_op.f('ix_roles_name'), ['name'], unique=True)
+
     op.create_table('suppliers',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
@@ -141,22 +174,34 @@ def upgrade():
     sa.UniqueConstraint('identity_number')
     )
     with op.batch_alter_table('suppliers', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_suppliers_created_at'), ['created_at'], unique=False)
         batch_op.create_index(batch_op.f('ix_suppliers_email'), ['email'], unique=True)
+        batch_op.create_index('ix_suppliers_name', ['name'], unique=False)
         batch_op.create_index(batch_op.f('ix_suppliers_phone'), ['phone'], unique=False)
+        batch_op.create_index(batch_op.f('ix_suppliers_updated_at'), ['updated_at'], unique=False)
 
     op.create_table('online_carts',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('cart_id', sa.String(length=50), nullable=True),
     sa.Column('customer_id', sa.Integer(), nullable=True),
     sa.Column('session_id', sa.String(length=100), nullable=True),
-    sa.Column('status', sa.Enum('ACTIVE', 'ABANDONED', 'CONVERTED', name='cart_status'), nullable=False),
+    sa.Column('status', sa.Enum('ACTIVE', 'ABANDONED', 'CONVERTED', name='cart_status', native_enum=False), nullable=False),
     sa.Column('expires_at', sa.DateTime(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.ForeignKeyConstraint(['customer_id'], ['customers.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('cart_id')
+    sa.ForeignKeyConstraint(['customer_id'], ['customers.id'], ondelete='SET NULL'),
+    sa.PrimaryKeyConstraint('id')
     )
+    with op.batch_alter_table('online_carts', schema=None) as batch_op:
+        batch_op.create_index('ix_online_cart_customer_status', ['customer_id', 'status'], unique=False)
+        batch_op.create_index(batch_op.f('ix_online_carts_cart_id'), ['cart_id'], unique=True)
+        batch_op.create_index(batch_op.f('ix_online_carts_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_online_carts_customer_id'), ['customer_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_online_carts_expires_at'), ['expires_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_online_carts_session_id'), ['session_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_online_carts_status'), ['status'], unique=False)
+        batch_op.create_index(batch_op.f('ix_online_carts_updated_at'), ['updated_at'], unique=False)
+
     op.create_table('products',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('sku', sa.String(length=50), nullable=True),
@@ -172,8 +217,6 @@ def upgrade():
     sa.Column('category_name', sa.String(length=100), nullable=True),
     sa.Column('purchase_price', sa.Numeric(precision=12, scale=2), nullable=True),
     sa.Column('selling_price', sa.Numeric(precision=12, scale=2), nullable=True),
-    sa.Column('notes', sa.Text(), nullable=True),
-    sa.Column('image', sa.String(length=255), nullable=True),
     sa.Column('cost_before_shipping', sa.Numeric(precision=12, scale=2), nullable=True),
     sa.Column('cost_after_shipping', sa.Numeric(precision=12, scale=2), nullable=True),
     sa.Column('unit_price_before_tax', sa.Numeric(precision=12, scale=2), nullable=True),
@@ -183,7 +226,9 @@ def upgrade():
     sa.Column('tax_rate', sa.Numeric(precision=5, scale=2), nullable=True),
     sa.Column('min_qty', sa.Integer(), nullable=True),
     sa.Column('reorder_point', sa.Integer(), nullable=True),
-    sa.Column('condition', sa.Enum('NEW', 'USED', 'REFURBISHED', name='product_condition'), nullable=False),
+    sa.Column('image', sa.String(length=255), nullable=True),
+    sa.Column('notes', sa.Text(), nullable=True),
+    sa.Column('condition', sa.Enum('NEW', 'USED', 'REFURBISHED', name='product_condition', native_enum=False), nullable=False),
     sa.Column('origin_country', sa.String(length=50), nullable=True),
     sa.Column('warranty_period', sa.Integer(), nullable=True),
     sa.Column('weight', sa.Numeric(precision=10, scale=2), nullable=True),
@@ -208,6 +253,10 @@ def upgrade():
     sa.UniqueConstraint('serial_no'),
     sa.UniqueConstraint('sku')
     )
+    with op.batch_alter_table('products', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_products_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_products_updated_at'), ['updated_at'], unique=False)
+
     op.create_table('role_permissions',
     sa.Column('role_id', sa.Integer(), nullable=False),
     sa.Column('permission_id', sa.Integer(), nullable=False),
@@ -221,19 +270,25 @@ def upgrade():
     sa.Column('email', sa.String(length=120), nullable=False),
     sa.Column('password_hash', sa.String(length=128), nullable=False),
     sa.Column('role_id', sa.Integer(), nullable=True),
-    sa.Column('is_active', sa.Boolean(), nullable=True),
+    sa.Column('is_active', sa.Boolean(), server_default=sa.text('1'), nullable=False),
     sa.Column('last_login', sa.DateTime(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['role_id'], ['roles.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('email'),
-    sa.UniqueConstraint('username')
+    sa.PrimaryKeyConstraint('id')
     )
+    with op.batch_alter_table('users', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_users_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_users_email'), ['email'], unique=True)
+        batch_op.create_index('ix_users_role_active', ['role_id', 'is_active'], unique=False)
+        batch_op.create_index(batch_op.f('ix_users_role_id'), ['role_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_users_updated_at'), ['updated_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_users_username'), ['username'], unique=True)
+
     op.create_table('warehouses',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
-    sa.Column('warehouse_type', sa.Enum('MAIN', 'PARTNER', 'INVENTORY', 'EXCHANGE', name='warehouse_type'), nullable=False),
+    sa.Column('warehouse_type', sa.Enum('MAIN', 'PARTNER', 'INVENTORY', 'EXCHANGE', name='warehouse_type', native_enum=False), nullable=False),
     sa.Column('location', sa.String(length=200), nullable=True),
     sa.Column('is_active', sa.Boolean(), nullable=True),
     sa.Column('parent_id', sa.Integer(), nullable=True),
@@ -250,39 +305,64 @@ def upgrade():
     sa.ForeignKeyConstraint(['supplier_id'], ['suppliers.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    with op.batch_alter_table('warehouses', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_warehouses_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_warehouses_updated_at'), ['updated_at'], unique=False)
+
     op.create_table('audit_logs',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('timestamp', sa.DateTime(), nullable=True),
     sa.Column('model_name', sa.String(length=100), nullable=False),
+    sa.Column('record_id', sa.Integer(), nullable=True),
     sa.Column('customer_id', sa.Integer(), nullable=True),
-    sa.Column('record_id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=True),
-    sa.Column('action', sa.Enum('CREATE', 'UPDATE', 'DELETE', name='audit_action'), nullable=False),
+    sa.Column('action', sa.String(length=20), nullable=False),
     sa.Column('old_data', sa.Text(), nullable=True),
     sa.Column('new_data', sa.Text(), nullable=True),
-    sa.Column('ip_address', sa.String(length=50), nullable=True),
+    sa.Column('ip_address', sa.String(length=45), nullable=True),
     sa.Column('user_agent', sa.String(length=255), nullable=True),
-    sa.ForeignKeyConstraint(['customer_id'], ['customers.id'], ),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.ForeignKeyConstraint(['customer_id'], ['customers.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id')
     )
+    with op.batch_alter_table('audit_logs', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_audit_logs_action'), ['action'], unique=False)
+        batch_op.create_index(batch_op.f('ix_audit_logs_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_audit_logs_customer_id'), ['customer_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_audit_logs_model_name'), ['model_name'], unique=False)
+        batch_op.create_index(batch_op.f('ix_audit_logs_record_id'), ['record_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_audit_logs_updated_at'), ['updated_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_audit_logs_user_id'), ['user_id'], unique=False)
+        batch_op.create_index('ix_audit_model_record', ['model_name', 'record_id'], unique=False)
+        batch_op.create_index('ix_audit_user_time', ['user_id', 'created_at'], unique=False)
+
     op.create_table('exchange_transactions',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('product_id', sa.Integer(), nullable=False),
     sa.Column('warehouse_id', sa.Integer(), nullable=False),
     sa.Column('partner_id', sa.Integer(), nullable=True),
     sa.Column('quantity', sa.Integer(), nullable=False),
-    sa.Column('direction', sa.Enum('IN', 'OUT', 'ADJUSTMENT', name='exchange_direction'), nullable=False),
+    sa.Column('direction', sa.Enum('IN', 'OUT', 'ADJUSTMENT', name='exchange_direction', native_enum=False), nullable=False),
     sa.Column('unit_cost', sa.Numeric(precision=12, scale=2), nullable=True),
     sa.Column('is_priced', sa.Boolean(), server_default=sa.text('0'), nullable=False),
     sa.Column('notes', sa.Text(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.CheckConstraint('quantity > 0', name='chk_exchange_qty_positive'),
     sa.ForeignKeyConstraint(['partner_id'], ['partners.id'], ),
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
     sa.ForeignKeyConstraint(['warehouse_id'], ['warehouses.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    with op.batch_alter_table('exchange_transactions', schema=None) as batch_op:
+        batch_op.create_index('ix_exchange_prod_wh', ['product_id', 'warehouse_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_exchange_transactions_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_exchange_transactions_direction'), ['direction'], unique=False)
+        batch_op.create_index(batch_op.f('ix_exchange_transactions_product_id'), ['product_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_exchange_transactions_updated_at'), ['updated_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_exchange_transactions_warehouse_id'), ['warehouse_id'], unique=False)
+
     op.create_table('expenses',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('date', sa.DateTime(), nullable=False),
@@ -298,39 +378,79 @@ def upgrade():
     sa.Column('description', sa.String(length=200), nullable=True),
     sa.Column('notes', sa.Text(), nullable=True),
     sa.Column('tax_invoice_number', sa.String(length=100), nullable=True),
+    sa.Column('check_number', sa.String(length=100), nullable=True),
+    sa.Column('check_bank', sa.String(length=100), nullable=True),
+    sa.Column('check_due_date', sa.Date(), nullable=True),
+    sa.Column('bank_transfer_ref', sa.String(length=100), nullable=True),
+    sa.Column('card_number', sa.String(length=8), nullable=True),
+    sa.Column('card_holder', sa.String(length=120), nullable=True),
+    sa.Column('card_expiry', sa.String(length=10), nullable=True),
+    sa.Column('online_gateway', sa.String(length=50), nullable=True),
+    sa.Column('online_ref', sa.String(length=100), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.CheckConstraint("payment_method IN ('cash','cheque','bank','card','online','other')", name='chk_expense_payment_method_allowed'),
     sa.CheckConstraint('amount >= 0', name='chk_expense_amount_non_negative'),
-    sa.ForeignKeyConstraint(['employee_id'], ['employees.id'], ),
-    sa.ForeignKeyConstraint(['partner_id'], ['partners.id'], ),
-    sa.ForeignKeyConstraint(['type_id'], ['expense_types.id'], ),
-    sa.ForeignKeyConstraint(['warehouse_id'], ['warehouses.id'], ),
+    sa.ForeignKeyConstraint(['employee_id'], ['employees.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['partner_id'], ['partners.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['type_id'], ['expense_types.id'], ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['warehouse_id'], ['warehouses.id'], ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id')
     )
+    with op.batch_alter_table('expenses', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_expenses_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_expenses_date'), ['date'], unique=False)
+        batch_op.create_index(batch_op.f('ix_expenses_employee_id'), ['employee_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_expenses_partner_id'), ['partner_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_expenses_tax_invoice_number'), ['tax_invoice_number'], unique=False)
+        batch_op.create_index(batch_op.f('ix_expenses_type_id'), ['type_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_expenses_updated_at'), ['updated_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_expenses_warehouse_id'), ['warehouse_id'], unique=False)
+
     op.create_table('notes',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('content', sa.Text(), nullable=False),
-    sa.Column('author_id', sa.Integer(), nullable=False),
+    sa.Column('author_id', sa.Integer(), nullable=True),
     sa.Column('entity_type', sa.String(length=50), nullable=True),
     sa.Column('entity_id', sa.Integer(), nullable=True),
-    sa.Column('is_pinned', sa.Boolean(), nullable=True),
-    sa.Column('priority', sa.Enum('LOW', 'MEDIUM', 'HIGH', name='note_priority'), nullable=False),
+    sa.Column('is_pinned', sa.Boolean(), server_default=sa.text('0'), nullable=False),
+    sa.Column('priority', sa.Enum('LOW', 'MEDIUM', 'HIGH', name='note_priority', native_enum=False), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.ForeignKeyConstraint(['author_id'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['author_id'], ['users.id'], ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id')
     )
+    with op.batch_alter_table('notes', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_notes_author_id'), ['author_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_notes_created_at'), ['created_at'], unique=False)
+        batch_op.create_index('ix_notes_entity', ['entity_type', 'entity_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_notes_entity_id'), ['entity_id'], unique=False)
+        batch_op.create_index('ix_notes_entity_pinned_created', ['entity_type', 'entity_id', 'is_pinned', 'created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_notes_entity_type'), ['entity_type'], unique=False)
+        batch_op.create_index(batch_op.f('ix_notes_is_pinned'), ['is_pinned'], unique=False)
+        batch_op.create_index(batch_op.f('ix_notes_priority'), ['priority'], unique=False)
+        batch_op.create_index(batch_op.f('ix_notes_updated_at'), ['updated_at'], unique=False)
+
     op.create_table('online_cart_items',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('cart_id', sa.Integer(), nullable=False),
     sa.Column('product_id', sa.Integer(), nullable=False),
-    sa.Column('quantity', sa.Integer(), nullable=True),
+    sa.Column('quantity', sa.Integer(), nullable=False),
     sa.Column('price', sa.Numeric(precision=12, scale=2), nullable=False),
     sa.Column('added_at', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['cart_id'], ['online_carts.id'], ),
-    sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.CheckConstraint('price >= 0', name='chk_cart_item_price_non_negative'),
+    sa.CheckConstraint('quantity > 0', name='chk_cart_item_qty_positive'),
+    sa.ForeignKeyConstraint(['cart_id'], ['online_carts.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['product_id'], ['products.id'], ondelete='RESTRICT'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('cart_id', 'product_id', name='uq_cart_item_cart_product')
     )
+    with op.batch_alter_table('online_cart_items', schema=None) as batch_op:
+        batch_op.create_index('ix_cart_item_cart_product', ['cart_id', 'product_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_online_cart_items_added_at'), ['added_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_online_cart_items_cart_id'), ['cart_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_online_cart_items_product_id'), ['product_id'], unique=False)
+
     op.create_table('online_preorders',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('order_number', sa.String(length=50), nullable=True),
@@ -340,8 +460,8 @@ def upgrade():
     sa.Column('total_amount', sa.Numeric(precision=12, scale=2), nullable=True),
     sa.Column('expected_fulfillment', sa.DateTime(), nullable=True),
     sa.Column('actual_fulfillment', sa.DateTime(), nullable=True),
-    sa.Column('status', sa.Enum('PENDING', 'CONFIRMED', 'FULFILLED', 'CANCELLED', name='online_preorder_status'), nullable=False),
-    sa.Column('payment_status', sa.Enum('PENDING', 'PARTIAL', 'PAID', name='online_preorder_payment_status'), nullable=False),
+    sa.Column('status', sa.Enum('PENDING', 'CONFIRMED', 'FULFILLED', 'CANCELLED', name='online_preorder_status', native_enum=False), nullable=False),
+    sa.Column('payment_status', sa.Enum('PENDING', 'PARTIAL', 'PAID', name='online_preorder_payment_status', native_enum=False), nullable=False),
     sa.Column('payment_method', sa.String(length=50), nullable=True),
     sa.Column('notes', sa.Text(), nullable=True),
     sa.Column('shipping_address', sa.Text(), nullable=True),
@@ -350,11 +470,19 @@ def upgrade():
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.CheckConstraint('prepaid_amount >= 0', name='chk_online_prepaid_non_negative'),
     sa.CheckConstraint('total_amount  >= 0', name='chk_online_total_non_negative'),
-    sa.ForeignKeyConstraint(['cart_id'], ['online_carts.id'], ),
-    sa.ForeignKeyConstraint(['customer_id'], ['customers.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('order_number')
+    sa.ForeignKeyConstraint(['cart_id'], ['online_carts.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['customer_id'], ['customers.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id')
     )
+    with op.batch_alter_table('online_preorders', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_online_preorders_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_online_preorders_customer_id'), ['customer_id'], unique=False)
+        batch_op.create_index('ix_online_preorders_customer_status', ['customer_id', 'status'], unique=False)
+        batch_op.create_index(batch_op.f('ix_online_preorders_order_number'), ['order_number'], unique=True)
+        batch_op.create_index(batch_op.f('ix_online_preorders_payment_status'), ['payment_status'], unique=False)
+        batch_op.create_index(batch_op.f('ix_online_preorders_status'), ['status'], unique=False)
+        batch_op.create_index(batch_op.f('ix_online_preorders_updated_at'), ['updated_at'], unique=False)
+
     op.create_table('preorders',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('reference', sa.String(length=50), nullable=True),
@@ -368,13 +496,13 @@ def upgrade():
     sa.Column('quantity', sa.Integer(), nullable=False),
     sa.Column('prepaid_amount', sa.Numeric(precision=12, scale=2), nullable=True),
     sa.Column('tax_rate', sa.Numeric(precision=5, scale=2), nullable=True),
-    sa.Column('status', sa.Enum('PENDING', 'CONFIRMED', 'FULFILLED', 'CANCELLED', name='preorder_status'), nullable=True),
+    sa.Column('status', sa.Enum('PENDING', 'CONFIRMED', 'FULFILLED', 'CANCELLED', name='preorder_status', native_enum=False), nullable=True),
     sa.Column('notes', sa.Text(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.CheckConstraint('prepaid_amount>=0', name='chk_preorder_prepaid_non_negative'),
-    sa.CheckConstraint('quantity>0', name='chk_preorder_quantity_positive'),
-    sa.CheckConstraint('tax_rate>=0 AND tax_rate<=100', name='chk_preorder_tax_rate'),
+    sa.CheckConstraint('prepaid_amount >= 0', name='chk_preorder_prepaid_non_negative'),
+    sa.CheckConstraint('quantity > 0', name='chk_preorder_quantity_positive'),
+    sa.CheckConstraint('tax_rate >= 0 AND tax_rate <= 100', name='chk_preorder_tax_rate'),
     sa.ForeignKeyConstraint(['customer_id'], ['customers.id'], ),
     sa.ForeignKeyConstraint(['partner_id'], ['partners.id'], ),
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
@@ -383,6 +511,10 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('reference')
     )
+    with op.batch_alter_table('preorders', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_preorders_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_preorders_updated_at'), ['updated_at'], unique=False)
+
     op.create_table('product_partners',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('product_id', sa.Integer(), nullable=False),
@@ -395,6 +527,9 @@ def upgrade():
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    with op.batch_alter_table('product_partners', schema=None) as batch_op:
+        batch_op.create_index('ix_product_partner_pair', ['product_id', 'partner_id'], unique=False)
+
     op.create_table('product_supplier_loans',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('product_id', sa.Integer(), nullable=False),
@@ -407,36 +542,50 @@ def upgrade():
     sa.Column('notes', sa.Text(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.CheckConstraint('loan_value >= 0', name='chk_loan_value_non_negative'),
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
     sa.ForeignKeyConstraint(['supplier_id'], ['suppliers.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    with op.batch_alter_table('product_supplier_loans', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_product_supplier_loans_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_product_supplier_loans_updated_at'), ['updated_at'], unique=False)
+        batch_op.create_index('ix_psl_product_supplier', ['product_id', 'supplier_id'], unique=False)
+
     op.create_table('service_requests',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('service_number', sa.String(length=50), nullable=True),
-    sa.Column('request_date', sa.DateTime(), nullable=True),
     sa.Column('customer_id', sa.Integer(), nullable=False),
     sa.Column('mechanic_id', sa.Integer(), nullable=True),
-    sa.Column('vehicle_vrn', sa.String(length=50), nullable=False),
     sa.Column('vehicle_type_id', sa.Integer(), nullable=True),
+    sa.Column('status', sa.Enum('PENDING', 'DIAGNOSIS', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'ON_HOLD', name='service_status', native_enum=False), nullable=False),
+    sa.Column('priority', sa.Enum('LOW', 'MEDIUM', 'HIGH', 'URGENT', name='service_priority', native_enum=False), nullable=False),
+    sa.Column('vehicle_vrn', sa.String(length=50), nullable=True),
     sa.Column('vehicle_model', sa.String(length=100), nullable=True),
     sa.Column('chassis_number', sa.String(length=100), nullable=True),
-    sa.Column('problem_description', sa.Text(), nullable=True),
     sa.Column('engineer_notes', sa.Text(), nullable=True),
-    sa.Column('diagnosis', sa.Text(), nullable=True),
-    sa.Column('solution', sa.Text(), nullable=True),
-    sa.Column('status', sa.Enum('PENDING', 'DIAGNOSIS', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'ON_HOLD', name='service_status'), nullable=True),
-    sa.Column('priority', sa.Enum('LOW', 'MEDIUM', 'HIGH', 'URGENT', name='service_priority'), nullable=True),
+    sa.Column('description', sa.Text(), nullable=True),
     sa.Column('estimated_duration', sa.Integer(), nullable=True),
     sa.Column('actual_duration', sa.Integer(), nullable=True),
     sa.Column('estimated_cost', sa.Numeric(precision=12, scale=2), nullable=True),
     sa.Column('total_cost', sa.Numeric(precision=12, scale=2), nullable=True),
+    sa.Column('start_time', sa.Date(), nullable=True),
+    sa.Column('end_time', sa.Date(), nullable=True),
+    sa.Column('problem_description', sa.Text(), nullable=True),
+    sa.Column('diagnosis', sa.Text(), nullable=True),
+    sa.Column('resolution', sa.Text(), nullable=True),
+    sa.Column('notes', sa.Text(), nullable=True),
+    sa.Column('received_at', sa.DateTime(), nullable=True),
+    sa.Column('started_at', sa.DateTime(), nullable=True),
+    sa.Column('expected_delivery', sa.DateTime(), nullable=True),
+    sa.Column('completed_at', sa.DateTime(), nullable=True),
+    sa.Column('currency', sa.String(length=10), nullable=False),
     sa.Column('tax_rate', sa.Numeric(precision=5, scale=2), nullable=True),
-    sa.Column('start_time', sa.DateTime(), nullable=True),
-    sa.Column('end_time', sa.DateTime(), nullable=True),
-    sa.Column('name', sa.String(length=100), nullable=True),
-    sa.Column('phone', sa.String(length=20), nullable=True),
-    sa.Column('email', sa.String(length=100), nullable=True),
+    sa.Column('discount_total', sa.Numeric(precision=12, scale=2), nullable=True),
+    sa.Column('parts_total', sa.Numeric(precision=12, scale=2), nullable=True),
+    sa.Column('labor_total', sa.Numeric(precision=12, scale=2), nullable=True),
+    sa.Column('total_amount', sa.Numeric(precision=12, scale=2), nullable=True),
+    sa.Column('warranty_days', sa.Integer(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['customer_id'], ['customers.id'], ),
@@ -445,7 +594,17 @@ def upgrade():
     sa.PrimaryKeyConstraint('id')
     )
     with op.batch_alter_table('service_requests', schema=None) as batch_op:
-        batch_op.create_index(batch_op.f('ix_service_requests_service_number'), ['service_number'], unique=False)
+        batch_op.create_index('ix_service_customer_status', ['customer_id', 'status'], unique=False)
+        batch_op.create_index('ix_service_mechanic_status', ['mechanic_id', 'status'], unique=False)
+        batch_op.create_index(batch_op.f('ix_service_requests_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_service_requests_customer_id'), ['customer_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_service_requests_mechanic_id'), ['mechanic_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_service_requests_priority'), ['priority'], unique=False)
+        batch_op.create_index(batch_op.f('ix_service_requests_received_at'), ['received_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_service_requests_service_number'), ['service_number'], unique=True)
+        batch_op.create_index(batch_op.f('ix_service_requests_status'), ['status'], unique=False)
+        batch_op.create_index(batch_op.f('ix_service_requests_updated_at'), ['updated_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_service_requests_vehicle_type_id'), ['vehicle_type_id'], unique=False)
 
     op.create_table('stock_levels',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -455,15 +614,23 @@ def upgrade():
     sa.Column('reserved_quantity', sa.Integer(), nullable=False),
     sa.Column('min_stock', sa.Integer(), nullable=True),
     sa.Column('max_stock', sa.Integer(), nullable=True),
-    sa.Column('last_updated', sa.DateTime(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.CheckConstraint('(max_stock IS NULL OR max_stock >= 0)', name='ck_max_non_negative'),
+    sa.CheckConstraint('(min_stock IS NULL OR max_stock IS NULL OR max_stock >= min_stock)', name='ck_max_ge_min'),
+    sa.CheckConstraint('(min_stock IS NULL OR min_stock >= 0)', name='ck_min_non_negative'),
     sa.CheckConstraint('quantity >= 0', name='ck_stock_non_negative'),
     sa.CheckConstraint('reserved_quantity >= 0', name='ck_reserved_non_negative'),
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
     sa.ForeignKeyConstraint(['warehouse_id'], ['warehouses.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('product_id', 'warehouse_id', name='uq_stock_product_wh')
     )
+    with op.batch_alter_table('stock_levels', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_stock_levels_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_stock_levels_updated_at'), ['updated_at'], unique=False)
+        batch_op.create_index('ix_stock_product_wh', ['product_id', 'warehouse_id'], unique=False)
+
     op.create_table('transfers',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('reference', sa.String(length=50), nullable=True),
@@ -471,12 +638,14 @@ def upgrade():
     sa.Column('source_id', sa.Integer(), nullable=False),
     sa.Column('destination_id', sa.Integer(), nullable=False),
     sa.Column('quantity', sa.Integer(), nullable=False),
-    sa.Column('direction', sa.Enum('IN', 'OUT', 'ADJUSTMENT', name='transfer_direction'), nullable=False),
+    sa.Column('direction', sa.Enum('IN', 'OUT', 'ADJUSTMENT', name='transfer_direction', native_enum=False), nullable=False),
     sa.Column('transfer_date', sa.DateTime(), nullable=True),
     sa.Column('notes', sa.Text(), nullable=True),
     sa.Column('user_id', sa.Integer(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.CheckConstraint('quantity > 0', name='chk_transfer_qty_positive'),
+    sa.CheckConstraint('source_id <> destination_id', name='chk_transfer_diff_wh'),
     sa.ForeignKeyConstraint(['destination_id'], ['warehouses.id'], ),
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
     sa.ForeignKeyConstraint(['source_id'], ['warehouses.id'], ),
@@ -484,6 +653,11 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('reference')
     )
+    with op.batch_alter_table('transfers', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_transfers_created_at'), ['created_at'], unique=False)
+        batch_op.create_index('ix_transfers_transfer_date', ['transfer_date'], unique=False)
+        batch_op.create_index(batch_op.f('ix_transfers_updated_at'), ['updated_at'], unique=False)
+
     op.create_table('user_permissions',
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('permission_id', sa.Integer(), nullable=False),
@@ -504,22 +678,26 @@ def upgrade():
     sa.ForeignKeyConstraint(['partner_id'], ['partners.id'], ),
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
     sa.ForeignKeyConstraint(['warehouse_id'], ['warehouses.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('partner_id', 'warehouse_id', 'product_id', name='uq_wps_partner_wh_prod')
     )
     with op.batch_alter_table('warehouse_partner_shares', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_warehouse_partner_shares_created_at'), ['created_at'], unique=False)
         batch_op.create_index(batch_op.f('ix_warehouse_partner_shares_partner_id'), ['partner_id'], unique=False)
         batch_op.create_index(batch_op.f('ix_warehouse_partner_shares_product_id'), ['product_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_warehouse_partner_shares_updated_at'), ['updated_at'], unique=False)
         batch_op.create_index(batch_op.f('ix_warehouse_partner_shares_warehouse_id'), ['warehouse_id'], unique=False)
+        batch_op.create_index('ix_wps_partner_wh_prod', ['partner_id', 'warehouse_id', 'product_id'], unique=False)
 
     op.create_table('online_payments',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('payment_ref', sa.String(length=100), nullable=True),
     sa.Column('order_id', sa.Integer(), nullable=False),
     sa.Column('amount', sa.Numeric(precision=12, scale=2), nullable=False),
-    sa.Column('currency', sa.String(length=10), nullable=True),
+    sa.Column('currency', sa.String(length=10), nullable=False),
     sa.Column('method', sa.String(length=50), nullable=True),
     sa.Column('gateway', sa.String(length=50), nullable=True),
-    sa.Column('status', sa.Enum('PENDING', 'SUCCESS', 'FAILED', 'REFUNDED', name='online_payment_status'), nullable=False),
+    sa.Column('status', sa.Enum('PENDING', 'SUCCESS', 'FAILED', 'REFUNDED', name='online_payment_status', native_enum=False), nullable=False),
     sa.Column('transaction_data', sa.JSON(), nullable=True),
     sa.Column('processed_at', sa.DateTime(), nullable=True),
     sa.Column('card_last4', sa.String(length=4), nullable=True),
@@ -530,27 +708,38 @@ def upgrade():
     sa.Column('card_fingerprint', sa.String(length=64), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.ForeignKeyConstraint(['order_id'], ['online_preorders.id'], ),
+    sa.CheckConstraint('amount > 0', name='chk_online_payment_amount_positive'),
+    sa.ForeignKeyConstraint(['order_id'], ['online_preorders.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     with op.batch_alter_table('online_payments', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_online_payments_card_fingerprint'), ['card_fingerprint'], unique=False)
         batch_op.create_index(batch_op.f('ix_online_payments_card_last4'), ['card_last4'], unique=False)
+        batch_op.create_index(batch_op.f('ix_online_payments_created_at'), ['created_at'], unique=False)
         batch_op.create_index(batch_op.f('ix_online_payments_order_id'), ['order_id'], unique=False)
         batch_op.create_index('ix_online_payments_order_status', ['order_id', 'status'], unique=False)
         batch_op.create_index(batch_op.f('ix_online_payments_payment_ref'), ['payment_ref'], unique=True)
         batch_op.create_index(batch_op.f('ix_online_payments_status'), ['status'], unique=False)
+        batch_op.create_index(batch_op.f('ix_online_payments_updated_at'), ['updated_at'], unique=False)
 
     op.create_table('online_preorder_items',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('order_id', sa.Integer(), nullable=False),
     sa.Column('product_id', sa.Integer(), nullable=False),
-    sa.Column('quantity', sa.Integer(), nullable=True),
+    sa.Column('quantity', sa.Integer(), nullable=False),
     sa.Column('price', sa.Numeric(precision=12, scale=2), nullable=False),
-    sa.ForeignKeyConstraint(['order_id'], ['online_preorders.id'], ),
-    sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.CheckConstraint('price >= 0', name='chk_online_item_price_non_negative'),
+    sa.CheckConstraint('quantity > 0', name='chk_online_item_qty_positive'),
+    sa.ForeignKeyConstraint(['order_id'], ['online_preorders.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['product_id'], ['products.id'], ondelete='RESTRICT'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('order_id', 'product_id', name='uq_online_item_order_product')
     )
+    with op.batch_alter_table('online_preorder_items', schema=None) as batch_op:
+        batch_op.create_index('ix_online_item_order_product', ['order_id', 'product_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_online_preorder_items_order_id'), ['order_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_online_preorder_items_product_id'), ['product_id'], unique=False)
+
     op.create_table('sales',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('sale_number', sa.String(length=50), nullable=True),
@@ -561,8 +750,8 @@ def upgrade():
     sa.Column('tax_rate', sa.Numeric(precision=5, scale=2), nullable=True),
     sa.Column('discount_total', sa.Numeric(precision=12, scale=2), nullable=True),
     sa.Column('notes', sa.Text(), nullable=True),
-    sa.Column('status', sa.Enum('DRAFT', 'CONFIRMED', 'CANCELLED', 'REFUNDED', name='sale_status'), nullable=False),
-    sa.Column('payment_status', sa.Enum('PENDING', 'PARTIAL', 'PAID', name='sale_payment_progress'), nullable=False),
+    sa.Column('status', sa.Enum('DRAFT', 'CONFIRMED', 'CANCELLED', 'REFUNDED', name='sale_status', native_enum=False), nullable=False),
+    sa.Column('payment_status', sa.Enum('PENDING', 'PARTIAL', 'PAID', 'REFUNDED', name='sale_payment_progress', native_enum=False), nullable=False),
     sa.Column('currency', sa.String(length=10), nullable=True),
     sa.Column('shipping_address', sa.Text(), nullable=True),
     sa.Column('billing_address', sa.Text(), nullable=True),
@@ -576,24 +765,41 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('sale_number')
     )
+    with op.batch_alter_table('sales', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_sales_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_sales_updated_at'), ['updated_at'], unique=False)
+
     op.create_table('service_parts',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('service_id', sa.Integer(), nullable=False),
     sa.Column('part_id', sa.Integer(), nullable=False),
     sa.Column('warehouse_id', sa.Integer(), nullable=False),
-    sa.Column('partner_id', sa.Integer(), nullable=True),
-    sa.Column('share_percentage', sa.Numeric(precision=5, scale=2), nullable=True),
     sa.Column('quantity', sa.Integer(), nullable=False),
     sa.Column('unit_price', sa.Numeric(precision=10, scale=2), nullable=False),
     sa.Column('discount', sa.Numeric(precision=5, scale=2), nullable=True),
     sa.Column('tax_rate', sa.Numeric(precision=5, scale=2), nullable=True),
     sa.Column('note', sa.String(length=200), nullable=True),
+    sa.Column('partner_id', sa.Integer(), nullable=True),
+    sa.Column('share_percentage', sa.Numeric(precision=5, scale=2), nullable=True),
+    sa.CheckConstraint('discount >= 0 AND discount <= 100', name='chk_service_part_discount_range'),
+    sa.CheckConstraint('quantity > 0', name='chk_service_part_qty_positive'),
+    sa.CheckConstraint('share_percentage >= 0 AND share_percentage <= 100', name='chk_service_part_share_range'),
+    sa.CheckConstraint('tax_rate >= 0 AND tax_rate <= 100', name='chk_service_part_tax_range'),
+    sa.CheckConstraint('unit_price >= 0', name='chk_service_part_price_non_negative'),
     sa.ForeignKeyConstraint(['part_id'], ['products.id'], ),
     sa.ForeignKeyConstraint(['partner_id'], ['partners.id'], ),
-    sa.ForeignKeyConstraint(['service_id'], ['service_requests.id'], ),
+    sa.ForeignKeyConstraint(['service_id'], ['service_requests.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['warehouse_id'], ['warehouses.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('service_id', 'part_id', 'warehouse_id', name='uq_service_part_unique')
     )
+    with op.batch_alter_table('service_parts', schema=None) as batch_op:
+        batch_op.create_index('ix_service_part_pair', ['service_id', 'part_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_service_parts_part_id'), ['part_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_service_parts_partner_id'), ['partner_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_service_parts_service_id'), ['service_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_service_parts_warehouse_id'), ['warehouse_id'], unique=False)
+
     op.create_table('service_tasks',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('service_id', sa.Integer(), nullable=False),
@@ -605,10 +811,19 @@ def upgrade():
     sa.Column('discount', sa.Numeric(precision=5, scale=2), nullable=True),
     sa.Column('tax_rate', sa.Numeric(precision=5, scale=2), nullable=True),
     sa.Column('note', sa.String(length=200), nullable=True),
+    sa.CheckConstraint('discount >= 0 AND discount <= 100', name='chk_service_task_discount_range'),
+    sa.CheckConstraint('quantity > 0', name='chk_service_task_qty_positive'),
+    sa.CheckConstraint('share_percentage >= 0 AND share_percentage <= 100', name='chk_service_task_share_range'),
+    sa.CheckConstraint('tax_rate >= 0 AND tax_rate <= 100', name='chk_service_task_tax_range'),
+    sa.CheckConstraint('unit_price >= 0', name='chk_service_task_price_non_negative'),
     sa.ForeignKeyConstraint(['partner_id'], ['partners.id'], ),
-    sa.ForeignKeyConstraint(['service_id'], ['service_requests.id'], ),
+    sa.ForeignKeyConstraint(['service_id'], ['service_requests.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
+    with op.batch_alter_table('service_tasks', schema=None) as batch_op:
+        batch_op.create_index('ix_service_task_service', ['service_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_service_tasks_service_id'), ['service_id'], unique=False)
+
     op.create_table('supplier_loan_settlements',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('loan_id', sa.Integer(), nullable=True),
@@ -618,13 +833,16 @@ def upgrade():
     sa.Column('notes', sa.Text(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.CheckConstraint('settled_price>=0', name='chk_settlement_price_non_negative'),
+    sa.CheckConstraint('settled_price >= 0', name='chk_settlement_price_non_negative'),
     sa.ForeignKeyConstraint(['loan_id'], ['product_supplier_loans.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['supplier_id'], ['suppliers.id'], ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id')
     )
     with op.batch_alter_table('supplier_loan_settlements', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_supplier_loan_settlements_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_supplier_loan_settlements_loan_id'), ['loan_id'], unique=False)
         batch_op.create_index(batch_op.f('ix_supplier_loan_settlements_supplier_id'), ['supplier_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_supplier_loan_settlements_updated_at'), ['updated_at'], unique=False)
 
     op.create_table('invoices',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -637,8 +855,8 @@ def upgrade():
     sa.Column('sale_id', sa.Integer(), nullable=True),
     sa.Column('service_id', sa.Integer(), nullable=True),
     sa.Column('preorder_id', sa.Integer(), nullable=True),
-    sa.Column('source', sa.Enum('MANUAL', 'SALE', 'SERVICE', 'PREORDER', 'SUPPLIER', 'PARTNER', 'ONLINE', name='invoice_source'), nullable=False),
-    sa.Column('status', sa.Enum('UNPAID', 'PARTIAL', 'PAID', 'CANCELLED', 'REFUNDED', name='invoice_status'), nullable=False),
+    sa.Column('source', sa.Enum('MANUAL', 'SALE', 'SERVICE', 'PREORDER', 'SUPPLIER', 'PARTNER', 'ONLINE', name='invoice_source', native_enum=False), nullable=False),
+    sa.Column('status', sa.Enum('UNPAID', 'PARTIAL', 'PAID', 'CANCELLED', 'REFUNDED', name='invoice_status', native_enum=False), nullable=False),
     sa.Column('currency', sa.String(length=10), nullable=False),
     sa.Column('total_amount', sa.Numeric(precision=12, scale=2), nullable=False),
     sa.Column('tax_amount', sa.Numeric(precision=12, scale=2), nullable=True),
@@ -656,6 +874,11 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('invoice_number')
     )
+    with op.batch_alter_table('invoices', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_invoices_created_at'), ['created_at'], unique=False)
+        batch_op.create_index('ix_invoices_customer_status', ['customer_id', 'status'], unique=False)
+        batch_op.create_index(batch_op.f('ix_invoices_updated_at'), ['updated_at'], unique=False)
+
     op.create_table('sale_lines',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('sale_id', sa.Integer(), nullable=False),
@@ -672,6 +895,9 @@ def upgrade():
     sa.ForeignKeyConstraint(['warehouse_id'], ['warehouses.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    with op.batch_alter_table('sale_lines', schema=None) as batch_op:
+        batch_op.create_index('ix_sale_line_sale', ['sale_id'], unique=False)
+
     op.create_table('shipments',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('shipment_number', sa.String(length=50), nullable=True),
@@ -681,7 +907,7 @@ def upgrade():
     sa.Column('origin', sa.String(length=100), nullable=True),
     sa.Column('destination', sa.String(length=100), nullable=True),
     sa.Column('destination_id', sa.Integer(), nullable=True),
-    sa.Column('status', sa.String(length=20), nullable=True),
+    sa.Column('status', sa.String(length=20), nullable=False),
     sa.Column('value_before', sa.Numeric(precision=12, scale=2), nullable=True),
     sa.Column('shipping_cost', sa.Numeric(precision=12, scale=2), nullable=True),
     sa.Column('customs', sa.Numeric(precision=12, scale=2), nullable=True),
@@ -690,15 +916,26 @@ def upgrade():
     sa.Column('carrier', sa.String(length=100), nullable=True),
     sa.Column('tracking_number', sa.String(length=100), nullable=True),
     sa.Column('notes', sa.Text(), nullable=True),
-    sa.Column('currency', sa.String(length=10), nullable=True),
+    sa.Column('currency', sa.String(length=10), nullable=False),
     sa.Column('sale_id', sa.Integer(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.CheckConstraint("status IN ('PENDING','IN_TRANSIT','ARRIVED','CANCELLED')", name='chk_shipment_status_allowed'),
     sa.ForeignKeyConstraint(['destination_id'], ['warehouses.id'], ),
     sa.ForeignKeyConstraint(['sale_id'], ['sales.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('shipment_number')
+    sa.PrimaryKeyConstraint('id')
     )
+    with op.batch_alter_table('shipments', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_shipments_created_at'), ['created_at'], unique=False)
+        batch_op.create_index('ix_shipments_dest_status', ['destination_id', 'status'], unique=False)
+        batch_op.create_index(batch_op.f('ix_shipments_destination_id'), ['destination_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_shipments_sale_id'), ['sale_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_shipments_shipment_date'), ['shipment_date'], unique=False)
+        batch_op.create_index(batch_op.f('ix_shipments_shipment_number'), ['shipment_number'], unique=True)
+        batch_op.create_index(batch_op.f('ix_shipments_status'), ['status'], unique=False)
+        batch_op.create_index(batch_op.f('ix_shipments_tracking_number'), ['tracking_number'], unique=False)
+        batch_op.create_index(batch_op.f('ix_shipments_updated_at'), ['updated_at'], unique=False)
+
     op.create_table('invoice_lines',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('invoice_id', sa.Integer(), nullable=False),
@@ -712,6 +949,9 @@ def upgrade():
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    with op.batch_alter_table('invoice_lines', schema=None) as batch_op:
+        batch_op.create_index('ix_invoice_lines_invoice', ['invoice_id'], unique=False)
+
     op.create_table('payments',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('payment_number', sa.String(length=50), nullable=False),
@@ -721,10 +961,10 @@ def upgrade():
     sa.Column('tax_amount', sa.Numeric(precision=10, scale=2), nullable=True),
     sa.Column('total_amount', sa.Numeric(precision=10, scale=2), nullable=False),
     sa.Column('currency', sa.String(length=10), nullable=False),
-    sa.Column('method', sa.Enum('cash', 'bank', 'card', 'cheque', 'online', name='payment_method'), nullable=False),
-    sa.Column('status', sa.Enum('PENDING', 'COMPLETED', 'FAILED', 'REFUNDED', name='payment_status'), nullable=False),
-    sa.Column('direction', sa.Enum('IN', 'OUT', name='payment_direction'), nullable=False),
-    sa.Column('entity_type', sa.Enum('CUSTOMER', 'SUPPLIER', 'PARTNER', 'SHIPMENT', 'EXPENSE', 'LOAN', 'SALE', 'INVOICE', 'PREORDER', 'SERVICE', name='payment_entity_type'), nullable=False),
+    sa.Column('method', sa.Enum('cash', 'bank', 'card', 'cheque', 'online', name='payment_method', native_enum=False), nullable=False),
+    sa.Column('status', sa.Enum('PENDING', 'COMPLETED', 'FAILED', 'REFUNDED', name='payment_status', native_enum=False), nullable=False),
+    sa.Column('direction', sa.Enum('IN', 'OUT', name='payment_direction', native_enum=False), nullable=False),
+    sa.Column('entity_type', sa.Enum('CUSTOMER', 'SUPPLIER', 'PARTNER', 'SHIPMENT', 'EXPENSE', 'LOAN', 'SALE', 'INVOICE', 'PREORDER', 'SERVICE', name='payment_entity_type', native_enum=False), nullable=False),
     sa.Column('reference', sa.String(length=100), nullable=True),
     sa.Column('receipt_number', sa.String(length=50), nullable=True),
     sa.Column('notes', sa.Text(), nullable=True),
@@ -747,6 +987,7 @@ def upgrade():
     sa.Column('invoice_id', sa.Integer(), nullable=True),
     sa.Column('preorder_id', sa.Integer(), nullable=True),
     sa.Column('service_id', sa.Integer(), nullable=True),
+    sa.CheckConstraint('(\n            (CASE WHEN customer_id IS NOT NULL THEN 1 ELSE 0 END) +\n            (CASE WHEN supplier_id IS NOT NULL THEN 1 ELSE 0 END) +\n            (CASE WHEN partner_id IS NOT NULL THEN 1 ELSE 0 END) +\n            (CASE WHEN shipment_id IS NOT NULL THEN 1 ELSE 0 END) +\n            (CASE WHEN expense_id IS NOT NULL THEN 1 ELSE 0 END) +\n            (CASE WHEN loan_settlement_id IS NOT NULL THEN 1 ELSE 0 END) +\n            (CASE WHEN sale_id IS NOT NULL THEN 1 ELSE 0 END) +\n            (CASE WHEN invoice_id IS NOT NULL THEN 1 ELSE 0 END) +\n            (CASE WHEN preorder_id IS NOT NULL THEN 1 ELSE 0 END) +\n            (CASE WHEN service_id IS NOT NULL THEN 1 ELSE 0 END)\n        ) = 1', name='ck_payment_one_target'),
     sa.CheckConstraint('total_amount > 0', name='ck_payment_total_positive'),
     sa.ForeignKeyConstraint(['created_by'], ['users.id'], ),
     sa.ForeignKeyConstraint(['customer_id'], ['customers.id'], ondelete='CASCADE'),
@@ -768,16 +1009,23 @@ def upgrade():
     sa.Column('shipment_id', sa.Integer(), nullable=False),
     sa.Column('product_id', sa.Integer(), nullable=False),
     sa.Column('warehouse_id', sa.Integer(), nullable=False),
-    sa.Column('quantity', sa.Integer(), nullable=True),
+    sa.Column('quantity', sa.Integer(), nullable=False),
     sa.Column('unit_cost', sa.Numeric(precision=10, scale=2), nullable=True),
     sa.Column('declared_value', sa.Numeric(precision=12, scale=2), nullable=True),
     sa.Column('notes', sa.String(length=200), nullable=True),
     sa.CheckConstraint('quantity > 0', name='chk_shipment_item_qty_positive'),
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
-    sa.ForeignKeyConstraint(['shipment_id'], ['shipments.id'], ),
+    sa.ForeignKeyConstraint(['shipment_id'], ['shipments.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['warehouse_id'], ['warehouses.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('shipment_id', 'product_id', 'warehouse_id', name='uq_shipment_item_unique')
     )
+    with op.batch_alter_table('shipment_items', schema=None) as batch_op:
+        batch_op.create_index('ix_shipment_items_prod_wh', ['product_id', 'warehouse_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_shipment_items_product_id'), ['product_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_shipment_items_shipment_id'), ['shipment_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_shipment_items_warehouse_id'), ['warehouse_id'], unique=False)
+
     op.create_table('shipment_partners',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('shipment_id', sa.Integer(), nullable=False),
@@ -793,14 +1041,22 @@ def upgrade():
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.CheckConstraint('share_percentage >= 0 AND share_percentage <= 100', name='chk_shipment_partner_share'),
-    sa.ForeignKeyConstraint(['partner_id'], ['partners.id'], ),
-    sa.ForeignKeyConstraint(['shipment_id'], ['shipments.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.ForeignKeyConstraint(['partner_id'], ['partners.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['shipment_id'], ['shipments.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('shipment_id', 'partner_id', name='uq_shipment_partner_unique')
     )
+    with op.batch_alter_table('shipment_partners', schema=None) as batch_op:
+        batch_op.create_index('ix_shipment_partner_pair', ['shipment_id', 'partner_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_shipment_partners_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_shipment_partners_partner_id'), ['partner_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_shipment_partners_shipment_id'), ['shipment_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_shipment_partners_updated_at'), ['updated_at'], unique=False)
+
     op.create_table('payment_splits',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('payment_id', sa.Integer(), nullable=False),
-    sa.Column('method', sa.Enum('cash', 'bank', 'card', 'cheque', 'online', name='split_payment_method'), nullable=False),
+    sa.Column('method', sa.Enum('cash', 'bank', 'card', 'cheque', 'online', name='split_payment_method', native_enum=False), nullable=False),
     sa.Column('amount', sa.Numeric(precision=12, scale=2), nullable=False),
     sa.Column('details', sa.JSON(), nullable=True),
     sa.CheckConstraint('amount > 0', name='chk_split_amount_positive'),
@@ -813,74 +1069,286 @@ def upgrade():
 def downgrade():
     # ### commands auto generated by Alembic - please adjust! ###
     op.drop_table('payment_splits')
+    with op.batch_alter_table('shipment_partners', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_shipment_partners_updated_at'))
+        batch_op.drop_index(batch_op.f('ix_shipment_partners_shipment_id'))
+        batch_op.drop_index(batch_op.f('ix_shipment_partners_partner_id'))
+        batch_op.drop_index(batch_op.f('ix_shipment_partners_created_at'))
+        batch_op.drop_index('ix_shipment_partner_pair')
+
     op.drop_table('shipment_partners')
+    with op.batch_alter_table('shipment_items', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_shipment_items_warehouse_id'))
+        batch_op.drop_index(batch_op.f('ix_shipment_items_shipment_id'))
+        batch_op.drop_index(batch_op.f('ix_shipment_items_product_id'))
+        batch_op.drop_index('ix_shipment_items_prod_wh')
+
     op.drop_table('shipment_items')
     op.drop_table('payments')
+    with op.batch_alter_table('invoice_lines', schema=None) as batch_op:
+        batch_op.drop_index('ix_invoice_lines_invoice')
+
     op.drop_table('invoice_lines')
+    with op.batch_alter_table('shipments', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_shipments_updated_at'))
+        batch_op.drop_index(batch_op.f('ix_shipments_tracking_number'))
+        batch_op.drop_index(batch_op.f('ix_shipments_status'))
+        batch_op.drop_index(batch_op.f('ix_shipments_shipment_number'))
+        batch_op.drop_index(batch_op.f('ix_shipments_shipment_date'))
+        batch_op.drop_index(batch_op.f('ix_shipments_sale_id'))
+        batch_op.drop_index(batch_op.f('ix_shipments_destination_id'))
+        batch_op.drop_index('ix_shipments_dest_status')
+        batch_op.drop_index(batch_op.f('ix_shipments_created_at'))
+
     op.drop_table('shipments')
+    with op.batch_alter_table('sale_lines', schema=None) as batch_op:
+        batch_op.drop_index('ix_sale_line_sale')
+
     op.drop_table('sale_lines')
+    with op.batch_alter_table('invoices', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_invoices_updated_at'))
+        batch_op.drop_index('ix_invoices_customer_status')
+        batch_op.drop_index(batch_op.f('ix_invoices_created_at'))
+
     op.drop_table('invoices')
     with op.batch_alter_table('supplier_loan_settlements', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_supplier_loan_settlements_updated_at'))
         batch_op.drop_index(batch_op.f('ix_supplier_loan_settlements_supplier_id'))
+        batch_op.drop_index(batch_op.f('ix_supplier_loan_settlements_loan_id'))
+        batch_op.drop_index(batch_op.f('ix_supplier_loan_settlements_created_at'))
 
     op.drop_table('supplier_loan_settlements')
+    with op.batch_alter_table('service_tasks', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_service_tasks_service_id'))
+        batch_op.drop_index('ix_service_task_service')
+
     op.drop_table('service_tasks')
+    with op.batch_alter_table('service_parts', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_service_parts_warehouse_id'))
+        batch_op.drop_index(batch_op.f('ix_service_parts_service_id'))
+        batch_op.drop_index(batch_op.f('ix_service_parts_partner_id'))
+        batch_op.drop_index(batch_op.f('ix_service_parts_part_id'))
+        batch_op.drop_index('ix_service_part_pair')
+
     op.drop_table('service_parts')
+    with op.batch_alter_table('sales', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_sales_updated_at'))
+        batch_op.drop_index(batch_op.f('ix_sales_created_at'))
+
     op.drop_table('sales')
+    with op.batch_alter_table('online_preorder_items', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_online_preorder_items_product_id'))
+        batch_op.drop_index(batch_op.f('ix_online_preorder_items_order_id'))
+        batch_op.drop_index('ix_online_item_order_product')
+
     op.drop_table('online_preorder_items')
     with op.batch_alter_table('online_payments', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_online_payments_updated_at'))
         batch_op.drop_index(batch_op.f('ix_online_payments_status'))
         batch_op.drop_index(batch_op.f('ix_online_payments_payment_ref'))
         batch_op.drop_index('ix_online_payments_order_status')
         batch_op.drop_index(batch_op.f('ix_online_payments_order_id'))
+        batch_op.drop_index(batch_op.f('ix_online_payments_created_at'))
         batch_op.drop_index(batch_op.f('ix_online_payments_card_last4'))
         batch_op.drop_index(batch_op.f('ix_online_payments_card_fingerprint'))
 
     op.drop_table('online_payments')
     with op.batch_alter_table('warehouse_partner_shares', schema=None) as batch_op:
+        batch_op.drop_index('ix_wps_partner_wh_prod')
         batch_op.drop_index(batch_op.f('ix_warehouse_partner_shares_warehouse_id'))
+        batch_op.drop_index(batch_op.f('ix_warehouse_partner_shares_updated_at'))
         batch_op.drop_index(batch_op.f('ix_warehouse_partner_shares_product_id'))
         batch_op.drop_index(batch_op.f('ix_warehouse_partner_shares_partner_id'))
+        batch_op.drop_index(batch_op.f('ix_warehouse_partner_shares_created_at'))
 
     op.drop_table('warehouse_partner_shares')
     op.drop_table('user_permissions')
+    with op.batch_alter_table('transfers', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_transfers_updated_at'))
+        batch_op.drop_index('ix_transfers_transfer_date')
+        batch_op.drop_index(batch_op.f('ix_transfers_created_at'))
+
     op.drop_table('transfers')
+    with op.batch_alter_table('stock_levels', schema=None) as batch_op:
+        batch_op.drop_index('ix_stock_product_wh')
+        batch_op.drop_index(batch_op.f('ix_stock_levels_updated_at'))
+        batch_op.drop_index(batch_op.f('ix_stock_levels_created_at'))
+
     op.drop_table('stock_levels')
     with op.batch_alter_table('service_requests', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_service_requests_vehicle_type_id'))
+        batch_op.drop_index(batch_op.f('ix_service_requests_updated_at'))
+        batch_op.drop_index(batch_op.f('ix_service_requests_status'))
         batch_op.drop_index(batch_op.f('ix_service_requests_service_number'))
+        batch_op.drop_index(batch_op.f('ix_service_requests_received_at'))
+        batch_op.drop_index(batch_op.f('ix_service_requests_priority'))
+        batch_op.drop_index(batch_op.f('ix_service_requests_mechanic_id'))
+        batch_op.drop_index(batch_op.f('ix_service_requests_customer_id'))
+        batch_op.drop_index(batch_op.f('ix_service_requests_created_at'))
+        batch_op.drop_index('ix_service_mechanic_status')
+        batch_op.drop_index('ix_service_customer_status')
 
     op.drop_table('service_requests')
+    with op.batch_alter_table('product_supplier_loans', schema=None) as batch_op:
+        batch_op.drop_index('ix_psl_product_supplier')
+        batch_op.drop_index(batch_op.f('ix_product_supplier_loans_updated_at'))
+        batch_op.drop_index(batch_op.f('ix_product_supplier_loans_created_at'))
+
     op.drop_table('product_supplier_loans')
+    with op.batch_alter_table('product_partners', schema=None) as batch_op:
+        batch_op.drop_index('ix_product_partner_pair')
+
     op.drop_table('product_partners')
+    with op.batch_alter_table('preorders', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_preorders_updated_at'))
+        batch_op.drop_index(batch_op.f('ix_preorders_created_at'))
+
     op.drop_table('preorders')
+    with op.batch_alter_table('online_preorders', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_online_preorders_updated_at'))
+        batch_op.drop_index(batch_op.f('ix_online_preorders_status'))
+        batch_op.drop_index(batch_op.f('ix_online_preorders_payment_status'))
+        batch_op.drop_index(batch_op.f('ix_online_preorders_order_number'))
+        batch_op.drop_index('ix_online_preorders_customer_status')
+        batch_op.drop_index(batch_op.f('ix_online_preorders_customer_id'))
+        batch_op.drop_index(batch_op.f('ix_online_preorders_created_at'))
+
     op.drop_table('online_preorders')
+    with op.batch_alter_table('online_cart_items', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_online_cart_items_product_id'))
+        batch_op.drop_index(batch_op.f('ix_online_cart_items_cart_id'))
+        batch_op.drop_index(batch_op.f('ix_online_cart_items_added_at'))
+        batch_op.drop_index('ix_cart_item_cart_product')
+
     op.drop_table('online_cart_items')
+    with op.batch_alter_table('notes', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_notes_updated_at'))
+        batch_op.drop_index(batch_op.f('ix_notes_priority'))
+        batch_op.drop_index(batch_op.f('ix_notes_is_pinned'))
+        batch_op.drop_index(batch_op.f('ix_notes_entity_type'))
+        batch_op.drop_index('ix_notes_entity_pinned_created')
+        batch_op.drop_index(batch_op.f('ix_notes_entity_id'))
+        batch_op.drop_index('ix_notes_entity')
+        batch_op.drop_index(batch_op.f('ix_notes_created_at'))
+        batch_op.drop_index(batch_op.f('ix_notes_author_id'))
+
     op.drop_table('notes')
+    with op.batch_alter_table('expenses', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_expenses_warehouse_id'))
+        batch_op.drop_index(batch_op.f('ix_expenses_updated_at'))
+        batch_op.drop_index(batch_op.f('ix_expenses_type_id'))
+        batch_op.drop_index(batch_op.f('ix_expenses_tax_invoice_number'))
+        batch_op.drop_index(batch_op.f('ix_expenses_partner_id'))
+        batch_op.drop_index(batch_op.f('ix_expenses_employee_id'))
+        batch_op.drop_index(batch_op.f('ix_expenses_date'))
+        batch_op.drop_index(batch_op.f('ix_expenses_created_at'))
+
     op.drop_table('expenses')
+    with op.batch_alter_table('exchange_transactions', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_exchange_transactions_warehouse_id'))
+        batch_op.drop_index(batch_op.f('ix_exchange_transactions_updated_at'))
+        batch_op.drop_index(batch_op.f('ix_exchange_transactions_product_id'))
+        batch_op.drop_index(batch_op.f('ix_exchange_transactions_direction'))
+        batch_op.drop_index(batch_op.f('ix_exchange_transactions_created_at'))
+        batch_op.drop_index('ix_exchange_prod_wh')
+
     op.drop_table('exchange_transactions')
+    with op.batch_alter_table('audit_logs', schema=None) as batch_op:
+        batch_op.drop_index('ix_audit_user_time')
+        batch_op.drop_index('ix_audit_model_record')
+        batch_op.drop_index(batch_op.f('ix_audit_logs_user_id'))
+        batch_op.drop_index(batch_op.f('ix_audit_logs_updated_at'))
+        batch_op.drop_index(batch_op.f('ix_audit_logs_record_id'))
+        batch_op.drop_index(batch_op.f('ix_audit_logs_model_name'))
+        batch_op.drop_index(batch_op.f('ix_audit_logs_customer_id'))
+        batch_op.drop_index(batch_op.f('ix_audit_logs_created_at'))
+        batch_op.drop_index(batch_op.f('ix_audit_logs_action'))
+
     op.drop_table('audit_logs')
+    with op.batch_alter_table('warehouses', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_warehouses_updated_at'))
+        batch_op.drop_index(batch_op.f('ix_warehouses_created_at'))
+
     op.drop_table('warehouses')
+    with op.batch_alter_table('users', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_users_username'))
+        batch_op.drop_index(batch_op.f('ix_users_updated_at'))
+        batch_op.drop_index(batch_op.f('ix_users_role_id'))
+        batch_op.drop_index('ix_users_role_active')
+        batch_op.drop_index(batch_op.f('ix_users_email'))
+        batch_op.drop_index(batch_op.f('ix_users_created_at'))
+
     op.drop_table('users')
     op.drop_table('role_permissions')
+    with op.batch_alter_table('products', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_products_updated_at'))
+        batch_op.drop_index(batch_op.f('ix_products_created_at'))
+
     op.drop_table('products')
+    with op.batch_alter_table('online_carts', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_online_carts_updated_at'))
+        batch_op.drop_index(batch_op.f('ix_online_carts_status'))
+        batch_op.drop_index(batch_op.f('ix_online_carts_session_id'))
+        batch_op.drop_index(batch_op.f('ix_online_carts_expires_at'))
+        batch_op.drop_index(batch_op.f('ix_online_carts_customer_id'))
+        batch_op.drop_index(batch_op.f('ix_online_carts_created_at'))
+        batch_op.drop_index(batch_op.f('ix_online_carts_cart_id'))
+        batch_op.drop_index('ix_online_cart_customer_status')
+
     op.drop_table('online_carts')
     with op.batch_alter_table('suppliers', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_suppliers_updated_at'))
         batch_op.drop_index(batch_op.f('ix_suppliers_phone'))
+        batch_op.drop_index('ix_suppliers_name')
         batch_op.drop_index(batch_op.f('ix_suppliers_email'))
+        batch_op.drop_index(batch_op.f('ix_suppliers_created_at'))
 
     op.drop_table('suppliers')
+    with op.batch_alter_table('roles', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_roles_name'))
+        batch_op.drop_index('ix_roles_default_name')
+
     op.drop_table('roles')
+    with op.batch_alter_table('product_categories', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_product_categories_updated_at'))
+        batch_op.drop_index(batch_op.f('ix_product_categories_created_at'))
+
     op.drop_table('product_categories')
+    with op.batch_alter_table('permissions', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_permissions_name'))
+        batch_op.drop_index(batch_op.f('ix_permissions_code'))
+
     op.drop_table('permissions')
     with op.batch_alter_table('partners', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_partners_updated_at'))
+        batch_op.drop_index('ix_partners_name')
         batch_op.drop_index(batch_op.f('ix_partners_email'))
+        batch_op.drop_index(batch_op.f('ix_partners_created_at'))
 
     op.drop_table('partners')
+    with op.batch_alter_table('expense_types', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_expense_types_updated_at'))
+        batch_op.drop_index(batch_op.f('ix_expense_types_name'))
+        batch_op.drop_index(batch_op.f('ix_expense_types_created_at'))
+
     op.drop_table('expense_types')
+    with op.batch_alter_table('equipment_types', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_equipment_types_updated_at'))
+        batch_op.drop_index(batch_op.f('ix_equipment_types_created_at'))
+
     op.drop_table('equipment_types')
     with op.batch_alter_table('employees', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_employees_updated_at'))
+        batch_op.drop_index('ix_employees_name')
         batch_op.drop_index(batch_op.f('ix_employees_email'))
+        batch_op.drop_index(batch_op.f('ix_employees_created_at'))
 
     op.drop_table('employees')
+    with op.batch_alter_table('customers', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_customers_updated_at'))
+        batch_op.drop_index('ix_customers_name')
+        batch_op.drop_index(batch_op.f('ix_customers_created_at'))
+        batch_op.drop_index('ix_customers_active_online')
+
     op.drop_table('customers')
     # ### end Alembic commands ###
