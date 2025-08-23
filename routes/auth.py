@@ -43,74 +43,91 @@ def _redirect_back_or(default_endpoint: str, **kwargs):
     return redirect(url_for(default_endpoint, **kwargs))
 
 def _get_login_identifier(form: LoginForm) -> Optional[str]:
-    val = getattr(form.username, "data", None) or request.form.get("username") or request.form.get("email")
-    return (val or "").strip() or None
+    val = (getattr(form, "username", None) and form.username.data) or request.form.get("username") or request.form.get("email")
+    val = (val or "").strip()
+    return val or None
 
-login_attempts: dict[str, tuple[int, datetime]] = {}
+login_attempts: dict[tuple[str, str], tuple[int, datetime]] = {}
 MAX_ATTEMPTS = 5
 BLOCK_TIME = timedelta(minutes=10)
 
-def is_blocked(ip: str) -> bool:
-    info = login_attempts.get(ip)
+def _norm_ident(s: Optional[str]) -> str:
+    return (s or "").strip().lower()
+
+def is_blocked(ip: str, identifier: Optional[str]) -> bool:
+    key = (ip, _norm_ident(identifier))
+    info = login_attempts.get(key)
     if not info:
         return False
     attempts, last_time = info
     if attempts >= MAX_ATTEMPTS and datetime.utcnow() - last_time < BLOCK_TIME:
         return True
     if datetime.utcnow() - last_time >= BLOCK_TIME:
-        login_attempts.pop(ip, None)
+        login_attempts.pop(key, None)
     return False
 
-def record_attempt(ip: str) -> None:
-    attempts, _last_time = login_attempts.get(ip, (0, datetime.utcnow()))
-    login_attempts[ip] = (attempts + 1, datetime.utcnow())
+def record_attempt(ip: str, identifier: Optional[str]) -> None:
+    key = (ip, _norm_ident(identifier))
+    attempts, _last_time = login_attempts.get(key, (0, datetime.utcnow()))
+    login_attempts[key] = (attempts + 1, datetime.utcnow())
 
-def clear_attempts(ip: str) -> None:
-    login_attempts.pop(ip, None)
+def clear_attempts(ip: str, identifier: Optional[str]) -> None:
+    login_attempts.pop((ip, _norm_ident(identifier)), None)
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     ip = _get_client_ip()
-    if is_blocked(ip):
-        form = LoginForm()
+    form = LoginForm()
+
+    if request.method == "GET" and current_user.is_authenticated:
+        clear_attempts(ip, getattr(current_user, "email", None) or getattr(current_user, "username", None))
+        actor = current_user._get_current_object()
+        return _redirect_back_or("shop.catalog" if isinstance(actor, Customer) else "main.dashboard")
+
+    identifier = _get_login_identifier(form)
+
+    if is_blocked(ip, identifier):
         flash("❌ تم حظر محاولات الدخول مؤقتًا، حاول بعد 10 دقائق.", "danger")
         _audit("login.blocked", ok=False, note="blocked window")
         return render_template("auth/login.html", form=form)
 
-    form = LoginForm()
-
-    if request.method == "GET" and current_user.is_authenticated:
-        clear_attempts(ip)
-        actor = current_user._get_current_object()
-        return _redirect_back_or("shop.catalog" if isinstance(actor, Customer) else "main.dashboard")
-
     if request.method == "POST":
-        identifier = _get_login_identifier(form)
-        password = request.form.get("password", "")
+        password = request.form.get("password", "") or ""
         user = None
+        customer = None
 
         if identifier:
             stmt = select(User).where((User.username == identifier) | (User.email == identifier))
             user = db.session.execute(stmt).scalars().first()
+            if not user:
+                customer = Customer.query.filter(
+                    (Customer.email == identifier) | (Customer.phone == identifier) | (Customer.name == identifier)
+                ).first()
 
         if user and user.check_password(password):
-            remember = bool(getattr(form, "remember_me", False))
+            remember = bool(getattr(form, "remember_me", None) and getattr(form.remember_me, "data", False))
             if current_user.is_authenticated and getattr(current_user, "id", None) != user.id:
                 logout_user()
-
             login_user(user, remember=remember)
             try:
                 user.last_login = datetime.utcnow()
                 db.session.commit()
             except Exception:
                 db.session.rollback()
-
-            clear_attempts(ip)
+            clear_attempts(ip, identifier)
             _audit("login.success", ok=True, user_id=user.id)
-            actor = user
-            return _redirect_back_or("shop.catalog" if isinstance(actor, Customer) else "main.dashboard")
+            return _redirect_back_or("main.dashboard")
 
-        record_attempt(ip)
+        if customer and customer.check_password(password) and customer.is_online and customer.is_active:
+            remember = bool(getattr(form, "remember_me", None) and getattr(form.remember_me, "data", False))
+            if current_user.is_authenticated and getattr(current_user, "id", None) != customer.id:
+                logout_user()
+            login_user(customer, remember=remember)
+            clear_attempts(ip, identifier)
+            _audit("login.success.customer", ok=True, customer_id=customer.id)
+            return _redirect_back_or("shop.catalog")
+
+        record_attempt(ip, identifier)
         _audit("login.failed", ok=False, note=f"id={identifier or ''}")
         flash("❌ بيانات الدخول غير صحيحة.", "danger")
 
@@ -128,15 +145,12 @@ def logout():
 def customer_register():
     if current_user.is_authenticated:
         return redirect(url_for("shop.catalog"))
-
     form = CustomerFormOnline()
     if form.validate_on_submit():
-        # فحص إن كان الإيميل مستخدم من قبل مستخدم داخلي
         existing_user = User.query.filter_by(email=form.email.data).first()
         if existing_user:
             flash("❌ هذا البريد الإلكتروني مستخدم من قبل مستخدم داخلي. الرجاء استخدام بريد آخر.", "danger")
             return render_template("auth/customer_register.html", form=form)
-
         customer = Customer(
             name=form.name.data,
             email=form.email.data,
@@ -153,33 +167,27 @@ def customer_register():
         _audit("customer.register", ok=True, customer_id=customer.id)
         flash("✅ تم إنشاء حسابك بنجاح! يمكنك الآن استخدام المتجر.", "success")
         return redirect(url_for("shop.catalog"))
-
     return render_template("auth/customer_register.html", form=form)
 
 @auth_bp.route("/customer_password_reset_request", methods=["GET", "POST"])
 def customer_password_reset_request():
     if current_user.is_authenticated:
         return redirect(url_for("shop.catalog"))
-
     form = CustomerPasswordResetRequestForm()
     if form.validate_on_submit():
         customer = Customer.query.filter_by(email=form.email.data, is_active=True, is_online=True).first()
         if customer:
             send_customer_password_reset_email(customer)
-
         flash("📩 إذا كان البريد مسجلاً، ستصلك التعليمات قريبًا.", "info")
         return redirect(url_for("auth.login"))
-
     return render_template("auth/customer_password_reset_request.html", form=form)
 
 @auth_bp.route("/customer_password_reset/<token>", methods=["GET", "POST"])
 def customer_password_reset(token: str):
     if current_user.is_authenticated:
         return redirect(url_for("shop.catalog"))
-
     form = CustomerPasswordResetForm()
     serializer = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
-
     try:
         customer_id = serializer.loads(token, salt="customer-password-reset-salt", max_age=3600)
     except SignatureExpired:
@@ -188,16 +196,13 @@ def customer_password_reset(token: str):
     except BadSignature:
         flash("❌ الرابط غير صالح.", "danger")
         return redirect(url_for("auth.customer_password_reset_request"))
-
     customer = _sa_get_or_404(Customer, customer_id)
-
     if form.validate_on_submit():
         customer.set_password(form.password.data)
         db.session.commit()
         _audit("customer.password_reset", ok=True, customer_id=customer.id)
         flash("✅ تم تحديث كلمة المرور بنجاح.", "success")
         return redirect(url_for("auth.login"))
-
     return render_template("auth/customer_password_reset.html", form=form, token=token)
 
 def send_customer_password_reset_email(customer: Customer):

@@ -21,6 +21,8 @@ from utils import send_whatsapp_message
 
 shop_bp = Blueprint("shop", __name__, url_prefix="/shop", template_folder="templates/shop")
 
+
+# -------------------- Helpers --------------------
 def _get_or_404(model, ident, options=None):
     q = db.session.query(model)
     if options:
@@ -33,6 +35,7 @@ def _get_or_404(model, ident, options=None):
         abort(404)
     return obj
 
+
 def _resp(msg, cat="info", code=302, data=None, to="shop.catalog"):
     if request.is_json or request.args.get("format") == "json":
         payload = {"message": msg, "status": cat}
@@ -41,6 +44,7 @@ def _resp(msg, cat="info", code=302, data=None, to="shop.catalog"):
         return jsonify(payload), code
     flash(msg, cat)
     return redirect(url_for(to))
+
 
 def _json_loads(value: str) -> dict[str, Any]:
     value = (value or "").strip()
@@ -52,6 +56,7 @@ def _json_loads(value: str) -> dict[str, Any]:
         current_app.logger.warning("Invalid JSON: %s", value)
         return {}
 
+
 def _warehouse_types():
     raw = current_app.config.get("SHOP_WAREHOUSE_TYPES", ["MAIN", "INVENTORY"])
     vals = []
@@ -61,6 +66,7 @@ def _warehouse_types():
         except Exception:
             vals.append(t)
     return vals
+
 
 def available_qty(product_id: int) -> int:
     q = (
@@ -77,39 +83,60 @@ def available_qty(product_id: int) -> int:
         if tvals:
             q = q.filter(Warehouse.warehouse_type.in_(tvals))
     on_hand = q.scalar() or 0
+
     reserved = (
         db.session.query(func.coalesce(func.sum(OnlinePreOrderItem.quantity), 0))
         .join(OnlinePreOrder, OnlinePreOrderItem.order_id == OnlinePreOrder.id)
         .filter(
             OnlinePreOrderItem.product_id == product_id,
-            OnlinePreOrder.status.in_(("PENDING", "CONFIRMED"))
+            OnlinePreOrder.status.in_(("PENDING", "CONFIRMED")),
         )
-        .scalar() or 0
+        .scalar()
+        or 0
     )
     return max(0, int(on_hand) - int(reserved))
 
-def _is_super_admin(u) -> bool:
+
+# -------------------- Super Admin logic --------------------
+def _super_roles():
     try:
-        return (getattr(getattr(u, "role", None), "name", "") or "").lower() == "super_admin"
+        # لو مهيّأ في utils، استخدمه
+        from utils import _SUPER_ROLES as _SR
+        return {str(x).strip().lower() for x in (_SR or [])}
+    except Exception:
+        # fallback
+        return {"developer", "owner", "admin", "super_admin"}
+
+
+def is_super_admin(user) -> bool:
+    try:
+        if not getattr(user, "is_authenticated", False):
+            return False
+        rname = (getattr(getattr(user, "role", None), "name", "") or "").strip().lower()
+        return rname in _super_roles()
     except Exception:
         return False
+
 
 def super_admin_required(f):
     @wraps(f)
     @login_required
     def inner(*a, **kw):
-        if not _is_super_admin(current_user):
+        if not is_super_admin(current_user):
             abort(403)
         return f(*a, **kw)
     return inner
 
+
+# -------------------- Online customer gate --------------------
 def online_customer_required(f):
     @wraps(f)
     @login_required
     def inner(*a, **kw):
-        if _is_super_admin(current_user):
+        # السماح للسوبر أدمن بالمتابعة بهدف الاستعراض/الإدارة
+        if is_super_admin(current_user):
             g.online_customer = SimpleNamespace(
-                id=current_user.id,
+                id=current_user.id,             # ملاحظة: لو في FK صارم لجدول customers، تأكد من توافق المخطط
                 phone=getattr(current_user, "phone", None),
                 address=getattr(current_user, "address", None),
                 currency=getattr(current_user, "currency", "ILS"),
@@ -117,6 +144,7 @@ def online_customer_required(f):
                 name=getattr(current_user, "username", "Super Admin"),
             )
             return f(*a, **kw)
+
         cust = Customer.query.filter_by(id=current_user.id, is_online=True).first()
         if not cust:
             return _resp("لم يتم العثور على حساب العميل الإلكتروني.", "danger")
@@ -124,12 +152,16 @@ def online_customer_required(f):
         return f(*a, **kw)
     return inner
 
+
 def get_active_cart(customer_id):
     return OnlineCart.query.filter_by(customer_id=customer_id, status="ACTIVE").first()
 
+
+# -------------------- Routes --------------------
 @shop_bp.route("/", endpoint="catalog")
 def catalog():
-    if _is_super_admin(current_user):
+    # السوبر أدمن يشوف كل المنتجات؛ غيره يشوف الفعّالة في مخازن فعّالة فقط
+    if is_super_admin(current_user):
         q = db.session.query(Product)
     else:
         q = (
@@ -139,23 +171,27 @@ def catalog():
             .filter(Product.is_active.is_(True), Warehouse.is_active.is_(True))
         )
     products = q.order_by(Product.name).all()
+
     if request.is_json or request.args.get("format") == "json":
         return jsonify(
             [{"id": p.id, "name": p.name, "price": float(p.price or 0), "stock": available_qty(p.id)} for p in products]
         )
+
     return render_template(
         "shop/catalog.html",
         products=products,
         form=FlaskForm(),
         avail_map={p.id: available_qty(p.id) for p in products},
-        is_super_admin=_is_super_admin(current_user),
+        is_super_admin=is_super_admin(current_user),
     )
+
 
 @shop_bp.route("/products", endpoint="products")
 def products():
     products = Product.query.order_by(Product.name).all()
     avail_map = {p.id: available_qty(p.id) for p in products}
     return render_template("shop/products.html", products=products, avail_map=avail_map)
+
 
 @shop_bp.route("/order", methods=["POST"], endpoint="place_order")
 @online_customer_required
@@ -165,6 +201,7 @@ def place_order():
         return _resp("سلتك فارغة.", "warning")
     return redirect(url_for("shop.checkout"))
 
+
 @shop_bp.route("/cart/add/<int:product_id>", methods=["POST"], endpoint="add_to_cart")
 @online_customer_required
 def add_to_cart(product_id):
@@ -172,16 +209,19 @@ def add_to_cart(product_id):
     form = AddToOnlineCartForm()
     if not form.validate_on_submit():
         return _resp("بيانات غير صحيحة.", "danger")
+
     qty = int(form.quantity.data or 0)
     if qty <= 0:
         return _resp("كمية غير صالحة.", "danger")
     if qty > available_qty(product.id):
         return _resp("الكمية المطلوبة غير متوفرة!", "danger")
+
     cart = get_active_cart(g.online_customer.id) or OnlineCart(
         customer_id=g.online_customer.id, session_id=uuid.uuid4().hex, status="ACTIVE"
     )
     db.session.add(cart)
     db.session.flush()
+
     item = OnlineCartItem.query.filter_by(cart_id=cart.id, product_id=product.id).first()
     if item:
         if (item.quantity + qty) > available_qty(product.id):
@@ -196,12 +236,14 @@ def add_to_cart(product_id):
                 price=product.price or 0,
             )
         )
+
     try:
         db.session.commit()
         return _resp("تمت إضافة المنتج إلى السلة.", "success", code=200)
     except SQLAlchemyError as e:
         db.session.rollback()
         return _resp(f"خطأ أثناء الإضافة: {e}", "danger")
+
 
 @shop_bp.route("/cart", endpoint="cart")
 @online_customer_required
@@ -218,8 +260,9 @@ def cart():
         subtotal=subtotal,
         prepaid_amount=prepaid,
         form=FlaskForm(),
-        is_super_admin=_is_super_admin(current_user),
+        is_super_admin=is_super_admin(current_user),
     )
+
 
 @shop_bp.route("/cart/update/<int:item_id>", methods=["POST"], endpoint="update_cart_item")
 @online_customer_required
@@ -227,12 +270,15 @@ def update_cart_item(item_id):
     item = _get_or_404(OnlineCartItem, item_id)
     if item.cart.customer_id != g.online_customer.id:
         return _resp("غير مصرح.", "danger", to="shop.cart")
+
     new_qty = request.form.get("quantity", type=int)
     if not new_qty or new_qty <= 0:
         return _resp("كمية غير صالحة.", "danger", to="shop.cart")
+
     delta = new_qty - int(item.quantity or 0)
     if delta > 0 and delta > available_qty(item.product_id):
         return _resp("الكمية المطلوبة غير متوفرة!", "danger", to="shop.cart")
+
     item.quantity = new_qty
     try:
         db.session.commit()
@@ -240,6 +286,7 @@ def update_cart_item(item_id):
     except SQLAlchemyError as e:
         db.session.rollback()
         return _resp(f"خطأ أثناء التحديث: {e}", "danger", to="shop.cart")
+
 
 @shop_bp.route("/cart/remove/<int:item_id>", methods=["POST"], endpoint="remove_from_cart")
 @online_customer_required
@@ -255,8 +302,10 @@ def remove_from_cart(item_id):
         db.session.rollback()
         return _resp(f"خطأ أثناء الحذف: {e}", "danger", to="shop.cart")
 
+
+# ⚠️ كانت مجرد login_required — لازم سوبر أدمن
 @shop_bp.route('/admin/products/<int:id>/edit', methods=['GET', 'POST'])
-@login_required
+@super_admin_required
 def edit_product(id):
     product = db.session.get(Product, id) or abort(404)
     form = ProductForm(obj=product)
@@ -267,22 +316,27 @@ def edit_product(id):
         return redirect(url_for('shop.admin_products'))
     return render_template('shop/admin/product_edit.html', form=form, product=product)
 
+
 @shop_bp.route("/checkout", methods=["GET", "POST"], endpoint="checkout")
 @online_customer_required
 def checkout():
     cart = get_active_cart(g.online_customer.id)
     if not cart or not cart.items:
         return _resp("سلتك فارغة.", "warning", to="shop.catalog")
+
     subtotal = sum(i.quantity * float(i.price or 0) for i in cart.items)
     rate = float(current_app.config.get("SHOP_PREPAID_RATE", 0.2))
     prepaid = round(subtotal * rate, 2)
+
     form = OnlineCartPaymentForm()
     if request.method == "POST":
         if form.payment_method.data != "card":
             return _resp("الدفع عبر البطاقة فقط مسموح للحجز.", "danger")
+
     if form.validate_on_submit():
         try:
             with db.session.begin():
+                # قفل سجلات المخزون ذات الصلة
                 product_ids = [itm.product_id for itm in cart.items]
                 if product_ids:
                     q = (
@@ -297,11 +351,15 @@ def checkout():
                         tvals = _warehouse_types()
                         if tvals:
                             q = q.filter(Warehouse.warehouse_type.in_(tvals))
-                    q = q.with_for_update().all()
+                    _ = q.with_for_update().all()
+
+                # تحقق توافر
                 for itm in cart.items:
                     if itm.quantity > available_qty(itm.product_id):
                         abort(409, description="الكمية المطلوبة غير متوفرة.")
+
                 payment_status = "PAID" if prepaid >= subtotal else ("PARTIAL" if prepaid > 0 else "PENDING")
+
                 preorder = OnlinePreOrder(
                     customer_id=g.online_customer.id,
                     cart_id=cart.id,
@@ -316,6 +374,7 @@ def checkout():
                 )
                 db.session.add(preorder)
                 db.session.flush()
+
                 for itm in cart.items:
                     db.session.add(
                         OnlinePreOrderItem(
@@ -325,6 +384,7 @@ def checkout():
                             price=itm.price,
                         )
                     )
+
                 op = OnlinePayment(
                     payment_ref=f"PAY-{uuid.uuid4().hex[:8].upper()}",
                     order_id=preorder.id,
@@ -345,6 +405,7 @@ def checkout():
                 except ValueError as ve:
                     abort(400, description=str(ve))
                 db.session.add(op)
+
                 if prepaid > 0:
                     db.session.add(
                         Payment(
@@ -360,7 +421,10 @@ def checkout():
                             notes="Online prepaid via checkout",
                         )
                     )
+
                 cart.status = "CONVERTED"
+
+            # إشعار واتساب
             try:
                 if getattr(g.online_customer, "phone", None):
                     send_whatsapp_message(
@@ -369,6 +433,7 @@ def checkout():
                     )
             except Exception:
                 pass
+
             if request.is_json or request.args.get("format") == "json":
                 return _resp(
                     "تم إتمام الطلب والدفع بنجاح!",
@@ -378,15 +443,18 @@ def checkout():
                     data={"preorder_id": preorder.id},
                 )
             return redirect(url_for("shop.preorder_receipt", preorder_id=preorder.id))
+
         except SQLAlchemyError as e:
             db.session.rollback()
             return _resp(f"خطأ أثناء الدفع: {e}", "danger")
+
     return render_template("shop/pay_online.html", form=form, cart=cart, subtotal=subtotal, prepaid_amount=prepaid)
+
 
 @shop_bp.route("/preorders", endpoint="preorder_list")
 @online_customer_required
 def preorder_list():
-    if _is_super_admin(current_user):
+    if is_super_admin(current_user):
         preorders = OnlinePreOrder.query.order_by(OnlinePreOrder.created_at.desc()).limit(500).all()
     else:
         preorders = (
@@ -394,21 +462,23 @@ def preorder_list():
             .order_by(OnlinePreOrder.created_at.desc())
             .all()
         )
-    return render_template("shop/preorder_list.html", preorders=preorders, is_super_admin=_is_super_admin(current_user))
+    return render_template("shop/preorder_list.html", preorders=preorders, is_super_admin=is_super_admin(current_user))
+
 
 @shop_bp.route("/preorder/<int:preorder_id>/receipt", endpoint="preorder_receipt")
 @online_customer_required
 def preorder_receipt(preorder_id):
     preorder = _get_or_404(OnlinePreOrder, preorder_id)
-    if not _is_super_admin(current_user) and preorder.customer_id != g.online_customer.id:
+    if not is_super_admin(current_user) and preorder.customer_id != g.online_customer.id:
         abort(403)
     return render_template("shop/preorder_receipt.html", preorder=preorder)
+
 
 @shop_bp.route("/preorder/<int:preorder_id>/cancel", methods=["POST"], endpoint="cancel_preorder")
 @online_customer_required
 def cancel_preorder(preorder_id):
     po = _get_or_404(OnlinePreOrder, preorder_id)
-    if not _is_super_admin(current_user) and po.customer_id != g.online_customer.id:
+    if not is_super_admin(current_user) and po.customer_id != g.online_customer.id:
         return _resp("غير مصرح.", "danger", to="shop.preorder_list")
     if po.status not in ("PENDING", "CONFIRMED"):
         return _resp("لا يمكن إلغاء هذا الطلب.", "warning", to="shop.preorder_list")
@@ -420,17 +490,21 @@ def cancel_preorder(preorder_id):
         db.session.rollback()
         return _resp(f"خطأ أثناء الإلغاء: {e}", "danger", to="shop.preorder_list")
 
+
+# -------------------- Admin (Super only) --------------------
 @shop_bp.route("/admin/preorders", endpoint="admin_preorders")
 @super_admin_required
 def admin_preorders():
     preorders = OnlinePreOrder.query.order_by(OnlinePreOrder.created_at.desc()).all()
     return render_template("admin/reports/preorders.html", preorders=preorders)
 
+
 @shop_bp.route("/admin/products", endpoint="admin_products")
 @super_admin_required
 def admin_products():
     products = Product.query.order_by(Product.created_at.desc()).limit(500).all()
     return render_template("shop/admin_products.html", products=products)
+
 
 @shop_bp.route("/admin/products/new", methods=["GET", "POST"], endpoint="admin_product_new")
 @super_admin_required
@@ -447,6 +521,7 @@ def admin_product_new():
             db.session.rollback()
             flash(f"خطأ: {e}", "danger")
     return render_template("shop/admin_product_form.html", form=form)
+
 
 @shop_bp.route("/admin/products/<int:pid>/edit", methods=["GET", "POST"], endpoint="admin_product_edit")
 @super_admin_required
@@ -466,6 +541,7 @@ def admin_product_edit(pid):
             flash(f"خطأ: {e}", "danger")
     return render_template("shop/admin_product_form.html", form=form, product=product)
 
+
 @shop_bp.route("/admin/products/<int:pid>/delete", methods=["POST"], endpoint="admin_product_delete")
 @super_admin_required
 def admin_product_delete(pid):
@@ -479,6 +555,4 @@ def admin_product_delete(pid):
         flash(f"خطأ: {e}", "danger")
     return redirect(url_for("shop.admin_products"))
 
-@shop_bp.context_processor
-def inject_shop_flags():
-    return {"shop_is_super_admin": _is_super_admin(current_user)}
+

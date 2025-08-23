@@ -1,37 +1,26 @@
-{# templates/restore_db.html #}
 {% extends 'base.html' %}
 {% block title %}استعادة قاعدة البيانات{% endblock %}
 
 {% block content %}
 <div class="container-fluid mt-4">
-
   <div class="card shadow-lg border-0">
-    <!-- العنوان -->
     <div class="card-header bg-danger text-white d-flex align-items-center">
       <i class="fas fa-database me-2"></i>
       <h5 class="mb-0">استعادة قاعدة البيانات</h5>
     </div>
 
-    <!-- المحتوى -->
     <div class="card-body">
-
-      <!-- رسالة تحذير -->
       <div class="alert alert-warning d-flex align-items-center">
         <i class="fas fa-exclamation-triangle fa-lg me-2"></i>
-        <div>
-          <strong>تحذير:</strong> سيتم استبدال جميع البيانات الحالية بالنسخة المحددة. يرجى التأكد قبل المتابعة.
-        </div>
+        <div><strong>تحذير:</strong> سيتم استبدال جميع البيانات الحالية بالنسخة المحددة. يرجى التأكد قبل المتابعة.</div>
       </div>
 
-      <!-- الفورم -->
       <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
         {{ form.hidden_tag() }}
 
-        <!-- اختيار ملف -->
         <div class="mb-3">
           {{ form.db_file.label(class="form-label fw-bold") }}
           {{ form.db_file(class="form-control") }}
-
           {% if form.db_file.errors %}
           <div class="invalid-feedback d-block mt-1">
             {% for err in form.db_file.errors %}
@@ -41,7 +30,6 @@
           {% endif %}
         </div>
 
-        <!-- أزرار الإجراءات -->
         <div class="d-flex gap-2 mt-3">
           <button type="submit" class="btn btn-danger">
             <i class="fas fa-upload"></i> استعادة الآن
@@ -53,15 +41,20 @@
       </form>
     </div>
   </div>
-
 </div>
 {% endblock %}
 
 {% block scripts %}
-  {{ super() }}
-  <script>
-    document.querySelector('input[type="file"]')?.addEventListener('change', function () {
-      this.classList.toggle('is-valid', this.files.length > 0);
+{{ super() }}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const input = document.querySelector('input[type="file"]');
+    if (!input) return;
+    input.addEventListener('change', function () {
+      const ok = this.files && this.files.length > 0;
+      this.classList.toggle('is-valid', ok);
+      this.classList.toggle('is-invalid', !ok);
     });
-  </script>
+  });
+</script>
 {% endblock %}

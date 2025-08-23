@@ -1,38 +1,56 @@
 {% extends 'base.html' %}
-{% block title %}
-  {{ 'تعديل إذن' if permission_id else 'إضافة إذن جديد' }}
-{% endblock %}
+{% block title %}{{ 'تعديل إذن' if perm else 'إضافة إذن جديد' }}{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-  <h2>{{ 'تعديل إذن' if permission_id else 'إضافة إذن جديد' }}</h2>
+<div class="container mt-4" dir="rtl">
+  <h2 class="mb-3">{{ 'تعديل إذن' if perm else 'إضافة إذن جديد' }}</h2>
 
   {# رسائل الفلاش #}
   {% with messages = get_flashed_messages(with_categories=true) %}
-    {% for category, msg in messages %}
-      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-        {{ msg }}
-        <button type="button" class="close" data-dismiss="alert" aria-label="إغلاق">
-          <span aria-hidden="true">&times;</span>
-        </button>
-      </div>
-    {% endfor %}
+    {% if messages %}
+      {% for category, msg in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ msg }}
+          <button type="button" class="close" data-dismiss="alert" aria-label="إغلاق">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+      {% endfor %}
+    {% endif %}
   {% endwith %}
 
   <form method="post"
-        action="{{ url_for('permissions.edit', permission_id=permission_id) if permission_id else url_for('permissions.create') }}">
+        action="{{ url_for('permissions.edit', permission_id=perm.id) if perm else url_for('permissions.create') }}">
     {{ form.hidden_tag() }}
 
     <div class="form-group">
       {{ form.name.label(class="form-label") }}
       {{ form.name(class="form-control", placeholder="اسم الإذن") }}
       {% for err in form.name.errors %}
-        <small class="text-danger">{{ err }}</small>
+        <small class="text-danger d-block">{{ err }}</small>
       {% endfor %}
     </div>
 
+    {# حقل الكود (اختياري). إن كان الإذن محجوزًا، نعرضه للقراءة فقط #}
+    {% set code_norm = (perm.code if perm else '')|lower %}
+    {% set is_reserved = code_norm in ['backup_database', 'restore_database'] %}
+    {% if form.code is defined %}
+    <div class="form-group">
+      {{ form.code.label(class="form-label") }}
+      {% if perm and is_reserved %}
+        {{ form.code(class="form-control", readonly=true) }}
+        <small class="form-text text-muted">هذا الكود محجوز ولا يمكن تعديله.</small>
+      {% else %}
+        {{ form.code(class="form-control", placeholder="الكود (اختياري)") }}
+      {% endif %}
+      {% for err in form.code.errors %}
+        <small class="text-danger d-block">{{ err }}</small>
+      {% endfor %}
+    </div>
+    {% endif %}
+
     <button type="submit" class="btn btn-success">
-      {{ 'تحديث' if permission_id else 'حفظ' }}
+      {{ 'تحديث' if perm else 'حفظ' }}
     </button>
     <a href="{{ url_for('permissions.list') }}" class="btn btn-secondary ml-2">إلغاء</a>
   </form>

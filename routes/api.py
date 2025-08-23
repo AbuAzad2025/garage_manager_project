@@ -1,10 +1,9 @@
-# File: routes/api.py
 from flask import Blueprint, request, jsonify, current_app
 from flask_login import login_required
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from typing import Callable, Iterable, List, Dict, Any, Optional
 
-from extensions import db, limiter
+from extensions import db, limiter, csrf
 from models import (
     Customer, Supplier, Partner, Product, Warehouse, User, Employee,
     Invoice, ServiceRequest, SupplierLoanSettlement, ProductCategory, Payment,
@@ -13,8 +12,6 @@ from models import (
 )
 
 bp = Blueprint("api", __name__, url_prefix="/api")
-
-# -------------------- Helpers --------------------
 
 def _q() -> str:
     return (request.args.get("q") or "").strip()
@@ -75,8 +72,6 @@ def search_model(model, fields: List[str], label_attr: str = "name",
     rows = qry.order_by(order_col).limit(_limit(default=limit_default, max_=limit_max)).all()
     return jsonify(_as_options(rows, label_attr, extra=extra))
 
-# -------------------- Customers / Suppliers / Partners --------------------
-
 @bp.get("/customers")
 @bp.get("/search_customers", endpoint="search_customers")
 @login_required
@@ -97,8 +92,6 @@ def suppliers():
 @limiter.limit("60/minute")
 def partners():
     return search_model(Partner, ["name", "phone_number", "identity_number"], label_attr="name")
-
-# -------------------- Products & Categories --------------------
 
 @bp.get("/products")
 @bp.get("/search_products", endpoint="search_products")
@@ -136,8 +129,6 @@ def product_info(pid: int):
 def categories():
     return search_model(ProductCategory, ["name"], label_attr="name")
 
-# -------------------- Warehouses --------------------
-
 @bp.get("/warehouses")
 @bp.get("/search_warehouses", endpoint="search_warehouses")
 @login_required
@@ -164,8 +155,6 @@ def products_by_warehouse(wid: int):
         } for p, qty in rows
     ])
 
-# -------------------- Users / Employees / Equipment --------------------
-
 @bp.get("/users")
 @login_required
 @limiter.limit("60/minute")
@@ -185,7 +174,26 @@ def employees():
 def equipment_types():
     return search_model(EquipmentType, ["name", "model_number", "chassis_number"], label_attr="name")
 
-# -------------------- Invoices (returns `number`) --------------------
+@bp.post("/equipment_types", endpoint="create_equipment_type")
+@login_required
+@csrf.exempt
+@limiter.limit("30/minute")
+def create_equipment_type():
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or "").strip()
+    model_number = (data.get("model_number") or "").strip() or None
+    chassis_number = (data.get("chassis_number") or "").strip() or None
+    category = (data.get("category") or "").strip() or None
+    notes = (data.get("notes") or "").strip() or None
+    if not name:
+        return jsonify({"error": "الاسم مطلوب"}), 400
+    exists = EquipmentType.query.filter(func.lower(EquipmentType.name) == name.lower()).first()
+    if exists:
+        return jsonify({"id": exists.id, "text": exists.name, "dupe": True}), 200
+    it = EquipmentType(name=name, model_number=model_number, chassis_number=chassis_number, category=category, notes=notes)
+    db.session.add(it)
+    db.session.commit()
+    return jsonify({"id": it.id, "text": it.name}), 201
 
 @bp.get("/invoices")
 @login_required
@@ -206,8 +214,6 @@ def invoices():
             "status": getattr(i.status, "value", i.status),
         } for i in rows
     ])
-
-# -------------------- Services (returns `number`) --------------------
 
 @bp.get("/services")
 @login_required
@@ -238,8 +244,6 @@ def services():
         } for s in rows
     ])
 
-# -------------------- Sales (returns `number`) --------------------
-
 @bp.get("/sales")
 @login_required
 @limiter.limit("60/minute")
@@ -261,8 +265,6 @@ def sales():
         } for s in rows
     ])
 
-# -------------------- Shipments (returns `number`) --------------------
-
 @bp.get("/shipments")
 @login_required
 @limiter.limit("60/minute")
@@ -282,8 +284,6 @@ def shipments():
             "value": float((sh.value_before or 0) or 0),
         } for sh in rows
     ])
-
-# -------------------- Transfers (returns `number`) --------------------
 
 @bp.get("/transfers")
 @login_required
@@ -306,8 +306,6 @@ def transfers():
         } for t in rows
     ])
 
-# -------------------- PreOrders (returns `number`) --------------------
-
 @bp.get("/preorders")
 @login_required
 @limiter.limit("60/minute")
@@ -327,8 +325,6 @@ def preorders():
             "total": float((po.total_before_tax or 0) + 0),
         } for po in rows
     ])
-
-# -------------------- Online PreOrders (returns `number`) --------------------
 
 @bp.get("/online_preorders")
 @login_required
@@ -351,8 +347,6 @@ def online_preorders():
         } for o in rows
     ])
 
-# -------------------- Expenses (returns `number`) --------------------
-
 @bp.get("/expenses")
 @login_required
 @limiter.limit("60/minute")
@@ -373,8 +367,6 @@ def expenses():
         } for e in rows
     ])
 
-# -------------------- Supplier Loan Settlements --------------------
-
 @bp.get("/loan_settlements")
 @login_required
 @limiter.limit("60/minute")
@@ -392,8 +384,6 @@ def loan_settlements():
             "amount": float(x.settled_price or 0),
         } for x in rows
     ])
-
-# -------------------- Payments (returns `number`) --------------------
 
 @bp.get("/payments")
 @bp.get("/search_payments", endpoint="search_payments")
@@ -416,8 +406,6 @@ def payments():
             "method": getattr(p.method, "value", p.method),
         } for p in rows
     ])
-
-# -------------------- Errors --------------------
 
 @bp.app_errorhandler(429)
 def ratelimit_handler(e):

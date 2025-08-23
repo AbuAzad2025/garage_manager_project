@@ -216,8 +216,6 @@
           '<div class="col-md-6"><input type="text" class="form-control" name="description" placeholder="الوصف"></div>' +
           '<div class="col-md-2"><input type="number" min="1" class="form-control" name="quantity" value="1"></div>' +
           '<div class="col-md-2"><input type="number" step="0.01" class="form-control" name="unit_price"></div>' +
-          '<div class="col-md-2"><input type="number" step="0.01" class="form-control" name="discount" placeholder="خصم %"></div>' +
-          '<div class="col-md-2"><input type="number" step="0.01" class="form-control" name="tax_rate" placeholder="ضريبة %"></div>' +
           '<div class="col-auto"><button type="button" class="btn btn-outline-danger remove-task">&times;</button></div>' +
         '</div>';
       $('#tasks-list').append(tpl);

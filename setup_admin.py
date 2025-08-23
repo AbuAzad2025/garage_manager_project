@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 from typing import List
 from sqlalchemy.exc import SQLAlchemyError
 from app import create_app
@@ -25,7 +23,6 @@ def _log(msg: str) -> None:
 def _get_or_create_permission(name: str, description: str = "") -> Permission:
     q = (Permission.name == name,)
     try:
-        # دعم وجود حقل code إن وُجد
         q = ((Permission.name == name) | (Permission.code == name),)  # type: ignore[attr-defined]
     except Exception:
         pass
@@ -87,7 +84,7 @@ def ensure_or_update_role(name: str, description: str, perm_names: List[str]) ->
         role = Role(name=name, description=description)
         db.session.add(role)
         db.session.flush()
-    changed = _sync_role_permissions(role, perm_names)
+    _sync_role_permissions(role, perm_names)
     db.session.commit()
     return role
 
@@ -123,7 +120,7 @@ def main() -> None:
     app = create_app()
     with app.app_context():
         try:
-            seeded = seed_permissions_if_empty()
+            seed_permissions_if_empty()
             existing = {p.name for p in Permission.query.all()}
             missing = [n for n in ALL_PERMISSIONS if n not in existing]
             if missing:

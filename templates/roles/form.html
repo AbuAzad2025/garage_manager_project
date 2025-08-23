@@ -1,56 +1,84 @@
 {% extends 'base.html' %}
-{% block title %}{{ 'تعديل دور' if role_id else 'إضافة دور جديد' }}{% endblock %}
+{% block title %}{{ 'تعديل دور' if role or role_id else 'إضافة دور جديد' }}{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-  <h2 class="mb-3">{{ 'تعديل دور' if role_id else 'إضافة دور جديد' }}</h2>
+<div class="container mt-4" dir="rtl">
+  <h2 class="mb-3">{{ 'تعديل دور' if role or role_id else 'إضافة دور جديد' }}</h2>
 
   {% with messages = get_flashed_messages(with_categories=true) %}
-    {% for category, msg in messages %}
-      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-        {{ msg }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
-      </div>
-    {% endfor %}
+    {% if messages %}
+      {% for category, msg in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ msg }}
+          <button type="button" class="close" data-dismiss="alert" aria-label="إغلاق">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+      {% endfor %}
+    {% endif %}
   {% endwith %}
 
-  <form method="post" action="{{ url_for('roles.edit_role', role_id=role_id) if role_id else url_for('roles.create_role') }}">
+  <form method="post"
+        action="{% if role or role_id %}{{ url_for('roles.edit_role', role_id=(role.id if role else role_id)) }}{% else %}{{ url_for('roles.create_role') }}{% endif %}">
     {{ form.hidden_tag() }}
 
     <div class="mb-3">
       {{ form.name.label(class="form-label") }}
       {{ form.name(class="form-control", placeholder="اسم الدور") }}
-      {% for err in form.name.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+      {% for err in form.name.errors %}<div class="text-danger small mt-1">{{ err }}</div>{% endfor %}
     </div>
 
     <div class="mb-3">
       {{ form.description.label(class="form-label") }}
       {{ form.description(class="form-control", placeholder="وصف مختصر") }}
-      {% for err in form.description.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+      {% for err in form.description.errors %}<div class="text-danger small mt-1">{{ err }}</div>{% endfor %}
     </div>
 
+    {# الصلاحيات: دعم حالتين لبيانات الحقل #}
     <div class="mb-4">
       <label class="form-label">الصلاحيات</label>
-      <div class="border rounded p-3" style="max-height: 320px; overflow:auto;">
-        {% set selected = form.permissions.data or [] %}
-        {% for p in all_permissions %}
+      <div class="border rounded p-3" style="max-height: 360px; overflow:auto;">
+
+        {# selected_ids قد تكون IDs أو كائنات Permission #}
+        {% set sel = form.permissions.data or [] %}
+        {% set selected_ids = [] %}
+
+        {# إن كانت عناصر sel كائنات Permission: خُذ p.id #}
+        {% if sel and sel[0] is not string and sel[0] is not number %}
+          {% set selected_ids = sel | map(attribute='id') | list %}
+        {% else %}
+          {% set selected_ids = sel | map('int') | list %}
+        {% endif %}
+
+        {# لو جاءتنا قائمة بكل الصلاحيات من الراوت (مثل all_permissions) استخدمها، وإلا اعتمد على form.permissions.choices #}
+        {% set options = (all_permissions if all_permissions is defined else []) %}
+        {% if not options or options|length == 0 %}
+          {% set options = [] %}
+          {% for (val, label) in form.permissions.choices %}
+            {% set _ = options.append({'id': val|int, 'name': label}) %}
+          {% endfor %}
+        {% endif %}
+
+        {% for p in options %}
+          {% set pid = (p.id if p.id is defined else p['id']) %}
+          {% set pname = (p.name if p.name is defined else p['name']) %}
           <div class="form-check">
             <input class="form-check-input" type="checkbox"
-                   id="perm_{{ p.id }}" name="permissions" value="{{ p.id }}"
-                   {% if p.id in selected %}checked{% endif %}>
-            <label class="form-check-label" for="perm_{{ p.id }}">
-              {{ p.name }}
+                   id="perm_{{ pid }}" name="permissions" value="{{ pid }}"
+                   {% if pid in selected_ids %}checked{% endif %}>
+            <label class="form-check-label" for="perm_{{ pid }}">
+              {{ pname }}
             </label>
           </div>
         {% endfor %}
       </div>
       {% if form.permissions.errors %}
-        <div class="text-danger small">{{ form.permissions.errors[0] }}</div>
+        <div class="text-danger small mt-1">{{ form.permissions.errors[0] }}</div>
       {% endif %}
     </div>
 
     {{ form.submit(class="btn btn-success") }}
-    <a href="{{ url_for('roles.list_roles') }}" class="btn btn-secondary ms-2">إلغاء</a>
+    <a href="{{ url_for('roles.list_roles') }}" class="btn btn-secondary ml-2">إلغاء</a>
   </form>
 </div>
 {% endblock %}

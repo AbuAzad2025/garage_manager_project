@@ -93,22 +93,24 @@ def api_users():
 @permission_required("manage_users")
 def create_user():
     form = UserForm()
-    roles_q = Role.query.order_by(Role.name)
-    perms_q = Permission.query.order_by(Permission.name)
-    form.role.query = roles_q.all()
-    form.extra_permissions.query = perms_q.all()
-    if request.method == "GET":
-        form.extra_permissions.data = []
+    all_permissions = Permission.query.order_by(Permission.name).all()
+    selected_perm_ids = []
+
     if form.validate_on_submit():
         try:
-            user = User(username=form.username.data, email=form.email.data, role=form.role.data)
+            user = User(
+                username=form.username.data,
+                email=form.email.data,
+                role_id=form.role_id.data,
+                is_active=bool(form.is_active.data),
+            )
             if form.password.data:
                 user.set_password(form.password.data)
             db.session.add(user)
             db.session.flush()
-            selected_ids = [int(x) for x in request.form.getlist("extra_permissions") if x.isdigit()]
-            if selected_ids:
-                user.extra_permissions = Permission.query.filter(Permission.id.in_(selected_ids)).all()
+            selected_perm_ids = [int(x) for x in request.form.getlist("extra_permissions") if str(x).isdigit()]
+            if selected_perm_ids:
+                user.extra_permissions = Permission.query.filter(Permission.id.in_(selected_perm_ids)).all()
             db.session.commit()
             clear_user_permission_cache(user.id)
             db.session.add(AuditLog(model_name="User", record_id=user.id, user_id=current_user.id, action="CREATE", old_data="", new_data=f"username={user.username}"))
@@ -123,8 +125,15 @@ def create_user():
         except Exception as e:
             db.session.rollback()
             flash(f"خطأ أثناء الإضافة: {e}", "danger")
-    all_permissions = perms_q.all()
-    return render_template("users/form.html", form=form, action="create", user_id=None, all_permissions=all_permissions)
+
+    return render_template(
+        "users/form.html",
+        form=form,
+        action="create",
+        user_id=None,
+        all_permissions=all_permissions,
+        selected_perm_ids=selected_perm_ids,
+    )
 
 @users_bp.route("/<int:user_id>/edit", methods=["GET", "POST"], endpoint="edit_user")
 @login_required
@@ -132,23 +141,24 @@ def create_user():
 def edit_user(user_id):
     user = _get_or_404(User, user_id)
     form = UserForm(obj=user)
-    roles_q = Role.query.order_by(Role.name)
-    perms_q = Permission.query.order_by(Permission.name)
-    form.role.query = roles_q.all()
-    form.extra_permissions.query = perms_q.all()
+    all_permissions = Permission.query.order_by(Permission.name).all()
+    selected_perm_ids = [p.id for p in user.extra_permissions.all()]
+
     if request.method == "GET":
-        form.role.data = user.role
-        form.extra_permissions.data = [p.id for p in user.extra_permissions.all()]
+        form.role_id.data = user.role_id
+        form.is_active.data = bool(user.is_active)
+
     if form.validate_on_submit():
         try:
             old_data = f"{user.username},{user.email}"
             user.username = form.username.data
             user.email = form.email.data
-            user.role = form.role.data
+            user.role_id = form.role_id.data
+            user.is_active = bool(form.is_active.data)
             if form.password.data:
                 user.set_password(form.password.data)
-            selected_ids = [int(x) for x in request.form.getlist("extra_permissions") if x.isdigit()]
-            user.extra_permissions = Permission.query.filter(Permission.id.in_(selected_ids)).all() if selected_ids else []
+            selected_perm_ids = [int(x) for x in request.form.getlist("extra_permissions") if str(x).isdigit()]
+            user.extra_permissions = Permission.query.filter(Permission.id.in_(selected_perm_ids)).all() if selected_perm_ids else []
             db.session.commit()
             clear_user_permission_cache(user.id)
             db.session.add(AuditLog(model_name="User", record_id=user.id, user_id=current_user.id, action="UPDATE", old_data=old_data, new_data=f"username={user.username}"))
@@ -161,8 +171,15 @@ def edit_user(user_id):
         except Exception as e:
             db.session.rollback()
             flash(f"خطأ أثناء التحديث: {e}", "danger")
-    all_permissions = perms_q.all()
-    return render_template("users/form.html", form=form, action="edit", user_id=user_id, all_permissions=all_permissions)
+
+    return render_template(
+        "users/form.html",
+        form=form,
+        action="edit",
+        user_id=user_id,
+        all_permissions=all_permissions,
+        selected_perm_ids=selected_perm_ids,
+    )
 
 @users_bp.route("/<int:user_id>/delete", methods=["POST"], endpoint="delete_user")
 @login_required
@@ -195,6 +212,12 @@ def delete_user(user_id):
 @permission_required("manage_users")
 def internal_register():
     form = UserForm()
-    form.role.query = Role.query.order_by(Role.name).all()
-    form.extra_permissions.query = Permission.query.order_by(Permission.name).all()
-    return render_template("users/form.html", form=form, action="create", user_id=None, all_permissions=form.extra_permissions.query)
+    all_permissions = Permission.query.order_by(Permission.name).all()
+    return render_template(
+        "users/form.html",
+        form=form,
+        action="create",
+        user_id=None,
+        all_permissions=all_permissions,
+        selected_perm_ids=[],
+    )

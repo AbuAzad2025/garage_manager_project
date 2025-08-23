@@ -44,7 +44,7 @@ class Config:
     HOST = os.environ.get("HOST", "127.0.0.1")
     PORT = _int("PORT", 5000)
 
-    _db_uri = os.environ.get("DATABASE_URL") or f"sqlite:///{os.path.join(basedir,'app.db')}"
+    _db_uri = os.environ.get("DATABASE_URL") or f"sqlite:///{os.path.join(basedir, 'app.db')}"
     if _db_uri.startswith("postgres://"):
         _db_uri = _db_uri.replace("postgres://", "postgresql://", 1)
     SQLALCHEMY_DATABASE_URI = _db_uri
@@ -104,7 +104,7 @@ class Config:
     LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
     SHOP_PREPAID_RATE = _float("SHOP_PREPAID_RATE", 0.20)
     SHOP_WAREHOUSE_IDS = None
-    SHOP_WAREHOUSE_TYPES = ['MAIN', 'INVENTORY']
+    SHOP_WAREHOUSE_TYPES = ["MAIN", "INVENTORY"]
 
     USE_PROXYFIX = _bool(os.environ.get("USE_PROXYFIX"), False)
     PREFERRED_URL_SCHEME = os.environ.get("PREFERRED_URL_SCHEME", "https" if not DEBUG else "http")

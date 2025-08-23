@@ -1757,6 +1757,14 @@ class CustomerFormOnline(FlaskForm):
     password = PasswordField('كلمة المرور', validators=[DataRequired(), Length(min=6)])
     address  = StringField('العنوان', validators=[Optional()])
     submit   = SubmitField('تسجيل')
+class CustomerPasswordResetRequestForm(FlaskForm):
+    email  = StringField('البريد الإلكتروني', validators=[DataRequired(), Email()])
+    submit = SubmitField('إرسال رابط إعادة تعيين')
+
+class CustomerPasswordResetForm(FlaskForm):
+    password = PasswordField('كلمة المرور الجديدة', validators=[DataRequired(), Length(min=6)])
+    confirm  = PasswordField('تأكيد كلمة المرور', validators=[DataRequired(), EqualTo('password', message="كلمتا المرور غير متطابقتين")])
+    submit   = SubmitField('تحديث كلمة المرور')
 
 class AddToOnlineCartForm(FlaskForm):
     quantity = IntegerField('الكمية', validators=[DataRequired(), NumberRange(min=1, message="❌ الحد الأدنى 1")])

@@ -565,6 +565,43 @@ def log_customer_action(cust, action: str, old_data: dict | None = None, new_dat
     db.session.add(entry)
     db.session.commit()
 
+def _audit(event: str, *, ok: bool = True, user_id=None, customer_id=None, note: str | None = None, extra: dict | None = None) -> None:
+    try:
+        from models import AuditLog
+        details_old = {"ok": bool(ok)}
+        if note:
+            details_old["note"] = str(note)
+        record_id = None
+        if customer_id is not None:
+            record_id = int(customer_id)
+        elif user_id is not None:
+            record_id = int(user_id)
+
+        old_json = json.dumps(details_old, ensure_ascii=False) if details_old else None
+        new_json = json.dumps(extra, ensure_ascii=False) if extra else None
+
+        entry = AuditLog(
+            timestamp=datetime.utcnow(),
+            model_name="Auth",
+            record_id=record_id,
+            user_id=(user_id if user_id is not None else (getattr(current_user, "id", None) if getattr(current_user, "is_authenticated", False) else None)),
+            action=str(event),
+            old_data=old_json,
+            new_data=new_json,
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get("User-Agent"),
+        )
+        db.session.add(entry)
+        db.session.commit()
+    except Exception:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        try:
+            current_app.logger.warning("audit skipped: event=%s ok=%s note=%s", event, ok, note)
+        except Exception:
+            pass
 
 def log_audit(model_name: str, record_id: int, action: str, old_data: dict | None = None, new_data: dict | None = None):
     from models import AuditLog

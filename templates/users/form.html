@@ -58,11 +58,18 @@
     </div>
 
     <div class="form-group mb-3">
-      {{ form.role.label(class="form-label") }}
-      {{ form.role(class="form-select") }}
-      {% for e in form.role.errors %}
+      {{ form.role_id.label(class="form-label") }}
+      {{ form.role_id(class="form-select") }}
+      {% for e in form.role_id.errors %}
         <div class="text-danger">{{ e }}</div>
       {% endfor %}
+    </div>
+
+    <div class="form-group mb-3">
+      <div class="form-check">
+        {{ form.is_active(class="form-check-input") }}
+        {{ form.is_active.label(class="form-check-label") }}
+      </div>
     </div>
 
     <div class="form-group mb-4">
@@ -75,7 +82,7 @@
             name="extra_permissions"
             id="perm-{{ perm.id }}"
             value="{{ perm.id }}"
-            {% if perm.id in form.extra_permissions.data %}checked{% endif %}
+            {% if perm.id in selected_perm_ids %}checked{% endif %}
           >
           <label class="form-check-label" for="perm-{{ perm.id }}">
             {{ perm.name }}

@@ -39,15 +39,30 @@ try:
 except Exception:
     Fernet = None
 
-# -------------------- Helpers --------------------
+# ==================== Imports (Production-Ready) ====================
+import enum
+from datetime import datetime
 
+from werkzeug.security import generate_password_hash, check_password_hash
+
+from sqlalchemy import (
+    Column, Integer, String, Text, Boolean, Numeric, ForeignKey,
+    select, func, or_, text, event
+)
+from sqlalchemy.orm import relationship, validates
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy import Enum as SAEnum
+
+from extensions import db
+
+
+# -------------------- Helpers --------------------
 def sa_str_enum(enum_or_values, *, name: str):
-    """SQLAlchemy String-backed Enum (portable, validates strings)."""
     vals = [e.value for e in enum_or_values] if hasattr(enum_or_values, "__members__") else list(enum_or_values)
     return SAEnum(*vals, name=name, native_enum=False, validate_strings=True)
 
-# ===================== Enums =====================
 
+# ===================== Enums =====================
 class PaymentMethod(str, enum.Enum):
     CASH   = "cash"
     BANK   = "bank"
@@ -81,6 +96,7 @@ class PaymentProgress(str, enum.Enum):
     PARTIAL  = "PARTIAL"
     PAID     = "PAID"
     REFUNDED = "REFUNDED"
+
 
 class SaleStatus(str, enum.Enum):
     DRAFT     = "DRAFT"
@@ -149,7 +165,6 @@ class InvoiceSource(str, enum.Enum):
 
 
 # ===================== M2M Tables =====================
-
 user_permissions = db.Table(
     "user_permissions",
     db.Column("user_id", db.Integer, db.ForeignKey("users.id"), primary_key=True),
@@ -164,16 +179,19 @@ role_permissions = db.Table(
     extend_existing=True,
 )
 
+
 # ===================== TimestampMixin =====================
 class TimestampMixin:
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False, index=True)
+
 
 # ===================== AuditMixin =====================
 class AuditMixin:
     @classmethod
     def __declare_last__(cls):
         from sqlalchemy import inspect, event as _evt
+
         @_evt.listens_for(cls, "before_update", propagate=True)
         def _capture_prev_state(mapper, connection, target):
             try:
@@ -189,7 +207,6 @@ class AuditMixin:
 
 
 # ===================== Permissions / Roles / Users =====================
-
 class Permission(db.Model, AuditMixin):
     __tablename__ = "permissions"
 
@@ -220,7 +237,7 @@ class Role(db.Model, AuditMixin):
     description = db.Column(db.String(200))
     is_default  = db.Column(db.Boolean, default=False, nullable=False)
 
-    permissions = db.relationship(
+    permissions = relationship(
         "Permission",
         secondary=role_permissions,
         lazy="selectin",
@@ -264,18 +281,17 @@ class User(db.Model, UserMixin, TimestampMixin, AuditMixin):
     _is_active    = db.Column("is_active", db.Boolean, nullable=False, server_default=text("1"))
     last_login    = db.Column(db.DateTime)
 
-    role = db.relationship("Role", backref="users", lazy="joined")
+    role = relationship("Role", backref="users", lazy="joined")
 
-    extra_permissions = db.relationship(
+    extra_permissions = relationship(
         "Permission",
         secondary=user_permissions,
         backref=db.backref("users_extra", lazy="dynamic"),
         lazy="dynamic",
     )
 
-    # علاقات اختيارية لموديلات أخرى في مشروعك
-    service_requests = db.relationship("ServiceRequest", back_populates="mechanic", lazy="dynamic")
-    sales            = db.relationship("Sale", back_populates="seller", cascade="all, delete-orphan")
+    service_requests = relationship("ServiceRequest", back_populates="mechanic", lazy="dynamic")
+    sales            = relationship("Sale", back_populates="seller", cascade="all, delete-orphan")
 
     __table_args__ = (
         db.Index("ix_users_role_active", "role_id", "is_active"),
@@ -316,34 +332,34 @@ class User(db.Model, UserMixin, TimestampMixin, AuditMixin):
         except Exception:
             return False
 
+    def has_role(self, *names: str) -> bool:
+        r = (getattr(self.role, "name", "") or "").strip().lower()
+        return any(r == (n or "").strip().lower() for n in names if n)
+
     def has_permission(self, name: str) -> bool:
         target = (name or "").strip().lower()
         if not target:
             return False
 
-        try:
-            super_roles = set(SUPER_ROLES)
-        except Exception:
-            super_roles = set()
-
         role_name = (getattr(self.role, "name", "") or "").strip().lower()
-        if role_name in super_roles:
+        if role_name in {x.strip().lower() for x in SUPER_ROLES}:
             return True
 
-        if self.role and hasattr(self.role, "has_permission") and self.role.has_permission(target):
-            return True
-
-        # fallback آمن لو كانت العلاقة lazy=dynamic غير متاحة
         try:
-            return (
-                self.extra_permissions.filter(
+            if self.role and hasattr(self.role, "has_permission") and callable(self.role.has_permission):
+                if self.role.has_permission(target):
+                    return True
+        except Exception:
+            pass
+
+        try:
+            if hasattr(self, "extra_permissions") and hasattr(self.extra_permissions, "filter"):
+                return self.extra_permissions.filter(
                     or_(
                         func.lower(Permission.name) == target,
                         func.lower(Permission.code) == target,
                     )
-                ).first()
-                is not None
-            )
+                ).first() is not None
         except Exception:
             try:
                 for p in (self.extra_permissions or []):
@@ -353,32 +369,32 @@ class User(db.Model, UserMixin, TimestampMixin, AuditMixin):
                         return True
             except Exception:
                 pass
-            return False
+
+        return False
 
     def __repr__(self):
         return f"<User {self.username or self.id}>"
 
-# ===================== Customers =====================
 
+# ===================== Customers =====================
 class Customer(db.Model, UserMixin, TimestampMixin, AuditMixin):
     __tablename__ = "customers"
 
-    id           = Column(Integer, primary_key=True)
-    name         = Column(String(100), nullable=False)
-    phone        = Column(String(20), unique=True, nullable=False)
-    whatsapp     = Column(String(20), nullable=False)
-    email        = Column(String(120), unique=True, nullable=False)
-    address      = Column(String(200))
+    id            = Column(Integer, primary_key=True)
+    name          = Column(String(100), nullable=False)
+    phone         = Column(String(20), unique=True, nullable=False)
+    whatsapp      = Column(String(20), nullable=False)
+    email         = Column(String(120), unique=True, nullable=False)
+    address       = Column(String(200))
     password_hash = Column(String(128))
-    category     = Column(String(20), default="عادي")
-    notes        = Column(Text)
-    is_active    = Column(Boolean, default=True)
-    is_online    = Column(Boolean, default=False)
-    credit_limit = Column(Numeric(12, 2), default=0)
+    category      = Column(String(20), default="عادي")
+    notes         = Column(Text)
+    is_active     = Column(Boolean, default=True)
+    is_online     = Column(Boolean, default=False)
+    credit_limit  = Column(Numeric(12, 2), default=0)
     discount_rate = Column(Numeric(5, 2), default=0)
-    currency     = Column(String(10), default="ILS", nullable=False)
+    currency      = Column(String(10), default="ILS", nullable=False)
 
-    # علاقات ORM
     sales            = relationship("Sale", back_populates="customer")
     preorders        = relationship("PreOrder", back_populates="customer")
     invoices         = relationship("Invoice", back_populates="customer")
@@ -392,7 +408,6 @@ class Customer(db.Model, UserMixin, TimestampMixin, AuditMixin):
         db.Index("ix_customers_name", "name"),
     )
 
-    # --- Password helpers ---
     @property
     def password(self):
         raise AttributeError("Password access not allowed")
@@ -413,7 +428,6 @@ class Customer(db.Model, UserMixin, TimestampMixin, AuditMixin):
     def is_valid_email(self):
         return bool(self.email and "@" in self.email)
 
-    # --- Validations / Normalization ---
     @validates("email")
     def _v_email(self, _, v):
         return (v or "").strip().lower()
@@ -446,7 +460,6 @@ class Customer(db.Model, UserMixin, TimestampMixin, AuditMixin):
             raise ValueError("credit_limit must be >= 0")
         return v
 
-    # --- Aggregates ---
     @hybrid_property
     def total_invoiced(self):
         return float(
@@ -527,7 +540,6 @@ class Customer(db.Model, UserMixin, TimestampMixin, AuditMixin):
 
 @event.listens_for(Customer, "before_insert")
 def _customer_before_insert(_mapper, _connection, target: Customer):
-    # تطبيع سريع
     target.email = (target.email or "").strip().lower()
     target.phone = (target.phone or "").strip()
     target.whatsapp = (target.whatsapp or target.phone or "").strip()
@@ -540,7 +552,6 @@ def _customer_before_update(_mapper, _connection, target: Customer):
     target.phone = (target.phone or "").strip()
     target.whatsapp = (target.whatsapp or target.phone or "").strip()
     target.currency = (target.currency or "ILS").upper()
-
 
 # ===================== Suppliers =====================
 

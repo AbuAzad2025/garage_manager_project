@@ -11,42 +11,57 @@
 
 {% block content %}
 <div class="container-fluid">
-  {% if current_user.has_permission('admin_access') %}
+
+  {% if current_user.has_permission('manage_users') %}
     <a href="{{ url_for('users_bp.create_user') }}" class="btn btn-success mb-3">
       <i class="fas fa-user-plus"></i> إضافة مستخدم جديد
     </a>
   {% endif %}
 
-  <table id="users-table" class="table table-striped table-bordered">
-    <thead>
-      <tr>
+  <table id="users-table" class="table table-striped table-bordered align-middle">
+    <thead class="table-light">
+      <tr class="text-center">
         <th>اسم المستخدم</th>
         <th>البريد الإلكتروني</th>
         <th>الدور</th>
+        <th>الحالة</th>
         <th>صلاحيات إضافية</th>
         <th>تاريخ الإنشاء</th>
-        {% if current_user.has_permission('admin_access') %}
-          <th>إجراءات</th>
+        {% if current_user.has_permission('manage_users') %}
+          <th style="width:160px">إجراءات</th>
         {% endif %}
       </tr>
     </thead>
     <tbody>
       {% for user in users %}
+        {# حوّل أي علاقة lazy='dynamic' أو Query إلى قائمة آمنة للاستعمال #}
+        {% set _q = user.extra_permissions %}
+        {% set perms = (_q.all() if _q.__class__.__name__ in ['AppenderQuery','AppenderBaseQuery'] else _q) | list %}
+
         <tr>
           <td>{{ user.username }}</td>
           <td>{{ user.email }}</td>
           <td>{{ user.role.name if user.role else '—' }}</td>
           <td>
-            {% set perms = user.extra_permissions.all() %}
-            {% if perms %}
-              {{ perms | map(attribute='name') | join(', ') }}
+            {% if user.is_active %}
+              <span class="badge bg-success">نشط</span>
             {% else %}
-              — 
+              <span class="badge bg-secondary">موقوف</span>
             {% endif %}
           </td>
-          <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
-          {% if current_user.has_permission('admin_access') %}
-            <td class="text-center">
+          <td>
+            {% if perms|length %}
+              {% for p in perms %}
+                <span class="badge bg-info text-dark me-1">{{ p.name }}</span>
+              {% endfor %}
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          <td>{{ user.created_at.strftime('%Y-%m-%d') if user.created_at else '—' }}</td>
+
+          {% if current_user.has_permission('manage_users') %}
+            <td class="text-center text-nowrap">
               <a href="{{ url_for('users_bp.user_detail', user_id=user.id) }}"
                  class="btn btn-sm btn-info" title="تفاصيل">
                 <i class="fas fa-eye"></i>
@@ -75,13 +90,20 @@
 {% block scripts %}
 <script>
   $(function(){
-    $('#users-table').DataTable({
-      dom: 'Bfrtip',
-      buttons: ['excel', 'pdf'],
-      language: {
-        url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/Arabic.json"
-      }
-    });
+    const $tbl = $('#users-table');
+    if ($.fn.DataTable && $tbl.length) {
+      $tbl.DataTable({
+        responsive: true,
+        autoWidth: false,
+        pageLength: 10,
+        order: [[5, 'desc']], // حسب تاريخ الإنشاء
+        dom: 'Bfrtip',
+        buttons: ['excel', 'pdf'],
+        language: {
+          url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/Arabic.json"
+        }
+      });
+    }
   });
 </script>
 {% endblock %}

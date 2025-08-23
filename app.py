@@ -57,6 +57,7 @@ def _init_sentry(app: Flask) -> None:
     try:
         import sentry_sdk
         from sentry_sdk.integrations.flask import FlaskIntegration
+
         sentry_sdk.init(
             dsn=dsn,
             integrations=[FlaskIntegration()],
@@ -145,6 +146,7 @@ def create_app(config_object=Config, test_config=None) -> Flask:
 
     try:
         from dotenv import load_dotenv
+
         load_dotenv()
     except Exception:
         pass
@@ -156,6 +158,7 @@ def create_app(config_object=Config, test_config=None) -> Flask:
         connect_args.setdefault("timeout", 30)
         if app.config.get("TESTING"):
             from sqlalchemy.pool import StaticPool
+
             engine_opts["poolclass"] = StaticPool
             connect_args["check_same_thread"] = False
 
@@ -202,6 +205,7 @@ def create_app(config_object=Config, test_config=None) -> Flask:
     if app.config.get("USE_PROXYFIX"):
         try:
             from werkzeug.middleware.proxy_fix import ProxyFix
+
             app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
         except Exception:
             app.logger.warning("ProxyFix not available; set USE_PROXYFIX=False if unused.")
@@ -332,7 +336,6 @@ def create_app(config_object=Config, test_config=None) -> Flask:
     ):
         app.register_blueprint(bp)
 
-
     CORS(
         app,
         resources={
@@ -375,6 +378,23 @@ def create_app(config_object=Config, test_config=None) -> Flask:
             return render_template("errors/404.html", path=request.path), 404
         except Exception:
             return ("404 Not Found", 404)
+
+     # ✅ Inject global flags for templates (placed near the end, before return)
+    @app.context_processor
+    def inject_global_flags():
+        from utils import _SUPER_ROLES
+        def is_super_admin(user) -> bool:
+            try:
+                return (
+                    getattr(user, "is_authenticated", False)
+                    and str(getattr(getattr(user, "role", None), "name", "")).lower() in _SUPER_ROLES
+                )
+            except Exception:
+                return False
+
+        return {
+            "shop_is_super_admin": is_super_admin(current_user)
+        }
 
     critical = app.config.get(
         "CRITICAL_ENDPOINTS",

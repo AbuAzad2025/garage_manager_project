@@ -1,4 +1,3 @@
-<!-- File: templates/service/new.html -->
 {% extends "base.html" %}
 {% set edit_mode = form._obj is defined %}
 {% block title %}{{ edit_mode and 'تعديل طلب صيانة' or 'إضافة طلب صيانة' }}{% endblock %}
@@ -7,7 +6,6 @@
 {% block head_extra %}
   {{ super() }}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/service.css') }}">
-  <!-- Select2 CSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2/css/select2.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 {% endblock %}
@@ -24,36 +22,18 @@
   <form method="POST" id="serviceForm" autocomplete="off" action="{{ url_for('service.create_request') }}">
     {{ form.hidden_tag() }}
 
-    <!-- اختيار/تعريف العميل -->
+    <!-- اختيار العميل -->
     <div class="row">
       <div class="col-md-6 mb-3">
         {{ form.customer_id.label(class="form-label") }}
-        {{ form.customer_id(class="form-select select2", id="customerSelect", data_endpoint=url_for('api.search_customers')) }}
-        {% for e in form.customer_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-        <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="addCustomerBtn">
-          <i class="fa fa-user-plus"></i> إضافة عميل سريع
-        </button>
-        <div class="form-text">إن لم تختر عميلًا سيجري إنشاء عميل جديد من الحقول أدناه.</div>
-      </div>
-
-      <div class="col-md-6">
-        <div class="row">
-          <div class="col-md-4 mb-3">
-            {{ customer_form.name.label(class="form-label") }}
-            {{ customer_form.name(class="form-control", id="customer_name", placeholder="اسم العميل") }}
-            {% for e in customer_form.name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-          </div>
-          <div class="col-md-4 mb-3">
-            {{ customer_form.phone.label(class="form-label") }}
-            {{ customer_form.phone(class="form-control", id="customer_phone", placeholder="رقم الجوال") }}
-            {% for e in customer_form.phone.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-          </div>
-          <div class="col-md-4 mb-3">
-            {{ customer_form.email.label(class="form-label") }}
-            {{ customer_form.email(class="form-control", id="customer_email", placeholder="البريد الإلكتروني") }}
-            {% for e in customer_form.email.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-          </div>
+        <div class="input-group">
+          {{ form.customer_id(class="form-select select2", id="customerSelect", data_endpoint=url_for('api.search_customers')) }}
+          <button type="button" class="btn btn-outline-primary" id="addCustomerBtn" title="إضافة عميل سريع">
+            <i class="fa fa-user-plus"></i>
+          </button>
         </div>
+        {% for e in form.customer_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+        <div class="form-text">اختر عميلًا أو أضف عميلًا جديدًا من زر (+).</div>
       </div>
     </div>
 
@@ -61,7 +41,13 @@
     <div class="row">
       <div class="col-md-3 mb-3">
         {{ form.vehicle_type_id.label(class="form-label") }}
-        {{ form.vehicle_type_id(class="form-select select2", data_endpoint=url_for('api.search_equipment_types')) }}
+        <div class="input-group">
+          {{ form.vehicle_type_id(class="form-select select2", id="vehicleTypeSelect", data_endpoint=url_for('api.search_equipment_types'), data_placeholder="اختر نوعًا أو أضف جديدًا") }}
+          <button type="button" class="btn btn-outline-primary" id="addTypeBtn" title="إضافة نوع">
+            <i class="fa fa-plus"></i>
+          </button>
+        </div>
+        <div class="form-text">اكتب للبحث، وإن لم تجد النوع أضفه من زر (+).</div>
       </div>
       <div class="col-md-3 mb-3">
         {{ form.vehicle_model.label(class="form-label") }}
@@ -118,7 +104,6 @@
       </div>
     </div>
 
-    <!-- (اختياري) سطور ديناميكية -->
     {% if form.parts %}
     <div class="mb-3">
       <label class="form-label">القطع المستخدمة</label>
@@ -165,19 +150,19 @@
   </form>
 </div>
 
-<!-- مودال إضافة عميل سريع -->
+<!-- مودال إضافة عميل -->
 <div class="modal fade" id="customerModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <form id="newCustomerForm">
         <div class="modal-header">
           <h5 class="modal-title">إضافة عميل</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="close"></button>
+          <button type="button" class="btn-close" data-dismiss="modal" aria-label="close"></button>
         </div>
         <div class="modal-body">
           <div class="mb-3">
             <label class="form-label">الاسم</label>
-            <input type="text" class="form-control" id="c_name" placeholder="اسم العميل">
+            <input type="text" class="form-control" id="c_name" placeholder="اسم العميل" required>
           </div>
           <div class="mb-3">
             <label class="form-label">الجوال</label>
@@ -187,14 +172,47 @@
             <label class="form-label">البريد</label>
             <input type="email" class="form-control" id="c_email" placeholder="example@mail.com">
           </div>
-          <div class="form-text">سيتم استخدام هذه البيانات لإنشاء العميل عند حفظ الطلب إذا لم تحدد عميلًا من القائمة.</div>
         </div>
         <div class="modal-footer">
           <button type="submit" class="btn btn-primary">استخدام البيانات</button>
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
         </div>
       </form>
     </div>
+  </div>
+</div>
+
+<!-- مودال نوع المركبة -->
+<div class="modal fade" id="equipmentTypeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form class="modal-content" id="equipmentTypeForm">
+      <div class="modal-header">
+        <h5 class="modal-title">إضافة نوع معدة/مركبة</h5>
+        <button type="button" class="btn-close" data-dismiss="modal" aria-label="close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2">
+          <label class="form-label">الاسم *</label>
+          <input type="text" class="form-control" id="et_name" required>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">الموديل</label>
+          <input type="text" class="form-control" id="et_model">
+        </div>
+        <div class="mb-2">
+          <label class="form-label">الفئة</label>
+          <input type="text" class="form-control" id="et_category">
+        </div>
+        <div class="mb-2">
+          <label class="form-label">وصف</label>
+          <textarea class="form-control" id="et_notes" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> حفظ وإختيار</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -205,66 +223,86 @@
 
 {% block scripts %}
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-  <!-- Select2 JS قبل service.js -->
   <script src="{{ url_for('static', filename='adminlte/plugins/select2/js/select2.full.min.js') }}"></script>
-
   <script src="{{ url_for('static', filename='js/service.js') }}"></script>
   <script>
-    // تفعيل Select2 عبر data-endpoint إن وُجد
-    document.addEventListener('DOMContentLoaded', function () {
-      if (window.jQuery && jQuery.fn.select2) {
-        document.querySelectorAll('.select2').forEach(function(el){
-          const $el = $(el);
-          const ep = el.getAttribute('data-endpoint') || el.dataset.endpoint;
-          if (ep) {
-            $el.select2({
-              width: '100%',
-              theme: 'bootstrap4',
-              ajax: {
-                url: ep, dataType: 'json', delay: 250,
-                data: params => ({ q: params.term || '', limit: 20 }),
-                processResults: data => ({ results: Array.isArray(data) ? data : (data.results || []) })
-              },
-              placeholder: 'اختر...'
-            });
-          } else {
-            $el.select2({ width: '100%', theme: 'bootstrap4', placeholder: 'اختر...' });
-          }
-        });
-      } else {
-        console.warn('Select2 لم يُحمّل. تأكد من المسارات إلى ملفات CSS/JS.');
-      }
-    });
+    $(function () {
+      // تهيئة Select2
+      $('.select2').each(function(){
+        const ep = $(this).data('endpoint');
+        if (ep) {
+          $(this).select2({
+            width: '100%',
+            theme: 'bootstrap4',
+            ajax: {
+              url: ep, dataType: 'json', delay: 250,
+              data: params => ({ q: params.term || '', limit: 20 }),
+              processResults: data => ({ results: Array.isArray(data) ? data : (data.results || []) })
+            },
+            placeholder: $(this).data('placeholder') || 'اختر...'
+          });
+        } else {
+          $(this).select2({ width: '100%', theme: 'bootstrap4', placeholder: 'اختر...' });
+        }
+      });
 
-    // فتح المودال
-    document.getElementById('addCustomerBtn')?.addEventListener('click', () => {
-      const modal = new bootstrap.Modal(document.getElementById('customerModal'));
-      modal.show();
-    });
+      // فتح مودال العميل
+      $('#addCustomerBtn').on('click', () => { $('#customerModal').modal('show'); });
 
-    // نقل بيانات العميل من المودال إلى الحقول (باستخدام id ثابت)
-    document.getElementById('newCustomerForm')?.addEventListener('submit', function(e){
-      e.preventDefault();
-      const name  = document.getElementById('c_name').value.trim();
-      const phone = document.getElementById('c_phone').value.trim();
-      const email = document.getElementById('c_email').value.trim();
+      // حفظ بيانات العميل
+      $('#newCustomerForm').on('submit', function(e){
+        e.preventDefault();
+        const name  = $('#c_name').val().trim();
+        const phone = $('#c_phone').val().trim();
+        const email = $('#c_email').val().trim();
+        if (!name) { Swal.fire('خطأ', 'اسم العميل مطلوب', 'error'); return; }
 
-      const setById = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
-      setById('customer_name', name);
-      setById('customer_phone', phone);
-      setById('customer_email', email);
+        const sel = $('#customerSelect');
+        const newOption = new Option(name + (phone ? ' - '+phone : ''), 'new_'+Date.now(), true, true);
+        sel.append(newOption).trigger('change');
 
-      // إفراغ اختيار العميل وإطلاق change (لـ Select2 أيضاً)
-      const sel = document.getElementById('customerSelect');
-      if (sel) {
-        sel.value = '';
-        sel.dispatchEvent(new Event('change'));
-        if (window.jQuery && jQuery.fn.select2) { $(sel).val(null).trigger('change'); }
-      }
+        $('#customerModal').modal('hide');
+        Swal.fire('تم', 'تم إدراج العميل الجديد مؤقتًا. احفظ الطلب لإتمام الإنشاء.', 'success');
+      });
 
-      bootstrap.Modal.getInstance(document.getElementById('customerModal'))?.hide();
-      Swal.fire('تم', 'تم إدراج بيانات العميل في الطلب. احفظ الطلب لإتمام الإنشاء.', 'success');
+      // فتح مودال النوع
+      $('#addTypeBtn').on('click', () => { $('#equipmentTypeModal').modal('show'); });
+
+      // حفظ نوع معدة/مركبة
+      $('#equipmentTypeForm').on('submit', async function(e){
+        e.preventDefault();
+        const btn = $(this).find('[type="submit"]')[0];
+        if (btn) btn.disabled = true;
+
+        const payload = {
+          name: $('#et_name').val().trim(),
+          model: $('#et_model').val().trim(),
+          category: $('#et_category').val().trim(),
+          notes: $('#et_notes').val().trim()
+        };
+
+        if (!payload.name) { alert('الاسم مطلوب'); if (btn) btn.disabled = false; return; }
+
+        try {
+          const res = await fetch("{{ url_for('api.create_equipment_type') }}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+          if (!res.ok || !data.id) throw new Error(data.error || 'فشل إنشاء النوع');
+
+          const $type = $('#vehicleTypeSelect');
+          const opt = new Option(data.text, data.id, true, true);
+          $type.append(opt).trigger('change');
+
+          $('#equipmentTypeModal').modal('hide');
+        } catch (err) {
+          alert(err.message || 'تعذّر إنشاء النوع');
+        } finally {
+          if (btn) btn.disabled = false;
+        }
+      });
     });
   </script>
 {% endblock %}
