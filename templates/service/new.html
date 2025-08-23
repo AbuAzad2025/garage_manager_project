@@ -1,7 +1,17 @@
+<!-- File: templates/service/new.html -->
 {% extends "base.html" %}
 {% set edit_mode = form._obj is defined %}
 {% block title %}{{ edit_mode and 'تعديل طلب صيانة' or 'إضافة طلب صيانة' }}{% endblock %}
 {% block page_header %}{{ edit_mode and 'تعديل طلب صيانة' or 'إضافة طلب صيانة' }}{% endblock %}
+
+{% block head_extra %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/service.css') }}">
+  <!-- Select2 CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2/css/select2.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
+{% endblock %}
+
 {% block breadcrumb %}
 <li class="breadcrumb-item"><a href="{{ url_for('service.list_requests') }}">طلبات الصيانة</a></li>
 <li class="breadcrumb-item active">{{ edit_mode and 'تعديل' or 'جديد' }}</li>
@@ -18,7 +28,7 @@
     <div class="row">
       <div class="col-md-6 mb-3">
         {{ form.customer_id.label(class="form-label") }}
-        {{ form.customer_id(class="form-select", id="customerSelect") }}
+        {{ form.customer_id(class="form-select select2", id="customerSelect", data_endpoint=url_for('api.search_customers')) }}
         {% for e in form.customer_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
         <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="addCustomerBtn">
           <i class="fa fa-user-plus"></i> إضافة عميل سريع
@@ -29,19 +39,19 @@
       <div class="col-md-6">
         <div class="row">
           <div class="col-md-4 mb-3">
-            {{ form.name.label(class="form-label") }}
-            {{ form.name(class="form-control", placeholder="اسم العميل") }}
-            {% for e in form.name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            {{ customer_form.name.label(class="form-label") }}
+            {{ customer_form.name(class="form-control", id="customer_name", placeholder="اسم العميل") }}
+            {% for e in customer_form.name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
           </div>
           <div class="col-md-4 mb-3">
-            {{ form.phone.label(class="form-label") }}
-            {{ form.phone(class="form-control", placeholder="رقم الجوال") }}
-            {% for e in form.phone.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            {{ customer_form.phone.label(class="form-label") }}
+            {{ customer_form.phone(class="form-control", id="customer_phone", placeholder="رقم الجوال") }}
+            {% for e in customer_form.phone.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
           </div>
           <div class="col-md-4 mb-3">
-            {{ form.email.label(class="form-label") }}
-            {{ form.email(class="form-control", placeholder="البريد الإلكتروني") }}
-            {% for e in form.email.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            {{ customer_form.email.label(class="form-label") }}
+            {{ customer_form.email(class="form-control", id="customer_email", placeholder="البريد الإلكتروني") }}
+            {% for e in customer_form.email.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
           </div>
         </div>
       </div>
@@ -51,7 +61,7 @@
     <div class="row">
       <div class="col-md-3 mb-3">
         {{ form.vehicle_type_id.label(class="form-label") }}
-        {{ form.vehicle_type_id(class="form-select") }}
+        {{ form.vehicle_type_id(class="form-select select2", data_endpoint=url_for('api.search_equipment_types')) }}
       </div>
       <div class="col-md-3 mb-3">
         {{ form.vehicle_model.label(class="form-label") }}
@@ -108,18 +118,18 @@
       </div>
     </div>
 
-    {# أقسام FieldList اختيارية إن وُجدت في الفورم #}
+    <!-- (اختياري) سطور ديناميكية -->
     {% if form.parts %}
     <div class="mb-3">
       <label class="form-label">القطع المستخدمة</label>
       <div id="parts-list">
         {% for part in form.parts %}
         <div class="row g-2 mb-2 part-line">
-          <div class="col-md-3">{{ part.warehouse_id(class="form-select select2", **{'data-endpoint':'/api/search_warehouses'}) }}</div>
-          <div class="col-md-3">{{ part.part_id(class="form-select select2", **{'data-endpoint-by-warehouse':'/api/warehouses/0/products','data-product-info':'/api/products/0/info'}) }}</div>
+          <div class="col-md-3">{{ part.warehouse_id(class="form-select") }}</div>
+          <div class="col-md-3">{{ part.part_id(class="form-select") }}</div>
           <div class="col-md-2">{{ part.quantity(class="form-control", min="1") }}</div>
           <div class="col-md-2">{{ part.unit_price(class="form-control", min="0", step="0.01") }}</div>
-          <div class="col-md-1">{{ part.partner_id(class="form-select select2", **{'data-endpoint':'/api/partners'}) }}</div>
+          <div class="col-md-1">{{ part.partner_id(class="form-select") }}</div>
           <div class="col-md-1">{{ part.share_percentage(class="form-control", step="0.01") }}</div>
           <div class="col-auto d-flex align-items-center">
             <button type="button" class="btn btn-outline-danger btn-sm remove-part">&times;</button>
@@ -195,30 +205,62 @@
 
 {% block scripts %}
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- Select2 JS قبل service.js -->
+  <script src="{{ url_for('static', filename='adminlte/plugins/select2/js/select2.full.min.js') }}"></script>
+
   <script src="{{ url_for('static', filename='js/service.js') }}"></script>
   <script>
+    // تفعيل Select2 عبر data-endpoint إن وُجد
+    document.addEventListener('DOMContentLoaded', function () {
+      if (window.jQuery && jQuery.fn.select2) {
+        document.querySelectorAll('.select2').forEach(function(el){
+          const $el = $(el);
+          const ep = el.getAttribute('data-endpoint') || el.dataset.endpoint;
+          if (ep) {
+            $el.select2({
+              width: '100%',
+              theme: 'bootstrap4',
+              ajax: {
+                url: ep, dataType: 'json', delay: 250,
+                data: params => ({ q: params.term || '', limit: 20 }),
+                processResults: data => ({ results: Array.isArray(data) ? data : (data.results || []) })
+              },
+              placeholder: 'اختر...'
+            });
+          } else {
+            $el.select2({ width: '100%', theme: 'bootstrap4', placeholder: 'اختر...' });
+          }
+        });
+      } else {
+        console.warn('Select2 لم يُحمّل. تأكد من المسارات إلى ملفات CSS/JS.');
+      }
+    });
+
     // فتح المودال
     document.getElementById('addCustomerBtn')?.addEventListener('click', () => {
       const modal = new bootstrap.Modal(document.getElementById('customerModal'));
       modal.show();
     });
 
-    // نقل بيانات العميل من المودال إلى الحقول الأساسية
+    // نقل بيانات العميل من المودال إلى الحقول (باستخدام id ثابت)
     document.getElementById('newCustomerForm')?.addEventListener('submit', function(e){
       e.preventDefault();
       const name  = document.getElementById('c_name').value.trim();
       const phone = document.getElementById('c_phone').value.trim();
       const email = document.getElementById('c_email').value.trim();
 
-      const sel = document.getElementById('customerSelect');
-      if (sel) sel.value = '';
+      const setById = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+      setById('customer_name', name);
+      setById('customer_phone', phone);
+      setById('customer_email', email);
 
-      const f = document.getElementById('serviceForm');
-      if (f) {
-        const setVal = (n, v) => { const el = f.querySelector(`[name="${n}"]`); if (el) el.value = v; };
-        setVal('name', name);
-        setVal('phone', phone);
-        setVal('email', email);
+      // إفراغ اختيار العميل وإطلاق change (لـ Select2 أيضاً)
+      const sel = document.getElementById('customerSelect');
+      if (sel) {
+        sel.value = '';
+        sel.dispatchEvent(new Event('change'));
+        if (window.jQuery && jQuery.fn.select2) { $(sel).val(null).trigger('change'); }
       }
 
       bootstrap.Modal.getInstance(document.getElementById('customerModal'))?.hide();

@@ -1,4 +1,4 @@
-{# templates/service/view.html #}
+{# File: templates/service/view.html #}
 {% extends "base.html" %}
 {% block title %}تفاصيل طلب الصيانة{% endblock %}
 {% block page_header %}طلب {{ service.service_number or ('#' ~ service.id) }}{% endblock %}
@@ -29,10 +29,10 @@
     <div class="col-md-6">
       <table class="table table-bordered table-sm">
         <tr><th style="width:140px">رقم الطلب</th><td>{{ service.service_number or ('#' ~ service.id) }}</td></tr>
-        <tr><th>العميل</th><td>{{ service.name or (service.customer.name if service.customer else '—') }}</td></tr>
-        <tr><th>الجوال</th><td>{{ service.phone or (service.customer.phone if service.customer else '—') }}</td></tr>
-        <tr><th>البريد</th><td>{{ service.email or (service.customer.email if service.customer else '—') }}</td></tr>
-        <tr><th>نوع المعدة</th><td>{{ service.vehicle_type.name if service.vehicle_type else '—' }}</td></tr>
+        <tr><th>العميل</th><td>{{ service.customer and service.customer.name or '—' }}</td></tr>
+        <tr><th>الجوال</th><td>{{ service.customer and service.customer.phone or '—' }}</td></tr>
+        <tr><th>البريد</th><td>{{ service.customer and service.customer.email or '—' }}</td></tr>
+        <tr><th>نوع المعدة</th><td>{{ service.vehicle_type and service.vehicle_type.name or '—' }}</td></tr>
         <tr><th>الموديل</th><td>{{ service.vehicle_model or '—' }}</td></tr>
         <tr><th>اللوحة</th><td>{{ service.vehicle_vrn or '—' }}</td></tr>
         {% set st = (service.status.value if service.status is not string else service.status)|upper %}
@@ -45,8 +45,8 @@
           </td>
         </tr>
         <tr><th>تاريخ الاستلام</th><td>{{ service.received_at and service.received_at.strftime('%Y-%m-%d') or '—' }}</td></tr>
-        <tr><th>بدأت</th><td>{{ service.start_time and service.start_time.strftime('%Y-%m-%d %H:%M') or '—' }}</td></tr>
-        <tr><th>اكتملت</th><td>{{ service.end_time and service.end_time.strftime('%Y-%m-%d %H:%M') or '—' }}</td></tr>
+        <tr><th>بدأت</th><td>{{ service.started_at and service.started_at.strftime('%Y-%m-%d %H:%M') or '—' }}</td></tr>
+        <tr><th>اكتملت</th><td>{{ service.completed_at and service.completed_at.strftime('%Y-%m-%d %H:%M') or '—' }}</td></tr>
       </table>
     </div>
     <div class="col-md-6">
@@ -95,7 +95,7 @@
   </div>
 
   {# جداول #}
-  <div class="mb-3">{% include 'service/_part_table.html' %}</div>
+  <div class="mb-3">{% include 'service/_parts_table.html' %}</div>
 
   {% if current_user.has_permission('manage_service') %}
   <form method="post" action="{{ url_for('service.add_part', rid=service.id) }}" class="border rounded p-3 mb-3" id="form-add-part">
@@ -103,12 +103,12 @@
     <div class="row g-2 align-items-end">
       <div class="col-md-3">
         <label class="form-label">المستودع</label>
-        <select class="form-select select2" name="warehouse_id"
+        <select class="form-select select2" name="warehouse_id" id="warehouse_id"
                 data-endpoint="{{ url_for('api.search_warehouses') }}" required></select>
       </div>
       <div class="col-md-3">
         <label class="form-label">القطعة</label>
-        <select class="form-select select2" name="part_id"
+        <select class="form-select select2" name="part_id" id="part_id"
                 data-endpoint-by-warehouse="{{ url_for('api.products_by_warehouse', wid=0) }}"
                 data-product-info="{{ url_for('api.product_info', pid=0) }}"
                 required></select>
@@ -149,7 +149,7 @@
   </form>
   {% endif %}
 
-  <div class="mb-3">{% include 'service/_task_table.html' %}</div>
+  <div class="mb-3">{% include 'service/_tasks_table.html' %}</div>
 
   {% if current_user.has_permission('manage_service') %}
   <form method="post" action="{{ url_for('service.add_task', rid=service.id) }}" class="border rounded p-3 mb-3" id="form-add-task">
@@ -183,7 +183,7 @@
   </form>
   {% endif %}
 
-  <div class="mb-3">{% include 'service/_payment_table.html' %}</div>
+  <div class="mb-3">{% include 'service/_payments_table.html' %}</div>
   <div class="mb-3">{% include 'service/_summary_card.html' %}</div>
 
 </div>
@@ -194,21 +194,63 @@
   {# Select2 JS قبل service.js #}
   <script src="{{ url_for('static', filename='adminlte/plugins/select2/js/select2.full.min.js') }}"></script>
   <script src="{{ url_for('static', filename='js/service.js') }}"></script>
+
   <script>
     document.addEventListener("DOMContentLoaded", function(){
+      // فحص وتحميل Select2
       if (!window.jQuery || !jQuery.fn.select2) {
         console.warn('Select2 لم يُحمّل. تأكد من المسارات إلى ملفات CSS/JS.');
-      }
-      const btn = document.getElementById("printReceiptBtn");
-      if(btn){
-        btn.addEventListener("click", function(){
-          const url = this.dataset.url;
-          if(url){
-            const win = window.open(url, "_blank");
-            if (win) { win.onload = () => win.print(); }
+      } else {
+        $('.select2').select2({ theme: 'bootstrap4', width: '100%' });
+
+        // ربط اختيار المستودع: تحميل منتجات المستودع
+        const $wh = $('#warehouse_id');
+        const $part = $('#part_id');
+        $wh.on('change', function(){
+          const wid = $(this).val();
+          const base = $part.data('endpoint-by-warehouse'); // مثال: /api/warehouses/0/products
+          const url = base.replace(/\/0(\/)?$/, '') + '/' + wid + '/products';
+          $part.empty();
+          $.getJSON(url, function(rows){
+            rows.forEach(r => {
+              const label = r.text + (r.available != null ? ` (متاح: ${r.available})` : '');
+              $part.append(new Option(label, r.id));
+            });
+            $part.trigger('change');
+          });
+        });
+
+        // عند اختيار قطعة: جلب السعر المتوفر (اختياري)
+        $part.on('change', function(){
+          const pid = $(this).val();
+          const wid = $wh.val();
+          const infoBase = $part.data('product-info'); // مثال: /api/products/0/info
+          if (pid && infoBase) {
+            const infoUrl = infoBase.replace(/\/0(\/)?info$/, '') + '/' + pid + '/info' + (wid ? `?warehouse_id=${wid}` : '');
+            $.getJSON(infoUrl, function(info){
+              if (info && typeof info.price !== 'undefined') {
+                const $price = $('[name="unit_price"]');
+                if ($price.val() === '' || Number($price.val()) === 0) $price.val(info.price);
+              }
+            });
           }
         });
       }
+
+      // معاينة الإيصال
+      document.getElementById("previewReceiptBtn")?.addEventListener("click", function(){
+        const url = this.dataset.url;
+        if(url){ window.open(url, "_blank"); }
+      });
+
+      // طباعة مباشرة
+      document.getElementById("printReceiptBtn")?.addEventListener("click", function(){
+        const url = this.dataset.url;
+        if(url){
+          const win = window.open(url, "_blank");
+          if (win) { win.onload = () => win.print(); }
+        }
+      });
     });
   </script>
 {% endblock %}

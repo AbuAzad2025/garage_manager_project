@@ -282,30 +282,39 @@ def dashboard():
 @login_required
 @permission_required('manage_service')
 def create_request():
-    form = ServiceRequestForm(); cform = CustomerForm(prefix="customer")
-    try: form.vehicle_type_id.endpoint='api.equipment_types'
-    except Exception: pass
+    form = ServiceRequestForm()
+    cform = CustomerForm(prefix="customer")
+    try:
+        form.vehicle_type_id.endpoint = 'api.search_equipment_types'
+    except Exception:
+        pass
+
     if form.validate_on_submit():
+        # تحديد العميل: مختار من القائمة أو إنشاء جديد من CustomerForm
         if form.customer_id.data:
             customer = db.session.get(Customer, _get_id(form.customer_id.data))
         else:
-            customer = Customer.query.filter_by(name=form.name.data, phone=form.phone.data).first()
+            cname  = cform.name.data
+            cphone = cform.phone.data
+            cemail = cform.email.data
+            customer = Customer.query.filter_by(name=cname, phone=cphone).first()
             if not customer:
-                customer = Customer(name=form.name.data, phone=form.phone.data, email=form.email.data)
+                customer = Customer(name=cname, phone=cphone, email=cemail)
                 db.session.add(customer); db.session.flush()
+
         service = ServiceRequest(
             service_number=f"SRV-{datetime.utcnow():%Y%m%d%H%M%S}",
             customer_id=customer.id,
-            name=form.name.data,
-            phone=form.phone.data,
-            email=form.email.data,
+
             vehicle_vrn=form.vehicle_vrn.data,
             vehicle_type_id=_get_id(form.vehicle_type_id.data) if form.vehicle_type_id.data else None,
             vehicle_model=form.vehicle_model.data,
             chassis_number=form.chassis_number.data,
+
             problem_description=form.problem_description.data,
             engineer_notes=form.engineer_notes.data,
             description=form.description.data,
+
             priority=getattr(ServicePriority, (form.priority.data or 'MEDIUM').upper()),
             estimated_duration=form.estimated_duration.data,
             estimated_cost=form.estimated_cost.data,
@@ -315,13 +324,16 @@ def create_request():
         )
         db.session.add(service)
         try:
-            db.session.commit(); log_service_action(service, "CREATE")
+            db.session.commit()
+            log_service_action(service, "CREATE")
             if customer.phone:
                 send_whatsapp_message(customer.phone, f"تم استلام طلب الصيانة رقم {service.service_number}.")
             flash("✅ تم إنشاء طلب الصيانة بنجاح", "success")
             return redirect(url_for('service.view_request', rid=service.id))
         except SQLAlchemyError as exc:
-            db.session.rollback(); flash(f"❌ خطأ في قاعدة البيانات: {exc}", "danger")
+            db.session.rollback()
+            flash(f"❌ خطأ في قاعدة البيانات: {exc}", "danger")
+
     return render_template('service/new.html', form=form, customer_form=cform)
 
 @service_bp.route('/<int:rid>', methods=['GET'])
