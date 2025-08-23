@@ -1,11 +1,10 @@
-{# templates/reports/sales.html #}
 {% extends 'base.html' %}
-{% block title %}{{ FIELD_LABELS.get("sales", "المبيعات") }}{% endblock %}
-{% block page_title %}{{ FIELD_LABELS.get("sales_by_day", "مبيعات حسب اليوم") }}{% endblock %}
+{% block title %}ملخص المدفوعات{% endblock %}
+{% block page_title %}ملخص المدفوعات حسب طريقة الدفع{% endblock %}
 
 {% block breadcrumb %}
 <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
-<li class="breadcrumb-item active">{{ FIELD_LABELS.get("sales", "المبيعات") }}</li>
+<li class="breadcrumb-item active">ملخص المدفوعات</li>
 {% endblock %}
 
 {% block content %}
@@ -13,9 +12,8 @@
 
   <!-- العنوان -->
   <div class="mb-3">
-    <h4 class="fw-bold">
-      <i class="fas fa-chart-line"></i>
-      {{ FIELD_LABELS.get("sales_by_day", "مبيعات حسب اليوم") }}
+    <h4 class="fw-bold"><i class="fas fa-money-check-alt"></i>
+      {{ FIELD_LABELS.get("payments_summary", "ملخص المدفوعات حسب طريقة الدفع") }}
     </h4>
   </div>
 
@@ -27,48 +25,49 @@
     <div class="card-body">
       <form class="row g-3" method="get">
         <div class="col-md-3">
-          <label class="form-label fw-semibold">{{ FIELD_LABELS.get("start_date", "من") }}</label>
+          <label class="form-label fw-semibold">{{ FIELD_LABELS.get("start_date", "من تاريخ") }}</label>
           <input type="date" name="start" value="{{ start or '' }}" class="form-control">
         </div>
         <div class="col-md-3">
-          <label class="form-label fw-semibold">{{ FIELD_LABELS.get("end_date", "إلى") }}</label>
+          <label class="form-label fw-semibold">{{ FIELD_LABELS.get("end_date", "إلى تاريخ") }}</label>
           <input type="date" name="end" value="{{ end or '' }}" class="form-control">
         </div>
-        <div class="col-md-3 align-self-end">
+        <div class="col-md-3 align-self-end d-flex gap-2">
           <button class="btn btn-primary">
             <i class="fas fa-sync-alt"></i> {{ FIELD_LABELS.get("refresh", "تحديث") }}
+          </button>
+          <button type="button" class="btn btn-outline-dark" onclick="window.print()">
+            <i class="fas fa-print"></i> طباعة
           </button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- جدول المبيعات -->
+  <!-- جدول النتائج -->
   <div class="card shadow-sm">
-    <div class="card-header">{{ FIELD_LABELS.get("sales_table", "جدول المبيعات") }}</div>
+    <div class="card-header">نتائج التقرير</div>
     <div class="card-body">
       <div class="table-responsive">
         <table id="report-table" class="table table-bordered table-striped align-middle">
           <thead class="table-dark">
             <tr>
-              <th>{{ FIELD_LABELS.get("sale_date", "اليوم") }}</th>
-              <th>{{ FIELD_LABELS.get("total_amount", "الإيراد") }}</th>
+              <th>{{ FIELD_LABELS.get("payment_method", "طريقة الدفع") }}</th>
+              <th>{{ FIELD_LABELS.get("total", "الإجمالي") }}</th>
             </tr>
           </thead>
           <tbody>
-            {% for d in daily_labels %}
-              {% set i = loop.index0 %}
-              {% set v = (daily_values[i] if i < (daily_values|length) else 0) %}
+            {% for m, t in zip(methods, totals) %}
               <tr>
-                <td class="text-center">{{ d }}</td>
-                <td class="text-end">{{ "{:,.2f}".format(v) }}</td>
+                <td class="text-center">{{ m }}</td>
+                <td class="text-end">{{ "{:,.2f}".format(t) }}</td>
               </tr>
             {% endfor %}
           </tbody>
           <tfoot class="fw-bold table-light">
             <tr>
-              <th>{{ FIELD_LABELS.get("grand_total", "الإجمالي") }}</th>
-              <th class="text-end">{{ "{:,.2f}".format(total_revenue) }}</th>
+              <th>{{ FIELD_LABELS.get("grand_total", "المجموع الكلي") }}</th>
+              <th class="text-end">{{ "{:,.2f}".format(grand_total) }}</th>
             </tr>
           </tfoot>
         </table>

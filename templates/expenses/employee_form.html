@@ -1,6 +1,5 @@
 {% extends 'base.html' %}
 {% block title %}{{ is_edit and 'تعديل موظف' or 'إضافة موظف' }}{% endblock %}
-
 {% block content %}
 <div class="container mt-4">
   <h2 class="mb-3">{{ is_edit and 'تعديل موظف' or 'إضافة موظف' }}</h2>
@@ -25,5 +24,4 @@
   </form>
 </div>
 {% endblock %}
-
 {% block scripts %}{{ super() }}{% endblock %}

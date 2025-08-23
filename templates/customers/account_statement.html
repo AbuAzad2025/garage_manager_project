@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+
 {% block title %}كشف حساب العميل{% endblock %}
 
 {% block breadcrumb %}
@@ -12,69 +13,80 @@
 {% endblock %}
 
 {% block content %}
-<div class="container">
-  <h2 class="mb-3">كشف حساب {{ customer.name }}</h2>
+<div class="content-wrapper">
+  <div class="card shadow-sm rounded mb-4">
+    <div class="card-header bg-primary text-white">
+      <h5 class="card-title m-0"><i class="fas fa-file-invoice me-2"></i> كشف حساب: {{ customer.name }}</h5>
+    </div>
+    <div class="card-body">
 
-  <h4 class="mt-4">الفواتير</h4>
-  <table class="table table-bordered align-middle">
-    <thead>
-      <tr>
-        <th>رقم الفاتورة</th>
-        <th>التاريخ</th>
-        <th class="text-end">المبلغ</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for inv in invoices %}
-      <tr>
-        <td>{{ inv.invoice_number or inv.id }}</td>
-        <td>{{ inv.invoice_date|format_date }}</td>
-        <td class="text-end">{{ inv.total_amount|format_currency }}</td>
-      </tr>
-      {% else %}
-      <tr><td colspan="3" class="text-center">لا توجد فواتير.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+      <h6 class="mb-3">الفواتير</h6>
+      <div class="table-responsive mb-4">
+        <table class="table table-bordered table-sm table-striped align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>رقم الفاتورة</th>
+              <th>التاريخ</th>
+              <th class="text-end">المبلغ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for inv in invoices %}
+            <tr>
+              <td>{{ inv.invoice_number or inv.id }}</td>
+              <td>{{ inv.invoice_date|format_date }}</td>
+              <td class="text-end">{{ inv.total_amount|format_currency }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3" class="text-center text-muted">لا توجد فواتير.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
 
-  <h4 class="mt-4">الدفعات</h4>
-  <table class="table table-bordered align-middle">
-    <thead>
-      <tr>
-        <th>رقم الدفع</th>
-        <th>التاريخ</th>
-        <th class="text-end">المبلغ</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for pay in payments %}
-      <tr>
-        <td>{{ pay.payment_number or pay.id }}</td>
-        <td>{{ pay.payment_date|format_date }}</td>
-        <td class="text-end">{{ pay.total_amount|format_currency }}</td>
-      </tr>
-      {% else %}
-      <tr><td colspan="3" class="text-center">لا توجد دفعات.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+      <h6 class="mb-3">الدفعات</h6>
+      <div class="table-responsive mb-4">
+        <table class="table table-bordered table-sm table-striped align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>رقم الدفع</th>
+              <th>التاريخ</th>
+              <th class="text-end">المبلغ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for pay in payments %}
+            <tr>
+              <td>{{ pay.payment_number or pay.id }}</td>
+              <td>{{ pay.payment_date|format_date }}</td>
+              <td class="text-end">{{ pay.total_amount|format_currency }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3" class="text-center text-muted">لا توجد دفعات.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
 
-  <div class="alert alert-info mt-4">
-    <strong>إجمالي الفواتير:</strong> {{ total_invoices|format_currency }}<br>
-    <strong>إجمالي الدفعات:</strong> {{ total_payments|format_currency }}<br>
-    <strong>الرصيد المتبقي:</strong>
-    <span class="fw-bold {% if balance>0 %}text-danger{% else %}text-success{% endif %}">
-      {{ balance|format_currency }}
-    </span>
-  </div>
+      <div class="alert alert-info">
+        <strong>إجمالي الفواتير:</strong> {{ total_invoices|format_currency }}<br>
+        <strong>إجمالي الدفعات:</strong> {{ total_payments|format_currency }}<br>
+        <strong>الرصيد المتبقي:</strong>
+        <span class="fw-bold {% if balance > 0 %}text-danger{% else %}text-success{% endif %}">
+          {{ balance|format_currency }}
+        </span>
+      </div>
 
-  <div class="mt-3 d-flex gap-2">
-    <a class="btn btn-outline-secondary" href="{{ url_for('customers_bp.customer_detail', customer_id=customer.id) }}">
-      <i class="fas fa-arrow-left me-1"></i> عودة للتفاصيل
-    </a>
-    <a class="btn btn-primary" href="{{ url_for('customers_bp.list_customers') }}">
-      <i class="fas fa-users me-1"></i> قائمة العملاء
-    </a>
+      <div class="mt-4 d-flex gap-2">
+        <a class="btn btn-outline-secondary" href="{{ url_for('customers_bp.customer_detail', customer_id=customer.id) }}">
+          <i class="fas fa-arrow-left me-1"></i> عودة للتفاصيل
+        </a>
+        <a class="btn btn-primary" href="{{ url_for('customers_bp.list_customers') }}">
+          <i class="fas fa-users me-1"></i> قائمة العملاء
+        </a>
+      </div>
+
+    </div>
   </div>
 </div>
 {% endblock %}

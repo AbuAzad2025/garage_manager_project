@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
-{% block title %}أعمار الذمم - العملاء{% endblock %}
-{% block page_title %}أعمار الذمم (العملاء){% endblock %}
+{% block title %}أعمار الذمم - الموردون{% endblock %}
+{% block page_title %}أعمار الذمم (الموردون){% endblock %}
 
 {% block breadcrumb %}
 <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
-<li class="breadcrumb-item active">أعمار الذمم (العملاء)</li>
+<li class="breadcrumb-item active">أعمار الذمم (الموردون)</li>
 {% endblock %}
 
 {% block content %}
@@ -12,7 +12,7 @@
 
   <!-- عنوان -->
   <div class="mb-3">
-    <h4 class="fw-bold"><i class="fas fa-users"></i> {{ FIELD_LABELS.get("ar_aging", "أعمار الذمم (العملاء)") }}</h4>
+    <h4 class="fw-bold"><i class="fas fa-industry"></i> {{ FIELD_LABELS.get("ap_aging", "أعمار الذمم (الموردون)") }}</h4>
   </div>
 
   <!-- بطاقة الإعدادات -->
@@ -61,7 +61,7 @@
         <table id="report-table" class="table table-bordered table-striped align-middle">
           <thead class="table-dark">
             <tr>
-              <th>{{ FIELD_LABELS.get("customer", "العميل") }}</th>
+              <th>{{ FIELD_LABELS.get("supplier", "المورد") }}</th>
               <th>0-30</th>
               <th>31-60</th>
               <th>61-90</th>
@@ -72,7 +72,7 @@
           <tbody>
             {% for row in data %}
             <tr>
-              <td>{{ row.customer }}</td>
+              <td>{{ row.supplier }}</td>
               <td class="text-end">{{ "{:,.2f}".format(row.buckets["0-30"]) }}</td>
               <td class="text-end">{{ "{:,.2f}".format(row.buckets["31-60"]) }}</td>
               <td class="text-end">{{ "{:,.2f}".format(row.buckets["61-90"]) }}</td>

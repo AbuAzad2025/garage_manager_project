@@ -189,3 +189,12 @@ def delete_user(user_id):
         db.session.rollback()
         flash(f"حدث خطأ أثناء الحذف: {e}", "danger")
     return redirect(url_for("users_bp.list_users"))
+
+@users_bp.route("/register", methods=["GET"])
+@login_required
+@permission_required("manage_users")
+def internal_register():
+    form = UserForm()
+    form.role.query = Role.query.order_by(Role.name).all()
+    form.extra_permissions.query = Permission.query.order_by(Permission.name).all()
+    return render_template("users/form.html", form=form, action="create", user_id=None, all_permissions=form.extra_permissions.query)

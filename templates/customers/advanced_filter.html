@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+
 {% block title %}فلتر متقدّم{% endblock %}
 
 {% block breadcrumb %}
@@ -11,99 +12,103 @@
 {% endblock %}
 
 {% block content %}
-<div class="card shadow-sm">
-  <div class="card-header bg-primary text-white">
-    <h3 class="card-title"><i class="fas fa-filter me-2"></i>فلتر متقدّم</h3>
-  </div>
-  <div class="card-body">
-    <form id="customer-adv-search" class="row g-3 mb-4" method="get" action="{{ url_for('customers_bp.advanced_filter') }}">
-      <!-- أرصدة -->
-      <div class="col-md-3">
-        <label class="form-label fw-bold">رصيد أدنى</label>
-        <input type="number" step="0.01" name="balance_min" value="{{ request.args.get('balance_min','') }}" class="form-control">
-      </div>
-      <div class="col-md-3">
-        <label class="form-label fw-bold">رصيد أقصى</label>
-        <input type="number" step="0.01" name="balance_max" value="{{ request.args.get('balance_max','') }}" class="form-control">
-      </div>
+<div class="content-wrapper">
+  <div class="card shadow-sm rounded">
+    <div class="card-header bg-primary text-white">
+      <h5 class="card-title m-0"><i class="fas fa-filter me-2"></i> فلتر متقدّم</h5>
+    </div>
+    <div class="card-body">
 
-      <!-- تواريخ إنشاء -->
-      <div class="col-md-3">
-        <label class="form-label fw-bold">تاريخ إنشاء من</label>
-        <input type="date" name="created_at_min" value="{{ request.args.get('created_at_min','') }}" class="form-control">
-      </div>
-      <div class="col-md-3">
-        <label class="form-label fw-bold">تاريخ إنشاء إلى</label>
-        <input type="date" name="created_at_max" value="{{ request.args.get('created_at_max','') }}" class="form-control">
-      </div>
+      <form id="customer-adv-search" class="row g-3 mb-4" method="get" action="{{ url_for('customers_bp.advanced_filter') }}">
+        <!-- الرصيد -->
+        <div class="col-md-3">
+          <label class="form-label fw-bold">رصيد أدنى</label>
+          <input type="number" step="0.01" name="balance_min" value="{{ request.args.get('balance_min','') }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-bold">رصيد أقصى</label>
+          <input type="number" step="0.01" name="balance_max" value="{{ request.args.get('balance_max','') }}" class="form-control form-control-sm">
+        </div>
 
-      <!-- آخر نشاط -->
-      <div class="col-md-3">
-        <label class="form-label fw-bold">آخر نشاط من</label>
-        <input type="date" name="last_activity_min" value="{{ request.args.get('last_activity_min','') }}" class="form-control">
-      </div>
-      <div class="col-md-3">
-        <label class="form-label fw-bold">آخر نشاط إلى</label>
-        <input type="date" name="last_activity_max" value="{{ request.args.get('last_activity_max','') }}" class="form-control">
-      </div>
+        <!-- تاريخ الإنشاء -->
+        <div class="col-md-3">
+          <label class="form-label fw-bold">تاريخ إنشاء من</label>
+          <input type="date" name="created_at_min" value="{{ request.args.get('created_at_min','') }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-bold">تاريخ إنشاء إلى</label>
+          <input type="date" name="created_at_max" value="{{ request.args.get('created_at_max','') }}" class="form-control form-control-sm">
+        </div>
 
-      <!-- فئة وحالة (مطابقة للراوت) -->
-      <div class="col-md-3">
-        <label class="form-label fw-bold">الفئة</label>
-        <select name="category" class="form-select">
-          <option value="">الكل</option>
-          {% for cat in ['عادي','فضي','ذهبي','مميز'] %}
-            <option value="{{ cat }}" {{ 'selected' if request.args.get('category')==cat else '' }}>{{ cat }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-3">
-        <label class="form-label fw-bold">الحالة</label>
-        <select name="status" class="form-select">
-          <option value="">الكل</option>
-          <option value="active" {{ 'selected' if request.args.get('status')=='active' else '' }}>نشط</option>
-          <option value="inactive" {{ 'selected' if request.args.get('status')=='inactive' else '' }}>غير نشط</option>
-          <option value="credit_hold" {{ 'selected' if request.args.get('status')=='credit_hold' else '' }}>معلق ائتمانيًا</option>
-        </select>
-      </div>
+        <!-- آخر نشاط -->
+        <div class="col-md-3">
+          <label class="form-label fw-bold">آخر نشاط من</label>
+          <input type="date" name="last_activity_min" value="{{ request.args.get('last_activity_min','') }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-bold">آخر نشاط إلى</label>
+          <input type="date" name="last_activity_max" value="{{ request.args.get('last_activity_max','') }}" class="form-control form-control-sm">
+        </div>
 
-      <!-- أزرار -->
-      <div class="col-12 d-flex flex-wrap gap-2">
-        <button type="submit" class="btn btn-primary"><i class="fas fa-check me-1"></i>تطبيق</button>
-        <button type="reset" id="reset-adv-filter" class="btn btn-secondary">إعادة</button>
-        <button type="button" id="export-results" class="btn btn-outline-success">
-          <i class="fas fa-file-csv me-1"></i> تصدير CSV
-        </button>
-      </div>
-    </form>
+        <!-- فئة وحالة -->
+        <div class="col-md-3">
+          <label class="form-label fw-bold">الفئة</label>
+          <select name="category" class="form-select form-select-sm">
+            <option value="">الكل</option>
+            {% for cat in ['عادي','فضي','ذهبي','مميز'] %}
+              <option value="{{ cat }}" {{ 'selected' if request.args.get('category')==cat else '' }}>{{ cat }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-bold">الحالة</label>
+          <select name="status" class="form-select form-select-sm">
+            <option value="">الكل</option>
+            <option value="active" {{ 'selected' if request.args.get('status')=='active' else '' }}>نشط</option>
+            <option value="inactive" {{ 'selected' if request.args.get('status')=='inactive' else '' }}>غير نشط</option>
+            <option value="credit_hold" {{ 'selected' if request.args.get('status')=='credit_hold' else '' }}>معلق ائتمانيًا</option>
+          </select>
+        </div>
 
-    {% include 'customers/_table.html' %}
+        <!-- أزرار التحكم -->
+        <div class="col-12 d-flex flex-wrap gap-2 mt-3">
+          <button type="submit" class="btn btn-primary"><i class="fas fa-check me-1"></i> تطبيق</button>
+          <button type="reset" id="reset-adv-filter" class="btn btn-secondary">إعادة</button>
+          <button type="button" id="export-results" class="btn btn-outline-success">
+            <i class="fas fa-file-csv me-1"></i> تصدير CSV
+          </button>
+        </div>
+      </form>
 
-    {% if pagination.pages > 1 %}
-    <nav aria-label="Page navigation">
-      <ul class="pagination justify-content-center mt-4">
-        {% if pagination.has_prev %}
-          <li class="page-item">
-            <a class="page-link" href="{{ url_for('customers_bp.advanced_filter', page=pagination.prev_num, **request.args.to_dict()) }}">السابق</a>
-          </li>
-        {% endif %}
-        {% for p in pagination.iter_pages() %}
-          {% if p %}
-            <li class="page-item {% if p == pagination.page %}active{% endif %}">
-              <a class="page-link" href="{{ url_for('customers_bp.advanced_filter', page=p, **request.args.to_dict()) }}">{{ p }}</a>
+      {% include 'customers/_table.html' %}
+
+      {% if pagination.pages > 1 %}
+      <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center mt-4">
+          {% if pagination.has_prev %}
+            <li class="page-item">
+              <a class="page-link" href="{{ url_for('customers_bp.advanced_filter', page=pagination.prev_num, **request.args.to_dict()) }}">السابق</a>
             </li>
-          {% else %}
-            <li class="page-item disabled"><span class="page-link">…</span></li>
           {% endif %}
-        {% endfor %}
-        {% if pagination.has_next %}
-          <li class="page-item">
-            <a class="page-link" href="{{ url_for('customers_bp.advanced_filter', page=pagination.next_num, **request.args.to_dict()) }}">التالي</a>
-          </li>
-        {% endif %}
-      </ul>
-    </nav>
-    {% endif %}
+          {% for p in pagination.iter_pages() %}
+            {% if p %}
+              <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                <a class="page-link" href="{{ url_for('customers_bp.advanced_filter', page=p, **request.args.to_dict()) }}">{{ p }}</a>
+              </li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
+          {% endfor %}
+          {% if pagination.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="{{ url_for('customers_bp.advanced_filter', page=pagination.next_num, **request.args.to_dict()) }}">التالي</a>
+            </li>
+          {% endif %}
+        </ul>
+      </nav>
+      {% endif %}
+
+    </div>
   </div>
 </div>
 {% endblock %}

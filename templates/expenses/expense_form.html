@@ -1,116 +1,57 @@
 {% extends "base.html" %}
 {% block title %}{{ is_edit and 'تعديل مصروف' or 'إضافة مصروف' }}{% endblock %}
-
 {% block content %}
 <div class="container mt-4">
   <div class="d-flex align-items-center justify-content-between mb-3">
     <h3 class="mb-0">{{ is_edit and '✏️ تعديل مصروف' or '➕ إضافة مصروف' }}</h3>
-    <div>
-      <a href="{{ url_for('expenses_bp.list_expenses') }}" class="btn btn-outline-secondary">
-        <i class="fas fa-arrow-right"></i> رجوع
-      </a>
-    </div>
+    <div><a href="{{ url_for('expenses_bp.list_expenses') }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-right"></i> رجوع</a></div>
   </div>
 
   <form method="POST" id="expenseForm" class="needs-validation" novalidate>
     {{ form.hidden_tag() }}
-
     <div class="row g-3">
       <div class="col-lg-6">
         <div class="card card-outline card-primary">
           <div class="card-header"><h5 class="card-title mb-0">📝 البيانات الأساسية</h5></div>
           <div class="card-body">
-            <div class="mb-3">
-              {{ form.date.label(class="form-label") }}
-              {{ form.date(type="date", class="form-control", id="date") }}
-              {% for e in form.date.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-            </div>
+            <div class="mb-3">{{ form.date.label(class="form-label") }}{{ form.date(type="date", class="form-control", id="date") }}{% for e in form.date.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+            <div class="mb-3">{{ form.amount.label(class="form-label") }}{{ form.amount(class="form-control", step="0.01", id="amount") }}{% for e in form.amount.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+            <div class="mb-3">{{ form.currency.label(class="form-label") }}{{ form.currency(class="form-select", id="currency") }}{% for e in form.currency.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+            <div class="mb-3">{{ form.type_id.label(class="form-label") }}{{ form.type_id(class="form-select", id="type_id") }}{% for e in form.type_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+            <div class="mb-3">{{ form.paid_to.label(class="form-label") }}{{ form.paid_to(class="form-control", id="paid_to") }}{% for e in form.paid_to.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+            <div class="mb-3">{{ form.payment_method.label(class="form-label") }}{{ form.payment_method(class="form-select", id="payment_method") }}{% for e in form.payment_method.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
 
-            <div class="mb-3">
-              {{ form.amount.label(class="form-label") }}
-              {{ form.amount(class="form-control", step="0.01", id="amount") }}
-              {% for e in form.amount.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-            </div>
-
-            <div class="mb-3">
-              {{ form.type_id.label(class="form-label") }}
-              {{ form.type_id(class="form-select", id="type_id") }}
-              {% for e in form.type_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-            </div>
-
-            <div class="mb-3">
-              {{ form.paid_to.label(class="form-label") }}
-              {{ form.paid_to(class="form-control", id="paid_to") }}
-              {% for e in form.paid_to.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-            </div>
-
-            <div class="mb-3">
-              {{ form.payment_method.label(class="form-label") }}
-              {{ form.payment_method(class="form-select", id="payment_method") }}
-              {% for e in form.payment_method.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-            </div>
-
-            <!-- تفاصيل الطريقة الديناميكية -->
             <div id="methodDetails" class="row gy-2" style="display:none;">
-              <!-- شيك -->
               <div class="col-md-4" data-field="check_number">
-                {{ form.check_number.label(class="form-label") if form.check_number is defined }}
-                {{ form.check_number(class="form-control") if form.check_number is defined }}
-                {% if form.check_number is defined %}{% for e in form.check_number.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}{% endif %}
+                {% if form.check_number is defined %}{{ form.check_number.label(class="form-label") }}{{ form.check_number(class="form-control") }}{% for e in form.check_number.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}{% endif %}
               </div>
               <div class="col-md-4" data-field="check_bank">
-                {{ form.check_bank.label(class="form-label") if form.check_bank is defined }}
-                {{ form.check_bank(class="form-control") if form.check_bank is defined }}
-                {% if form.check_bank is defined %}{% for e in form.check_bank.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}{% endif %}
+                {% if form.check_bank is defined %}{{ form.check_bank.label(class="form-label") }}{{ form.check_bank(class="form-control") }}{% for e in form.check_bank.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}{% endif %}
               </div>
               <div class="col-md-4" data-field="check_due_date">
-                {{ form.check_due_date.label(class="form-label") if form.check_due_date is defined }}
-                {{ form.check_due_date(type="date", class="form-control") if form.check_due_date is defined }}
-                {% if form.check_due_date is defined %}{% for e in form.check_due_date.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}{% endif %}
+                {% if form.check_due_date is defined %}{{ form.check_due_date.label(class="form-label") }}{{ form.check_due_date(type="date", class="form-control") }}{% for e in form.check_due_date.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}{% endif %}
               </div>
-
-              <!-- تحويل بنكي -->
               <div class="col-md-6" data-field="bank_transfer_ref">
-                {{ form.bank_transfer_ref.label(class="form-label") if form.bank_transfer_ref is defined }}
-                {{ form.bank_transfer_ref(class="form-control") if form.bank_transfer_ref is defined }}
-                {% if form.bank_transfer_ref is defined %}{% for e in form.bank_transfer_ref.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}{% endif %}
+                {% if form.bank_transfer_ref is defined %}{{ form.bank_transfer_ref.label(class="form-label") }}{{ form.bank_transfer_ref(class="form-control") }}{% for e in form.bank_transfer_ref.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}{% endif %}
               </div>
-
-              <!-- بطاقة -->
               <div class="col-md-4" data-field="card_number">
-                {{ form.card_number.label(class="form-label") if form.card_number is defined }}
-                {{ form.card_number(class="form-control") if form.card_number is defined }}
-                {% if form.card_number is defined %}{% for e in form.card_number.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}{% endif %}
+                {% if form.card_number is defined %}{{ form.card_number.label(class="form-label") }}{{ form.card_number(class="form-control") }}{% for e in form.card_number.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}{% endif %}
               </div>
               <div class="col-md-4" data-field="card_holder">
-                {{ form.card_holder.label(class="form-label") if form.card_holder is defined }}
-                {{ form.card_holder(class="form-control") if form.card_holder is defined }}
-                {% if form.card_holder is defined %}{% for e in form.card_holder.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}{% endif %}
+                {% if form.card_holder is defined %}{{ form.card_holder.label(class="form-label") }}{{ form.card_holder(class="form-control") }}{% for e in form.card_holder.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}{% endif %}
               </div>
               <div class="col-md-4" data-field="card_expiry">
-                {{ form.card_expiry.label(class="form-label") if form.card_expiry is defined }}
-                {{ form.card_expiry(class="form-control", placeholder="MM/YY") if form.card_expiry is defined }}
-                {% if form.card_expiry is defined %}{% for e in form.card_expiry.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}{% endif %}
+                {% if form.card_expiry is defined %}{{ form.card_expiry.label(class="form-label") }}{{ form.card_expiry(class="form-control", placeholder="MM/YY") }}{% for e in form.card_expiry.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}{% endif %}
               </div>
-
-              <!-- إلكتروني -->
               <div class="col-md-4" data-field="online_gateway">
-                {{ form.online_gateway.label(class="form-label") if form.online_gateway is defined }}
-                {{ form.online_gateway(class="form-control") if form.online_gateway is defined }}
-                {% if form.online_gateway is defined %}{% for e in form.online_gateway.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}{% endif %}
+                {% if form.online_gateway is defined %}{{ form.online_gateway.label(class="form-label") }}{{ form.online_gateway(class="form-control") }}{% for e in form.online_gateway.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}{% endif %}
               </div>
               <div class="col-md-4" data-field="online_ref">
-                {{ form.online_ref.label(class="form-label") if form.online_ref is defined }}
-                {{ form.online_ref(class="form-control") if form.online_ref is defined }}
-                {% if form.online_ref is defined %}{% for e in form.online_ref.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}{% endif %}
+                {% if form.online_ref is defined %}{{ form.online_ref.label(class="form-label") }}{{ form.online_ref(class="form-control") }}{% for e in form.online_ref.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}{% endif %}
               </div>
             </div>
 
-            <div class="mb-3">
-              {{ form.payment_details.label(class="form-label") }}
-              {{ form.payment_details(class="form-control") }}
-              {% for e in form.payment_details.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-            </div>
+            <div class="mb-3">{{ form.payment_details.label(class="form-label") }}{{ form.payment_details(class="form-control") }}{% for e in form.payment_details.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
           </div>
         </div>
       </div>
@@ -125,40 +66,19 @@
               {% for e in form.employee_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
               <small class="text-muted">يظهر هذا الحقل لراتب الموظّف.</small>
             </div>
-
-            <div class="mb-3">
-              {{ form.description.label(class="form-label") }}
-              {{ form.description(class="form-control") }}
-              {% for e in form.description.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-            </div>
-
-            <div class="mb-3">
-              {{ form.tax_invoice_number.label(class="form-label") }}
-              {{ form.tax_invoice_number(class="form-control") }}
-              {% for e in form.tax_invoice_number.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-            </div>
-
-            <div class="mb-3">
-              {{ form.notes.label(class="form-label") }}
-              {{ form.notes(class="form-control") }}
-              {% for e in form.notes.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-            </div>
+            <div class="mb-3">{{ form.description.label(class="form-label") }}{{ form.description(class="form-control") }}{% for e in form.description.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+            <div class="mb-3">{{ form.tax_invoice_number.label(class="form-label") }}{{ form.tax_invoice_number(class="form-control") }}{% for e in form.tax_invoice_number.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+            <div class="mb-3">{{ form.notes.label(class="form-label") }}{{ form.notes(class="form-control") }}{% for e in form.notes.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
           </div>
         </div>
       </div>
     </div>
 
     <div class="d-flex gap-2 mt-3">
-      <button type="submit" class="btn btn-success">
-        {{ is_edit and '💾 حفظ التعديلات' or '💾 حفظ المصروف' }}
-      </button>
+      <button type="submit" class="btn btn-success">{{ is_edit and '💾 حفظ التعديلات' or '💾 حفظ المصروف' }}</button>
       <a class="btn btn-outline-secondary" href="{{ url_for('expenses_bp.list_expenses') }}">إلغاء</a>
     </div>
   </form>
 </div>
 {% endblock %}
-
-{% block scripts %}
-  {{ super() }}
-  <script src="{{ url_for('static', filename='js/expenses.js') }}"></script>
-{% endblock %}
+{% block scripts %}{{ super() }}<script src="{{ url_for('static', filename='js/expenses.js') }}"></script>{% endblock %}

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import os
 from datetime import datetime
 from flask import Flask, url_for, request, current_app, render_template
@@ -67,6 +66,53 @@ def _init_sentry(app: Flask) -> None:
     except ImportError:
         app.logger.warning("Sentry SDK not installed; skipping Sentry init.")
 
+
+@login_manager.user_loader
+def load_user(user_id):
+    from sqlalchemy.orm import joinedload, lazyload
+    from sqlalchemy import select
+
+    uid_str = str(user_id or "").strip()
+    if ":" in uid_str:
+        try:
+            prefix, ident = uid_str.split(":", 1)
+            ident = int(ident)
+            prefix = prefix.lower()
+        except Exception:
+            return None
+
+        if prefix == "u":
+            stmt = (
+                select(User)
+                .options(joinedload(User.role).joinedload(Role.permissions))
+                .where(User.id == ident)
+            )
+            return db.session.execute(stmt).scalar_one_or_none()
+
+        if prefix == "c":
+            stmt = select(Customer).options(lazyload("*")).where(Customer.id == ident)
+            return db.session.execute(stmt).scalar_one_or_none()
+
+        return None
+
+    try:
+        ident = int(uid_str)
+    except Exception:
+        return None
+
+    stmt_user = (
+        select(User)
+        .options(joinedload(User.role).joinedload(Role.permissions))
+        .where(User.id == ident)
+    )
+    user = db.session.execute(stmt_user).unique().scalar_one_or_none()
+    if user:
+        return user
+
+    stmt_cust = select(Customer).options(lazyload("*")).where(Customer.id == ident)
+    return db.session.execute(stmt_cust).scalar_one_or_none()
+
+
 def create_app(config_object=Config, test_config=None) -> Flask:
     if isinstance(config_object, dict) and test_config is None:
         test_config = config_object
@@ -78,7 +124,7 @@ def create_app(config_object=Config, test_config=None) -> Flask:
         app.config.update(test_config)
 
     app.config.setdefault("JSON_AS_ASCII", False)
-    
+
     if app.config.get("SERVER_NAME"):
         from urllib.parse import urlparse
 
@@ -118,7 +164,7 @@ def create_app(config_object=Config, test_config=None) -> Flask:
 
     @event.listens_for(db.session.__class__, "before_attach")
     def _dedupe_entities(session, instance):
-        if isinstance(instance, (Role, Permission)) and getattr(instance, 'id', None) is not None:
+        if isinstance(instance, (Role, Permission)) and getattr(instance, "id", None) is not None:
             key = session.identity_key(instance.__class__, (instance.id,))
             existing = session.identity_map.get(key)
             if existing is not None and existing is not instance:
@@ -233,6 +279,7 @@ def create_app(config_object=Config, test_config=None) -> Flask:
     app.jinja_env.filters["format_percent"] = format_percent
     app.jinja_env.filters["yes_no"] = yes_no
     app.jinja_env.filters["number_format"] = _safe_number_format
+    app.jinja_env.filters["format_number"] = _safe_number_format
     app.jinja_env.filters["format_date"] = format_date
     app.jinja_env.filters["format_datetime"] = format_datetime
     app.jinja_env.filters["status_label"] = status_label
@@ -247,17 +294,15 @@ def create_app(config_object=Config, test_config=None) -> Flask:
                 last_err = e
                 tried.append(ep)
                 current_app.logger.warning("url_for_any miss: endpoint=%s values=%r", ep, values)
-
         strict_urls = current_app.config.get(
             "STRICT_URLS",
             bool(current_app.debug or current_app.testing),
         )
         if strict_urls:
             raise last_err or BuildError("url_for_any", values, "Tried: " + ", ".join(tried))
-
         current_app.logger.error("url_for_any fallback: tried=%s values=%r", tried, values)
         try:
-            return url_for("main_bp.index", _anchor=f"missing:{'|'.join(tried)}")
+            return url_for("main.dashboard", _anchor=f"missing:{'|'.join(tried)}")
         except Exception:
             return "/?missing=" + ",".join(tried)
 
@@ -287,10 +332,6 @@ def create_app(config_object=Config, test_config=None) -> Flask:
     ):
         app.register_blueprint(bp)
 
-    # Legacy endpoint aliases for backward compatibility
-    app.add_url_rule(
-        '/users/', endpoint='users.list_users', view_func=app.view_functions['users_bp.list_users']
-    )
 
     CORS(
         app,
@@ -316,9 +357,8 @@ def create_app(config_object=Config, test_config=None) -> Flask:
     @app.teardown_appcontext
     def _cleanup(exception=None):
         db.session.remove()
-        
-    @app.errorhandler(403)
 
+    @app.errorhandler(403)
     def _forbidden(e):
         app.logger.error("403 FORBIDDEN: %s", request.path)
         try:
@@ -336,72 +376,30 @@ def create_app(config_object=Config, test_config=None) -> Flask:
         except Exception:
             return ("404 Not Found", 404)
 
-    # --- Startup check for critical endpoints (no request context needed) ---
-        critical = app.config.get("CRITICAL_ENDPOINTS", [
-            "warehouse_bp.index",
+    critical = app.config.get(
+        "CRITICAL_ENDPOINTS",
+        [
+            "main.dashboard",
+            "warehouse_bp.list",
             "vendors_bp.suppliers_list",
-            "payments_bp.index",
+            "payments.index",
             "reports_bp.index",
-            "customers_bp.index",
-            "users_bp.index",
-            "service_bp.index",
+            "customers_bp.list_customers",
+            "users_bp.list_users",
+            "service.list_requests",
             "sales_bp.index",
-            "permissions_bp.index",
-            "roles_bp.index",
-        ])
-        with app.app_context():
-            existing_eps = {rule.endpoint for rule in app.url_map.iter_rules()}
-            missing = [ep for ep in critical if ep and ep not in existing_eps]
-            if missing:
-                app.logger.error("Missing endpoints at startup: %s", ", ".join(missing))
+            "permissions.list",
+            "roles.list_roles",
+        ],
+    )
+    with app.app_context():
+        existing_eps = {rule.endpoint for rule in app.url_map.iter_rules()}
+        missing = [ep for ep in critical if ep and ep not in existing_eps]
+        if missing:
+            app.logger.error("Missing endpoints at startup: %s", ", ".join(missing))
+
     app.cli.add_command(seed_roles)
     return app
-
-
-@login_manager.user_loader
-def load_user(user_id):
-    from sqlalchemy.orm import joinedload, lazyload
-    from sqlalchemy import select
-
-    uid_str = str(user_id or "").strip()
-    if ":" in uid_str:
-        try:
-            prefix, ident = uid_str.split(":", 1)
-            ident = int(ident)
-            prefix = prefix.lower()
-        except Exception:
-            return None
-
-        if prefix == "u":
-            stmt = (
-                select(User)
-                .options(joinedload(User.role).joinedload(Role.permissions))
-                .where(User.id == ident)
-            )
-            return db.session.execute(stmt).scalar_one_or_none()
-
-        if prefix == "c":
-            stmt = select(Customer).options(lazyload("*")).where(Customer.id == ident)
-            return db.session.execute(stmt).scalar_one_or_none()
-
-        return None
-
-    try:
-        ident = int(uid_str)
-    except Exception:
-        return None
-
-    stmt_user = (
-        select(User)
-        .options(joinedload(User.role).joinedload(Role.permissions))
-        .where(User.id == ident)
-    )
-    user = db.session.execute(stmt_user).unique().scalar_one_or_none()
-    if user:
-        return user
-
-    stmt_cust = select(Customer).options(lazyload("*")).where(Customer.id == ident)
-    return db.session.execute(stmt_cust).scalar_one_or_none()
 
 
 app = create_app()

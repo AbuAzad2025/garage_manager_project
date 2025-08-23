@@ -5,35 +5,38 @@
   <title>{% block title %}نظام إدارة الكراج{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- AdminLTE CSS -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/css/adminlte.min.css') }}">
+  <!-- مكتبات أساسية -->
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/fontawesome-free/css/all.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/css/adminlte.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/overlayScrollbars/css/OverlayScrollbars.min.css') }}">
+
+  <!-- ستايل عام مخصص -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 
   {% block styles %}{% endblock %}
-  {# 👇 إضافة بسيطة لدعم حقن CSS إضافي من قوالب التقارير #}
   {% block head_extra %}{% endblock %}
 </head>
-<body class="hold-transition sidebar-mini layout-fixed">
-
+<body class="hold-transition sidebar-mini layout-fixed text-sm">
 <div class="wrapper">
 
+  <!-- شريط علوي -->
   {% include 'partials/navbar.html' %}
+
+  <!-- الشريط الجانبي -->
   {% include 'partials/sidebar.html' %}
 
-  <!-- Content Wrapper -->
+  <!-- المحتوى -->
   <div class="content-wrapper">
 
-    <!-- Content Header -->
-    <div class="content-header">
+    <!-- رأس الصفحة -->
+    <div class="content-header border-bottom mb-3 pb-2 bg-light shadow-sm">
       <div class="container-fluid">
-        <div class="row mb-2">
+        <div class="row align-items-center">
           <div class="col-sm-6">
-            <h1 class="m-0">{% block page_title %}{% endblock %}</h1>
+            <h1 class="m-0 fw-bold text-primary">{% block page_title %}{% endblock %}</h1>
           </div>
           <div class="col-sm-6">
-            <ol class="breadcrumb float-sm-left">
+            <ol class="breadcrumb float-sm-left small">
               {% block breadcrumb %}{% endblock %}
             </ol>
           </div>
@@ -41,31 +44,41 @@
       </div>
     </div>
 
-    <!-- Main content -->
+    <!-- محتوى رئيسي -->
     <section class="content">
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          {% for category, message in messages %}
-            <div class="alert alert-{{ category }}">{{ message }}</div>
-          {% endfor %}
-        {% endif %}
-      {% endwith %}
-      {% block content %}{% endblock %}
+      <div class="container-fluid">
+
+        <!-- رسائل فلاش -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
+                <i class="fas fa-info-circle me-2"></i> {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+      </div>
     </section>
   </div>
 
+  <!-- الفوتر -->
   {% include 'partials/footer.html' %}
-
 </div>
 
-<!-- Scripts -->
+<!-- سكربتات أساسية -->
 <script src="{{ url_for('static', filename='adminlte/plugins/jquery/jquery.min.js') }}"></script>
 <script src="{{ url_for('static', filename='adminlte/plugins/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
 <script src="{{ url_for('static', filename='adminlte/plugins/overlayScrollbars/js/jquery.overlayScrollbars.min.js') }}"></script>
 <script src="{{ url_for('static', filename='adminlte/js/adminlte.min.js') }}"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="{{ url_for('static', filename='js/app.js') }}"></script>
 
+<!-- مكتبات إضافية -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
 
 {% block scripts %}{% endblock %}
 </body>

@@ -1,6 +1,4 @@
-/* File: static/js/expenses.js */
 document.addEventListener('DOMContentLoaded', function () {
-  // ====== إظهار/إخفاء حقل الموظف عندما النوع = "راتب" ======
   const typeSel = document.getElementById('type_id');
   const employeeField = document.getElementById('employee-field');
   const employeeSelect = employeeField ? employeeField.querySelector('select, input, .ajax-select') : null;
@@ -12,10 +10,8 @@ document.addEventListener('DOMContentLoaded', function () {
     employeeField.style.display = isSalary ? '' : 'none';
     if (employeeSelect) {
       if (!isSalary) {
-        // تعطيل وتصفير القيمة
         employeeSelect.setAttribute('disabled', 'disabled');
         if ('value' in employeeSelect) employeeSelect.value = '';
-        // تصفير المخفيين إن وُجدوا
         const hidden = employeeField.querySelectorAll('input[type="hidden"]');
         hidden.forEach(h => { h.value = ''; });
       } else {
@@ -26,7 +22,6 @@ document.addEventListener('DOMContentLoaded', function () {
   typeSel && typeSel.addEventListener('change', toggleEmployeeField);
   toggleEmployeeField();
 
-  // ====== تفاصيل طريقة الدفع الديناميكية ======
   const METHOD_FIELDS = {
     cash:   [],
     cheque: ['check_number','check_bank','check_due_date'],
@@ -49,14 +44,8 @@ document.addEventListener('DOMContentLoaded', function () {
       const inp = box.querySelector('input,select,textarea');
       box.style.display = show ? '' : 'none';
       if (inp) {
-        if (show) {
-          inp.disabled = false;
-          // ما بنعبّي أي قيمة تلقائياً
-        } else {
-          // تنظيف عند الإخفاء
-          if ('value' in inp) inp.value = '';
-          inp.disabled = true;
-        }
+        if (show) { inp.disabled = false; }
+        else { if ('value' in inp) inp.value = ''; inp.disabled = true; }
       }
       if (show) any = true;
     });
@@ -65,12 +54,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
   if (methodSel) {
     applyMethodDetails((methodSel.value || '').toLowerCase());
-    methodSel.addEventListener('change', () => {
-      applyMethodDetails((methodSel.value || '').toLowerCase());
-    });
+    methodSel.addEventListener('change', () => applyMethodDetails((methodSel.value || '').toLowerCase()));
   }
 
-  // ====== DataTables (لو متوفر) ======
   if (window.jQuery && $.fn && $.fn.DataTable) {
     const hasButtons = $.fn.dataTable && $.fn.dataTable.Buttons;
     const langUrl = "/static/datatables/Arabic.json";
@@ -83,24 +69,15 @@ document.addEventListener('DOMContentLoaded', function () {
         info: true,
         autoWidth: false
       };
-      if (lastCol !== null) {
-        baseOpts.columnDefs = [{ orderable: false, targets: [lastCol] }];
-      }
-      if (hasButtons) {
-        baseOpts.dom = "Bfrtip";
-        baseOpts.buttons = ["excelHtml5", "print"];
-      } else {
-        baseOpts.dom = "frtip";
-      }
+      if (lastCol !== null) baseOpts.columnDefs = [{ orderable: false, targets: [lastCol] }];
+      if (hasButtons) { baseOpts.dom = "Bfrtip"; baseOpts.buttons = ["excelHtml5","print"]; }
+      else { baseOpts.dom = "frtip"; }
       $(tableEl).DataTable(Object.assign({}, baseOpts, extraOpts || {}));
     }
 
-    const expensesTbl  = document.getElementById('expenses-table');
-    const typesTbl     = document.getElementById('types-table');
-    const employeesTbl = document.getElementById('employees-table');
-
-    expensesTbl  && initDT(expensesTbl);
-    typesTbl     && initDT(typesTbl);
-    employeesTbl && initDT(employeesTbl);
+    ['expenses-table','types-table','employees-table'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) initDT(el);
+    });
   }
 });

@@ -1,45 +1,184 @@
-<!-- File: templates/reports/index.html -->
 {% extends 'base.html' %}
 {% block title %}التقارير{% endblock %}
-{% block head_extra %}
-  {{ super() }}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/reporting.css') }}">
+{% block page_title %}التقارير{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+<li class="breadcrumb-item active">التقارير</li>
 {% endblock %}
+
 {% block content %}
-<div class="container mt-4">
-  <h2 class="mb-3">مركز التقارير</h2>
-  <div class="row g-3">
-    <div class="col-md-4">
-      <div class="card h-100">
-        <div class="card-body">
-          <h5 class="card-title">تقرير ديناميكي</h5>
-          <p class="card-text">اختر الجدول والحقول والفترة الزمنيّة وأنشئ جدولًا مخصّصًا.</p>
-          <a href="{{ url_for('reports_bp.dynamic_report') }}" class="btn btn-primary">فتح</a>
-        </div>
+<div class="container-fluid" dir="rtl">
+
+  <!-- بطاقة إعداد التقرير -->
+  <div class="card report-form mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span>📊 تقرير ديناميكي</span>
+      <div class="btn-group">
+        <button type="submit" form="report-form" class="btn btn-primary btn-sm">
+          <i class="fas fa-filter"></i> تطبيق الفلاتر
+        </button>
+        <button type="reset" form="report-form" class="btn btn-secondary btn-sm">
+          <i class="fas fa-undo"></i> إعادة ضبط
+        </button>
+        <button type="submit" form="report-form"
+                formaction="{{ url_for('reports_bp.export_dynamic_csv') }}"
+                formmethod="post"
+                class="btn btn-success btn-sm">
+          <i class="fas fa-file-csv"></i> تصدير CSV
+        </button>
+        <button type="button" class="btn btn-outline-dark btn-sm" onclick="window.print()">
+          <i class="fas fa-print"></i> طباعة
+        </button>
       </div>
     </div>
-    <div class="col-md-4">
-      <div class="card h-100">
-        <div class="card-body">
-          <h5 class="card-title">أعمار الذمم</h5>
-          <p class="card-text">تحليل أرصدة العملاء حسب سلال الأعمار.</p>
-          <a href="{{ url_for('reports_bp.ar_aging') }}" class="btn btn-outline-primary">عرض</a>
+
+    <div class="card-body">
+      <form id="report-form"
+            action="{{ url_for('reports_bp.dynamic_report') }}"
+            method="post"
+            class="row g-3">
+        {% if csrf_token is defined %}
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% endif %}
+
+        <!-- اختيار الجدول -->
+        <div class="col-md-3">
+          <label class="form-label">الجدول / الموديل</label>
+          <select name="table" id="table" class="form-select" required>
+            {% for m in model_names or [] %}
+              <option value="{{ m }}" {{ 'selected' if m == (selected_table or '') else '' }}>
+                {{ MODEL_LABELS.get(m, m) }}
+              </option>
+            {% endfor %}
+          </select>
         </div>
-      </div>
-    </div>
-    <div class="col-md-4">
-      <div class="card h-100">
-        <div class="card-body">
-          <h5 class="card-title">مبيعات يومية</h5>
-          <p class="card-text">منحنى الإيراد اليومي وإجمالي الفترة.</p>
-          <a href="{{ url_for('reports_bp.sales') }}" class="btn btn-outline-secondary">عرض</a>
+
+        <!-- اختيار حقل التاريخ -->
+        <div class="col-md-3">
+          <label class="form-label">حقل التاريخ</label>
+          <select name="date_field" id="date_field" class="form-select" data-default="{{ defaults.get(selected_table) }}">
+            <option value="">—</option>
+            {% if date_fields %}
+              {% for d in date_fields %}
+              <option value="{{ d }}" {{ 'selected' if d == (request.form.get('date_field') or '') else '' }}>
+                {{ FIELD_LABELS.get(d, d) }}
+              </option>
+              {% endfor %}
+            {% endif %}
+          </select>
         </div>
-      </div>
+
+        <!-- التواريخ -->
+        <div class="col-md-3">
+          <label class="form-label">من تاريخ</label>
+          <input type="date" name="start_date" class="form-control" value="{{ start_date or '' }}">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">إلى تاريخ</label>
+          <input type="date" name="end_date" class="form-control" value="{{ end_date or '' }}">
+        </div>
+
+        <!-- اختيار الأعمدة -->
+        <div class="col-12">
+          <label class="form-label">الأعمدة المعروضة</label>
+          <select name="selected_fields" id="selected_fields" class="form-select" multiple size="6"></select>
+          <div class="form-text">
+            اختر الأعمدة التي تريد عرضها. إن تركتها فارغة سيتم عرض جميع الأعمدة.
+          </div>
+        </div>
+
+        <!-- الفلاتر -->
+        <div class="col-12">
+          <div class="d-flex justify-content-between align-items-center">
+            <label class="form-label mb-0">فلاتر إضافية</label>
+            <button class="btn btn-link p-0" type="button" data-bs-toggle="collapse" data-bs-target="#advFilters">
+              إظهار / إخفاء
+            </button>
+          </div>
+          <div id="advFilters" class="collapse show mt-2">
+            <div id="like_filters"
+                 class="row g-2"
+                 data-initial-like='{{ (like_filters or {})|tojson }}'></div>
+            <div class="form-text">الفلاتر تُطبق باستخدام البحث الجزئي (contains).</div>
+          </div>
+        </div>
+
+      </form>
     </div>
   </div>
+
+  <!-- بطاقات الملخص -->
+  {% if summary %}
+  <div class="row" id="summary-cards">
+    {% for k,v in summary.items() %}
+      <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card text-center h-100 shadow-sm">
+          <div class="card-body">
+            <div class="text-muted small">{{ FIELD_LABELS.get(k, k) }}</div>
+            <div class="fs-4 fw-bold">
+              {% if v is number %}
+                {{ "{:,.2f}".format(v) }}
+              {% else %}
+                {{ v }}
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- جدول النتائج -->
+  <div class="card">
+    <div class="card-header">📋 النتائج</div>
+    <div class="card-body">
+      {% if data and (columns or (data|length > 0 and data[0].keys())) %}
+        {% set hdr = columns if columns else data[0].keys() %}
+        <div class="table-responsive">
+          <table id="report-table" class="table table-bordered table-striped align-middle">
+            <thead class="table-dark">
+              <tr>
+                {% for c in hdr %}
+                  <th>{{ FIELD_LABELS.get(c, c) }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in data %}
+              <tr>
+                {% for c in hdr %}
+                  {% set val = row.get(c) %}
+                  <td class="{{ 'text-end' if (val is number) else '' }}">
+                    {% if val is number %}
+                      {{ "{:,.2f}".format(val) }}
+                    {% else %}
+                      {{ val if val is not none else '—' }}
+                    {% endif %}
+                  </td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="text-muted">لا توجد بيانات مطابقة.</div>
+      {% endif %}
+    </div>
+  </div>
+
 </div>
 {% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reporting.css') }}">
+{% endblock %}
+
 {% block scripts %}
-  {{ super() }}
-  <script src="{{ url_for('static', filename='js/reporting.js') }}"></script>
+<script>
+  window.FIELD_LABELS = {{ FIELD_LABELS|tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/reporting.js') }}"></script>
 {% endblock %}

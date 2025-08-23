@@ -2,9 +2,33 @@
 
 {% block title %}تسجيل عميل جديد{% endblock %}
 
+{% block head %}
+  {{ super() }}
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background: url('{{ url_for('static', filename='img/login_bg.jpg') }}') center/cover no-repeat;
+      font-family: 'Cairo', sans-serif;
+    }
+    .auth-container {
+      background: rgba(255, 255, 255, 0.95);
+      padding: 40px;
+      border-radius: 16px;
+      max-width: 460px;
+      margin: 80px auto;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #1e88e5, #42a5f5);
+      border: none;
+    }
+  </style>
+{% endblock %}
+
 {% block content %}
 <div class="auth-container">
-  <h3 class="mb-4">إنشاء حساب عميل</h3>
+  <h3 class="mb-4 text-center">إنشاء حساب عميل</h3>
+
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% for category, msg in messages %}
       <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
@@ -16,39 +40,22 @@
 
   <form method="post" action="{{ url_for('auth.customer_register') }}">
     {{ form.hidden_tag() }}
-    <div class="mb-3 text-right">
-      {{ form.name.label(class="form-label") }}
-      {{ form.name(class="form-control") }}
-      {% for err in form.name.errors %}<div class="text-danger">{{ err }}</div>{% endfor %}
-    </div>
-    <div class="mb-3 text-right">
-      {{ form.email.label(class="form-label") }}
-      {{ form.email(class="form-control") }}
-      {% for err in form.email.errors %}<div class="text-danger">{{ err }}</div>{% endfor %}
-    </div>
-    <div class="mb-3 text-right">
-      {{ form.phone.label(class="form-label") }}
-      {{ form.phone(class="form-control") }}
-      {% for err in form.phone.errors %}<div class="text-danger">{{ err }}</div>{% endfor %}
-    </div>
-    <div class="mb-3 text-right">
-      {{ form.whatsapp.label(class="form-label") }}
-      {{ form.whatsapp(class="form-control") }}
-      {% for err in form.whatsapp.errors %}<div class="text-danger">{{ err }}</div>{% endfor %}
-    </div>
-    <div class="mb-3 text-right">
-      {{ form.address.label(class="form-label") }}
-      {{ form.address(class="form-control") }}
-      {% for err in form.address.errors %}<div class="text-danger">{{ err }}</div>{% endfor %}
-    </div>
-    <div class="mb-3 text-right">
-      {{ form.password.label(class="form-label") }}
-      {{ form.password(class="form-control") }}
-      {% for err in form.password.errors %}<div class="text-danger">{{ err }}</div>{% endfor %}
-    </div>
+
+    {% for field in [form.name, form.email, form.phone, form.whatsapp, form.address, form.password] %}
+      <div class="mb-3 text-right">
+        {{ field.label(class="form-label") }}
+        {{ field(class="form-control") }}
+        {% for error in field.errors %}
+          <div class="text-danger small">{{ error }}</div>
+        {% endfor %}
+      </div>
+    {% endfor %}
+
     {{ form.submit(class="btn btn-primary w-100") }}
   </form>
 
-  <p class="mt-3">لديك حساب؟ <a href="{{ url_for('auth.login') }}">تسجيل دخول</a></p>
+  <p class="mt-3 text-center">
+    لديك حساب؟ <a href="{{ url_for('auth.login') }}">تسجيل الدخول</a>
+  </p>
 </div>
 {% endblock %}

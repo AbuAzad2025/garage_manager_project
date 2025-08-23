@@ -1,14 +1,11 @@
 {% extends 'base.html' %}
 {% block title %}الموظفون{% endblock %}
-
 {% block content %}
 <div class="container mt-4">
   <div class="d-flex align-items-center justify-content-between mb-3">
     <h2 class="mb-0"><i class="fas fa-users me-2"></i>الموظفون</h2>
     {% if current_user.has_permission('manage_expenses') %}
-    <a href="{{ url_for('expenses_bp.add_employee') }}" class="btn btn-success">
-      <i class="fas fa-plus"></i> إضافة موظف
-    </a>
+    <a href="{{ url_for('expenses_bp.add_employee') }}" class="btn btn-success"><i class="fas fa-plus"></i> إضافة موظف</a>
     {% endif %}
   </div>
 
@@ -23,7 +20,7 @@
             <th>البنك</th>
             <th>رقم الحساب</th>
             <th>ملاحظات</th>
-            <th style="width:120px">إجراءات</th>
+            <th style="width:140px">إجراءات</th>
           </tr>
         </thead>
         <tbody>
@@ -37,13 +34,10 @@
             <td>{{ e.notes or '—' }}</td>
             <td class="text-nowrap">
               {% if current_user.has_permission('manage_expenses') %}
-              <a href="{{ url_for('expenses_bp.edit_employee', emp_id=e.id) }}" class="btn btn-sm btn-info">
-                <i class="fas fa-edit"></i>
-              </a>
-              <form method="post" action="{{ url_for('expenses_bp.delete_employee', emp_id=e.id) }}"
-                    style="display:inline;" onsubmit="return confirm('حذف الموظف؟');">
-                {{ csrf_token() }}
-                <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+              <a href="{{ url_for('expenses_bp.edit_employee', emp_id=e.id) }}" class="btn btn-sm btn-info" title="تعديل"><i class="fas fa-edit"></i></a>
+              <form method="post" action="{{ url_for('expenses_bp.delete_employee', emp_id=e.id) }}" style="display:inline;" onsubmit="return confirm('حذف الموظف؟');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-sm btn-danger" title="حذف"><i class="fas fa-trash"></i></button>
               </form>
               {% endif %}
             </td>
@@ -55,8 +49,4 @@
   </div>
 </div>
 {% endblock %}
-
-{% block scripts %}
-  {{ super() }}
-  <script src="{{ url_for('static', filename='js/expenses.js') }}"></script>
-{% endblock %}
+{% block scripts %}{{ super() }}<script src="{{ url_for('static', filename='js/expenses.js') }}"></script>{% endblock %}

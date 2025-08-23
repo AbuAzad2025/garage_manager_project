@@ -1,99 +1,81 @@
-{# templates/customers/_form.html #}
 {{ form.hidden_tag() }}
 
 <div class="row g-3">
+
   <!-- الاسم -->
   <div class="col-md-6">
-    <div class="form-group">
-      {{ form.name.label(class="form-label fw-bold") }}
-      {{ form.name(class="form-control", placeholder="أدخل اسم العميل", required=form.name.flags.required) }}
-      {% for e in form.name.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
-    </div>
+    <label class="form-label fw-bold">{{ form.name.label.text }}</label>
+    {{ form.name(class="form-control", placeholder="أدخل اسم العميل", required=form.name.flags.required) }}
+    {% for e in form.name.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
   </div>
 
   <!-- الهاتف -->
   <div class="col-md-3">
-    <div class="form-group">
-      {{ form.phone.label(class="form-label fw-bold") }}
-      {{ form.phone(class="form-control", placeholder="0501234567", type="tel", dir="ltr", required=form.phone.flags.required) }}
-      {% for e in form.phone.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
-    </div>
+    <label class="form-label fw-bold">{{ form.phone.label.text }}</label>
+    {{ form.phone(class="form-control", placeholder="0501234567", type="tel", dir="ltr", required=form.phone.flags.required) }}
+    {% for e in form.phone.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
   </div>
 
   <!-- واتساب -->
   <div class="col-md-3">
-    <div class="form-group">
-      {{ form.whatsapp.label(class="form-label fw-bold") }}
-      {{ form.whatsapp(class="form-control", placeholder="واتساب", type="tel", dir="ltr") }}
-      {% for e in form.whatsapp.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
-    </div>
+    <label class="form-label fw-bold">{{ form.whatsapp.label.text }}</label>
+    {{ form.whatsapp(class="form-control", placeholder="واتساب", type="tel", dir="ltr") }}
+    {% for e in form.whatsapp.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
   </div>
 
   <!-- البريد الإلكتروني -->
   <div class="col-md-6">
-    <div class="form-group">
-      {{ form.email.label(class="form-label fw-bold") }}
-      {{ form.email(class="form-control", placeholder="email@example.com", type="email", dir="ltr", required=form.email.flags.required) }}
-      {% for e in form.email.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
-    </div>
+    <label class="form-label fw-bold">{{ form.email.label.text }}</label>
+    {{ form.email(class="form-control", placeholder="email@example.com", type="email", dir="ltr", required=form.email.flags.required) }}
+    {% for e in form.email.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
   </div>
 
   <!-- العنوان -->
   <div class="col-md-12">
-    <div class="form-group">
-      {{ form.address.label(class="form-label fw-bold") }}
-      {{ form.address(class="form-control", placeholder="العنوان كامل") }}
-      {% for e in form.address.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
-    </div>
+    <label class="form-label fw-bold">{{ form.address.label.text }}</label>
+    {{ form.address(class="form-control", placeholder="العنوان كامل") }}
+    {% for e in form.address.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
   </div>
 
   <!-- التصنيف -->
   <div class="col-md-4">
-    <div class="form-group">
-      {{ form.category.label(class="form-label fw-bold") }}
-      {{ form.category(class="form-select", required=form.category.flags.required) }}
-      {% for e in form.category.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
-    </div>
+    <label class="form-label fw-bold">{{ form.category.label.text }}</label>
+    {{ form.category(class="form-select", required=form.category.flags.required) }}
+    {% for e in form.category.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
   </div>
 
   <!-- العملة -->
   <div class="col-md-4">
-    <div class="form-group">
-      {{ form.currency.label(class="form-label fw-bold") }}
-      {{ form.currency(class="form-select", required=form.currency.flags.required) }}
-      {% for e in form.currency.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
-    </div>
+    <label class="form-label fw-bold">{{ form.currency.label.text }}</label>
+    {{ form.currency(class="form-select", required=form.currency.flags.required) }}
+    {% for e in form.currency.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
   </div>
 
   <!-- حد الائتمان -->
   <div class="col-md-4">
-    <div class="form-group">
-      {{ form.credit_limit.label(class="form-label fw-bold") }}
-      <div class="input-group">
-        {{ form.credit_limit(class="form-control", placeholder="0.00", inputmode="decimal") }}
-        <span class="input-group-text">₪</span>
-      </div>
-      {% for e in form.credit_limit.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
+    <label class="form-label fw-bold">{{ form.credit_limit.label.text }}</label>
+    <div class="input-group">
+      {{ form.credit_limit(class="form-control", placeholder="0.00", inputmode="decimal") }}
+      <span class="input-group-text">₪</span>
     </div>
+    {% for e in form.credit_limit.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
   </div>
 
   <!-- معدل الخصم -->
   <div class="col-md-4">
-    <div class="form-group">
-      {{ form.discount_rate.label(class="form-label fw-bold") }}
-      <div class="input-group">
-        {{ form.discount_rate(class="form-control", placeholder="0", inputmode="decimal") }}
-        <span class="input-group-text">%</span>
-      </div>
-      {% for e in form.discount_rate.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
+    <label class="form-label fw-bold">{{ form.discount_rate.label.text }}</label>
+    <div class="input-group">
+      {{ form.discount_rate(class="form-control", placeholder="0", inputmode="decimal") }}
+      <span class="input-group-text">%</span>
     </div>
+    {% for e in form.discount_rate.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
   </div>
 
-  <!-- نشط -->
+  <!-- الحالة -->
   <div class="col-md-4 d-flex align-items-center">
     <div class="form-check form-switch">
       {{ form.is_active(class="form-check-input") }}
-      {{ form.is_active.label(class="form-check-label fw-bold ms-2") }}
+      <label class="form-check-label ms-2 fw-bold">{{ form.is_active.label.text }}</label>
       {% for e in form.is_active.errors %}<small class="text-danger d-block">{{ e }}</small>{% endfor %}
     </div>
   </div>
@@ -102,39 +84,33 @@
   <div class="col-md-4 d-flex align-items-center">
     <div class="form-check form-switch">
       {{ form.is_online(class="form-check-input") }}
-      {{ form.is_online.label(class="form-check-label fw-bold ms-2") }}
+      <label class="form-check-label ms-2 fw-bold">{{ form.is_online.label.text }}</label>
       {% for e in form.is_online.errors %}<small class="text-danger d-block">{{ e }}</small>{% endfor %}
     </div>
   </div>
 
-  <!-- ملاحظات -->
+  <!-- الملاحظات -->
   <div class="col-md-12">
-    <div class="form-group">
-      {{ form.notes.label(class="form-label fw-bold") }}
-      {{ form.notes(class="form-control", rows="3", placeholder="ملاحظات إضافية") }}
-      {% for e in form.notes.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
-    </div>
+    <label class="form-label fw-bold">{{ form.notes.label.text }}</label>
+    {{ form.notes(class="form-control", rows="3", placeholder="ملاحظات إضافية") }}
+    {% for e in form.notes.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
   </div>
 
   <!-- كلمة المرور -->
   {% if form.password is defined %}
   <div class="col-md-6">
-    <div class="form-group">
-      {{ form.password.label(class="form-label fw-bold") }}
-      {{ form.password(class="form-control", placeholder="كلمة المرور", autocomplete="new-password") }}
-      {% for e in form.password.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
-    </div>
+    <label class="form-label fw-bold">{{ form.password.label.text }}</label>
+    {{ form.password(class="form-control", placeholder="كلمة المرور", autocomplete="new-password") }}
+    {% for e in form.password.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
   </div>
   {% endif %}
 
   <!-- تأكيد كلمة المرور -->
   {% if form.confirm is defined %}
   <div class="col-md-6">
-    <div class="form-group">
-      {{ form.confirm.label(class="form-label fw-bold") }}
-      {{ form.confirm(class="form-control", placeholder="تأكيد كلمة المرور", autocomplete="new-password") }}
-      {% for e in form.confirm.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
-    </div>
+    <label class="form-label fw-bold">{{ form.confirm.label.text }}</label>
+    {{ form.confirm(class="form-control", placeholder="تأكيد كلمة المرور", autocomplete="new-password") }}
+    {% for e in form.confirm.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
   </div>
   {% endif %}
 </div>

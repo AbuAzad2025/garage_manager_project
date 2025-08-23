@@ -169,16 +169,12 @@ class TimestampMixin:
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False, index=True)
 
-
 # ===================== AuditMixin =====================
 class AuditMixin:
-    """
-    يلتقط حالة ما قبل التحديث (UPDATE) ويترك عمليات CREATE/DELETE إلى المستمع الموحد على الجلسة.
-    """
-
     @classmethod
     def __declare_last__(cls):
-        @event.listens_for(cls, "before_update", propagate=True)
+        from sqlalchemy import inspect, event as _evt
+        @_evt.listens_for(cls, "before_update", propagate=True)
         def _capture_prev_state(mapper, connection, target):
             try:
                 insp = inspect(target)
@@ -190,6 +186,7 @@ class AuditMixin:
                 setattr(target, "_previous_state", prev)
             except Exception:
                 setattr(target, "_previous_state", {})
+
 
 # ===================== Permissions / Roles / Users =====================
 
@@ -3426,23 +3423,19 @@ def _online_payment_sync_order(_mapper, _connection, target: 'OnlinePayment'):
             pass
         
 # ===================== ExpenseType =====================
-
 class ExpenseType(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'expense_types'
+    id          = db.Column(db.Integer, primary_key=True)
+    name        = db.Column(db.String(100), unique=True, nullable=False, index=True)
+    description = db.Column(db.Text)
+    is_active   = db.Column(db.Boolean, default=True, nullable=False)
 
-    id         = db.Column(db.Integer, primary_key=True)
-    name       = db.Column(db.String(100), unique=True, nullable=False, index=True)
-    description= db.Column(db.Text)
-    is_active  = db.Column(db.Boolean, default=True, nullable=False)
-
-    expenses = db.relationship('Expense', back_populates='type')
+    expenses = relationship('Expense', back_populates='type')
 
     def __repr__(self):
         return f"<ExpenseType {self.name}>"
 
-
 # ===================== Expense =====================
-
 class Expense(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'expenses'
 
@@ -3463,14 +3456,13 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
     notes           = db.Column(db.Text)
     tax_invoice_number = db.Column(db.String(100), index=True)
 
-    # --- تفاصيل الدفع الدقيقة (مطابقة للفورم) ---
     check_number      = db.Column(db.String(100))
     check_bank        = db.Column(db.String(100))
     check_due_date    = db.Column(db.Date)
 
     bank_transfer_ref = db.Column(db.String(100))
 
-    # نخزّن فقط آخر 4 أرقام في هذا الحقل (لا نحفظ البطاقة كاملة)
+    # نخزّن آخر 4 فقط في card_number
     card_number       = db.Column(db.String(8))
     card_holder       = db.Column(db.String(120))
     card_expiry       = db.Column(db.String(10))  # MM/YY أو MM/YYYY
@@ -3478,12 +3470,12 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
     online_gateway    = db.Column(db.String(50))
     online_ref        = db.Column(db.String(100))
 
-    employee  = db.relationship('Employee', back_populates='expenses')
-    type      = db.relationship('ExpenseType', back_populates='expenses')
-    warehouse = db.relationship('Warehouse', back_populates='expenses')
-    partner   = db.relationship('Partner',   back_populates='expenses')
+    employee  = relationship('Employee', back_populates='expenses')
+    type      = relationship('ExpenseType', back_populates='expenses')
+    warehouse = relationship('Warehouse', back_populates='expenses')
+    partner   = relationship('Partner',   back_populates='expenses')
 
-    payments = db.relationship(
+    payments = relationship(
         'Payment',
         back_populates='expense',
         cascade='all, delete-orphan',
@@ -3498,10 +3490,6 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
         ),
     )
 
-    def __repr__(self):
-        return f"<Expense {self.id} - {self.amount} {self.currency}>"
-
-    # -------- Validations --------
     @validates('amount')
     def _v_amount(self, _, v):
         if v is None:
@@ -3522,7 +3510,6 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
             raise ValueError(f"Invalid payment_method: {v}")
         return val
 
-    # -------- Financial Computations --------
     @hybrid_property
     def total_paid(self):
         return float(
@@ -3568,7 +3555,6 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
     def is_paid(self):
         return self.balance <= 0
 
-    # -------- Serialization --------
     def to_dict(self):
         return {
             "id": self.id,
@@ -3585,22 +3571,19 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
             "description": self.description,
             "notes": self.notes,
             "tax_invoice_number": self.tax_invoice_number,
-            # تفاصيل الدفع الآمنة
             "check_number": self.check_number,
             "check_bank": self.check_bank,
             "check_due_date": self.check_due_date.isoformat() if self.check_due_date else None,
             "bank_transfer_ref": self.bank_transfer_ref,
-            "card_number": self.card_number,  # آخر 4 فقط
+            "card_number": self.card_number,
             "card_holder": self.card_holder,
             "card_expiry": self.card_expiry,
             "online_gateway": self.online_gateway,
             "online_ref": self.online_ref,
-            # مشتقات
             "total_paid": self.total_paid,
             "balance": self.balance,
             "is_paid": self.is_paid,
         }
-
 
 @event.listens_for(Expense, 'before_insert')
 @event.listens_for(Expense, 'before_update')
@@ -3609,7 +3592,6 @@ def _expense_normalize(mapper, connection, target: 'Expense'):
     target.currency = (target.currency or 'ILS').upper()
 
     m = target.payment_method
-    # تنظيف الحقول حسب طريقة الدفع
     if m != 'cheque':
         target.check_number = None
         target.check_bank = None
@@ -3624,7 +3606,6 @@ def _expense_normalize(mapper, connection, target: 'Expense'):
         target.online_gateway = None
         target.online_ref = None
 
-    # في حالة البطاقة: خزّن آخر 4 أرقام فقط
     if m == 'card' and target.card_number:
         digits = ''.join(ch for ch in (target.card_number or '') if ch.isdigit())
         target.card_number = (digits[-4:] if digits else None)

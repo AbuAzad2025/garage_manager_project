@@ -13,76 +13,79 @@
 {% endblock %}
 
 {% block content %}
-<div class="card shadow-sm">
-  <div class="card-header bg-primary text-white">
-    <h3 class="card-title"><i class="fas fa-user me-2"></i>تفاصيل العميل: {{ customer.name }}</h3>
-  </div>
-  <div class="card-body">
-    <dl class="row mb-4">
-      {% for label, value, icon in [
-        ('اسم العميل', customer.name, 'fas fa-id-card'),
-        ('الجوال', customer.phone or '-', 'fas fa-phone'),
-        ('واتساب', customer.whatsapp and ('<a href="https://wa.me/'+customer.whatsapp.replace(" ","")+'" target="_blank" class="text-success"><i class="fab fa-whatsapp"></i> '+customer.whatsapp+'</a>') or '-', ''),
-        ('البريد الإلكتروني', customer.email or '-', 'fas fa-envelope'),
-        ('العنوان', customer.address or '-', 'fas fa-map-marker-alt'),
-        ('التصنيف', customer.category or '-', 'fas fa-tags'),
-        ('حد الائتمان', customer.credit_limit|format_currency, 'fas fa-credit-card'),
-        ('معدل الخصم', customer.discount_rate|format_percent, 'fas fa-percent'),
-        ('الرصيد الحالي', '<span class="fw-bold '+('text-danger' if customer.balance>0 else 'text-success')+'">'+(customer.balance|format_currency)+'</span>', 'fas fa-wallet'),
-        ('الحالة', ('<span class="badge bg-success">نشط</span>' if customer.is_active else '<span class="badge bg-secondary">غير نشط</span>'), 'fas fa-toggle-on'),
-        ('ملاحظات', customer.notes or '-', 'fas fa-sticky-note')
-      ] %}
-      <dt class="col-sm-4 text-end"><i class="{{ icon }} me-1"></i>{{ label }}</dt>
-      <dd class="col-sm-8">{% autoescape false %}{{ value }}{% endautoescape %}</dd>
-      {% endfor %}
-    </dl>
+<div class="content-wrapper">
+  <div class="card shadow-sm rounded">
+    <div class="card-header bg-primary text-white">
+      <h3 class="card-title"><i class="fas fa-user me-2"></i> تفاصيل العميل: {{ customer.name }}</h3>
+    </div>
 
-    <hr>
-    <h5 class="mb-3"><i class="fas fa-chart-pie me-2"></i>نشاط العميل</h5>
-    <ul class="list-group mb-4">
-      <li class="list-group-item"><b>آخر بيع:</b> {{ (customer.sales|default([], true))[-1].sale_date.strftime('%Y-%m-%d') if (customer.sales|default([], true)) else '—' }}</li>
-      <li class="list-group-item"><b>آخر دفعة:</b> {{ (customer.payments|default([], true))[-1].payment_date.strftime('%Y-%m-%d') if (customer.payments|default([], true)) else '—' }}</li>
-      <li class="list-group-item"><b>عدد الفواتير:</b> {{ (customer.invoices|default([], true))|length }}</li>
-      <li class="list-group-item"><b>عدد الدفعات:</b> {{ (customer.payments|default([], true))|length }}</li>
-    </ul>
+    <div class="card-body">
+      <dl class="row mb-4">
+        {% for label, value, icon in [
+          ('اسم العميل', customer.name, 'fas fa-id-card'),
+          ('الجوال', customer.phone or '-', 'fas fa-phone'),
+          ('واتساب', customer.whatsapp and ('<a href="https://wa.me/'+customer.whatsapp.replace(" ","")+'" target="_blank" class="text-success"><i class="fab fa-whatsapp"></i> '+customer.whatsapp+'</a>') or '-', ''),
+          ('البريد الإلكتروني', customer.email or '-', 'fas fa-envelope'),
+          ('العنوان', customer.address or '-', 'fas fa-map-marker-alt'),
+          ('التصنيف', customer.category or '-', 'fas fa-tags'),
+          ('حد الائتمان', customer.credit_limit|format_currency, 'fas fa-credit-card'),
+          ('معدل الخصم', customer.discount_rate|format_percent, 'fas fa-percent'),
+          ('الرصيد الحالي', '<span class="fw-bold '+('text-danger' if customer.balance>0 else 'text-success')+'">'+(customer.balance|format_currency)+'</span>', 'fas fa-wallet'),
+          ('الحالة', ('<span class="badge bg-success">نشط</span>' if customer.is_active else '<span class="badge bg-secondary">غير نشط</span>'), 'fas fa-toggle-on'),
+          ('ملاحظات', customer.notes or '-', 'fas fa-sticky-note')
+        ] %}
+        <dt class="col-sm-4 text-end"><i class="{{ icon }} me-1"></i> {{ label }}</dt>
+        <dd class="col-sm-8">{% autoescape false %}{{ value }}{% endautoescape %}</dd>
+        {% endfor %}
+      </dl>
 
-    {% if logs %}
-    <h5 class="mb-3"><i class="fas fa-history me-2"></i>سجل التعديلات</h5>
-    <ul class="list-group mb-4">
-      {% for log in logs %}
-      <li class="list-group-item small">
-        <b>{{ log.action|capitalize }}</b> بواسطة {{ log.user.username if log.user else 'system' }} —
-        <span title="{{ log.timestamp }}">{{ log.timestamp.strftime('%Y-%m-%d %H:%M') }}</span>
-      </li>
-      {% endfor %}
-    </ul>
-    {% endif %}
+      <hr>
+      <h5 class="mb-3"><i class="fas fa-chart-pie me-2"></i> نشاط العميل</h5>
+      <ul class="list-group mb-4">
+        <li class="list-group-item"><b>آخر بيع:</b> {{ (customer.sales|default([], true))[-1].sale_date.strftime('%Y-%m-%d') if (customer.sales|default([], true)) else '—' }}</li>
+        <li class="list-group-item"><b>آخر دفعة:</b> {{ (customer.payments|default([], true))[-1].payment_date.strftime('%Y-%m-%d') if (customer.payments|default([], true)) else '—' }}</li>
+        <li class="list-group-item"><b>عدد الفواتير:</b> {{ (customer.invoices|default([], true))|length }}</li>
+        <li class="list-group-item"><b>عدد الدفعات:</b> {{ (customer.payments|default([], true))|length }}</li>
+      </ul>
 
-    <div class="d-flex flex-wrap gap-2">
-      <a href="{{ url_for('customers_bp.customer_whatsapp', customer_id=customer.id) }}" class="btn btn-success">
-        <i class="fab fa-whatsapp me-1"></i> واتساب
-      </a>
-      <a href="{{ url_for('customers_bp.edit_customer', customer_id=customer.id) }}" class="btn btn-warning">
-        <i class="fas fa-edit me-1"></i> تعديل
-      </a>
-      <a href="{{ url_for('payments.create_payment', entity_type='customer', entity_id=customer.id) }}" class="btn btn-outline-success">
-        <i class="fas fa-coins me-1"></i> دفعة جديدة
-      </a>
-      <button class="btn btn-danger delete-btn" data-id="{{ customer.id }}">
-        <i class="fas fa-trash me-1"></i> حذف
-      </button>
-      <a href="{{ url_for('customers_bp.export_customer_vcf', customer_id=customer.id) }}" class="btn btn-outline-success">
-        <i class="fas fa-download me-1"></i> VCF
-      </a>
-      <a href="{{ url_for('customers_bp.account_statement', customer_id=customer.id) }}" class="btn btn-outline-primary">
-        <i class="fas fa-file-invoice me-1"></i> كشف حساب
-      </a>
-      <a href="{{ url_for('customers_bp.customer_analytics', customer_id=customer.id) }}" class="btn btn-outline-info">
-        <i class="fas fa-chart-line me-1"></i> تحليلات
-      </a>
-      <a href="{{ url_for('customers_bp.list_customers') }}" class="btn btn-outline-secondary">
-        <i class="fas fa-arrow-left me-1"></i> عودة
-      </a>
+      {% if logs %}
+      <h5 class="mb-3"><i class="fas fa-history me-2"></i> سجل التعديلات</h5>
+      <ul class="list-group mb-4">
+        {% for log in logs %}
+        <li class="list-group-item small">
+          <b>{{ log.action|capitalize }}</b> بواسطة {{ log.user.username if log.user else 'system' }} —
+          <span title="{{ log.timestamp }}">{{ log.timestamp.strftime('%Y-%m-%d %H:%M') }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+      <div class="d-flex flex-wrap gap-2">
+        <a href="{{ url_for('customers_bp.customer_whatsapp', customer_id=customer.id) }}" class="btn btn-success">
+          <i class="fab fa-whatsapp me-1"></i> واتساب
+        </a>
+        <a href="{{ url_for('customers_bp.edit_customer', customer_id=customer.id) }}" class="btn btn-warning">
+          <i class="fas fa-edit me-1"></i> تعديل
+        </a>
+        <a href="{{ url_for('payments.create_payment', entity_type='customer', entity_id=customer.id) }}" class="btn btn-outline-success">
+          <i class="fas fa-coins me-1"></i> دفعة جديدة
+        </a>
+        <button class="btn btn-danger delete-btn" data-id="{{ customer.id }}">
+          <i class="fas fa-trash me-1"></i> حذف
+        </button>
+        <a href="{{ url_for('customers_bp.export_customer_vcf', customer_id=customer.id) }}" class="btn btn-outline-success">
+          <i class="fas fa-download me-1"></i> VCF
+        </a>
+        <a href="{{ url_for('customers_bp.account_statement', customer_id=customer.id) }}" class="btn btn-outline-primary">
+          <i class="fas fa-file-invoice me-1"></i> كشف حساب
+        </a>
+        <a href="{{ url_for('customers_bp.customer_analytics', customer_id=customer.id) }}" class="btn btn-outline-info">
+          <i class="fas fa-chart-line me-1"></i> تحليلات
+        </a>
+        <a href="{{ url_for('customers_bp.list_customers') }}" class="btn btn-outline-secondary">
+          <i class="fas fa-arrow-left me-1"></i> عودة
+        </a>
+      </div>
     </div>
   </div>
 </div>
@@ -93,7 +96,7 @@
     <form id="deleteForm" method="post">
       <div class="modal-content">
         <div class="modal-header bg-danger text-white">
-          <h5 class="modal-title"><i class="fas fa-exclamation-triangle me-2"></i>تأكيد الحذف</h5>
+          <h5 class="modal-title"><i class="fas fa-exclamation-triangle me-2"></i> تأكيد الحذف</h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">هل أنت متأكد من حذف هذا العميل؟</div>

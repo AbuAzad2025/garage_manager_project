@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block title %}طباعة المصاريف{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h3 class="mb-0"><i class="fas fa-print me-2"></i>تقرير المصاريف</h3>
+      <div class="text-muted small mt-1">
+        {% if search %}بحث: <strong>{{ search }}</strong> · {% endif %}
+        {% if start %}من: <strong>{{ start.strftime('%Y-%m-%d') }}</strong> · {% endif %}
+        {% if end %}إلى: <strong>{{ end.strftime('%Y-%m-%d') }}</strong> · {% endif %}
+        مولّد: {{ generated_at|format_datetime }}
+      </div>
+    </div>
+    <button class="btn btn-dark d-print-none" onclick="window.print()">
+      <i class="fas fa-print"></i> طباعة
+    </button>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <table class="table table-bordered table-sm">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>التاريخ</th>
+            <th>النوع</th>
+            <th>الموظف</th>
+            <th>الجهة</th>
+            <th>المبلغ</th>
+            <th>العملة</th>
+            <th>طريقة الدفع</th>
+            <th>الوصف</th>
+            <th>رقم الفاتورة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in expenses %}
+          <tr>
+            <td>{{ e.id }}</td>
+            <td>{{ e.date|format_date }}</td>
+            <td>{{ e.type.name if e.type else '' }}</td>
+            <td>{{ e.employee.name if e.employee else '' }}</td>
+            <td>{{ e.paid_to or '' }}</td>
+            <td>{{ e.amount|number_format(2) }}</td>
+            <td>{{ e.currency }}</td>
+            <td>{{ e.payment_method or '' }}</td>
+            <td>{{ e.description or '' }}</td>
+            <td>{{ e.tax_invoice_number or '' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th colspan="5" class="text-end">المجموع</th>
+            <th>{{ total_amount|number_format(2) }}</th>
+            <th colspan="4"></th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+
+<style>
+  @media print {
+    .main-header, .main-footer, .d-print-none { display: none !important; }
+    .content-wrapper, .container { margin: 0; padding: 0; }
+    table { font-size: 12px; }
+  }
+</style>
+{% endblock %}

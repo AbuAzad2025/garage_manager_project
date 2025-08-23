@@ -22,7 +22,12 @@
             <ul class="list-unstyled">
               <li><strong>رقم الطلب:</strong> {{ preorder.order_number }}</li>
               <li><strong>التاريخ:</strong> {{ preorder.created_at.strftime('%Y-%m-%d %H:%M') if preorder.created_at else '' }}</li>
-              <li><strong>الحالة:</strong> {{ preorder.status }}</li>
+              <li><strong>الحالة:</strong>
+                {{ 'مكتمل' if preorder.status=='FULFILLED'
+                   else 'مؤكد' if preorder.status=='CONFIRMED'
+                   else 'قيد الانتظار' if preorder.status=='PENDING'
+                   else 'ملغي' }}
+              </li>
             </ul>
           </div>
 

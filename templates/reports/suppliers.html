@@ -1,0 +1,50 @@
+{# templates/reports/suppliers.html #}
+{% extends 'base.html' %}
+{% block title %}الموردون{% endblock %}
+{% block page_title %}الموردون{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+<li class="breadcrumb-item active">{{ FIELD_LABELS.get("suppliers", "الموردون") }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid" dir="rtl">
+
+  <!-- العنوان -->
+  <div class="mb-3">
+    <h4 class="fw-bold"><i class="fas fa-truck-loading"></i> {{ FIELD_LABELS.get("suppliers", "الموردون") }}</h4>
+  </div>
+
+  <!-- الجدول -->
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <div class="table-responsive">
+        <table id="report-table" class="table table-striped table-bordered align-middle">
+          <thead class="table-dark">
+            <tr>
+              <th>#</th>
+              <th>{{ FIELD_LABELS.get("name", "الاسم") }}</th>
+              <th>{{ FIELD_LABELS.get("balance", "الرصيد") }}</th>
+              <th>{{ FIELD_LABELS.get("total_paid", "مدفوع") }}</th>
+              <th>{{ FIELD_LABELS.get("net_balance", "صافي") }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in data %}
+              <tr>
+                <td>{{ r.id }}</td>
+                <td>{{ r.name }}</td>
+                <td class="text-end">{{ "{:,.2f}".format(r.balance) }}</td>
+                <td class="text-end">{{ "{:,.2f}".format(r.total_paid) }}</td>
+                <td class="text-end">{{ "{:,.2f}".format(r.net_balance) }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -28,9 +28,9 @@ from models import (
     StockLevel,
 )
 from utils import permission_required
+from reports import sales_report, ar_aging_report
 
 main_bp = Blueprint("main", __name__, template_folder="templates")
-
 
 
 @main_bp.route("/favicon.ico")
@@ -77,9 +77,7 @@ def dashboard():
     if current_user.has_permission("manage_sales"):
         recent_sales = Sale.query.order_by(Sale.sale_date.desc()).limit(5).all()
         try:
-            from routes import reports as _reports
-
-            srep = _reports.sales_report(start, end) or {}
+            srep = sales_report(start, end) or {}
         except Exception:
             srep = {}
         revenue_labels = srep.get("daily_labels", [])
@@ -122,9 +120,7 @@ def dashboard():
         }
         recent_notes = Note.query.order_by(Note.created_at.desc()).limit(5).all()
         try:
-            from routes import reports as _reports
-
-            customer_metrics = _reports.ar_aging_report(start, end)
+            customer_metrics = ar_aging_report(start, end)
         except Exception:
             customer_metrics = {}
 

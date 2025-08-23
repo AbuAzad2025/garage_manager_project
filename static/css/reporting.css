@@ -1,18 +1,18 @@
-/* File: static/css/reporting.css */
-
-/* تحسين مظهر الجداول */
 #report-table th {
   background: #1f2937;
   color: #fff;
   text-align: center;
 }
+
 #report-table td {
   text-align: center;
   vertical-align: middle;
 }
+
 .report-form {
   border: 1px solid #ccc;
 }
+
 .btn {
   min-width: 120px;
 }

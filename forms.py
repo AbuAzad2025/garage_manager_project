@@ -39,15 +39,19 @@ try:
 except Exception:
     QuerySelectField = SelectField
 
+try:
+    from widgets import AjaxSelectField
+except Exception:
+    AjaxSelectField = SelectField
+
 from models import (
     Customer,
-    User,
     Employee,
     Expense,
     ExpenseType,
     InvoiceLine,
-    InvoiceStatus,
     InvoiceSource,
+    InvoiceStatus,
     Partner,
     Payment,
     PaymentDirection,
@@ -72,14 +76,11 @@ from models import (
     StockLevel,
     Supplier,
     TransferDirection,
+    User,
     Warehouse,
     WarehouseType,
 )
-from utils import (
-    is_valid_expiry_mm_yy,
-    luhn_check,
-    prepare_payment_form_choices,
-)
+from utils import is_valid_expiry_mm_yy, luhn_check, prepare_payment_form_choices, detect_card_brand
 
 CURRENCY_CHOICES = [("ILS", "ILS"), ("USD", "USD"), ("EUR", "EUR"), ("JOD", "JOD")]
 
@@ -1594,67 +1595,69 @@ class EmployeeForm(FlaskForm):
     name           = StringField('الاسم', validators=[DataRequired(), Length(max=100)])
     position       = StringField('الوظيفة', validators=[Optional(), Length(max=100)])
     phone          = StringField('الجوال', validators=[Optional(), Length(max=100)])
-    email          = StringField('البريد', validators=[Optional(), Email(), Length(max=120),
-                                                       unique_email_validator(Employee)])
+    email          = StringField('البريد', validators=[Optional(), Email(), Length(max=120)])
     bank_name      = StringField('البنك', validators=[Optional(), Length(max=100)])
     account_number = StringField('رقم الحساب', validators=[Optional(), Length(max=100)])
     notes          = TextAreaField('ملاحظات', validators=[Optional(), Length(max=1000)])
     currency       = SelectField('العملة', choices=CURRENCY_CHOICES, default="ILS", validators=[DataRequired()])
     submit         = SubmitField('حفظ الموظف')
-    
+
 class ExpenseTypeForm(FlaskForm):
-    id = HiddenField()
-    name = StringField('اسم نوع المصروف', validators=[DataRequired(), Length(max=100)])
+    id          = HiddenField(validators=[Optional()])  # مفيد لفحص uniqueness أثناء التعديل فقط
+    name        = StringField('اسم نوع المصروف', validators=[DataRequired(), Length(max=100)])
     description = TextAreaField('وصف اختياري', validators=[Optional(), Length(max=500)])
-    is_active = BooleanField('مُفعّل', default=True)
-    submit = SubmitField('حفظ')
+    is_active   = BooleanField('مُفعّل', default=True)
+    submit      = SubmitField('حفظ')
 
     def validate_name(self, field):
         name = (field.data or "").strip()
-        if not name:
-            raise ValidationError("الاسم مطلوب.")
-        q = ExpenseType.query.filter_by(name=name)
+        q = ExpenseType.query.filter(func.lower(ExpenseType.name) == name.lower())
         if (self.id.data or "").isdigit():
             q = q.filter(ExpenseType.id != int(self.id.data))
         if q.first():
             raise ValidationError("اسم نوع المصروف موجود مسبقًا.")
 
+    def apply_to(self, obj):
+        obj.name = (self.name.data or "").strip()
+        obj.description = (self.description.data or "").strip() or None
+        obj.is_active = bool(self.is_active.data)
+        return obj
 
 class ExpenseForm(FlaskForm):
-    date = DateTimeField('التاريخ', format='%Y-%m-%d %H:%M', default=datetime.utcnow, validators=[DataRequired()])
+    date = DateField('التاريخ', format='%Y-%m-%d', default=date.today, validators=[DataRequired()])
     amount = DecimalField('المبلغ', places=2, validators=[DataRequired(), NumberRange(min=0.01)])
     currency = SelectField('العملة', choices=CURRENCY_CHOICES, default='ILS', validators=[DataRequired()])
     type_id = SelectField('نوع المصروف', coerce=int, validators=[DataRequired()])
-    employee_id = AjaxSelectField('الموظف', endpoint='api.employees', get_label='name', validators=[Optional()])
-    warehouse_id = AjaxSelectField('المستودع', endpoint='api.warehouses', get_label='name', validators=[Optional()])
-    partner_id = AjaxSelectField('الشريك', endpoint='api.partners', get_label='name', validators=[Optional()])
+
+    employee_id = AjaxSelectField('الموظف', validators=[Optional()])
+    warehouse_id = AjaxSelectField('المستودع', validators=[Optional()])
+    partner_id = AjaxSelectField('الشريك', validators=[Optional()])
+
     paid_to = StringField('مدفوع إلى', validators=[Optional(), Length(max=200)])
     payment_method = SelectField(
         'طريقة الدفع',
         choices=[('cash','نقدًا'),('cheque','شيك'),('bank','تحويل بنكي'),('card','بطاقة/ائتمان'),('online','إلكتروني'),('other','أخرى')],
         validators=[DataRequired()]
     )
+
     check_number = StringField('رقم الشيك', validators=[Optional(), Length(max=100)])
     check_bank = StringField('البنك', validators=[Optional(), Length(max=100)])
     check_due_date = DateField('تاريخ الاستحقاق', format='%Y-%m-%d', validators=[Optional()])
+
     bank_transfer_ref = StringField('مرجع التحويل', validators=[Optional(), Length(max=100)])
+
     card_number = StringField('رقم البطاقة', validators=[Optional(), Length(max=19)])
     card_holder = StringField('اسم حامل البطاقة', validators=[Optional(), Length(max=120)])
     card_expiry = StringField('MM/YY', validators=[Optional(), Length(max=7)])
+
     online_gateway = StringField('بوابة الدفع', validators=[Optional(), Length(max=50)])
     online_ref = StringField('مرجع العملية', validators=[Optional(), Length(max=100)])
+
     payment_details = StringField('تفاصيل إضافية', validators=[Optional(), Length(max=255)])
     description = StringField('وصف مختصر', validators=[Optional(), Length(max=200)])
     notes = TextAreaField('ملاحظات', validators=[Optional(), Length(max=1000)])
     tax_invoice_number = StringField('رقم فاتورة ضريبية', validators=[Optional(), Length(max=100)])
     submit = SubmitField('حفظ')
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        try:
-            self.type_id.choices = [(t.id, t.name) for t in ExpenseType.query.order_by(ExpenseType.name).all()]
-        except Exception:
-            self.type_id.choices = []
 
     def validate(self, extra_validators=None):
         if not super().validate(extra_validators=extra_validators):
@@ -1667,7 +1670,7 @@ class ExpenseForm(FlaskForm):
                 self.check_bank.errors.append('❌ أدخل اسم البنك'); return False
             if not self.check_due_date.data:
                 self.check_due_date.errors.append('❌ أدخل تاريخ الاستحقاق'); return False
-            if self.date.data and self.check_due_date.data < self.date.data.date():
+            if self.date.data and self.check_due_date.data < self.date.data:
                 self.check_due_date.errors.append('❌ تاريخ الاستحقاق لا يمكن أن يسبق تاريخ العملية'); return False
         elif m == 'bank':
             if not (self.bank_transfer_ref.data or '').strip():
@@ -1718,18 +1721,19 @@ class ExpenseForm(FlaskForm):
         details = {k: v for k, v in details.items() if v not in (None, '')}
         return json.dumps(details, ensure_ascii=False)
 
-    def apply_to(self, exp: Expense) -> Expense:
-        exp.date = self.date.data
+    def apply_to(self, exp):
+        exp.date = datetime.combine(self.date.data, time(0, 0))
         exp.amount = self.amount.data
         exp.currency = (self.currency.data or 'ILS').upper()
         exp.type_id = int(self.type_id.data) if self.type_id.data is not None else None
-        exp.employee_id = int(self.employee_id.data) if self.employee_id.data else None
-        exp.warehouse_id = int(self.warehouse_id.data) if self.warehouse_id.data else None
-        exp.partner_id = int(self.partner_id.data) if self.partner_id.data else None
+        exp.employee_id = int(self.employee_id.data) if getattr(self.employee_id, "data", None) else None
+        exp.warehouse_id = int(self.warehouse_id.data) if getattr(self.warehouse_id, "data", None) else None
+        exp.partner_id = int(self.partner_id.data) if getattr(self.partner_id, "data", None) else None
         exp.paid_to = (self.paid_to.data or '').strip() or None
         exp.description = (self.description.data or '').strip() or None
         exp.notes = (self.notes.data or '').strip() or None
         exp.tax_invoice_number = (self.tax_invoice_number.data or '').strip() or None
+
         m = (self.payment_method.data or '').strip().lower()
         exp.payment_method = m
         exp.payment_details = self.build_payment_details()
@@ -1743,7 +1747,7 @@ class ExpenseForm(FlaskForm):
         exp.online_gateway = (self.online_gateway.data or '').strip() or None
         exp.online_ref = (self.online_ref.data or '').strip() or None
         return exp
-
+    
 # --------- Online: Customer / Cart / Payment ----------
 class CustomerFormOnline(FlaskForm):
     name     = StringField('الاسم الكامل', validators=[DataRequired()])

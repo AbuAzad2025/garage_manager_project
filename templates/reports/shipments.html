@@ -1,0 +1,111 @@
+{# templates/reports/shipments.html #}
+{% extends 'base.html' %}
+{% block title %}تقرير الشحنات{% endblock %}
+{% block page_title %}تقرير الشحنات{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+<li class="breadcrumb-item active">{{ FIELD_LABELS.get("shipments", "الشحنات") }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid" dir="rtl">
+
+  <!-- العنوان -->
+  <div class="mb-3">
+    <h4 class="fw-bold"><i class="fas fa-shipping-fast"></i> {{ FIELD_LABELS.get("shipments", "الشحنات") }}</h4>
+  </div>
+
+  <!-- فلاتر -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white">
+      {{ FIELD_LABELS.get("date_range", "نطاق التاريخ") }}
+    </div>
+    <div class="card-body">
+      <form class="row g-3" method="get">
+        <div class="col-md-3">
+          <label class="form-label fw-semibold">{{ FIELD_LABELS.get("start_date", "من") }}</label>
+          <input type="date" name="start" value="{{ start or '' }}" class="form-control">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-semibold">{{ FIELD_LABELS.get("end_date", "إلى") }}</label>
+          <input type="date" name="end" value="{{ end or '' }}" class="form-control">
+        </div>
+        <div class="col-md-3 align-self-end">
+          <button class="btn btn-primary">
+            <i class="fas fa-sync-alt"></i> {{ FIELD_LABELS.get("refresh", "تحديث") }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- إحصائيات -->
+  <div class="row g-3 mb-3">
+    <div class="col-md-3">
+      <div class="card shadow-sm">
+        <div class="card-body text-center">
+          <div class="text-muted small">{{ FIELD_LABELS.get("shipments_count", "عدد الشحنات") }}</div>
+          <div class="fs-5 fw-bold">{{ totals.shipments }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card shadow-sm">
+        <div class="card-body text-center">
+          <div class="text-muted small">{{ FIELD_LABELS.get("value_before", "قيمة قبل التكاليف") }}</div>
+          <div class="fs-5 fw-bold">{{ "{:,.2f}".format(totals.value_before) }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card shadow-sm">
+        <div class="card-body text-center">
+          <div class="text-muted small">{{ FIELD_LABELS.get("total_value", "القيمة الإجمالية") }}</div>
+          <div class="fs-5 fw-bold">{{ "{:,.2f}".format(totals.total_value) }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- جدول -->
+  <div class="card shadow-sm">
+    <div class="card-header">{{ FIELD_LABELS.get("shipments_table", "جدول الشحنات") }}</div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table id="report-table" class="table table-bordered table-striped align-middle">
+          <thead class="table-dark">
+            <tr>
+              <th>{{ FIELD_LABELS.get("number", "الرقم") }}</th>
+              <th>{{ FIELD_LABELS.get("shipment_date", "التاريخ") }}</th>
+              <th>{{ FIELD_LABELS.get("status", "الحالة") }}</th>
+              <th>{{ FIELD_LABELS.get("origin", "المنشأ") }}</th>
+              <th>{{ FIELD_LABELS.get("destination", "الوجهة") }}</th>
+              <th>{{ FIELD_LABELS.get("value_before", "قيمة قبل") }}</th>
+              <th>{{ FIELD_LABELS.get("total_value", "الإجمالي") }}</th>
+              <th>{{ FIELD_LABELS.get("carrier", "الناقل") }}</th>
+              <th>{{ FIELD_LABELS.get("tracking", "تتبع") }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in data %}
+              <tr>
+                <td>{{ r.number }}</td>
+                <td>{{ r.date }}</td>
+                <td>{{ r.status }}</td>
+                <td>{{ r.origin }}</td>
+                <td>{{ r.destination }}</td>
+                <td class="text-end">{{ "{:,.2f}".format(r.value_before) }}</td>
+                <td class="text-end">{{ "{:,.2f}".format(r.total_value) }}</td>
+                <td>{{ r.carrier }}</td>
+                <td>{{ r.tracking }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
