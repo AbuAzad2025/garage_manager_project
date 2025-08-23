@@ -543,115 +543,167 @@ def delete_split(split_id):
 @login_required
 @permission_required("manage_payments")
 def entity_fields():
-    entity_type = (request.args.get("type") or "customer").lower()
+    entity_type = (request.args.get("type") or "customer").strip().lower()
     entity_id = request.args.get("entity_id")
     form = PaymentForm()
     form.entity_type.data = entity_type.upper()
+
+    model_map = {
+        "customer": (Customer, "customer_id"),
+        "supplier": (Supplier, "supplier_id"),
+        "partner": ("Partner", "partner_id"),
+        "sale": (Sale, "sale_id"),
+        "invoice": (Invoice, "invoice_id"),
+        "service": (ServiceRequest, "service_id"),
+        "shipment": (Shipment, "shipment_id"),
+        "expense": (Expense, "expense_id"),
+        "preorder": (PreOrder, "preorder_id"),
+    }
+
     if entity_id:
         try:
             eid = int(entity_id)
-            if entity_type == "customer" and db.session.get(Customer, eid):
-                form.customer_id.data = eid
-            elif entity_type == "supplier" and db.session.get(Supplier, eid):
-                form.supplier_id.data = eid
-            elif entity_type == "partner" and db.session.get(Partner, eid):
-                form.partner_id.data = eid
-            elif entity_type == "preorder" and db.session.get(PreOrder, eid):
-                form.preorder_id.data = eid
+            model, field_name = model_map.get(entity_type, (None, None))
+            if isinstance(model, str):
+                model = globals().get(model)
+            if model is not None and db.session.get(model, eid):
+                getattr(form, field_name).data = eid
         except (ValueError, TypeError):
             pass
+
+    if hasattr(form, "_sync_entity_id_for_render"):
+        form._sync_entity_id_for_render()
+
     return render_template("payments/_entity_fields.html", form=form)
 
-@payments_bp.route("/expense/<int:exp_id>/create", methods=["GET","POST"], endpoint="create_expense_payment")
+
+@payments_bp.route("/expense/<int:exp_id>/create", methods=["GET", "POST"], endpoint="create_expense_payment")
 @login_required
 @permission_required("manage_payments")
 def create_expense_payment(exp_id):
     exp = _get_or_404(Expense, exp_id)
     form = PaymentForm(meta={"csrf": not current_app.testing})
     if hasattr(form, "direction"):
-        form.direction.choices = [("IN","وارد"),("OUT","صادر"),("INCOMING","وارد"),("OUTGOING","صادر")]
+        form.direction.choices = [("IN", "وارد"), ("OUT", "صادر"), ("INCOMING", "وارد"), ("OUTGOING", "صادر")]
     form.entity_type.data = "EXPENSE"
     if hasattr(form, "_entity_field_map") and "EXPENSE" in form._entity_field_map:
         getattr(form, form._entity_field_map["EXPENSE"]).data = exp.id
-    entity_info = {"type": "expense", "number": f"EXP-{exp.id}", "date": exp.date.strftime("%Y-%m-%d") if getattr(exp, "date", None) else "", "description": exp.description or "", "amount": exp.amount}
+
+    entity_info = {
+        "type": "expense",
+        "number": f"EXP-{exp.id}",
+        "date": exp.date.strftime("%Y-%m-%d") if getattr(exp, "date", None) else "",
+        "description": exp.description or "",
+        "amount": float(getattr(exp, "amount", 0) or 0),
+        "currency": getattr(exp, "currency", "ILS"),
+    }
+
     def _clean_details_local(d):
-        if not d: return None
-        out = {}; DateT = type(datetime.utcnow().date())
+        if not d:
+            return None
+        out = {}
+        DateT = type(datetime.utcnow().date())
         for k, v in d.items():
-            if v in (None, "", []): continue
-            if isinstance(v, (datetime, DateT)): out[k] = v.isoformat()
-            else: out[k] = v
+            if v in (None, "", []):
+                continue
+            if isinstance(v, (datetime, DateT)):
+                out[k] = v.isoformat()
+            else:
+                out[k] = v
         return out or None
+
     if request.method == "GET":
         form.payment_date.data = datetime.utcnow()
         form.total_amount.data = exp.amount
-        form.reference.data = f"دفع مصروف {exp.description or ''}"
+        form.reference.data = f"دفع مصروف {exp.description or ''}".strip()
         form.direction.data = "OUT"
         form.currency.data = getattr(exp, "currency", "ILS")
-        if not form.status.data: form.status.data = PaymentStatus.COMPLETED.value
+        if not form.status.data:
+            form.status.data = PaymentStatus.COMPLETED.value
         return render_template("payments/form.html", form=form, entity_info=entity_info)
+
     raw_dir = request.form.get("direction")
-    if raw_dir: form.direction.data = _norm_dir(raw_dir)
+    if raw_dir:
+        form.direction.data = PaymentForm._norm_dir(raw_dir)
+
     if not form.validate_on_submit():
-        if _wants_json(): return jsonify(status="error", errors=form.errors), 400
+        if _wants_json():
+            return jsonify(status="error", errors=form.errors), 400
         return render_template("payments/form.html", form=form, entity_info=entity_info)
+
     try:
-        parsed_splits = []; total_splits = 0.0
+        parsed_splits = []
+        total_splits = 0.0
         for entry in getattr(form, "splits", []).entries:
             sm = entry.form
             amt = float(getattr(sm, "amount").data or 0)
-            if amt <= 0: continue
-            m_raw = (getattr(sm, "method").data or ""); m_str = str(m_raw).strip().lower()
+            if amt <= 0:
+                continue
+            m_str = str(getattr(sm, "method").data or "").strip().upper()
             details = {}
-            for fld in ("check_number","check_bank","check_due_date","card_number","card_holder","card_expiry","bank_transfer_ref"):
+            for fld in ("check_number", "check_bank", "check_due_date", "card_number", "card_holder", "card_expiry", "bank_transfer_ref"):
                 if hasattr(sm, fld):
                     val = getattr(sm, fld).data
-                    if val in (None, "", []): continue
+                    if val in (None, "", []):
+                        continue
                     if fld == "check_due_date":
-                        if isinstance(val, datetime): val = val.isoformat()
+                        if isinstance(val, datetime):
+                            val = val.date().isoformat()
                         else:
                             DateT = type(datetime.utcnow().date())
-                            if isinstance(val, DateT): val = val.isoformat()
+                            if isinstance(val, DateT):
+                                val = val.isoformat()
                         details[fld] = val
                     elif fld == "card_number":
                         num = "".join(ch for ch in str(val) if ch.isdigit())
-                        if num: details["card_last4"] = num[-4:]
+                        if num:
+                            details["card_last4"] = num[-4:]
                     else:
                         details[fld] = val
-            details = _clean_details(details)
-            parsed_splits.append(PaymentSplit(method=_coerce_method(m_str), amount=amt, details=details))
+            details = _clean_details_local(details)
+            parsed_splits.append(PaymentSplit(method=m_str, amount=amt, details=details))
             total_splits += amt
+
         tgt_total = float(request.form.get("total_amount") or form.total_amount.data or 0)
         if abs(total_splits - tgt_total) > 0.01:
             msg = "❌ مجموع الدفعات الجزئية لا يساوي المبلغ الكلي."
-            if _wants_json(): return jsonify(status="error", message=msg), 400
-            flash(msg, "danger"); return render_template("payments/form.html", form=form, entity_info=entity_info)
-        method_val = parsed_splits[0].method if parsed_splits else _coerce_method(getattr(form, "method", None).data)
-        method_val = getattr(method_val, "value", method_val)
+            if _wants_json():
+                return jsonify(status="error", message=msg), 400
+            flash(msg, "danger")
+            return render_template("payments/form.html", form=form, entity_info=entity_info)
+
+        method_val = parsed_splits[0].method if parsed_splits else str(getattr(form, "method", None).data or "").strip().upper()
         notes_raw = (getattr(form, "note", None).data if hasattr(form, "note") else None) or (getattr(form, "notes", None).data if hasattr(form, "notes") else None) or ""
+
         payment = Payment(
             entity_type="EXPENSE",
             expense_id=exp.id,
             total_amount=tgt_total,
             currency=form.currency.data or getattr(exp, "currency", "ILS"),
             method=method_val,
-            direction=_dir_to_db("OUT"),
+            direction=PaymentForm._dir_to_db("OUT"),
             status=form.status.data or PaymentStatus.COMPLETED.value,
             payment_date=form.payment_date.data or datetime.utcnow(),
             reference=(form.reference.data or "").strip() or None,
             notes=(notes_raw or "").strip() or None,
             created_by=current_user.id,
         )
+
         for sp in parsed_splits:
             payment.splits.append(sp)
+
         db.session.add(payment)
         db.session.commit()
         log_audit("Payment", payment.id, f"CREATE (expense #{exp.id})")
-        if _wants_json(): return jsonify(status="success", payment=payment.to_dict()), 201
+
+        if _wants_json():
+            return jsonify(status="success", payment=payment.to_dict()), 201
+
         flash("✅ تم تسجيل دفع المصروف بنجاح", "success")
         return redirect(url_for("payments.view_payment", payment_id=payment.id))
     except Exception as e:
         db.session.rollback()
-        if _wants_json(): return jsonify(status="error", message=str(e)), 400
+        if _wants_json():
+            return jsonify(status="error", message=str(e)), 400
         flash(f"❌ خطأ أثناء تسجيل الدفع: {e}", "danger")
         return render_template("payments/form.html", form=form, entity_info=entity_info)
