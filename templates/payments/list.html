@@ -1,10 +1,8 @@
-<!-- File: templates/payments/list.html -->
 {% extends 'base.html' %}
 {% block title %}سندات الدفع{% if supplier %} — {{ supplier.name }}{% endif %}{% endblock %}
 
 {% block content %}
 <div class="container py-5">
-
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h2 class="fw-bold mb-0">
       <i class="fas fa-money-check-alt me-2"></i>
@@ -14,9 +12,7 @@
         جميع سندات الدفع
       {% endif %}
     </h2>
-
-    <a href="{% if supplier %}{{ url_for('payments.create_payment', entity_type='SUPPLIER', entity_id=supplier.id) }}{% else %}{{ url_for('payments.create_payment') }}{% endif %}"
-       class="btn btn-success">
+    <a id="btnAddPayment" href="{% if supplier %}{{ url_for('payments.create_payment', entity_type='SUPPLIER', entity_id=supplier.id) }}{% else %}{{ url_for('payments.create_payment') }}{% endif %}" class="btn btn-success">
       <i class="fas fa-plus"></i> إضافة سند دفع
     </a>
   </div>
@@ -110,7 +106,6 @@
       </nav>
     </div>
   </div>
-
 </div>
 {% endblock %}
 
@@ -118,10 +113,25 @@
   <script src="{{ url_for('static', filename='js/payments.js') }}"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function () {
-      var et = document.getElementById('prefilter_entity_type');
-      if (et && et.value && document.getElementById('filterEntity')) {
-        var sel = document.getElementById('filterEntity');
-        sel.value = et.value;
+      var etHidden = document.getElementById('prefilter_entity_type');
+      if (etHidden && etHidden.value && document.getElementById('filterEntity')) {
+        document.getElementById('filterEntity').value = etHidden.value;
+      }
+      var btn = document.getElementById('btnAddPayment');
+      if (btn) {
+        var hidType = document.getElementById('prefilter_entity_type') ? document.getElementById('prefilter_entity_type').value : '';
+        var hidId = document.getElementById('prefilter_entity_id') ? document.getElementById('prefilter_entity_id').value : '';
+        var qs = new URLSearchParams(location.search);
+        var qsType = (qs.get('entity_type') || '').toUpperCase();
+        var qsId = qs.get('entity_id') || '';
+        var et = hidType || qsType;
+        var eid = hidId || qsId;
+        if (et && eid) {
+          var u = new URL(btn.href, location.origin);
+          if (!u.searchParams.get('entity_type')) u.searchParams.set('entity_type', et);
+          if (!u.searchParams.get('entity_id')) u.searchParams.set('entity_id', eid);
+          btn.href = u.toString();
+        }
       }
     });
   </script>

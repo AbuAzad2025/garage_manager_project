@@ -25,7 +25,7 @@ from sqlalchemy.orm import joinedload
 
 # ── App Modules ────────────────────────────────────────────────────────────────
 from extensions import db
-from utils import permission_required, testable_login_required
+from utils import _get_or_404, permission_required, testable_login_required
 from forms import (
     ExchangeTransactionForm,
     ExchangeVendorForm,
@@ -47,15 +47,16 @@ from models import (
     PaymentEntityType,
     PaymentStatus,
     PreOrder,
-    PreOrderStatus,  # ✅ أُضيف هنا لتصحيح الخطأ السابق
+    PreOrderStatus,
     Product,
-    WarehousePartnerShare, ProductPartnerShare,
+    ProductPartnerShare,
     Shipment,
     ShipmentItem,
     StockLevel,
     Supplier,
     Transfer,
     Warehouse,
+    WarehousePartnerShare,
     WarehouseType,
 )
 
@@ -243,113 +244,120 @@ def products(id):
         selected_ids=selected_ids,
     )
 
+
 @warehouse_bp.route("/<int:id>/add-product", methods=["GET", "POST"], endpoint="add_product")
 @login_required
 @permission_required("manage_inventory")
 def add_product(id):
-    warehouse_id = id
-    warehouse = _get_or_404(Warehouse, warehouse_id)
+    warehouse = _get_or_404(Warehouse, id)
     form = ProductForm()
     partners_forms, exchange_vendors_forms = [], []
 
-    if request.method == "POST":
-        if warehouse.warehouse_type in [WarehouseType.MAIN.value, WarehouseType.INVENTORY.value]:
-            if form.validate_on_submit():
-                product = Product()
-                form.populate_obj(product)
-                db.session.add(product)
-                db.session.commit()
-                flash("✅ تمت إضافة القطعة للمستودع بنجاح", "success")
-                return redirect(url_for("warehouse_bp.add_product", id=warehouse.id))
+    def _initial_qty():
+        # الأولوية لـ on_hand ثم quantity
+        q = form.on_hand.data if form.on_hand.data not in (None, "") else form.quantity.data
+        try:
+            return int(q or 0)
+        except Exception:
+            return 0
 
-        elif warehouse.warehouse_type == WarehouseType.PARTNER.value:
-            if form.validate_on_submit():
-                partner_ids   = request.form.getlist("partner_id")
-                shares        = request.form.getlist("share_percentage")
-                share_amounts = request.form.getlist("share_amount")
-                notes_list    = request.form.getlist("notes")
+    def _reserved_qty():
+        try:
+            return int(form.reserved_quantity.data or 0)
+        except Exception:
+            return 0
 
-                product = Product()
-                form.populate_obj(product)
-                db.session.add(product)
-                db.session.flush()
+    if request.method == "POST" and form.validate_on_submit():
+        product = Product()
+        form.apply_to(product)
+        db.session.add(product)
+        db.session.flush()  # للحصول على product.id
 
-                for idx, (partner_id, share) in enumerate(zip(partner_ids, shares)):
-                    try:
-                        pid  = int(partner_id)
-                        perc = float(share or 0)
-                    except ValueError:
-                        continue
-                    try:
-                        amt = float(share_amounts[idx]) if idx < len(share_amounts) and share_amounts[idx] not in (None, "", "None") else 0.0
-                    except Exception:
-                        amt = 0.0
-                    note = notes_list[idx].strip() if idx < len(notes_list) and notes_list[idx] not in (None, "", "None") else None
-                    db.session.add(
-                        ProductPartnerShare(
-                            product_id=product.id,
-                            partner_id=pid,
-                            share_percentage=perc,
-                            share_amount=amt,
-                            notes=note
-                        )
-                    )
-                db.session.commit()
-                flash("✅ تمت إضافة القطعة مع مساهمات الشركاء بنجاح", "success")
-                return redirect(url_for("warehouse_bp.add_product", id=warehouse.id))
+        init_qty = max(_initial_qty(), 0)
+        init_res = max(_reserved_qty(), 0)
+
+        # أنشئ/حدّث StockLevel في هذا المستودع
+        sl = StockLevel.query.filter_by(warehouse_id=warehouse.id, product_id=product.id).first()
+        if not sl:
+            sl = StockLevel(warehouse_id=warehouse.id, product_id=product.id, quantity=0, reserved_quantity=0)
+            db.session.add(sl)
+        sl.quantity = (sl.quantity or 0) + init_qty
+        sl.reserved_quantity = max(init_res, 0)
+
+        # فروع حسب نوع المستودع
+        if warehouse.warehouse_type == WarehouseType.PARTNER.value:
+            partner_ids   = request.form.getlist("partner_id")
+            shares        = request.form.getlist("share_percentage")
+            share_amounts = request.form.getlist("share_amount")
+            notes_list    = request.form.getlist("notes")
+
+            for idx, (partner_id, share) in enumerate(zip(partner_ids, shares)):
+                try:
+                    pid  = int(partner_id)
+                    perc = float(share or 0)
+                except ValueError:
+                    continue
+                try:
+                    amt = float(share_amounts[idx]) if idx < len(share_amounts) and share_amounts[idx] not in (None, "", "None") else 0.0
+                except Exception:
+                    amt = 0.0
+                note = notes_list[idx].strip() if idx < len(notes_list) and notes_list[idx] not in (None, "", "None") else None
+                db.session.add(ProductPartnerShare(
+                    product_id=product.id,
+                    partner_id=pid,
+                    share_percentage=perc,
+                    share_amount=amt,
+                    notes=note
+                ))
 
         elif warehouse.warehouse_type == WarehouseType.EXCHANGE.value:
-            if form.validate_on_submit():
-                supplier_ids  = request.form.getlist("supplier_id")
-                vendor_phones = request.form.getlist("vendor_phone")
-                vendor_paid   = request.form.getlist("vendor_paid")
-                vendor_prices = request.form.getlist("vendor_price")
+            supplier_ids  = request.form.getlist("supplier_id")
+            vendor_phones = request.form.getlist("vendor_phone")
+            vendor_paid   = request.form.getlist("vendor_paid")
+            vendor_prices = request.form.getlist("vendor_price")
 
-                product = Product()
-                form.populate_obj(product)
-                db.session.add(product)
-                db.session.flush()
+            # سجّل معاملات تبادل (لا نضاعف الكمية في المخزون، نحدث المخزون مرة واحدة فقط)
+            maxlen = max(len(supplier_ids or []), len(vendor_phones or []), len(vendor_paid or []), len(vendor_prices or []), 1)
+            for i in range(maxlen):
+                sid   = (supplier_ids[i]  if i < len(supplier_ids)  else None)
+                phone = (vendor_phones[i] if i < len(vendor_phones) else None)
+                paid  = (vendor_paid[i]   if i < len(vendor_paid)   else None)
+                price = (vendor_prices[i] if i < len(vendor_prices) else None)
 
-                maxlen = max(len(supplier_ids or []), len(vendor_phones or []), len(vendor_paid or []), len(vendor_prices or []), 1)
-                for i in range(maxlen):
-                    sid   = (supplier_ids[i]  if i < len(supplier_ids)  else None)
-                    phone = (vendor_phones[i] if i < len(vendor_phones) else None)
-                    paid  = (vendor_paid[i]   if i < len(vendor_paid)   else None)
-                    price = (vendor_prices[i] if i < len(vendor_prices) else None)
+                sname = None
+                if sid and str(sid).isdigit():
+                    sup = db.session.get(Supplier, int(sid))
+                    if sup:
+                        sname = sup.name
 
-                    sname = None
-                    if sid and str(sid).isdigit():
-                        sup = db.session.get(Supplier, int(sid))
-                        if sup:
-                            sname = sup.name
+                note_parts = []
+                if sid and str(sid).isdigit():
+                    note_parts.append(f"SupplierID:{sid}{'('+sname+')' if sname else ''}")
+                if phone: note_parts.append(f"phone:{phone}")
+                if paid:  note_parts.append(f"paid:{paid}")
+                if price: note_parts.append(f"price:{price}")
+                note_txt = " | ".join(note_parts) if note_parts else None
 
-                    note_parts = []
-                    if sid and str(sid).isdigit():
-                        note_parts.append(f"SupplierID:{sid}{'('+sname+')' if sname else ''}")
-                    if phone: note_parts.append(f"phone:{phone}")
-                    if paid:  note_parts.append(f"paid:{paid}")
-                    if price: note_parts.append(f"price:{price}")
-                    note_txt = " | ".join(note_parts) if note_parts else None
+                db.session.add(ExchangeTransaction(
+                    product_id=product.id,
+                    warehouse_id=warehouse.id,
+                    partner_id=None,
+                    quantity=init_qty,
+                    direction="IN",
+                    notes=note_txt
+                ))
+            # المخزون تم تزويده أعلاه عبر sl.quantity += init_qty
 
-                    db.session.add(
-                        ExchangeTransaction(
-                            product_id=product.id,
-                            warehouse_id=warehouse.id,
-                            partner_id=None,
-                            quantity=form.quantity.data,
-                            direction="IN",
-                            notes=note_txt
-                        )
-                    )
-
-                db.session.commit()
-                flash("✅ تمت إضافة القطعة وربط بيانات التبادل (اختيار مورّد/تاجر موجود أو بيانات يدوية)", "success")
-                return redirect(url_for("warehouse_bp.add_product", id=warehouse.id))
+        db.session.commit()
+        flash("✅ تمت إضافة القطعة للمستودع بنجاح", "success")
+        return redirect(url_for("warehouse_bp.add_product", id=warehouse.id))
 
     if warehouse.warehouse_type == WarehouseType.PARTNER.value:
         partners_forms = [ProductPartnerShareForm()]
     elif warehouse.warehouse_type == WarehouseType.EXCHANGE.value:
         exchange_vendors_forms = [ExchangeVendorForm()]
+
+    wtype = (warehouse.warehouse_type.value if hasattr(warehouse.warehouse_type, "value") else str(warehouse.warehouse_type)).upper()
 
     return render_template(
         "warehouses/add_product.html",
@@ -357,14 +365,15 @@ def add_product(id):
         warehouse=warehouse,
         partners_forms=partners_forms,
         exchange_vendors_forms=exchange_vendors_forms,
+        wtype=wtype,
     )
-     
+
+
 @warehouse_bp.route("/<int:id>/import", methods=["GET", "POST"], endpoint="import_products")
 @login_required
 @permission_required("manage_inventory")
 def import_products(id):
-    warehouse_id = id
-    w = _get_or_404(Warehouse, warehouse_id)
+    w = _get_or_404(Warehouse, id)
     form = ImportForm()
     file_obj = None
     if request.method == "POST":
@@ -393,16 +402,11 @@ def import_products(id):
                 return redirect(url_for("warehouse_bp.detail", warehouse_id=w.id))
     return render_template("warehouses/import_products.html", form=form, warehouse=w)
 
+
 @warehouse_bp.route("/<int:warehouse_id>/stock", methods=["POST"], endpoint="ajax_update_stock")
 @login_required
 @permission_required("manage_inventory")
 def ajax_update_stock(warehouse_id):
-    """
-    تحديث كميات المخزون (AJAX).
-    - يدعم إما WTForms (StockLevelForm) أو باراميترات خام من request.form:
-      product_id, quantity, min_stock, max_stock.
-    - يقبل قيمًا فارغة كـ 0، ويُنشئ StockLevel إن لم يكن موجودًا.
-    """
     def _to_int(v, default=0):
         try:
             if v in (None, "", "None"):
@@ -528,6 +532,7 @@ def ajax_transfer(warehouse_id):
         db.session.rollback()
         return jsonify({"success": False, "error": "db_error"}), 500
 
+
 @warehouse_bp.route("/<int:warehouse_id>/exchange", methods=["POST"], endpoint="ajax_exchange")
 @login_required
 @permission_required("manage_inventory")
@@ -595,6 +600,8 @@ def ajax_exchange(warehouse_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 400
+
+
 @warehouse_bp.route("/<int:warehouse_id>/partner-shares", methods=["GET", "POST"], endpoint="partner_shares")
 @login_required
 @permission_required("manage_inventory")
@@ -610,16 +617,13 @@ def partner_shares(warehouse_id):
         except Exception:
             wps = []
 
-        if wps:
-            rows = wps
-        else:
-            rows = (
-                ProductPartnerShare.query
-                .join(Product)
-                .join(StockLevel, StockLevel.product_id == ProductPartnerShare.product_id)
-                .filter(StockLevel.warehouse_id == warehouse_id)
-                .all()
-            )
+        rows = wps or (
+            ProductPartnerShare.query
+            .join(Product)
+            .join(StockLevel, StockLevel.product_id == ProductPartnerShare.product_id)
+            .filter(StockLevel.warehouse_id == warehouse_id)
+            .all()
+        )
 
         data = []
         for s in rows:
@@ -698,14 +702,14 @@ def partner_shares(warehouse_id):
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 400
 
+
 @warehouse_bp.route("/<int:id>/transfers", methods=["GET"], endpoint="transfers")
 @login_required
 @permission_required("view_inventory")
 def transfers(id):
-    warehouse_id = id
-    warehouse = _get_or_404(Warehouse, warehouse_id)
+    warehouse = _get_or_404(Warehouse, id)
     transfers = (
-        Transfer.query.filter(or_(Transfer.source_id == warehouse_id, Transfer.destination_id == warehouse_id))
+        Transfer.query.filter(or_(Transfer.source_id == id, Transfer.destination_id == id))
         .order_by(Transfer.transfer_date.desc())
         .all()
     )
@@ -755,7 +759,6 @@ def create_transfer(id=None, warehouse_id=None):
 @login_required
 @permission_required("view_parts")
 def product_card(product_id):
-    """بطاقة مُجمَّعة لصنف: مخزون، تحويلات، تبادلات، شحنات."""
     part = (
         Product.query.options(
             joinedload(Product.supplier_international),
@@ -796,7 +799,6 @@ def product_card(product_id):
         .all()
     )
     return render_template("parts/card.html", part=part, stock=stock, transfers=transfers, exchanges=exchanges, shipments=shipments)
-
 
 # ───────── Preorders ─────────
 @warehouse_bp.route("/preorders", methods=["GET"], endpoint="preorders_list")

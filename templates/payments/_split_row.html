@@ -11,13 +11,13 @@
     {% elif m == 'bank' %}
       مرجع التحويل: {{ d.get('bank_transfer_ref','—') }}
     {% elif m == 'card' %}
-      بطاقة رقم: ****{{ (d.get('card_number','')|string)[-4:] }}<br>
+      بطاقة: ****{{ (d.get('card_last4','')|string) }}<br>
       حامل البطاقة: {{ d.get('card_holder','—') }}<br>
       انتهاء: {{ d.get('card_expiry','—') }}
     {% elif m == 'online' %}
       دفع إلكتروني ({{ d.get('gateway','—') }})
     {% else %}
-      —
+      — 
     {% endif %}
   </td>
   <td>

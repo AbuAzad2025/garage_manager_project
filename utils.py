@@ -6,7 +6,7 @@ from flask import Response, abort, current_app, flash, make_response, request
 from flask_login import current_user, login_required
 from flask_mail import Message
 import redis
-from sqlalchemy import func, case
+from sqlalchemy import func, case, select
 from twilio.base.exceptions import TwilioRestException
 from twilio.rest import Client
 
@@ -15,7 +15,7 @@ try:
 except Exception:
     qrcode = None
 
-# ReportLab متغيرات اختيارية (محمية)
+# ReportLab اختياري
 try:
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import letter
@@ -23,7 +23,7 @@ try:
 except Exception:
     colors = letter = SimpleDocTemplate = Table = TableStyle = None
 
-# تشفير البطاقة اختياري
+# تشفير اختياري
 try:
     from cryptography.fernet import Fernet
 except Exception:
@@ -35,17 +35,37 @@ from models import PaymentStatus, Payment, PaymentSplit
 redis_client: redis.Redis | None = None
 
 
+# ============================== Object fetch helper ==============================
+
+def _get_or_404(model, ident, *, load_options=None, pk_name: str = "id"):
+    """أحضر سجلًا وإلا 404. يدعم options وبديل لاسم الـ PK."""
+    try:
+        if pk_name == "id" and not load_options:
+            obj = db.session.get(model, ident)
+        else:
+            stmt = select(model)
+            if load_options:
+                stmt = stmt.options(*load_options)
+            stmt = stmt.where(getattr(model, pk_name) == ident)
+            obj = db.session.execute(stmt).scalar_one_or_none()
+    except Exception:
+        obj = None
+    if obj is None:
+        abort(404)
+    return obj
+
+
 # ============================== Bootstrap & Filters ==============================
 
 def init_app(app):
-    """Register Jinja filters and initialize Redis from app config."""
+    """تسجيل فلاتر Jinja وتهيئة Redis."""
     global redis_client
     app.jinja_env.filters.update({
         "format_currency": format_currency,
         "format_percent": format_percent,
         "format_date": format_date,
         "format_datetime": format_datetime,
-        "yes_no": yes_no,                # متوافق مع الاسم القديم
+        "yes_no": yes_no,
         "status_label": status_label,
     })
     try:
@@ -60,20 +80,16 @@ def init_app(app):
 # ============================== Notifications ==============================
 
 def send_email_notification(subject, recipients, body, html=None):
-    """Send email using Flask-Mail."""
     mail.send(Message(subject=subject, recipients=recipients, body=body, html=html))
 
 
 def send_whatsapp_message(to_number, body) -> bool:
-    """Send WhatsApp message through Twilio."""
     sid = current_app.config.get("TWILIO_ACCOUNT_SID")
     token = current_app.config.get("TWILIO_AUTH_TOKEN")
     from_number = current_app.config.get("TWILIO_WHATSAPP_NUMBER")
-
     if not all([sid, token, from_number]):
         flash("❌ لم يتم تكوين خدمة واتساب. الرجاء مراجعة إعدادات Twilio.", "danger")
         return False
-
     try:
         Client(sid, token).messages.create(
             from_=f"whatsapp:{from_number}",
@@ -89,7 +105,6 @@ def send_whatsapp_message(to_number, body) -> bool:
 # ============================== Formatters & Helpers ==============================
 
 def format_currency(value):
-    """Format numeric value as currency with ILS symbol."""
     try:
         return f"{float(value):,.2f} ₪"
     except Exception:
@@ -97,7 +112,6 @@ def format_currency(value):
 
 
 def format_percent(value):
-    """Format numeric value as percent with 2 decimals."""
     try:
         return f"{float(value):.2f}%"
     except Exception:
@@ -105,7 +119,6 @@ def format_percent(value):
 
 
 def format_date(value, fmt: str = "%Y-%m-%d"):
-    """Format a date; return '-' if invalid/empty."""
     try:
         return value.strftime(fmt) if value else "-"
     except Exception:
@@ -113,7 +126,6 @@ def format_date(value, fmt: str = "%Y-%m-%d"):
 
 
 def format_datetime(value, fmt: str = "%Y-%m-%d %H:%M"):
-    """Format a datetime; return '' if invalid/empty."""
     try:
         return value.strftime(fmt) if value else ""
     except Exception:
@@ -121,17 +133,14 @@ def format_datetime(value, fmt: str = "%Y-%m-%d %H:%M"):
 
 
 def active_archived(value):
-    """Arabic active/archived label."""
     return "نشط" if value else "مؤرشف"
 
 
 def yes_no(value):
-    """Alias للتماثل مع الفلاتر القديمة (نفس مخرجات active_archived)."""
     return active_archived(value)
 
 
 def status_label(status):
-    """Map internal status to Arabic label."""
     m = {
         "active": "نشط",
         "inactive": "غير نشط",
@@ -144,7 +153,6 @@ def status_label(status):
 
 
 def qr_to_base64(value: str) -> str:
-    """Create QR for value and return as base64 PNG (أمن من غياب qrcode)."""
     if not qrcode:
         current_app.logger.warning("qrcode غير متوفر")
         return ""
@@ -156,7 +164,6 @@ def qr_to_base64(value: str) -> str:
 
 
 def recent_notes(limit: int = 5):
-    """Return latest notes."""
     from models import Note
     return Note.query.order_by(Note.created_at.desc()).limit(limit).all()
 
@@ -164,14 +171,14 @@ def recent_notes(limit: int = 5):
 # ============================== Reports: Excel/PDF/VCF/CSV ==============================
 
 def generate_excel_report(data, filename: str = "report.xlsx") -> Response:
-    """Export iterable of dict/obj to Excel; إن لم تتوفر pandas، يُعاد CSV ودّيًا."""
     def _row_to_dict(item):
         if hasattr(item, "to_dict"):
-            try: return item.to_dict()
-            except Exception: pass
+            try:
+                return item.to_dict()
+            except Exception:
+                pass
         if isinstance(item, dict):
             return item
-        # SQLAlchemy model fallback (يتجنب العلاقات والدوال)
         try:
             cols = {}
             for k in dir(item):
@@ -179,7 +186,6 @@ def generate_excel_report(data, filename: str = "report.xlsx") -> Response:
                 v = getattr(item, k, None)
                 if callable(v): continue
                 if k in ("metadata", "query", "query_class"): continue
-                # تجاهل خصائص SA Relationship
                 if hasattr(v, "property"): continue
                 cols[k] = v
             return cols
@@ -189,17 +195,17 @@ def generate_excel_report(data, filename: str = "report.xlsx") -> Response:
     rows = [_row_to_dict(x) for x in data]
 
     try:
-        import pandas as pd  # استيراد داخل الدالة لتخفيف الاعتماد وقت التشغيل
+        import pandas as pd
     except Exception:
-        # Fall back لملف CSV إن لم تتوفر pandas
         buf = io.StringIO()
         if rows:
             fieldnames = sorted({k for r in rows for k in r.keys()})
             w = csv.DictWriter(buf, fieldnames=fieldnames)
             w.writeheader()
-            for r in rows: w.writerow({k: r.get(k, "") for k in fieldnames})
+            for r in rows:
+                w.writerow({k: r.get(k, "") for k in fieldnames})
         else:
-            buf.write("")  # ملف فارغ
+            buf.write("")
         return Response(
             buf.getvalue(),
             mimetype="text/csv",
@@ -217,17 +223,14 @@ def generate_excel_report(data, filename: str = "report.xlsx") -> Response:
 
 
 def generate_pdf_report(data):
-    """Generate a simple tabular PDF report (ودّي عند غياب reportlab)."""
     if not all([colors, letter, SimpleDocTemplate, Table, TableStyle]):
         abort(500, description="ReportLab غير متوفر على الخادم")
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
-
     table_data = [["ID", "Name", "Balance"]] + [
         [str(item.id), getattr(item, "name", ""), f"{getattr(item, 'balance', 0):,.2f}"]
         for item in data
     ]
-
     table = Table(table_data)
     table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
@@ -238,7 +241,6 @@ def generate_pdf_report(data):
         ("BACKGROUND", (0, 1), (-1, -1), colors.beige),
         ("GRID", (0, 0), (-1, -1), 1, colors.black),
     ]))
-
     doc.build([table])
     buffer.seek(0)
     return Response(
@@ -249,9 +251,7 @@ def generate_pdf_report(data):
 
 
 def generate_vcf(customers, fields, filename: str = "contacts.vcf"):
-    """Generate VCF cards for selected customer fields (حقل النوع مُحسن)."""
     cards = []
-
     for c in customers:
         def _get(attr, default=""):
             try:
@@ -293,7 +293,6 @@ def generate_vcf(customers, fields, filename: str = "contacts.vcf"):
 
 
 def generate_csv_contacts(customers, fields):
-    """Generate CSV for selected customer fields."""
     buffer = io.StringIO()
     w = csv.writer(buffer)
     w.writerow(fields)
@@ -307,12 +306,10 @@ def generate_csv_contacts(customers, fields):
 
 
 def generate_excel_contacts(customers, fields):
-    """Generate Excel for selected customer fields (ودّي عند غياب openpyxl)."""
     try:
         from openpyxl import Workbook
     except Exception:
         abort(500, description="openpyxl غير متوفر على الخادم")
-
     stream = io.BytesIO()
     wb = Workbook()
     ws = wb.active
@@ -353,7 +350,6 @@ _PERMISSION_ALIASES = {
 
 
 def _expand_perms(*names):
-    """Expand aliases to concrete permission codes."""
     expanded = set()
     for n in names:
         if isinstance(n, (list, tuple, set)):
@@ -365,7 +361,6 @@ def _expand_perms(*names):
 
 
 def _iter_rel(rel):
-    """Safely iterate relationship-like objects."""
     try:
         return rel.all()
     except Exception:
@@ -373,9 +368,7 @@ def _iter_rel(rel):
 
 
 def _fetch_permissions_from_db(user):
-    """Collect permissions from role and extra_permissions."""
     perms = set()
-
     if getattr(user, "role", None):
         try:
             perms |= get_role_permissions(user.role)
@@ -384,25 +377,20 @@ def _fetch_permissions_from_db(user):
                 name = getattr(p, "name", None) or getattr(p, "code", None)
                 if name:
                     perms.add(str(name).lower())
-
     extra_rel = getattr(user, "extra_permissions", None)
     if extra_rel is not None:
         for p in _iter_rel(extra_rel):
             name = getattr(p, "name", None) or getattr(p, "code", None)
             if name:
                 perms.add(str(name).lower())
-
     return perms
 
 
 def _get_user_permissions(user):
-    """Get user permissions with Redis cache."""
     if not user:
         return set()
-
     key = f"user_permissions:{user.id}"
     rc = redis_client
-
     if rc:
         try:
             cached = rc.smembers(key)
@@ -418,7 +406,6 @@ def _get_user_permissions(user):
             return {_to_text(x).lower() for x in cached}
 
     perms = _fetch_permissions_from_db(user)
-
     try:
         if rc:
             rc.delete(key)
@@ -427,18 +414,16 @@ def _get_user_permissions(user):
             rc.expire(key, 300)
     except Exception:
         pass
-
     return perms
 
 
 def permission_required(*permission_names):
-    """Decorator that enforces permissions; يدعم OR الافتراضي أو AND عبر PERMISSIONS_REQUIRE_ALL."""
+    """ديكورتر صلاحيات؛ يدعم OR افتراضيًا و AND عبر PERMISSIONS_REQUIRE_ALL."""
     base_needed = {str(p).strip().lower() for p in permission_names if p}
 
     def decorator(f):
         @wraps(f)
         def wrapped(*args, **kwargs):
-            # Bypass if disabled globally (e.g., tests/tools)
             try:
                 cfg = getattr(current_app, "config", {})
             except Exception:
@@ -446,7 +431,6 @@ def permission_required(*permission_names):
             if cfg.get("PERMISSION_DISABLED") or cfg.get("LOGIN_DISABLED"):
                 return f(*args, **kwargs)
 
-            # Super roles bypass
             try:
                 role_name = str(getattr(getattr(current_user, "role", None), "name", "")).lower()
                 if role_name in {r.lower() for r in _SUPER_ROLES}:
@@ -454,35 +438,29 @@ def permission_required(*permission_names):
             except Exception:
                 pass
 
-            # Must be authenticated
             if not getattr(current_user, "is_authenticated", False):
                 abort(403)
 
-            # Expand aliases
             needed = set(base_needed)
             if needed:
                 try:
-                    expanded = _expand_perms(*needed)
-                    needed = {str(x).lower() for x in expanded}
+                    needed = {str(x).lower() for x in _expand_perms(*needed)}
                 except Exception:
                     needed = {str(x).lower() for x in needed}
 
             if not needed:
                 return f(*args, **kwargs)
 
-            # Resolve user perms
             try:
                 user_perms = _get_user_permissions(current_user) or set()
             except Exception:
                 user_perms = set()
 
-            # AND/OR switch
             require_all = bool(cfg.get("PERMISSIONS_REQUIRE_ALL"))
             allowed = needed.issubset(user_perms) if require_all else bool(user_perms & needed or needed.issubset(user_perms))
             if allowed:
                 return f(*args, **kwargs)
 
-            # Fallback: model method
             if hasattr(current_user, "has_permission") and callable(getattr(current_user, "has_permission")):
                 if require_all:
                     if all(current_user.has_permission(p) for p in needed): return f(*args, **kwargs)
@@ -491,7 +469,6 @@ def permission_required(*permission_names):
                         if current_user.has_permission(p):
                             return f(*args, **kwargs)
 
-            # Optional debug
             if os.environ.get("PERMISSIONS_DEBUG") == "1":
                 try:
                     print("\n[PERM DEBUG]")
@@ -509,7 +486,6 @@ def permission_required(*permission_names):
 
 
 def clear_user_permission_cache(user_id: int) -> None:
-    """Clear cached permissions for a specific user."""
     if not redis_client:
         return
     try:
@@ -519,7 +495,6 @@ def clear_user_permission_cache(user_id: int) -> None:
 
 
 def clear_role_permission_cache(role_id: int) -> None:
-    """Clear cached permissions for a specific role."""
     if not redis_client:
         return
     try:
@@ -529,7 +504,6 @@ def clear_role_permission_cache(role_id: int) -> None:
 
 
 def clear_users_cache_by_role(role_id: int):
-    """Clear permission cache for all users having the given role."""
     if not redis_client:
         return
     try:
@@ -543,13 +517,10 @@ def clear_users_cache_by_role(role_id: int):
 
 
 def get_role_permissions(role) -> set:
-    """Get role permissions with Redis cache."""
     if not role:
         return set()
-
     key = f"role_permissions:{role.id}"
     rc = redis_client
-
     if rc:
         try:
             cached = rc.smembers(key)
@@ -557,13 +528,11 @@ def get_role_permissions(role) -> set:
                 return {str(x).lower() for x in cached}
         except Exception:
             pass
-
     perms = set()
     for p in _iter_rel(getattr(role, "permissions", [])):
         name = getattr(p, "name", None) or getattr(p, "code", None)
         if name:
             perms.add(str(name).lower())
-
     try:
         if rc:
             rc.delete(key)
@@ -572,14 +541,12 @@ def get_role_permissions(role) -> set:
             rc.expire(key, 300)
     except Exception:
         pass
-
     return perms
 
 
 # ============================== Auditing Helpers ==============================
 
 def log_customer_action(cust, action: str, old_data: dict | None = None, new_data: dict | None = None) -> None:
-    """Write customer audit log entry."""
     from models import AuditLog
     old_json = json.dumps(old_data, ensure_ascii=False) if old_data else None
     new_json = json.dumps(new_data, ensure_ascii=False) if new_data else None
@@ -600,7 +567,6 @@ def log_customer_action(cust, action: str, old_data: dict | None = None, new_dat
 
 
 def log_audit(model_name: str, record_id: int, action: str, old_data: dict | None = None, new_data: dict | None = None):
-    """Write generic audit log entry."""
     from models import AuditLog
     old_json = json.dumps(old_data, ensure_ascii=False) if old_data else None
     new_json = json.dumps(new_data, ensure_ascii=False) if new_data else None
@@ -622,13 +588,11 @@ def log_audit(model_name: str, record_id: int, action: str, old_data: dict | Non
 # ============================== Payments & Forms ==============================
 
 def prepare_payment_form_choices(form, *, compat_post: bool = False, arabic_labels: bool = True):
-    """تجهيز اختيارات نماذج الدفعات (يدعم IN/OUT والتسميات العربية)."""
     if hasattr(form, "currency"):
         form.currency.choices = (
             [("ILS", "شيكل"), ("USD", "دولار"), ("EUR", "يورو")]
             if arabic_labels else [("ILS", "ILS"), ("USD", "USD"), ("EUR", "EUR")]
         )
-
     if hasattr(form, "method"):
         form.method.choices = [
             ("cash",   "نقداً" if arabic_labels else "cash"),
@@ -637,7 +601,6 @@ def prepare_payment_form_choices(form, *, compat_post: bool = False, arabic_labe
             ("card",   "بطاقة" if arabic_labels else "card"),
             ("online", "إلكتروني" if arabic_labels else "online"),
         ]
-
     if hasattr(form, "status"):
         form.status.choices = [
             ("COMPLETED", "مكتملة"       if arabic_labels else "COMPLETED"),
@@ -645,7 +608,6 @@ def prepare_payment_form_choices(form, *, compat_post: bool = False, arabic_labe
             ("FAILED",    "فاشلة"        if arabic_labels else "FAILED"),
             ("REFUNDED",  "مُرجعة"       if arabic_labels else "REFUNDED"),
         ]
-
     if hasattr(form, "direction"):
         base = [("INCOMING", "وارد" if arabic_labels else "INCOMING"),
                 ("OUTGOING", "صادر" if arabic_labels else "OUTGOING")]
@@ -653,7 +615,6 @@ def prepare_payment_form_choices(form, *, compat_post: bool = False, arabic_labe
             base += [("IN", "وارد" if arabic_labels else "IN"),
                      ("OUT", "صادر" if arabic_labels else "OUT")]
         form.direction.choices = base
-
     if hasattr(form, "entity_type"):
         form.entity_type.choices = [
             ("CUSTOMER", "عميل"),
@@ -670,10 +631,6 @@ def prepare_payment_form_choices(form, *, compat_post: bool = False, arabic_labe
 
 
 def update_entity_balance(entity: str, eid: int) -> float:
-    """
-    احسب صافي الرصيد للكيان = مجموع (الوارد) − مجموع (الصادر)
-    يحسب المدفوعات ذات الحالة COMPLETED فقط.
-    """
     entity = entity.upper()
     col = getattr(Payment, f"{entity.lower()}_id")
     total = (
@@ -707,7 +664,6 @@ def update_entity_balance(entity: str, eid: int) -> float:
 # ============================== Auth Decorators ==============================
 
 def customer_required(f):
-    """Require current_user to be a Customer and have place_online_order perm."""
     @login_required
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -719,10 +675,6 @@ def customer_required(f):
 
 
 def testable_login_required(f):
-    """
-    Like flask_login.login_required but allows access in TESTING mode
-    when current_user is not authenticated. Keeps production behavior.
-    """
     @wraps(f)
     def wrapped(*args, **kwargs):
         try:
@@ -737,7 +689,6 @@ def testable_login_required(f):
 # ============================== Card Utilities ==============================
 
 def luhn_check(card_number: str) -> bool:
-    """تحقق Luhn لرقم البطاقة (digits only)."""
     if not card_number:
         return False
     digits = "".join(ch for ch in card_number if ch.isdigit())
@@ -756,7 +707,6 @@ def luhn_check(card_number: str) -> bool:
 
 
 def is_valid_expiry_mm_yy(s: str) -> bool:
-    """تحقق من MM/YY وأنه في الحاضر/المستقبل (UTC)."""
     if not s or not re.match(r"^\d{2}/\d{2}$", s):
         return False
     mm_str, yy_str = s.split("/")
@@ -773,7 +723,6 @@ def is_valid_expiry_mm_yy(s: str) -> bool:
 
 
 def get_fernet():
-    """أرجع كائن Fernet بناءً على CARD_ENC_KEY من الإعدادات. قد يرجع None."""
     key = current_app.config.get("CARD_ENC_KEY")
     if not key or Fernet is None:
         return None
@@ -786,7 +735,6 @@ def get_fernet():
 
 
 def encrypt_card_number(pan: str) -> bytes | None:
-    """شفر رقم البطاقة (PAN). يرجع None إن لم يكن التشفير مفعّل."""
     f = get_fernet()
     if not f:
         return None
@@ -797,7 +745,6 @@ def encrypt_card_number(pan: str) -> bytes | None:
 
 
 def decrypt_card_number(token: bytes) -> str | None:
-    """فك تشفير PAN. يرجع None إن لم يكن التشفير مفعّل/فشل."""
     f = get_fernet()
     if not f or not token:
         return None
@@ -808,7 +755,6 @@ def decrypt_card_number(token: bytes) -> str | None:
 
 
 def card_fingerprint(pan: str) -> str | None:
-    """بصمة SHA-256 لرقم البطاقة (لا تتطلب فك تشفير لاحقًا)."""
     digits = "".join(ch for ch in (pan or "") if ch.isdigit())
     if not digits:
         return None
@@ -816,7 +762,6 @@ def card_fingerprint(pan: str) -> str | None:
 
 
 def detect_card_brand(pan: str) -> str:
-    """كشف ماركة البطاقة بشكل مبسط."""
     digits = "".join(ch for ch in (pan or "") if ch.isdigit())
     if not digits:
         return "UNKNOWN"

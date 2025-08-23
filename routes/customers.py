@@ -1,5 +1,3 @@
-# File: routes/customers.py
-
 import csv
 import io
 import json
@@ -59,9 +57,7 @@ class CustomEncoder(json.JSONEncoder):
             return obj.isoformat()
         return super().default(obj)
 
-# ---------------------- Rate Limiting ----------------------
 _last_attempts = {}
-
 def rate_limit(max_attempts=5, window=60):
     def decorator(f):
         @wraps(f)
@@ -77,12 +73,10 @@ def rate_limit(max_attempts=5, window=60):
         return wrapper
     return decorator
 
-# ---------------------- Helpers ----------------------
 def _serialize_dates(d):
     return {k: (v.isoformat() if isinstance(v, datetime) else v) for k, v in d.items()}
 
 from datetime import datetime as _dt
-
 def log_customer_action(cust, action, old_data=None, new_data=None):
     old_json = json.dumps(old_data, ensure_ascii=False) if old_data else None
     new_json = json.dumps(new_data, ensure_ascii=False, cls=CustomEncoder) if new_data else None
@@ -101,7 +95,6 @@ def log_customer_action(cust, action, old_data=None, new_data=None):
     db.session.add(entry)
     db.session.flush()
 
-# ---------------------- List / Detail / Analytics ----------------------
 @customers_bp.route('/', methods=['GET'], endpoint='list_customers')
 @login_required
 @permission_required('manage_customers')
@@ -141,14 +134,11 @@ def customer_detail(customer_id):
 @permission_required('manage_customers')
 def customer_analytics(customer_id):
     customer = db.session.get(Customer, customer_id) or abort(404)
-
     invoices = Invoice.query.filter_by(customer_id=customer_id).all()
     payments = Payment.query.filter_by(customer_id=customer_id).all()
-
     total_purchases = sum((inv.total_amount or Decimal('0')) for inv in invoices)
     total_payments  = sum((p.total_amount   or Decimal('0')) for p   in payments)
     avg_purchase    = (total_purchases / len(invoices)) if invoices else Decimal('0')
-
     cats = (
         db.session.query(
             ProductCategory.name.label('name'),
@@ -172,10 +162,8 @@ def customer_analytics(customer_id):
         }
         for name, count, total in cats
     ]
-
     today  = datetime.utcnow()
     months = [(today - relativedelta(months=i)).strftime('%Y-%m') for i in reversed(range(6))]
-
     pm = {m: Decimal('0') for m in months}
     for inv in invoices:
         if inv.invoice_date:
@@ -183,7 +171,6 @@ def customer_analytics(customer_id):
             if m in pm:
                 pm[m] += (inv.total_amount or Decimal('0'))
     purchases_months = [{'month': m, 'total': float(pm[m])} for m in months]
-
     paym = {m: Decimal('0') for m in months}
     for p in payments:
         if getattr(p, 'payment_date', None):
@@ -191,7 +178,6 @@ def customer_analytics(customer_id):
             if m in paym:
                 paym[m] += (p.total_amount or Decimal('0'))
     payments_months = [{'month': m, 'total': float(paym[m])} for m in months]
-
     return render_template(
         'customers/analytics.html',
         customer=customer,
@@ -209,7 +195,12 @@ def customer_analytics(customer_id):
 @permission_required('manage_customers')
 def create_form():
     form = CustomerForm()
-    return render_template('customers/new.html', form=form)
+    for k in ('name','phone','email','address','whatsapp','category','notes'):
+        v = request.args.get(k)
+        if v:
+            getattr(form, k).data = v
+    return_to = request.args.get('return_to') or None
+    return render_template('customers/new.html', form=form, return_to=return_to)
 
 @customers_bp.route('/create', methods=['POST'], endpoint='create_customer')
 @login_required
@@ -221,7 +212,7 @@ def create_customer():
         if form.errors:
             msgs = '; '.join(f"{k}: {', '.join(v)}" for k, v in form.errors.items())
             flash(f"تحقق من الحقول: {msgs}", "warning")
-        return render_template('customers/new.html', form=form), 400
+        return render_template('customers/new.html', form=form, return_to=request.form.get('return_to')), 400
 
     cust = Customer(
         name=form.name.data,
@@ -246,15 +237,19 @@ def create_customer():
         db.session.rollback()
         flash('بريد أو هاتف مكرر (Unique constraint).', 'danger')
         current_app.logger.exception("IntegrityError while creating customer")
-        return render_template('customers/new.html', form=form), 409
+        return render_template('customers/new.html', form=form, return_to=request.form.get('return_to')), 409
     except SQLAlchemyError as e:
         db.session.rollback()
         flash(f'❌ خطأ أثناء إضافة العميل: {e}', 'danger')
         current_app.logger.exception("SQLAlchemyError while creating customer")
-        return render_template('customers/new.html', form=form), 500
+        return render_template('customers/new.html', form=form, return_to=request.form.get('return_to')), 500
 
     log_customer_action(cust, 'CREATE', None, form.data)
     flash('تم إنشاء العميل بنجاح', 'success')
+
+    return_to = request.form.get('return_to') or request.args.get('return_to')
+    if return_to:
+        return redirect(return_to)
     return redirect(url_for('customers_bp.list_customers'))
 
 @customers_bp.route('/<int:customer_id>/edit', methods=['GET', 'POST'], endpoint='edit_customer')
@@ -263,7 +258,6 @@ def create_customer():
 def edit_customer(customer_id):
     cust = db.session.get(Customer, customer_id) or abort(404)
     form = CustomerForm(obj=cust)
-
     if request.method == 'POST':
         if form.validate_on_submit():
             old = cust.to_dict() if hasattr(cust, 'to_dict') else None
@@ -280,7 +274,6 @@ def edit_customer(customer_id):
             cust.is_active      = form.is_active.data
             cust.is_online      = form.is_online.data
             cust.notes          = form.notes.data
-
             try:
                 db.session.commit()
             except IntegrityError:
@@ -293,17 +286,14 @@ def edit_customer(customer_id):
                 flash(f'❌ خطأ أثناء تعديل العميل: {e}', 'danger')
                 current_app.logger.exception("SQLAlchemyError while editing customer")
                 return render_template('customers/edit.html', form=form, customer=cust), 500
-
             log_customer_action(cust, 'UPDATE', old, cust.to_dict() if hasattr(cust, 'to_dict') else None)
             flash('تم تعديل بيانات العميل', 'success')
             return redirect(url_for('customers_bp.customer_detail', customer_id=customer_id))
-
         current_app.logger.warning("CustomerForm errors (edit): %s", form.errors)
         if form.errors:
             msgs = '; '.join(f"{k}: {', '.join(v)}" for k, v in form.errors.items())
             flash(f"تحقق من الحقول: {msgs}", "warning")
         return render_template('customers/edit.html', form=form, customer=cust), 400
-
     return render_template('customers/edit.html', form=form, customer=cust)
 
 @customers_bp.route('/<int:id>/delete', methods=['POST'])

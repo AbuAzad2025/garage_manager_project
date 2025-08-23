@@ -125,6 +125,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (table) loadPartnerShares(partnerSharesForm.dataset.warehouseId);
   }
 
+  // أقسام الشركاء/التبادل بحسب نوع المستودع
+  (function(){
+    const form = document.getElementById('add-product-form');
+    if (!form) return;
+    const wtype = (form.dataset.wtype || '').toUpperCase();
+    if (wtype === 'PARTNER') document.getElementById('partner-section')?.classList.remove('d-none');
+    if (wtype === 'EXCHANGE') document.getElementById('exchange-section')?.classList.remove('d-none');
+  })();
+
   const partnersContainerLegacy = document.getElementById('partners-container');
   const addPartnerBtnLegacy = document.getElementById('add-partner-btn');
   const partnerTemplateLegacy = document.getElementById('partner-template')?.content;
@@ -132,6 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
     addPartnerBtnLegacy.addEventListener('click', () => {
       const clone = document.importNode(partnerTemplateLegacy, true);
       partnersContainerLegacy.appendChild(clone);
+      initSelect2In(partnersContainerLegacy);
     });
     partnersContainerLegacy.addEventListener('click', e => {
       if (e.target.classList.contains('remove-partner-btn')) {
@@ -147,6 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
     addVendorBtnLegacy.addEventListener('click', () => {
       const clone = document.importNode(vendorTemplateLegacy, true);
       vendorsContainerLegacy.appendChild(clone);
+      initSelect2In(vendorsContainerLegacy);
     });
     vendorsContainerLegacy.addEventListener('click', e => {
       if (e.target.classList.contains('remove-vendor-btn')) {

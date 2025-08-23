@@ -1,11 +1,9 @@
-# -------------------- Standard library --------------------
 import json
 import os
 import re
 from datetime import date, datetime, time as _t
 from decimal import Decimal
 
-# -------------------- Third-party --------------------
 from flask import url_for
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileField
@@ -38,10 +36,9 @@ from wtforms.validators import (
 
 try:
     from wtforms_sqlalchemy.fields import QuerySelectField
-except Exception:  # fallback إذا لم تتوفر الإضافة
+except Exception:
     QuerySelectField = SelectField
 
-# -------------------- Local --------------------
 from models import (
     Customer,
     User,
@@ -84,60 +81,28 @@ from utils import (
     prepare_payment_form_choices,
 )
 
-# ==================== Choices ====================
 CURRENCY_CHOICES = [("ILS", "ILS"), ("USD", "USD"), ("EUR", "EUR"), ("JOD", "JOD")]
 
-def _ar_label(val, mapping): return mapping.get(val, val)
+def _ar_label(val, mapping):
+    return mapping.get(val, val)
 
-def prepare_payment_form_choices(form):
-    method_labels = {
-        "CASH": "نقدًا",
-        "CHEQUE": "شيك",
-        "BANK": "تحويل بنكي",
-        "CARD": "بطاقة/ائتمان",
-        "ONLINE": "إلكتروني",
-        "OTHER": "أخرى",
-    }
-    status_labels = {
-        "PENDING": "قيد الانتظار",
-        "COMPLETED": "مكتمل",
-        "FAILED": "فشل",
-        "CANCELLED": "أُلغي",
-        "REFUNDED": "مسترد",
-    }
-    form.method.choices    = [(m.value, _ar_label(m.value, method_labels)) for m in PaymentMethod]
-    form.status.choices    = [(s.value, _ar_label(s.value, status_labels)) for s in PaymentStatus]
-    form.direction.choices = [("IN", "وارد (IN)"), ("OUT", "صادر (OUT)")]
-    if not getattr(form, "entity_type", None) or not form.entity_type.choices:
-        form.entity_type.choices = [
-            (PaymentEntityType.CUSTOMER.value, "عميل"),
-            (PaymentEntityType.SUPPLIER.value, "مورد"),
-            (PaymentEntityType.PARTNER.value,  "شريك"),
-            (PaymentEntityType.SHIPMENT.value, "شحنة"),
-            (PaymentEntityType.EXPENSE.value,  "مصروف"),
-            (PaymentEntityType.LOAN.value,     "تسوية قرض"),
-            (PaymentEntityType.SALE.value,     "بيع"),
-            (PaymentEntityType.INVOICE.value,  "فاتورة"),
-            (PaymentEntityType.PREORDER.value, "حجز مسبق"),
-            (PaymentEntityType.SERVICE.value,  "خدمة"),
-        ]
+_AR_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
 
-INVOICE_STATUS_CHOICES       = [(s.value, s.value) for s in InvoiceStatus]
-INVOICE_SOURCE_CHOICES       = [(s.value, s.value) for s in InvoiceSource]
-PAYMENT_STATUS_CHOICES       = [(s.value, s.value) for s in PaymentStatus]
-PAYMENT_DIRECTION_CHOICES    = [(s.value, s.value) for s in PaymentDirection]
-PAYMENT_ENTITY_CHOICES       = [(s.value, s.value) for s in PaymentEntityType]
-SERVICE_STATUS_CHOICES       = [(s.value, s.value) for s in ServiceStatus]
-SERVICE_PRIORITY_CHOICES     = [(s.value, s.value) for s in ServicePriority]
-TRANSFER_DIRECTION_CHOICES   = [(s.value, s.value) for s in TransferDirection]
-WAREHOUSE_TYPE_CHOICES       = [(s.value, s.value) for s in WarehouseType]
-PREORDER_STATUS_CHOICES      = [(s.value, s.value) for s in PreOrderStatus]
-PRODUCT_CONDITION_CHOICES    = [(s.value, s.value) for s in ProductCondition]
-NOTE_PRIORITY_CHOICES        = [("LOW", "LOW"), ("MEDIUM", "MEDIUM"), ("HIGH", "HIGH")]
+def normalize_phone(raw: str | None) -> str:
+    if not raw:
+        return ""
+    s = str(raw).translate(_AR_DIGITS)
+    s = re.sub(r"\D+", "", s)
+    return s[:20]
 
-# ==================== Validators / Helpers ====================
-def _percent_validator(): return NumberRange(min=0, max=100)
-def _nonneg_decimal():    return NumberRange(min=0)
+def normalize_email(raw: str | None) -> str:
+    return (raw or "").strip().lower()
+
+def _percent_validator():
+    return NumberRange(min=0, max=100)
+
+def _nonneg_decimal():
+    return NumberRange(min=0)
 
 def unique_email_validator(model, field_name="email", allow_null=False, case_insensitive=True):
     def _validator(form, field):
@@ -167,20 +132,19 @@ def unique_email_validator(model, field_name="email", allow_null=False, case_ins
 def only_digits(s: str) -> str:
     return re.sub(r"\D", "", s or "")
 
-# ==================== Fields / Ajax Fallbacks ====================
 class Unique:
-    """
-    Validator: يتأكد من فرادة قيمة حقل لموديل/عمود معيّن.
-    يدعم تجاهل السجل الحالي عند التعديل (form.id) وخيار case-insensitive.
-    """
-    def __init__(self, model, field_name: str, message: str = None, case_insensitive: bool = False):
+    def __init__(self, model, field_name: str, message: str = None, case_insensitive: bool = False, normalizer=None):
         self.model = model
         self.field_name = field_name
         self.message = message or "هذه القيمة مستخدمة مسبقًا"
         self.case_insensitive = case_insensitive
+        self.normalizer = normalizer
 
     def __call__(self, form, field):
         value = field.data
+        if self.normalizer:
+            value = self.normalizer(value)
+            field.data = value
         if value in (None, ""):
             return
         column = getattr(self.model, self.field_name)
@@ -189,11 +153,10 @@ class Unique:
             q = q.filter(func.lower(column) == value.lower())
         else:
             q = q.filter(column == value)
-
-        obj_id = getattr(form, "id", None).data if hasattr(form, "id") else None
+        obj_id_field = getattr(form, "id", None)
+        obj_id = obj_id_field.data if obj_id_field is not None else None
         if obj_id and str(obj_id).strip().isdigit():
             q = q.filter(self.model.id != int(obj_id))
-
         if q.first() is not None:
             raise ValidationError(self.message)
 
@@ -210,7 +173,6 @@ class UnifiedDateTimeField(DateTimeField):
                 self.data = None
                 raise ValueError(self.gettext("صيغة التاريخ/الوقت غير صحيحة"))
 
-# Fallback-safe Ajax fields (use external widgets if available)
 try:
     from widgets import AjaxSelectField as _ExtAjaxSelectField
 except Exception:
@@ -305,7 +267,6 @@ if _ExtAjaxSelectMultipleField is None:
 else:
     AjaxSelectMultipleField = _ExtAjaxSelectMultipleField
 
-
 class ProductImportForm(FlaskForm):
     csv_file = FileField('CSV', validators=[DataRequired(), FileAllowed(['csv'], 'CSV only!')])
     submit = SubmitField('Import Products')
@@ -355,13 +316,11 @@ class TransferForm(FlaskForm):
     def validate(self, **kwargs):
         if not super().validate(**kwargs):
             return False
-
         src = self.source_id.data
         dst = self.destination_id.data
         if src and dst and getattr(src, "id", None) == getattr(dst, "id", None):
             self.destination_id.errors.append('❌ لا يمكن أن يكون المصدر هو نفسه الوجهة')
             return False
-
         product = self.product_id.data
         qty = self.quantity.data or 0
         if src and product and qty:
@@ -370,10 +329,8 @@ class TransferForm(FlaskForm):
             if qty > (available or 0):
                 self.quantity.errors.append(f'❌ الكمية المتاحة في مخزن المصدر أقل من المطلوب (المتاح: {available})')
                 return False
-
         return True
-    
-# --------- Auth / Users / Roles ----------
+
 class LoginForm(FlaskForm):
     username    = StringField('اسم المستخدم', validators=[DataRequired(), Length(3,50)])
     password    = PasswordField('كلمة المرور', validators=[DataRequired()])
@@ -402,12 +359,9 @@ class UserForm(FlaskForm):
     email       = StringField('البريد الإلكتروني', validators=[DataRequired(), Email(), Length(max=120)])
     role_id     = SelectField('الدور', coerce=int, validators=[DataRequired()])
     is_active   = BooleanField('نشِط')
-    # كلمة المرور اختيارية عند التعديل، مطلوبة فقط عند الإنشاء (تحكمها في الفيو)
     password    = PasswordField('كلمة المرور الجديدة', validators=[Optional(), Length(min=6, max=128)])
     confirm     = PasswordField('تأكيد كلمة المرور', validators=[Optional(), EqualTo('password', message='يجب أن تتطابق كلمتا المرور')])
-    # للعرض فقط
-    last_login  = DateTimeField('آخر تسجيل دخول', format='%Y-%m-%d %H:%M', validators=[Optional()],
-                                render_kw={'readonly': True, 'disabled': True})
+    last_login  = DateTimeField('آخر تسجيل دخول', format='%Y-%m-%d %H:%M', validators=[Optional()], render_kw={'readonly': True, 'disabled': True})
     submit      = SubmitField('حفظ')
 
     def __init__(self, *args, **kwargs):
@@ -415,20 +369,19 @@ class UserForm(FlaskForm):
         self.role_id.choices = [(r.id, r.name) for r in Role.query.order_by(Role.name).all()]
 
     def apply_to(self, user: User) -> User:
-        user.username = (self.username.data or '').strip()
-        user.email    = (self.email.data or '').strip().lower()
-        user.role_id  = self.role_id.data
+        user.username  = (self.username.data or '').strip()
+        user.email     = (self.email.data or '').strip().lower()
+        user.role_id   = self.role_id.data
         user.is_active = bool(self.is_active.data)
         if self.password.data:
             user.set_password(self.password.data)
         return user
-    
+
 class RoleForm(FlaskForm):
     name        = StringField('اسم الدور', validators=[DataRequired(), Length(max=50)])
     description = StringField('الوصف', validators=[Optional(), Length(max=200)])
     is_default  = BooleanField('افتراضي')
     submit      = SubmitField('حفظ')
-
 
 class PermissionForm(FlaskForm):
     name        = StringField('الاسم', validators=[DataRequired(), Length(max=100)])
@@ -436,87 +389,74 @@ class PermissionForm(FlaskForm):
     description = StringField('الوصف', validators=[Optional(), Length(max=200)])
     submit      = SubmitField('حفظ')
 
-# --------- Customers / Suppliers / Partners ----------
 class CustomerForm(FlaskForm):
-    id             = HiddenField()
-    name           = StringField(
-        'اسم العميل',
-        validators=[DataRequired(message="هذا الحقل مطلوب"), Length(max=100)]
-    )
-    phone          = StringField(
+    id       = HiddenField()
+    name     = StringField('اسم العميل', validators=[DataRequired(message="هذا الحقل مطلوب"), Length(max=100)])
+    phone    = StringField(
         'الهاتف',
         validators=[
             DataRequired(message="الهاتف مطلوب"),
             Length(max=20, message="أقصى طول 20 رقم"),
-            Unique(Customer, "phone", message="رقم الهاتف مستخدم مسبقًا", case_insensitive=False)
-        ]
+            Unique(Customer, "phone", message="رقم الهاتف مستخدم مسبقًا", case_insensitive=False, normalizer=normalize_phone),
+        ],
     )
-    email          = StringField(
+    email    = StringField(
         'البريد الإلكتروني',
         validators=[
             DataRequired(message="هذا الحقل مطلوب"),
             Email(message="صيغة البريد غير صحيحة"),
             Length(max=120),
-            Unique(Customer, "email", message="البريد مستخدم مسبقًا", case_insensitive=True)
-        ]
+            Unique(Customer, "email", message="البريد مستخدم مسبقًا", case_insensitive=True, normalizer=normalize_email),
+        ],
     )
-    address        = StringField('العنوان', validators=[Optional(), Length(max=200, message="أقصى طول 200 حرف")])
+    address   = StringField('العنوان',  validators=[Optional(), Length(max=200, message="أقصى طول 200 حرف")])
+    whatsapp  = StringField('واتساب',   validators=[Optional(), Length(max=20, message="أقصى طول 20 رقم")])
 
-    # واتساب اختياري؛ سننسخه من الهاتف تلقائيًا إن تُرك فارغًا
-    whatsapp       = StringField('واتساب', validators=[Optional(), Length(max=20, message="أقصى طول 20 رقم")])
+    category      = SelectField('تصنيف العميل', choices=[('عادي','عادي'),('فضي','فضي'),('ذهبي','ذهبي'),('مميز','مميز')], default='عادي')
+    credit_limit  = DecimalField('حد الائتمان', places=2, validators=[Optional(), NumberRange(min=0, message="يجب أن يكون ≥ 0")])
+    discount_rate = DecimalField('معدل الخصم (%)', places=2, validators=[Optional(), NumberRange(min=0, max=100, message="بين 0 و100")])
+    currency      = SelectField('العملة', choices=CURRENCY_CHOICES, default='ILS', validators=[DataRequired(message='العملة مطلوبة')])
 
-    category       = SelectField(
-        'تصنيف العميل',
-        choices=[('عادي','عادي'),('فضي','فضي'),('ذهبي','ذهبي'),('مميز','مميز')],
-        default='عادي'
-    )
-    credit_limit   = DecimalField(
-        'حد الائتمان', places=2,
-        validators=[Optional(), NumberRange(min=0, message="يجب أن يكون ≥ 0")]
-    )
-    discount_rate  = DecimalField(
-        'معدل الخصم (%)', places=2,
-        validators=[Optional(), NumberRange(min=0, max=100, message="بين 0 و100")]
-    )
-    currency       = SelectField(
-        'العملة', choices=CURRENCY_CHOICES, default='ILS',
-        validators=[DataRequired(message='العملة مطلوبة')]
-    )
-    is_active      = BooleanField('نشط', default=True)
-    is_online      = BooleanField('عميل أونلاين', default=False)
-    notes          = TextAreaField('ملاحظات', validators=[Optional(), Length(max=500, message="أقصى طول 500 حرف")])
+    is_active = BooleanField('نشط', default=True)
+    is_online = BooleanField('عميل أونلاين', default=False)
+    notes     = TextAreaField('ملاحظات', validators=[Optional(), Length(max=500, message="أقصى طول 500 حرف")])
 
-    password       = PasswordField('كلمة المرور', validators=[Optional(), Length(min=6, message="الحد الأدنى 6 أحرف")])
-    confirm        = PasswordField('تأكيد كلمة المرور', validators=[Optional(), EqualTo('password', message='يجب أن تتطابق كلمتا المرور')])
+    password = PasswordField('كلمة المرور', validators=[Optional(), Length(min=6, message="الحد الأدنى 6 أحرف")])
+    confirm  = PasswordField('تأكيد كلمة المرور', validators=[Optional(), EqualTo('password', message='يجب أن تتطابق كلمتا المرور')])
 
-    submit         = SubmitField('حفظ العميل')
+    submit   = SubmitField('حفظ العميل')
 
-    # --------- Validations ---------
     def validate_password(self, field):
-        # كلمة المرور مطلوبة عند الإنشاء فقط (لا يوجد id)
         is_create = not (self.id.data and str(self.id.data).strip().isdigit())
-        if is_create and not field.data:
+        if is_create and not (field.data and str(field.data).strip()):
             raise ValidationError("كلمة المرور مطلوبة عند إنشاء عميل جديد")
 
-    def validate_whatsapp(self, field):
-        # لو تُرك الواتساب فارغًا، انسخه من الهاتف
-        if not (field.data and str(field.data).strip()):
-            field.data = (self.phone.data or "").strip()
+    def validate_phone(self, field):
+        field.data = normalize_phone(field.data)
+        if not field.data:
+            raise ValidationError("الهاتف مطلوب")
 
-    # --------- Mapping helper ---------
+    def validate_email(self, field):
+        field.data = normalize_email(field.data)
+
+    def validate_whatsapp(self, field):
+        val = (field.data or "").strip()
+        if not val:
+            field.data = normalize_phone(self.phone.data)
+
     def apply_to(self, customer: Customer) -> Customer:
         customer.name          = (self.name.data or "").strip()
-        customer.phone         = (self.phone.data or "").strip()
-        customer.whatsapp      = (self.whatsapp.data or self.phone.data or "").strip()
-        customer.email         = (self.email.data or "").strip().lower()
+        customer.phone         = normalize_phone(self.phone.data)
+        customer.whatsapp      = normalize_phone(self.whatsapp.data or self.phone.data)
+        customer.email         = normalize_email(self.email.data)
         customer.address       = (self.address.data or "").strip() or None
         customer.category      = self.category.data
         customer.currency      = self.currency.data
         customer.is_active     = bool(self.is_active.data)
         customer.is_online     = bool(self.is_online.data)
         customer.notes         = (self.notes.data or "").strip() or None
-        customer.credit_limit  = self.credit_limit.data or 0
-        customer.discount_rate = self.discount_rate.data or 0
+        customer.credit_limit  = self.credit_limit.data or Decimal("0")
+        customer.discount_rate = self.discount_rate.data or Decimal("0")
         if self.password.data:
             customer.set_password(self.password.data)
         return customer
@@ -538,67 +478,141 @@ class ExportContactsForm(FlaskForm):
             ('address', 'العنوان'),
             ('category', 'التصنيف'),
         ],
-        default=['name','phone','email']
+        default=['name','phone','email'],
     )
-    format = SelectField(
-        'الصيغة',
-        choices=[('vcf','VCF'), ('csv','CSV'), ('excel','Excel')],
-        default='vcf',
-        validators=[DataRequired()]
-    )
+    format = SelectField('الصيغة', choices=[('vcf','VCF'), ('csv','CSV'), ('excel','Excel')], default='vcf', validators=[DataRequired()])
     submit = SubmitField('تصدير')
-    
+
 class ProductSupplierLoanForm(FlaskForm):
-    product_id            = AjaxSelectField('المنتج', endpoint='api.products', get_label='name', validators=[DataRequired()])
-    supplier_id           = AjaxSelectField('المورد/التاجر', endpoint='api.suppliers', get_label='name', validators=[DataRequired()])
-    loan_value            = DecimalField('قيمة الدين التقديرية', places=2, validators=[Optional(), NumberRange(min=0)])
-    deferred_price        = DecimalField('السعر النهائي بعد التسوية', places=2, validators=[Optional(), NumberRange(min=0)])
-    is_settled            = BooleanField('تمت التسوية؟')
-    partner_share_quantity= IntegerField('كمية شراكة التاجر', validators=[Optional(), NumberRange(min=0)])
-    partner_share_value   = DecimalField('قيمة شراكة التاجر', places=2, validators=[Optional(), NumberRange(min=0)])
-    notes                 = TextAreaField('ملاحظات', validators=[Optional(), Length(max=1000)])
-    submit                = SubmitField('حفظ')
+    product_id             = AjaxSelectField('المنتج', endpoint='api.products', get_label='name', validators=[DataRequired()])
+    supplier_id            = AjaxSelectField('المورد/التاجر', endpoint='api.suppliers', get_label='name', validators=[DataRequired()])
+    loan_value             = DecimalField('قيمة الدين التقديرية', places=2, validators=[Optional(), NumberRange(min=0)])
+    deferred_price         = DecimalField('السعر النهائي بعد التسوية', places=2, validators=[Optional(), NumberRange(min=0)])
+    is_settled             = BooleanField('تمت التسوية؟')
+    partner_share_quantity = IntegerField('كمية شراكة التاجر', validators=[Optional(), NumberRange(min=0)])
+    partner_share_value    = DecimalField('قيمة شراكة التاجر', places=2, validators=[Optional(), NumberRange(min=0)])
+    notes                  = TextAreaField('ملاحظات', validators=[Optional(), Length(max=1000)])
+    submit                 = SubmitField('حفظ')
 
     def validate(self, **kwargs):
         if not super().validate(**kwargs):
             return False
-
         lv = self.loan_value.data or 0
         dp = self.deferred_price.data or 0
         if lv <= 0 and dp <= 0:
             self.loan_value.errors.append('يجب إدخال قيمة الدين أو السعر بعد التسوية.')
             return False
-
         return True
 
-
+# ==================== Suppliers ====================
 class SupplierForm(FlaskForm):
+    id              = HiddenField(filters=[lambda v: int(v) if v and str(v).strip().isdigit() else None])
     name            = StringField('اسم المورد', validators=[DataRequired(), Length(max=100)])
     is_local        = BooleanField('محلي؟')
     identity_number = StringField('رقم الهوية/الملف الضريبي', validators=[Optional(), Length(max=100)])
     contact         = StringField('معلومات التواصل', validators=[Optional(), Length(max=200)])
-    phone           = StringField('رقم الجوال', validators=[Optional(), Length(max=20)])
+    phone           = StringField('رقم الجوال', validators=[Optional(), Length(max=20),
+                              Unique(Supplier, "phone", message="رقم الهاتف مستخدم مسبقًا", normalizer=normalize_phone)])
     email           = StringField('البريد الإلكتروني', validators=[Optional(), Email(), Length(max=120),
-                                                                    unique_email_validator(Supplier)])
+                              Unique(Supplier, "email", message="البريد مستخدم مسبقًا", case_insensitive=True, normalizer=normalize_email)])
     address         = StringField('العنوان', validators=[Optional(), Length(max=200)])
     notes           = TextAreaField('ملاحظات', validators=[Optional(), Length(max=1000)])
     balance         = DecimalField('الرصيد الافتتاحي', places=2, validators=[Optional(), NumberRange(min=0)])
-    payment_terms   = StringField('شروط الدفع', validators=[Optional(), Length(max=50)])  # مطابق للموديل
+    payment_terms   = StringField('شروط الدفع', validators=[Optional(), Length(max=50)])
     currency        = SelectField('العملة', choices=CURRENCY_CHOICES, default="ILS", validators=[DataRequired()])
     submit          = SubmitField('حفظ المورد')
 
+    def validate_phone(self, field):
+        if field.data:
+            field.data = normalize_phone(field.data)
+
+    def validate_email(self, field):
+        if field.data:
+            field.data = normalize_email(field.data)
+
+    def apply_to(self, supplier: Supplier) -> Supplier:
+        supplier.name            = (self.name.data or '').strip()
+        supplier.is_local        = bool(self.is_local.data)
+        supplier.identity_number = (self.identity_number.data or '').strip() or None
+        supplier.contact         = (self.contact.data or '').strip() or None
+        supplier.phone           = normalize_phone(self.phone.data)
+        supplier.email           = normalize_email(self.email.data) or None
+        supplier.address         = (self.address.data or '').strip() or None
+        supplier.notes           = (self.notes.data or '').strip() or None
+        supplier.balance         = self.balance.data or Decimal('0')
+        supplier.payment_terms   = (self.payment_terms.data or '').strip() or None
+        supplier.currency        = self.currency.data
+        return supplier
+
+
+# ==================== Partners ====================
 class PartnerForm(FlaskForm):
+    id               = HiddenField(filters=[lambda v: int(v) if v and str(v).strip().isdigit() else None])
     name             = StringField('اسم الشريك', validators=[DataRequired(), Length(max=100)])
     contact_info     = StringField('معلومات التواصل', validators=[Optional(), Length(max=200)])
     identity_number  = StringField('رقم الهوية', validators=[Optional(), Length(max=100)])
-    phone_number     = StringField('رقم الجوال', validators=[Optional(), Length(max=20)])
+    phone_number     = StringField('رقم الجوال', validators=[Optional(), Length(max=20),
+                              Unique(Partner, "phone_number", message="رقم الهاتف مستخدم مسبقًا", normalizer=normalize_phone)])
     email            = StringField('البريد الإلكتروني', validators=[Optional(), Email(), Length(max=120),
-                                                                    unique_email_validator(Partner)])
+                              Unique(Partner, "email", message="البريد مستخدم مسبقًا", case_insensitive=True, normalizer=normalize_email)])
     address          = StringField('العنوان', validators=[Optional(), Length(max=200)])
     balance          = DecimalField('الرصيد', places=2, validators=[Optional(), NumberRange(min=0)])
     share_percentage = DecimalField('نسبة الشريك (%)', places=2, validators=[Optional(), NumberRange(min=0, max=100)])
     currency         = SelectField('العملة', choices=CURRENCY_CHOICES, default="ILS", validators=[DataRequired()])
-    submit           = SubmitField('حفظ الشريك')    
+    submit           = SubmitField('حفظ الشريك')
+
+    def validate_phone_number(self, field):
+        if field.data:
+            field.data = normalize_phone(field.data)
+
+    def validate_email(self, field):
+        if field.data:
+            field.data = normalize_email(field.data)
+
+    def apply_to(self, partner: Partner) -> Partner:
+        partner.name             = (self.name.data or '').strip()
+        partner.contact_info     = (self.contact_info.data or '').strip() or None
+        partner.identity_number  = (self.identity_number.data or '').strip() or None
+        partner.phone_number     = normalize_phone(self.phone_number.data)
+        partner.email            = normalize_email(self.email.data) or None
+        partner.address          = (self.address.data or '').strip() or None
+        partner.balance          = self.balance.data or Decimal('0')
+        partner.share_percentage = self.share_percentage.data or Decimal('0')
+        partner.currency         = self.currency.data
+        return partner
+
+class QuickSupplierForm(FlaskForm):
+    name   = StringField('اسم المورد', validators=[DataRequired(), Length(max=100)])
+    phone  = StringField('رقم الجوال', validators=[Optional(), Length(max=20),
+                 Unique(Supplier, "phone", message="رقم الهاتف مستخدم مسبقًا", normalizer=normalize_phone)])
+    email  = StringField('البريد الإلكتروني', validators=[Optional(), Email(), Length(max=120),
+                 Unique(Supplier, "email", message="البريد مستخدم مسبقًا", case_insensitive=True, normalizer=normalize_email)])
+    submit = SubmitField('إضافة سريعة')
+
+    def validate_phone(self, field):
+        if field.data:
+            field.data = normalize_phone(field.data)
+
+    def validate_email(self, field):
+        if field.data:
+            field.data = normalize_email(field.data)
+
+class QuickPartnerForm(FlaskForm):
+    name   = StringField('اسم الشريك', validators=[DataRequired(), Length(max=100)])
+    phone  = StringField('رقم الجوال', validators=[Optional(), Length(max=20),
+                 Unique(Partner, "phone_number", message="رقم الهاتف مستخدم مسبقًا", normalizer=normalize_phone)])
+    email  = StringField('البريد الإلكتروني', validators=[Optional(), Email(), Length(max=120),
+                 Unique(Partner, "email", message="البريد مستخدم مسبقًا", case_insensitive=True, normalizer=normalize_email)])
+    submit = SubmitField('إضافة سريعة')
+
+    def validate_phone(self, field):
+        if field.data:
+            field.data = normalize_phone(field.data)
+
+    def validate_email(self, field):
+        if field.data:
+            field.data = normalize_email(field.data)
+
 
 class BaseServicePartForm(FlaskForm):
     part_id      = AjaxSelectField('القطعة', endpoint='api.products', get_label='name', validators=[DataRequired()])
@@ -803,10 +817,10 @@ class SplitEntryForm(FlaskForm):
 class PaymentForm(FlaskForm):
     payment_number = StringField(validators=[Optional(), Length(max=50)])
     payment_date = DateTimeField(
-        format="%Y-%m-%dT%H:%M",   # ← استخدم صيغة datetime-local
+        format="%Y-%m-%dT%H:%M",
         default=datetime.utcnow,
         validators=[DataRequired()],
-        render_kw={"step": "60"}   # اختياري: زيادة خطوة الدقائق
+        render_kw={"type": "datetime-local", "step": "60"}
     )
 
     subtotal     = DecimalField(places=2, validators=[Optional(), NumberRange(min=0)])
@@ -884,21 +898,17 @@ class PaymentForm(FlaskForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         prepare_payment_form_choices(self)
-
         if not self.splits.entries:
             self.splits.append_entry()
-
-        et   = (self.entity_type.data or "").upper()
+        et = (self.entity_type.data or "").upper()
         dirv = (self.direction.data or "").upper()
         if et and dirv not in {"IN", "OUT"}:
             if et in self._incoming_entities:
                 self.direction.data = "IN"
             elif et in self._outgoing_entities:
                 self.direction.data = "OUT"
-
         self._sync_entity_id_for_render()
 
-    # -------------- Helpers --------------
     def _nz(self, v):
         if v is None:
             return ""
@@ -960,7 +970,14 @@ class PaymentForm(FlaskForm):
             for k in self._get_entity_ids().keys():
                 setattr(getattr(self, k), "data", rid if k == field_name else "")
 
-    # -------------- Validation --------------
+    def _to_int(self, s):
+        try:
+            trans = str.maketrans('٠١٢٣٤٥٦٧٨٩', '0123456789')
+            ss = str(s).translate(trans).strip()
+            return int(ss)
+        except Exception:
+            return None
+
     def validate(self, extra_validators=None):
         if not (self.method.data or "").strip() and getattr(self, "splits", None):
             for entry in self.splits:
@@ -987,11 +1004,6 @@ class PaymentForm(FlaskForm):
             self.total_amount.errors.append("❌ مجموع الدفعات الجزئية يجب أن يساوي المبلغ الكلي")
             return False
 
-        methods = {(s.form.method.data or '').strip().upper() for s in self.splits if float(s.form.amount.data or 0) > 0}
-        if len(methods) > 1:
-            self.splits.errors.append("❌ يجب أن تكون جميع الدفعات الجزئية بنفس طريقة الدفع.")
-            return False
-
         etype = (self.entity_type.data or "").upper()
         field_name = self._entity_field_map.get(etype)
         entity_ids = self._get_entity_ids()
@@ -1000,8 +1012,21 @@ class PaymentForm(FlaskForm):
             return False
 
         raw_id = entity_ids.get(field_name)
-        rid = "" if raw_id is None else (raw_id.strip() if isinstance(raw_id, str) else str(raw_id))
-        if not rid or not rid.isdigit():
+        rid_str = "" if raw_id is None else (raw_id.strip() if isinstance(raw_id, str) else str(raw_id))
+        rid_val = self._to_int(rid_str) if rid_str else None
+
+        if not rid_val and etype == "CUSTOMER":
+            try:
+                from models import Customer
+                search_text = (getattr(self, "customer_search").data or "").strip() if hasattr(self, "customer_search") else ""
+                if search_text:
+                    m = Customer.query.filter(Customer.name.ilike(f"%{search_text}%")).first()
+                    if m:
+                        rid_val = m.id
+            except Exception:
+                pass
+
+        if not rid_val:
             if etype == "CUSTOMER":
                 self.customer_search.errors.append("❌ يجب اختيار العميل لهذه الدفعة.")
             else:
@@ -1014,6 +1039,10 @@ class PaymentForm(FlaskForm):
                 if k != field_name:
                     getattr(self, k).errors.append("❌ لا يمكن تحديد أكثر من مرجع. اترك هذا الحقل فارغًا.")
             return False
+
+        self.entity_id.data = str(rid_val)
+        for k in entity_ids.keys():
+            setattr(getattr(self, k), "data", str(rid_val) if k == field_name else "")
 
         v = (self.direction.data or "").upper()
         if etype in self._incoming_entities and v not in {"IN", "INCOMING"}:
@@ -1042,19 +1071,15 @@ class PaymentForm(FlaskForm):
 
         if m == "CARD":
             num = (self.card_number.data or "").replace(" ", "").replace("-", "")
-            if not num or not num.isdigit() or not luhn_check(num):
+            if num and (not num.isdigit() or not luhn_check(num)):
                 self.card_number.errors.append("رقم البطاقة غير صالح.")
                 return False
-            if not (self.card_holder.data or "").strip():
+            if (self.card_holder.data or "").strip() == "" and num:
                 self.card_holder.errors.append("أدخل اسم حامل البطاقة.")
                 return False
             exp = (self.card_expiry.data or "").strip()
-            if not exp or not is_valid_expiry_mm_yy(exp):
+            if exp and not is_valid_expiry_mm_yy(exp):
                 self.card_expiry.errors.append("تاريخ الانتهاء بصيغة MM/YY وغير منتهي.")
-                return False
-            cvv = (self.card_cvv.data or "").strip()
-            if not (cvv.isdigit() and len(cvv) in (3, 4)):
-                self.card_cvv.errors.append("CVV غير صالح.")
                 return False
 
         if m in {"BANK", "TRANSFER", "WIRE"}:
@@ -1069,9 +1094,10 @@ class PaymentForm(FlaskForm):
         etype = (self.entity_type.data or "").upper()
         field = self._entity_field_map.get(etype)
         val = getattr(self, field).data if field else (self.entity_id.data if self.entity_id.data else None)
-        return etype, (int(val) if val is not None and str(val).isdigit() else None)
+        return etype, self._to_int(val) if val is not None else None
 
     def apply_to(self, payment: "Payment") -> "Payment":
+        from models import PaymentSplit
         payment.payment_number = (self.payment_number.data or "").strip() or payment.payment_number
         payment.payment_date   = self.payment_date.data
         payment.subtotal       = self.subtotal.data or 0
@@ -1092,14 +1118,15 @@ class PaymentForm(FlaskForm):
         field_name = self._entity_field_map.get(etype)
         ids = self._get_entity_ids()
         for k, v in ids.items():
-            setattr(payment, k, int(v) if v and str(v).isdigit() and k == field_name else None)
+            iv = self._to_int(v)
+            setattr(payment, k, iv if (iv is not None and k == field_name) else None)
 
         m = (self.method.data or "").upper()
         if m in {"CHEQUE", "CHECK"}:
             payment.check_number = (self.check_number.data or "").strip() or None
             payment.check_bank   = (self.check_bank.data or "").strip() or None
             cd = self.check_due_date.data
-            payment.check_due_date = datetime.combine(cd, _t.min) if cd else None
+            payment.check_due_date = datetime.combine(cd, datetime.min.time()) if cd else None
         elif m == "CARD":
             payment.card_number = (self.card_number.data or "").strip() or None
             payment.card_holder = (self.card_holder.data or "").strip() or None
@@ -2107,10 +2134,10 @@ class InvoiceForm(FlaskForm):
         return inv
 
 # --------- Product / Warehouse / Category ----------
+
 class ProductPartnerShareForm(FlaskForm):
     product_id       = HiddenField(validators=[DataRequired()])
     warehouse_id     = AjaxSelectField('المخزن', endpoint='api.search_warehouses', get_label='name', validators=[DataRequired()])
-
     partner_id       = AjaxSelectField('الشريك', endpoint='api.search_partners', get_label='name', validators=[DataRequired()])
     share_percentage = DecimalField('نسبة الشريك %', places=2, validators=[Optional(), NumberRange(min=0, max=100)])
     share_amount     = DecimalField('قيمة مساهمة الشريك', places=2, validators=[Optional(), NumberRange(min=0)])
@@ -2122,11 +2149,12 @@ class ProductPartnerShareForm(FlaskForm):
             return False
         sp = self.share_percentage.data
         sa = self.share_amount.data
-        if (sp in (None, '') or float(sp) == 0) and (sa in (None, '') or float(sa) == 0):
+        if (sp in (None, '') or float(sp or 0) == 0) and (sa in (None, '') or float(sa or 0) == 0):
             self.share_percentage.errors.append('أدخل نسبة الشريك أو قيمة مساهمته على الأقل.')
             self.share_amount.errors.append('أدخل نسبة الشريك أو قيمة مساهمته على الأقل.')
             return False
         return True
+
 
 class ProductForm(FlaskForm):
     id                  = HiddenField()
@@ -2179,8 +2207,12 @@ class ProductForm(FlaskForm):
     supplier_international_id = AjaxSelectField('المورد الدولي', endpoint='api.search_suppliers', get_label='name', validators=[Optional()])
     supplier_local_id         = AjaxSelectField('المورد المحلي', endpoint='api.search_suppliers', get_label='name', validators=[Optional()])
 
-    notes               = TextAreaField('ملاحظات', validators=[Optional(), Length(max=2000)])
+    # لإضافة أولية للمخزون عبر شاشة إضافة المنتج
+    quantity           = IntegerField('الكمية', validators=[Optional(), NumberRange(min=0)], default=0)
+    on_hand            = IntegerField('المتوفر فعليًا', validators=[Optional(), NumberRange(min=0)], default=0)
+    reserved_quantity  = IntegerField('محجوز', validators=[Optional(), NumberRange(min=0)], default=0)
 
+    notes               = TextAreaField('ملاحظات', validators=[Optional(), Length(max=2000)])
     submit              = SubmitField('حفظ')
 
     def validate(self, **kwargs):
@@ -2269,11 +2301,12 @@ class ProductForm(FlaskForm):
         p.notes         = (self.notes.data or '').strip() or None
         return p
 
+
 class WarehouseForm(FlaskForm):
     name              = StringField('اسم المستودع', validators=[DataRequired(), Length(max=100)])
     warehouse_type    = SelectField('نوع المستودع',
                            choices=[('MAIN','رئيسي'),('INVENTORY','مخزون'),('PARTNER','مخزن شركاء'),('EXCHANGE','مخزن تبادل')],
-                           validators=[DataRequired()])
+                           validators=[DataRequired()], coerce=str)
     location          = StringField('الموقع', validators=[Optional(), Length(max=200)])
     parent_id         = AjaxSelectField('المستودع الأب', endpoint='api.search_warehouses', get_label='name', validators=[Optional()])
     partner_id        = AjaxSelectField('الشريك', endpoint='api.search_partners', get_label='name', validators=[Optional()])
@@ -2288,18 +2321,18 @@ class WarehouseForm(FlaskForm):
     def validate(self, **kwargs):
         if not super().validate(**kwargs):
             return False
+
         cap = self.capacity.data
         occ = self.current_occupancy.data
         if cap is not None and occ is not None and occ > cap:
             self.current_occupancy.errors.append('المشغول حاليًا لا يمكن أن يتجاوز السعة القصوى.')
             return False
-        if (self.share_percent.data not in (None, '')) and not self.partner_id.data:
-            self.partner_id.errors.append('حدد الشريك عند إدخال نسبة شراكة.')
-            return False
-        if (self.warehouse_type.data or '').upper() == 'PARTNER' and not self.partner_id.data:
-            self.partner_id.errors.append('المستودع من نوع شركاء يتطلب اختيار شريك.')
-            return False
+
+        # لا نُلزم partner_id مطلقًا عند إنشاء المستودع، حتى لو كان النوع PARTNER
+        # ولا نُلزم إدخال share_percent مع شريك. النِّسَب تُدار لاحقًا لكل قطعة/شحنة.
         return True
+
+
 
 class PartnerShareForm(FlaskForm):
     partner_id       = AjaxSelectField('الشريك', endpoint='api.partners', get_label='name', validators=[DataRequired()])
@@ -2309,12 +2342,14 @@ class PartnerShareForm(FlaskForm):
     notes            = TextAreaField('ملاحظات', validators=[Optional(), Length(max=500)])
     submit           = SubmitField('حفظ')
 
+
 class ExchangeVendorForm(FlaskForm):
     vendor_name  = StringField('اسم المورد', validators=[DataRequired()])
     vendor_phone = StringField('هاتف المورد', validators=[Optional()])
     vendor_paid  = DecimalField('المبلغ المدفوع', validators=[Optional(), NumberRange(min=0)])
     vendor_price = DecimalField('سعر المورد', validators=[Optional(), NumberRange(min=0)])
     submit       = SubmitField('حفظ')
+
 
 class ProductCategoryForm(FlaskForm):
     name        = StringField('اسم الفئة', validators=[DataRequired(), Length(max=100)])
@@ -2323,10 +2358,12 @@ class ProductCategoryForm(FlaskForm):
     image_url   = StringField('رابط الصورة', validators=[Optional()])
     submit      = SubmitField('حفظ الفئة')
 
+
 class ImportForm(FlaskForm):
     warehouse_id = AjaxSelectField('المستودع', endpoint='api.search_warehouses', get_label='name', validators=[DataRequired()])
     file         = FileField('ملف CSV', validators=[DataRequired(), FileAllowed(['csv'])])
     submit       = SubmitField('استيراد')
+
 
 class NoteForm(FlaskForm):
     author_id  = HiddenField(validators=[Optional()])
@@ -2387,18 +2424,11 @@ class StockLevelForm(FlaskForm):
                 return False
         return True
 
+
 class InventoryAdjustmentForm(FlaskForm):
     product_id      = AjaxSelectField('المنتج', endpoint='api.search_products', get_label='name', validators=[DataRequired()])
     warehouse_id    = AjaxSelectField('المخزن', endpoint='api.search_warehouses', get_label='name', validators=[DataRequired()])
-
-    # ✅ موحّد مع الموديل: IN / OUT / ADJUSTMENT
-    adjustment_type = SelectField(
-        'نوع التعديل',
-        choices=[('IN','إضافة'),('OUT','إزالة'),('ADJUSTMENT','تصحيح')],
-        default='ADJUSTMENT',
-        validators=[DataRequired()]
-    )
-
+    adjustment_type = SelectField('نوع التعديل', choices=[('IN','إضافة'),('OUT','إزالة'),('ADJUSTMENT','تصحيح')], default='ADJUSTMENT', validators=[DataRequired()])
     quantity        = IntegerField('الكمية', validators=[DataRequired(), NumberRange(min=1)])
     reason          = TextAreaField('السبب', validators=[DataRequired()])
     submit          = SubmitField('تطبيق التعديل')

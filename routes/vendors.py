@@ -42,7 +42,9 @@ def suppliers_list():
 def suppliers_create():
     form = SupplierForm()
     if form.validate_on_submit():
-        supplier = Supplier(); form.populate_obj(supplier); db.session.add(supplier)
+        supplier = Supplier()
+        form.apply_to(supplier)
+        db.session.add(supplier)
         try:
             db.session.commit()
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('modal') == '1':
@@ -59,6 +61,7 @@ def suppliers_create():
         return jsonify({"success": True, "html": html})
     return render_template("vendors/suppliers/form.html", form=form, supplier=None)
 
+
 @vendors_bp.route("/suppliers/<int:id>/edit", methods=["GET", "POST"], endpoint="suppliers_edit")
 @login_required
 @permission_required("manage_vendors")
@@ -67,11 +70,14 @@ def suppliers_edit(id):
     form = SupplierForm(obj=supplier)
     form.obj_id = supplier.id
     if form.validate_on_submit():
-        form.populate_obj(supplier)
+        form.apply_to(supplier)
         try:
-            db.session.commit(); flash("✅ تم تحديث المورد بنجاح", "success"); return redirect(url_for("vendors_bp.suppliers_list"))
+            db.session.commit()
+            flash("✅ تم تحديث المورد بنجاح", "success")
+            return redirect(url_for("vendors_bp.suppliers_list"))
         except SQLAlchemyError as e:
-            db.session.rollback(); flash(f"❌ خطأ أثناء تحديث المورد: {e}", "danger")
+            db.session.rollback()
+            flash(f"❌ خطأ أثناء تحديث المورد: {e}", "danger")
     return render_template("vendors/suppliers/form.html", form=form, supplier=supplier)
 
 @vendors_bp.route("/suppliers/<int:id>/delete", methods=["POST"], endpoint="suppliers_delete")
@@ -122,7 +128,9 @@ def partners_list():
 def partners_create():
     form = PartnerForm()
     if form.validate_on_submit():
-        partner = Partner(); form.populate_obj(partner); db.session.add(partner)
+        partner = Partner()
+        form.apply_to(partner)
+        db.session.add(partner)
         try:
             db.session.commit()
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.args.get('modal') == '1':
@@ -139,6 +147,7 @@ def partners_create():
         return jsonify({"success": True, "html": html})
     return render_template("vendors/partners/form.html", form=form, partner=None)
 
+
 @vendors_bp.route("/partners/<int:id>/edit", methods=["GET", "POST"], endpoint="partners_edit")
 @login_required
 @permission_required("manage_vendors")
@@ -147,11 +156,14 @@ def partners_edit(id):
     form = PartnerForm(obj=partner)
     form.obj_id = partner.id
     if form.validate_on_submit():
-        form.populate_obj(partner)
+        form.apply_to(partner)
         try:
-            db.session.commit(); flash("✅ تم تحديث الشريك بنجاح", "success"); return redirect(url_for("vendors_bp.partners_list"))
+            db.session.commit()
+            flash("✅ تم تحديث الشريك بنجاح", "success")
+            return redirect(url_for("vendors_bp.partners_list"))
         except SQLAlchemyError as e:
-            db.session.rollback(); flash(f"❌ خطأ أثناء تحديث الشريك: {e}", "danger")
+            db.session.rollback()
+            flash(f"❌ خطأ أثناء تحديث الشريك: {e}", "danger")
     return render_template("vendors/partners/form.html", form=form, partner=partner)
 
 @vendors_bp.route("/partners/<int:id>/delete", methods=["POST"], endpoint="partners_delete")

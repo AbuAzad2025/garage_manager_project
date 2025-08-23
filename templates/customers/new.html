@@ -19,8 +19,6 @@
   </div>
 
   <div class="card-body">
-
-    <!-- سويتشات الحالة أعلى الكارت جهة اليمين -->
     <div class="d-flex justify-content-end mb-3" style="gap:1rem;">
       <div class="custom-control custom-switch">
         {{ form.is_online(class="custom-control-input") }}
@@ -40,13 +38,10 @@
       <div class="alert alert-danger">يرجى تصحيح الحقول المظللة أدناه.</div>
     {% endif %}
 
-    <form id="customer-create-form"
-          method="post"
-          action="{{ url_for('customers_bp.create_customer') }}"
-          novalidate>
+    <form id="customer-create-form" method="post" action="{{ url_for('customers_bp.create_customer') }}" novalidate>
       {{ form.hidden_tag() }}
+      <input type="hidden" name="return_to" value="{{ return_to or request.args.get('return_to','') }}">
 
-      <!-- صف 1: الاسم / الهاتف -->
       <div class="form-row">
         <div class="form-group col-md-6">
           <label for="{{ form.name.id }}"><i class="fas fa-user"></i> اسم العميل</label>
@@ -60,18 +55,10 @@
         </div>
       </div>
 
-      <!-- صف 2: البريد / واتساب -->
       <div class="form-row">
         <div class="form-group col-md-6">
           <label for="{{ form.email.id }}"><i class="fas fa-envelope"></i> البريد الإلكتروني</label>
-          {# نُرغم الحقل نوع email مع قيود واجهة #}
-          {{ form.email(class="form-control form-control-sm" + (' is-invalid' if form.email.errors else ''),
-                        type="email",
-                        inputmode="email",
-                        dir="ltr",
-                        placeholder="name@example.com",
-                        pattern="^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
-                        required=True) }}
+          {{ form.email(class="form-control form-control-sm" + (' is-invalid' if form.email.errors else ''), type="email", inputmode="email", dir="ltr", placeholder="name@example.com", pattern="^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$", required=True) }}
           {% for e in form.email.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
         </div>
         <div class="form-group col-md-6">
@@ -81,7 +68,6 @@
         </div>
       </div>
 
-      <!-- صف 3: العنوان (عرض كامل) -->
       <div class="form-row">
         <div class="form-group col-md-12">
           <label for="{{ form.address.id }}"><i class="fas fa-map-marker-alt"></i> العنوان</label>
@@ -90,7 +76,6 @@
         </div>
       </div>
 
-      <!-- صف 4: التصنيف / الخصم -->
       <div class="form-row">
         <div class="form-group col-md-6">
           <label for="{{ form.category.id }}"><i class="fas fa-layer-group"></i> تصنيف العميل</label>
@@ -104,7 +89,6 @@
         </div>
       </div>
 
-      <!-- صف 5: حد الائتمان / العملة -->
       <div class="form-row">
         <div class="form-group col-md-6">
           <label for="{{ form.credit_limit.id }}"><i class="fas fa-credit-card"></i> حد الائتمان</label>
@@ -112,22 +96,12 @@
           {% for e in form.credit_limit.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
         </div>
         <div class="form-group col-md-6">
-          <label for="{{ form.currency.id }}"><i class="fas fa-coins"></i> العملة</label>
-          {{ form.currency(class="form-control form-control-sm") }}
-          {% for e in form.currency.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
-        </div>
-      </div>
-
-      <!-- صف 6: ملاحظات (عرض كامل) -->
-      <div class="form-row">
-        <div class="form-group col-md-12">
           <label for="{{ form.notes.id }}"><i class="fas fa-sticky-note"></i> ملاحظات</label>
-          {{ form.notes(class="form-control form-control-sm", rows="3", placeholder="ملاحظات إضافية") }}
+          {{ form.notes(class="form-control form-control-sm", rows="2", placeholder="ملاحظات إضافية") }}
           {% for e in form.notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
         </div>
       </div>
 
-      <!-- صف 7: كلمة المرور / التأكيد -->
       <div class="form-row">
         <div class="form-group col-md-6">
           <label for="{{ form.password.id }}"><i class="fas fa-lock"></i> كلمة المرور</label>

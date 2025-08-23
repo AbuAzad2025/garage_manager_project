@@ -4,8 +4,6 @@
 {% block page_title %}إضافة منتج - {{ warehouse.name }}{% endblock %}
 
 {% block content %}
-{% set wtype = (warehouse.warehouse_type.value if warehouse.warehouse_type is not string else warehouse.warehouse_type)|upper %}
-
 <form method="POST" novalidate id="add-product-form" data-wtype="{{ wtype }}">
   {{ form.hidden_tag() }}
 
@@ -17,14 +15,14 @@
     <div class="card-header">التعريف / المعرّفات</div>
     <div class="card-body">
       <div class="row g-2">
-        <div class="col-md-6">{{ form.name.label }} {{ form.name(class="form-control") }}</div>
-        <div class="col-md-3">{{ form.sku.label }} {{ form.sku(class="form-control") }}</div>
-        <div class="col-md-3">{{ form.barcode.label }} {{ form.barcode(class="form-control") }}</div>
-        <div class="col-md-4">{{ form.part_number.label }} {{ form.part_number(class="form-control") }}</div>
-        <div class="col-md-4">{{ form.serial_no.label }} {{ form.serial_no(class="form-control") }}</div>
-        <div class="col-md-4">{{ form.chassis_number.label }} {{ form.chassis_number(class="form-control") }}</div>
-        <div class="col-md-6">{{ form.commercial_name.label }} {{ form.commercial_name(class="form-control") }}</div>
-        <div class="col-md-6">{{ form.brand.label }} {{ form.brand(class="form-control") }}</div>
+        <div class="col-md-6">{{ form.name.label }} {{ form.name(class_="form-control") }}</div>
+        <div class="col-md-3">{{ form.sku.label }} {{ form.sku(class_="form-control") }}</div>
+        <div class="col-md-3">{{ form.barcode.label }} {{ form.barcode(class_="form-control") }}</div>
+        <div class="col-md-4">{{ form.part_number.label }} {{ form.part_number(class_="form-control") }}</div>
+        <div class="col-md-4">{{ form.serial_no.label }} {{ form.serial_no(class_="form-control") }}</div>
+        <div class="col-md-4">{{ form.chassis_number.label }} {{ form.chassis_number(class_="form-control") }}</div>
+        <div class="col-md-6">{{ form.commercial_name.label }} {{ form.commercial_name(class_="form-control") }}</div>
+        <div class="col-md-6">{{ form.brand.label }} {{ form.brand(class_="form-control") }}</div>
       </div>
     </div>
   </div>
@@ -32,18 +30,18 @@
   <div class="card mb-3">
     <div class="card-header">الوصف والتصنيف</div>
     <div class="card-body">
-      <div class="mb-2">{{ form.description.label }} {{ form.description(class="form-control") }}</div>
+      <div class="mb-2">{{ form.description.label }} {{ form.description(class_="form-control") }}</div>
       <div class="row g-2">
         <div class="col-md-4">
           {{ form.category_id.label }}
-          {{ form.category_id(class_="select2", class="form-control") }}
+          {{ form.category_id(class_="form-control select2") }}
         </div>
         <div class="col-md-4">
           {{ form.vehicle_type_id.label }}
-          {{ form.vehicle_type_id(class_="select2", class="form-control") }}
+          {{ form.vehicle_type_id(class_="form-control select2") }}
         </div>
-        <div class="col-md-2">{{ form.condition.label }} {{ form.condition(class="form-select") }}</div>
-        <div class="col-md-2">{{ form.origin_country.label }} {{ form.origin_country(class="form-control") }}</div>
+        <div class="col-md-2">{{ form.condition.label }} {{ form.condition(class_="form-select") }}</div>
+        <div class="col-md-2">{{ form.origin_country.label }} {{ form.origin_country(class_="form-control") }}</div>
       </div>
     </div>
   </div>
@@ -52,15 +50,15 @@
     <div class="card-header">التسعير والضرائب</div>
     <div class="card-body">
       <div class="row g-2">
-        <div class="col-md-3">{{ form.price.label }} {{ form.price(class="form-control") }}</div>
-        <div class="col-md-3">{{ form.unit_price_before_tax.label }} {{ form.unit_price_before_tax(class="form-control") }}</div>
-        <div class="col-md-2">{{ form.tax_rate.label }} {{ form.tax_rate(class="form-control") }}</div>
-        <div class="col-md-2">{{ form.min_price.label }} {{ form.min_price(class="form-control") }}</div>
-        <div class="col-md-2">{{ form.max_price.label }} {{ form.max_price(class="form-control") }}</div>
+        <div class="col-md-3">{{ form.price.label }} {{ form.price(class_="form-control") }}</div>
+        <div class="col-md-3">{{ form.unit_price_before_tax.label }} {{ form.unit_price_before_tax(class_="form-control") }}</div>
+        <div class="col-md-2">{{ form.tax_rate.label }} {{ form.tax_rate(class_="form-control") }}</div>
+        <div class="col-md-2">{{ form.min_price.label }} {{ form.min_price(class_="form-control") }}</div>
+        <div class="col-md-2">{{ form.max_price.label }} {{ form.max_price(class_="form-control") }}</div>
       </div>
       <div class="row g-2 mt-2">
-        <div class="col-md-3">{{ form.cost_before_shipping.label }} {{ form.cost_before_shipping(class="form-control") }}</div>
-        <div class="col-md-3">{{ form.cost_after_shipping.label }} {{ form.cost_after_shipping(class="form-control") }}</div>
+        <div class="col-md-3">{{ form.cost_before_shipping.label }} {{ form.cost_before_shipping(class_="form-control") }}</div>
+        <div class="col-md-3">{{ form.cost_after_shipping.label }} {{ form.cost_after_shipping(class_="form-control") }}</div>
       </div>
     </div>
   </div>
@@ -69,11 +67,11 @@
     <div class="card-header">المخزون والحدود</div>
     <div class="card-body">
       <div class="row g-2">
-        <div class="col-md-2">{{ form.quantity.label }} {{ form.quantity(class="form-control") }}</div>
-        <div class="col-md-2">{{ form.on_hand.label }} {{ form.on_hand(class="form-control") }}</div>
-        <div class="col-md-2">{{ form.reserved_quantity.label }} {{ form.reserved_quantity(class="form-control") }}</div>
-        <div class="col-md-3">{{ form.min_qty.label }} {{ form.min_qty(class="form-control") }}</div>
-        <div class="col-md-3">{{ form.reorder_point.label }} {{ form.reorder_point(class="form-control") }}</div>
+        <div class="col-md-2">{{ form.quantity.label }} {{ form.quantity(class_="form-control") }}</div>
+        <div class="col-md-2">{{ form.on_hand.label }} {{ form.on_hand(class_="form-control") }}</div>
+        <div class="col-md-2">{{ form.reserved_quantity.label }} {{ form.reserved_quantity(class_="form-control") }}</div>
+        <div class="col-md-3">{{ form.min_qty.label }} {{ form.min_qty(class_="form-control") }}</div>
+        <div class="col-md-3">{{ form.reorder_point.label }} {{ form.reorder_point(class_="form-control") }}</div>
       </div>
     </div>
   </div>
@@ -82,13 +80,13 @@
     <div class="card-header">المواصفات</div>
     <div class="card-body">
       <div class="row g-2">
-        <div class="col-md-3">{{ form.weight.label }} {{ form.weight(class="form-control") }}</div>
-        <div class="col-md-3">{{ form.dimensions.label }} {{ form.dimensions(class="form-control") }}</div>
-        <div class="col-md-3">{{ form.warranty_period.label }} {{ form.warranty_period(class="form-control") }}</div>
+        <div class="col-md-3">{{ form.weight.label }} {{ form.weight(class_="form-control") }}</div>
+        <div class="col-md-3">{{ form.dimensions.label }} {{ form.dimensions(class_="form-control") }}</div>
+        <div class="col-md-3">{{ form.warranty_period.label }} {{ form.warranty_period(class_="form-control") }}</div>
         <div class="col-md-3 d-flex align-items-center gap-3">
-          <div class="form-check">{{ form.is_active(class="form-check-input", id="is_active_id") }} <label class="form-check-label" for="is_active_id">{{ form.is_active.label.text }}</label></div>
-          <div class="form-check">{{ form.is_digital(class="form-check-input", id="is_digital_id") }} <label class="form-check-label" for="is_digital_id">{{ form.is_digital.label.text }}</label></div>
-          <div class="form-check">{{ form.is_exchange(class="form-check-input", id="is_exchange_id") }} <label class="form-check-label" for="is_exchange_id">{{ form.is_exchange.label.text }}</label></div>
+          <div class="form-check">{{ form.is_active(class_="form-check-input", id="is_active_id") }} <label class="form-check-label" for="is_active_id">{{ form.is_active.label.text }}</label></div>
+          <div class="form-check">{{ form.is_digital(class_="form-check-input", id="is_digital_id") }} <label class="form-check-label" for="is_digital_id">{{ form.is_digital.label.text }}</label></div>
+          <div class="form-check">{{ form.is_exchange(class_="form-check-input", id="is_exchange_id") }} <label class="form-check-label" for="is_exchange_id">{{ form.is_exchange.label.text }}</label></div>
         </div>
       </div>
     </div>
@@ -98,18 +96,9 @@
     <div class="card-header">الموردون</div>
     <div class="card-body">
       <div class="row g-2">
-        <div class="col-md-4">
-          {{ form.supplier_id.label }}
-          {{ form.supplier_id(class_="select2", class="form-control") }}
-        </div>
-        <div class="col-md-4">
-          {{ form.supplier_international_id.label }}
-          {{ form.supplier_international_id(class_="select2", class="form-control") }}
-        </div>
-        <div class="col-md-4">
-          {{ form.supplier_local_id.label }}
-          {{ form.supplier_local_id(class_="select2", class="form-control") }}
-        </div>
+        <div class="col-md-4">{{ form.supplier_id.label }} {{ form.supplier_id(class_="form-control select2") }}</div>
+        <div class="col-md-4">{{ form.supplier_international_id.label }} {{ form.supplier_international_id(class_="form-control select2") }}</div>
+        <div class="col-md-4">{{ form.supplier_local_id.label }} {{ form.supplier_local_id(class_="form-control select2") }}</div>
       </div>
     </div>
   </div>
@@ -126,11 +115,11 @@
     <div class="card-body" id="partners-container">
       {% for p_form in partners_forms %}
       <div class="partner-entry border rounded p-2 mb-2">
-        {{ p_form.partner_id.label }} {{ p_form.partner_id(class_="select2", class="form-control") }}
+        {{ p_form.partner_id.label }} {{ p_form.partner_id(class_="form-control select2") }}
         <div class="row g-2 mt-1">
-          <div class="col-md-4">{{ p_form.share_percentage.label }} {{ p_form.share_percentage(class="form-control") }}</div>
-          <div class="col-md-4">{{ p_form.share_amount.label }} {{ p_form.share_amount(class="form-control") }}</div>
-          <div class="col-md-4">{{ p_form.notes.label }} {{ p_form.notes(class="form-control") }}</div>
+          <div class="col-md-4">{{ p_form.share_percentage.label }} {{ p_form.share_percentage(class_="form-control") }}</div>
+          <div class="col-md-4">{{ p_form.share_amount.label }} {{ p_form.share_amount(class_="form-control") }}</div>
+          <div class="col-md-4">{{ p_form.notes.label }} {{ p_form.notes(class_="form-control") }}</div>
         </div>
         <button type="button" class="btn btn-sm btn-danger remove-partner-btn mt-2">حذف</button>
       </div>
@@ -155,12 +144,10 @@
             <label>اختر المورّد / التاجر</label>
             <select name="supplier_id" class="form-control select2" data-url="{{ url_for('api.search_suppliers') }}"></select>
           </div>
-          <div class="col-md-6">{{ v_form.vendor_phone.label }} {{ v_form.vendor_phone(class="form-control") }}</div>
-          <div class="col-md-6">{{ v_form.vendor_paid.label }} {{ v_form.vendor_paid(class="form-control") }}</div>
-          <div class="col-md-6">{{ v_form.vendor_price.label }} {{ v_form.vendor_price(class="form-control") }}</div>
-          <div class="col-12">
-            <small class="text-muted">يمكن ترك الحقول النصية فارغة إذا اخترت مورّدًا موجودًا.</small>
-          </div>
+          <div class="col-md-6">{{ v_form.vendor_phone.label }} {{ v_form.vendor_phone(class_="form-control") }}</div>
+          <div class="col-md-6">{{ v_form.vendor_paid.label }} {{ v_form.vendor_paid(class_="form-control") }}</div>
+          <div class="col-md-6">{{ v_form.vendor_price.label }} {{ v_form.vendor_price(class_="form-control") }}</div>
+          <div class="col-12"><small class="text-muted">يمكن ترك الحقول النصية فارغة إذا اخترت مورّدًا موجودًا.</small></div>
         </div>
         <button type="button" class="btn btn-sm btn-danger remove-vendor-btn mt-2">حذف</button>
       </div>
@@ -197,9 +184,7 @@
       <div class="col-md-6"><label>الهاتف</label><input type="text" name="vendor_phone" class="form-control" /></div>
       <div class="col-md-6"><label>المبلغ المدفوع</label><input type="number" step="0.01" name="vendor_paid" class="form-control" /></div>
       <div class="col-md-6"><label>السعر</label><input type="number" step="0.01" name="vendor_price" class="form-control" /></div>
-      <div class="col-12">
-        <small class="text-muted">اختر مورّدًا أو املأ البيانات يدويًا.</small>
-      </div>
+      <div class="col-12"><small class="text-muted">اختر مورّدًا أو املأ البيانات يدويًا.</small></div>
     </div>
     <button type="button" class="btn btn-sm btn-danger remove-vendor-btn mt-2">حذف</button>
   </div>
@@ -208,5 +193,14 @@
 
 {% block scripts %}
   {{ super() }}
+  <script>
+    (function(){
+      const form = document.getElementById('add-product-form');
+      if (!form) return;
+      const wtype = (form.dataset.wtype || '').toUpperCase();
+      if (wtype === 'PARTNER') document.getElementById('partner-section')?.classList.remove('d-none');
+      if (wtype === 'EXCHANGE') document.getElementById('exchange-section')?.classList.remove('d-none');
+    })();
+  </script>
   <script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
 {% endblock %}
