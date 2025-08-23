@@ -47,21 +47,17 @@
               <div class="mb-3">
                 {{ field.label(class="form-label") }}
 
-                {# قوائم الاختيار #}
                 {% if field.type in ["SelectField", "QuerySelectField"] %}
                   {{ field(class="form-select") }}
 
-                {# تاريخ/وقت الدفع: استخدم datetime-local مع قيمة منسّقة #}
                 {% elif field.name == "payment_date" %}
                   {% set _pd = field.data %}
                   {% set _val = (_pd if _pd is string else (_pd.strftime("%Y-%m-%dT%H:%M") if _pd else "")) %}
                   {{ field(type="datetime-local", class="form-control", value=_val) }}
 
-                {# نص متعدد الأسطر #}
                 {% elif field.type == "TextAreaField" %}
                   {{ field(class="form-control") }}
 
-                {# أرقام/نصوص أخرى #}
                 {% else %}
                   {% if field.name == "total_amount" %}
                     {{ field(class="form-control", step="0.01") }}
@@ -74,7 +70,6 @@
                   <div id="splitSum" class="form-text"></div>
                 {% endif %}
 
-                {# عرض أخطاء الحقل #}
                 {% for e in field.errors %}
                   <div class="text-danger small">{{ e }}</div>
                 {% endfor %}
@@ -101,7 +96,6 @@
         <small class="text-muted">بحد أقصى 3 طرق دفع</small>
       </div>
       <div class="card-body">
-        {# أخطاء عامة على مستوى FieldList إن وجدت #}
         {% if form.splits and form.splits.errors %}
           <div class="alert alert-danger py-2">
             {% for err in form.splits.errors %}

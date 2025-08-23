@@ -1,13 +1,13 @@
-// File: static/js/payment_form.js
 document.addEventListener('DOMContentLoaded', function () {
   const MAX_SPLITS = 3;
 
   const METHOD_FIELDS = {
-    cash:   [],
-    online: [],
-    cheque: ['check_number','check_bank','check_due_date'],
-    bank:   ['bank_transfer_ref'],
-    card:   ['card_number','card_holder','card_expiry','card_cvv'] // أُضيف CVV
+    "":      [],
+    cash:    [],
+    online:  [],
+    cheque:  ['check_number','check_bank','check_due_date'],
+    bank:    ['bank_transfer_ref'],
+    card:    ['card_number','card_holder','card_expiry']
   };
 
   const container  = document.getElementById('splitsContainer');
@@ -17,7 +17,16 @@ document.addEventListener('DOMContentLoaded', function () {
   const entityWrap = document.getElementById('entityFields');
   const totalInput = document.querySelector('[name="total_amount"]');
   const entityTypeSelect = document.querySelector('[name="entity_type"]');
-  const topMethod  = document.querySelector('[name="method"]'); // مزامنة الطريقة العلوية
+
+  function ensurePlaceholderOption(select) {
+    if (!select) return;
+    if (!select.options.length || select.options[0].value !== '') {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = '— اختر الطريقة —';
+      select.insertBefore(opt, select.firstChild);
+    }
+  }
 
   function toggleAddBtn() {
     const count = container.querySelectorAll('.split-form').length;
@@ -49,58 +58,55 @@ document.addEventListener('DOMContentLoaded', function () {
     details.style.display = anyShown ? 'block' : 'none';
   }
 
+  function renumberRowFields(row, i) {
+    row.dataset.index = i;
+    const title = row.querySelector('h5');
+    if (title) title.textContent = `الدفعة الجزئية #${i + 1}`;
+    row.querySelectorAll('input,select,textarea').forEach(inp => {
+      if (!inp.name) return;
+      const field = inp.name.split('-').pop();
+      inp.name = `splits-${i}-${field}`;
+      inp.id   = `splits-${i}-${field}`;
+    });
+    const sel = row.querySelector('select[name$="-method"]');
+    if (sel) {
+      ensurePlaceholderOption(sel);
+      // في حال كان الصف جديدًا ولم يحدد المستخدم الطريقة
+      if (!sel.value) sel.selectedIndex = 0;
+    }
+    const btn = row.querySelector('.remove-split');
+    if (btn) btn.disabled = (i === 0);
+  }
+
   function refreshSplits() {
     container.querySelectorAll('.split-form').forEach((el, i) => {
-      el.dataset.index = i;
-      const title = el.querySelector('h5');
-      if (title) title.textContent = `الدفعة الجزئية #${i + 1}`;
-
-      el.querySelectorAll('input,select,textarea').forEach(inp => {
-        if (!inp.name) return;
-        const field = inp.name.split('-').pop();
-        inp.name = `splits-${i}-${field}`;
-        inp.id   = `splits-${i}-${field}`;
-      });
-
-      const btn = el.querySelector('.remove-split');
-      if (btn) btn.disabled = (i === 0);
-
+      renumberRowFields(el, i);
       const sel = el.querySelector('select[name$="-method"]');
       const method = (sel?.value || '').toLowerCase();
       applyDetailsForRow(el, method);
     });
     toggleAddBtn();
     updateSplitSumHint();
-
-    // مزامنة طريقة الدفع العلوية مع أول split
-    if (topMethod) {
-      const firstSel = container.querySelector('.split-form select[name$="-method"]');
-      if (firstSel && firstSel.value) {
-        topMethod.value = firstSel.value.toUpperCase();
-      }
-    }
   }
 
   function createSplitElement() {
     const idx   = container.querySelectorAll('.split-form').length;
     const clone = template.cloneNode(true);
-    clone.dataset.index = idx;
 
+    // صِفْر قيم الحقول
     clone.querySelectorAll('input,select,textarea').forEach(el => {
-      if (el.tagName === 'SELECT') el.selectedIndex = 0;
-      else el.value = '';
-      if (!el.name) return;
-      const field = el.name.split('-').pop();
-      el.name = `splits-${idx}-${field}`;
-      el.id   = `splits-${idx}-${field}`;
-      // افتراضياً عطّل كل التفاصيل
-      if (el.closest('[data-field]')) {
-        el.disabled = true;
+      if (el.tagName === 'SELECT') {
+        el.selectedIndex = 0;
+      } else {
+        el.value = '';
       }
+      if (el.closest('[data-field]')) el.disabled = true;
     });
 
     const details = clone.querySelector('.split-details');
     if (details) details.style.display = 'none';
+
+    renumberRowFields(clone, idx);
     return clone;
   }
 
@@ -147,35 +153,16 @@ document.addEventListener('DOMContentLoaded', function () {
       const row = e.target.closest('.split-form');
       const method = (e.target.value || '').toLowerCase();
       applyDetailsForRow(row, method);
-      // لو أول صف، حدث الطريقة العلوية
-      if (row && row.dataset.index === '0' && topMethod) {
-        topMethod.value = (e.target.value || '').toUpperCase();
-      }
     }
     if (e.target.matches('[name$="-amount"]')) updateSplitSumHint();
   });
-
-  // لو المستخدم غيّر الطريقة العلوية، انعكس ذلك على أول split (إن وُجد)
-  if (topMethod) {
-    topMethod.addEventListener('change', () => {
-      const firstSel = container.querySelector('.split-form select[name$="-method"]');
-      if (firstSel) {
-        firstSel.value = (topMethod.value || '').toUpperCase();
-        const row = firstSel.closest('.split-form');
-        applyDetailsForRow(row, (firstSel.value || '').toLowerCase());
-      }
-    });
-  }
 
   if (totalInput) totalInput.addEventListener('input', updateSplitSumHint);
 
   function reloadEntityFields() {
     if (!entityTypeSelect || !entityWrap) return;
     const type = entityTypeSelect.value || '';
-    const eidInput = document.getElementById('entity_id');
-    const eid  = eidInput?.value || '';
-    // امسح قيمة المرجع عند تغيير النوع لتفادي بقاء قيمة قديمة
-    if (eidInput) eidInput.value = '';
+    const eid  = document.getElementById('entity_id')?.value || '';
     fetch(`/payments/entity-fields?type=${encodeURIComponent(type)}&entity_id=${encodeURIComponent(eid)}`)
       .then(r => r.text())
       .then(html => { entityWrap.innerHTML = html; })
@@ -186,23 +173,41 @@ document.addEventListener('DOMContentLoaded', function () {
 
   if (form) {
     form.addEventListener('submit', () => {
-      // إزالة الصفوف الفارغة
+      // أي صف مبلغُه غير مُدخل أو <= 0: نُفرّغ طريقته ونُعطّل التفاصيل
+      container.querySelectorAll('.split-form').forEach(el => {
+        const amountEl = el.querySelector('[name$="-amount"]');
+        const methodEl = el.querySelector('select[name$="-method"]');
+        const amount = parseFloat((amountEl?.value || '').replace(',', '.')) || 0;
+
+        if (amount <= 0) {
+          if (methodEl) methodEl.value = ''; // يضمن عدم تفعيل فالديشن تفاصيل الطريقة
+          el.querySelectorAll('[data-field] input,[data-field] select,[data-field] textarea').forEach(inp => {
+            inp.value = '';
+            inp.disabled = true;
+          });
+        }
+      });
+
+      // إزالة الصفوف الفارغة بالكامل (لا طريقة ولا مبلغ)
       container.querySelectorAll('.split-form').forEach(el => {
         const m = (el.querySelector('[name$="-method"]')?.value || '').trim();
         const a = (el.querySelector('[name$="-amount"]')?.value || '').trim();
         if (!m && !a) el.remove();
       });
-      // تأكد أن الحقول المعطلة فعلاً disabled (حتى لا تُرسل)
+
+      // تأكيد تعطيل التفاصيل للطرق غير المختارة أو غير المطلوبة
       container.querySelectorAll('.split-form').forEach(el => {
         const sel = el.querySelector('select[name$="-method"]');
         applyDetailsForRow(el, (sel?.value || '').toLowerCase());
       });
+
       refreshSplits();
     });
   }
 
-  // تهيئة أولية
+  // تهيئة: تأكد من وجود placeholder في كل قوائم الطريقة
   container.querySelectorAll('.split-form select[name$="-method"]').forEach(sel => {
+    ensurePlaceholderOption(sel);
     applyDetailsForRow(sel.closest('.split-form'), (sel.value || '').toLowerCase());
   });
   reloadEntityFields();
