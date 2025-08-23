@@ -1428,13 +1428,12 @@ class ShipmentForm(FlaskForm):
         ('PENDING','PENDING'), ('IN_TRANSIT','IN_TRANSIT'), ('ARRIVED','ARRIVED'), ('CANCELLED','CANCELLED')
     ], validators=[DataRequired()])
 
-    value_before  = DecimalField('قيمة البضائع قبل المصاريف', places=2,
-                                 validators=[Optional(), NumberRange(min=0)],
-                                 render_kw={'readonly': True})
+    value_before  = DecimalField('قيمة البضائع قبل المصاريف', places=2, validators=[Optional(), NumberRange(min=0)], render_kw={'readonly': True})
     shipping_cost = DecimalField('تكلفة الشحن', places=2, validators=[Optional(), NumberRange(min=0)])
     customs       = DecimalField('الجمارك', places=2, validators=[Optional(), NumberRange(min=0)])
     vat           = DecimalField('ضريبة القيمة المضافة', places=2, validators=[Optional(), NumberRange(min=0)])
     insurance     = DecimalField('التأمين', places=2, validators=[Optional(), NumberRange(min=0)])
+    total_value   = DecimalField('الإجمالي', places=2, validators=[Optional(), NumberRange(min=0)])
 
     carrier         = StringField('شركة النقل', validators=[Optional(), Length(max=100)])
     tracking_number = StringField('رقم التتبع', validators=[Optional(), Length(max=100)])
@@ -1465,20 +1464,19 @@ class ShipmentForm(FlaskForm):
         shipment.shipment_date    = self.shipment_date.data or shipment.shipment_date
         shipment.expected_arrival = self.expected_arrival.data or None
         shipment.actual_arrival   = self.actual_arrival.data or None
-
-        shipment.origin       = (self.origin.data or '').strip() or None
-        shipment.destination  = (self.destination.data or '').strip() or None
-        shipment.status       = (self.status.data or '').strip().upper() or 'PENDING'
-        shipment.currency     = (self.currency.data or 'USD').upper()
-
-        shipment.shipping_cost = self.shipping_cost.data or None
-        shipment.customs       = self.customs.data or None
-        shipment.vat           = self.vat.data or None
-        shipment.insurance     = self.insurance.data or None
-
-        shipment.carrier         = (self.carrier.data or '').strip() or None
-        shipment.tracking_number = (self.tracking_number.data or '').strip() or None
-        shipment.notes           = (self.notes.data or '').strip() or None
+        shipment.origin           = (self.origin.data or '').strip() or None
+        shipment.destination      = (self.destination.data or '').strip() or None
+        shipment.status           = (self.status.data or '').strip().upper() or 'PENDING'
+        shipment.currency         = (self.currency.data or 'USD').upper()
+        shipment.value_before     = self.value_before.data or None
+        shipment.shipping_cost    = self.shipping_cost.data or None
+        shipment.customs          = self.customs.data or None
+        shipment.vat              = self.vat.data or None
+        shipment.insurance        = self.insurance.data or None
+        shipment.total_value      = self.total_value.data or None
+        shipment.carrier          = (self.carrier.data or '').strip() or None
+        shipment.tracking_number  = (self.tracking_number.data or '').strip() or None
+        shipment.notes            = (self.notes.data or '').strip() or None
 
         dest_obj = self.destination_id.data
         shipment.destination_id = dest_obj.id if dest_obj else None
@@ -1490,16 +1488,14 @@ class ShipmentForm(FlaskForm):
         for entry in self.items:
             f = entry.form
             if f.product_id.data and f.warehouse_id.data and (f.quantity.data or 0) >= 1:
-                new_items.append(
-                    ShipmentItem(
-                        product_id=int(f.product_id.data),
-                        warehouse_id=int(f.warehouse_id.data),
-                        quantity=int(f.quantity.data),
-                        unit_cost=f.unit_cost.data or 0,
-                        declared_value=f.declared_value.data,
-                        notes=(f.notes.data or '').strip() or None,
-                    )
-                )
+                new_items.append(ShipmentItem(
+                    product_id=int(f.product_id.data),
+                    warehouse_id=int(f.warehouse_id.data),
+                    quantity=int(f.quantity.data),
+                    unit_cost=f.unit_cost.data or 0,
+                    declared_value=f.declared_value.data,
+                    notes=(f.notes.data or '').strip() or None,
+                ))
         shipment.items = new_items
 
         new_partners = []
@@ -1518,7 +1514,6 @@ class ShipmentForm(FlaskForm):
                 if hasattr(p, 'share_amount'):          p.share_amount = f.share_amount.data or None
                 new_partners.append(p)
         shipment.partners = new_partners
-
         return shipment
     
 # --------- Universal / Audit / Custom Reports ----------

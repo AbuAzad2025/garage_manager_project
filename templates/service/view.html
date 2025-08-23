@@ -7,8 +7,7 @@
   {{ super() }}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/service.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}">
-
-  {# 🔹 Select2 CSS #}
+  {# Select2 CSS #}
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2/css/select2.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 {% endblock %}
@@ -45,6 +44,7 @@
             </span>
           </td>
         </tr>
+        <tr><th>تاريخ الاستلام</th><td>{{ service.received_at and service.received_at.strftime('%Y-%m-%d') or '—' }}</td></tr>
         <tr><th>بدأت</th><td>{{ service.start_time and service.start_time.strftime('%Y-%m-%d %H:%M') or '—' }}</td></tr>
         <tr><th>اكتملت</th><td>{{ service.end_time and service.end_time.strftime('%Y-%m-%d %H:%M') or '—' }}</td></tr>
       </table>
@@ -60,7 +60,9 @@
   </div>
 
   <div class="mb-3 d-flex flex-wrap gap-2 actions toolbar">
-    <a href="{{ url_for('service.add_payment', rid=service.id) }}" class="btn btn-primary"><i class="fas fa-cash-register"></i> تسجيل دفعة</a>
+    <a href="{{ url_for('service.add_payment', rid=service.id) }}" class="btn btn-primary">
+      <i class="fas fa-cash-register"></i> تسجيل دفعة
+    </a>
 
     <form class="d-inline" method="post" action="{{ url_for('service.toggle_service', rid=service.id, action='start') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -71,10 +73,18 @@
       <button class="btn btn-outline-success"><i class="fas fa-check"></i> إكمال الصيانة</button>
     </form>
 
-    <button id="previewReceiptBtn" data-url="{{ url_for('service.view_receipt', rid=service.id) }}" class="btn btn-info"><i class="fas fa-eye"></i> معاينة الإيصال</button>
-    <a href="{{ url_for('service.export_pdf', rid=service.id) }}" target="_blank" class="btn btn-dark"><i class="fas fa-file-pdf"></i> طباعة PDF</a>
-    <button id="printReceiptBtn" data-url="{{ url_for('service.view_receipt', rid=service.id) }}" class="btn btn-secondary"><i class="fas fa-print"></i> طباعة مباشرة</button>
-    <a href="{{ url_for('service.download_receipt', rid=service.id) }}" class="btn btn-outline-primary"><i class="fas fa-download"></i> تحميل إيصال (PDF)</a>
+    <button id="previewReceiptBtn" data-url="{{ url_for('service.view_receipt', rid=service.id) }}" class="btn btn-info">
+      <i class="fas fa-eye"></i> معاينة الإيصال
+    </button>
+    <a href="{{ url_for('service.export_pdf', rid=service.id) }}" target="_blank" class="btn btn-dark">
+      <i class="fas fa-file-pdf"></i> طباعة PDF
+    </a>
+    <button id="printReceiptBtn" data-url="{{ url_for('service.view_receipt', rid=service.id) }}" class="btn btn-secondary">
+      <i class="fas fa-print"></i> طباعة مباشرة
+    </button>
+    <a href="{{ url_for('service.download_receipt', rid=service.id) }}" class="btn btn-outline-primary">
+      <i class="fas fa-download"></i> تحميل إيصال (PDF)
+    </a>
 
     {% if current_user.has_permission('manage_service') %}
     <form action="{{ url_for('service.delete_request', rid=service.id) }}" method="post" class="d-inline">
@@ -84,7 +94,8 @@
     {% endif %}
   </div>
 
-  <div class="mb-3">{% include 'service/_parts_table.html' %}</div>
+  {# جداول #}
+  <div class="mb-3">{% include 'service/_part_table.html' %}</div>
 
   {% if current_user.has_permission('manage_service') %}
   <form method="post" action="{{ url_for('service.add_part', rid=service.id) }}" class="border rounded p-3 mb-3" id="form-add-part">
@@ -92,38 +103,87 @@
     <div class="row g-2 align-items-end">
       <div class="col-md-3">
         <label class="form-label">المستودع</label>
-        <select class="form-select select2" name="warehouse_id" id="warehouse_id" data-endpoint="{{ url_for('api.search_warehouses') }}" required></select>
+        <select class="form-select select2" name="warehouse_id"
+                data-endpoint="{{ url_for('api.search_warehouses') }}" required></select>
       </div>
       <div class="col-md-3">
         <label class="form-label">القطعة</label>
-        <select class="form-select select2" name="part_id" id="part_id" data-endpoint-by-warehouse="{{ url_for('api.products_by_warehouse', wid=0) }}" required></select>
+        <select class="form-select select2" name="part_id"
+                data-endpoint-by-warehouse="{{ url_for('api.products_by_warehouse', wid=0) }}"
+                data-product-info="{{ url_for('api.product_info', pid=0) }}"
+                required></select>
       </div>
-      <div class="col-md-2"><label class="form-label">الكمية</label><input type="number" class="form-control" name="quantity" min="1" value="1" required></div>
-      <div class="col-md-2"><label class="form-label">سعر الوحدة</label><input type="number" class="form-control" name="unit_price" step="0.01" min="0" required></div>
-      <div class="col-md-2"><label class="form-label">خصم %</label><input type="number" class="form-control" name="discount" step="0.01" min="0"></div>
-      <div class="col-md-5"><label class="form-label">ملاحظة</label><input type="text" class="form-control" name="note"></div>
-      <div class="col-auto"><button class="btn btn-success"><i class="fas fa-plus-circle"></i> إضافة قطعة</button></div>
+      <div class="col-md-2">
+        <label class="form-label">الكمية</label>
+        <input type="number" class="form-control" name="quantity" min="1" value="1" required>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">سعر الوحدة</label>
+        <input type="number" class="form-control" name="unit_price" step="0.01" min="0" required>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">خصم %</label>
+        <input type="number" class="form-control" name="discount" step="0.01" min="0">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">ضريبة %</label>
+        <input type="number" class="form-control" name="tax_rate" step="0.01" min="0">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">الشريك</label>
+        <select class="form-select select2" name="partner_id" data-endpoint="{{ url_for('api.partners') }}"></select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">نسبة الشريك %</label>
+        <input type="number" class="form-control" name="share_percentage" step="0.01" min="0" max="100">
+      </div>
+      <div class="col-md-5">
+        <label class="form-label">ملاحظة</label>
+        <input type="text" class="form-control" name="note">
+      </div>
+      <div class="col-auto">
+        <label class="form-label d-block">&nbsp;</label>
+        <button class="btn btn-success"><i class="fas fa-plus-circle"></i> إضافة قطعة</button>
+      </div>
     </div>
   </form>
   {% endif %}
 
-  <div class="mb-3">{% include 'service/_tasks_table.html' %}</div>
+  <div class="mb-3">{% include 'service/_task_table.html' %}</div>
 
   {% if current_user.has_permission('manage_service') %}
   <form method="post" action="{{ url_for('service.add_task', rid=service.id) }}" class="border rounded p-3 mb-3" id="form-add-task">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="row g-2 align-items-end">
-      <div class="col-md-6"><label class="form-label">الوصف</label><input type="text" class="form-control" name="description" required></div>
-      <div class="col-md-2"><label class="form-label">الكمية</label><input type="number" class="form-control" name="quantity" min="1" value="1" required></div>
-      <div class="col-md-2"><label class="form-label">سعر الوحدة</label><input type="number" class="form-control" name="unit_price" step="0.01" min="0" required></div>
-      <div class="col-md-2"><label class="form-label">خصم %</label><input type="number" class="form-control" name="discount" step="0.01" min="0"></div>
-      <div class="col-md-2"><label class="form-label">ضريبة %</label><input type="number" class="form-control" name="tax_rate" step="0.01" min="0"></div>
-      <div class="col-auto"><button class="btn btn-success"><i class="fas fa-plus-circle"></i> إضافة مهمة</button></div>
+      <div class="col-md-6">
+        <label class="form-label">الوصف</label>
+        <input type="text" class="form-control" name="description" required>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">الكمية</label>
+        <input type="number" class="form-control" name="quantity" min="1" value="1" required>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">سعر الوحدة</label>
+        <input type="number" class="form-control" name="unit_price" step="0.01" min="0" required>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">خصم %</label>
+        <input type="number" class="form-control" name="discount" step="0.01" min="0">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">ضريبة %</label>
+        <input type="number" class="form-control" name="tax_rate" step="0.01" min="0">
+      </div>
+      <div class="col-auto">
+        <label class="form-label d-block">&nbsp;</label>
+        <button class="btn btn-success"><i class="fas fa-plus-circle"></i> إضافة مهمة</button>
+      </div>
     </div>
   </form>
   {% endif %}
 
-  <div class="mb-3">{% include 'service/_payments_table.html' %}</div>
+  <div class="mb-3">{% include 'service/_payment_table.html' %}</div>
   <div class="mb-3">{% include 'service/_summary_card.html' %}</div>
 
 </div>
@@ -131,19 +191,14 @@
 
 {% block scripts %}
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-  {# 🔹 Select2 JS قبل service.js #}
+  {# Select2 JS قبل service.js #}
   <script src="{{ url_for('static', filename='adminlte/plugins/select2/js/select2.full.min.js') }}"></script>
-
   <script src="{{ url_for('static', filename='js/service.js') }}"></script>
-
   <script>
     document.addEventListener("DOMContentLoaded", function(){
-      // فحص سريع: لو Select2 ما تحمل لأي سبب
       if (!window.jQuery || !jQuery.fn.select2) {
         console.warn('Select2 لم يُحمّل. تأكد من المسارات إلى ملفات CSS/JS.');
       }
-
       const btn = document.getElementById("printReceiptBtn");
       if(btn){
         btn.addEventListener("click", function(){

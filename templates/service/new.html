@@ -108,18 +108,18 @@
       </div>
     </div>
 
-    <!-- (اختياري) سطور ديناميكية إن كان الفورم يحتوي FieldList؛ لن تُستخدم في الراوت أثناء الإنشاء -->
+    {# أقسام FieldList اختيارية إن وُجدت في الفورم #}
     {% if form.parts %}
     <div class="mb-3">
       <label class="form-label">القطع المستخدمة</label>
       <div id="parts-list">
         {% for part in form.parts %}
         <div class="row g-2 mb-2 part-line">
-          <div class="col-md-3">{{ part.warehouse_id(class="form-select") }}</div>
-          <div class="col-md-3">{{ part.part_id(class="form-select") }}</div>
+          <div class="col-md-3">{{ part.warehouse_id(class="form-select select2", **{'data-endpoint':'/api/search_warehouses'}) }}</div>
+          <div class="col-md-3">{{ part.part_id(class="form-select select2", **{'data-endpoint-by-warehouse':'/api/warehouses/0/products','data-product-info':'/api/products/0/info'}) }}</div>
           <div class="col-md-2">{{ part.quantity(class="form-control", min="1") }}</div>
           <div class="col-md-2">{{ part.unit_price(class="form-control", min="0", step="0.01") }}</div>
-          <div class="col-md-1">{{ part.partner_id(class="form-select") }}</div>
+          <div class="col-md-1">{{ part.partner_id(class="form-select select2", **{'data-endpoint':'/api/partners'}) }}</div>
           <div class="col-md-1">{{ part.share_percentage(class="form-control", step="0.01") }}</div>
           <div class="col-auto d-flex align-items-center">
             <button type="button" class="btn btn-outline-danger btn-sm remove-part">&times;</button>
@@ -155,7 +155,7 @@
   </form>
 </div>
 
-<!-- مودال إضافة عميل سريع (يملىء الحقول أعلاه فقط، بدون Ajax) -->
+<!-- مودال إضافة عميل سريع -->
 <div class="modal fade" id="customerModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -203,21 +203,19 @@
       modal.show();
     });
 
-    // نقل بيانات العميل من المودال إلى الحقول الأساسية (بدون Ajax)
+    // نقل بيانات العميل من المودال إلى الحقول الأساسية
     document.getElementById('newCustomerForm')?.addEventListener('submit', function(e){
       e.preventDefault();
       const name  = document.getElementById('c_name').value.trim();
       const phone = document.getElementById('c_phone').value.trim();
       const email = document.getElementById('c_email').value.trim();
 
-      // إفراغ اختيار العميل لإجبار الإنشاء وفق الراوت
       const sel = document.getElementById('customerSelect');
       if (sel) sel.value = '';
 
-      // تعبئة الحقول الرئيسية (مطابقة لأسماء الفورم)
       const f = document.getElementById('serviceForm');
       if (f) {
-        const setVal = (name, val) => { const el = f.querySelector(`[name="${name}"]`); if (el) el.value = val; };
+        const setVal = (n, v) => { const el = f.querySelector(`[name="${n}"]`); if (el) el.value = v; };
         setVal('name', name);
         setVal('phone', phone);
         setVal('email', email);

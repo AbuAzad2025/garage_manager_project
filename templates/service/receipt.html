@@ -10,11 +10,6 @@
 <div class="container my-4">
   <h3 class="text-center mb-4">سند صيانة / طلب {{ service.service_number or ('#' ~ service.id) }}</h3>
 
-  {% set STATUS_LABELS = {
-    'PENDING':'معلق','DIAGNOSIS':'تشخيص','IN_PROGRESS':'قيد التنفيذ',
-    'COMPLETED':'مكتمل','CANCELLED':'ملغي','ON_HOLD':'مؤجل'
-  } %}
-
   <div class="row">
     <div class="col-md-6">
       <table class="table table-sm">
@@ -25,6 +20,7 @@
         <tr><th>اللوحة</th><td>{{ service.vehicle_vrn or '—' }}</td></tr>
         {% set st = (service.status.value if service.status is not string else service.status)|upper %}
         <tr><th>الحالة</th><td>{{ STATUS_LABELS.get(st, st) }}</td></tr>
+        <tr><th>تاريخ الاستلام</th><td>{{ service.received_at and service.received_at.strftime('%Y-%m-%d') or '—' }}</td></tr>
       </table>
     </div>
     <div class="col-md-6">
@@ -55,7 +51,10 @@
           {% set price = (part.unit_price or 0)|float %}
           {% set disc  = (part.discount or 0)|float %}
           {% set share = (part.share_percentage or 0)|float %}
-          {% set line      = qty * price * (1 - (disc / 100.0)) %}
+          {% set gross     = qty * price %}
+          {% set disc_amt  = gross * (disc/100.0) %}
+          {% set taxable   = gross - disc_amt %}
+          {% set line      = taxable + (taxable * ((part.tax_rate or 0)|float)/100.0) %}
           {% set net_line  = line * (1 - (share / 100.0)) %}
           {% set ns.parts_total = ns.parts_total + line %}
           {% set ns.net_sub     = ns.net_sub + net_line %}
@@ -76,7 +75,10 @@
           {% set qty   = (task.quantity or 0)|float %}
           {% set price = (task.unit_price or 0)|float %}
           {% set disc  = (task.discount or 0)|float %}
-          {% set line  = qty * price * (1 - (disc / 100.0)) %}
+          {% set gross = qty * price %}
+          {% set disc_amt = gross * (disc/100.0) %}
+          {% set taxable  = gross - disc_amt %}
+          {% set line  = taxable + (taxable * ((task.tax_rate or 0)|float)/100.0) %}
           {% set ns.tasks_total = ns.tasks_total + line %}
           <tr>
             <td>مهمة</td>

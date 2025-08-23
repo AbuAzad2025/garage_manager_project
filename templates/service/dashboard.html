@@ -9,12 +9,6 @@
 {% block content %}
 <div class="container my-4">
 
-  {# خرائط عربية للحالات #}
-  {% set STATUS_LABELS = {
-    'PENDING':'معلق','DIAGNOSIS':'تشخيص','IN_PROGRESS':'قيد التنفيذ',
-    'COMPLETED':'مكتمل','CANCELLED':'ملغي','ON_HOLD':'مؤجل'
-  } %}
-
   {# استخراج أرقام مفيدة من status_distribution #}
   {% set s = namespace(pending=0, in_progress=0, completed=0, total=total_requests) %}
   {% for st, cnt in status_distribution %}
@@ -85,14 +79,14 @@
           <div class="table-responsive">
             <table class="table table-sm table-bordered mb-0">
               <thead class="table-light">
-                <tr><th>الطلب</th><th>العميل</th><th>التاريخ</th><th>إجراء</th></tr>
+                <tr><th>الطلب</th><th>العميل</th><th>تاريخ الاستلام</th><th>إجراء</th></tr>
               </thead>
               <tbody>
                 {% for r in high_priority %}
                 <tr>
                   <td>{{ r.service_number or ('#' ~ r.id) }}</td>
                   <td>{{ r.customer.name if r.customer else (r.name or '—') }}</td>
-                  <td>{{ r.request_date and r.request_date.strftime('%Y-%m-%d') or '—' }}</td>
+                  <td>{{ r.received_at and r.received_at.strftime('%Y-%m-%d') or '—' }}</td>
                   <td><a href="{{ url_for('service.view_request', rid=r.id) }}" class="btn btn-sm btn-outline-primary">عرض</a></td>
                 </tr>
                 {% else %}
@@ -164,7 +158,7 @@
 {% block scripts %}
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
   <script>
-    // بيانات الحالات
+    // نستخدم القيم المحقونة من context_processor
     const statusMap = {{ STATUS_LABELS|tojson }};
     const statusRaw = [
       {% for st, cnt in status_distribution %}
@@ -174,7 +168,6 @@
     const statusLabels = statusRaw.map(x => statusMap[x.key] || x.key);
     const statusCounts = statusRaw.map(x => x.count);
 
-    // بيانات الأولوية
     const priRaw = [
       {% for pr, cnt in priority_distribution %}
         { key: "{{ (pr.value if pr is not string else pr)|upper }}", count: {{ cnt }} },
@@ -183,19 +176,11 @@
     const priLabels = priRaw.map(x => x.key);
     const priCounts = priRaw.map(x => x.count);
 
-    // رسم المخططات
     const ctx1 = document.getElementById('statusChart');
-    if (ctx1) new Chart(ctx1, {
-      type: 'doughnut',
-      data: { labels: statusLabels, datasets: [{ data: statusCounts }] }
-    });
+    if (ctx1) new Chart(ctx1, { type: 'doughnut', data: { labels: statusLabels, datasets: [{ data: statusCounts }] } });
 
     const ctx2 = document.getElementById('priorityChart');
-    if (ctx2) new Chart(ctx2, {
-      type: 'bar',
-      data: { labels: priLabels, datasets: [{ data: priCounts }] },
-      options: { plugins: { legend: { display:false } } }
-    });
+    if (ctx2) new Chart(ctx2, { type: 'bar', data: { labels: priLabels, datasets: [{ data: priCounts }] }, options: { plugins: { legend: { display:false } } } });
   </script>
   <script src="{{ url_for('static', filename='js/service.js') }}"></script>
 {% endblock %}

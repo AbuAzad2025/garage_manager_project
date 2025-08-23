@@ -114,8 +114,8 @@
       </div>
     </div>
     <div class="card-body">
-      <div id="partners-wrapper" data-index="{{ form.partner_links|length }}">
-        {% for pf in form.partner_links %}
+      <div id="partners-wrapper" data-index="{{ form.partners|length }}">
+        {% for pf in form.partners %}
           {{ partner_row(pf, loop.index0) }}
         {% endfor %}
       </div>
@@ -137,176 +137,92 @@
     </div>
   </div>
 
-{# ================= قوالب الصفوف الديناميكية ================= #}
-<template id="item-row-template">
-  <div class="item-row border rounded p-2 mb-2">
-    <div class="row g-2 align-items-end">
-      <div class="col-md-5">
-        {{ form.items.entries[0].form.product_id.label }}
-        {{ form.items.entries[0].form.product_id(class_="select2 form-control") }}
-      </div>
-      <div class="col-md-3">
-        {{ form.items.entries[0].form.warehouse_id.label }}
-        {{ form.items.entries[0].form.warehouse_id(class_="select2 form-control") }}
-      </div>
-      <div class="col-md-2">
-        {{ form.items.entries[0].form.quantity.label }}
-        {{ form.items.entries[0].form.quantity(class="form-control") }}
-      </div>
-      <div class="col-md-2">
-        {{ form.items.entries[0].form.unit_cost.label }}
-        {{ form.items.entries[0].form.unit_cost(class="form-control") }}
-      </div>
-      <div class="col-md-2 mt-2">
-        {{ form.items.entries[0].form.declared_value.label }}
-        {{ form.items.entries[0].form.declared_value(class="form-control") }}
-      </div>
-      <div class="col-md-2 mt-4">
-        <button type="button" class="btn btn-sm btn-danger remove-item">حذف</button>
-      </div>
-    </div>
-  </div>
-</template>
-
-<template id="partner-row-template">
-  <div class="partner-row border rounded p-2 mb-2">
-    <div class="row g-2">
-      <div class="col-md-4">
-        {{ form.partner_links.entries[0].form.partner_id.label }}
-        {{ form.partner_links.entries[0].form.partner_id(class_="select2 form-control") }}
-      </div>
-      <div class="col-md-2">
-        {{ form.partner_links.entries[0].form.share_percentage.label }}
-        {{ form.partner_links.entries[0].form.share_percentage(class="form-control") }}
-      </div>
-      <div class="col-md-2">
-        {{ form.partner_links.entries[0].form.share_amount.label }}
-        {{ form.partner_links.entries[0].form.share_amount(class="form-control") }}
-      </div>
-      <div class="col-md-4">
-        {{ form.partner_links.entries[0].form.identity_number.label }}
-        {{ form.partner_links.entries[0].form.identity_number(class="form-control") }}
-      </div>
-      <div class="col-md-4 mt-2">
-        {{ form.partner_links.entries[0].form.phone_number.label }}
-        {{ form.partner_links.entries[0].form.phone_number(class="form-control") }}
-      </div>
-      <div class="col-md-4 mt-2">
-        {{ form.partner_links.entries[0].form.address.label }}
-        {{ form.partner_links.entries[0].form.address(class="form-control") }}
-      </div>
-      <div class="col-md-4 mt-2">
-        {{ form.partner_links.entries[0].form.unit_price_before_tax.label }}
-        {{ form.partner_links.entries[0].form.unit_price_before_tax(class="form-control") }}
-      </div>
-      <div class="col-md-4 mt-2">
-        {{ form.partner_links.entries[0].form.expiry_date.label }}
-        {{ form.partner_links.entries[0].form.expiry_date(class="form-control") }}
-      </div>
-      <div class="col-md-4 mt-2">
-        {{ form.partner_links.entries[0].form.notes.label }}
-        {{ form.partner_links.entries[0].form.notes(class="form-control") }}
-      </div>
-      <div class="col-md-2 mt-4">
-        <button type="button" class="btn btn-sm btn-danger remove-partner">حذف</button>
+  {# ================= قوالب الصفوف الديناميكية ================= #}
+  <template id="item-row-template">
+    <div class="item-row border rounded p-2 mb-2">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-5">
+          {{ form.items.entries[0].form.product_id.label }}
+          {{ form.items.entries[0].form.product_id(class_="select2 form-control") }}
+        </div>
+        <div class="col-md-3">
+          {{ form.items.entries[0].form.warehouse_id.label }}
+          {{ form.items.entries[0].form.warehouse_id(class_="select2 form-control") }}
+        </div>
+        <div class="col-md-2">
+          {{ form.items.entries[0].form.quantity.label }}
+          {{ form.items.entries[0].form.quantity(class="form-control item-qty") }}
+        </div>
+        <div class="col-md-2">
+          {{ form.items.entries[0].form.unit_cost.label }}
+          {{ form.items.entries[0].form.unit_cost(class="form-control item-cost") }}
+        </div>
+        <div class="col-md-2 mt-2">
+          {{ form.items.entries[0].form.declared_value.label }}
+          {{ form.items.entries[0].form.declared_value(class="form-control item-declared") }}
+        </div>
+        <div class="col-md-2 mt-4">
+          <button type="button" class="btn btn-sm btn-danger btn-remove-item">حذف</button>
+        </div>
       </div>
     </div>
-  </div>
-</template>
+  </template>
 
-<div class="mt-3">
-  <button class="btn btn-primary">حفظ الشحنة</button>
-  <a class="btn btn-secondary" href="{{ url_for('shipments_bp.list_shipments') }}">عودة</a>
-</div>
+  <template id="partner-row-template">
+    <div class="partner-row border rounded p-2 mb-2">
+      <div class="row g-2">
+        <div class="col-md-4">
+          {{ form.partners.entries[0].form.partner_id.label }}
+          {{ form.partners.entries[0].form.partner_id(class_="select2 form-control") }}
+        </div>
+        <div class="col-md-2">
+          {{ form.partners.entries[0].form.share_percentage.label }}
+          {{ form.partners.entries[0].form.share_percentage(class="form-control") }}
+        </div>
+        <div class="col-md-2">
+          {{ form.partners.entries[0].form.share_amount.label }}
+          {{ form.partners.entries[0].form.share_amount(class="form-control") }}
+        </div>
+        <div class="col-md-4">
+          {{ form.partners.entries[0].form.identity_number.label }}
+          {{ form.partners.entries[0].form.identity_number(class="form-control") }}
+        </div>
+        <div class="col-md-4 mt-2">
+          {{ form.partners.entries[0].form.phone_number.label }}
+          {{ form.partners.entries[0].form.phone_number(class="form-control") }}
+        </div>
+        <div class="col-md-4 mt-2">
+          {{ form.partners.entries[0].form.address.label }}
+          {{ form.partners.entries[0].form.address(class="form-control") }}
+        </div>
+        <div class="col-md-4 mt-2">
+          {{ form.partners.entries[0].form.unit_price_before_tax.label }}
+          {{ form.partners.entries[0].form.unit_price_before_tax(class="form-control") }}
+        </div>
+        <div class="col-md-4 mt-2">
+          {{ form.partners.entries[0].form.expiry_date.label }}
+          {{ form.partners.entries[0].form.expiry_date(class="form-control") }}
+        </div>
+        <div class="col-md-4 mt-2">
+          {{ form.partners.entries[0].form.notes.label }}
+          {{ form.partners.entries[0].form.notes(class="form-control") }}
+        </div>
+        <div class="col-md-2 mt-4">
+          <button type="button" class="btn btn-sm btn-danger btn-remove-partner">حذف</button>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <div class="mt-3">
+    <button class="btn btn-primary">حفظ الشحنة</button>
+    <a class="btn btn-secondary" href="{{ url_for('shipments_bp.list_shipments') }}">عودة</a>
+  </div>
 </form>
-
 {% endblock %}
 
 {% block scripts %}
-{{ super() }}
-<script src="{{ url_for('static', filename='js/shipments.js') }}"></script>
-<script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const itemsWrap   = document.getElementById('items-wrapper');
-  const addItemBtn  = document.getElementById('add-item');
-  const itemTpl     = document.getElementById('item-row-template');
-
-  const partnersWrap  = document.getElementById('partners-wrapper');
-  const addPartnerBtn = document.getElementById('add-partner');
-  const partnerTpl    = document.getElementById('partner-row-template');
-
-  function reindex(container, prefix){
-    [...container.querySelectorAll('[name^="'+prefix+'-"]')].forEach((el, i) => {
-      const parts = el.name.split('-');
-      parts[1] = i.toString();
-      el.name = parts.join('-');
-      if (el.id){
-        const idParts = el.id.split('-');
-        idParts[1] = i.toString();
-        el.id = idParts.join('-');
-      }
-    });
-  }
-
-  function initSelect2Within(el){
-    if (window.jQuery && jQuery.fn.select2){
-      jQuery(el).find('.select2').each(function(){
-        const $el = jQuery(this);
-        const endpoint = $el.dataset.endpoint;
-        if (endpoint){
-          $el.select2({
-            width: '100%',
-            placeholder: 'اختر...',
-            allowClear: true,
-            ajax: {
-              delay: 250,
-              url: endpoint,
-              data: params => ({ q: params.term || '', limit: 20 }),
-              processResults: (data) => {
-                const arr = Array.isArray(data) ? data : (data.results || data.data || []);
-                return { results: arr.map(x => ({ id: x.id, text: x.text || x.name || String(x.id) })) };
-              }
-            }
-          });
-        } else {
-          $el.select2({ width: '100%' });
-        }
-      });
-    }
-  }
-
-  if (addItemBtn && itemTpl && itemsWrap){
-    addItemBtn.addEventListener('click', () => {
-      const clone = document.importNode(itemTpl.content, true);
-      itemsWrap.appendChild(clone);
-      reindex(itemsWrap, 'items');
-      initSelect2Within(itemsWrap.lastElementChild);
-    });
-    itemsWrap.addEventListener('click', (e) => {
-      if (e.target.closest('.remove-item')){
-        e.target.closest('.item-row').remove();
-        reindex(itemsWrap, 'items');
-      }
-    });
-  }
-
-  if (addPartnerBtn && partnerTpl && partnersWrap){
-    addPartnerBtn.addEventListener('click', () => {
-      const clone = document.importNode(partnerTpl.content, true);
-      partnersWrap.appendChild(clone);
-      reindex(partnersWrap, 'partner_links');
-      initSelect2Within(partnersWrap.lastElementChild);
-    });
-    partnersWrap.addEventListener('click', (e) => {
-      if (e.target.closest('.remove-partner')){
-        e.target.closest('.partner-row').remove();
-        reindex(partnersWrap, 'partner_links');
-      }
-    });
-  }
-
-  initSelect2Within(document);
-});
-</script>
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/shipments.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
 {% endblock %}

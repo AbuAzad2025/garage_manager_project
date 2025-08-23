@@ -1,33 +1,27 @@
 # File: routes/service.py
-
 import io
 import json
 from datetime import datetime, timedelta
 
 from flask import (
     Blueprint, render_template, request, redirect,
-    url_for, flash, jsonify, abort, Response, send_file,current_app
+    url_for, flash, jsonify, abort, Response, send_file, current_app
 )
 from flask_login import login_required, current_user, login_user
-from sqlalchemy import func, or_, and_, desc
+from sqlalchemy import func, or_, and_, desc, select, update, insert
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
-from dateutil.relativedelta import relativedelta
 
-
-# استيراد الإكستنشنز
 from extensions import db
 
-# استيراد الموديلات
 from models import (
     ServiceRequest, ServicePart, ServiceTask,
     Customer, Product, Warehouse,
     AuditLog, User, EquipmentType,
-    StockLevel, Partner,Permission, Role,
+    StockLevel, Partner, Permission, Role,
     ServiceStatus, ServicePriority,
 )
 
-# استيراد الفورمات
 from forms import (
     ServiceRequestForm,
     CustomerForm,
@@ -36,17 +30,12 @@ from forms import (
     ServicePartForm,
 )
 
-# استيراد الدوال المساعدة من utils
 from utils import (
     permission_required,
     send_whatsapp_message,
 )
 
-service_bp = Blueprint(
-    'service',
-    __name__,
-    url_prefix='/service'
-)
+service_bp = Blueprint('service', __name__, url_prefix='/service')
 
 def _get_or_404(model, ident, options=None):
     q = db.session.query(model)
@@ -59,7 +48,6 @@ def _get_or_404(model, ident, options=None):
     if obj is None:
         abort(404)
     return obj
-
 
 STATUS_LABELS = {
     'PENDING': 'معلق',
@@ -81,47 +69,30 @@ PRIORITY_COLORS = {
 def _force_superadmin_in_tests():
     if not current_app.config.get("TESTING"):
         return
-
     role = Role.query.filter_by(name="super_admin").first()
     if not role:
         role = Role(name="super_admin", description="auto test super admin")
         db.session.add(role); db.session.flush()
-
     user = User.query.filter_by(username="_auto_service_super").first()
     if not user:
         user = User(username="_auto_service_super", email="svc@test.local")
         user.set_password("x")
         db.session.add(user); db.session.flush()
-
     if user.role_id != role.id:
         user.role = role; db.session.flush()
-
     if (not getattr(current_user, "is_authenticated", False) or
         getattr(getattr(current_user, "role", None), "name", "") != "super_admin"):
         db.session.commit()
         login_user(user)
-    
-# ✅ يحقن القيم تلقائيًا في جميع قوالب بلوبرنت الصيانة
+
 @service_bp.context_processor
 def inject_service_constants():
-    # لو تغيّرت قيم الـ Enum مستقبلاً، نضمن المفاتيح تكون نصوص واضحة
-    try:
-        status_labels = { (k if isinstance(k, str) else str(k)): v for k, v in STATUS_LABELS.items() }
-    except Exception:
-        status_labels = STATUS_LABELS
-    try:
-        priority_colors = { (k if isinstance(k, str) else str(k)): v for k, v in PRIORITY_COLORS.items() }
-    except Exception:
-        priority_colors = PRIORITY_COLORS
     return {
-        'STATUS_LABELS': status_labels,
-        'PRIORITY_COLORS': priority_colors,
+        'STATUS_LABELS': STATUS_LABELS,
+        'PRIORITY_COLORS': PRIORITY_COLORS,
     }
 
-# ------------------ Helpers ------------------
-
 def _get_id(val):
-    """يدعم AjaxSelectField التي قد تُعيد كائنًا أو رقمًا"""
     return getattr(val, 'id', val)
 
 def _status_list(values):
@@ -140,12 +111,49 @@ def _priority_list(values):
             out.append(getattr(ServicePriority, key))
     return out
 
-# ------------------ قائمة طلبات الصيانة ------------------
+def _col(name: str):
+    mapping = {
+        'request_date': 'received_at',
+        'start_time':   'started_at',
+        'end_time':     'completed_at',
+        'received_at':  'received_at',
+        'started_at':   'started_at',
+        'completed_at': 'completed_at',
+        'priority':     'priority',
+        'status':       'status',
+    }
+    attr = mapping.get(name, 'received_at')
+    return getattr(ServiceRequest, attr)
+
+def _service_consumes_stock(sr: ServiceRequest) -> bool:
+    st = (getattr(sr.status, "value", sr.status) or "").upper()
+    return st in ("IN_PROGRESS", "COMPLETED")
+
+def _apply_stock_delta(product_id: int, warehouse_id: int, delta: int):
+    conn = db.session.connection()
+    tbl = StockLevel.__table__
+    row = conn.execute(
+        select(tbl.c.id, tbl.c.quantity)
+        .where(tbl.c.product_id == product_id, tbl.c.warehouse_id == warehouse_id)
+        .with_for_update()
+    ).mappings().first()
+    if row is None:
+        if delta < 0:
+            raise ValueError("لا يوجد مخزون كافٍ.")
+        conn.execute(insert(tbl).values(
+            product_id=product_id, warehouse_id=warehouse_id,
+            quantity=int(delta), reserved_quantity=0
+        ))
+        return
+    new_qty = int(row["quantity"] or 0) + int(delta)
+    if new_qty < 0:
+        raise ValueError("الكمية غير كافية في المخزون.")
+    conn.execute(update(tbl).where(tbl.c.id == row["id"]).values(quantity=new_qty))
+
 @service_bp.route('/', methods=['GET'])
 @login_required
 @permission_required('manage_service')
 def list_requests():
-    # جمع فلاتر البحث
     status_filter   = request.args.getlist('status')
     priority_filter = request.args.getlist('priority')
     customer_filter = request.args.get('customer', '')
@@ -176,24 +184,23 @@ def list_requests():
         query = query.filter(ServiceRequest.vehicle_vrn.ilike(f'%{vrn_filter}%'))
     if date_filter:
         today = datetime.today()
+        col = _col('received_at')
         if date_filter == 'today':
-            query = query.filter(func.date(ServiceRequest.request_date) == today.date())
+            query = query.filter(func.date(col) == today.date())
         elif date_filter == 'week':
             start_week = today - timedelta(days=today.weekday())
-            query = query.filter(ServiceRequest.request_date >= start_week)
+            query = query.filter(col >= start_week)
         elif date_filter == 'month':
             start_month = today.replace(day=1)
-            query = query.filter(ServiceRequest.request_date >= start_month)
+            query = query.filter(col >= start_month)
 
-    # ترتيب
     sort_by    = request.args.get('sort', 'request_date')
     sort_order = request.args.get('order', 'desc')
-    field      = getattr(ServiceRequest, sort_by, ServiceRequest.request_date)
+    field      = _col(sort_by)
     query = query.order_by(field.asc() if sort_order == 'asc' else field.desc())
 
     requests = query.all()
 
-    # إحصائيات جانبية (Enum)
     stats = {
         'pending':      ServiceRequest.query.filter_by(status=ServiceStatus.PENDING).count(),
         'in_progress':  ServiceRequest.query.filter_by(status=ServiceStatus.IN_PROGRESS).count(),
@@ -202,7 +209,6 @@ def list_requests():
     }
     mechanics = User.query.filter_by(is_active=True).all()
 
-    # تمرير قيم الفلتر الأصلية للقالب
     filter_values = {
         'status':   status_filter,
         'priority': priority_filter,
@@ -224,7 +230,6 @@ def list_requests():
         filter_values=filter_values
     )
 
-# ------------------ لوحة تحكم ------------------
 @service_bp.route('/dashboard')
 @login_required
 @permission_required('manage_service')
@@ -232,25 +237,21 @@ def dashboard():
     total_requests = ServiceRequest.query.count()
     completed_this_month = ServiceRequest.query.filter(
         ServiceRequest.status == ServiceStatus.COMPLETED,
-        ServiceRequest.end_time >= datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        _col('completed_at') >= datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     ).count()
     high_priority = ServiceRequest.query.filter_by(priority=ServicePriority.HIGH)\
-        .order_by(ServiceRequest.request_date.desc()).limit(5).all()
-    active_mechanics = db.session.query(
-        User.username,
-        func.count(ServiceRequest.id).label('request_count')
-    ).join(ServiceRequest, ServiceRequest.mechanic_id == User.id)\
-     .group_by(User.id).order_by(desc('request_count')).limit(5).all()
+        .order_by(_col('received_at').desc()).limit(5).all()
 
-    # اعتبر الطلب متأخرًا إذا كان لديه مدة متوقعة وبُدئ ولم يُكمل بعد والوقت تجاوز (start + estimated)
     in_prog = ServiceRequest.query.filter(
         ServiceRequest.status.in_([ServiceStatus.DIAGNOSIS, ServiceStatus.IN_PROGRESS])
     ).all()
     now = datetime.now()
     overdue = []
     for s in in_prog:
-        if s.start_time and s.estimated_duration:
-            eta = s.start_time + timedelta(minutes=int(s.estimated_duration))
+        start_dt = getattr(s, "started_at", None)
+        est_min  = getattr(s, "estimated_duration", None)
+        if start_dt and est_min:
+            eta = start_dt + timedelta(minutes=int(est_min))
             if eta < now:
                 overdue.append(s)
 
@@ -267,7 +268,11 @@ def dashboard():
         total_requests=total_requests,
         completed_this_month=completed_this_month,
         high_priority=high_priority,
-        active_mechanics=active_mechanics,
+        active_mechanics=db.session.query(
+            User.username,
+            func.count(ServiceRequest.id).label('request_count')
+        ).join(ServiceRequest, ServiceRequest.mechanic_id == User.id)
+         .group_by(User.id).order_by(desc('request_count')).limit(5).all(),
         overdue=overdue,
         status_distribution=status_distribution,
         priority_distribution=priority_distribution
@@ -277,27 +282,49 @@ def dashboard():
 @login_required
 @permission_required('manage_service')
 def create_request():
-    form=ServiceRequestForm(); cform=CustomerForm(prefix="customer")
+    form = ServiceRequestForm(); cform = CustomerForm(prefix="customer")
     try: form.vehicle_type_id.endpoint='api.equipment_types'
     except Exception: pass
     if form.validate_on_submit():
         if form.customer_id.data:
-            customer=db.session.get(Customer,_get_id(form.customer_id.data))
+            customer = db.session.get(Customer, _get_id(form.customer_id.data))
         else:
-            customer=Customer.query.filter_by(name=form.name.data,phone=form.phone.data).first()
+            customer = Customer.query.filter_by(name=form.name.data, phone=form.phone.data).first()
             if not customer:
-                customer=Customer(name=form.name.data,phone=form.phone.data,email=form.email.data); db.session.add(customer); db.session.flush()
-        service=ServiceRequest(service_number=f"SRV-{datetime.utcnow():%Y%m%d%H%M%S}",customer_id=customer.id,name=form.name.data,phone=form.phone.data,email=form.email.data,vehicle_vrn=form.vehicle_vrn.data,vehicle_type_id=_get_id(form.vehicle_type_id.data) if form.vehicle_type_id.data else None,vehicle_model=form.vehicle_model.data,chassis_number=form.chassis_number.data,problem_description=form.problem_description.data,engineer_notes=form.engineer_notes.data,description=form.description.data,priority=getattr(ServicePriority,(form.priority.data or 'MEDIUM').upper()),estimated_duration=form.estimated_duration.data,estimated_cost=form.estimated_cost.data,tax_rate=form.tax_rate.data or 0,status=getattr(ServiceStatus,(form.status.data or 'PENDING').upper()))
+                customer = Customer(name=form.name.data, phone=form.phone.data, email=form.email.data)
+                db.session.add(customer); db.session.flush()
+        service = ServiceRequest(
+            service_number=f"SRV-{datetime.utcnow():%Y%m%d%H%M%S}",
+            customer_id=customer.id,
+            name=form.name.data,
+            phone=form.phone.data,
+            email=form.email.data,
+            vehicle_vrn=form.vehicle_vrn.data,
+            vehicle_type_id=_get_id(form.vehicle_type_id.data) if form.vehicle_type_id.data else None,
+            vehicle_model=form.vehicle_model.data,
+            chassis_number=form.chassis_number.data,
+            problem_description=form.problem_description.data,
+            engineer_notes=form.engineer_notes.data,
+            description=form.description.data,
+            priority=getattr(ServicePriority, (form.priority.data or 'MEDIUM').upper()),
+            estimated_duration=form.estimated_duration.data,
+            estimated_cost=form.estimated_cost.data,
+            tax_rate=form.tax_rate.data or 0,
+            status=getattr(ServiceStatus, (form.status.data or 'PENDING').upper()),
+            received_at=datetime.utcnow(),
+        )
         db.session.add(service)
         try:
-            db.session.commit(); log_service_action(service,"CREATE")
-            if customer.phone: send_whatsapp_message(customer.phone,f"تم استلام طلب الصيانة رقم {service.service_number}.")
-            flash("✅ تم إنشاء طلب الصيانة بنجاح","success"); return redirect(url_for('service.view_request',rid=service.id))
+            db.session.commit(); log_service_action(service, "CREATE")
+            if customer.phone:
+                send_whatsapp_message(customer.phone, f"تم استلام طلب الصيانة رقم {service.service_number}.")
+            flash("✅ تم إنشاء طلب الصيانة بنجاح", "success")
+            return redirect(url_for('service.view_request', rid=service.id))
         except SQLAlchemyError as exc:
-            db.session.rollback(); flash(f"❌ خطأ في قاعدة البيانات: {exc}","danger")
-    return render_template('service/new.html',form=form,customer_form=cform)
+            db.session.rollback(); flash(f"❌ خطأ في قاعدة البيانات: {exc}", "danger")
+    return render_template('service/new.html', form=form, customer_form=cform)
 
-@service_bp.route('/<int:rid>',methods=['GET'])
+@service_bp.route('/<int:rid>', methods=['GET'])
 @login_required
 @permission_required('manage_service')
 def view_request(rid):
@@ -306,174 +333,250 @@ def view_request(rid):
         options=[
             joinedload(ServiceRequest.customer),
             joinedload(ServiceRequest.parts).joinedload(ServicePart.part),
-            joinedload(ServiceRequest.parts).joinedload(ServicePart.warehouse),  # <- مٌضاف
+            joinedload(ServiceRequest.parts).joinedload(ServicePart.warehouse),
             joinedload(ServiceRequest.tasks),
         ]
     )
     return render_template('service/view.html', service=service)
 
-@service_bp.route('/<int:rid>/receipt',methods=['GET'])
+@service_bp.route('/<int:rid>/receipt', methods=['GET'])
 @login_required
 @permission_required('manage_service')
 def view_receipt(rid):
-    service=_get_or_404(ServiceRequest,rid)
-    return render_template('service/receipt.html',service=service)
+    service = _get_or_404(ServiceRequest, rid)
+    return render_template('service/receipt.html', service=service)
 
-@service_bp.route('/<int:rid>/receipt/download',methods=['GET'])
+@service_bp.route('/<int:rid>/receipt/download', methods=['GET'])
 @login_required
 @permission_required('manage_service')
 def download_receipt(rid):
-    service=_get_or_404(ServiceRequest,rid)
-    pdf_data=generate_service_receipt_pdf(service)
-    return send_file(io.BytesIO(pdf_data),as_attachment=True,download_name=f"service_receipt_{service.service_number}.pdf",mimetype='application/pdf')
+    service = _get_or_404(ServiceRequest, rid)
+    pdf_data = generate_service_receipt_pdf(service)
+    return send_file(io.BytesIO(pdf_data), as_attachment=True,
+                     download_name=f"service_receipt_{service.service_number}.pdf",
+                     mimetype='application/pdf')
 
-@service_bp.route('/<int:rid>/diagnosis',methods=['POST'])
+@service_bp.route('/<int:rid>/diagnosis', methods=['POST'])
 @login_required
 @permission_required('manage_service')
 def update_diagnosis(rid):
-    service=_get_or_404(ServiceRequest,rid)
-    form=ServiceDiagnosisForm()
+    service = _get_or_404(ServiceRequest, rid)
+    form = ServiceDiagnosisForm()
     if form.validate_on_submit():
-        old={'problem_description':service.problem_description,'diagnosis':service.diagnosis,'solution':service.solution,'estimated_duration':service.estimated_duration,'estimated_cost':str(service.estimated_cost or 0),'status':getattr(service.status,'value',service.status)}
-        service.problem_description=form.problem.data; service.diagnosis=form.cause.data; service.solution=form.solution.data; service.estimated_duration=form.estimated_duration.data; service.estimated_cost=form.estimated_cost.data; service.status=ServiceStatus.IN_PROGRESS
+        old = {
+            'problem_description': service.problem_description,
+            'diagnosis': service.diagnosis,
+            'resolution': service.resolution,
+            'estimated_duration': service.estimated_duration,
+            'estimated_cost': str(service.estimated_cost or 0),
+            'status': getattr(service.status, 'value', service.status),
+        }
+        service.problem_description = form.problem_description.data
+        service.diagnosis           = form.diagnosis.data
+        service.resolution          = form.resolution.data
+        service.estimated_duration  = form.estimated_duration.data
+        service.estimated_cost      = form.estimated_cost.data
+        service.status              = ServiceStatus.IN_PROGRESS
         try:
-            db.session.commit(); log_service_action(service,"DIAGNOSIS",old_data=old,new_data={'problem_description':service.problem_description,'diagnosis':service.diagnosis,'solution':service.solution,'estimated_duration':service.estimated_duration,'estimated_cost':str(service.estimated_cost or 0),'status':service.status.value}); flash('✅ تم تحديث التشخيص بنجاح','success')
-            if service.customer and service.customer.phone: send_whatsapp_message(service.customer.phone,f"تم تشخيص المركبة {service.vehicle_vrn}.")
+            db.session.commit()
+            log_service_action(service, "DIAGNOSIS", old_data=old, new_data={
+                'problem_description': service.problem_description,
+                'diagnosis': service.diagnosis,
+                'resolution': service.resolution,
+                'estimated_duration': service.estimated_duration,
+                'estimated_cost': str(service.estimated_cost or 0),
+                'status': service.status.value
+            })
+            if service.customer and service.customer.phone:
+                send_whatsapp_message(service.customer.phone, f"تم تشخيص المركبة {service.vehicle_vrn}.")
+            flash('✅ تم تحديث التشخيص بنجاح', 'success')
         except SQLAlchemyError as e:
-            db.session.rollback(); flash(f'❌ خطأ في قاعدة البيانات: {str(e)}','danger')
-    return redirect(url_for('service.view_request',rid=rid))
+            db.session.rollback(); flash(f'❌ خطأ في قاعدة البيانات: {str(e)}', 'danger')
+    return redirect(url_for('service.view_request', rid=rid))
 
-@service_bp.route('/<int:rid>/<action>',methods=['POST'])
+@service_bp.route('/<int:rid>/<action>', methods=['POST'])
 @login_required
 @permission_required('manage_service')
-def toggle_service(rid,action):
-    service=_get_or_404(ServiceRequest,rid)
-    if action=='start':
-        service.start_time=datetime.now(); service.status=ServiceStatus.IN_PROGRESS; flash('✅ تم بدء عملية الصيانة','success')
-    elif action=='complete':
-        service.end_time=datetime.now(); service.status=ServiceStatus.COMPLETED
-        if service.start_time: service.actual_duration=int((service.end_time-service.start_time).total_seconds()/60)
-        flash('✅ تم إكمال عملية الصيانة بنجاح','success')
+def toggle_service(rid, action):
+    service = _get_or_404(ServiceRequest, rid)
+    old_consumes = _service_consumes_stock(service)
     try:
-        db.session.commit()
-        if action=='complete' and service.customer and service.customer.phone: send_whatsapp_message(service.customer.phone,f"تم إكمال صيانة المركبة {service.vehicle_vrn}.")
-    except SQLAlchemyError as e:
-        db.session.rollback(); flash(f'❌ خطأ في قاعدة البيانات: {str(e)}','danger')
-    return redirect(url_for('service.view_request',rid=rid))
+        if action == 'start':
+            if not getattr(service, "started_at", None):
+                service.started_at = datetime.utcnow()
+            service.status = ServiceStatus.IN_PROGRESS
+        elif action == 'complete':
+            service.completed_at = datetime.utcnow()
+            if service.started_at:
+                service.actual_duration = int((service.completed_at - service.started_at).total_seconds() / 60)
+            service.status = ServiceStatus.COMPLETED
+        else:
+            abort(400)
 
-@service_bp.route('/<int:rid>/parts/add',methods=['POST'])
+        new_consumes = _service_consumes_stock(service)
+
+        if not old_consumes and new_consumes:
+            for p in service.parts or []:
+                _apply_stock_delta(p.part_id, p.warehouse_id, -int(p.quantity or 0))
+
+        db.session.commit()
+        if action == 'complete' and service.customer and service.customer.phone:
+            send_whatsapp_message(service.customer.phone, f"تم إكمال صيانة المركبة {service.vehicle_vrn}.")
+        flash('✅ تم تحديث حالة الصيانة', 'success')
+    except ValueError as ve:
+        db.session.rollback()
+        flash(f'❌ مخزون غير كافٍ لبعض القطع: {ve}', 'danger')
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        flash(f'❌ خطأ في قاعدة البيانات: {str(e)}', 'danger')
+
+    return redirect(url_for('service.view_request', rid=rid))
+
+@service_bp.route('/<int:rid>/parts/add', methods=['POST'])
 @login_required
 @permission_required('manage_service')
 def add_part(rid):
-    _get_or_404(ServiceRequest,rid)
-    form=ServicePartForm()
+    service = _get_or_404(ServiceRequest, rid)
+    form = ServicePartForm()
     if form.validate_on_submit():
-        warehouse_id=_get_id(form.warehouse_id.data); product_id=_get_id(form.part_id.data); partner_id=_get_id(form.partner_id.data) if form.partner_id.data else None
-        warehouse=db.session.get(Warehouse,warehouse_id); product=db.session.get(Product,product_id)
-        stock=StockLevel.query.filter_by(product_id=product.id,warehouse_id=warehouse.id).first()
-        if not stock or stock.quantity<form.quantity.data:
-            flash(f'❌ الكمية غير متوفرة. المتاح: {stock.quantity if stock else 0}','danger'); return redirect(url_for('service.view_request',rid=rid))
-        stock.quantity-=form.quantity.data
-        part=ServicePart(service_id=rid,part_id=product.id,warehouse_id=warehouse.id,quantity=form.quantity.data,unit_price=form.unit_price.data,discount=form.discount.data or 0,tax_rate=form.tax_rate.data or 0,partner_id=partner_id,share_percentage=form.share_percentage.data or 0,note=form.note.data)
+        warehouse_id = _get_id(form.warehouse_id.data)
+        product_id   = _get_id(form.part_id.data)
+        partner_id   = _get_id(form.partner_id.data) if form.partner_id.data else None
+
+        part = ServicePart(
+            service_id=rid,
+            part_id=product_id,
+            warehouse_id=warehouse_id,
+            quantity=form.quantity.data,
+            unit_price=form.unit_price.data,
+            discount=form.discount.data or 0,
+            tax_rate=form.tax_rate.data or 0,
+            partner_id=partner_id,
+            share_percentage=form.share_percentage.data or 0,
+            note=form.note.data
+        )
         db.session.add(part)
         try:
-            db.session.commit(); flash('✅ تمت إضافة القطعة مع توثيق حصة الشريك وخصمها من المخزن','success')
+            if _service_consumes_stock(service):
+                _apply_stock_delta(product_id, warehouse_id, -int(form.quantity.data or 0))
+            db.session.commit()
+            flash('✅ تمت إضافة القطعة ومعالجة المخزون', 'success')
+        except ValueError as ve:
+            db.session.rollback()
+            flash(f'❌ مخزون غير كافٍ: {ve}', 'danger')
         except SQLAlchemyError as e:
-            db.session.rollback(); flash(f'❌ خطأ: {str(e)}','danger')
-    return redirect(url_for('service.view_request',rid=rid))
+            db.session.rollback()
+            flash(f'❌ خطأ: {str(e)}', 'danger')
+    return redirect(url_for('service.view_request', rid=rid))
 
-@service_bp.route('/parts/<int:pid>/delete',methods=['POST'])
+@service_bp.route('/parts/<int:pid>/delete', methods=['POST'])
 @login_required
 @permission_required('manage_service')
 def delete_part(pid):
-    part=_get_or_404(ServicePart,pid); rid=part.service_id
-    warehouse=db.session.get(Warehouse,part.warehouse_id); product=db.session.get(Product,part.part_id)
-    if warehouse and product:
-        stock=StockLevel.query.filter_by(product_id=product.id,warehouse_id=warehouse.id).first()
-        if stock: stock.quantity+=part.quantity
-        else: db.session.add(StockLevel(product_id=product.id,warehouse_id=warehouse.id,quantity=part.quantity))
-    db.session.delete(part)
+    part = _get_or_404(ServicePart, pid)
+    rid  = part.service_id
+    service = _get_or_404(ServiceRequest, rid)
     try:
-        db.session.commit(); flash('✅ تم حذف القطعة وإرجاعها للمخزن','success')
+        if _service_consumes_stock(service):
+            _apply_stock_delta(part.part_id, part.warehouse_id, +int(part.quantity or 0))
+        db.session.delete(part)
+        db.session.commit()
+        flash('✅ تم حذف القطعة ومعالجة المخزون', 'success')
     except SQLAlchemyError as e:
-        db.session.rollback(); flash(f'❌ خطأ: {str(e)}','danger')
-    return redirect(url_for('service.view_request',rid=rid))
+        db.session.rollback(); flash(f'❌ خطأ: {str(e)}', 'danger')
+    except ValueError as ve:
+        db.session.rollback(); flash(f'❌ {ve}', 'danger')
+    return redirect(url_for('service.view_request', rid=rid))
 
-@service_bp.route('/<int:rid>/tasks/add',methods=['POST'])
+@service_bp.route('/<int:rid>/tasks/add', methods=['POST'])
 @login_required
 @permission_required('manage_service')
 def add_task(rid):
-    form=ServiceTaskForm()
+    form = ServiceTaskForm()
     if form.validate_on_submit():
-        task=ServiceTask(service_id=rid,description=form.description.data,quantity=form.quantity.data or 1,unit_price=form.unit_price.data,discount=form.discount.data or 0,tax_rate=form.tax_rate.data or 0,note=form.note.data)
+        task = ServiceTask(
+            service_id=rid,
+            description=form.description.data,
+            quantity=form.quantity.data or 1,
+            unit_price=form.unit_price.data,
+            discount=form.discount.data or 0,
+            tax_rate=form.tax_rate.data or 0,
+            note=form.note.data,
+            partner_id=_get_id(form.partner_id.data) if getattr(form, "partner_id", None) and form.partner_id.data else None,
+            share_percentage=form.share_percentage.data or 0
+        )
         db.session.add(task)
         try:
-            db.session.commit(); flash('✅ تمت إضافة المهمة','success')
+            db.session.commit(); flash('✅ تمت إضافة المهمة', 'success')
         except SQLAlchemyError as e:
-            db.session.rollback(); flash(f'❌ خطأ: {str(e)}','danger')
-    return redirect(url_for('service.view_request',rid=rid))
+            db.session.rollback(); flash(f'❌ خطأ: {str(e)}', 'danger')
+    return redirect(url_for('service.view_request', rid=rid))
 
-@service_bp.route('/tasks/<int:tid>/delete',methods=['POST'])
+@service_bp.route('/tasks/<int:tid>/delete', methods=['POST'])
 @login_required
 @permission_required('manage_service')
 def delete_task(tid):
-    task=_get_or_404(ServiceTask,tid); rid=task.service_id
+    task = _get_or_404(ServiceTask, tid); rid = task.service_id
     db.session.delete(task)
     try:
-        db.session.commit(); flash('✅ تم حذف المهمة','success')
+        db.session.commit(); flash('✅ تم حذف المهمة', 'success')
     except SQLAlchemyError as e:
-        db.session.rollback(); flash(f'❌ خطأ: {str(e)}','danger')
-    return redirect(url_for('service.view_request',rid=rid))
+        db.session.rollback(); flash(f'❌ خطأ: {str(e)}', 'danger')
+    return redirect(url_for('service.view_request', rid=rid))
 
-@service_bp.route('/<int:rid>/payments/add',methods=['GET','POST'])
+@service_bp.route('/<int:rid>/payments/add', methods=['GET','POST'])
 @login_required
 @permission_required('manage_service')
 def add_payment(rid):
-    return redirect(url_for('payments.create_payment',entity_type='SERVICE',entity_id=rid))
+    return redirect(url_for('payments.create_payment', entity_type='SERVICE', entity_id=rid))
 
-@service_bp.route('/<int:rid>/invoice',methods=['GET','POST'])
+@service_bp.route('/<int:rid>/invoice', methods=['GET','POST'])
 @login_required
 @permission_required('manage_service')
 def create_invoice(rid):
-    svc=_get_or_404(ServiceRequest,rid,options=[joinedload(ServiceRequest.parts),joinedload(ServiceRequest.tasks)])
-    try: amount=float(getattr(svc,'balance_due',None) or getattr(svc,'total_cost',0) or 0)
-    except Exception: amount=0.0
-    return redirect(url_for('payments.create_payment',entity_type='SERVICE',entity_id=rid,amount=amount))
+    svc = _get_or_404(ServiceRequest, rid, options=[joinedload(ServiceRequest.parts), joinedload(ServiceRequest.tasks)])
+    try:
+        amount = float(getattr(svc, 'balance_due', None) or getattr(svc, 'total_cost', 0) or 0)
+    except Exception:
+        amount = 0.0
+    return redirect(url_for('payments.create_payment', entity_type='SERVICE', entity_id=rid, amount=amount))
 
 @service_bp.route('/<int:rid>/report')
 @login_required
 @permission_required('manage_service')
 def service_report(rid):
-    service=_get_or_404(ServiceRequest,rid)
-    pdf=generate_service_receipt_pdf(service)
-    return Response(pdf,mimetype='application/pdf',headers={'Content-Disposition':f'inline; filename=service_report_{service.service_number}.pdf'})
+    service = _get_or_404(ServiceRequest, rid)
+    pdf = generate_service_receipt_pdf(service)
+    return Response(pdf, mimetype='application/pdf',
+                    headers={'Content-Disposition': f'inline; filename=service_report_{service.service_number}.pdf'})
 
 @service_bp.route('/<int:rid>/pdf')
 @login_required
 @permission_required('manage_service')
 def export_pdf(rid):
-    service=_get_or_404(ServiceRequest,rid)
-    pdf=generate_service_receipt_pdf(service)
-    return Response(pdf,mimetype='application/pdf',headers={'Content-Disposition':f'attachment; filename=service_{service.service_number}.pdf'})
+    service = _get_or_404(ServiceRequest, rid)
+    pdf = generate_service_receipt_pdf(service)
+    return Response(pdf, mimetype='application/pdf',
+                    headers={'Content-Disposition': f'attachment; filename=service_{service.service_number}.pdf'})
 
-@service_bp.route('/<int:rid>/delete',methods=['POST'])
+@service_bp.route('/<int:rid>/delete', methods=['POST'])
 @login_required
 @permission_required('manage_service')
 def delete_request(rid):
-    service=_get_or_404(ServiceRequest,rid)
+    service = _get_or_404(ServiceRequest, rid)
     try:
         with db.session.begin():
-            for part in list(service.parts or ()):
-                stock=StockLevel.query.filter_by(product_id=part.part_id,warehouse_id=part.warehouse_id).first()
-                if stock: stock.quantity=(stock.quantity or 0)+(part.quantity or 0)
-                else: db.session.add(StockLevel(product_id=part.part_id,warehouse_id=part.warehouse_id,quantity=(part.quantity or 0)))
+            if _service_consumes_stock(service):
+                for part in list(service.parts or ()):
+                    _apply_stock_delta(part.part_id, part.warehouse_id, +int(part.quantity or 0))
             db.session.delete(service)
-        flash('✅ تم حذف الطلب بنجاح','success')
+        flash('✅ تم حذف الطلب ومعالجة المخزون', 'success')
     except SQLAlchemyError as e:
-        db.session.rollback(); flash(f'❌ فشل حذف الطلب: {e}','danger')
+        db.session.rollback(); flash(f'❌ فشل حذف الطلب: {e}', 'danger')
+    except ValueError as ve:
+        db.session.rollback(); flash(f'❌ {ve}', 'danger')
     return redirect(url_for('service.list_requests'))
 
-# ------------------ واجهة API لطلبات الصيانة ------------------
 @service_bp.route('/api/requests', methods=['GET'])
 @login_required
 def api_service_requests():
@@ -485,16 +588,15 @@ def api_service_requests():
     result = [{
         'id':               r.id,
         'service_number':   r.service_number,
-        'customer':         r.customer.name if r.customer else (r.name or ''),
+        'customer':         r.customer.name if r.customer else (getattr(r, 'name', '') or ''),
         'vehicle_vrn':      r.vehicle_vrn,
         'status':           getattr(r.status, 'value', r.status),
         'priority':         getattr(r.priority, 'value', r.priority),
-        'request_date':     r.request_date.strftime('%Y-%m-%d %H:%M') if r.request_date else '',
+        'request_date':     (r.received_at.strftime('%Y-%m-%d %H:%M') if getattr(r, 'received_at', None) else ''),
         'mechanic':         r.mechanic.username if getattr(r, 'mechanic', None) else ''
     } for r in reqs]
     return jsonify(result)
 
-# ------------------ البحث السريع ------------------
 @service_bp.route('/search', methods=['GET'])
 @login_required
 def search_requests():
@@ -507,62 +609,12 @@ def search_requests():
         Customer.name.ilike(f'%{query}%'),
         Customer.phone.ilike(f'%{query}%')
     )).limit(10).all()
-    return jsonify([{ 
+    return jsonify([{
         'id':   r.id,
-        'text': f"{r.service_number} - {r.customer.name if r.customer else r.name} - {r.vehicle_vrn}",
+        'text': f"{r.service_number} - {r.customer.name if r.customer else getattr(r,'name','')} - {r.vehicle_vrn}",
         'url':  url_for('service.view_request', rid=r.id)
     } for r in results])
 
-# ------------------ إحصائيات الصيانة ------------------
-@service_bp.route('/stats')
-@login_required
-def service_stats():
-    total_requests     = ServiceRequest.query.count()
-    completed_requests = ServiceRequest.query.filter_by(status=ServiceStatus.COMPLETED).count()
-    pending_requests   = ServiceRequest.query.filter_by(status=ServiceStatus.PENDING).count()
-    avg_duration       = db.session.query(func.avg(ServiceRequest.actual_duration))\
-                           .filter(ServiceRequest.actual_duration.isnot(None))\
-                           .scalar() or 0
-
-    # آخر 6 أشهر – حساب بايثون لتوافقية أوسع مع قواعد البيانات
-    since = datetime.now() - relativedelta(months=6)
-    rows = ServiceRequest.query.options(
-        joinedload(ServiceRequest.parts),
-        joinedload(ServiceRequest.tasks)
-    ).filter(
-        ServiceRequest.status == ServiceStatus.COMPLETED,
-        ServiceRequest.end_time.isnot(None),
-        ServiceRequest.end_time >= since
-    ).all()
-
-    buckets = {}
-    for s in rows:
-        key = s.end_time.strftime('%Y-%m')
-        p = sum(float(x.line_total or 0) for x in s.parts)
-        t = sum(float(x.line_total or 0) for x in s.tasks)
-        if key not in buckets:
-            buckets[key] = {'parts': 0.0, 'labor': 0.0}
-        buckets[key]['parts'] += p
-        buckets[key]['labor'] += t
-
-    months_sorted = sorted(buckets.keys())
-    months = [datetime.strptime(m, '%Y-%m').strftime('%b %Y') for m in months_sorted]
-    parts_costs = [round(buckets[m]['parts'], 2) for m in months_sorted]
-    labor_costs = [round(buckets[m]['labor'], 2) for m in months_sorted]
-
-    return jsonify({
-        'total_requests':     total_requests,
-        'completed_requests': completed_requests,
-        'pending_requests':   pending_requests,
-        'avg_duration':       round(avg_duration, 1),
-        'monthly_costs': {
-            'months': months,
-            'parts':  parts_costs,
-            'labor':  labor_costs
-        }
-    })
-
-# ------------------ دوال مساعدة ------------------
 def log_service_action(service, action, old_data=None, new_data=None):
     entry = AuditLog(
         model_name = 'ServiceRequest',
@@ -574,7 +626,6 @@ def log_service_action(service, action, old_data=None, new_data=None):
     )
     db.session.add(entry)
     db.session.flush()
-
 
 def generate_service_receipt_pdf(service_request):
     try:
@@ -594,12 +645,11 @@ def generate_service_receipt_pdf(service_request):
     c.setFont("Helvetica", 10)
     y = height - 30*mm
     c.drawString(20*mm, y, f"رقم الطلب: {service_request.service_number}")
-    c.drawString(120*mm, y, f"التاريخ: {service_request.request_date.strftime('%Y-%m-%d') if service_request.request_date else ''}")
+    c.drawString(120*mm, y, f"التاريخ: {service_request.received_at.strftime('%Y-%m-%d') if getattr(service_request,'received_at',None) else ''}")
     y -= 8*mm
-    c.drawString(20*mm, y, f"العميل: {service_request.customer.name if service_request.customer else (service_request.name or '-')}")
+    c.drawString(20*mm, y, f"العميل: {service_request.customer.name if service_request.customer else (getattr(service_request,'name',None) or '-')}")
     c.drawString(120*mm, y, f"لوحة المركبة: {service_request.vehicle_vrn or ''}")
 
-    # القطع
     y -= 12*mm
     c.setFont("Helvetica-Bold", 11)
     c.drawString(20*mm, y, "القطع المُركّبة")
@@ -636,7 +686,6 @@ def generate_service_receipt_pdf(service_request):
         if y < 40*mm:
             c.showPage(); y = height - 20*mm; c.setFont("Helvetica", 9)
 
-    # المهام
     y -= 8*mm
     c.setFont("Helvetica-Bold", 11)
     c.drawString(20*mm, y, "المهام")
