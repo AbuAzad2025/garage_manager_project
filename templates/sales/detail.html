@@ -1,7 +1,6 @@
-{# File: templates/sales/detail.html #}
+<!-- File: templates/sales/detail.html -->
 {% extends 'base.html' %}
 {% block title %}تفاصيل فاتورة {{ sale.sale_number }}{% endblock %}
-
 {% block head_extra %}
   {{ super() }}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/sales.css') }}">
@@ -10,7 +9,6 @@
     .table tfoot td{background:#f8f9fa;font-weight:700}
   </style>
 {% endblock %}
-
 {% block content %}
 <div class="container py-4">
   <div class="card rounded-4">
@@ -21,7 +19,6 @@
         <span class="badge {{ sale.status_class }}">{{ sale.status_label }}</span>
       </div>
     </div>
-
     <div class="card-body bg-light">
       <div class="row mb-3 g-3">
         <div class="col-md-4"><strong>التاريخ:</strong> {{ sale.date_iso }}</div>
@@ -30,9 +27,7 @@
         <div class="col-md-4"><strong>نسبة الضريبة:</strong> {{ sale.tax_rate or 0 }}%</div>
         <div class="col-md-4"><strong>تكلفة الشحن:</strong> {{ "%.2f"|format(sale.shipping_cost or 0) }} {{ sale.currency }}</div>
       </div>
-
       <hr>
-
       <h5 class="mb-2"><i class="fas fa-list me-2"></i> تفاصيل البنود</h5>
       <div class="table-responsive">
         <table class="table table-bordered table-hover align-middle">
@@ -82,23 +77,18 @@
           </tfoot>
         </table>
       </div>
-
       <hr>
-
       <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
         <h5 class="mb-0"><i class="fas fa-money-bill-wave me-2"></i> سجل الدفعات</h5>
         <div class="d-flex gap-2">
-          <a class="btn btn-outline-primary btn-sm"
-             href="{{ url_for('sales_bp.sale_payments', id=sale.id) }}">
+          <a class="btn btn-outline-primary btn-sm" href="{{ url_for('sales_bp.sale_payments', id=sale.id) }}">
             <i class="fas fa-list me-1"></i> السجل الخاص بهذه الفاتورة
           </a>
-          <a class="btn btn-success btn-sm"
-             href="{{ url_for('payments.create_payment', entity_type='SALE', entity_id=sale.id) }}">
+          <a class="btn btn-success btn-sm" href="{{ url_for('payments.create_payment', entity_type='SALE', entity_id=sale.id) }}">
             <i class="fas fa-plus me-1"></i> إضافة دفعة
           </a>
         </div>
       </div>
-
       <div class="table-responsive">
         <table class="table table-sm align-middle">
           <thead>
@@ -123,7 +113,6 @@
           </tbody>
         </table>
       </div>
-
       <div class="row justify-content-end mt-3">
         <div class="col-md-5">
           <table class="table table-bordered">
@@ -142,16 +131,13 @@
           </table>
         </div>
       </div>
-
       <hr>
-
       <div class="mb-4">
         <label class="form-label fw-bold">ملاحظات</label>
         <div class="border rounded p-3 bg-white">
           {{ sale.notes or 'لا توجد ملاحظات' }}
         </div>
       </div>
-
       <div class="d-flex justify-content-between mt-4">
         <div class="d-flex gap-2 flex-wrap">
           <a href="{{ url_for('sales_bp.edit_sale', id=sale.id) }}" class="btn btn-warning">
@@ -177,7 +163,6 @@
           <i class="fas fa-arrow-left me-1"></i> العودة للقائمة
         </a>
       </div>
-
     </div>
   </div>
 </div>

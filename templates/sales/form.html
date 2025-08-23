@@ -1,37 +1,33 @@
-{# File: templates/sales/form.html #}
+<!-- File: templates/sales/form.html -->
 {% extends 'base.html' %}
 {% block title %}{{ title }}{% endblock %}
-
 {% block head_extra %}
   {{ super() }}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/sales.css') }}">
 {% endblock %}
-
 {% block content %}
 <div class="container py-5">
   <div class="row justify-content-center">
     <div class="col-lg-10">
       <div class="card shadow-lg rounded-4 border-0">
         <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-          <h3 class="mb-0">
-            <i class="fas fa-file-invoice me-2"></i> {{ title }}
-          </h3>
+          <h3 class="mb-0"><i class="fas fa-file-invoice me-2"></i> {{ title }}</h3>
           <span class="badge bg-secondary">{{ form.status.data or 'مسودة' }}</span>
         </div>
-
         <div class="card-body bg-light">
           <form method="post" id="saleForm" class="needs-validation" novalidate>
             {{ form.hidden_tag() }}
-
-            <!-- بيانات الفاتورة -->
             <div class="row g-3 mb-4">
               <div class="col-md-4">
                 <div class="form-floating">
-                  {{ form.date(class="form-control", type="date") }}
+                  {{ form.sale_date(
+                      class="form-control",
+                      type="datetime-local",
+                      value=(form.sale_date.data.strftime('%Y-%m-%dT%H:%M') if form.sale_date.data else "")
+                  ) }}
                   <label><i class="far fa-calendar-alt me-1"></i> تاريخ البيع</label>
                 </div>
               </div>
-
               <div class="col-md-4">
                 <div class="form-floating">
                   {{ form.customer_id(
@@ -45,7 +41,6 @@
                   <label><i class="fas fa-user me-1"></i> العميل</label>
                 </div>
               </div>
-
               <div class="col-md-4">
                 <div class="form-floating">
                   {{ form.seller_id(
@@ -56,40 +51,46 @@
                         'data-allow-clear': 1
                       }
                   ) }}
-                  <label><i class="fas fa-user-tie me-1"></i> البائع</label>
+                  <label><i class="fas fa-user-tيe me-1"></i> البائع</label>
                 </div>
               </div>
-
-              <div class="col-md-4">
+              <div class="col-md-3">
                 <div class="form-floating">
                   {{ form.currency(class="form-select") }}
                   <label><i class="fas fa-dollar-sign me-1"></i> العملة</label>
                 </div>
               </div>
-
-              <div class="col-md-4">
+              <div class="col-md-3">
                 <div class="form-floating">
                   {{ form.status(class="form-select") }}
-                  <label><i class="fas fa-flag me-1"></i> الحالة</label>
+                  <label><i class="fas fa-flag me-1"></i> حالة الوثيقة</label>
                 </div>
               </div>
-
-              <div class="col-md-4">
+              <div class="col-md-3">
+                <div class="form-floating">
+                  {{ form.payment_status(class="form-select") }}
+                  <label><i class="fas fa-wallet me-1"></i> حالة السداد</label>
+                </div>
+              </div>
+              <div class="col-md-3">
                 <div class="form-floating">
                   {{ form.tax_rate(class="form-control", id="taxRate") }}
                   <label><i class="fas fa-percent me-1"></i> نسبة الضريبة (%)</label>
                 </div>
               </div>
-
-              <div class="col-md-4">
+              <div class="col-md-3">
                 <div class="form-floating">
                   {{ form.shipping_cost(class="form-control", id="shippingCost") }}
                   <label><i class="fas fa-truck me-1"></i> تكلفة الشحن</label>
                 </div>
               </div>
+              <div class="col-md-3">
+                <div class="form-floating">
+                  {{ form.discount_total(class="form-control", id="discountTotal") }}
+                  <label><i class="fas fa-tags me-1"></i> الخصم الإجمالي</label>
+                </div>
+              </div>
             </div>
-
-            <!-- بنود الفاتورة -->
             <div class="card mb-4">
               <div class="card-header bg-light d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="fas fa-list me-2"></i> بنود الفاتورة</h5>
@@ -97,7 +98,6 @@
                   <i class="fas fa-plus me-1"></i> إضافة بند
                 </button>
               </div>
-
               <div class="card-body overflow-auto" style="white-space: nowrap;">
                 <div id="saleLines" class="d-inline-block" style="min-width:100%;">
                   {% for line in form.lines %}
@@ -148,14 +148,16 @@
                 </div>
               </div>
             </div>
-
-            <!-- ملخص -->
             <div class="row justify-content-end mb-3">
-              <div class="col-md-5">
+              <div class="col-md-6">
                 <table class="table table-bordered mb-0">
                   <tr>
                     <th class="text-end"><i class="fas fa-calculator me-1"></i> المجموع الفرعي:</th>
                     <td id="subtotal">0.00 {{ form.currency.data }}</td>
+                  </tr>
+                  <tr>
+                    <th class="text-end"><i class="fas fa-tags me-1"></i> الخصم الإجمالي:</th>
+                    <td id="discountTotalDisplay">{{ "%.2f"|format(form.discount_total.data or 0) }} {{ form.currency.data }}</td>
                   </tr>
                   <tr>
                     <th class="text-end"><i class="fas fa-receipt me-1"></i> الضريبة ({{ form.tax_rate.data or 0 }}%):</th>
@@ -172,11 +174,7 @@
                 </table>
               </div>
             </div>
-
-            <!-- ملاحظات -->
             <div class="mb-4">{{ form.notes(class="form-control", rows="3", placeholder="ملاحظات") }}</div>
-
-            <!-- أزرار -->
             <div class="d-flex justify-content-between mt-4">
               <button type="submit" class="btn btn-success px-4">
                 <i class="fas fa-save me-2"></i> حفظ
@@ -192,11 +190,46 @@
   </div>
 </div>
 {% endblock %}
-
 {% block scripts %}
+  {{ super() }}
   <script src="{{ url_for('static', filename='js/sales.js') }}"></script>
+  <script>
+    (function(){
+      const qs=(s,el=document)=>el.querySelector(s);
+      const qsa=(s,el=document)=>Array.from(el.querySelectorAll(s));
+      const toNum=v=>{const n=parseFloat((v??'').toString().replace(/[^\d.-]/g,''));return Number.isFinite(n)?n:0;};
+      const form=document.getElementById('saleForm'); if(!form) return;
+      function recalc(){
+        const wrap=qs('#saleLines');
+        let sub=0;
+        qsa('.sale-line',wrap).forEach(row=>{
+          const q=toNum(qs('[name$="-quantity"]',row)?.value);
+          const p=toNum(qs('[name$="-unit_price"]',row)?.value);
+          let d=toNum(qs('[name$="-discount_rate"]',row)?.value); d=Math.max(0,Math.min(100,d));
+          sub+=q*p*(1-d/100);
+        });
+        let disc=toNum(qs('#discountTotal')?.value); disc=Math.max(0,disc); disc=Math.min(disc,sub);
+        let tax=toNum(qs('#taxRate')?.value); tax=Math.max(0,Math.min(100,tax));
+        const shipping=toNum(qs('#shippingCost')?.value);
+        const base=sub-disc;
+        const taxAmt=base*(tax/100);
+        const total=base+taxAmt+shipping;
+        const curr=(qs('select[name="currency"]')?.value) || '';
+        const set=(id,val)=>{const el=qs(id); if(el) el.textContent=Number(val).toFixed(2)+(curr?` ${curr}`:'');};
+        set('#subtotal', sub);
+        set('#discountTotalDisplay', disc);
+        set('#taxAmount', taxAmt);
+        set('#shippingCostDisplay', shipping);
+        set('#totalAmount', total);
+      }
+      const watchSelectors=['#discountTotal','#taxRate','#shippingCost','select[name="currency"]'];
+      watchSelectors.forEach(sel=>{const el=qs(sel); if(el){el.addEventListener('input',recalc); el.addEventListener('change',recalc);}});
+      qsa('.sale-line input').forEach(el=>{el.addEventListener('input',recalc); el.addEventListener('change',recalc);});
+      document.addEventListener('click',e=>{if(e.target && e.target.id==='addLine'){setTimeout(()=>{qsa('.sale-line input').forEach(el=>{el.addEventListener('input',recalc); el.addEventListener('change',recalc);});recalc();},0);}});
+      window.addEventListener('load',recalc);
+    })();
+  </script>
 {% endblock %}
-
 {% block styles %}
 <style>
 .sortable-ghost{opacity:.5;background:#c8ebfb}

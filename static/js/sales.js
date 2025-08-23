@@ -1,34 +1,13 @@
-/* File: static/js/sales.js */
+// File: static/js/sales.js
 (() => {
   'use strict';
-
   const qs=(s,el=document)=>el.querySelector(s);
   const qsa=(s,el=document)=>Array.from(el.querySelectorAll(s));
   const on=(el,ev,cb)=>el&&el.addEventListener(ev,cb,{passive:false});
   const toNum=v=>{const n=parseFloat((v??'').toString().replace(/[^\d.-]/g,''));return Number.isFinite(n)?n:0;};
-
-  function loadScriptOnce(src){
-    return new Promise(res=>{
-      if(document.querySelector(`script[src="${src}"]`)) return res();
-      const s=document.createElement('script'); s.src=src; s.onload=res; document.head.appendChild(s);
-    });
-  }
-  function loadCssOnce(href){
-    if(!document.querySelector(`link[href="${href}"]`)){
-      const l=document.createElement('link'); l.rel='stylesheet'; l.href=href; document.head.appendChild(l);
-    }
-  }
-  function loadJQueryOnce(){
-    return new Promise(res=>{
-      if(window.jQuery) return res();
-      const s=document.createElement('script');
-      s.src='https://cdn.jsdelivr.net/npm/jquery@3.6.4/dist/jquery.min.js';
-      s.onload=()=>res();
-      document.head.appendChild(s);
-    });
-  }
-
-  // ============ صفحة القائمة ============
+  function loadScriptOnce(src){return new Promise(res=>{if(document.querySelector(`script[src="${src}"]`)) return res();const s=document.createElement('script');s.src=src;s.onload=res;document.head.appendChild(s);});}
+  function loadCssOnce(href){if(!document.querySelector(`link[href="${href}"]`)){const l=document.createElement('link');l.rel='stylesheet';l.href=href;document.head.appendChild(l);}}
+  function loadJQueryOnce(){return new Promise(res=>{if(window.jQuery) return res();const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/jquery@3.6.4/dist/jquery.min.js';s.onload=()=>res();document.head.appendChild(s);});}
   (function initList(){
     const form = qs('#filterForm');
     if(!form) return;
@@ -45,13 +24,14 @@
       window.location = action;
     });
   })();
-
-  // ============ صفحة النموذج ============
   (function initForm(){
     const form = qs('#saleForm');
     if(!form) return;
-
-    // تحميل Select2 (و jQuery عند الحاجة)
+    const saleDateEl = form.querySelector('input[name="sale_date"]');
+    if(saleDateEl && !saleDateEl.value){
+      const pad=n=>n<10?'0'+n:n; const d=new Date();
+      saleDateEl.value = d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+    }
     const wantsSelect2 = !!document.querySelector('#saleForm .select2');
     const select2Ready = wantsSelect2
       ? loadJQueryOnce()
@@ -59,18 +39,14 @@
           .then(()=>loadCssOnce('https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme@1.5.2/dist/select2-bootstrap4.min.css'))
           .then(()=>loadScriptOnce('https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js'))
       : Promise.resolve();
-
-    // Sortable (للسحب وإعادة الترتيب)
     loadScriptOnce('https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js').then(()=>{
       const cont = qs('#saleLines');
       if(cont && window.Sortable){
         new window.Sortable(cont,{handle:'.drag-handle',animation:150,ghostClass:'sortable-ghost'});
       }
     });
-
     const wrap = qs('#saleLines');
     const addBtn = qs('#addLine');
-
     function currentMaxIndex(){
       let max=-1;
       qsa('.sale-line',wrap).forEach(row=>{
@@ -98,7 +74,7 @@
     }
     function addLine(){
       const rows = qsa('.sale-line',wrap);
-      if(!rows.length){ alert('لا يوجد قالب بند لنسخه (min_entries=1 مطلوب بالـ WTForms).'); return; }
+      if(!rows.length){ alert('لا يوجد قالب بند لنسخه.'); return; }
       const clone = rows[rows.length-1].cloneNode(true);
       clearRow(clone);
       renumberRow(clone, currentMaxIndex()+1);
@@ -113,10 +89,9 @@
       qsa('.sale-line',wrap).forEach((r,i)=>renumberRow(r,i));
       recalc();
     }
-
     function initAjaxSelect($el, {endpoint, placeholder}){
       $el.select2({
-        theme: 'bootstrap-5',
+        theme: 'bootstrap4',
         width: '100%',
         language: 'ar',
         allowClear: !!$el.data('allow-clear'),
@@ -133,42 +108,31 @@
         }
       });
     }
-
     function bindRow(row){
-      // أزرار
       const rm = row.querySelector('.remove-line');
       if(rm) on(rm,'click',()=>removeLine(row));
-
-      // الحقول الرقمية
       const nums = qsa('.quantity-input,.price-input,.discount-input,.tax-input',row);
       nums.forEach(el=>{ on(el,'input',recalc); on(el,'change',recalc); });
-
-      // Select2 داخل السطر
       select2Ready.then(()=>{
         if(!(window.jQuery && window.jQuery.fn && window.jQuery.fn.select2)) return;
         const $ = window.jQuery;
         const $wh = $(row).find('select.warehouse-select');
         const $pd = $(row).find('select.product-select');
-
         if ($wh.length) {
           initAjaxSelect($wh, {
             endpoint: () => $wh.data('endpoint') || '/api/warehouses',
             placeholder: $wh.data('placeholder') || 'اختر المستودع'
           });
         }
-
         const initProducts = () => {
           if (!$pd.length) return;
           const wid = $wh.val();
-          const endpoint = wid ? `/api/warehouses/${wid}/products`
-                               : ($pd.data('endpoint') || '/api/products');
+          const endpoint = wid ? `/api/warehouses/${wid}/products` : ($pd.data('endpoint') || '/api/products');
           try { $pd.select2('destroy'); } catch(_){}
           initAjaxSelect($pd, {
             endpoint: () => endpoint,
             placeholder: $pd.data('placeholder') || 'اختر الصنف'
           });
-
-          // عند اختيار الصنف: عَبّي السعر وأظهر المتاح
           $pd.on('select2:select', (e) => {
             const data = e.params?.data || {};
             const priceInp = row.querySelector('input[name$="-unit_price"]');
@@ -179,9 +143,7 @@
             updateAvailability();
           });
         };
-
         initProducts();
-
         if ($wh.length) {
           $wh.on('change', () => {
             if ($pd.length) { $pd.val(null).trigger('change'); }
@@ -189,7 +151,6 @@
             updateAvailability();
           });
         }
-
         const updateAvailability = async () => {
           const badge = row.querySelector('.stock-badge');
           if (!badge) return;
@@ -205,11 +166,8 @@
         };
       });
     }
-
     function bindAll(){ qsa('.sale-line',wrap).forEach(bindRow); }
-
     function recalc(){
-      // مجموع صافي البنود (بدون ضريبة السطر لتجنب الازدواج؛ الضريبة العامة فقط)
       let sub=0;
       qsa('.sale-line',wrap).forEach(row=>{
         const q=toNum(qs('[name$="-quantity"]',row)?.value);
@@ -221,7 +179,6 @@
       const shipping = toNum(qs('#shippingCost')?.value);
       const taxAmt = sub*(globalTax/100);
       const total = sub + taxAmt + shipping;
-
       const set=(sel,val)=>{
         const el=qs(sel); if(!el) return;
         const curr = (qs('select[name="currency"]')?.value) || '';
@@ -232,27 +189,22 @@
       set('#shippingCostDisplay', shipping);
       set('#totalAmount', total);
     }
-
-    // تهيئة Select2 العامة للحقول العلوية: العميل/البائع
     select2Ready.then(()=>{
       if(!(window.jQuery && window.jQuery.fn && window.jQuery.fn.select2)) return;
       const $ = window.jQuery;
       $('#saleForm select.ajax-select').each(function(){
         const $el = $(this);
-        if ($el.closest('.sale-line').length) return; // خطوط الفاتورة تُهيّأ في bindRow
+        if ($el.closest('.sale-line').length) return;
         const endpoint = $el.data('endpoint');
         if(!endpoint) return;
         initAjaxSelect($el, { endpoint, placeholder: $el.data('placeholder') || '' });
       });
     });
-
     bindAll();
     if (addBtn) on(addBtn,'click',addLine);
-
-    const taxRate = qs('#taxRate');      if (taxRate)   on(taxRate,'input',recalc);
-    const shipping= qs('#shippingCost'); if (shipping)  on(shipping,'input',recalc);
+    const taxRate = qs('#taxRate'); if (taxRate) on(taxRate,'input',recalc);
+    const shipping= qs('#shippingCost'); if (shipping) on(shipping,'input',recalc);
     const currency= qs('select[name="currency"]'); if (currency) on(currency,'change',recalc);
-
     recalc();
   })();
 })();

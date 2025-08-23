@@ -1,4 +1,4 @@
-{# File: templates/sales/receipt.html #}
+<!-- File: templates/sales/receipt.html -->
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -48,12 +48,10 @@
         <p>{{ config.SITE_PHONE if config and config.SITE_PHONE else '' }}</p>
       </div>
     </div>
-
     <div class="block">
       <p><strong>اسم العميل:</strong> {{ sale.customer.name if sale.customer else '-' }}</p>
       <p><strong>هاتف العميل:</strong> {{ sale.customer.phone if sale.customer else '-' }}</p>
     </div>
-
     {% set ns = namespace(sub=0.0, tax=0.0, total=0.0) %}
     <div class="block">
       <table>
@@ -91,14 +89,11 @@
         </tfoot>
       </table>
     </div>
-
     <div class="notes"><p><strong>ملاحظات:</strong> {{ sale.notes or 'لا توجد ملاحظات' }}</p></div>
-
     <div class="sign">
       <div class="box">توقيع البائع<br>الاسم: {{ sale.seller.username if sale.seller else '________' }}</div>
       <div class="box">توقيع العميل<br>الاسم: _____________</div>
     </div>
-
     <div class="actions no-print">
       <button onclick="window.print()" class="btn btn-primary"><i class="fas fa-print"></i> طباعة</button>
       <a href="{{ url_for('sales_bp.sale_detail', id=sale.id) }}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> رجوع</a>

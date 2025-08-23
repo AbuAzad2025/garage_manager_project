@@ -1,7 +1,6 @@
-{# File: templates/sales/dashboard.html #}
+<!-- File: templates/sales/dashboard.html -->
 {% extends 'base.html' %}
 {% block title %}لوحة المبيعات{% endblock %}
-
 {% block head_extra %}
   {{ super() }}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/sales.css') }}">
@@ -12,10 +11,8 @@
     .table thead th{white-space:nowrap}
   </style>
 {% endblock %}
-
 {% block content %}
 <div class="container-fluid py-3">
-
   <div class="row g-3">
     <div class="col-xl-4 col-md-6">
       <div class="small-box bg-primary text-white p-3 position-relative overflow-hidden">
@@ -29,7 +26,6 @@
         <a href="{{ url_for('sales_bp.list_sales') }}" class="small-box-footer text-white-50 d-block mt-2">إلى الفواتير <i class="fas fa-arrow-left ms-1"></i></a>
       </div>
     </div>
-
     <div class="col-xl-4 col-md-6">
       <div class="small-box bg-success text-white p-3 position-relative overflow-hidden">
         <div class="d-flex justify-content-between align-items-center">
@@ -42,7 +38,6 @@
         <span class="small-box-footer text-white-50 d-block mt-2">إجمالي عبر كل الشهور</span>
       </div>
     </div>
-
     <div class="col-xl-4 col-md-6">
       <div class="small-box bg-warning text-dark p-3 position-relative overflow-hidden">
         <div class="d-flex justify-content-between align-items-center">
@@ -56,7 +51,6 @@
       </div>
     </div>
   </div>
-
   <div class="row g-3">
     <div class="col-xl-6">
       <div class="card h-100">
@@ -66,7 +60,6 @@
         </div>
       </div>
     </div>
-
     <div class="col-xl-6">
       <div class="card h-100">
         <div class="card-header bg-light fw-bold"><i class="fas fa-chart-line me-2"></i> الإيراد الشهري</div>
@@ -76,7 +69,6 @@
       </div>
     </div>
   </div>
-
   <div class="row g-3">
     <div class="col-xl-6">
       <div class="card h-100">
@@ -100,7 +92,6 @@
         </div>
       </div>
     </div>
-
     <div class="col-xl-6">
       <div class="card h-100">
         <div class="card-header bg-light fw-bold"><i class="fas fa-cubes me-2"></i> أفضل المنتجات</div>
@@ -125,10 +116,8 @@
       </div>
     </div>
   </div>
-
 </div>
 {% endblock %}
-
 {% block scripts %}
   {{ super() }}
   <script>
@@ -141,36 +130,20 @@
       const labels = {{ months|tojson }};
       const countData = {{ sales_count|tojson }};
       const revenueData = {{ revenue|tojson }};
-
       const ctx1 = document.getElementById('salesCountChart');
       if (ctx1) {
         new Chart(ctx1, {
           type: 'bar',
-          data: {
-            labels,
-            datasets: [{ label: 'عدد الفواتير', data: countData, borderWidth: 2 }]
-          },
-          options: {
-            responsive:true, maintainAspectRatio:false,
-            plugins:{ legend:{display:false} },
-            scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } } }
-          }
+          data: { labels, datasets: [{ label: 'عدد الفواتير', data: countData, borderWidth: 2 }] },
+          options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} }, scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } } } }
         });
       }
-
       const ctx2 = document.getElementById('revenueChart');
       if (ctx2) {
         new Chart(ctx2, {
           type: 'line',
-          data: {
-            labels,
-            datasets: [{ label: 'الإيراد', data: revenueData, borderWidth: 3, tension:.35, fill:true }]
-          },
-          options: {
-            responsive:true, maintainAspectRatio:false,
-            plugins:{ legend:{display:false}, tooltip:{ mode:'index', intersect:false } },
-            scales:{ y:{ beginAtZero:true } }
-          }
+          data: { labels, datasets: [{ label: 'الإيراد', data: revenueData, borderWidth: 3, tension:.35, fill:true }] },
+          options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{ mode:'index', intersect:false } }, scales:{ y:{ beginAtZero:true } } }
         });
       }
     });
