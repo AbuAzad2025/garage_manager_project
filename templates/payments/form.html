@@ -46,18 +46,35 @@
               {% if field is not none %}
               <div class="mb-3">
                 {{ field.label(class="form-label") }}
+
+                {# قوائم الاختيار #}
                 {% if field.type in ["SelectField", "QuerySelectField"] %}
                   {{ field(class="form-select") }}
+
+                {# تاريخ/وقت الدفع: استخدم datetime-local مع قيمة منسّقة #}
                 {% elif field.name == "payment_date" %}
-                  {{ field(type="date", class="form-control", value=field.data or "") }}
+                  {% set _pd = field.data %}
+                  {% set _val = (_pd if _pd is string else (_pd.strftime("%Y-%m-%dT%H:%M") if _pd else "")) %}
+                  {{ field(type="datetime-local", class="form-control", value=_val) }}
+
+                {# نص متعدد الأسطر #}
                 {% elif field.type == "TextAreaField" %}
                   {{ field(class="form-control") }}
+
+                {# أرقام/نصوص أخرى #}
                 {% else %}
-                  {{ field(class="form-control") }}
+                  {% if field.name == "total_amount" %}
+                    {{ field(class="form-control", step="0.01") }}
+                  {% else %}
+                    {{ field(class="form-control") }}
+                  {% endif %}
                 {% endif %}
+
                 {% if field.name == 'total_amount' %}
                   <div id="splitSum" class="form-text"></div>
                 {% endif %}
+
+                {# عرض أخطاء الحقل #}
                 {% for e in field.errors %}
                   <div class="text-danger small">{{ e }}</div>
                 {% endfor %}
@@ -84,18 +101,34 @@
         <small class="text-muted">بحد أقصى 3 طرق دفع</small>
       </div>
       <div class="card-body">
+        {# أخطاء عامة على مستوى FieldList إن وجدت #}
+        {% if form.splits and form.splits.errors %}
+          <div class="alert alert-danger py-2">
+            {% for err in form.splits.errors %}
+              <div>• {{ err }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
         <div id="splitsContainer">
           {% for split in form.splits %}
           <div class="split-form border p-3 mb-3 rounded" data-index="{{ loop.index0 }}">
             <h5>الدفعة الجزئية #{{ loop.index }}</h5>
+
             <div class="row gy-2">
               <div class="col-md-4">
                 {{ split.method.label(class="form-label") }}
                 {{ split.method(class="form-select split-method") }}
+                {% for e in split.method.errors %}
+                  <div class="text-danger small">{{ e }}</div>
+                {% endfor %}
               </div>
               <div class="col-md-4">
                 {{ split.amount.label(class="form-label") }}
                 {{ split.amount(class="form-control", step="0.01") }}
+                {% for e in split.amount.errors %}
+                  <div class="text-danger small">{{ e }}</div>
+                {% endfor %}
               </div>
               <div class="col-md-4 d-flex align-items-end">
                 <button type="button" class="btn btn-danger remove-split" {% if loop.first %}disabled{% endif %}>حذف</button>
@@ -114,6 +147,9 @@
                       {% else %}
                         {{ field(class="form-control") }}
                       {% endif %}
+                      {% for e in field.errors %}
+                        <div class="text-danger small">{{ e }}</div>
+                      {% endfor %}
                     </div>
                   {% endif %}
                 {% endfor %}
@@ -122,6 +158,7 @@
           </div>
           {% endfor %}
         </div>
+
         <button type="button" id="addSplit" class="btn btn-secondary">+ إضافة دفعة جزئية</button>
       </div>
     </div>

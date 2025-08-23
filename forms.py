@@ -44,6 +44,7 @@ except Exception:  # fallback إذا لم تتوفر الإضافة
 # -------------------- Local --------------------
 from models import (
     Customer,
+    User,
     Employee,
     Expense,
     ExpenseType,
@@ -689,18 +690,24 @@ class SplitEntryForm(FlaskForm):
 
         return base_ok and ok
 
-
 class PaymentForm(FlaskForm):
     payment_number = StringField(validators=[Optional(), Length(max=50)])
-    payment_date   = DateTimeField(format="%Y-%m-%d %H:%M", default=datetime.utcnow, validators=[DataRequired()])
+    payment_date = DateTimeField(
+        format="%Y-%m-%dT%H:%M",   # ← استخدم صيغة datetime-local
+        default=datetime.utcnow,
+        validators=[DataRequired()],
+        render_kw={"step": "60"}   # اختياري: زيادة خطوة الدقائق
+    )
 
     subtotal     = DecimalField(places=2, validators=[Optional(), NumberRange(min=0)])
     tax_rate     = DecimalField(places=2, validators=[Optional(), NumberRange(min=0)])
     tax_amount   = DecimalField(places=2, validators=[Optional(), NumberRange(min=0)])
     total_amount = DecimalField(places=2, validators=[DataRequired(), NumberRange(min=0.01)])
-    currency     = SelectField(validators=[DataRequired()],
-                               choices=[("ILS","شيكل"),("USD","دولار"),("EUR","يورو"),("JOD","دينار")],
-                               default="ILS")
+    currency     = SelectField(
+        validators=[DataRequired()],
+        choices=[("ILS","شيكل"),("USD","دولار"),("EUR","يورو"),("JOD","دينار")],
+        default="ILS"
+    )
 
     method    = SelectField(validators=[Optional()])
     status    = SelectField(validators=[DataRequired()])

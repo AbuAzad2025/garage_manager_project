@@ -282,4 +282,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
   updateUrlQuery();
   loadPayments();
+
+  // تحديث القائمة عند التنقل رجوع/تقدم
+  window.addEventListener('popstate', () => {
+    loadPayments(1);
+  });
 });

@@ -235,16 +235,9 @@ def index():
 def create_payment():
     form = PaymentForm(meta={"csrf": not current_app.testing}); entity_info = None
     def _fd(f): return getattr(f, "data", None) if f is not None else None
-    def _clean_details_local(d):
-        if not d: return None
-        out = {}; DateT = type(datetime.utcnow().date())
-        for k, v in d.items():
-            if v in (None, "", []): continue
-            if isinstance(v, (datetime, DateT)): out[k] = v.isoformat()
-            else: out[k] = v
-        return out or None
     if hasattr(form, "direction"):
         form.direction.choices = [("IN","وارد"),("OUT","صادر"),("INCOMING","وارد"),("OUTGOING","صادر")]
+
     if request.method == "GET":
         form.payment_date.data = datetime.utcnow()
         raw_et = (request.args.get("entity_type") or "").strip().upper()
@@ -321,16 +314,19 @@ def create_payment():
                     entity_info = {"type":"preorder","number":po.reference,"date":po.created_at.strftime("%Y-%m-%d") if getattr(po,"created_at",None) else "","currency":"ILS"}
                     form.direction.data = form.direction.data or "IN"
         if not form.status.data: form.status.data = PaymentStatus.COMPLETED.value
+
     if request.method == "POST":
         raw_dir = request.form.get("direction")
         if raw_dir: form.direction.data = _norm_dir(raw_dir)
         if not form.validate():
+            current_app.logger.warning("PaymentForm errors: %s", form.errors)  # ← إضافة لوج
             if _wants_json(): return jsonify(status="error", errors=form.errors), 400
             return render_template("payments/form.html", form=form, entity_info=entity_info)
         try:
             etype = (form.entity_type.data or "").upper()
             field_name = getattr(form, "_entity_field_map", {}).get(etype)
             target_id = getattr(form, field_name).data if field_name and hasattr(form, field_name) else None
+
             parsed_splits = []; total_splits = 0.0
             for entry in getattr(form, "splits", []).entries:
                 sm = entry.form; amt = float(getattr(sm, "amount").data or 0)
@@ -355,13 +351,17 @@ def create_payment():
                 details = _clean_details(details)
                 parsed_splits.append(PaymentSplit(method=_coerce_method(m_str), amount=amt, details=details))
                 total_splits += amt
+
             auto_dir = None
             if hasattr(form, "_incoming_entities") and etype in form._incoming_entities: auto_dir = "IN"
             elif hasattr(form, "_outgoing_entities") and etype in form._outgoing_entities: auto_dir = "OUT"
             direction_val = _norm_dir(form.direction.data or auto_dir)
             direction_db = _dir_to_db(direction_val)
+
             method_val = parsed_splits[0].method if parsed_splits else _coerce_method(getattr(form, "method", None).data)
-            notes_raw = (_fd(getattr(form, "note", None)) or _fd(getattr(form, "notes", None)) or ""); notes_val = (notes_raw or "").strip() or None
+            notes_raw = (_fd(getattr(form, "note", None)) or _fd(getattr(form, "notes", None)) or "")
+            notes_val = (notes_raw or "").strip() or None
+
             payment = Payment(
                 entity_type=etype,
                 customer_id=target_id if etype == "CUSTOMER" else None,
@@ -385,11 +385,14 @@ def create_payment():
                 notes=notes_val,
                 created_by=current_user.id,
             )
+
             if not getattr(payment, "method", None) and parsed_splits:
                 payment.method = getattr(parsed_splits[0].method, "value", parsed_splits[0].method)
+
             db.session.add(payment); db.session.flush()
             for sp in parsed_splits:
                 sp.payment_id = payment.id; db.session.add(sp)
+
             try:
                 db.session.commit()
             except IntegrityError as ie:
@@ -406,6 +409,7 @@ def create_payment():
                     db.session.commit()
                 else:
                     raise
+
             try:
                 if payment.sale_id:
                     sale = db.session.get(Sale, payment.sale_id)
@@ -419,23 +423,38 @@ def create_payment():
                 db.session.commit()
             except SQLAlchemyError:
                 db.session.rollback()
+
             log_audit("Payment", payment.id, "CREATE")
         except Exception as e:
             db.session.rollback()
             if _wants_json(): return jsonify(status="error", message=str(e)), 400
             flash(f"❌ خطأ في الحفظ: {e}", "danger"); return render_template("payments/form.html", form=form, entity_info=entity_info)
+
         if _wants_json(): return jsonify(status="success", payment=payment.to_dict()), 201
         flash("✅ تم تسجيل الدفعة", "success"); return redirect(url_for("payments.index"))
+
     return render_template("payments/form.html", form=form, entity_info=entity_info)
+
 
 @payments_bp.route("/<int:payment_id>", methods=["GET"], endpoint="view_payment")
 @login_required
 @permission_required("manage_payments")
 def view_payment(payment_id):
-    payment = _get_or_404(Payment, payment_id, options=(joinedload(Payment.customer), joinedload(Payment.supplier), joinedload(Payment.partner), joinedload(Payment.shipment), joinedload(Payment.expense), joinedload(Payment.loan_settlement), joinedload(Payment.sale), joinedload(Payment.invoice), joinedload(Payment.preorder), joinedload(Payment.service), joinedload(Payment.splits)))
+    payment = _get_or_404(
+        Payment, payment_id,
+        options=(
+            joinedload(Payment.customer), joinedload(Payment.supplier),
+            joinedload(Payment.partner), joinedload(Payment.shipment),
+            joinedload(Payment.expense), joinedload(Payment.loan_settlement),
+            joinedload(Payment.sale), joinedload(Payment.invoice),
+            joinedload(Payment.preorder), joinedload(Payment.service),
+            joinedload(Payment.splits)
+        )
+    )
     if _wants_json():
         return jsonify(payment=payment.to_dict())
     return render_template("payments/view.html", payment=payment)
+
 
 @payments_bp.route("/<int:payment_id>/delete", methods=["POST"], endpoint="delete_payment")
 @login_required

@@ -1,3 +1,4 @@
+// File: static/js/payment_form.js
 document.addEventListener('DOMContentLoaded', function () {
   const MAX_SPLITS = 3;
 
@@ -6,7 +7,7 @@ document.addEventListener('DOMContentLoaded', function () {
     online: [],
     cheque: ['check_number','check_bank','check_due_date'],
     bank:   ['bank_transfer_ref'],
-    card:   ['card_number','card_holder','card_expiry']
+    card:   ['card_number','card_holder','card_expiry','card_cvv'] // أُضيف CVV
   };
 
   const container  = document.getElementById('splitsContainer');
@@ -16,6 +17,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const entityWrap = document.getElementById('entityFields');
   const totalInput = document.querySelector('[name="total_amount"]');
   const entityTypeSelect = document.querySelector('[name="entity_type"]');
+  const topMethod  = document.querySelector('[name="method"]'); // مزامنة الطريقة العلوية
 
   function toggleAddBtn() {
     const count = container.querySelectorAll('.split-form').length;
@@ -69,6 +71,14 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     toggleAddBtn();
     updateSplitSumHint();
+
+    // مزامنة طريقة الدفع العلوية مع أول split
+    if (topMethod) {
+      const firstSel = container.querySelector('.split-form select[name$="-method"]');
+      if (firstSel && firstSel.value) {
+        topMethod.value = firstSel.value.toUpperCase();
+      }
+    }
   }
 
   function createSplitElement() {
@@ -137,16 +147,35 @@ document.addEventListener('DOMContentLoaded', function () {
       const row = e.target.closest('.split-form');
       const method = (e.target.value || '').toLowerCase();
       applyDetailsForRow(row, method);
+      // لو أول صف، حدث الطريقة العلوية
+      if (row && row.dataset.index === '0' && topMethod) {
+        topMethod.value = (e.target.value || '').toUpperCase();
+      }
     }
     if (e.target.matches('[name$="-amount"]')) updateSplitSumHint();
   });
+
+  // لو المستخدم غيّر الطريقة العلوية، انعكس ذلك على أول split (إن وُجد)
+  if (topMethod) {
+    topMethod.addEventListener('change', () => {
+      const firstSel = container.querySelector('.split-form select[name$="-method"]');
+      if (firstSel) {
+        firstSel.value = (topMethod.value || '').toUpperCase();
+        const row = firstSel.closest('.split-form');
+        applyDetailsForRow(row, (firstSel.value || '').toLowerCase());
+      }
+    });
+  }
 
   if (totalInput) totalInput.addEventListener('input', updateSplitSumHint);
 
   function reloadEntityFields() {
     if (!entityTypeSelect || !entityWrap) return;
     const type = entityTypeSelect.value || '';
-    const eid  = document.getElementById('entity_id')?.value || '';
+    const eidInput = document.getElementById('entity_id');
+    const eid  = eidInput?.value || '';
+    // امسح قيمة المرجع عند تغيير النوع لتفادي بقاء قيمة قديمة
+    if (eidInput) eidInput.value = '';
     fetch(`/payments/entity-fields?type=${encodeURIComponent(type)}&entity_id=${encodeURIComponent(eid)}`)
       .then(r => r.text())
       .then(html => { entityWrap.innerHTML = html; })
