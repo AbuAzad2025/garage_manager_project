@@ -1,0 +1,61 @@
+{% extends 'warehouses/base.html' %}
+{% block title %}كشف المخزون{% endblock %}
+{% block page_title %}كشف المخزون عبر المستودعات{% endblock %}
+
+{% block content %}
+<form method="get" class="card mb-3">
+  <div class="card-body row g-2 align-items-end">
+    <div class="col-md-5">
+      <label class="form-label">اختر المستودعات</label>
+      <select name="warehouse_ids" multiple class="form-select" size="6">
+        {% for w in warehouses %}
+          <option value="{{ w.id }}" selected>{{ w.name }}</option>
+        {% endfor %}
+      </select>
+      <div class="form-text">اضغط Ctrl/⌘ للاختيار المتعدد</div>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">بحث عن قطعة</label>
+      <input type="text" name="q" value="{{ search or '' }}" class="form-control" placeholder="اسم القطعة">
+    </div>
+    <div class="col-md-3 d-flex gap-2">
+      <button class="btn btn-primary flex-fill">تطبيق</button>
+      <a class="btn btn-outline-secondary flex-fill" href="{{ url_for('warehouse_bp.inventory_summary') }}">تهيئة</a>
+      <a class="btn btn-success flex-fill" href="{{ url_for('warehouse_bp.inventory_summary', **request.args.to_dict(), export='csv') }}">تصدير CSV</a>
+    </div>
+  </div>
+</form>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-sm table-bordered align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>القطعة</th>
+          <th>SKU</th>
+          {% for w in warehouses %}
+            <th class="text-center">{{ w.name }}</th>
+          {% endfor %}
+          <th class="text-end">الإجمالي</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+          {% set p = r.product %}
+          <tr>
+            <td><a href="{{ url_for('warehouse_bp.product_card', product_id=p.id) }}">{{ p.name }}</a></td>
+            <td>{{ p.sku or '-' }}</td>
+            {% for w in warehouses %}
+              {% set cell = r.by[w.id] %}
+              <td class="text-center">{{ cell.on }}</td>
+            {% endfor %}
+            <td class="text-end">{{ r.total }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="{{ 3 + warehouses|length }}" class="text-center text-muted">لا توجد بيانات</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

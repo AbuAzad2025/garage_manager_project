@@ -2296,11 +2296,18 @@ def _shipment_before_update(mapper, connection, target: 'Shipment'):
     vb = sum((it.quantity or 0) * float(it.unit_cost or 0) for it in (target.items or []))
     target.value_before = vb
 
-
 @event.listens_for(Shipment.status, 'set')
 def _shipment_status_stock(target: Shipment, value, oldvalue, initiator):
-    newv = (getattr(value, 'value', value) or '').upper()
-    oldv = (getattr(oldvalue, 'value', oldvalue) or '').upper()
+    def normalize(v):
+        if hasattr(v, "value"):
+            v = v.value
+        if isinstance(v, int):
+            v = str(v)
+        return (v or "").strip().upper()
+
+    newv = normalize(value)
+    oldv = normalize(oldvalue)
+
     if newv == 'ARRIVED' and oldv != 'ARRIVED':
         if not getattr(target, 'actual_arrival', None):
             target.actual_arrival = datetime.utcnow()

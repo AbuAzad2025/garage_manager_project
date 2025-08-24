@@ -3,14 +3,17 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>فاتورة مبيعات - {{ sale.sale_number }}</title>
+  <title>فاتورة مبيعات - {{ sale.sale_number or sale.id }}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- أنماط اختيارية لديك -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/sales.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}">
+
   <style>
     @page { size: A4; margin: 0; }
     @media print { body { margin: 1cm; } .no-print { display: none !important; } }
-    body{font-family:Arial, sans-serif;background:#f8f9fa;color:#333;line-height:1.7}
+    body{font-family:Arial, sans-serif;background:#f8f9fa;color:#333;line-height:1.7;margin:0}
     .receipt{max-width:900px;margin:20px auto;background:#fff;border:1px solid #e5e7eb;border-radius:1rem;box-shadow:0 .75rem 1.5rem rgba(0,0,0,.08)}
     .receipt .header{display:flex;justify-content:space-between;gap:16px;padding:20px 24px;border-bottom:2px solid #111}
     .company{text-align:left}
@@ -37,8 +40,8 @@
       <div>
         <h1 class="title">فاتورة مبيعات</h1>
         <div class="meta">
-          <p><strong>رقم الفاتورة:</strong> {{ sale.sale_number }}</p>
-          <p><strong>التاريخ:</strong> {{ sale.date.strftime('%Y-%m-%d') if sale.date else '—' }}</p>
+          <p><strong>رقم الفاتورة:</strong> {{ sale.sale_number or sale.id }}</p>
+          <p><strong>التاريخ:</strong> {{ sale.sale_date.strftime('%Y-%m-%d') if sale.sale_date else '—' }}</p>
         </div>
       </div>
       <div class="company">
@@ -48,52 +51,93 @@
         <p>{{ config.SITE_PHONE if config and config.SITE_PHONE else '' }}</p>
       </div>
     </div>
+
     <div class="block">
       <p><strong>اسم العميل:</strong> {{ sale.customer.name if sale.customer else '-' }}</p>
       <p><strong>هاتف العميل:</strong> {{ sale.customer.phone if sale.customer else '-' }}</p>
     </div>
-    {% set ns = namespace(sub=0.0, tax=0.0, total=0.0) %}
+
     <div class="block">
       <table>
         <thead>
           <tr>
-            <th>#</th><th>الصنف</th><th>المخزن</th><th>الكمية</th>
-            <th>سعر الوحدة</th><th>خصم (%)</th><th>ضريبة (%)</th><th>الإجمالي</th>
+            <th>#</th>
+            <th>الصنف</th>
+            <th>المخزن</th>
+            <th>الكمية</th>
+            <th>سعر الوحدة</th>
+            <th>خصم (%)</th>
+            <th>ضريبة (%)</th>
+            <th>الإجمالي</th>
           </tr>
         </thead>
         <tbody>
-          {% for line in sale.lines %}
-            {% set line_sub = (line.quantity or 0)*(line.unit_price or 0)*(1 - (line.discount_rate or 0)/100) %}
-            {% set line_tax = line_sub * ((line.tax_rate or 0)/100) %}
-            {% set line_total = line_sub + line_tax %}
-            {% set ns.sub   = ns.sub + line_sub %}
-            {% set ns.tax   = ns.tax + line_tax %}
-            {% set ns.total = ns.total + line_total %}
+          {% for item in lines %}
+            {% set ln = item.obj %}
             <tr>
               <td>{{ loop.index }}</td>
-              <td>{{ line.product.name if line.product else '-' }}</td>
-              <td>{{ line.warehouse.name if line.warehouse else '-' }}</td>
-              <td>{{ line.quantity }}</td>
-              <td>{{ '%.2f'|format(line.unit_price or 0) }} {{ sale.currency }}</td>
-              <td>{{ line.discount_rate or 0 }}</td>
-              <td>{{ line.tax_rate or 0 }}</td>
-              <td>{{ '%.2f'|format(line_total) }} {{ sale.currency }}</td>
+              <td>
+                {{ ln.product.name if ln.product else '-' }}
+                {% if ln.note %}<div class="text-muted small">{{ ln.note }}</div>{% endif %}
+              </td>
+              <td>{{ ln.warehouse.name if ln.warehouse else '-' }}</td>
+              <td>{{ ln.quantity }}</td>
+              <td>{{ money_fmt(ln.unit_price) }} {{ sale.currency }}</td>
+              <td>{{ ln.discount_rate or 0 }}</td>
+              <td>{{ ln.tax_rate or 0 }}</td>
+              <td>{{ money_fmt(item.line_total) }} {{ sale.currency }}</td>
             </tr>
           {% endfor %}
         </tbody>
         <tfoot>
-          <tr><td colspan="7" class="text-end">المجموع الفرعي:</td><td>{{ '%.2f'|format(ns.sub) }} {{ sale.currency }}</td></tr>
-          <tr><td colspan="7" class="text-end">الضريبة:</td><td>{{ '%.2f'|format(ns.tax) }} {{ sale.currency }}</td></tr>
-          <tr><td colspan="7" class="text-end">الشحن:</td><td>{{ '%.2f'|format(sale.shipping_cost or 0) }} {{ sale.currency }}</td></tr>
-          <tr><td colspan="7" class="text-end"><strong>الإجمالي النهائي:</strong></td><td><strong>{{ '%.2f'|format(ns.total + (sale.shipping_cost or 0)) }} {{ sale.currency }}</strong></td></tr>
+          <tr>
+            <td colspan="7" class="text-end">المجموع الفرعي:</td>
+            <td>{{ money_fmt(subtotal) }} {{ sale.currency }}</td>
+          </tr>
+
+          {% if sale_discount_total and sale_discount_total != 0 %}
+          <tr>
+            <td colspan="7" class="text-end">خصم إجمالي:</td>
+            <td>- {{ money_fmt(sale_discount_total) }} {{ sale.currency }}</td>
+          </tr>
+          {% endif %}
+
+          <tr>
+            <td colspan="7" class="text-end">بعد الخصم:</td>
+            <td>{{ money_fmt(subtotal_after_discount) }} {{ sale.currency }}</td>
+          </tr>
+
+          {% if sale_tax_rate and sale_tax_rate != 0 %}
+          <tr>
+            <td colspan="7" class="text-end">الضريبة ({{ sale_tax_rate }}%):</td>
+            <td>{{ money_fmt(invoice_tax_amount) }} {{ sale.currency }}</td>
+          </tr>
+          {% endif %}
+
+          {% if sale_shipping and sale_shipping != 0 %}
+          <tr>
+            <td colspan="7" class="text-end">الشحن:</td>
+            <td>{{ money_fmt(sale_shipping) }} {{ sale.currency }}</td>
+          </tr>
+          {% endif %}
+
+          <tr>
+            <td colspan="7" class="text-end"><strong>الإجمالي النهائي:</strong></td>
+            <td><strong>{{ money_fmt(grand_total) }} {{ sale.currency }}</strong></td>
+          </tr>
         </tfoot>
       </table>
     </div>
-    <div class="notes"><p><strong>ملاحظات:</strong> {{ sale.notes or 'لا توجد ملاحظات' }}</p></div>
+
+    <div class="notes">
+      <p><strong>ملاحظات:</strong> {{ sale.notes or 'لا توجد ملاحظات' }}</p>
+    </div>
+
     <div class="sign">
       <div class="box">توقيع البائع<br>الاسم: {{ sale.seller.username if sale.seller else '________' }}</div>
       <div class="box">توقيع العميل<br>الاسم: _____________</div>
     </div>
+
     <div class="actions no-print">
       <button onclick="window.print()" class="btn btn-primary"><i class="fas fa-print"></i> طباعة</button>
       <a href="{{ url_for('sales_bp.sale_detail', id=sale.id) }}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> رجوع</a>

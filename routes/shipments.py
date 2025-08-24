@@ -13,13 +13,16 @@ from utils import permission_required, format_currency
 
 shipments_bp = Blueprint("shipments_bp", __name__, url_prefix="/shipments")
 
+@shipments_bp.app_context_processor
+def _inject_utils():
+    return dict(format_currency=format_currency)
 
 def _apply_arrival(sh: Shipment) -> None:
     from models import StockLevel
     for it in sh.items:
         if not (it.product_id and it.warehouse_id and (it.quantity or 0) > 0):
             continue
-        sl = StockLevel.query.filter_by(product_id=it.product_id, warehouse_id=it.warehouse_id).first()
+        sl = db.session.query(StockLevel).filter_by(product_id=it.product_id, warehouse_id=it.warehouse_id).first()
         if not sl:
             sl = StockLevel(product_id=it.product_id, warehouse_id=it.warehouse_id, quantity=0, reserved_quantity=0)
             db.session.add(sl)
@@ -29,7 +32,7 @@ def _apply_arrival(sh: Shipment) -> None:
 
 def _wants_json() -> bool:
     accept = request.headers.get("Accept", "")
-    return ("application/json" in accept and "text/html" not in accept) or (request.args.get("format") == "json")
+    return ("application/json" in accept and "text/html" not in accept) or ((request.args.get("format") or "").lower() == "json")
 
 
 def _sa_get_or_404(model, ident, options=None):
@@ -46,7 +49,7 @@ def _sa_get_or_404(model, ident, options=None):
 
 
 def _next_shipment_number() -> str:
-    last = Shipment.query.order_by(Shipment.id.desc()).first()
+    last = db.session.query(Shipment).order_by(Shipment.id.desc()).first()
     next_id = (last.id + 1) if last else 1
     return f"SH-{datetime.utcnow():%Y%m%d}-{next_id:04d}"
 
@@ -69,7 +72,7 @@ def _compute_totals(sh: Shipment) -> None:
 @login_required
 @permission_required("manage_warehouses")
 def list_shipments():
-    q = Shipment.query.options(
+    q = db.session.query(Shipment).options(
         joinedload(Shipment.items),
         joinedload(Shipment.partners).joinedload(ShipmentPartner.partner),
         joinedload(Shipment.destination_warehouse),
@@ -90,7 +93,7 @@ def list_shipments():
         ))
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 20, type=int)
-    pagination = q.order_by(Shipment.expected_arrival.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    pagination = q.order_by(Shipment.expected_arrival.desc().nullslast()).paginate(page=page, per_page=per_page, error_out=False)
     if _wants_json():
         return jsonify({
             "data": [{
@@ -116,18 +119,15 @@ shipments_bp.add_url_rule("/", endpoint="shipments", view_func=list_shipments)
 def create_shipment():
     form = ShipmentForm()
     pre_dest_id = request.args.get("destination_id", type=int)
-
     if request.method == "GET":
         if not getattr(form.items, "entries", []):
             form.items.append_entry()
         if not getattr(form.partners, "entries", []):
             form.partners.append_entry()
-
     if pre_dest_id and not form.destination_id.data:
         dest_obj = db.session.get(Warehouse, pre_dest_id)
         if dest_obj:
             form.destination_id.data = dest_obj
-
     if form.validate_on_submit():
         dest_obj = form.destination_id.data
         sh = Shipment(
@@ -152,7 +152,6 @@ def create_shipment():
         )
         db.session.add(sh)
         db.session.flush()
-
         for entry in getattr(form.items, "entries", []):
             f = getattr(entry, "form", entry)
             db.session.add(ShipmentItem(
@@ -164,7 +163,6 @@ def create_shipment():
                 declared_value=f.declared_value.data or 0,
                 notes=(f.notes.data or None),
             ))
-
         for entry in getattr(form.partners, "entries", []):
             f = getattr(entry, "form", entry)
             if f.partner_id.data:
@@ -181,21 +179,17 @@ def create_shipment():
                     notes=f.notes.data,
                     role=f.role.data,
                 ))
-
         _compute_totals(sh)
-
         if (sh.status or "").upper() == "ARRIVED":
             _apply_arrival(sh)
-
         try:
             db.session.commit()
-            flash("✅ تم إنشاء الشحنة بنجاح", "success")
+            flash("تم إنشاء الشحنة بنجاح", "success")
             dest_id = sh.destination_id or (dest_obj.id if dest_obj else None)
             return redirect(url_for("warehouse_bp.detail", warehouse_id=dest_id)) if dest_id else redirect(url_for("shipments_bp.list_shipments"))
         except SQLAlchemyError as e:
             db.session.rollback()
-            flash(f"⚠️ خطأ أثناء إنشاء الشحنة: {e}", "danger")
-
+            flash(f"خطأ أثناء إنشاء الشحنة: {e}", "danger")
     return render_template("warehouses/shipment_form.html", form=form, shipment=None)
 
 
@@ -206,7 +200,6 @@ def edit_shipment(id: int):
     sh = _sa_get_or_404(Shipment, id, options=[joinedload(Shipment.items), joinedload(Shipment.partners)])
     old_status = (sh.status or "").upper()
     form = ShipmentForm(obj=sh)
-
     if request.method == "GET":
         form.partners.entries.clear()
         for p in sh.partners:
@@ -222,6 +215,8 @@ def edit_shipment(id: int):
                 "notes": p.notes,
                 "role": getattr(p, "role", None),
             })
+        if not getattr(form.partners, "entries", []):
+            form.partners.append_entry({})
         form.items.entries.clear()
         for i in sh.items:
             form.items.append_entry({
@@ -232,7 +227,8 @@ def edit_shipment(id: int):
                 "declared_value": i.declared_value,
                 "notes": i.notes,
             })
-
+        if not getattr(form.items, "entries", []):
+            form.items.append_entry({})
     if form.validate_on_submit():
         dest_obj = form.destination_id.data
         sh.shipment_number = form.shipment_number.data or sh.shipment_number or _next_shipment_number()
@@ -251,11 +247,9 @@ def edit_shipment(id: int):
         sh.notes = form.notes.data
         sh.currency = form.currency.data
         sh.sale_id = (form.sale_id.data.id if form.sale_id.data else None)
-
         sh.partners.clear()
         sh.items.clear()
         db.session.flush()
-
         for entry in getattr(form.partners, "entries", []):
             f = getattr(entry, "form", entry)
             if f.partner_id.data:
@@ -271,7 +265,6 @@ def edit_shipment(id: int):
                     notes=f.notes.data,
                     role=f.role.data,
                 ))
-
         for entry in getattr(form.items, "entries", []):
             f = getattr(entry, "form", entry)
             sh.items.append(ShipmentItem(
@@ -282,22 +275,18 @@ def edit_shipment(id: int):
                 declared_value=f.declared_value.data or 0,
                 notes=(f.notes.data or None),
             ))
-
         _compute_totals(sh)
-
         new_status = (sh.status or "").upper()
         if new_status == "ARRIVED" and old_status != "ARRIVED":
             _apply_arrival(sh)
-
         try:
             db.session.commit()
-            flash("✅ تم تحديث بيانات الشحنة", "success")
+            flash("تم تحديث بيانات الشحنة", "success")
             dest_id = sh.destination_id
             return redirect(url_for("warehouse_bp.detail", warehouse_id=dest_id)) if dest_id else redirect(url_for("shipments_bp.list_shipments"))
         except SQLAlchemyError as e:
             db.session.rollback()
-            flash(f"⚠️ خطأ أثناء التحديث: {e}", "danger")
-
+            flash(f"خطأ أثناء التحديث: {e}", "danger")
     return render_template("warehouses/shipment_form.html", form=form, shipment=sh)
 
 
@@ -313,7 +302,7 @@ def delete_shipment(id: int):
         db.session.flush()
         db.session.delete(sh)
         db.session.commit()
-        flash("🗑️ تم حذف الشحنة", "warning")
+        flash("تم حذف الشحنة", "warning")
     except SQLAlchemyError as e:
         db.session.rollback()
         flash(f"خطأ أثناء الحذف: {e}", "danger")

@@ -4,74 +4,87 @@
 
 {% block head %}
   {{ super() }}
+  <!-- خط كايرو + auth.css -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
-  <style>
-    body {
-      background: url('{{ url_for('static', filename='img/login_bg.jpg') }}') center/cover no-repeat;
-      font-family: 'Cairo', sans-serif;
-    }
-    .auth-container {
-      background: rgba(255,255,255,0.9);
-      padding: 40px;
-      border-radius: 20px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-      max-width: 420px;
-      margin: 80px auto;
-      text-align: center;
-    }
-    .btn-primary {
-      background: linear-gradient(135deg,#1e88e5,#42a5f5);
-      border: none;
-      border-radius: 8px;
-    }
-    .btn-secondary.shop-btn {
-      background: #28a745;
-      border: none;
-      width: 100%;
-    }
-  </style>
 {% endblock %}
 
 {% block content %}
-<div class="auth-container">
-  <img src="{{ url_for('static', filename='img/logo.png') }}" class="mb-3" style="width:120px;">
-  <h3 class="mb-4">تسجيل الدخول</h3>
+<div class="auth-overlay"></div>
+
+<div class="auth-container auth-compact auth-narrow">
+  <img src="{{ url_for('static', filename='img/logo.png') }}" class="auth-logo" alt="الشعار">
+  <h3 class="auth-title">تسجيل الدخول</h3>
 
   {% with messages = get_flashed_messages(with_categories=true) %}
-    {% for category, msg in messages %}
-      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-        {{ msg }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-      </div>
-    {% endfor %}
+    {% if messages %}
+      {% for category, msg in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ msg }}
+          <button type="button" class="close" data-dismiss="alert" aria-label="إغلاق">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+      {% endfor %}
+    {% endif %}
   {% endwith %}
 
-  <form method="post" action="{{ url_for('auth.login', next=request.args.get('next')) }}">
+  <form class="auth-form" method="post" action="{{ url_for('auth.login', next=request.args.get('next')) }}" novalidate>
     {{ form.hidden_tag() }}
-    <div class="mb-3 text-right">
+
+    <div class="mb-3">
       {{ form.username.label(class="form-label") }}
-      {{ form.username(class="form-control", placeholder="اسم المستخدم") }}
+      {{ form.username(class="form-control", placeholder="البريد / اسم المستخدم / رقم الهاتف", autocomplete="username", autofocus=True) }}
+      {% for e in form.username.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
     </div>
-    <div class="mb-3 text-right">
+
+    <div class="mb-3">
       {{ form.password.label(class="form-label") }}
-      {{ form.password(class="form-control", placeholder="كلمة المرور") }}
+      <div class="input-group">
+        {{ form.password(class="form-control", placeholder="كلمة المرور", autocomplete="current-password", id="login-password") }}
+        <div class="input-group-append">
+          <button class="btn btn-outline-secondary" type="button" id="toggle-pass" aria-label="إظهار/إخفاء كلمة المرور">
+            <i class="fas fa-eye"></i>
+          </button>
+        </div>
+      </div>
+      {% for e in form.password.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
     </div>
-    <div class="form-check mb-3 text-start">
-      {{ form.remember_me(class="form-check-input") }}
-      {{ form.remember_me.label(class="form-check-label") }}
+
+    <div class="form-check mb-3">
+      {{ form.remember_me(class="form-check-input", id="remember_me") }}
+      {{ form.remember_me.label(class="form-check-label", **{'for': 'remember_me'}) }}
     </div>
+
     {{ form.submit(class="btn btn-primary w-100") }}
   </form>
 
   <div class="mt-3">
     <a href="{{ url_for('auth.customer_register') }}">إنشاء حساب عميل</a> |
-    <a href="{{ url_for('auth.password_reset_request') }}">نسيت كلمة المرور؟</a>
+    <a href="{{ url_for('auth.customer_password_reset_request') }}">نسيت كلمة المرور؟</a>
   </div>
 
-  <hr class="my-4">
+  <hr class="hr-soft">
 
-  <a href="{{ url_for('shop.catalog') }}" class="btn btn-secondary shop-btn">
-    تصفح المتجر بدون تسجيل
-  </a>
+  <a href="{{ url_for('shop.catalog') }}" class="btn btn-secondary shop-btn">تصفح المتجر بدون تسجيل</a>
 </div>
+
+<script>
+  // متوافق مع Bootstrap 4 / AdminLTE 3
+  (function () {
+    var btn = document.getElementById('toggle-pass');
+    var input = document.getElementById('login-password');
+    if (btn && input) {
+      btn.addEventListener('click', function () {
+        var isText = input.getAttribute('type') === 'text';
+        input.setAttribute('type', isText ? 'password' : 'text');
+        var icon = this.querySelector('i');
+        if (icon) {
+          icon.classList.toggle('fa-eye');
+          icon.classList.toggle('fa-eye-slash');
+        }
+      });
+    }
+  })();
+</script>
 {% endblock %}

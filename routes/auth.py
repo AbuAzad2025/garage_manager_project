@@ -22,19 +22,23 @@ from utils import _audit
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
+
 def _sa_get_or_404(model, ident):
     obj = db.session.get(model, ident)
     if obj is None:
         abort(404)
     return obj
 
+
 def _is_safe_url(target: str) -> bool:
     ref_url = urlparse(request.host_url)
     test_url = urlparse(urljoin(request.host_url, target))
     return (test_url.scheme in ("http", "https") and ref_url.netloc == test_url.netloc)
 
+
 def _get_client_ip() -> str:
     return request.remote_addr or "0.0.0.0"
+
 
 def _redirect_back_or(default_endpoint: str, **kwargs):
     nxt = request.args.get("next")
@@ -42,17 +46,21 @@ def _redirect_back_or(default_endpoint: str, **kwargs):
         return redirect(nxt)
     return redirect(url_for(default_endpoint, **kwargs))
 
+
 def _get_login_identifier(form: LoginForm) -> Optional[str]:
     val = (getattr(form, "username", None) and form.username.data) or request.form.get("username") or request.form.get("email")
     val = (val or "").strip()
     return val or None
 
+
 login_attempts: dict[tuple[str, str], tuple[int, datetime]] = {}
 MAX_ATTEMPTS = 5
 BLOCK_TIME = timedelta(minutes=10)
 
+
 def _norm_ident(s: Optional[str]) -> str:
     return (s or "").strip().lower()
+
 
 def is_blocked(ip: str, identifier: Optional[str]) -> bool:
     key = (ip, _norm_ident(identifier))
@@ -66,13 +74,16 @@ def is_blocked(ip: str, identifier: Optional[str]) -> bool:
         login_attempts.pop(key, None)
     return False
 
+
 def record_attempt(ip: str, identifier: Optional[str]) -> None:
     key = (ip, _norm_ident(identifier))
     attempts, _last_time = login_attempts.get(key, (0, datetime.utcnow()))
     login_attempts[key] = (attempts + 1, datetime.utcnow())
 
+
 def clear_attempts(ip: str, identifier: Optional[str]) -> None:
     login_attempts.pop((ip, _norm_ident(identifier)), None)
+
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
@@ -133,6 +144,7 @@ def login():
 
     return render_template("auth/login.html", form=form)
 
+
 @auth_bp.route("/logout", methods=["POST"])
 @login_required
 def logout():
@@ -140,6 +152,7 @@ def logout():
     logout_user()
     flash("تم تسجيل الخروج بنجاح.", "info")
     return redirect(url_for("auth.login"))
+
 
 @auth_bp.route("/register/customer", methods=["GET", "POST"])
 def customer_register():
@@ -169,6 +182,7 @@ def customer_register():
         return redirect(url_for("shop.catalog"))
     return render_template("auth/customer_register.html", form=form)
 
+
 @auth_bp.route("/customer_password_reset_request", methods=["GET", "POST"])
 def customer_password_reset_request():
     if current_user.is_authenticated:
@@ -181,6 +195,7 @@ def customer_password_reset_request():
         flash("📩 إذا كان البريد مسجلاً، ستصلك التعليمات قريبًا.", "info")
         return redirect(url_for("auth.login"))
     return render_template("auth/customer_password_reset_request.html", form=form)
+
 
 @auth_bp.route("/customer_password_reset/<token>", methods=["GET", "POST"])
 def customer_password_reset(token: str):
@@ -204,6 +219,7 @@ def customer_password_reset(token: str):
         flash("✅ تم تحديث كلمة المرور بنجاح.", "success")
         return redirect(url_for("auth.login"))
     return render_template("auth/customer_password_reset.html", form=form, token=token)
+
 
 def send_customer_password_reset_email(customer: Customer):
     serializer = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])

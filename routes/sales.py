@@ -13,10 +13,42 @@ from sqlalchemy.orm import joinedload
 from extensions import db
 from models import (
     Sale, SaleLine, Invoice, Customer, Product, AuditLog, Warehouse, User, Payment,
-    StockLevel  # مهم: نستخدمه في التحقق والقفل
+    StockLevel  
 )
 from forms import SaleForm
 from utils import permission_required
+
+# ============ MONEY: أدوات Decimal آمنة ============
+from decimal import Decimal, ROUND_HALF_UP
+
+TWOPLACES = Decimal("0.01")
+
+def D(x):
+    """حوّل أي قيمة إلى Decimal بشكل آمن."""
+    if x is None:
+        return Decimal("0")
+    if isinstance(x, Decimal):
+        return x
+    return Decimal(str(x))
+
+def line_total_decimal(qty, unit_price, discount_rate):
+    """
+    qty * unit_price * (1 - discount/100)  => Decimal + تقريب 2 منازل
+    """
+    q = D(qty)
+    p = D(unit_price)
+    dr = D(discount_rate or 0)
+    one = Decimal("1")
+    hundred = Decimal("100")
+    total = q * p * (one - dr / hundred)
+    return total.quantize(TWOPLACES, rounding=ROUND_HALF_UP)
+
+def money_fmt(value):
+    """إرجاع نص مالـي 1,234.56 من Decimal/رقم."""
+    v = value if isinstance(value, Decimal) else D(value or 0)
+    return f"{v:,.2f}"
+
+# =====================================================
 
 STATUS_MAP = {
     "DRAFT": ("مسودة", "bg-warning text-dark"),
@@ -282,6 +314,7 @@ def dashboard():
 @permission_required("manage_sales")
 def list_sales():
     f = request.args
+    # ملاحظة: هذا التجميع يجري في SQL؛ الأنواع تضبطها قاعدة البيانات.
     subtotals = (
         db.session.query(
             Sale.id.label("sale_id"),
@@ -417,20 +450,36 @@ def sale_detail(id: int):
         joinedload(Sale.payments),
     ])
     _format_sale(sale)
+
+    # MONEY: احسب إجمالي السطر باستخدام Decimal (بدون أي float) ولا تعيّن على line_total
     for ln in sale.lines:
         ln.product_name = ln.product.name if ln.product else "-"
         ln.warehouse_name = ln.warehouse.name if ln.warehouse else "-"
-        ln.line_total = float(ln.quantity * ln.unit_price * (1 - (ln.discount_rate or 0) / 100.0))
-        ln.line_total *= (1 + (ln.tax_rate or 0) / 100.0)
-        ln.line_total_fmt = f"{ln.line_total:,.2f}"
+
+        base_total = line_total_decimal(ln.quantity, ln.unit_price, ln.discount_rate)  # Decimal
+        tr = D(getattr(ln, "tax_rate", 0))  # Decimal
+        tax_amount = (base_total * tr / Decimal("100")).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
+        line_with_tax = (base_total + tax_amount).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
+
+        # مـهـم: لا نعيّن على ln.line_total حتى لا نصطدم بالـ hybrid property
+        # خلي العرض فقط:
+        ln.line_total_fmt = money_fmt(line_with_tax)
+
     for p in sale.payments:
         p.date_formatted = p.payment_date.strftime("%Y-%m-%d") if getattr(p, "payment_date", None) else "-"
         lbl, cls = PAYMENT_STATUS_MAP.get(p.status, (p.status, ""))
         p.status_label, p.status_class = lbl, cls
         p.method_label = PAYMENT_METHOD_MAP.get(getattr(p, "method", ""), getattr(p, "method", ""))
+
     invoice = Invoice.query.filter_by(sale_id=id).first()
-    return render_template("sales/detail.html", sale=sale, invoice=invoice, status_map=STATUS_MAP,
-                           payment_method_map=PAYMENT_METHOD_MAP, payment_status_map=PAYMENT_STATUS_MAP)
+    return render_template(
+        "sales/detail.html",
+        sale=sale,
+        invoice=invoice,
+        status_map=STATUS_MAP,
+        payment_method_map=PAYMENT_METHOD_MAP,
+        payment_status_map=PAYMENT_STATUS_MAP,
+    )
 
 # -------------------- Payments list for a sale --------------------
 
@@ -706,4 +755,45 @@ def generate_invoice(id: int):
         joinedload(Sale.lines).joinedload(SaleLine.product),
         joinedload(Sale.lines).joinedload(SaleLine.warehouse),
     ])
-    return render_template("sales/receipt.html", sale=sale)
+
+    # MONEY: حضّر القيم للتمبلت بدون أي ضرب/قسمة داخل Jinja
+    lines = []
+    subtotal = Decimal("0.00")
+    for ln in sale.lines:
+        base_total = line_total_decimal(ln.quantity, ln.unit_price, ln.discount_rate)
+        tr = D(getattr(ln, "tax_rate", 0))
+        tax_amount = (base_total * tr / Decimal("100")).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
+        line_total = (base_total + tax_amount).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
+        lines.append({
+            "obj": ln,
+            "base_total": base_total,
+            "tax_amount": tax_amount,
+            "line_total": line_total,
+        })
+        subtotal += base_total
+
+    # ضريبة عامة على الفاتورة (إن كنت تستخدم Sale.tax_rate كرأس)
+    sale_tax_rate = D(getattr(sale, "tax_rate", 0))
+    sale_shipping = D(getattr(sale, "shipping_cost", 0))
+    sale_discount_total = D(getattr(sale, "discount_total", 0))
+
+    # إن كان discount_total خصم إجمالي يُطرح من الـ subtotal
+    subtotal_after_discount = (subtotal - sale_discount_total).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
+    invoice_tax_amount = (subtotal_after_discount * sale_tax_rate / Decimal("100")).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
+
+    grand_total = (subtotal_after_discount + invoice_tax_amount + sale_shipping).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
+
+    return render_template(
+        "sales/receipt.html",
+        sale=sale,
+        lines=lines,
+        # مجاميع للعرض
+        subtotal=subtotal,
+        sale_discount_total=sale_discount_total,
+        subtotal_after_discount=subtotal_after_discount,
+        sale_tax_rate=sale_tax_rate,
+        invoice_tax_amount=invoice_tax_amount,
+        sale_shipping=sale_shipping,
+        grand_total=grand_total,
+        money_fmt=money_fmt,  # فلتر مبسّط إن حبيت تستخدمه مباشرة
+    )

@@ -1,5 +1,5 @@
 {% extends 'warehouses/base.html' %}
-{% block title %}تفاصيل الشحنة{% endblock %}
+{% block title %}تفاصيل الشحنة {{ shipment.shipment_number or ('#' ~ shipment.id) }}{% endblock %}
 {% block page_title %}تفاصيل الشحنة{% endblock %}
 
 {% block content %}
@@ -10,8 +10,8 @@
     <form method="POST"
           action="{{ url_for('shipments_bp.delete_shipment', id=shipment.id) }}"
           onsubmit="return confirm('تأكيد حذف الشحنة؟');"
-          class="d-inline">
-      {{ csrf_token() }}
+          class="d-inline m-0 p-0">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn btn-danger">حذف</button>
     </form>
     <a href="{{ url_for('shipments_bp.list_shipments') }}" class="btn btn-secondary">رجوع</a>
@@ -21,7 +21,7 @@
 <div class="card">
   <div class="card-body">
     <dl class="row mb-0">
-      <dt class="col-sm-3">رقم الشحنة</dt><dd class="col-sm-9">{{ shipment.shipment_number }}</dd>
+      <dt class="col-sm-3">رقم الشحنة</dt><dd class="col-sm-9">{{ shipment.shipment_number or '-' }}</dd>
       <dt class="col-sm-3">من</dt><dd class="col-sm-9">{{ shipment.origin or '-' }}</dd>
       <dt class="col-sm-3">إلى</dt>
       <dd class="col-sm-9">
@@ -31,13 +31,10 @@
           {{ shipment.destination or '-' }}
         {% endif %}
       </dd>
-      <dt class="col-sm-3">الحالة</dt><dd class="col-sm-9">{{ shipment.status }}</dd>
-      <dt class="col-sm-3">تاريخ الشحن</dt>
-      <dd class="col-sm-9">{{ shipment.shipment_date.strftime('%Y-%m-%d') if shipment.shipment_date else '-' }}</dd>
-      <dt class="col-sm-3">متوقع الوصول</dt>
-      <dd class="col-sm-9">{{ shipment.expected_arrival.strftime('%Y-%m-%d') if shipment.expected_arrival else '-' }}</dd>
-      <dt class="col-sm-3">الوصول الفعلي</dt>
-      <dd class="col-sm-9">{{ shipment.actual_arrival.strftime('%Y-%m-%d') if shipment.actual_arrival else '-' }}</dd>
+      <dt class="col-sm-3">الحالة</dt><dd class="col-sm-9"><span class="badge bg-info">{{ shipment.status or '-' }}</span></dd>
+      <dt class="col-sm-3">تاريخ الشحن</dt><dd class="col-sm-9">{{ shipment.shipment_date and shipment.shipment_date.strftime('%Y-%m-%d') or '-' }}</dd>
+      <dt class="col-sm-3">متوقع الوصول</dt><dd class="col-sm-9">{{ shipment.expected_arrival and shipment.expected_arrival.strftime('%Y-%m-%d') or '-' }}</dd>
+      <dt class="col-sm-3">الوصول الفعلي</dt><dd class="col-sm-9">{{ shipment.actual_arrival and shipment.actual_arrival.strftime('%Y-%m-%d') or '-' }}</dd>
       <dt class="col-sm-3">قيمة البضائع</dt><dd class="col-sm-9">{{ format_currency(shipment.value_before or 0) }}</dd>
       <dt class="col-sm-3">كلفة الشحن</dt><dd class="col-sm-9">{{ format_currency(shipment.shipping_cost or 0) }}</dd>
       <dt class="col-sm-3">الجمارك</dt><dd class="col-sm-9">{{ format_currency(shipment.customs or 0) }}</dd>
@@ -58,34 +55,61 @@
             <th>المستودع</th>
             <th class="text-center">الكمية</th>
             <th class="text-end">سعر الوحدة</th>
+            <th class="text-end">الإجمالي</th>
           </tr>
         </thead>
         <tbody>
+          {% set qty_sum = 0 %}
+          {% set total_sum = 0 %}
           {% for i in shipment.items %}
+            {% set line_total = (i.quantity or 0) * ((i.unit_cost or 0)|float) %}
+            {% set qty_sum = qty_sum + (i.quantity or 0) %}
+            {% set total_sum = total_sum + line_total %}
             <tr>
-              <td>{{ i.product.name }}</td>
-              <td>{{ i.warehouse.name }}</td>
-              <td class="text-center">{{ i.quantity }}</td>
+              <td>{{ i.product and i.product.name or '-' }}</td>
+              <td>{{ i.warehouse and i.warehouse.name or '-' }}</td>
+              <td class="text-center">{{ i.quantity or 0 }}</td>
               <td class="text-end">{{ format_currency(i.unit_cost or 0) }}</td>
+              <td class="text-end">{{ format_currency(line_total) }}</td>
             </tr>
           {% else %}
-            <tr><td colspan="4" class="text-center">لا توجد عناصر</td></tr>
+            <tr><td colspan="5" class="text-center">لا توجد عناصر</td></tr>
           {% endfor %}
         </tbody>
+        <tfoot>
+          <tr>
+            <th colspan="2" class="text-end">الإجماليات</th>
+            <th class="text-center">{{ qty_sum }}</th>
+            <th></th>
+            <th class="text-end">{{ format_currency(total_sum) }}</th>
+          </tr>
+        </tfoot>
       </table>
     </div>
 
     <h5 class="mt-3">الشركاء</h5>
-    <ul class="mb-0">
-      {% for p in shipment.partners %}
-        <li>
-          {{ p.partner.name }} – {{ (p.share_percentage or 0)|round(2) }}%
-          {% if p.share_amount %}= {{ format_currency(p.share_amount) }}{% endif %}
-        </li>
-      {% else %}
-        <li class="text-muted">لا توجد مساهمات شركاء</li>
-      {% endfor %}
-    </ul>
+    <div class="table-responsive">
+      <table class="table table-sm table-bordered align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>الشريك</th>
+            <th class="text-center">النسبة %</th>
+            <th class="text-end">المبلغ</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in shipment.partners %}
+            <tr>
+              <td>{{ p.partner and p.partner.name or '-' }}</td>
+              <td class="text-center">{{ (p.share_percentage or 0)|round(2) }}</td>
+              <td class="text-end">{{ format_currency(p.share_amount or 0) }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="3" class="text-center text-muted">لا توجد مساهمات شركاء</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
 
     <hr>
 

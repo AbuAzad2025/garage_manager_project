@@ -1,9 +1,8 @@
-// File: static/js/shipments.js
 document.addEventListener('DOMContentLoaded', function () {
-  // ===================== Shipments table (index) =====================
   (function initTable(){
     var tbl = document.getElementById('shipmentsTable');
     if (!tbl || !window.jQuery || !$.fn.DataTable) return;
+
     $('#shipmentsTable').DataTable({
       processing: true,
       serverSide: true,
@@ -12,22 +11,36 @@ document.addEventListener('DOMContentLoaded', function () {
         data: function (d) { d.format = 'json'; }
       },
       columns: [
-        { data: null, render: function(data, type, row, meta){ return meta.row + 1; }, orderable: false },
+        { data: null, orderable: false, searchable: false,
+          render: function(data, type, row, meta){
+            return meta.row + meta.settings._iDisplayStart + 1;
+          }
+        },
         { data: 'number' },
-        { data: 'expected_arrival', render: function(v){ return v ? v.substring(0,10) : ''; } },
-        { data: 'status' },
-        { data: 'total_value', render: function(v){ return (v||0).toFixed(2); } },
-        { data: 'id', orderable: false, render: function(id){
-            return '<a href="/shipments/'+id+'" class="btn btn-sm btn-info"><i class="fas fa-eye"></i></a> '+
-                   '<a href="/shipments/'+id+'/edit" class="btn btn-sm btn-primary"><i class="fas fa-edit"></i></a>';
-          } }
+        { data: 'destination', defaultContent: '-' },
+        { data: 'expected_arrival', render: function(v){ return v ? v.substring(0,10) : '-'; } },
+        { data: 'status', defaultContent: '-' },
+        { data: 'total_value',
+          render: function(v){
+            v = v || 0;
+            return v.toFixed ? v.toFixed(2) : Number(v).toFixed(2);
+          },
+          className: 'text-end'
+        },
+        { data: 'id', orderable: false, searchable: false, className: 'text-center',
+          render: function(id){
+            return '<a href="/shipments/'+id+'" class="btn btn-sm btn-outline-info" title="عرض"><i class="fa fa-eye"></i></a> '+
+                   '<a href="/shipments/'+id+'/edit" class="btn btn-sm btn-outline-secondary" title="تعديل"><i class="fa fa-pencil-alt"></i></a>';
+          }
+        }
       ],
-      order: [[2,'desc']],
-      language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/ar.json" }
+      order: [[3,'desc']],
+      language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/ar.json" },
+      autoWidth: false,
+      responsive: true
     });
   })();
 
-  // ===================== Form helpers (create/edit) =====================
   const itemsWrap     = document.getElementById('items-wrapper');
   const addItemBtn    = document.getElementById('add-item');
   const itemTpl       = document.getElementById('item-row-template');
@@ -90,7 +103,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // sums
   const itemsCountEl = document.getElementById('items-count');
   const itemsQtyEl   = document.getElementById('items-qty-sum');
   const itemsCostEl  = document.getElementById('items-cost-sum');
@@ -108,7 +120,6 @@ document.addEventListener('DOMContentLoaded', function () {
     if (itemsCostEl)  itemsCostEl.textContent  = costSum.toFixed(2);
   }
 
-  // add/remove item
   if (addItemBtn && itemTpl && itemsWrap){
     addItemBtn.addEventListener('click', () => {
       const clone = document.importNode(itemTpl.content, true);
@@ -124,7 +135,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (row){ row.remove(); reindex(itemsWrap, 'items'); recalcItems(); }
       }
     });
-    // change listeners for recalc
     itemsWrap.addEventListener('input', (e) => {
       if (e.target.matches('.item-qty, .item-cost, input[name*="quantity"], input[name*="unit_cost"]')) {
         recalcItems();
@@ -133,7 +143,6 @@ document.addEventListener('DOMContentLoaded', function () {
     recalcItems();
   }
 
-  // add/remove partner
   if (addPartnerBtn && partnerTpl && partnersWrap){
     addPartnerBtn.addEventListener('click', () => {
       const clone = document.importNode(partnerTpl.content, true);
@@ -150,6 +159,5 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // init select2 for already rendered rows
   initSelect2Within(document);
 });

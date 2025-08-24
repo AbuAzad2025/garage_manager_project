@@ -4,58 +4,108 @@
 
 {% block head %}
   {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
-  <style>
-    body {
-      background: url('{{ url_for('static', filename='img/login_bg.jpg') }}') center/cover no-repeat;
-      font-family: 'Cairo', sans-serif;
-    }
-    .auth-container {
-      background: rgba(255, 255, 255, 0.95);
-      padding: 40px;
-      border-radius: 16px;
-      max-width: 460px;
-      margin: 80px auto;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-    }
-    .btn-primary {
-      background: linear-gradient(135deg, #1e88e5, #42a5f5);
-      border: none;
-    }
-  </style>
 {% endblock %}
 
 {% block content %}
+<div class="auth-overlay"></div>
+
 <div class="auth-container">
-  <h3 class="mb-4 text-center">إنشاء حساب عميل</h3>
+  <img src="{{ url_for('static', filename='img/logo.png') }}" class="auth-logo" alt="الشعار">
+  <h3 class="auth-title">إنشاء حساب عميل</h3>
 
   {% with messages = get_flashed_messages(with_categories=true) %}
-    {% for category, msg in messages %}
-      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-        {{ msg }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-      </div>
-    {% endfor %}
+    {% if messages %}
+      {% for category, msg in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ msg }}
+          <button type="button" class="close" data-dismiss="alert" aria-label="إغلاق">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+      {% endfor %}
+    {% endif %}
   {% endwith %}
 
-  <form method="post" action="{{ url_for('auth.customer_register') }}">
+  <form class="auth-form" method="post" action="{{ url_for('auth.customer_register') }}" novalidate>
     {{ form.hidden_tag() }}
 
-    {% for field in [form.name, form.email, form.phone, form.whatsapp, form.address, form.password] %}
-      <div class="mb-3 text-right">
-        {{ field.label(class="form-label") }}
-        {{ field(class="form-control") }}
-        {% for error in field.errors %}
-          <div class="text-danger small">{{ error }}</div>
-        {% endfor %}
+    <div class="mb-3">
+      {{ form.name.label(class="form-label") }}
+      {{ form.name(class="form-control", placeholder="الاسم الكامل", autocomplete="name", required=True) }}
+      {% for error in form.name.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+    </div>
+
+    <div class="mb-3">
+      {{ form.email.label(class="form-label") }}
+      {{ form.email(class="form-control", type="email", placeholder="البريد الإلكتروني", autocomplete="email", inputmode="email", required=True) }}
+      {% for error in form.email.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+    </div>
+
+    <div class="mb-3">
+      {{ form.phone.label(class="form-label") }}
+      {{ form.phone(class="form-control", placeholder="رقم الهاتف", autocomplete="tel", inputmode="tel") }}
+      {% for error in form.phone.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+    </div>
+
+    <div class="mb-3">
+      {{ form.whatsapp.label(class="form-label") }}
+      {{ form.whatsapp(class="form-control", placeholder="واتساب (اختياري)", autocomplete="tel", inputmode="tel") }}
+      {% for error in form.whatsapp.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+    </div>
+
+    <div class="mb-3">
+      {{ form.address.label(class="form-label") }}
+      {{ form.address(class="form-control", placeholder="العنوان (اختياري)", rows="2") }}
+      {% for error in form.address.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+    </div>
+
+    <div class="mb-3">
+      {{ form.password.label(class="form-label") }}
+      <div class="input-group">
+        {{ form.password(class="form-control", placeholder="كلمة المرور", autocomplete="new-password", id="reg-password") }}
+        <div class="input-group-append">
+          <button class="btn btn-outline-secondary" type="button" id="toggle-reg-pass" aria-label="إظهار/إخفاء كلمة المرور">
+            <i class="fas fa-eye"></i>
+          </button>
+        </div>
       </div>
-    {% endfor %}
+      {% for error in form.password.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+    </div>
+
+    {% if form.confirm_password is defined %}
+    <div class="mb-3">
+      {{ form.confirm_password.label(class="form-label") }}
+      {{ form.confirm_password(class="form-control", placeholder="تأكيد كلمة المرور", autocomplete="new-password") }}
+      {% for error in form.confirm_password.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+    </div>
+    {% endif %}
 
     {{ form.submit(class="btn btn-primary w-100") }}
   </form>
 
-  <p class="mt-3 text-center">
+  <div class="mt-3" style="text-align:center;">
     لديك حساب؟ <a href="{{ url_for('auth.login') }}">تسجيل الدخول</a>
-  </p>
+  </div>
 </div>
+
+<script>
+  // زر إظهار/إخفاء كلمة المرور - متوافق مع Bootstrap 4 / AdminLTE 3
+  (function () {
+    var btn = document.getElementById('toggle-reg-pass');
+    var input = document.getElementById('reg-password');
+    if (btn && input) {
+      btn.addEventListener('click', function () {
+        var isText = input.getAttribute('type') === 'text';
+        input.setAttribute('type', isText ? 'password' : 'text');
+        var icon = this.querySelector('i');
+        if (icon) {
+          icon.classList.toggle('fa-eye');
+          icon.classList.toggle('fa-eye-slash');
+        }
+      });
+    }
+  })();
+</script>
 {% endblock %}

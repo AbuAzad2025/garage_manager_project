@@ -1,7 +1,7 @@
-{# templates/warehouses/shipment_form.html #}
 {% extends 'warehouses/base.html' %}
-{% block title %}شحنة جديدة{% endblock %}
-{% block page_title %}شحنة جديدة{% endblock %}
+{% set is_edit = shipment is not none %}
+{% block title %}{{ is_edit and 'تعديل شحنة' or 'شحنة جديدة' }}{% endblock %}
+{% block page_title %}{{ is_edit and 'تعديل شحنة' or 'شحنة جديدة' }}{% endblock %}
 
 {% block head_extra %}
   {{ super() }}
@@ -29,6 +29,11 @@
     <div class="col-12 mt-1">
       {{ sf.declared_value.label }} {{ sf.declared_value(class="form-control item-declared", step="0.01") }}
     </div>
+    {% if sf.notes is defined %}
+    <div class="col-12 mt-1">
+      {{ sf.notes.label }} {{ sf.notes(class="form-control") }}
+    </div>
+    {% endif %}
   </div>
 </div>
 {%- endmacro %}
@@ -49,13 +54,12 @@
       <a href="{{ url_for('vendors_bp.partners_create') }}" target="_blank" class="btn btn-sm btn-outline-secondary">+ شريك جديد</a>
       <button type="button" class="btn btn-sm btn-outline-danger btn-remove-partner">حذف</button>
     </div>
-
-    <div class="col-md-4 mt-2">{{ pf.identity_number.label }} {{ pf.identity_number(class="form-control") }}</div>
-    <div class="col-md-4 mt-2">{{ pf.phone_number.label }} {{ pf.phone_number(class="form-control") }}</div>
-    <div class="col-md-4 mt-2">{{ pf.address.label }} {{ pf.address(class="form-control") }}</div>
-    <div class="col-md-4 mt-2">{{ pf.unit_price_before_tax.label }} {{ pf.unit_price_before_tax(class="form-control", step="0.01") }}</div>
-    <div class="col-md-4 mt-2">{{ pf.expiry_date.label }} {{ pf.expiry_date(class="form-control") }}</div>
-    <div class="col-md-4 mt-2">{{ pf.notes.label }} {{ pf.notes(class="form-control") }}</div>
+    {% if pf.identity_number is defined %}<div class="col-md-4 mt-2">{{ pf.identity_number.label }} {{ pf.identity_number(class="form-control") }}</div>{% endif %}
+    {% if pf.phone_number is defined %}<div class="col-md-4 mt-2">{{ pf.phone_number.label }} {{ pf.phone_number(class="form-control") }}</div>{% endif %}
+    {% if pf.address is defined %}<div class="col-md-4 mt-2">{{ pf.address.label }} {{ pf.address(class="form-control") }}</div>{% endif %}
+    {% if pf.unit_price_before_tax is defined %}<div class="col-md-4 mt-2">{{ pf.unit_price_before_tax.label }} {{ pf.unit_price_before_tax(class="form-control", step="0.01") }}</div>{% endif %}
+    {% if pf.expiry_date is defined %}<div class="col-md-4 mt-2">{{ pf.expiry_date.label }} {{ pf.expiry_date(class="form-control") }}</div>{% endif %}
+    {% if pf.notes is defined %}<div class="col-md-4 mt-2">{{ pf.notes.label }} {{ pf.notes(class="form-control") }}</div>{% endif %}
   </div>
 </div>
 {%- endmacro %}
@@ -80,6 +84,9 @@
         <div class="col-md-2">{{ form.carrier.label }} {{ form.carrier(class="form-control") }}</div>
         <div class="col-md-2">{{ form.tracking_number.label }} {{ form.tracking_number(class="form-control") }}</div>
         <div class="col-md-3">{{ form.status.label }} {{ form.status(class="form-select") }}</div>
+        {% if form.currency is defined %}
+        <div class="col-md-3">{{ form.currency.label }} {{ form.currency(class="form-select") }}</div>
+        {% endif %}
       </div>
     </div>
   </div>
@@ -96,9 +103,11 @@
       <div id="items-wrapper" data-index="{{ form.items|length }}">
         {% for sf in form.items %}
           {{ item_row(sf, loop.index0) }}
+        {% else %}
+          <div class="text-muted small">لا توجد بنود بعد.</div>
         {% endfor %}
       </div>
-      <div class="border-top pt-2 mt-2 d-flex justify-content-between">
+      <div class="border-top pt-2 mt-2 d-flex flex-wrap gap-3 justify-content-between">
         <div>إجمالي البنود: <strong id="items-count">0</strong></div>
         <div>إجمالي الكمية: <strong id="items-qty-sum">0</strong></div>
         <div>إجمالي التكلفة (تقديري): <strong id="items-cost-sum">0.00</strong></div>
@@ -117,6 +126,8 @@
       <div id="partners-wrapper" data-index="{{ form.partners|length }}">
         {% for pf in form.partners %}
           {{ partner_row(pf, loop.index0) }}
+        {% else %}
+          <div class="text-muted small">لا توجد صفوف شركاء بعد.</div>
         {% endfor %}
       </div>
     </div>
@@ -137,85 +148,97 @@
     </div>
   </div>
 
-  {# ================= قوالب الصفوف الديناميكية ================= #}
+  {% if form.items|length %}
   <template id="item-row-template">
-    <div class="item-row border rounded p-2 mb-2">
+    {{ item_row(form.items.entries[0].form, "__INDEX__") }}
+  </template>
+  {% else %}
+  <template id="item-row-template">
+    <div class="shipment-item border rounded p-2 mb-2" data-index="__INDEX__">
       <div class="row g-2 align-items-end">
-        <div class="col-md-5">
-          {{ form.items.entries[0].form.product_id.label }}
-          {{ form.items.entries[0].form.product_id(class_="select2 form-control") }}
+        <div class="col-md-4">
+          <label>الصنف</label>
+          <select name="items-__INDEX__-product_id" class="select2 form-control"></select>
         </div>
         <div class="col-md-3">
-          {{ form.items.entries[0].form.warehouse_id.label }}
-          {{ form.items.entries[0].form.warehouse_id(class_="select2 form-control") }}
+          <label>المخزن</label>
+          <select name="items-__INDEX__-warehouse_id" class="select2 form-control"></select>
         </div>
         <div class="col-md-2">
-          {{ form.items.entries[0].form.quantity.label }}
-          {{ form.items.entries[0].form.quantity(class="form-control item-qty") }}
+          <label>الكمية</label>
+          <input name="items-__INDEX__-quantity" type="number" min="1" class="form-control item-qty">
         </div>
         <div class="col-md-2">
-          {{ form.items.entries[0].form.unit_cost.label }}
-          {{ form.items.entries[0].form.unit_cost(class="form-control item-cost") }}
+          <label>تكلفة الوحدة</label>
+          <input name="items-__INDEX__-unit_cost" type="number" step="0.01" class="form-control item-cost">
         </div>
-        <div class="col-md-2 mt-2">
-          {{ form.items.entries[0].form.declared_value.label }}
-          {{ form.items.entries[0].form.declared_value(class="form-control item-declared") }}
+        <div class="col-md-1 text-end">
+          <button type="button" class="btn btn-sm btn-outline-danger btn-remove-item">حذف</button>
         </div>
-        <div class="col-md-2 mt-4">
-          <button type="button" class="btn btn-sm btn-danger btn-remove-item">حذف</button>
+        <div class="col-12 mt-1">
+          <label>القيمة المصرّح بها</label>
+          <input name="items-__INDEX__-declared_value" type="number" step="0.01" class="form-control item-declared">
         </div>
       </div>
     </div>
   </template>
+  {% endif %}
 
+  {% if form.partners|length %}
   <template id="partner-row-template">
-    <div class="partner-row border rounded p-2 mb-2">
+    {{ partner_row(form.partners.entries[0].form, "__INDEX__") }}
+  </template>
+  {% else %}
+  <template id="partner-row-template">
+    <div class="shipment-partner border rounded p-2 mb-2" data-index="__INDEX__">
       <div class="row g-2">
         <div class="col-md-4">
-          {{ form.partners.entries[0].form.partner_id.label }}
-          {{ form.partners.entries[0].form.partner_id(class_="select2 form-control") }}
+          <label>الشريك</label>
+          <select name="partners-__INDEX__-partner_id" class="select2 form-control"></select>
         </div>
         <div class="col-md-2">
-          {{ form.partners.entries[0].form.share_percentage.label }}
-          {{ form.partners.entries[0].form.share_percentage(class="form-control") }}
+          <label>نسبة الشراكة %</label>
+          <input name="partners-__INDEX__-share_percentage" type="number" step="0.01" class="form-control">
         </div>
         <div class="col-md-2">
-          {{ form.partners.entries[0].form.share_amount.label }}
-          {{ form.partners.entries[0].form.share_amount(class="form-control") }}
+          <label>المبلغ</label>
+          <input name="partners-__INDEX__-share_amount" type="number" step="0.01" class="form-control">
         </div>
-        <div class="col-md-4">
-          {{ form.partners.entries[0].form.identity_number.label }}
-          {{ form.partners.entries[0].form.identity_number(class="form-control") }}
-        </div>
-        <div class="col-md-4 mt-2">
-          {{ form.partners.entries[0].form.phone_number.label }}
-          {{ form.partners.entries[0].form.phone_number(class="form-control") }}
+        <div class="col-md-4 text-end">
+          <a href="{{ url_for('vendors_bp.partners_create') }}" target="_blank" class="btn btn-sm btn-outline-secondary">+ شريك جديد</a>
+          <button type="button" class="btn btn-sm btn-outline-danger btn-remove-partner">حذف</button>
         </div>
         <div class="col-md-4 mt-2">
-          {{ form.partners.entries[0].form.address.label }}
-          {{ form.partners.entries[0].form.address(class="form-control") }}
+          <label>الرقم التعريفي</label>
+          <input name="partners-__INDEX__-identity_number" class="form-control">
         </div>
         <div class="col-md-4 mt-2">
-          {{ form.partners.entries[0].form.unit_price_before_tax.label }}
-          {{ form.partners.entries[0].form.unit_price_before_tax(class="form-control") }}
+          <label>الهاتف</label>
+          <input name="partners-__INDEX__-phone_number" class="form-control">
         </div>
         <div class="col-md-4 mt-2">
-          {{ form.partners.entries[0].form.expiry_date.label }}
-          {{ form.partners.entries[0].form.expiry_date(class="form-control") }}
+          <label>العنوان</label>
+          <input name="partners-__INDEX__-address" class="form-control">
         </div>
         <div class="col-md-4 mt-2">
-          {{ form.partners.entries[0].form.notes.label }}
-          {{ form.partners.entries[0].form.notes(class="form-control") }}
+          <label>سعر الوحدة قبل الضريبة</label>
+          <input name="partners-__INDEX__-unit_price_before_tax" type="number" step="0.01" class="form-control">
         </div>
-        <div class="col-md-2 mt-4">
-          <button type="button" class="btn btn-sm btn-danger btn-remove-partner">حذف</button>
+        <div class="col-md-4 mt-2">
+          <label>انتهاء الصلاحية</label>
+          <input name="partners-__INDEX__-expiry_date" type="date" class="form-control">
+        </div>
+        <div class="col-md-4 mt-2">
+          <label>ملاحظات</label>
+          <input name="partners-__INDEX__-notes" class="form-control">
         </div>
       </div>
     </div>
   </template>
+  {% endif %}
 
   <div class="mt-3">
-    <button class="btn btn-primary">حفظ الشحنة</button>
+    <button class="btn btn-primary">{{ is_edit and 'تحديث الشحنة' or 'حفظ الشحنة' }}</button>
     <a class="btn btn-secondary" href="{{ url_for('shipments_bp.list_shipments') }}">عودة</a>
   </div>
 </form>
