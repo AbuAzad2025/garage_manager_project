@@ -8,35 +8,50 @@
 {% endblock %}
 
 {% block content %}
-<form class="row g-2 mb-3" method="get">
-  <div class="col-md-9">
-    <select class="form-control" name="warehouse_ids" multiple size="5">
-      {% for w in warehouses %}
-        <option value="{{ w.id }}" {% if w.id in selected_ids %}selected{% endif %}>{{ w.name }}</option>
-      {% endfor %}
-    </select>
+<div class="card mb-4 shadow-sm">
+  <div class="card-body">
+    <form class="row g-3 align-items-end" method="get">
+      <div class="col-md-9">
+        <label class="form-label">اختر المستودعات</label>
+        <select class="form-select" name="warehouse_ids" multiple size="6">
+          {% for w in warehouses %}
+            <option value="{{ w.id }}" {% if w.id in selected_ids %}selected{% endif %}>{{ w.name }}</option>
+          {% endfor %}
+        </select>
+        <div class="form-text">استخدم Ctrl أو ⌘ للاختيار المتعدد</div>
+      </div>
+      <div class="col-md-3 d-flex flex-column gap-2">
+        <button class="btn btn-primary">تطبيق</button>
+        <a class="btn btn-secondary" href="{{ url_for('warehouse_bp.detail', warehouse_id=active_warehouse_id) }}">رجوع للتفاصيل</a>
+      </div>
+    </form>
   </div>
-  <div class="col-md-3 text-end">
-    <button class="btn btn-primary">تطبيق</button>
-    <a class="btn btn-secondary" href="{{ url_for('warehouse_bp.detail', warehouse_id=active_warehouse_id) }}">رجوع للتفاصيل</a>
-  </div>
-</form>
+</div>
 
-<table class="table table-striped" id="stock-table" style="width:100%">
-  <thead>
-    <tr><th>القطعة</th><th>المستودع</th><th>الكمية</th><th>حد أدنى</th></tr>
-  </thead>
-  <tbody>
-    {% for sl in stock_levels %}
-      <tr>
-        <td><a href="{{ url_for('warehouse_bp.product_card', product_id=sl.product.id) }}">{{ sl.product.name }}</a></td>
-        <td>{{ sl.warehouse.name }}</td>
-        <td>{{ sl.quantity }}</td>
-        <td>{{ sl.min_stock or 0 }}</td>
-      </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div class="card shadow-sm">
+  <div class="card-body p-0">
+    <table class="table table-striped mb-0" id="stock-table" style="width:100%">
+      <thead class="table-light">
+        <tr>
+          <th>القطعة</th>
+          <th>المستودع</th>
+          <th>الكمية</th>
+          <th>الحد الأدنى</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sl in stock_levels %}
+          <tr>
+            <td><a href="{{ url_for('warehouse_bp.product_card', product_id=sl.product.id) }}">{{ sl.product.name }}</a></td>
+            <td>{{ sl.warehouse.name }}</td>
+            <td>{{ sl.quantity }}</td>
+            <td>{{ sl.min_stock or 0 }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}

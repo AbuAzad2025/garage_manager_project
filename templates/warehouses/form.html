@@ -1,4 +1,5 @@
 {% extends 'warehouses/base.html' %}
+
 {% block title %}{{ 'تعديل مستودع' if warehouse else 'مستودع جديد' }}{% endblock %}
 {% block page_title %}{{ 'تعديل مستودع' if warehouse else 'مستودع جديد' }}{% endblock %}
 
@@ -8,59 +9,77 @@
 
   <div class="row">
     <div class="col-md-6">
-      <div class="mb-3">
-        {{ form.name.label }} 
-        {{ form.name(class="form-control") }}
-        {% for e in form.name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-      </div>
+      <div class="card mb-4 shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title">معلومات عامة</h5>
 
-      <div class="mb-3">
-        {{ form.warehouse_type.label }}
-        {{ form.warehouse_type(class="form-control", id="warehouse_type") }}
-        {% for e in form.warehouse_type.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-      </div>
+          <div class="mb-3">
+            {{ form.name.label(class="form-label") }}
+            {{ form.name(class="form-control") }}
+            {% for e in form.name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
 
-      <div class="mb-3">
-        {{ form.location.label }}
-        {{ form.location(class="form-control") }}
-        {% for e in form.location.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-      </div>
+          <div class="mb-3">
+            {{ form.warehouse_type.label(class="form-label") }}
+            {{ form.warehouse_type(class="form-control", id="warehouse_type") }}
+            {% for e in form.warehouse_type.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
 
-      <div class="mb-3">
-        {{ form.capacity.label }}
-        {{ form.capacity(class="form-control") }}
-        {% for e in form.capacity.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-      </div>
+          <div class="mb-3">
+            {{ form.location.label(class="form-label") }}
+            {{ form.location(class="form-control") }}
+            {% for e in form.location.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
 
-      <div class="mb-3 form-check">
-        {{ form.is_active(class="form-check-input", id="is_active") }}
-        <label class="form-check-label" for="is_active">{{ form.is_active.label.text }}</label>
+          <div class="mb-3">
+            {{ form.capacity.label(class="form-label") }}
+            {{ form.capacity(class="form-control") }}
+            {% for e in form.capacity.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="form-check mb-2">
+            {{ form.is_active(class="form-check-input", id="is_active") }}
+            <label class="form-check-label" for="is_active">{{ form.is_active.label.text }}</label>
+          </div>
+        </div>
       </div>
     </div>
 
     <div class="col-md-6">
-      <div class="mb-3">
-        {{ form.parent_id.label }}
-        {{ form.parent_id(class="form-control") }}
-        {% for e in form.parent_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-      </div>
+      <div class="card mb-4 shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title">الارتباطات والإعدادات</h5>
 
-      <div class="mb-3" id="partner_row">
-        {{ form.partner_id.label }}
-        {{ form.partner_id(class="form-control", id="partner_id") }}
-        {% for e in form.partner_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-      </div>
+          <div class="mb-3">
+            {{ form.parent_id.label(class="form-label") }}
+            {{ form.parent_id(class="form-control") }}
+            {% for e in form.parent_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
 
-      <div class="mb-3" id="share_row">
-        {{ form.share_percent.label }}
-        {{ form.share_percent(class="form-control", id="share_percent") }}
-        {% for e in form.share_percent.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          <div class="mb-3" id="partner_row">
+            {{ form.partner_id.label(class="form-label") }}
+            {{ form.partner_id(class="form-control", id="partner_id") }}
+            {% for e in form.partner_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="mb-3" id="share_row">
+            {{ form.share_percent.label(class="form-label") }}
+            {{ form.share_percent(class="form-control", id="share_percent") }}
+            {% for e in form.share_percent.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
-  <button class="btn btn-primary">حفظ</button>
-  <a class="btn btn-secondary" href="{{ url_for('warehouse_bp.list') }}">رجوع</a>
+  <div class="d-flex justify-content-start gap-2">
+    <button class="btn btn-primary">
+      <i class="fas fa-save me-1"></i> حفظ
+    </button>
+    <a href="{{ url_for('warehouse_bp.list') }}" class="btn btn-secondary">
+      <i class="fas fa-arrow-right me-1"></i> رجوع
+    </a>
+  </div>
 </form>
 {% endblock %}
 
@@ -83,6 +102,7 @@
         if (shareInput) shareInput.value = '';
       }
     }
+
     if (typeEl) {
       togglePartner();
       typeEl.addEventListener('change', togglePartner);

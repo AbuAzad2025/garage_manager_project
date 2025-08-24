@@ -5,7 +5,7 @@
 {% block content %}
 <div class="card">
   <div class="card-body">
-    <h5 class="mb-3">قسيمة حجز {{ preorder.reference or preorder.id }}</h5>
+    <h5 class="mb-3">قسيمة حجز {{ preorder.reference or 'PR-' ~ preorder.id }}</h5>
 
     {% set qty = preorder.quantity|int %}
     {% set unit_price = (preorder.product.price or 0)|float %}
@@ -18,17 +18,16 @@
     <dl class="row">
       <dt class="col-sm-3">الجهة</dt>
       <dd class="col-sm-9">
-        {% if preorder.customer %}{{ preorder.customer.name }}
-        {% elif preorder.supplier %}{{ preorder.supplier.name }}
-        {% elif preorder.partner %}{{ preorder.partner.name }}
-        {% else %}غير محدد{% endif %}
+        {{ preorder.customer.name if preorder.customer else
+           preorder.supplier.name if preorder.supplier else
+           preorder.partner.name if preorder.partner else 'غير محدد' }}
       </dd>
 
       <dt class="col-sm-3">القطعة</dt>
-      <dd class="col-sm-9">{{ preorder.product.name if preorder.product else '-' }}</dd>
+      <dd class="col-sm-9">{{ preorder.product.name or '-' }}</dd>
 
       <dt class="col-sm-3">المستودع</dt>
-      <dd class="col-sm-9">{{ preorder.warehouse.name if preorder.warehouse else '-' }}</dd>
+      <dd class="col-sm-9">{{ preorder.warehouse.name or '-' }}</dd>
 
       <dt class="col-sm-3">الكمية</dt>
       <dd class="col-sm-9">{{ qty }}</dd>
@@ -36,35 +35,36 @@
       <dt class="col-sm-3">السعر للوحدة</dt>
       <dd class="col-sm-9">{{ '%.2f'|format(unit_price) }}</dd>
 
-      <dt class="col-sm-3">الإجمالي قبل ضريبة</dt>
+      <dt class="col-sm-3">الإجمالي قبل الضريبة</dt>
       <dd class="col-sm-9">{{ '%.2f'|format(total_before) }}</dd>
 
       <dt class="col-sm-3">نسبة الضريبة</dt>
       <dd class="col-sm-9">{{ tax }}%</dd>
 
-      <dt class="col-sm-3">الإجمالي بعد ضريبة</dt>
+      <dt class="col-sm-3">الإجمالي بعد الضريبة</dt>
       <dd class="col-sm-9">{{ '%.2f'|format(total_with_tax) }}</dd>
 
       <dt class="col-sm-3">مدفوع (عربون)</dt>
       <dd class="col-sm-9">{{ '%.2f'|format(prepaid) }}</dd>
 
-      <dt class="col-sm-3">متبقي</dt>
+      <dt class="col-sm-3">المتبقي</dt>
       <dd class="col-sm-9">{{ '%.2f'|format(balance) }}</dd>
     </dl>
 
     <div class="mt-3">
-      {% if preorder.status not in ('CANCELLED','FULFILLED') %}
-        <form method="post" action="{{ url_for('warehouse_bp.preorder_fulfill', preorder_id=preorder.id) }}" style="display:inline">
+      {% if preorder.status not in ('CANCELLED', 'FULFILLED') %}
+        <form method="post" action="{{ url_for('warehouse_bp.preorder_fulfill', preorder_id=preorder.id) }}" class="d-inline">
           {{ csrf_token() }}
           <button class="btn btn-success">تنفيذ</button>
         </form>
-        <form method="post" action="{{ url_for('warehouse_bp.preorder_cancel', preorder_id=preorder.id) }}" style="display:inline" onsubmit="return confirm('إلغاء الحجز؟');">
+        <form method="post" action="{{ url_for('warehouse_bp.preorder_cancel', preorder_id=preorder.id) }}"
+              class="d-inline" onsubmit="return confirm('إلغاء الحجز؟');">
           {{ csrf_token() }}
           <button class="btn btn-danger">إلغاء</button>
         </form>
         <a class="btn btn-outline-primary"
-           href="{{ url_for('payments.create_payment', entity_type='PREORDER', entity_id=preorder.id, amount=prepaid) }}">
-          إضافة دفعة للحجز
+           href="{{ url_for('payments.create_payment', entity_type='PREORDER', entity_id=preorder.id, amount=balance) }}">
+          إضافة دفعة
         </a>
       {% endif %}
       <a class="btn btn-secondary" href="{{ url_for('warehouse_bp.preorders_list') }}">رجوع</a>

@@ -1,75 +1,93 @@
+// static/js/warehouses.js
 document.addEventListener('DOMContentLoaded', () => {
+  // ========== إشعارات بسيطة ==========
   function showNotification(message, type = 'info') {
-    let container = document.getElementById('notification-container');
-    if (!container) {
-      container = document.createElement('div');
-      container.id = 'notification-container';
-      container.style.position = 'fixed';
-      container.style.top = '20px';
-      container.style.right = '20px';
-      container.style.zIndex = '1050';
-      document.body.appendChild(container);
+    let c = document.getElementById('notification-container');
+    if (!c) {
+      c = document.createElement('div');
+      c.id = 'notification-container';
+      c.style.position = 'fixed';
+      c.style.top = '20px';
+      c.style.right = '20px';
+      c.style.zIndex = '2000';
+      document.body.appendChild(c);
     }
-    const alert = document.createElement('div');
-    alert.className = `alert alert-${type} alert-dismissible fade show`;
-    alert.role = 'alert';
-    alert.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
-    container.appendChild(alert);
+    const el = document.createElement('div');
+    el.className = `alert alert-${type} alert-dismissible fade show shadow-sm mb-2`;
+    el.role = 'alert';
+    el.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
+    c.appendChild(el);
     setTimeout(() => {
-      alert.classList.remove('show');
-      alert.classList.add('hide');
-      setTimeout(() => alert.remove(), 500);
+      if (!el.parentNode) return;
+      el.classList.remove('show');
+      setTimeout(() => el.remove(), 300);
     }, 5000);
   }
 
-  async function ajaxFormSubmit(form, successMessage, reload = false, callback = null) {
+  // ========== إرسال فورم بالـ Fetch ==========
+  async function ajaxFormSubmit(form, okMsg, reload = false, cb = null) {
     try {
       const url = form.action;
-      const method = form.method || 'POST';
-      const formData = new FormData(form);
-      const headers = { 'X-Requested-With': 'XMLHttpRequest' };
-      const response = await fetch(url, { method, body: formData, headers });
-      const data = await response.json();
+      const method = (form.method || 'POST').toUpperCase();
+      const fd = new FormData(form);
+      const res = await fetch(url, { method, body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      let data;
+      const ct = res.headers.get('content-type') || '';
+      if (ct.includes('application/json')) data = await res.json();
+      else data = { success: res.ok };
       if (data.success) {
-        showNotification(successMessage, 'success');
-        if (reload) setTimeout(() => location.reload(), 1200);
-        if (callback) callback(data);
+        showNotification(okMsg || 'تم التنفيذ بنجاح.', 'success');
+        if (cb) cb(data);
+        if (reload) setTimeout(() => location.reload(), 900);
       } else {
-        showNotification(`خطأ: ${data.error || JSON.stringify(data.errors)}`, 'danger');
+        const err = data.error || data.message || JSON.stringify(data.errors || {});
+        showNotification(`خطأ: ${err}`, 'danger');
       }
     } catch {
-      showNotification('حدث خطأ في الاتصال بالخادم', 'danger');
+      showNotification('تعذر الاتصال بالخادم.', 'danger');
     }
   }
 
-  document.querySelectorAll('.stock-level-form').forEach(form => {
-    form.addEventListener('submit', e => {
+  // ========== ربط فورمات Ajax عامة ==========
+  document.querySelectorAll('form[data-ajax="1"]').forEach(f => {
+    f.addEventListener('submit', e => {
       e.preventDefault();
-      ajaxFormSubmit(form, 'تم تحديث المخزون بنجاح.');
+      ajaxFormSubmit(f, f.dataset.ok || 'تم الحفظ بنجاح.', f.dataset.reload === '1');
     });
   });
 
+  // ========== تحديث مستويات المخزون ==========
+  document.querySelectorAll('.stock-level-form').forEach(f => {
+    f.addEventListener('submit', e => {
+      e.preventDefault();
+      ajaxFormSubmit(f, 'تم تحديث المخزون بنجاح.');
+    });
+  });
+
+  // ========== تحويلات ==========
   const transferForm = document.getElementById('transfer-form');
   if (transferForm) {
     transferForm.addEventListener('submit', e => {
       e.preventDefault();
-      ajaxFormSubmit(transferForm, 'تم تسجيل التحويل بنجاح.', true);
+      ajaxFormSubmit(transferForm, 'تم تسجيل التحويل.', true);
     });
   }
 
+  // ========== تبادلات ==========
   const exchangeForm = document.getElementById('exchange-form');
   if (exchangeForm) {
     exchangeForm.addEventListener('submit', e => {
       e.preventDefault();
-      ajaxFormSubmit(exchangeForm, 'تم تسجيل التبادل بنجاح.', true);
+      ajaxFormSubmit(exchangeForm, 'تم تسجيل حركة التبادل.', true);
     });
   }
 
+  // ========== تحميل/تحديث حصص الشركاء ==========
   async function loadPartnerShares(warehouseId) {
     try {
-      const res = await fetch(`/warehouses/${warehouseId}/partner-shares`);
+      const res = await fetch(`/warehouses/${warehouseId}/partner-shares`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
       const data = await res.json();
-      if (!data.success) throw new Error('fail');
+      if (!data.success) throw 0;
       const tbody = document.querySelector('#partner-shares-table tbody');
       if (!tbody) return;
       tbody.innerHTML = '';
@@ -78,14 +96,14 @@ document.addEventListener('DOMContentLoaded', () => {
         tr.innerHTML = `
           <td>${s.product || ''}</td>
           <td>${s.partner || ''}</td>
-          <td>${Number(s.share_percentage || 0).toFixed(2)}</td>
-          <td>${Number(s.share_amount || 0).toFixed(2)}</td>
+          <td class="text-center">${Number(s.share_percentage || 0).toFixed(2)}</td>
+          <td class="text-end">${Number(s.share_amount || 0).toFixed(2)}</td>
           <td>${s.notes || ''}</td>
         `;
         tbody.appendChild(tr);
       });
     } catch {
-      showNotification('فشل تحميل بيانات مشاركات الشركاء.', 'danger');
+      showNotification('فشل تحميل بيانات حصص الشركاء.', 'danger');
     }
   }
 
@@ -93,233 +111,144 @@ document.addEventListener('DOMContentLoaded', () => {
   if (partnerSharesForm) {
     partnerSharesForm.addEventListener('submit', async e => {
       e.preventDefault();
-      const warehouseId = partnerSharesForm.dataset.warehouseId;
+      const wid = partnerSharesForm.dataset.warehouseId;
+      const rows = partnerSharesForm.querySelectorAll('.share-row');
       const shares = [];
-      partnerSharesForm.querySelectorAll('.share-row').forEach(row => {
+      rows.forEach(r => {
         shares.push({
-          product_id: parseInt(row.querySelector('.product-id').value) || null,
-          partner_id: parseInt(row.querySelector('.partner-id').value) || null,
-          share_percentage: parseFloat(row.querySelector('.share-percentage').value) || 0,
-          share_amount: parseFloat(row.querySelector('.share-amount').value) || 0,
-          notes: row.querySelector('.notes').value || ''
+          product_id: parseInt(r.querySelector('.product-id')?.value || '0', 10) || null,
+          partner_id: parseInt(r.querySelector('.partner-id')?.value || '0', 10) || null,
+          share_percentage: parseFloat(r.querySelector('.share-percentage')?.value || '0') || 0,
+          share_amount: parseFloat(r.querySelector('.share-amount')?.value || '0') || 0,
+          notes: r.querySelector('.notes')?.value || ''
         });
       });
       try {
-        const res = await fetch(`/warehouses/${warehouseId}/partner-shares`, {
+        const res = await fetch(`/warehouses/${wid}/partner-shares`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
           body: JSON.stringify({ shares })
         });
         const data = await res.json();
         if (data.success) {
-          showNotification('تم تحديث مشاركات الشركاء بنجاح.', 'success');
-          loadPartnerShares(warehouseId);
+          showNotification('تم تحديث الحصص.', 'success');
+          loadPartnerShares(wid);
         } else {
-          showNotification(`خطأ في التحديث: ${data.error}`, 'danger');
+          showNotification(`خطأ: ${data.error || 'تعذر التحديث'}`, 'danger');
         }
       } catch {
-        showNotification('حدث خطأ في الاتصال.', 'danger');
+        showNotification('تعذر الاتصال أثناء تحديث الحصص.', 'danger');
       }
     });
-    const table = document.getElementById('partner-shares-table');
-    if (table) loadPartnerShares(partnerSharesForm.dataset.warehouseId);
+    const tbl = document.getElementById('partner-shares-table');
+    if (tbl) loadPartnerShares(partnerSharesForm.dataset.warehouseId);
   }
 
-  // أقسام الشركاء/التبادل بحسب نوع المستودع
-  (function(){
-    const form = document.getElementById('add-product-form');
-    if (!form) return;
-    const wtype = (form.dataset.wtype || '').toUpperCase();
-    if (wtype === 'PARTNER') document.getElementById('partner-section')?.classList.remove('d-none');
-    if (wtype === 'EXCHANGE') document.getElementById('exchange-section')?.classList.remove('d-none');
-  })();
-
-  const partnersContainerLegacy = document.getElementById('partners-container');
-  const addPartnerBtnLegacy = document.getElementById('add-partner-btn');
-  const partnerTemplateLegacy = document.getElementById('partner-template')?.content;
-  if (addPartnerBtnLegacy && partnersContainerLegacy && partnerTemplateLegacy) {
-    addPartnerBtnLegacy.addEventListener('click', () => {
-      const clone = document.importNode(partnerTemplateLegacy, true);
-      partnersContainerLegacy.appendChild(clone);
-      initSelect2In(partnersContainerLegacy);
-    });
-    partnersContainerLegacy.addEventListener('click', e => {
-      if (e.target.classList.contains('remove-partner-btn')) {
-        e.target.closest('.partner-entry')?.remove();
-      }
-    });
-  }
-
-  const vendorsContainerLegacy = document.getElementById('vendors-container');
-  const addVendorBtnLegacy = document.getElementById('add-vendor-btn');
-  const vendorTemplateLegacy = document.getElementById('vendor-template')?.content;
-  if (addVendorBtnLegacy && vendorsContainerLegacy && vendorTemplateLegacy) {
-    addVendorBtnLegacy.addEventListener('click', () => {
-      const clone = document.importNode(vendorTemplateLegacy, true);
-      vendorsContainerLegacy.appendChild(clone);
-      initSelect2In(vendorsContainerLegacy);
-    });
-    vendorsContainerLegacy.addEventListener('click', e => {
-      if (e.target.classList.contains('remove-vendor-btn')) {
-        e.target.closest('.vendor-entry')?.remove();
-      }
-    });
-  }
-
+  // ========== Select2 ==========
   function initSelect2In(root = document) {
-    if (window.jQuery && jQuery.fn.select2) {
-      jQuery(root).find('.select2').each(function () {
-        const $el = jQuery(this);
-        const endpoint = $el.data('url') || $el.attr('data-url');
-        if (endpoint) {
-          $el.select2({
-            width: '100%',
-            allowClear: true,
-            placeholder: 'اختر...',
-            ajax: {
-              delay: 250,
-              url: endpoint,
-              data: params => ({ q: params.term || '', limit: 20 }),
-              processResults: (data) => {
-                const arr = Array.isArray(data) ? data : (data.results || data.data || []);
-                return { results: arr.map(x => ({ id: x.id, text: x.text || x.name || String(x.id) })) };
-              }
-            }
-          });
-        } else {
-          $el.select2({ width: '100%', allowClear: true, placeholder: 'اختر...' });
-        }
-      });
-    }
+    if (!(window.jQuery && jQuery.fn.select2)) return;
+    jQuery(root).find('.select2').each(function () {
+      const $el = jQuery(this);
+      const endpoint = $el.data('url') || $el.attr('data-url');
+      const opts = {
+        width: '100%',
+        dir: 'rtl',
+        allowClear: true,
+        placeholder: $el.attr('placeholder') || 'اختر...'
+      };
+      if (endpoint) {
+        opts.ajax = {
+          delay: 250,
+          url: endpoint,
+          data: params => ({ q: params.term || '', limit: 20 }),
+          processResults: (data) => {
+            const arr = Array.isArray(data) ? data : (data.results || data.data || []);
+            return { results: arr.map(x => ({ id: x.id, text: x.text || x.name || String(x.id) })) };
+          }
+        };
+      }
+      $el.select2(opts);
+    });
   }
   initSelect2In(document);
 
+  // ========== DataTables ==========
   if (window.jQuery && jQuery.fn.DataTable) {
+    jQuery.fn.dataTable.ext.errMode = 'none';
     jQuery('.datatable').each(function () {
-      jQuery(this).DataTable({
+      const $t = jQuery(this);
+      if ($t.hasClass('dt-initialized')) return;
+      $t.addClass('dt-initialized').DataTable({
         pageLength: 25,
         order: [],
+        responsive: true,
+        autoWidth: false,
         language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/ar.json' }
-      });
+      }).on('error.dt', () => showNotification('حدثت مشكلة أثناء تحميل الجدول.', 'danger'));
     });
   }
 
+  // ========== تأكيدات الحذف ==========
   document.addEventListener('click', (e) => {
     const btn = e.target.closest('.btn-delete');
     if (!btn) return;
     e.preventDefault();
     const form = btn.closest('form');
     if (!form) return;
-    if (window.Swal) {
+    if (window.Swal && Swal.fire) {
       Swal.fire({
         icon: 'warning',
         title: 'تأكيد الحذف',
-        text: 'سيتم حذف السجل نهائيًا',
+        html: 'سيتم حذف السجل نهائيًا',
         showCancelButton: true,
-        confirmButtonText: 'حذف'
+        confirmButtonText: 'حذف',
+        cancelButtonText: 'إلغاء',
+        reverseButtons: true
       }).then(r => { if (r.isConfirmed) form.submit(); });
-    } else {
-      if (confirm('تأكيد الحذف؟')) form.submit();
-    }
+    } else if (confirm('تأكيد الحذف؟')) form.submit();
   });
 
-  if (window.__SHIPMENT_PAGE__) {
-    const itemsContainer = document.getElementById('items-container');
-    const partnersContainer = document.getElementById('partners-container');
-    const tplItem = document.getElementById('tpl-item');
-    const tplPartner = document.getElementById('tpl-partner');
-    const btnAddItem = document.getElementById('btn-add-item');
-    const btnAddPartner = document.getElementById('btn-add-partner');
-    const barcodeInput = document.getElementById('barcode-input');
+  // ========== منطق صفحة إضافة قطعة ==========
+  (function () {
+    const form = document.getElementById('add-product-form');
+    if (!form) return;
+    const wtype = (form.dataset.wtype || '').toUpperCase();
+    const pSec = document.getElementById('partner-section');
+    const eSec = document.getElementById('exchange-section');
+    if (wtype === 'PARTNER' && pSec) pSec.classList.remove('d-none');
+    if (wtype === 'EXCHANGE' && eSec) eSec.classList.remove('d-none');
 
-    function safeReplaceAll(str, find, rep) {
-      if (typeof str.replaceAll === 'function') return str.replaceAll(find, rep);
-      return str.split(find).join(rep);
-    }
-
-    function addItemRow() {
-      if (!itemsContainer || !tplItem) return;
-      const idx = parseInt(itemsContainer.getAttribute('data-index') || '0', 10);
-      let html = safeReplaceAll(tplItem.innerHTML, '__index__', String(idx));
-      const wrapper = document.createElement('div');
-      wrapper.innerHTML = html.trim();
-      const row = wrapper.firstElementChild;
-      itemsContainer.appendChild(row);
-      itemsContainer.setAttribute('data-index', String(idx + 1));
-      initSelect2In(row);
-      recalcItemsSummary();
-      return row;
-    }
-
-    function addPartnerRow() {
-      if (!partnersContainer || !tplPartner) return;
-      const idx = parseInt(partnersContainer.getAttribute('data-index') || '0', 10);
-      let html = safeReplaceAll(tplPartner.innerHTML, '__index__', String(idx));
-      const wrapper = document.createElement('div');
-      wrapper.innerHTML = html.trim();
-      const row = wrapper.firstElementChild;
-      partnersContainer.appendChild(row);
-      partnersContainer.setAttribute('data-index', String(idx + 1));
-      initSelect2In(row);
-      return row;
-    }
-
-    function recalcItemsSummary() {
-      let count = 0, qtySum = 0, costSum = 0;
-      itemsContainer?.querySelectorAll('.shipment-item').forEach(item => {
-        count++;
-        const qty = parseFloat(item.querySelector('.item-qty')?.value || '0') || 0;
-        const cost = parseFloat(item.querySelector('.item-cost')?.value || '0') || 0;
-        qtySum += qty;
-        costSum += (qty * cost);
+    // شُركاء
+    const partnersWrap = document.getElementById('partners-container');
+    const addPartnerBtn = document.getElementById('add-partner-btn');
+    const partnerTpl = document.getElementById('partner-template')?.content;
+    if (addPartnerBtn && partnersWrap && partnerTpl) {
+      addPartnerBtn.addEventListener('click', () => {
+        const node = document.importNode(partnerTpl, true);
+        partnersWrap.appendChild(node);
+        initSelect2In(partnersWrap);
       });
-      const format = (v) => Number(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      const elCount = document.getElementById('items-count');
-      const elQty = document.getElementById('items-qty-sum');
-      const elCost = document.getElementById('items-cost-sum');
-      if (elCount) elCount.innerText = String(count);
-      if (elQty) elQty.innerText = String(qtySum);
-      if (elCost) elCost.innerText = format(costSum);
+      partnersWrap.addEventListener('click', (e) => {
+        if (e.target.closest('.remove-partner-btn')) e.target.closest('.partner-entry')?.remove();
+      });
     }
 
-    btnAddItem?.addEventListener('click', () => addItemRow());
-    itemsContainer?.addEventListener('click', (e) => {
-      const btn = e.target.closest('.btn-remove-item');
-      if (!btn) return;
-      btn.closest('.shipment-item')?.remove();
-      recalcItemsSummary();
-    });
+    // بائعو التبادل
+    const vendorsWrap = document.getElementById('vendors-container');
+    const addVendorBtn = document.getElementById('add-vendor-btn');
+    const vendorTpl = document.getElementById('vendor-template')?.content;
+    if (addVendorBtn && vendorsWrap && vendorTpl) {
+      addVendorBtn.addEventListener('click', () => {
+        const node = document.importNode(vendorTpl, true);
+        vendorsWrap.appendChild(node);
+        initSelect2In(vendorsWrap);
+      });
+      vendorsWrap.addEventListener('click', (e) => {
+        if (e.target.closest('.remove-vendor-btn')) e.target.closest('.vendor-entry')?.remove();
+      });
+    }
+  })();
 
-    itemsContainer?.addEventListener('input', (e) => {
-      if (e.target.matches('.item-qty') || e.target.matches('.item-cost')) recalcItemsSummary();
-    });
-
-    btnAddPartner?.addEventListener('click', () => addPartnerRow());
-    partnersContainer?.addEventListener('click', (e) => {
-      const btn = e.target.closest('.btn-remove-partner');
-      if (!btn) return;
-      btn.closest('.shipment-partner')?.remove();
-    });
-
-    barcodeInput?.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        let row = itemsContainer?.querySelector('.shipment-item:last-of-type');
-        if (!row) row = addItemRow();
-        if (!row) return;
-        const $sel = window.jQuery ? window.jQuery(row).find('select[data-url*="api.products"], select.select2') : null;
-        if ($sel && $sel.length && $sel.select2) {
-          $sel.select2('open');
-          const searchInput = document.querySelector('.select2-container--open .select2-search__field');
-          if (searchInput) {
-            searchInput.value = (barcodeInput.value || '').trim();
-            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-          }
-        }
-        barcodeInput.value = '';
-      }
-    });
-
-    recalcItemsSummary();
-  }
+  // ملاحظة: أزلنا كل ما يتعلّق بالروابط/الأزرار السريعة (buildUrl, goWarehouse, go-part-btn, wirePostForm, quick-preorder)
+  // لأن القالب الأساسي لم يعد يحتويها. بقية الميزات تعمل كما هي.
 });

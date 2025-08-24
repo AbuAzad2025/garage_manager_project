@@ -1,80 +1,82 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{% block title %}نظام إدارة المستودعات{% endblock %}</title>
+{# templates/warehouses/base.html #}
+{% extends 'base.html' %}
 
-  <link rel="icon" href="{{ url_for('static', filename='img/logo.png') }}" />
-  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap" rel="stylesheet" />
+{% block title %}
+  {% block page_title %}المستودعات{% endblock %} — نظام إدارة الكراج
+{% endblock %}
 
-  <!-- AdminLTE / Icons -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/css/adminlte.min.css') }}" />
-  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/fontawesome-free/css/all.min.css') }}" />
+{% block styles %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/warehouses.css') }}">
+{% endblock %}
 
-  <!-- Select2 CSS (للبحث في القوائم) -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
+{# نستخدمه لتفعيل الزر الحالي في مسار التنقل #}
+{% set ep = request.endpoint or '' %}
+{% macro is_active(prefix) -%}{% if ep.startswith(prefix) %}active{% endif %}{%- endmacro %}
 
-  <!-- DataTables -->
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
+{% block breadcrumb %}
+  <li class="breadcrumb-item {{ is_active('warehouse_bp.list') }}">
+    <a class="btn btn-sm btn-primary" href="{{ url_for('warehouse_bp.list') }}">
+      <i class="fas fa-warehouse me-1"></i> قائمة المستودعات
+    </a>
+  </li>
 
-  <!-- App CSS -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/warehouses.css') }}" />
+  <li class="breadcrumb-item {{ is_active('warehouse_bp.create') }}">
+    <a class="btn btn-sm btn-success" href="{{ url_for('warehouse_bp.create') }}">
+      <i class="fas fa-plus me-1"></i> مستودع جديد
+    </a>
+  </li>
 
-  {% block head_extra %}{% endblock %}
-</head>
-<body class="hold-transition sidebar-mini layout-fixed">
-<div class="wrapper">
-  {% include 'partials/navbar.html' %}
-  {% include 'partials/sidebar.html' %}
+  <li class="breadcrumb-item {{ is_active('warehouse_bp.inventory_summary') }}">
+    <a class="btn btn-sm btn-dark" href="{{ url_for('warehouse_bp.inventory_summary') }}">
+      <i class="fas fa-table me-1"></i> كشف المخزون
+    </a>
+  </li>
 
-  <div class="content-wrapper">
-    <section class="content-header">
-      <div class="container-fluid">
-        <h1>{% block page_title %}المستودعات{% endblock %}</h1>
-      </div>
-    </section>
+  <li class="breadcrumb-item {{ is_active('warehouse_bp.preorders_list') }}">
+    <a class="btn btn-sm btn-info text-white" href="{{ url_for('warehouse_bp.preorders_list') }}">
+      <i class="fas fa-clipboard-list me-1"></i> الحجوزات
+    </a>
+  </li>
 
-    <section class="content">
-      <div class="container-fluid">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            {% for category, message in messages %}
-              <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
-              </div>
-            {% endfor %}
-          {% endif %}
-        {% endwith %}
+  <li class="breadcrumb-item {{ is_active('warehouse_bp.preorder_create') }}">
+    <a class="btn btn-sm btn-outline-info" href="{{ url_for('warehouse_bp.preorder_create') }}">
+      <i class="fas fa-file-signature me-1"></i> إنشاء حجز
+    </a>
+  </li>
 
-        {% block content %}{% endblock %}
-      </div>
-    </section>
-  </div>
+  {# ===== روابط عادية بدون جافاسكربت ===== #}
 
-  {% include 'partials/footer.html' %}
-</div>
+  {# فتح صفحة منتجات مستودع عبر ID (GET → redirect إلى /warehouses/<id>/products) #}
+  <li class="breadcrumb-item">
+    <form class="input-group input-group-sm" method="get"
+          action="{{ url_for('warehouse_bp.goto_warehouse_products') }}"
+          style="max-width: 280px;">
+      <span class="input-group-text"><i class="fas fa-boxes"></i></span>
+      <input name="id" type="number" min="1" class="form-control" placeholder="ID مستودع">
+      <button class="btn btn-outline-secondary" type="submit">المنتجات</button>
+    </form>
+  </li>
 
-<!-- Core JS -->
-<script src="{{ url_for('static', filename='adminlte/plugins/jquery/jquery.min.js') }}"></script>
+  {# فتح بطاقة صنف عبر ID (GET → redirect إلى /warehouses/parts/<product_id>) #}
+  <li class="breadcrumb-item">
+    <form class="input-group input-group-sm" method="get"
+          action="{{ url_for('warehouse_bp.goto_product_card') }}"
+          style="max-width: 280px;">
+      <span class="input-group-text"><i class="fas fa-id-card"></i></span>
+      <input name="id" type="number" min="1" class="form-control" placeholder="ID القطعة">
+      <button class="btn btn-outline-dark" type="submit">بطاقة صنف</button>
+    </form>
+  </li>
+{% endblock %}
 
-<!-- Select2 JS (بعد jQuery مباشرة) -->
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+{# مساحة المحتوى الخاصة بكل صفحة #}
+{% block content %}
+  {% block w_content %}{% endblock %}
+{% endblock %}
 
-<script src="{{ url_for('static', filename='adminlte/plugins/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
-<script src="{{ url_for('static', filename='adminlte/js/adminlte.min.js') }}"></script>
-
-<!-- DataTables -->
-<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-
-<!-- باركود (اختياري لصفحات الشحنات) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
-
-<!-- App JS -->
-<script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
-
-{% block scripts %}{% endblock %}
-</body>
-</html>
+{% block scripts %}
+  {{ super() }}
+  {# إبقائه مفيد لباقي صفحات المستودعات، الروابط أعلاه لا تتطلب أي JS #}
+  <script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
+{% endblock %}

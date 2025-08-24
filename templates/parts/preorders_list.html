@@ -4,59 +4,74 @@
 
 {% block content %}
 <div class="mb-2 text-end">
-  <a href="{{ url_for('warehouse_bp.preorder_create') }}" class="btn btn-primary">إنشاء حجز</a>
+  <a href="{{ url_for('warehouse_bp.preorder_create') }}" class="btn btn-primary">
+    <i class="fas fa-plus"></i> إنشاء حجز
+  </a>
 </div>
 
-<table class="table table-striped" id="preorders-table">
-  <thead>
-    <tr>
-      <th>الكود</th>
-      <th>الجهة</th>
-      <th>الصنف</th>
-      <th>المستودع</th>
-      <th>الكمية</th>
-      <th>العربون</th>
-      <th>الحالة</th>
-      <th>تاريخ</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for p in preorders %}
-    <tr>
-      <td>
-        <a href="{{ url_for('warehouse_bp.preorder_detail', preorder_id=p.id) }}">
-          {{ p.reference or ('PR-' ~ p.id) }}
-        </a>
-      </td>
-      <td>
-        {% if p.customer %}عميل: {{ p.customer.name }}
-        {% elif p.supplier %}مورد: {{ p.supplier.name }}
-        {% elif p.partner %}شريك: {{ p.partner.name }}
-        {% else %}غير محدد{% endif %}
-      </td>
-      <td>{{ p.product.name if p.product else '—' }}</td>
-      <td>{{ p.warehouse.name if p.warehouse else '—' }}</td>
-      <td>{{ p.quantity or 0 }}</td>
-      <td>{{ '%.2f'|format(p.prepaid_amount or 0) }}</td>
-      <td>{{ p.status }}</td>
-      <td>{{ p.created_at.strftime('%Y-%m-%d') if p.created_at else '' }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div class="table-responsive">
+  <table class="table table-bordered table-hover" id="preorders-table">
+    <thead class="thead-light">
+      <tr>
+        <th>رمز الحجز</th>
+        <th>الجهة</th>
+        <th>القطعة</th>
+        <th>المستودع</th>
+        <th>الكمية</th>
+        <th>العربون</th>
+        <th>الحالة</th>
+        <th>تاريخ</th>
+        <th>إجراءات</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in preorders %}
+      <tr>
+        <td>
+          <a href="{{ url_for('warehouse_bp.preorder_detail', preorder_id=p.id) }}">
+            {{ p.reference or 'PR-' ~ p.id }}
+          </a>
+        </td>
+        <td>
+          {% if p.customer %}عميل: {{ p.customer.name }}
+          {% elif p.supplier %}مورد: {{ p.supplier.name }}
+          {% elif p.partner %}شريك: {{ p.partner.name }}
+          {% else %}غير محدد{% endif %}
+        </td>
+        <td>{{ p.product.name if p.product else '—' }}</td>
+        <td>{{ p.warehouse.name if p.warehouse else '—' }}</td>
+        <td>{{ p.quantity or 0 }}</td>
+        <td>{{ "%.2f"|format(p.prepaid_amount or 0) }}</td>
+        <td>{{ p.is_fulfilled and 'منفّذ' or 'قيد التنفيذ' }}</td>
+        <td>{{ p.created_at.strftime('%Y-%m-%d') if p.created_at else '' }}</td>
+        <td>
+          <a href="{{ url_for('warehouse_bp.preorder_detail', preorder_id=p.id) }}"
+             class="btn btn-sm btn-info"><i class="fas fa-eye"></i></a>
+          {% if not p.is_fulfilled and current_user.has_permission('delete_preorder') %}
+          <form method="post" action="{{ url_for('warehouse_bp.preorder_cancel', preorder_id=p.id) }}"
+                class="d-inline" onsubmit="return confirm('إلغاء الحجز؟');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% endblock %}
 
 {% block scripts %}
   {{ super() }}
   <script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
   <script>
-    (function(){
-      if (window.jQuery && $.fn.DataTable) {
-        $('#preorders-table').DataTable({
-          pageLength: 25,
-          language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/ar.json' }
-        });
-      }
-    })();
+    $(function(){
+      $('#preorders-table').DataTable({
+        pageLength: 25,
+        order: [[7, 'desc']],
+        language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/ar.json' }
+      });
+    });
   </script>
 {% endblock %}

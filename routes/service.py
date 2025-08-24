@@ -1,11 +1,11 @@
-# File: routes/service.py
 import io
 import json
+import csv
 from datetime import datetime, timedelta
 
 from flask import (
     Blueprint, render_template, request, redirect,
-    url_for, flash, jsonify, abort, Response, send_file, current_app
+    url_for, flash, jsonify, abort, Response, send_file, current_app, make_response
 )
 from flask_login import login_required, current_user, login_user
 from sqlalchemy import func, or_, and_, desc, select, update, insert
@@ -150,6 +150,83 @@ def _apply_stock_delta(product_id: int, warehouse_id: int, delta: int):
         raise ValueError("الكمية غير كافية في المخزون.")
     conn.execute(update(tbl).where(tbl.c.id == row["id"]).values(quantity=new_qty))
 
+def _fmt_dt(dt):
+    try:
+        return dt.strftime('%Y-%m-%d %H:%M') if dt else ''
+    except Exception:
+        return str(dt or '')
+
+def _row_dict(sr: ServiceRequest) -> dict:
+    cust = getattr(sr, "customer", None)
+    mech = getattr(sr, "mechanic", None)
+    return {
+        "ID": getattr(sr, "id", ""),
+        "رقم الطلب": getattr(sr, "service_number", "") or getattr(sr, "code", ""),
+        "العميل": getattr(cust, "name", "") if cust else "",
+        "هاتف": getattr(cust, "phone", "") if cust else "",
+        "الحالة": getattr(getattr(sr, "status", ""), "value", getattr(sr, "status", "")) or "",
+        "الأولوية": getattr(getattr(sr, "priority", ""), "value", getattr(sr, "priority", "")) or "",
+        "لوحة المركبة": getattr(sr, "vehicle_vrn", "") or "",
+        "الميكانيكي": getattr(mech, "username", "") if mech else "",
+        "تاريخ الاستلام": _fmt_dt(getattr(sr, "received_at", None)),
+        "تاريخ البدء": _fmt_dt(getattr(sr, "started_at", None)),
+        "تاريخ الإكمال": _fmt_dt(getattr(sr, "completed_at", None)),
+        "التكلفة التقديرية": float(getattr(sr, "estimated_cost", 0) or 0),
+        "المبلغ المستحق": float(getattr(sr, "balance_due", None) or getattr(sr, "total_cost", 0) or 0),
+        "الوصف": (getattr(sr, "description", "") or "")[:120],
+    }
+
+def _build_list_query():
+    """نفس منطق list_requests ليتطابق التصدير مع الشاشة."""
+    status_filter   = request.args.getlist('status')
+    priority_filter = request.args.getlist('priority')
+    customer_filter = request.args.get('customer', '')
+    mechanic_filter = request.args.get('mechanic', '')
+    vrn_filter      = request.args.get('vrn', '')
+    date_filter     = request.args.get('date', '')
+
+    query = ServiceRequest.query.options(joinedload(ServiceRequest.customer))
+
+    sts = _status_list(status_filter)
+    if sts:
+        query = query.filter(ServiceRequest.status.in_(sts))
+
+    pris = _priority_list(priority_filter)
+    if pris:
+        query = query.filter(ServiceRequest.priority.in_(pris))
+
+    if customer_filter:
+        query = query.join(Customer).filter(or_(
+            Customer.name.ilike(f'%{customer_filter}%'),
+            Customer.phone.ilike(f'%{customer_filter}%')
+        ))
+
+    if mechanic_filter:
+        query = query.join(User, ServiceRequest.mechanic_id == User.id).filter(
+            User.username.ilike(f'%{mechanic_filter}%')
+        )
+
+    if vrn_filter:
+        query = query.filter(ServiceRequest.vehicle_vrn.ilike(f'%{vrn_filter}%'))
+
+    if date_filter:
+        today = datetime.today()
+        col = _col('received_at')
+        if date_filter == 'today':
+            query = query.filter(func.date(col) == today.date())
+        elif date_filter == 'week':
+            start_week = today - timedelta(days=today.weekday())
+            query = query.filter(col >= start_week)
+        elif date_filter == 'month':
+            start_month = today.replace(day=1)
+            query = query.filter(col >= start_month)
+
+    sort_by    = request.args.get('sort', 'request_date')
+    sort_order = request.args.get('order', 'desc')
+    field      = _col(sort_by)
+    query = query.order_by(field.asc() if sort_order == 'asc' else field.desc())
+    return query
+
 @service_bp.route('/', methods=['GET'])
 @login_required
 @permission_required('manage_service')
@@ -229,6 +306,48 @@ def list_requests():
         mechanics=mechanics,
         filter_values=filter_values
     )
+
+@service_bp.route('/export/csv', methods=['GET'])
+@login_required
+@permission_required('manage_service')
+def export_requests_csv():
+    services = _build_list_query().all()
+    rows = [_row_dict(sr) for sr in services]
+
+    # تجهيز CSV مع BOM لتوافق Excel والعربية
+    sio = io.StringIO(newline="")
+    fieldnames = list(rows[0].keys()) if rows else [
+        "ID","رقم الطلب","العميل","هاتف","الحالة","الأولوية","لوحة المركبة",
+        "الميكانيكي","تاريخ الاستلام","تاريخ البدء","تاريخ الإكمال",
+        "التكلفة التقديرية","المبلغ المستحق","الوصف"
+    ]
+    writer = csv.DictWriter(sio, fieldnames=fieldnames)
+    writer.writeheader()
+    for r in rows:
+        writer.writerow(r)
+
+    data = sio.getvalue().encode('utf-8-sig')  # BOM
+    bio = io.BytesIO(data); bio.seek(0)
+    filename = f"service_export_{datetime.now():%Y%m%d_%H%M%S}.csv"
+    return send_file(bio, as_attachment=True, download_name=filename,
+                     mimetype="text/csv; charset=utf-8")
+
+@service_bp.route('/export/pdf', methods=['GET'])
+@login_required
+@permission_required('manage_service')
+def export_requests_pdf():
+    services = _build_list_query().all()
+    rows = [_row_dict(sr) for sr in services]
+    # نرجّع HTML مُهيّأ للطباعة (Ctrl+P → Save as PDF)
+    html = render_template(
+        'service/export_pdf.html',
+        title="تقرير طلبات الصيانة",
+        generated_at=datetime.now(),
+        rows=rows
+    )
+    resp = make_response(html)
+    resp.headers["Content-Type"] = "text/html; charset=utf-8"
+    return resp
 
 @service_bp.route('/dashboard')
 @login_required

@@ -4,7 +4,6 @@
 
 {% block head_extra %}
   {{ super() }}
-  {# Select2 للـ AjaxSelectField #}
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
 {% endblock %}
 
@@ -22,15 +21,9 @@
     <div class="col-md-4 mb-2">{{ form.status.label }} {{ form.status(class="form-control") }}</div>
     <div class="col-md-4 mb-2">{{ form.entity_type.label }} {{ form.entity_type(class="form-control", id="entity_type") }}</div>
     <div class="col-md-4 mb-2">
-      <div id="customer_group" class="mb-2">
-        {{ form.customer_id.label }} {{ form.customer_id(class="form-control select2") }}
-      </div>
-      <div id="supplier_group" class="mb-2" style="display:none">
-        {{ form.supplier_id.label }} {{ form.supplier_id(class="form-control select2") }}
-      </div>
-      <div id="partner_group" class="mb-2" style="display:none">
-        {{ form.partner_id.label }}  {{ form.partner_id(class="form-control select2") }}
-      </div>
+      <div class="entity-group" id="customer_group">{{ form.customer_id.label }} {{ form.customer_id(class="form-control select2") }}</div>
+      <div class="entity-group d-none" id="supplier_group">{{ form.supplier_id.label }} {{ form.supplier_id(class="form-control select2") }}</div>
+      <div class="entity-group d-none" id="partner_group">{{ form.partner_id.label }} {{ form.partner_id(class="form-control select2") }}</div>
     </div>
   </div>
 
@@ -59,17 +52,18 @@
   <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
   <script>
     (function(){
-      // تفعيل Select2
       if (window.jQuery) {
-        $('.select2').each(function(){ try { $(this).select2({ width: '100%' }); } catch(e){} });
+        $('.select2').select2({ width: '100%' });
       }
-      // إظهار/إخفاء حسب نوع الجهة
+
       function toggleEntityGroups() {
-        var t = document.getElementById('entity_type').value;
-        document.getElementById('customer_group').style.display = (t === 'customer') ? '' : 'none';
-        document.getElementById('supplier_group').style.display = (t === 'supplier') ? '' : 'none';
-        document.getElementById('partner_group').style.display  = (t === 'partner')  ? '' : 'none';
+        const t = document.getElementById('entity_type').value;
+        ['customer', 'supplier', 'partner'].forEach(function(type){
+          const el = document.getElementById(type + '_group');
+          if (el) el.classList.toggle('d-none', type !== t);
+        });
       }
+
       document.getElementById('entity_type').addEventListener('change', toggleEntityGroups);
       toggleEntityGroups();
     })();

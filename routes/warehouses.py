@@ -259,6 +259,27 @@ def warehouse_detail(warehouse_id):
         shipment_form=ShipmentForm(),
     )
 
+@warehouse_bp.route("/goto/warehouse-products", methods=["GET"], endpoint="goto_warehouse_products")
+@login_required
+@permission_required("view_inventory")
+def goto_warehouse_products():
+    wid = request.args.get("id", type=int)
+    if not wid:
+        flash("أدخل رقم المستودع.", "warning")
+        return redirect(url_for("warehouse_bp.list"))
+    return redirect(url_for("warehouse_bp.products", id=wid))
+
+
+@warehouse_bp.route("/goto/product-card", methods=["GET"], endpoint="goto_product_card")
+@login_required
+@permission_required("view_parts")
+def goto_product_card():
+    pid = request.args.get("id", type=int)
+    if not pid:
+        flash("أدخل رقم القطعة.", "warning")
+        return redirect(url_for("warehouse_bp.list"))
+    return redirect(url_for("warehouse_bp.product_card", product_id=pid))
+
 
 @warehouse_bp.route("/inventory", methods=["GET"], endpoint="inventory_summary")
 @login_required
@@ -268,18 +289,24 @@ def inventory_summary():
     selected_ids = request.args.getlist("warehouse_ids", type=int)
     if not selected_ids:
         selected_ids = [w.id for w in Warehouse.query.order_by(Warehouse.name).all()]
+
     whs = Warehouse.query.filter(Warehouse.id.in_(selected_ids)).order_by(Warehouse.name.asc()).all()
     wh_ids = [w.id for w in whs]
-    q = (
-        db.session.query(StockLevel)
-        .join(Product, StockLevel.product_id == Product.id)
-        .filter(StockLevel.warehouse_id.in_(wh_ids))
-        .options(joinedload(StockLevel.product))
-        .order_by(Product.name.asc())
-    )
-    if search:
-        q = q.filter(Product.name.ilike(f"%{search}%"))
-    rows = q.all()
+
+    if wh_ids:
+        q = (
+            db.session.query(StockLevel)
+            .join(Product, StockLevel.product_id == Product.id)
+            .filter(StockLevel.warehouse_id.in_(wh_ids))
+            .options(joinedload(StockLevel.product))
+            .order_by(Product.name.asc())
+        )
+        if search:
+            q = q.filter(Product.name.ilike(f"%{search}%"))
+        rows = q.all()
+    else:
+        rows = []
+
     pivot = {}
     for sl in rows:
         pid = sl.product_id
@@ -290,24 +317,36 @@ def inventory_summary():
         res = int(getattr(sl, "reserved_quantity", 0) or 0)
         pivot[pid]["by"][sl.warehouse_id] = {"on": on, "res": res}
         pivot[pid]["total"] += on
+
     rows_data = sorted(pivot.values(), key=lambda d: (d["product"].name or "").lower())
+
     if (request.args.get("export") or "").lower() == "csv":
         si = io.StringIO()
         writer = csv.writer(si)
-        header = ["القطعة", "SKU"] + [w.name for w in whs] + ["الإجمالي"]
+        header = ["ID", "القطعة", "SKU"] + [w.name for w in whs] + ["الإجمالي"]
         writer.writerow(header)
         for r in rows_data:
             p = r["product"]
             sku = getattr(p, "sku", None) or ""
-            line = [p.name or "", sku]
+            line = [str(getattr(p, "id", "") or ""), (p.name or ""), sku]
             for wid in wh_ids:
                 line.append(str(r["by"][wid]["on"]))
             line.append(str(r["total"]))
             writer.writerow(line)
         output = si.getvalue().encode("utf-8-sig")
-        return Response(output, mimetype="text/csv; charset=utf-8", headers={"Content-Disposition": "attachment; filename=inventory_summary.csv"})
-    return render_template("warehouses/inventory_summary.html", warehouses=whs, rows=rows_data, selected_ids=wh_ids, search=search)
+        return Response(
+            output,
+            mimetype="text/csv; charset=utf-8",
+            headers={"Content-Disposition": "attachment; filename=inventory_summary.csv"},
+        )
 
+    return render_template(
+        "warehouses/inventory_summary.html",
+        warehouses=whs,
+        rows=rows_data,
+        selected_ids=wh_ids,
+        search=search,
+    )
 
 @warehouse_bp.route("/<int:id>/products", methods=["GET"], endpoint="products")
 @login_required
@@ -355,8 +394,18 @@ def products(id):
             writer.writerow(line)
         output = si.getvalue().encode("utf-8-sig")
         return Response(output, mimetype="text/csv; charset=utf-8", headers={"Content-Disposition": "attachment; filename=warehouse_products.csv"})
-    return render_template("warehouses/products.html", warehouse=base_warehouse, warehouses=all_whs, selected_ids=wh_ids, whs=whs, rows=rows_data, search=search)
-
+    return render_template(
+        "warehouses/products.html",
+        warehouse=base_warehouse,
+        warehouses=all_whs,
+        selected_ids=wh_ids,
+        whs=whs,
+        rows=rows_data,
+        search=search,
+        active_warehouse_id=base_warehouse.id,
+        active_warehouse=base_warehouse,
+        warehouse_id=base_warehouse.id,
+    )
 
 @warehouse_bp.route("/<int:id>/add-product", methods=["GET", "POST"], endpoint="add_product")
 @login_required

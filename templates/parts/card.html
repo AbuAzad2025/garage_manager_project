@@ -117,7 +117,11 @@
               {% for e in exchanges or [] %}
                 <tr>
                   <td>{{ e.created_at and e.created_at.strftime('%Y-%m-%d %H:%M') or '—' }}</td>
-                  <td>{{ e.direction }}</td>
+                  <td>
+                    {% if e.direction == 'IN' %}وارد
+                    {% elif e.direction == 'OUT' %}صادر
+                    {% else %}—{% endif %}
+                  </td>
                   <td>{{ e.partner and e.partner.name or '—' }}</td>
                   <td>{{ e.quantity }}</td>
                   <td>
