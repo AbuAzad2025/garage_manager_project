@@ -710,19 +710,6 @@ def customer_required(f):
         return f(*args, **kwargs)
     return wrapper
 
-
-def testable_login_required(f):
-    @wraps(f)
-    def wrapped(*args, **kwargs):
-        try:
-            if current_app and current_app.config.get("TESTING") and not getattr(current_user, "is_authenticated", False):
-                return f(*args, **kwargs)
-        except Exception:
-            pass
-        return login_required(f)(*args, **kwargs)
-    return wrapped
-
-
 # ============================== Card Utilities ==============================
 
 def luhn_check(card_number: str) -> bool:

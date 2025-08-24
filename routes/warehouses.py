@@ -10,7 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 
 from extensions import db
-from utils import _get_or_404, permission_required, testable_login_required, format_currency
+from utils import _get_or_404, permission_required, format_currency
 from forms import (
     ExchangeTransactionForm,
     ExchangeVendorForm,
@@ -656,7 +656,7 @@ def ajax_update_stock(warehouse_id):
 
 
 @warehouse_bp.route("/<int:warehouse_id>/transfer", methods=["POST"], endpoint="ajax_transfer")
-@testable_login_required
+@login_required
 @permission_required("manage_inventory", "manage_warehouses", "warehouse_transfer")
 def ajax_transfer(warehouse_id):
     data = request.get_json(silent=True) or request.form
@@ -935,6 +935,8 @@ def preorders_list():
         return jsonify({"data": data, "meta": {"page": pagination.page, "per_page": pagination.per_page, "total": pagination.total, "pages": pagination.pages}})
     return render_template("parts/preorders_list.html", preorders=preorders, pagination=pagination, filters={"status": status, "code": code, "date_from": df, "date_to": dt})
 
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+import uuid, random
 
 @warehouse_bp.route("/preorders/create", methods=["GET", "POST"], endpoint="preorder_create")
 @login_required
@@ -942,42 +944,99 @@ def preorders_list():
 def preorder_create():
     form = PreOrderForm()
 
+    def _gen_ref():
+        base = datetime.utcnow().strftime("PR%Y%m%d")
+        for _ in range(10):
+            code = f"{base}-{str(random.randint(0, 9999)).zfill(4)}"
+            if not db.session.query(PreOrder.id).filter_by(reference=code).first():
+                return code
+        return uuid.uuid4().hex[:10].upper()
+
     if form.validate_on_submit():
-        preorder = PreOrder()
-        form.apply_to(preorder)
+        customer_id  = int(form.customer_id.data)
+        product_id   = int(form.product_id.data)
+        warehouse_id = int(form.warehouse_id.data)
+        qty          = int(form.quantity.data or 1)
+        prepaid      = float(form.prepaid_amount.data or 0)
+        tax          = float(form.tax_rate.data or 0)
+
+        user_ref = (form.reference.data or "").strip()
+        if user_ref and db.session.query(PreOrder.id).filter_by(reference=user_ref).first():
+            flash("مرجع الحجز مستخدم مسبقًا. غيّر المرجع أو اتركه فارغًا ليُولَّد تلقائيًا.", "danger")
+            return render_template("parts/preorder_form.html", form=form), 200
+        code = user_ref or _gen_ref()
+
+        preorder = PreOrder(
+            reference=code,
+            preorder_date=form.preorder_date.data or datetime.utcnow(),
+            expected_date=form.expected_date.data or None,
+            customer_id=customer_id,
+            product_id=product_id,
+            warehouse_id=warehouse_id,
+            quantity=qty,
+            prepaid_amount=prepaid,
+            tax_rate=tax,
+            status=form.status.data,
+            notes=form.notes.data or None,
+            payment_method=form.payment_method.data or "cash",
+        )
         db.session.add(preorder)
         db.session.flush()
 
-        sl = StockLevel.query.filter_by(product_id=preorder.product_id, warehouse_id=preorder.warehouse_id).first()
+        sl = StockLevel.query.filter_by(product_id=product_id, warehouse_id=warehouse_id).first()
         if not sl:
-            sl = StockLevel(product_id=preorder.product_id, warehouse_id=preorder.warehouse_id, quantity=0, reserved_quantity=0)
+            sl = StockLevel(product_id=product_id, warehouse_id=warehouse_id, quantity=0, reserved_quantity=0)
             db.session.add(sl)
-            db.session.flush()
-        sl.reserved_quantity = (sl.reserved_quantity or 0) + int(preorder.quantity or 0)
-
-        method = form.payment_method.data or 'cash'
-        pay = Payment(
-            entity_type=PaymentEntityType.PREORDER.value if hasattr(PaymentEntityType, "PREORDER") else "PREORDER",
-            preorder_id=preorder.id,
-            customer_id=preorder.customer_id,
-            direction=PaymentDirection.INCOMING.value if hasattr(PaymentDirection, "INCOMING") else "INCOMING",
-            status=PaymentStatus.COMPLETED.value if hasattr(PaymentStatus, "COMPLETED") else "COMPLETED",
-            payment_date=datetime.utcnow(),
-            total_amount=float(preorder.prepaid_amount or 0),
-            currency="ILS",
-            method=method,
-            reference=f"Preorder {preorder.reference or preorder.id}",
-            notes=f"دفعة عربون لحجز {preorder.product.name if preorder.product else ''} (كود: {preorder.reference or preorder.id})"
-        )
-        db.session.add(pay)
+        sl.reserved_quantity = (sl.reserved_quantity or 0) + qty
 
         try:
             db.session.commit()
-            flash("تم إنشاء الحجز بنجاح.", "success")
-            return redirect(url_for("warehouse_bp.preorder_detail", preorder_id=preorder.id))
-        except SQLAlchemyError:
+        except IntegrityError as e:
             db.session.rollback()
-            flash("فشل إنشاء الحجز.", "danger")
+            if "preorders.reference" in str(e).lower() and not user_ref:
+                preorder.reference = _gen_ref()
+                db.session.add(preorder)
+                try:
+                    db.session.commit()
+                except SQLAlchemyError as ee:
+                    db.session.rollback()
+                    flash(f"تعذر حفظ الحجز: {getattr(ee, 'orig', ee)}", "danger")
+                    return render_template("parts/preorder_form.html", form=form), 200
+            else:
+                flash("مرجع الحجز مستخدم مسبقًا. غيّر المرجع أو اتركه فارغًا ليُولَّد تلقائيًا.", "danger")
+                return render_template("parts/preorder_form.html", form=form), 200
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            flash(f"تعذر حفظ الحجز: {getattr(e, 'orig', e)}", "danger")
+            return render_template("parts/preorder_form.html", form=form), 200
+
+        if prepaid > 0:
+            pay = Payment(
+                entity_type=(PaymentEntityType.PREORDER.value if hasattr(PaymentEntityType, "PREORDER") else "PREORDER"),
+                preorder_id=preorder.id,
+                direction=(PaymentDirection.INCOMING.value if hasattr(PaymentDirection, "INCOMING") else "INCOMING"),
+                status=(PaymentStatus.COMPLETED.value if hasattr(PaymentStatus, "COMPLETED") else "COMPLETED"),
+                payment_date=datetime.utcnow(),
+                total_amount=prepaid,
+                currency="ILS",
+                method=form.payment_method.data or "cash",
+                reference=f"Preorder {preorder.reference}",
+                notes=f"دفعة عربون لحجز {preorder.product.name if preorder.product else ''} (كود: {preorder.reference})",
+            )
+            db.session.add(pay)
+            try:
+                db.session.commit()
+                flash("تم إنشاء الحجز وتسجيل العربون", "success")
+            except SQLAlchemyError as e:
+                db.session.rollback()
+                flash(f"تم إنشاء الحجز، لكن تعذر تسجيل الدفعة: {getattr(e, 'orig', e)}", "warning")
+        else:
+            flash("تم إنشاء الحجز بنجاح", "success")
+
+        return redirect(url_for("warehouse_bp.preorder_detail", preorder_id=preorder.id))
+
+    elif request.method == "POST":
+        flash("فشل إنشاء الحجز. تحقق من الحقول المطلوبة.", "danger")
 
     return render_template("parts/preorder_form.html", form=form)
 

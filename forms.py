@@ -1209,6 +1209,7 @@ class PaymentForm(FlaskForm):
 
         return payment
 
+# forms.py
 class PreOrderForm(FlaskForm):
     reference = StringField('مرجع الحجز', validators=[Optional(), Length(max=50)])
 
@@ -1225,19 +1226,13 @@ class PreOrderForm(FlaskForm):
         render_kw={'autocomplete': 'off', 'dir': 'ltr'}
     )
 
-    status = SelectField(
-        'الحالة',
-        choices=[
-            (PreOrderStatus.PENDING.value,   'معلق'),
-            (PreOrderStatus.CONFIRMED.value, 'مؤكد'),
-            (PreOrderStatus.FULFILLED.value, 'منفذ'),
-            (PreOrderStatus.CANCELLED.value, 'ملغي'),
-        ],
-        default=PreOrderStatus.PENDING.value,
-        validators=[DataRequired()]
-    )
+    status = SelectField('الحالة', choices=[
+        (PreOrderStatus.PENDING.value,   'معلق'),
+        (PreOrderStatus.CONFIRMED.value, 'مؤكد'),
+        (PreOrderStatus.FULFILLED.value, 'منفذ'),
+        (PreOrderStatus.CANCELLED.value, 'ملغي'),
+    ], default=PreOrderStatus.PENDING.value, validators=[DataRequired()])
 
-    entity_type  = HiddenField(default='CUSTOMER', validators=[DataRequired()])
     customer_id  = AjaxSelectField('العميل',   endpoint='api.search_customers', get_label='name', validators=[DataRequired()])
     product_id   = AjaxSelectField('القطعة',   endpoint='api.products',         get_label='name', validators=[DataRequired()])
     warehouse_id = AjaxSelectField('المخزن',   endpoint='api.warehouses',       get_label='name', validators=[DataRequired()])
@@ -1246,8 +1241,8 @@ class PreOrderForm(FlaskForm):
     prepaid_amount = DecimalField('المدفوع مسبقاً', places=2, validators=[DataRequired(), NumberRange(min=0)])
     tax_rate       = DecimalField('ضريبة %', places=2, default=0, validators=[Optional(), NumberRange(min=0, max=100)])
     payment_method = SelectField('طريقة الدفع',
-                                 choices=[('cash','نقدي'),('card','بطاقة'),('bank','تحويل'),('cheque','شيك')],
-                                 default='cash')
+                        choices=[('cash','نقدي'),('card','بطاقة'),('bank','تحويل'),('cheque','شيك')],
+                        default='cash', validators=[Optional()])
     notes          = TextAreaField('ملاحظات', validators=[Optional(), Length(max=500)])
     submit         = SubmitField('تأكيد الحجز')
 
@@ -1258,16 +1253,13 @@ class PreOrderForm(FlaskForm):
         preorder.status          = self.status.data
         preorder.product_id      = int(self.product_id.data) if self.product_id.data else None
         preorder.warehouse_id    = int(self.warehouse_id.data) if self.warehouse_id.data else None
+        preorder.customer_id     = int(self.customer_id.data) if self.customer_id.data else None
         preorder.quantity        = int(self.quantity.data or 0)
         preorder.prepaid_amount  = self.prepaid_amount.data or 0
         preorder.tax_rate        = self.tax_rate.data or 0
-        preorder.notes           = (self.notes.data or '').strip() or None
         preorder.payment_method  = self.payment_method.data or 'cash'
-        preorder.customer_id     = int(self.customer_id.data) if self.customer_id.data else None
-        preorder.supplier_id     = None
-        preorder.partner_id      = None
+        preorder.notes           = (self.notes.data or '').strip() or None
         return preorder
-
 
 class ServiceRequestForm(FlaskForm):
     service_number      = StringField('رقم الخدمة', validators=[Optional(), Length(max=50)])

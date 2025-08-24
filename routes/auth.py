@@ -18,7 +18,7 @@ from forms import (
     CustomerPasswordResetForm, CustomerPasswordResetRequestForm
 )
 from models import Customer, User
-from utils import _audit
+from utils import _audit, redis_client as _redis  # ⬅️ نستخدم Redis إن وُجد
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
@@ -53,37 +53,79 @@ def _get_login_identifier(form: LoginForm) -> Optional[str]:
     return val or None
 
 
-login_attempts: dict[tuple[str, str], tuple[int, datetime]] = {}
+# ============================== Login Attempts (Redis + Fallback) ==============================
+
 MAX_ATTEMPTS = 5
 BLOCK_TIME = timedelta(minutes=10)
 
+# Fallback للذاكرة بحال Redis غير متوفر
+_login_attempts_mem: dict[tuple[str, str], tuple[int, datetime]] = {}
 
 def _norm_ident(s: Optional[str]) -> str:
     return (s or "").strip().lower()
 
+def _la_key(ip: str, identifier: Optional[str]) -> str:
+    return f"auth:login_attempts:{ip}:{_norm_ident(identifier)}"
 
 def is_blocked(ip: str, identifier: Optional[str]) -> bool:
-    key = (ip, _norm_ident(identifier))
-    info = login_attempts.get(key)
+    # أولاً جرّب Redis
+    try:
+        if _redis:
+            key = _la_key(ip, identifier)
+            val = _redis.get(key)  # decode_responses=True في utils.init_app
+            if val is None:
+                return False
+            try:
+                attempts = int(val)
+            except Exception:
+                attempts = 0
+            return attempts >= MAX_ATTEMPTS
+    except Exception:
+        # سقوط صامت إلى الذاكرة
+        pass
+
+    # Fallback: ذاكرة محلية داخل العملية
+    key_mem = (ip, _norm_ident(identifier))
+    info = _login_attempts_mem.get(key_mem)
     if not info:
         return False
     attempts, last_time = info
-    if attempts >= MAX_ATTEMPTS and datetime.utcnow() - last_time < BLOCK_TIME:
+    now = datetime.utcnow()
+    if attempts >= MAX_ATTEMPTS and now - last_time < BLOCK_TIME:
         return True
-    if datetime.utcnow() - last_time >= BLOCK_TIME:
-        login_attempts.pop(key, None)
+    if now - last_time >= BLOCK_TIME:
+        _login_attempts_mem.pop(key_mem, None)
     return False
 
-
 def record_attempt(ip: str, identifier: Optional[str]) -> None:
-    key = (ip, _norm_ident(identifier))
-    attempts, _last_time = login_attempts.get(key, (0, datetime.utcnow()))
-    login_attempts[key] = (attempts + 1, datetime.utcnow())
+    # Redis: INCR + EXPIRE بنفس نافذة الحظر
+    try:
+        if _redis:
+            key = _la_key(ip, identifier)
+            pipe = _redis.pipeline()
+            pipe.incr(key)
+            pipe.expire(key, int(BLOCK_TIME.total_seconds()))
+            pipe.execute()
+            return
+    except Exception:
+        pass
 
+    # Fallback: ذاكرة
+    key_mem = (ip, _norm_ident(identifier))
+    attempts, _last_time = _login_attempts_mem.get(key_mem, (0, datetime.utcnow()))
+    _login_attempts_mem[key_mem] = (attempts + 1, datetime.utcnow())
 
 def clear_attempts(ip: str, identifier: Optional[str]) -> None:
-    login_attempts.pop((ip, _norm_ident(identifier)), None)
+    try:
+        if _redis:
+            _redis.delete(_la_key(ip, identifier))
+            # ما في داعي نحذف من الذاكرة إذا مستخدم Redis، بس ما بيضر
+    except Exception:
+        pass
+    _login_attempts_mem.pop((ip, _norm_ident(identifier)), None)
 
+
+# ============================== Routes ==============================
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():

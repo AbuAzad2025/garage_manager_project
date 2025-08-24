@@ -68,8 +68,7 @@ def init_extensions(app):
 
     app.config.setdefault("RATELIMIT_HEADERS_ENABLED", True)
     app.config.setdefault("RATELIMIT_STORAGE_URI", "memory://")
-    if app.config.get("TESTING"):
-        app.config["RATELIMIT_ENABLED"] = False
+
     limiter.init_app(app)
 
     default_limit = app.config.get("RATELIMIT_DEFAULT")

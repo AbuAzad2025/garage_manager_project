@@ -114,15 +114,9 @@ def load_user(user_id):
     return db.session.execute(stmt_cust).scalar_one_or_none()
 
 
-def create_app(config_object=Config, test_config=None) -> Flask:
-    if isinstance(config_object, dict) and test_config is None:
-        test_config = config_object
-        config_object = Config
-
+def create_app(config_object=Config) -> Flask:
     app = Flask(__name__, static_folder="static", template_folder="templates")
     app.config.from_object(config_object)
-    if test_config:
-        app.config.update(test_config)
 
     app.config.setdefault("JSON_AS_ASCII", False)
 
@@ -138,15 +132,8 @@ def create_app(config_object=Config, test_config=None) -> Flask:
 
         app.url_for = _relative_url_for.__get__(app, Flask)
 
-    app.testing = app.config.get("TESTING", False)
-    if app.testing:
-        app.config["WTF_CSRF_ENABLED"] = False
-        app.config["WTF_CSRF_CHECK_DEFAULT"] = False
-        app.config.setdefault("RATELIMIT_ENABLED", False)
-
     try:
         from dotenv import load_dotenv
-
         load_dotenv()
     except Exception:
         pass
@@ -156,11 +143,6 @@ def create_app(config_object=Config, test_config=None) -> Flask:
     uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
     if uri.startswith("sqlite"):
         connect_args.setdefault("timeout", 30)
-        if app.config.get("TESTING"):
-            from sqlalchemy.pool import StaticPool
-
-            engine_opts["poolclass"] = StaticPool
-            connect_args["check_same_thread"] = False
 
     db.init_app(app)
     migrate.init_app(app, db)
@@ -185,8 +167,7 @@ def create_app(config_object=Config, test_config=None) -> Flask:
 
     app.config.setdefault("RATELIMIT_STORAGE_URI", os.getenv("RATELIMIT_STORAGE_URI", "memory://"))
     app.config.setdefault("RATELIMIT_HEADERS_ENABLED", True)
-    if app.config.get("TESTING"):
-        app.config["RATELIMIT_ENABLED"] = False
+
     limiter.init_app(app)
     default_limit = app.config.get("RATELIMIT_DEFAULT")
     if default_limit:
@@ -300,7 +281,7 @@ def create_app(config_object=Config, test_config=None) -> Flask:
                 current_app.logger.warning("url_for_any miss: endpoint=%s values=%r", ep, values)
         strict_urls = current_app.config.get(
             "STRICT_URLS",
-            bool(current_app.debug or current_app.testing),
+            bool(current_app.debug),
         )
         if strict_urls:
             raise last_err or BuildError("url_for_any", values, "Tried: " + ", ".join(tried))
@@ -379,7 +360,6 @@ def create_app(config_object=Config, test_config=None) -> Flask:
         except Exception:
             return ("404 Not Found", 404)
 
-     # ✅ Inject global flags for templates (placed near the end, before return)
     @app.context_processor
     def inject_global_flags():
         from utils import _SUPER_ROLES
@@ -392,9 +372,7 @@ def create_app(config_object=Config, test_config=None) -> Flask:
             except Exception:
                 return False
 
-        return {
-            "shop_is_super_admin": is_super_admin(current_user)
-        }
+        return {"shop_is_super_admin": is_super_admin(current_user)}
 
     critical = app.config.get(
         "CRITICAL_ENDPOINTS",

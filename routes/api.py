@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify, current_app
 from flask_login import login_required
 from sqlalchemy import or_, func
 from typing import Callable, Iterable, List, Dict, Any, Optional
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from extensions import db, limiter, csrf
 from models import (
@@ -73,6 +73,21 @@ def search_model(model, fields: List[str], label_attr: str = "name",
     rows = qry.order_by(order_col).limit(_limit(default=limit_default, max_=limit_max)).all()
     return jsonify(_as_options(rows, label_attr, extra=extra))
 
+def normalize_email(s: Optional[str]) -> Optional[str]:
+    s = (s or "").strip().lower()
+    return s or None
+
+def normalize_phone(s: Optional[str]) -> Optional[str]:
+    raw = (s or "").strip()
+    if not raw:
+        return None
+    keep = []
+    for i, ch in enumerate(raw):
+        if ch.isdigit() or (ch == "+" and i == 0):
+            keep.append(ch)
+    out = "".join(keep)
+    return out or None
+
 @bp.get("/customers")
 @bp.get("/search_customers", endpoint="search_customers")
 @login_required
@@ -84,27 +99,34 @@ def customers():
 @login_required
 @limiter.limit("30/minute")
 def create_customer_api():
-    name = (request.form.get("name") or "").strip()
-    email = normalize_email(request.form.get("email"))
-    phone = normalize_phone(request.form.get("phone"))
-    whatsapp = normalize_phone(request.form.get("whatsapp"))
-    address = (request.form.get("address") or "").strip()
-    notes = (request.form.get("notes") or "").strip()
-    discount_rate = request.form.get("discount_rate", type=float) or 0
-    credit_limit = request.form.get("credit_limit", type=float) or 0
-    is_online = bool(request.form.get("is_online"))
-    is_active = bool(request.form.get("is_active", "1"))
+    data = request.get_json(silent=True) or request.form or {}
+    name = (data.get("name") or "").strip()
+    email = normalize_email(data.get("email"))
+    phone = normalize_phone(data.get("phone"))
+    whatsapp = normalize_phone(data.get("whatsapp"))
+    address = (data.get("address") or "").strip()
+    notes = (data.get("notes") or "").strip()
+    discount_rate = data.get("discount_rate", 0)
+    try:
+        discount_rate = float(discount_rate or 0)
+    except Exception:
+        discount_rate = 0.0
+    credit_limit = data.get("credit_limit", 0)
+    try:
+        credit_limit = float(credit_limit or 0)
+    except Exception:
+        credit_limit = 0.0
+    is_online = bool(data.get("is_online"))
+    is_active = bool(data.get("is_active", "1"))
 
     if not name or not email:
         return jsonify(success=False, error="الاسم والبريد مطلوبان"), 400
 
     try:
-        c = Customer(
-            name=name, email=email, phone=phone, whatsapp=whatsapp,
-            address=address, notes=notes, discount_rate=discount_rate,
-            credit_limit=credit_limit, is_online=is_online, is_active=is_active
-        )
-        pwd = (request.form.get("password") or "").strip()
+        c = Customer(name=name, email=email, phone=phone, whatsapp=whatsapp, address=address,
+                     notes=notes, discount_rate=discount_rate, credit_limit=credit_limit,
+                     is_online=is_online, is_active=is_active)
+        pwd = (data.get("password") or "").strip()
         if pwd:
             c.set_password(pwd)
         db.session.add(c)
@@ -247,7 +269,6 @@ def employees():
 def equipment_types():
     return search_model(EquipmentType, ["name", "model_number", "chassis_number"], label_attr="name")
 
-
 @bp.post("/equipment_types", endpoint="create_equipment_type")
 @login_required
 @csrf.exempt
@@ -289,7 +310,6 @@ def create_equipment_type():
         db.session.rollback()
         current_app.logger.exception("create_equipment_type failed")
         return jsonify({"error": "خطأ غير متوقع."}), 500
-
 
 @bp.get("/invoices")
 @login_required
@@ -402,14 +422,14 @@ def transfers():
         } for t in rows
     ])
 
-
 @bp.post("/suppliers")
 @login_required
+@limiter.limit("30/minute")
 def create_supplier():
-    payload = request.form or request.json or {}
+    payload = request.get_json(silent=True) or request.form or {}
     name = (payload.get("name") or "").strip()
     identity = (payload.get("identity_number") or "").strip() or None
-    phone = (payload.get("phone") or "").strip() or None
+    phone = normalize_phone(payload.get("phone"))
 
     try:
         if identity:
@@ -457,7 +477,7 @@ def preorders():
             "text": _number_of(po, "reference", "PO"),
             "number": _number_of(po, "reference", "PO"),
             "status": getattr(po.status, "value", po.status),
-            "total": float((po.total_before_tax or 0) + 0),
+            "total": float(po.total_before_tax or 0),
         } for po in rows
     ])
 

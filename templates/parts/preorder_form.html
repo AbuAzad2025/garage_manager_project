@@ -1,3 +1,4 @@
+{# templates/parts/preorder_form.html #}
 {% extends 'warehouses/base.html' %}
 {% block title %}إنشاء حجز{% endblock %}
 {% block page_title %}إنشاء حجز مسبق{% endblock %}
@@ -6,82 +7,92 @@
   {{ super() }}
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-  <style>
-    .input-label { font-weight: 600; margin-bottom: .25rem; }
-    .req::after{content:" *";color:#dc3545}
-  </style>
+  <style>.input-label{font-weight:600;margin-bottom:.25rem}.req::after{content:" *";color:#dc3545}</style>
 {% endblock %}
 
 {% block content %}
 <form method="POST" novalidate>
   {{ form.hidden_tag() }}
-  <input type="hidden" name="entity_type" value="CUSTOMER">
+
+  {% if form.errors %}
+    <div class="alert alert-danger">فشل إنشاء الحجز. الرجاء تصحيح الحقول.</div>
+  {% endif %}
 
   <div class="row">
     <div class="col-md-4 mb-2">
       <div class="input-label">مرجع الحجز</div>
       {{ form.reference(class_="form-control", placeholder="اختياري") }}
+      {% for e in form.reference.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
     </div>
     <div class="col-md-4 mb-2">
-      <div class="input-label req">تاريخ الحجز</div>
-      {{ form.preorder_date(class_="form-control dtp", id="preorder_date", required=True) }}
+      <div class="input-label">تاريخ الحجز</div>
+      {{ form.preorder_date(class_="form-control dtp", id="preorder_date") }}
+      {% for e in form.preorder_date.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
     </div>
     <div class="col-md-4 mb-2">
       <div class="input-label">تاريخ التسليم المتوقع</div>
       {{ form.expected_date(class_="form-control dtp", id="expected_date") }}
+      {% for e in form.expected_date.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
     </div>
   </div>
 
   <div class="row">
     <div class="col-md-3 mb-2">
       <div class="input-label req">الحالة</div>
-      {{ form.status(class_="form-control", required=True) }}
+      {{ form.status(class_="form-control") }}
+      {% for e in form.status.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
     </div>
 
     <div class="col-md-9 mb-2">
       <div class="input-label req d-flex align-items-center justify-content-between">
         <span>العميل</span>
-        <button type="button" class="btn btn-sm btn-success" id="btn-add-customer">
-          <i class="fas fa-user-plus"></i> عميل جديد
-        </button>
+        <button type="button" class="btn btn-sm btn-success" id="btn-add-customer"><i class="fas fa-user-plus"></i> عميل جديد</button>
       </div>
-      {{ form.customer_id(class_="form-control select2", id="customer_id", required=True, data_placeholder="ابحث عن عميل...") }}
+      {{ form.customer_id(class_="form-control select2", id="customer_id", data_placeholder="ابحث عن عميل...") }}
+      {% for e in form.customer_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
     </div>
   </div>
 
   <div class="row">
     <div class="col-md-6 mb-2">
       <div class="input-label req">القطعة</div>
-      {{ form.product_id(class_="form-control select2", required=True, data_placeholder="اختر القطعة") }}
+      {{ form.product_id(class_="form-control select2", data_placeholder="اختر القطعة") }}
+      {% for e in form.product_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
     </div>
     <div class="col-md-6 mb-2">
       <div class="input-label req">المخزن</div>
-      {{ form.warehouse_id(class_="form-control select2", required=True, data_placeholder="اختر المخزن") }}
+      {{ form.warehouse_id(class_="form-control select2", data_placeholder="اختر المخزن") }}
+      {% for e in form.warehouse_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
     </div>
   </div>
 
   <div class="row">
     <div class="col-md-3 mb-2">
       <div class="input-label req">الكمية</div>
-      {{ form.quantity(class_="form-control", required=True, min="1", step="1") }}
+      {{ form.quantity(class_="form-control", min="1", step="1") }}
+      {% for e in form.quantity.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
     </div>
     <div class="col-md-3 mb-2">
       <div class="input-label req">المدفوع مسبقاً</div>
-      {{ form.prepaid_amount(class_="form-control", required=True, min="0", step="0.01") }}
+      {{ form.prepaid_amount(class_="form-control", min="0", step="0.01") }}
+      {% for e in form.prepaid_amount.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
     </div>
     <div class="col-md-3 mb-2">
       <div class="input-label">طريقة الدفع</div>
       {{ form.payment_method(class_="form-control") }}
+      {% for e in form.payment_method.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
     </div>
     <div class="col-md-3 mb-2">
       <div class="input-label">ضريبة %</div>
       {{ form.tax_rate(class_="form-control", min="0", max="100", step="0.01") }}
+      {% for e in form.tax_rate.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
     </div>
   </div>
 
   <div class="mb-2">
     <div class="input-label">ملاحظات</div>
     {{ form.notes(class_="form-control", rows="2") }}
+    {% for e in form.notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
   </div>
 
   <button class="btn btn-primary"><i class="fas fa-check"></i> {{ form.submit.label.text or 'تأكيد الحجز' }}</button>
@@ -99,55 +110,19 @@
         <div class="modal-body">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="row">
-            <div class="col-md-6 mb-2">
-              <label class="form-label req">اسم العميل</label>
-              <input name="name" class="form-control" required>
-            </div>
-            <div class="col-md-6 mb-2">
-              <label class="form-label req">البريد الإلكتروني</label>
-              <input name="email" type="email" class="form-control" dir="ltr" required>
-            </div>
-            <div class="col-md-6 mb-2">
-              <label class="form-label">الهاتف</label>
-              <input name="phone" class="form-control" inputmode="tel">
-            </div>
-            <div class="col-md-6 mb-2">
-              <label class="form-label">واتساب</label>
-              <input name="whatsapp" class="form-control" inputmode="tel">
-            </div>
-            <div class="col-12 mb-2">
-              <label class="form-label">العنوان</label>
-              <input name="address" class="form-control">
-            </div>
-            <div class="col-md-6 mb-2">
-              <label class="form-label">الخصم (%)</label>
-              <input name="discount_rate" type="number" step="0.01" min="0" max="100" class="form-control">
-            </div>
-            <div class="col-md-6 mb-2">
-              <label class="form-label">حد الائتمان</label>
-              <input name="credit_limit" type="number" step="0.01" min="0" class="form-control">
-            </div>
-            <div class="col-12 mb-2">
-              <label class="form-label">ملاحظات</label>
-              <textarea name="notes" rows="2" class="form-control"></textarea>
-            </div>
-            <div class="col-md-6 mb-2">
-              <label class="form-label">كلمة المرور</label>
-              <input name="password" type="password" class="form-control" autocomplete="new-password">
-            </div>
-            <div class="col-md-6 mb-2">
-              <label class="form-label">تأكيد كلمة المرور</label>
-              <input name="confirm" type="password" class="form-control" autocomplete="new-password">
-            </div>
+            <div class="col-md-6 mb-2"><label class="form-label req">اسم العميل</label><input name="name" class="form-control" required></div>
+            <div class="col-md-6 mb-2"><label class="form-label req">البريد الإلكتروني</label><input name="email" type="email" class="form-control" dir="ltr" required></div>
+            <div class="col-md-6 mb-2"><label class="form-label">الهاتف</label><input name="phone" class="form-control" inputmode="tel"></div>
+            <div class="col-md-6 mb-2"><label class="form-label">واتساب</label><input name="whatsapp" class="form-control" inputmode="tel"></div>
+            <div class="col-12 mb-2"><label class="form-label">العنوان</label><input name="address" class="form-control"></div>
+            <div class="col-md-6 mb-2"><label class="form-label">الخصم (%)</label><input name="discount_rate" type="number" step="0.01" min="0" max="100" class="form-control"></div>
+            <div class="col-md-6 mb-2"><label class="form-label">حد الائتمان</label><input name="credit_limit" type="number" step="0.01" min="0" class="form-control"></div>
+            <div class="col-12 mb-2"><label class="form-label">ملاحظات</label><textarea name="notes" rows="2" class="form-control"></textarea></div>
+            <div class="col-md-6 mb-2"><label class="form-label">كلمة المرور</label><input name="password" type="password" class="form-control" autocomplete="new-password"></div>
+            <div class="col-md-6 mb-2"><label class="form-label">تأكيد كلمة المرور</label><input name="confirm" type="password" class="form-control" autocomplete="new-password"></div>
             <div class="col-12">
-              <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" id="qc_is_online" name="is_online">
-                <label class="form-check-label" for="qc_is_online">عميل أونلاين</label>
-              </div>
-              <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" id="qc_is_active" name="is_active" checked>
-                <label class="form-check-label" for="qc_is_active">نشط</label>
-              </div>
+              <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="qc_is_online" name="is_online"><label class="form-check-label" for="qc_is_online">عميل أونلاين</label></div>
+              <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="qc_is_active" name="is_active" checked><label class="form-check-label" for="qc_is_active">نشط</label></div>
             </div>
           </div>
           <div id="qc_errors" class="text-danger small mt-2" style="display:none"></div>
@@ -179,52 +154,26 @@
           placeholder: function(){ return $(this).data('placeholder') || 'اختر...'; }
         });
       }
+      const fpOpts = { enableTime:true, time_24hr:true, dateFormat:"Y-m-d H:i", altInput:true, altFormat:"d-m-Y H:i", locale:flatpickr.l10ns.ar, allowInput:true };
+      if (window.flatpickr) { flatpickr("#preorder_date", fpOpts); flatpickr("#expected_date", fpOpts); }
 
-      const fpOpts = {
-        enableTime: true,
-        time_24hr: true,
-        dateFormat: "Y-m-d H:i",
-        altInput: true,
-        altFormat: "d-m-Y H:i",
-        locale: flatpickr.l10ns.ar,
-        allowInput: true
-      };
-      if (window.flatpickr) {
-        flatpickr("#preorder_date", fpOpts);
-        flatpickr("#expected_date", fpOpts);
-      }
-
-      const $customer = $('#customer_id');
       const modalEl = document.getElementById('customerModal');
-
       document.getElementById('btn-add-customer').addEventListener('click', function(){
-        if (window.jQuery) $(modalEl).modal('show');
-        else if (window.bootstrap) new bootstrap.Modal(modalEl).show();
+        if (window.jQuery) $(modalEl).modal('show'); else if (window.bootstrap) new bootstrap.Modal(modalEl).show();
       });
 
       document.getElementById('quick-customer-form').addEventListener('submit', async function(e){
         e.preventDefault();
-        const form = this;
-        const fd = new FormData(form);
-        const res = await fetch(form.action, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-        const ct = res.headers.get('content-type') || '';
-        const data = ct.includes('application/json') ? await res.json() : {};
+        const form = this, fd = new FormData(form);
+        const res = await fetch(form.action, { method:'POST', body:fd, headers:{'X-Requested-With':'XMLHttpRequest'} });
+        const ct = res.headers.get('content-type')||'', data = ct.includes('application/json') ? await res.json() : {};
         if (data && data.id) {
-          const text = data.text || data.name || ('عميل #' + data.id);
-          if ($customer.length && $customer.data('select2')) {
-            const opt = new Option(text, data.id, true, true);
-            $customer.append(opt).trigger('change');
-          } else if ($customer.length) {
-            $customer.val(data.id);
-          }
-          if (window.jQuery) $(modalEl).modal('hide');
-          else if (window.bootstrap) bootstrap.Modal.getInstance(modalEl)?.hide();
-          form.reset();
-          const err = document.getElementById('qc_errors'); err.style.display='none'; err.innerHTML='';
+          const $c = $('#customer_id'); const text = data.text || data.name || ('عميل #' + data.id);
+          if ($c.length && $c.data('select2')) { const opt = new Option(text, data.id, true, true); $c.append(opt).trigger('change'); } else if ($c.length) { $c.val(data.id); }
+          if (window.jQuery) $(modalEl).modal('hide'); else if (window.bootstrap) bootstrap.Modal.getInstance(modalEl)?.hide();
+          form.reset(); const err = document.getElementById('qc_errors'); err.style.display='none'; err.innerHTML='';
         } else {
-          const err = document.getElementById('qc_errors');
-          err.style.display = 'block';
-          err.innerHTML = data.error || 'تعذر إضافة العميل.';
+          const err = document.getElementById('qc_errors'); err.style.display='block'; err.innerHTML = data.error || 'تعذر إضافة العميل.';
         }
       });
     })();

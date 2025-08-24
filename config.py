@@ -3,25 +3,12 @@ import os
 from datetime import timedelta
 from dotenv import load_dotenv
 
-try:
-    from sqlalchemy.pool import StaticPool
-except Exception:
-    StaticPool = None
-
 basedir = os.path.abspath(os.path.dirname(__file__))
 load_dotenv(os.path.join(basedir, ".env"))
 load_dotenv(os.path.join(basedir, ".env.txt"))
 
 def _bool(v: str, default=False):
     return (v if v is not None else str(default)).lower() in ("true", "1", "yes", "y")
-
-def _sqlite_engine_opts(uri: str, testing: bool):
-    opts = {"connect_args": {"timeout": 30}}
-    if testing and uri.startswith("sqlite"):
-        if StaticPool is not None:
-            opts["poolclass"] = StaticPool
-        opts["connect_args"]["check_same_thread"] = False
-    return opts
 
 def _int(env_name: str, default: int):
     try:
@@ -49,9 +36,11 @@ class Config:
         _db_uri = _db_uri.replace("postgres://", "postgresql://", 1)
     SQLALCHEMY_DATABASE_URI = _db_uri
     SQLALCHEMY_TRACK_MODIFICATIONS = _bool(os.environ.get("SQLALCHEMY_TRACK_MODIFICATIONS"), False)
-    SQLALCHEMY_ENGINE_OPTIONS = _sqlite_engine_opts(SQLALCHEMY_DATABASE_URI, testing=False)
-    SQLALCHEMY_ENGINE_OPTIONS.setdefault("pool_pre_ping", True)
-    SQLALCHEMY_ENGINE_OPTIONS.setdefault("pool_recycle", 1800)
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "connect_args": {"timeout": 30},
+        "pool_pre_ping": True,
+        "pool_recycle": 1800,
+    }
 
     JSON_AS_ASCII = False
     JSON_SORT_KEYS = False
@@ -114,19 +103,3 @@ class Config:
 
     CARD_ENC_KEY = os.environ.get("CARD_ENC_KEY", "")
     DEFAULT_PRODUCT_IMAGE = os.environ.get("DEFAULT_PRODUCT_IMAGE", "products/default.png")
-
-class TestConfig(Config):
-    TESTING = True
-    DEBUG = True
-    SQLALCHEMY_DATABASE_URI = "sqlite://"
-    WTF_CSRF_ENABLED = False
-    RATELIMIT_DEFAULT = ""
-    SESSION_COOKIE_SECURE = False
-    LOGIN_DISABLED = True
-    PERMISSION_DISABLED = True
-    MAIL_SUPPRESS_SEND = True
-    _SQLA_OPTS = {"connect_args": {"check_same_thread": False, "timeout": 30}}
-    if StaticPool is not None:
-        _SQLA_OPTS["poolclass"] = StaticPool
-    SQLALCHEMY_ENGINE_OPTIONS = _SQLA_OPTS
-    PASSWORD_HASH_METHOD = os.environ.get("TEST_PASSWORD_HASH_METHOD", "pbkdf2:sha256:60000")

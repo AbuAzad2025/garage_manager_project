@@ -22,6 +22,12 @@ def _get_or_404(model, ident, options=None):
         abort(404)
     return obj
 
+def _is_super_admin_user(user: User) -> bool:
+    try:
+        return bool(user.role and (user.role.name or "").strip().lower() == "super_admin")
+    except Exception:
+        return False
+
 @users_bp.route("/profile", methods=["GET"], endpoint="profile")
 @login_required
 def profile():
@@ -98,26 +104,32 @@ def create_user():
 
     if form.validate_on_submit():
         try:
-            user = User(
-                username=form.username.data,
-                email=form.email.data,
-                role_id=form.role_id.data,
-                is_active=bool(form.is_active.data),
-            )
-            if form.password.data:
-                user.set_password(form.password.data)
-            db.session.add(user)
-            db.session.flush()
             selected_perm_ids = [int(x) for x in request.form.getlist("extra_permissions") if str(x).isdigit()]
-            if selected_perm_ids:
-                user.extra_permissions = Permission.query.filter(Permission.id.in_(selected_perm_ids)).all()
-            db.session.commit()
+            with db.session.begin():
+                user = User(
+                    username=form.username.data,
+                    email=form.email.data,
+                    role_id=form.role_id.data,
+                    is_active=bool(form.is_active.data),
+                )
+                if form.password.data:
+                    user.set_password(form.password.data)
+                db.session.add(user)
+                db.session.flush()
+                if selected_perm_ids:
+                    user.extra_permissions = Permission.query.filter(Permission.id.in_(selected_perm_ids)).all()
+                db.session.add(AuditLog(
+                    model_name="User",
+                    record_id=user.id,
+                    user_id=current_user.id,
+                    action="CREATE",
+                    old_data="",
+                    new_data=f"username={user.username}"
+                ))
             clear_user_permission_cache(user.id)
-            db.session.add(AuditLog(model_name="User", record_id=user.id, user_id=current_user.id, action="CREATE", old_data="", new_data=f"username={user.username}"))
-            db.session.commit()
-            flash("تم إضافة المستخدم بنجاح.", "success")
             if request.is_json or request.headers.get("X-Requested-With") == "XMLHttpRequest":
                 return jsonify(id=user.id, username=user.username), 201
+            flash("تم إضافة المستخدم بنجاح.", "success")
             return redirect(url_for("users_bp.list_users"))
         except IntegrityError:
             db.session.rollback()
@@ -140,6 +152,10 @@ def create_user():
 @permission_required("manage_users")
 def edit_user(user_id):
     user = _get_or_404(User, user_id)
+    if _is_super_admin_user(user):
+        flash("❌ لا يمكن تعديل مستخدم super_admin.", "danger")
+        return redirect(url_for("users_bp.list_users"))
+
     form = UserForm(obj=user)
     all_permissions = Permission.query.order_by(Permission.name).all()
     selected_perm_ids = [p.id for p in user.extra_permissions.all()]
@@ -150,19 +166,25 @@ def edit_user(user_id):
 
     if form.validate_on_submit():
         try:
-            old_data = f"{user.username},{user.email}"
-            user.username = form.username.data
-            user.email = form.email.data
-            user.role_id = form.role_id.data
-            user.is_active = bool(form.is_active.data)
-            if form.password.data:
-                user.set_password(form.password.data)
             selected_perm_ids = [int(x) for x in request.form.getlist("extra_permissions") if str(x).isdigit()]
-            user.extra_permissions = Permission.query.filter(Permission.id.in_(selected_perm_ids)).all() if selected_perm_ids else []
-            db.session.commit()
+            old_data = f"{user.username},{user.email}"
+            with db.session.begin():
+                user.username = form.username.data
+                user.email = form.email.data
+                user.role_id = form.role_id.data
+                user.is_active = bool(form.is_active.data)
+                if form.password.data:
+                    user.set_password(form.password.data)
+                user.extra_permissions = Permission.query.filter(Permission.id.in_(selected_perm_ids)).all() if selected_perm_ids else []
+                db.session.add(AuditLog(
+                    model_name="User",
+                    record_id=user.id,
+                    user_id=current_user.id,
+                    action="UPDATE",
+                    old_data=old_data,
+                    new_data=f"username={user.username}"
+                ))
             clear_user_permission_cache(user.id)
-            db.session.add(AuditLog(model_name="User", record_id=user.id, user_id=current_user.id, action="UPDATE", old_data=old_data, new_data=f"username={user.username}"))
-            db.session.commit()
             flash("تم تحديث المستخدم.", "success")
             return redirect(url_for("users_bp.list_users"))
         except IntegrityError:
@@ -186,18 +208,27 @@ def edit_user(user_id):
 @permission_required("manage_users")
 def delete_user(user_id):
     user = _get_or_404(User, user_id)
+    if _is_super_admin_user(user):
+        flash("❌ لا يمكن حذف مستخدم super_admin.", "danger")
+        return redirect(url_for("users_bp.list_users"))
     if user.email == current_app.config.get("DEV_EMAIL", "rafideen.ahmadghannam@gmail.com"):
         flash("❌ لا يمكن حذف حساب المطور الأساسي.", "danger")
         return redirect(url_for("users_bp.list_users"))
     try:
         old_data = f"{user.username},{user.email}"
-        user.extra_permissions = []
-        db.session.flush()
-        db.session.delete(user)
-        db.session.commit()
+        with db.session.begin():
+            user.extra_permissions = []
+            db.session.flush()
+            db.session.delete(user)
+            db.session.add(AuditLog(
+                model_name="User",
+                record_id=user_id,
+                user_id=current_user.id,
+                action="DELETE",
+                old_data=old_data,
+                new_data=""
+            ))
         clear_user_permission_cache(user_id)
-        db.session.add(AuditLog(model_name="User", record_id=user_id, user_id=current_user.id, action="DELETE", old_data=old_data, new_data=""))
-        db.session.commit()
         flash("تم حذف المستخدم.", "warning")
     except IntegrityError:
         db.session.rollback()

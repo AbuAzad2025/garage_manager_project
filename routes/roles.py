@@ -129,13 +129,17 @@ def edit_role(role_id):
             with db.session.begin():
                 role.name = new_name
 
-                # حدّث الصلاحيات حسب نوع الحقل
-                if hasattr(form.permissions, "data") and form.permissions.data is not None:
-                    if isinstance(form.permissions.data, list) and form.permissions.data and isinstance(form.permissions.data[0], Permission):
-                        role.permissions = form.permissions.data
-                    else:
-                        ids = [int(x) for x in form.permissions.data] if form.permissions.data else []
-                        role.permissions = Permission.query.filter(Permission.id.in_(ids)).all()
+                # 🛡️ إذا الدور super_admin: أعطه كل الصلاحيات
+                if (role.name or "").strip().lower() == "super_admin":
+                    role.permissions = Permission.query.all()
+                else:
+                    # حدّث الصلاحيات حسب نوع الحقل
+                    if hasattr(form.permissions, "data") and form.permissions.data is not None:
+                        if isinstance(form.permissions.data, list) and form.permissions.data and isinstance(form.permissions.data[0], Permission):
+                            role.permissions = form.permissions.data
+                        else:
+                            ids = [int(x) for x in form.permissions.data] if form.permissions.data else []
+                            role.permissions = Permission.query.filter(Permission.id.in_(ids)).all()
 
                 db.session.add(AuditLog(
                     model_name="Role",
@@ -165,11 +169,15 @@ def edit_role(role_id):
 def delete_role(role_id):
     role = _get_or_404(Role, role_id)
 
+    # 🛡️ super_admin محمي كلياً
+    if (role.name or "").strip().lower() == "super_admin":
+        flash("لا يمكن حذف الدور super_admin إطلاقاً.", "danger")
+        return redirect(url_for("roles.list_roles"))
+
     if _is_protected_role_name(role.name):
         flash("لا يمكن حذف هذا الدور المحمي.", "danger")
         return redirect(url_for("roles.list_roles"))
 
-    # امنع الحذف إن كان مرتبط بمستخدمين
     assigned_count = db.session.query(func.count(User.id)).filter(User.role_id == role.id).scalar() or 0
     if assigned_count > 0:
         flash("لا يمكن حذف هذا الدور لوجود مستخدمين مرتبطين به.", "danger")

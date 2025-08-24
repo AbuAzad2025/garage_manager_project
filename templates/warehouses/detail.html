@@ -166,7 +166,8 @@
             <td class="text-nowrap">
               <a href="{{ url_for('shipments_bp.edit_shipment', id=s.id) }}" class="btn btn-warning btn-sm">تعديل</a>
               <form method="POST" action="{{ url_for('shipments_bp.delete_shipment', id=s.id) }}" class="d-inline-block">
-                {{ csrf_token() }}
+                {# ❗ الحل: اجعل CSRF حقلًا مخفيًا بدل طباعته كنص #}
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-danger btn-sm btn-delete">حذف</button>
               </form>
             </td>

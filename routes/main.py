@@ -146,6 +146,14 @@ def dashboard():
 @login_required
 @permission_required("backup_database")
 def backup_db():
+    # 🔒 تحقق من البيئة والصلاحية
+    is_prod = (current_app.config.get("ENV") == "production" or 
+               current_app.config.get("FLASK_ENV") == "production")
+    role_name = str(getattr(getattr(current_user, "role", None), "name", "")).lower()
+    if is_prod and role_name != "super_admin":
+        flash("❌ غير مسموح بالنسخ الاحتياطي في بيئة الإنتاج إلا لمستخدم super_admin فقط.", "danger")
+        return redirect(url_for("main.dashboard"))
+
     uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
     ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     if uri.startswith("sqlite:///"):
@@ -179,11 +187,18 @@ def backup_db():
     flash("قاعدة البيانات ليست SQLite.", "warning")
     return redirect(url_for("main.dashboard")), 303
 
-
 @main_bp.route("/restore_db", methods=["GET", "POST"], endpoint="restore_db")
 @login_required
 @permission_required("restore_database")
 def restore_db():
+    # 🔒 تحقق من البيئة والصلاحية
+    is_prod = (current_app.config.get("ENV") == "production" or 
+               current_app.config.get("FLASK_ENV") == "production")
+    role_name = str(getattr(getattr(current_user, "role", None), "name", "")).lower()
+    if is_prod and role_name != "super_admin":
+        flash("❌ غير مسموح بالاستعادة في بيئة الإنتاج إلا لمستخدم super_admin فقط.", "danger")
+        return redirect(url_for("main.dashboard"))
+
     form = RestoreForm()
     if form.validate_on_submit():
         uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
@@ -196,9 +211,9 @@ def restore_db():
             db.session.remove()
             db.engine.dispose()
             form.db_file.data.save(db_path)
-            flash("تمت الاستعادة بنجاح. قد تحتاج لإعادة تشغيل التطبيق.", "success")
+            flash("✅ تمت الاستعادة بنجاح. قد تحتاج لإعادة تشغيل التطبيق.", "success")
             return redirect(url_for("main.dashboard"))
         except Exception:
-            flash("خطأ أثناء الاستعادة.", "danger")
+            flash("❌ خطأ أثناء الاستعادة.", "danger")
             return redirect(url_for("main.restore_db"))
     return render_template("restore_db.html", form=form)
