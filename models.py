@@ -1529,6 +1529,7 @@ class PreOrder(db.Model, TimestampMixin):
     status         = db.Column(sa_str_enum(PreOrderStatus, name='preorder_status'),
                                default=PreOrderStatus.PENDING.value)
     notes          = db.Column(db.Text)
+    payment_method = db.Column(db.String(20), nullable=False, default="cash", server_default="cash")
 
     customer  = db.relationship('Customer', back_populates='preorders')
     supplier  = db.relationship('Supplier', back_populates='preorders')
@@ -1544,6 +1545,7 @@ class PreOrder(db.Model, TimestampMixin):
         CheckConstraint('quantity > 0', name='chk_preorder_quantity_positive'),
         CheckConstraint('prepaid_amount >= 0', name='chk_preorder_prepaid_non_negative'),
         CheckConstraint('tax_rate >= 0 AND tax_rate <= 100', name='chk_preorder_tax_rate'),
+        CheckConstraint("payment_method IN ('cash','card','bank','cheque')", name='chk_preorder_payment_method'),
     )
 
     @property
@@ -1603,7 +1605,6 @@ def _preorder_before_insert(mapper, connection, target):
         {"pfx": f"{prefix}-%"}
     ).scalar() or 0
     target.reference = f"{prefix}-{count + 1:04d}"
-
 
 class Sale(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'sales'

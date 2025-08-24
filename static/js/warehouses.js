@@ -1,6 +1,8 @@
-// static/js/warehouses.js
+if (window.__WAREHOUSES_INIT__) {
+  console.log("warehouses.js already loaded, skipping...");
+} 
+window.__WAREHOUSES_INIT__ = true;
 document.addEventListener('DOMContentLoaded', () => {
-  // ========== إشعارات بسيطة ==========
   function showNotification(message, type = 'info') {
     let c = document.getElementById('notification-container');
     if (!c) {
@@ -24,18 +26,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 5000);
   }
 
-  // ========== إرسال فورم بالـ Fetch ==========
   async function ajaxFormSubmit(form, okMsg, reload = false, cb = null) {
+    const submitBtn = form.querySelector('[type="submit"]');
+    const prevDisabled = submitBtn?.disabled;
+    if (submitBtn) submitBtn.disabled = true;
     try {
-      const url = form.action;
-      const method = (form.method || 'POST').toUpperCase();
+      const url = form.dataset.url || form.getAttribute('action') || form.action || window.location.href;
+      const method = (form.getAttribute('method') || 'POST').toUpperCase();
       const fd = new FormData(form);
       const res = await fetch(url, { method, body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-      let data;
       const ct = res.headers.get('content-type') || '';
-      if (ct.includes('application/json')) data = await res.json();
-      else data = { success: res.ok };
-      if (data.success) {
+      const data = ct.includes('application/json') ? await res.json() : { success: res.ok };
+      if (data.success || res.ok) {
         showNotification(okMsg || 'تم التنفيذ بنجاح.', 'success');
         if (cb) cb(data);
         if (reload) setTimeout(() => location.reload(), 900);
@@ -43,12 +45,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const err = data.error || data.message || JSON.stringify(data.errors || {});
         showNotification(`خطأ: ${err}`, 'danger');
       }
+      return data;
     } catch {
       showNotification('تعذر الاتصال بالخادم.', 'danger');
+      return { success: false };
+    } finally {
+      if (submitBtn) submitBtn.disabled = prevDisabled ?? false;
     }
   }
 
-  // ========== ربط فورمات Ajax عامة ==========
   document.querySelectorAll('form[data-ajax="1"]').forEach(f => {
     f.addEventListener('submit', e => {
       e.preventDefault();
@@ -56,7 +61,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // ========== تحديث مستويات المخزون ==========
   document.querySelectorAll('.stock-level-form').forEach(f => {
     f.addEventListener('submit', e => {
       e.preventDefault();
@@ -64,7 +68,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // ========== تحويلات ==========
   const transferForm = document.getElementById('transfer-form');
   if (transferForm) {
     transferForm.addEventListener('submit', e => {
@@ -73,7 +76,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // ========== تبادلات ==========
   const exchangeForm = document.getElementById('exchange-form');
   if (exchangeForm) {
     exchangeForm.addEventListener('submit', e => {
@@ -82,7 +84,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // ========== تحميل/تحديث حصص الشركاء ==========
   async function loadPartnerShares(warehouseId) {
     try {
       const res = await fetch(`/warehouses/${warehouseId}/partner-shares`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
@@ -144,17 +145,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (tbl) loadPartnerShares(partnerSharesForm.dataset.warehouseId);
   }
 
-  // ========== Select2 ==========
   function initSelect2In(root = document) {
     if (!(window.jQuery && jQuery.fn.select2)) return;
     jQuery(root).find('.select2').each(function () {
       const $el = jQuery(this);
-      const endpoint = $el.data('url') || $el.attr('data-url');
+      if ($el.data('select2')) return;
+      const endpoint = $el.data('url') || $el.attr('data-url') || $el.data('endpoint');
       const opts = {
         width: '100%',
         dir: 'rtl',
+        theme: 'bootstrap4',
         allowClear: true,
-        placeholder: $el.attr('placeholder') || 'اختر...'
+        placeholder: $el.attr('placeholder') || $el.data('placeholder') || 'اختر...'
       };
       if (endpoint) {
         opts.ajax = {
@@ -172,7 +174,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   initSelect2In(document);
 
-  // ========== DataTables ==========
   if (window.jQuery && jQuery.fn.DataTable) {
     jQuery.fn.dataTable.ext.errMode = 'none';
     jQuery('.datatable').each(function () {
@@ -188,7 +189,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // ========== تأكيدات الحذف ==========
   document.addEventListener('click', (e) => {
     const btn = e.target.closest('.btn-delete');
     if (!btn) return;
@@ -208,7 +208,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (confirm('تأكيد الحذف؟')) form.submit();
   });
 
-  // ========== منطق صفحة إضافة قطعة ==========
   (function () {
     const form = document.getElementById('add-product-form');
     if (!form) return;
@@ -218,7 +217,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (wtype === 'PARTNER' && pSec) pSec.classList.remove('d-none');
     if (wtype === 'EXCHANGE' && eSec) eSec.classList.remove('d-none');
 
-    // شُركاء
     const partnersWrap = document.getElementById('partners-container');
     const addPartnerBtn = document.getElementById('add-partner-btn');
     const partnerTpl = document.getElementById('partner-template')?.content;
@@ -233,7 +231,6 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    // بائعو التبادل
     const vendorsWrap = document.getElementById('vendors-container');
     const addVendorBtn = document.getElementById('add-vendor-btn');
     const vendorTpl = document.getElementById('vendor-template')?.content;
@@ -249,6 +246,136 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   })();
 
-  // ملاحظة: أزلنا كل ما يتعلّق بالروابط/الأزرار السريعة (buildUrl, goWarehouse, go-part-btn, wirePostForm, quick-preorder)
-  // لأن القالب الأساسي لم يعد يحتويها. بقية الميزات تعمل كما هي.
+  const categoryForm = document.getElementById('create-category-form');
+  if (categoryForm) {
+    categoryForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = await ajaxFormSubmit(categoryForm, 'تمت إضافة الفئة.');
+      try {
+        let id = data && data.id, text = data && (data.text || data.name);
+        if (!id) {
+          const name = categoryForm.querySelector('input[name="name"]')?.value || '';
+          const catSearchURL = categoryForm.dataset.searchUrl || '/api/categories' || '/api/search_categories';
+          const res = await fetch(`${catSearchURL}?q=${encodeURIComponent(name)}&limit=1`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+          const jd = await res.json();
+          const arr = Array.isArray(jd) ? jd : (jd.results || jd.data || []);
+          const top = arr && arr[0];
+          if (top) { id = top.id; text = top.text || top.name || name; }
+        }
+        if (id) {
+          const $cat = window.jQuery && jQuery('#category_id');
+          if ($cat && $cat.length) {
+            const option = new Option(text || id, id, true, true);
+            $cat.append(option).trigger('change');
+          } else {
+            const sel = document.getElementById('category_id');
+            if (sel) {
+              const opt = document.createElement('option');
+              opt.value = id;
+              opt.textContent = text || id;
+              opt.selected = true;
+              sel.appendChild(opt);
+            }
+          }
+        }
+      } catch {}
+      const modalEl = document.getElementById('categoryModal');
+      if (modalEl && window.bootstrap && bootstrap.Modal.getInstance(modalEl)) bootstrap.Modal.getInstance(modalEl).hide();
+      if (window.jQuery) jQuery('#categoryModal').modal?.('hide');
+      categoryForm.reset();
+    });
+  }
+
+  const equipmentTypeForm = document.getElementById('equipmentTypeForm');
+  if (equipmentTypeForm) {
+    equipmentTypeForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = await ajaxFormSubmit(equipmentTypeForm, 'تمت إضافة نوع المركبة.');
+      try {
+        let id = data && data.id, text = data && (data.text || data.name);
+        if (!id) {
+          const name = equipmentTypeForm.querySelector('input[name="name"]')?.value || '';
+          const eqTypesSearchURL = equipmentTypeForm.dataset.searchUrl || window.API_SEARCH_EQUIPMENT_TYPES || '/api/search_equipment_types';
+          const res = await fetch(`${eqTypesSearchURL}?q=${encodeURIComponent(name)}&limit=1`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+          const jd = await res.json();
+          const arr = Array.isArray(jd) ? jd : (jd.results || jd.data || []);
+          const top = arr && arr[0];
+          if (top) { id = top.id; text = top.text || top.name || name; }
+        }
+        const sel = document.getElementById('vehicle_type_id');
+        if (id && sel) {
+          if (window.jQuery) {
+            const $sel = jQuery(sel);
+            const opt = new Option(text || id, id, true, true);
+            $sel.append(opt).trigger('change');
+          } else {
+            const opt = document.createElement('option');
+            opt.value = id;
+            opt.textContent = text || id;
+            opt.selected = true;
+            sel.appendChild(opt);
+          }
+        }
+      } catch {}
+      const modalEl = document.getElementById('equipmentTypeModal');
+      if (modalEl) {
+        if (window.bootstrap && bootstrap.Modal.getInstance(modalEl)) bootstrap.Modal.getInstance(modalEl).hide();
+        else if (window.jQuery) jQuery(modalEl).modal('hide');
+      }
+      equipmentTypeForm.reset();
+    });
+  }
+
+  let currentSupplierSelect = null;
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.add-supplier-btn');
+    if (!btn) return;
+    const group = btn.closest('.input-group');
+    currentSupplierSelect = group?.querySelector('select') || btn.closest('.vendor-entry')?.querySelector('select') || null;
+    const modal = document.getElementById('supplierModal');
+    if (modal) {
+      if (window.jQuery) jQuery(modal).modal('show');
+      else if (window.bootstrap) new bootstrap.Modal(modal).show();
+    }
+  });
+
+  const supplierForm = document.getElementById('create-supplier-form');
+  if (supplierForm) {
+    supplierForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = await ajaxFormSubmit(supplierForm, 'تمت إضافة المورّد.');
+      try {
+        let id = data && data.id, text = data && (data.text || data.name);
+        if (!id) {
+          const name = supplierForm.querySelector('input[name="name"]')?.value || '';
+          const suppliersSearchURL = supplierForm.dataset.searchUrl || window.API_SEARCH_SUPPLIERS || '/api/search_suppliers';
+          const res = await fetch(`${suppliersSearchURL}?q=${encodeURIComponent(name)}&limit=1`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+          const jd = await res.json();
+          const arr = Array.isArray(jd) ? jd : (jd.results || jd.data || []);
+          const top = arr && arr[0];
+          if (top) { id = top.id; text = top.text || top.name || name; }
+        }
+        if (currentSupplierSelect && id) {
+          if (window.jQuery) {
+            const $sel = jQuery(currentSupplierSelect);
+            const opt = new Option(text || id, id, true, true);
+            $sel.append(opt).trigger('change');
+          } else {
+            const opt = document.createElement('option');
+            opt.value = id;
+            opt.textContent = text || id;
+            opt.selected = true;
+            currentSupplierSelect.appendChild(opt);
+          }
+        }
+      } catch {}
+      const modalEl = document.getElementById('supplierModal');
+      if (modalEl) {
+        if (window.bootstrap && bootstrap.Modal.getInstance(modalEl)) bootstrap.Modal.getInstance(modalEl).hide();
+        else if (window.jQuery) jQuery(modalEl).modal('hide');
+      }
+      supplierForm.reset();
+      currentSupplierSelect = null;
+    });
+  }
 });

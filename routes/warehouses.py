@@ -411,6 +411,9 @@ def products(id):
 @login_required
 @permission_required("manage_inventory")
 def add_product(id):
+    log = current_app.logger
+    log.info("add_product:start id=%s method=%s path=%s", id, request.method, request.path)
+
     warehouse = _get_or_404(Warehouse, id)
     form = ProductForm()
     partners_forms, exchange_vendors_forms = [], []
@@ -428,73 +431,152 @@ def add_product(id):
         except Exception:
             return 0
 
-    if request.method == "POST" and form.validate_on_submit():
-        product = Product()
-        form.apply_to(product)
-        db.session.add(product)
-        db.session.flush()
-        init_qty = max(_initial_qty(), 0)
-        init_res = max(_reserved_qty(), 0)
-        sl = StockLevel.query.filter_by(warehouse_id=warehouse.id, product_id=product.id).first()
-        if not sl:
-            sl = StockLevel(warehouse_id=warehouse.id, product_id=product.id, quantity=0, reserved_quantity=0)
-            db.session.add(sl)
-        sl.quantity = (sl.quantity or 0) + init_qty
-        sl.reserved_quantity = max(init_res, 0)
-        if warehouse.warehouse_type == WarehouseType.PARTNER.value:
-            partner_ids = request.form.getlist("partner_id")
-            shares = request.form.getlist("share_percentage")
-            share_amounts = request.form.getlist("share_amount")
-            notes_list = request.form.getlist("notes")
-            for idx, (partner_id, share) in enumerate(zip(partner_ids, shares)):
-                try:
-                    pid = int(partner_id)
-                    perc = float(share or 0)
-                except ValueError:
-                    continue
-                try:
-                    amt = float(share_amounts[idx]) if idx < len(share_amounts) and share_amounts[idx] not in (None, "", "None") else 0.0
-                except Exception:
-                    amt = 0.0
-                note = notes_list[idx].strip() if idx < len(notes_list) and notes_list[idx] not in (None, "", "None") else None
-                db.session.add(ProductPartnerShare(product_id=product.id, partner_id=pid, share_percentage=perc, share_amount=amt, notes=note))
-        elif warehouse.warehouse_type == WarehouseType.EXCHANGE.value:
-            supplier_ids = request.form.getlist("supplier_id")
-            vendor_phones = request.form.getlist("vendor_phone")
-            vendor_paid = request.form.getlist("vendor_paid")
-            vendor_prices = request.form.getlist("vendor_price")
-            maxlen = max(len(supplier_ids or []), len(vendor_phones or []), len(vendor_paid or []), len(vendor_prices or []), 1)
-            for i in range(maxlen):
-                sid = supplier_ids[i] if i < len(supplier_ids) else None
-                phone = vendor_phones[i] if i < len(vendor_phones) else None
-                paid = vendor_paid[i] if i < len(vendor_paid) else None
-                price = vendor_prices[i] if i < len(vendor_prices) else None
-                sname = None
-                if sid and str(sid).isdigit():
-                    sup = db.session.get(Supplier, int(sid))
-                    if sup:
-                        sname = sup.name
-                note_parts = []
-                if sid and str(sid).isdigit():
-                    note_parts.append(f"SupplierID:{sid}{'(' + sname + ')' if sname else ''}")
-                if phone:
-                    note_parts.append(f"phone:{phone}")
-                if paid:
-                    note_parts.append(f"paid:{paid}")
-                if price:
-                    note_parts.append(f"price:{price}")
-                note_txt = " | ".join(note_parts) if note_parts else None
-                db.session.add(ExchangeTransaction(product_id=product.id, warehouse_id=warehouse.id, partner_id=None, quantity=init_qty, direction="IN", notes=note_txt))
-        db.session.commit()
-        flash("تمت إضافة القطعة بنجاح", "success")
-        return redirect(url_for("warehouse_bp.add_product", id=warehouse.id))
+    # معلومات عن نوع المستودع (للتتبّع)
+    try:
+        wtype_raw = warehouse.warehouse_type.value if hasattr(warehouse.warehouse_type, "value") else str(warehouse.warehouse_type)
+    except Exception:
+        wtype_raw = str(warehouse.warehouse_type)
+    wtype = (wtype_raw or "").upper()
+    log.debug("add_product:warehouse_type=%s", wtype)
+
+    if request.method == "POST":
+        log.debug("add_product:POST keys=%s", list(request.form.keys()))
+        valid = form.validate_on_submit()
+        log.debug("add_product:validate_on_submit=%s has_csrf=%s",
+                  valid, bool(getattr(form, "csrf_token", None)))
+
+        if valid:
+            try:
+                product = Product()
+                form.apply_to(product)
+                db.session.add(product)
+                db.session.flush()
+                log.info("add_product:product_created id=%s name=%r sku=%r",
+                         getattr(product, "id", None),
+                         getattr(product, "name", None),
+                         getattr(product, "sku", None))
+
+                init_qty = max(_initial_qty(), 0)
+                init_res = max(_reserved_qty(), 0)
+                log.debug("add_product:init_qty=%s init_reserved=%s", init_qty, init_res)
+
+                sl = StockLevel.query.filter_by(
+                    warehouse_id=warehouse.id, product_id=product.id
+                ).first()
+                if not sl:
+                    sl = StockLevel(
+                        warehouse_id=warehouse.id,
+                        product_id=product.id,
+                        quantity=0,
+                        reserved_quantity=0,
+                    )
+                    db.session.add(sl)
+                    log.debug("add_product:stock_level_created for product_id=%s", product.id)
+
+                sl.quantity = (sl.quantity or 0) + init_qty
+                sl.reserved_quantity = max(init_res, 0)
+                log.debug("add_product:stock_level_updated qty=%s reserved=%s", sl.quantity, sl.reserved_quantity)
+
+                if warehouse.warehouse_type == WarehouseType.PARTNER.value:
+                    partner_ids = request.form.getlist("partner_id")
+                    shares = request.form.getlist("share_percentage")
+                    share_amounts = request.form.getlist("share_amount")
+                    notes_list = request.form.getlist("notes")
+                    log.debug("add_product:partners_rows count=%s", len(partner_ids or []))
+
+                    for idx, (partner_id, share) in enumerate(zip(partner_ids, shares)):
+                        try:
+                            pid = int(partner_id)
+                            perc = float(share or 0)
+                        except ValueError:
+                            log.warning("add_product:skip_partner_row idx=%s partner_id=%r share=%r", idx, partner_id, share)
+                            continue
+                        try:
+                            amt = float(share_amounts[idx]) if idx < len(share_amounts) and share_amounts[idx] not in (None, "", "None") else 0.0
+                        except Exception:
+                            amt = 0.0
+                        note = notes_list[idx].strip() if idx < len(notes_list) and notes_list[idx] not in (None, "", "None") else None
+                        db.session.add(ProductPartnerShare(
+                            product_id=product.id,
+                            partner_id=pid,
+                            share_percentage=perc,
+                            share_amount=amt,
+                            notes=note
+                        ))
+                        log.debug("add_product:partner_share idx=%s partner_id=%s perc=%s amt=%s", idx, pid, perc, amt)
+
+                elif warehouse.warehouse_type == WarehouseType.EXCHANGE.value:
+                    supplier_ids = request.form.getlist("supplier_id")
+                    vendor_phones = request.form.getlist("vendor_phone")
+                    vendor_paid = request.form.getlist("vendor_paid")
+                    vendor_prices = request.form.getlist("vendor_price")
+
+                    maxlen = max(len(supplier_ids or []), len(vendor_phones or []), len(vendor_paid or []), len(vendor_prices or []), 1)
+                    log.debug("add_product:exchange_rows count=%s", maxlen)
+
+                    for i in range(maxlen):
+                        sid = supplier_ids[i] if i < len(supplier_ids) else None
+                        phone = vendor_phones[i] if i < len(vendor_phones) else None
+                        paid = vendor_paid[i] if i < len(vendor_paid) else None
+                        price = vendor_prices[i] if i < len(vendor_prices) else None
+
+                        sname = None
+                        if sid and str(sid).isdigit():
+                            sup = db.session.get(Supplier, int(sid))
+                            if sup:
+                                sname = sup.name
+
+                        note_parts = []
+                        if sid and str(sid).isdigit():
+                            note_parts.append(f"SupplierID:{sid}{'(' + sname + ')' if sname else ''}")
+                        if phone:
+                            note_parts.append(f"phone:{phone}")
+                        if paid:
+                            note_parts.append(f"paid:{paid}")
+                        if price:
+                            note_parts.append(f"price:{price}")
+                        note_txt = " | ".join(note_parts) if note_parts else None
+
+                        db.session.add(ExchangeTransaction(
+                            product_id=product.id,
+                            warehouse_id=warehouse.id,
+                            partner_id=None,
+                            quantity=init_qty,
+                            direction="IN",
+                            notes=note_txt
+                        ))
+                        log.debug("add_product:exchange_tx i=%s supplier_id=%r phone=%r paid=%r price=%r", i, sid, phone, paid, price)
+
+                db.session.commit()
+                log.info("add_product:commit_ok product_id=%s", product.id)
+                flash("تمت إضافة القطعة بنجاح", "success")
+                return redirect(url_for("warehouse_bp.add_product", id=warehouse.id))
+
+            except Exception as e:
+                db.session.rollback()
+                log.exception("add_product:exception_during_save")
+                flash(f"فشل حفظ المنتج: {e}", "danger")
+        else:
+            log.warning("add_product:validation_failed errors=%s", form.errors)
+            flash("تعذّر حفظ المنتج. تأكّد من الحقول المطلوبة.", "danger")
+
+    # حضّر فورمات الأقسام الديناميكية للواجهة
     if warehouse.warehouse_type == WarehouseType.PARTNER.value:
         partners_forms = [ProductPartnerShareForm()]
     elif warehouse.warehouse_type == WarehouseType.EXCHANGE.value:
         exchange_vendors_forms = [ExchangeVendorForm()]
-    wtype = (warehouse.warehouse_type.value if hasattr(warehouse.warehouse_type, "value") else str(warehouse.warehouse_type)).upper()
-    return render_template("warehouses/add_product.html", form=form, warehouse=warehouse, partners_forms=partners_forms, exchange_vendors_forms=exchange_vendors_forms, wtype=wtype)
 
+    log.debug("add_product:render_template wtype=%s partners_forms=%s exchange_forms=%s",
+              wtype, len(partners_forms), len(exchange_vendors_forms))
+
+    return render_template(
+        "warehouses/add_product.html",
+        form=form,
+        warehouse=warehouse,
+        partners_forms=partners_forms,
+        exchange_vendors_forms=exchange_vendors_forms,
+        wtype=wtype
+    )
 
 @warehouse_bp.route("/<int:id>/import", methods=["GET", "POST"], endpoint="import_products")
 @login_required
@@ -859,74 +941,45 @@ def preorders_list():
 @permission_required("add_preorder")
 def preorder_create():
     form = PreOrderForm()
-    form.customer_id.query = Customer.query.order_by(Customer.name).all()
-    form.supplier_id.query = Supplier.query.order_by(Supplier.name).all()
-    form.partner_id.query = Partner.query.order_by(Partner.name).all()
-    form.product_id.query = Product.query.order_by(Product.name).all()
-    form.warehouse_id.query = Warehouse.query.order_by(Warehouse.name).all()
 
-    def _id_from_field(field_name):
-        f = getattr(form, field_name, None)
-        if f is not None:
-            d = getattr(f, "data", None)
-            if hasattr(d, "id"):
-                return d.id
-            try:
-                return int(d) if d not in (None, "", "None") else None
-            except Exception:
-                pass
-        v = request.form.get(field_name)
-        try:
-            return int(v) if v not in (None, "", "None") else None
-        except Exception:
-            return None
-
-    is_testing = bool(current_app.config.get("TESTING"))
-    if form.validate_on_submit() or (request.method == "POST" and is_testing):
-        et = (request.form.get("entity_type") or getattr(getattr(form, "entity_type", None), "data", "") or "").strip().lower()
-        customer_id = _id_from_field("customer_id") if et == "customer" else None
-        supplier_id = _id_from_field("supplier_id") if et == "supplier" else None
-        partner_id = _id_from_field("partner_id") if et == "partner" else None
-        product_id = _id_from_field("product_id")
-        warehouse_id = _id_from_field("warehouse_id")
-        if not product_id or not warehouse_id:
-            return render_template("parts/preorder_form.html", form=form)
-        try:
-            qty = int(float(request.form.get("quantity") if request.method == "POST" else form.quantity.data))
-        except Exception:
-            qty = 0
-        if qty < 1:
-            qty = 1
-        try:
-            prepaid = float(request.form.get("prepaid_amount") if request.method == "POST" else (form.prepaid_amount.data or 0))
-        except Exception:
-            prepaid = 0.0
-        try:
-            tax = float(request.form.get("tax_rate") if request.method == "POST" else (form.tax_rate.data or 0))
-        except Exception:
-            tax = 0.0
-        status_val = getattr(form, "status", None).data if getattr(form, "status", None) else "PENDING"
-        code = getattr(getattr(form, "reference", None), "data", None) or uuid.uuid4().hex[:8].upper()
-        preorder = PreOrder(reference=code, preorder_date=getattr(getattr(form, "preorder_date", None), "data", None) or datetime.utcnow(), expected_date=getattr(getattr(form, "expected_date", None), "data", None), customer_id=customer_id, supplier_id=supplier_id, partner_id=partner_id, product_id=product_id, warehouse_id=warehouse_id, quantity=qty, prepaid_amount=prepaid, tax_rate=tax, status=status_val, notes=getattr(getattr(form, "notes", None), "data", None))
+    if form.validate_on_submit():
+        preorder = PreOrder()
+        form.apply_to(preorder)
         db.session.add(preorder)
         db.session.flush()
-        sl = StockLevel.query.filter_by(product_id=product_id, warehouse_id=warehouse_id).first()
+
+        sl = StockLevel.query.filter_by(product_id=preorder.product_id, warehouse_id=preorder.warehouse_id).first()
         if not sl:
-            sl = StockLevel(product_id=product_id, warehouse_id=warehouse_id, quantity=0, reserved_quantity=0)
+            sl = StockLevel(product_id=preorder.product_id, warehouse_id=preorder.warehouse_id, quantity=0, reserved_quantity=0)
             db.session.add(sl)
             db.session.flush()
-        sl.reserved_quantity = (sl.reserved_quantity or 0) + qty
-        method = getattr(getattr(form, "payment_method", None), "data", None) or request.form.get("payment_method")
-        pay = Payment(entity_type=PaymentEntityType.PREORDER.value if hasattr(PaymentEntityType, "PREORDER") else "PREORDER", preorder_id=preorder.id, customer_id=customer_id, supplier_id=supplier_id, partner_id=partner_id, direction=PaymentDirection.INCOMING.value if hasattr(PaymentDirection, "INCOMING") else "INCOMING", status=PaymentStatus.COMPLETED.value if hasattr(PaymentStatus, "COMPLETED") else "COMPLETED", payment_date=datetime.utcnow(), total_amount=prepaid, currency="ILS", method=method, reference=f"Preorder {code}", notes=f"دفعة عربون لحجز {preorder.product.name if preorder.product else ''} (كود: {code})")
+        sl.reserved_quantity = (sl.reserved_quantity or 0) + int(preorder.quantity or 0)
+
+        method = form.payment_method.data or 'cash'
+        pay = Payment(
+            entity_type=PaymentEntityType.PREORDER.value if hasattr(PaymentEntityType, "PREORDER") else "PREORDER",
+            preorder_id=preorder.id,
+            customer_id=preorder.customer_id,
+            direction=PaymentDirection.INCOMING.value if hasattr(PaymentDirection, "INCOMING") else "INCOMING",
+            status=PaymentStatus.COMPLETED.value if hasattr(PaymentStatus, "COMPLETED") else "COMPLETED",
+            payment_date=datetime.utcnow(),
+            total_amount=float(preorder.prepaid_amount or 0),
+            currency="ILS",
+            method=method,
+            reference=f"Preorder {preorder.reference or preorder.id}",
+            notes=f"دفعة عربون لحجز {preorder.product.name if preorder.product else ''} (كود: {preorder.reference or preorder.id})"
+        )
         db.session.add(pay)
+
         try:
             db.session.commit()
+            flash("تم إنشاء الحجز بنجاح.", "success")
             return redirect(url_for("warehouse_bp.preorder_detail", preorder_id=preorder.id))
         except SQLAlchemyError:
             db.session.rollback()
-            return render_template("parts/preorder_form.html", form=form), 200
-    return render_template("parts/preorder_form.html", form=form)
+            flash("فشل إنشاء الحجز.", "danger")
 
+    return render_template("parts/preorder_form.html", form=form)
 
 @warehouse_bp.route("/preorders/<int:preorder_id>", methods=["GET"], endpoint="preorder_detail")
 @login_required
@@ -946,7 +999,6 @@ def preorder_fulfill(preorder_id):
     if preorder.status != "FULFILLED":
         try:
             preorder.status = "FULFILLED"
-            preorder.fulfilled_at = datetime.utcnow()
             sl = StockLevel.query.filter_by(product_id=preorder.product_id, warehouse_id=preorder.warehouse_id).first()
             if not sl:
                 sl = StockLevel(product_id=preorder.product_id, warehouse_id=preorder.warehouse_id, quantity=0, reserved_quantity=0)
@@ -989,7 +1041,6 @@ def preorder_cancel(preorder_id):
         db.session.rollback()
         flash("حدث خطأ أثناء إلغاء الحجز", "danger")
     return redirect(url_for("warehouse_bp.preorder_detail", preorder_id=preorder.id))
-
 
 @warehouse_bp.route("/<int:warehouse_id>/pay", methods=["POST"], endpoint="pay_warehouse")
 @login_required

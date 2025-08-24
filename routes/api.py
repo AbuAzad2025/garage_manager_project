@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, current_app
 from flask_login import login_required
 from sqlalchemy import or_, func
 from typing import Callable, Iterable, List, Dict, Any, Optional
+from sqlalchemy.exc import IntegrityError
 
 from extensions import db, limiter, csrf
 from models import (
@@ -79,12 +80,65 @@ def search_model(model, fields: List[str], label_attr: str = "name",
 def customers():
     return search_model(Customer, ["name", "phone", "email"], label_attr="name")
 
+@bp.post("/customers")
+@login_required
+@limiter.limit("30/minute")
+def create_customer_api():
+    name = (request.form.get("name") or "").strip()
+    email = normalize_email(request.form.get("email"))
+    phone = normalize_phone(request.form.get("phone"))
+    whatsapp = normalize_phone(request.form.get("whatsapp"))
+    address = (request.form.get("address") or "").strip()
+    notes = (request.form.get("notes") or "").strip()
+    discount_rate = request.form.get("discount_rate", type=float) or 0
+    credit_limit = request.form.get("credit_limit", type=float) or 0
+    is_online = bool(request.form.get("is_online"))
+    is_active = bool(request.form.get("is_active", "1"))
+
+    if not name or not email:
+        return jsonify(success=False, error="الاسم والبريد مطلوبان"), 400
+
+    try:
+        c = Customer(
+            name=name, email=email, phone=phone, whatsapp=whatsapp,
+            address=address, notes=notes, discount_rate=discount_rate,
+            credit_limit=credit_limit, is_online=is_online, is_active=is_active
+        )
+        pwd = (request.form.get("password") or "").strip()
+        if pwd:
+            c.set_password(pwd)
+        db.session.add(c)
+        db.session.commit()
+        return jsonify(success=True, id=c.id, name=c.name, text=c.name)
+    except SQLAlchemyError:
+        db.session.rollback()
+        return jsonify(success=False, error="فشل حفظ العميل"), 500
+
 @bp.get("/suppliers")
 @bp.get("/search_suppliers", endpoint="search_suppliers")
 @login_required
 @limiter.limit("60/minute")
 def suppliers():
-    return search_model(Supplier, ["name", "phone", "identity_number"], label_attr="name")
+    return search_model(
+        Supplier,
+        ["name", "phone", "identity_number"],
+        label_attr="name",
+        default_order_attr="name"
+    )
+
+@bp.get("/suppliers/<int:id>")
+@login_required
+@limiter.limit("60/minute")
+def get_supplier(id):
+    supplier = Supplier.query.get_or_404(id)
+    return jsonify({
+        "success": True,
+        "supplier": {
+            "id": supplier.id,
+            "name": supplier.name,
+            "phone": supplier.phone,
+        }
+    })
 
 @bp.get("/partners")
 @bp.get("/search_partners", endpoint="search_partners")
@@ -123,7 +177,26 @@ def product_info(pid: int):
         "available": (int(available) if available is not None else None),
     })
 
-@bp.get("/search_categories")
+@bp.post("/categories", endpoint="create_category")
+@login_required
+@csrf.exempt
+@limiter.limit("30/minute")
+def create_category():
+    data = request.get_json(silent=True) or request.form or {}
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "الاسم مطلوب"}), 400
+
+    exists = ProductCategory.query.filter(func.lower(ProductCategory.name) == name.lower()).first()
+    if exists:
+        return jsonify({"id": exists.id, "text": exists.name, "dupe": True}), 200
+
+    c = ProductCategory(name=name)
+    db.session.add(c)
+    db.session.commit()
+    return jsonify({"id": c.id, "text": c.name}), 201
+
+@bp.get("/search_categories", endpoint="search_categories")
 @login_required
 @limiter.limit("60/minute")
 def categories():
@@ -174,26 +247,49 @@ def employees():
 def equipment_types():
     return search_model(EquipmentType, ["name", "model_number", "chassis_number"], label_attr="name")
 
+
 @bp.post("/equipment_types", endpoint="create_equipment_type")
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
 def create_equipment_type():
-    data = request.get_json(silent=True) or {}
+    data = request.get_json(silent=True) or request.form or {}
     name = (data.get("name") or "").strip()
     model_number = (data.get("model_number") or "").strip() or None
     chassis_number = (data.get("chassis_number") or "").strip() or None
     category = (data.get("category") or "").strip() or None
     notes = (data.get("notes") or "").strip() or None
+
     if not name:
         return jsonify({"error": "الاسم مطلوب"}), 400
+
     exists = EquipmentType.query.filter(func.lower(EquipmentType.name) == name.lower()).first()
     if exists:
         return jsonify({"id": exists.id, "text": exists.name, "dupe": True}), 200
-    it = EquipmentType(name=name, model_number=model_number, chassis_number=chassis_number, category=category, notes=notes)
-    db.session.add(it)
-    db.session.commit()
-    return jsonify({"id": it.id, "text": it.name}), 201
+
+    it = EquipmentType(
+        name=name,
+        model_number=model_number,
+        chassis_number=chassis_number,
+        category=category,
+        notes=notes
+    )
+
+    try:
+        db.session.add(it)
+        db.session.commit()
+        return jsonify({"id": it.id, "text": it.name}), 201
+    except IntegrityError:
+        db.session.rollback()
+        exists = EquipmentType.query.filter(func.lower(EquipmentType.name) == name.lower()).first()
+        if exists:
+            return jsonify({"id": exists.id, "text": exists.name, "dupe": True}), 200
+        return jsonify({"error": "اسم النوع موجود مسبقًا."}), 409
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("create_equipment_type failed")
+        return jsonify({"error": "خطأ غير متوقع."}), 500
+
 
 @bp.get("/invoices")
 @login_required
@@ -305,6 +401,45 @@ def transfers():
             "destination_id": t.destination_id,
         } for t in rows
     ])
+
+
+@bp.post("/suppliers")
+@login_required
+def create_supplier():
+    payload = request.form or request.json or {}
+    name = (payload.get("name") or "").strip()
+    identity = (payload.get("identity_number") or "").strip() or None
+    phone = (payload.get("phone") or "").strip() or None
+
+    try:
+        if identity:
+            existing = Supplier.query.filter_by(identity_number=identity).first()
+            if existing:
+                return jsonify(success=True, id=existing.id, text=existing.name, name=existing.name), 200
+
+        s = Supplier(
+            name=name,
+            identity_number=identity,
+            phone=phone,
+            is_local=True,
+            currency="ILS",
+        )
+        db.session.add(s)
+        db.session.commit()
+        return jsonify(success=True, id=s.id, text=s.name, name=s.name), 201
+
+    except IntegrityError:
+        db.session.rollback()
+        if identity:
+            exists = Supplier.query.filter_by(identity_number=identity).first()
+            if exists:
+                return jsonify(success=True, id=exists.id, text=exists.name, name=exists.name), 200
+        return jsonify(success=False, error="رقم المورّد التعريفي موجود مسبقًا."), 409
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.exception("create_supplier failed")
+        return jsonify(success=False, error="خطأ غير متوقع."), 500
 
 @bp.get("/preorders")
 @login_required

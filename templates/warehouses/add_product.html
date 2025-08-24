@@ -3,15 +3,38 @@
 {% block title %}إضافة منتج - {{ warehouse.name }}{% endblock %}
 {% block page_title %}إضافة منتج - {{ warehouse.name }}{% endblock %}
 
+{% block head_extra %}
+  {{ super() }}
+  {# نضمن وجود التوكن للطلبات AJAX #}
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+{% endblock %}
+
 {% block content %}
-<form method="POST" novalidate id="add-product-form" data-wtype="{{ wtype }}">
-  {{ form.hidden_tag() }}
+<form method="POST"
+      action="{{ url_for('warehouse_bp.add_product', id=warehouse.id) }}"
+      novalidate
+      id="add-product-form"
+      data-wtype="{{ wtype }}">
+{{ form.hidden_tag() }}
+{% if form.errors %}
+  <div class="alert alert-danger mt-3">
+    <strong>تعذّر حفظ المنتج:</strong>
+    <ul class="mb-0">
+      {% for field_name, errs in form.errors.items() %}
+        {% set fld = form[field_name] if field_name in form else None %}
+        {% set label = (fld.label.text if fld else field_name) %}
+        {% for err in errs %}
+          <li>{{ label }}: {{ err }}</li>
+        {% endfor %}
+      {% endfor %}
+    </ul>
+  </div>
+{% endif %}
 
   <div class="alert alert-info mb-3">
     نوع المستودع: <strong>{{ wtype }}</strong>
   </div>
 
-  <!-- التعريف والمعرفات -->
   <div class="card mb-3 shadow-sm">
     <div class="card-header">التعريف / المعرّفات</div>
     <div class="card-body">
@@ -28,26 +51,37 @@
     </div>
   </div>
 
-  <!-- الوصف والتصنيف -->
   <div class="card mb-3 shadow-sm">
     <div class="card-header">الوصف والتصنيف</div>
     <div class="card-body">
       <div class="mb-3">{{ form.description.label }} {{ form.description(class_="form-control") }}</div>
       <div class="row g-3">
-        <div class="col-md-4">{{ form.category_id.label }} {{ form.category_id(class_="form-control select2") }}</div>
-        <div class="col-md-4">{{ form.vehicle_type_id.label }} {{ form.vehicle_type_id(class_="form-control select2") }}</div>
+        <div class="col-md-4">
+          <label class="form-label">{{ form.category_id.label.text }}</label>
+          <div class="input-group">
+{{ form.category_id(class_="form-control select2", id="category_id", **{'data-url': url_for('api.search_categories')}) }}
+
+            <button type="button" class="btn btn-outline-primary" id="btn-add-category" data-toggle="modal" data-target="#categoryModal">+</button>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">{{ form.vehicle_type_id.label.text }}</label>
+          <div class="input-group">
+            {{ form.vehicle_type_id(class_="form-control select2", id="vehicle_type_id", **{'data-url': url_for('api.search_equipment_types')}) }}
+            <button type="button" class="btn btn-outline-primary" id="btn-add-vehicle-type" data-toggle="modal" data-target="#equipmentTypeModal">+</button>
+          </div>
+        </div>
         <div class="col-md-2">{{ form.condition.label }} {{ form.condition(class_="form-select") }}</div>
         <div class="col-md-2">{{ form.origin_country.label }} {{ form.origin_country(class_="form-control") }}</div>
       </div>
     </div>
   </div>
 
-  <!-- التسعير والضرائب -->
   <div class="card mb-3 shadow-sm">
     <div class="card-header">التسعير والضرائب</div>
     <div class="card-body">
       <div class="row g-3">
-        <div class="col-md-3">{{ form.price.label }} {{ form.price(class_="form-control") }}</div>
+        <div class="col-md-3">{{ form.price.label }} {{ form.price(class_="form-control", required=True) }}</div>
         <div class="col-md-3">{{ form.unit_price_before_tax.label }} {{ form.unit_price_before_tax(class_="form-control") }}</div>
         <div class="col-md-2">{{ form.tax_rate.label }} {{ form.tax_rate(class_="form-control") }}</div>
         <div class="col-md-2">{{ form.min_price.label }} {{ form.min_price(class_="form-control") }}</div>
@@ -60,7 +94,6 @@
     </div>
   </div>
 
-  <!-- المخزون والحدود -->
   <div class="card mb-3 shadow-sm">
     <div class="card-header">المخزون والحدود</div>
     <div class="card-body">
@@ -74,7 +107,6 @@
     </div>
   </div>
 
-  <!-- المواصفات -->
   <div class="card mb-3 shadow-sm">
     <div class="card-header">المواصفات</div>
     <div class="card-body">
@@ -100,19 +132,7 @@
     </div>
   </div>
 
-  <!-- الموردون -->
-  <div class="card mb-3 shadow-sm">
-    <div class="card-header">الموردون</div>
-    <div class="card-body">
-      <div class="row g-3">
-        <div class="col-md-4">{{ form.supplier_id.label }} {{ form.supplier_id(class_="form-control select2") }}</div>
-        <div class="col-md-4">{{ form.supplier_international_id.label }} {{ form.supplier_international_id(class_="form-control select2") }}</div>
-        <div class="col-md-4">{{ form.supplier_local_id.label }} {{ form.supplier_local_id(class_="form-control select2") }}</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- حصص الشركاء (للنوع PARTNER فقط) -->
+  {# يظهر تلقائياً إذا نوع المستودع = شركاء أو إذا فعّلت لاحقاً من JS #}
   <div class="card mb-3 d-none" id="partner-section">
     <div class="card-header d-flex justify-content-between align-items-center">
       <span>مساهمات الشركاء</span>
@@ -124,7 +144,8 @@
     <div class="card-body" id="partners-container">
       {% for p_form in partners_forms %}
       <div class="partner-entry border rounded p-3 mb-3">
-        {{ p_form.partner_id.label }} {{ p_form.partner_id(class_="form-control select2") }}
+        {{ p_form.partner_id.label }}
+        {{ p_form.partner_id(class_="form-control select2", **{'data-url': url_for('api.search_partners')}) }}
         <div class="row g-2 mt-2">
           <div class="col-md-4">{{ p_form.share_percentage.label }} {{ p_form.share_percentage(class_="form-control") }}</div>
           <div class="col-md-4">{{ p_form.share_amount.label }} {{ p_form.share_amount(class_="form-control") }}</div>
@@ -136,7 +157,6 @@
     </div>
   </div>
 
-  <!-- تبادلات / مورّدون (لنوع EXCHANGE فقط) -->
   <div class="card mb-3 d-none" id="exchange-section">
     <div class="card-header d-flex justify-content-between align-items-center">
       <span>تجار / مورّدون للتبادل</span>
@@ -150,13 +170,16 @@
       <div class="vendor-entry border rounded p-3 mb-3">
         <div class="row g-2">
           <div class="col-md-6">
-            <label>المورّد / التاجر</label>
-            <select name="supplier_id" class="form-control select2" data-url="{{ url_for('api.search_suppliers') }}"></select>
+            {{ v_form.supplier_id.label }}
+            <div class="input-group">
+              {{ v_form.supplier_id(class_="form-control select2", **{'data-url': url_for('api.search_suppliers')}) }}
+              <button type="button" class="btn btn-outline-primary add-supplier-btn" data-toggle="modal" data-target="#supplierModal">+</button>
+            </div>
           </div>
           <div class="col-md-6">{{ v_form.vendor_phone.label }} {{ v_form.vendor_phone(class_="form-control") }}</div>
           <div class="col-md-6">{{ v_form.vendor_paid.label }} {{ v_form.vendor_paid(class_="form-control") }}</div>
           <div class="col-md-6">{{ v_form.vendor_price.label }} {{ v_form.vendor_price(class_="form-control") }}</div>
-          <div class="col-12"><small class="text-muted">اختر مورّدًا أو املأ البيانات يدويًا.</small></div>
+          <div class="col-12"><small class="text-muted">اختر مورّدًا من القائمة أو املأ البيانات يدوياً عند الحاجة.</small></div>
         </div>
         <button type="button" class="btn btn-sm btn-danger remove-vendor-btn mt-3">حذف</button>
       </div>
@@ -164,14 +187,109 @@
     </div>
   </div>
 
-  <!-- أزرار الحفظ والرجوع -->
   <div class="mt-4 d-flex gap-2">
-    <button class="btn btn-primary"><i class="fas fa-check me-1"></i> حفظ المنتج</button>
+<button type="submit" class="btn btn-primary"><i class="fas fa-check me-1"></i> حفظ المنتج</button>
     <a href="{{ url_for('warehouse_bp.products', id=warehouse.id) }}" class="btn btn-secondary"><i class="fas fa-arrow-right me-1"></i> عودة</a>
   </div>
 </form>
 
-<!-- قوالب نماذج partner/vendor الجانبية -->
+{# مودال إضافة فئة #}
+<div class="modal fade" id="categoryModal" tabindex="-1" aria-labelledby="categoryModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+<form id="create-category-form"
+      class="modal-content"
+      method="post"
+      action="{{ url_for('api.create_category') }}"
+      data-url="{{ url_for('api.create_category') }}"
+      data-search-url="{{ url_for('api.search_categories') }}">
+
+      <div class="modal-header">
+        <h5 class="modal-title" id="categoryModalLabel">إضافة فئة</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="إغلاق"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3"><label class="form-label">اسم الفئة</label><input type="text" name="name" class="form-control" required></div>
+        <div class="mb-3"><label class="form-label">ملاحظات</label><textarea name="notes" class="form-control" rows="2"></textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
+        <button type="submit" class="btn btn-primary">حفظ</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# مودال إضافة نوع مركبة/معدات #}
+<div class="modal fade" id="equipmentTypeModal" tabindex="-1" aria-labelledby="equipmentTypeModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="equipmentTypeForm"
+          class="modal-content"
+          method="post"
+          action="{{ url_for('api.create_equipment_type') }}"
+          data-url="{{ url_for('api.create_equipment_type') }}"
+          data-search-url="{{ url_for('api.search_equipment_types') }}">
+      <div class="modal-header">
+        <h5 class="modal-title" id="equipmentTypeModalLabel">إضافة نوع مركبة</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="إغلاق"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3"><label class="form-label">اسم النوع</label><input type="text" name="name" id="et_name" class="form-control" required></div>
+        <div class="mb-3"><label class="form-label">ملاحظات</label><textarea name="notes" id="et_notes" class="form-control" rows="2"></textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
+        <button type="submit" class="btn btn-primary">حفظ</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# مودال إضافة مورِّد #}
+<div class="modal fade" id="supplierModal" tabindex="-1" aria-labelledby="supplierModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="create-supplier-form"
+          class="modal-content"
+          method="post"
+          action="{{ url_for('api.create_supplier') }}"
+          data-url="{{ url_for('api.create_supplier') }}"
+          data-search-url="{{ url_for('api.search_suppliers') }}">
+      <div class="modal-header">
+        <h5 class="modal-title" id="supplierModalLabel">إضافة مورّد</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="إغلاق"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">الاسم *</label>
+          <input type="text" name="name" class="form-control" required>
+        </div>
+        <div class="row g-2">
+          <div class="col-md-6">
+            <label class="form-label">الهاتف</label>
+            <input type="text" name="phone" class="form-control">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">الرقم التعريفي</label>
+            <input type="text" name="identity_number" class="form-control">
+          </div>
+        </div>
+        <div class="mt-3">
+          <label class="form-label">العنوان</label>
+          <input type="text" name="address" class="form-control">
+        </div>
+        <div class="mt-3">
+          <label class="form-label">ملاحظات</label>
+          <textarea name="notes" class="form-control" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
+        <button type="submit" class="btn btn-primary">حفظ</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# قوالب صفوف ديناميكية #}
 <template id="partner-template">
   <div class="partner-entry border rounded p-3 mb-3">
     <label>الشريك</label>
@@ -190,12 +308,15 @@
     <div class="row g-2">
       <div class="col-md-6">
         <label>المورّد / التاجر</label>
-        <select name="supplier_id" class="form-control select2" data-url="{{ url_for('api.search_suppliers') }}"></select>
+        <div class="input-group">
+          <select name="supplier_id" class="form-control select2" data-url="{{ url_for('api.search_suppliers') }}"></select>
+          <button type="button" class="btn btn-outline-primary add-supplier-btn" data-toggle="modal" data-target="#supplierModal">+</button>
+        </div>
       </div>
       <div class="col-md-6"><label>الهاتف</label><input type="text" name="vendor_phone" class="form-control" /></div>
       <div class="col-md-6"><label>المبلغ المدفوع</label><input type="number" step="0.01" name="vendor_paid" class="form-control" /></div>
       <div class="col-md-6"><label>السعر</label><input type="number" step="0.01" name="vendor_price" class="form-control" /></div>
-      <div class="col-12"><small class="text-muted">اختر مورّدًا أو املأ البيانات يدويًا.</small></div>
+      <div class="col-12"><small class="text-muted">اختر مورّدًا من القائمة أو املأ البيانات يدوياً.</small></div>
     </div>
     <button type="button" class="btn btn-sm btn-danger remove-vendor-btn mt-3">حذف</button>
   </div>
@@ -203,14 +324,205 @@
 {% endblock %}
 
 {% block scripts %}
-{{ super() }}
-<script>
-(function(){
-  const form = document.getElementById('add-product-form');
-  const wtype = form?.dataset.wtype?.toUpperCase() || '';
-  if (wtype === 'PARTNER') document.getElementById('partner-section')?.classList.remove('d-none');
-  if (wtype === 'EXCHANGE') document.getElementById('exchange-section')?.classList.remove('d-none');
-})();
-</script>
-<script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
+
+  {# سكربت صغير: يمنع 400 ويربط المودالات مع Select2 + إظهار الأقسام #}
+  <script>
+  (function () {
+    const getCSRF = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    // تفعيل أقسام الشركاء/التبادل حسب نوع المستودع أو اختيار المستخدم
+    const wtype = document.getElementById('add-product-form')?.dataset?.wtype || '';
+    const partnerSection = document.getElementById('partner-section');
+    const exchangeSection = document.getElementById('exchange-section');
+    const isExchangeEl = document.getElementById('is_exchange_id');
+
+    const togglePartnerSection = (on) => partnerSection?.classList.toggle('d-none', !on);
+    const toggleExchangeSection = (on) => exchangeSection?.classList.toggle('d-none', !on);
+
+    // إظهار الشركاء تلقائياً لو كان نوع المستودع “PARTNERS” أو مشابه
+    if (wtype && /partner/i.test(wtype)) togglePartnerSection(true);
+
+    // ربط تشيك بوكس "is_exchange"
+    if (isExchangeEl) {
+      const syncExchange = () => toggleExchangeSection(isExchangeEl.checked);
+      isExchangeEl.addEventListener('change', syncExchange);
+      syncExchange();
+    }
+
+    // أدوات إضافة/حذف صفوف الشركاء/المورّدين
+    const initSelect2Basic = (el) => {
+      if (window.$ && $(el).select2) {
+        $(el).select2({ theme: 'bootstrap4', width: '100%' });
+      }
+    };
+
+    const reinitSelects = (container) => {
+      container.querySelectorAll('select.select2').forEach(initSelect2Basic);
+    };
+
+    const partnersContainer = document.getElementById('partners-container');
+    const vendorsContainer = document.getElementById('vendors-container');
+    const partnerTpl = document.getElementById('partner-template');
+    const vendorTpl = document.getElementById('vendor-template');
+
+    document.getElementById('add-partner-btn')?.addEventListener('click', () => {
+      if (!partnerTpl || !partnersContainer) return;
+      const node = partnerTpl.content.cloneNode(true);
+      partnersContainer.appendChild(node);
+      reinitSelects(partnersContainer);
+    });
+
+    document.getElementById('add-vendor-btn')?.addEventListener('click', () => {
+      if (!vendorTpl || !vendorsContainer) return;
+      const node = vendorTpl.content.cloneNode(true);
+      vendorsContainer.appendChild(node);
+      reinitSelects(vendorsContainer);
+    });
+
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('remove-partner-btn')) {
+        e.target.closest('.partner-entry')?.remove();
+      }
+      if (e.target.classList.contains('remove-vendor-btn')) {
+        e.target.closest('.vendor-entry')?.remove();
+      }
+    });
+
+    // ————— مودالات الإضافة السريعة (فئة / نوع / مورّد) —————
+    async function postJSON(url, payload) {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRFToken': getCSRF(),
+        },
+        body: JSON.stringify(payload || {})
+      });
+      let data = null;
+      try { data = await res.json(); } catch (_) { /* ignore */ }
+      if (!res.ok) {
+        const msg = (data && (data.error || data.message)) || ('HTTP ' + res.status);
+        throw new Error(msg);
+      }
+      return data;
+    }
+
+    // أعد استخدام هذه للدفع لداخل Select2
+    function appendAndSelectOption(selectEl, id, text) {
+      if (!selectEl) return;
+      const opt = new Option(text, id, true, true);
+      selectEl.add(opt);
+      if (window.$ && $(selectEl).trigger) {
+        $(selectEl).trigger('change'); // لإعلام Select2
+      }
+    }
+
+    // 1) إضافة فئة
+    (function initCategoryModal() {
+      const form = document.getElementById('create-category-form');
+      const select = document.getElementById('category_id');
+      if (!form || !select) return;
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn?.setAttribute('disabled', 'disabled');
+        try {
+          const name = form.querySelector('input[name="name"]')?.value?.trim();
+          const notes = form.querySelector('textarea[name="notes"]')?.value?.trim() || '';
+          if (!name) { notify('أدخل اسم الفئة', 'warning'); return; }
+          const data = await postJSON(form.dataset.url, { name, notes });
+          // نتوقع {id, name} أو مشابه
+          appendAndSelectOption(select, data.id, data.name || name);
+          notify('تمت إضافة الفئة.');
+          $(form).closest('.modal')?.modal('hide');
+          form.reset();
+        } catch (err) {
+          notify('تعذر إضافة الفئة: ' + err.message, 'danger');
+        } finally {
+          submitBtn?.removeAttribute('disabled');
+        }
+      });
+    })();
+
+    // 2) إضافة نوع مركبة/معدات
+    (function initEquipmentTypeModal() {
+      const form = document.getElementById('equipmentTypeForm');
+      const select = document.getElementById('vehicle_type_id');
+      if (!form || !select) return;
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn?.setAttribute('disabled', 'disabled');
+        try {
+          const name = form.querySelector('input[name="name"]')?.value?.trim();
+          const notes = form.querySelector('textarea[name="notes"]')?.value?.trim() || '';
+          if (!name) { notify('أدخل اسم النوع', 'warning'); return; }
+          const data = await postJSON(form.dataset.url, { name, notes });
+          appendAndSelectOption(select, data.id, data.name || name);
+          notify('تمت إضافة النوع.');
+          $(form).closest('.modal')?.modal('hide');
+          form.reset();
+        } catch (err) {
+          notify('تعذر إضافة النوع: ' + err.message, 'danger');
+        } finally {
+          submitBtn?.removeAttribute('disabled');
+        }
+      });
+    })();
+
+    // 3) إضافة مورّد — هذا كان يعطيك 400 سابقاً بسبب CSRF/نوع المحتوى
+    (function initSupplierModal() {
+      const form = document.getElementById('create-supplier-form');
+      if (!form) return;
+
+      // سنحدّث آخر select تم التركيز عليه داخل قسم التبادل
+      let lastSupplierSelect = null;
+      document.addEventListener('focusin', (e) => {
+        if (e.target.matches('#vendors-container select[name="supplier_id"]')) {
+          lastSupplierSelect = e.target;
+        }
+      });
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn?.setAttribute('disabled', 'disabled');
+        try {
+          const payload = {
+            name: form.querySelector('input[name="name"]')?.value?.trim(),
+            phone: form.querySelector('input[name="phone"]')?.value?.trim() || '',
+            identity_number: form.querySelector('input[name="identity_number"]')?.value?.trim() || '',
+            address: form.querySelector('input[name="address"]')?.value?.trim() || '',
+            notes: form.querySelector('textarea[name="notes"]')?.value?.trim() || ''
+          };
+          if (!payload.name) { notify('الاسم مطلوب', 'warning'); return; }
+
+          const data = await postJSON(form.dataset.url, payload);
+
+          // لو فيه select مورّد كان عليه focus نستعمله، وإلا أول واحد
+          const targetSelect =
+            lastSupplierSelect ||
+            document.querySelector('#vendors-container select[name="supplier_id"]');
+
+          appendAndSelectOption(targetSelect, data.id, data.name || payload.name);
+          notify('تمت إضافة المورّد.');
+          $(form).closest('.modal')?.modal('hide');
+          form.reset();
+        } catch (err) {
+          notify('تعذر إضافة المورّد: ' + err.message, 'danger');
+        } finally {
+          submitBtn?.removeAttribute('disabled');
+        }
+      });
+    })();
+
+    // إعادة تهيئة كل select2 عند التحميل
+    document.querySelectorAll('select.select2').forEach(initSelect2Basic);
+  })();
+  </script>
 {% endblock %}

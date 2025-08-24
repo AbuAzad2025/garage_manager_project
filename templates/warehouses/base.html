@@ -8,6 +8,8 @@
 {% block styles %}
   {{ super() }}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/warehouses.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2/css/select2.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 {% endblock %}
 
 {# نستخدمه لتفعيل الزر الحالي في مسار التنقل #}
@@ -77,6 +79,6 @@
 
 {% block scripts %}
   {{ super() }}
-  {# إبقائه مفيد لباقي صفحات المستودعات، الروابط أعلاه لا تتطلب أي JS #}
+  <script src="{{ url_for('static', filename='adminlte/plugins/select2/js/select2.full.min.js') }}"></script>
   <script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
 {% endblock %}

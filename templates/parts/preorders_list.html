@@ -1,16 +1,20 @@
+{# templates/parts/preorders_list.html #}
 {% extends 'warehouses/base.html' %}
 {% block title %}الحجوزات المسبقة{% endblock %}
 {% block page_title %}الحجوزات المسبقة{% endblock %}
 
 {% block content %}
-<div class="mb-2 text-end">
+{% set status_map = {'PENDING':'معلّق','CONFIRMED':'مؤكّد','FULFILLED':'منفّذ','CANCELLED':'ملغي'} %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div></div>
   <a href="{{ url_for('warehouse_bp.preorder_create') }}" class="btn btn-primary">
     <i class="fas fa-plus"></i> إنشاء حجز
   </a>
 </div>
 
 <div class="table-responsive">
-  <table class="table table-bordered table-hover" id="preorders-table">
+  <table class="table table-bordered table-hover align-middle" id="preorders-table">
     <thead class="thead-light">
       <tr>
         <th>رمز الحجز</th>
@@ -19,40 +23,58 @@
         <th>المستودع</th>
         <th>الكمية</th>
         <th>العربون</th>
+        <th>طريقة الدفع</th>
         <th>الحالة</th>
-        <th>تاريخ</th>
-        <th>إجراءات</th>
+        <th>التاريخ</th>
+        <th style="width:160px;">إجراءات</th>
       </tr>
     </thead>
     <tbody>
       {% for p in preorders %}
+      {% set entity_name = p.customer and ('عميل: ' ~ p.customer.name)
+                         or p.supplier and ('مورد: ' ~ p.supplier.name)
+                         or p.partner and ('شريك: ' ~ p.partner.name)
+                         or 'غير محدد' %}
       <tr>
         <td>
           <a href="{{ url_for('warehouse_bp.preorder_detail', preorder_id=p.id) }}">
             {{ p.reference or 'PR-' ~ p.id }}
           </a>
         </td>
-        <td>
-          {% if p.customer %}عميل: {{ p.customer.name }}
-          {% elif p.supplier %}مورد: {{ p.supplier.name }}
-          {% elif p.partner %}شريك: {{ p.partner.name }}
-          {% else %}غير محدد{% endif %}
-        </td>
+        <td>{{ entity_name }}</td>
         <td>{{ p.product.name if p.product else '—' }}</td>
         <td>{{ p.warehouse.name if p.warehouse else '—' }}</td>
         <td>{{ p.quantity or 0 }}</td>
         <td>{{ "%.2f"|format(p.prepaid_amount or 0) }}</td>
-        <td>{{ p.is_fulfilled and 'منفّذ' or 'قيد التنفيذ' }}</td>
-        <td>{{ p.created_at.strftime('%Y-%m-%d') if p.created_at else '' }}</td>
+        <td>{{ p.payment_method and {'cash':'نقدي','card':'بطاقة','bank':'تحويل','cheque':'شيك'}.get(p.payment_method, p.payment_method) or '—' }}</td>
         <td>
-          <a href="{{ url_for('warehouse_bp.preorder_detail', preorder_id=p.id) }}"
-             class="btn btn-sm btn-info"><i class="fas fa-eye"></i></a>
-          {% if not p.is_fulfilled and current_user.has_permission('delete_preorder') %}
-          <form method="post" action="{{ url_for('warehouse_bp.preorder_cancel', preorder_id=p.id) }}"
-                class="d-inline" onsubmit="return confirm('إلغاء الحجز؟');">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
-          </form>
+          <span class="badge 
+            {% if p.status=='FULFILLED' %} bg-success
+            {% elif p.status=='CONFIRMED' %} bg-primary
+            {% elif p.status=='CANCELLED' %} bg-secondary
+            {% else %} bg-warning text-dark {% endif %}">
+            {{ status_map.get(p.status, p.status) }}
+          </span>
+        </td>
+        <td>{{ p.created_at.strftime('%Y-%m-%d %H:%M') if p.created_at else '' }}</td>
+        <td>
+          <a href="{{ url_for('warehouse_bp.preorder_detail', preorder_id=p.id) }}" class="btn btn-sm btn-info">
+            <i class="fas fa-eye"></i>
+          </a>
+          {% if p.status not in ('CANCELLED','FULFILLED') %}
+            {% if current_user.has_permission('edit_preorder') %}
+            <form method="post" action="{{ url_for('warehouse_bp.preorder_fulfill', preorder_id=p.id) }}" class="d-inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-sm btn-success"><i class="fas fa-check"></i></button>
+            </form>
+            {% endif %}
+            {% if current_user.has_permission('delete_preorder') %}
+            <form method="post" action="{{ url_for('warehouse_bp.preorder_cancel', preorder_id=p.id) }}" class="d-inline"
+                  onsubmit="return confirm('إلغاء الحجز؟');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-sm btn-danger"><i class="fas fa-times"></i></button>
+            </form>
+            {% endif %}
           {% endif %}
         </td>
       </tr>
@@ -60,18 +82,37 @@
     </tbody>
   </table>
 </div>
+
+{% if pagination.pages > 1 %}
+<nav class="mt-3">
+  <ul class="pagination justify-content-center">
+    <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+      <a class="page-link" href="{{ url_for('warehouse_bp.preorders_list', page=pagination.prev_num) }}">السابق</a>
+    </li>
+    <li class="page-item disabled"><span class="page-link">صفحة {{ pagination.page }} / {{ pagination.pages }}</span></li>
+    <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+      <a class="page-link" href="{{ url_for('warehouse_bp.preorders_list', page=pagination.next_num) }}">التالي</a>
+    </li>
+  </ul>
+</nav>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
   {{ super() }}
   <script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
+  {# إن كان عندك DataTables محمّل مسبقاً، فعّل السطور التالية #}
+  {# 
   <script>
     $(function(){
-      $('#preorders-table').DataTable({
-        pageLength: 25,
-        order: [[7, 'desc']],
-        language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/ar.json' }
-      });
+      if ($.fn.DataTable) {
+        $('#preorders-table').DataTable({
+          pageLength: 25,
+          order: [[8, 'desc']],
+          language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/ar.json' }
+        });
+      }
     });
   </script>
+  #}
 {% endblock %}
