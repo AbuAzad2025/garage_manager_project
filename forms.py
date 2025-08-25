@@ -1919,14 +1919,14 @@ class ServicePartForm(FlaskForm):
 class SaleLineForm(FlaskForm):
     class Meta:
         csrf = False
-    product_id   = AjaxSelectField('الصنف', endpoint='api.products',  get_label='name',    coerce=int, validators=[DataRequired()])
-    warehouse_id = AjaxSelectField('المخزن', endpoint='api.warehouses', get_label='name', coerce=int, validators=[DataRequired()])
-    quantity     = IntegerField('الكمية', validators=[DataRequired(), NumberRange(min=1)])
-    unit_price   = DecimalField('سعر الوحدة', places=2, validators=[DataRequired(), NumberRange(min=0)])
-    discount_rate= DecimalField('خصم %', places=2, default=0, validators=[Optional(), NumberRange(min=0, max=100)])
-    tax_rate     = DecimalField('ضريبة %', places=2, default=0, validators=[Optional(), NumberRange(min=0, max=100)])
-    note         = StringField('ملاحظات', validators=[Optional(), Length(max=200)])
 
+    product_id    = AjaxSelectField('الصنف', endpoint='api.products',   get_label='name',    coerce=int, validators=[Optional()])
+    warehouse_id  = AjaxSelectField('المخزن', endpoint='api.warehouses', get_label='name',   coerce=int, validators=[Optional()])
+    quantity      = IntegerField('الكمية', validators=[Optional(), NumberRange(min=1)])
+    unit_price    = DecimalField('سعر الوحدة', places=2, validators=[Optional(), NumberRange(min=0)])
+    discount_rate = DecimalField('خصم %', places=2, default=0, validators=[Optional(), NumberRange(min=0, max=100)])
+    tax_rate      = DecimalField('ضريبة %', places=2, default=0, validators=[Optional(), NumberRange(min=0, max=100)])
+    note          = StringField('ملاحظات', validators=[Optional(), Length(max=200)])
 
 class SaleForm(FlaskForm):
     sale_number = StringField('رقم البيع', validators=[Optional(), Length(max=50)])

@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 from typing import Any, Dict, Iterable, Optional, List, Tuple
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for, abort
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for, abort, current_app
 from flask_login import current_user, login_required
 from sqlalchemy import func, or_, desc, extract, case, and_
 from sqlalchemy.exc import SQLAlchemyError
@@ -118,15 +118,20 @@ def sale_to_dict(s: Sale) -> Dict[str, Any]:
     }
 
 def _log(s: Sale, action: str, old: Optional[dict] = None, new: Optional[dict] = None) -> None:
-    db.session.add(AuditLog(
+    log = AuditLog(
         model_name="Sale",
         record_id=s.id,
         action=action,
         old_data=json.dumps(old, ensure_ascii=False) if old else None,
         new_data=json.dumps(new, ensure_ascii=False) if new else None,
         user_id=current_user.id if current_user.is_authenticated else None,
-        timestamp=datetime.utcnow()
-    ))
+    )
+    now = datetime.utcnow()
+    for fld in ("timestamp", "created_at", "logged_at"):
+        if hasattr(AuditLog, fld):
+            setattr(log, fld, now)
+            break
+    db.session.add(log)
     db.session.flush()
 
 def _reserve_stock(sale: Sale) -> None:
@@ -286,8 +291,14 @@ def dashboard():
         .limit(5).all()
     )
     top_products = (
-        db.session.query(Product.name, func.sum(SaleLine.quantity).label("sold"),
-                         func.sum(SaleLine.quantity * SaleLine.unit_price).label("revenue"))
+        db.session.query(
+            Product.name,
+            func.sum(SaleLine.quantity).label("sold"),
+            func.coalesce(func.sum(
+                SaleLine.quantity * SaleLine.unit_price *
+                (1 - func.coalesce(SaleLine.discount_rate, 0) / 100.0)
+            ), 0).label("revenue")
+        )
         .join(SaleLine, SaleLine.product_id == Product.id)
         .group_by(Product.id)
         .order_by(desc("sold"))
@@ -314,15 +325,14 @@ def dashboard():
 @permission_required("manage_sales")
 def list_sales():
     f = request.args
-    # ملاحظة: هذا التجميع يجري في SQL؛ الأنواع تضبطها قاعدة البيانات.
     subtotals = (
         db.session.query(
             Sale.id.label("sale_id"),
             func.coalesce(
                 func.sum(
-                    SaleLine.quantity * SaleLine.unit_price
-                    * (1 - (SaleLine.discount_rate or 0) / 100.0)
-                    * (1 + (SaleLine.tax_rate or 0) / 100.0)
+                    SaleLine.quantity * SaleLine.unit_price *
+                    (1 - func.coalesce(SaleLine.discount_rate, 0) / 100.0) *
+                    (1 + func.coalesce(SaleLine.tax_rate, 0) / 100.0)
                 ),
                 0,
             ).label("calc_total"),
@@ -373,6 +383,15 @@ def list_sales():
                            sellers=User.query.filter_by(is_active=True).order_by(User.username).all(),
                            status_map=STATUS_MAP)
 
+# -------------------- Pricing Helper --------------------
+
+def _resolve_unit_price(product_id: int, warehouse_id: Optional[int]) -> float:
+    prod = db.session.get(Product, product_id)
+    try:
+        return float(getattr(prod, "price", 0) or 0)
+    except Exception:
+        return 0.0
+
 # -------------------- Create --------------------
 
 @sales_bp.route("/new", methods=["GET", "POST"], endpoint="create_sale")
@@ -380,9 +399,11 @@ def list_sales():
 @permission_required("manage_sales")
 def create_sale():
     form = SaleForm()
+    if request.method == "POST" and not form.validate_on_submit():
+        current_app.logger.warning("Sale form errors: %s", form.errors)
+        current_app.logger.debug("POST data: %r", request.form.to_dict(flat=False))
     if form.validate_on_submit():
         try:
-            # نبني السطر/المخزن مع التحقق: صارم فقط لو الحالة CONFIRMED
             target_status = (form.status.data or "DRAFT").upper()
             require_stock = (target_status == "CONFIRMED")
             lines_payload, err = _resolve_lines_from_form(form, require_stock=require_stock)
@@ -391,14 +412,15 @@ def create_sale():
                 return render_template("sales/form.html", form=form, title="إنشاء فاتورة جديدة",
                                        products=Product.query.order_by(Product.name).all(),
                                        warehouses=Warehouse.query.order_by(Warehouse.name).all())
-
-            # لو بنؤكد، اقفل صفوف المخزون المعنية
+            for d in lines_payload:
+                if (d.get("unit_price") or 0) <= 0:
+                    d["unit_price"] = _resolve_unit_price(d["product_id"], d.get("warehouse_id"))
             if require_stock:
                 pairs = [(d["product_id"], d["warehouse_id"]) for d in lines_payload if d.get("warehouse_id")]
                 _lock_stock_rows(pairs)
 
             sale = Sale(
-                sale_number=None,  # سنولّد الرقم بعد flush
+                sale_number=None,
                 customer_id=form.customer_id.data,
                 seller_id=form.seller_id.data,
                 sale_date=form.sale_date.data or datetime.utcnow(),
@@ -410,13 +432,10 @@ def create_sale():
                 notes=form.notes.data
             )
             db.session.add(sale)
-            db.session.flush()  # لنحصل على sale.id
+            db.session.flush()
 
-            _safe_generate_number_after_flush(sale)  # توليد رقم فاتورة آمن
-
+            _safe_generate_number_after_flush(sale)
             _attach_lines(sale, lines_payload)
-
-            # احسب الإجمالي وثبّت الحجز عند التأكيد
             db.session.flush()
             sale.total_amount = sale.total
             if require_stock:
@@ -450,27 +469,19 @@ def sale_detail(id: int):
         joinedload(Sale.payments),
     ])
     _format_sale(sale)
-
-    # MONEY: احسب إجمالي السطر باستخدام Decimal (بدون أي float) ولا تعيّن على line_total
     for ln in sale.lines:
         ln.product_name = ln.product.name if ln.product else "-"
         ln.warehouse_name = ln.warehouse.name if ln.warehouse else "-"
-
-        base_total = line_total_decimal(ln.quantity, ln.unit_price, ln.discount_rate)  # Decimal
-        tr = D(getattr(ln, "tax_rate", 0))  # Decimal
+        base_total = line_total_decimal(ln.quantity, ln.unit_price, ln.discount_rate)
+        tr = D(getattr(ln, "tax_rate", 0))
         tax_amount = (base_total * tr / Decimal("100")).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
         line_with_tax = (base_total + tax_amount).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
-
-        # مـهـم: لا نعيّن على ln.line_total حتى لا نصطدم بالـ hybrid property
-        # خلي العرض فقط:
         ln.line_total_fmt = money_fmt(line_with_tax)
-
     for p in sale.payments:
         p.date_formatted = p.payment_date.strftime("%Y-%m-%d") if getattr(p, "payment_date", None) else "-"
         lbl, cls = PAYMENT_STATUS_MAP.get(p.status, (p.status, ""))
         p.status_label, p.status_class = lbl, cls
         p.method_label = PAYMENT_METHOD_MAP.get(getattr(p, "method", ""), getattr(p, "method", ""))
-
     invoice = Invoice.query.filter_by(sale_id=id).first()
     return render_template(
         "sales/detail.html",
@@ -530,9 +541,12 @@ def edit_sale(id: int):
             e.tax_rate.data = ln.tax_rate
             e.note.data = ln.note
 
+    if request.method == "POST" and not form.validate_on_submit():
+        current_app.logger.warning("Sale form errors (edit): %s", form.errors)
+        current_app.logger.debug("POST data (edit): %r", request.form.to_dict(flat=False))
+
     if form.validate_on_submit():
         try:
-            # سنعيد البناء. إن كانت سابقة CONFIRMED نفك الحجز القديم
             was_confirmed = (sale.status == "CONFIRMED")
             if was_confirmed:
                 _release_stock(sale)
@@ -541,7 +555,6 @@ def edit_sale(id: int):
             require_stock = (target_status == "CONFIRMED")
             lines_payload, err = _resolve_lines_from_form(form, require_stock=require_stock)
             if err:
-                # رجع الحجز القديم إن كان موجودًا وفشلنا
                 if was_confirmed:
                     _reserve_stock(sale)
                 flash(f"❌ {err}", "danger")
@@ -549,11 +562,14 @@ def edit_sale(id: int):
                                        products=Product.query.order_by(Product.name).all(),
                                        warehouses=Warehouse.query.order_by(Warehouse.name).all())
 
+            for d in lines_payload:
+                if (d.get("unit_price") or 0) <= 0:
+                    d["unit_price"] = _resolve_unit_price(d["product_id"], d.get("warehouse_id"))
+
             if require_stock:
                 pairs = [(d["product_id"], d["warehouse_id"]) for d in lines_payload if d.get("warehouse_id")]
                 _lock_stock_rows(pairs)
 
-            # رؤوس
             sale.customer_id = form.customer_id.data
             sale.seller_id = form.seller_id.data
             sale.sale_date = form.sale_date.data or sale.sale_date
@@ -564,9 +580,7 @@ def edit_sale(id: int):
             sale.shipping_cost = form.shipping_cost.data or 0
             sale.notes = form.notes.data
 
-            # أسطر
             _attach_lines(sale, lines_payload)
-
             db.session.flush()
             sale.total_amount = sale.total
 
@@ -608,7 +622,6 @@ def quick_sell():
             flash("بيانات غير مكتملة للبيع السريع.", "danger")
             return redirect(url_for("sales_bp.list_sales"))
 
-        # تحديد المخزن تلقائيًا عند الحاجة
         chosen_wid = wid or _auto_pick_warehouse(pid, qty, preferred_wid=None)
         if status == "CONFIRMED":
             if not chosen_wid:
@@ -620,8 +633,7 @@ def quick_sell():
             _lock_stock_rows([(pid, chosen_wid)])
 
         if price <= 0:
-            prod = db.session.get(Product, pid)
-            price = float(getattr(prod, "price", 0) or 0)
+            price = _resolve_unit_price(pid, chosen_wid)
 
         sale = Sale(
             sale_number=None,
@@ -698,7 +710,6 @@ def change_status(id: int, status: str):
         return redirect(url_for("sales_bp.sale_detail", id=sale.id))
     try:
         if status == "CONFIRMED":
-            # تحقق قبل التأكيد
             lines = SaleLine.query.filter_by(sale_id=sale.id).all()
             pairs = []
             for ln in lines:
@@ -707,7 +718,7 @@ def change_status(id: int, status: str):
                     wid = _auto_pick_warehouse(pid, qty, preferred_wid=None)
                     if not wid:
                         raise ValueError(f"لا يوجد مخزن مناسب متاح للمنتج ID={pid}.")
-                    ln.warehouse_id = wid  # اربط المخزن المختار
+                    ln.warehouse_id = wid
                 if _available_qty(pid, wid) < qty:
                     raise ValueError(f"الكمية غير متوفرة للمنتج ID={pid} في المخزن المحدد.")
                 pairs.append((pid, wid))
@@ -720,7 +731,6 @@ def change_status(id: int, status: str):
             _release_stock(sale)
             sale.status = "CANCELLED"
         elif status == "REFUNDED":
-            # حسب منطقك: ممكن تفك الحجز وتعدل مخزون فعليًا
             _release_stock(sale)
             sale.status = "REFUNDED"
         db.session.commit()
@@ -755,8 +765,6 @@ def generate_invoice(id: int):
         joinedload(Sale.lines).joinedload(SaleLine.product),
         joinedload(Sale.lines).joinedload(SaleLine.warehouse),
     ])
-
-    # MONEY: حضّر القيم للتمبلت بدون أي ضرب/قسمة داخل Jinja
     lines = []
     subtotal = Decimal("0.00")
     for ln in sale.lines:
@@ -771,23 +779,16 @@ def generate_invoice(id: int):
             "line_total": line_total,
         })
         subtotal += base_total
-
-    # ضريبة عامة على الفاتورة (إن كنت تستخدم Sale.tax_rate كرأس)
     sale_tax_rate = D(getattr(sale, "tax_rate", 0))
     sale_shipping = D(getattr(sale, "shipping_cost", 0))
     sale_discount_total = D(getattr(sale, "discount_total", 0))
-
-    # إن كان discount_total خصم إجمالي يُطرح من الـ subtotal
     subtotal_after_discount = (subtotal - sale_discount_total).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
     invoice_tax_amount = (subtotal_after_discount * sale_tax_rate / Decimal("100")).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
-
     grand_total = (subtotal_after_discount + invoice_tax_amount + sale_shipping).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
-
     return render_template(
         "sales/receipt.html",
         sale=sale,
         lines=lines,
-        # مجاميع للعرض
         subtotal=subtotal,
         sale_discount_total=sale_discount_total,
         subtotal_after_discount=subtotal_after_discount,
@@ -795,5 +796,5 @@ def generate_invoice(id: int):
         invoice_tax_amount=invoice_tax_amount,
         sale_shipping=sale_shipping,
         grand_total=grand_total,
-        money_fmt=money_fmt,  # فلتر مبسّط إن حبيت تستخدمه مباشرة
+        money_fmt=money_fmt,
     )
