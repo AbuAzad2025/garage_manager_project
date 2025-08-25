@@ -122,14 +122,12 @@ def create_app(config_object=Config) -> Flask:
 
     if app.config.get("SERVER_NAME"):
         from urllib.parse import urlparse
-
         def _relative_url_for(self, endpoint, **values):
             rv = Flask.url_for(self, endpoint, **values)
             if not values.get("_external"):
                 parsed = urlparse(rv)
                 rv = parsed.path + ("?" + parsed.query if parsed.query else "")
             return rv
-
         app.url_for = _relative_url_for.__get__(app, Flask)
 
     try:
@@ -141,8 +139,18 @@ def create_app(config_object=Config) -> Flask:
     engine_opts = app.config.setdefault("SQLALCHEMY_ENGINE_OPTIONS", {})
     connect_args = engine_opts.setdefault("connect_args", {})
     uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+
+    engine_opts.setdefault("pool_pre_ping", True)
+    engine_opts.setdefault("pool_recycle", 1800)
+
     if uri.startswith("sqlite"):
         connect_args.setdefault("timeout", 30)
+    else:
+        connect_args.pop("timeout", None)
+        if uri.startswith(("postgresql", "postgresql+psycopg2")):
+            connect_args.setdefault("connect_timeout", int(os.getenv("DB_CONNECT_TIMEOUT", "10")))
+        elif uri.startswith(("mysql", "mysql+pymysql", "mysql+mysqldb")):
+            connect_args.setdefault("connect_timeout", int(os.getenv("DB_CONNECT_TIMEOUT", "10")))
 
     db.init_app(app)
     migrate.init_app(app, db)
@@ -186,7 +194,6 @@ def create_app(config_object=Config) -> Flask:
     if app.config.get("USE_PROXYFIX"):
         try:
             from werkzeug.middleware.proxy_fix import ProxyFix
-
             app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
         except Exception:
             app.logger.warning("ProxyFix not available; set USE_PROXYFIX=False if unused.")
@@ -279,10 +286,7 @@ def create_app(config_object=Config) -> Flask:
                 last_err = e
                 tried.append(ep)
                 current_app.logger.warning("url_for_any miss: endpoint=%s values=%r", ep, values)
-        strict_urls = current_app.config.get(
-            "STRICT_URLS",
-            bool(current_app.debug),
-        )
+        strict_urls = app.config.get("STRICT_URLS", bool(app.debug))
         if strict_urls:
             raise last_err or BuildError("url_for_any", values, "Tried: " + ", ".join(tried))
         current_app.logger.error("url_for_any fallback: tried=%s values=%r", tried, values)
@@ -293,6 +297,26 @@ def create_app(config_object=Config) -> Flask:
 
     app.jinja_env.globals["url_for_any"] = url_for_any
     app.jinja_env.globals["now"] = datetime.utcnow
+
+    def get_unique_flashes(with_categories=True):
+        from flask import get_flashed_messages
+        msgs = get_flashed_messages(with_categories=with_categories)
+        seen = set()
+        if with_categories:
+            uniq = []
+            for cat, msg in msgs:
+                if msg not in seen:
+                    uniq.append((cat or "info", msg))
+                    seen.add(msg)
+            return uniq
+        uniq = []
+        for msg in msgs:
+            if msg not in seen:
+                uniq.append(msg)
+                seen.add(msg)
+        return uniq
+
+    app.jinja_env.globals["get_unique_flashes"] = get_unique_flashes
 
     for bp in (
         api_bp,
@@ -371,7 +395,6 @@ def create_app(config_object=Config) -> Flask:
                 )
             except Exception:
                 return False
-
         return {"shop_is_super_admin": is_super_admin(current_user)}
 
     critical = app.config.get(

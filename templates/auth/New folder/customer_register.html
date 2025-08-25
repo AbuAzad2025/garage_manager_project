@@ -1,12 +1,22 @@
-{% extends 'auth/auth_base.html' %}
+{% extends 'base.html' %}
 
-{% block title %}إنشاء حساب عميل جديد - Azad{% endblock %}
-{% block title_text %}إنشاء حساب عميل{% endblock %}
+{% block title %}تسجيل عميل جديد{% endblock %}
+
+{% block head %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+{% endblock %}
 
 {% block content %}
-  {% set messages = get_unique_flashes() %}
-  {% if messages %}
-    <div class="mb-3">
+<div class="auth-overlay"></div>
+
+<div class="auth-container">
+  <img src="{{ url_for('static', filename='img/logo.png') }}" class="auth-logo" alt="الشعار">
+  <h3 class="auth-title">إنشاء حساب عميل</h3>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
       {% for category, msg in messages %}
         <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
           {{ msg }}
@@ -15,8 +25,8 @@
           </button>
         </div>
       {% endfor %}
-    </div>
-  {% endif %}
+    {% endif %}
+  {% endwith %}
 
   <form class="auth-form" method="post" action="{{ url_for('auth.customer_register') }}" novalidate>
     {{ form.hidden_tag() }}
@@ -75,13 +85,13 @@
     {{ form.submit(class="btn btn-primary w-100") }}
   </form>
 
-  <div class="mt-3 text-center">
+  <div class="mt-3" style="text-align:center;">
     لديك حساب؟ <a href="{{ url_for('auth.login') }}">تسجيل الدخول</a>
   </div>
-{% endblock %}
+</div>
 
-{% block scripts %}
 <script>
+  // زر إظهار/إخفاء كلمة المرور - متوافق مع Bootstrap 4 / AdminLTE 3
   (function () {
     var btn = document.getElementById('toggle-reg-pass');
     var input = document.getElementById('reg-password');

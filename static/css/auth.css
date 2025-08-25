@@ -1,291 +1,101 @@
-/* ==========================================================================
-   Auth UI – Clean, RTL-aware, Responsive, A11y-friendly
-   Filename: static/css/auth.css
-   ========================================================================== */
+/* ========= متغيّرات وهوية ========= */
+:root{
+  --radius-lg: 1rem;
+  --brand-700: #0054a6;
+  --brand-600: #0066cc;
+  --brand-500: #2489e9;
+  --brand-400: #3ba3ff;
 
-/* ---------- CSS Variables ---------- */
-:root {
-  --font-family: "Cairo", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
-  --radius-lg: 20px;
-  --radius-md: 12px;
-  --radius-sm: 8px;
-
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-8: 32px;
-  --space-10: 40px;
-
-  --shadow-sm: 0 4px 10px rgba(0,0,0,0.08);
-  --shadow-md: 0 10px 30px rgba(0,0,0,0.10);
-  --shadow-focus: 0 0 0 3px rgba(66, 165, 245, 0.35);
-
-  --brand-600: #1e88e5;
-  --brand-500: #42a5f5;
-  --brand-400: #64b5f6;
-
-  --ok-600: #2e7d32;
-  --ok-500: #43a047;
-
-  --danger-600: #c62828;
-  --warning-600: #ef6c00;
-  --info-600: #0288d1;
-
-  --text-900: #111827; /* slate-900 */
-  --text-700: #374151;
-  --text-500: #6b7280;
-
-  --bg-body: #f5f7fb;
-  --bg-card: rgba(255,255,255,0.94);
-  --border-200: #e5e7eb;
+  --bg-dim: rgba(0,0,0,.38);
+  --white-92: rgba(255,255,255,.92);
 }
 
-/* Dark mode via OS preference or .theme-dark on <body>  */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text-900: #e5e7eb;
-    --text-700: #cbd5e1;
-    --text-500: #94a3b8;
-
-    --bg-body: #0f172a;     /* slate-900 */
-    --bg-card: rgba(15,23,42,0.9);
-    --border-200: #243044;
-    --shadow-md: 0 10px 30px rgba(0,0,0,0.45);
-  }
-}
-.theme-dark :root { /* for explicit toggle if desired */ }
-
-/* ---------- Global / Page ---------- */
-html { font-size: 16px; }
-body {
-  font-family: var(--font-family);
-  background: var(--bg-body) center/cover no-repeat fixed;
-  color: var(--text-900);
-  min-height: 100dvh;
-  display: grid;
-  place-items: center;
-  margin: 0;
+html, body{
+  height: 100%;
+  font-family: 'Cairo', system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
 }
 
-/* Background image helper:
-   If you set body[data-auth-bg="img/login_bg.jpg"], we'll load it. */
-body[data-auth-bg] {
-  background-image: var(--auth-bg, none);
+body{
+  background: #2d2f31;            /* fallback */
+  direction: rtl; text-align: right;
 }
-body[data-auth-bg]::before {
-  content: "";
-  position: fixed;
-  inset: 0;
+
+/* الخلفية من data-auth-bg (يتم تفعيلها بالـ JS في base) */
+body[data-auth-bg]::before{
+  content:"";
+  position: fixed; inset: 0; z-index:-2;
   background: inherit;
-  background-size: cover;
-  filter: saturate(0.9) brightness(0.98);
-  z-index: -2;
+  background-size: cover; background-position: center; background-attachment: fixed;
+  filter: saturate(1.05) brightness(.95) blur(1px);
 }
 
-/* Subtle overlay pattern */
-.auth-overlay {
-  position: fixed; inset: 0; z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(transparent 0 1px, rgba(0,0,0,.03) 1px) 0 0 / 20px 20px;
+/* طبقة التدرّج */
+.auth-overlay{
+  position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(130deg, rgba(0,0,0,.24), rgba(0,0,0,.45));
 }
 
-/* ---------- Card / Container ---------- */
-.auth-container {
-  width: min(92vw, 440px);
-  background: var(--bg-card);
-  border: 1px solid var(--border-200);
+/* ========= الحاوية ========= */
+.auth-container{
+  width: 100%; max-width: 440px;
+  margin: 7vh auto 0;
+  padding: 24px 24px 28px;
+  background: var(--white-92);
+  backdrop-filter: blur(10px);
   border-radius: var(--radius-lg);
-  padding: var(--space-10) var(--space-8);
-  box-shadow: var(--shadow-md);
-  backdrop-filter: blur(6px);
+  box-shadow: 0 20px 40px rgba(0,0,0,.25);
+  animation: fadeIn .6s ease;
+}
+.auth-compact{ padding: 22px; }
+.auth-narrow{ max-width: 440px; }
+
+.auth-logo{
+  max-width: 170px; height: auto; display: block;
+  margin: 6px auto 12px;
+}
+
+.auth-title{
   text-align: center;
-  direction: rtl;
+  font-size: 1.55rem; font-weight: 800; margin-bottom: 14px;
+  background: linear-gradient(90deg, var(--brand-600), var(--brand-400));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  letter-spacing: .2px;
 }
 
-.auth-logo {
-  width: 120px;
-  height: auto;
-  margin-bottom: var(--space-5);
-  user-select: none;
+/* ========= النموذج ========= */
+.auth-form .form-label{ font-weight: 600; }
+.auth-form .form-control{ height: 44px; border-radius: .65rem; }
+.input-group-append .btn{
+  height: 44px;
+  border-top-left-radius: 0; border-bottom-left-radius: 0;
+}
+.btn-block{ width: 100%; }
+.shop-btn{ width: 100%; }
+
+.hr-soft{ border:0; height:1px; margin:18px 0; background:rgba(0,0,0,.08); }
+
+.alert{
+  border-radius: .85rem;
+  box-shadow: 0 6px 16px rgba(0,0,0,.08);
 }
 
-.auth-title {
-  margin: 0 0 var(--space-6);
-  font-weight: 700;
-  letter-spacing: 0.2px;
+/* ========= RTL تحسينات صغيرة ========= */
+.form-check{ padding-right: 1.25rem; padding-left: 0; }
+.form-check-input{ margin-right: -1.25rem; margin-left: 0; }
+.input-group > .form-control{ text-align: right; }
+
+/* ========= الفوتر ========= */
+.auth-footer{
+  position: fixed; left: 0; right: 0; bottom: 10px;
+  text-align: center; color: #fff; opacity: .95;
+  text-shadow: 0 1px 2px rgba(0,0,0,.45); font-size: .95rem;
 }
 
-/* ===== Compact variant (smaller logo/inputs/container) ===== */
-.auth-container.auth-compact {
-  width: min(92vw, 380px);
-  padding: 24px 22px;
-  border-radius: 16px;
-}
-.auth-compact .auth-logo { width: 84px; margin-bottom: 12px; }
-.auth-compact .auth-title { font-size: 1.25rem; margin-bottom: 14px; }
-.auth-compact .form-label { font-size: 0.95rem; margin-bottom: 6px; }
-.auth-compact .form-control,
-.auth-compact .input-group .form-control {
-  height: 40px;
-  padding: 8px 10px;
-  font-size: 0.95rem;
-}
-.auth-compact .input-group-append .btn { height: 40px; padding: 0 12px; }
-.auth-compact .btn { padding: 10px 12px; font-size: 0.95rem; }
-.auth-compact .shop-btn { padding: 10px 12px; }
-.auth-compact .form-check-input { transform: scale(0.9); margin-top: 0.15rem; }
+/* ========= حركات ========= */
+@keyframes fadeIn{ from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
 
-/* ===== Narrow fields (limit inner widths) ===== */
-.auth-narrow .auth-form,
-.auth-narrow .form-control,
-.auth-narrow .input-group,
-.auth-narrow .form-check,
-.auth-narrow .btn,
-.auth-narrow .hr-soft {
-  max-width: 340px;             /* اضبط العرض المرغوب */
-  margin-left: auto;
-  margin-right: auto;
-}
-.auth-narrow .input-group { width: 100%; }
-.auth-narrow .w-100 { width: 100%; max-width: 340px; }
-.auth-narrow .form-check { justify-content: space-between; width: 100%; }
-.auth-narrow .alert { margin-left: auto; margin-right: auto; max-width: 340px; }
-
-/* ---------- Forms ---------- */
-.auth-form { text-align: right; }
-.form-label {
-  display: inline-block;
-  margin-bottom: var(--space-2);
-  font-weight: 600;
-  color: var(--text-700);
-}
-.form-control,
-.input-group .form-control {
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-200);
-  padding: 10px 12px;
-  background: #fff;
-  color: var(--text-900);
-  transition: box-shadow .15s ease, border-color .15s ease, background-color .15s ease;
-}
-@media (prefers-color-scheme: dark) {
-  .form-control,
-  .input-group .form-control {
-    background: #0b1220;
-    color: var(--text-900);
-  }
-}
-.form-control::placeholder { color: var(--text-500); }
-.form-control:focus {
-  outline: none;
-  border-color: var(--brand-500);
-  box-shadow: var(--shadow-focus);
-}
-
-/* Remember me alignment */
-.form-check { display: flex; align-items: center; gap: var(--space-2); }
-
-/* Invalid feedback (works with WTForms) */
-.invalid-feedback.d-block { margin-top: 4px; }
-
-/* ---------- Buttons ---------- */
-.btn {
-  cursor: pointer;
-  border-radius: var(--radius-sm);
-  padding: 10px 14px;
-  font-weight: 600;
-  line-height: 1.2;
-  transition: transform .06s ease, box-shadow .15s ease, background-color .15s ease, color .15s ease;
-  will-change: transform;
-  text-align: center;
-}
-.btn:active { transform: translateY(1px); }
-
-.btn-primary {
-  background: linear-gradient(135deg, var(--brand-600), var(--brand-500));
-  border: none;
-  color: #fff;
-  box-shadow: var(--shadow-sm);
-}
-.btn-primary:hover { filter: brightness(1.02); }
-.btn-primary:focus { box-shadow: var(--shadow-focus); }
-
-.btn-secondary { background: var(--ok-600); color: #fff; border: none; }
-.btn-secondary:hover { filter: brightness(1.03); }
-.btn-secondary:focus { box-shadow: var(--shadow-focus); }
-
-.btn-outline-secondary {
-  background: transparent;
-  color: var(--text-700);
-  border: 1px solid var(--border-200);
-}
-.btn-outline-secondary:hover { background: rgba(0,0,0,0.03); }
-
-/* Shop button full-width */
-.shop-btn { width: 100%; }
-
-/* Eye button in input-group (RTL friendly) */
-.input-group {
-  display: flex;
-  flex-direction: row-reverse; /* RTL: button appears on left visually */
-}
-.input-group-append { display: grid; }
-.input-group-append .btn {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-}
-
-/* ---------- Alerts ---------- */
-.alert {
-  text-align: right;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-200);
-  box-shadow: var(--shadow-sm);
-}
-.alert.alert-success { border-color: rgba(46,125,50,0.25); }
-.alert.alert-danger  { border-color: rgba(198,40,40,0.25); }
-.alert.alert-warning { border-color: rgba(239,108,0,0.25); }
-.alert.alert-info    { border-color: rgba(2,136,209,0.25); }
-
-/* Bootstrap 4 close button fallback */
-.close {
-  float: left; /* RTL: put close on the left */
-  font-size: 1.2rem;
-  line-height: 1;
-  opacity: .6;
-}
-.close:hover { opacity: .85; }
-
-/* ---------- Links ---------- */
-a { color: var(--brand-600); text-decoration: none; }
-a:hover { text-decoration: underline; }
-
-/* ---------- Small Helpers ---------- */
-.w-100 { width: 100%; }
-.mb-2 { margin-bottom: var(--space-2); }
-.mb-3 { margin-bottom: var(--space-3); }
-.mb-4 { margin-bottom: var(--space-4); }
-.mt-3 { margin-top: var(--space-3); }
-.mt-4 { margin-top: var(--space-4); }
-.hr-soft {
-  height: 1px; border: 0; background: var(--border-200);
-  margin: var(--space-8) 0;
-}
-
-/* ---------- Motion Preferences ---------- */
-@media (prefers-reduced-motion: reduce) {
-  * { transition: none !important; animation: none !important; }
-}
-
-/* ---------- Responsive ---------- */
-@media (max-width: 480px) {
-  .auth-container {
-    padding: var(--space-8) var(--space-5);
-    border-radius: var(--radius-md);
-  }
-  .auth-title { font-size: 1.25rem; }
+/* ========= موبايل ========= */
+@media (max-width: 576px){
+  .auth-container{ margin-top: 8vh; padding: 18px 16px 22px; }
+  .auth-title{ font-size: 1.35rem; }
 }

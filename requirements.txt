@@ -24,3 +24,5 @@ pandas>=1.3
 openpyxl>=3.0
 xlsxwriter>=3.0
 itsdangerous>=2.0
+psycopg2-binary>=2.9   # لدعم PostgreSQL
+sentry-sdk>=2.0        # لمراقبة الأخطاء عبر Sentry

@@ -207,10 +207,16 @@ def create_form():
 @permission_required('manage_customers')
 def create_customer():
     form = CustomerForm()
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or \
+              request.accept_mimetypes.best == 'application/json'
+
     if not form.validate_on_submit():
-        current_app.logger.warning("CustomerForm errors: %s", form.errors)
-        if form.errors:
-            msgs = '; '.join(f"{k}: {', '.join(v)}" for k, v in form.errors.items())
+        # تحضير رسالة أخطاء مفهومة
+        errs = {k: v for k, v in form.errors.items()}
+        if is_ajax:
+            return jsonify({"ok": False, "errors": errs, "message": "تحقق من الحقول"}), 400
+        if errs:
+            msgs = '; '.join(f"{k}: {', '.join(v)}" for k, v in errs.items())
             flash(f"تحقق من الحقول: {msgs}", "warning")
         return render_template('customers/new.html', form=form, return_to=request.form.get('return_to')), 400
 
@@ -233,24 +239,40 @@ def create_customer():
     db.session.add(cust)
     try:
         db.session.commit()
-    except IntegrityError:
+    except IntegrityError as e:
         db.session.rollback()
-        flash('بريد أو هاتف مكرر (Unique constraint).', 'danger')
-        current_app.logger.exception("IntegrityError while creating customer")
+        # حاول نستنتج الحقل المتكرر
+        msg = "بريد أو هاتف مكرر"
+        detail = str(getattr(e, "orig", e))
+        field_errs = {}
+        if "email" in detail.lower():
+            field_errs["email"] = ["هذا البريد مستخدم مسبقًا"]
+        if "phone" in detail.lower() or "whatsapp" in detail.lower():
+            field_errs["phone"] = ["هذا الهاتف مستخدم مسبقًا"]
+
+        if is_ajax:
+            return jsonify({"ok": False, "message": msg, "errors": field_errs}), 409
+        flash(f'{msg} (Unique constraint).', 'danger')
         return render_template('customers/new.html', form=form, return_to=request.form.get('return_to')), 409
     except SQLAlchemyError as e:
         db.session.rollback()
+        if is_ajax:
+            return jsonify({"ok": False, "message": f"خطأ أثناء إضافة العميل: {e}"}), 500
         flash(f'❌ خطأ أثناء إضافة العميل: {e}', 'danger')
-        current_app.logger.exception("SQLAlchemyError while creating customer")
         return render_template('customers/new.html', form=form, return_to=request.form.get('return_to')), 500
 
     log_customer_action(cust, 'CREATE', None, form.data)
-    flash('تم إنشاء العميل بنجاح', 'success')
 
+    if is_ajax:
+        # الشكل المتوقَّع من الواجهة
+        return jsonify({"ok": True, "id": cust.id, "text": cust.name}), 201
+
+    flash('تم إنشاء العميل بنجاح', 'success')
     return_to = request.form.get('return_to') or request.args.get('return_to')
     if return_to:
         return redirect(return_to)
     return redirect(url_for('customers_bp.list_customers'))
+
 
 @customers_bp.route('/<int:customer_id>/edit', methods=['GET', 'POST'], endpoint='edit_customer')
 @login_required
