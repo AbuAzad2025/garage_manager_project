@@ -61,7 +61,7 @@ def _get_or_404(model, ident, *, load_options=None, pk_name: str = "id"):
 # ============================== Bootstrap & Filters ==============================
 
 def init_app(app):
-    """تسجيل فلاتر Jinja وتهيئة Redis."""
+    """تسجيل فلاتر Jinja وتهيئة Redis وحقن دوال الـ ACL في الجينجا."""
     global redis_client
     app.jinja_env.filters.update({
         "format_currency": format_currency,
@@ -78,6 +78,14 @@ def init_app(app):
         redis_client = rc
     except Exception:
         redis_client = None
+
+    # حقن دوال الصلاحيات في الجينجا لعرض/إخفاء العناصر
+    def _acl_ctx():
+        return dict(
+            can_super=lambda: is_super(),
+            can_admin=lambda: is_admin(),
+        )
+    app.context_processor(_acl_ctx)
 
 
 # ============================== Notifications ==============================
@@ -381,7 +389,8 @@ def generate_excel_contacts(customers, fields):
 
 # ============================== Permissions & Caching ==============================
 
-_SUPER_ROLES = {"developer", "owner", "admin", "super_admin"}
+# ⚠️ لم يعد "admin" ضمن السوبر
+_SUPER_ROLES = {"developer", "owner", "super_admin", "super"}
 
 _PERMISSION_ALIASES = {
     "view_warehouses": {"view_warehouses", "view_inventory", "manage_inventory", "manage_warehouses"},
@@ -470,6 +479,79 @@ def _get_user_permissions(user):
         pass
     return perms
 
+# --------- ACL helpers (SUPER / ADMIN) ---------
+
+def _csv_set(val):
+    if not val:
+        return set()
+    return {x.strip().lower() for x in str(val).split(",") if x.strip()}
+
+def _match_user(user, ids_csv, emails_csv) -> bool:
+    if not user or not getattr(user, "is_authenticated", False):
+        return False
+    ids = _csv_set(ids_csv)
+    emails = _csv_set(emails_csv)
+    if str(getattr(user, "id", "")).lower() in ids:
+        return True
+    email = (getattr(user, "email", "") or "").lower()
+    return email in emails
+
+def is_super() -> bool:
+    """سوبر = (config IDs/Emails) أو اسم دور ضمن SUPER_ROLES."""
+    try:
+        if _match_user(
+            current_user,
+            current_app.config.get("SUPER_USER_IDS"),
+            current_app.config.get("SUPER_USER_EMAILS"),
+        ):
+            return True
+    except Exception:
+        pass
+    # دعم أسماء الأدوار
+    try:
+        role_name = str(getattr(getattr(current_user, "role", None), "name", "")).lower()
+        return role_name in {r.lower() for r in _SUPER_ROLES}
+    except Exception:
+        return False
+
+def is_admin() -> bool:
+    """أدمن عادي؛ السوبر دائمًا يمر."""
+    if is_super():
+        return True
+    try:
+        if _match_user(
+            current_user,
+            current_app.config.get("ADMIN_USER_IDS"),
+            current_app.config.get("ADMIN_USER_EMAILS"),
+        ):
+            return True
+    except Exception:
+        pass
+    # دعم دور admin القديم أو فلاغ is_admin
+    try:
+        role_name = str(getattr(getattr(current_user, "role", None), "name", "")).lower()
+        if role_name == "admin":
+            return True
+    except Exception:
+        pass
+    return bool(getattr(current_user, "is_admin", False))
+
+def super_only(f):
+    @wraps(f)
+    def _w(*args, **kwargs):
+        if not is_super():
+            abort(403)
+        return f(*args, **kwargs)
+    return _w
+
+def admin_or_super(f):
+    @wraps(f)
+    def _w(*args, **kwargs):
+        if not is_admin():
+            abort(403)
+        return f(*args, **kwargs)
+    return _w
+
 
 def permission_required(*permission_names):
     """ديكورتر صلاحيات؛ يدعم OR افتراضيًا و AND عبر PERMISSIONS_REQUIRE_ALL."""
@@ -485,12 +567,9 @@ def permission_required(*permission_names):
             if cfg.get("PERMISSION_DISABLED") or cfg.get("LOGIN_DISABLED"):
                 return f(*args, **kwargs)
 
-            try:
-                role_name = str(getattr(getattr(current_user, "role", None), "name", "")).lower()
-                if role_name in {r.lower() for r in _SUPER_ROLES}:
-                    return f(*args, **kwargs)
-            except Exception:
-                pass
+            # Bypass للسوبر فقط (لم يعد الأدمن ضمن السوبر)
+            if is_super():
+                return f(*args, **kwargs)
 
             if not getattr(current_user, "is_authenticated", False):
                 abort(403)

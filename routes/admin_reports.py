@@ -1,11 +1,10 @@
 from datetime import datetime
-from functools import wraps
 from flask import Blueprint, render_template, request, abort, jsonify, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import or_
 from extensions import db, limiter, csrf
 from models import OnlinePayment, OnlinePreOrder, Customer
-from utils import log_audit
+from utils import log_audit, super_only
 
 admin_reports_bp = Blueprint(
     "admin_reports",
@@ -14,20 +13,10 @@ admin_reports_bp = Blueprint(
     template_folder="templates/admin/reports",
 )
 
-def _is_super_admin(u):
-    try:
-        return (getattr(getattr(u, "role", None), "name", "") or "").lower() == "super_admin"
-    except Exception:
-        return False
-
-def super_admin_required(f):
-    @wraps(f)
-    @login_required
-    def inner(*a, **kw):
-        if not _is_super_admin(current_user):
-            abort(403)
-        return f(*a, **kw)
-    return inner
+@admin_reports_bp.before_request
+@super_only
+def _guard_admin_reports():
+    pass
 
 def _mask_pan(pan: str) -> str:
     if not pan:
@@ -38,7 +27,7 @@ def _mask_pan(pan: str) -> str:
     return "**** **** **** " + digits[-4:]
 
 @admin_reports_bp.route("/cards", methods=["GET"], endpoint="cards")
-@super_admin_required
+@login_required
 @limiter.limit("30/minute")
 def cards():
     q = (
@@ -81,10 +70,9 @@ def cards():
     return render_template("admin/reports/cards.html", rows=rows)
 
 @admin_reports_bp.route("/cards/<int:pid>/reveal", methods=["POST"], endpoint="cards_reveal")
-@super_admin_required
+@login_required
 @limiter.limit("5/minute;20/hour;50/day")
 def cards_reveal(pid: int):
-    # CSRF مفعل افتراضياً عبر CSRFProtect؛ لا نعمل exempt لهذا المسار
     op = db.session.get(OnlinePayment, pid)
     if not op:
         abort(404)
@@ -94,7 +82,6 @@ def cards_reveal(pid: int):
 
     reveal_enabled = bool(current_app.config.get("REVEAL_PAN_ENABLED", False))
     if not reveal_enabled:
-        # لا نكشف PAN كامل في وضع الإنتاج الافتراضي
         log_audit(
             "OnlinePayment",
             op.id,
@@ -116,7 +103,6 @@ def cards_reveal(pid: int):
             "created_at": op.created_at.isoformat() if getattr(op, "created_at", None) else None,
         }), 403
 
-    # تحقق الهوية الإضافي: كلمة مرور المشرف الحالي مطلوبة
     data = request.get_json(silent=True) or request.form or {}
     password = (data.get("password") or "").strip()
     if not password:
@@ -134,14 +120,13 @@ def cards_reveal(pid: int):
                   new_data={"payment_ref": op.payment_ref, "result": "bad_password"})
         return jsonify({"ok": False, "error": "invalid_password", "pan_masked": pan_masked}), 403
 
-    # نجاح الكشف – نرجّع PAN فقط بعد المرور بكل الشروط أعلاه
     log_audit("OnlinePayment", op.id, "reveal_card", old_data=None,
               new_data={"payment_ref": op.payment_ref, "result": "success"})
     return jsonify({
         "ok": True,
         "payment_ref": op.payment_ref,
-        "pan": pan_decrypted,          # يظهر فقط مع REVEAL_PAN_ENABLED + كلمة مرور صحيحة
-        "pan_masked": pan_masked,      # دائماً متاح
+        "pan": pan_decrypted,
+        "pan_masked": pan_masked,
         "brand": op.card_brand,
         "last4": op.card_last4,
         "holder": op.cardholder_name,

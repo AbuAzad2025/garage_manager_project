@@ -1,11 +1,9 @@
 from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-
 from flask import Blueprint, render_template, request, jsonify, flash, Response
 from werkzeug.exceptions import BadRequest
 from sqlalchemy.orm import class_mapper
-
 from models import (
     Customer,
     Supplier,
@@ -27,6 +25,8 @@ from reports import (
     ar_aging_report,
     sales_report,
     payment_summary_report,
+    top_products_report,
+    ap_aging_report,
 )
 
 reports_bp = Blueprint(
@@ -98,7 +98,7 @@ MODEL_LABELS = {
 FIELD_LABELS: Dict[str, str] = {
     "id": "المعرف",
     "sale_number": "رقم الفاتورة",
-    "sale_date": "تاريخ البيع",
+    "sale_date": "اليوم",
     "customer_id": "العميل",
     "seller_id": "المندوب",
     "preorder_id": "طلب مسبق",
@@ -148,6 +148,31 @@ FIELD_LABELS: Dict[str, str] = {
     "available": "المتوفر",
     "min_stock": "الحد الأدنى",
     "max_stock": "الحد الأقصى",
+
+    "sales": "المبيعات",
+    "sales_by_day": "مبيعات حسب اليوم",
+    "date_range": "نطاق التاريخ",
+    "start_date": "من",
+    "end_date": "إلى",
+    "refresh": "تحديث",
+    "sales_table": "جدول المبيعات",
+    "grand_total": "الإجمالي",
+
+    "ap_aging": "أعمار الذمم (الموردون)",
+    "ar_aging": "أعمار الذمم (العملاء)",
+    "supplier": "المورد",
+    "customer": "العميل",
+
+    "service_reports": "تقارير الصيانة",
+    "total_requests": "عدد الطلبات",
+    "completed": "مكتملة",
+    "revenue": "الإيراد",
+    "parts": "قطع",
+    "labor": "أجور",
+    "total": "الإجمالي",
+
+    "payments_summary": "ملخص المدفوعات حسب طريقة الدفع",
+    "payment_method": "طريقة الدفع",
 }
 
 def _ensure_model(name: str):
@@ -170,12 +195,18 @@ def reports_index():
 @reports_bp.route("/dynamic", methods=["GET", "POST"])
 def dynamic_report():
     model_names = list(_MODEL_LOOKUP.keys())
+
     if request.method == "POST":
         table = (request.form.get("table") or "").strip()
         selected_fields = request.form.getlist("selected_fields") or []
-        date_field = request.form.get("date_field") or None
+        date_field = request.form.get("date_field") or ""
         start_date = _parse_date(request.form.get("start_date"))
         end_date = _parse_date(request.form.get("end_date"))
+        try:
+            limit = int(request.form.get("limit") or 1000)
+        except Exception:
+            limit = 1000
+
         try:
             model = _ensure_model(table)
         except BadRequest as e:
@@ -184,20 +215,28 @@ def dynamic_report():
                 "reports/dynamic.html",
                 data=None,
                 summary=None,
-                columns=[],
+                columns=selected_fields,
                 model_names=model_names,
                 selected_table=None,
                 defaults=_DEFAULT_DATE_FIELD,
+                date_field=date_field,
                 start_date=request.form.get("start_date", ""),
                 end_date=request.form.get("end_date", ""),
+                like_filters={},
+                limit=limit,
                 FIELD_LABELS=FIELD_LABELS,
                 MODEL_LABELS=MODEL_LABELS,
             ), 400
+
+        exclude = {
+            "csrf_token", "table", "date_field",
+            "start_date", "end_date", "selected_fields", "limit"
+        }
         like_filters = {
             k: v for k, v in request.form.items()
-            if k not in {"table", "date_field", "start_date", "end_date", "csrf_token", "selected_fields"}
-            and v not in (None, "")
+            if k not in exclude and v not in (None, "")
         }
+
         try:
             rpt = advanced_report(
                 model=model,
@@ -219,34 +258,50 @@ def dynamic_report():
                 model_names=model_names,
                 selected_table=table,
                 defaults=_DEFAULT_DATE_FIELD,
+                date_field=date_field,
                 start_date=request.form.get("start_date", ""),
                 end_date=request.form.get("end_date", ""),
+                like_filters=like_filters,
+                limit=limit,
                 FIELD_LABELS=FIELD_LABELS,
                 MODEL_LABELS=MODEL_LABELS,
             ), 400
+
+        data = rpt.get("data") or []
+        if limit and limit > 0:
+            data = data[:limit]
+
         return render_template(
             "reports/dynamic.html",
-            data=rpt.get("data") or [],
+            data=data,
             summary=rpt.get("summary") or {},
             columns=selected_fields,
             model_names=model_names,
             selected_table=table,
             defaults=_DEFAULT_DATE_FIELD,
+            date_field=date_field,
             start_date=request.form.get("start_date", ""),
             end_date=request.form.get("end_date", ""),
+            like_filters=like_filters,
+            limit=limit,
             FIELD_LABELS=FIELD_LABELS,
             MODEL_LABELS=MODEL_LABELS,
         )
+
+    selected_table = model_names[0] if model_names else None
     return render_template(
         "reports/dynamic.html",
         data=None,
         summary=None,
         columns=[],
         model_names=model_names,
-        selected_table=model_names[0] if model_names else None,
+        selected_table=selected_table,
         defaults=_DEFAULT_DATE_FIELD,
+        date_field=_DEFAULT_DATE_FIELD.get(selected_table, "") if selected_table else "",
         start_date="",
         end_date="",
+        like_filters={},
+        limit=1000,
         FIELD_LABELS=FIELD_LABELS,
         MODEL_LABELS=MODEL_LABELS,
     )
@@ -259,8 +314,8 @@ def sales():
     return render_template(
         "reports/sales.html",
         **rpt,
-        start=request.args.get("start",""),
-        end=request.args.get("end",""),
+        start=request.args.get("start", ""),
+        end=request.args.get("end", ""),
         FIELD_LABELS=FIELD_LABELS,
         MODEL_LABELS=MODEL_LABELS,
     )
@@ -273,8 +328,8 @@ def payments_summary():
     return render_template(
         "reports/payments.html",
         **rpt,
-        start=request.args.get("start",""),
-        end=request.args.get("end",""),
+        start=request.args.get("start", ""),
+        end=request.args.get("end", ""),
         FIELD_LABELS=FIELD_LABELS,
         MODEL_LABELS=MODEL_LABELS,
     )
@@ -295,6 +350,41 @@ def ar_aging():
         MODEL_LABELS=MODEL_LABELS,
     )
 
+@reports_bp.route("/top-products", methods=["GET"])
+def top_products():
+    start = _parse_date(request.args.get("start"))
+    end = _parse_date(request.args.get("end"))
+    try:
+        limit = int(request.args.get("limit") or 20)
+    except Exception:
+        limit = 20
+    rpt = top_products_report(start, end, limit=limit)
+    return render_template(
+        "reports/top_products.html",
+        data=rpt.get("data", []),
+        start=request.args.get("start", ""),
+        end=request.args.get("end", ""),
+        limit=limit,
+        FIELD_LABELS=FIELD_LABELS,
+        MODEL_LABELS=MODEL_LABELS,
+    )
+
+@reports_bp.route("/ap-aging", methods=["GET"])
+def ap_aging():
+    start = _parse_date(request.args.get("start"))
+    end = _parse_date(request.args.get("end"))
+    rpt = ap_aging_report(start_date=start, end_date=end)
+    return render_template(
+        "reports/ap_aging.html",
+        data=rpt.get("data", []),
+        totals=rpt.get("totals", {}),
+        as_of=rpt.get("as_of"),
+        start=request.args.get("start", ""),
+        end=request.args.get("end", ""),
+        FIELD_LABELS=FIELD_LABELS,
+        MODEL_LABELS=MODEL_LABELS,
+    )
+
 @reports_bp.route("/api/model_fields", methods=["GET"])
 def model_fields():
     model_name = (request.args.get("model") or "").strip()
@@ -306,8 +396,30 @@ def model_fields():
     mapper = class_mapper(model)
     columns = [col.key for col in mapper.columns]
     lower = {c: c.lower() for c in columns}
-    date_fields = [c for c in columns if ("date" in lower[c]) or (lower[c].endswith("_at")) or ("created_at" in lower[c]) or ("updated_at" in lower[c])]
+    date_fields = [
+        c for c in columns
+        if ("date" in lower[c]) or (lower[c].endswith("_at")) or ("created_at" in lower[c]) or ("updated_at" in lower[c])
+    ]
     return jsonify({"columns": columns, "date_fields": date_fields}), 200
+
+@reports_bp.route("/service-reports", methods=["GET"])
+def service_reports():
+    start = _parse_date(request.args.get("start"))
+    end = _parse_date(request.args.get("end"))
+    rpt = service_reports_report(start, end)
+    return render_template(
+        "reports/service_reports.html",
+        total=rpt.get("total", 0),
+        completed=rpt.get("completed", 0),
+        revenue=rpt.get("revenue", 0.0),
+        parts=rpt.get("parts", 0.0),
+        labor=rpt.get("labor", 0.0),
+        data=rpt.get("data", []),
+        start=request.args.get("start", ""),
+        end=request.args.get("end", ""),
+        FIELD_LABELS=FIELD_LABELS,
+        MODEL_LABELS=MODEL_LABELS,
+    )
 
 @reports_bp.route("/api/dynamic", methods=["POST"])
 def api_dynamic():
@@ -331,6 +443,7 @@ def _csv_from_rows(rows: List[Dict[str, Any]]):
         return ""
     import io, csv
     output = io.StringIO()
+    output.write("\ufeff")
     writer = csv.DictWriter(output, fieldnames=list(rows[0].keys()))
     writer.writeheader()
     for r in rows:
@@ -383,4 +496,27 @@ def export_ar_aging_csv():
         csv_text,
         mimetype="text/csv; charset=utf-8",
         headers={"Content-Disposition": "attachment; filename=ar_aging.csv"},
+    )
+
+@reports_bp.route("/export/ap_aging.csv", methods=["GET"])
+def export_ap_aging_csv():
+    start = _parse_date(request.args.get("start"))
+    end = _parse_date(request.args.get("end"))
+    rpt = ap_aging_report(start_date=start, end_date=end)
+    rows = []
+    for item in rpt.get("data", []):
+        row = {
+            "supplier": item.get("supplier"),
+            "0-30": item.get("buckets", {}).get("0-30", 0),
+            "31-60": item.get("buckets", {}).get("31-60", 0),
+            "61-90": item.get("buckets", {}).get("61-90", 0),
+            "90+": item.get("buckets", {}).get("90+", 0),
+            "total": item.get("balance", 0),
+        }
+        rows.append(row)
+    csv_text = _csv_from_rows(rows)
+    return Response(
+        csv_text,
+        mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=ap_aging.csv"},
     )

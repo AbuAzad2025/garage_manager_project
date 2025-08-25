@@ -245,8 +245,7 @@ class Role(db.Model, AuditMixin):
         return f"<Role {self.name}>"
 
 
-SUPER_ROLES = {"developer", "owner", "admin", "super_admin"}
-
+SUPER_ROLES = {"developer", "owner", "super_admin"}
 
 class User(db.Model, UserMixin, TimestampMixin, AuditMixin):
     __tablename__ = "users"
@@ -283,6 +282,18 @@ class User(db.Model, UserMixin, TimestampMixin, AuditMixin):
     def is_active(self, value):
         self._is_active = bool(value)
 
+    @property
+    def role_name_l(self) -> str:
+        return (getattr(self.role, "name", "") or "").strip().lower()
+
+    @property
+    def is_super_role(self) -> bool:
+        return self.role_name_l in {"developer", "owner", "super_admin"}
+
+    @property
+    def is_admin_role(self) -> bool:
+        return self.role_name_l == "admin"
+
     @validates("email")
     def _v_email(self, key, value):
         return (value or "").strip().lower()
@@ -318,18 +329,14 @@ class User(db.Model, UserMixin, TimestampMixin, AuditMixin):
         target = (name or "").strip().lower()
         if not target:
             return False
-
-        role_name = (getattr(self.role, "name", "") or "").strip().lower()
-        if role_name in {x.strip().lower() for x in SUPER_ROLES}:
+        if self.is_super_role:
             return True
-
         try:
             if self.role and hasattr(self.role, "has_permission") and callable(self.role.has_permission):
                 if self.role.has_permission(target):
                     return True
         except Exception:
             pass
-
         try:
             if hasattr(self, "extra_permissions") and hasattr(self.extra_permissions, "filter"):
                 return self.extra_permissions.filter(
@@ -347,12 +354,10 @@ class User(db.Model, UserMixin, TimestampMixin, AuditMixin):
                         return True
             except Exception:
                 pass
-
         return False
 
     def __repr__(self):
         return f"<User {self.username or self.id}>"
-
 
 # ===================== Customers =====================
 class Customer(db.Model, UserMixin, TimestampMixin, AuditMixin):

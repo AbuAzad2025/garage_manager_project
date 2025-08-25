@@ -6,9 +6,21 @@ from sqlalchemy import func
 from extensions import db
 from models import Role, Permission, AuditLog, User
 from forms import RoleForm
-from utils import permission_required, clear_role_permission_cache, clear_users_cache_by_role
+from utils import (
+    permission_required,
+    clear_role_permission_cache,
+    clear_users_cache_by_role,
+    super_only,  # <-- إضافة للحماية الشاملة
+)
 
 roles_bp = Blueprint("roles", __name__, url_prefix="/roles")
+
+# 🔐 حارس شامل لكل مسارات إدارة الأدوار: سوبر فقط
+@roles_bp.before_request
+@super_only
+def _guard_roles():
+    # لا نحتاج منطق هنا؛ الديكوريتور يمنع غير السوبر
+    pass
 
 
 def _get_or_404(model, ident):

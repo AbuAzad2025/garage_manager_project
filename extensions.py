@@ -24,8 +24,19 @@ socketio = SocketIO(
     engineio_logger=False,
 )
 
+def _rate_limit_key():
+    try:
+        # تفضيل هوية المستخدم إن كان مسجلاً
+        from flask_login import current_user
+        if getattr(current_user, "is_authenticated", False):
+            return f"user:{current_user.get_id()}"
+    except Exception:
+        pass
+    # رجوع للـIP كبديل
+    return get_remote_address()
+
 limiter = Limiter(
-    key_func=get_remote_address,
+    key_func=_rate_limit_key,
     default_limits=[],
 )
 
@@ -68,12 +79,27 @@ def init_extensions(app):
 
     app.config.setdefault("RATELIMIT_HEADERS_ENABLED", True)
     app.config.setdefault("RATELIMIT_STORAGE_URI", "memory://")
+    app.config.setdefault("RATELIMIT_EXEMPT_SUPER", True)
 
     limiter.init_app(app)
 
     default_limit = app.config.get("RATELIMIT_DEFAULT")
     if default_limit:
         if isinstance(default_limit, (list, tuple)):
-            limiter.default_limits = list(default_limit)
+            limiter.default_limits = [str(x).strip() for x in default_limit if str(x).strip()]
         else:
-            limiter.default_limits = [str(default_limit)]
+            parts = [p.strip() for p in str(default_limit).split(";") if p.strip()]
+            limiter.default_limits = parts
+
+    if app.config.get("RATELIMIT_EXEMPT_SUPER", True):
+        @limiter.request_filter
+        def _exempt_super_admin():
+            try:
+                from flask_login import current_user
+                from utils import _SUPER_ROLES
+                if getattr(current_user, "is_authenticated", False):
+                    role = str(getattr(getattr(current_user, "role", None), "name", "")).lower()
+                    return role in {r.lower() for r in _SUPER_ROLES}
+            except Exception:
+                return False
+            return False

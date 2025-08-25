@@ -100,12 +100,11 @@ def available_qty(product_id: int) -> int:
 # -------------------- Super Admin logic --------------------
 def _super_roles():
     try:
-        # لو مهيّأ في utils، استخدمه
         from utils import _SUPER_ROLES as _SR
         return {str(x).strip().lower() for x in (_SR or [])}
     except Exception:
-        # fallback
-        return {"developer", "owner", "admin", "super_admin"}
+        # بدون "admin" — السوبر منفصل عن الأدمن
+        return {"developer", "owner", "super_admin"}
 
 
 def is_super_admin(user) -> bool:
@@ -128,26 +127,36 @@ def super_admin_required(f):
     return inner
 
 
+@shop_bp.before_request
+def _guard_shop_admin():
+    if request.path.startswith("/shop/admin"):
+        if not is_super_admin(current_user):
+            abort(403)
+
+
 # -------------------- Online customer gate --------------------
 def online_customer_required(f):
     @wraps(f)
     @login_required
     def inner(*a, **kw):
-        # السماح للسوبر أدمن بالمتابعة بهدف الاستعراض/الإدارة
         if is_super_admin(current_user):
+            g.viewer_only = True
             g.online_customer = SimpleNamespace(
-                id=current_user.id,             # ملاحظة: لو في FK صارم لجدول customers، تأكد من توافق المخطط
-                phone=getattr(current_user, "phone", None),
-                address=getattr(current_user, "address", None),
-                currency=getattr(current_user, "currency", "ILS"),
+                id=None,
+                phone=None,
+                address=None,
+                currency="ILS",
                 is_online=True,
                 name=getattr(current_user, "username", "Super Admin"),
             )
+            if request.method not in {"GET", "HEAD", "OPTIONS"}:
+                return _resp("السوبر أدمن وضع استعراض فقط. اختر زبونًا فعليًا لإتمام العملية.", "warning")
             return f(*a, **kw)
 
         cust = Customer.query.filter_by(id=current_user.id, is_online=True).first()
         if not cust:
             return _resp("لم يتم العثور على حساب العميل الإلكتروني.", "danger")
+        g.viewer_only = False
         g.online_customer = cust
         return f(*a, **kw)
     return inner
@@ -160,7 +169,6 @@ def get_active_cart(customer_id):
 # -------------------- Routes --------------------
 @shop_bp.route("/", endpoint="catalog")
 def catalog():
-    # السوبر أدمن يشوف كل المنتجات؛ غيره يشوف الفعّالة في مخازن فعّالة فقط
     if is_super_admin(current_user):
         q = db.session.query(Product)
     else:
@@ -303,20 +311,6 @@ def remove_from_cart(item_id):
         return _resp(f"خطأ أثناء الحذف: {e}", "danger", to="shop.cart")
 
 
-# ⚠️ كانت مجرد login_required — لازم سوبر أدمن
-@shop_bp.route('/admin/products/<int:id>/edit', methods=['GET', 'POST'])
-@super_admin_required
-def edit_product(id):
-    product = db.session.get(Product, id) or abort(404)
-    form = ProductForm(obj=product)
-    if form.validate_on_submit():
-        form.populate_obj(product)
-        db.session.commit()
-        flash('تم الحفظ بنجاح', 'success')
-        return redirect(url_for('shop.admin_products'))
-    return render_template('shop/admin/product_edit.html', form=form, product=product)
-
-
 @shop_bp.route("/checkout", methods=["GET", "POST"], endpoint="checkout")
 @online_customer_required
 def checkout():
@@ -336,7 +330,6 @@ def checkout():
     if form.validate_on_submit():
         try:
             with db.session.begin():
-                # قفل سجلات المخزون ذات الصلة
                 product_ids = [itm.product_id for itm in cart.items]
                 if product_ids:
                     q = (
@@ -353,7 +346,6 @@ def checkout():
                             q = q.filter(Warehouse.warehouse_type.in_(tvals))
                     _ = q.with_for_update().all()
 
-                # تحقق توافر
                 for itm in cart.items:
                     if itm.quantity > available_qty(itm.product_id):
                         abort(409, description="الكمية المطلوبة غير متوفرة.")
@@ -424,7 +416,6 @@ def checkout():
 
                 cart.status = "CONVERTED"
 
-            # إشعار واتساب
             try:
                 if getattr(g.online_customer, "phone", None):
                     send_whatsapp_message(
@@ -554,5 +545,3 @@ def admin_product_delete(pid):
         db.session.rollback()
         flash(f"خطأ: {e}", "danger")
     return redirect(url_for("shop.admin_products"))
-
-

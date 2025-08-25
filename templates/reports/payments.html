@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
-{% block title %}ملخص المدفوعات{% endblock %}
-{% block page_title %}ملخص المدفوعات حسب طريقة الدفع{% endblock %}
+{% block title %}{{ FIELD_LABELS.get("payments", "المدفوعات") }}{% endblock %}
+{% block page_title %}{{ FIELD_LABELS.get("payments_summary", "ملخص المدفوعات حسب طريقة الدفع") }}{% endblock %}
 
 {% block breadcrumb %}
 <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
-<li class="breadcrumb-item active">ملخص المدفوعات</li>
+<li class="breadcrumb-item active">{{ FIELD_LABELS.get("payments", "المدفوعات") }}</li>
 {% endblock %}
 
 {% block content %}
@@ -12,7 +12,8 @@
 
   <!-- العنوان -->
   <div class="mb-3">
-    <h4 class="fw-bold"><i class="fas fa-money-check-alt"></i>
+    <h4 class="fw-bold">
+      <i class="fas fa-money-check-alt"></i>
       {{ FIELD_LABELS.get("payments_summary", "ملخص المدفوعات حسب طريقة الدفع") }}
     </h4>
   </div>
@@ -46,34 +47,115 @@
 
   <!-- جدول النتائج -->
   <div class="card shadow-sm">
-    <div class="card-header">نتائج التقرير</div>
+    <div class="card-header">{{ FIELD_LABELS.get("payments_table", "جدول الملخص") }}</div>
     <div class="card-body">
+      {% set METHOD_LABELS = {
+        'cash': 'نقدي',
+        'bank': 'بنك/حوالة',
+        'card': 'بطاقة',
+        'cheque': 'شيك',
+        'online': 'أونلاين'
+      } %}
       <div class="table-responsive">
         <table id="report-table" class="table table-bordered table-striped align-middle">
           <thead class="table-dark">
             <tr>
-              <th>{{ FIELD_LABELS.get("payment_method", "طريقة الدفع") }}</th>
-              <th>{{ FIELD_LABELS.get("total", "الإجمالي") }}</th>
+              <th>{{ FIELD_LABELS.get("method", "طريقة الدفع") }}</th>
+              <th class="text-end">{{ FIELD_LABELS.get("total_amount", "الإجمالي") }}</th>
             </tr>
           </thead>
           <tbody>
-            {% for m, t in zip(methods, totals) %}
+            {% for i in range(methods|length) %}
               <tr>
-                <td class="text-center">{{ m }}</td>
-                <td class="text-end">{{ "{:,.2f}".format(t) }}</td>
+                <td class="text-center">{{ METHOD_LABELS.get(methods[i], methods[i]|upper) }}</td>
+                <td class="text-end">{{ "{:,.2f}".format(totals[i] or 0) }}</td>
               </tr>
             {% endfor %}
           </tbody>
           <tfoot class="fw-bold table-light">
             <tr>
-              <th>{{ FIELD_LABELS.get("grand_total", "المجموع الكلي") }}</th>
-              <th class="text-end">{{ "{:,.2f}".format(grand_total) }}</th>
+              <th>{{ FIELD_LABELS.get("grand_total", "الإجمالي") }}</th>
+              <th class="text-end">{{ "{:,.2f}".format(grand_total or 0) }}</th>
             </tr>
           </tfoot>
         </table>
+
+        {% if (grand_total or 0) == 0 %}
+          <div class="alert alert-info mt-3 mb-0">لا توجد بيانات في النطاق المحدد.</div>
+        {% endif %}
       </div>
     </div>
   </div>
 
+  {% if (grand_total or 0) > 0 %}
+  <!-- الرسم البياني -->
+  <div class="card shadow-sm mt-4">
+    <div class="card-header">الرسم البياني</div>
+    <div class="card-body">
+      <canvas id="paymentsChart" height="120"></canvas>
+    </div>
+  </div>
+  {% endif %}
+
 </div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <!-- Chart.js (خفيف وبلا تعقيد) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+  (function () {
+    const el = document.getElementById('paymentsChart');
+    if (!el || !window.Chart) return;
+
+    const methodLabels = {{ METHOD_LABELS | tojson }};
+    const rawLabels = {{ methods | tojson }};
+    const labels = rawLabels.map(m => methodLabels[m] ?? (m || '').toUpperCase());
+    const data = {{ totals | tojson }};
+    const grand = {{ grand_total or 0 }};
+
+    // إن ما في قيم موجبة، لا نرسم
+    if (!Array.isArray(data) || !data.some(v => (v || 0) > 0)) return;
+
+    // ألوان بسيطة ومحترمة (عددها يتكرر تلقائيًا لو زادت الفئات)
+    const baseColors = [
+      '#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#14b8a6','#f97316'
+    ];
+
+    new Chart(el.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{
+          data,
+          backgroundColor: labels.map((_, i) => baseColors[i % baseColors.length]),
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 2,
+        plugins: {
+          legend: { position: 'bottom' },
+          title: { display: true, text: 'توزيع المدفوعات حسب الطريقة' },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const val = ctx.parsed || 0;
+                const pct = grand ? (val / grand * 100) : 0;
+                // تنسيق عربي بسيط
+                const valTxt = val.toLocaleString('ar-EG', { maximumFractionDigits: 2 });
+                const pctTxt = pct.toFixed(1);
+                return `${ctx.label}: ${valTxt} (${pctTxt}%)`;
+              }
+            }
+          }
+        },
+        animation: { duration: 400 }
+      }
+    });
+  })();
+  </script>
 {% endblock %}

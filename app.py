@@ -19,6 +19,8 @@ from utils import (
     status_label,
     init_app as utils_init_app,
     _expand_perms as _perm_expand,
+    is_super,
+    is_admin,
 )
 from cli import seed_roles
 from models import User, Role, Permission, Customer
@@ -135,6 +137,14 @@ def create_app(config_object=Config) -> Flask:
     except Exception:
         pass
 
+    app.config.setdefault("SUPER_USER_EMAILS", os.getenv("SUPER_USER_EMAILS", ""))  # مثال: owner@site.com
+    app.config.setdefault("SUPER_USER_IDS",    os.getenv("SUPER_USER_IDS",    ""))  # مثال: 1
+    app.config.setdefault("ADMIN_USER_EMAILS", os.getenv("ADMIN_USER_EMAILS", ""))  # مثال: admin@site.com
+    app.config.setdefault("ADMIN_USER_IDS",    os.getenv("ADMIN_USER_IDS",    ""))  # مثال: 2
+    app.config.setdefault("PERMISSIONS_REQUIRE_ALL", False)
+
+    engine_opts = app.config.setdefault("SQLALCHEMY_ENGINE_OPTIONS", {})
+
     engine_opts = app.config.setdefault("SQLALCHEMY_ENGINE_OPTIONS", {})
     connect_args = engine_opts.setdefault("connect_args", {})
     uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
@@ -207,9 +217,6 @@ def create_app(config_object=Config) -> Flask:
     )
 
     @app.context_processor
-    def inject_csrf_token():
-        return dict(csrf_token=generate_csrf)
-
     def inject_permissions():
         ATTRS = ("code", "name", "slug", "perm", "permission", "value")
 
@@ -240,6 +247,9 @@ def create_app(config_object=Config) -> Flask:
             try:
                 if not code:
                     return False
+                # السوبر يتجاوز كل شيء
+                if is_super():
+                    return True
                 u = current_user
                 if not getattr(u, "is_authenticated", False):
                     return False
@@ -250,14 +260,16 @@ def create_app(config_object=Config) -> Flask:
                 return False
 
         def has_any(*codes):
+            if is_super():
+                return True
             return any(has_perm(c) for c in codes)
 
         def has_all(*codes):
+            if is_super():
+                return True
             return all(has_perm(c) for c in codes)
 
         return {"has_perm": has_perm, "has_any": has_any, "has_all": has_all}
-
-    app.context_processor(inject_permissions)
 
     def _safe_number_format(v, digits=2):
         try:
@@ -386,16 +398,7 @@ def create_app(config_object=Config) -> Flask:
 
     @app.context_processor
     def inject_global_flags():
-        from utils import _SUPER_ROLES
-        def is_super_admin(user) -> bool:
-            try:
-                return (
-                    getattr(user, "is_authenticated", False)
-                    and str(getattr(getattr(user, "role", None), "name", "")).lower() in _SUPER_ROLES
-                )
-            except Exception:
-                return False
-        return {"shop_is_super_admin": is_super_admin(current_user)}
+        return {"shop_is_super_admin": is_super()}
 
     critical = app.config.get(
         "CRITICAL_ENDPOINTS",

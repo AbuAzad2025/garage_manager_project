@@ -6,9 +6,24 @@ from sqlalchemy.orm import joinedload
 from extensions import db
 from forms import UserForm
 from models import Permission, Role, User, AuditLog
-from utils import permission_required, clear_user_permission_cache
+from utils import (
+    permission_required,
+    clear_user_permission_cache,
+    is_super,      
+    super_only,    
+)
 
 users_bp = Blueprint("users_bp", __name__, url_prefix="/users", template_folder="templates/users")
+
+# 🔐 حارس شامل: كل مسارات إدارة المستخدمين للسوبر فقط
+# ✅ استثناء: "/users/profile" يظل متاح لأي مستخدم مسجّل دخول
+@users_bp.before_request
+def _guard_users_blueprint():
+    ep = (request.endpoint or "")
+    if ep == "users_bp.profile":
+        return  # مسموح للجميع (مع login_required)
+    if not is_super():
+        abort(403)
 
 def _get_or_404(model, ident, options=None):
     q = db.session.query(model)

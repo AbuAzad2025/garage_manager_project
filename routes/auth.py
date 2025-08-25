@@ -10,15 +10,15 @@ from flask import (
 from flask_login import current_user, login_required, login_user, logout_user
 from flask_mail import Message
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
-from sqlalchemy import select
+from sqlalchemy import select, func
 
-from extensions import db, mail
+from extensions import db, mail, limiter
 from forms import (
     LoginForm, CustomerFormOnline,
     CustomerPasswordResetForm, CustomerPasswordResetRequestForm
 )
 from models import Customer, User
-from utils import _audit, redis_client as _redis  # ⬅️ نستخدم Redis إن وُجد
+from utils import _audit, redis_client as _redis
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
@@ -58,7 +58,6 @@ def _get_login_identifier(form: LoginForm) -> Optional[str]:
 MAX_ATTEMPTS = 5
 BLOCK_TIME = timedelta(minutes=10)
 
-# Fallback للذاكرة بحال Redis غير متوفر
 _login_attempts_mem: dict[tuple[str, str], tuple[int, datetime]] = {}
 
 def _norm_ident(s: Optional[str]) -> str:
@@ -68,11 +67,10 @@ def _la_key(ip: str, identifier: Optional[str]) -> str:
     return f"auth:login_attempts:{ip}:{_norm_ident(identifier)}"
 
 def is_blocked(ip: str, identifier: Optional[str]) -> bool:
-    # أولاً جرّب Redis
     try:
         if _redis:
             key = _la_key(ip, identifier)
-            val = _redis.get(key)  # decode_responses=True في utils.init_app
+            val = _redis.get(key)
             if val is None:
                 return False
             try:
@@ -81,10 +79,8 @@ def is_blocked(ip: str, identifier: Optional[str]) -> bool:
                 attempts = 0
             return attempts >= MAX_ATTEMPTS
     except Exception:
-        # سقوط صامت إلى الذاكرة
         pass
 
-    # Fallback: ذاكرة محلية داخل العملية
     key_mem = (ip, _norm_ident(identifier))
     info = _login_attempts_mem.get(key_mem)
     if not info:
@@ -98,7 +94,6 @@ def is_blocked(ip: str, identifier: Optional[str]) -> bool:
     return False
 
 def record_attempt(ip: str, identifier: Optional[str]) -> None:
-    # Redis: INCR + EXPIRE بنفس نافذة الحظر
     try:
         if _redis:
             key = _la_key(ip, identifier)
@@ -110,7 +105,6 @@ def record_attempt(ip: str, identifier: Optional[str]) -> None:
     except Exception:
         pass
 
-    # Fallback: ذاكرة
     key_mem = (ip, _norm_ident(identifier))
     attempts, _last_time = _login_attempts_mem.get(key_mem, (0, datetime.utcnow()))
     _login_attempts_mem[key_mem] = (attempts + 1, datetime.utcnow())
@@ -119,7 +113,6 @@ def clear_attempts(ip: str, identifier: Optional[str]) -> None:
     try:
         if _redis:
             _redis.delete(_la_key(ip, identifier))
-            # ما في داعي نحذف من الذاكرة إذا مستخدم Redis، بس ما بيضر
     except Exception:
         pass
     _login_attempts_mem.pop((ip, _norm_ident(identifier)), None)
@@ -128,6 +121,7 @@ def clear_attempts(ip: str, identifier: Optional[str]) -> None:
 # ============================== Routes ==============================
 
 @auth_bp.route("/login", methods=["GET", "POST"])
+@limiter.limit("10/minute;100/hour;1000/day")
 def login():
     ip = _get_client_ip()
     form = LoginForm()
@@ -138,7 +132,6 @@ def login():
         return _redirect_back_or("shop.catalog" if isinstance(actor, Customer) else "main.dashboard")
 
     identifier = _get_login_identifier(form)
-
     if is_blocked(ip, identifier):
         flash("❌ تم حظر محاولات الدخول مؤقتًا، حاول بعد 10 دقائق.", "danger")
         _audit("login.blocked", ok=False, note="blocked window")
@@ -150,14 +143,19 @@ def login():
         customer = None
 
         if identifier:
-            stmt = select(User).where((User.username == identifier) | (User.email == identifier))
+            ident_l = identifier.lower()
+            stmt = select(User).where(
+                (func.lower(User.username) == ident_l) | (func.lower(User.email) == ident_l)
+            )
             user = db.session.execute(stmt).scalars().first()
             if not user:
                 customer = Customer.query.filter(
-                    (Customer.email == identifier) | (Customer.phone == identifier) | (Customer.name == identifier)
+                    (func.lower(Customer.email) == ident_l) |
+                    (Customer.phone == identifier) |
+                    (Customer.name == identifier)
                 ).first()
 
-        if user and user.check_password(password):
+        if user and user.check_password(password) and bool(getattr(user, "is_active", True)):
             remember = bool(getattr(form, "remember_me", None) and getattr(form.remember_me, "data", False))
             if current_user.is_authenticated and getattr(current_user, "id", None) != user.id:
                 logout_user()
@@ -202,7 +200,7 @@ def customer_register():
         return redirect(url_for("shop.catalog"))
     form = CustomerFormOnline()
     if form.validate_on_submit():
-        existing_user = User.query.filter_by(email=form.email.data).first()
+        existing_user = User.query.filter(func.lower(User.email) == (form.email.data or "").strip().lower()).first()
         if existing_user:
             flash("❌ هذا البريد الإلكتروني مستخدم من قبل مستخدم داخلي. الرجاء استخدام بريد آخر.", "danger")
             return render_template("auth/customer_register.html", form=form)
@@ -231,7 +229,11 @@ def customer_password_reset_request():
         return redirect(url_for("shop.catalog"))
     form = CustomerPasswordResetRequestForm()
     if form.validate_on_submit():
-        customer = Customer.query.filter_by(email=form.email.data, is_active=True, is_online=True).first()
+        customer = Customer.query.filter(
+            func.lower(Customer.email) == (form.email.data or "").strip().lower(),
+            Customer.is_active.is_(True),
+            Customer.is_online.is_(True),
+        ).first()
         if customer:
             send_customer_password_reset_email(customer)
         flash("📩 إذا كان البريد مسجلاً، ستصلك التعليمات قريبًا.", "info")

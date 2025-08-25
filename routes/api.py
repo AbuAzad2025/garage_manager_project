@@ -1,5 +1,5 @@
-from flask import Blueprint, request, jsonify, current_app
-from flask_login import login_required
+from flask import Blueprint, request, jsonify, current_app, abort
+from flask_login import login_required, current_user
 from sqlalchemy import or_, func
 from typing import Callable, Iterable, List, Dict, Any, Optional
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -11,8 +11,21 @@ from models import (
     EquipmentType, StockLevel, Sale, Shipment, Transfer, PreOrder,
     OnlinePreOrder, Expense
 )
+from barcodes import normalize_barcode, is_valid_ean13  # ✅ كان ناقص
 
 bp = Blueprint("api", __name__, url_prefix="/api")
+
+# --- حارس موحّد: أدمن أو سوبر فقط ---
+@bp.before_request
+@login_required
+def _api_guard():
+    try:
+        rn = (getattr(getattr(current_user, "role", None), "name", "") or "").strip().lower()
+        if rn in {"developer", "owner", "super_admin", "admin"}:
+            return
+    except Exception:
+        pass
+    abort(403)
 
 def _q() -> str:
     return (request.args.get("q") or "").strip()
@@ -198,18 +211,6 @@ def product_info(pid: int):
         "price": float(p.price or 0),
         "available": (int(available) if available is not None else None),
     })
-
-@bp.get("/barcode/validate")
-@login_required
-@limiter.limit("120/minute")
-def barcode_validate():
-    code = request.args.get("code", "", type=str)
-    norm = normalize_barcode(code)
-    ok = bool(norm and len(norm) == 13 and norm.isdigit() and is_valid_ean13(norm))
-    exists = False
-    if ok:
-        exists = db.session.query(Product.id).filter(Product.barcode == norm).first() is not None
-    return jsonify({"input": code, "normalized": norm, "valid": ok, "exists": exists})
 
 @bp.post("/categories", endpoint="create_category")
 @login_required
@@ -573,6 +574,10 @@ def payments():
             "method": getattr(p.method, "value", p.method),
         } for p in rows
     ])
+
+@bp.app_errorhandler(403)
+def forbidden(e):
+    return jsonify({"error": "Forbidden"}), 403
 
 @bp.app_errorhandler(429)
 def ratelimit_handler(e):

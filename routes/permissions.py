@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from flask import Blueprint, flash, redirect, render_template, url_for, abort, request
 from flask_login import login_required, current_user
 from sqlalchemy import func
@@ -12,9 +13,17 @@ from utils import (
     clear_user_permission_cache,
     clear_role_permission_cache,
     clear_users_cache_by_role,
+    super_only,   # <-- تمت الإضافة
 )
 
 permissions_bp = Blueprint("permissions", __name__, template_folder="templates/permissions")
+
+# 🔐 حارس شامل: هذا يضمن أن جميع مسارات هذا البلوبرنت محصورة بالسوبر فقط
+@permissions_bp.before_request
+@super_only
+def _guard_permissions():
+    # لا حاجة لفعل شيء هنا؛ مجرد الحارس يكفي
+    pass
 
 _RESERVED_CODES = frozenset({
     "backup_database",

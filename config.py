@@ -103,3 +103,11 @@ class Config:
 
     CARD_ENC_KEY = os.environ.get("CARD_ENC_KEY", "")
     DEFAULT_PRODUCT_IMAGE = os.environ.get("DEFAULT_PRODUCT_IMAGE", "products/default.png")
+
+    # === ACL (Roles) ===
+    # نقرأ هويات السوبر/الأدمن من البيئة (إيميل أو IDs بصيغة CSV). PERMISSIONS_REQUIRE_ALL = AND-logic.
+    SUPER_USER_EMAILS = os.environ.get("SUPER_USER_EMAILS", "")
+    SUPER_USER_IDS    = os.environ.get("SUPER_USER_IDS", "")
+    ADMIN_USER_EMAILS = os.environ.get("ADMIN_USER_EMAILS", "")
+    ADMIN_USER_IDS    = os.environ.get("ADMIN_USER_IDS", "")
+    PERMISSIONS_REQUIRE_ALL = _bool(os.environ.get("PERMISSIONS_REQUIRE_ALL"), False)

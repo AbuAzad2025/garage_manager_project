@@ -419,6 +419,27 @@ class UserForm(FlaskForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.role_id.choices = [(r.id, r.name) for r in Role.query.order_by(Role.name).all()]
+        try:
+            from flask import request
+            self._editing_user_id = request.view_args.get('user_id')
+        except Exception:
+            self._editing_user_id = None
+
+    def validate_username(self, field):
+        name = (field.data or '').strip()
+        q = User.query.filter(User.username == name)
+        if getattr(self, "_editing_user_id", None):
+            q = q.filter(User.id != self._editing_user_id)
+        if q.first():
+            raise ValidationError("اسم المستخدم مستخدم بالفعل.")
+
+    def validate_email(self, field):
+        email_l = (field.data or '').strip().lower()
+        q = User.query.filter(User.email == email_l)
+        if getattr(self, "_editing_user_id", None):
+            q = q.filter(User.id != self._editing_user_id)
+        if q.first():
+            raise ValidationError("البريد الإلكتروني مستخدم بالفعل.")
 
     def apply_to(self, user: User) -> User:
         user.username  = (self.username.data or '').strip()
@@ -429,17 +450,34 @@ class UserForm(FlaskForm):
             user.set_password(self.password.data)
         return user
 
+
 class RoleForm(FlaskForm):
     name        = StringField('اسم الدور', validators=[DataRequired(), Length(max=50)])
     description = StringField('الوصف', validators=[Optional(), Length(max=200)])
     is_default  = BooleanField('افتراضي')
     submit      = SubmitField('حفظ')
 
+    def validate_name(self, field):
+        field.data = (field.data or '').strip()
+
+
 class PermissionForm(FlaskForm):
     name        = StringField('الاسم', validators=[DataRequired(), Length(max=100)])
     code        = StringField('الكود', validators=[Optional(), Length(max=100)])
     description = StringField('الوصف', validators=[Optional(), Length(max=200)])
     submit      = SubmitField('حفظ')
+
+    def validate_name(self, field):
+        field.data = (field.data or '').strip()
+
+    def validate_code(self, field):
+        s = (field.data or '').strip().lower()
+        if s:
+            import re
+            s = re.sub(r"[\s\-]+", "_", s)
+            s = re.sub(r"[^a-z0-9_]+", "", s)
+            s = re.sub(r"_+", "_", s).strip("_")
+        field.data = s
 
 class CustomerForm(FlaskForm):
     id       = HiddenField()
