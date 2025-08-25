@@ -3,6 +3,7 @@ import os
 import re
 from datetime import date, datetime, time as _t
 from decimal import Decimal
+from wtforms.fields import DateTimeLocalField
 
 from flask import url_for
 from flask_wtf import FlaskForm
@@ -28,6 +29,7 @@ from wtforms.validators import (
     DataRequired,
     Email,
     EqualTo,
+    InputRequired,
     Length,
     NumberRange,
     Optional,
@@ -1902,12 +1904,10 @@ class ServiceDiagnosisForm(FlaskForm):
     submit              = SubmitField('حفظ التشخيص')
 
 class ServicePartForm(FlaskForm):
-    service_id       = HiddenField(validators=[DataRequired()])
-
     part_id          = AjaxSelectField('القطعة/المكوّن', endpoint='api.products', get_label='name', validators=[DataRequired()])
     warehouse_id     = AjaxSelectField('المخزن', endpoint='api.warehouses', get_label='name', validators=[DataRequired()])
-    quantity         = IntegerField('الكمية', validators=[DataRequired(), NumberRange(min=1)])
-    unit_price       = DecimalField('سعر الوحدة', places=2, validators=[DataRequired(), NumberRange(min=0)])
+    quantity         = IntegerField('الكمية', validators=[InputRequired(), NumberRange(min=1)])
+    unit_price       = DecimalField('سعر الوحدة', places=2, validators=[InputRequired(), NumberRange(min=0)])
     discount         = DecimalField('خصم %', places=2, validators=[Optional(), NumberRange(min=0, max=100)])
     tax_rate         = DecimalField('ضريبة %', places=2, validators=[Optional(), NumberRange(min=0, max=100)])
     note             = StringField('ملاحظات', validators=[Optional(), Length(max=200)])
@@ -1917,7 +1917,8 @@ class ServicePartForm(FlaskForm):
 
 
 class SaleLineForm(FlaskForm):
-    # ملاحظة: لا نحتاج sale_id هنا لأن الربط يتم من الأب
+    class Meta:
+        csrf = False
     product_id   = AjaxSelectField('الصنف', endpoint='api.products',  get_label='name',    coerce=int, validators=[DataRequired()])
     warehouse_id = AjaxSelectField('المخزن', endpoint='api.warehouses', get_label='name', coerce=int, validators=[DataRequired()])
     quantity     = IntegerField('الكمية', validators=[DataRequired(), NumberRange(min=1)])
@@ -1928,41 +1929,41 @@ class SaleLineForm(FlaskForm):
 
 
 class SaleForm(FlaskForm):
-    sale_number      = StringField('رقم البيع', validators=[Optional(), Length(max=50)])
-    sale_date        = DateTimeField('تاريخ البيع', format='%Y-%m-%d %H:%M', validators=[Optional()])
-    customer_id      = AjaxSelectField('العميل', endpoint='api.customers', get_label='name',     coerce=int, validators=[DataRequired()])
-    seller_id        = AjaxSelectField('البائع', endpoint='api.users',     get_label='username', coerce=int, validators=[DataRequired()])
+    sale_number = StringField('رقم البيع', validators=[Optional(), Length(max=50)])
 
-    status           = SelectField('الحالة',
-                         choices=[(SaleStatus.DRAFT.value,'مسودة'),
-                                  (SaleStatus.CONFIRMED.value,'مؤكد'),
-                                  (SaleStatus.CANCELLED.value,'ملغي'),
-                                  (SaleStatus.REFUNDED.value,'مرتجع')],
-                         default=SaleStatus.DRAFT.value, validators=[DataRequired()])
+    sale_date   = DateTimeLocalField('تاريخ البيع', format='%Y-%m-%dT%H:%M', validators=[Optional()])
 
-    payment_status   = SelectField('حالة السداد',
-                         choices=[(PaymentProgress.PENDING.value, 'PENDING'),
-                                  (PaymentProgress.PARTIAL.value, 'PARTIAL'),
-                                  (PaymentProgress.PAID.value,    'PAID'),
-                                  (PaymentProgress.REFUNDED.value,'REFUNDED')],
-                         default=PaymentProgress.PENDING.value,
-                         validators=[DataRequired()])
+    customer_id = AjaxSelectField('العميل', endpoint='api.customers', get_label='name',     coerce=int, validators=[DataRequired()])
+    seller_id   = AjaxSelectField('البائع',  endpoint='api.users',     get_label='username', coerce=int, validators=[DataRequired()])
 
-    currency         = SelectField('عملة', choices=CURRENCY_CHOICES, default='ILS', validators=[DataRequired()])
-    tax_rate         = DecimalField('ضريبة %', places=2, default=0, validators=[Optional(), NumberRange(min=0, max=100)])
-    discount_total   = DecimalField('خصم إجمالي', places=2, default=0, validators=[Optional(), NumberRange(min=0)])
+    status         = SelectField('الحالة',
+                        choices=[(SaleStatus.DRAFT.value,'مسودة'),
+                                 (SaleStatus.CONFIRMED.value,'مؤكد'),
+                                 (SaleStatus.CANCELLED.value,'ملغي'),
+                                 (SaleStatus.REFUNDED.value,'مرتجع')],
+                        default=SaleStatus.DRAFT.value, validators=[DataRequired()])
+
+    payment_status = SelectField('حالة السداد',
+                        choices=[(PaymentProgress.PENDING.value, 'PENDING'),
+                                 (PaymentProgress.PARTIAL.value, 'PARTIAL'),
+                                 (PaymentProgress.PAID.value,    'PAID'),
+                                 (PaymentProgress.REFUNDED.value,'REFUNDED')],
+                        default=PaymentProgress.PENDING.value, validators=[DataRequired()])
+
+    currency       = SelectField('عملة', choices=CURRENCY_CHOICES, default='ILS', validators=[DataRequired()])
+    tax_rate       = DecimalField('ضريبة %', places=2, default=0, validators=[Optional(), NumberRange(min=0, max=100)])
+    discount_total = DecimalField('خصم إجمالي', places=2, default=0, validators=[Optional(), NumberRange(min=0)])
     shipping_address = TextAreaField('عنوان الشحن', validators=[Optional(), Length(max=500)])
     billing_address  = TextAreaField('عنوان الفواتير', validators=[Optional(), Length(max=500)])
     shipping_cost    = DecimalField('تكلفة الشحن', places=2, default=0, validators=[Optional(), NumberRange(min=0)])
     notes            = TextAreaField('ملاحظات', validators=[Optional(), Length(max=500)])
 
-    total_amount     = DecimalField('الإجمالي النهائي', places=2,
-                                    validators=[Optional(), NumberRange(min=0)],
-                                    render_kw={"readonly": True})
+    total_amount   = DecimalField('الإجمالي النهائي', places=2, validators=[Optional(), NumberRange(min=0)],
+                                  render_kw={"readonly": True})
 
-    lines            = FieldList(FormField(SaleLineForm), min_entries=1)
-    preorder_id      = IntegerField('رقم الحجز', validators=[Optional()])
-    submit           = SubmitField('حفظ البيع')
+    lines          = FieldList(FormField(SaleLineForm), min_entries=1)
+    preorder_id    = IntegerField('رقم الحجز', validators=[Optional()])
+    submit         = SubmitField('حفظ البيع')
 
     def validate(self, **kwargs):
         if not super().validate(**kwargs):

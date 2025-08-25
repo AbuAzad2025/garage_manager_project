@@ -1,4 +1,3 @@
-{# File: templates/service/view.html #}
 {% extends "base.html" %}
 {% block title %}تفاصيل طلب الصيانة{% endblock %}
 {% block page_header %}طلب {{ service.service_number or ('#' ~ service.id) }}{% endblock %}
@@ -7,7 +6,6 @@
   {{ super() }}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/service.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}">
-  {# Select2 CSS #}
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2/css/select2.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 {% endblock %}
@@ -19,7 +17,6 @@
 
 {% block content %}
 <div class="container my-4">
-
   {% set STATUS_LABELS = {
     'PENDING':'معلق','DIAGNOSIS':'تشخيص','IN_PROGRESS':'قيد التنفيذ',
     'COMPLETED':'مكتمل','CANCELLED':'ملغي','ON_HOLD':'مؤجل'
@@ -38,11 +35,7 @@
         {% set st = (service.status.value if service.status is not string else service.status)|upper %}
         <tr>
           <th>الحالة</th>
-          <td>
-            <span class="badge badge-{{ st|lower|replace('_','') }} badge-status">
-              {{ STATUS_LABELS.get(st, st) }}
-            </span>
-          </td>
+          <td><span class="badge badge-{{ st|lower|replace('_','') }} badge-status">{{ STATUS_LABELS.get(st, st) }}</span></td>
         </tr>
         <tr><th>تاريخ الاستلام</th><td>{{ service.received_at and service.received_at.strftime('%Y-%m-%d') or '—' }}</td></tr>
         <tr><th>بدأت</th><td>{{ service.started_at and service.started_at.strftime('%Y-%m-%d %H:%M') or '—' }}</td></tr>
@@ -52,8 +45,6 @@
     <div class="col-md-6">
       <strong>وصف المشكلة:</strong>
       <div class="border p-2 mb-2">{{ service.problem_description or '—' }}</div>
-      <strong>ملاحظات المهندس/التشخيص:</strong>
-      <div class="border p-2 mb-2">{{ service.diagnosis or service.engineer_notes or '—' }}</div>
       <strong>ملاحظات إضافية:</strong>
       <div class="border p-2 bg-light">{{ service.description or '—' }}</div>
     </div>
@@ -63,7 +54,6 @@
     <a href="{{ url_for('service.add_payment', rid=service.id) }}" class="btn btn-primary">
       <i class="fas fa-cash-register"></i> تسجيل دفعة
     </a>
-
     <form class="d-inline" method="post" action="{{ url_for('service.toggle_service', rid=service.id, action='start') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="btn btn-outline-info"><i class="fas fa-play"></i> بدء الصيانة</button>
@@ -72,20 +62,12 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="btn btn-outline-success"><i class="fas fa-check"></i> إكمال الصيانة</button>
     </form>
-
     <button id="previewReceiptBtn" data-url="{{ url_for('service.view_receipt', rid=service.id) }}" class="btn btn-info">
       <i class="fas fa-eye"></i> معاينة الإيصال
     </button>
-    <a href="{{ url_for('service.export_pdf', rid=service.id) }}" target="_blank" class="btn btn-dark">
-      <i class="fas fa-file-pdf"></i> طباعة PDF
-    </a>
     <button id="printReceiptBtn" data-url="{{ url_for('service.view_receipt', rid=service.id) }}" class="btn btn-secondary">
       <i class="fas fa-print"></i> طباعة مباشرة
     </button>
-    <a href="{{ url_for('service.download_receipt', rid=service.id) }}" class="btn btn-outline-primary">
-      <i class="fas fa-download"></i> تحميل إيصال (PDF)
-    </a>
-
     {% if current_user.has_permission('manage_service') %}
     <form action="{{ url_for('service.delete_request', rid=service.id) }}" method="post" class="d-inline">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -94,7 +76,25 @@
     {% endif %}
   </div>
 
-  {# جداول #}
+  {% if current_user.has_permission('manage_service') %}
+  <div class="card mb-3 shadow-sm">
+    <div class="card-header bg-light fw-bold"><i class="fa fa-sticky-note"></i> ملاحظات المهندس/التشخيص</div>
+    <div class="card-body">
+      <form method="post" action="{{ url_for('service.update_diagnosis', rid=service.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <textarea class="form-control" name="diagnosis" rows="3">{{ service.diagnosis or service.engineer_notes or '' }}</textarea>
+        <input type="hidden" name="problem_description" value="{{ service.problem_description or '' }}">
+        <input type="hidden" name="resolution" value="{{ service.resolution or '' }}">
+        <input type="hidden" name="estimated_duration" value="{{ service.estimated_duration or '' }}">
+        <input type="hidden" name="estimated_cost" value="{{ service.estimated_cost or '' }}">
+        <div class="mt-2 text-end">
+          <button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> حفظ الملاحظات</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
   <div class="mb-3">{% include 'service/_parts_table.html' %}</div>
 
   {% if current_user.has_permission('manage_service') %}
@@ -129,14 +129,6 @@
         <label class="form-label">ضريبة %</label>
         <input type="number" class="form-control" name="tax_rate" step="0.01" min="0">
       </div>
-      <div class="col-md-3">
-        <label class="form-label">الشريك</label>
-        <select class="form-select select2" name="partner_id" data-endpoint="{{ url_for('api.partners') }}"></select>
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">نسبة الشريك %</label>
-        <input type="number" class="form-control" name="share_percentage" step="0.01" min="0" max="100">
-      </div>
       <div class="col-md-5">
         <label class="form-label">ملاحظة</label>
         <input type="text" class="form-control" name="note">
@@ -150,106 +142,50 @@
   {% endif %}
 
   <div class="mb-3">{% include 'service/_tasks_table.html' %}</div>
-
-  {% if current_user.has_permission('manage_service') %}
-  <form method="post" action="{{ url_for('service.add_task', rid=service.id) }}" class="border rounded p-3 mb-3" id="form-add-task">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div class="row g-2 align-items-end">
-      <div class="col-md-6">
-        <label class="form-label">الوصف</label>
-        <input type="text" class="form-control" name="description" required>
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">الكمية</label>
-        <input type="number" class="form-control" name="quantity" min="1" value="1" required>
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">سعر الوحدة</label>
-        <input type="number" class="form-control" name="unit_price" step="0.01" min="0" required>
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">خصم %</label>
-        <input type="number" class="form-control" name="discount" step="0.01" min="0">
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">ضريبة %</label>
-        <input type="number" class="form-control" name="tax_rate" step="0.01" min="0">
-      </div>
-      <div class="col-auto">
-        <label class="form-label d-block">&nbsp;</label>
-        <button class="btn btn-success"><i class="fas fa-plus-circle"></i> إضافة مهمة</button>
-      </div>
-    </div>
-  </form>
-  {% endif %}
-
   <div class="mb-3">{% include 'service/_payments_table.html' %}</div>
   <div class="mb-3">{% include 'service/_summary_card.html' %}</div>
-
 </div>
 {% endblock %}
 
 {% block scripts %}
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  {# Select2 JS قبل service.js #}
   <script src="{{ url_for('static', filename='adminlte/plugins/select2/js/select2.full.min.js') }}"></script>
   <script src="{{ url_for('static', filename='js/service.js') }}"></script>
-
   <script>
     document.addEventListener("DOMContentLoaded", function(){
-      // فحص وتحميل Select2
-      if (!window.jQuery || !jQuery.fn.select2) {
-        console.warn('Select2 لم يُحمّل. تأكد من المسارات إلى ملفات CSS/JS.');
-      } else {
-        $('.select2').select2({ theme: 'bootstrap4', width: '100%' });
+      if (!window.jQuery || !jQuery.fn.select2) return;
+      $('.select2').select2({ theme: 'bootstrap4', width: '100%' });
 
-        // ربط اختيار المستودع: تحميل منتجات المستودع
-        const $wh = $('#warehouse_id');
-        const $part = $('#part_id');
-        $wh.on('change', function(){
-          const wid = $(this).val();
-          const base = $part.data('endpoint-by-warehouse'); // مثال: /api/warehouses/0/products
-          const url = base.replace(/\/0(\/)?$/, '') + '/' + wid + '/products';
-          $part.empty();
-          $.getJSON(url, function(rows){
-            rows.forEach(r => {
-              const label = r.text + (r.available != null ? ` (متاح: ${r.available})` : '');
-              $part.append(new Option(label, r.id));
-            });
-            $part.trigger('change');
+      const $wh = $('#warehouse_id');
+      const $part = $('#part_id');
+
+      $wh.on('change', function(){
+        const wid = $(this).val();
+        const base = $part.data('endpoint-by-warehouse');
+        const url = (base || '').replace(/\/(0|\d+)(?=\/products$)/, '/' + wid);
+        $part.empty();
+        $.getJSON(url, function(rows){
+          rows.forEach(function(r){
+            const label = r.text + (r.available != null ? ' (متاح: ' + r.available + ')' : '');
+            $part.append(new Option(label, r.id));
           });
+          $part.trigger('change');
         });
-
-        // عند اختيار قطعة: جلب السعر المتوفر (اختياري)
-        $part.on('change', function(){
-          const pid = $(this).val();
-          const wid = $wh.val();
-          const infoBase = $part.data('product-info'); // مثال: /api/products/0/info
-          if (pid && infoBase) {
-            const infoUrl = infoBase.replace(/\/0(\/)?info$/, '') + '/' + pid + '/info' + (wid ? `?warehouse_id=${wid}` : '');
-            $.getJSON(infoUrl, function(info){
-              if (info && typeof info.price !== 'undefined') {
-                const $price = $('[name="unit_price"]');
-                if ($price.val() === '' || Number($price.val()) === 0) $price.val(info.price);
-              }
-            });
-          }
-        });
-      }
-
-      // معاينة الإيصال
-      document.getElementById("previewReceiptBtn")?.addEventListener("click", function(){
-        const url = this.dataset.url;
-        if(url){ window.open(url, "_blank"); }
       });
 
-      // طباعة مباشرة
-      document.getElementById("printReceiptBtn")?.addEventListener("click", function(){
-        const url = this.dataset.url;
-        if(url){
-          const win = window.open(url, "_blank");
-          if (win) { win.onload = () => win.print(); }
-        }
+      $part.on('change', function(){
+        const pid = $(this).val();
+        const wid = $wh.val();
+        const infoTpl = $part.data('product-info');
+        if (!pid || !infoTpl) return;
+        const infoUrl = (infoTpl || '').replace(/\/(0|\d+)(?=\/info$)/, '/' + pid) + (wid ? ('?warehouse_id=' + wid) : '');
+        $.getJSON(infoUrl, function(info){
+          if (!info) return;
+          if (typeof info.price !== 'undefined') {
+            const $price = $('[name="unit_price"]');
+            if ($price.val() === '' || Number($price.val()) === 0) $price.val(info.price);
+          }
+        });
       });
     });
   </script>

@@ -1,12 +1,18 @@
-import base64, csv, io, json, re, hashlib, os
+import base64
+import csv
+import hashlib
+import io
+import json
+import os
+import re
 from datetime import datetime
 from functools import wraps
 
+import redis
 from flask import Response, abort, current_app, flash, make_response, request
 from flask_login import current_user, login_required
 from flask_mail import Message
-import redis
-from sqlalchemy import func, case, select
+from sqlalchemy import case, func, select
 from twilio.base.exceptions import TwilioRestException
 from twilio.rest import Client
 
@@ -15,7 +21,6 @@ try:
 except Exception:
     qrcode = None
 
-# ReportLab اختياري
 try:
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import letter
@@ -23,17 +28,15 @@ try:
 except Exception:
     colors = letter = SimpleDocTemplate = Table = TableStyle = None
 
-# تشفير اختياري
 try:
     from cryptography.fernet import Fernet
 except Exception:
     Fernet = None
 
 from extensions import db, mail
-from models import PaymentStatus, Payment, PaymentSplit
+from models import Payment, PaymentSplit, PaymentStatus
 
 redis_client: redis.Redis | None = None
-
 
 # ============================== Object fetch helper ==============================
 
@@ -83,24 +86,41 @@ def send_email_notification(subject, recipients, body, html=None):
     mail.send(Message(subject=subject, recipients=recipients, body=body, html=html))
 
 
-def send_whatsapp_message(to_number, body) -> bool:
+def _to_e164(msisdn: str) -> str | None:
+    s = re.sub(r"\D+", "", msisdn or "")
+    if not s:
+        return None
+    if s.startswith("00"):
+        s = s[2:]
+    cc = str(current_app.config.get("TWILIO_DEFAULT_COUNTRY_CODE") or "").lstrip("+")
+    if s.startswith("0") and cc:
+        s = cc + s[1:]
+    elif cc and not s.startswith(cc) and not msisdn.startswith("+"):
+        s = cc + s
+    return "+" + s
+
+def send_whatsapp_message(to_number, body) -> tuple[bool, str]:
     sid = current_app.config.get("TWILIO_ACCOUNT_SID")
     token = current_app.config.get("TWILIO_AUTH_TOKEN")
     from_number = current_app.config.get("TWILIO_WHATSAPP_NUMBER")
     if not all([sid, token, from_number]):
-        flash("❌ لم يتم تكوين خدمة واتساب. الرجاء مراجعة إعدادات Twilio.", "danger")
-        return False
+        return (False, "Twilio credentials missing")
+    to_e164 = _to_e164(to_number)
+    if not to_e164:
+        return (False, "Invalid recipient number")
     try:
-        Client(sid, token).messages.create(
+        msg = Client(sid, token).messages.create(
             from_=f"whatsapp:{from_number}",
-            to=f"whatsapp:{to_number}",
+            to=f"whatsapp:{to_e164}",
             body=body,
         )
-        return True
+        return (True, msg.sid)
     except TwilioRestException as e:
-        flash(f"❌ خطأ أثناء إرسال واتساب: {str(e)}", "danger")
-        return False
-
+        code = getattr(e, "code", "")
+        msg = getattr(e, "msg", str(e))
+        return (False, f"{code} {msg}")
+    except Exception as e:
+        return (False, str(e))
 
 # ============================== Formatters & Helpers ==============================
 
@@ -162,6 +182,40 @@ def qr_to_base64(value: str) -> str:
     buf.seek(0)
     return base64.b64encode(buf.read()).decode("ascii")
 
+def _get_id(v):
+    if v is None: return None
+    if isinstance(v, int): return v
+    if isinstance(v, str):
+        s = v.strip()
+        if '|' in s: s = s.split('|', 1)[0]
+        try: return int(float(s))
+        except Exception: return None
+    if isinstance(v, dict): return _get_id(v.get('id'))
+    if isinstance(v, (list, tuple)) and v: return _get_id(v[0])
+    return None
+
+def _service_consumes_stock(service=None) -> bool:
+    return bool(current_app.config.get('SERVICE_CONSUMES_STOCK', True))
+
+def _apply_stock_delta(product_id: int, warehouse_id: int, delta: int) -> int:
+    from models import StockLevel
+    delta = int(delta or 0)
+    rec = (StockLevel.query
+           .filter_by(product_id=product_id, warehouse_id=warehouse_id)
+           .with_for_update(read=False)
+           .first())
+    if rec is None:
+        if delta < 0:
+            raise ValueError('insufficient stock')
+        rec = StockLevel(product_id=product_id, warehouse_id=warehouse_id, quantity=0)
+        db.session.add(rec)
+        db.session.flush()
+    new_qty = int(rec.quantity or 0) + delta
+    if new_qty < 0:
+        raise ValueError('insufficient stock')
+    rec.quantity = new_qty
+    db.session.flush()
+    return new_qty
 
 def recent_notes(limit: int = 5):
     from models import Note
@@ -545,13 +599,13 @@ def get_role_permissions(role) -> set:
 
 
 # ============================== Auditing Helpers ==============================
-
+# utils.py — استبدل دوال التدقيق الثلاث
 def log_customer_action(cust, action: str, old_data: dict | None = None, new_data: dict | None = None) -> None:
     from models import AuditLog
-    old_json = json.dumps(old_data, ensure_ascii=False) if old_data else None
-    new_json = json.dumps(new_data, ensure_ascii=False) if new_data else None
+    old_json = json.dumps(old_data, ensure_ascii=False, default=str) if old_data else None
+    new_json = json.dumps(new_data, ensure_ascii=False, default=str) if new_data else None
     entry = AuditLog(
-        timestamp=datetime.utcnow(),
+        created_at=datetime.utcnow(),
         model_name="Customer",
         customer_id=cust.id,
         record_id=cust.id,
@@ -563,52 +617,36 @@ def log_customer_action(cust, action: str, old_data: dict | None = None, new_dat
         user_agent=request.headers.get("User-Agent"),
     )
     db.session.add(entry)
-    db.session.commit()
+    db.session.flush()
 
 def _audit(event: str, *, ok: bool = True, user_id=None, customer_id=None, note: str | None = None, extra: dict | None = None) -> None:
-    try:
-        from models import AuditLog
-        details_old = {"ok": bool(ok)}
-        if note:
-            details_old["note"] = str(note)
-        record_id = None
-        if customer_id is not None:
-            record_id = int(customer_id)
-        elif user_id is not None:
-            record_id = int(user_id)
-
-        old_json = json.dumps(details_old, ensure_ascii=False) if details_old else None
-        new_json = json.dumps(extra, ensure_ascii=False) if extra else None
-
-        entry = AuditLog(
-            timestamp=datetime.utcnow(),
-            model_name="Auth",
-            record_id=record_id,
-            user_id=(user_id if user_id is not None else (getattr(current_user, "id", None) if getattr(current_user, "is_authenticated", False) else None)),
-            action=str(event),
-            old_data=old_json,
-            new_data=new_json,
-            ip_address=request.remote_addr,
-            user_agent=request.headers.get("User-Agent"),
-        )
-        db.session.add(entry)
-        db.session.commit()
-    except Exception:
-        try:
-            db.session.rollback()
-        except Exception:
-            pass
-        try:
-            current_app.logger.warning("audit skipped: event=%s ok=%s note=%s", event, ok, note)
-        except Exception:
-            pass
+    from models import AuditLog
+    details_old = {"ok": bool(ok)}
+    if note:
+        details_old["note"] = str(note)
+    record_id = int(customer_id) if customer_id is not None else (int(user_id) if user_id is not None else None)
+    old_json = json.dumps(details_old, ensure_ascii=False, default=str) if details_old else None
+    new_json = json.dumps(extra, ensure_ascii=False, default=str) if extra else None
+    entry = AuditLog(
+        created_at=datetime.utcnow(),
+        model_name="Auth",
+        record_id=record_id,
+        user_id=(user_id if user_id is not None else (getattr(current_user, "id", None) if getattr(current_user, "is_authenticated", False) else None)),
+        action=str(event),
+        old_data=old_json,
+        new_data=new_json,
+        ip_address=request.remote_addr,
+        user_agent=request.headers.get("User-Agent"),
+    )
+    db.session.add(entry)
+    db.session.flush()
 
 def log_audit(model_name: str, record_id: int, action: str, old_data: dict | None = None, new_data: dict | None = None):
     from models import AuditLog
-    old_json = json.dumps(old_data, ensure_ascii=False) if old_data else None
-    new_json = json.dumps(new_data, ensure_ascii=False) if new_data else None
+    old_json = json.dumps(old_data, ensure_ascii=False, default=str) if old_data else None
+    new_json = json.dumps(new_data, ensure_ascii=False, default=str) if new_data else None
     entry = AuditLog(
-        timestamp=datetime.utcnow(),
+        created_at=datetime.utcnow(),
         model_name=model_name,
         record_id=record_id,
         user_id=(current_user.id if getattr(current_user, "is_authenticated", False) else None),
@@ -619,8 +657,7 @@ def log_audit(model_name: str, record_id: int, action: str, old_data: dict | Non
         user_agent=request.headers.get("User-Agent"),
     )
     db.session.add(entry)
-    db.session.commit()
-
+    db.session.flush()
 
 # ============================== Payments & Forms ==============================
 

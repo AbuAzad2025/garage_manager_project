@@ -111,6 +111,8 @@
     function bindRow(row){
       const rm = row.querySelector('.remove-line');
       if(rm) on(rm,'click',()=>removeLine(row));
+      const priceInp = row.querySelector('input[name$="-unit_price"]');
+      if(priceInp){on(priceInp,'input',()=>{row.dataset.priceManual='1';recalc();});}
       const nums = qsa('.quantity-input,.price-input,.discount-input,.tax-input',row);
       nums.forEach(el=>{ on(el,'input',recalc); on(el,'change',recalc); });
       select2Ready.then(()=>{
@@ -133,12 +135,22 @@
             endpoint: () => endpoint,
             placeholder: $pd.data('placeholder') || 'اختر الصنف'
           });
-          $pd.on('select2:select', (e) => {
+          $pd.on('select2:select', async (e) => {
             const data = e.params?.data || {};
-            const priceInp = row.querySelector('input[name$="-unit_price"]');
-            if (priceInp && !priceInp.value && typeof data.price !== 'undefined') {
-              const p = toNum(data.price);
-              if (p>0) { priceInp.value = p.toFixed(2); recalc(); }
+            if (priceInp && row.dataset.priceManual!=='1') {
+              if (typeof data.price!=='undefined') {
+                const p = toNum(data.price);
+                if(p>0){priceInp.value=p.toFixed(2);recalc();}
+              } else {
+                const pid = +$pd.val(); const wid = +$wh.val();
+                if(pid && wid){
+                  try{
+                    const res=await fetch(`/api/products/${pid}/info?warehouse_id=${wid}`,{headers:{'Accept':'application/json'}});
+                    const info=await res.json();
+                    if(info && info.price && toNum(info.price)>0){priceInp.value=toNum(info.price).toFixed(2);recalc();}
+                  }catch(_){}
+                }
+              }
             }
             updateAvailability();
           });

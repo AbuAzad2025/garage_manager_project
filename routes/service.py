@@ -33,6 +33,9 @@ from forms import (
 from utils import (
     permission_required,
     send_whatsapp_message,
+    _get_id,
+    _apply_stock_delta,
+    _service_consumes_stock,
 )
 
 service_bp = Blueprint('service', __name__, url_prefix='/service')
@@ -332,23 +335,6 @@ def export_requests_csv():
     return send_file(bio, as_attachment=True, download_name=filename,
                      mimetype="text/csv; charset=utf-8")
 
-@service_bp.route('/export/pdf', methods=['GET'])
-@login_required
-@permission_required('manage_service')
-def export_requests_pdf():
-    services = _build_list_query().all()
-    rows = [_row_dict(sr) for sr in services]
-    # نرجّع HTML مُهيّأ للطباعة (Ctrl+P → Save as PDF)
-    html = render_template(
-        'service/export_pdf.html',
-        title="تقرير طلبات الصيانة",
-        generated_at=datetime.now(),
-        rows=rows
-    )
-    resp = make_response(html)
-    resp.headers["Content-Type"] = "text/html; charset=utf-8"
-    return resp
-
 @service_bp.route('/dashboard')
 @login_required
 @permission_required('manage_service')
@@ -409,7 +395,6 @@ def create_request():
         pass
 
     if form.validate_on_submit():
-        # تحديد العميل: مختار من القائمة أو إنشاء جديد من CustomerForm
         if form.customer_id.data:
             customer = db.session.get(Customer, _get_id(form.customer_id.data))
         else:
@@ -424,20 +409,13 @@ def create_request():
         service = ServiceRequest(
             service_number=f"SRV-{datetime.utcnow():%Y%m%d%H%M%S}",
             customer_id=customer.id,
-
             vehicle_vrn=form.vehicle_vrn.data,
             vehicle_type_id=_get_id(form.vehicle_type_id.data) if form.vehicle_type_id.data else None,
             vehicle_model=form.vehicle_model.data,
             chassis_number=form.chassis_number.data,
-
             problem_description=form.problem_description.data,
-            engineer_notes=form.engineer_notes.data,
-            description=form.description.data,
-
             priority=getattr(ServicePriority, (form.priority.data or 'MEDIUM').upper()),
             estimated_duration=form.estimated_duration.data,
-            estimated_cost=form.estimated_cost.data,
-            tax_rate=form.tax_rate.data or 0,
             status=getattr(ServiceStatus, (form.status.data or 'PENDING').upper()),
             received_at=datetime.utcnow(),
         )
@@ -571,10 +549,9 @@ def add_part(rid):
     form = ServicePartForm()
     if form.validate_on_submit():
         warehouse_id = _get_id(form.warehouse_id.data)
-        product_id   = _get_id(form.part_id.data)
-        partner_id   = _get_id(form.partner_id.data) if form.partner_id.data else None
-
+        product_id = _get_id(form.part_id.data)
         part = ServicePart(
+            request=service,
             service_id=rid,
             part_id=product_id,
             warehouse_id=warehouse_id,
@@ -582,12 +559,12 @@ def add_part(rid):
             unit_price=form.unit_price.data,
             discount=form.discount.data or 0,
             tax_rate=form.tax_rate.data or 0,
-            partner_id=partner_id,
-            share_percentage=form.share_percentage.data or 0,
             note=form.note.data
         )
         db.session.add(part)
         try:
+            db.session.flush()
+            service.updated_at = datetime.utcnow()
             if _service_consumes_stock(service):
                 _apply_stock_delta(product_id, warehouse_id, -int(form.quantity.data or 0))
             db.session.commit()
@@ -611,6 +588,7 @@ def delete_part(pid):
         if _service_consumes_stock(service):
             _apply_stock_delta(part.part_id, part.warehouse_id, +int(part.quantity or 0))
         db.session.delete(part)
+        service.updated_at = datetime.utcnow()
         db.session.commit()
         flash('✅ تم حذف القطعة ومعالجة المخزون', 'success')
     except SQLAlchemyError as e:
@@ -623,33 +601,44 @@ def delete_part(pid):
 @login_required
 @permission_required('manage_service')
 def add_task(rid):
+    service = _get_or_404(ServiceRequest, rid)
     form = ServiceTaskForm()
+    form.service_id.data = rid
     if form.validate_on_submit():
         task = ServiceTask(
+            request=service,
             service_id=rid,
             description=form.description.data,
             quantity=form.quantity.data or 1,
             unit_price=form.unit_price.data,
             discount=form.discount.data or 0,
             tax_rate=form.tax_rate.data or 0,
-            note=form.note.data,
-            partner_id=_get_id(form.partner_id.data) if getattr(form, "partner_id", None) and form.partner_id.data else None,
-            share_percentage=form.share_percentage.data or 0
+            note=form.note.data
         )
         db.session.add(task)
         try:
-            db.session.commit(); flash('✅ تمت إضافة المهمة', 'success')
+            db.session.flush()
+            service.updated_at = datetime.utcnow()
+            db.session.commit()
+            flash('✅ تمت إضافة المهمة', 'success')
         except SQLAlchemyError as e:
-            db.session.rollback(); flash(f'❌ خطأ: {str(e)}', 'danger')
+            db.session.rollback()
+            flash(f'❌ خطأ: {str(e)}', 'danger')
+    else:
+        flash('❌ تحقق من الحقول المدخلة', 'danger')
     return redirect(url_for('service.view_request', rid=rid))
+
 
 @service_bp.route('/tasks/<int:tid>/delete', methods=['POST'])
 @login_required
 @permission_required('manage_service')
 def delete_task(tid):
-    task = _get_or_404(ServiceTask, tid); rid = task.service_id
+    task = _get_or_404(ServiceTask, tid)
+    rid = task.service_id
+    service = _get_or_404(ServiceRequest, rid)
     db.session.delete(task)
     try:
+        service.updated_at = datetime.utcnow()
         db.session.commit(); flash('✅ تم حذف المهمة', 'success')
     except SQLAlchemyError as e:
         db.session.rollback(); flash(f'❌ خطأ: {str(e)}', 'danger')

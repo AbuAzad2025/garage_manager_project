@@ -1,4 +1,3 @@
-// File: static/js/service.js
 (function () {
   'use strict';
 
@@ -105,8 +104,8 @@
     if (!infoTpl || !pid || !$price.length) return;
 
     var $wh = $scope.find('select[name="warehouse_id"]');
-    var wid = $wh.val() ? ('?warehouse_id=' + encodeURIComponent($wh.val())) : '';
-    var url = infoTpl.replace(/0$/, String(pid)) + wid;
+    var widParam = $wh.val() ? ('?warehouse_id=' + encodeURIComponent($wh.val())) : '';
+    var url = (infoTpl || '').replace(/\/(0|\d+)(?=\/info(?:\/)?$)/, '/' + String(pid)) + widParam;
 
     fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
       .then(function (r) { return r.ok ? r.json() : null; })
@@ -127,6 +126,7 @@
   }
 
   function bindWarehouseProductCascade($scope) {
+    if ($scope.data('cascade-bound')) return;
     var $wh = $scope.find('select[name="warehouse_id"]');
     var $pr = $scope.find('select[name="part_id"]');
 
@@ -137,7 +137,7 @@
 
     function initProductsForWarehouse(wid) {
       if (!prEndpointTemplate) return;
-      var url = prEndpointTemplate.replace(/0$/, String(wid));
+      var url = (prEndpointTemplate || '').replace(/\/(0|\d+)(?=\/products(?:\/)?$)/, '/' + String(wid));
       if ($pr.data('select2')) $pr.select2('destroy');
       $pr.val(null).trigger('change');
       initSelect2Ajax($pr, url);
@@ -154,6 +154,8 @@
     });
 
     $pr.on('select2:select change', function () { fetchAndFillUnitPrice($scope); });
+
+    $scope.data('cascade-bound', true);
   }
 
   function bootSelect2Auto() {

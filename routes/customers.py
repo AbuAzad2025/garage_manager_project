@@ -1,34 +1,35 @@
 import csv
+import decimal
 import io
 import json
 import re
-import decimal
-from decimal import Decimal
 from datetime import datetime
+from decimal import Decimal
 from functools import wraps
+
+from datetime import datetime as _dt
 from dateutil.relativedelta import relativedelta
 
 from flask import (
-    Blueprint, flash, jsonify, redirect,
-    render_template, request, Response,
-    url_for, abort, current_app
+    Blueprint, Response, abort, current_app, flash,
+    jsonify, redirect, render_template, request,
+    url_for
 )
 from flask_login import current_user, login_required
-from sqlalchemy import or_, func
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+
+from sqlalchemy import func, or_
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from extensions import db
 from forms import CustomerForm, CustomerImportForm, ExportContactsForm
 from models import (
-    Customer, AuditLog, Invoice,
-    Payment, Sale, SaleLine,
-    Product, ProductCategory
+    AuditLog, Customer, Invoice, Payment,
+    Product, ProductCategory, Sale, SaleLine
 )
 from utils import (
-    permission_required, send_whatsapp_message,
-    generate_pdf_report, generate_excel_report,
-    generate_vcf, generate_csv_contacts,
-    generate_excel_contacts
+    generate_csv_contacts, generate_excel_contacts,
+    generate_excel_report, generate_pdf_report,
+    generate_vcf, permission_required, send_whatsapp_message
 )
 
 customers_bp = Blueprint(
@@ -76,21 +77,22 @@ def rate_limit(max_attempts=5, window=60):
 def _serialize_dates(d):
     return {k: (v.isoformat() if isinstance(v, datetime) else v) for k, v in d.items()}
 
-from datetime import datetime as _dt
+# ---------------------- Helpers ----------------------
 def log_customer_action(cust, action, old_data=None, new_data=None):
-    old_json = json.dumps(old_data, ensure_ascii=False) if old_data else None
+    old_json = json.dumps(old_data, ensure_ascii=False, cls=CustomEncoder) if old_data else None
     new_json = json.dumps(new_data, ensure_ascii=False, cls=CustomEncoder) if new_data else None
+
     entry = AuditLog(
-        timestamp   = _dt.utcnow(),
-        model_name  = 'Customer',
-        customer_id = cust.id,
-        record_id   = cust.id,
-        user_id     = current_user.id if getattr(current_user, 'is_authenticated', False) else None,
-        action      = action,
-        old_data    = old_json,
-        new_data    = new_json,
-        ip_address  = request.remote_addr,
-        user_agent  = request.headers.get('User-Agent'),
+        created_at=_dt.utcnow(),
+        model_name='Customer',
+        customer_id=cust.id,
+        record_id=cust.id,
+        user_id=current_user.id if getattr(current_user, 'is_authenticated', False) else None,
+        action=action,
+        old_data=old_json,
+        new_data=new_json,
+        ip_address=request.remote_addr,
+        user_agent=request.headers.get('User-Agent'),
     )
     db.session.add(entry)
     db.session.flush()
@@ -189,7 +191,6 @@ def customer_analytics(customer_id):
         payments_months=payments_months
     )
 
-# ---------------------- Create / Edit / Delete ----------------------
 @customers_bp.route('/create', methods=['GET'], endpoint='create_form')
 @login_required
 @permission_required('manage_customers')
@@ -202,16 +203,15 @@ def create_form():
     return_to = request.args.get('return_to') or None
     return render_template('customers/new.html', form=form, return_to=return_to)
 
+# ---------------------- Create ----------------------
 @customers_bp.route('/create', methods=['POST'], endpoint='create_customer')
 @login_required
 @permission_required('manage_customers')
 def create_customer():
     form = CustomerForm()
-    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or \
-              request.accept_mimetypes.best == 'application/json'
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.best == 'application/json'
 
     if not form.validate_on_submit():
-        # تحضير رسالة أخطاء مفهومة
         errs = {k: v for k, v in form.errors.items()}
         if is_ajax:
             return jsonify({"ok": False, "errors": errs, "message": "تحقق من الحقول"}), 400
@@ -237,11 +237,13 @@ def create_customer():
         cust.set_password(form.password.data)
 
     db.session.add(cust)
+    db.session.flush()
+
     try:
+        log_customer_action(cust, 'CREATE', None, cust.to_dict() if hasattr(cust, 'to_dict') else form.data)
         db.session.commit()
     except IntegrityError as e:
         db.session.rollback()
-        # حاول نستنتج الحقل المتكرر
         msg = "بريد أو هاتف مكرر"
         detail = str(getattr(e, "orig", e))
         field_errs = {}
@@ -249,7 +251,6 @@ def create_customer():
             field_errs["email"] = ["هذا البريد مستخدم مسبقًا"]
         if "phone" in detail.lower() or "whatsapp" in detail.lower():
             field_errs["phone"] = ["هذا الهاتف مستخدم مسبقًا"]
-
         if is_ajax:
             return jsonify({"ok": False, "message": msg, "errors": field_errs}), 409
         flash(f'{msg} (Unique constraint).', 'danger')
@@ -261,10 +262,7 @@ def create_customer():
         flash(f'❌ خطأ أثناء إضافة العميل: {e}', 'danger')
         return render_template('customers/new.html', form=form, return_to=request.form.get('return_to')), 500
 
-    log_customer_action(cust, 'CREATE', None, form.data)
-
     if is_ajax:
-        # الشكل المتوقَّع من الواجهة
         return jsonify({"ok": True, "id": cust.id, "text": cust.name}), 201
 
     flash('تم إنشاء العميل بنجاح', 'success')
@@ -273,49 +271,63 @@ def create_customer():
         return redirect(return_to)
     return redirect(url_for('customers_bp.list_customers'))
 
-
+# ---------------------- Edit ----------------------
 @customers_bp.route('/<int:customer_id>/edit', methods=['GET', 'POST'], endpoint='edit_customer')
 @login_required
 @permission_required('manage_customers')
 def edit_customer(customer_id):
     cust = db.session.get(Customer, customer_id) or abort(404)
     form = CustomerForm(obj=cust)
+
     if request.method == 'POST':
         if form.validate_on_submit():
             old = cust.to_dict() if hasattr(cust, 'to_dict') else None
+
             if getattr(form, 'password', None) and form.password.data:
                 cust.set_password(form.password.data)
-            cust.name           = form.name.data
-            cust.phone          = form.phone.data
-            cust.email          = form.email.data
-            cust.address        = form.address.data
-            cust.whatsapp       = form.whatsapp.data
-            cust.category       = form.category.data
-            cust.credit_limit   = form.credit_limit.data or 0
-            cust.discount_rate  = form.discount_rate.data or 0
-            cust.is_active      = form.is_active.data
-            cust.is_online      = form.is_online.data
-            cust.notes          = form.notes.data
+
+            cust.name = form.name.data
+            cust.phone = form.phone.data
+            cust.email = form.email.data
+            cust.address = form.address.data
+            cust.whatsapp = form.whatsapp.data
+            cust.category = form.category.data
+            cust.credit_limit = form.credit_limit.data or 0
+            cust.discount_rate = form.discount_rate.data or 0
+            cust.is_active = form.is_active.data
+            cust.is_online = form.is_online.data
+            cust.notes = form.notes.data
+
             try:
+                # سجّل اللوج قبل الكومِت
+                log_customer_action(
+                    cust, 'UPDATE',
+                    old,
+                    cust.to_dict() if hasattr(cust, 'to_dict') else None
+                )
                 db.session.commit()
+
             except IntegrityError:
                 db.session.rollback()
                 flash('بريد أو هاتف مكرر (Unique constraint).', 'danger')
                 current_app.logger.exception("IntegrityError while editing customer")
                 return render_template('customers/edit.html', form=form, customer=cust), 409
+
             except SQLAlchemyError as e:
                 db.session.rollback()
                 flash(f'❌ خطأ أثناء تعديل العميل: {e}', 'danger')
                 current_app.logger.exception("SQLAlchemyError while editing customer")
                 return render_template('customers/edit.html', form=form, customer=cust), 500
-            log_customer_action(cust, 'UPDATE', old, cust.to_dict() if hasattr(cust, 'to_dict') else None)
+
             flash('تم تعديل بيانات العميل', 'success')
             return redirect(url_for('customers_bp.customer_detail', customer_id=customer_id))
+
         current_app.logger.warning("CustomerForm errors (edit): %s", form.errors)
         if form.errors:
             msgs = '; '.join(f"{k}: {', '.join(v)}" for k, v in form.errors.items())
             flash(f"تحقق من الحقول: {msgs}", "warning")
         return render_template('customers/edit.html', form=form, customer=cust), 400
+
     return render_template('customers/edit.html', form=form, customer=cust)
 
 @customers_bp.route('/<int:id>/delete', methods=['POST'])
@@ -334,7 +346,6 @@ def delete_customer(id):
         db.session.rollback()
         flash(f"❌ خطأ أثناء حذف العميل: {e}", "danger")
     return redirect(url_for("customers_bp.list_customers"))
-
 # ---------------------- Import ----------------------
 @customers_bp.route('/import', methods=['GET', 'POST'], endpoint='import_customers')
 @login_required
@@ -433,16 +444,20 @@ def import_customers():
     return redirect(url_for('customers_bp.list_customers'))
 
 # ---------------------- Messaging ----------------------
+# routes/customers.py — حدّث مسار واتساب لقراءة نتيجة الإرسال
 @customers_bp.route('/<int:customer_id>/send_whatsapp', methods=['GET'], endpoint='customer_whatsapp')
 @login_required
 @permission_required('manage_customers')
 def customer_whatsapp(customer_id):
     c = db.session.get(Customer, customer_id) or abort(404)
-    if c.whatsapp:
-        send_whatsapp_message(c.whatsapp, f"رصيدك الحالي: {getattr(c, 'balance', 0):,.2f}")
+    if not c.whatsapp:
+        flash('لا يوجد رقم واتساب للعميل', 'warning')
+        return redirect(url_for('customers_bp.customer_detail', customer_id=customer_id))
+    ok, info = send_whatsapp_message(c.whatsapp, f"رصيدك الحالي: {getattr(c, 'balance', 0):,.2f}")
+    if ok:
         flash('تم إرسال رسالة واتساب', 'success')
     else:
-        flash('لا يوجد رقم واتساب للعميل', 'warning')
+        flash(f'خطأ أثناء إرسال واتساب: {info}', 'danger')
     return redirect(url_for('customers_bp.customer_detail', customer_id=customer_id))
 
 # ---------------------- VCF (single) ----------------------
@@ -468,7 +483,7 @@ def export_customer_vcf(customer_id):
 # ---------------------- Account Statement ----------------------
 @customers_bp.route('/<int:customer_id>/account_statement', methods=['GET'], endpoint='account_statement')
 @login_required
-@permission_required('manage_customengers')
+@permission_required('manage_customers')
 def account_statement(customer_id):
     c = db.session.get(Customer, customer_id) or abort(404)
     invoices = Invoice.query.filter_by(customer_id=customer_id).order_by(Invoice.invoice_date).all()
@@ -487,7 +502,6 @@ def account_statement(customer_id):
         total_payments=total_pay,
         balance=balance
     )
-
 # ---------------------- API ----------------------
 @customers_bp.route('/api/all', methods=['GET'], endpoint='api_customers')
 @login_required

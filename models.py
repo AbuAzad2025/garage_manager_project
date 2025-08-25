@@ -2517,6 +2517,12 @@ def _sync_loan_on_settlement(mapper, connection, target: 'SupplierLoanSettlement
                 is_settled=True
             )
         )
+from decimal import Decimal
+from datetime import datetime, timedelta
+from sqlalchemy import event, text, func, case
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import validates, object_session
+
 # ===================== Service =====================
 class ServiceRequest(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = "service_requests"
@@ -2542,7 +2548,6 @@ class ServiceRequest(db.Model, TimestampMixin, AuditMixin):
         index=True,
     )
 
-    # معلومات إضافية
     vehicle_vrn        = db.Column(db.String(50))
     vehicle_model      = db.Column(db.String(100))
     chassis_number     = db.Column(db.String(100))
@@ -2555,7 +2560,6 @@ class ServiceRequest(db.Model, TimestampMixin, AuditMixin):
     start_time         = db.Column(db.Date)
     end_time           = db.Column(db.Date)
 
-    # معلومات العمل الفني
     problem_description = db.Column(db.Text)
     diagnosis           = db.Column(db.Text)
     resolution          = db.Column(db.Text)
@@ -2588,7 +2592,6 @@ class ServiceRequest(db.Model, TimestampMixin, AuditMixin):
         db.Index("ix_service_mechanic_status", "mechanic_id", "status"),
     )
 
-    # -------------------- Normalization --------------------
     @validates("status", "priority")
     def _v_enum_strings(self, _, v):
         return getattr(v, "value", v)
@@ -2597,12 +2600,9 @@ class ServiceRequest(db.Model, TimestampMixin, AuditMixin):
     def _v_currency(self, _, v):
         return (v or "ILS").upper()
 
-    # -------------------- Properties --------------------
     @hybrid_property
     def subtotal(self):
-        parts_sum = sum(float(p.line_total or 0) for p in self.parts or [])
-        tasks_sum = sum(float(t.line_total or 0) for t in self.tasks or [])
-        return parts_sum + tasks_sum
+        return float(self.parts_total or 0) + float(self.labor_total or 0)
 
     @hybrid_property
     def tax_amount(self):
@@ -2611,6 +2611,8 @@ class ServiceRequest(db.Model, TimestampMixin, AuditMixin):
 
     @hybrid_property
     def total(self):
+        if self.total_amount is not None:
+            return float(self.total_amount)
         return self.subtotal + self.tax_amount - float(self.discount_total or 0)
 
     @hybrid_property
@@ -2619,14 +2621,15 @@ class ServiceRequest(db.Model, TimestampMixin, AuditMixin):
             db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
             .filter(
                 Payment.service_id == self.id,
-                Payment.status == PaymentStatus.COMPLETED.value,
-                Payment.direction == PaymentDirection.INCOMING.value,
+                Payment.status == 'COMPLETED',
+                Payment.direction == 'IN',
             ).scalar()
         )
 
     @hybrid_property
     def balance_due(self):
-        return self.total - self.total_paid
+        val = self.total - self.total_paid
+        return val if val > 0 else 0.0
 
     @hybrid_property
     def warranty_until(self):
@@ -2635,7 +2638,6 @@ class ServiceRequest(db.Model, TimestampMixin, AuditMixin):
         anchor = self.completed_at or self.updated_at or self.created_at
         return anchor + timedelta(days=self.warranty_days) if anchor else None
 
-    # -------------------- State Methods --------------------
     def mark_started(self):
         if not self.started_at:
             self.started_at = datetime.utcnow()
@@ -2684,35 +2686,66 @@ class ServiceRequest(db.Model, TimestampMixin, AuditMixin):
             "tasks": [t.to_dict() for t in self.tasks] if self.tasks else [],
         }
 
-# -------------------- Helpers --------------------
-def _recalc_service_request_totals(sr: "ServiceRequest"):
-    """يُعاد حساب الإجماليات ويُكتب في حقول ServiceRequest (يُستدعى من أجزاء/مهام)."""
+def _D(x):
     try:
-        parts_sum = sum(q(p.line_total) for p in sr.parts or [])
-        tasks_sum = sum(q(t.line_total) for t in sr.tasks or [])
+        return Decimal(str(x))
     except Exception:
-        parts_sum = q(sr.parts_total)
-        tasks_sum = q(sr.labor_total)
+        return Decimal("0")
 
-    sr.parts_total = q(parts_sum)
-    sr.labor_total = q(tasks_sum)
+def _calc_parts_sum(service_id: int) -> Decimal:
+    rows = db.session.query(
+        ServicePart.quantity, ServicePart.unit_price, ServicePart.discount, ServicePart.tax_rate
+    ).filter(ServicePart.service_id == service_id).all()
+    total = Decimal("0")
+    for q, u, d, t in rows:
+        qd = _D(q)
+        ud = _D(u)
+        dd = _D(d) / Decimal("100")
+        td = _D(t) / Decimal("100")
+        gross = qd * ud
+        taxable = gross * (Decimal("1") - dd)
+        line_total = taxable * (Decimal("1") + td)
+        total += line_total
+    return total
 
-    base = (parts_sum + tasks_sum) - q(sr.discount_total)
+def _calc_tasks_sum(service_id: int) -> Decimal:
+    rows = db.session.query(
+        ServiceTask.quantity, ServiceTask.unit_price, ServiceTask.discount, ServiceTask.tax_rate
+    ).filter(ServiceTask.service_id == service_id).all()
+    total = Decimal("0")
+    for q, u, d, t in rows:
+        qd = _D(q)
+        ud = _D(u)
+        dd = _D(d) / Decimal("100")
+        td = _D(t) / Decimal("100")
+        gross = qd * ud
+        taxable = gross * (Decimal("1") - dd)
+        line_total = taxable * (Decimal("1") + td)
+        total += line_total
+    return total
+
+def _recalc_service_request_totals(sr: "ServiceRequest"):
+    parts_sum = _calc_parts_sum(sr.id)
+    tasks_sum = _calc_tasks_sum(sr.id)
+    discount_total = _D(sr.discount_total)
+    tax_rate = _D(sr.tax_rate) / Decimal("100")
+    sr.parts_total = parts_sum
+    sr.labor_total = tasks_sum
+    base = parts_sum + tasks_sum - discount_total
     if base < 0:
-        base = Decimal("0.00")
-    tax = q(base * q(sr.tax_rate) / Decimal("100"))
-    sr.total_amount = q(base + tax)
+        base = Decimal("0")
+    tax = base * tax_rate
+    sr.total_amount = base + tax
+    sr.currency = (sr.currency or "ILS").upper()
 
 def _service_consumes_stock(sr: "ServiceRequest") -> bool:
     st = (getattr(sr.status, "value", sr.status) or "").upper()
     return st in ("IN_PROGRESS", "COMPLETED")
 
-# -------------------- Events (ServiceRequest) --------------------
 @event.listens_for(ServiceRequest, "before_insert")
 @event.listens_for(ServiceRequest, "before_update")
 def _compute_service_totals(mapper, connection, target: ServiceRequest):
     _recalc_service_request_totals(target)
-    target.currency = (target.currency or "ILS").upper()
 
 @event.listens_for(ServiceRequest, "before_insert")
 def _ensure_service_number(mapper, connection, target: ServiceRequest):
@@ -2744,7 +2777,6 @@ class ServicePart(db.Model):
     discount = db.Column(db.Numeric(5, 2), default=0)
     tax_rate = db.Column(db.Numeric(5, 2), default=0)
     note = db.Column(db.String(200))
-
     partner_id = db.Column(db.Integer, db.ForeignKey('partners.id'), index=True)
     share_percentage = db.Column(db.Numeric(5, 2), default=0)
 
@@ -2819,6 +2851,15 @@ class ServicePart(db.Model):
     def __repr__(self):
         pname = getattr(self.part, "name", None)
         return f"<ServicePart {pname or self.part_id} for Service {self.service_id}>"
+
+@event.listens_for(ServicePart, 'after_insert')
+@event.listens_for(ServicePart, 'after_update')
+@event.listens_for(ServicePart, 'after_delete')
+def _sp_changed(mapper, connection, target):
+    sess = object_session(target) or db.session
+    sr = sess.get(ServiceRequest, target.service_id)
+    if sr:
+        _recalc_service_request_totals(sr)
 
 # ===================== Service Tasks =====================
 class ServiceTask(db.Model):
@@ -2902,6 +2943,14 @@ class ServiceTask(db.Model):
     def __repr__(self):
         return f"<ServiceTask {self.description} for Service {self.service_id}>"
 
+@event.listens_for(ServiceTask, 'after_insert')
+@event.listens_for(ServiceTask, 'after_update')
+@event.listens_for(ServiceTask, 'after_delete')
+def _st_changed(mapper, connection, target):
+    sess = object_session(target) or db.session
+    sr = sess.get(ServiceRequest, target.service_id)
+    if sr:
+        _recalc_service_request_totals(sr)
 
 # -------------------- Events: Sync totals + stock on parts/tasks --------------------
 def _maybe_apply_part_stock(connection, sp: ServicePart, sign: int):

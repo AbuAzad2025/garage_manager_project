@@ -22,7 +22,6 @@
   <form method="POST" id="serviceForm" autocomplete="off" action="{{ url_for('service.create_request') }}">
     {{ form.hidden_tag() }}
 
-    <!-- اختيار العميل -->
     <div class="row">
       <div class="col-md-6 mb-3">
         {{ form.customer_id.label(class="form-label") }}
@@ -37,7 +36,6 @@
       </div>
     </div>
 
-    <!-- بيانات المركبة -->
     <div class="row">
       <div class="col-md-3 mb-3">
         {{ form.vehicle_type_id.label(class="form-label") }}
@@ -63,44 +61,23 @@
       </div>
     </div>
 
-    <!-- أوصاف -->
     <div class="mb-3">
       {{ form.problem_description.label(class="form-label") }}
       {{ form.problem_description(class="form-control", rows=2) }}
     </div>
-    <div class="mb-3">
-      {{ form.engineer_notes.label(class="form-label") }}
-      {{ form.engineer_notes(class="form-control", rows=2) }}
-    </div>
 
-    <!-- الحقول المحاسبية والحالة -->
     <div class="row">
-      <div class="col-md-3 mb-3">
+      <div class="col-md-4 mb-3">
         {{ form.priority.label(class="form-label") }}
         {{ form.priority(class="form-select") }}
       </div>
-      <div class="col-md-3 mb-3">
+      <div class="col-md-4 mb-3">
         {{ form.estimated_duration.label(class="form-label") }}
         {{ form.estimated_duration(class="form-control", type="number", min="0", step="1") }}
       </div>
-      <div class="col-md-3 mb-3">
-        {{ form.estimated_cost.label(class="form-label") }}
-        {{ form.estimated_cost(class="form-control", type="number", min="0", step="0.01") }}
-      </div>
-      <div class="col-md-3 mb-3">
-        {{ form.tax_rate.label(class="form-label") }}
-        {{ form.tax_rate(class="form-control", type="number", min="0", step="0.01") }}
-      </div>
-    </div>
-
-    <div class="row">
-      <div class="col-md-6 mb-3">
+      <div class="col-md-4 mb-3">
         {{ form.status.label(class="form-label") }}
         {{ form.status(class="form-select") }}
-      </div>
-      <div class="col-md-6 mb-3">
-        {{ form.description.label(class="form-label") }}
-        {{ form.description(class="form-control", rows=2) }}
       </div>
     </div>
 
@@ -114,8 +91,6 @@
           <div class="col-md-3">{{ part.part_id(class="form-select") }}</div>
           <div class="col-md-2">{{ part.quantity(class="form-control", min="1") }}</div>
           <div class="col-md-2">{{ part.unit_price(class="form-control", min="0", step="0.01") }}</div>
-          <div class="col-md-1">{{ part.partner_id(class="form-select") }}</div>
-          <div class="col-md-1">{{ part.share_percentage(class="form-control", step="0.01") }}</div>
           <div class="col-auto d-flex align-items-center">
             <button type="button" class="btn btn-outline-danger btn-sm remove-part">&times;</button>
           </div>
@@ -150,7 +125,6 @@
   </form>
 </div>
 
-<!-- مودال إضافة عميل -->
 <div class="modal fade" id="customerModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -162,15 +136,15 @@
         <div class="modal-body">
           <div class="mb-3">
             <label class="form-label">الاسم</label>
-            <input type="text" class="form-control" id="c_name" placeholder="اسم العميل" required>
+            <input type="text" class="form-control" id="c_name" required>
           </div>
           <div class="mb-3">
             <label class="form-label">الجوال</label>
-            <input type="text" class="form-control" id="c_phone" placeholder="05XXXXXXXX">
+            <input type="text" class="form-control" id="c_phone">
           </div>
           <div class="mb-3">
             <label class="form-label">البريد</label>
-            <input type="email" class="form-control" id="c_email" placeholder="example@mail.com">
+            <input type="email" class="form-control" id="c_email">
           </div>
         </div>
         <div class="modal-footer">
@@ -182,7 +156,6 @@
   </div>
 </div>
 
-<!-- مودال نوع المركبة -->
 <div class="modal fade" id="equipmentTypeModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <form class="modal-content" id="equipmentTypeForm">
@@ -227,7 +200,6 @@
   <script src="{{ url_for('static', filename='js/service.js') }}"></script>
   <script>
     $(function () {
-      // تهيئة Select2
       $('.select2').each(function(){
         const ep = $(this).data('endpoint');
         if (ep) {
@@ -246,43 +218,32 @@
         }
       });
 
-      // فتح مودال العميل
       $('#addCustomerBtn').on('click', () => { $('#customerModal').modal('show'); });
-
-      // حفظ بيانات العميل
       $('#newCustomerForm').on('submit', function(e){
         e.preventDefault();
         const name  = $('#c_name').val().trim();
         const phone = $('#c_phone').val().trim();
         const email = $('#c_email').val().trim();
         if (!name) { Swal.fire('خطأ', 'اسم العميل مطلوب', 'error'); return; }
-
         const sel = $('#customerSelect');
         const newOption = new Option(name + (phone ? ' - '+phone : ''), 'new_'+Date.now(), true, true);
         sel.append(newOption).trigger('change');
-
         $('#customerModal').modal('hide');
         Swal.fire('تم', 'تم إدراج العميل الجديد مؤقتًا. احفظ الطلب لإتمام الإنشاء.', 'success');
       });
 
-      // فتح مودال النوع
       $('#addTypeBtn').on('click', () => { $('#equipmentTypeModal').modal('show'); });
-
-      // حفظ نوع معدة/مركبة
       $('#equipmentTypeForm').on('submit', async function(e){
         e.preventDefault();
         const btn = $(this).find('[type="submit"]')[0];
         if (btn) btn.disabled = true;
-
         const payload = {
           name: $('#et_name').val().trim(),
           model: $('#et_model').val().trim(),
           category: $('#et_category').val().trim(),
           notes: $('#et_notes').val().trim()
         };
-
         if (!payload.name) { alert('الاسم مطلوب'); if (btn) btn.disabled = false; return; }
-
         try {
           const res = await fetch("{{ url_for('api.create_equipment_type') }}", {
             method: 'POST',
@@ -291,11 +252,9 @@
           });
           const data = await res.json();
           if (!res.ok || !data.id) throw new Error(data.error || 'فشل إنشاء النوع');
-
           const $type = $('#vehicleTypeSelect');
           const opt = new Option(data.text, data.id, true, true);
           $type.append(opt).trigger('change');
-
           $('#equipmentTypeModal').modal('hide');
         } catch (err) {
           alert(err.message || 'تعذّر إنشاء النوع');

@@ -5,17 +5,66 @@
 {% block head_extra %}
   {{ super() }}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/sales.css') }}">
+  <style>
+    .sales-form .card-header h3{font-weight:700}
+    .sales-form .card-header .badge{border-radius:999px;padding:.35rem .6rem}
+    .sales-form .section-title{font-weight:700;color:#334155;margin:0 0 .5rem;display:flex;align-items:center;gap:.4rem}
+    .sales-form .section-title i{opacity:.8}
+
+    /* شبكة رؤوس الحقول */
+    #saleForm .head-grid{display:grid; grid-template-columns:repeat(12,1fr); grid-gap:12px;}
+    #saleForm .head-grid .col-span-3{grid-column:span 3}
+    #saleForm .head-grid .col-span-4{grid-column:span 4}
+    #saleForm .head-grid .col-span-6{grid-column:span 6}
+    #saleForm .head-grid .col-span-12{grid-column:span 12}
+    @media(max-width:992px){
+      #saleForm .head-grid .col-span-3,
+      #saleForm .head-grid .col-span-4,
+      #saleForm .head-grid .col-span-6{grid-column:span 6}
+    }
+    @media(max-width:576px){
+      #saleForm .head-grid .col-span-3,
+      #saleForm .head-grid .col-span-4,
+      #saleForm .head-grid .col-span-6{grid-column:span 12}
+    }
+
+    #saleForm .form-group label{font-weight:600;color:#475569;margin-bottom:.25rem}
+    #saleForm .form-control{border-radius:10px}
+    #saleForm select.form-control{padding-top:.35rem;padding-bottom:.35rem}
+
+    /* بنود الفاتورة (بعد إزالة خصم% وضريبة%) */
+    .sale-line{
+      display:grid;
+      grid-template-columns: 4fr 2fr 1fr 1fr 2fr; /* منتج | مستودع | كمية | سعر | إجراءات */
+      grid-gap:8px; align-items:start;
+    }
+    @media(max-width:992px){
+      .sale-line{grid-template-columns: 1fr 1fr 1fr 1fr; }
+      .sale-line > div:last-child{grid-column:1/-1}
+    }
+    @media(max-width:576px){
+      .sale-line{grid-template-columns:1fr 1fr;}
+      .sale-line > div:last-child{grid-column:1/-1}
+    }
+    .sale-line .form-control{border-radius:8px}
+    .stock-badge{min-width:64px}
+
+    .totals-table th{background:#f8fafc;font-weight:700;color:#334155}
+    .totals-table td,.totals-table th{vertical-align:middle}
+    .totals-table .grand{font-size:1.05rem}
+    .sales-form .btn{border-radius:10px}
+    .lines-wrap{max-height:56vh; overflow:auto}
+    .lines-header{border-bottom:1px solid #e9ecef}
+  </style>
 {% endblock %}
 
 {% block content %}
-<div class="container py-5">
+<div class="container py-5 sales-form">
   <div class="row justify-content-center">
     <div class="col-lg-10">
       <div class="card shadow-lg rounded border-0">
         <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-          <h3 class="mb-0">
-            <i class="fas fa-file-invoice mr-2"></i> {{ title }}
-          </h3>
+          <h3 class="mb-0"><i class="fas fa-file-invoice mr-2"></i> {{ title }}</h3>
           <span class="badge badge-secondary">{{ form.status.data or 'مسودة' }}</span>
         </div>
 
@@ -23,128 +72,85 @@
           <form method="post" id="saleForm" class="needs-validation" novalidate>
             {{ form.hidden_tag() }}
 
-            <!-- الحقول الرأسية -->
-            <div class="form-row mb-4">
-              <div class="form-group col-md-4">
+            <div class="section-title mb-2"><i class="far fa-clipboard"></i> تفاصيل الوثيقة</div>
+            <div class="head-grid mb-4">
+              <div class="form-group col-span-4">
                 <label for="sale_date"><i class="far fa-calendar-alt mr-1"></i> تاريخ البيع</label>
-                {{ form.sale_date(
-                  class="form-control",
-                  id="sale_date",
-                  type="datetime-local",
-                  value=(form.sale_date.data.strftime('%Y-%m-%dT%H:%M') if form.sale_date.data else "")
-                ) }}
+                {{ form.sale_date(class="form-control", id="sale_date", type="datetime-local",
+                  value=(form.sale_date.data.strftime('%Y-%m-%dT%H:%M') if form.sale_date.data else "")) }}
               </div>
 
-              <div class="form-group col-md-4">
+              <div class="form-group col-span-4">
                 <label for="customer_id"><i class="fas fa-user mr-1"></i> العميل</label>
-                {{ form.customer_id(
-                  class="form-control select2 ajax-select",
-                  id="customer_id",
-                  **{
-                    'data-endpoint': url_for('api.customers'),
-                    'data-placeholder': 'اختر العميل',
-                    'data-allow-clear': 1
-                  }
-                ) }}
+                {{ form.customer_id(class="form-control select2 ajax-select", id="customer_id",
+                  **{'data-endpoint': url_for('api.customers'),'data-placeholder': 'اختر العميل','data-allow-clear': 1}) }}
               </div>
 
-              <div class="form-group col-md-4">
-                <label for="seller_id"><i class="fas fa-user-tie mr-1"></i> البائع</label>
-                {{ form.seller_id(
-                  class="form-control select2 ajax-select",
-                  id="seller_id",
-                  **{
-                    'data-endpoint': url_for('api.users'),
-                    'data-placeholder': 'اختر البائع',
-                    'data-allow-clear': 1
-                  }
-                ) }}
+              <div class="form-group col-span-4">
+                <label for="seller_id"><i class="fas fa-user-tي mr-1"></i> البائع</label>
+                {{ form.seller_id(class="form-control select2 ajax-select", id="seller_id",
+                  **{'data-endpoint': url_for('api.users'),'data-placeholder': 'اختر البائع','data-allow-clear': 1}) }}
               </div>
 
-              <div class="form-group col-md-3">
+              <div class="form-group col-span-3">
                 <label for="currency"><i class="fas fa-dollar-sign mr-1"></i> العملة</label>
                 {{ form.currency(class="form-control", id="currency") }}
               </div>
 
-              <div class="form-group col-md-3">
+              <div class="form-group col-span-3">
                 <label for="status"><i class="fas fa-flag mr-1"></i> حالة الوثيقة</label>
                 {{ form.status(class="form-control", id="status") }}
               </div>
 
-              <div class="form-group col-md-3">
+              <div class="form-group col-span-3">
                 <label for="payment_status"><i class="fas fa-wallet mr-1"></i> حالة السداد</label>
                 {{ form.payment_status(class="form-control", id="payment_status") }}
               </div>
 
-              <div class="form-group col-md-3">
+              <div class="form-group col-span-3">
                 <label for="taxRate"><i class="fas fa-percent mr-1"></i> نسبة الضريبة (%)</label>
                 {{ form.tax_rate(class="form-control", id="taxRate") }}
               </div>
 
-              <div class="form-group col-md-3">
+              <div class="form-group col-span-3">
                 <label for="shippingCost"><i class="fas fa-truck mr-1"></i> تكلفة الشحن</label>
                 {{ form.shipping_cost(class="form-control", id="shippingCost") }}
               </div>
 
-              <div class="form-group col-md-3">
+              <div class="form-group col-span-3">
                 <label for="discountTotal"><i class="fas fa-tags mr-1"></i> الخصم الإجمالي</label>
                 {{ form.discount_total(class="form-control", id="discountTotal") }}
               </div>
             </div>
 
-            <!-- بنود الفاتورة -->
             <div class="card mb-4">
-              <div class="card-header bg-light d-flex justify-content-between align-items-center">
+              <div class="card-header bg-white lines-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="fas fa-list mr-2"></i> بنود الفاتورة</h5>
                 <button type="button" id="addLine" class="btn btn-sm btn-outline-primary">
                   <i class="fas fa-plus mr-1"></i> إضافة بند
                 </button>
               </div>
 
-              <div class="card-body overflow-auto" style="white-space:nowrap;">
-                <div id="saleLines" class="d-inline-block" style="min-width:100%;">
+              <div class="card-body lines-wrap">
+                <div id="saleLines">
                   {% for line in form.lines %}
-                  <div class="sale-line form-row mb-2 p-2 border rounded bg-white" data-index="{{ loop.index0 }}">
-                    <div class="form-group col-md-4 d-inline-block" style="vertical-align:top;">
-                      {{ line.product_id(
-                        class="form-control select2 ajax-select product-select",
-                        **{
-                          'data-endpoint': url_for('api.products'),
-                          'data-placeholder': 'اختر الصنف',
-                          'data-allow-clear': 1
-                        }
-                      ) }}
+                  <div class="sale-line mb-2 p-2 border rounded bg-white" data-index="{{ loop.index0 }}">
+                    <div class="form-group">
+                      {{ line.product_id(class="form-control select2 ajax-select product-select",
+                        **{'data-endpoint': url_for('api.products'),'data-placeholder':'اختر الصنف','data-allow-clear':1}) }}
                     </div>
-
-                    <div class="form-group col-md-2 d-inline-block" style="vertical-align:top;">
-                      {{ line.warehouse_id(
-                        class="form-control select2 ajax-select warehouse-select",
-                        **{
-                          'data-endpoint': url_for('api.warehouses'),
-                          'data-placeholder': 'اختر المستودع',
-                          'data-allow-clear': 1
-                        }
-                      ) }}
+                    <div class="form-group">
+                      {{ line.warehouse_id(class="form-control select2 ajax-select warehouse-select",
+                        **{'data-endpoint': url_for('api.warehouses'),'data-placeholder':'اختر المستودع','data-allow-clear':1}) }}
                     </div>
-
-                    <div class="form-group col-md-1 d-inline-block" style="vertical-align:top;">
+                    <div class="form-group">
                       {{ line.quantity(class="form-control quantity-input", min="1", placeholder="الكمية") }}
                     </div>
-
-                    <div class="form-group col-md-1 d-inline-block" style="vertical-align:top;">
+                    <div class="form-group">
                       {{ line.unit_price(class="form-control price-input", min="0", step="0.01", placeholder="السعر") }}
                     </div>
-
-                    <div class="form-group col-md-1 d-inline-block" style="vertical-align:top;">
-                      {{ line.discount_rate(class="form-control discount-input", min="0", max="100", placeholder="خصم%") }}
-                    </div>
-
-                    <div class="form-group col-md-1 d-inline-block" style="vertical-align:top;">
-                      {{ line.tax_rate(class="form-control tax-input", min="0", max="100", placeholder="ضريبة%") }}
-                    </div>
-
-                    <div class="form-group col-md-2 d-inline-block" style="vertical-align:top;">
-                      <div class="d-flex align-items-center">
+                    <div class="form-group">
+                      <div class="d-flex align-items-center justify-content-end">
                         <span class="badge badge-light text-dark stock-badge" title="المتوفر"></span>
                         <button type="button" class="btn btn-sm btn-outline-danger ml-2 remove-line" title="حذف البند">
                           <i class="fas fa-trash"></i>
@@ -160,40 +166,38 @@
               </div>
             </div>
 
-            <!-- الملخص -->
+            <div class="section-title mb-2"><i class="fas fa-calculator"></i> الملخص</div>
             <div class="row justify-content-end mb-3">
               <div class="col-md-6">
-                <table class="table table-bordered mb-0">
+                <table class="table table-bordered mb-0 totals-table">
                   <tr>
                     <th class="text-right"><i class="fas fa-calculator mr-1"></i> المجموع الفرعي:</th>
-                    <td id="subtotal">0.00 {{ form.currency.data }}</td>
+                    <td id="subtotal" class="text-right">0.00 {{ form.currency.data }}</td>
                   </tr>
                   <tr>
                     <th class="text-right"><i class="fas fa-tags mr-1"></i> الخصم الإجمالي:</th>
-                    <td id="discountTotalDisplay">{{ "%.2f"|format(form.discount_total.data or 0) }} {{ form.currency.data }}</td>
+                    <td id="discountTotalDisplay" class="text-right">{{ "%.2f"|format(form.discount_total.data or 0) }} {{ form.currency.data }}</td>
                   </tr>
                   <tr>
                     <th class="text-right"><i class="fas fa-receipt mr-1"></i> الضريبة ({{ form.tax_rate.data or 0 }}%):</th>
-                    <td id="taxAmount">0.00 {{ form.currency.data }}</td>
+                    <td id="taxAmount" class="text-right">0.00 {{ form.currency.data }}</td>
                   </tr>
                   <tr>
                     <th class="text-right"><i class="fas fa-shipping-fast mr-1"></i> الشحن:</th>
-                    <td id="shippingCostDisplay">{{ "%.2f"|format(form.shipping_cost.data or 0) }} {{ form.currency.data }}</td>
+                    <td id="shippingCostDisplay" class="text-right">{{ "%.2f"|format(form.shipping_cost.data or 0) }} {{ form.currency.data }}</td>
                   </tr>
                   <tr class="table-success">
                     <th class="text-right font-weight-bold"><i class="fas fa-equals mr-1"></i> الإجمالي النهائي:</th>
-                    <td id="totalAmount" class="font-weight-bold">0.00 {{ form.currency.data }}</td>
+                    <td id="totalAmount" class="font-weight-bold text-right grand">0.00 {{ form.currency.data }}</td>
                   </tr>
                 </table>
               </div>
             </div>
 
-            <!-- الملاحظات -->
             <div class="mb-4">
               {{ form.notes(class="form-control", rows="3", placeholder="ملاحظات") }}
             </div>
 
-            <!-- أزرار الإجراء -->
             <div class="d-flex justify-content-between mt-4">
               <button type="submit" class="btn btn-success px-4">
                 <i class="fas fa-save mr-2"></i> حفظ
@@ -222,32 +226,25 @@
       var form=document.getElementById('saleForm'); if(!form) return;
 
       function recalc(){
-        var wrap=qs('#saleLines');
-        var sub=0;
+        var wrap=qs('#saleLines'); var sub=0;
         qsa('.sale-line',wrap).forEach(function(row){
           var q=toNum(qs('[name$="-quantity"]',row)&&qs('[name$="-quantity"]',row).value);
           var p=toNum(qs('[name$="-unit_price"]',row)&&qs('[name$="-unit_price"]',row).value);
-          var d=toNum(qs('[name$="-discount_rate"]',row)&&qs('[name$="-discount_rate"]',row).value);
-          if(d<0) d=0; if(d>100) d=100;
+          var d=0; // خُصم البند أزلناه، يبقى 0
           sub+=q*p*(1-d/100);
         });
         var disc=toNum(qs('#discountTotal')&&qs('#discountTotal').value); if(disc<0) disc=0; if(disc>sub) disc=sub;
         var tax=toNum(qs('#taxRate')&&qs('#taxRate').value); if(tax<0) tax=0; if(tax>100) tax=100;
         var shipping=toNum(qs('#shippingCost')&&qs('#shippingCost').value);
-        var base=sub-disc;
-        var taxAmt=base*(tax/100);
-        var total=base+taxAmt+shipping;
+        var base=sub-disc; var taxAmt=base*(tax/100); var total=base+taxAmt+shipping;
         var curr=(qs('select[name="currency"]')&&qs('select[name="currency"]').value)||'';
-        function setText(id,val){
-          var el=qs(id); if(el){ el.textContent = Number(val).toFixed(2) + (curr?(' '+curr):''); }
-        }
+        function setText(sel,val){ var el=qs(sel); if(el){ el.textContent = Number(val).toFixed(2)+(curr?(' '+curr):''); } }
         setText('#subtotal', sub);
         setText('#discountTotalDisplay', disc);
         setText('#taxAmount', taxAmt);
         setText('#shippingCostDisplay', shipping);
         setText('#totalAmount', total);
       }
-
       ['#discountTotal','#taxRate','#shippingCost','select[name="currency"]'].forEach(function(sel){
         var el=qs(sel); if(el){ el.addEventListener('input',recalc); el.addEventListener('change',recalc); }
       });
@@ -266,7 +263,5 @@
 {% endblock %}
 
 {% block styles %}
-<style>
-  .sortable-ghost{opacity:.5;background:#c8ebfb}
-</style>
+<style>.sortable-ghost{opacity:.5;background:#c8ebfb}</style>
 {% endblock %}
