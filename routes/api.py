@@ -199,6 +199,18 @@ def product_info(pid: int):
         "available": (int(available) if available is not None else None),
     })
 
+@bp.get("/barcode/validate")
+@login_required
+@limiter.limit("120/minute")
+def barcode_validate():
+    code = request.args.get("code", "", type=str)
+    norm = normalize_barcode(code)
+    ok = bool(norm and len(norm) == 13 and norm.isdigit() and is_valid_ean13(norm))
+    exists = False
+    if ok:
+        exists = db.session.query(Product.id).filter(Product.barcode == norm).first() is not None
+    return jsonify({"input": code, "normalized": norm, "valid": ok, "exists": exists})
+
 @bp.post("/categories", endpoint="create_category")
 @login_required
 @csrf.exempt

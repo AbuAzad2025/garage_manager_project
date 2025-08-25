@@ -1,10 +1,9 @@
+# -*- coding: utf-8 -*-
 import json
 import os
 import re
 from datetime import date, datetime, time as _t
 from decimal import Decimal
-from wtforms.fields import DateTimeLocalField
-
 from flask import url_for
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileField
@@ -25,6 +24,7 @@ from wtforms import (
     SubmitField,
     TextAreaField,
 )
+from wtforms.fields import DateTimeLocalField
 from wtforms.validators import (
     DataRequired,
     Email,
@@ -35,17 +35,15 @@ from wtforms.validators import (
     Optional,
     ValidationError,
 )
-
 try:
     from wtforms_sqlalchemy.fields import QuerySelectField
 except Exception:
     QuerySelectField = SelectField
-
 try:
     from widgets import AjaxSelectField
 except Exception:
     AjaxSelectField = SelectField
-
+from barcodes import normalize_barcode, is_valid_ean13
 from models import (
     Customer,
     Employee,
@@ -82,7 +80,12 @@ from models import (
     Warehouse,
     WarehouseType,
 )
-from utils import is_valid_expiry_mm_yy, luhn_check, prepare_payment_form_choices, detect_card_brand
+from utils import (
+    detect_card_brand,
+    is_valid_expiry_mm_yy,
+    luhn_check,
+    prepare_payment_form_choices,
+)
 
 CURRENCY_CHOICES = [("ILS", "ILS"), ("USD", "USD"), ("EUR", "EUR"), ("JOD", "JOD")]
 
@@ -2149,7 +2152,6 @@ class InvoiceForm(FlaskForm):
             new_lines.append(line)
         inv.lines = new_lines
 
-        # لو في سطور، خلّي الإجمالي من السطور (أدقّ من إدخال المستخدم)
         if new_lines:
             inv.total_amount = sum(l.line_total for l in new_lines)
         else:
@@ -2178,7 +2180,6 @@ class ProductPartnerShareForm(FlaskForm):
             self.share_amount.errors.append('أدخل نسبة الشريك أو قيمة مساهمته على الأقل.')
             return False
         return True
-
 
 class ProductForm(FlaskForm):
     id                  = HiddenField()
@@ -2231,7 +2232,6 @@ class ProductForm(FlaskForm):
     supplier_international_id = AjaxSelectField('المورد الدولي', endpoint='api.search_suppliers', get_label='name', validators=[Optional()])
     supplier_local_id         = AjaxSelectField('المورد المحلي', endpoint='api.search_suppliers', get_label='name', validators=[Optional()])
 
-    # لإضافة أولية للمخزون عبر شاشة إضافة المنتج
     quantity           = IntegerField('الكمية', validators=[Optional(), NumberRange(min=0)], default=0)
     on_hand            = IntegerField('المتوفر فعليًا', validators=[Optional(), NumberRange(min=0)], default=0)
     reserved_quantity  = IntegerField('محجوز', validators=[Optional(), NumberRange(min=0)], default=0)
@@ -2325,6 +2325,13 @@ class ProductForm(FlaskForm):
         p.notes         = (self.notes.data or '').strip() or None
         return p
 
+    def validate_barcode(self, field):
+        if not field.data:
+            return
+        normalized = normalize_barcode(field.data)
+        if not (normalized and len(normalized) == 13 and normalized.isdigit() and is_valid_ean13(normalized)):
+            raise ValidationError('باركود غير صالح (EAN-13).')
+        field.data = normalized
 
 class WarehouseForm(FlaskForm):
     name              = StringField('اسم المستودع', validators=[DataRequired(), Length(max=100)])
@@ -2394,16 +2401,19 @@ class ImportForm(FlaskForm):
     submit       = SubmitField('استيراد')
 
 
+
 class NoteForm(FlaskForm):
     author_id  = HiddenField(validators=[Optional()])
     content    = TextAreaField('المحتوى', validators=[DataRequired(), Length(max=1000)])
     entity_type= SelectField('نوع الكيان', choices=[], validators=[Optional()])
     entity_id  = StringField('معرّف الكيان', validators=[Optional(), Length(max=50)])
     is_pinned  = BooleanField('مثبّتة')
-    priority   = SelectField('الأولوية',
-                             choices=[('LOW','منخفضة'), ('MEDIUM','متوسطة'), ('HIGH','عالية')],
-                             default='MEDIUM', validators=[Optional()])
-    submit     = SubmitField('💾 حفظ الملاحظة')
+    priority   = SelectField(
+        'الأولوية',
+        choices=[('LOW','منخفضة'), ('MEDIUM','متوسطة'), ('HIGH','عالية'), ('URGENT','عاجلة')],
+        default='MEDIUM', validators=[Optional()]
+    )
+    submit     = SubmitField('💾 حفظ')
 
     def validate(self, **kwargs):
         if not super().validate(**kwargs):
@@ -2417,7 +2427,6 @@ class NoteForm(FlaskForm):
             self.entity_type.errors.append('حدد نوع الكيان.')
             return False
         return True
-
 
 class StockLevelForm(FlaskForm):
     id                = HiddenField()

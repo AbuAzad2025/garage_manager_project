@@ -1,5 +1,5 @@
+{# templates/notes/detail.html #}
 {% extends 'base.html' %}
-
 {% block title %}تفاصيل الملاحظة{% endblock %}
 
 {% set entity_labels = {
@@ -18,7 +18,11 @@
       <span><i class="fas fa-clock"></i> {{ note.created_at.strftime('%Y-%m-%d %H:%M') if note.created_at else '-' }}</span>
     </div>
 
-    <p class="mb-3">{{ note.content or '-' }}</p>
+    {% if note.is_pinned %}
+      <div class="mb-2"><span class="badge badge-warning"><i class="fas fa-thumbtack"></i> مثبّت</span></div>
+    {% endif %}
+
+    <p class="mb-3 pre-wrap">{{ note.content or '-' }}</p>
 
     <div class="row g-3">
       <div class="col-md-3"><strong>مثبّت:</strong> {{ 'نعم' if note.is_pinned else 'لا' }}</div>
@@ -31,6 +35,46 @@
     <a href="{{ url_for('notes_bp.list_notes') }}" class="btn btn-outline-secondary">
       <i class="fas fa-arrow-right"></i> رجوع إلى الملاحظات
     </a>
+    <button class="btn btn-primary ml-2" id="btnEditDetail" data-id="{{ note.id }}"><i class="fas fa-edit"></i> تعديل</button>
+    <form class="d-inline" id="formDeleteDetail" action="{{ url_for('notes_bp.delete_note', note_id=note.id) }}" method="post">
+      {{ csrf_token() }}
+      <button type="submit" class="btn btn-danger"><i class="fas fa-trash"></i> حذف</button>
+    </form>
+    <form class="d-inline" id="formPinDetail" action="{{ url_for('notes_bp.toggle_pin', note_id=note.id) }}" method="post">
+      {{ csrf_token() }}
+      <button type="submit" class="btn btn-warning"><i class="fas fa-thumbtack"></i> تبديل التثبيت</button>
+    </form>
   </div>
 </div>
+
+<!-- Modal لإعادة استخدام نفس فورم التعديل -->
+<div class="modal fade" id="noteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 id="noteModalTitle" class="modal-title">تعديل الملاحظة</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="إغلاق"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <div class="modal-body" id="noteModalBody"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  (function(){
+    const editBtn = document.getElementById('btnEditDetail');
+    if (editBtn) {
+      editBtn.addEventListener('click', async () => {
+        const id = editBtn.dataset.id;
+        const res = await fetch("{{ url_for('notes_bp.edit_note', note_id=0) }}".replace('/0/', '/' + id + '/'));
+        const html = await res.text();
+        document.getElementById('noteModalBody').innerHTML = html;
+        $('#noteModal').modal('show');
+      });
+    }
+  })();
+</script>
 {% endblock %}

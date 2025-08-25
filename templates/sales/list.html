@@ -7,6 +7,25 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/sales.css') }}">
   <style>
     .card{border:0;border-radius:1rem;box-shadow:0 0.5rem 1rem rgba(0,0,0,.08)}
+    /* زر إنشاء واضح على الخلفية الزرقاء */
+    .btn-create{
+      background:#ffc107;        /* أصفر واضح */
+      color:#1b2a4e;             /* نص غامق مقروء */
+      border:none;
+      font-weight:700;
+      border-radius:.65rem;
+      padding:.55rem 1rem;
+      box-shadow:0 .35rem .9rem rgba(0,0,0,.12);
+      transition:transform .08s ease, box-shadow .12s ease, background .12s ease;
+      white-space:nowrap;
+    }
+    .btn-create i{margin-left:.35rem}
+    .btn-create:hover{background:#ffb300;color:#12203a;transform:translateY(-1px)}
+    .btn-create:active{transform:translateY(0);box-shadow:0 .25rem .7rem rgba(0,0,0,.16)}
+    .btn-create:focus{outline:0;box-shadow:0 0 0 .2rem rgba(255,193,7,.35)}
+    /* تحسين تباين أزرار الفلاتر */
+    .btn-filter{padding:.45rem .9rem;border-radius:.55rem}
+    .table thead th{white-space:nowrap}
   </style>
 {% endblock %}
 
@@ -15,8 +34,9 @@
   <div class="card">
     <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
       <h3 class="mb-0"><i class="fas fa-file-invoice mr-2"></i> فواتير المبيعات</h3>
-      <a href="{{ url_for('sales_bp.create_sale') }}" class="btn btn-light">
-        <i class="fas fa-plus-circle mr-1"></i> إنشاء فاتورة
+      <!-- الزر المعدّل -->
+      <a href="{{ url_for('sales_bp.create_sale') }}" class="btn btn-create" title="إنشاء فاتورة جديدة">
+        <i class="fas fa-plus-circle"></i> إنشاء فاتورة
       </a>
     </div>
 
@@ -44,8 +64,8 @@
           <input type="date" name="date_to" class="form-control" value="{{ request.args.get('date_to','') }}">
         </div>
         <div class="form-group col-12 d-flex flex-wrap">
-          <button type="submit" class="btn btn-primary"><i class="fas fa-filter mr-1"></i> فلترة</button>
-          <button type="reset" class="btn btn-secondary mr-2"><i class="fas fa-undo mr-1"></i> إعادة</button>
+          <button type="submit" class="btn btn-primary btn-filter"><i class="fas fa-filter mr-1"></i> فلترة</button>
+          <button type="reset" class="btn btn-secondary btn-filter mr-2"><i class="fas fa-undo mr-1"></i> إعادة</button>
         </div>
       </form>
 

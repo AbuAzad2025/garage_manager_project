@@ -1,38 +1,60 @@
 from __future__ import annotations
 
+# -------------------- Stdlib --------------------
 import enum
 import json
 import re
 from datetime import datetime, timedelta
-from decimal import Decimal, ROUND_HALF_UP
 
+# -------------------- Third-party --------------------
 from flask import current_app, has_request_context, request
 from flask_login import current_user, UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from sqlalchemy import (
     Boolean, CheckConstraint, Column, DateTime, ForeignKey, Integer, Numeric,
-    String, Text, and_, event, func, or_, select, text, update, inspect, Enum as SAEnum
+    String, Text, and_, event, func, or_, select, text, update, inspect
 )
 from sqlalchemy.orm import relationship, validates, Session as _SA_Session
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy import Enum as SAEnum
 
+# -------------------- Local --------------------
 from extensions import db
-from barcodes import normalize_barcode
 
-
+# -------------------- Decimal Helpers --------------------
+from decimal import Decimal, ROUND_HALF_UP
 TWO = Decimal("0.01")
 
 def q(x) -> Decimal:
+    """Quantize helper for monetary values (round half up to 2 decimals)."""
     try:
         return Decimal(str(x or 0)).quantize(TWO, ROUND_HALF_UP)
     except Exception:
         return Decimal("0.00")
 
+# -------------------- Optional: Cryptography --------------------
 try:
     from cryptography.fernet import Fernet
 except Exception:
     Fernet = None
+
+# ==================== Imports (Production-Ready) ====================
+import enum
+from datetime import datetime
+
+from werkzeug.security import generate_password_hash, check_password_hash
+
+from sqlalchemy import (
+    Column, Integer, String, Text, Boolean, Numeric, ForeignKey,
+    select, func, or_, text, event
+)
+from sqlalchemy.orm import relationship, validates
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy import Enum as SAEnum
+
+from extensions import db
+
 
 # -------------------- Helpers --------------------
 def sa_str_enum(enum_or_values, *, name: str):
@@ -940,62 +962,65 @@ class ProductCondition(enum.Enum):
 class Product(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'products'
 
-    id = Column(Integer, primary_key=True)
-    sku = Column(String(50), unique=True)
-    name = Column(String(255), nullable=False)
-    description = Column(Text)
-    part_number = Column(String(100))
-    brand = Column(String(100))
-    commercial_name = Column(String(100))
-    chassis_number = Column(String(100))
-    serial_no = Column(String(100), unique=True)
-    barcode = Column(String(100), unique=True)
-    unit = Column(String(50))
-    category_name = Column(String(100))
-    purchase_price = Column(Numeric(12, 2), default=0)
-    selling_price = Column(Numeric(12, 2), default=0)
+    id                   = Column(Integer, primary_key=True)
+    sku                  = Column(String(50), unique=True)
+    name                 = Column(String(255), nullable=False)
+    description          = Column(Text)
+    part_number          = Column(String(100))
+    brand                = Column(String(100))
+    commercial_name      = Column(String(100))
+    chassis_number       = Column(String(100))
+    serial_no            = Column(String(100), unique=True)
+    barcode              = Column(String(100), unique=True)
+    unit                 = Column(String(50))
+    category_name        = Column(String(100))
+    purchase_price       = Column(Numeric(12, 2), default=0)
+    selling_price        = Column(Numeric(12, 2), default=0)
     cost_before_shipping = Column(Numeric(12, 2), default=0)
-    cost_after_shipping = Column(Numeric(12, 2), default=0)
-    unit_price_before_tax = Column(Numeric(12, 2), default=0)
-    price = Column(Numeric(12, 2), nullable=False, default=0)
-    min_price = Column(Numeric(12, 2))
-    max_price = Column(Numeric(12, 2))
-    tax_rate = Column(Numeric(5, 2), default=0)
-    min_qty = Column(Integer, default=0)
-    reorder_point = Column(Integer)
-    image = Column(String(255))
-    notes = Column(Text)
-    condition = Column(sa_str_enum(ProductCondition, name='product_condition'), default=ProductCondition.NEW.value, nullable=False)
-    origin_country = Column(String(50))
-    warranty_period = Column(Integer)
-    weight = Column(Numeric(10, 2))
-    dimensions = Column(String(50))
-    is_active = Column(Boolean, default=True)
-    is_digital = Column(Boolean, default=False)
-    is_exchange = Column(Boolean, default=False)
-    vehicle_type_id = Column(Integer, ForeignKey('equipment_types.id'))
-    category_id = Column(Integer, ForeignKey('product_categories.id'))
-    supplier_id = Column(Integer, ForeignKey('suppliers.id'))
-    supplier_international_id = Column(Integer, ForeignKey('suppliers.id'))
-    supplier_local_id = Column(Integer, ForeignKey('suppliers.id'))
+    cost_after_shipping  = Column(Numeric(12, 2), default=0)
+    unit_price_before_tax= Column(Numeric(12, 2), default=0)
+    price                = Column(Numeric(12, 2), nullable=False, default=0)
+    min_price            = Column(Numeric(12, 2))
+    max_price            = Column(Numeric(12, 2))
+    tax_rate             = Column(Numeric(5, 2), default=0)
+    min_qty              = Column(Integer, default=0)
+    reorder_point        = Column(Integer)
+    image                = Column(String(255))
+    notes                = Column(Text)
 
-    category = relationship('ProductCategory', back_populates='products')
-    vehicle_type = relationship('EquipmentType', back_populates='products')
-    supplier_general = relationship('Supplier', foreign_keys=[supplier_id])
+    condition = Column(sa_str_enum(ProductCondition, name='product_condition'), default=ProductCondition.NEW.value, nullable=False)
+
+    origin_country       = Column(String(50))
+    warranty_period      = Column(Integer)
+    weight               = Column(Numeric(10, 2))
+    dimensions           = Column(String(50))
+    is_active            = Column(Boolean, default=True)
+    is_digital           = Column(Boolean, default=False)
+    is_exchange          = Column(Boolean, default=False)
+
+    vehicle_type_id            = Column(Integer, ForeignKey('equipment_types.id'))
+    category_id                = Column(Integer, ForeignKey('product_categories.id'))
+    supplier_id                = Column(Integer, ForeignKey('suppliers.id'))
+    supplier_international_id  = Column(Integer, ForeignKey('suppliers.id'))
+    supplier_local_id          = Column(Integer, ForeignKey('suppliers.id'))
+
+    category               = relationship('ProductCategory', back_populates='products')
+    vehicle_type           = relationship('EquipmentType', back_populates='products')
+    supplier_general       = relationship('Supplier', foreign_keys=[supplier_id])
     supplier_international = relationship('Supplier', foreign_keys=[supplier_international_id])
-    supplier_local = relationship('Supplier', foreign_keys=[supplier_local_id])
-    partners = relationship('ProductPartner', back_populates='product')
-    partner_shares = relationship('ProductPartnerShare', back_populates='product')
-    supplier_loans = relationship('ProductSupplierLoan', back_populates='product')
-    transfers = relationship('Transfer', back_populates='product')
-    preorders = relationship('PreOrder', back_populates='product')
-    shipment_items = relationship('ShipmentItem', back_populates='product')
-    exchange_transactions = relationship('ExchangeTransaction', back_populates='product')
-    sale_lines = relationship('SaleLine', back_populates='product')
-    service_parts = relationship('ServicePart', back_populates='part')
-    online_cart_items = relationship('OnlineCartItem', back_populates='product')
-    online_preorder_items = relationship('OnlinePreOrderItem', back_populates='product')
-    stock_levels = relationship('StockLevel', back_populates='product')
+    supplier_local         = relationship('Supplier', foreign_keys=[supplier_local_id])
+    partners               = relationship('ProductPartner', back_populates='product')
+    partner_shares         = relationship('ProductPartnerShare', back_populates='product')
+    supplier_loans         = relationship('ProductSupplierLoan', back_populates='product')
+    transfers              = relationship('Transfer', back_populates='product')
+    preorders              = relationship('PreOrder', back_populates='product')
+    shipment_items         = relationship('ShipmentItem', back_populates='product')
+    exchange_transactions  = relationship('ExchangeTransaction', back_populates='product')
+    sale_lines             = relationship('SaleLine', back_populates='product')
+    service_parts          = relationship('ServicePart', back_populates='part')
+    online_cart_items      = relationship('OnlineCartItem', back_populates='product')
+    online_preorder_items  = relationship('OnlinePreOrderItem', back_populates='product')
+    stock_levels           = relationship('StockLevel', back_populates='product')
 
     def __init__(self, **kwargs):
         self.category_name = kwargs.pop('category', None)
@@ -1012,9 +1037,6 @@ class Product(db.Model, TimestampMixin, AuditMixin):
         v = str(v).strip()
         if key in ('sku', 'serial_no'):
             v = v.upper()
-        if key == 'barcode':
-            from barcodes import normalize_barcode
-            v = normalize_barcode(v) or None
         return v
 
     @hybrid_property
@@ -1031,6 +1053,19 @@ class Product(db.Model, TimestampMixin, AuditMixin):
 
     def __repr__(self):
         return f"<Product {self.name}>"
+
+
+@event.listens_for(Product, 'before_insert')
+@event.listens_for(Product, 'before_update')
+def _product_sync_prices(mapper, connection, target: Product):
+    if target.price is None and target.selling_price is not None:
+        target.price = target.selling_price
+    if target.selling_price is None and target.price is not None:
+        target.selling_price = target.price
+    if target.price is None:
+        target.price = 0
+    if target.selling_price is None:
+        target.selling_price = target.price
         
 class Warehouse(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'warehouses'

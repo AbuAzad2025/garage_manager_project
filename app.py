@@ -7,7 +7,6 @@ from flask_login import AnonymousUserMixin, current_user
 from flask_wtf.csrf import generate_csrf
 from jinja2 import ChoiceLoader, FileSystemLoader
 from sqlalchemy import event
-
 from config import Config
 from extensions import db, migrate, login_manager, socketio, mail, csrf, limiter
 from utils import (
@@ -23,7 +22,6 @@ from utils import (
 )
 from cli import seed_roles
 from models import User, Role, Permission, Customer
-
 from routes.auth import auth_bp
 from routes.main import main_bp
 from routes.users import users_bp
@@ -43,6 +41,7 @@ from routes.roles import roles_bp
 from routes.api import bp as api_bp
 from routes.admin_reports import admin_reports_bp
 from routes.parts import parts_bp
+from routes.barcode import bp_barcode
 
 
 class MyAnonymousUser(AnonymousUserMixin):
@@ -338,6 +337,7 @@ def create_app(config_object=Config) -> Flask:
         roles_bp,
         parts_bp,
         admin_reports_bp,
+        bp_barcode,
     ):
         app.register_blueprint(bp)
 

@@ -1,9 +1,16 @@
-<form id="noteForm" method="post" action="{{ url_for('notes_bp.create_note') }}" novalidate autocomplete="off">
+{# templates/notes/_form.html #}
+<form id="noteForm" method="post"
+      action="{{ url_for('notes_bp.create_note') if mode != 'edit' else url_for('notes_bp.update_note', note_id=note_id) }}"
+      novalidate autocomplete="off">
+
   {{ form.csrf_token }}
 
   <div class="mb-3">
-    {{ form.content.label(class="form-label") }}
-    {{ form.content(class="form-control", rows=3, placeholder="أضف ملاحظة…") }}
+    <label class="form-label d-flex justify-content-between align-items-center">
+      <span>{{ form.content.label.text }}</span>
+      <small class="text-muted"><span id="charCount">0</span>/1000</small>
+    </label>
+    {{ form.content(class="form-control autosize", rows=3, placeholder="أضف ملاحظة…") }}
     {% for e in form.content.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
   </div>
 
@@ -31,5 +38,24 @@
     {% for e in form.is_pinned.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
   </div>
 
-  {{ form.submit(class="btn btn-primary px-4") }}
+  <div class="d-flex gap-2">
+    {{ form.submit(class="btn btn-primary px-4") }}
+    <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">إلغاء</button>
+  </div>
 </form>
+
+<script>
+(function () {
+  const ta = document.querySelector('#noteForm textarea[name="content"]');
+  const cnt = document.getElementById('charCount');
+  if (ta && cnt) {
+    const update = () => { cnt.textContent = ta.value.length; };
+    ta.addEventListener('input', update);
+    update();
+    // autosize بسيط
+    const resize = () => { ta.style.height = 'auto'; ta.style.height = (ta.scrollHeight) + 'px'; };
+    ['input','change'].forEach(ev => ta.addEventListener(ev, resize));
+    setTimeout(resize, 0);
+  }
+})();
+</script>

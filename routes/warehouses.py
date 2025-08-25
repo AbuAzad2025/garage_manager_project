@@ -431,7 +431,6 @@ def add_product(id):
         except Exception:
             return 0
 
-    # معلومات عن نوع المستودع (للتتبّع)
     try:
         wtype_raw = warehouse.warehouse_type.value if hasattr(warehouse.warehouse_type, "value") else str(warehouse.warehouse_type)
     except Exception:
@@ -560,7 +559,6 @@ def add_product(id):
             log.warning("add_product:validation_failed errors=%s", form.errors)
             flash("تعذّر حفظ المنتج. تأكّد من الحقول المطلوبة.", "danger")
 
-    # حضّر فورمات الأقسام الديناميكية للواجهة
     if warehouse.warehouse_type == WarehouseType.PARTNER.value:
         partners_forms = [ProductPartnerShareForm()]
     elif warehouse.warehouse_type == WarehouseType.EXCHANGE.value:
