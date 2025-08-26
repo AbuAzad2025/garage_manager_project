@@ -1,0 +1,11 @@
+.stat{border:1px solid #e5e7eb;border-radius:.5rem;padding:.5rem .75rem;background:#fafafa}
+.stat-label{font-size:.85rem;color:#6b7280}
+.stat-value{font-weight:700}
+#previewTable td,#previewTable th,#extraTable td,#extraTable th{vertical-align:middle}
+.row-missing{background:#fff5f5}
+.row-warning:not(.row-missing){background:#fffaf0}
+.row-matched{outline:2px solid rgba(59,130,246,.25);outline-offset:-2px}
+.row-new{outline:2px solid rgba(16,185,129,.25);outline-offset:-2px}
+.compact #previewTable input.form-control,.compact #extraTable input.form-control{padding:.15rem .35rem;height:30px}
+.compact #previewTable .form-select,.compact #extraTable .form-select{padding:.15rem .35rem;height:30px}
+.table thead th{white-space:nowrap}

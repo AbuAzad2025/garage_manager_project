@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import json
 import os
 import re
@@ -88,7 +87,6 @@ from utils import (
 )
 
 CURRENCY_CHOICES = [("ILS", "ILS"), ("USD", "USD"), ("EUR", "EUR"), ("JOD", "JOD")]
-
 def _ar_label(val, mapping):
     return mapping.get(val, val)
 
@@ -170,23 +168,20 @@ class Unique:
 class UnifiedDateTimeField(DateTimeField):
     def __init__(self, label=None, validators=None, format="%Y-%m-%d %H:%M",
                  formats=None, output_format=None, **kwargs):
-        # جهّز قائمة الصيغ المقبولة
         if formats is not None:
             fmt_list = list(formats) if isinstance(formats, (list, tuple)) else [formats]
-        elif isinstance(format, (list, tuple)):          # لو بالغلط مرّرت format كـ list
+        elif isinstance(format, (list, tuple)):          
             fmt_list = list(format)
             format = fmt_list[0] if fmt_list else "%Y-%m-%d %H:%M"
         else:
             fmt_list = [format or "%Y-%m-%d %H:%M"]
 
-        # مرّر أول صيغة للأب (WTForms يتوقع string واحدة)
         super().__init__(label, validators, format=format, **kwargs)
 
         self.formats = fmt_list
         self.output_format = output_format or format
 
     def _value(self):
-        # لما نرجّع القيمة لحقل الـ input
         if self.raw_data:
             return " ".join([v for v in self.raw_data if v])
         if isinstance(self.data, datetime):
@@ -215,7 +210,6 @@ class UnifiedDateTimeField(DateTimeField):
             except Exception:
                 continue
 
-        # محاولة كـ timestamp كحل أخير
         try:
             self.data = datetime.fromtimestamp(float(s))
             return
@@ -450,7 +444,6 @@ class UserForm(FlaskForm):
             user.set_password(self.password.data)
         return user
 
-
 class RoleForm(FlaskForm):
     name        = StringField('اسم الدور', validators=[DataRequired(), Length(max=50)])
     description = StringField('الوصف', validators=[Optional(), Length(max=200)])
@@ -459,7 +452,6 @@ class RoleForm(FlaskForm):
 
     def validate_name(self, field):
         field.data = (field.data or '').strip()
-
 
 class PermissionForm(FlaskForm):
     name        = StringField('الاسم', validators=[DataRequired(), Length(max=100)])
@@ -593,7 +585,6 @@ class ProductSupplierLoanForm(FlaskForm):
             self.loan_value.errors.append('يجب إدخال قيمة الدين أو السعر بعد التسوية.')
             return False
         return True
-
 # ==================== Suppliers ====================
 class SupplierForm(FlaskForm):
     id              = HiddenField(filters=[lambda v: int(v) if v and str(v).strip().isdigit() else None])
@@ -633,8 +624,6 @@ class SupplierForm(FlaskForm):
         supplier.payment_terms   = (self.payment_terms.data or '').strip() or None
         supplier.currency        = self.currency.data
         return supplier
-
-
 # ==================== Partners ====================
 class PartnerForm(FlaskForm):
     id               = HiddenField(filters=[lambda v: int(v) if v and str(v).strip().isdigit() else None])
@@ -746,7 +735,6 @@ class PaymentAllocationForm(FlaskForm):
             ok = False
         return ok
 
-
 class RefundForm(FlaskForm):
     original_payment_id = IntegerField(validators=[DataRequired()])
     refund_amount = DecimalField(places=2, validators=[DataRequired(), NumberRange(min=0.01)])
@@ -759,7 +747,6 @@ class RefundForm(FlaskForm):
     )
     notes = TextAreaField(validators=[Optional(), Length(max=300)])
     submit = SubmitField('إرجاع')
-
 
 class BulkPaymentForm(FlaskForm):
     payer_type = SelectField(
@@ -812,7 +799,6 @@ class BulkPaymentForm(FlaskForm):
             ok = False
         return ok
 
-
 class LoanSettlementPaymentForm(FlaskForm):
     settlement_id = AjaxSelectField(endpoint='api.loan_settlements', get_label='id', validators=[DataRequired()])
     amount = DecimalField(places=2, validators=[DataRequired(), NumberRange(min=0.01)])
@@ -825,7 +811,6 @@ class LoanSettlementPaymentForm(FlaskForm):
     reference = StringField(validators=[Optional(), Length(max=100)])
     notes = TextAreaField(validators=[Optional(), Length(max=300)])
     submit = SubmitField('دفع')
-
 
 class SplitEntryForm(FlaskForm):
     method = SelectField(
@@ -1252,7 +1237,6 @@ class PaymentForm(FlaskForm):
 
         return payment
 
-# forms.py
 class PreOrderForm(FlaskForm):
     reference = StringField('مرجع الحجز', validators=[Optional(), Length(max=50)])
 
@@ -1430,6 +1414,7 @@ class ServiceRequestForm(FlaskForm):
         sr.discount_total      = self.discount_total.data or 0
         sr.warranty_days       = self.warranty_days.data or 0
         return sr
+
 class ShipmentItemForm(FlaskForm):
     product_id     = AjaxSelectField('الصنف', endpoint='api.products', get_label='name', coerce=int, validators=[DataRequired()])
     warehouse_id   = AjaxSelectField('المخزن', endpoint='api.warehouses', get_label='name', coerce=int, validators=[DataRequired()])
@@ -1448,7 +1433,6 @@ class ShipmentItemForm(FlaskForm):
             self.declared_value.errors.append('القيمة المعلنة يجب ألا تقل عن (الكمية × سعر الوحدة).')
             return False
         return True
-
 
 class ShipmentPartnerForm(FlaskForm):
     partner_id            = AjaxSelectField('الشريك', endpoint='api.partners', get_label='name', coerce=int, validators=[DataRequired()])
@@ -1472,7 +1456,6 @@ class ShipmentPartnerForm(FlaskForm):
             self.share_amount.errors.append('حدد نسبة الشريك أو قيمة مساهمته على الأقل.')
             return False
         return True
-
 
 class ShipmentForm(FlaskForm):
     shipment_number  = StringField('رقم الشحنة', validators=[Optional(), Length(max=50)])
@@ -1593,7 +1576,6 @@ class AuditLogFilterForm(FlaskForm):
             ('Customer', 'عملاء'),
             ('Product', 'منتجات'),
             ('Sale', 'مبيعات'),
-            # يمكنك إضافة مزيد من النماذج هنا
         ],
         validators=[Optional()]
     )
@@ -2010,7 +1992,6 @@ class SaleForm(FlaskForm):
         if not super().validate(**kwargs):
             return False
 
-        # تأكد من وجود سطر واحد صالح على الأقل
         ok = False
         for entry in self.lines:
             f = entry.form
@@ -2023,7 +2004,6 @@ class SaleForm(FlaskForm):
         return True
 
     def apply_to(self, sale):
-        # رؤوس البيع
         sale.sale_number     = (self.sale_number.data or '').strip() or sale.sale_number
         sale.sale_date       = self.sale_date.data or sale.sale_date
         sale.customer_id     = int(self.customer_id.data) if self.customer_id.data else None
@@ -2041,7 +2021,6 @@ class SaleForm(FlaskForm):
         sale.shipping_cost   = self.shipping_cost.data or 0
         sale.notes           = (self.notes.data or '').strip() or None
 
-        # السطور
         new_lines = []
         for entry in self.lines:
             f = entry.form
@@ -2063,7 +2042,6 @@ class SaleForm(FlaskForm):
 class InvoiceLineForm(FlaskForm):
     product_id  = AjaxSelectField('الصنف', endpoint='api.products', get_label='name',
                                   coerce=int, validators=[DataRequired()])
-
     description = StringField('الوصف', validators=[DataRequired(), Length(max=200)])
     quantity    = DecimalField('الكمية', places=2, validators=[DataRequired(), NumberRange(min=0)])
     unit_price  = DecimalField('سعر الوحدة', places=2, validators=[DataRequired(), NumberRange(min=0)])
@@ -2120,7 +2098,6 @@ class InvoiceForm(FlaskForm):
         if not super().validate(**kwargs):
             return False
 
-        # ربط المصدر بالمرجع الصحيح
         src = (self.source.data or '')
         binding_ok = {
             InvoiceSource.MANUAL.value:   True,
@@ -2139,7 +2116,6 @@ class InvoiceForm(FlaskForm):
             self.customer_id.errors.append("❌ يجب اختيار العميل.")
             return False
 
-        # تأكد من وجود سطر واحد صالح على الأقل
         ok = False
         for lf in self.lines:
             f = lf.form
@@ -2155,8 +2131,6 @@ class InvoiceForm(FlaskForm):
         inv.invoice_number = (self.invoice_number.data or '').strip() or inv.invoice_number
         inv.invoice_date   = self.invoice_date.data or inv.invoice_date
         inv.due_date       = self.due_date.data or None
-
-        # QuerySelectField → id
         inv.customer_id = self.customer_id.data.id if self.customer_id.data else None
         inv.supplier_id = self.supplier_id.data.id if self.supplier_id.data else None
         inv.partner_id  = self.partner_id.data.id  if self.partner_id.data  else None
@@ -2173,7 +2147,6 @@ class InvoiceForm(FlaskForm):
         inv.notes           = (self.notes.data or '').strip() or None
         inv.terms           = (self.terms.data or '').strip() or None
 
-        # بناء السطور
         new_lines = []
         for lf in self.lines:
             f = lf.form
@@ -2198,7 +2171,6 @@ class InvoiceForm(FlaskForm):
         return inv
 
 # --------- Product / Warehouse / Category ----------
-
 class ProductPartnerShareForm(FlaskForm):
     product_id       = HiddenField(validators=[DataRequired()])
     warehouse_id     = AjaxSelectField('المخزن', endpoint='api.search_warehouses', get_label='name', validators=[DataRequired()])
@@ -2218,6 +2190,29 @@ class ProductPartnerShareForm(FlaskForm):
             self.share_amount.errors.append('أدخل نسبة الشريك أو قيمة مساهمته على الأقل.')
             return False
         return True
+
+class ProductCategoryForm(FlaskForm):
+    name        = StringField('اسم الفئة', validators=[DataRequired(), Length(max=100)])
+    parent_id   = AjaxSelectField('الفئة الأب', endpoint='api.search_categories', get_label='name', validators=[Optional()])
+    description = TextAreaField('الوصف', validators=[Optional()])
+    image_url   = StringField('رابط الصورة', validators=[Optional()])
+    submit      = SubmitField('حفظ الفئة')
+
+class ImportForm(FlaskForm):
+    warehouse_id = AjaxSelectField('المستودع', endpoint='api.search_warehouses', get_label='name', validators=[DataRequired()])
+    file         = FileField('ملف المنتجات (CSV/XLSX)', validators=[DataRequired(), FileAllowed(['csv', 'xlsx', 'xls'])])
+    duplicate_strategy = SelectField(
+        'سياسة التكرار',
+        choices=[
+            ('skip', 'تخطي المكررات'),
+            ('update_product', 'تحديث المنتج عند التطابق'),
+            ('stock_only', 'تحديث المخزون فقط')
+        ],
+        validators=[DataRequired()]
+    )
+    dry_run = BooleanField('فحص فقط (بدون ترحيل)', default=True)
+    continue_after_warnings = BooleanField('المتابعة رغم التحذيرات', default=False)
+    submit = SubmitField('متابعة')
 
 class ProductForm(FlaskForm):
     id                  = HiddenField()
@@ -2396,12 +2391,7 @@ class WarehouseForm(FlaskForm):
         if cap is not None and occ is not None and occ > cap:
             self.current_occupancy.errors.append('المشغول حاليًا لا يمكن أن يتجاوز السعة القصوى.')
             return False
-
-        # لا نُلزم partner_id مطلقًا عند إنشاء المستودع، حتى لو كان النوع PARTNER
-        # ولا نُلزم إدخال share_percent مع شريك. النِّسَب تُدار لاحقًا لكل قطعة/شحنة.
         return True
-
-
 
 class PartnerShareForm(FlaskForm):
     partner_id       = AjaxSelectField('الشريك', endpoint='api.partners', get_label='name', validators=[DataRequired()])
@@ -2411,11 +2401,10 @@ class PartnerShareForm(FlaskForm):
     notes            = TextAreaField('ملاحظات', validators=[Optional(), Length(max=500)])
     submit           = SubmitField('حفظ')
 
-
 class ExchangeVendorForm(FlaskForm):
     supplier_id  = AjaxSelectField(
         'المورّد / التاجر',
-        endpoint='api.search_suppliers',   # ✅統統統統統統統統統統統統統統統統統統統
+        endpoint='api.search_suppliers',   
         get_label='name',
         validators=[DataRequired()]
     )
@@ -2423,22 +2412,6 @@ class ExchangeVendorForm(FlaskForm):
     vendor_paid  = DecimalField('المبلغ المدفوع', validators=[Optional(), NumberRange(min=0)])
     vendor_price = DecimalField('سعر المورد', validators=[Optional(), NumberRange(min=0)])
     submit       = SubmitField('حفظ')
-
-
-class ProductCategoryForm(FlaskForm):
-    name        = StringField('اسم الفئة', validators=[DataRequired(), Length(max=100)])
-    parent_id   = AjaxSelectField('الفئة الأب', endpoint='api.search_categories', get_label='name', validators=[Optional()])
-    description = TextAreaField('الوصف', validators=[Optional()])
-    image_url   = StringField('رابط الصورة', validators=[Optional()])
-    submit      = SubmitField('حفظ الفئة')
-
-
-class ImportForm(FlaskForm):
-    warehouse_id = AjaxSelectField('المستودع', endpoint='api.search_warehouses', get_label='name', validators=[DataRequired()])
-    file         = FileField('ملف CSV', validators=[DataRequired(), FileAllowed(['csv'])])
-    submit       = SubmitField('استيراد')
-
-
 
 class NoteForm(FlaskForm):
     author_id  = HiddenField(validators=[Optional()])
@@ -2499,7 +2472,6 @@ class StockLevelForm(FlaskForm):
                 self.warehouse_id.errors.append('❌ يوجد سجل مخزون لهذا المنتج في هذا المخزن بالفعل')
                 return False
         return True
-
 
 class InventoryAdjustmentForm(FlaskForm):
     product_id      = AjaxSelectField('المنتج', endpoint='api.search_products', get_label='name', validators=[DataRequired()])

@@ -1,13 +1,34 @@
 import csv
 import io
+import json
+import os
+import re
 import uuid
-from datetime import datetime
-
-from flask import Blueprint, Response, abort, current_app, flash, jsonify, redirect, render_template, request, url_for
+from decimal import Decimal, InvalidOperation
+from datetime import datetime, date
+from flask import (
+    Blueprint,
+    Response,
+    abort,
+    current_app,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 from flask_login import current_user, login_required
+from werkzeug.utils import secure_filename
+
 from sqlalchemy import func, or_, delete as sa_delete
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
+
+try:
+    import openpyxl
+except Exception:
+    openpyxl = None
 
 from extensions import db
 from utils import _get_or_404, permission_required, format_currency
@@ -47,47 +68,290 @@ from models import (
 
 warehouse_bp = Blueprint("warehouse_bp", __name__, url_prefix="/warehouses")
 
+IMPORT_TMP_DIR_KEY = "IMPORT_TMP_DIR"
 
-def _get_or_404(model, ident):
-    obj = db.session.get(model, ident)
-    if obj is None:
-        abort(404)
-    return obj
+HEADER_ALIASES = {
+    "الاسم": "name",
+    "رقم القطعة": "part_number",
+    "الماركة": "brand",
+    "الاسم التجاري": "commercial_name",
+    "رقم الشاصي": "chassis_number",
+    "الرقم التسلسلي": "serial_no",
+    "الباركود": "barcode",
+    "الوحدة": "unit",
+    "اسم الفئة": "category_name",
+    "سعر الشراء": "purchase_price",
+    "سعر البيع": "selling_price",
+    "التكلفة قبل الشحن": "cost_before_shipping",
+    "التكلفة بعد الشحن": "cost_after_shipping",
+    "سعر الوحدة قبل الضريبة": "unit_price_before_tax",
+    "السعر": "price",
+    "السعر الأساسي": "price",
+    "السعر الأدنى": "min_price",
+    "السعر الأعلى": "max_price",
+    "نسبة الضريبة": "tax_rate",
+    "الحد الأدنى": "min_qty",
+    "نقطة إعادة الطلب": "reorder_point",
+    "بلد المنشأ": "origin_country",
+    "مدة الضمان": "warranty_period",
+    "الوزن": "weight",
+    "الأبعاد": "dimensions",
+    "ملاحظات": "notes",
+    "الكمية": "quantity",
+    "name": "name",
+    "brand": "brand",
+    "part_number": "part_number",
+    "part-number": "part_number",
+    "part no": "part_number",
+    "partno": "part_number",
+    "sku": "sku",
+    "code": "sku",
+    "commercial_name": "commercial_name",
+    "chassis_number": "chassis_number",
+    "serial_no": "serial_no",
+    "barcode": "barcode",
+    "unit": "unit",
+    "category_name": "category_name",
+    "purchase_price": "purchase_price",
+    "cost": "purchase_price",
+    "selling_price": "selling_price",
+    "sell": "selling_price",
+    "cost_before_shipping": "cost_before_shipping",
+    "cost_after_shipping": "cost_after_shipping",
+    "unit_price_before_tax": "unit_price_before_tax",
+    "price": "price",
+    "min_price": "min_price",
+    "max_price": "max_price",
+    "tax_rate": "tax_rate",
+    "min_qty": "min_qty",
+    "reorder_point": "reorder_point",
+    "origin_country": "origin_country",
+    "warranty_period": "warranty_period",
+    "weight": "weight",
+    "dimensions": "dimensions",
+    "notes": "notes",
+    "quantity": "quantity",
+    "qty": "quantity",
+}
 
+REQUIRED_MIN = {"name"}
+
+DEFAULTS = {"condition": "NEW", "is_active": True}
+
+NUMERIC_FIELDS = {
+    "purchase_price",
+    "selling_price",
+    "cost_before_shipping",
+    "cost_after_shipping",
+    "unit_price_before_tax",
+    "price",
+    "min_price",
+    "max_price",
+    "tax_rate",
+    "weight",
+}
+
+INT_FIELDS = {"min_qty", "reorder_point", "warranty_period", "quantity"}
+
+def _json_default(o):
+    if isinstance(o, Decimal):
+        return float(o)
+    if isinstance(o, (datetime, date)):
+        return o.isoformat()
+    return str(o)
+
+def _tmp_dir():
+    root = current_app.config.get(IMPORT_TMP_DIR_KEY) or os.path.join(current_app.instance_path, "imports")
+    os.makedirs(root, exist_ok=True)
+    return root
+
+def _save_tmp_payload(payload: dict) -> str:
+    key = uuid.uuid4().hex
+    path = os.path.join(_tmp_dir(), f"{key}.json")
+    tmp = f"{path}.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, default=_json_default)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, path)
+    return key
+
+def _write_tmp_payload(key: str, payload: dict) -> None:
+    path = os.path.join(_tmp_dir(), f"{key}.json")
+    tmp = f"{path}.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, default=_json_default)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, path)
+
+def _load_tmp_payload(key: str) -> dict | None:
+    path = os.path.join(_tmp_dir(), f"{key}.json")
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+def _normalize_header(h: str) -> str:
+    if not h:
+        return ""
+    s = str(h).strip().lower()
+    s = s.replace(" ", "_").replace("-", "_")
+    s = re.sub(r"_+", "_", s).strip("_")
+    return HEADER_ALIASES.get(s, s)
+
+def _clean_numeric(v):
+    if v in (None, "", "None"):
+        return None
+    if isinstance(v, (int, float, Decimal)):
+        try:
+            return Decimal(str(v))
+        except (InvalidOperation, ValueError):
+            return None
+    s = str(v).replace("$", "").replace(",", "").strip()
+    try:
+        return Decimal(s)
+    except (InvalidOperation, ValueError):
+        return None
+
+def _clean_int(v):
+    if v in (None, "", "None"):
+        return None
+    try:
+        return int(float(v))
+    except Exception:
+        return None
+
+def _read_rows_from_csv(file_storage) -> list[dict]:
+    file_storage.stream.seek(0)
+    stream = io.StringIO(file_storage.stream.read().decode("utf-8", errors="ignore"), newline=None)
+    reader = csv.DictReader(stream)
+    rows = []
+    for raw in reader:
+        row = {}
+        for k, v in (raw or {}).items():
+            nk = _normalize_header(k)
+            row[nk] = (v if isinstance(v, str) else str(v)) if v is not None else None
+        rows.append(row)
+    return rows
+
+def _read_rows_from_xlsx(file_storage) -> list[dict]:
+    if not openpyxl:
+        raise RuntimeError("XLSX غير مدعوم: الرجاء تثبيت openpyxl أو ارفع CSV.")
+    file_storage.stream.seek(0)
+    wb = openpyxl.load_workbook(file_storage.stream, data_only=True)
+    ws = wb.active
+    headers = []
+    rows = []
+    for i, row in enumerate(ws.iter_rows(values_only=True)):
+        if i == 0:
+            headers = [_normalize_header(x if x is not None else "") for x in row]
+            continue
+        obj = {}
+        for j, cell in enumerate(row):
+            key = headers[j] if j < len(headers) else f"col_{j}"
+            obj[key] = cell
+        rows.append(obj)
+    return rows
+
+def _read_uploaded_rows(file_storage) -> list[dict]:
+    filename = secure_filename(file_storage.filename or "")
+    ext = os.path.splitext(filename)[1].lower()
+    if ext == ".xlsx":
+        return _read_rows_from_xlsx(file_storage)
+    if ext == ".xls":
+        raise RuntimeError("صيغة .xls غير مدعومة. الرجاء رفع .xlsx أو .csv.")
+    return _read_rows_from_csv(file_storage)
+
+def _normalize_row_types(r: dict) -> dict:
+    out = dict(r or {})
+    for f in NUMERIC_FIELDS:
+        if f in out:
+            out[f] = _clean_numeric(out.get(f))
+    for f in INT_FIELDS:
+        if f in out:
+            out[f] = _clean_int(out.get(f))
+    for k, v in list(out.items()):
+        if isinstance(v, str):
+            out[k] = v.strip()
+    if not out.get("sku") and out.get("part_number"):
+        out["sku"] = str(out["part_number"]).strip()
+    if out.get("price") is None:
+        out["price"] = out.get("selling_price") if out.get("selling_price") is not None else Decimal("0")
+    for k, v in DEFAULTS.items():
+        out.setdefault(k, v)
+    return out
+
+def _analyze(rows: list[dict]) -> dict:
+    total = len(rows)
+    missing_required = []
+    warnings = []
+    skus = {str((r.get("sku") or "")).strip().upper() for r in rows if str((r.get("sku") or "")).strip()}
+    parts = {str((r.get("part_number") or "")).strip().upper() for r in rows if str((r.get("part_number") or "")).strip()}
+    existing_by_sku = {}
+    existing_by_part = {}
+    if skus:
+        for pid, sku_up in db.session.query(Product.id, func.upper(Product.sku)).filter(func.upper(Product.sku).in_(skus)).all():
+            existing_by_sku[(sku_up or "")] = pid
+    if parts:
+        for pid, pn_up in db.session.query(Product.id, func.upper(Product.part_number)).filter(func.upper(Product.part_number).in_(parts)).all():
+            existing_by_part[(pn_up or "")] = pid
+    normalized = []
+    for idx, r in enumerate(rows, start=1):
+        nr = _normalize_row_types(r)
+        if not (nr.get("name") or "").strip():
+            missing_required.append(idx)
+        soft = []
+        if nr.get("price") is None and nr.get("selling_price") is None:
+            soft.append("لا يوجد سعر")
+        if not (nr.get("sku") or "") and (nr.get("part_number") or ""):
+            soft.append("لا يوجد SKU")
+        if not (nr.get("brand") or ""):
+            soft.append("لا توجد ماركة")
+        key_sku = str(nr.get("sku") or "").strip().upper()
+        key_part = str(nr.get("part_number") or "").strip().upper()
+        match_id = None
+        match_key = None
+        if key_sku and key_sku in existing_by_sku:
+            match_id = existing_by_sku[key_sku]
+            match_key = "sku"
+        elif key_part and key_part in existing_by_part:
+            match_id = existing_by_part[key_part]
+            match_key = "part_number"
+        normalized.append({"rownum": idx, "data": nr, "match": {"product_id": match_id, "key": match_key}, "soft_warnings": soft})
+        if soft:
+            warnings.append({"row": idx, "issues": soft})
+    report = {
+        "total": total,
+        "missing_required_rows": missing_required,
+        "warnings": warnings,
+        "matches": sum(1 for n in normalized if n["match"]["product_id"]),
+        "new_items": sum(1 for n in normalized if not n["match"]["product_id"]),
+    }
+    return {"normalized": normalized, "report": report}
 
 @warehouse_bp.app_context_processor
 def _inject_utils():
     labels = {
-        "warehouse_type": {
-            "MAIN": "المستودع الرئيسي",
-            "PARTNER": "مستودع شريك",
-            "EXCHANGE": "مستودع تبادل",
-            "TEMP": "مستودع مؤقت",
-            "OUTLET": "منفذ بيع",
-        },
+        "warehouse_type": {"MAIN": "المستودع الرئيسي", "PARTNER": "مستودع شريك", "EXCHANGE": "مستودع تبادل", "TEMP": "مستودع مؤقت", "OUTLET": "منفذ بيع"},
         "transfer_direction": {"IN": "وارد", "OUT": "صادر", "ADJUSTMENT": "تسوية"},
-        "preorder_status": {
-            "PENDING": "قيد الانتظار",
-            "CONFIRMED": "مؤكد",
-            "FULFILLED": "تم التنفيذ",
-            "CANCELLED": "ملغى",
-        },
+        "preorder_status": {"PENDING": "قيد الانتظار", "CONFIRMED": "مؤكد", "FULFILLED": "تم التنفيذ", "CANCELLED": "ملغى"},
     }
-
     def ar_label(category, key):
         if key is None:
             return ""
         k = getattr(key, "value", key)
         k = str(k)
         return labels.get(category, {}).get(k, k)
-
     quick = [
         {"title": "كشف المخزون", "endpoint": "warehouse_bp.inventory_summary", "icon": "fa-table"},
         {"title": "إنشاء مستودع", "endpoint": "warehouse_bp.create", "icon": "fa-plus"},
         {"title": "الحجوزات", "endpoint": "warehouse_bp.preorders_list", "icon": "fa-clipboard-list"},
     ]
     return dict(format_currency=format_currency, ar_label=ar_label, AR_LABELS=labels, warehouses_quick_actions=quick)
-
 
 @warehouse_bp.route("/", methods=["GET"], endpoint="list")
 @login_required
@@ -121,15 +385,24 @@ def list_warehouses():
         q = q.order_by(Warehouse.name.asc())
     warehouses = q.all()
     if request.is_json or (request.args.get("format") or "").lower() == "json":
+        labels = {
+            "MAIN": "المستودع الرئيسي",
+            "PARTNER": "مستودع شريك",
+            "EXCHANGE": "مستودع تبادل",
+            "TEMP": "مستودع مؤقت",
+            "OUTLET": "منفذ بيع",
+            "INVENTORY": "مخزون"
+        }
         data = []
         for w in warehouses:
             wt = getattr(w.warehouse_type, "value", w.warehouse_type)
+            wt = str(wt) if wt is not None else ""
             data.append(
                 {
                     "id": w.id,
                     "name": w.name,
                     "warehouse_type": wt,
-                    "warehouse_type_label": _inject_utils()["ar_label"]("warehouse_type", wt),
+                    "warehouse_type_label": labels.get(wt, wt),
                     "parent_id": w.parent_id,
                     "partner_id": w.partner_id,
                     "is_active": bool(w.is_active),
@@ -155,17 +428,10 @@ def list_warehouses():
 @permission_required("manage_warehouses")
 def create_warehouse():
     from forms import WarehouseForm
-
     form = WarehouseForm()
     if form.validate_on_submit():
-        parent_id = None
-        if getattr(form, "parent_id", None) and getattr(form.parent_id, "data", None):
-            parent_obj = form.parent_id.data
-            parent_id = getattr(parent_obj, "id", None)
-        partner_id = None
-        if getattr(form, "partner_id", None) and getattr(form.partner_id, "data", None):
-            partner_obj = form.partner_id.data
-            partner_id = getattr(partner_obj, "id", None)
+        parent_id = form.parent_id.data.id if getattr(form, "parent_id", None) and form.parent_id.data else None
+        partner_id = form.partner_id.data.id if getattr(form, "partner_id", None) and form.partner_id.data else None
         wh_type = (form.warehouse_type.data or "").strip().upper()
         share_percent = form.share_percent.data if wh_type == "PARTNER" else 0
         w = Warehouse(
@@ -181,12 +447,10 @@ def create_warehouse():
         db.session.add(w)
         try:
             db.session.commit()
-            current_app.logger.info("Created warehouse id=%s name=%s type=%s", w.id, w.name, w.warehouse_type)
             flash("تم إنشاء المستودع بنجاح", "success")
             return redirect(url_for("warehouse_bp.list"))
         except SQLAlchemyError as e:
             db.session.rollback()
-            current_app.logger.exception("Create warehouse failed")
             flash(f"حدث خطأ أثناء إنشاء المستودع: {e.__class__.__name__}", "danger")
     if request.method == "POST" and form.errors:
         for field, errs in form.errors.items():
@@ -200,15 +464,14 @@ def create_warehouse():
 @permission_required("manage_warehouses")
 def edit_warehouse(warehouse_id):
     from forms import WarehouseForm
-
     w = _get_or_404(Warehouse, warehouse_id)
     form = WarehouseForm(obj=w)
     if form.validate_on_submit():
         w.name = (form.name.data or "").strip()
-        w.warehouse_type = form.warehouse_type.data
+        w.warehouse_type = (form.warehouse_type.data or "").strip().upper()
         w.location = (form.location.data or "").strip() or None
         w.capacity = form.capacity.data
-        w.is_active = form.is_active.data
+        w.is_active = bool(form.is_active.data)
         w.parent_id = form.parent_id.data.id if form.parent_id.data else None
         w.partner_id = form.partner_id.data.id if form.partner_id.data else None
         w.share_percent = form.share_percent.data if w.warehouse_type == "PARTNER" else 0
@@ -243,7 +506,11 @@ def delete_warehouse(warehouse_id):
 @permission_required("view_warehouses", "view_inventory", "manage_inventory")
 def warehouse_detail(warehouse_id):
     w = _get_or_404(Warehouse, warehouse_id)
-    stock_levels = StockLevel.query.filter_by(warehouse_id=warehouse_id).options(joinedload(StockLevel.product)).all()
+    stock_levels = (
+        StockLevel.query.filter_by(warehouse_id=warehouse_id)
+        .options(joinedload(StockLevel.product))
+        .all()
+    )
     transfers_in = Transfer.query.filter_by(destination_id=warehouse_id).all()
     transfers_out = Transfer.query.filter_by(source_id=warehouse_id).all()
     return render_template(
@@ -258,6 +525,7 @@ def warehouse_detail(warehouse_id):
         share_form=ProductPartnerShareForm(),
         shipment_form=ShipmentForm(),
     )
+
 
 @warehouse_bp.route("/goto/warehouse-products", methods=["GET"], endpoint="goto_warehouse_products")
 @login_required
@@ -289,10 +557,12 @@ def inventory_summary():
     selected_ids = request.args.getlist("warehouse_ids", type=int)
     if not selected_ids:
         selected_ids = [w.id for w in Warehouse.query.order_by(Warehouse.name).all()]
-
-    whs = Warehouse.query.filter(Warehouse.id.in_(selected_ids)).order_by(Warehouse.name.asc()).all()
+    whs = (
+        Warehouse.query.filter(Warehouse.id.in_(selected_ids))
+        .order_by(Warehouse.name.asc())
+        .all()
+    )
     wh_ids = [w.id for w in whs]
-
     if wh_ids:
         q = (
             db.session.query(StockLevel)
@@ -302,11 +572,11 @@ def inventory_summary():
             .order_by(Product.name.asc())
         )
         if search:
-            q = q.filter(Product.name.ilike(f"%{search}%"))
+            like = f"%{search}%"
+            q = q.filter(or_(Product.name.ilike(like), Product.sku.ilike(like), Product.part_number.ilike(like)))
         rows = q.all()
     else:
         rows = []
-
     pivot = {}
     for sl in rows:
         pid = sl.product_id
@@ -317,9 +587,7 @@ def inventory_summary():
         res = int(getattr(sl, "reserved_quantity", 0) or 0)
         pivot[pid]["by"][sl.warehouse_id] = {"on": on, "res": res}
         pivot[pid]["total"] += on
-
     rows_data = sorted(pivot.values(), key=lambda d: (d["product"].name or "").lower())
-
     if (request.args.get("export") or "").lower() == "csv":
         si = io.StringIO()
         writer = csv.writer(si)
@@ -339,7 +607,6 @@ def inventory_summary():
             mimetype="text/csv; charset=utf-8",
             headers={"Content-Disposition": "attachment; filename=inventory_summary.csv"},
         )
-
     return render_template(
         "warehouses/inventory_summary.html",
         warehouses=whs,
@@ -347,6 +614,7 @@ def inventory_summary():
         selected_ids=wh_ids,
         search=search,
     )
+
 
 @warehouse_bp.route("/<int:id>/products", methods=["GET"], endpoint="products")
 @login_required
@@ -366,7 +634,8 @@ def products(id):
         .order_by(Product.name.asc())
     )
     if search:
-        q = q.filter(Product.name.ilike(f"%{search}%"))
+        like = f"%{search}%"
+        q = q.filter(or_(Product.name.ilike(like), Product.sku.ilike(like), Product.part_number.ilike(like)))
     rows = q.all()
     pivot = {}
     for sl in rows:
@@ -379,21 +648,25 @@ def products(id):
         pivot[pid]["by"][sl.warehouse_id] = {"on": on, "res": res}
         pivot[pid]["total"] += on
     rows_data = sorted(pivot.values(), key=lambda d: (d["product"].name or "").lower())
-    if (request.args.get("export") or "").lower() == "csv":
-        si = io.StringIO()
-        writer = csv.writer(si)
-        header = ["القطعة", "SKU"] + [w.name for w in whs] + ["الإجمالي"]
-        writer.writerow(header)
+    if request.is_json or (request.args.get("format") or "").lower() == "json":
+        out = []
         for r in rows_data:
             p = r["product"]
-            sku = getattr(p, "sku", None) or ""
-            line = [p.name or "", sku]
-            for wid in wh_ids:
-                line.append(str(r["by"][wid]["on"]))
-            line.append(str(r["total"]))
-            writer.writerow(line)
-        output = si.getvalue().encode("utf-8-sig")
-        return Response(output, mimetype="text/csv; charset=utf-8", headers={"Content-Disposition": "attachment; filename=warehouse_products.csv"})
+            active_qty = r["by"].get(base_warehouse.id, {}).get("on", 0)
+            out.append(
+                {
+                    "id": p.id,
+                    "sku": p.sku,
+                    "part_number": p.part_number,
+                    "name": p.name,
+                    "brand": p.brand,
+                    "purchase_price": getattr(p, "purchase_price", None),
+                    "selling_price": getattr(p, "selling_price", None),
+                    "quantity": active_qty,
+                    "total_quantity": r["total"],
+                }
+            )
+        return jsonify({"data": out, "warehouse_id": base_warehouse.id})
     return render_template(
         "warehouses/products.html",
         warehouse=base_warehouse,
@@ -406,6 +679,139 @@ def products(id):
         active_warehouse=base_warehouse,
         warehouse_id=base_warehouse.id,
     )
+
+
+@warehouse_bp.route("/<int:warehouse_id>/products/<int:product_id>", methods=["POST", "PATCH"], endpoint="update_product_inline")
+@login_required
+@permission_required("manage_inventory")
+def update_product_inline(warehouse_id, product_id):
+    _get_or_404(Warehouse, warehouse_id)
+    p = _get_or_404(Product, product_id)
+    payload = request.get_json(silent=True) or {}
+    allowed_product_fields = {
+        "name",
+        "sku",
+        "part_number",
+        "brand",
+        "purchase_price",
+        "selling_price",
+        "price",
+        "min_price",
+        "max_price",
+        "tax_rate",
+        "unit",
+        "origin_country",
+        "warranty_period",
+        "is_active",
+    }
+    decimal_fields = {"purchase_price", "selling_price", "price", "min_price", "max_price", "tax_rate"}
+    int_fields = {"warranty_period"}
+    updates = {}
+    for k, v in payload.items():
+        if k in allowed_product_fields:
+            if k in decimal_fields:
+                try:
+                    updates[k] = Decimal(str(v)) if v not in (None, "", "None") else None
+                except (InvalidOperation, ValueError):
+                    return jsonify({"ok": False, "error": f"invalid_decimal:{k}"}), 400
+            elif k in int_fields:
+                try:
+                    updates[k] = int(v) if v not in (None, "", "None") else None
+                except Exception:
+                    return jsonify({"ok": False, "error": f"invalid_int:{k}"}), 400
+            else:
+                updates[k] = (str(v).strip() if v is not None else None)
+    for k, v in updates.items():
+        setattr(p, k, v)
+    qty_set = False
+    sl = None
+    if "quantity" in payload or "reserved_quantity" in payload:
+        sl = (
+            StockLevel.query.filter_by(warehouse_id=warehouse_id, product_id=product_id).one_or_none()
+        )
+        if not sl:
+            sl = StockLevel(warehouse_id=warehouse_id, product_id=product_id, quantity=0)
+            db.session.add(sl)
+        if "quantity" in payload:
+            try:
+                qv = int(float(payload.get("quantity") if payload.get("quantity") is not None else 0))
+                sl.quantity = max(0, qv)
+                qty_set = True
+            except Exception:
+                return jsonify({"ok": False, "error": "invalid_int:quantity"}), 400
+        if "reserved_quantity" in payload:
+            try:
+                rv = int(float(payload.get("reserved_quantity") if payload.get("reserved_quantity") is not None else 0))
+                setattr(sl, "reserved_quantity", max(0, rv))
+            except Exception:
+                return jsonify({"ok": False, "error": "invalid_int:reserved_quantity"}), 400
+    try:
+        db.session.commit()
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": f"db:{e.__class__.__name__}"}), 500
+    active_qty = None
+    if sl:
+        active_qty = int(sl.quantity or 0)
+    else:
+        sl2 = (
+            StockLevel.query.filter_by(warehouse_id=warehouse_id, product_id=product_id).one_or_none()
+        )
+        active_qty = int(getattr(sl2, "quantity", 0) or 0) if sl2 else 0
+    total_qty = (
+        db.session.query(func.coalesce(func.sum(StockLevel.quantity), 0))
+        .filter(StockLevel.product_id == product_id)
+        .scalar()
+    )
+    return jsonify(
+        {
+            "ok": True,
+            "product": {
+                "id": p.id,
+                "sku": p.sku,
+                "part_number": p.part_number,
+                "name": p.name,
+                "brand": p.brand,
+                "purchase_price": getattr(p, "purchase_price", None),
+                "selling_price": getattr(p, "selling_price", None),
+            },
+            "quantity": active_qty if qty_set or sl else None,
+            "total_quantity": int(total_qty or 0),
+        }
+    )
+
+
+@warehouse_bp.get("/<int:warehouse_id>/preview")
+@login_required
+@permission_required("view_inventory")
+def preview_inventory(warehouse_id: int):
+    warehouse = _get_or_404(Warehouse, warehouse_id)
+    rows = (
+        db.session.query(
+            Product.id.label("product_id"),
+            Product.sku,
+            Product.part_number,
+            Product.name,
+            Product.brand,
+            Product.purchase_price,
+            Product.selling_price,
+            func.coalesce(func.sum(StockLevel.quantity), 0).label("quantity"),
+        )
+        .join(StockLevel, StockLevel.product_id == Product.id)
+        .filter(StockLevel.warehouse_id == warehouse.id)
+        .group_by(
+            Product.id,
+            Product.sku,
+            Product.part_number,
+            Product.name,
+            Product.brand,
+            Product.purchase_price,
+            Product.selling_price,
+        )
+        .order_by(Product.name.asc())
+        .all()
+    )
+    return render_template("warehouses/preview_inventory.html", warehouse=warehouse, rows=rows)
 
 @warehouse_bp.route("/<int:id>/add-product", methods=["GET", "POST"], endpoint="add_product")
 @login_required
@@ -582,33 +988,288 @@ def add_product(id):
 def import_products(id):
     w = _get_or_404(Warehouse, id)
     form = ImportForm()
-    file_obj = None
-    if request.method == "POST":
-        file_obj = request.files.get("file") or getattr(getattr(form, "file", None), "data", None)
-        if file_obj:
-            try:
-                stream = io.StringIO(file_obj.stream.read().decode("utf-8"), newline=None)
-            except Exception:
-                try:
-                    file_obj.seek(0)
-                    stream = io.StringIO(file_obj.read().decode("utf-8"), newline=None)
-                except Exception:
-                    stream = None
-            if stream:
-                reader = csv.DictReader(stream)
-                for row in reader:
-                    name = (row.get("name") or "").strip()
-                    sku = (row.get("sku") or "").strip() or None
-                    if not name:
-                        continue
-                    p = Product(name=name)
-                    if hasattr(p, "sku"):
-                        setattr(p, "sku", sku)
-                    db.session.add(p)
-                db.session.commit()
-                return redirect(url_for("warehouse_bp.detail", warehouse_id=w.id))
-    return render_template("warehouses/import_products.html", form=form, warehouse=w)
+    if request.method == "GET":
+        return render_template("warehouses/import_products.html", form=form, warehouse=w)
 
+    # POST
+    file_obj = request.files.get("file") or getattr(getattr(form, "file", None), "data", None)
+    if not file_obj or not getattr(file_obj, "filename", ""):
+        flash("لم يتم اختيار ملف.", "warning")
+        return render_template("warehouses/import_products.html", form=form, warehouse=w)
+
+    try:
+        rows = _read_uploaded_rows(file_obj)
+    except RuntimeError as e:
+        flash(str(e), "danger")
+        return render_template("warehouses/import_products.html", form=form, warehouse=w)
+    except Exception:
+        flash("تعذر قراءة الملف. الرجاء استخدام CSV أو XLSX صحيح.", "danger")
+        return render_template("warehouses/import_products.html", form=form, warehouse=w)
+
+    analysis = _analyze(rows)
+    payload = {
+        "warehouse_id": w.id,
+        "filename": secure_filename(file_obj.filename or f"upload_{uuid.uuid4().hex}"),
+        "strategy": getattr(form, "duplicate_strategy", None).data if hasattr(form, "duplicate_strategy") else "skip",
+        "dry_run": bool(getattr(form, "dry_run", None).data) if hasattr(form, "dry_run") else True,
+        "continue_after_warnings": bool(getattr(form, "continue_after_warnings", None).data) if hasattr(form, "continue_after_warnings") else False,
+        "created_by": getattr(current_user, "id", None),
+        "created_at": datetime.utcnow().isoformat(),
+        "analysis": analysis,
+    }
+    key = _save_tmp_payload(payload)
+
+    rpt = analysis["report"]
+    if rpt["missing_required_rows"] and not payload["continue_after_warnings"]:
+        flash(f"هناك صفوف بدون اسم (إجباري): {len(rpt['missing_required_rows'])} صف. يمكنك تعديل الملف وإعادة الرفع، أو متابعة المعاينة.", "warning")
+
+    return redirect(url_for("warehouse_bp.import_preview", id=w.id, token=key))
+@warehouse_bp.route("/<int:warehouse_id>/preview/update", methods=["POST"], endpoint="preview_update")
+@login_required
+@permission_required("manage_inventory")
+def preview_update(warehouse_id: int):
+    w = _get_or_404(Warehouse, warehouse_id)
+    data = request.get_json(silent=True) or {}
+    pid = data.get("product_id")
+    field = (data.get("field") or "").strip()
+    raw_value = data.get("value")
+
+    if not pid or not field:
+        return jsonify({"ok": False, "message": "بيانات غير مكتملة"}), 400
+
+    p = db.session.get(Product, int(pid))
+    if not p:
+        return jsonify({"ok": False, "message": "المنتج غير موجود"}), 404
+
+    numeric_fields = {"price","purchase_price","selling_price","min_price","max_price","tax_rate","weight","cost_before_shipping","cost_after_shipping","unit_price_before_tax"}
+    int_fields = {"min_qty","reorder_point","warranty_period"}
+
+    def as_decimal(v):
+        try:
+            if v in (None, "", "None"): return None
+            return Decimal(str(v))
+        except Exception:
+            return None
+
+    def as_int(v):
+        try:
+            if v in (None, "", "None"): return None
+            return int(float(v))
+        except Exception:
+            return None
+
+    clean_value = None
+    row_total = None
+
+    try:
+        if field == "quantity":
+            qty = as_int(raw_value)
+            if qty is None or qty < 0:
+                return jsonify({"ok": False, "message": "قيمة الكمية غير صالحة"}), 400
+            sl = StockLevel.query.filter_by(warehouse_id=w.id, product_id=p.id).first()
+            if not sl:
+                sl = StockLevel(warehouse_id=w.id, product_id=p.id, quantity=0, reserved_quantity=0)
+                db.session.add(sl)
+            sl.quantity = qty
+            clean_value = qty
+
+        elif field in numeric_fields:
+            dv = as_decimal(raw_value)
+            if dv is None:
+                return jsonify({"ok": False, "message": "قيمة رقمية غير صالحة"}), 400
+            setattr(p, field, dv)
+            clean_value = str(dv)
+
+        elif field in int_fields:
+            iv = as_int(raw_value)
+            setattr(p, field, iv)
+            clean_value = iv if iv is not None else ""
+
+        elif field in {"sku","part_number","name","brand","commercial_name","unit","barcode","category_name","dimensions","image","origin_country","chassis_number","serial_no"}:
+            sv = (str(raw_value or "").strip() or None)
+            setattr(p, field, sv)
+            clean_value = sv or ""
+
+        else:
+            return jsonify({"ok": False, "message": "حقل غير مدعوم"}), 400
+
+        db.session.commit()
+
+        sl_cur = StockLevel.query.filter_by(warehouse_id=w.id, product_id=p.id).first()
+        q = int(getattr(sl_cur, "quantity", 0) or 0)
+        sp = Decimal(str(getattr(p, "selling_price", 0) or 0))
+        row_total = float(sp * q)
+
+        return jsonify({"ok": True, "clean_value": clean_value, "row_total": row_total})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "message": str(e)}), 500
+
+@warehouse_bp.route("/<int:id>/import/preview", methods=["GET", "POST"], endpoint="import_preview")
+@login_required
+@permission_required("manage_inventory")
+def import_preview(id):
+    w = _get_or_404(Warehouse, id)
+    token = request.args.get("token") or request.form.get("token")
+    payload = _load_tmp_payload(token) if token else None
+    if not payload or payload.get("warehouse_id") != w.id:
+        flash("جلسة المعاينة غير صالحة أو انتهت.", "danger")
+        return redirect(url_for("warehouse_bp.import_products", id=w.id))
+
+    if request.method == "POST":
+        action = (request.form.get("action") or "").strip().lower()
+        if action == "commit":
+            return redirect(url_for("warehouse_bp.import_commit", id=w.id, token=token))
+        rows_json = request.form.get("rows_json")
+        if rows_json:
+            try:
+                obj = json.loads(rows_json)
+                edited = obj.get("normalized") or obj.get("rows") or []
+                raw_rows = [(r.get("data") if isinstance(r, dict) else r) for r in edited]
+                payload["analysis"] = _analyze(raw_rows)
+                _write_tmp_payload(token, payload)
+                flash("تم حفظ تعديلات المعاينة.", "success")
+            except Exception:
+                flash("تعذر حفظ التعديلات.", "danger")
+        return redirect(url_for("warehouse_bp.import_preview", id=w.id, token=token))
+
+    analysis = payload.get("analysis") or {}
+    rows = analysis.get("normalized") or []
+    report = analysis.get("report") or {"total": 0, "missing_required_rows": [], "warnings": [], "matches": 0, "new_items": 0}
+    return render_template(
+        "warehouses/import_preview.html",
+        warehouse=w,
+        token=token,
+        rows=rows,
+        report=report,
+        strategy=payload.get("strategy", "skip"),
+        dry_run=payload.get("dry_run", True),
+    )
+
+@warehouse_bp.route("/<int:id>/import/commit", methods=["POST"], endpoint="import_commit")
+@login_required
+@permission_required("manage_inventory")
+def import_commit(id):
+    w = _get_or_404(Warehouse, id)
+
+    token = request.form.get("token") or request.args.get("token")
+    payload = _load_tmp_payload(token) if token else None
+    if not payload or payload.get("warehouse_id") != w.id:
+        flash("جلسة الترحيل غير صالحة.", "danger")
+        return redirect(url_for("warehouse_bp.import_products", id=w.id))
+
+    rows_json = request.form.get("rows_json")
+    if rows_json:
+        try:
+            obj = json.loads(rows_json)
+            edited = obj.get("normalized") or obj.get("rows") or []
+            raw_rows = [(r.get("data") if isinstance(r, dict) else r) for r in edited]
+            analysis = _analyze(raw_rows)
+        except Exception:
+            analysis = payload.get("analysis") or {}
+    else:
+        analysis = payload.get("analysis") or {}
+
+    rows_norm = analysis.get("normalized") or []
+    dry_run = (request.form.get("dry_run") == "1")
+
+    inserted = 0
+    updated = 0
+    skipped = 0
+
+    try:
+        for item in rows_norm:
+            data = dict(item.get("data") or {})
+            name = (data.get("name") or "").strip()
+            if not name:
+                skipped += 1
+                continue
+
+            sku = (data.get("sku") or "").strip().upper()
+            if not sku and (data.get("part_number") or ""):
+                sku = str(data.get("part_number")).strip().upper()
+
+            def _dv(key, default=None):
+                v = data.get(key)
+                if v in (None, "", "None"):
+                    return default
+                try:
+                    return Decimal(str(v))
+                except Exception:
+                    return default
+
+            price = _dv("price", None)
+            selling_price = _dv("selling_price", price if price is not None else None)
+            purchase_price = _dv("purchase_price", None)
+
+            qv = data.get("quantity")
+            try:
+                qty = int(float(qv)) if qv not in (None, "", "None") else 0
+            except Exception:
+                qty = 0
+            qty = max(qty, 0)
+
+            pid = item.get("match", {}).get("product_id")
+            p = db.session.get(Product, pid) if pid else None
+
+            if p is None:
+                p = Product(
+                    name=name,
+                    sku=sku or None,
+                    part_number=(data.get("part_number") or None),
+                    brand=(data.get("brand") or None),
+                    commercial_name=(data.get("commercial_name") or None),
+                    chassis_number=(data.get("chassis_number") or None),
+                    serial_no=(data.get("serial_no") or None),
+                    barcode=(data.get("barcode") or None),
+                    unit=(data.get("unit") or None),
+                    category_name=(data.get("category_name") or None),
+                    price=(price or 0),
+                    selling_price=(selling_price or (price or 0)),
+                    purchase_price=(purchase_price or 0),
+                    cost_before_shipping=(_dv("cost_before_shipping", 0) or 0),
+                    cost_after_shipping=(_dv("cost_after_shipping", 0) or 0),
+                    unit_price_before_tax=(_dv("unit_price_before_tax", 0) or 0),
+                    min_price=_dv("min_price", None),
+                    max_price=_dv("max_price", None),
+                    tax_rate=_dv("tax_rate", 0) or 0,
+                    min_qty=int(data.get("min_qty") or 0),
+                    reorder_point=(int(data.get("reorder_point")) if data.get("reorder_point") not in (None, "", "None") else None),
+                    condition=(data.get("condition") or "NEW"),
+                    origin_country=(data.get("origin_country") or None),
+                    warranty_period=(int(data.get("warranty_period")) if data.get("warranty_period") not in (None, "", "None") else None),
+                    weight=_dv("weight", None),
+                    dimensions=(data.get("dimensions") or None),
+                    image=(data.get("image") or None),
+                    is_active=True,
+                    is_digital=False,
+                    is_exchange=False,
+                )
+                db.session.add(p)
+                db.session.flush()
+                inserted += 1
+            else:
+                updated += 1
+
+            if qty > 0:
+                sl = StockLevel.query.filter_by(warehouse_id=w.id, product_id=p.id).first()
+                if not sl:
+                    sl = StockLevel(warehouse_id=w.id, product_id=p.id, quantity=0, reserved_quantity=0)
+                    db.session.add(sl)
+                sl.quantity = max((sl.quantity or 0) + qty, 0)
+
+        if dry_run:
+            db.session.rollback()
+            flash(f"فحص فقط: جديد={inserted}, تحديث={updated}, متجاهل={skipped}", "info")
+        else:
+            db.session.commit()
+            flash(f"تم الترحيل: جديد={inserted}, تحديث={updated}, متجاهل={skipped}", "success")
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f"فشل الترحيل: {e}", "danger")
+
+    return redirect(url_for("warehouse_bp.detail", warehouse_id=w.id))
 
 @warehouse_bp.route("/<int:warehouse_id>/stock", methods=["POST"], endpoint="ajax_update_stock")
 @login_required
@@ -757,7 +1418,6 @@ def ajax_exchange(warehouse_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 400
-
 
 @warehouse_bp.route("/<int:warehouse_id>/partner-shares", methods=["GET", "POST"], endpoint="partner_shares")
 @login_required

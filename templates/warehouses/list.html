@@ -50,7 +50,7 @@
               <th>الاسم</th>
               <th>النوع</th>
               <th>نشط؟</th>
-              <th style="width:180px">إجراءات</th>
+              <th style="width:260px">إجراءات</th>
             </tr>
           </thead>
           <tbody>
@@ -61,6 +61,9 @@
               <td>{{ w.warehouse_type_display | default(w.warehouse_type, true) }}</td>
               <td>{{ '✓' if w.is_active else '✗' }}</td>
               <td class="text-nowrap">
+                <a class="btn btn-sm btn-outline-info" href="{{ url_for('warehouse_bp.preview_inventory', warehouse_id=w.id) }}">
+                  <i class="fas fa-clipboard-list"></i> معاينة
+                </a>
                 <a class="btn btn-sm btn-outline-primary" href="{{ url_for('warehouse_bp.detail', warehouse_id=w.id) }}">
                   <i class="fas fa-eye"></i> تفاصيل
                 </a>
@@ -96,9 +99,9 @@
       if (window.jQuery && $.fn.DataTable) {
         $('#warehouses-table').DataTable({
           pageLength: 25,
-          order: [],              // بدون ترتيب افتراضي — غيّرها لو بدك تفرز بالـ ID
+          order: [],
           columnDefs: [
-            { targets: 0, type: 'num' } // يتعامل مع عمود رقم المستودع كرقمي
+            { targets: 0, type: 'num' }
           ],
           language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/ar.json' }
         });
