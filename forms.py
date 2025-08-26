@@ -408,6 +408,9 @@ class UserForm(FlaskForm):
     password    = PasswordField('كلمة المرور الجديدة', validators=[Optional(), Length(min=6, max=128)])
     confirm     = PasswordField('تأكيد كلمة المرور', validators=[Optional(), EqualTo('password', message='يجب أن تتطابق كلمتا المرور')])
     last_login  = DateTimeField('آخر تسجيل دخول', format='%Y-%m-%d %H:%M', validators=[Optional()], render_kw={'readonly': True, 'disabled': True})
+    last_seen   = DateTimeField('آخر ظهور', format='%Y-%m-%d %H:%M', validators=[Optional()], render_kw={'readonly': True, 'disabled': True})
+    last_login_ip = StringField('آخر IP', render_kw={'readonly': True, 'disabled': True})
+    login_count = StringField('عدد تسجيلات الدخول', render_kw={'readonly': True, 'disabled': True})
     submit      = SubmitField('حفظ')
 
     def __init__(self, *args, **kwargs):
@@ -418,6 +421,11 @@ class UserForm(FlaskForm):
             self._editing_user_id = request.view_args.get('user_id')
         except Exception:
             self._editing_user_id = None
+        if hasattr(self, "_obj") and self._obj:
+            self.last_login.data = getattr(self._obj, "last_login", None)
+            self.last_seen.data = getattr(self._obj, "last_seen", None)
+            self.last_login_ip.data = getattr(self._obj, "last_login_ip", "") or ""
+            self.login_count.data = str(getattr(self._obj, "login_count", "") or "")
 
     def validate_username(self, field):
         name = (field.data or '').strip()
@@ -443,6 +451,7 @@ class UserForm(FlaskForm):
         if self.password.data:
             user.set_password(self.password.data)
         return user
+
 
 class RoleForm(FlaskForm):
     name        = StringField('اسم الدور', validators=[DataRequired(), Length(max=50)])

@@ -5,98 +5,188 @@
 {% endblock %}
 
 {% block breadcrumb %}
-<li class="breadcrumb-item">
-  <a href="{{ url_for('main.dashboard') }}">الرئيسية</a>
-</li>
-<li class="breadcrumb-item">
-  <a href="{{ url_for('users_bp.list_users') }}">المستخدمون</a>
-</li>
-<li class="breadcrumb-item active">
-  {{ 'تعديل' if user_id else 'إضافة' }}
-</li>
+<li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('users_bp.list_users') }}">المستخدمون</a></li>
+<li class="breadcrumb-item active">{{ 'تعديل' if user_id else 'إضافة' }}</li>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container-fluid" dir="rtl">
   <form
-    method="post"
-    action="{% if user_id %}
-               {{ url_for('users_bp.edit_user', user_id=user_id) }}
-             {% else %}
-               {{ url_for('users_bp.create_user') }}
-             {% endif %}"
+    method="post" novalidate
+    action="{% if user_id %}{{ url_for('users_bp.edit_user', user_id=user_id) }}{% else %}{{ url_for('users_bp.create_user') }}{% endif %}"
   >
     {{ form.hidden_tag() }}
 
-    <div class="form-group mb-3">
-      {{ form.username.label(class="form-label") }}
-      {{ form.username(class="form-control", placeholder="أدخل اسم المستخدم") }}
-      {% for e in form.username.errors %}
-        <div class="text-danger">{{ e }}</div>
-      {% endfor %}
-    </div>
+    <div class="row">
+      <!-- العمود الأيسر: بيانات الحساب -->
+      <div class="col-lg-7">
+        <div class="card shadow-sm mb-3">
+          <div class="card-header py-2"><strong>بيانات الحساب</strong></div>
+          <div class="card-body">
 
-    <div class="form-group mb-3">
-      {{ form.email.label(class="form-label") }}
-      {{ form.email(class="form-control", placeholder="أدخل البريد الإلكتروني") }}
-      {% for e in form.email.errors %}
-        <div class="text-danger">{{ e }}</div>
-      {% endfor %}
-    </div>
+            <div class="form-group mb-3">
+              {{ form.username.label(class="form-label") }}
+              {{ form.username(class="form-control", placeholder="أدخل اسم المستخدم") }}
+              {% for e in form.username.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
 
-    <div class="form-group mb-3">
-      {{ form.password.label(class="form-label") }}
-      {{ form.password(
-          class="form-control",
-          placeholder=(user_id
-            and 'اتركه فارغاً إن لم ترغب بالتغيير'
-            or 'أدخل كلمة المرور')
-      ) }}
-      {% for e in form.password.errors %}
-        <div class="text-danger">{{ e }}</div>
-      {% endfor %}
-    </div>
+            <div class="form-group mb-3">
+              {{ form.email.label(class="form-label") }}
+              {{ form.email(class="form-control", placeholder="أدخل البريد الإلكتروني") }}
+              {% for e in form.email.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
 
-    <div class="form-group mb-3">
-      {{ form.role_id.label(class="form-label") }}
-      {{ form.role_id(class="form-select") }}
-      {% for e in form.role_id.errors %}
-        <div class="text-danger">{{ e }}</div>
-      {% endfor %}
-    </div>
+            <div class="row">
+              <div class="col-md-6">
+                <div class="form-group mb-3">
+                  {{ form.password.label(class="form-label") }}
+                  {{ form.password(
+                      class="form-control",
+                      placeholder=(user_id and 'اتركه فارغاً إن لم ترغب بالتغيير' or 'أدخل كلمة المرور'),
+                      id="password"
+                  ) }}
+                  {% for e in form.password.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                </div>
+              </div>
 
-    <div class="form-group mb-3">
-      <div class="form-check">
-        {{ form.is_active(class="form-check-input") }}
-        {{ form.is_active.label(class="form-check-label") }}
+              {% if form.confirm is defined %}
+              <div class="col-md-6">
+                <div class="form-group mb-3">
+                  {{ form.confirm.label(class="form-label") }}
+                  {{ form.confirm(class="form-control", placeholder="أعد إدخال كلمة المرور") }}
+                  {% for e in form.confirm.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                </div>
+              </div>
+              {% endif %}
+            </div>
+
+            <div class="row">
+              <div class="col-md-7">
+                <div class="form-group mb-3">
+                  {{ form.role_id.label(class="form-label") }}
+                  {{ form.role_id(class="form-select") }}
+                  {% for e in form.role_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                </div>
+              </div>
+              <div class="col-md-5">
+                <div class="form-group mb-3">
+                  <div class="form-check mt-4">
+                    {{ form.is_active(class="form-check-input", id="is_active") }}
+                    <label class="form-check-label" for="is_active">{{ form.is_active.label.text }}</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-text text-muted">إن تركت كلمة المرور فارغة أثناء التعديل فلن تتغيّر.</div>
+          </div>
+        </div>
+
+        <!-- الصلاحيات الإضافية -->
+        <div class="card shadow-sm mb-3">
+          <div class="card-header py-2 d-flex align-items-center justify-content-between">
+            <strong>صلاحيات إضافية</strong>
+            <input type="text" class="form-control form-control-sm" style="max-width:220px" id="perm-filter" placeholder="بحث في الصلاحيات…">
+          </div>
+          <div class="card-body">
+            {% if all_permissions %}
+              <div class="row" id="perm-list">
+                {% for perm in all_permissions %}
+                  <div class="col-md-6 col-lg-4 mb-2 perm-item" data-name="{{ perm.name|lower }}">
+                    <div class="form-check">
+                      <input class="form-check-input"
+                             type="checkbox"
+                             name="extra_permissions"
+                             id="perm-{{ perm.id }}"
+                             value="{{ perm.id }}"
+                             {% if perm.id in selected_perm_ids %}checked{% endif %}>
+                      <label class="form-check-label" for="perm-{{ perm.id }}">{{ perm.name }}</label>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <span class="text-muted">لا توجد صلاحيات إضافية.</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- العمود الأيمن: معلومات النشاط (قراءة فقط) -->
+      <div class="col-lg-5">
+        <div class="card shadow-sm mb-3">
+          <div class="card-header py-2"><strong>معلومات النشاط</strong></div>
+          <div class="card-body">
+            <div class="row">
+              {% if form.last_seen is defined %}
+              <div class="col-md-6 mb-3">
+                <label class="form-label">آخر ظهور</label>
+                {{ form.last_seen(class="form-control", disabled=True, readonly=True) }}
+              </div>
+              {% endif %}
+              {% if form.last_login is defined %}
+              <div class="col-md-6 mb-3">
+                <label class="form-label">آخر دخول</label>
+                {{ form.last_login(class="form-control", disabled=True, readonly=True) }}
+              </div>
+              {% endif %}
+              {% if form.last_login_ip is defined %}
+              <div class="col-md-6 mb-3">
+                <label class="form-label">IP آخر دخول</label>
+                {{ form.last_login_ip(class="form-control", disabled=True, readonly=True) }}
+              </div>
+              {% endif %}
+              {% if form.login_count is defined %}
+              <div class="col-md-6 mb-3">
+                <label class="form-label">عدد تسجيلات الدخول</label>
+                {{ form.login_count(class="form-control", disabled=True, readonly=True) }}
+              </div>
+              {% endif %}
+            </div>
+            <div class="small text-muted">هذه الحقول معلوماتية فقط ولا يمكن تعديلها.</div>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-success">
+            {{ 'تحديث' if user_id else 'إنشاء' }}
+          </button>
+          <a href="{{ url_for('users_bp.list_users') }}" class="btn btn-secondary">إلغاء</a>
+        </div>
       </div>
     </div>
-
-    <div class="form-group mb-4">
-      <label class="form-label">صلاحيات إضافية</label>
-      {% for perm in all_permissions %}
-        <div class="form-check">
-          <input
-            class="form-check-input"
-            type="checkbox"
-            name="extra_permissions"
-            id="perm-{{ perm.id }}"
-            value="{{ perm.id }}"
-            {% if perm.id in selected_perm_ids %}checked{% endif %}
-          >
-          <label class="form-check-label" for="perm-{{ perm.id }}">
-            {{ perm.name }}
-          </label>
-        </div>
-      {% endfor %}
-    </div>
-
-    <button type="submit" class="btn btn-success">
-      {{ 'تحديث' if user_id else 'إنشاء' }}
-    </button>
-    <a href="{{ url_for('users_bp.list_users') }}" class="btn btn-secondary ms-2">
-      إلغاء
-    </a>
   </form>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  // إظهار/إخفاء كلمة المرور بزر بسيط (اختياري)
+  (function(){
+    var pwd = document.getElementById('password');
+    if(!pwd) return;
+    pwd.insertAdjacentHTML('afterend',
+      '<button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="toggle-pwd">إظهار/إخفاء</button>'
+    );
+    document.getElementById('toggle-pwd').addEventListener('click', function(){
+      pwd.type = (pwd.type === 'password') ? 'text' : 'password';
+    });
+  })();
+
+  // فلترة الصلاحيات
+  (function(){
+    var input = document.getElementById('perm-filter');
+    var items = document.querySelectorAll('#perm-list .perm-item');
+    if(!input || !items.length) return;
+    input.addEventListener('input', function(){
+      var q = (this.value || '').toLowerCase().trim();
+      items.forEach(function(it){
+        var name = it.getAttribute('data-name') || '';
+        it.style.display = (!q || name.indexOf(q) !== -1) ? '' : 'none';
+      });
+    });
+  })();
+</script>
 {% endblock %}

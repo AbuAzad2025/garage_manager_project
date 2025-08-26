@@ -6,22 +6,15 @@ from sqlalchemy.orm import joinedload
 from extensions import db
 from forms import UserForm
 from models import Permission, Role, User, AuditLog
-from utils import (
-    permission_required,
-    clear_user_permission_cache,
-    is_super,      
-    super_only,    
-)
+from utils import permission_required, clear_user_permission_cache, is_super
 
 users_bp = Blueprint("users_bp", __name__, url_prefix="/users", template_folder="templates/users")
 
-# 🔐 حارس شامل: كل مسارات إدارة المستخدمين للسوبر فقط
-# ✅ استثناء: "/users/profile" يظل متاح لأي مستخدم مسجّل دخول
 @users_bp.before_request
 def _guard_users_blueprint():
     ep = (request.endpoint or "")
     if ep == "users_bp.profile":
-        return  # مسموح للجميع (مع login_required)
+        return
     if not is_super():
         abort(403)
 
@@ -69,6 +62,12 @@ def list_users():
                     "username": u.username,
                     "email": u.email,
                     "role": (u.role.name if u.role else None),
+                    "is_active": bool(u.is_active),
+                    "created_at": (u.created_at.isoformat() if getattr(u, "created_at", None) else None),
+                    "last_login": (u.last_login.isoformat() if getattr(u, "last_login", None) else None),
+                    "last_seen": (u.last_seen.isoformat() if getattr(u, "last_seen", None) else None),
+                    "last_login_ip": getattr(u, "last_login_ip", None),
+                    "login_count": getattr(u, "login_count", None),
                     "extra_permissions": [p.name for p in u.extra_permissions.all()]
                 }
                 for u in users
@@ -90,7 +89,7 @@ def list_users():
 @login_required
 @permission_required("manage_users")
 def user_detail(user_id):
-    user = _get_or_404(User, user_id)
+    user = _get_or_404(User, user_id, options=[joinedload(User.role)])
     return render_template("users/detail.html", user=user)
 
 @users_bp.route("/api", methods=["GET"], endpoint="api_users")
@@ -116,7 +115,6 @@ def create_user():
     form = UserForm()
     all_permissions = Permission.query.order_by(Permission.name).all()
     selected_perm_ids = []
-
     if form.validate_on_submit():
         try:
             selected_perm_ids = [int(x) for x in request.form.getlist("extra_permissions") if str(x).isdigit()]
@@ -152,7 +150,6 @@ def create_user():
         except Exception as e:
             db.session.rollback()
             flash(f"خطأ أثناء الإضافة: {e}", "danger")
-
     return render_template(
         "users/form.html",
         form=form,
@@ -170,15 +167,12 @@ def edit_user(user_id):
     if _is_super_admin_user(user):
         flash("❌ لا يمكن تعديل مستخدم super_admin.", "danger")
         return redirect(url_for("users_bp.list_users"))
-
     form = UserForm(obj=user)
     all_permissions = Permission.query.order_by(Permission.name).all()
     selected_perm_ids = [p.id for p in user.extra_permissions.all()]
-
     if request.method == "GET":
         form.role_id.data = user.role_id
         form.is_active.data = bool(user.is_active)
-
     if form.validate_on_submit():
         try:
             selected_perm_ids = [int(x) for x in request.form.getlist("extra_permissions") if str(x).isdigit()]
@@ -208,7 +202,6 @@ def edit_user(user_id):
         except Exception as e:
             db.session.rollback()
             flash(f"خطأ أثناء التحديث: {e}", "danger")
-
     return render_template(
         "users/form.html",
         form=form,
@@ -225,6 +218,9 @@ def delete_user(user_id):
     user = _get_or_404(User, user_id)
     if _is_super_admin_user(user):
         flash("❌ لا يمكن حذف مستخدم super_admin.", "danger")
+        return redirect(url_for("users_bp.list_users"))
+    if user.id == current_user.id:
+        flash("❌ لا يمكن حذف حسابك الحالي.", "danger")
         return redirect(url_for("users_bp.list_users"))
     if user.email == current_app.config.get("DEV_EMAIL", "rafideen.ahmadghannam@gmail.com"):
         flash("❌ لا يمكن حذف حساب المطور الأساسي.", "danger")

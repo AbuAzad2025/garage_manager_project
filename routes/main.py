@@ -3,30 +3,13 @@ import os
 import sqlite3
 from datetime import date, datetime, timedelta
 
-from flask import (
-    Blueprint,
-    current_app,
-    flash,
-    redirect,
-    render_template,
-    send_file,
-    send_from_directory,
-    url_for,
-)
+from flask import Blueprint, current_app, flash, redirect, render_template, send_file, send_from_directory, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import Date, cast, func
 
 from extensions import db
 from forms import RestoreForm
-from models import (
-    ExchangeTransaction,
-    Note,
-    Product,
-    Sale,
-    ServiceRequest,
-    Supplier,
-    StockLevel,
-)
+from models import ExchangeTransaction, Note, Product, Sale, ServiceRequest, Supplier, StockLevel
 from utils import permission_required
 from reports import sales_report, ar_aging_report
 
@@ -35,9 +18,17 @@ main_bp = Blueprint("main", __name__, template_folder="templates")
 
 @main_bp.route("/favicon.ico")
 def favicon():
-    return send_from_directory(
-        current_app.static_folder, "favicon.ico", mimetype="image/vnd.microsoft.icon"
-    )
+    return send_from_directory(current_app.static_folder, "favicon.ico", mimetype="image/vnd.microsoft.icon")
+
+
+def _has_perm(code: str) -> bool:
+    try:
+        fn = getattr(current_user, "has_permission", None)
+        if callable(fn):
+            return bool(fn(code))
+    except Exception:
+        pass
+    return False
 
 
 @main_bp.route("/", methods=["GET"], endpoint="dashboard")
@@ -48,10 +39,7 @@ def dashboard():
     end = today
 
     inv_rows = (
-        db.session.query(
-            Product,
-            func.coalesce(func.sum(StockLevel.quantity), 0).label("on_hand_sum"),
-        )
+        db.session.query(Product, func.coalesce(func.sum(StockLevel.quantity), 0).label("on_hand_sum"))
         .outerjoin(StockLevel, StockLevel.product_id == Product.id)
         .group_by(Product.id)
         .all()
@@ -62,19 +50,14 @@ def dashboard():
     inventory_total = int(sum(qty for _, qty in inv_rows))
 
     pending_exchanges = ExchangeTransaction.query.filter_by(direction="OUT").count()
-    partner_stock = (
-        db.session.query(func.count(Product.id))
-        .join(Supplier, Supplier.id == Product.supplier_local_id)
-        .scalar()
-        or 0
-    )
+    partner_stock = (db.session.query(func.count(Product.id)).join(Supplier, Supplier.id == Product.supplier_local_id).scalar() or 0)
 
     recent_sales = []
     today_revenue = 0.0
     revenue_labels = []
     revenue_values = []
     week_revenue = 0.0
-    if current_user.has_permission("manage_sales"):
+    if _has_perm("manage_sales"):
         recent_sales = Sale.query.order_by(Sale.sale_date.desc()).limit(5).all()
         try:
             srep = sales_report(start, end) or {}
@@ -91,7 +74,7 @@ def dashboard():
         )
 
     recent_services = []
-    if current_user.has_permission("manage_service"):
+    if _has_perm("manage_service"):
         q = ServiceRequest.query.order_by(ServiceRequest.created_at.desc())
         if current_user.role and (current_user.role.name or "").lower() == "mechanic":
             q = q.filter_by(mechanic_id=current_user.id)
@@ -103,12 +86,9 @@ def dashboard():
     recent_notes = []
     service_metrics = {"day_labels": [], "day_counts": []}
     customer_metrics = {}
-    if current_user.has_permission("view_reports"):
+    if _has_perm("view_reports"):
         rows = (
-            db.session.query(
-                cast(ServiceRequest.start_time, Date).label("day"),
-                func.count(ServiceRequest.id).label("cnt"),
-            )
+            db.session.query(cast(ServiceRequest.start_time, Date).label("day"), func.count(ServiceRequest.id).label("cnt"))
             .filter(cast(ServiceRequest.start_time, Date).between(start, end))
             .group_by("day")
             .order_by("day")
@@ -146,9 +126,7 @@ def dashboard():
 @login_required
 @permission_required("backup_database")
 def backup_db():
-    # 🔒 تحقق من البيئة والصلاحية
-    is_prod = (current_app.config.get("ENV") == "production" or 
-               current_app.config.get("FLASK_ENV") == "production")
+    is_prod = (current_app.config.get("ENV") == "production" or current_app.config.get("FLASK_ENV") == "production")
     role_name = str(getattr(getattr(current_user, "role", None), "name", "")).lower()
     if is_prod and role_name != "super_admin":
         flash("❌ غير مسموح بالنسخ الاحتياطي في بيئة الإنتاج إلا لمستخدم super_admin فقط.", "danger")
@@ -168,9 +146,7 @@ def backup_db():
                         f.write(f"{line}\n")
             finally:
                 raw.close()
-            return send_file(
-                out_path, as_attachment=True, download_name=f"backup_{ts}.sql"
-            )
+            return send_file(out_path, as_attachment=True, download_name=f"backup_{ts}.sql")
         out_path = os.path.join(current_app.instance_path, f"backup_{ts}.db")
         os.makedirs(current_app.instance_path, exist_ok=True)
         db.session.commit()
@@ -181,19 +157,16 @@ def backup_db():
         finally:
             src.close()
             dst.close()
-        return send_file(
-            out_path, as_attachment=True, download_name=os.path.basename(out_path)
-        )
+        return send_file(out_path, as_attachment=True, download_name=os.path.basename(out_path))
     flash("قاعدة البيانات ليست SQLite.", "warning")
     return redirect(url_for("main.dashboard")), 303
+
 
 @main_bp.route("/restore_db", methods=["GET", "POST"], endpoint="restore_db")
 @login_required
 @permission_required("restore_database")
 def restore_db():
-    # 🔒 تحقق من البيئة والصلاحية
-    is_prod = (current_app.config.get("ENV") == "production" or 
-               current_app.config.get("FLASK_ENV") == "production")
+    is_prod = (current_app.config.get("ENV") == "production" or current_app.config.get("FLASK_ENV") == "production")
     role_name = str(getattr(getattr(current_user, "role", None), "name", "")).lower()
     if is_prod and role_name != "super_admin":
         flash("❌ غير مسموح بالاستعادة في بيئة الإنتاج إلا لمستخدم super_admin فقط.", "danger")

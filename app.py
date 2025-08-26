@@ -58,7 +58,6 @@ def _init_sentry(app: Flask) -> None:
     try:
         import sentry_sdk
         from sentry_sdk.integrations.flask import FlaskIntegration
-
         sentry_sdk.init(
             dsn=dsn,
             integrations=[FlaskIntegration()],
@@ -82,7 +81,6 @@ def load_user(user_id):
             prefix = prefix.lower()
         except Exception:
             return None
-
         if prefix == "u":
             stmt = (
                 select(User)
@@ -90,11 +88,9 @@ def load_user(user_id):
                 .where(User.id == ident)
             )
             return db.session.execute(stmt).scalar_one_or_none()
-
         if prefix == "c":
             stmt = select(Customer).options(lazyload("*")).where(Customer.id == ident)
             return db.session.execute(stmt).scalar_one_or_none()
-
         return None
 
     try:
@@ -110,7 +106,6 @@ def load_user(user_id):
     user = db.session.execute(stmt_user).unique().scalar_one_or_none()
     if user:
         return user
-
     stmt_cust = select(Customer).options(lazyload("*")).where(Customer.id == ident)
     return db.session.execute(stmt_cust).scalar_one_or_none()
 
@@ -118,7 +113,6 @@ def load_user(user_id):
 def create_app(config_object=Config) -> Flask:
     app = Flask(__name__, static_folder="static", template_folder="templates")
     app.config.from_object(config_object)
-
     app.config.setdefault("JSON_AS_ASCII", False)
 
     if app.config.get("SERVER_NAME"):
@@ -137,21 +131,17 @@ def create_app(config_object=Config) -> Flask:
     except Exception:
         pass
 
-    app.config.setdefault("SUPER_USER_EMAILS", os.getenv("SUPER_USER_EMAILS", ""))  # مثال: owner@site.com
-    app.config.setdefault("SUPER_USER_IDS",    os.getenv("SUPER_USER_IDS",    ""))  # مثال: 1
-    app.config.setdefault("ADMIN_USER_EMAILS", os.getenv("ADMIN_USER_EMAILS", ""))  # مثال: admin@site.com
-    app.config.setdefault("ADMIN_USER_IDS",    os.getenv("ADMIN_USER_IDS",    ""))  # مثال: 2
+    app.config.setdefault("SUPER_USER_EMAILS", os.getenv("SUPER_USER_EMAILS", ""))
+    app.config.setdefault("SUPER_USER_IDS",    os.getenv("SUPER_USER_IDS", ""))
+    app.config.setdefault("ADMIN_USER_EMAILS", os.getenv("ADMIN_USER_EMAILS", ""))
+    app.config.setdefault("ADMIN_USER_IDS",    os.getenv("ADMIN_USER_IDS", ""))
     app.config.setdefault("PERMISSIONS_REQUIRE_ALL", False)
-
-    engine_opts = app.config.setdefault("SQLALCHEMY_ENGINE_OPTIONS", {})
 
     engine_opts = app.config.setdefault("SQLALCHEMY_ENGINE_OPTIONS", {})
     connect_args = engine_opts.setdefault("connect_args", {})
     uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
-
     engine_opts.setdefault("pool_pre_ping", True)
     engine_opts.setdefault("pool_recycle", 1800)
-
     if uri.startswith("sqlite"):
         connect_args.setdefault("timeout", 30)
     else:
@@ -184,11 +174,14 @@ def create_app(config_object=Config) -> Flask:
 
     app.config.setdefault("RATELIMIT_STORAGE_URI", os.getenv("RATELIMIT_STORAGE_URI", "memory://"))
     app.config.setdefault("RATELIMIT_HEADERS_ENABLED", True)
-
     limiter.init_app(app)
     default_limit = app.config.get("RATELIMIT_DEFAULT")
     if default_limit:
-        limiter.default_limits = [default_limit]
+        if isinstance(default_limit, (list, tuple)):
+            limiter.default_limits = [str(x).strip() for x in default_limit if str(x).strip()]
+        else:
+            parts = [p.strip() for p in str(default_limit).split(";") if p.strip()]
+            limiter.default_limits = parts
 
     socketio.init_app(
         app,
@@ -233,7 +226,8 @@ def create_app(config_object=Config) -> Flask:
                                 perms.add(str(v).strip().lower())
             up = getattr(u, "permissions", None) or getattr(u, "extra_permissions", None)
             if up:
-                for p in up:
+                iterable = up.all() if hasattr(up, "all") else up
+                for p in iterable:
                     if isinstance(p, str):
                         perms.add(p.strip().lower())
                     else:
@@ -247,7 +241,6 @@ def create_app(config_object=Config) -> Flask:
             try:
                 if not code:
                     return False
-                # السوبر يتجاوز كل شيء
                 if is_super():
                     return True
                 u = current_user
@@ -400,6 +393,17 @@ def create_app(config_object=Config) -> Flask:
     def inject_global_flags():
         return {"shop_is_super_admin": is_super()}
 
+    @app.before_request
+    def _touch_last_seen():
+        if getattr(current_user, "is_authenticated", False):
+            try:
+                ls = getattr(current_user, "last_seen", None)
+                if (not ls) or (datetime.utcnow() - ls).total_seconds() > 60:
+                    current_user.last_seen = datetime.utcnow()
+                    db.session.commit()
+            except Exception:
+                db.session.rollback()
+
     critical = app.config.get(
         "CRITICAL_ENDPOINTS",
         [
@@ -425,12 +429,12 @@ def create_app(config_object=Config) -> Flask:
     app.cli.add_command(seed_roles)
     return app
 
-
 app = create_app()
 __all__ = ["app", "db"]
 
 if __name__ == "__main__":
-    socketio.run(
+    from extensions import socketio as _socketio
+    _socketio.run(
         app,
         host=os.environ.get("HOST", "0.0.0.0"),
         port=int(os.environ.get("PORT", 5000)),

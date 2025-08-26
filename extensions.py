@@ -26,13 +26,11 @@ socketio = SocketIO(
 
 def _rate_limit_key():
     try:
-        # تفضيل هوية المستخدم إن كان مسجلاً
         from flask_login import current_user
         if getattr(current_user, "is_authenticated", False):
             return f"user:{current_user.get_id()}"
     except Exception:
         pass
-    # رجوع للـIP كبديل
     return get_remote_address()
 
 limiter = Limiter(
@@ -96,10 +94,12 @@ def init_extensions(app):
         def _exempt_super_admin():
             try:
                 from flask_login import current_user
-                from utils import _SUPER_ROLES
                 if getattr(current_user, "is_authenticated", False):
-                    role = str(getattr(getattr(current_user, "role", None), "name", "")).lower()
-                    return role in {r.lower() for r in _SUPER_ROLES}
+                    if getattr(current_user, "is_super_role", False):
+                        return True
+                    role_name = str(getattr(getattr(current_user, "role", None), "name", "")).strip().lower()
+                    if role_name == "super_admin":
+                        return True
             except Exception:
                 return False
             return False

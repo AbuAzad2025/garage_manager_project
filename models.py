@@ -250,13 +250,16 @@ SUPER_ROLES = {"developer", "owner", "super_admin"}
 class User(db.Model, UserMixin, TimestampMixin, AuditMixin):
     __tablename__ = "users"
 
-    id            = db.Column(db.Integer, primary_key=True)
-    username      = db.Column(db.String(50),  unique=True, nullable=False, index=True)
-    email         = db.Column(db.String(120), unique=True, nullable=False, index=True)
-    password_hash = db.Column(db.String(128), nullable=False)
-    role_id       = db.Column(db.Integer, db.ForeignKey("roles.id"), index=True)
-    _is_active    = db.Column("is_active", db.Boolean, nullable=False, server_default=text("1"))
-    last_login    = db.Column(db.DateTime)
+    id              = db.Column(db.Integer, primary_key=True)
+    username        = db.Column(db.String(50),  unique=True, nullable=False, index=True)
+    email           = db.Column(db.String(120), unique=True, nullable=False, index=True)
+    password_hash   = db.Column(db.String(128), nullable=False)
+    role_id         = db.Column(db.Integer, db.ForeignKey("roles.id"), index=True)
+    _is_active      = db.Column("is_active", db.Boolean, nullable=False, server_default=text("1"))
+    last_login      = db.Column(db.DateTime)
+    last_seen       = db.Column(db.DateTime)
+    last_login_ip   = db.Column(db.String(64))
+    login_count     = db.Column(db.Integer, nullable=False, server_default=text("0"))
 
     role = relationship("Role", backref="users", lazy="joined")
 

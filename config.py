@@ -22,6 +22,24 @@ def _float(env_name: str, default: float):
     except Exception:
         return default
 
+def _csv_int(env_name: str):
+    raw = os.environ.get(env_name, "")
+    vals = []
+    for x in raw.split(","):
+        x = x.strip()
+        if not x:
+            continue
+        try:
+            vals.append(int(x))
+        except Exception:
+            continue
+    return vals or None
+
+def _csv_str(env_name: str, default_list):
+    raw = os.environ.get(env_name, "")
+    vals = [x.strip() for x in raw.split(",") if x.strip()]
+    return vals or list(default_list)
+
 class Config:
     FLASK_APP = os.environ.get("FLASK_APP", "garage_manager.app:create_app")
     DEBUG = _bool(os.environ.get("DEBUG"), False)
@@ -92,22 +110,20 @@ class Config:
     SENTRY_TRACES = _float("SENTRY_TRACES", 0.0)
     LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
     SHOP_PREPAID_RATE = _float("SHOP_PREPAID_RATE", 0.20)
-    SHOP_WAREHOUSE_IDS = None
-    SHOP_WAREHOUSE_TYPES = ["MAIN", "INVENTORY"]
+    SHOP_WAREHOUSE_IDS = _csv_int("SHOP_WAREHOUSE_IDS")
+    SHOP_WAREHOUSE_TYPES = _csv_str("SHOP_WAREHOUSE_TYPES", ["MAIN", "INVENTORY"])
 
     USE_PROXYFIX = _bool(os.environ.get("USE_PROXYFIX"), False)
     PREFERRED_URL_SCHEME = os.environ.get("PREFERRED_URL_SCHEME", "https" if not DEBUG else "http")
     DEV_EMAIL = os.environ.get("DEV_EMAIL", "rafideen.ahmadghannam@gmail.com")
 
     PASSWORD_HASH_METHOD = os.environ.get("PASSWORD_HASH_METHOD", "scrypt")
-
     CARD_ENC_KEY = os.environ.get("CARD_ENC_KEY", "")
+    REVEAL_PAN_ENABLED = _bool(os.environ.get("REVEAL_PAN_ENABLED"), False)
     DEFAULT_PRODUCT_IMAGE = os.environ.get("DEFAULT_PRODUCT_IMAGE", "products/default.png")
 
-    # === ACL (Roles) ===
-    # نقرأ هويات السوبر/الأدمن من البيئة (إيميل أو IDs بصيغة CSV). PERMISSIONS_REQUIRE_ALL = AND-logic.
     SUPER_USER_EMAILS = os.environ.get("SUPER_USER_EMAILS", "")
-    SUPER_USER_IDS    = os.environ.get("SUPER_USER_IDS", "")
+    SUPER_USER_IDS = os.environ.get("SUPER_USER_IDS", "")
     ADMIN_USER_EMAILS = os.environ.get("ADMIN_USER_EMAILS", "")
-    ADMIN_USER_IDS    = os.environ.get("ADMIN_USER_IDS", "")
+    ADMIN_USER_IDS = os.environ.get("ADMIN_USER_IDS", "")
     PERMISSIONS_REQUIRE_ALL = _bool(os.environ.get("PERMISSIONS_REQUIRE_ALL"), False)

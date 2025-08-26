@@ -3,20 +3,14 @@ from datetime import datetime, timedelta
 from typing import Optional
 from urllib.parse import urlparse, urljoin
 
-from flask import (
-    Blueprint, current_app, flash, redirect, render_template, request,
-    url_for, abort
-)
+from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for, abort
 from flask_login import current_user, login_required, login_user, logout_user
 from flask_mail import Message
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from sqlalchemy import select, func
 
 from extensions import db, mail, limiter
-from forms import (
-    LoginForm, CustomerFormOnline,
-    CustomerPasswordResetForm, CustomerPasswordResetRequestForm
-)
+from forms import LoginForm, CustomerFormOnline, CustomerPasswordResetForm, CustomerPasswordResetRequestForm
 from models import Customer, User
 from utils import _audit, redis_client as _redis
 
@@ -33,7 +27,7 @@ def _sa_get_or_404(model, ident):
 def _is_safe_url(target: str) -> bool:
     ref_url = urlparse(request.host_url)
     test_url = urlparse(urljoin(request.host_url, target))
-    return (test_url.scheme in ("http", "https") and ref_url.netloc == test_url.netloc)
+    return test_url.scheme in ("http", "https") and ref_url.netloc == test_url.netloc
 
 
 def _get_client_ip() -> str:
@@ -53,18 +47,19 @@ def _get_login_identifier(form: LoginForm) -> Optional[str]:
     return val or None
 
 
-# ============================== Login Attempts (Redis + Fallback) ==============================
-
 MAX_ATTEMPTS = 5
 BLOCK_TIME = timedelta(minutes=10)
 
 _login_attempts_mem: dict[tuple[str, str], tuple[int, datetime]] = {}
 
+
 def _norm_ident(s: Optional[str]) -> str:
     return (s or "").strip().lower()
 
+
 def _la_key(ip: str, identifier: Optional[str]) -> str:
     return f"auth:login_attempts:{ip}:{_norm_ident(identifier)}"
+
 
 def is_blocked(ip: str, identifier: Optional[str]) -> bool:
     try:
@@ -80,7 +75,6 @@ def is_blocked(ip: str, identifier: Optional[str]) -> bool:
             return attempts >= MAX_ATTEMPTS
     except Exception:
         pass
-
     key_mem = (ip, _norm_ident(identifier))
     info = _login_attempts_mem.get(key_mem)
     if not info:
@@ -93,6 +87,7 @@ def is_blocked(ip: str, identifier: Optional[str]) -> bool:
         _login_attempts_mem.pop(key_mem, None)
     return False
 
+
 def record_attempt(ip: str, identifier: Optional[str]) -> None:
     try:
         if _redis:
@@ -104,10 +99,10 @@ def record_attempt(ip: str, identifier: Optional[str]) -> None:
             return
     except Exception:
         pass
-
     key_mem = (ip, _norm_ident(identifier))
     attempts, _last_time = _login_attempts_mem.get(key_mem, (0, datetime.utcnow()))
     _login_attempts_mem[key_mem] = (attempts + 1, datetime.utcnow())
+
 
 def clear_attempts(ip: str, identifier: Optional[str]) -> None:
     try:
@@ -118,43 +113,32 @@ def clear_attempts(ip: str, identifier: Optional[str]) -> None:
     _login_attempts_mem.pop((ip, _norm_ident(identifier)), None)
 
 
-# ============================== Routes ==============================
-
 @auth_bp.route("/login", methods=["GET", "POST"])
 @limiter.limit("10/minute;100/hour;1000/day")
 def login():
     ip = _get_client_ip()
     form = LoginForm()
-
     if request.method == "GET" and current_user.is_authenticated:
         clear_attempts(ip, getattr(current_user, "email", None) or getattr(current_user, "username", None))
         actor = current_user._get_current_object()
         return _redirect_back_or("shop.catalog" if isinstance(actor, Customer) else "main.dashboard")
-
     identifier = _get_login_identifier(form)
     if is_blocked(ip, identifier):
         flash("❌ تم حظر محاولات الدخول مؤقتًا، حاول بعد 10 دقائق.", "danger")
         _audit("login.blocked", ok=False, note="blocked window")
         return render_template("auth/login.html", form=form)
-
     if request.method == "POST":
         password = request.form.get("password", "") or ""
         user = None
         customer = None
-
         if identifier:
             ident_l = identifier.lower()
-            stmt = select(User).where(
-                (func.lower(User.username) == ident_l) | (func.lower(User.email) == ident_l)
-            )
+            stmt = select(User).where((func.lower(User.username) == ident_l) | (func.lower(User.email) == ident_l))
             user = db.session.execute(stmt).scalars().first()
             if not user:
                 customer = Customer.query.filter(
-                    (func.lower(Customer.email) == ident_l) |
-                    (Customer.phone == identifier) |
-                    (Customer.name == identifier)
+                    (func.lower(Customer.email) == ident_l) | (Customer.phone == identifier) | (Customer.name == identifier)
                 ).first()
-
         if user and user.check_password(password) and bool(getattr(user, "is_active", True)):
             remember = bool(getattr(form, "remember_me", None) and getattr(form.remember_me, "data", False))
             if current_user.is_authenticated and getattr(current_user, "id", None) != user.id:
@@ -162,13 +146,14 @@ def login():
             login_user(user, remember=remember)
             try:
                 user.last_login = datetime.utcnow()
+                user.last_login_ip = request.headers.get("X-Forwarded-For", request.remote_addr)
+                user.login_count = (getattr(user, "login_count", 0) or 0) + 1
                 db.session.commit()
             except Exception:
                 db.session.rollback()
             clear_attempts(ip, identifier)
-            _audit("login.success", ok=True, user_id=user.id)
+            _audit("login.success", ok=True, user_id=user.id, note=f"ip={request.remote_addr}")
             return _redirect_back_or("main.dashboard")
-
         if customer and customer.check_password(password) and customer.is_online and customer.is_active:
             remember = bool(getattr(form, "remember_me", None) and getattr(form.remember_me, "data", False))
             if current_user.is_authenticated and getattr(current_user, "id", None) != customer.id:
@@ -177,11 +162,9 @@ def login():
             clear_attempts(ip, identifier)
             _audit("login.success.customer", ok=True, customer_id=customer.id)
             return _redirect_back_or("shop.catalog")
-
         record_attempt(ip, identifier)
-        _audit("login.failed", ok=False, note=f"id={identifier or ''}")
+        _audit("login.failed", ok=False, note=f"id={identifier or ''}; ip={ip}")
         flash("❌ بيانات الدخول غير صحيحة.", "danger")
-
     return render_template("auth/login.html", form=form)
 
 
@@ -195,6 +178,7 @@ def logout():
 
 
 @auth_bp.route("/register/customer", methods=["GET", "POST"])
+@limiter.limit("12/hour")
 def customer_register():
     if current_user.is_authenticated:
         return redirect(url_for("shop.catalog"))
@@ -224,6 +208,7 @@ def customer_register():
 
 
 @auth_bp.route("/customer_password_reset_request", methods=["GET", "POST"])
+@limiter.limit("5/minute;30/hour")
 def customer_password_reset_request():
     if current_user.is_authenticated:
         return redirect(url_for("shop.catalog"))

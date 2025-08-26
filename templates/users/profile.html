@@ -6,6 +6,17 @@
 <li class="breadcrumb-item active">ملفي الشخصي</li>
 {% endblock %}
 
+{% block head_extra %}
+  {{ super() }}
+  <style>
+    .profile-meta{gap:.75rem}
+    .profile-meta .item{font-size:.95rem}
+    .profile-meta .item i{opacity:.8}
+    .timeago{font-size:.85rem; opacity:.75}
+    .list-group-item b{white-space:nowrap}
+  </style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid" dir="rtl">
   <div class="row justify-content-center">
@@ -16,7 +27,7 @@
           <div class="mb-3">
             <img class="profile-user-img img-fluid img-circle"
                  src="{{ url_for('static', filename='img/azad_logo.png') }}"
-                 alt="User profile picture"
+                 alt="صورة المستخدم"
                  style="width:120px;height:120px;">
           </div>
 
@@ -29,27 +40,48 @@
             {% else %}
               <span class="badge bg-secondary">موقوف</span>
             {% endif %}
-            {% if user.last_login %}
-              <span class="badge bg-info text-dark">آخر دخول: {{ user.last_login.strftime('%Y-%m-%d %H:%M') }}</span>
-            {% endif %}
+          </div>
+
+          <div class="d-flex justify-content-center align-items-center profile-meta flex-wrap mb-3">
+            {% set _last_seen = (user.last_seen if user.last_seen is defined else None) %}
+            <div class="item">
+              <i class="far fa-eye"></i>
+              آخر ظهور:
+              {% if _last_seen %}
+                <span>{{ _last_seen.strftime('%Y-%m-%d %H:%M') }}</span>
+                <span class="timeago" data-dt="{{ _last_seen.isoformat() }}"></span>
+              {% else %}
+                <span>—</span>
+              {% endif %}
+            </div>
+            <div class="item">
+              <i class="fas fa-sign-in-alt"></i>
+              آخر دخول:
+              {% if user.last_login %}
+                <span>{{ user.last_login.strftime('%Y-%m-%d %H:%M') }}</span>
+                <span class="timeago" data-dt="{{ user.last_login.isoformat() }}"></span>
+              {% else %}
+                <span>—</span>
+              {% endif %}
+            </div>
           </div>
 
           <ul class="list-group list-group-unbordered mb-3 text-right">
             <li class="list-group-item d-flex justify-content-between align-items-center">
               <b>البريد الإلكتروني:</b>
-              <span>{{ user.email or "غير محدد" }}</span>
+              <span>
+                {% if user.email %}<a href="mailto:{{ user.email }}">{{ user.email }}</a>{% else %}غير محدد{% endif %}
+              </span>
             </li>
 
             <li class="list-group-item">
               <b>الصلاحيات الإضافية:</b>
               <div class="mt-2">
-                {# حوّل أي علاقة lazy='dynamic' إلى قائمة آمنة قبل الاستخدام #}
                 {% set _q = user.extra_permissions %}
                 {% set perms = (_q.all() if _q.__class__.__name__ in ['AppenderQuery','AppenderBaseQuery'] else _q) | list %}
-
                 {% if perms|length %}
                   {% for p in perms %}
-                    <span class="badge bg-light text-dark border me-1">{{ p.name }}</span>
+                    <span class="badge bg-light text-dark border me-1 mb-1">{{ p.name }}</span>
                   {% endfor %}
                 {% else %}
                   <span class="text-muted">لا يوجد</span>
@@ -63,17 +95,46 @@
             </li>
           </ul>
 
-          {% if current_user.has_permission('manage_users') %}
-            <a href="{{ url_for('users_bp.edit_user', user_id=user.id) }}" class="btn btn-primary">
-              <i class="fas fa-edit"></i> تعديل الحساب
+          <div class="d-flex justify-content-center gap-2">
+            {% if current_user.has_permission('manage_users') %}
+              <a href="{{ url_for('users_bp.edit_user', user_id=user.id) }}" class="btn btn-primary">
+                <i class="fas fa-edit"></i> تعديل الحساب
+              </a>
+            {% endif %}
+            <a href="{{ url_for('users_bp.list_users') }}" class="btn btn-outline-secondary">
+              <i class="fas fa-arrow-left"></i> رجوع
             </a>
-          {% endif %}
-          <a href="{{ url_for('users_bp.list_users') }}" class="btn btn-outline-secondary ms-2">
-            <i class="fas fa-arrow-left"></i> رجوع
-          </a>
+          </div>
+
         </div>
       </div>
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script>
+    (function(){
+      function fromNowArabic(iso){
+        if(!iso) return '';
+        var d=new Date(iso); if(isNaN(d)) return '';
+        var s=Math.floor((Date.now()-d.getTime())/1000), v=s, u='ثانية';
+        if(s>=31536000){v=Math.floor(s/31536000);u='سنة';}
+        else if(s>=2592000){v=Math.floor(s/2592000);u='شهر';}
+        else if(s>=604800){v=Math.floor(s/604800);u='أسبوع';}
+        else if(s>=86400){v=Math.floor(s/86400);u='يوم';}
+        else if(s>=3600){v=Math.floor(s/3600);u='ساعة';}
+        else if(s>=60){v=Math.floor(s/60);u='دقيقة';}
+        return '— منذ ' + v + ' ' + u;
+      }
+      document.querySelectorAll('.timeago').forEach(function(el){
+        var iso=el.getAttribute('data-dt');
+        if(!iso) return;
+        el.textContent = fromNowArabic(iso);
+        try { el.title = new Date(iso).toLocaleString(); } catch(e){}
+      });
+    })();
+  </script>
 {% endblock %}
