@@ -4,12 +4,10 @@ from flask.cli import with_appcontext
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 from extensions import db
-from models import Role, Permission
+from models import Role, Permission, User
 from utils import clear_role_permission_cache, clear_users_cache_by_role
+from werkzeug.security import generate_password_hash
 
-BACKUP_CODE = "backup_database"
-RESTORE_CODE = "restore_database"
-LEGACY_CODE = "backup_restore"
 RESERVED_CODES = frozenset({
     "backup_database","restore_database","manage_permissions","manage_roles","manage_users",
     "manage_customers","manage_sales","manage_service","manage_reports","view_reports",
@@ -17,24 +15,64 @@ RESERVED_CODES = frozenset({
     "manage_payments","manage_expenses","view_inventory","manage_inventory","warehouse_transfer",
     "view_parts","view_preorders","add_preorder","edit_preorder","delete_preorder",
     "add_customer","add_supplier","add_partner","place_online_order",
+    "view_shop","browse_products","manage_shop"
 })
+
+PERM_ALIASES = {
+    "backup_database": "نسخ احتياطي",
+    "restore_database": "استعادة نسخة",
+    "manage_permissions": "إدارة الصلاحيات",
+    "manage_roles": "إدارة الأدوار",
+    "manage_users": "إدارة المستخدمين",
+    "manage_customers": "إدارة العملاء",
+    "manage_sales": "إدارة المبيعات",
+    "manage_service": "إدارة الصيانة",
+    "manage_reports": "إدارة التقارير",
+    "view_reports": "عرض التقارير",
+    "manage_vendors": "إدارة الموردين",
+    "manage_shipments": "إدارة الشحن",
+    "manage_warehouses": "إدارة المستودعات",
+    "view_warehouses": "عرض المستودعات",
+    "manage_exchange": "إدارة التحويلات",
+    "manage_payments": "إدارة المدفوعات",
+    "manage_expenses": "إدارة المصاريف",
+    "view_inventory": "عرض الجرد",
+    "manage_inventory": "إدارة الجرد",
+    "warehouse_transfer": "تحويل مخزني",
+    "view_parts": "عرض القطع",
+    "view_preorders": "عرض الطلبات المسبقة",
+    "add_preorder": "إضافة طلب مسبق",
+    "edit_preorder": "تعديل طلب مسبق",
+    "delete_preorder": "حذف طلب مسبق",
+    "add_customer": "إضافة عميل",
+    "add_supplier": "إضافة مورد",
+    "add_partner": "إضافة شريك",
+    "place_online_order": "طلب أونلاين",
+    "view_shop": "عرض المتجر",
+    "browse_products": "تصفح المنتجات",
+    "manage_shop": "إدارة المتجر"
+}
 
 ROLE_PERMISSIONS = {
     "admin": {
         "backup_database","manage_permissions","manage_roles","manage_users",
-        "manage_customers","manage_sales","manage_service","manage_reports","view_reports",
+        "manage_customers","manage_service","manage_reports","view_reports",
         "manage_vendors","manage_shipments","manage_warehouses","view_warehouses","manage_exchange",
         "manage_payments","manage_expenses","view_inventory","warehouse_transfer","view_parts",
-        "add_customer","add_supplier","add_partner",
+        "add_customer","add_supplier","add_partner"
     },
     "staff": {
-        "manage_customers","manage_sales","manage_service",
-        "view_parts","view_warehouses","view_inventory",
+        "manage_customers","manage_service",
+        "view_parts","view_warehouses","view_inventory"
     },
     "registered_customer": {
-        "place_online_order","view_preorders","view_parts",
-    },
+        "place_online_order","view_preorders","view_parts","view_shop","browse_products"
+    }
 }
+
+SUPER_USERNAME = os.getenv("SUPER_ADMIN_USERNAME", "azad")
+SUPER_EMAIL = os.getenv("SUPER_ADMIN_EMAIL", "rafideen.ahmadghannam@gmail.com").strip().lower()
+SUPER_PASSWORD = os.getenv("SUPER_ADMIN_PASSWORD", "AZ123456")
 
 def _normalize_code(s: str | None) -> str | None:
     if not s: return None
@@ -52,28 +90,29 @@ def _get_or_create_role(name: str) -> Role:
         db.session.flush()
     return r
 
-def _find_permission_by_code_or_name(code_or_name: str) -> Permission | None:
-    target = _normalize_code(code_or_name) or (code_or_name or "").strip().lower()
-    if not target: return None
-    p = Permission.query.filter(func.lower(Permission.code) == target).first()
-    if p: return p
-    return Permission.query.filter(func.lower(Permission.name) == target).first()
-
 def _ensure_permission(code: str) -> Permission:
     code_n = _normalize_code(code)
-    if not code_n:
-        raise click.ClickException(f"Invalid permission code: {code!r}")
     p = Permission.query.filter(func.lower(Permission.code) == code_n).first()
     if not p:
-        p = Permission.query.filter(func.lower(Permission.name) == code_n).first()
-    if p:
-        if not p.code: p.code = code_n
-        if not p.name: p.name = code_n
-        return p
-    p = Permission(code=code_n, name=code_n)
-    db.session.add(p)
-    db.session.flush()
+        p = Permission(code=code_n, name=PERM_ALIASES.get(code_n, code_n))
+        db.session.add(p)
+        db.session.flush()
+    else:
+        if not p.name:
+            p.name = PERM_ALIASES.get(code_n, code_n)
     return p
+
+def _get_or_create_super_user(username: str, email: str, password: str, role: Role) -> None:
+    u = User.query.filter((User.email == email) | (User.username == username)).first()
+    if not u:
+        u = User(username=username, email=email, is_active=True)
+        try:
+            u.set_password(password)
+        except Exception:
+            u.password_hash = generate_password_hash(password, method="scrypt")
+        db.session.add(u)
+        db.session.flush()
+    u.role = role
 
 @click.command("seed-roles")
 @click.option("--force", is_flag=True)
@@ -85,79 +124,53 @@ def seed_roles(force: bool, dry_run: bool) -> None:
     is_prod = (os.getenv("FLASK_ENV") == "production") or (os.getenv("ENVIRONMENT") == "production") or (os.getenv("DEBUG") not in ("1","true","True"))
     if is_prod and not force:
         if not click.confirm("Production environment. Continue?", default=False):
-            click.echo("Canceled.")
-            return
-
-    affected_roles: set[int] = set()
-    planned: list[str] = []
-
-    legacy = _find_permission_by_code_or_name(LEGACY_CODE)
-    if legacy:
-        impacted = sum(1 for r in Role.query.all() if legacy in (r.permissions or []))
-        planned.append(f"Remove legacy '{LEGACY_CODE}' ({impacted} roles).")
-
-    planned.append(f"Ensure {len(RESERVED_CODES)} reserved permissions.")
-    for rn in ("super_admin","admin","staff","registered_customer"):
-        if not Role.query.filter(func.lower(Role.name) == rn).first():
-            planned.append(f"Create role '{rn}'.")
-    planned.append("Sync permissions for roles.")
+            click.echo("Canceled."); return
 
     if dry_run:
-        if planned:
-            click.echo("Planned changes:")
-            for m in planned: click.echo(f" - {m}")
-        else:
-            click.echo("No changes.")
+        click.echo(f" - Ensure {len(RESERVED_CODES)} permissions")
+        click.echo(" - Create roles and assign permissions")
+        click.echo(f" - Ensure super admin user: {SUPER_USERNAME} <{SUPER_EMAIL}>")
         return
 
+    affected_roles: set[int] = set()
+
     try:
-        with db.session.begin():
-            if legacy:
-                for r in Role.query.all():
-                    if legacy in (r.permissions or []):
-                        r.permissions.remove(legacy)
-                        affected_roles.add(r.id)
-                try:
-                    db.session.delete(legacy)
-                except Exception:
-                    pass
+        for code in sorted(RESERVED_CODES):
+            _ensure_permission(code)
 
-            for code in sorted(RESERVED_CODES):
-                _ensure_permission(code)
+        super_admin = _get_or_create_role("super_admin")
+        admin = _get_or_create_role("admin")
+        staff = _get_or_create_role("staff")
+        registered_customer = _get_or_create_role("registered_customer")
 
-            super_admin = _get_or_create_role("super_admin")
-            admin = _get_or_create_role("admin")
-            staff = _get_or_create_role("staff")
-            registered_customer = _get_or_create_role("registered_customer")
+        all_perms = Permission.query.all()
+        current = {(p.code or "").lower() for p in (super_admin.permissions or [])}
+        for p in all_perms:
+            if (p.code or "").lower() not in current:
+                super_admin.permissions.append(p)
+                affected_roles.add(super_admin.id)
 
-            all_perms = Permission.query.all()
-            current = {(p.code or p.name or "").strip().lower() for p in (super_admin.permissions or [])}
-            for p in all_perms:
-                key = (p.code or p.name or "").strip().lower()
-                if key and key not in current:
-                    super_admin.permissions.append(p)
-                    affected_roles.add(super_admin.id)
+        for role_name, perms in ROLE_PERMISSIONS.items():
+            role = {"admin": admin, "staff": staff, "registered_customer": registered_customer}[role_name]
+            desired = {_normalize_code(c) for c in perms}
+            role.permissions.clear()
+            for code in desired:
+                role.permissions.append(_ensure_permission(code))
+            affected_roles.add(role.id)
 
-            for role_name, perms in ROLE_PERMISSIONS.items():
-                role = {"admin": admin, "staff": staff, "registered_customer": registered_customer}[role_name]
-                desired = {_normalize_code(c) for c in perms}
-                role.permissions.clear()
-                for code in desired:
-                    perm = _ensure_permission(code)
-                    role.permissions.append(perm)
-                affected_roles.add(role.id)
+        _get_or_create_super_user(SUPER_USERNAME, SUPER_EMAIL, SUPER_PASSWORD, super_admin)
+        db.session.commit()
 
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(f"Commit failed: {e}") from e
+        db.session.rollback(); raise click.ClickException(f"Commit failed: {e}") from e
 
     for rid in affected_roles:
         try: clear_role_permission_cache(rid)
-        except Exception: pass
+        except: pass
         try: clear_users_cache_by_role(rid)
-        except Exception: pass
+        except: pass
 
-    click.echo("OK: roles and permissions synced.")
+    click.echo("OK: roles, permissions, and super admin synced.")
 
 def register_cli(app) -> None:
     app.cli.add_command(seed_roles)

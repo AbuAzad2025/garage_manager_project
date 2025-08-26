@@ -1,8 +1,8 @@
-"""fresh init
+"""initial schema
 
-Revision ID: 22428e07f512
+Revision ID: 0c6788f7edfa
 Revises: 
-Create Date: 2025-08-21 00:20:12.272881
+Create Date: 2025-08-26 15:30:22.570086
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '22428e07f512'
+revision = '0c6788f7edfa'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -243,6 +243,18 @@ def upgrade():
     sa.Column('supplier_local_id', sa.Integer(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.CheckConstraint('cost_after_shipping >= 0', name='ck_product_cost_after_ge_0'),
+    sa.CheckConstraint('cost_before_shipping >= 0', name='ck_product_cost_before_ge_0'),
+    sa.CheckConstraint('max_price IS NULL OR max_price >= 0', name='ck_product_max_price_ge_0'),
+    sa.CheckConstraint('min_price IS NULL OR min_price >= 0', name='ck_product_min_price_ge_0'),
+    sa.CheckConstraint('min_qty >= 0', name='ck_product_min_qty_ge_0'),
+    sa.CheckConstraint('price >= 0', name='ck_product_price_ge_0'),
+    sa.CheckConstraint('purchase_price >= 0', name='ck_product_purchase_ge_0'),
+    sa.CheckConstraint('reorder_point IS NULL OR reorder_point >= 0', name='ck_product_reorder_ge_0'),
+    sa.CheckConstraint('selling_price >= 0', name='ck_product_selling_ge_0'),
+    sa.CheckConstraint('tax_rate >= 0 AND tax_rate <= 100', name='ck_product_tax_rate_0_100'),
+    sa.CheckConstraint('unit_price_before_tax >= 0', name='ck_product_unit_before_tax_ge_0'),
+    sa.CheckConstraint('weight IS NULL OR weight >= 0', name='ck_product_weight_ge_0'),
     sa.ForeignKeyConstraint(['category_id'], ['product_categories.id'], ),
     sa.ForeignKeyConstraint(['supplier_id'], ['suppliers.id'], ),
     sa.ForeignKeyConstraint(['supplier_international_id'], ['suppliers.id'], ),
@@ -254,7 +266,11 @@ def upgrade():
     sa.UniqueConstraint('sku')
     )
     with op.batch_alter_table('products', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_products_brand'), ['brand'], unique=False)
+        batch_op.create_index('ix_products_brand_part', ['brand', 'part_number'], unique=False)
         batch_op.create_index(batch_op.f('ix_products_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_products_name'), ['name'], unique=False)
+        batch_op.create_index(batch_op.f('ix_products_part_number'), ['part_number'], unique=False)
         batch_op.create_index(batch_op.f('ix_products_updated_at'), ['updated_at'], unique=False)
 
     op.create_table('role_permissions',
@@ -498,8 +514,10 @@ def upgrade():
     sa.Column('tax_rate', sa.Numeric(precision=5, scale=2), nullable=True),
     sa.Column('status', sa.Enum('PENDING', 'CONFIRMED', 'FULFILLED', 'CANCELLED', name='preorder_status', native_enum=False), nullable=True),
     sa.Column('notes', sa.Text(), nullable=True),
+    sa.Column('payment_method', sa.String(length=20), server_default='cash', nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.CheckConstraint("payment_method IN ('cash','card','bank','cheque')", name='chk_preorder_payment_method'),
     sa.CheckConstraint('prepaid_amount >= 0', name='chk_preorder_prepaid_non_negative'),
     sa.CheckConstraint('quantity > 0', name='chk_preorder_quantity_positive'),
     sa.CheckConstraint('tax_rate >= 0 AND tax_rate <= 100', name='chk_preorder_tax_rate'),
@@ -1282,7 +1300,11 @@ def downgrade():
     op.drop_table('role_permissions')
     with op.batch_alter_table('products', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_products_updated_at'))
+        batch_op.drop_index(batch_op.f('ix_products_part_number'))
+        batch_op.drop_index(batch_op.f('ix_products_name'))
         batch_op.drop_index(batch_op.f('ix_products_created_at'))
+        batch_op.drop_index('ix_products_brand_part')
+        batch_op.drop_index(batch_op.f('ix_products_brand'))
 
     op.drop_table('products')
     with op.batch_alter_table('online_carts', schema=None) as batch_op:

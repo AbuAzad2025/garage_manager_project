@@ -1,0 +1,260 @@
+{
+  "permissions": [
+    {
+      "code": "backup_database",
+      "name_ar": "نسخ احتياطي",
+      "super_admin": true,
+      "admin": true,
+      "staff": false,
+      "registered_customer": false
+    },
+    {
+      "code": "restore_database",
+      "name_ar": "استعادة نسخة",
+      "super_admin": true,
+      "admin": false,
+      "staff": false,
+      "registered_customer": false
+    },
+    {
+      "code": "manage_permissions",
+      "name_ar": "إدارة الصلاحيات",
+      "super_admin": true,
+      "admin": true,
+      "staff": false,
+      "registered_customer": false
+    },
+    {
+      "code": "manage_roles",
+      "name_ar": "إدارة الأدوار",
+      "super_admin": true,
+      "admin": true,
+      "staff": false,
+      "registered_customer": false
+    },
+    {
+      "code": "manage_users",
+      "name_ar": "إدارة المستخدمين",
+      "super_admin": true,
+      "admin": true,
+      "staff": false,
+      "registered_customer": false
+    },
+    {
+      "code": "manage_customers",
+      "name_ar": "إدارة العملاء",
+      "super_admin": true,
+      "admin": true,
+      "staff": true,
+      "registered_customer": false
+    },
+    {
+      "code": "manage_sales",
+      "name_ar": "إدارة المبيعات",
+      "super_admin": true,
+      "admin": false,
+      "staff": false,
+      "registered_customer": false
+    },
+    {
+      "code": "manage_service",
+      "name_ar": "إدارة الصيانة",
+      "super_admin": true,
+      "admin": true,
+      "staff": true,
+      "registered_customer": false
+    },
+    {
+      "code": "manage_reports",
+      "name_ar": "إدارة التقارير",
+      "super_admin": true,
+      "admin": true,
+      "staff": false,
+      "registered_customer": false
+    },
+    {
+      "code": "view_reports",
+      "name_ar": "عرض التقارير",
+      "super_admin": true,
+      "admin": true,
+      "staff": false,
+      "registered_customer": false
+    },
+    {
+      "code": "manage_vendors",
+      "name_ar": "إدارة الموردين",
+      "super_admin": true,
+      "admin": true,
+      "staff": false,
+      "registered_customer": false
+    },
+    {
+      "code": "manage_shipments",
+      "name_ar": "إدارة الشحن",
+      "super_admin": true,
+      "admin": true,
+      "staff": false,
+      "registered_customer": false
+    },
+    {
+      "code": "manage_warehouses",
+      "name_ar": "إدارة المستودعات",
+      "super_admin": true,
+      "admin": true,
+      "staff": false,
+      "registered_customer": false
+    },
+    {
+      "code": "view_warehouses",
+      "name_ar": "عرض المستودعات",
+      "super_admin": true,
+      "admin": true,
+      "staff": true,
+      "registered_customer": false
+    },
+    {
+      "code": "manage_exchange",
+      "name_ar": "إدارة التحويلات",
+      "super_admin": true,
+      "admin": true,
+      "staff": false,
+      "registered_customer": false
+    },
+    {
+      "code": "manage_payments",
+      "name_ar": "إدارة المدفوعات",
+      "super_admin": true,
+      "admin": true,
+      "staff": false,
+      "registered_customer": false
+    },
+    {
+      "code": "manage_expenses",
+      "name_ar": "إدارة المصاريف",
+      "super_admin": true,
+      "admin": true,
+      "staff": false,
+      "registered_customer": false
+    },
+    {
+      "code": "view_inventory",
+      "name_ar": "عرض الجرد",
+      "super_admin": true,
+      "admin": true,
+      "staff": true,
+      "registered_customer": false
+    },
+    {
+      "code": "manage_inventory",
+      "name_ar": "إدارة الجرد",
+      "super_admin": true,
+      "admin": false,
+      "staff": false,
+      "registered_customer": false
+    },
+    {
+      "code": "warehouse_transfer",
+      "name_ar": "تحويل مخزني",
+      "super_admin": true,
+      "admin": true,
+      "staff": false,
+      "registered_customer": false
+    },
+    {
+      "code": "view_parts",
+      "name_ar": "عرض القطع",
+      "super_admin": true,
+      "admin": true,
+      "staff": true,
+      "registered_customer": true
+    },
+    {
+      "code": "view_preorders",
+      "name_ar": "عرض الطلبات المسبقة",
+      "super_admin": true,
+      "admin": false,
+      "staff": false,
+      "registered_customer": true
+    },
+    {
+      "code": "add_preorder",
+      "name_ar": "إضافة طلب مسبق",
+      "super_admin": true,
+      "admin": false,
+      "staff": false,
+      "registered_customer": false
+    },
+    {
+      "code": "edit_preorder",
+      "name_ar": "تعديل طلب مسبق",
+      "super_admin": true,
+      "admin": false,
+      "staff": false,
+      "registered_customer": false
+    },
+    {
+      "code": "delete_preorder",
+      "name_ar": "حذف طلب مسبق",
+      "super_admin": true,
+      "admin": false,
+      "staff": false,
+      "registered_customer": false
+    },
+    {
+      "code": "add_customer",
+      "name_ar": "إضافة عميل",
+      "super_admin": true,
+      "admin": true,
+      "staff": false,
+      "registered_customer": false
+    },
+    {
+      "code": "add_supplier",
+      "name_ar": "إضافة مورد",
+      "super_admin": true,
+      "admin": true,
+      "staff": false,
+      "registered_customer": false
+    },
+    {
+      "code": "add_partner",
+      "name_ar": "إضافة شريك",
+      "super_admin": true,
+      "admin": true,
+      "staff": false,
+      "registered_customer": false
+    },
+    {
+      "code": "place_online_order",
+      "name_ar": "طلب أونلاين",
+      "super_admin": true,
+      "admin": false,
+      "staff": false,
+      "registered_customer": true
+    },
+    {
+      "code": "view_shop",
+      "name_ar": "عرض المتجر",
+      "super_admin": true,
+      "admin": false,
+      "staff": false,
+      "registered_customer": true
+    },
+    {
+      "code": "browse_products",
+      "name_ar": "تصفح المنتجات",
+      "super_admin": true,
+      "admin": false,
+      "staff": false,
+      "registered_customer": true
+    },
+    {
+      "code": "manage_shop",
+      "name_ar": "إدارة المتجر",
+      "super_admin": true,
+      "admin": false,
+      "staff": false,
+      "registered_customer": false
+    }
+  ]
+}

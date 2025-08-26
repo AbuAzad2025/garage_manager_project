@@ -1,0 +1,33 @@
+﻿code,name_ar,super_admin,admin,staff,registered_customer
+backup_database,نسخ احتياطي,True,True,False,False
+restore_database,استعادة نسخة,True,False,False,False
+manage_permissions,إدارة الصلاحيات,True,True,False,False
+manage_roles,إدارة الأدوار,True,True,False,False
+manage_users,إدارة المستخدمين,True,True,False,False
+manage_customers,إدارة العملاء,True,True,True,False
+manage_sales,إدارة المبيعات,True,False,False,False
+manage_service,إدارة الصيانة,True,True,True,False
+manage_reports,إدارة التقارير,True,True,False,False
+view_reports,عرض التقارير,True,True,False,False
+manage_vendors,إدارة الموردين,True,True,False,False
+manage_shipments,إدارة الشحن,True,True,False,False
+manage_warehouses,إدارة المستودعات,True,True,False,False
+view_warehouses,عرض المستودعات,True,True,True,False
+manage_exchange,إدارة التحويلات,True,True,False,False
+manage_payments,إدارة المدفوعات,True,True,False,False
+manage_expenses,إدارة المصاريف,True,True,False,False
+view_inventory,عرض الجرد,True,True,True,False
+manage_inventory,إدارة الجرد,True,False,False,False
+warehouse_transfer,تحويل مخزني,True,True,False,False
+view_parts,عرض القطع,True,True,True,True
+view_preorders,عرض الطلبات المسبقة,True,False,False,True
+add_preorder,إضافة طلب مسبق,True,False,False,False
+edit_preorder,تعديل طلب مسبق,True,False,False,False
+delete_preorder,حذف طلب مسبق,True,False,False,False
+add_customer,إضافة عميل,True,True,False,False
+add_supplier,إضافة مورد,True,True,False,False
+add_partner,إضافة شريك,True,True,False,False
+place_online_order,طلب أونلاين,True,False,False,True
+view_shop,عرض المتجر,True,False,False,True
+browse_products,تصفح المنتجات,True,False,False,True
+manage_shop,إدارة المتجر,True,False,False,False
