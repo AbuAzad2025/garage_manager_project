@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import os
 from datetime import timedelta
 from dotenv import load_dotenv
@@ -48,7 +47,6 @@ class Config:
         raise RuntimeError("SECRET_KEY must be set in production")
     HOST = os.environ.get("HOST", "127.0.0.1")
     PORT = _int("PORT", 5000)
-
     _db_uri = os.environ.get("DATABASE_URL") or f"sqlite:///{os.path.join(basedir, 'app.db')}"
     if _db_uri.startswith("postgres://"):
         _db_uri = _db_uri.replace("postgres://", "postgresql://", 1)
@@ -59,10 +57,8 @@ class Config:
         "pool_pre_ping": True,
         "pool_recycle": 1800,
     }
-
     JSON_AS_ASCII = False
     JSON_SORT_KEYS = False
-
     REMEMBER_COOKIE_HTTPONLY = True
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = os.environ.get("SESSION_COOKIE_SAMESITE", "Lax")
@@ -70,9 +66,7 @@ class Config:
     REMEMBER_COOKIE_DURATION = timedelta(days=_int("REMEMBER_DAYS", 14))
     PERMANENT_SESSION_LIFETIME = timedelta(hours=_int("SESSION_HOURS", 12))
     SESSION_COOKIE_NAME = os.environ.get("SESSION_COOKIE_NAME", "gm_session")
-
     MAX_CONTENT_LENGTH = _int("MAX_CONTENT_LENGTH_MB", 32) * 1024 * 1024
-
     MAIL_SERVER = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
     MAIL_PORT = _int("MAIL_PORT", 587)
     MAIL_USE_TLS = _bool(os.environ.get("MAIL_USE_TLS"), True)
@@ -80,31 +74,25 @@ class Config:
     MAIL_USERNAME = os.environ.get("MAIL_USERNAME", "")
     MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD", "")
     MAIL_DEFAULT_SENDER = os.environ.get("MAIL_DEFAULT_SENDER", "MyApp <noreply@example.com>")
-
     TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID", "")
     TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "")
     TWILIO_WHATSAPP_NUMBER = os.environ.get("TWILIO_WHATSAPP_NUMBER", "")
     REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
     CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", REDIS_URL)
     CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", REDIS_URL)
-
     SOCKETIO_ASYNC_MODE = os.environ.get("SOCKETIO_ASYNC_MODE", "threading")
     SOCKETIO_MESSAGE_QUEUE = os.environ.get("SOCKETIO_MESSAGE_QUEUE")
     SOCKETIO_CORS_ORIGINS = os.environ.get("SOCKETIO_CORS_ORIGINS", "*")
     SOCKETIO_PING_TIMEOUT = _int("SOCKETIO_PING_TIMEOUT", 20)
     SOCKETIO_PING_INTERVAL = _int("SOCKETIO_PING_INTERVAL", 25)
     SOCKETIO_MAX_HTTP_BUFFER_SIZE = _int("SOCKETIO_MAX_HTTP_BUFFER_SIZE", 100_000_000)
-
     WTF_CSRF_ENABLED = _bool(os.environ.get("WTF_CSRF_ENABLED"), True)
     WTF_CSRF_TIME_LIMIT = None
-
     CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "*")
     CORS_SUPPORTS_CREDENTIALS = _bool(os.environ.get("CORS_SUPPORTS_CREDENTIALS"), True)
-
     RATELIMIT_DEFAULT = os.environ.get("RATELIMIT_DEFAULT", "200 per day;50 per hour")
     RATELIMIT_STORAGE_URI = os.environ.get("RATELIMIT_STORAGE_URI", "memory://")
     RATELIMIT_HEADERS_ENABLED = _bool(os.environ.get("RATELIMIT_HEADERS_ENABLED"), True)
-
     ITEMS_PER_PAGE = _int("ITEMS_PER_PAGE", 10)
     SENTRY_DSN = os.environ.get("SENTRY_DSN", "")
     SENTRY_TRACES = _float("SENTRY_TRACES", 0.0)
@@ -112,16 +100,13 @@ class Config:
     SHOP_PREPAID_RATE = _float("SHOP_PREPAID_RATE", 0.20)
     SHOP_WAREHOUSE_IDS = _csv_int("SHOP_WAREHOUSE_IDS")
     SHOP_WAREHOUSE_TYPES = _csv_str("SHOP_WAREHOUSE_TYPES", ["MAIN", "INVENTORY"])
-
     USE_PROXYFIX = _bool(os.environ.get("USE_PROXYFIX"), False)
     PREFERRED_URL_SCHEME = os.environ.get("PREFERRED_URL_SCHEME", "https" if not DEBUG else "http")
     DEV_EMAIL = os.environ.get("DEV_EMAIL", "rafideen.ahmadghannam@gmail.com")
-
     PASSWORD_HASH_METHOD = os.environ.get("PASSWORD_HASH_METHOD", "scrypt")
     CARD_ENC_KEY = os.environ.get("CARD_ENC_KEY", "")
     REVEAL_PAN_ENABLED = _bool(os.environ.get("REVEAL_PAN_ENABLED"), False)
     DEFAULT_PRODUCT_IMAGE = os.environ.get("DEFAULT_PRODUCT_IMAGE", "products/default.png")
-
     SUPER_USER_EMAILS = os.environ.get("SUPER_USER_EMAILS", "")
     SUPER_USER_IDS = os.environ.get("SUPER_USER_IDS", "")
     ADMIN_USER_EMAILS = os.environ.get("ADMIN_USER_EMAILS", "")

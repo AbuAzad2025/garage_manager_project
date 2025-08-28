@@ -1,4 +1,3 @@
-{# templates/parts/preorders_list.html #}
 {% extends 'warehouses/base.html' %}
 {% block title %}الحجوزات المسبقة{% endblock %}
 {% block page_title %}الحجوزات المسبقة{% endblock %}
@@ -69,8 +68,7 @@
             </form>
             {% endif %}
             {% if current_user.has_permission('delete_preorder') %}
-            <form method="post" action="{{ url_for('warehouse_bp.preorder_cancel', preorder_id=p.id) }}" class="d-inline"
-                  onsubmit="return confirm('إلغاء الحجز؟');">
+            <form method="post" action="{{ url_for('warehouse_bp.preorder_cancel', preorder_id=p.id) }}" class="d-inline" onsubmit="return confirm('إلغاء الحجز؟');">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="btn btn-sm btn-danger"><i class="fas fa-times"></i></button>
             </form>
@@ -101,18 +99,15 @@
 {% block scripts %}
   {{ super() }}
   <script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
-  {# إن كان عندك DataTables محمّل مسبقاً، فعّل السطور التالية #}
-  {# 
   <script>
-    $(function(){
-      if ($.fn.DataTable) {
+    (function(){
+      if (window.jQuery && $.fn.DataTable) {
         $('#preorders-table').DataTable({
           pageLength: 25,
           order: [[8, 'desc']],
           language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/ar.json' }
         });
       }
-    });
+    })();
   </script>
-  #}
 {% endblock %}

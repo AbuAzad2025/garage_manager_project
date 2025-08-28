@@ -4,36 +4,25 @@
   <meta charset="utf-8">
   <title>{% block title %}نظام إدارة الكراج{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
-  <!-- مكتبات أساسية -->
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/fontawesome-free/css/all.min.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/css/adminlte.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/overlayScrollbars/css/OverlayScrollbars.min.css') }}">
-
-  <!-- ستايل عام مخصص -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/css/adminlte.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-
   {% block styles %}{% endblock %}
   {% block head_extra %}{% endblock %}
 </head>
 <body class="hold-transition sidebar-mini layout-fixed text-sm">
 <div class="wrapper">
-
-  <!-- شريط علوي -->
   {% include 'partials/navbar.html' %}
-
-  <!-- الشريط الجانبي -->
   {% include 'partials/sidebar.html' %}
 
-  <!-- المحتوى -->
   <div class="content-wrapper">
-
-    <!-- رأس الصفحة -->
-    <div class="content-header border-bottom mb-3 pb-2 bg-light shadow-sm">
+    <div class="content-header border-bottom mb-3 pb-2 bg-light">
       <div class="container-fluid">
         <div class="row align-items-center">
           <div class="col-sm-6">
-            <h1 class="m-0 fw-bold text-primary">{% block page_title %}{% endblock %}</h1>
+            <h1 class="m-0 text-primary">{% block page_title %}{% endblock %}</h1>
           </div>
           <div class="col-sm-6">
             <ol class="breadcrumb float-sm-left small">
@@ -44,17 +33,14 @@
       </div>
     </div>
 
-    <!-- محتوى رئيسي -->
     <section class="content">
       <div class="container-fluid">
-
-        <!-- رسائل فلاش -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% with messages = get_unique_flashes(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
-              <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
-                <i class="fas fa-info-circle me-2"></i> {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
+              <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                <i class="fas fa-info-circle ml-2"></i>{{ message }}
+                <button type="button" class="close" data-dismiss="alert" aria-label="إغلاق"><span aria-hidden="true">&times;</span></button>
               </div>
             {% endfor %}
           {% endif %}
@@ -65,21 +51,16 @@
     </section>
   </div>
 
-  <!-- الفوتر -->
   {% include 'partials/footer.html' %}
 </div>
 
-<!-- سكربتات أساسية -->
 <script src="{{ url_for('static', filename='adminlte/plugins/jquery/jquery.min.js') }}"></script>
 <script src="{{ url_for('static', filename='adminlte/plugins/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
 <script src="{{ url_for('static', filename='adminlte/plugins/overlayScrollbars/js/jquery.overlayScrollbars.min.js') }}"></script>
 <script src="{{ url_for('static', filename='adminlte/js/adminlte.min.js') }}"></script>
-
-<!-- مكتبات إضافية -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
-
 {% block scripts %}{% endblock %}
 </body>
 </html>

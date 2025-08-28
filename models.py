@@ -52,12 +52,11 @@ try:
     from cryptography.fernet import Fernet
 except Exception:
     Fernet = None
-# -------------------- Helpers --------------------
+
 def sa_str_enum(enum_or_values, *, name: str):
     vals = [e.value for e in enum_or_values] if hasattr(enum_or_values, "__members__") else list(enum_or_values)
     return SAEnum(*vals, name=name, native_enum=False, validate_strings=True)
 
-# ===================== Enums =====================
 class PaymentMethod(str, enum.Enum):
     CASH   = "cash"
     BANK   = "bank"
@@ -93,7 +92,6 @@ class SaleStatus(str, enum.Enum):
     CONFIRMED = "CONFIRMED"
     CANCELLED = "CANCELLED"
     REFUNDED  = "REFUNDED"
-
 
 class ServiceStatus(str, enum.Enum):
     PENDING      = "PENDING"
@@ -147,7 +145,16 @@ class InvoiceSource(str, enum.Enum):
     PARTNER  = "PARTNER"
     ONLINE   = "ONLINE"
 
-# ===================== M2M Tables =====================
+class PartnerSettlementStatus(str, enum.Enum):
+    DRAFT     = "DRAFT"
+    CONFIRMED = "CONFIRMED"
+    CANCELLED = "CANCELLED"
+
+class SupplierSettlementStatus(str, enum.Enum):
+    DRAFT     = "DRAFT"
+    CONFIRMED = "CONFIRMED"
+    CANCELLED = "CANCELLED"
+    
 user_permissions = db.Table(
     "user_permissions",
     db.Column("user_id", db.Integer, db.ForeignKey("users.id"), primary_key=True),
@@ -162,12 +169,10 @@ role_permissions = db.Table(
     extend_existing=True,
 )
 
-# ===================== TimestampMixin =====================
 class TimestampMixin:
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False, index=True)
 
-# ===================== AuditMixin =====================
 class AuditMixin:
     @classmethod
     def __declare_last__(cls):
@@ -186,14 +191,21 @@ class AuditMixin:
             except Exception:
                 setattr(target, "_previous_state", {})
 
-# ===================== Permissions / Roles / Users =====================
 class Permission(db.Model, AuditMixin):
     __tablename__ = "permissions"
 
-    id          = db.Column(db.Integer, primary_key=True)
-    name        = db.Column(db.String(100), unique=True, nullable=False, index=True)
-    code        = db.Column(db.String(100), unique=True, index=True)
-    description = db.Column(db.String(255))
+    id           = db.Column(db.Integer, primary_key=True)
+    name         = db.Column(db.String(100), unique=True, nullable=False, index=True)
+    code         = db.Column(db.String(100), unique=True, index=True)
+    description  = db.Column(db.String(255))
+    name_ar      = db.Column(db.String(120))
+    module       = db.Column(db.String(50), index=True)
+    is_protected = db.Column(db.Boolean, nullable=False, server_default=text("0"), default=False)
+    aliases      = db.Column(db.JSON, default=list)
+
+    __table_args__ = (
+        db.Index("ix_permissions_module_code", "module", "code"),
+    )
 
     @validates("name", "code")
     def _v_norm(self, key, value):
@@ -202,8 +214,60 @@ class Permission(db.Model, AuditMixin):
             v = v.lower()
         return v
 
+    @validates("module")
+    def _v_module(self, _, v):
+        v = (v or "").strip().lower()
+        return v or None
+
+    @validates("is_protected")
+    def _v_protected(self, _, v):
+        return bool(v)
+
+    @validates("aliases")
+    def _v_aliases(self, _, v):
+        if not v:
+            return []
+        if isinstance(v, str):
+            try:
+                arr = json.loads(v)
+            except Exception:
+                arr = [x for x in v.split(",")]
+        elif isinstance(v, (list, tuple, set)):
+            arr = list(v)
+        else:
+            arr = []
+        out = []
+        for a in arr:
+            s = str(a or "").strip().lower()
+            s = re.sub(r"[\s\-]+", "_", s)
+            s = re.sub(r"[^a-z0-9_]+", "", s)
+            s = re.sub(r"_+", "_", s).strip("_")
+            if s and s not in out:
+                out.append(s)
+        return out
+
+    @property
+    def display_name(self) -> str:
+        try:
+            nm_ar = getattr(self, "name_ar", None)
+            return (nm_ar or self.name or "").strip()
+        except Exception:
+            return (self.name or "").strip()
+
     def key(self) -> str:
         return (self.code or self.name or "").strip().lower()
+
+    @property
+    def aliases_set(self) -> set[str]:
+        return set(self.aliases or [])
+
+    @property
+    def all_keys(self) -> set[str]:
+        base = {self.key()}
+        nm = (self.name or "").strip().lower()
+        if nm:
+            base.add(nm)
+        return base | self.aliases_set
 
     def __repr__(self):
         return f"<Permission {self.code or self.name}>"
@@ -231,21 +295,16 @@ class Role(db.Model, AuditMixin):
     def _v_name(self, key, value):
         return (value or "").strip()
 
-    def has_permission(self, perm_name: str) -> bool:
-        if not perm_name:
+    def has_permission(self, code: str) -> bool:
+        from utils import _expand_perms, get_role_permissions
+        if not code:
             return False
-        target = (perm_name or "").strip().lower()
-        for p in self.permissions or []:
-            code_l = (getattr(p, "code", "") or "").strip().lower()
-            name_l = (getattr(p, "name", "") or "").strip().lower()
-            if target in {code_l, name_l}:
-                return True
-        return False
+        targets = {c.strip().lower() for c in _expand_perms(code)}
+        perms = get_role_permissions(self) or set()
+        return bool(perms & targets)
 
     def __repr__(self):
         return f"<Role {self.name}>"
-
-SUPER_ROLES = {"developer", "owner", "super_admin"}
 
 class User(db.Model, UserMixin, TimestampMixin, AuditMixin):
     __tablename__ = "users"
@@ -306,21 +365,21 @@ class User(db.Model, UserMixin, TimestampMixin, AuditMixin):
         return (value or "").strip()
 
     def set_password(self, password: str) -> None:
-        method = "scrypt"
-        try:
-            from flask import current_app as _ca
-            if _ca:
-                method = _ca.config.get("PASSWORD_HASH_METHOD") or "scrypt"
-        except Exception:
-            pass
-        try:
-            self.password_hash = generate_password_hash(password, method=method)
-        except Exception:
-            self.password_hash = generate_password_hash(password, method="pbkdf2:sha256")
+        from werkzeug.security import generate_password_hash
+        self.password_hash = generate_password_hash(password)
 
     def check_password(self, password: str) -> bool:
+        from werkzeug.security import check_password_hash
         try:
-            return check_password_hash(self.password_hash, password)
+            ok = check_password_hash(self.password_hash, password)
+            if ok and not self.password_hash.startswith("pbkdf2:sha256"):
+                self.set_password(password)
+                from extensions import db
+                try:
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+            return ok
         except Exception:
             return False
 
@@ -328,39 +387,19 @@ class User(db.Model, UserMixin, TimestampMixin, AuditMixin):
         r = (getattr(self.role, "name", "") or "").strip().lower()
         return any(r == (n or "").strip().lower() for n in names if n)
 
-    def has_permission(self, name: str) -> bool:
-        target = (name or "").strip().lower()
-        if not target:
+    def has_permission(self, code: str) -> bool:
+        from utils import _expand_perms, _get_user_permissions
+        if not code:
             return False
         if self.is_super_role:
             return True
-        try:
-            if self.role and hasattr(self.role, "has_permission") and callable(self.role.has_permission):
-                if self.role.has_permission(target):
-                    return True
-        except Exception:
-            pass
-        try:
-            if hasattr(self, "extra_permissions") and hasattr(self.extra_permissions, "filter"):
-                return self.extra_permissions.filter(
-                    or_(
-                        func.lower(Permission.name) == target,
-                        func.lower(Permission.code) == target,
-                    )
-                ).first() is not None
-        except Exception:
-            try:
-                for p in (self.extra_permissions or []):
-                    code_l = (getattr(p, "code", "") or "").strip().lower()
-                    name_l = (getattr(p, "name", "") or "").strip().lower()
-                    if target in {code_l, name_l}:
-                        return True
-            except Exception:
-                pass
-        return False
+        targets = {c.strip().lower() for c in _expand_perms(code)}
+        perms = _get_user_permissions(self) or set()
+        return bool(perms & targets)
 
     def __repr__(self):
         return f"<User {self.username or self.id}>"
+
 # ===================== Customers =====================
 class Customer(db.Model, UserMixin, TimestampMixin, AuditMixin):
     __tablename__ = "customers"
@@ -641,6 +680,130 @@ def _supplier_before_insert(_m, _c, t: Supplier):
 def _supplier_before_update(_m, _c, t: Supplier):
     t.email = (t.email or "").strip().lower() or None
     t.currency = (t.currency or "ILS").upper()
+
+class SupplierSettlement(db.Model, TimestampMixin, AuditMixin):
+    __tablename__ = "supplier_settlements"
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(40), unique=True, index=True)
+    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'), nullable=False, index=True)
+    from_date = db.Column(db.DateTime, nullable=False)
+    to_date = db.Column(db.DateTime, nullable=False)
+    currency = db.Column(db.String(10), default='ILS', nullable=False)
+    status = db.Column(sa_str_enum(SupplierSettlementStatus, name='supplier_settlement_status'),
+                       default=SupplierSettlementStatus.DRAFT.value, nullable=False)
+    notes = db.Column(db.Text)
+
+    total_gross = db.Column(db.Numeric(12, 2), default=0)
+    total_due   = db.Column(db.Numeric(12, 2), default=0)
+
+    supplier = db.relationship('Supplier', backref='settlements')
+    lines    = db.relationship('SupplierSettlementLine', back_populates='settlement',
+                               cascade='all, delete-orphan')
+
+    __table_args__ = (db.Index('ix_supplier_settlements_supplier_period', 'supplier_id', 'from_date', 'to_date'),)
+
+    @hybrid_property
+    def total_paid(self):
+        ref = f"SupplierSettle:{self.code or ''}"
+        if not self.code:
+            return 0.0
+        return float(
+            db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
+            .filter(
+                Payment.status == PaymentStatus.COMPLETED.value,
+                Payment.direction == PaymentDirection.OUTGOING.value,
+                Payment.entity_type == PaymentEntityType.SUPPLIER.value,
+                Payment.supplier_id == self.supplier_id,
+                Payment.reference == ref
+            ).scalar() or 0
+        )
+
+    @hybrid_property
+    def remaining(self):
+        return float(self.total_due or 0) - float(self.total_paid or 0)
+
+    def ensure_code(self):
+        if self.code: return
+        prefix = datetime.utcnow().strftime("SS-%Y%m")
+        cnt = (db.session.query(func.count(SupplierSettlement.id))
+               .filter(SupplierSettlement.code.like(f"{prefix}-%")).scalar() or 0)
+        self.code = f"{prefix}-{cnt+1:04d}"
+
+    def mark_confirmed(self):
+        self.status = SupplierSettlementStatus.CONFIRMED.value
+
+class SupplierSettlementLine(db.Model, TimestampMixin):
+    __tablename__ = "supplier_settlement_lines"
+
+    id = db.Column(db.Integer, primary_key=True)
+    settlement_id = db.Column(db.Integer, db.ForeignKey('supplier_settlements.id', ondelete='CASCADE'), nullable=False, index=True)
+    source_type = db.Column(db.String(30), nullable=False)  # LOAN_SETTLEMENT
+    source_id   = db.Column(db.Integer, index=True)
+    description = db.Column(db.String(255))
+    product_id  = db.Column(db.Integer, db.ForeignKey('products.id'))
+    quantity    = db.Column(db.Numeric(12, 3))
+    unit_price  = db.Column(db.Numeric(12, 2))
+    gross_amount= db.Column(db.Numeric(12, 2))
+
+    settlement = db.relationship('SupplierSettlement', back_populates='lines')
+    product    = db.relationship('Product')
+
+    __table_args__ = (db.Index('ix_ssl_source', 'source_type', 'source_id'),)
+
+def build_supplier_settlement_draft(supplier_id: int, date_from: datetime, date_to: datetime, *, currency: str = "ILS") -> SupplierSettlement:
+    ss = SupplierSettlement(
+        supplier_id=supplier_id, from_date=date_from, to_date=date_to,
+        currency=(currency or "ILS").upper(),
+        status=SupplierSettlementStatus.DRAFT.value,
+    )
+    total_gross = Decimal("0.00")
+
+    loans_q = (db.session.query(SupplierLoanSettlement)
+               .filter(SupplierLoanSettlement.supplier_id == supplier_id,
+                       SupplierLoanSettlement.settlement_date >= date_from,
+                       SupplierLoanSettlement.settlement_date <= date_to))
+    for ls in loans_q:
+        amount = q(ls.settled_price)
+        prod_id = getattr(getattr(ls, "loan", None), "product_id", None)
+        ss.lines.append(SupplierSettlementLine(
+            source_type="LOAN_SETTLEMENT",
+            source_id=ls.id,
+            description=f"Loan Settlement #{ls.id}",
+            product_id=prod_id,
+            quantity=None,
+            unit_price=None,
+            gross_amount=amount
+        ))
+        total_gross += amount
+
+    ss.total_gross = q(total_gross)
+    ss.total_due   = q(total_gross)
+    ss.ensure_code()
+    return ss
+
+# -------- Supplier.total_paid to include Loan-Settlement payments --------
+@hybrid_property
+def supplier_total_paid(self):
+    direct = db.session.query(func.coalesce(func.sum(Payment.total_amount), 0)).filter(
+        Payment.supplier_id == self.id,
+        Payment.direction == PaymentDirection.OUTGOING.value,
+        Payment.status == PaymentStatus.COMPLETED.value
+    ).scalar() or 0
+    via_loans = db.session.query(func.coalesce(func.sum(Payment.total_amount), 0)).filter(
+        Payment.loan_settlement_id.isnot(None),
+        Payment.direction == PaymentDirection.OUTGOING.value,
+        Payment.status == PaymentStatus.COMPLETED.value,
+        Payment.id.in_(
+            db.session.query(Payment.id)
+            .join(SupplierLoanSettlement, SupplierLoanSettlement.id == Payment.loan_settlement_id)
+            .filter(SupplierLoanSettlement.supplier_id == self.id)
+        )
+    ).scalar() or 0
+    return float(direct) + float(via_loans)
+
+Supplier.total_paid = supplier_total_paid
+
 # ===================== Partners =====================
 class Partner(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'partners'
@@ -782,6 +945,165 @@ def _partner_before_insert(_m, _c, t: Partner):
 def _partner_before_update(_m, _c, t: Partner):
     t.email = (t.email or "").strip().lower() or None
     t.currency = (t.currency or "ILS").upper()
+
+class PartnerSettlement(db.Model, TimestampMixin, AuditMixin):
+    __tablename__ = "partner_settlements"
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(40), unique=True, index=True)
+    partner_id = db.Column(db.Integer, db.ForeignKey('partners.id'), nullable=False, index=True)
+    from_date = db.Column(db.DateTime, nullable=False)
+    to_date = db.Column(db.DateTime, nullable=False)
+    currency = db.Column(db.String(10), default='ILS', nullable=False)
+    status = db.Column(sa_str_enum(PartnerSettlementStatus, name='partner_settlement_status'),
+                       default=PartnerSettlementStatus.DRAFT.value, nullable=False)
+    notes = db.Column(db.Text)
+
+    total_gross = db.Column(db.Numeric(12, 2), default=0)
+    total_share = db.Column(db.Numeric(12, 2), default=0)
+    total_costs = db.Column(db.Numeric(12, 2), default=0)
+    total_due   = db.Column(db.Numeric(12, 2), default=0)
+
+    partner = db.relationship('Partner', backref='settlements')
+    lines   = db.relationship('PartnerSettlementLine', back_populates='settlement',
+                              cascade='all, delete-orphan')
+
+    __table_args__ = (db.Index('ix_partner_settlements_partner_period', 'partner_id', 'from_date', 'to_date'),)
+
+    @hybrid_property
+    def total_paid(self):
+        ref = f"PartnerSettle:{self.code or ''}"
+        if not self.code:
+            return 0.0
+        return float(
+            db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
+            .filter(
+                Payment.partner_id == self.partner_id,
+                Payment.status == PaymentStatus.COMPLETED.value,
+                Payment.direction == PaymentDirection.OUTGOING.value,
+                Payment.entity_type == PaymentEntityType.PARTNER.value,
+                Payment.reference == ref
+            ).scalar() or 0
+        )
+
+    @hybrid_property
+    def remaining(self):
+        return float(self.total_due or 0) - float(self.total_paid or 0)
+
+    def ensure_code(self):
+        if self.code: return
+        prefix = datetime.utcnow().strftime("PS-%Y%m")
+        cnt = (db.session.query(func.count(PartnerSettlement.id))
+               .filter(PartnerSettlement.code.like(f"{prefix}-%")).scalar() or 0)
+        self.code = f"{prefix}-{cnt+1:04d}"
+
+    def mark_confirmed(self):
+        self.status = PartnerSettlementStatus.CONFIRMED.value
+
+class PartnerSettlementLine(db.Model, TimestampMixin):
+    __tablename__ = "partner_settlement_lines"
+
+    id = db.Column(db.Integer, primary_key=True)
+    settlement_id = db.Column(db.Integer, db.ForeignKey('partner_settlements.id', ondelete='CASCADE'), nullable=False, index=True)
+    source_type = db.Column(db.String(30), nullable=False)
+    source_id   = db.Column(db.Integer, index=True)
+    description = db.Column(db.String(255))
+    product_id  = db.Column(db.Integer, db.ForeignKey('products.id'))
+    warehouse_id= db.Column(db.Integer, db.ForeignKey('warehouses.id'))
+    quantity    = db.Column(db.Numeric(12, 3))
+    unit_price  = db.Column(db.Numeric(12, 2))
+    gross_amount= db.Column(db.Numeric(12, 2))
+    share_percent = db.Column(db.Numeric(6, 3))
+    share_amount  = db.Column(db.Numeric(12, 2))
+
+    settlement = db.relationship('PartnerSettlement', back_populates='lines')
+    product    = db.relationship('Product')
+    warehouse  = db.relationship('Warehouse')
+
+    __table_args__ = (db.Index('ix_psl_source', 'source_type', 'source_id'),)
+
+def _find_partner_share_percentage(partner_id: int, product_id: int | None, warehouse_id: int | None) -> float:
+    pct = 0.0
+    if product_id:
+        row2 = (db.session.query(ProductPartner.share_percent)
+                .filter(ProductPartner.partner_id == partner_id,
+                        ProductPartner.product_id == product_id).first())
+        if row2: return float(row2[0] or 0)
+        row = (db.session.query(WarehousePartnerShare.share_percentage)
+               .filter(WarehousePartnerShare.partner_id == partner_id,
+                       WarehousePartnerShare.product_id == product_id).first())
+        if row: return float(row[0] or 0)
+    if warehouse_id:
+        row3 = (db.session.query(WarehousePartnerShare.share_percentage)
+                .filter(WarehousePartnerShare.partner_id == partner_id,
+                        WarehousePartnerShare.warehouse_id == warehouse_id,
+                        WarehousePartnerShare.product_id.is_(None)).first())
+        if row3: return float(row3[0] or 0)
+    return pct
+
+def build_partner_settlement_draft(partner_id: int, date_from: datetime, date_to: datetime, *, currency: str = "ILS") -> PartnerSettlement:
+    ps = PartnerSettlement(
+        partner_id=partner_id, from_date=date_from, to_date=date_to,
+        currency=(currency or "ILS").upper(),
+        status=PartnerSettlementStatus.DRAFT.value,
+    )
+    total_gross = Decimal("0.00")
+    total_share = Decimal("0.00")
+
+    try:
+        parts_q = (db.session.query(ServicePart)
+                   .filter(ServicePart.created_at >= date_from,
+                           ServicePart.created_at <= date_to,
+                           or_(ServicePart.partner_id == partner_id,
+                               ServicePart.partner_id.is_(None))))
+        for sp in parts_q:
+            base = q(sp.line_total)
+            sp_share_pct = float(sp.share_percentage or 0)
+            if sp.partner_id != partner_id:
+                sp_share_pct = _find_partner_share_percentage(partner_id, sp.part_id, sp.warehouse_id)
+            share_amt = q(base * Decimal(str(sp_share_pct / 100.0))) if sp_share_pct else Decimal("0.00")
+            if share_amt > 0:
+                ps.lines.append(PartnerSettlementLine(
+                    source_type="SERVICE_PART", source_id=sp.id,
+                    description=f"ServicePart #{sp.id}",
+                    product_id=sp.part_id, warehouse_id=sp.warehouse_id,
+                    quantity=sp.quantity, unit_price=sp.unit_price,
+                    gross_amount=base, share_percent=sp_share_pct, share_amount=share_amt
+                ))
+                total_gross += q(base); total_share += q(share_amt)
+    except Exception:
+        pass
+
+    try:
+        from models import SaleLine
+        sl_q = (db.session.query(SaleLine)
+                .filter(SaleLine.created_at >= date_from, SaleLine.created_at <= date_to))
+        for sl in sl_q:
+            base = q(getattr(sl, "line_total", (Decimal(str(sl.quantity or 0)) * Decimal(str(sl.unit_price or 0)))))
+            pct = float(getattr(sl, "share_percentage", 0) or 0)
+            if not pct:
+                pct = _find_partner_share_percentage(partner_id, getattr(sl, "product_id", None), getattr(sl, "warehouse_id", None))
+            share_amt = q(base * Decimal(str(pct / 100.0))) if pct else Decimal("0.00")
+            if share_amt > 0:
+                ps.lines.append(PartnerSettlementLine(
+                    source_type="SALE_LINE", source_id=sl.id,
+                    description=f"SaleLine #{sl.id}",
+                    product_id=getattr(sl, "product_id", None),
+                    warehouse_id=getattr(sl, "warehouse_id", None),
+                    quantity=getattr(sl, "quantity", None),
+                    unit_price=getattr(sl, "unit_price", None),
+                    gross_amount=base, share_percent=pct, share_amount=share_amt
+                ))
+                total_gross += q(base); total_share += q(share_amt)
+    except Exception:
+        pass
+
+    ps.total_gross = q(total_gross)
+    ps.total_share = q(total_share)
+    ps.total_costs = q(0)
+    ps.total_due   = q(total_share)
+    ps.ensure_code()
+    return ps
 # ===================== Employees =====================
 class Employee(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'employees'

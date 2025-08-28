@@ -1,10 +1,8 @@
 (function () {
-  // بسيط: فلترة نصية على جدول
   function wireSimpleSearch(inputId, tableId, columnsSelectors) {
     var input = document.getElementById(inputId);
     var table = document.getElementById(tableId);
     if (!input || !table) return;
-
     input.addEventListener('input', function () {
       var q = (input.value || '').trim().toLowerCase();
       var rows = table.tBodies[0]?.rows || [];
@@ -20,7 +18,6 @@
     });
   }
 
-  // ---- مودال التسوية (بدون باك-إند) ----
   var modalEl, bsModal;
   var dom = {};
 
@@ -41,10 +38,7 @@
     return true;
   }
 
-  function fmt(n) {
-    var x = Number(n || 0);
-    return x.toFixed(2);
-  }
+  function fmt(n) { return Number(n || 0).toFixed(2); }
 
   function directionBadge(dir) {
     if (dir === 'IN')  return '<span class="badge bg-success">وارد</span>';
@@ -64,74 +58,43 @@
     dom.stlEntityId.value = payload.id || '';
     dom.stlEntityTyp.value = payload.entityType || '';
 
-    // OUT لو الرصيد موجب (نحن ندفع)، IN لو سالب (نحن نقبض)
     var dir = balance > 0 ? 'OUT' : (balance < 0 ? 'IN' : '');
     dom.stlDirection.innerHTML = directionBadge(dir);
     dom.stlConfirm.disabled = amount <= 0 || !dir;
 
-    // تأكيد: ينقلك لنموذج الدفع الموحّد مع باراميترات معبّأة
     dom.stlConfirm.onclick = function () {
-      var base = document.getElementById('vendors-config')?.dataset?.payUrl || '/payments/new';
+      var base = document.getElementById('vendors-config')?.dataset?.payUrl || '/payments/create';
       var amountVal = Math.max(0, Number(dom.stlAmount.value || 0));
       var methodVal = (dom.stlMethod.value || '').toLowerCase();
-
       if (!amountVal) return;
-
       var params = new URLSearchParams({
-        entity_type: (payload.entityType || '').toLowerCase(), // partner / supplier
+        entity_type: (payload.entityType || '').toUpperCase(),
         entity_id: String(payload.id || ''),
-        direction: dir,                                        // IN | OUT
+        direction: dir,
         total_amount: fmt(amountVal),
         currency: dom.stlCurrency.value || 'ILS',
         method: methodVal,
-        reference: 'Settlement',
+        reference: (payload.entityType === 'partner' ? 'Settlement' : 'Settlement')
       });
-
-      // انتقال لنموذج الدفع (سيتعبّى تلقائياً إن مدعوم)
       window.location.href = base + '?' + params.toString();
     };
 
-    // طباعة كشف مختصر
     dom.stlPrint.onclick = function () {
       var w = window.open('', 'printWin');
       var now = new Date().toLocaleString();
-      var html = `
-        <html dir="rtl">
-        <head>
-          <meta charset="utf-8">
-          <title>كشف مختصر</title>
-          <style>
-            body { font-family: sans-serif; padding:20px; }
-            .row { margin:6px 0; }
-            .h { color:#666; }
-          </style>
-        </head>
-        <body>
-          <h3>كشف تسوية مختصر</h3>
-          <div class="row"><span class="h">الجهة:</span> ${payload.name || ''}</div>
-          <div class="row"><span class="h">النوع:</span> ${payload.entityType === 'partner' ? 'شريك' : 'مورد'}</div>
-          <div class="row"><span class="h">الرصيد الحالي:</span> ${fmt(payload.balance)} ${payload.currency || ''}</div>
-          <div class="row"><span class="h">المبلغ للتسوية:</span> ${fmt(dom.stlAmount.value)} ${dom.stlCurrency.value}</div>
-          <div class="row"><span class="h">الاتجاه:</span> ${dom.stlDirection.textContent || ''}</div>
-          <div class="row"><span class="h">الطريقة:</span> ${dom.stlMethod.options[dom.stlMethod.selectedIndex].text}</div>
-          <hr>
-          <small>${now}</small>
-          <script>window.onload=function(){window.print(); setTimeout(()=>window.close(), 300);}</script>
-        </body>
-        </html>`;
-      w.document.write(html);
-      w.document.close();
+      var html = '<html dir="rtl"><head><meta charset="utf-8"><title>كشف مختصر</title><style>body{font-family:sans-serif;padding:20px}.row{margin:6px 0}.h{color:#666}</style></head><body><h3>كشف تسوية مختصر</h3><div class="row"><span class="h">الجهة:</span> '+(payload.name||'')+'</div><div class="row"><span class="h">النوع:</span> '+(payload.entityType==='partner'?'شريك':'مورد')+'</div><div class="row"><span class="h">الرصيد الحالي:</span> '+fmt(payload.balance)+' '+(payload.currency||'')+'</div><div class="row"><span class="h">المبلغ للتسوية:</span> '+fmt(dom.stlAmount.value)+' '+dom.stlCurrency.value+'</div><div class="row"><span class="h">الاتجاه:</span> '+dom.stlDirection.textContent+'</div><div class="row"><span class="h">الطريقة:</span> '+dom.stlMethod.options[dom.stlMethod.selectedIndex].text+'</div><hr><small>'+now+'</small><script>window.onload=function(){window.print();setTimeout(()=>window.close(),300)}</script></body></html>';
+      w.document.write(html); w.document.close();
     };
 
     if (bsModal) bsModal.show();
-    else modalEl.style.display = 'block'; // fallback بدائي
+    else modalEl.style.display = 'block';
   }
 
   function attachSettleButtons() {
     document.querySelectorAll('.btn-settle').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var payload = {
-          entityType: btn.dataset.entityType,     // partner | supplier
+          entityType: btn.dataset.entityType,
           id:        btn.dataset.id,
           name:      btn.dataset.name,
           balance:   Number(btn.dataset.balance || 0),
@@ -140,15 +103,35 @@
         openSettlementModal(payload);
       });
     });
+    document.querySelectorAll('.btn-preview-partner-settlement').forEach(function (btn) {
+      btn.addEventListener('click', async function () {
+        var url = btn.dataset.previewUrl;
+        if (!url) return;
+        try {
+          const res = await fetch(url, {headers: {'Accept':'application/json'}});
+          const data = await res.json();
+          if (!data.success) { alert(data.error || 'فشل المعاينة'); return; }
+          alert('معاينة تسوية '+data.partner.name+'\nالفترة: '+data.from.substring(0,10)+' → '+data.to.substring(0,10)+'\nحصة الشريك: '+data.totals.share.toFixed(2)+' '+data.partner.currency+'\nالصافي: '+data.totals.due.toFixed(2)+' '+data.partner.currency);
+        } catch(e) { console.error(e); alert('خطأ بالاتصال'); }
+      });
+    });
+    document.querySelectorAll('.btn-preview-supplier-settlement').forEach(function (btn) {
+      btn.addEventListener('click', async function () {
+        var url = btn.dataset.previewUrl;
+        if (!url) return;
+        try {
+          const res = await fetch(url, {headers: {'Accept':'application/json'}});
+          const data = await res.json();
+          if (!data.success) { alert(data.error || 'فشل المعاينة'); return; }
+          alert('معاينة تسوية '+data.supplier.name+'\nالفترة: '+data.from.substring(0,10)+' → '+data.to.substring(0,10)+'\nإجمالي: '+data.totals.gross.toFixed(2)+' '+data.supplier.currency+'\nالصافي: '+data.totals.due.toFixed(2)+' '+data.supplier.currency);
+        } catch(e) { console.error(e); alert('خطأ بالاتصال'); }
+      });
+    });
   }
 
   document.addEventListener('DOMContentLoaded', function () {
-    // بحث فوري (بدون أي مكتبات)
     wireSimpleSearch('partnerSearch',  'partnersTable',  ['.partner-name',  '.partner-phone']);
     wireSimpleSearch('supplierSearch', 'suppliersTable', ['.supplier-name', '.supplier-phone']);
-
-    // مودال التسوية
-    if (initModalRefs()) attachSettleButtons();
-    else attachSettleButtons(); // حتى لو ما في Modal (ببعض الصفحات) ما يطيح
+    if (initModalRefs()) attachSettleButtons(); else attachSettleButtons();
   });
 })();

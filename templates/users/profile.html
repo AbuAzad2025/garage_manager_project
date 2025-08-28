@@ -23,17 +23,14 @@
     <div class="col-md-7 col-lg-6">
       <div class="card card-primary card-outline shadow-sm">
         <div class="card-body box-profile text-center">
-
           <div class="mb-3">
             <img class="profile-user-img img-fluid img-circle"
                  src="{{ url_for('static', filename='img/azad_logo.png') }}"
                  alt="صورة المستخدم"
                  style="width:120px;height:120px;">
           </div>
-
           <h3 class="profile-username mb-0">{{ user.username }}</h3>
           <p class="text-muted mb-2">{{ user.role.name if user.role else "بدون دور" }}</p>
-
           <div class="mb-3">
             {% if user.is_active %}
               <span class="badge bg-success">نشط</span>
@@ -41,14 +38,13 @@
               <span class="badge bg-secondary">موقوف</span>
             {% endif %}
           </div>
-
           <div class="d-flex justify-content-center align-items-center profile-meta flex-wrap mb-3">
             {% set _last_seen = (user.last_seen if user.last_seen is defined else None) %}
             <div class="item">
               <i class="far fa-eye"></i>
               آخر ظهور:
               {% if _last_seen %}
-                <span>{{ _last_seen.strftime('%Y-%m-%d %H:%M') }}</span>
+                <span title="{{ _last_seen|format_datetime }}">{{ _last_seen|format_datetime }}</span>
                 <span class="timeago" data-dt="{{ _last_seen.isoformat() }}"></span>
               {% else %}
                 <span>—</span>
@@ -58,19 +54,36 @@
               <i class="fas fa-sign-in-alt"></i>
               آخر دخول:
               {% if user.last_login %}
-                <span>{{ user.last_login.strftime('%Y-%m-%d %H:%M') }}</span>
+                <span title="{{ user.last_login|format_datetime }}">{{ user.last_login|format_datetime }}</span>
                 <span class="timeago" data-dt="{{ user.last_login.isoformat() }}"></span>
               {% else %}
                 <span>—</span>
               {% endif %}
             </div>
+            {% if user.last_login_ip %}
+              <div class="item">
+                <i class="fas fa-network-wired"></i>
+                IP:
+                <span dir="ltr">{{ user.last_login_ip }}</span>
+              </div>
+            {% endif %}
+            {% if user.login_count %}
+              <div class="item">
+                <i class="fas fa-user-check"></i>
+                مرات الدخول: <span>{{ user.login_count }}</span>
+              </div>
+            {% endif %}
           </div>
 
           <ul class="list-group list-group-unbordered mb-3 text-right">
             <li class="list-group-item d-flex justify-content-between align-items-center">
               <b>البريد الإلكتروني:</b>
               <span>
-                {% if user.email %}<a href="mailto:{{ user.email }}">{{ user.email }}</a>{% else %}غير محدد{% endif %}
+                {% if user.email %}
+                  <a href="mailto:{{ user.email }}" dir="ltr">{{ user.email }}</a>
+                {% else %}
+                  غير محدد
+                {% endif %}
               </span>
             </li>
 
@@ -81,7 +94,9 @@
                 {% set perms = (_q.all() if _q.__class__.__name__ in ['AppenderQuery','AppenderBaseQuery'] else _q) | list %}
                 {% if perms|length %}
                   {% for p in perms %}
-                    <span class="badge bg-light text-dark border me-1 mb-1">{{ p.name }}</span>
+                    <span class="badge bg-light text-dark border mr-1 mb-1">
+                      {{ p.display_name if p.display_name is defined else (p.name_ar or p.name) }}
+                    </span>
                   {% endfor %}
                 {% else %}
                   <span class="text-muted">لا يوجد</span>
@@ -91,17 +106,17 @@
 
             <li class="list-group-item d-flex justify-content-between align-items-center">
               <b>تاريخ الإنشاء:</b>
-              <span>{{ user.created_at.strftime('%Y-%m-%d %H:%M') if user.created_at else '—' }}</span>
+              <span>{{ user.created_at|format_datetime if user.created_at else '—' }}</span>
             </li>
           </ul>
 
-          <div class="d-flex justify-content-center gap-2">
-            {% if current_user.has_permission('manage_users') %}
-              <a href="{{ url_for('users_bp.edit_user', user_id=user.id) }}" class="btn btn-primary">
+          <div class="d-flex justify-content-center">
+            {% if has_perm('manage_users') %}
+              <a href="{{ url_for('users_bp.edit_user', user_id=user.id) }}" class="btn btn-primary mx-1">
                 <i class="fas fa-edit"></i> تعديل الحساب
               </a>
             {% endif %}
-            <a href="{{ url_for('users_bp.list_users') }}" class="btn btn-outline-secondary">
+            <a href="{{ url_for('users_bp.list_users') }}" class="btn btn-outline-secondary mx-1">
               <i class="fas fa-arrow-left"></i> رجوع
             </a>
           </div>
@@ -129,12 +144,16 @@
         else if(s>=60){v=Math.floor(s/60);u='دقيقة';}
         return '— منذ ' + v + ' ' + u;
       }
-      document.querySelectorAll('.timeago').forEach(function(el){
-        var iso=el.getAttribute('data-dt');
-        if(!iso) return;
-        el.textContent = fromNowArabic(iso);
-        try { el.title = new Date(iso).toLocaleString(); } catch(e){}
-      });
+      function renderAll(){
+        document.querySelectorAll('.timeago').forEach(function(el){
+          var iso=el.getAttribute('data-dt');
+          if(!iso) return;
+          el.textContent = fromNowArabic(iso);
+          try { el.title = new Date(iso).toLocaleString(); } catch(e){}
+        });
+      }
+      renderAll();
+      setInterval(renderAll, 60000);
     })();
   </script>
 {% endblock %}

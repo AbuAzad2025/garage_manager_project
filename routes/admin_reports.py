@@ -13,10 +13,6 @@ admin_reports_bp = Blueprint(
     template_folder="templates/admin/reports",
 )
 
-@admin_reports_bp.before_request
-@super_only
-def _guard_admin_reports():
-    pass
 
 def _mask_pan(pan: str) -> str:
     if not pan:

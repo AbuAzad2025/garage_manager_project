@@ -1,11 +1,8 @@
-{# templates/shop/pay_online.html #}
 {% extends 'shop/base.html' %}
 {% block title %}إتمام الشراء{% endblock %}
-
 {% block styles %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
 {% endblock %}
-
 {% block content %}
 <div class="row justify-content-center">
   <div class="col-lg-10">
@@ -13,10 +10,8 @@
       <div class="card-header bg-white py-3 d-flex flex-wrap gap-2 justify-content-between align-items-center">
         <h5 class="mb-0">إتمام عملية الشراء</h5>
         <span class="badge bg-primary">الخطوة 2 من 2</span>
-        {% if shop_is_super_admin %}
-          {# رابط متابعة المدفوعات/التقارير للسوبر أدمن. إذا عندك روت مختلف خليه كما هو عندك #}
-          <a href="{{ url_for('admin_reports.cards') if 'admin_reports.cards' in current_app.view_functions else url_for('shop.admin_payments') }}"
-             class="btn btn-sm btn-warning">
+        {% if has_any('manage_payments','view_reports','manage_reports') and 'admin_reports.cards' in current_app.view_functions %}
+          <a href="{{ url_for('admin_reports.cards') }}" class="btn btn-sm btn-warning">
             <i class="fas fa-credit-card"></i> متابعة المدفوعات
           </a>
         {% endif %}
@@ -25,17 +20,14 @@
       <div class="card-body">
         <div class="row">
           <div class="col-lg-7 border-end">
-            {% if not shop_is_super_admin %}
+            {% if not has_any('manage_payments','manage_shop') %}
               <h6 class="mb-3">معلومات الدفع</h6>
-
               <form method="POST" id="payment-form" novalidate>
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
                 <div class="mb-3">
                   <label class="form-label">طريقة الدفع</label>
                   {{ form.payment_method(class="form-select", id="payment-method") }}
                 </div>
-
                 <div id="card-fields">
                   <div class="mb-3">
                     <label class="form-label">اسم صاحب البطاقة</label>
@@ -44,7 +36,6 @@
                       {{ form.card_holder(class="form-control", placeholder="كما هو مدون على البطاقة") }}
                     </div>
                   </div>
-
                   <div class="mb-3">
                     <label class="form-label">رقم البطاقة</label>
                     <div class="input-group">
@@ -52,7 +43,6 @@
                       {{ form.card_number(class="form-control", placeholder="1234 5678 9012 3456") }}
                     </div>
                   </div>
-
                   <div class="row mb-3">
                     <div class="col-md-6">
                       <label class="form-label">تاريخ الانتهاء</label>
@@ -70,11 +60,9 @@
                     </div>
                   </div>
                 </div>
-
                 {{ form.shipping_address(class="form-control mb-2", placeholder="عنوان الشحن (اختياري)") }}
                 {{ form.billing_address(class="form-control mb-3", placeholder="عنوان الفاتورة (اختياري)") }}
                 {{ form.transaction_data(class="form-control mb-3", placeholder="بيانات إضافية للبوابة (JSON)") }}
-
                 <div class="d-grid">
                   <button type="submit" class="btn btn-primary btn-lg py-3">
                     تأكيد الدفع و إتمام الطلب
@@ -83,8 +71,7 @@
               </form>
             {% else %}
               <div class="alert alert-info mb-0">
-                👑 أنت في وضع السوبر أدمن — لا حاجة لإدخال بيانات دفع هنا.
-                استخدم زر <strong>متابعة المدفوعات</strong> لمراجعة العمليات والتقارير.
+                لديك صلاحيات إدارية — راجع التقارير والمدفوعات من زر متابعة المدفوعات.
               </div>
             {% endif %}
           </div>
@@ -104,7 +91,6 @@
                   </li>
                   {% endfor %}
                 </ul>
-
                 <div class="d-flex justify-content-between mt-3">
                   <span>المجموع الفرعي:</span>
                   <span>{{ '%.2f'|format(subtotal) }} شيكل</span>
@@ -120,19 +106,15 @@
                   <span>المجموع الكلي:</span>
                   <span>{{ '%.2f'|format(subtotal) }} شيكل</span>
                 </div>
-
                 <div class="alert alert-info mt-3 mb-0">
                   <div class="d-flex justify-content-between">
                     <span>المبلغ المطلوب (عربون):</span>
                     <span class="fw-bold">{{ '%.2f'|format(prepaid_amount) }} شيكل</span>
                   </div>
-                  <small class="d-block text-muted mt-1">
-                    (لا يقل عن 20% من إجمالي قيمة الطلب)
-                  </small>
+                  <small class="d-block text-muted mt-1">(لا يقل عن 20% من إجمالي قيمة الطلب)</small>
                 </div>
               </div>
             </div>
-
             <div class="d-flex justify-content-between mt-3">
               <a href="{{ url_for('shop.cart') }}" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-right me-2"></i> العودة للسلة
@@ -150,8 +132,7 @@
   </div>
 </div>
 {% endblock %}
-
 {% block scripts %}
-  {{ super() }}
-  <script src="{{ url_for('static', filename='js/shop.js') }}"></script>
+{{ super() }}
+<script src="{{ url_for('static', filename='js/shop.js') }}"></script>
 {% endblock %}

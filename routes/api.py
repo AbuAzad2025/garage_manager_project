@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, current_app, abort
+from flask import Blueprint, request, jsonify, current_app, abort, Response
 from flask_login import login_required, current_user
 from sqlalchemy import or_, func
 from typing import Callable, Iterable, List, Dict, Any, Optional
@@ -9,23 +9,12 @@ from models import (
     Customer, Supplier, Partner, Product, Warehouse, User, Employee,
     Invoice, ServiceRequest, SupplierLoanSettlement, ProductCategory, Payment,
     EquipmentType, StockLevel, Sale, Shipment, Transfer, PreOrder,
-    OnlinePreOrder, Expense
+    OnlinePreOrder, Expense, Permission
 )
-from barcodes import normalize_barcode, is_valid_ean13  # ✅ كان ناقص
+from utils import permission_required, super_only, _get_user_permissions, _expand_perms
+from barcodes import normalize_barcode, is_valid_ean13
 
 bp = Blueprint("api", __name__, url_prefix="/api")
-
-# --- حارس موحّد: أدمن أو سوبر فقط ---
-@bp.before_request
-@login_required
-def _api_guard():
-    try:
-        rn = (getattr(getattr(current_user, "role", None), "name", "") or "").strip().lower()
-        if rn in {"developer", "owner", "super_admin", "admin"}:
-            return
-    except Exception:
-        pass
-    abort(403)
 
 def _q() -> str:
     return (request.args.get("q") or "").strip()
@@ -101,16 +90,69 @@ def normalize_phone(s: Optional[str]) -> Optional[str]:
     out = "".join(keep)
     return out or None
 
+@bp.get("/me")
+@login_required
+def me():
+    role_name = (getattr(getattr(current_user, "role", None), "name", None))
+    perms = sorted(list(_get_user_permissions(current_user) or []))
+    return jsonify({
+        "id": current_user.id,
+        "username": getattr(current_user, "username", None),
+        "email": getattr(current_user, "email", None),
+        "role": role_name,
+        "permissions": perms
+    })
+
+@bp.get("/permissions.json")
+@super_only
+def permissions_json():
+    rows = Permission.query.order_by(Permission.name.asc()).all()
+    def _row(p):
+        return {
+            "id": p.id,
+            "code": getattr(p, "code", None) or getattr(p, "name", None),
+            "name": getattr(p, "name", None),
+            "ar_name": getattr(p, "ar_name", None),
+            "category": getattr(p, "category", None),
+            "aliases": getattr(p, "aliases", None),
+        }
+    return jsonify([_row(p) for p in rows])
+
+@bp.get("/permissions.csv")
+@super_only
+def permissions_csv():
+    rows = Permission.query.order_by(Permission.name.asc()).all()
+    import io, csv
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["id", "code", "name", "ar_name", "category", "aliases"])
+    for p in rows:
+        w.writerow([
+            p.id,
+            getattr(p, "code", None) or getattr(p, "name", None),
+            getattr(p, "name", None),
+            getattr(p, "ar_name", None),
+            getattr(p, "category", None),
+            getattr(p, "aliases", None),
+        ])
+    return Response(
+        buf.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=permissions.csv"},
+    )
+
 @bp.get("/customers")
 @bp.get("/search_customers", endpoint="search_customers")
 @login_required
 @limiter.limit("60/minute")
+@permission_required("manage_customers", "add_customer")
 def customers():
     return search_model(Customer, ["name", "phone", "email"], label_attr="name")
 
 @bp.post("/customers")
 @login_required
 @limiter.limit("30/minute")
+@permission_required("manage_customers", "add_customer")
 def create_customer_api():
     data = request.get_json(silent=True) or request.form or {}
     name = (data.get("name") or "").strip()
@@ -153,6 +195,7 @@ def create_customer_api():
 @bp.get("/search_suppliers", endpoint="search_suppliers")
 @login_required
 @limiter.limit("60/minute")
+@permission_required("manage_vendors", "add_supplier")
 def suppliers():
     return search_model(
         Supplier,
@@ -161,9 +204,42 @@ def suppliers():
         default_order_attr="name"
     )
 
+@bp.post("/suppliers", endpoint="create_supplier")
+@login_required
+@csrf.exempt
+@limiter.limit("30/minute")
+@permission_required("manage_vendors", "add_supplier")
+def create_supplier():
+    data = request.get_json(silent=True) or request.form or {}
+    name = (data.get("name") or "").strip()
+    phone = (data.get("phone") or "").strip()
+    identity_number = (data.get("identity_number") or "").strip()
+    address = (data.get("address") or "").strip()
+    notes = (data.get("notes") or "").strip()
+
+    if not name:
+        return jsonify(success=False, error="الاسم مطلوب"), 400
+
+    try:
+        supplier = Supplier(
+            name=name,
+            phone=phone,
+            identity_number=identity_number,
+            address=address,
+            notes=notes
+        )
+        db.session.add(supplier)
+        db.session.commit()
+        return jsonify(success=True, id=supplier.id, name=supplier.name), 201
+    except SQLAlchemyError:
+        db.session.rollback()
+        return jsonify(success=False, error="فشل حفظ المورد"), 500
+
+
 @bp.get("/suppliers/<int:id>")
 @login_required
 @limiter.limit("60/minute")
+@permission_required("manage_vendors", "add_supplier")
 def get_supplier(id):
     supplier = Supplier.query.get_or_404(id)
     return jsonify({
@@ -179,6 +255,7 @@ def get_supplier(id):
 @bp.get("/search_partners", endpoint="search_partners")
 @login_required
 @limiter.limit("60/minute")
+@permission_required("manage_vendors", "add_partner")
 def partners():
     return search_model(Partner, ["name", "phone_number", "identity_number"], label_attr="name")
 
@@ -186,6 +263,7 @@ def partners():
 @bp.get("/search_products", endpoint="search_products")
 @login_required
 @limiter.limit("60/minute")
+@permission_required("view_parts", "view_inventory", "manage_inventory")
 def products():
     return search_model(
         Product,
@@ -194,9 +272,36 @@ def products():
         extra=lambda p: {"price": float(p.price or 0), "sku": p.sku}
     )
 
+@bp.get("/products/barcode/<code>")
+@login_required
+@limiter.limit("60/minute")
+@permission_required("view_parts", "view_inventory", "manage_inventory")
+def product_by_barcode(code: str):
+    norm = normalize_barcode(code) or code
+    qry = Product.query.filter(
+        or_(Product.barcode == norm, Product.barcode == code)
+    )
+    # خيار إضافي: مطابقة على part_number/sku عند عدم وجود باركود صالح
+    if not is_valid_ean13(norm):
+        qry = qry.union_all(
+            Product.query.filter(or_(Product.part_number == code, Product.sku == code))
+        )
+    p = qry.first()
+    if not p:
+        return jsonify({"error": "Not Found"}), 404
+    return jsonify({
+        "id": p.id,
+        "name": p.name,
+        "sku": p.sku,
+        "part_number": p.part_number,
+        "barcode": p.barcode,
+        "price": float(p.price or 0),
+    })
+
 @bp.get("/products/<int:pid>/info")
 @login_required
 @limiter.limit("60/minute")
+@permission_required("view_parts", "view_inventory", "manage_inventory")
 def product_info(pid: int):
     p = db.session.get(Product, pid)
     if not p:
@@ -216,6 +321,7 @@ def product_info(pid: int):
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
+@permission_required("manage_inventory")
 def create_category():
     data = request.get_json(silent=True) or request.form or {}
     name = (data.get("name") or "").strip()
@@ -234,6 +340,7 @@ def create_category():
 @bp.get("/search_categories", endpoint="search_categories")
 @login_required
 @limiter.limit("60/minute")
+@permission_required("manage_inventory", "view_inventory")
 def categories():
     return search_model(ProductCategory, ["name"], label_attr="name")
 
@@ -241,12 +348,14 @@ def categories():
 @bp.get("/search_warehouses", endpoint="search_warehouses")
 @login_required
 @limiter.limit("60/minute")
+@permission_required("view_warehouses", "manage_warehouses", "view_inventory", "manage_inventory")
 def warehouses():
     return search_model(Warehouse, ["name"], label_attr="name")
 
 @bp.get("/warehouses/<int:wid>/products")
 @login_required
 @limiter.limit("60/minute")
+@permission_required("view_inventory", "view_warehouses", "manage_inventory")
 def products_by_warehouse(wid: int):
     rows = (
         db.session.query(Product, StockLevel.quantity)
@@ -266,12 +375,14 @@ def products_by_warehouse(wid: int):
 @bp.get("/users")
 @login_required
 @limiter.limit("60/minute")
+@permission_required("manage_users")
 def users():
     return search_model(User, ["username", "email"], label_attr="username")
 
 @bp.get("/employees")
 @login_required
 @limiter.limit("60/minute")
+@permission_required("manage_service")
 def employees():
     return search_model(Employee, ["name"], label_attr="name")
 
@@ -279,6 +390,7 @@ def employees():
 @bp.get("/search_equipment_types", endpoint="search_equipment_types")
 @login_required
 @limiter.limit("60/minute")
+@permission_required("manage_service")
 def equipment_types():
     return search_model(EquipmentType, ["name", "model_number", "chassis_number"], label_attr="name")
 
@@ -286,6 +398,7 @@ def equipment_types():
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
+@permission_required("manage_service")
 def create_equipment_type():
     data = request.get_json(silent=True) or request.form or {}
     name = (data.get("name") or "").strip()
@@ -327,6 +440,7 @@ def create_equipment_type():
 @bp.get("/invoices")
 @login_required
 @limiter.limit("60/minute")
+@permission_required("manage_sales", "view_reports")
 def invoices():
     q = _q()
     qry = Invoice.query
@@ -347,6 +461,7 @@ def invoices():
 @bp.get("/services")
 @login_required
 @limiter.limit("60/minute")
+@permission_required("manage_service")
 def services():
     q = _q()
     qry = ServiceRequest.query
@@ -376,6 +491,7 @@ def services():
 @bp.get("/sales")
 @login_required
 @limiter.limit("60/minute")
+@permission_required("manage_sales", "view_reports")
 def sales():
     q = _q()
     qry = Sale.query
@@ -397,6 +513,7 @@ def sales():
 @bp.get("/shipments")
 @login_required
 @limiter.limit("60/minute")
+@permission_required("manage_shipments", "view_reports")
 def shipments():
     q = _q()
     qry = Shipment.query
@@ -417,6 +534,7 @@ def shipments():
 @bp.get("/transfers")
 @login_required
 @limiter.limit("60/minute")
+@permission_required("warehouse_transfer", "manage_inventory")
 def transfers():
     q = _q()
     qry = Transfer.query
@@ -435,48 +553,10 @@ def transfers():
         } for t in rows
     ])
 
-@bp.post("/suppliers")
-@login_required
-@limiter.limit("30/minute")
-def create_supplier():
-    payload = request.get_json(silent=True) or request.form or {}
-    name = (payload.get("name") or "").strip()
-    identity = (payload.get("identity_number") or "").strip() or None
-    phone = normalize_phone(payload.get("phone"))
-
-    try:
-        if identity:
-            existing = Supplier.query.filter_by(identity_number=identity).first()
-            if existing:
-                return jsonify(success=True, id=existing.id, text=existing.name, name=existing.name), 200
-
-        s = Supplier(
-            name=name,
-            identity_number=identity,
-            phone=phone,
-            is_local=True,
-            currency="ILS",
-        )
-        db.session.add(s)
-        db.session.commit()
-        return jsonify(success=True, id=s.id, text=s.name, name=s.name), 201
-
-    except IntegrityError:
-        db.session.rollback()
-        if identity:
-            exists = Supplier.query.filter_by(identity_number=identity).first()
-            if exists:
-                return jsonify(success=True, id=exists.id, text=exists.name, name=exists.name), 200
-        return jsonify(success=False, error="رقم المورّد التعريفي موجود مسبقًا."), 409
-
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.exception("create_supplier failed")
-        return jsonify(success=False, error="خطأ غير متوقع."), 500
-
 @bp.get("/preorders")
 @login_required
 @limiter.limit("60/minute")
+@permission_required("view_preorders", "manage_inventory")
 def preorders():
     q = _q()
     qry = PreOrder.query
@@ -497,6 +577,7 @@ def preorders():
 @bp.get("/online_preorders")
 @login_required
 @limiter.limit("60/minute")
+@permission_required("view_preorders")
 def online_preorders():
     q = _q()
     qry = OnlinePreOrder.query
@@ -518,6 +599,7 @@ def online_preorders():
 @bp.get("/expenses")
 @login_required
 @limiter.limit("60/minute")
+@permission_required("manage_expenses")
 def expenses():
     q = _q()
     qry = Expense.query
@@ -538,6 +620,7 @@ def expenses():
 @bp.get("/loan_settlements")
 @login_required
 @limiter.limit("60/minute")
+@permission_required("manage_vendors")
 def loan_settlements():
     q = _q()
     qry = SupplierLoanSettlement.query
@@ -557,6 +640,7 @@ def loan_settlements():
 @bp.get("/search_payments", endpoint="search_payments")
 @login_required
 @limiter.limit("60/minute")
+@permission_required("manage_payments", "view_reports")
 def payments():
     q = _q()
     qry = Payment.query

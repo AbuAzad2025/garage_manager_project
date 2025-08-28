@@ -126,7 +126,7 @@
         </li>
         {% endif %}
 
-        {% if has_perm('manage_notes') or shop_is_super_admin %}
+        {% if has_any('manage_customers','manage_service','manage_sales','manage_reports') or shop_is_super_admin %}
         <li class="nav-item">
           <a href="{{ url_for('notes_bp.list_notes') }}" class="nav-link {% if request.blueprint == 'notes_bp' %}active{% endif %}">
             <i class="nav-icon fas fa-sticky-note"></i><p>الملاحظات</p>
@@ -142,12 +142,15 @@
         </li>
         {% endif %}
 
-        {% if shop_is_super_admin %}
+        {% if shop_is_super_admin or has_perm('view_shop') %}
         <li class="nav-item">
           <a href="{{ url_for('shop.catalog') }}" class="nav-link" target="_blank">
             <i class="nav-icon fas fa-store"></i><p>المتجر</p>
           </a>
         </li>
+        {% endif %}
+
+        {% if shop_is_super_admin or has_perm('backup_database') or has_perm('restore_database') %}
         <li class="nav-item">
           <a href="{{ url_for('main.backup_db') }}" class="nav-link {% if request.endpoint in ['main.backup_db','main.restore_db'] %}active{% endif %}">
             <i class="nav-icon fas fa-database"></i><p>النسخ الاحتياطي</p>

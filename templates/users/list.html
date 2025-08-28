@@ -1,18 +1,19 @@
 {% extends 'base.html' %}
-
 {% block title %}إدارة المستخدمين{% endblock %}
 
 {% block breadcrumb %}
-<li class="breadcrumb-item">
-  <a href="{{ url_for('main.dashboard') }}">الرئيسية</a>
-</li>
+<li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
 <li class="breadcrumb-item active">المستخدمون</li>
+{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap4.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap4.min.css">
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-
-  {% if current_user.has_permission('manage_users') %}
+  {% if has_perm('manage_users') %}
     <a href="{{ url_for('users_bp.create_user') }}" class="btn btn-success mb-3">
       <i class="fas fa-user-plus"></i> إضافة مستخدم جديد
     </a>
@@ -29,7 +30,7 @@
         <th>آخر دخول</th>
         <th>صلاحيات إضافية</th>
         <th>تاريخ الإنشاء</th>
-        {% if current_user.has_permission('manage_users') %}
+        {% if has_perm('manage_users') %}
           <th style="width:160px">إجراءات</th>
         {% endif %}
       </tr>
@@ -38,12 +39,13 @@
       {% for user in users %}
         {% set _q = user.extra_permissions %}
         {% set perms = (_q.all() if _q.__class__.__name__ in ['AppenderQuery','AppenderBaseQuery'] else _q) | list %}
-        {% set perm_names = perms | map(attribute='name') | list %}
 
         <tr>
           <td class="text-nowrap">{{ user.username }}</td>
           <td class="text-nowrap">
-            {% if user.email %}<a href="mailto:{{ user.email }}">{{ user.email }}</a>{% else %}—{% endif %}
+            {% if user.email %}
+              <a href="mailto:{{ user.email }}" dir="ltr">{{ user.email }}</a>
+            {% else %}—{% endif %}
           </td>
           <td>{{ user.role.name if user.role else '—' }}</td>
           <td>
@@ -53,60 +55,42 @@
               <span class="badge bg-secondary">موقوف</span>
             {% endif %}
           </td>
-
-          {# آخر ظهور #}
-          <td class="text-center"
-              data-order="{{ user.last_seen.isoformat() if user.last_seen else '' }}">
+          <td class="text-center" data-order="{{ user.last_seen.isoformat() if user.last_seen else '' }}">
             {% if user.last_seen %}
-              <span>{{ user.last_seen.strftime('%Y-%m-%d %H:%M') }}</span>
+              <span>{{ user.last_seen|format_datetime }}</span>
               <small class="text-muted d-block timeago" data-dt="{{ user.last_seen.isoformat() }}"></small>
             {% else %} — {% endif %}
           </td>
-
-          {# آخر دخول #}
-          <td class="text-center"
-              data-order="{{ user.last_login.isoformat() if user.last_login else '' }}">
+          <td class="text-center" data-order="{{ user.last_login.isoformat() if user.last_login else '' }}">
             {% if user.last_login %}
-              <span>{{ user.last_login.strftime('%Y-%m-%d %H:%M') }}</span>
+              <span>{{ user.last_login|format_datetime }}</span>
               <small class="text-muted d-block timeago" data-dt="{{ user.last_login.isoformat() }}"></small>
             {% else %} — {% endif %}
           </td>
-
           <td>
-            {% if perm_names|length %}
-              {% for name in perm_names[:3] %}
-                <span class="badge bg-info text-dark me-1 mb-1">{{ name }}</span>
+            {% if perms|length %}
+              {% for p in perms[:3] %}
+                {% set disp = (p.display_name if p.display_name is defined else (p.name_ar or p.name)) %}
+                <span class="badge bg-info text-dark mr-1 mb-1">{{ disp }}</span>
               {% endfor %}
-              {% if perm_names|length > 3 %}
-                <span class="badge bg-light text-dark border mb-1">+{{ perm_names|length - 3 }}</span>
+              {% if perms|length > 3 %}
+                <span class="badge bg-light text-dark border mb-1">+{{ perms|length - 3 }}</span>
               {% endif %}
             {% else %}
               —
             {% endif %}
           </td>
-
-          <td class="text-center"
-              data-order="{{ user.created_at.isoformat() if user.created_at else '' }}">
-            {{ user.created_at.strftime('%Y-%m-%d') if user.created_at else '—' }}
+          <td class="text-center" data-order="{{ user.created_at.isoformat() if user.created_at else '' }}">
+            {{ user.created_at|format_date if user.created_at else '—' }}
           </td>
 
-          {% if current_user.has_permission('manage_users') %}
+          {% if has_perm('manage_users') %}
             <td class="text-center text-nowrap">
-              <a href="{{ url_for('users_bp.user_detail', user_id=user.id) }}"
-                 class="btn btn-sm btn-info" title="تفاصيل">
-                <i class="fas fa-eye"></i>
-              </a>
-              <a href="{{ url_for('users_bp.edit_user', user_id=user.id) }}"
-                 class="btn btn-sm btn-primary" title="تعديل">
-                <i class="fas fa-edit"></i>
-              </a>
-              <form action="{{ url_for('users_bp.delete_user', user_id=user.id) }}"
-                    method="post" class="d-inline"
-                    onsubmit="return confirm('هل أنت متأكد من حذف هذا المستخدم؟');">
+              <a href="{{ url_for('users_bp.user_detail', user_id=user.id) }}" class="btn btn-sm btn-info" title="تفاصيل"><i class="fas fa-eye"></i></a>
+              <a href="{{ url_for('users_bp.edit_user', user_id=user.id) }}" class="btn btn-sm btn-primary" title="تعديل"><i class="fas fa-edit"></i></a>
+              <form action="{{ url_for('users_bp.delete_user', user_id=user.id) }}" method="post" class="d-inline" onsubmit="return confirm('هل أنت متأكد من حذف هذا المستخدم؟');">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-sm btn-danger" title="حذف">
-                  <i class="fas fa-trash-alt"></i>
-                </button>
+                <button type="submit" class="btn btn-sm btn-danger" title="حذف"><i class="fas fa-trash-alt"></i></button>
               </form>
             </td>
           {% endif %}
@@ -118,6 +102,15 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap4.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap4.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
 <script>
   $(function(){
     function fromNowArabic(iso){
@@ -132,29 +125,32 @@
       else if(s>=60){v=Math.floor(s/60);u='دقيقة';}
       return 'منذ ' + v + ' ' + u;
     }
-
-    document.querySelectorAll('.timeago').forEach(function(el){
-      var iso=el.getAttribute('data-dt');
-      if(!iso) return;
-      el.textContent = fromNowArabic(iso);
-      try { el.title = new Date(iso).toLocaleString(); } catch(e){}
-    });
+    function renderTimeago(){
+      document.querySelectorAll('.timeago').forEach(function(el){
+        var iso=el.getAttribute('data-dt');
+        if(!iso) return;
+        el.textContent = fromNowArabic(iso);
+        try { el.title = new Date(iso).toLocaleString(); } catch(e){}
+      });
+    }
+    renderTimeago();
+    setInterval(renderTimeago, 60000);
 
     const $tbl = $('#users-table');
     if ($.fn.DataTable && $tbl.length) {
+      const cols = $tbl.find('thead th').length;
+      const hasActions = {{ 'true' if has_perm('manage_users') else 'false' }};
       $tbl.DataTable({
         responsive: true,
         autoWidth: false,
         pageLength: 10,
-        order: [[4, 'desc'], [7, 'desc']], // آخر ظهور ثم تاريخ الإنشاء
-        dom: 'Bfrtip',
-        buttons: ['excel', 'pdf'],
-        language: {
-          url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/Arabic.json"
-        },
-        columnDefs: [
-          { targets: [0,1,2,3,4,5,6,7], className: "text-center align-middle" }
-        ]
+        order: [[4, 'desc'], [7, 'desc']],
+        dom: "<'row'<'col-sm-6'B><'col-sm-6'f>>" +
+             "<'row'<'col-sm-12'tr>>" +
+             "<'row'<'col-sm-5'i><'col-sm-7'p>>",
+        buttons: ['excelHtml5', 'pdfHtml5', 'print'],
+        language: { url: "https://cdn.datatables.net/plug-ins/1.13.8/i18n/ar.json" },
+        columnDefs: [{ targets: Array.from({length: cols - (hasActions?1:0)}, (_, i) => i), className: "text-center align-middle" }]
       });
     }
   });

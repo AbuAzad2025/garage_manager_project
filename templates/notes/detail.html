@@ -1,4 +1,3 @@
-{# templates/notes/detail.html #}
 {% extends 'base.html' %}
 {% block title %}تفاصيل الملاحظة{% endblock %}
 
@@ -14,7 +13,7 @@
 <div class="card shadow-sm">
   <div class="card-body">
     <div class="d-flex justify-content-between small text-muted mb-2">
-      <span><i class="fas fa-user"></i> {{ (note.author.username if note.author else '-') }}</span>
+      <span><i class="fas fa-user"></i> {{ note.author.username if note.author else '-' }}</span>
       <span><i class="fas fa-clock"></i> {{ note.created_at.strftime('%Y-%m-%d %H:%M') if note.created_at else '-' }}</span>
     </div>
 
@@ -31,23 +30,30 @@
       <div class="col-md-3"><strong>معرّف الكيان:</strong> {{ note.entity_id or '-' }}</div>
     </div>
   </div>
-  <div class="card-footer bg-transparent d-flex gap-2">
+
+  <div class="card-footer bg-transparent d-flex align-items-center">
     <a href="{{ url_for('notes_bp.list_notes') }}" class="btn btn-outline-secondary">
       <i class="fas fa-arrow-right"></i> رجوع إلى الملاحظات
     </a>
-    <button class="btn btn-primary ml-2" id="btnEditDetail" data-id="{{ note.id }}"><i class="fas fa-edit"></i> تعديل</button>
-    <form class="d-inline" id="formDeleteDetail" action="{{ url_for('notes_bp.delete_note', note_id=note.id) }}" method="post">
-      {{ csrf_token() }}
-      <button type="submit" class="btn btn-danger"><i class="fas fa-trash"></i> حذف</button>
-    </form>
-    <form class="d-inline" id="formPinDetail" action="{{ url_for('notes_bp.toggle_pin', note_id=note.id) }}" method="post">
-      {{ csrf_token() }}
-      <button type="submit" class="btn btn-warning"><i class="fas fa-thumbtack"></i> تبديل التثبيت</button>
-    </form>
+
+    {% if has_perm('manage_notes') or (current_user.is_authenticated and note.author_id and current_user.id == note.author_id) %}
+      <button class="btn btn-primary ml-2" id="btnEditDetail" data-id="{{ note.id }}">
+        <i class="fas fa-edit"></i> تعديل
+      </button>
+
+      <form class="d-inline ml-2" id="formDeleteDetail" action="{{ url_for('notes_bp.delete_note', note_id=note.id) }}" method="post" onsubmit="return confirm('تأكيد حذف الملاحظة؟');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-danger"><i class="fas fa-trash"></i> حذف</button>
+      </form>
+
+      <form class="d-inline ml-2" id="formPinDetail" action="{{ url_for('notes_bp.toggle_pin', note_id=note.id) }}" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-warning"><i class="fas fa-thumbtack"></i> تبديل التثبيت</button>
+      </form>
+    {% endif %}
   </div>
 </div>
 
-<!-- Modal لإعادة استخدام نفس فورم التعديل -->
 <div class="modal fade" id="noteModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
@@ -65,14 +71,18 @@
 {{ super() }}
 <script>
   (function(){
-    const editBtn = document.getElementById('btnEditDetail');
+    var editBtn = document.getElementById('btnEditDetail');
     if (editBtn) {
-      editBtn.addEventListener('click', async () => {
-        const id = editBtn.dataset.id;
-        const res = await fetch("{{ url_for('notes_bp.edit_note', note_id=0) }}".replace('/0/', '/' + id + '/'));
-        const html = await res.text();
-        document.getElementById('noteModalBody').innerHTML = html;
-        $('#noteModal').modal('show');
+      editBtn.addEventListener('click', function () {
+        var id = editBtn.getAttribute('data-id');
+        fetch("{{ url_for('notes_bp.edit_note', note_id=0) }}".replace('/0/', '/' + id + '/'))
+          .then(function(r){ return r.text(); })
+          .then(function(html){
+            var body = document.getElementById('noteModalBody');
+            body.innerHTML = html;
+            $('#noteModal').modal('show');
+          })
+          .catch(function(){ alert('تعذر تحميل نموذج التعديل'); });
       });
     }
   })();

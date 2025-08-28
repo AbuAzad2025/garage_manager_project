@@ -1,8 +1,8 @@
-"""init schema
+"""base schema
 
-Revision ID: f78367aea80a
+Revision ID: 8f9fbdec0bce
 Revises: 
-Create Date: 2025-08-26 16:49:58.238943
+Create Date: 2025-08-28 14:19:45.566067
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'f78367aea80a'
+revision = '8f9fbdec0bce'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -123,10 +123,16 @@ def upgrade():
     sa.Column('name', sa.String(length=100), nullable=False),
     sa.Column('code', sa.String(length=100), nullable=True),
     sa.Column('description', sa.String(length=255), nullable=True),
+    sa.Column('name_ar', sa.String(length=120), nullable=True),
+    sa.Column('module', sa.String(length=50), nullable=True),
+    sa.Column('is_protected', sa.Boolean(), server_default=sa.text('0'), nullable=False),
+    sa.Column('aliases', sa.JSON(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     with op.batch_alter_table('permissions', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_permissions_code'), ['code'], unique=True)
+        batch_op.create_index(batch_op.f('ix_permissions_module'), ['module'], unique=False)
+        batch_op.create_index('ix_permissions_module_code', ['module', 'code'], unique=False)
         batch_op.create_index(batch_op.f('ix_permissions_name'), ['name'], unique=True)
 
     op.create_table('product_categories',
@@ -201,6 +207,31 @@ def upgrade():
         batch_op.create_index(batch_op.f('ix_online_carts_session_id'), ['session_id'], unique=False)
         batch_op.create_index(batch_op.f('ix_online_carts_status'), ['status'], unique=False)
         batch_op.create_index(batch_op.f('ix_online_carts_updated_at'), ['updated_at'], unique=False)
+
+    op.create_table('partner_settlements',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('code', sa.String(length=40), nullable=True),
+    sa.Column('partner_id', sa.Integer(), nullable=False),
+    sa.Column('from_date', sa.DateTime(), nullable=False),
+    sa.Column('to_date', sa.DateTime(), nullable=False),
+    sa.Column('currency', sa.String(length=10), nullable=False),
+    sa.Column('status', sa.Enum('DRAFT', 'CONFIRMED', 'CANCELLED', name='partner_settlement_status', native_enum=False), nullable=False),
+    sa.Column('notes', sa.Text(), nullable=True),
+    sa.Column('total_gross', sa.Numeric(precision=12, scale=2), nullable=True),
+    sa.Column('total_share', sa.Numeric(precision=12, scale=2), nullable=True),
+    sa.Column('total_costs', sa.Numeric(precision=12, scale=2), nullable=True),
+    sa.Column('total_due', sa.Numeric(precision=12, scale=2), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.ForeignKeyConstraint(['partner_id'], ['partners.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    with op.batch_alter_table('partner_settlements', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_partner_settlements_code'), ['code'], unique=True)
+        batch_op.create_index(batch_op.f('ix_partner_settlements_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_partner_settlements_partner_id'), ['partner_id'], unique=False)
+        batch_op.create_index('ix_partner_settlements_partner_period', ['partner_id', 'from_date', 'to_date'], unique=False)
+        batch_op.create_index(batch_op.f('ix_partner_settlements_updated_at'), ['updated_at'], unique=False)
 
     op.create_table('products',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -280,6 +311,29 @@ def upgrade():
     sa.ForeignKeyConstraint(['role_id'], ['roles.id'], ),
     sa.PrimaryKeyConstraint('role_id', 'permission_id')
     )
+    op.create_table('supplier_settlements',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('code', sa.String(length=40), nullable=True),
+    sa.Column('supplier_id', sa.Integer(), nullable=False),
+    sa.Column('from_date', sa.DateTime(), nullable=False),
+    sa.Column('to_date', sa.DateTime(), nullable=False),
+    sa.Column('currency', sa.String(length=10), nullable=False),
+    sa.Column('status', sa.Enum('DRAFT', 'CONFIRMED', 'CANCELLED', name='supplier_settlement_status', native_enum=False), nullable=False),
+    sa.Column('notes', sa.Text(), nullable=True),
+    sa.Column('total_gross', sa.Numeric(precision=12, scale=2), nullable=True),
+    sa.Column('total_due', sa.Numeric(precision=12, scale=2), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.ForeignKeyConstraint(['supplier_id'], ['suppliers.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    with op.batch_alter_table('supplier_settlements', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_supplier_settlements_code'), ['code'], unique=True)
+        batch_op.create_index(batch_op.f('ix_supplier_settlements_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_supplier_settlements_supplier_id'), ['supplier_id'], unique=False)
+        batch_op.create_index('ix_supplier_settlements_supplier_period', ['supplier_id', 'from_date', 'to_date'], unique=False)
+        batch_op.create_index(batch_op.f('ix_supplier_settlements_updated_at'), ['updated_at'], unique=False)
+
     op.create_table('users',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('username', sa.String(length=50), nullable=False),
@@ -502,6 +556,33 @@ def upgrade():
         batch_op.create_index(batch_op.f('ix_online_preorders_status'), ['status'], unique=False)
         batch_op.create_index(batch_op.f('ix_online_preorders_updated_at'), ['updated_at'], unique=False)
 
+    op.create_table('partner_settlement_lines',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('settlement_id', sa.Integer(), nullable=False),
+    sa.Column('source_type', sa.String(length=30), nullable=False),
+    sa.Column('source_id', sa.Integer(), nullable=True),
+    sa.Column('description', sa.String(length=255), nullable=True),
+    sa.Column('product_id', sa.Integer(), nullable=True),
+    sa.Column('warehouse_id', sa.Integer(), nullable=True),
+    sa.Column('quantity', sa.Numeric(precision=12, scale=3), nullable=True),
+    sa.Column('unit_price', sa.Numeric(precision=12, scale=2), nullable=True),
+    sa.Column('gross_amount', sa.Numeric(precision=12, scale=2), nullable=True),
+    sa.Column('share_percent', sa.Numeric(precision=6, scale=3), nullable=True),
+    sa.Column('share_amount', sa.Numeric(precision=12, scale=2), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
+    sa.ForeignKeyConstraint(['settlement_id'], ['partner_settlements.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['warehouse_id'], ['warehouses.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    with op.batch_alter_table('partner_settlement_lines', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_partner_settlement_lines_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_partner_settlement_lines_settlement_id'), ['settlement_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_partner_settlement_lines_source_id'), ['source_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_partner_settlement_lines_updated_at'), ['updated_at'], unique=False)
+        batch_op.create_index('ix_psl_source', ['source_type', 'source_id'], unique=False)
+
     op.create_table('preorders',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('reference', sa.String(length=50), nullable=True),
@@ -651,6 +732,29 @@ def upgrade():
         batch_op.create_index(batch_op.f('ix_stock_levels_created_at'), ['created_at'], unique=False)
         batch_op.create_index(batch_op.f('ix_stock_levels_updated_at'), ['updated_at'], unique=False)
         batch_op.create_index('ix_stock_product_wh', ['product_id', 'warehouse_id'], unique=False)
+
+    op.create_table('supplier_settlement_lines',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('settlement_id', sa.Integer(), nullable=False),
+    sa.Column('source_type', sa.String(length=30), nullable=False),
+    sa.Column('source_id', sa.Integer(), nullable=True),
+    sa.Column('description', sa.String(length=255), nullable=True),
+    sa.Column('product_id', sa.Integer(), nullable=True),
+    sa.Column('quantity', sa.Numeric(precision=12, scale=3), nullable=True),
+    sa.Column('unit_price', sa.Numeric(precision=12, scale=2), nullable=True),
+    sa.Column('gross_amount', sa.Numeric(precision=12, scale=2), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
+    sa.ForeignKeyConstraint(['settlement_id'], ['supplier_settlements.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    with op.batch_alter_table('supplier_settlement_lines', schema=None) as batch_op:
+        batch_op.create_index('ix_ssl_source', ['source_type', 'source_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_supplier_settlement_lines_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_supplier_settlement_lines_settlement_id'), ['settlement_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_supplier_settlement_lines_source_id'), ['source_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_supplier_settlement_lines_updated_at'), ['updated_at'], unique=False)
 
     op.create_table('transfers',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -1190,6 +1294,14 @@ def downgrade():
         batch_op.drop_index(batch_op.f('ix_transfers_created_at'))
 
     op.drop_table('transfers')
+    with op.batch_alter_table('supplier_settlement_lines', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_supplier_settlement_lines_updated_at'))
+        batch_op.drop_index(batch_op.f('ix_supplier_settlement_lines_source_id'))
+        batch_op.drop_index(batch_op.f('ix_supplier_settlement_lines_settlement_id'))
+        batch_op.drop_index(batch_op.f('ix_supplier_settlement_lines_created_at'))
+        batch_op.drop_index('ix_ssl_source')
+
+    op.drop_table('supplier_settlement_lines')
     with op.batch_alter_table('stock_levels', schema=None) as batch_op:
         batch_op.drop_index('ix_stock_product_wh')
         batch_op.drop_index(batch_op.f('ix_stock_levels_updated_at'))
@@ -1225,6 +1337,14 @@ def downgrade():
         batch_op.drop_index(batch_op.f('ix_preorders_created_at'))
 
     op.drop_table('preorders')
+    with op.batch_alter_table('partner_settlement_lines', schema=None) as batch_op:
+        batch_op.drop_index('ix_psl_source')
+        batch_op.drop_index(batch_op.f('ix_partner_settlement_lines_updated_at'))
+        batch_op.drop_index(batch_op.f('ix_partner_settlement_lines_source_id'))
+        batch_op.drop_index(batch_op.f('ix_partner_settlement_lines_settlement_id'))
+        batch_op.drop_index(batch_op.f('ix_partner_settlement_lines_created_at'))
+
+    op.drop_table('partner_settlement_lines')
     with op.batch_alter_table('online_preorders', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_online_preorders_updated_at'))
         batch_op.drop_index(batch_op.f('ix_online_preorders_status'))
@@ -1300,6 +1420,14 @@ def downgrade():
         batch_op.drop_index(batch_op.f('ix_users_created_at'))
 
     op.drop_table('users')
+    with op.batch_alter_table('supplier_settlements', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_supplier_settlements_updated_at'))
+        batch_op.drop_index('ix_supplier_settlements_supplier_period')
+        batch_op.drop_index(batch_op.f('ix_supplier_settlements_supplier_id'))
+        batch_op.drop_index(batch_op.f('ix_supplier_settlements_created_at'))
+        batch_op.drop_index(batch_op.f('ix_supplier_settlements_code'))
+
+    op.drop_table('supplier_settlements')
     op.drop_table('role_permissions')
     with op.batch_alter_table('products', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_products_updated_at'))
@@ -1310,6 +1438,14 @@ def downgrade():
         batch_op.drop_index(batch_op.f('ix_products_brand'))
 
     op.drop_table('products')
+    with op.batch_alter_table('partner_settlements', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_partner_settlements_updated_at'))
+        batch_op.drop_index('ix_partner_settlements_partner_period')
+        batch_op.drop_index(batch_op.f('ix_partner_settlements_partner_id'))
+        batch_op.drop_index(batch_op.f('ix_partner_settlements_created_at'))
+        batch_op.drop_index(batch_op.f('ix_partner_settlements_code'))
+
+    op.drop_table('partner_settlements')
     with op.batch_alter_table('online_carts', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_online_carts_updated_at'))
         batch_op.drop_index(batch_op.f('ix_online_carts_status'))
@@ -1341,6 +1477,8 @@ def downgrade():
     op.drop_table('product_categories')
     with op.batch_alter_table('permissions', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_permissions_name'))
+        batch_op.drop_index('ix_permissions_module_code')
+        batch_op.drop_index(batch_op.f('ix_permissions_module'))
         batch_op.drop_index(batch_op.f('ix_permissions_code'))
 
     op.drop_table('permissions')

@@ -3,6 +3,7 @@ import os
 import re
 from datetime import date, datetime, time as _t
 from decimal import Decimal
+
 from flask import url_for
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileField
@@ -34,15 +35,18 @@ from wtforms.validators import (
     Optional,
     ValidationError,
 )
+
 try:
     from wtforms_sqlalchemy.fields import QuerySelectField
 except Exception:
     QuerySelectField = SelectField
+
 try:
     from widgets import AjaxSelectField
 except Exception:
     AjaxSelectField = SelectField
-from barcodes import normalize_barcode, is_valid_ean13
+
+from barcodes import is_valid_ean13, normalize_barcode
 from models import (
     Customer,
     Employee,
@@ -453,10 +457,21 @@ class UserForm(FlaskForm):
         return user
 
 
+from flask_wtf import FlaskForm
+from wtforms import (
+    StringField,
+    TextAreaField,
+    SelectMultipleField,
+    BooleanField,
+    SubmitField
+)
+from wtforms.validators import DataRequired, Length, Optional
+
 class RoleForm(FlaskForm):
     name        = StringField('اسم الدور', validators=[DataRequired(), Length(max=50)])
     description = StringField('الوصف', validators=[Optional(), Length(max=200)])
     is_default  = BooleanField('افتراضي')
+    permissions = SelectMultipleField('الصلاحيات', choices=[], coerce=str)
     submit      = SubmitField('حفظ')
 
     def validate_name(self, field):
@@ -464,7 +479,11 @@ class RoleForm(FlaskForm):
 
 class PermissionForm(FlaskForm):
     name        = StringField('الاسم', validators=[DataRequired(), Length(max=100)])
+    name_ar     = StringField('الاسم بالعربية', validators=[Optional(), Length(max=120)])
     code        = StringField('الكود', validators=[Optional(), Length(max=100)])
+    module      = StringField('الوحدة', validators=[Optional(), Length(max=50)])
+    aliases     = TextAreaField('أسماء بديلة (مفصولة بفواصل)', validators=[Optional(), Length(max=500)])
+    is_protected= BooleanField('محمي')
     description = StringField('الوصف', validators=[Optional(), Length(max=200)])
     submit      = SubmitField('حفظ')
 
@@ -2498,26 +2517,32 @@ class ExportContactsForm(FlaskForm):
     submit       = SubmitField('تصدير')
 
 class OnlineCartPaymentForm(FlaskForm):
-    payment_method = SelectField('طريقة الدفع', choices=[('online','إلكتروني'),('card','بطاقة'),('bank','تحويل بنكي'),('cash','نقدي')], validators=[DataRequired()])
-    card_holder = StringField('اسم حامل البطاقة', validators=[Optional(), Length(max=100)])
-    card_number = StringField('رقم البطاقة', validators=[Optional(), Length(min=12, max=19)])
-    expiry = StringField('تاريخ الانتهاء (MM/YY)', validators=[Optional(), Length(min=5, max=5)])
-    cvv = StringField('CVV', validators=[Optional(), Length(min=3, max=4)])
+    payment_method   = SelectField('طريقة الدفع', choices=[('card','بطاقة')], default='card', validators=[DataRequired()])
+    card_holder      = StringField('اسم حامل البطاقة', validators=[Optional(), Length(max=100)])
+    card_number      = StringField('رقم البطاقة', validators=[Optional(), Length(min=12, max=19)])
+    expiry           = StringField('تاريخ الانتهاء (MM/YY)', validators=[Optional(), Length(min=5, max=5)])
+    cvv              = StringField('CVV', validators=[Optional(), Length(min=3, max=4)])
     shipping_address = TextAreaField('عنوان الشحن', validators=[Optional(), Length(max=300)])
-    billing_address = TextAreaField('عنوان الفاتورة', validators=[Optional(), Length(max=300)])
+    billing_address  = TextAreaField('عنوان الفاتورة', validators=[Optional(), Length(max=300)])
     transaction_data = TextAreaField('بيانات إضافية للبوابة (JSON)', validators=[Optional()])
-    save_card = BooleanField('حفظ البطاقة')
-    submit = SubmitField('تأكيد الدفع')
+    save_card        = BooleanField('حفظ البطاقة')
+    submit           = SubmitField('تأكيد الدفع')
+
+    def validate_transaction_data(self, field):
+        if field.data:
+            try:
+                json.loads(field.data)
+            except Exception:
+                raise ValidationError("JSON غير صالح")
+
+    def validate_card_holder(self, field):
+        if (self.payment_method.data or "").lower() == "card" and not (field.data or "").strip():
+            raise ValidationError("اسم حامل البطاقة مطلوب")
 
     def validate_card_number(self, field):
-        if self.payment_method.data == 'card' and (not field.data or not luhn_check(field.data)):
-            raise ValidationError("❌ رقم البطاقة غير صالح")
+        if (self.payment_method.data or "").lower() == 'card' and (not field.data or not luhn_check(field.data)):
+            raise ValidationError("رقم البطاقة غير صالح")
 
     def validate_expiry(self, field):
-        if self.payment_method.data == 'card' and not is_valid_expiry_mm_yy(field.data or ""):
-            raise ValidationError("❌ تاريخ الانتهاء يجب أن يكون بصيغة MM/YY وفي المستقبل")
-
-class ExportPaymentsForm(FlaskForm):
-    payment_ids = AjaxSelectMultipleField('اختر الدفعات', endpoint='api.search_payments', get_label='id', validators=[DataRequired(message='❌ اختر دفعة واحدة على الأقل')])
-    format      = SelectField('صيغة التصدير', choices=[('csv','CSV'),('excel','Excel')], default='csv')
-    submit      = SubmitField('تصدير')
+        if (self.payment_method.data or "").lower() == 'card' and not is_valid_expiry_mm_yy(field.data or ""):
+            raise ValidationError("تاريخ الانتهاء بصيغة MM/YY وفي المستقبل")

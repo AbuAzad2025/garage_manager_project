@@ -1,4 +1,3 @@
-{# templates/auth/login.html #}
 {% extends 'auth/auth_base.html' %}
 
 {% block title %}تسجيل الدخول - Azad{% endblock %}
@@ -28,9 +27,7 @@
       {{ form.username.label(class="form-label") }}
       {{ form.username(class="form-control", placeholder="البريد / اسم المستخدم / رقم الهاتف",
                        autocomplete="username", autofocus=True, dir="auto") }}
-      {% for e in form.username.errors %}
-        <div class="invalid-feedback d-block">{{ e }}</div>
-      {% endfor %}
+      {% for e in form.username.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
     </div>
 
     <div class="form-group">
@@ -44,9 +41,7 @@
           </button>
         </div>
       </div>
-      {% for e in form.password.errors %}
-        <div class="invalid-feedback d-block">{{ e }}</div>
-      {% endfor %}
+      {% for e in form.password.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
     </div>
 
     <div class="form-check mb-3">

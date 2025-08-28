@@ -1,6 +1,10 @@
 {% extends 'base.html' %}
 {% block title %}إدارة الأدوار{% endblock %}
 
+{% block head_extra %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap4.min.css">
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4" dir="rtl">
   <div class="d-flex align-items-center justify-content-between mb-3">
@@ -12,7 +16,6 @@
     {% endif %}
   </div>
 
-  {# فلاش #}
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       {% for category, msg in messages %}
@@ -26,73 +29,114 @@
     {% endif %}
   {% endwith %}
 
-  <table id="roles-table" class="table table-striped table-bordered align-middle text-center">
-    <thead class="thead-light">
-      <tr>
-        <th>اسم الدور</th>
-        <th>الوصف</th>
-        <th>الصلاحيات</th>
-        <th style="width:200px">الإجراءات</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for r in roles %}
-      {% set name_l = (r.name or '')|lower %}
-      {% set protected = name_l in ['admin','super_admin','owner','developer'] %}
-      <tr>
-        <td class="text-right">
-          {{ r.name }}
-          {% if protected %}
-            <span class="badge badge-secondary mr-1">محمي</span>
-          {% endif %}
-        </td>
-        <td class="text-right">{{ r.description or '—' }}</td>
-        <td class="text-right">
-          {% set perms = r.permissions %}
-          {% if perms and perms|length %}
-            {% for p in perms %}
-              <span class="badge badge-info mb-1">{{ p.name }}</span>
-            {% endfor %}
-          {% else %}
-            <span class="text-muted">لا توجد</span>
-          {% endif %}
-        </td>
-        <td class="text-nowrap">
-          {% if has_perm('manage_roles') %}
-            <a href="{{ url_for('roles.edit_role', role_id=r.id) }}" class="btn btn-sm btn-outline-primary">
-              <i class="fas fa-edit"></i> تعديل
-            </a>
-            <form method="post"
-                  action="{{ url_for('roles.delete_role', role_id=r.id) }}"
-                  class="d-inline"
-                  onsubmit="return confirm('هل أنت متأكد من حذف هذا الدور؟');">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit"
-                      class="btn btn-sm btn-outline-danger"
-                      {% if protected %}disabled title="دور محمي"{% endif %}>
-                <i class="fas fa-trash"></i> حذف
-              </button>
-            </form>
-          {% else %}
-            —
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="table-responsive">
+    <table id="roles-table" class="table table-striped table-bordered align-middle text-center">
+      <thead class="thead-light">
+        <tr>
+          <th>اسم الدور</th>
+          <th>الوصف</th>
+          <th>الصلاحيات</th>
+          <th style="width:200px">الإجراءات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in roles %}
+        {% set name_l = (r.name or '')|lower %}
+        {% set protected = name_l in ['admin','super_admin','owner','developer'] %}
+        <tr>
+          <td class="text-right">
+            {{ r.name }}
+            {% if protected %}
+              <span class="badge badge-secondary mr-1">محمي</span>
+            {% endif %}
+          </td>
+          <td class="text-right">{{ r.description or '—' }}</td>
+          <td class="text-right">
+            {% if r.permissions and r.permissions|length %}
+              <div class="perm-wrap" data-max="8">
+                {% for p in r.permissions %}
+                  <span class="badge badge-info badge-pill mb-1 perm-badge">
+                    {{ p.display_name or p.name }}
+                  </span>
+                {% endfor %}
+              </div>
+              {% if r.permissions|length > 8 %}
+                <button class="btn btn-link p-0 mt-1 toggle-perms" type="button">عرض المزيد</button>
+              {% endif %}
+            {% else %}
+              <span class="text-muted">لا توجد</span>
+            {% endif %}
+          </td>
+          <td class="text-nowrap">
+            {% if has_perm('manage_roles') %}
+              <a href="{{ url_for('roles.edit_role', role_id=r.id) }}" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-edit"></i> تعديل
+              </a>
+              <form method="post"
+                    action="{{ url_for('roles.delete_role', role_id=r.id) }}"
+                    class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit"
+                        class="btn btn-sm btn-outline-danger"
+                        {% if protected %}disabled title="دور محمي"{% else %}onclick="return confirm('هل أنت متأكد من حذف هذا الدور؟');"{% endif %}>
+                  <i class="fas fa-trash"></i> حذف
+                </button>
+              </form>
+            {% else %}
+              —
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap4.min.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-  if (window.$ && $('#roles-table').DataTable) {
-    $('#roles-table').DataTable({
-      language: { url: '//cdn.datatables.net/plug-ins/1.10.21/i18n/Arabic.json' },
-      order: [[0, 'asc']]
-    });
+(function () {
+  function clampBadges(container) {
+    var max = parseInt(container.getAttribute('data-max') || '8', 10);
+    var badges = container.querySelectorAll('.perm-badge');
+    if (badges.length <= max) return;
+    for (var i = max; i < badges.length; i++) {
+      badges[i].style.display = 'none';
+    }
   }
-});
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.perm-wrap').forEach(clampBadges);
+
+    document.querySelectorAll('.toggle-perms').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var wrap = this.closest('td').querySelector('.perm-wrap');
+        var badges = wrap.querySelectorAll('.perm-badge');
+        var hidden = 0, shown = 0;
+        badges.forEach(function (b) {
+          if (b.style.display === 'none') hidden++;
+          else shown++;
+        });
+        var expand = hidden > 0;
+        badges.forEach(function (b, idx) {
+          b.style.display = expand ? '' : (idx >= parseInt(wrap.getAttribute('data-max') || '8', 10) ? 'none' : '');
+        });
+        this.textContent = expand ? 'إخفاء' : 'عرض المزيد';
+      });
+    });
+
+    if (window.jQuery && jQuery.fn.DataTable) {
+      jQuery('#roles-table').DataTable({
+        language: { url: 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/ar.json' },
+        order: [[0, 'asc']],
+        pageLength: 25,
+        lengthMenu: [[10, 25, 50, -1], ['10', '25', '50', 'الكل']]
+      });
+    }
+  });
+})();
 </script>
 {% endblock %}

@@ -1,4 +1,3 @@
-{# templates/admin/reports/preorders.html #}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -23,12 +22,16 @@
   <div class="container">
     <span class="navbar-brand"><i class="fa-solid fa-clipboard-list me-2"></i>تقرير الحجوزات المسبقة</span>
     <div class="ms-auto d-flex gap-2">
+      {% if 'admin_reports.cards' in current_app.view_functions %}
       <a href="{{ url_for('admin_reports.cards') }}" class="btn btn-sm btn-outline-light">
         <i class="fa-solid fa-credit-card"></i> تقرير البطاقات
       </a>
+      {% endif %}
+      {% if 'shop.catalog' in current_app.view_functions %}
       <a href="{{ url_for('shop.catalog') }}" class="btn btn-sm btn-outline-light">
         <i class="fa-solid fa-store"></i> المتجر
       </a>
+      {% endif %}
     </div>
   </div>
 </nav>
@@ -106,11 +109,10 @@
               <td class="text-center">{{ o.items|length }}</td>
               <td class="text-center">
                 <div class="btn-group btn-group-sm">
-                  <a class="btn btn-outline-primary"
-                     href="{{ url_for('shop.preorder_receipt', preorder_id=o.id) }}" title="وصل">
+                  <a class="btn btn-outline-primary" href="{{ url_for('shop.preorder_receipt', preorder_id=o.id) }}" title="وصل">
                     <i class="fa-solid fa-receipt"></i>
                   </a>
-                  {% if o.status in ['PENDING','CONFIRMED'] %}
+                  {% if o.status in ['PENDING','CONFIRMED'] and has_any('manage_shop','manage_sales') %}
                   <form method="POST" action="{{ url_for('shop.cancel_preorder', preorder_id=o.id) }}"
                         onsubmit="return confirm('تأكيد إلغاء الطلب {{ o.order_number }}؟');">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

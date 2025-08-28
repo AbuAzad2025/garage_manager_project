@@ -1,4 +1,3 @@
-import json
 from datetime import datetime, timedelta
 from typing import Optional
 from urllib.parse import urlparse, urljoin
@@ -31,6 +30,11 @@ def _is_safe_url(target: str) -> bool:
 
 
 def _get_client_ip() -> str:
+    xff = request.headers.get("X-Forwarded-For", "")
+    if xff:
+        ip = xff.split(",")[0].strip()
+        if ip:
+            return ip
     return request.remote_addr or "0.0.0.0"
 
 
@@ -118,27 +122,36 @@ def clear_attempts(ip: str, identifier: Optional[str]) -> None:
 def login():
     ip = _get_client_ip()
     form = LoginForm()
+
     if request.method == "GET" and current_user.is_authenticated:
         clear_attempts(ip, getattr(current_user, "email", None) or getattr(current_user, "username", None))
         actor = current_user._get_current_object()
         return _redirect_back_or("shop.catalog" if isinstance(actor, Customer) else "main.dashboard")
+
     identifier = _get_login_identifier(form)
     if is_blocked(ip, identifier):
         flash("❌ تم حظر محاولات الدخول مؤقتًا، حاول بعد 10 دقائق.", "danger")
         _audit("login.blocked", ok=False, note="blocked window")
         return render_template("auth/login.html", form=form)
+
     if request.method == "POST":
         password = request.form.get("password", "") or ""
         user = None
         customer = None
+
         if identifier:
             ident_l = identifier.lower()
-            stmt = select(User).where((func.lower(User.username) == ident_l) | (func.lower(User.email) == ident_l))
+            stmt = select(User).where(
+                (func.lower(User.username) == ident_l) | (func.lower(User.email) == ident_l)
+            )
             user = db.session.execute(stmt).scalars().first()
             if not user:
                 customer = Customer.query.filter(
-                    (func.lower(Customer.email) == ident_l) | (Customer.phone == identifier) | (Customer.name == identifier)
+                    (func.lower(Customer.email) == ident_l) |
+                    (Customer.phone == identifier) |
+                    (Customer.name == identifier)
                 ).first()
+
         if user and user.check_password(password) and bool(getattr(user, "is_active", True)):
             remember = bool(getattr(form, "remember_me", None) and getattr(form.remember_me, "data", False))
             if current_user.is_authenticated and getattr(current_user, "id", None) != user.id:
@@ -146,25 +159,28 @@ def login():
             login_user(user, remember=remember)
             try:
                 user.last_login = datetime.utcnow()
-                user.last_login_ip = request.headers.get("X-Forwarded-For", request.remote_addr)
+                user.last_login_ip = ip
                 user.login_count = (getattr(user, "login_count", 0) or 0) + 1
                 db.session.commit()
             except Exception:
                 db.session.rollback()
             clear_attempts(ip, identifier)
-            _audit("login.success", ok=True, user_id=user.id, note=f"ip={request.remote_addr}")
+            _audit("login.success", ok=True, user_id=user.id, note=f"ip={ip}")
             return _redirect_back_or("main.dashboard")
+
         if customer and customer.check_password(password) and customer.is_online and customer.is_active:
             remember = bool(getattr(form, "remember_me", None) and getattr(form.remember_me, "data", False))
             if current_user.is_authenticated and getattr(current_user, "id", None) != customer.id:
                 logout_user()
             login_user(customer, remember=remember)
             clear_attempts(ip, identifier)
-            _audit("login.success.customer", ok=True, customer_id=customer.id)
+            _audit("login.success.customer", ok=True, customer_id=customer.id, note=f"ip={ip}")
             return _redirect_back_or("shop.catalog")
+
         record_attempt(ip, identifier)
         _audit("login.failed", ok=False, note=f"id={identifier or ''}; ip={ip}")
         flash("❌ بيانات الدخول غير صحيحة.", "danger")
+
     return render_template("auth/login.html", form=form)
 
 

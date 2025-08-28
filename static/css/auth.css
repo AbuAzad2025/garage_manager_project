@@ -20,7 +20,18 @@ body{
   direction: rtl; text-align: right;
 }
 
-/* الخلفية من data-auth-bg (يتم تفعيلها بالـ JS في base) */
+/* شريط تواصل */
+.auth-topbar{
+  position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+  background: rgba(0,0,0,.55);
+  color: #fff;
+  padding: 6px 0;
+  backdrop-filter: blur(6px);
+}
+.auth-topbar a{ color: #fff; text-decoration: none; }
+.auth-topbar a:hover{ text-decoration: underline; }
+
+/* الخلفية من data-auth-bg */
 body[data-auth-bg]::before{
   content:"";
   position: fixed; inset: 0; z-index:-2;
@@ -38,12 +49,12 @@ body[data-auth-bg]::before{
 /* ========= الحاوية ========= */
 .auth-container{
   width: 100%; max-width: 440px;
-  margin: 7vh auto 0;
+  margin: 10vh auto 0;
   padding: 24px 24px 28px;
   background: var(--white-92);
   backdrop-filter: blur(10px);
   border-radius: var(--radius-lg);
-  box-shadow: 0 20px 40px rgba(0,0,0,.25);
+  box-shadow: 0 24px 48px rgba(0,0,0,.28);
   animation: fadeIn .6s ease;
 }
 .auth-compact{ padding: 22px; }
@@ -51,7 +62,7 @@ body[data-auth-bg]::before{
 
 .auth-logo{
   max-width: 170px; height: auto; display: block;
-  margin: 6px auto 12px;
+  margin: 36px auto 12px;
 }
 
 .auth-title{
@@ -96,6 +107,7 @@ body[data-auth-bg]::before{
 
 /* ========= موبايل ========= */
 @media (max-width: 576px){
-  .auth-container{ margin-top: 8vh; padding: 18px 16px 22px; }
+  .auth-container{ margin-top: 12vh; padding: 18px 16px 22px; }
   .auth-title{ font-size: 1.35rem; }
+  .auth-topbar{ font-size: 0.9rem; }
 }

@@ -1,22 +1,41 @@
 {% extends 'base.html' %}
 {% block title %}{{ 'تعديل دور' if role or role_id else 'إضافة دور جديد' }}{% endblock %}
 
+{% block head_extra %}
+  {{ super() }}
+  <link href="{{ url_for('static', filename='adminlte/plugins/select2/css/select2.min.css') }}" rel="stylesheet"/>
+  <style>
+    .select2-container .select2-selection--multiple{min-height:42px;padding:4px 6px}
+    .select2-container--default .select2-selection--multiple .select2-selection__choice{margin:4px 0 0 6px}
+    .module-chip{font-size:.85rem}
+    .btn-group-sm .btn{padding:.15rem .45rem}
+  </style>
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4" dir="rtl">
-  <h2 class="mb-3">{{ 'تعديل دور' if role or role_id else 'إضافة دور جديد' }}</h2>
+  {% set name_l = (role.name if role else '')|lower %}
+  {% set protected = name_l in ['admin','super_admin','owner','developer'] %}
+
+  <h2 class="mb-3">
+    {{ 'تعديل دور' if role or role_id else 'إضافة دور جديد' }}
+    {% if protected %}<span class="badge badge-secondary ml-2">محمي</span>{% endif %}
+  </h2>
 
   {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      {% for category, msg in messages %}
-        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-          {{ msg }}
-          <button type="button" class="close" data-dismiss="alert" aria-label="إغلاق">
-            <span aria-hidden="true">&times;</span>
-          </button>
-        </div>
-      {% endfor %}
-    {% endif %}
+    {% for category, msg in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ msg }}
+        <button type="button" class="close" data-dismiss="alert" aria-label="إغلاق">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+    {% endfor %}
   {% endwith %}
+
+  {% if protected %}
+    <div class="alert alert-info">هذا الدور محمي؛ تم تعطيل التعديل والحفظ للحفاظ على سلامة النظام.</div>
+  {% endif %}
 
   <form method="post"
         action="{% if role or role_id %}{{ url_for('roles.edit_role', role_id=(role.id if role else role_id)) }}{% else %}{{ url_for('roles.create_role') }}{% endif %}">
@@ -24,61 +43,93 @@
 
     <div class="mb-3">
       {{ form.name.label(class="form-label") }}
-      {{ form.name(class="form-control", placeholder="اسم الدور") }}
+      {{ form.name(class="form-control", placeholder="اسم الدور", **({'disabled':'disabled'} if protected else {})) }}
       {% for err in form.name.errors %}<div class="text-danger small mt-1">{{ err }}</div>{% endfor %}
     </div>
 
     <div class="mb-3">
       {{ form.description.label(class="form-label") }}
-      {{ form.description(class="form-control", placeholder="وصف مختصر") }}
+      {{ form.description(class="form-control", placeholder="وصف مختصر", **({'disabled':'disabled'} if protected else {})) }}
       {% for err in form.description.errors %}<div class="text-danger small mt-1">{{ err }}</div>{% endfor %}
     </div>
 
-    {# الصلاحيات: دعم حالتين لبيانات الحقل #}
+    <div class="mb-3 form-check">
+      {{ form.is_default(class="form-check-input", **({'disabled':'disabled'} if protected else {})) }}
+      {{ form.is_default.label(class="form-check-label") }}
+    </div>
+
+    <div class="mb-2 d-flex flex-wrap align-items-center">
+      <strong class="mr-2">اختصارات سريعة لكل وحدة:</strong>
+      {% for module, perms in all_permissions.items() %}
+        <div class="btn-group btn-group-sm mr-2 mb-2" role="group" aria-label="{{ module }}">
+          <span class="badge badge-light module-chip px-2 py-1 border">{{ module|capitalize }}</span>
+          <button type="button" class="btn btn-outline-secondary select-all" data-module="{{ module }}" {% if protected %}disabled{% endif %}>تحديد</button>
+          <button type="button" class="btn btn-outline-secondary deselect-all" data-module="{{ module }}" {% if protected %}disabled{% endif %}>إلغاء</button>
+        </div>
+      {% endfor %}
+    </div>
+
     <div class="mb-4">
       <label class="form-label">الصلاحيات</label>
-      <div class="border rounded p-3" style="max-height: 360px; overflow:auto;">
-
-        {# selected_ids قد تكون IDs أو كائنات Permission #}
-        {% set sel = form.permissions.data or [] %}
-        {% set selected_ids = [] %}
-
-        {# إن كانت عناصر sel كائنات Permission: خُذ p.id #}
-        {% if sel and sel[0] is not string and sel[0] is not number %}
-          {% set selected_ids = sel | map(attribute='id') | list %}
-        {% else %}
-          {% set selected_ids = sel | map('int') | list %}
-        {% endif %}
-
-        {# لو جاءتنا قائمة بكل الصلاحيات من الراوت (مثل all_permissions) استخدمها، وإلا اعتمد على form.permissions.choices #}
-        {% set options = (all_permissions if all_permissions is defined else []) %}
-        {% if not options or options|length == 0 %}
-          {% set options = [] %}
-          {% for (val, label) in form.permissions.choices %}
-            {% set _ = options.append({'id': val|int, 'name': label}) %}
-          {% endfor %}
-        {% endif %}
-
-        {% for p in options %}
-          {% set pid = (p.id if p.id is defined else p['id']) %}
-          {% set pname = (p.name if p.name is defined else p['name']) %}
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox"
-                   id="perm_{{ pid }}" name="permissions" value="{{ pid }}"
-                   {% if pid in selected_ids %}checked{% endif %}>
-            <label class="form-check-label" for="perm_{{ pid }}">
-              {{ pname }}
-            </label>
-          </div>
+      <select name="permissions" multiple="multiple" class="form-control select2" {% if protected %}disabled{% endif %}>
+        {% for module, perms in all_permissions.items() %}
+          <optgroup label="{{ module|capitalize }}">
+            {% for pid, pname in perms %}
+              <option value="{{ pid }}" data-module="{{ module }}"
+                {% if pid in form.permissions.data or (pid|string) in form.permissions.data %}selected{% endif %}>
+                {{ pname }}
+              </option>
+            {% endfor %}
+          </optgroup>
         {% endfor %}
-      </div>
-      {% if form.permissions.errors %}
-        <div class="text-danger small mt-1">{{ form.permissions.errors[0] }}</div>
+      </select>
+      {% for err in form.permissions.errors %}<div class="text-danger small mt-1">{{ err }}</div>{% endfor %}
+      {% if protected %}
+        <div class="text-muted small mt-1">لا يمكن تعديل صلاحيات الدور المحمي.</div>
       {% endif %}
     </div>
 
-    {{ form.submit(class="btn btn-success") }}
-    <a href="{{ url_for('roles.list_roles') }}" class="btn btn-secondary ml-2">إلغاء</a>
+    <div class="d-flex">
+      <button type="submit" class="btn btn-success" {% if protected %}disabled title="دور محمي"{% endif %}>
+        حفظ
+      </button>
+      <a href="{{ url_for('roles.list_roles') }}" class="btn btn-secondary ml-2">إلغاء</a>
+    </div>
   </form>
 </div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='adminlte/plugins/select2/js/select2.full.min.js') }}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/i18n/ar.js"></script>
+  <script>
+    $(function() {
+      var $sel = $('.select2');
+      if ($sel.length) {
+        $sel.select2({
+          width: '100%',
+          placeholder: "اختر الصلاحيات…",
+          language: "ar",
+          dir: "rtl",
+          closeOnSelect: false
+        });
+      }
+
+      function setModule(module, selected) {
+        var $options = $sel.find('option[data-module="'+module+'"]');
+        $options.prop('selected', selected);
+        $sel.trigger('change');
+      }
+
+      $('.select-all').on('click', function(e){
+        e.preventDefault();
+        setModule($(this).data('module'), true);
+      });
+      $('.deselect-all').on('click', function(e){
+        e.preventDefault();
+        setModule($(this).data('module'), false);
+      });
+    });
+  </script>
 {% endblock %}

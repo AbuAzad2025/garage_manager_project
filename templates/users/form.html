@@ -1,8 +1,5 @@
 {% extends 'base.html' %}
-
-{% block title %}
-  {{ 'تعديل مستخدم' if user_id else 'إضافة مستخدم جديد' }}
-{% endblock %}
+{% block title %}{{ 'تعديل مستخدم' if user_id else 'إضافة مستخدم جديد' }}{% endblock %}
 
 {% block breadcrumb %}
 <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
@@ -12,28 +9,23 @@
 
 {% block content %}
 <div class="container-fluid" dir="rtl">
-  <form
-    method="post" novalidate
-    action="{% if user_id %}{{ url_for('users_bp.edit_user', user_id=user_id) }}{% else %}{{ url_for('users_bp.create_user') }}{% endif %}"
-  >
+  <form method="post" novalidate action="{% if user_id %}{{ url_for('users_bp.edit_user', user_id=user_id) }}{% else %}{{ url_for('users_bp.create_user') }}{% endif %}">
     {{ form.hidden_tag() }}
 
     <div class="row">
-      <!-- العمود الأيسر: بيانات الحساب -->
       <div class="col-lg-7">
         <div class="card shadow-sm mb-3">
           <div class="card-header py-2"><strong>بيانات الحساب</strong></div>
           <div class="card-body">
-
             <div class="form-group mb-3">
               {{ form.username.label(class="form-label") }}
-              {{ form.username(class="form-control", placeholder="أدخل اسم المستخدم") }}
+              {{ form.username(class="form-control", placeholder="أدخل اسم المستخدم", autocomplete="username") }}
               {% for e in form.username.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
             </div>
 
             <div class="form-group mb-3">
               {{ form.email.label(class="form-label") }}
-              {{ form.email(class="form-control", placeholder="أدخل البريد الإلكتروني") }}
+              {{ form.email(class="form-control", placeholder="أدخل البريد الإلكتروني", autocomplete="email", dir="ltr") }}
               {% for e in form.email.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
             </div>
 
@@ -41,11 +33,10 @@
               <div class="col-md-6">
                 <div class="form-group mb-3">
                   {{ form.password.label(class="form-label") }}
-                  {{ form.password(
-                      class="form-control",
-                      placeholder=(user_id and 'اتركه فارغاً إن لم ترغب بالتغيير' or 'أدخل كلمة المرور'),
-                      id="password"
-                  ) }}
+                  {{ form.password(class="form-control",
+                                   placeholder=(user_id and 'اتركه فارغاً إن لم ترغب بالتغيير' or 'أدخل كلمة المرور'),
+                                   id="password",
+                                   autocomplete=("current-password" if user_id else "new-password")) }}
                   {% for e in form.password.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
                 </div>
               </div>
@@ -54,7 +45,7 @@
               <div class="col-md-6">
                 <div class="form-group mb-3">
                   {{ form.confirm.label(class="form-label") }}
-                  {{ form.confirm(class="form-control", placeholder="أعد إدخال كلمة المرور") }}
+                  {{ form.confirm(class="form-control", placeholder="أعد إدخال كلمة المرور", autocomplete="new-password") }}
                   {% for e in form.confirm.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
                 </div>
               </div>
@@ -65,7 +56,7 @@
               <div class="col-md-7">
                 <div class="form-group mb-3">
                   {{ form.role_id.label(class="form-label") }}
-                  {{ form.role_id(class="form-select") }}
+                  {{ form.role_id(class="custom-select") }}
                   {% for e in form.role_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
                 </div>
               </div>
@@ -83,25 +74,26 @@
           </div>
         </div>
 
-        <!-- الصلاحيات الإضافية -->
         <div class="card shadow-sm mb-3">
           <div class="card-header py-2 d-flex align-items-center justify-content-between">
             <strong>صلاحيات إضافية</strong>
-            <input type="text" class="form-control form-control-sm" style="max-width:220px" id="perm-filter" placeholder="بحث في الصلاحيات…">
+            <div class="d-flex align-items-center" style="gap:.5rem">
+              <input type="text" class="form-control form-control-sm" style="max-width:220px" id="perm-filter" placeholder="بحث في الصلاحيات…">
+              <div class="btn-group btn-group-sm" role="group" aria-label="bulk actions">
+                <button type="button" id="perm-select-visible" class="btn btn-outline-primary">تحديد المعروض</button>
+                <button type="button" id="perm-clear-visible" class="btn btn-outline-secondary">إلغاء المعروض</button>
+              </div>
+            </div>
           </div>
           <div class="card-body">
             {% if all_permissions %}
               <div class="row" id="perm-list">
                 {% for perm in all_permissions %}
-                  <div class="col-md-6 col-lg-4 mb-2 perm-item" data-name="{{ perm.name|lower }}">
+                  {% set disp = (perm.display_name if perm.display_name is defined else (perm.name_ar or perm.name)) %}
+                  <div class="col-md-6 col-lg-4 mb-2 perm-item" data-name="{{ (disp|string)|lower }} {{ (perm.code or '')|lower }}">
                     <div class="form-check">
-                      <input class="form-check-input"
-                             type="checkbox"
-                             name="extra_permissions"
-                             id="perm-{{ perm.id }}"
-                             value="{{ perm.id }}"
-                             {% if perm.id in selected_perm_ids %}checked{% endif %}>
-                      <label class="form-check-label" for="perm-{{ perm.id }}">{{ perm.name }}</label>
+                      <input class="form-check-input" type="checkbox" name="extra_permissions" id="perm-{{ perm.id }}" value="{{ perm.id }}" {% if perm.id in selected_perm_ids %}checked{% endif %}>
+                      <label class="form-check-label" for="perm-{{ perm.id }}">{{ disp }}</label>
                     </div>
                   </div>
                 {% endfor %}
@@ -113,7 +105,6 @@
         </div>
       </div>
 
-      <!-- العمود الأيمن: معلومات النشاط (قراءة فقط) -->
       <div class="col-lg-5">
         <div class="card shadow-sm mb-3">
           <div class="card-header py-2"><strong>معلومات النشاط</strong></div>
@@ -148,11 +139,9 @@
           </div>
         </div>
 
-        <div class="d-flex gap-2">
-          <button type="submit" class="btn btn-success">
-            {{ 'تحديث' if user_id else 'إنشاء' }}
-          </button>
-          <a href="{{ url_for('users_bp.list_users') }}" class="btn btn-secondary">إلغاء</a>
+        <div class="d-flex">
+          <button type="submit" class="btn btn-success mx-1">{{ 'تحديث' if user_id else 'إنشاء' }}</button>
+          <a href="{{ url_for('users_bp.list_users') }}" class="btn btn-secondary mx-1">إلغاء</a>
         </div>
       </div>
     </div>
@@ -163,30 +152,35 @@
 {% block scripts %}
 {{ super() }}
 <script>
-  // إظهار/إخفاء كلمة المرور بزر بسيط (اختياري)
   (function(){
     var pwd = document.getElementById('password');
     if(!pwd) return;
-    pwd.insertAdjacentHTML('afterend',
-      '<button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="toggle-pwd">إظهار/إخفاء</button>'
-    );
-    document.getElementById('toggle-pwd').addEventListener('click', function(){
-      pwd.type = (pwd.type === 'password') ? 'text' : 'password';
-    });
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-sm btn-outline-secondary mt-2';
+    btn.id = 'toggle-pwd';
+    btn.textContent = 'إظهار/إخفاء';
+    pwd.insertAdjacentElement('afterend', btn);
+    btn.addEventListener('click', function(){ pwd.type = (pwd.type === 'password') ? 'text' : 'password'; });
   })();
 
-  // فلترة الصلاحيات
   (function(){
     var input = document.getElementById('perm-filter');
-    var items = document.querySelectorAll('#perm-list .perm-item');
+    var container = document.getElementById('perm-list');
+    var items = container ? container.querySelectorAll('.perm-item') : [];
     if(!input || !items.length) return;
+    function visibleItems(){ return Array.prototype.filter.call(items, function(it){ return it.style.display !== 'none'; }); }
     input.addEventListener('input', function(){
       var q = (this.value || '').toLowerCase().trim();
-      items.forEach(function(it){
+      Array.prototype.forEach.call(items, function(it){
         var name = it.getAttribute('data-name') || '';
         it.style.display = (!q || name.indexOf(q) !== -1) ? '' : 'none';
       });
     });
+    var btnSel = document.getElementById('perm-select-visible');
+    var btnClr = document.getElementById('perm-clear-visible');
+    if(btnSel){ btnSel.addEventListener('click', function(){ visibleItems().forEach(function(it){ var cb = it.querySelector('input[type="checkbox"]'); if(cb) cb.checked = true; }); }); }
+    if(btnClr){ btnClr.addEventListener('click', function(){ visibleItems().forEach(function(it){ var cb = it.querySelector('input[type="checkbox"]'); if(cb) cb.checked = false; }); }); }
   })();
 </script>
 {% endblock %}

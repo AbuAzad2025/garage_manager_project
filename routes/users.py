@@ -10,14 +10,6 @@ from utils import permission_required, clear_user_permission_cache, is_super
 
 users_bp = Blueprint("users_bp", __name__, url_prefix="/users", template_folder="templates/users")
 
-@users_bp.before_request
-def _guard_users_blueprint():
-    ep = (request.endpoint or "")
-    if ep == "users_bp.profile":
-        return
-    if not is_super():
-        abort(403)
-
 def _get_or_404(model, ident, options=None):
     q = db.session.query(model)
     if options:
@@ -117,39 +109,52 @@ def create_user():
     selected_perm_ids = []
     if form.validate_on_submit():
         try:
-            selected_perm_ids = [int(x) for x in request.form.getlist("extra_permissions") if str(x).isdigit()]
-            with db.session.begin():
-                user = User(
-                    username=form.username.data,
-                    email=form.email.data,
-                    role_id=form.role_id.data,
-                    is_active=bool(form.is_active.data),
-                )
-                if form.password.data:
-                    user.set_password(form.password.data)
-                db.session.add(user)
-                db.session.flush()
-                if selected_perm_ids:
-                    user.extra_permissions = Permission.query.filter(Permission.id.in_(selected_perm_ids)).all()
-                db.session.add(AuditLog(
-                    model_name="User",
-                    record_id=user.id,
-                    user_id=current_user.id,
-                    action="CREATE",
-                    old_data="",
-                    new_data=f"username={user.username}"
-                ))
+            selected_perm_ids = [
+                int(x) for x in request.form.getlist("extra_permissions") if str(x).isdigit()
+            ]
+
+            user = User(
+                username=form.username.data,
+                email=form.email.data,
+                role_id=form.role_id.data,
+                is_active=bool(form.is_active.data),
+            )
+            if form.password.data:
+                user.set_password(form.password.data)
+
+            db.session.add(user)
+            db.session.flush()
+
+            if selected_perm_ids:
+                user.extra_permissions = Permission.query.filter(
+                    Permission.id.in_(selected_perm_ids)
+                ).all()
+
+            db.session.add(AuditLog(
+                model_name="User",
+                record_id=user.id,
+                user_id=current_user.id,
+                action="CREATE",
+                old_data="",
+                new_data=f"username={user.username}"
+            ))
+
+            db.session.commit()
             clear_user_permission_cache(user.id)
+
             if request.is_json or request.headers.get("X-Requested-With") == "XMLHttpRequest":
                 return jsonify(id=user.id, username=user.username), 201
+
             flash("تم إضافة المستخدم بنجاح.", "success")
             return redirect(url_for("users_bp.list_users"))
+
         except IntegrityError:
             db.session.rollback()
             flash("اسم المستخدم أو البريد الإلكتروني مستخدم.", "danger")
         except Exception as e:
             db.session.rollback()
             flash(f"خطأ أثناء الإضافة: {e}", "danger")
+
     return render_template(
         "users/form.html",
         form=form,
@@ -159,6 +164,7 @@ def create_user():
         selected_perm_ids=selected_perm_ids,
     )
 
+
 @users_bp.route("/<int:user_id>/edit", methods=["GET", "POST"], endpoint="edit_user")
 @login_required
 @permission_required("manage_users")
@@ -167,41 +173,56 @@ def edit_user(user_id):
     if _is_super_admin_user(user):
         flash("❌ لا يمكن تعديل مستخدم super_admin.", "danger")
         return redirect(url_for("users_bp.list_users"))
+
     form = UserForm(obj=user)
     all_permissions = Permission.query.order_by(Permission.name).all()
     selected_perm_ids = [p.id for p in user.extra_permissions.all()]
+
     if request.method == "GET":
         form.role_id.data = user.role_id
         form.is_active.data = bool(user.is_active)
+
     if form.validate_on_submit():
         try:
-            selected_perm_ids = [int(x) for x in request.form.getlist("extra_permissions") if str(x).isdigit()]
+            selected_perm_ids = [
+                int(x) for x in request.form.getlist("extra_permissions") if str(x).isdigit()
+            ]
             old_data = f"{user.username},{user.email}"
-            with db.session.begin():
-                user.username = form.username.data
-                user.email = form.email.data
-                user.role_id = form.role_id.data
-                user.is_active = bool(form.is_active.data)
-                if form.password.data:
-                    user.set_password(form.password.data)
-                user.extra_permissions = Permission.query.filter(Permission.id.in_(selected_perm_ids)).all() if selected_perm_ids else []
-                db.session.add(AuditLog(
-                    model_name="User",
-                    record_id=user.id,
-                    user_id=current_user.id,
-                    action="UPDATE",
-                    old_data=old_data,
-                    new_data=f"username={user.username}"
-                ))
+
+            user.username = form.username.data
+            user.email = form.email.data
+            user.role_id = form.role_id.data
+            user.is_active = bool(form.is_active.data)
+
+            if form.password.data:
+                user.set_password(form.password.data)
+
+            user.extra_permissions = Permission.query.filter(
+                Permission.id.in_(selected_perm_ids)
+            ).all() if selected_perm_ids else []
+
+            db.session.add(AuditLog(
+                model_name="User",
+                record_id=user.id,
+                user_id=current_user.id,
+                action="UPDATE",
+                old_data=old_data,
+                new_data=f"username={user.username}"
+            ))
+
+            db.session.commit()
             clear_user_permission_cache(user.id)
+
             flash("تم تحديث المستخدم.", "success")
             return redirect(url_for("users_bp.list_users"))
+
         except IntegrityError:
             db.session.rollback()
             flash("لا يمكن استخدام هذا البريد/الاسم.", "danger")
         except Exception as e:
             db.session.rollback()
             flash(f"خطأ أثناء التحديث: {e}", "danger")
+
     return render_template(
         "users/form.html",
         form=form,

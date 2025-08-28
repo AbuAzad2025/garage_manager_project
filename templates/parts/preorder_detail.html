@@ -1,4 +1,3 @@
-{# templates/parts/preorder_detail.html #}
 {% extends 'warehouses/base.html' %}
 {% block title %}تفاصيل الحجز{% endblock %}
 {% block page_title %}تفاصيل الحجز{% endblock %}
@@ -27,16 +26,18 @@
       </span>
     </div>
 
-    {% set qty = preorder.quantity|int %}
-    {% set unit_price = (preorder.product.price or 0)|float %}
+    {% set qty = (preorder.quantity or 0)|int %}
+    {% set unit_price = (preorder.product and preorder.product.price or 0)|float %}
     {% set tax = (preorder.tax_rate or 0)|float %}
     {% set prepaid = (preorder.prepaid_amount or 0)|float %}
+    {% set currency = preorder.currency or 'ILS' %}
     {% set total_before = qty * unit_price %}
     {% set total_with_tax = total_before * (1 + tax/100) %}
     {% set balance = (total_with_tax - prepaid) if (total_with_tax - prepaid) > 0 else 0 %}
-    {% set entity_name = preorder.customer and preorder.customer.name or
-                         preorder.supplier and preorder.supplier.name or
-                         preorder.partner and preorder.partner.name or 'غير محدد' %}
+    {% set entity_name = preorder.customer and preorder.customer.name
+                         or preorder.supplier and preorder.supplier.name
+                         or preorder.partner and preorder.partner.name
+                         or 'غير محدد' %}
 
     <dl class="row">
       <dt class="col-sm-3">الجهة</dt>
@@ -52,31 +53,32 @@
       <dd class="col-sm-9">{{ qty }}</dd>
 
       <dt class="col-sm-3">سعر الوحدة</dt>
-      <dd class="col-sm-9">{{ '%.2f'|format(unit_price) }}</dd>
+      <dd class="col-sm-9">{{ '%.2f'|format(unit_price) }} {{ currency }}</dd>
 
       <dt class="col-sm-3">الإجمالي قبل الضريبة</dt>
-      <dd class="col-sm-9">{{ '%.2f'|format(total_before) }}</dd>
+      <dd class="col-sm-9">{{ '%.2f'|format(total_before) }} {{ currency }}</dd>
 
       <dt class="col-sm-3">نسبة الضريبة</dt>
       <dd class="col-sm-9">{{ tax }}%</dd>
 
       <dt class="col-sm-3">الإجمالي بعد الضريبة</dt>
-      <dd class="col-sm-9">{{ '%.2f'|format(total_with_tax) }}</dd>
+      <dd class="col-sm-9">{{ '%.2f'|format(total_with_tax) }} {{ currency }}</dd>
 
       <dt class="col-sm-3">مدفوع (عربون)</dt>
       <dd class="col-sm-9">
-        {{ '%.2f'|format(prepaid) }}
+        {{ '%.2f'|format(prepaid) }} {{ currency }}
         {% if preorder.payment_method %} — طريقة الدفع: {{ method_map.get(preorder.payment_method, preorder.payment_method) }}{% endif %}
       </dd>
 
       <dt class="col-sm-3">المتبقي</dt>
-      <dd class="col-sm-9">{{ '%.2f'|format(balance) }}</dd>
+      <dd class="col-sm-9">{{ '%.2f'|format(balance) }} {{ currency }}</dd>
 
       <dt class="col-sm-3">ملاحظات</dt>
       <dd class="col-sm-9">{{ preorder.notes or '—' }}</dd>
     </dl>
 
-    {% if preorder.payments and preorder.payments|length %}
+    {% set _p = preorder.payments if preorder.payments is not none else [] %}
+    {% if _p|length %}
     <h6 class="mt-4">الدفعات</h6>
     <div class="table-responsive">
       <table class="table table-sm table-bordered">
@@ -91,11 +93,11 @@
           </tr>
         </thead>
         <tbody>
-          {% for pay in preorder.payments %}
+          {% for pay in _p %}
           <tr>
             <td>{{ pay.payment_date.strftime('%Y-%m-%d %H:%M') if pay.payment_date else '—' }}</td>
             <td>{{ '%.2f'|format(pay.total_amount or 0) }}</td>
-            <td>{{ pay.currency or '—' }}</td>
+            <td>{{ pay.currency or currency }}</td>
             <td>{{ method_map.get(pay.method, pay.method or '—') }}</td>
             <td>{{ pay.status or '—' }}</td>
             <td>{{ pay.reference or '—' }}</td>
@@ -108,16 +110,21 @@
 
     <div class="mt-3 d-flex gap-2">
       {% if preorder.status not in ('CANCELLED', 'FULFILLED') %}
+        {% if current_user.has_permission('edit_preorder') %}
         <form method="post" action="{{ url_for('warehouse_bp.preorder_fulfill', preorder_id=preorder.id) }}" class="d-inline">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn btn-success"><i class="fas fa-check me-1"></i> تنفيذ</button>
         </form>
-        <form method="post" action="{{ url_for('warehouse_bp.preorder_cancel', preorder_id=preorder.id) }}"
-              class="d-inline" onsubmit="return confirm('إلغاء الحجز؟');">
+        {% endif %}
+
+        {% if current_user.has_permission('delete_preorder') %}
+        <form method="post" action="{{ url_for('warehouse_bp.preorder_cancel', preorder_id=preorder.id) }}" class="d-inline" onsubmit="return confirm('إلغاء الحجز؟');">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn btn-danger"><i class="fas fa-times me-1"></i> إلغاء</button>
         </form>
-        {% if balance > 0 %}
+        {% endif %}
+
+        {% if balance > 0 and current_user.has_permission('create_payment') %}
         <a class="btn btn-outline-primary"
            href="{{ url_for('payments.create_payment', entity_type='PREORDER', entity_id=preorder.id, amount=balance) }}">
           <i class="fas fa-cash-register me-1"></i> إضافة دفعة

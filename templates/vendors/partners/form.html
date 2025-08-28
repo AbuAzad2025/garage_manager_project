@@ -1,42 +1,23 @@
 {% extends 'base.html' %}
 {% block title %}{{ form.name.data and 'تعديل' or 'إضافة' }} شريك{% endblock %}
-
 {% block content %}
 <div class="container py-5">
   <div class="row justify-content-center">
     <div class="col-md-7">
       <div class="card shadow-sm rounded-4">
         <div class="card-header d-flex justify-content-between align-items-center bg-info text-white">
-          <h4 class="mb-0">
-            <i class="fas fa-handshake me-2"></i>
-            {{ form.name.data and 'تعديل' or 'إضافة' }} شريك
-          </h4>
+          <h4 class="mb-0"><i class="fas fa-handshake me-2"></i>{{ form.name.data and 'تعديل' or 'إضافة' }} شريك</h4>
           {% if partner %}
           <div class="btn-group">
-            <a href="{{ url_for('payments.create_payment', entity_type='partner', entity_id=partner.id) }}"
-               class="btn btn-sm btn-primary">
-              <i class="fas fa-coins me-1"></i> دفع
-            </a>
-            <a href="{{ url_for('vendors_bp.partners_payments', id=partner.id) }}"
-               class="btn btn-sm btn-warning">
-              <i class="fas fa-file-invoice-dollar me-1"></i> دفعات
-            </a>
-            <button type="button"
-                    class="btn btn-sm btn-success btn-settle"
-                    data-entity-type="partner"
-                    data-id="{{ partner.id }}"
-                    data-name="{{ partner.name }}"
-                    data-balance="{{ '%.2f'|format(partner.net_balance) }}"
-                    data-currency="{{ partner.currency or 'ILS' }}">
-              <i class="fas fa-scale-balanced me-1"></i> تسوية
-            </button>
+            <a href="{{ url_for('payments.create_payment', entity_type='partner', entity_id=partner.id) }}" class="btn btn-sm btn-primary"><i class="fas fa-coins me-1"></i> دفع</a>
+            <a href="{{ url_for('vendors_bp.partners_payments', id=partner.id) }}" class="btn btn-sm btn-warning"><i class="fas fa-file-invoice-dollar me-1"></i> دفعات</a>
+            <button type="button" class="btn btn-sm btn-success btn-settle" data-entity-type="partner" data-id="{{ partner.id }}" data-name="{{ partner.name }}" data-balance="{{ '%.2f'|format(partner.net_balance) }}" data-currency="{{ partner.currency or 'ILS' }}"><i class="fas fa-scale-balanced me-1"></i> تسوية</button>
           </div>
           {% endif %}
         </div>
         <div class="card-body">
           <form method="post" autocomplete="off">
             {{ form.hidden_tag() }}
-
             <div class="row g-3">
               <div class="col-md-6">
                 {{ form.name.label(class="form-label") }}
@@ -49,7 +30,6 @@
                 {% for err in form.identity_number.errors %}<small class="text-danger">{{ err }}</small>{% endfor %}
               </div>
             </div>
-
             <div class="row g-3 mt-3">
               <div class="col-md-6">
                 {{ form.phone_number.label(class="form-label") }}
@@ -62,30 +42,24 @@
                 {% for err in form.contact_info.errors %}<small class="text-danger">{{ err }}</small>{% endfor %}
               </div>
             </div>
-
             <div class="mt-3">
               {{ form.address.label(class="form-label") }}
               {{ form.address(class="form-control") }}
               {% for err in form.address.errors %}<small class="text-danger">{{ err }}</small>{% endfor %}
             </div>
-
             <div class="mt-3">
               {{ form.share_percentage.label(class="form-label") }}
               {{ form.share_percentage(class="form-control", step="0.01") }}
               {% for err in form.share_percentage.errors %}<small class="text-danger">{{ err }}</small>{% endfor %}
             </div>
-
             {% if partner %}
             <div class="mt-3">
               <label class="form-label">الرصيد الحالي</label>
               <input type="text" class="form-control" value="{{ '%.2f'|format(partner.net_balance) }}" readonly>
             </div>
             {% endif %}
-
             <div class="d-flex gap-2 mt-4">
-              <button type="submit" class="btn btn-{{ form.name.data and 'warning' or 'success' }}">
-                <i class="fas fa-save me-1"></i> حفظ
-              </button>
+              <button type="submit" class="btn btn-{{ form.name.data and 'warning' or 'success' }}"><i class="fas fa-save me-1"></i> حفظ</button>
               <a href="{{ url_for('vendors_bp.partners_list') }}" class="btn btn-outline-secondary">عودة</a>
             </div>
           </form>
@@ -94,12 +68,9 @@
     </div>
   </div>
 </div>
-
-{# config + modal (لو مش موجودين بغير صفحة) #}
 <div id="vendors-config" data-pay-url="{{ url_for('payments.create_payment') }}"></div>
-{% include 'vendors/_settlement_modal_stub.html' ignore missing %}
+{% include 'vendors/_settlement_modal.html' %}
 {% endblock %}
-
 {% block scripts %}
-  <script src="{{ url_for('static', filename='js/vendors.js') }}"></script>
+<script src="{{ url_for('static', filename='js/vendors.js') }}"></script>
 {% endblock %}

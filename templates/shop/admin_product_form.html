@@ -1,18 +1,14 @@
-{# templates/shop/admin_product_form.html #}
 {% extends 'shop/base.html' %}
 {% block title %}{{ 'تعديل منتج' if product else 'إضافة منتج' }}{% endblock %}
-
-{% block styles %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
-{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">{% endblock %}
 
 {% block content %}
 <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-4">
   <h1 class="h3 mb-0">{{ 'تعديل منتج' if product else 'إضافة منتج' }}</h1>
   <div class="d-flex align-items-center gap-2 ms-auto">
-    <a href="{{ url_for('shop.admin_products') }}" class="btn btn-outline-secondary">
-      <i class="fas fa-arrow-right me-1"></i> الرجوع لإدارة المنتجات
-    </a>
+    {% if has_any('manage_shop','manage_inventory') %}
+      <a href="{{ url_for('shop.admin_products') }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-right me-1"></i> الرجوع لإدارة المنتجات</a>
+    {% endif %}
   </div>
 </div>
 
@@ -22,33 +18,23 @@
       <div class="card-body">
         <form method="POST" novalidate>
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
           <div class="mb-3">
             <label class="form-label">اسم المنتج</label>
             {{ form.name(class="form-control", placeholder="اسم واضح ومختصر") }}
-            {% if form.name.errors %}
-              <div class="text-danger small mt-1">{{ form.name.errors|join(', ') }}</div>
-            {% endif %}
+            {% if form.name.errors %}<div class="text-danger small mt-1">{{ form.name.errors|join(', ') }}</div>{% endif %}
           </div>
-
           <div class="mb-3">
             <label class="form-label">السعر (شيكل)</label>
             {{ form.price(class="form-control", step="0.01", min="0") }}
-            {% if form.price.errors %}
-              <div class="text-danger small mt-1">{{ form.price.errors|join(', ') }}</div>
-            {% endif %}
+            {% if form.price.errors %}<div class="text-danger small mt-1">{{ form.price.errors|join(', ') }}</div>{% endif %}
           </div>
-
           <div class="mb-3 form-check">
             {{ form.is_active(class="form-check-input", id="is_active") }}
             <label class="form-check-label" for="is_active">مفعل</label>
           </div>
-
-          <div class="d-grid">
-            <button type="submit" class="btn btn-primary py-2">
-              <i class="fas fa-save me-1"></i> حفظ
-            </button>
-          </div>
+          {% if has_any('manage_shop','manage_inventory') %}
+          <div class="d-grid"><button type="submit" class="btn btn-primary py-2"><i class="fas fa-save me-1"></i> حفظ</button></div>
+          {% endif %}
         </form>
       </div>
     </div>
@@ -64,7 +50,4 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
-  {{ super() }}
-  <script src="{{ url_for('static', filename='js/shop.js') }}"></script>
-{% endblock %}
+{% block scripts %}{{ super() }}<script src="{{ url_for('static', filename='js/shop.js') }}"></script>{% endblock %}

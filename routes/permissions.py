@@ -13,17 +13,10 @@ from utils import (
     clear_user_permission_cache,
     clear_role_permission_cache,
     clear_users_cache_by_role,
-    super_only,   # <-- تمت الإضافة
+    super_only,
 )
 
 permissions_bp = Blueprint("permissions", __name__, template_folder="templates/permissions")
-
-# 🔐 حارس شامل: هذا يضمن أن جميع مسارات هذا البلوبرنت محصورة بالسوبر فقط
-@permissions_bp.before_request
-@super_only
-def _guard_permissions():
-    # لا حاجة لفعل شيء هنا؛ مجرد الحارس يكفي
-    pass
 
 _RESERVED_CODES = frozenset({
     "backup_database",
@@ -55,6 +48,12 @@ _RESERVED_CODES = frozenset({
     "add_supplier",
     "add_partner",
     "place_online_order",
+    "access_api",
+    "manage_api",
+    "view_notes",
+    "manage_notes",
+    "view_barcode",
+    "manage_barcode",
 })
 
 def _get_or_404(model, ident, options=None):
@@ -127,6 +126,9 @@ def _clear_affected_caches(perm: Permission):
 def _ensure_code_from_inputs(name: str | None, code: str | None) -> str | None:
     return _normalize_code(code) or _normalize_code(name)
 
+def _parse_aliases(raw: str | None):
+    return [a.strip().lower() for a in (raw or "").split(",") if a.strip()]
+
 @permissions_bp.route("/", methods=["GET"], endpoint="list")
 @login_required
 @permission_required("manage_permissions")
@@ -162,7 +164,15 @@ def create_permission():
         else:
             try:
                 with db.session.begin():
-                    perm = Permission(name=name, code=code)
+                    perm = Permission(
+                        name=name,
+                        code=code,
+                        name_ar=(form.name_ar.data or "").strip() or None,
+                        module=(form.module.data or "").strip() or None,
+                        aliases=_parse_aliases(form.aliases.data),
+                        is_protected=bool(form.is_protected.data),
+                        description=(form.description.data or "").strip() or None,
+                    )
                     db.session.add(perm)
                     db.session.flush()
                     db.session.add(AuditLog(
@@ -212,6 +222,11 @@ def edit_permission(permission_id):
                 with db.session.begin():
                     perm.name = incoming_name
                     perm.code = incoming_code
+                    perm.name_ar = (form.name_ar.data or "").strip() or None
+                    perm.module = (form.module.data or "").strip() or None
+                    perm.aliases = _parse_aliases(form.aliases.data)
+                    perm.is_protected = bool(form.is_protected.data)
+                    perm.description = (form.description.data or "").strip() or None
                     db.session.add(AuditLog(
                         model_name="Permission",
                         record_id=perm.id,

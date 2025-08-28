@@ -3,7 +3,6 @@
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
 {% endblock %}
-
 {% block content %}
 <div class="row justify-content-center">
   <div class="col-lg-10">
@@ -16,22 +15,16 @@
       </div>
       <div class="card-body">
         <div class="row">
-          <!-- تفاصيل الطلب -->
           <div class="col-md-6 mb-3">
             <h6>تفاصيل الطلب</h6>
             <ul class="list-unstyled">
               <li><strong>رقم الطلب:</strong> {{ preorder.order_number }}</li>
               <li><strong>التاريخ:</strong> {{ preorder.created_at.strftime('%Y-%m-%d %H:%M') if preorder.created_at else '' }}</li>
               <li><strong>الحالة:</strong>
-                {{ 'مكتمل' if preorder.status=='FULFILLED'
-                   else 'مؤكد' if preorder.status=='CONFIRMED'
-                   else 'قيد الانتظار' if preorder.status=='PENDING'
-                   else 'ملغي' }}
+                {{ 'مكتمل' if preorder.status=='FULFILLED' else 'مؤكد' if preorder.status=='CONFIRMED' else 'قيد الانتظار' if preorder.status=='PENDING' else 'ملغي' }}
               </li>
             </ul>
           </div>
-
-          <!-- تفاصيل الزبون -->
           <div class="col-md-6 mb-3">
             <h6>تفاصيل الزبون</h6>
             <ul class="list-unstyled">
@@ -41,10 +34,7 @@
             </ul>
           </div>
         </div>
-
         <hr>
-
-        <!-- المنتجات -->
         <h6 class="mb-3">المنتجات</h6>
         <div class="table-responsive">
           <table class="table table-bordered">
@@ -61,7 +51,6 @@
             </tbody>
           </table>
         </div>
-
         <div class="row mt-3">
           <div class="col-md-6">
             <div class="alert alert-info">
@@ -78,7 +67,6 @@
         </div>
       </div>
     </div>
-
     <div class="d-flex justify-content-between">
       <a href="{{ url_for('shop.preorder_list') }}" class="btn btn-outline-secondary">
         <i class="fas fa-arrow-right me-2"></i> الرجوع لقائمة الطلبات
@@ -90,7 +78,4 @@
   </div>
 </div>
 {% endblock %}
-
-{% block scripts %}
-  {{ super() }}
-{% endblock %}
+{% block scripts %}{{ super() }}{% endblock %}

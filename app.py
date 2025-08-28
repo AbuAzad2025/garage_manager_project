@@ -7,6 +7,7 @@ from flask_login import AnonymousUserMixin, current_user
 from flask_wtf.csrf import generate_csrf
 from jinja2 import ChoiceLoader, FileSystemLoader
 from sqlalchemy import event
+
 from config import Config
 from extensions import db, migrate, login_manager, socketio, mail, csrf, limiter
 from utils import (
@@ -24,6 +25,8 @@ from utils import (
 )
 from cli import seed_roles
 from models import User, Role, Permission, Customer
+from acl import attach_acl
+
 from routes.auth import auth_bp
 from routes.main import main_bp
 from routes.users import users_bp
@@ -44,12 +47,12 @@ from routes.api import bp as api_bp
 from routes.admin_reports import admin_reports_bp
 from routes.parts import parts_bp
 from routes.barcode import bp_barcode
-
+from routes.partner_settlements import partner_settlements_bp
+from routes.supplier_settlements import supplier_settlements_bp
 
 class MyAnonymousUser(AnonymousUserMixin):
     def has_permission(self, perm_name):
         return False
-
 
 def _init_sentry(app: Flask) -> None:
     dsn = app.config.get("SENTRY_DSN")
@@ -67,12 +70,10 @@ def _init_sentry(app: Flask) -> None:
     except ImportError:
         app.logger.warning("Sentry SDK not installed; skipping Sentry init.")
 
-
 @login_manager.user_loader
 def load_user(user_id):
     from sqlalchemy.orm import joinedload, lazyload
     from sqlalchemy import select
-
     uid_str = str(user_id or "").strip()
     if ":" in uid_str:
         try:
@@ -92,12 +93,10 @@ def load_user(user_id):
             stmt = select(Customer).options(lazyload("*")).where(Customer.id == ident)
             return db.session.execute(stmt).scalar_one_or_none()
         return None
-
     try:
         ident = int(uid_str)
     except Exception:
         return None
-
     stmt_user = (
         select(User)
         .options(joinedload(User.role).joinedload(Role.permissions))
@@ -108,7 +107,6 @@ def load_user(user_id):
         return user
     stmt_cust = select(Customer).options(lazyload("*")).where(Customer.id == ident)
     return db.session.execute(stmt_cust).scalar_one_or_none()
-
 
 def create_app(config_object=Config) -> Flask:
     app = Flask(__name__, static_folder="static", template_folder="templates")
@@ -189,7 +187,6 @@ def create_app(config_object=Config) -> Flask:
         message_queue=app.config.get("SOCKETIO_MESSAGE_QUEUE"),
     )
     mail.init_app(app)
-
     utils_init_app(app)
     _init_sentry(app)
 
@@ -209,10 +206,34 @@ def create_app(config_object=Config) -> Flask:
         + ([app.jinja_loader] if app.jinja_loader else [])
     )
 
+    def get_unique_flashes(with_categories=True):
+        from flask import get_flashed_messages
+        msgs = get_flashed_messages(with_categories=with_categories)
+        seen = set()
+        if with_categories:
+            uniq = []
+            for cat, msg in msgs:
+                if msg not in seen:
+                    uniq.append((cat or "info", msg))
+                    seen.add(msg)
+            return uniq
+        uniq = []
+        for msg in msgs:
+            if msg not in seen:
+                uniq.append(msg)
+                seen.add(msg)
+        return uniq
+
+    @app.context_processor
+    def inject_common():
+        return {
+            "current_app": current_app,
+            "get_unique_flashes": get_unique_flashes,
+        }
+
     @app.context_processor
     def inject_permissions():
         ATTRS = ("code", "name", "slug", "perm", "permission", "value")
-
         def _collect_user_perms(u):
             perms = set()
             role = getattr(u, "role", None)
@@ -270,16 +291,6 @@ def create_app(config_object=Config) -> Flask:
         except (TypeError, ValueError):
             return f"{0:,.{digits}f}"
 
-    app.jinja_env.filters["qr_to_base64"] = qr_to_base64
-    app.jinja_env.filters["format_currency"] = format_currency
-    app.jinja_env.filters["format_percent"] = format_percent
-    app.jinja_env.filters["yes_no"] = yes_no
-    app.jinja_env.filters["number_format"] = _safe_number_format
-    app.jinja_env.filters["format_number"] = _safe_number_format
-    app.jinja_env.filters["format_date"] = format_date
-    app.jinja_env.filters["format_datetime"] = format_datetime
-    app.jinja_env.filters["status_label"] = status_label
-
     def url_for_any(*endpoints, **values):
         last_err = None
         tried = []
@@ -299,31 +310,47 @@ def create_app(config_object=Config) -> Flask:
         except Exception:
             return "/?missing=" + ",".join(tried)
 
+    app.jinja_env.filters["qr_to_base64"] = qr_to_base64
+    app.jinja_env.filters["format_currency"] = format_currency
+    app.jinja_env.filters["format_percent"] = format_percent
+    app.jinja_env.filters["yes_no"] = yes_no
+    app.jinja_env.filters["number_format"] = _safe_number_format
+    app.jinja_env.filters["format_number"] = _safe_number_format
+    app.jinja_env.filters["format_date"] = format_date
+    app.jinja_env.filters["format_datetime"] = format_datetime
+    app.jinja_env.filters["status_label"] = status_label
     app.jinja_env.globals["url_for_any"] = url_for_any
     app.jinja_env.globals["now"] = datetime.utcnow
 
-    def get_unique_flashes(with_categories=True):
-        from flask import get_flashed_messages
-        msgs = get_flashed_messages(with_categories=with_categories)
-        seen = set()
-        if with_categories:
-            uniq = []
-            for cat, msg in msgs:
-                if msg not in seen:
-                    uniq.append((cat or "info", msg))
-                    seen.add(msg)
-            return uniq
-        uniq = []
-        for msg in msgs:
-            if msg not in seen:
-                uniq.append(msg)
-                seen.add(msg)
-        return uniq
+    attach_acl(
+        shop_bp,
+        read_perm="view_shop",
+        write_perm="manage_shop",
+        public_read=True,
+        exempt_prefixes=["/shop/admin"]
+    )
+    attach_acl(users_bp,           read_perm="manage_users",       write_perm="manage_users")
+    attach_acl(customers_bp,       read_perm="manage_customers",   write_perm="manage_customers")
+    attach_acl(vendors_bp,         read_perm="manage_vendors",     write_perm="manage_vendors")
+    attach_acl(shipments_bp,       read_perm="manage_shipments",   write_perm="manage_shipments")
+    attach_acl(warehouse_bp,       read_perm="view_warehouses",    write_perm="manage_warehouses")
+    attach_acl(payments_bp,        read_perm="manage_payments",    write_perm="manage_payments")
+    attach_acl(expenses_bp,        read_perm="manage_expenses",    write_perm="manage_expenses")
+    attach_acl(sales_bp,           read_perm="manage_sales",       write_perm="manage_sales")
+    attach_acl(service_bp,         read_perm="manage_service",     write_perm="manage_service")
+    attach_acl(reports_bp,         read_perm="view_reports",       write_perm="manage_reports")
+    attach_acl(roles_bp,           read_perm="manage_roles",       write_perm="manage_roles")
+    attach_acl(permissions_bp,     read_perm="manage_permissions", write_perm="manage_permissions")
+    attach_acl(parts_bp,           read_perm="view_parts",         write_perm="manage_inventory")
+    attach_acl(admin_reports_bp,   read_perm="view_reports",       write_perm="manage_reports")
+    attach_acl(main_bp,            read_perm=None,                 write_perm=None)
+    attach_acl(partner_settlements_bp,   read_perm="manage_vendors", write_perm="manage_vendors")
+    attach_acl(supplier_settlements_bp,  read_perm="manage_vendors", write_perm="manage_vendors")
+    attach_acl(api_bp,             read_perm="access_api",         write_perm="manage_api")
+    attach_acl(notes_bp,           read_perm="view_notes",         write_perm="manage_notes")
+    attach_acl(bp_barcode,         read_perm="view_parts",         write_perm=None)
 
-    app.jinja_env.globals["get_unique_flashes"] = get_unique_flashes
-
-    for bp in (
-        api_bp,
+    BLUEPRINTS = [
         auth_bp,
         main_bp,
         users_bp,
@@ -343,7 +370,12 @@ def create_app(config_object=Config) -> Flask:
         parts_bp,
         admin_reports_bp,
         bp_barcode,
-    ):
+        partner_settlements_bp,
+        supplier_settlements_bp,
+        api_bp,
+    ]
+
+    for bp in BLUEPRINTS:
         app.register_blueprint(bp)
 
     CORS(

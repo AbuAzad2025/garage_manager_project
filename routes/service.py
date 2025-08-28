@@ -5,10 +5,10 @@ from datetime import datetime, timedelta
 
 from flask import (
     Blueprint, render_template, request, redirect,
-    url_for, flash, jsonify, abort, Response, send_file, current_app, make_response
+    url_for, flash, jsonify, abort, Response, send_file, current_app
 )
 from flask_login import login_required, current_user, login_user
-from sqlalchemy import func, or_, and_, desc, select, update, insert
+from sqlalchemy import func, or_, desc, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 
@@ -68,35 +68,12 @@ PRIORITY_COLORS = {
     'URGENT': 'dark'
 }
 
-@service_bp.before_request
-def _force_superadmin_in_tests():
-    if not current_app.config.get("TESTING"):
-        return
-    role = Role.query.filter_by(name="super_admin").first()
-    if not role:
-        role = Role(name="super_admin", description="auto test super admin")
-        db.session.add(role); db.session.flush()
-    user = User.query.filter_by(username="_auto_service_super").first()
-    if not user:
-        user = User(username="_auto_service_super", email="svc@test.local")
-        user.set_password("x")
-        db.session.add(user); db.session.flush()
-    if user.role_id != role.id:
-        user.role = role; db.session.flush()
-    if (not getattr(current_user, "is_authenticated", False) or
-        getattr(getattr(current_user, "role", None), "name", "") != "super_admin"):
-        db.session.commit()
-        login_user(user)
-
 @service_bp.context_processor
 def inject_service_constants():
     return {
         'STATUS_LABELS': STATUS_LABELS,
         'PRIORITY_COLORS': PRIORITY_COLORS,
     }
-
-def _get_id(val):
-    return getattr(val, 'id', val)
 
 def _status_list(values):
     out = []
@@ -128,31 +105,6 @@ def _col(name: str):
     attr = mapping.get(name, 'received_at')
     return getattr(ServiceRequest, attr)
 
-def _service_consumes_stock(sr: ServiceRequest) -> bool:
-    st = (getattr(sr.status, "value", sr.status) or "").upper()
-    return st in ("IN_PROGRESS", "COMPLETED")
-
-def _apply_stock_delta(product_id: int, warehouse_id: int, delta: int):
-    conn = db.session.connection()
-    tbl = StockLevel.__table__
-    row = conn.execute(
-        select(tbl.c.id, tbl.c.quantity)
-        .where(tbl.c.product_id == product_id, tbl.c.warehouse_id == warehouse_id)
-        .with_for_update()
-    ).mappings().first()
-    if row is None:
-        if delta < 0:
-            raise ValueError("لا يوجد مخزون كافٍ.")
-        conn.execute(insert(tbl).values(
-            product_id=product_id, warehouse_id=warehouse_id,
-            quantity=int(delta), reserved_quantity=0
-        ))
-        return
-    new_qty = int(row["quantity"] or 0) + int(delta)
-    if new_qty < 0:
-        raise ValueError("الكمية غير كافية في المخزون.")
-    conn.execute(update(tbl).where(tbl.c.id == row["id"]).values(quantity=new_qty))
-
 def _fmt_dt(dt):
     try:
         return dt.strftime('%Y-%m-%d %H:%M') if dt else ''
@@ -180,7 +132,6 @@ def _row_dict(sr: ServiceRequest) -> dict:
     }
 
 def _build_list_query():
-    """نفس منطق list_requests ليتطابق التصدير مع الشاشة."""
     status_filter   = request.args.getlist('status')
     priority_filter = request.args.getlist('priority')
     customer_filter = request.args.get('customer', '')
@@ -317,7 +268,6 @@ def export_requests_csv():
     services = _build_list_query().all()
     rows = [_row_dict(sr) for sr in services]
 
-    # تجهيز CSV مع BOM لتوافق Excel والعربية
     sio = io.StringIO(newline="")
     fieldnames = list(rows[0].keys()) if rows else [
         "ID","رقم الطلب","العميل","هاتف","الحالة","الأولوية","لوحة المركبة",
@@ -329,7 +279,7 @@ def export_requests_csv():
     for r in rows:
         writer.writerow(r)
 
-    data = sio.getvalue().encode('utf-8-sig')  # BOM
+    data = sio.getvalue().encode('utf-8-sig')
     bio = io.BytesIO(data); bio.seek(0)
     filename = f"service_export_{datetime.now():%Y%m%d_%H%M%S}.csv"
     return send_file(bio, as_attachment=True, download_name=filename,
@@ -627,7 +577,6 @@ def add_task(rid):
     else:
         flash('❌ تحقق من الحقول المدخلة', 'danger')
     return redirect(url_for('service.view_request', rid=rid))
-
 
 @service_bp.route('/tasks/<int:tid>/delete', methods=['POST'])
 @login_required

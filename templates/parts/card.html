@@ -5,7 +5,6 @@
 {% block content %}
 <div class="container-fluid mt-3">
   <div class="row">
-    <!-- بيانات القطعة -->
     <div class="col-lg-5">
       <div class="card mb-4 shadow-sm">
         <div class="card-header bg-primary text-white">بيانات القطعة</div>
@@ -29,18 +28,17 @@
       </div>
     </div>
 
-    <!-- المخزون والحركات -->
     <div class="col-lg-7">
       <div class="card mb-4 shadow-sm">
         <div class="card-header bg-success text-white">المخزون في المخازن</div>
         <div class="table-responsive">
-          <table class="table table-bordered mb-0">
+          <table class="table table-bordered table-striped table-hover align-middle mb-0">
             <thead class="table-light">
-              <tr>
+              <tr class="text-center">
                 <th>المخزن</th>
-                <th>متوفر</th>
-                <th>محجوز</th>
-                <th>المتاح الفعلي</th>
+                <th class="text-end">متوفر</th>
+                <th class="text-end">محجوز</th>
+                <th class="text-end">المتاح الفعلي</th>
                 <th>الحالة</th>
               </tr>
             </thead>
@@ -51,9 +49,9 @@
                 {% set css = (va < minq) and 'table-danger' or ((va < (minq * 1.2)) and 'table-warning') or '' %}
                 <tr class="{{ css }}">
                   <td>{{ st.warehouse.name }}</td>
-                  <td>{{ st.on_hand or 0 }}</td>
-                  <td>{{ st.reserved or 0 }}</td>
-                  <td>{{ st.virtual_available or 0 }}</td>
+                  <td class="text-end">{{ st.on_hand or 0 }}</td>
+                  <td class="text-end">{{ st.reserved or 0 }}</td>
+                  <td class="text-end">{{ st.virtual_available or 0 }}</td>
                   <td>
                     {% if va < minq %}منخفض
                     {% elif va < (minq * 1.2) %}قريب من الحد
@@ -71,23 +69,23 @@
       <div class="card mb-4 shadow-sm">
         <div class="card-header bg-info text-white">حركات التحويل</div>
         <div class="table-responsive">
-          <table class="table table-striped mb-0" id="movements-table">
+          <table class="table table-striped table-hover align-middle mb-0" id="movements-table">
             <thead class="table-light">
-              <tr>
+              <tr class="text-center">
                 <th>التاريخ</th>
                 <th>من</th>
                 <th>إلى</th>
-                <th>الكمية</th>
+                <th class="text-end">الكمية</th>
                 <th>ملاحظات</th>
               </tr>
             </thead>
             <tbody>
               {% for t in transfers or [] %}
                 <tr>
-                  <td>{{ t.transfer_date and t.transfer_date.strftime('%Y-%m-%d %H:%M') or '—' }}</td>
-                  <td>{{ t.source_warehouse and t.source_warehouse.name or '—' }}</td>
-                  <td>{{ t.destination_warehouse and t.destination_warehouse.name or '—' }}</td>
-                  <td>{{ t.quantity }}</td>
+                  <td class="text-center">{{ t.transfer_date and t.transfer_date.strftime('%Y-%m-%d %H:%M') or '—' }}</td>
+                  <td class="text-center">{{ t.source_warehouse and t.source_warehouse.name or '—' }}</td>
+                  <td class="text-center">{{ t.destination_warehouse and t.destination_warehouse.name or '—' }}</td>
+                  <td class="text-end">{{ t.quantity }}</td>
                   <td>{{ t.notes or '—' }}</td>
                 </tr>
               {% else %}
@@ -101,14 +99,14 @@
       <div class="card mb-4 shadow-sm">
         <div class="card-header bg-warning text-dark">تبادلات مع الشركاء/التجّار</div>
         <div class="table-responsive">
-          <table class="table mb-0">
+          <table class="table table-striped table-hover align-middle mb-0">
             <thead class="table-light">
-              <tr>
+              <tr class="text-center">
                 <th>التاريخ</th>
                 <th>الاتجاه</th>
                 <th>الشريك/التاجر</th>
-                <th>الكمية</th>
-                <th>تكلفة للوحدة</th>
+                <th class="text-end">الكمية</th>
+                <th class="text-end">تكلفة للوحدة</th>
                 <th>مُسعَّر؟</th>
                 <th>ملاحظات</th>
               </tr>
@@ -116,19 +114,19 @@
             <tbody>
               {% for e in exchanges or [] %}
                 <tr>
-                  <td>{{ e.created_at and e.created_at.strftime('%Y-%m-%d %H:%M') or '—' }}</td>
-                  <td>
+                  <td class="text-center">{{ e.created_at and e.created_at.strftime('%Y-%m-%d %H:%M') or '—' }}</td>
+                  <td class="text-center">
                     {% if e.direction == 'IN' %}وارد
                     {% elif e.direction == 'OUT' %}صادر
                     {% else %}—{% endif %}
                   </td>
-                  <td>{{ e.partner and e.partner.name or '—' }}</td>
-                  <td>{{ e.quantity }}</td>
-                  <td>
+                  <td class="text-center">{{ e.partner and e.partner.name or '—' }}</td>
+                  <td class="text-end">{{ e.quantity }}</td>
+                  <td class="text-end">
                     {% set uc = e.unit_cost|default(None, true) %}
                     {{ uc is not none and ('%.2f'|format(uc|float)) or '—' }}
                   </td>
-                  <td>{{ (e.is_priced|default(false, true)) and 'نعم' or 'لا' }}</td>
+                  <td class="text-center">{{ (e.is_priced|default(false, true)) and 'نعم' or 'لا' }}</td>
                   <td>{{ e.notes or '—' }}</td>
                 </tr>
               {% else %}
@@ -142,13 +140,13 @@
       <div class="card mb-3 shadow-sm">
         <div class="card-header bg-secondary text-white">الشحنات</div>
         <div class="table-responsive">
-          <table class="table mb-0">
+          <table class="table table-striped table-hover align-middle mb-0">
             <thead class="table-light">
-              <tr>
+              <tr class="text-center">
                 <th>شحنة #</th>
                 <th>الوصول</th>
                 <th>المستودع</th>
-                <th>الكمية</th>
+                <th class="text-end">الكمية</th>
                 <th>شركاء</th>
               </tr>
             </thead>
@@ -157,10 +155,10 @@
                 {% set sh = si.shipment %}
                 {% set arr = (sh and (sh.actual_arrival|default(None, true) or sh.expected_arrival|default(None, true) or sh.shipment_date|default(None, true))) %}
                 <tr>
-                  <td>{{ sh and (sh.shipment_number or sh.id) or '—' }}</td>
-                  <td>{{ arr and arr.strftime('%Y-%m-%d') or '—' }}</td>
-                  <td>{{ si.warehouse and si.warehouse.name or '—' }}</td>
-                  <td>{{ si.quantity or 0 }}</td>
+                  <td class="text-center">{{ sh and (sh.shipment_number or sh.id) or '—' }}</td>
+                  <td class="text-center">{{ arr and arr.strftime('%Y-%m-%d') or '—' }}</td>
+                  <td class="text-center">{{ si.warehouse and si.warehouse.name or '—' }}</td>
+                  <td class="text-end">{{ si.quantity or 0 }}</td>
                   <td>
                     {% for link in (sh and sh.partner_links) or [] %}
                       {{ link.partner and link.partner.name or '—' }} ({{ link.share_percentage or 0 }}%)<br>
@@ -187,7 +185,7 @@
       if (window.jQuery && $.fn.DataTable) {
         $('#movements-table').DataTable({
           pageLength: 25,
-          language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/ar.json' }
+          language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/Arabic.json' }
         });
       }
     })();

@@ -12,7 +12,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from flask_wtf import FlaskForm
 
 from extensions import db
-from forms import AddToOnlineCartForm, OnlineCartPaymentForm, ProductForm
+from forms import AddToOnlineCartForm, ProductForm
 from models import (
     Customer, OnlineCart, OnlineCartItem, OnlinePreOrder, OnlinePreOrderItem, OnlinePayment,
     Product, StockLevel, Warehouse, WarehouseType, Payment, PaymentStatus, PaymentDirection, PaymentEntityType
@@ -22,7 +22,6 @@ from utils import send_whatsapp_message
 shop_bp = Blueprint("shop", __name__, url_prefix="/shop", template_folder="templates/shop")
 
 
-# -------------------- Helpers --------------------
 def _get_or_404(model, ident, options=None):
     q = db.session.query(model)
     if options:
@@ -97,13 +96,11 @@ def available_qty(product_id: int) -> int:
     return max(0, int(on_hand) - int(reserved))
 
 
-# -------------------- Super Admin logic --------------------
 def _super_roles():
     try:
         from utils import _SUPER_ROLES as _SR
         return {str(x).strip().lower() for x in (_SR or [])}
     except Exception:
-        # بدون "admin" — السوبر منفصل عن الأدمن
         return {"developer", "owner", "super_admin"}
 
 
@@ -127,14 +124,6 @@ def super_admin_required(f):
     return inner
 
 
-@shop_bp.before_request
-def _guard_shop_admin():
-    if request.path.startswith("/shop/admin"):
-        if not is_super_admin(current_user):
-            abort(403)
-
-
-# -------------------- Online customer gate --------------------
 def online_customer_required(f):
     @wraps(f)
     @login_required
@@ -166,7 +155,6 @@ def get_active_cart(customer_id):
     return OnlineCart.query.filter_by(customer_id=customer_id, status="ACTIVE").first()
 
 
-# -------------------- Routes --------------------
 @shop_bp.route("/", endpoint="catalog")
 def catalog():
     if is_super_admin(current_user):
@@ -322,12 +310,7 @@ def checkout():
     rate = float(current_app.config.get("SHOP_PREPAID_RATE", 0.2))
     prepaid = round(subtotal * rate, 2)
 
-    form = OnlineCartPaymentForm()
     if request.method == "POST":
-        if form.payment_method.data != "card":
-            return _resp("الدفع عبر البطاقة فقط مسموح للحجز.", "danger")
-
-    if form.validate_on_submit():
         try:
             with db.session.begin():
                 product_ids = [itm.product_id for itm in cart.items]
@@ -360,9 +343,9 @@ def checkout():
                     total_amount=subtotal,
                     status="CONFIRMED",
                     payment_status=payment_status,
-                    payment_method=form.payment_method.data,
-                    shipping_address=form.shipping_address.data or getattr(g.online_customer, "address", None),
-                    billing_address=form.billing_address.data or getattr(g.online_customer, "address", None),
+                    payment_method="card",
+                    shipping_address=request.form.get("shipping_address") or getattr(g.online_customer, "address", None),
+                    billing_address=request.form.get("billing_address") or getattr(g.online_customer, "address", None),
                 )
                 db.session.add(preorder)
                 db.session.flush()
@@ -382,27 +365,23 @@ def checkout():
                     order_id=preorder.id,
                     amount=prepaid,
                     currency=getattr(g.online_customer, "currency", "ILS"),
-                    method=form.payment_method.data,
+                    method="card",
                     gateway="ONLINE",
-                    status="SUCCESS",
-                    transaction_data=_json_loads(form.transaction_data.data),
+                    status="SUCCESS" if prepaid > 0 else "PENDING",
+                    transaction_data=_json_loads(request.form.get("transaction_data", "")),
+                    card_last4=(request.form.get("card_last4") or "").strip() or None,
+                    card_expiry=(request.form.get("card_expiry") or "").strip() or None,
+                    cardholder_name=(request.form.get("cardholder_name") or "").strip() or None,
+                    card_brand=(request.form.get("card_brand") or "").strip() or None,
+                    card_fingerprint=(request.form.get("card_fingerprint") or "").strip() or None,
                 )
-                try:
-                    op.set_card_details(
-                        pan=(form.card_number.data or ""),
-                        holder=(form.card_holder.data or ""),
-                        expiry_mm_yy=(form.expiry.data or ""),
-                        validate=True,
-                    )
-                except ValueError as ve:
-                    abort(400, description=str(ve))
                 db.session.add(op)
 
                 if prepaid > 0:
                     db.session.add(
                         Payment(
-                            entity_type=PaymentEntityType.PREORDER.value,
-                            preorder_id=preorder.id,
+                            entity_type=PaymentEntityType.CUSTOMER.value,
+                            customer_id=g.online_customer.id,
                             direction=PaymentDirection.INCOMING.value,
                             status=PaymentStatus.COMPLETED.value,
                             method="card",
@@ -439,7 +418,7 @@ def checkout():
             db.session.rollback()
             return _resp(f"خطأ أثناء الدفع: {e}", "danger")
 
-    return render_template("shop/pay_online.html", form=form, cart=cart, subtotal=subtotal, prepaid_amount=prepaid)
+    return render_template("shop/pay_online.html", cart=cart, subtotal=subtotal, prepaid_amount=prepaid)
 
 
 @shop_bp.route("/preorders", endpoint="preorder_list")
@@ -482,7 +461,6 @@ def cancel_preorder(preorder_id):
         return _resp(f"خطأ أثناء الإلغاء: {e}", "danger", to="shop.preorder_list")
 
 
-# -------------------- Admin (Super only) --------------------
 @shop_bp.route("/admin/preorders", endpoint="admin_preorders")
 @super_admin_required
 def admin_preorders():

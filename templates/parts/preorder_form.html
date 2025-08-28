@@ -26,12 +26,12 @@
     </div>
     <div class="col-md-4 mb-2">
       <div class="input-label">تاريخ الحجز</div>
-      {{ form.preorder_date(class_="form-control dtp", id="preorder_date") }}
+      {{ form.preorder_date(class_="form-control dtp", id="preorder_date", autocomplete="off") }}
       {% for e in form.preorder_date.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
     </div>
     <div class="col-md-4 mb-2">
       <div class="input-label">تاريخ التسليم المتوقع</div>
-      {{ form.expected_date(class_="form-control dtp", id="expected_date") }}
+      {{ form.expected_date(class_="form-control dtp", id="expected_date", autocomplete="off") }}
       {% for e in form.expected_date.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
     </div>
   </div>
@@ -48,7 +48,7 @@
         <span>العميل</span>
         <button type="button" class="btn btn-sm btn-success" id="btn-add-customer"><i class="fas fa-user-plus"></i> عميل جديد</button>
       </div>
-      {{ form.customer_id(class_="form-control select2", id="customer_id", data_placeholder="ابحث عن عميل...") }}
+      {{ form.customer_id(class_="form-control select2", id="customer_id", **{'data-placeholder': 'ابحث عن عميل...'}) }}
       {% for e in form.customer_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
     </div>
   </div>
@@ -56,12 +56,12 @@
   <div class="row">
     <div class="col-md-6 mb-2">
       <div class="input-label req">القطعة</div>
-      {{ form.product_id(class_="form-control select2", data_placeholder="اختر القطعة") }}
+      {{ form.product_id(class_="form-control select2", **{'data-placeholder': 'اختر القطعة'}) }}
       {% for e in form.product_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
     </div>
     <div class="col-md-6 mb-2">
       <div class="input-label req">المخزن</div>
-      {{ form.warehouse_id(class_="form-control select2", data_placeholder="اختر المخزن") }}
+      {{ form.warehouse_id(class_="form-control select2", **{'data-placeholder': 'اختر المخزن'}) }}
       {% for e in form.warehouse_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
     </div>
   </div>
@@ -69,12 +69,12 @@
   <div class="row">
     <div class="col-md-3 mb-2">
       <div class="input-label req">الكمية</div>
-      {{ form.quantity(class_="form-control", min="1", step="1") }}
+      {{ form.quantity(class_="form-control", min="1", step="1", inputmode="numeric") }}
       {% for e in form.quantity.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
     </div>
     <div class="col-md-3 mb-2">
       <div class="input-label req">المدفوع مسبقاً</div>
-      {{ form.prepaid_amount(class_="form-control", min="0", step="0.01") }}
+      {{ form.prepaid_amount(class_="form-control", min="0", step="0.01", inputmode="decimal") }}
       {% for e in form.prepaid_amount.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
     </div>
     <div class="col-md-3 mb-2">
@@ -84,7 +84,7 @@
     </div>
     <div class="col-md-3 mb-2">
       <div class="input-label">ضريبة %</div>
-      {{ form.tax_rate(class_="form-control", min="0", max="100", step="0.01") }}
+      {{ form.tax_rate(class_="form-control", min="0", max="100", step="0.01", inputmode="decimal") }}
       {% for e in form.tax_rate.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
     </div>
   </div>
@@ -115,8 +115,8 @@
             <div class="col-md-6 mb-2"><label class="form-label">الهاتف</label><input name="phone" class="form-control" inputmode="tel"></div>
             <div class="col-md-6 mb-2"><label class="form-label">واتساب</label><input name="whatsapp" class="form-control" inputmode="tel"></div>
             <div class="col-12 mb-2"><label class="form-label">العنوان</label><input name="address" class="form-control"></div>
-            <div class="col-md-6 mb-2"><label class="form-label">الخصم (%)</label><input name="discount_rate" type="number" step="0.01" min="0" max="100" class="form-control"></div>
-            <div class="col-md-6 mb-2"><label class="form-label">حد الائتمان</label><input name="credit_limit" type="number" step="0.01" min="0" class="form-control"></div>
+            <div class="col-md-6 mb-2"><label class="form-label">الخصم (%)</label><input name="discount_rate" type="number" step="0.01" min="0" max="100" class="form-control" inputmode="decimal"></div>
+            <div class="col-md-6 mb-2"><label class="form-label">حد الائتمان</label><input name="credit_limit" type="number" step="0.01" min="0" class="form-control" inputmode="decimal"></div>
             <div class="col-12 mb-2"><label class="form-label">ملاحظات</label><textarea name="notes" rows="2" class="form-control"></textarea></div>
             <div class="col-md-6 mb-2"><label class="form-label">كلمة المرور</label><input name="password" type="password" class="form-control" autocomplete="new-password"></div>
             <div class="col-md-6 mb-2"><label class="form-label">تأكيد كلمة المرور</label><input name="confirm" type="password" class="form-control" autocomplete="new-password"></div>
@@ -149,7 +149,6 @@
         $('.select2').select2({
           width: '100%',
           dir: 'rtl',
-          theme: 'bootstrap4',
           allowClear: true,
           placeholder: function(){ return $(this).data('placeholder') || 'اختر...'; }
         });
@@ -159,7 +158,11 @@
 
       const modalEl = document.getElementById('customerModal');
       document.getElementById('btn-add-customer').addEventListener('click', function(){
-        if (window.jQuery) $(modalEl).modal('show'); else if (window.bootstrap) new bootstrap.Modal(modalEl).show();
+        if (window.jQuery && typeof $().modal === 'function') {
+          $(modalEl).modal('show');
+        } else if (window.bootstrap) {
+          new bootstrap.Modal(modalEl).show();
+        }
       });
 
       document.getElementById('quick-customer-form').addEventListener('submit', async function(e){
@@ -170,10 +173,12 @@
         if (data && data.id) {
           const $c = $('#customer_id'); const text = data.text || data.name || ('عميل #' + data.id);
           if ($c.length && $c.data('select2')) { const opt = new Option(text, data.id, true, true); $c.append(opt).trigger('change'); } else if ($c.length) { $c.val(data.id); }
-          if (window.jQuery) $(modalEl).modal('hide'); else if (window.bootstrap) bootstrap.Modal.getInstance(modalEl)?.hide();
-          form.reset(); const err = document.getElementById('qc_errors'); err.style.display='none'; err.innerHTML='';
+          if (window.jQuery && typeof $().modal === 'function') { $(modalEl).modal('hide'); }
+          else if (window.bootstrap) { bootstrap.Modal.getInstance(modalEl)?.hide(); }
+          form.reset();
+          const err = document.getElementById('qc_errors'); err.style.display='none'; err.innerHTML='';
         } else {
-          const err = document.getElementById('qc_errors'); err.style.display='block'; err.innerHTML = data.error || 'تعذر إضافة العميل.';
+          const err = document.getElementById('qc_errors'); err.style.display='block'; err.innerHTML = (data && data.error) ? data.error : 'تعذر إضافة العميل.';
         }
       });
     })();

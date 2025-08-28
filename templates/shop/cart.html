@@ -1,22 +1,17 @@
-{# templates/shop/cart.html #}
 {% extends 'shop/base.html' %}
-
 {% block title %}سلة التسوق{% endblock %}
-
 {% block styles %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
 {% endblock %}
-
 {% block content %}
 <h1 class="h3 mb-4">سلة التسوق</h1>
-
 {% if items %}
 <div class="row">
   <div class="col-lg-8">
     <div class="card shadow-sm mb-4">
       <div class="card-header bg-white py-3 d-flex justify-content-between">
         <h5 class="mb-0">المنتجات المختارة</h5>
-        {% if shop_is_super_admin %}
+        {% if has_any('manage_shop','manage_sales') and 'shop.admin_orders' in current_app.view_functions %}
           <a href="{{ url_for('shop.admin_orders') }}" class="btn btn-sm btn-danger">
             <i class="fas fa-list"></i> إدارة الطلبات
           </a>
@@ -100,7 +95,7 @@
           <span>الضريبة:</span><span>0.00 شيكل</span>
         </div>
         <hr>
-        <div class="d-flex justify-content-between fw-bold mb-3">
+        <div class="d-flex justify-content_between fw-bold mb-3" style="justify-content:space-between">
           <span>المجموع الكلي:</span>
           <span>{{ '%.2f'|format(subtotal) }} شيكل</span>
         </div>
@@ -113,7 +108,7 @@
           <small class="d-block text-muted mt-1">(لا يقل عن 20% من إجمالي قيمة الطلب)</small>
         </div>
 
-        {% if not shop_is_super_admin %}
+        {% if not has_any('manage_shop','manage_payments') %}
           <a href="{{ url_for('shop.checkout') }}" class="btn btn-primary w-100 py-3">إتمام عملية الشراء</a>
         {% endif %}
         <a href="{{ url_for('shop.catalog') }}" class="btn btn-outline-secondary w-100 mt-2">العودة للتسوق</a>
@@ -132,8 +127,7 @@
 </div>
 {% endif %}
 {% endblock %}
-
 {% block scripts %}
-  {{ super() }}
-  <script src="{{ url_for('static', filename='js/shop.js') }}"></script>
+{{ super() }}
+<script src="{{ url_for('static', filename='js/shop.js') }}"></script>
 {% endblock %}

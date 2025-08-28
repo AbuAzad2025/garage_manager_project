@@ -5,7 +5,7 @@ import io
 import json
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 
 import redis
@@ -38,10 +38,8 @@ from models import Payment, PaymentSplit, PaymentStatus
 
 redis_client: redis.Redis | None = None
 
-# ============================== Object fetch helper ==============================
 
 def _get_or_404(model, ident, *, load_options=None, pk_name: str = "id"):
-    """أحضر سجلًا وإلا 404. يدعم options وبديل لاسم الـ PK."""
     try:
         if pk_name == "id" and not load_options:
             obj = db.session.get(model, ident)
@@ -58,10 +56,7 @@ def _get_or_404(model, ident, *, load_options=None, pk_name: str = "id"):
     return obj
 
 
-# ============================== Bootstrap & Filters ==============================
-
 def init_app(app):
-    """تسجيل فلاتر Jinja وتهيئة Redis وحقن دوال الـ ACL في الجينجا."""
     global redis_client
     app.jinja_env.filters.update({
         "format_currency": format_currency,
@@ -79,16 +74,20 @@ def init_app(app):
     except Exception:
         redis_client = None
 
-    # حقن دوال الصلاحيات في الجينجا لعرض/إخفاء العناصر
     def _acl_ctx():
+        def can(code: str) -> bool:
+            try:
+                return bool(getattr(current_user, "is_authenticated", False) and current_user.has_permission(code))
+            except Exception:
+                return False
         return dict(
+            can=can,
             can_super=lambda: is_super(),
             can_admin=lambda: is_admin(),
         )
     app.context_processor(_acl_ctx)
+    _install_acl_cache_listeners()
 
-
-# ============================== Notifications ==============================
 
 def send_email_notification(subject, recipients, body, html=None):
     mail.send(Message(subject=subject, recipients=recipients, body=body, html=html))
@@ -106,6 +105,7 @@ def _to_e164(msisdn: str) -> str | None:
     elif cc and not s.startswith(cc) and not msisdn.startswith("+"):
         s = cc + s
     return "+" + s
+
 
 def send_whatsapp_message(to_number, body) -> tuple[bool, str]:
     sid = current_app.config.get("TWILIO_ACCOUNT_SID")
@@ -130,7 +130,6 @@ def send_whatsapp_message(to_number, body) -> tuple[bool, str]:
     except Exception as e:
         return (False, str(e))
 
-# ============================== Formatters & Helpers ==============================
 
 def format_currency(value):
     try:
@@ -182,7 +181,6 @@ def status_label(status):
 
 def qr_to_base64(value: str) -> str:
     if not qrcode:
-        current_app.logger.warning("qrcode غير متوفر")
         return ""
     img = qrcode.make(value)
     buf = io.BytesIO()
@@ -190,47 +188,58 @@ def qr_to_base64(value: str) -> str:
     buf.seek(0)
     return base64.b64encode(buf.read()).decode("ascii")
 
+
 def _get_id(v):
-    if v is None: return None
-    if isinstance(v, int): return v
+    if v is None:
+        return None
+    if isinstance(v, int):
+        return v
     if isinstance(v, str):
         s = v.strip()
-        if '|' in s: s = s.split('|', 1)[0]
-        try: return int(float(s))
-        except Exception: return None
-    if isinstance(v, dict): return _get_id(v.get('id'))
-    if isinstance(v, (list, tuple)) and v: return _get_id(v[0])
+        if "|" in s:
+            s = s.split("|", 1)[0]
+        try:
+            return int(float(s))
+        except Exception:
+            return None
+    if isinstance(v, dict):
+        return _get_id(v.get("id"))
+    if isinstance(v, (list, tuple)) and v:
+        return _get_id(v[0])
     return None
 
+
 def _service_consumes_stock(service=None) -> bool:
-    return bool(current_app.config.get('SERVICE_CONSUMES_STOCK', True))
+    return bool(current_app.config.get("SERVICE_CONSUMES_STOCK", True))
+
 
 def _apply_stock_delta(product_id: int, warehouse_id: int, delta: int) -> int:
     from models import StockLevel
     delta = int(delta or 0)
-    rec = (StockLevel.query
-           .filter_by(product_id=product_id, warehouse_id=warehouse_id)
-           .with_for_update(read=False)
-           .first())
+    rec = (
+        StockLevel.query
+        .filter_by(product_id=product_id, warehouse_id=warehouse_id)
+        .with_for_update(read=False)
+        .first()
+    )
     if rec is None:
         if delta < 0:
-            raise ValueError('insufficient stock')
+            raise ValueError("insufficient stock")
         rec = StockLevel(product_id=product_id, warehouse_id=warehouse_id, quantity=0)
         db.session.add(rec)
         db.session.flush()
     new_qty = int(rec.quantity or 0) + delta
     if new_qty < 0:
-        raise ValueError('insufficient stock')
+        raise ValueError("insufficient stock")
     rec.quantity = new_qty
     db.session.flush()
     return new_qty
+
 
 def recent_notes(limit: int = 5):
     from models import Note
     return Note.query.order_by(Note.created_at.desc()).limit(limit).all()
 
-
-# ============================== Reports: Excel/PDF/VCF/CSV ==============================
 
 def generate_excel_report(data, filename: str = "report.xlsx") -> Response:
     def _row_to_dict(item):
@@ -244,11 +253,15 @@ def generate_excel_report(data, filename: str = "report.xlsx") -> Response:
         try:
             cols = {}
             for k in dir(item):
-                if k.startswith("_"): continue
+                if k.startswith("_"):
+                    continue
                 v = getattr(item, k, None)
-                if callable(v): continue
-                if k in ("metadata", "query", "query_class"): continue
-                if hasattr(v, "property"): continue
+                if callable(v):
+                    continue
+                if k in ("metadata", "query", "query_class"):
+                    continue
+                if hasattr(v, "property"):
+                    continue
                 cols[k] = v
             return cols
         except Exception:
@@ -326,13 +339,15 @@ def generate_vcf(customers, fields, filename: str = "contacts.vcf"):
         if "name" in fields:
             for attr in ("name", "full_name", "username"):
                 name = _get(attr, "")
-                if name: break
+                if name:
+                    break
 
         phone = ""
         if "phone" in fields:
             for attr in ("phone", "whatsapp", "mobile"):
                 phone = _get(attr, "")
-                if phone: break
+                if phone:
+                    break
 
         email = _get("email", "") if "email" in fields else ""
 
@@ -387,9 +402,6 @@ def generate_excel_contacts(customers, fields):
     )
 
 
-# ============================== Permissions & Caching ==============================
-
-# ⚠️ لم يعد "admin" ضمن السوبر
 _SUPER_ROLES = {"developer", "owner", "super_admin", "super"}
 
 _PERMISSION_ALIASES = {
@@ -409,6 +421,9 @@ _PERMISSION_ALIASES = {
     "manage_payments": {"manage_payments", "manage_sales"},
     "backup_database": {"backup_database", "backup", "backup_db", "download_backup", "db_backup"},
     "restore_database": {"restore_database", "restore", "restore_db", "upload_backup", "db_restore"},
+    "view_shop": {"view_shop", "browse_products"},
+    "browse_products": {"browse_products", "view_shop"},
+    "manage_shop": {"manage_shop", "view_shop", "browse_products"}
 }
 
 
@@ -461,10 +476,13 @@ def _get_user_permissions(user):
             cached = None
         if cached:
             def _to_text(v):
-                if isinstance(v, str): return v
+                if isinstance(v, str):
+                    return v
                 if isinstance(v, (bytes, bytearray)):
-                    try: return v.decode("utf-8")
-                    except Exception: return v.decode(errors="ignore")
+                    try:
+                        return v.decode("utf-8")
+                    except Exception:
+                        return v.decode(errors="ignore")
                 return str(v)
             return {_to_text(x).lower() for x in cached}
 
@@ -479,12 +497,12 @@ def _get_user_permissions(user):
         pass
     return perms
 
-# --------- ACL helpers (SUPER / ADMIN) ---------
 
 def _csv_set(val):
     if not val:
         return set()
     return {x.strip().lower() for x in str(val).split(",") if x.strip()}
+
 
 def _match_user(user, ids_csv, emails_csv) -> bool:
     if not user or not getattr(user, "is_authenticated", False):
@@ -496,8 +514,8 @@ def _match_user(user, ids_csv, emails_csv) -> bool:
     email = (getattr(user, "email", "") or "").lower()
     return email in emails
 
+
 def is_super() -> bool:
-    """سوبر = (config IDs/Emails) أو اسم دور ضمن SUPER_ROLES."""
     try:
         if _match_user(
             current_user,
@@ -507,15 +525,14 @@ def is_super() -> bool:
             return True
     except Exception:
         pass
-    # دعم أسماء الأدوار
     try:
         role_name = str(getattr(getattr(current_user, "role", None), "name", "")).lower()
         return role_name in {r.lower() for r in _SUPER_ROLES}
     except Exception:
         return False
 
+
 def is_admin() -> bool:
-    """أدمن عادي؛ السوبر دائمًا يمر."""
     if is_super():
         return True
     try:
@@ -527,7 +544,6 @@ def is_admin() -> bool:
             return True
     except Exception:
         pass
-    # دعم دور admin القديم أو فلاغ is_admin
     try:
         role_name = str(getattr(getattr(current_user, "role", None), "name", "")).lower()
         if role_name == "admin":
@@ -536,6 +552,7 @@ def is_admin() -> bool:
         pass
     return bool(getattr(current_user, "is_admin", False))
 
+
 def super_only(f):
     @wraps(f)
     def _w(*args, **kwargs):
@@ -543,6 +560,7 @@ def super_only(f):
             abort(403)
         return f(*args, **kwargs)
     return _w
+
 
 def admin_or_super(f):
     @wraps(f)
@@ -554,7 +572,6 @@ def admin_or_super(f):
 
 
 def permission_required(*permission_names):
-    """ديكورتر صلاحيات؛ يدعم OR افتراضيًا و AND عبر PERMISSIONS_REQUIRE_ALL."""
     base_needed = {str(p).strip().lower() for p in permission_names if p}
 
     def decorator(f):
@@ -566,11 +583,8 @@ def permission_required(*permission_names):
                 cfg = {}
             if cfg.get("PERMISSION_DISABLED") or cfg.get("LOGIN_DISABLED"):
                 return f(*args, **kwargs)
-
-            # Bypass للسوبر فقط (لم يعد الأدمن ضمن السوبر)
             if is_super():
                 return f(*args, **kwargs)
-
             if not getattr(current_user, "is_authenticated", False):
                 abort(403)
 
@@ -596,7 +610,8 @@ def permission_required(*permission_names):
 
             if hasattr(current_user, "has_permission") and callable(getattr(current_user, "has_permission")):
                 if require_all:
-                    if all(current_user.has_permission(p) for p in needed): return f(*args, **kwargs)
+                    if all(current_user.has_permission(p) for p in needed):
+                        return f(*args, **kwargs)
                 else:
                     for p in needed:
                         if current_user.has_permission(p):
@@ -624,7 +639,7 @@ def clear_user_permission_cache(user_id: int) -> None:
     try:
         redis_client.delete(f"user_permissions:{user_id}")
     except Exception:
-        current_app.logger.exception("Failed to clear permission cache for user %s", user_id)
+        pass
 
 
 def clear_role_permission_cache(role_id: int) -> None:
@@ -633,7 +648,7 @@ def clear_role_permission_cache(role_id: int) -> None:
     try:
         redis_client.delete(f"role_permissions:{role_id}")
     except Exception:
-        current_app.logger.exception("Failed to clear permission cache for role %s", role_id)
+        pass
 
 
 def clear_users_cache_by_role(role_id: int):
@@ -643,8 +658,10 @@ def clear_users_cache_by_role(role_id: int):
         from models import User
         ids = [uid for (uid,) in db.session.query(User.id).filter(User.role_id == role_id).all()]
         for uid in ids:
-            try: redis_client.delete(f"user_permissions:{uid}")
-            except Exception: pass
+            try:
+                redis_client.delete(f"user_permissions:{uid}")
+            except Exception:
+                pass
     except Exception:
         pass
 
@@ -677,8 +694,59 @@ def get_role_permissions(role) -> set:
     return perms
 
 
-# ============================== Auditing Helpers ==============================
-# utils.py — استبدل دوال التدقيق الثلاث
+def _install_acl_cache_listeners():
+    try:
+        from sqlalchemy import event
+        from models import Role, User, role_permissions as _rp, user_permissions as _up
+    except Exception:
+        return
+
+    def _role_perm_change(target, value, initiator):
+        try:
+            if getattr(target, "id", None) is not None:
+                clear_role_permission_cache(target.id)
+                clear_users_cache_by_role(target.id)
+        except Exception:
+            pass
+        return value
+
+    def _user_extra_perm_change(target, value, initiator):
+        try:
+            if getattr(target, "id", None) is not None:
+                clear_user_permission_cache(target.id)
+        except Exception:
+            pass
+        return value
+
+    def _user_role_set(target, value, oldvalue, initiator):
+        try:
+            if getattr(target, "id", None) is not None:
+                clear_user_permission_cache(target.id)
+        except Exception:
+            pass
+        try:
+            if getattr(oldvalue, "id", None):
+                clear_users_cache_by_role(oldvalue.id)
+            if getattr(value, "id", None):
+                clear_users_cache_by_role(value.id)
+        except Exception:
+            pass
+        return value
+
+    try:
+        event.listen(Role.permissions, "append", _role_perm_change)
+        event.listen(Role.permissions, "remove", _role_perm_change)
+    except Exception:
+        pass
+
+    try:
+        event.listen(User.extra_permissions, "append", _user_extra_perm_change)
+        event.listen(User.extra_permissions, "remove", _user_extra_perm_change)
+        event.listen(User.role, "set", _user_role_set, retval=True)
+    except Exception:
+        pass
+
+
 def log_customer_action(cust, action: str, old_data: dict | None = None, new_data: dict | None = None) -> None:
     from models import AuditLog
     old_json = json.dumps(old_data, ensure_ascii=False, default=str) if old_data else None
@@ -697,6 +765,7 @@ def log_customer_action(cust, action: str, old_data: dict | None = None, new_dat
     )
     db.session.add(entry)
     db.session.flush()
+
 
 def _audit(event: str, *, ok: bool = True, user_id=None, customer_id=None, note: str | None = None, extra: dict | None = None) -> None:
     from models import AuditLog
@@ -720,6 +789,7 @@ def _audit(event: str, *, ok: bool = True, user_id=None, customer_id=None, note:
     db.session.add(entry)
     db.session.flush()
 
+
 def log_audit(model_name: str, record_id: int, action: str, old_data: dict | None = None, new_data: dict | None = None):
     from models import AuditLog
     old_json = json.dumps(old_data, ensure_ascii=False, default=str) if old_data else None
@@ -738,7 +808,6 @@ def log_audit(model_name: str, record_id: int, action: str, old_data: dict | Non
     db.session.add(entry)
     db.session.flush()
 
-# ============================== Payments & Forms ==============================
 
 def prepare_payment_form_choices(form, *, compat_post: bool = False, arabic_labels: bool = True):
     if hasattr(form, "currency"):
@@ -814,19 +883,18 @@ def update_entity_balance(entity: str, eid: int) -> float:
     return float(total)
 
 
-# ============================== Auth Decorators ==============================
-
 def customer_required(f):
     @login_required
     @wraps(f)
     def wrapper(*args, **kwargs):
         from models import Customer
-        if not isinstance(current_user, Customer): abort(403)
-        if "place_online_order" not in _get_user_permissions(current_user): abort(403)
+        if not isinstance(current_user, Customer):
+            abort(403)
+        if "place_online_order" not in _get_user_permissions(current_user):
+            abort(403)
         return f(*args, **kwargs)
     return wrapper
 
-# ============================== Card Utilities ==============================
 
 def luhn_check(card_number: str) -> bool:
     if not card_number:
