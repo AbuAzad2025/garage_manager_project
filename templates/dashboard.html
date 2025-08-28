@@ -10,7 +10,7 @@
 
   <div class="row mb-3">
     <div class="col-12 d-flex flex-wrap gap-2 justify-content-end">
-      {% if shop_is_super_admin or has_perm('view_shop') %}
+      {% if shop_is_super_admin %}
       <a href="{{ url_for('shop.catalog') }}" target="_blank" class="btn btn-sm btn-outline-light bg-primary me-2">
         <i class="fas fa-store"></i> المتجر
       </a>
@@ -20,7 +20,7 @@
         <i class="fas fa-database"></i> النسخ الاحتياطي
       </a>
       {% endif %}
-      {% if shop_is_super_admin or has_perm('restore_database') %}
+      {% if shop_is_super_admin %}
       <a href="{{ url_for('main.restore_db') }}" class="btn btn-sm btn-outline-light bg-warning text-dark">
         <i class="fas fa-upload"></i> استعادة النسخ
       </a>

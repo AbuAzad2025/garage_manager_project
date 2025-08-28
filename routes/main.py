@@ -134,33 +134,49 @@ def backup_db():
 
     uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
     ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    if uri.startswith("sqlite:///"):
-        db_path = uri.replace("sqlite:///", "")
-        if db_path in (":memory:", "") or not os.path.exists(db_path):
-            raw = db.engine.raw_connection()
-            out_path = os.path.join(current_app.instance_path, f"backup_{ts}.sql")
-            os.makedirs(current_app.instance_path, exist_ok=True)
-            try:
-                with open(out_path, "w", encoding="utf-8") as f:
-                    for line in raw.iterdump():
-                        f.write(f"{line}\n")
-            finally:
-                raw.close()
-            return send_file(out_path, as_attachment=True, download_name=f"backup_{ts}.sql")
-        out_path = os.path.join(current_app.instance_path, f"backup_{ts}.db")
-        os.makedirs(current_app.instance_path, exist_ok=True)
-        db.session.commit()
-        src = sqlite3.connect(db_path)
-        dst = sqlite3.connect(out_path)
-        try:
-            src.backup(dst)
-        finally:
-            src.close()
-            dst.close()
-        return send_file(out_path, as_attachment=True, download_name=os.path.basename(out_path))
-    flash("قاعدة البيانات ليست SQLite.", "warning")
-    return redirect(url_for("main.dashboard")), 303
 
+    db_dir = current_app.config.get("BACKUP_DB_DIR")
+    sql_dir = current_app.config.get("BACKUP_SQL_DIR")
+    os.makedirs(db_dir, exist_ok=True)
+    os.makedirs(sql_dir, exist_ok=True)
+
+    if not uri.startswith("sqlite:///"):
+        flash("قاعدة البيانات ليست SQLite.", "warning")
+        return redirect(url_for("main.dashboard")), 303
+
+    db_path = uri.replace("sqlite:///", "")
+    if not db_path or not os.path.exists(db_path):
+        raw = db.engine.raw_connection()
+        sql_path = os.path.join(sql_dir, f"backup_{ts}.sql")
+        try:
+            with open(sql_path, "w", encoding="utf-8") as f:
+                for line in raw.iterdump():
+                    f.write(f"{line}\n")
+        finally:
+            raw.close()
+        return send_file(sql_path, as_attachment=True, download_name=os.path.basename(sql_path))
+
+    db_out = os.path.join(db_dir, f"backup_{ts}.db")
+    sql_out = os.path.join(sql_dir, f"backup_{ts}.sql")
+
+    db.session.commit()
+    src = sqlite3.connect(db_path)
+    dst = sqlite3.connect(db_out)
+    try:
+        src.backup(dst)
+    finally:
+        src.close()
+        dst.close()
+
+    conn = sqlite3.connect(db_path)
+    try:
+        with open(sql_out, "w", encoding="utf-8") as f:
+            for line in conn.iterdump():
+                f.write(f"{line}\n")
+    finally:
+        conn.close()
+
+    return send_file(db_out, as_attachment=True, download_name=os.path.basename(db_out))
 
 @main_bp.route("/restore_db", methods=["GET", "POST"], endpoint="restore_db")
 @login_required

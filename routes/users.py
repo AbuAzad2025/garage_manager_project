@@ -246,41 +246,32 @@ def delete_user(user_id):
     if user.email == current_app.config.get("DEV_EMAIL", "rafideen.ahmadghannam@gmail.com"):
         flash("❌ لا يمكن حذف حساب المطور الأساسي.", "danger")
         return redirect(url_for("users_bp.list_users"))
+
     try:
         old_data = f"{user.username},{user.email}"
-        with db.session.begin():
-            user.extra_permissions = []
-            db.session.flush()
-            db.session.delete(user)
-            db.session.add(AuditLog(
-                model_name="User",
-                record_id=user_id,
-                user_id=current_user.id,
-                action="DELETE",
-                old_data=old_data,
-                new_data=""
-            ))
+
+        user.extra_permissions = []
+        db.session.flush()
+        db.session.delete(user)
+
+        db.session.add(AuditLog(
+            model_name="User",
+            record_id=user_id,
+            user_id=current_user.id,
+            action="DELETE",
+            old_data=old_data,
+            new_data=""
+        ))
+
+        db.session.commit()
         clear_user_permission_cache(user_id)
         flash("تم حذف المستخدم.", "warning")
+
     except IntegrityError:
         db.session.rollback()
         flash("لا يمكن حذف المستخدم لوجود معاملات مرتبطة به.", "danger")
     except Exception as e:
         db.session.rollback()
         flash(f"حدث خطأ أثناء الحذف: {e}", "danger")
-    return redirect(url_for("users_bp.list_users"))
 
-@users_bp.route("/register", methods=["GET"])
-@login_required
-@permission_required("manage_users")
-def internal_register():
-    form = UserForm()
-    all_permissions = Permission.query.order_by(Permission.name).all()
-    return render_template(
-        "users/form.html",
-        form=form,
-        action="create",
-        user_id=None,
-        all_permissions=all_permissions,
-        selected_perm_ids=[],
-    )
+    return redirect(url_for("users_bp.list_users"))

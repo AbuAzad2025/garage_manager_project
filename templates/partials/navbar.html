@@ -6,7 +6,7 @@
       </a>
     </li>
 
-    {% if current_user.is_authenticated and (shop_is_super_admin or has_perm('view_shop')) %}
+    {% if current_user.is_authenticated and shop_is_super_admin %}
     <li class="nav-item">
       <a class="nav-link" href="{{ url_for('shop.catalog') }}" target="_blank">
         <i class="fas fa-store"></i> المتجر
@@ -27,7 +27,7 @@
         </a>
 
         {% if has_perm('manage_users') or shop_is_super_admin %}
-        <a href="{{ url_for('users_bp.internal_register') }}" class="dropdown-item">
+        <a href="{{ url_for('users_bp.create_user') }}" class="dropdown-item">
           <i class="fas fa-user-plus mr-2"></i> إضافة مستخدم
         </a>
         {% endif %}

@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import os, sqlite3, glob
+from datetime import datetime
+from apscheduler.schedulers.background import BackgroundScheduler
+
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_login import LoginManager
@@ -38,6 +42,8 @@ limiter = Limiter(
     default_limits=[],
 )
 
+scheduler = BackgroundScheduler()
+
 @event.listens_for(Engine, "connect")
 def _sqlite_pragmas_on_connect(dbapi_connection, connection_record):
     try:
@@ -51,6 +57,60 @@ def _sqlite_pragmas_on_connect(dbapi_connection, connection_record):
             cur.close()
     except Exception:
         pass
+
+def perform_backup_db(app):
+    uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if not uri.startswith("sqlite:///"):
+        return
+    db_path = uri.replace("sqlite:///", "")
+    if not os.path.exists(db_path):
+        return
+    backup_dir = app.config.get("BACKUP_DB_DIR")
+    os.makedirs(backup_dir, exist_ok=True)
+    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    backup_path = os.path.join(backup_dir, f"backup_{ts}.db")
+    src = sqlite3.connect(db_path)
+    dst = sqlite3.connect(backup_path)
+    try:
+        src.backup(dst)
+    finally:
+        src.close()
+        dst.close()
+    keep_last = app.config.get("BACKUP_KEEP_LAST", 5)
+    backups = sorted(glob.glob(os.path.join(backup_dir, "backup_*.db")))
+    if len(backups) > keep_last:
+        for old in backups[:-keep_last]:
+            try:
+                os.remove(old)
+            except Exception:
+                pass
+
+def perform_backup_sql(app):
+    uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if not uri.startswith("sqlite:///"):
+        return
+    db_path = uri.replace("sqlite:///", "")
+    if not os.path.exists(db_path):
+        return
+    backup_dir = app.config.get("BACKUP_SQL_DIR")
+    os.makedirs(backup_dir, exist_ok=True)
+    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    backup_path = os.path.join(backup_dir, f"backup_{ts}.sql")
+    conn = sqlite3.connect(db_path)
+    try:
+        with open(backup_path, "w", encoding="utf-8") as f:
+            for line in conn.iterdump():
+                f.write(f"{line}\n")
+    finally:
+        conn.close()
+    keep_last = app.config.get("BACKUP_KEEP_LAST", 5)
+    backups = sorted(glob.glob(os.path.join(backup_dir, "backup_*.sql")))
+    if len(backups) > keep_last:
+        for old in backups[:-keep_last]:
+            try:
+                os.remove(old)
+            except Exception:
+                pass
 
 def init_extensions(app):
     db.init_app(app)
@@ -103,3 +163,7 @@ def init_extensions(app):
             except Exception:
                 return False
             return False
+
+    scheduler.add_job(lambda: perform_backup_db(app), "interval", seconds=app.config.get("BACKUP_DB_INTERVAL").total_seconds(), id="db_backup", replace_existing=True)
+    scheduler.add_job(lambda: perform_backup_sql(app), "interval", seconds=app.config.get("BACKUP_SQL_INTERVAL").total_seconds(), id="sql_backup", replace_existing=True)
+    scheduler.start()

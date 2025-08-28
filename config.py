@@ -3,6 +3,9 @@ from datetime import timedelta
 from dotenv import load_dotenv
 
 basedir = os.path.abspath(os.path.dirname(__file__))
+instance_dir = os.path.join(basedir, "instance")
+os.makedirs(instance_dir, exist_ok=True)
+
 load_dotenv(os.path.join(basedir, ".env"))
 load_dotenv(os.path.join(basedir, ".env.txt"))
 
@@ -47,7 +50,7 @@ class Config:
         raise RuntimeError("SECRET_KEY must be set in production")
     HOST = os.environ.get("HOST", "127.0.0.1")
     PORT = _int("PORT", 5000)
-    _db_uri = os.environ.get("DATABASE_URL") or f"sqlite:///{os.path.join(basedir, 'app.db')}"
+    _db_uri = os.environ.get("DATABASE_URL") or f"sqlite:///{os.path.join(instance_dir, 'app.db')}"
     if _db_uri.startswith("postgres://"):
         _db_uri = _db_uri.replace("postgres://", "postgresql://", 1)
     SQLALCHEMY_DATABASE_URI = _db_uri
@@ -112,3 +115,10 @@ class Config:
     ADMIN_USER_EMAILS = os.environ.get("ADMIN_USER_EMAILS", "")
     ADMIN_USER_IDS = os.environ.get("ADMIN_USER_IDS", "")
     PERMISSIONS_REQUIRE_ALL = _bool(os.environ.get("PERMISSIONS_REQUIRE_ALL"), False)
+
+    BACKUP_DIR = os.environ.get("BACKUP_DIR", os.path.join(instance_dir, "backups"))
+    BACKUP_DB_DIR = os.path.join(BACKUP_DIR, "db")
+    BACKUP_SQL_DIR = os.path.join(BACKUP_DIR, "sql")
+    BACKUP_KEEP_LAST = _int("BACKUP_KEEP_LAST", 5)
+    BACKUP_DB_INTERVAL = timedelta(hours=1)
+    BACKUP_SQL_INTERVAL = timedelta(hours=24)
