@@ -52,6 +52,93 @@ def _get_or_404(model, ident, options=None):
         abort(404)
     return obj
 
+def _log_service_stock_action(service, action: str, items: list[dict]) -> None:
+    try:
+        payload = {"items": items or []}
+        entry = AuditLog(
+            created_at=datetime.utcnow(),
+            model_name="ServiceRequest",
+            record_id=service.id,
+            customer_id=getattr(service, "customer_id", None),
+            user_id=(current_user.id if getattr(current_user, "is_authenticated", False) else None),
+            action=(action or "").strip().upper(),
+            old_data=None,
+            new_data=json.dumps(payload, ensure_ascii=False, default=str),
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get("User-Agent", ""),
+        )
+        db.session.add(entry)
+    except Exception:
+        pass
+
+def _has_stock_action(service, action: str) -> bool:
+    if not service or not getattr(service, "id", None):
+        return False
+    q = (
+        db.session.query(AuditLog.id)
+        .filter(
+            AuditLog.model_name == "ServiceRequest",
+            AuditLog.record_id == service.id,
+            AuditLog.action == (action or "").strip().upper(),
+        )
+        .limit(1)
+    )
+    return bool(db.session.execute(q).first())
+
+def _consume_service_stock_once(service) -> bool:
+    if not _service_consumes_stock(service):
+        return False
+    if _has_stock_action(service, "STOCK_CONSUME"):
+        return False
+    items = []
+    for p in list(service.parts or []):
+        qty = -int(p.quantity or 0)
+        new_qty = _apply_stock_delta(p.part_id, p.warehouse_id, qty)
+        items.append({
+            "part_id": p.part_id,
+            "warehouse_id": p.warehouse_id,
+            "qty": qty,
+            "stock_after": int(new_qty),
+        })
+    _log_service_stock_action(service, "STOCK_CONSUME", items)
+    current_app.logger.info(
+        "service.stock_consume",
+        extra={
+            "event": "service.stock.consume",
+            "service_id": service.id,
+            "items": [{"part_id": i["part_id"], "warehouse_id": i["warehouse_id"], "qty": i["qty"]} for i in items],
+        },
+    )
+    return True
+
+def _release_service_stock_once(service) -> bool:
+    if not _service_consumes_stock(service):
+        return False
+    if not _has_stock_action(service, "STOCK_CONSUME"):
+        return False
+    if _has_stock_action(service, "STOCK_RELEASE"):
+        return False
+    items = []
+    for p in list(service.parts or []):
+        qty = +int(p.quantity or 0)
+        new_qty = _apply_stock_delta(p.part_id, p.warehouse_id, qty)
+        items.append({
+            "part_id": p.part_id,
+            "warehouse_id": p.warehouse_id,
+            "qty": qty,
+            "stock_after": int(new_qty),
+        })
+    _log_service_stock_action(service, "STOCK_RELEASE", items)
+    current_app.logger.info(
+        "service.stock_release",
+        extra={
+            "event": "service.stock.release",
+            "service_id": service.id,
+            "items": [{"part_id": i["part_id"], "warehouse_id": i["warehouse_id"], "qty": i["qty"]} for i in items],
+        },
+    )
+    return True
+
 STATUS_LABELS = {
     'PENDING': 'معلق',
     'DIAGNOSIS': 'تشخيص',
@@ -458,7 +545,6 @@ def update_diagnosis(rid):
 @permission_required('manage_service')
 def toggle_service(rid, action):
     service = _get_or_404(ServiceRequest, rid)
-    old_consumes = _service_consumes_stock(service)
     try:
         if action == 'start':
             if not getattr(service, "started_at", None):
@@ -471,13 +557,7 @@ def toggle_service(rid, action):
             service.status = ServiceStatus.COMPLETED
         else:
             abort(400)
-
-        new_consumes = _service_consumes_stock(service)
-
-        if not old_consumes and new_consumes:
-            for p in service.parts or []:
-                _apply_stock_delta(p.part_id, p.warehouse_id, -int(p.quantity or 0))
-
+        _consume_service_stock_once(service)
         db.session.commit()
         if action == 'complete' and service.customer and service.customer.phone:
             send_whatsapp_message(service.customer.phone, f"تم إكمال صيانة المركبة {service.vehicle_vrn}.")
@@ -516,7 +596,23 @@ def add_part(rid):
             db.session.flush()
             service.updated_at = datetime.utcnow()
             if _service_consumes_stock(service):
-                _apply_stock_delta(product_id, warehouse_id, -int(form.quantity.data or 0))
+                new_qty = _apply_stock_delta(product_id, warehouse_id, -int(form.quantity.data or 0))
+                _log_service_stock_action(service, "STOCK_CONSUME_PART", [{
+                    "part_id": product_id,
+                    "warehouse_id": warehouse_id,
+                    "qty": -int(form.quantity.data or 0),
+                    "stock_after": int(new_qty),
+                }])
+                current_app.logger.info(
+                    "service.part_add",
+                    extra={
+                        "event": "service.part.add",
+                        "service_id": service.id,
+                        "part_id": product_id,
+                        "warehouse_id": warehouse_id,
+                        "qty": -int(form.quantity.data or 0),
+                    },
+                )
             db.session.commit()
             flash('✅ تمت إضافة القطعة ومعالجة المخزون', 'success')
         except ValueError as ve:
@@ -536,7 +632,23 @@ def delete_part(pid):
     service = _get_or_404(ServiceRequest, rid)
     try:
         if _service_consumes_stock(service):
-            _apply_stock_delta(part.part_id, part.warehouse_id, +int(part.quantity or 0))
+            new_qty = _apply_stock_delta(part.part_id, part.warehouse_id, +int(part.quantity or 0))
+            _log_service_stock_action(service, "STOCK_RELEASE_PART", [{
+                "part_id": part.part_id,
+                "warehouse_id": part.warehouse_id,
+                "qty": +int(part.quantity or 0),
+                "stock_after": int(new_qty),
+            }])
+            current_app.logger.info(
+                "service.part_delete",
+                extra={
+                    "event": "service.part.delete",
+                    "service_id": service.id,
+                    "part_id": part.part_id,
+                    "warehouse_id": part.warehouse_id,
+                    "qty": +int(part.quantity or 0),
+                },
+            )
         db.session.delete(part)
         service.updated_at = datetime.utcnow()
         db.session.commit()
@@ -635,9 +747,7 @@ def delete_request(rid):
     service = _get_or_404(ServiceRequest, rid)
     try:
         with db.session.begin():
-            if _service_consumes_stock(service):
-                for part in list(service.parts or ()):
-                    _apply_stock_delta(part.part_id, part.warehouse_id, +int(part.quantity or 0))
+            _release_service_stock_once(service)
             db.session.delete(service)
         flash('✅ تم حذف الطلب ومعالجة المخزون', 'success')
     except SQLAlchemyError as e:

@@ -33,9 +33,16 @@
   </div>
   {% endif %}
 
-  <form method="POST" id="paymentForm">
+  {# ملاحظة: نحدد action صراحة، ونوقف autocomplete لتقليل أخطاء المتصفح #}
+  <form method="POST" id="paymentForm" action="{{ url_for('payments.create_payment') }}" autocomplete="off">
     {{ form.hidden_tag() }}
-    {{ form.entity_id(id="entity_id") }}
+    {# لو بدك تعرض entity_id صريحاً، احذفه من hidden_tag أولاً. بما أنه hidden_tag يطبع الحقول المخفية كلها، لا نكررها هنا. #}
+    {# {{ form.entity_id(id="entity_id") }} #}
+
+    {# تأكيد وجود request_token صريحاً في حال تغيّر سلوك hidden_tag #}
+    {% if form.request_token is not none %}
+      {{ form.request_token }}
+    {% endif %}
 
     <div class="row">
       <div class="col-md-6">
@@ -60,7 +67,7 @@
 
                 {% else %}
                   {% if field.name == "total_amount" %}
-                    {{ field(class="form-control", step="0.01") }}
+                    {{ field(class="form-control", step="0.01", min="0") }}
                   {% else %}
                     {{ field(class="form-control") }}
                   {% endif %}
@@ -104,7 +111,8 @@
           </div>
         {% endif %}
 
-        <div id="splitsContainer">
+        {# نحط الحد الأقصى كـ data-attribute ليقرأه الجافاسكربت #}
+        <div id="splitsContainer" data-max-splits="3">
           {% for split in form.splits %}
           <div class="split-form border p-3 mb-3 rounded" data-index="{{ loop.index0 }}">
             <h5>الدفعة الجزئية #{{ loop.index }}</h5>
@@ -119,7 +127,7 @@
               </div>
               <div class="col-md-4">
                 {{ split.amount.label(class="form-label") }}
-                {{ split.amount(class="form-control", step="0.01") }}
+                {{ split.amount(class="form-control", step="0.01", min="0") }}
                 {% for e in split.amount.errors %}
                   <div class="text-danger small">{{ e }}</div>
                 {% endfor %}

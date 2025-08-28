@@ -11,7 +11,7 @@ from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 from flask_wtf import FlaskForm
 
-from extensions import db
+from extensions import db, csrf
 from forms import AddToOnlineCartForm, ProductForm
 from models import (
     Customer, OnlineCart, OnlineCartItem, OnlinePreOrder, OnlinePreOrderItem, OnlinePayment,
@@ -153,6 +153,76 @@ def online_customer_required(f):
 
 def get_active_cart(customer_id):
     return OnlineCart.query.filter_by(customer_id=customer_id, status="ACTIVE").first()
+
+
+# ===========================================================
+# Gateway Adapter Layer (بسيطة وبدون اعتماد خارجي الآن)
+# ===========================================================
+class GatewayAdapter:
+    name = "base"
+    def authorize_capture(self, *, preorder: OnlinePreOrder, amount: float, currency: str):
+        raise NotImplementedError
+    def refund(self, op: OnlinePayment) -> dict:
+        raise NotImplementedError
+    def handle_webhook(self, request) -> dict:
+        raise NotImplementedError
+
+
+class BlooprintAdapter(GatewayAdapter):
+    name = "blooprint"
+    def authorize_capture(self, *, preorder: OnlinePreOrder, amount: float, currency: str):
+        form = request.form
+        raw  = _json_loads(form.get("transaction_data", "")) or {}
+        status = "SUCCESS" if amount > 0 else "PENDING"
+        return {
+            "success": amount > 0,
+            "status": status,
+            "txn_id": (raw.get("transaction_id") or f"TXN-{uuid.uuid4().hex[:10]}"),
+            "card_last4": (form.get("card_last4") or raw.get("card_last4")),
+            "card_expiry": (form.get("card_expiry") or raw.get("card_expiry")),
+            "cardholder_name": (form.get("cardholder_name") or raw.get("cardholder_name")),
+            "card_brand": (form.get("card_brand") or raw.get("card_brand")),
+            "card_fingerprint": (form.get("card_fingerprint") or raw.get("card_fingerprint")),
+            "raw": raw,
+        }
+    def refund(self, op: OnlinePayment) -> dict:
+        return {"success": True, "status": "REFUNDED"}
+    def handle_webhook(self, request) -> dict:
+        secret = current_app.config.get("BLOOPRINT_WEBHOOK_SECRET") or ""
+        sig = (request.headers.get("X-Blooprint-Signature") or "").strip()
+        if secret and sig != secret:
+            return {"ok": False, "error": "invalid_signature"}
+        payload = request.get_json(silent=True) or {}
+        ref = (payload.get("payment_ref") or "").strip()
+        new_status = (payload.get("status") or "").strip().upper()
+        if not ref or new_status not in {"SUCCESS","FAILED","REFUNDED"}:
+            return {"ok": False, "error": "bad_payload"}
+        op = OnlinePayment.query.filter_by(payment_ref=ref).first()
+        if not op:
+            return {"ok": False, "error": "payment_not_found"}
+        op.status = new_status
+        op.card_last4 = payload.get("card_last4") or op.card_last4
+        op.card_brand = payload.get("card_brand") or op.card_brand
+        op.cardholder_name = payload.get("cardholder_name") or op.cardholder_name
+        op.transaction_data = payload
+        db.session.add(op)
+        db.session.commit()
+        return {"ok": True, "payment_id": op.id, "status": op.status}
+
+
+_GATEWAYS = {"blooprint": BlooprintAdapter()}
+def _get_adapter(name: str | None = None) -> GatewayAdapter:
+    gname = (name or current_app.config.get("ONLINE_GATEWAY_DEFAULT") or "blooprint").lower()
+    return _GATEWAYS.get(gname, _GATEWAYS["blooprint"])
+
+
+@shop_bp.route("/webhook/<gateway>", methods=["POST"], endpoint="gateway_webhook")
+@csrf.exempt
+def gateway_webhook(gateway: str):
+    adp = _get_adapter(gateway)
+    result = adp.handle_webhook(request)
+    code = 200 if result.get("ok") else 400
+    return jsonify(result), code
 
 
 @shop_bp.route("/", endpoint="catalog")
@@ -360,24 +430,35 @@ def checkout():
                         )
                     )
 
+                payment_ref = f"PAY-{uuid.uuid4().hex[:8].upper()}"
                 op = OnlinePayment(
-                    payment_ref=f"PAY-{uuid.uuid4().hex[:8].upper()}",
+                    payment_ref=payment_ref,
                     order_id=preorder.id,
                     amount=prepaid,
                     currency=getattr(g.online_customer, "currency", "ILS"),
                     method="card",
-                    gateway="ONLINE",
-                    status="SUCCESS" if prepaid > 0 else "PENDING",
+                    gateway=(current_app.config.get("ONLINE_GATEWAY_DEFAULT") or "blooprint").lower(),
+                    status="PENDING",
                     transaction_data=_json_loads(request.form.get("transaction_data", "")),
-                    card_last4=(request.form.get("card_last4") or "").strip() or None,
-                    card_expiry=(request.form.get("card_expiry") or "").strip() or None,
-                    cardholder_name=(request.form.get("cardholder_name") or "").strip() or None,
-                    card_brand=(request.form.get("card_brand") or "").strip() or None,
-                    card_fingerprint=(request.form.get("card_fingerprint") or "").strip() or None,
                 )
                 db.session.add(op)
+                db.session.flush()
 
-                if prepaid > 0:
+                adp = _get_adapter(op.gateway)
+                res = adp.authorize_capture(preorder=preorder, amount=float(prepaid or 0), currency=op.currency)
+                if res.get("success"):
+                    op.status = res.get("status") or "SUCCESS"
+                    op.transaction_data = res.get("raw") or op.transaction_data
+                    op.card_last4 = res.get("card_last4") or op.card_last4
+                    op.card_expiry = res.get("card_expiry") or op.card_expiry
+                    op.cardholder_name = res.get("cardholder_name") or op.cardholder_name
+                    op.card_brand = res.get("card_brand") or op.card_brand
+                    op.card_fingerprint = res.get("card_fingerprint") or op.card_fingerprint
+                else:
+                    op.status = "FAILED" if prepaid > 0 else "PENDING"
+                db.session.add(op)
+
+                if prepaid > 0 and op.status == "SUCCESS":
                     db.session.add(
                         Payment(
                             entity_type=PaymentEntityType.CUSTOMER.value,
@@ -397,10 +478,11 @@ def checkout():
 
             try:
                 if getattr(g.online_customer, "phone", None):
-                    send_whatsapp_message(
-                        g.online_customer.phone,
-                        f"✅ تم تأكيد طلبك {preorder.order_number} بقيمة عربون {prepaid} {getattr(g.online_customer,'currency','ILS')}"
-                    )
+                    if prepaid > 0 and op.status == "SUCCESS":
+                        send_whatsapp_message(
+                            g.online_customer.phone,
+                            f"✅ تم تأكيد طلبك {preorder.order_number} وإتمام الدفع بنجاح. تم دفع عربون {prepaid} {getattr(g.online_customer,'currency','ILS')}"
+                        )
             except Exception:
                 pass
 
@@ -523,3 +605,23 @@ def admin_product_delete(pid):
         db.session.rollback()
         flash(f"خطأ: {e}", "danger")
     return redirect(url_for("shop.admin_products"))
+
+
+@shop_bp.route("/payments/<int:op_id>/refund", methods=["POST"], endpoint="refund_payment")
+@super_admin_required
+def refund_payment(op_id: int):
+    op = _get_or_404(OnlinePayment, op_id)
+    if op.status != "SUCCESS":
+        return _resp("لا يمكن استرجاع عملية غير ناجحة.", "warning", to="shop.admin_preorders")
+    adp = _get_adapter(op.gateway)
+    res = adp.refund(op)
+    if not res.get("success"):
+        return _resp("تعذر تنفيذ الاسترجاع.", "danger", to="shop.admin_preorders")
+    try:
+        with db.session.begin():
+            op.status = "REFUNDED"
+            db.session.add(op)
+        return _resp("✅ تم استرجاع الدفعة.", "success", to="shop.admin_preorders")
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return _resp(f"خطأ أثناء الاسترجاع: {e}", "danger", to="shop.admin_preorders")

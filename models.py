@@ -1527,6 +1527,41 @@ class StockLevel(db.Model, TimestampMixin):
     def last_updated(self):
         return self.updated_at
 
+class ImportRun(db.Model, TimestampMixin):
+    __tablename__ = "import_runs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    warehouse_id = db.Column(
+        db.Integer, db.ForeignKey("warehouses.id", ondelete="SET NULL"), index=True
+    )
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
+
+    filename = db.Column(db.String(255))
+    file_sha256 = db.Column(db.String(64))
+    dry_run = db.Column(db.Boolean, nullable=False, default=False, index=True)
+
+    inserted = db.Column(db.Integer, nullable=False, default=0)
+    updated = db.Column(db.Integer, nullable=False, default=0)
+    skipped = db.Column(db.Integer, nullable=False, default=0)
+    errors = db.Column(db.Integer, nullable=False, default=0)
+    duration_ms = db.Column(db.Integer, nullable=False, default=0)
+
+    report_path = db.Column(db.String(255))
+    notes = db.Column(db.String(255))
+    meta = db.Column(db.JSON, default=dict)
+
+    warehouse = db.relationship("Warehouse", backref=db.backref("import_runs", lazy="dynamic"))
+    user = db.relationship("User", backref=db.backref("import_runs", lazy="dynamic"))
+
+    __table_args__ = (
+        db.Index("ix_import_runs_wh_dryrun_dt", "warehouse_id", "dry_run", "created_at"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<ImportRun id={self.id} wh={self.warehouse_id} dry={self.dry_run} ins={self.inserted} upd={self.updated} skp={self.skipped} err={self.errors}>"
+
 # ---------- Stock helpers (atomic) ----------
 def _ensure_stock_row(connection, product_id: int, warehouse_id: int):
     row = connection.execute(

@@ -1,9 +1,19 @@
-// static/js/payment_form.js
 document.addEventListener('DOMContentLoaded', function () {
-  const MAX_SPLITS = 3;
-  const METHOD_FIELDS = { "": [], cash: [], online: [], cheque: ["check_number","check_bank","check_due_date"], bank: ["bank_transfer_ref"], card: ["card_number","card_holder","card_expiry"] };
-
   const container = document.getElementById('splitsContainer');
+  const MAX_SPLITS = parseInt(container?.dataset.maxSplits || '3', 10);
+  const METHOD_FIELDS = {
+    "": [],
+    cash: [],
+    online: [],
+    mobile: [],
+    cheque: ["check_number","check_bank","check_due_date"],
+    check: ["check_number","check_bank","check_due_date"],
+    bank: ["bank_transfer_ref"],
+    transfer: ["bank_transfer_ref"],
+    card: ["card_number","card_holder","card_expiry"],
+    credit: ["card_number","card_holder","card_expiry"]
+  };
+
   const addBtn = document.getElementById('addSplit');
   const form = document.getElementById('paymentForm');
   const template = container && container.querySelector('.split-form') ? container.querySelector('.split-form').cloneNode(true) : null;
@@ -11,24 +21,44 @@ document.addEventListener('DOMContentLoaded', function () {
   const totalInput = document.querySelector('[name="total_amount"]');
   const entityTypeSelect = document.querySelector('[name="entity_type"]');
 
+  function normalizeMethod(val) {
+    if (!val) return '';
+    val = String(val).toLowerCase().trim();
+    if (val.includes('cheq') || val === 'check' || val === 'cheque') return 'cheque';
+    if (val.includes('bank') || val.includes('transfer')) return 'bank';
+    if (val.includes('card') || val.includes('credit') || val.includes('visa') || val.includes('master')) return 'card';
+    if (val.includes('cash')) return 'cash';
+    if (val.includes('mobile')) return 'mobile';
+    if (val.includes('online')) return 'online';
+    return val;
+  }
+
   function ensurePlaceholderOption(select) {
     if (!select) return;
     if (!select.options.length || select.options[0].value !== '') {
       const opt = document.createElement('option');
       opt.value = '';
       opt.textContent = '— اختر الطريقة —';
+      opt.disabled = true;
+      opt.selected = !select.value;
       select.insertBefore(opt, select.firstChild);
+    } else {
+      select.options[0].disabled = true;
+      if (!select.value) select.selectedIndex = 0;
     }
   }
+
   function toggleAddBtn() {
     if (!container || !addBtn) return;
     const count = container.querySelectorAll('.split-form').length;
     addBtn.disabled = count >= MAX_SPLITS;
   }
+
   function applyDetailsForRow(row, method) {
     const details = row.querySelector('.split-details');
     if (!details) return;
-    const want = new Set(METHOD_FIELDS[method] || []);
+    const key = normalizeMethod(method);
+    const want = new Set(METHOD_FIELDS[key] || []);
     let anyShown = false;
     details.querySelectorAll('[data-field]').forEach(wrap => {
       const field = wrap.dataset.field;
@@ -36,12 +66,18 @@ document.addEventListener('DOMContentLoaded', function () {
       const inp = wrap.querySelector('input,select,textarea');
       wrap.style.display = show ? '' : 'none';
       if (inp) {
-        if (show) { inp.disabled = false; } else { inp.value = ''; inp.disabled = true; }
+        if (show) {
+          inp.disabled = false;
+        } else {
+          inp.value = '';
+          inp.disabled = true;
+        }
       }
       if (show) anyShown = true;
     });
     details.style.display = anyShown ? 'block' : 'none';
   }
+
   function renumberRowFields(row, i) {
     row.dataset.index = i;
     const title = row.querySelector('h5');
@@ -53,21 +89,26 @@ document.addEventListener('DOMContentLoaded', function () {
       inp.id = `splits-${i}-${field}`;
     });
     const sel = row.querySelector('select[name$="-method"]');
-    if (sel) { ensurePlaceholderOption(sel); if (!sel.value) sel.selectedIndex = 0; }
+    if (sel) {
+      ensurePlaceholderOption(sel);
+      if (!sel.value) sel.selectedIndex = 0;
+    }
     const btn = row.querySelector('.remove-split');
     if (btn) btn.disabled = (i === 0);
   }
+
   function refreshSplits() {
     if (!container) return;
     container.querySelectorAll('.split-form').forEach((el, i) => {
       renumberRowFields(el, i);
       const sel = el.querySelector('select[name$="-method"]');
-      const method = (sel && sel.value ? sel.value : '').toLowerCase();
+      const method = (sel && sel.value ? sel.value : '');
       applyDetailsForRow(el, method);
     });
     toggleAddBtn();
     updateSplitSumHint();
   }
+
   function createSplitElement() {
     if (!container || !template) return null;
     const idx = container.querySelectorAll('.split-form').length;
@@ -81,6 +122,7 @@ document.addEventListener('DOMContentLoaded', function () {
     renumberRowFields(clone, idx);
     return clone;
   }
+
   function updateSplitSumHint() {
     if (!container || !totalInput) return;
     const hint = document.getElementById('splitSum') || (() => {
@@ -110,6 +152,7 @@ document.addEventListener('DOMContentLoaded', function () {
       refreshSplits();
     });
   }
+
   if (container) {
     container.addEventListener('click', e => {
       if (e.target.matches('.remove-split')) {
@@ -123,22 +166,26 @@ document.addEventListener('DOMContentLoaded', function () {
     container.addEventListener('change', e => {
       if (e.target.matches('select[name$="-method"]')) {
         const row = e.target.closest('.split-form');
-        const method = (e.target.value || '').toLowerCase();
+        const method = (e.target.value || '');
         applyDetailsForRow(row, method);
       }
       if (e.target.matches('[name$="-amount"]')) updateSplitSumHint();
     });
+    container.addEventListener('input', e => {
+      if (e.target.matches('[name$="-amount"]')) updateSplitSumHint();
+    });
     container.querySelectorAll('.split-form select[name$="-method"]').forEach(sel => {
       ensurePlaceholderOption(sel);
-      applyDetailsForRow(sel.closest('.split-form'), (sel.value || '').toLowerCase());
+      applyDetailsForRow(sel.closest('.split-form'), (sel.value || ''));
     });
   }
+
   if (totalInput) totalInput.addEventListener('input', updateSplitSumHint);
 
   function reloadEntityFields() {
     if (!entityTypeSelect || !entityWrap) return;
     const type = entityTypeSelect.value || '';
-    const eidEl = document.getElementById('entity_id');
+    const eidEl = document.getElementById('entity_id') || entityWrap.querySelector('input[name="entity_id"]');
     const eid = eidEl ? (eidEl.value || '') : '';
     if (!type) {
       entityWrap.innerHTML = '<div class="text-muted">اختر نوع الجهة أولاً.</div>';
@@ -152,9 +199,11 @@ document.addEventListener('DOMContentLoaded', function () {
       })
       .catch(() => {});
   }
+
   if (entityTypeSelect) entityTypeSelect.addEventListener('change', reloadEntityFields);
 
   let autoSubmitting = false;
+
   if (form) {
     form.addEventListener('submit', async (e) => {
       const type = entityTypeSelect ? (entityTypeSelect.value || '').toUpperCase() : '';
@@ -188,6 +237,22 @@ document.addEventListener('DOMContentLoaded', function () {
       }
 
       if (!container) return;
+
+      let invalidSplit = null;
+      container.querySelectorAll('.split-form').forEach(el => {
+        const amountEl = el.querySelector('[name$="-amount"]');
+        const methodEl = el.querySelector('select[name$="-method"]');
+        const amount = parseFloat((amountEl && amountEl.value ? amountEl.value : '').replace(',', '.')) || 0;
+        const method = normalizeMethod(methodEl ? methodEl.value : '');
+        if (!invalidSplit && amount > 0 && !method) invalidSplit = el;
+      });
+      if (invalidSplit) {
+        e.preventDefault();
+        const mSel = invalidSplit.querySelector('select[name$="-method"]');
+        if (mSel) mSel.focus();
+        return;
+      }
+
       container.querySelectorAll('.split-form').forEach(el => {
         const amountEl = el.querySelector('[name$="-amount"]');
         const methodEl = el.querySelector('select[name$="-method"]');
@@ -200,6 +265,7 @@ document.addEventListener('DOMContentLoaded', function () {
           });
         }
       });
+
       container.querySelectorAll('.split-form').forEach(el => {
         const mEl = el.querySelector('[name$="-method"]');
         const aEl = el.querySelector('[name$="-amount"]');
@@ -207,10 +273,12 @@ document.addEventListener('DOMContentLoaded', function () {
         const a = aEl ? (aEl.value || '').trim() : '';
         if (!m && !a) el.remove();
       });
+
       container.querySelectorAll('.split-form').forEach(el => {
         const sel = el.querySelector('select[name$="-method"]');
-        applyDetailsForRow(el, (sel && sel.value ? sel.value : '').toLowerCase());
+        applyDetailsForRow(el, (sel && sel.value ? sel.value : ''));
       });
+
       refreshSplits();
     });
   }
@@ -228,24 +296,20 @@ document.addEventListener('DOMContentLoaded', function () {
   function wireAddButtons() {
     const root = document.getElementById('entityFields');
     if (!root) return;
-
     [
       { btn: '#addCustomerBtn', input: 'customer_search' },
       { btn: '#addSupplierBtn', input: 'supplier_search' },
-      { btn: '#addPartnerBtn',  input: 'partner_search'  },
+      { btn: '#addPartnerBtn',  input: 'partner_search'  }
     ].forEach(map => {
       const btn = root.querySelector(map.btn);
       const input = root.querySelector(`input[name="${map.input}"]`);
       if (!btn || !input) return;
-
       const base = btn.getAttribute('data-base-href') || btn.getAttribute('href');
       const ret = encodeURIComponent(window.location.pathname + window.location.search);
-
       const update = () => {
         const name = encodeURIComponent((input.value || '').trim());
         btn.href = `${base}?name=${name}&return_to=${ret}`;
       };
-
       input.addEventListener('input', update);
       update();
     });
@@ -279,6 +343,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.body.appendChild(menu);
       }
     }
+
     function renderMenu(input, hidden) {
       if (!menu) return;
       menu.innerHTML = '';
@@ -290,12 +355,10 @@ document.addEventListener('DOMContentLoaded', function () {
         a.addEventListener('click', e => { e.preventDefault(); pick(it, input, hidden); });
         menu.appendChild(a);
       });
-
       if (currentType === 'CUSTOMER') {
         const divider = document.createElement('div');
         divider.className = 'dropdown-divider';
         menu.appendChild(divider);
-
         const add = document.createElement('a');
         add.href = '#';
         add.className = 'dropdown-item';
@@ -308,22 +371,24 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         menu.appendChild(add);
       }
-
       const rect = input.getBoundingClientRect();
       menu.style.left = (window.scrollX + rect.left) + 'px';
       menu.style.top = (window.scrollY + rect.bottom) + 'px';
       menu.style.minWidth = rect.width + 'px';
     }
+
     function showMenu(list, input, hidden) {
       items = list || [];
       activeIndex = items.length ? 0 : -1;
       buildMenu();
       renderMenu(input, hidden);
     }
+
     function hideMenu() {
       if (menu) { menu.remove(); menu = null; }
       items = []; activeIndex = -1;
     }
+
     function pick(it, input, hidden) {
       const generic = document.querySelector('#entityFields input[name="entity_id"]');
       input.value = it.label || it.text || it.name || '';
@@ -338,7 +403,6 @@ document.addEventListener('DOMContentLoaded', function () {
       currentType = type;
       if (!input.id) input.id = `${type.toLowerCase()}_search`;
       input.setAttribute('autocomplete', 'off');
-
       input.addEventListener('input', () => {
         hidden.value = '';
         const generic = document.querySelector('#entityFields input[name="entity_id"]');
@@ -350,7 +414,6 @@ document.addEventListener('DOMContentLoaded', function () {
           .then(data => showMenu(normalizeResults(data), input, hidden))
           .catch(hideMenu);
       });
-
       input.addEventListener('keydown', e => {
         if (!menu || !items.length) return;
         if (e.key === 'ArrowDown') { e.preventDefault(); activeIndex = (activeIndex + 1) % items.length; renderMenu(input, hidden); }
@@ -358,7 +421,6 @@ document.addEventListener('DOMContentLoaded', function () {
         else if (e.key === 'Enter') { e.preventDefault(); const target = items[Math.max(0, activeIndex)]; if (target) pick(target, input, hidden); }
         else if (e.key === 'Escape') { hideMenu(); }
       });
-
       input.addEventListener('blur', () => { setTimeout(hideMenu, 120); });
     }
 

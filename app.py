@@ -1,6 +1,7 @@
 import os
+import uuid
 from datetime import datetime
-from flask import Flask, url_for, request, current_app, render_template
+from flask import Flask, url_for, request, current_app, render_template, g
 from werkzeug.routing import BuildError
 from flask_cors import CORS
 from flask_login import AnonymousUserMixin, current_user
@@ -9,7 +10,7 @@ from jinja2 import ChoiceLoader, FileSystemLoader
 from sqlalchemy import event
 
 from config import Config
-from extensions import db, migrate, login_manager, socketio, mail, csrf, limiter
+from extensions import db, migrate, login_manager, socketio, mail, csrf, limiter, setup_logging, setup_sentry
 from utils import (
     qr_to_base64,
     format_currency,
@@ -53,22 +54,6 @@ from routes.supplier_settlements import supplier_settlements_bp
 class MyAnonymousUser(AnonymousUserMixin):
     def has_permission(self, perm_name):
         return False
-
-def _init_sentry(app: Flask) -> None:
-    dsn = app.config.get("SENTRY_DSN")
-    if not dsn:
-        return
-    try:
-        import sentry_sdk
-        from sentry_sdk.integrations.flask import FlaskIntegration
-        sentry_sdk.init(
-            dsn=dsn,
-            integrations=[FlaskIntegration()],
-            traces_sample_rate=float(os.environ.get("SENTRY_TRACES", "0.0")),
-        )
-        app.logger.info("Sentry initialized.")
-    except ImportError:
-        app.logger.warning("Sentry SDK not installed; skipping Sentry init.")
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -188,14 +173,9 @@ def create_app(config_object=Config) -> Flask:
     )
     mail.init_app(app)
     utils_init_app(app)
-    _init_sentry(app)
 
-    if app.config.get("USE_PROXYFIX"):
-        try:
-            from werkzeug.middleware.proxy_fix import ProxyFix
-            app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
-        except Exception:
-            app.logger.warning("ProxyFix not available; set USE_PROXYFIX=False if unused.")
+    setup_logging(app)
+    setup_sentry(app)
 
     extra_template_paths = [
         os.path.join(app.root_path, "templates"),
@@ -327,7 +307,7 @@ def create_app(config_object=Config) -> Flask:
         read_perm="view_shop",
         write_perm="manage_shop",
         public_read=True,
-        exempt_prefixes=["/shop/admin"]
+        exempt_prefixes=["/shop/admin", "/shop/webhook"],
     )
     attach_acl(users_bp,           read_perm="manage_users",       write_perm="manage_users")
     attach_acl(customers_bp,       read_perm="manage_customers",   write_perm="manage_customers")
@@ -435,6 +415,39 @@ def create_app(config_object=Config) -> Flask:
                     db.session.commit()
             except Exception:
                 db.session.rollback()
+
+    @app.before_request
+    def _attach_request_id():
+        g.request_id = request.headers.get("X-Request-Id") or uuid.uuid4().hex
+
+    @app.after_request
+    def _emit_request_id(resp):
+        rid = getattr(g, "request_id", None)
+        if rid:
+            resp.headers["X-Request-Id"] = rid
+        return resp
+
+    @app.after_request
+    def _access_log(resp):
+        try:
+            app.logger.info(
+                "access",
+                extra={
+                    "event": "http.access",
+                    "method": request.method,
+                    "path": request.path,
+                    "status": resp.status_code,
+                    "remote_ip": request.headers.get("X-Forwarded-For", request.remote_addr),
+                },
+            )
+        except Exception:
+            pass
+        return resp
+
+    @app.errorhandler(500)
+    def _err_500(e):
+        app.logger.exception("unhandled", extra={"event": "app.error", "path": request.path})
+        return render_template("500.html"), 500
 
     critical = app.config.get(
         "CRITICAL_ENDPOINTS",

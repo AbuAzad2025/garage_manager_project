@@ -1,8 +1,83 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import os, sqlite3, glob
+import logging, sys, json
 from datetime import datetime
+from flask import g, has_request_context
+
+class RequestIdFilter(logging.Filter):
+    def filter(self, record):
+        if has_request_context():
+            record.request_id = getattr(g, "request_id", "-")
+        else:
+            record.request_id = "-"
+        return True
+
+class JSONFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        base = {
+            "ts": datetime.utcnow().isoformat(timespec="milliseconds") + "Z",
+            "level": record.levelname,
+            "logger": record.name,
+            "msg": record.getMessage(),
+            "request_id": getattr(record, "request_id", "-"),
+        }
+        for k, v in record.__dict__.items():
+            if k.startswith("_"): continue
+            if k in ("name","msg","args","levelname","levelno","pathname","filename","module","exc_info",
+                     "exc_text","stack_info","lineno","funcName","created","msecs","relativeCreated",
+                     "thread","threadName","processName","process","request_id"):
+                continue
+            try:
+                json.dumps({k: v})
+                base[k] = v
+            except Exception:
+                base[k] = str(v)
+        if record.exc_info:
+            base["exc_info"] = self.formatException(record.exc_info)
+        return json.dumps(base, ensure_ascii=False)
+
+def setup_logging(app):
+    level_name = app.config.get("LOG_LEVEL", "INFO").upper()
+    level = getattr(logging, level_name, logging.INFO)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(level)
+    handler.addFilter(RequestIdFilter())
+    if app.config.get("JSON_LOGS"):
+        handler.setFormatter(JSONFormatter())
+    else:
+        handler.setFormatter(logging.Formatter(
+            "[%(asctime)s] %(levelname)s %(request_id)s %(name)s: %(message)s"
+        ))
+    for lg in (app.logger, logging.getLogger(), logging.getLogger("sqlalchemy.engine")):
+        lg.handlers.clear()
+        lg.setLevel(level)
+        lg.addHandler(handler)
+        lg.propagate = False
+
+try:
+    import sentry_sdk
+    from sentry_sdk.integrations.flask import FlaskIntegration
+    from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+except Exception:
+    sentry_sdk = None
+
+def setup_sentry(app):
+    dsn = app.config.get("SENTRY_DSN") or ""
+    if not dsn or not sentry_sdk:
+        return
+    sentry_sdk.init(
+        dsn=dsn,
+        integrations=[FlaskIntegration(), SqlalchemyIntegration()],
+        traces_sample_rate=app.config.get("SENTRY_TRACES_SAMPLE_RATE", 0.0),
+        profiles_sample_rate=app.config.get("SENTRY_PROFILES_SAMPLE_RATE", 0.0),
+        environment=app.config.get("APP_ENV", "production"),
+        release=app.config.get("APP_VERSION") or None,
+        send_default_pii=False,
+        max_breadcrumbs=100,
+    )
+
+import os, sqlite3, glob
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from flask_limiter import Limiter

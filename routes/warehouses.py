@@ -4,6 +4,8 @@ import json
 import os
 import re
 import uuid
+import time
+import hashlib
 from decimal import Decimal, InvalidOperation
 from datetime import datetime, date
 from flask import (
@@ -17,6 +19,7 @@ from flask import (
     render_template,
     request,
     url_for,
+    send_file,
 )
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
@@ -64,11 +67,13 @@ from models import (
     Warehouse,
     WarehousePartnerShare,
     WarehouseType,
+    ImportRun,
 )
 
 warehouse_bp = Blueprint("warehouse_bp", __name__, url_prefix="/warehouses")
 
 IMPORT_TMP_DIR_KEY = "IMPORT_TMP_DIR"
+IMPORT_REPORT_DIR_KEY = "IMPORT_REPORT_DIR"
 
 HEADER_ALIASES = {
     "الاسم": "name",
@@ -162,6 +167,11 @@ def _json_default(o):
 
 def _tmp_dir():
     root = current_app.config.get(IMPORT_TMP_DIR_KEY) or os.path.join(current_app.instance_path, "imports")
+    os.makedirs(root, exist_ok=True)
+    return root
+
+def _report_dir():
+    root = current_app.config.get(IMPORT_REPORT_DIR_KEY) or os.path.join(current_app.instance_path, "imports", "reports")
     os.makedirs(root, exist_ok=True)
     return root
 
@@ -333,6 +343,32 @@ def _analyze(rows: list[dict]) -> dict:
     }
     return {"normalized": normalized, "report": report}
 
+def _save_import_report_csv(rows: list[dict], *, filename_hint: str) -> str:
+    cols = [
+        "action",
+        "sku",
+        "name",
+        "product_id",
+        "qty_added",
+        "stock_before",
+        "stock_after",
+        "purchase_price",
+        "selling_price",
+        "min_price",
+        "max_price",
+        "tax_rate",
+        "note",
+    ]
+    path = os.path.join(_report_dir(), f"{filename_hint}.csv")
+    tmp = f"{path}.tmp"
+    with open(tmp, "w", encoding="utf-8-sig", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=cols)
+        w.writeheader()
+        for r in rows or []:
+            w.writerow({k: r.get(k) for k in cols})
+    os.replace(tmp, path)
+    return path
+
 @warehouse_bp.app_context_processor
 def _inject_utils():
     labels = {
@@ -391,7 +427,7 @@ def list_warehouses():
             "EXCHANGE": "مستودع تبادل",
             "TEMP": "مستودع مؤقت",
             "OUTLET": "منفذ بيع",
-            "INVENTORY": "مخزون"
+            "INVENTORY": "مخزون",
         }
         data = []
         for w in warehouses:
@@ -421,7 +457,6 @@ def list_warehouses():
         has_partner=has_partner or "",
         order=order,
     )
-
 
 @warehouse_bp.route("/create", methods=["GET", "POST"], endpoint="create")
 @login_required
@@ -458,7 +493,6 @@ def create_warehouse():
                 flash(f"{field}: {err}", "danger")
     return render_template("warehouses/form.html", form=form)
 
-
 @warehouse_bp.route("/<int:warehouse_id>/edit", methods=["GET", "POST"], endpoint="edit")
 @login_required
 @permission_required("manage_warehouses")
@@ -484,7 +518,6 @@ def edit_warehouse(warehouse_id):
             flash(f"حدث خطأ: {e}", "danger")
     return render_template("warehouses/form.html", form=form, warehouse=w)
 
-
 @warehouse_bp.route("/<int:warehouse_id>/delete", methods=["POST"], endpoint="delete")
 @login_required
 @permission_required("manage_warehouses")
@@ -499,7 +532,6 @@ def delete_warehouse(warehouse_id):
         db.session.rollback()
         flash(f"خطأ أثناء الحذف: {e}", "danger")
     return redirect(url_for("warehouse_bp.list"))
-
 
 @warehouse_bp.route("/<int:warehouse_id>", methods=["GET"], endpoint="detail")
 @login_required
@@ -526,7 +558,6 @@ def warehouse_detail(warehouse_id):
         shipment_form=ShipmentForm(),
     )
 
-
 @warehouse_bp.route("/goto/warehouse-products", methods=["GET"], endpoint="goto_warehouse_products")
 @login_required
 @permission_required("view_inventory")
@@ -537,7 +568,6 @@ def goto_warehouse_products():
         return redirect(url_for("warehouse_bp.list"))
     return redirect(url_for("warehouse_bp.products", id=wid))
 
-
 @warehouse_bp.route("/goto/product-card", methods=["GET"], endpoint="goto_product_card")
 @login_required
 @permission_required("view_parts")
@@ -547,7 +577,6 @@ def goto_product_card():
         flash("أدخل رقم القطعة.", "warning")
         return redirect(url_for("warehouse_bp.list"))
     return redirect(url_for("warehouse_bp.product_card", product_id=pid))
-
 
 @warehouse_bp.route("/inventory", methods=["GET"], endpoint="inventory_summary")
 @login_required
@@ -615,7 +644,6 @@ def inventory_summary():
         search=search,
     )
 
-
 @warehouse_bp.route("/<int:id>/products", methods=["GET"], endpoint="products")
 @login_required
 @permission_required("view_inventory")
@@ -679,7 +707,6 @@ def products(id):
         active_warehouse=base_warehouse,
         warehouse_id=base_warehouse.id,
     )
-
 
 @warehouse_bp.route("/<int:warehouse_id>/products/<int:product_id>", methods=["POST", "PATCH"], endpoint="update_product_inline")
 @login_required
@@ -779,7 +806,6 @@ def update_product_inline(warehouse_id, product_id):
             "total_quantity": int(total_qty or 0),
         }
     )
-
 
 @warehouse_bp.get("/<int:warehouse_id>/preview")
 @login_required
@@ -991,11 +1017,18 @@ def import_products(id):
     if request.method == "GET":
         return render_template("warehouses/import_products.html", form=form, warehouse=w)
 
-    # POST
     file_obj = request.files.get("file") or getattr(getattr(form, "file", None), "data", None)
     if not file_obj or not getattr(file_obj, "filename", ""):
         flash("لم يتم اختيار ملف.", "warning")
         return render_template("warehouses/import_products.html", form=form, warehouse=w)
+
+    try:
+        file_obj.stream.seek(0)
+        blob = file_obj.stream.read()
+        file_obj.stream.seek(0)
+        file_sha256 = hashlib.sha256(blob).hexdigest()
+    except Exception:
+        file_sha256 = None
 
     try:
         rows = _read_uploaded_rows(file_obj)
@@ -1010,6 +1043,7 @@ def import_products(id):
     payload = {
         "warehouse_id": w.id,
         "filename": secure_filename(file_obj.filename or f"upload_{uuid.uuid4().hex}"),
+        "file_sha256": file_sha256,
         "strategy": getattr(form, "duplicate_strategy", None).data if hasattr(form, "duplicate_strategy") else "skip",
         "dry_run": bool(getattr(form, "dry_run", None).data) if hasattr(form, "dry_run") else True,
         "continue_after_warnings": bool(getattr(form, "continue_after_warnings", None).data) if hasattr(form, "continue_after_warnings") else False,
@@ -1024,6 +1058,7 @@ def import_products(id):
         flash(f"هناك صفوف بدون اسم (إجباري): {len(rpt['missing_required_rows'])} صف. يمكنك تعديل الملف وإعادة الرفع، أو متابعة المعاينة.", "warning")
 
     return redirect(url_for("warehouse_bp.import_preview", id=w.id, token=key))
+
 @warehouse_bp.route("/<int:warehouse_id>/preview/update", methods=["POST"], endpoint="preview_update")
 @login_required
 @permission_required("manage_inventory")
@@ -1173,9 +1208,9 @@ def import_commit(id):
     rows_norm = analysis.get("normalized") or []
     dry_run = (request.form.get("dry_run") == "1")
 
-    inserted = 0
-    updated = 0
-    skipped = 0
+    inserted = updated = skipped = errors = 0
+    t0 = time.perf_counter()
+    report_rows = []
 
     try:
         for item in rows_norm:
@@ -1251,18 +1286,109 @@ def import_commit(id):
             else:
                 updated += 1
 
+            before_qty = None
+            after_qty = None
             if qty > 0:
                 sl = StockLevel.query.filter_by(warehouse_id=w.id, product_id=p.id).first()
+                before_qty = int(getattr(sl, "quantity", 0) or 0) if sl else 0
                 if not sl:
                     sl = StockLevel(warehouse_id=w.id, product_id=p.id, quantity=0, reserved_quantity=0)
                     db.session.add(sl)
                 sl.quantity = max((sl.quantity or 0) + qty, 0)
+                after_qty = int(sl.quantity or 0)
+            else:
+                cur_sl = StockLevel.query.filter_by(warehouse_id=w.id, product_id=p.id).first()
+                before_qty = after_qty = int(getattr(cur_sl, "quantity", 0) or 0) if cur_sl else 0
+
+            report_rows.append({
+                "action": "insert" if pid is None else "update",
+                "sku": sku,
+                "name": name,
+                "product_id": p.id,
+                "qty_added": int(qty or 0),
+                "stock_before": int(before_qty or 0),
+                "stock_after": int(after_qty if after_qty is not None else (before_qty or 0)),
+                "purchase_price": float(purchase_price or 0),
+                "selling_price": float(selling_price or 0),
+                "min_price": float((_dv("min_price", None) or 0)),
+                "max_price": float((_dv("max_price", None) or 0)),
+                "tax_rate": float((_dv("tax_rate", 0) or 0)),
+                "note": item.get("note") or "",
+            })
+
+        duration_ms = int((time.perf_counter() - t0) * 1000)
 
         if dry_run:
             db.session.rollback()
+            try:
+                ir = ImportRun(
+                    warehouse_id=w.id,
+                    user_id=getattr(current_user, "id", None),
+                    filename=payload.get("filename"),
+                    file_sha256=payload.get("file_sha256"),
+                    dry_run=True,
+                    inserted=inserted,
+                    updated=updated,
+                    skipped=skipped,
+                    errors=errors,
+                    duration_ms=duration_ms,
+                    notes="commit(dry_run)",
+                    meta={"token": token},
+                )
+                db.session.add(ir)
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+            current_app.logger.info(
+                "import.commit.dryrun",
+                extra={
+                    "event": "import.commit.dryrun",
+                    "warehouse_id": w.id,
+                    "inserted": inserted,
+                    "updated": updated,
+                    "skipped": skipped,
+                    "errors": errors,
+                    "duration_ms": duration_ms,
+                },
+            )
             flash(f"فحص فقط: جديد={inserted}, تحديث={updated}, متجاهل={skipped}", "info")
         else:
             db.session.commit()
+            hint = f"wh{w.id}_{token or uuid.uuid4().hex}_{int(time.time())}"
+            report_path = _save_import_report_csv(report_rows, filename_hint=hint)
+            try:
+                ir = ImportRun(
+                    warehouse_id=w.id,
+                    user_id=getattr(current_user, "id", None),
+                    filename=payload.get("filename"),
+                    file_sha256=payload.get("file_sha256"),
+                    dry_run=False,
+                    inserted=inserted,
+                    updated=updated,
+                    skipped=skipped,
+                    errors=errors,
+                    duration_ms=duration_ms,
+                    report_path=report_path,
+                    meta={"token": token, "rows": len(report_rows or [])},
+                )
+                db.session.add(ir)
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+            current_app.logger.info(
+                "import.commit",
+                extra={
+                    "event": "import.commit",
+                    "warehouse_id": w.id,
+                    "run_id": ir.id if 'ir' in locals() else None,
+                    "report_path": ir.report_path if 'ir' in locals() else None,
+                    "inserted": inserted,
+                    "updated": updated,
+                    "skipped": skipped,
+                    "errors": errors,
+                    "duration_ms": duration_ms,
+                },
+            )
             flash(f"تم الترحيل: جديد={inserted}, تحديث={updated}, متجاهل={skipped}", "success")
 
     except Exception as e:
@@ -1313,7 +1439,6 @@ def ajax_update_stock(warehouse_id):
     alert = "below_min" if (sl.quantity or 0) <= (sl.min_stock or 0) else None
     return jsonify({"success": True, "quantity": int(sl.quantity or 0), "partner_share": getattr(sl, "partner_share_quantity", None), "company_share": getattr(sl, "company_share_quantity", None), "alert": alert}), 200
 
-
 @warehouse_bp.route("/<int:warehouse_id>/transfer", methods=["POST"], endpoint="ajax_transfer")
 @login_required
 @permission_required("manage_inventory", "manage_warehouses", "warehouse_transfer")
@@ -1363,7 +1488,6 @@ def ajax_transfer(warehouse_id):
     except SQLAlchemyError:
         db.session.rollback()
         return jsonify({"success": False, "error": "db_error"}), 500
-
 
 @warehouse_bp.route("/<int:warehouse_id>/exchange", methods=["POST"], endpoint="ajax_exchange")
 @login_required
@@ -1478,7 +1602,6 @@ def partner_shares(warehouse_id):
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 400
 
-
 @warehouse_bp.route("/<int:id>/transfers", methods=["GET"], endpoint="transfers")
 @login_required
 @permission_required("view_inventory")
@@ -1486,7 +1609,6 @@ def transfers(id):
     warehouse = _get_or_404(Warehouse, id)
     transfers = Transfer.query.filter(or_(Transfer.source_id == id, Transfer.destination_id == id)).order_by(Transfer.transfer_date.desc()).all()
     return render_template("warehouses/transfers_list.html", warehouse=warehouse, transfers=transfers)
-
 
 @warehouse_bp.route("/<int:id>/transfers/create", methods=["GET", "POST"], endpoint="create_transfer")
 @login_required
@@ -1516,7 +1638,6 @@ def create_transfer(id=None, warehouse_id=None):
             flash(f"خطأ أثناء إضافة التحويل: {e}", "danger")
     return render_template("warehouses/transfers_form.html", warehouse=warehouse, form=form)
 
-
 @warehouse_bp.route("/parts/<int:product_id>", methods=["GET"], endpoint="product_card")
 @login_required
 @permission_required("view_parts")
@@ -1535,7 +1656,6 @@ def product_card(product_id):
     exchanges = ExchangeTransaction.query.filter_by(product_id=part.id).options(joinedload(ExchangeTransaction.partner)).order_by(getattr(ExchangeTransaction, "created_at", ExchangeTransaction.id).desc()).all()
     shipments = ShipmentItem.query.filter_by(product_id=part.id).join(Shipment).options(joinedload(ShipmentItem.shipment), joinedload(ShipmentItem.warehouse)).order_by(func.coalesce(Shipment.actual_arrival, Shipment.expected_arrival, Shipment.shipment_date).desc()).all()
     return render_template("parts/card.html", part=part, stock=stock, transfers=transfers, exchanges=exchanges, shipments=shipments)
-
 
 @warehouse_bp.route("/preorders", methods=["GET"], endpoint="preorders_list")
 @login_required
@@ -1594,7 +1714,7 @@ def preorders_list():
     return render_template("parts/preorders_list.html", preorders=preorders, pagination=pagination, filters={"status": status, "code": code, "date_from": df, "date_to": dt})
 
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
-import uuid, random
+import uuid as _uuid_mod, random
 
 @warehouse_bp.route("/preorders/create", methods=["GET", "POST"], endpoint="preorder_create")
 @login_required
@@ -1608,7 +1728,7 @@ def preorder_create():
             code = f"{base}-{str(random.randint(0, 9999)).zfill(4)}"
             if not db.session.query(PreOrder.id).filter_by(reference=code).first():
                 return code
-        return uuid.uuid4().hex[:10].upper()
+        return _uuid_mod.uuid4().hex[:10].upper()
 
     if form.validate_on_submit():
         customer_id  = int(form.customer_id.data)
@@ -1707,7 +1827,6 @@ def preorder_detail(preorder_id):
         abort(404)
     return render_template("parts/preorder_detail.html", preorder=preorder)
 
-
 @warehouse_bp.route("/preorders/<int:preorder_id>/fulfill", methods=["POST"], endpoint="preorder_fulfill")
 @login_required
 @permission_required("edit_preorder")
@@ -1730,7 +1849,6 @@ def preorder_fulfill(preorder_id):
     else:
         flash("هذا الحجز تم تنفيذه مسبقاً", "info")
     return redirect(url_for("warehouse_bp.preorder_detail", preorder_id=preorder_id))
-
 
 @warehouse_bp.route("/preorders/<int:preorder_id>/cancel", methods=["POST"], endpoint="preorder_cancel")
 @login_required
@@ -1769,7 +1887,6 @@ def pay_warehouse(warehouse_id):
         return redirect(url_for("warehouse_bp.detail", warehouse_id=warehouse_id))
     return redirect(url_for("payments.create_payment", entity_type="SUPPLIER", entity_id=warehouse_id, amount=amount))
 
-
 @warehouse_bp.route("/api/add_customer", methods=["POST"], endpoint="api_add_customer")
 @login_required
 @permission_required("add_customer")
@@ -1786,7 +1903,6 @@ def api_add_customer():
     except SQLAlchemyError as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
-
 
 @warehouse_bp.route("/api/add_supplier", methods=["POST"], endpoint="api_add_supplier")
 @login_required
@@ -1805,7 +1921,6 @@ def api_add_supplier():
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
-
 @warehouse_bp.route("/api/add_partner", methods=["POST"], endpoint="api_add_partner")
 @login_required
 @permission_required("add_partner")
@@ -1823,9 +1938,45 @@ def api_add_partner():
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
-
 @warehouse_bp.route("/<int:id>/shipments/create", methods=["GET"], endpoint="create_warehouse_shipment")
 @login_required
 @permission_required("manage_inventory")
 def create_warehouse_shipment(id):
     return redirect(url_for("shipments_bp.create_shipment", destination_id=id))
+
+@warehouse_bp.route("/<int:id>/imports", methods=["GET"], endpoint="import_runs")
+@login_required
+@permission_required("manage_inventory", "view_inventory", "manage_warehouses")
+def list_import_runs(id):
+    w = _get_or_404(Warehouse, id)
+    q = ImportRun.query.filter_by(warehouse_id=w.id).order_by(ImportRun.created_at.desc())
+    runs = q.all()
+    if (request.args.get("format") or "").lower() == "json":
+        return jsonify([
+            {
+                "id": r.id,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+                "user_id": r.user_id,
+                "filename": r.filename,
+                "file_sha256": r.file_sha256,
+                "dry_run": bool(r.dry_run),
+                "inserted": r.inserted,
+                "updated": r.updated,
+                "skipped": r.skipped,
+                "errors": r.errors,
+                "duration_ms": r.duration_ms,
+                "report_path": r.report_path,
+            }
+            for r in runs
+        ])
+    return render_template("warehouses/import_runs.html", warehouse=w, runs=runs)
+
+@warehouse_bp.route("/imports/<int:run_id>/download", methods=["GET"], endpoint="import_run_download")
+@login_required
+@permission_required("manage_inventory", "view_inventory", "manage_warehouses")
+def download_import_run(run_id: int):
+    ir = _get_or_404(ImportRun, run_id)
+    if not ir.report_path or not os.path.exists(ir.report_path):
+        abort(404)
+    dl = os.path.basename(ir.report_path) if ir.filename in (None, "", "None") else f"{os.path.splitext(ir.filename)[0]}_report.csv"
+    return send_file(ir.report_path, as_attachment=True, download_name=dl, mimetype="text/csv; charset=utf-8")

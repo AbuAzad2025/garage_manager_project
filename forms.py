@@ -975,7 +975,7 @@ class PaymentForm(FlaskForm):
     card_holder = StringField(validators=[Optional(), Length(max=100)])
     card_expiry = StringField(validators=[Optional(), Length(max=10)])
     card_cvv    = StringField(validators=[Optional(), Length(min=3, max=4)])
-
+    request_token = HiddenField(validators=[Optional()])
     bank_transfer_ref = StringField(validators=[Optional(), Length(max=100)])
     created_by        = HiddenField()
 

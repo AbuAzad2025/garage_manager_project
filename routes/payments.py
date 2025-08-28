@@ -1,7 +1,8 @@
 # routes/payments.py
 from datetime import date, datetime
 import io
-from flask import Blueprint, Response, abort, current_app, flash, jsonify, redirect, render_template, request, url_for
+import uuid
+from flask import Blueprint, Response, abort, current_app, flash, jsonify, redirect, render_template, request, url_for, session
 from flask_login import current_user, login_required
 from sqlalchemy import func, text, and_, case, or_
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -25,13 +26,11 @@ from models import (
     ServiceStatus,
     Shipment,
     Supplier,
-    SupplierLoanSettlement,  # للاقتران مع loan والميزان
+    SupplierLoanSettlement,
 )
 from utils import log_audit, permission_required, update_entity_balance
 
 payments_bp = Blueprint("payments", __name__, url_prefix="/payments")
-
-
 def _get_or_404(model, ident, options=None):
     q = db.session.query(model)
     if options:
@@ -65,7 +64,6 @@ def _dir_to_db(v: str | None):
         return PaymentDirection.OUTGOING.value
     return vv
 
-
 def _clean_details(d: dict | None):
     if not d:
         return None
@@ -83,14 +81,27 @@ def _clean_details(d: dict | None):
 def _val(x):
     return getattr(x, "value", x)
 
-
 def _coerce_method(v):
     s = (_val(v) or "").strip().lower()
     try:
         return PaymentMethod(s)
     except Exception:
-        # fallback آمن
         return PaymentMethod.CASH
+
+def _sync_payment_method_with_splits(pmt: Payment):
+    try:
+        splits = list(pmt.splits or [])
+    except Exception:
+        splits = []
+    if not splits:
+        if not getattr(pmt, "method", None):
+            pmt.method = PaymentMethod.CASH
+        return
+    first = splits[0]
+    new_m = getattr(first, "method", None)
+    new_m = getattr(new_m, "value", new_m)
+    if new_m and new_m != getattr(pmt, "method", None):
+        pmt.method = new_m
 
 
 def _wants_json():
@@ -100,7 +111,6 @@ def _wants_json():
         or "application/json" in accept and "text/html" not in accept
         or request.headers.get("X-Requested-With") == "XMLHttpRequest"
     )
-
 
 def _render_payment_receipt_pdf(payment: Payment) -> bytes:
     from reportlab.lib import colors
@@ -162,7 +172,6 @@ def _render_payment_receipt_pdf(payment: Payment) -> bytes:
     buf.seek(0)
     return buf.getvalue()
 
-
 @payments_bp.route("/entity-search", methods=["GET"])
 @login_required
 @permission_required("manage_payments")
@@ -205,7 +214,6 @@ def index():
     if not getattr(current_user, "is_authenticated", False):
         return redirect(url_for("auth.login", next=request.full_path))
 
-    # cap آمن للصفحة
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 20, type=int)
     if per_page > 100:
@@ -232,7 +240,6 @@ def index():
         except Exception:
             filters.append(Payment.method == method.lower())
 
-    # فلترة تاريخية بصمت (تجاهل غير الصالح)
     def _parse_ymd(s: str | None):
         if not s:
             return None
@@ -331,7 +338,6 @@ def index():
         grand_total=grand_total,
     )
 
-
 @payments_bp.route("/create", methods=["GET", "POST"], endpoint="create_payment")
 @login_required
 @permission_required("manage_payments")
@@ -347,13 +353,25 @@ def create_payment():
 
     if request.method == "GET":
         form.payment_date.data = datetime.utcnow()
+        try:
+            tokens = session.get("pmt_tokens") or []
+            if len(tokens) > 50:
+                tokens = tokens[-30:]
+            tok = uuid.uuid4().hex
+            tokens.append(tok)
+            session["pmt_tokens"] = tokens
+            if hasattr(form, "request_token"):
+                form.request_token.data = tok
+        except Exception:
+            if hasattr(form, "request_token"):
+                form.request_token.data = None
+
         raw_et = (request.args.get("entity_type") or "").strip().upper()
         if raw_et == "SHIPMENT_CUSTOMS":
             raw_et = "SHIPMENT"
         et = raw_et if hasattr(form, "_entity_field_map") and raw_et in form._entity_field_map else ""
         eid = request.args.get("entity_id")
 
-        # إصلاح: لا نخسر 0.0
         pre_amount = request.args.get("amount", type=float)
         if pre_amount is None:
             pre_amount = request.args.get("total_amount", type=float)
@@ -522,11 +540,27 @@ def create_payment():
             form.status.data = PaymentStatus.COMPLETED.value
 
     if request.method == "POST":
+        req_tok = (request.form.get("request_token") or "").strip()
+        tokens = session.get("pmt_tokens") or []
+        if req_tok and (req_tok in tokens):
+            tokens = [t for t in tokens if t != req_tok]
+            session["pmt_tokens"] = tokens
+        else:
+            msg = "تم استلام هذه العملية مسبقًا أو انتهت صلاحية الجلسة."
+            if _wants_json():
+                return jsonify(status="error", message=msg), 409
+            flash(msg, "warning")
+            return redirect(url_for("payments.index"))
+
         raw_dir = request.form.get("direction")
         if raw_dir:
             form.direction.data = _norm_dir(raw_dir)
 
         if not form.validate():
+            current_app.logger.warning(
+                "payment.validate_failed",
+                extra={"event": "payments.validate_failed", "errors": dict(form.errors or {}), "path": request.path},
+            )
             if _wants_json():
                 return jsonify(status="error", errors=form.errors), 400
             return render_template("payments/form.html", form=form, entity_info=entity_info)
@@ -569,7 +603,6 @@ def create_payment():
                 parsed_splits.append(PaymentSplit(method=_coerce_method(m_str), amount=amt, details=details))
                 total_splits += amt
 
-            # ✅ توحيد التحقق: مجموع السبلِتس يطابق المبلغ الكلي (إذا وُجدت سبلتات)
             if parsed_splits:
                 tgt_total = float(request.form.get("total_amount") or form.total_amount.data or 0)
                 if abs(total_splits - tgt_total) > 0.01:
@@ -608,14 +641,14 @@ def create_payment():
                 payment_date=form.payment_date.data,
                 total_amount=form.total_amount.data,
                 currency=form.currency.data,
-                method=method_val,
+                method=getattr(method_val, "value", method_val),
                 reference=(form.reference.data or "").strip() or None,
                 receipt_number=(_fd(getattr(form, "receipt_number", None)) or None),
                 notes=notes_val,
                 created_by=current_user.id,
             )
 
-            if not getattr(payment, "method", None) and parsed_splits:
+            if parsed_splits:
                 payment.method = getattr(parsed_splits[0].method, "value", parsed_splits[0].method)
 
             db.session.add(payment)
@@ -623,6 +656,21 @@ def create_payment():
             for sp in parsed_splits:
                 sp.payment_id = payment.id
                 db.session.add(sp)
+            _sync_payment_method_with_splits(payment)
+            db.session.add(payment)
+
+            current_app.logger.info(
+                "payment.created",
+                extra={
+                    "event": "payments.create.success",
+                    "payment_id": payment.id,
+                    "entity_type": payment.entity_type,
+                    "direction": payment.direction,
+                    "method": payment.method,
+                    "total": float(payment.total_amount or 0),
+                    "splits": len(parsed_splits or []),
+                },
+            )
 
             try:
                 db.session.commit()
@@ -636,8 +684,11 @@ def create_payment():
                     cnt = db.session.execute(text("SELECT COUNT(*) FROM payments WHERE payment_number LIKE :pfx"), {"pfx": f"{prefix}-%"}).scalar() or 0
                     payment.payment_number = f"{prefix}-{cnt + 1:04d}"
                     fixed = True
-                if ("not null constraint failed: payments.method" in msg or "payments.method may not be null" in msg) and parsed_splits:
-                    payment.method = getattr(parsed_splits[0].method, "value", parsed_splits[0].method)
+                if ("not null constraint failed: payments.method" in msg or "payments.method may not be null" in msg):
+                    if parsed_splits:
+                        payment.method = getattr(parsed_splits[0].method, "value", parsed_splits[0].method)
+                    else:
+                        payment.method = PaymentMethod.CASH
                     fixed = True
                 if fixed:
                     db.session.add(payment)
@@ -665,7 +716,6 @@ def create_payment():
                     update_entity_balance("supplier", payment.supplier_id)
                 if payment.partner_id:
                     update_entity_balance("partner", payment.partner_id)
-                # تحديث رصيد المورّد عند الدفع على Loan Settlement (تماثل الحذف)
                 if payment.loan_settlement_id:
                     ls = db.session.get(SupplierLoanSettlement, payment.loan_settlement_id)
                     if ls and ls.supplier_id:
@@ -676,6 +726,16 @@ def create_payment():
 
             log_audit("Payment", payment.id, "CREATE")
 
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            current_app.logger.exception(
+                "payment.create_failed",
+                extra={"event": "payments.create.error", "path": request.path},
+            )
+            if _wants_json():
+                return jsonify(status="error", message=str(e)), 400
+            flash(f"❌ خطأ في الحفظ: {e}", "danger")
+            return render_template("payments/form.html", form=form, entity_info=entity_info)
         except Exception as e:
             db.session.rollback()
             if _wants_json():
@@ -689,7 +749,6 @@ def create_payment():
         return redirect(url_for("payments.index"))
 
     return render_template("payments/form.html", form=form, entity_info=entity_info)
-
 
 @payments_bp.route("/<int:payment_id>", methods=["GET"], endpoint="view_payment")
 @login_required
@@ -716,60 +775,38 @@ def view_payment(payment_id):
         return jsonify(payment=payment.to_dict())
     return render_template("payments/view.html", payment=payment)
 
-
-@payments_bp.route("/<int:payment_id>/delete", methods=["POST"], endpoint="delete_payment")
+@payments_bp.route("/split/<int:split_id>/delete", methods=["DELETE"], endpoint="delete_split")
 @login_required
 @permission_required("manage_payments")
-def delete_payment(payment_id):
-    payment = _get_or_404(Payment, payment_id)
-    sale_id, invoice_id = payment.sale_id, payment.invoice_id
-    preorder_id, service_id = payment.preorder_id, payment.service_id
-    cust_id, supp_id, part_id = payment.customer_id, payment.supplier_id, payment.partner_id
-    loan_id = payment.loan_settlement_id
+def delete_split(split_id):
+    split = _get_or_404(PaymentSplit, split_id)
     try:
-        db.session.delete(payment)
+        payment_id = split.payment_id
+        db.session.delete(split)
+        db.session.flush()
+        if payment_id:
+            pmt = db.session.get(Payment, payment_id)
+            if pmt is not None:
+                _sync_payment_method_with_splits(pmt)
+                db.session.add(pmt)
         db.session.commit()
-        if sale_id:
-            sale = db.session.get(Sale, sale_id)
-            if sale and hasattr(sale, "update_payment_status"):
-                sale.update_payment_status()
-        if invoice_id:
-            inv = db.session.get(Invoice, invoice_id)
-            if inv and hasattr(inv, "update_status"):
-                inv.update_status()
-        if preorder_id:
-            po = db.session.get(PreOrder, preorder_id)
-            if po:
-                po.status = PreOrderStatus.PENDING
-                db.session.add(po)
-        if service_id:
-            svc = db.session.get(ServiceRequest, service_id)
-            if svc:
-                svc.status = ServiceStatus.PENDING
-                db.session.add(svc)
-        if cust_id:
-            update_entity_balance("customer", cust_id)
-        if supp_id:
-            update_entity_balance("supplier", supp_id)
-        if part_id:
-            update_entity_balance("partner", part_id)
-        if loan_id:
-            ls = db.session.get(SupplierLoanSettlement, loan_id)
-            if ls and ls.supplier_id:
-                update_entity_balance("supplier", ls.supplier_id)
-        db.session.commit()
-        log_audit("Payment", payment_id, "DELETE")
-        if _wants_json():
-            return jsonify(status="success")
-        flash("✅ تم حذف الدفعة بنجاح", "success")
+        current_app.logger.info(
+            "payment.split_deleted",
+            extra={
+                "event": "payments.split.delete",
+                "payment_id": payment_id,
+                "split_id": split_id,
+            },
+        )
+        return jsonify(status="success")
     except SQLAlchemyError as e:
         db.session.rollback()
-        if _wants_json():
-            return jsonify(status="error", message=str(e)), 400
-        flash(f"❌ خطأ في الحذف: {e}", "danger")
-    return redirect(url_for("payments.index"))
-
-
+        current_app.logger.exception(
+            "payment.split_delete_failed",
+            extra={"event": "payments.split.error", "split_id": split_id},
+        )
+        return jsonify(status="error", message=str(e)), 400
+    
 @payments_bp.route("/<int:payment_id>/receipt", methods=["GET"], endpoint="view_receipt")
 @login_required
 @permission_required("manage_payments")
@@ -804,39 +841,6 @@ def download_receipt(payment_id):
     payment = _get_or_404(Payment, payment_id)
     pdf_bytes = _render_payment_receipt_pdf(payment)
     return Response(pdf_bytes, mimetype="application/pdf", headers={"Content-Disposition": f"attachment; filename=payment_receipt_{payment_id}.pdf"})
-
-
-@payments_bp.route("/split/<int:split_id>/delete", methods=["DELETE"], endpoint="delete_split")
-@login_required
-@permission_required("manage_payments")
-def delete_split(split_id):
-    split = _get_or_404(PaymentSplit, split_id)
-    try:
-        payment_id = split.payment_id
-        db.session.delete(split)
-        db.session.flush()
-        # تأمين اتساق طريقة الدفع إذا لم يبقَ أي split + مزامنة عند بقاء واحد فقط
-        if payment_id:
-            pmt = db.session.get(Payment, payment_id)
-            if pmt is not None:
-                # force load current splits after الحذف
-                current_splits = list(pmt.splits or [])
-                if not current_splits:
-                    if getattr(pmt, "method", None) in (None, "", []):
-                        pmt.method = PaymentMethod.CASH
-                    db.session.add(pmt)
-                elif len(current_splits) == 1:
-                    # مزامنة الطريقة مع السبلت الوحيد المتبقي
-                    new_m = getattr(current_splits[0].method, "value", current_splits[0].method)
-                    if new_m and new_m != getattr(pmt, "method", None):
-                        pmt.method = new_m
-                        db.session.add(pmt)
-        db.session.commit()
-        return jsonify(status="success")
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        return jsonify(status="error", message=str(e)), 400
-
 
 @payments_bp.route("/entity-fields", methods=["GET"], endpoint="entity_fields")
 @login_required
@@ -875,7 +879,6 @@ def entity_fields():
         form._sync_entity_id_for_render()
 
     return render_template("payments/_entity_fields.html", form=form)
-
 
 @payments_bp.route("/expense/<int:exp_id>/create", methods=["GET", "POST"], endpoint="create_expense_payment")
 @login_required
