@@ -1,77 +1,115 @@
 {% extends 'shop/base.html' %}
 {% block title %}طلباتي{% endblock %}
-{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
+{% endblock %}
 
 {% block content %}
 <h1 class="h3 mb-4">طلباتي</h1>
 
 {% if preorders %}
-<div class="card shadow-sm"><div class="card-body">
+<div class="card shadow-sm">
+  <div class="card-body">
 
-  {% if has_any('manage_shop','manage_reports','view_reports') %}
-  <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
-    <div class="small text-muted">👑 عرض موسّع حسب الصلاحيات</div>
-    <div class="btn-group">
-      {% if has_any('manage_shop','manage_inventory') %}
-        <a href="{{ url_for('shop.admin_products') }}" class="btn btn-sm btn-danger"><i class="fas fa-cogs me-1"></i> إدارة المنتجات</a>
-      {% endif %}
-      {% if has_any('view_reports','manage_reports') and 'admin_reports.cards' in current_app.view_functions %}
-        <a href="{{ url_for('admin_reports.cards') }}" class="btn btn-sm btn-warning"><i class="fas fa-chart-line me-1"></i> تقارير البطاقات</a>
-      {% endif %}
+    {% if has_any('manage_shop','manage_reports','view_reports') %}
+    <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+      <div class="small text-muted">👑 عرض موسّع حسب الصلاحيات</div>
+      <div class="btn-group">
+        {% if has_any('manage_shop','manage_inventory') %}
+          <a href="{{ url_for('shop.admin_products') }}" class="btn btn-sm btn-danger">
+            <i class="fas fa-cogs me-1"></i> إدارة المنتجات
+          </a>
+        {% endif %}
+        {% if has_any('view_reports','manage_reports') and 'admin_reports.cards' in current_app.view_functions %}
+          <a href="{{ url_for('admin_reports.cards') }}" class="btn btn-sm btn-warning">
+            <i class="fas fa-chart-line me-1"></i> تقارير البطاقات
+          </a>
+        {% endif %}
+      </div>
     </div>
-  </div>
-  {% endif %}
+    {% endif %}
 
-  <div class="table-responsive">
-    <table class="table table-hover align-middle">
-      <thead>
-        <tr>
-          <th>رقم الطلب</th><th>التاريخ</th><th class="text-center">المنتجات</th><th class="text-end">المجموع</th><th class="text-center">الحالة</th>
-          {% if has_any('manage_shop','manage_reports','view_reports') %}<th>الزبون</th>{% endif %}
-          <th class="text-center">الإجراءات</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for order in preorders %}
-        <tr>
-          <td>{{ order.order_number }}</td>
-          <td>{{ order.created_at.strftime('%Y-%m-%d') if order.created_at else '' }}</td>
-          <td class="text-center">{{ order.items|length }}</td>
-          <td class="text-end">{{ '%.2f'|format(order.total_amount or 0) }} شيكل</td>
-          <td class="text-center">
-            <span class="badge bg-{{ 'success' if order.status=='FULFILLED' else 'warning' if order.status=='CONFIRMED' else 'info' if order.status=='PENDING' else 'danger' }}">{{ order.status }}</span>
-          </td>
-          {% if has_any('manage_shop','manage_reports','view_reports') %}
-            <td>{{ order.customer.name if order.customer else '' }}<div class="text-muted small">{{ order.customer.phone if order.customer and order.customer.phone else '' }}</div></td>
-          {% endif %}
-          <td class="text-center">
-            <div class="btn-group btn-group-sm">
-              <a href="{{ url_for('shop.preorder_receipt', preorder_id=order.id) }}" class="btn btn-outline-primary" title="عرض الوصل">
-                <i class="fas fa-receipt"></i>
-              </a>
-              {% if order.status in ['PENDING','CONFIRMED'] %}
-              <form method="POST" action="{{ url_for('shop.cancel_preorder', preorder_id=order.id) }}" onsubmit="return confirm('تأكيد إلغاء الطلب {{ order.order_number }}؟');">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-outline-danger" title="إلغاء الطلب"><i class="fas fa-times"></i></button>
-              </form>
-              {% endif %}
-            </div>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>رقم الطلب</th>
+            <th>التاريخ</th>
+            <th class="text-center">المنتجات</th>
+            <th class="text-end">المجموع</th>
+            <th class="text-center">الحالة</th>
+            {% if has_any('manage_shop','manage_reports','view_reports') %}
+              <th>الزبون</th>
+            {% endif %}
+            <th class="text-center">الإجراءات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for order in preorders %}
+          <tr>
+            <td>{{ order.order_number }}</td>
+            <td>{{ order.created_at.strftime('%Y-%m-%d') if order.created_at else '' }}</td>
+            <td class="text-center">{{ order.items|length }}</td>
+            <td class="text-end">{{ '%.2f'|format(order.total_amount or 0) }} شيكل</td>
+            <td class="text-center">
+              {% set status_colors = {
+                'FULFILLED': 'success',
+                'CONFIRMED': 'warning',
+                'PENDING': 'info'
+              } %}
+              <span class="badge bg-{{ status_colors.get(order.status, 'danger') }}">
+                {{ order.status }}
+              </span>
+            </td>
+            {% if has_any('manage_shop','manage_reports','view_reports') %}
+              <td>
+                {{ order.customer.name if order.customer else '' }}
+                {% if order.customer and order.customer.phone %}
+                  <div class="text-muted small">{{ order.customer.phone }}</div>
+                {% endif %}
+              </td>
+            {% endif %}
+            <td class="text-center">
+              <div class="btn-group btn-group-sm">
+                <a href="{{ url_for('shop.preorder_receipt', preorder_id=order.id) }}"
+                   class="btn btn-outline-primary" title="عرض الوصل">
+                  <i class="fas fa-receipt"></i>
+                </a>
+                {% if order.status in ['PENDING','CONFIRMED'] %}
+                  <form method="POST"
+                        action="{{ url_for('shop.cancel_preorder', preorder_id=order.id) }}"
+                        onsubmit="return confirm('تأكيد إلغاء الطلب {{ order.order_number }}؟');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-danger" title="إلغاء الطلب">
+                      <i class="fas fa-times"></i>
+                    </button>
+                  </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
 
-</div></div>
+  </div>
+</div>
+
 {% else %}
-<div class="card shadow-sm text-center py-5"><div class="card-body">
-  <i class="fas fa-clipboard-list fa-4x text-muted mb-4"></i>
-  <h4 class="mb-3">لا توجد طلبات سابقة</h4>
-  <p class="text-muted mb-4">يمكنك البدء بالتسوق وإنشاء طلبك الأول</p>
-  <a href="{{ url_for('shop.catalog') }}" class="btn btn-primary px-4">تصفح المنتجات</a>
-</div></div>
+<div class="card shadow-sm text-center py-5">
+  <div class="card-body">
+    <i class="fas fa-clipboard-list fa-4x text-muted mb-4"></i>
+    <h4 class="mb-3">لا توجد طلبات سابقة</h4>
+    <p class="text-muted mb-4">يمكنك البدء بالتسوق وإنشاء طلبك الأول</p>
+    <a href="{{ url_for('shop.catalog') }}" class="btn btn-primary px-4">تصفح المنتجات</a>
+  </div>
+</div>
 {% endif %}
 {% endblock %}
 
-{% block scripts %}{{ super() }}<script src="{{ url_for('static', filename='js/shop.js') }}"></script>{% endblock %}
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/shop.js') }}"></script>
+{% endblock %}

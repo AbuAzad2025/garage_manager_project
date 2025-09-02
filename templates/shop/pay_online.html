@@ -1,11 +1,14 @@
 {% extends 'shop/base.html' %}
 {% block title %}إتمام الشراء{% endblock %}
+
 {% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
 {% endblock %}
+
 {% block content %}
 <div class="row justify-content-center">
   <div class="col-lg-10">
+
     <div class="card shadow-sm border-0 mb-4">
       <div class="card-header bg-white py-3 d-flex flex-wrap gap-2 justify-content-between align-items-center">
         <h5 class="mb-0">إتمام عملية الشراء</h5>
@@ -19,15 +22,19 @@
 
       <div class="card-body">
         <div class="row">
+
+          <!-- معلومات الدفع -->
           <div class="col-lg-7 border-end">
             {% if not has_any('manage_payments','manage_shop') %}
               <h6 class="mb-3">معلومات الدفع</h6>
               <form method="POST" id="payment-form" novalidate>
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                 <div class="mb-3">
-                  <label class="form-label">طريقة الدفع</label>
+                  <label for="payment-method" class="form-label">طريقة الدفع</label>
                   {{ form.payment_method(class="form-select", id="payment-method") }}
                 </div>
+
                 <div id="card-fields">
                   <div class="mb-3">
                     <label class="form-label">اسم صاحب البطاقة</label>
@@ -36,6 +43,7 @@
                       {{ form.card_holder(class="form-control", placeholder="كما هو مدون على البطاقة") }}
                     </div>
                   </div>
+
                   <div class="mb-3">
                     <label class="form-label">رقم البطاقة</label>
                     <div class="input-group">
@@ -43,6 +51,7 @@
                       {{ form.card_number(class="form-control", placeholder="1234 5678 9012 3456") }}
                     </div>
                   </div>
+
                   <div class="row mb-3">
                     <div class="col-md-6">
                       <label class="form-label">تاريخ الانتهاء</label>
@@ -60,9 +69,11 @@
                     </div>
                   </div>
                 </div>
+
                 {{ form.shipping_address(class="form-control mb-2", placeholder="عنوان الشحن (اختياري)") }}
                 {{ form.billing_address(class="form-control mb-3", placeholder="عنوان الفاتورة (اختياري)") }}
                 {{ form.transaction_data(class="form-control mb-3", placeholder="بيانات إضافية للبوابة (JSON)") }}
+
                 <div class="d-grid">
                   <button type="submit" class="btn btn-primary btn-lg py-3">
                     تأكيد الدفع و إتمام الطلب
@@ -76,6 +87,7 @@
             {% endif %}
           </div>
 
+          <!-- ملخص الطلب -->
           <div class="col-lg-5">
             <h6 class="mb-3">ملخص الطلب</h6>
             <div class="card border">
@@ -91,6 +103,7 @@
                   </li>
                   {% endfor %}
                 </ul>
+
                 <div class="d-flex justify-content-between mt-3">
                   <span>المجموع الفرعي:</span>
                   <span>{{ '%.2f'|format(subtotal) }} شيكل</span>
@@ -106,6 +119,7 @@
                   <span>المجموع الكلي:</span>
                   <span>{{ '%.2f'|format(subtotal) }} شيكل</span>
                 </div>
+
                 <div class="alert alert-info mt-3 mb-0">
                   <div class="d-flex justify-content-between">
                     <span>المبلغ المطلوب (عربون):</span>
@@ -115,6 +129,7 @@
                 </div>
               </div>
             </div>
+
             <div class="d-flex justify-content-between mt-3">
               <a href="{{ url_for('shop.cart') }}" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-right me-2"></i> العودة للسلة
@@ -132,7 +147,8 @@
   </div>
 </div>
 {% endblock %}
+
 {% block scripts %}
-{{ super() }}
-<script src="{{ url_for('static', filename='js/shop.js') }}"></script>
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/shop.js') }}"></script>
 {% endblock %}

@@ -7,14 +7,19 @@
   <div></div>
   <div class="btn-group">
     <a href="{{ url_for('shipments_bp.edit_shipment', id=shipment.id) }}" class="btn btn-warning">تعديل</a>
-    <form method="POST"
-          action="{{ url_for('shipments_bp.delete_shipment', id=shipment.id) }}"
-          onsubmit="return confirm('تأكيد حذف الشحنة؟');"
-          class="d-inline m-0 p-0">
+    <form method="POST" action="{{ url_for('shipments_bp.delete_shipment', id=shipment.id) }}" onsubmit="return confirm('تأكيد حذف الشحنة؟');" class="d-inline m-0 p-0">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn btn-danger">حذف</button>
     </form>
-    <a href="{{ url_for('shipments_bp.list_shipments') }}" class="btn btn-secondary">رجوع</a>
+    <form method="POST" action="{{ url_for('shipments_bp.mark_arrived', id=shipment.id) }}" class="d-inline m-0 p-0">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-success">اعتماد الوصول</button>
+    </form>
+    <form method="POST" action="{{ url_for('shipments_bp.cancel_shipment', id=shipment.id) }}" class="d-inline m-0 p-0">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-secondary">إلغاء</button>
+    </form>
+    <a href="{{ url_for('shipments_bp.list_shipments') }}" class="btn btn-outline-secondary">رجوع</a>
   </div>
 </div>
 
@@ -55,6 +60,8 @@
             <th>المستودع</th>
             <th class="text-center">الكمية</th>
             <th class="text-end">سعر الوحدة</th>
+            <th class="text-end">حصة التكاليف</th>
+            <th class="text-end">التكلفة الواصلة للوحدة</th>
             <th class="text-end">الإجمالي</th>
           </tr>
         </thead>
@@ -70,16 +77,20 @@
               <td>{{ i.warehouse and i.warehouse.name or '-' }}</td>
               <td class="text-center">{{ i.quantity or 0 }}</td>
               <td class="text-end">{{ format_currency(i.unit_cost or 0) }}</td>
+              <td class="text-end">{{ format_currency(i.landed_extra_share or 0) }}</td>
+              <td class="text-end">{{ format_currency(i.landed_unit_cost or 0) }}</td>
               <td class="text-end">{{ format_currency(line_total) }}</td>
             </tr>
           {% else %}
-            <tr><td colspan="5" class="text-center">لا توجد عناصر</td></tr>
+            <tr><td colspan="7" class="text-center">لا توجد عناصر</td></tr>
           {% endfor %}
         </tbody>
         <tfoot>
           <tr>
             <th colspan="2" class="text-end">الإجماليات</th>
             <th class="text-center">{{ qty_sum }}</th>
+            <th></th>
+            <th></th>
             <th></th>
             <th class="text-end">{{ format_currency(total_sum) }}</th>
           </tr>

@@ -1,5 +1,3 @@
-/* sales.css - ملف الأنماط لوحدة المبيعات */
-
 :root {
   --primary: #0d6efd;
   --success: #198754;
@@ -10,7 +8,6 @@
   --border-radius: 0.5rem;
 }
 
-/* تصميم عام للبطاقات */
 .card-shadow {
   box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
 }
@@ -19,7 +16,6 @@
   border-radius: var(--border-radius) !important;
 }
 
-/* تنسيق الجداول */
 .table-hover tbody tr:hover {
   background-color: rgba(13, 110, 253, 0.05);
   transition: background-color 0.3s ease;
@@ -34,7 +30,6 @@
   border: 1px solid #dee2e6;
 }
 
-/* بنود الفاتورة */
 .sale-line-row {
   transition: all 0.3s ease;
   background-color: #f8fafc;
@@ -59,7 +54,6 @@
   color: var(--primary);
 }
 
-/* أزرار خاصة بالمبيعات */
 .btn-sale {
   padding: 0.5rem 1rem;
   border-radius: var(--border-radius);
@@ -87,7 +81,6 @@
   transform: translateY(-2px);
 }
 
-/* شارات الحالة */
 .badge-status {
   font-size: 0.85rem;
   padding: 0.5em 0.75em;
@@ -114,7 +107,6 @@
   color: #6c757d;
 }
 
-/* ملخص الفاتورة */
 .summary-card {
   background: linear-gradient(135deg, #f8f9fa, #e9ecef);
   border: none;
@@ -129,7 +121,6 @@
   color: var(--success);
 }
 
-/* حقل الإدخال في حالة الخطأ */
 .input-error {
   border-color: var(--danger) !important;
   box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
@@ -141,7 +132,6 @@
   margin-top: 0.25rem;
 }
 
-/* تصميم الدفعات */
 .payment-card {
   border-radius: var(--border-radius);
   overflow: hidden;
@@ -167,29 +157,27 @@
   color: #4a5568;
 }
 
-/* الطباعة */
 @media print {
   .no-print {
     display: none !important;
   }
-  
+
   body {
     background-color: white !important;
     font-size: 12pt;
   }
-  
+
   .card {
     border: none !important;
     box-shadow: none !important;
   }
-  
+
   .table {
     font-size: 10pt;
   }
 }
 
-/* تأثيرات تفاعلية */
-.form-control:focus, 
+.form-control:focus,
 .form-select:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
@@ -201,24 +189,22 @@
   transition: all 0.2s ease-in-out;
 }
 
-/* تخصيص السحب والإفلات */
 .sortable-ghost {
   opacity: 0.6;
   background: #c8ebfb;
   transform: scale(1.02);
 }
 
-/* تصميم متجاوب */
 @media (max-width: 768px) {
   .sale-line-row > div {
     margin-bottom: 0.5rem;
   }
-  
+
   .btn-sale {
     width: 100%;
     margin-bottom: 0.5rem;
   }
-  
+
   .summary-card {
     margin-top: 1rem;
   }

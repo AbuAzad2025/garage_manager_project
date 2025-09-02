@@ -1,6 +1,6 @@
-/* ================= شاشة عامة ================= */
-html, body {
-  font-family: "DejaVu Sans","Tahoma","Arial",sans-serif;
+html,
+body {
+  font-family: "DejaVu Sans", "Tahoma", "Arial", sans-serif;
   direction: rtl;
   text-align: right;
   font-size: 13px;
@@ -17,90 +17,218 @@ html, body {
   background: #fff;
 }
 
-.title { font-weight: 800; letter-spacing: .3px; margin-bottom: .4rem; }
-.brand-line { height: 3px; background: linear-gradient(90deg,#0d6efd,#20c997); border-radius: 6px; margin: 6px 0 18px; }
+.title {
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  margin-bottom: 0.4rem;
+}
+
+.brand-line {
+  height: 3px;
+  background: linear-gradient(90deg, #0d6efd, #20c997);
+  border-radius: 6px;
+  margin: 6px 0 18px;
+}
 
 .box {
   background: #fff;
   border: 1px solid #e6e6e6;
   border-radius: 12px;
   padding: 16px;
-  box-shadow: 0 1px 6px rgba(0,0,0,.04);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.04);
 }
 
-.kv th { width: 38mm; background: #f8f9fa; color: #555; font-weight: 600; }
-.minh { min-height: 40px; }
+.kv th {
+  width: 38mm;
+  background: #f8f9fa;
+  color: #555;
+  font-weight: 600;
+}
 
-/* ===== رأس مع الشعار ===== */
-.receipt-header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:6px; }
-.brand { display:flex; align-items:center; gap:12px; }
-.brand img.logo { height: 42px; width:auto; object-fit:contain; }
-.brand .brand-text { line-height:1.25; }
-.brand .brand-name { font-weight:800; font-size: 15px; }
-.brand .brand-sub { font-size: 12px; color:#666; }
+.minh {
+  min-height: 40px;
+}
 
-/* ================= الجداول ================= */
-.receipt-table { border-color: #e6e6e6; table-layout: fixed; width:100%; }
-.receipt-table thead th { background: #f3f6fb; border-bottom: 1px solid #e6e6e6 !important; font-weight: 700; color: #394b6a; }
-.receipt-table th, .receipt-table td { vertical-align: middle; word-break: break-word; white-space: normal; }
+.receipt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
 
-.col-type { width: 22mm; }
-.col-desc { width: auto; }               /* تتمدّد لتأخذ الباقي */
-.col-qty  { width: 20mm; }
-.col-unit { width: 28mm; }
-.col-sum  { width: 30mm; }               /* الإجمالي قبل الخصم */
-.col-net  { width: 30mm; }               /* الصافي بعد الخصم + ضريبة */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 
-/* ================= المجاميع ================= */
-.totals .rowline { display: flex; justify-content: space-between; align-items: center; margin-bottom: .35rem; }
-.totals .label   { color: #6b7280; min-width: 170px; }
-.totals .value   { font-weight: 700; color: #111827; min-width: 120px; text-align: end; }
-.totals .highlight { color: #16a34a; font-size: 1.15rem; }
+.brand img.logo {
+  height: 42px;
+  width: auto;
+  object-fit: contain;
+}
 
-/* أخفي فوتر القالب الأساسي في الشاشة أيضاً (هذه الصفحة فقط) */
-.main-footer, .app-footer, .footer, footer { display: none !important; }
+.brand .brand-text {
+  line-height: 1.25;
+}
 
-/* ================== وضع الطباعة: A4 مضبوط ================== */
+.brand .brand-name {
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.brand .brand-sub {
+  font-size: 12px;
+  color: #666;
+}
+
+.receipt-table {
+  border-color: #e6e6e6;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.receipt-table thead th {
+  background: #f3f6fb;
+  border-bottom: 1px solid #e6e6e6 !important;
+  font-weight: 700;
+  color: #394b6a;
+}
+
+.receipt-table th,
+.receipt-table td {
+  vertical-align: middle;
+  word-break: break-word;
+  white-space: normal;
+}
+
+.col-type {
+  width: 22mm;
+}
+
+.col-desc {
+  width: auto;
+}
+
+.col-qty {
+  width: 20mm;
+}
+
+.col-unit {
+  width: 28mm;
+}
+
+.col-sum {
+  width: 30mm;
+}
+
+.col-net {
+  width: 30mm;
+}
+
+.totals .rowline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+
+.totals .label {
+  color: #6b7280;
+  min-width: 170px;
+}
+
+.totals .value {
+  font-weight: 700;
+  color: #111827;
+  min-width: 120px;
+  text-align: end;
+}
+
+.totals .highlight {
+  color: #16a34a;
+  font-size: 1.15rem;
+}
+
+.main-footer,
+.app-footer,
+.footer,
+footer {
+  display: none !important;
+}
+
 @media print {
-  /* حجم الصفحة وهوامشها (A4 طولي افتراضي) */
-  @page { size: 210mm 297mm; margin: 12mm; }
+  @page {
+    size: 210mm 297mm;
+    margin: 12mm;
+  }
 
-  html, body {
+  html,
+  body {
     margin: 0 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
     background: #fff !important;
   }
 
-  /* تنظيف تأثيرات الأطر/الواجهات */
-  .container, .container-fluid {
+  .container,
+  .container-fluid {
     width: auto !important;
     max-width: none !important;
     padding: 0 !important;
     margin: 0 !important;
   }
 
-  /* عرض الحاوية داخل الهوامش (A4 طولي: 210 - 12 - 12 = 186mm) */
   #receipt {
     width: 186mm;
     margin: 0 auto !important;
     padding: 0 !important;
     box-sizing: border-box;
-    padding-bottom: 22mm !important;   /* حجز مساحة للفوتر الثابت */
+    padding-bottom: 22mm !important;
   }
 
-  /* جداول نظيفة بلا قص */
-  table { width: 100% !important; border-collapse: collapse; }
-  thead { display: table-header-group; }       /* تكرار رأس الجدول */
-  tfoot { display: table-footer-group; }
-  tr, .box, .totals, .receipt-header { page-break-inside: avoid; break-inside: avoid; }
-  th, td { border: 1px solid #222; padding: 4px 6px; }
+  table {
+    width: 100% !important;
+    border-collapse: collapse;
+  }
 
-  /* إخفاء عناصر لا تُطبع */
-  .no-print, nav, .navbar, .sidebar, .btn, .actions, a { display: none !important; }
-  a[href]:after { content: "" !important; }    /* لا تطبع عناوين الروابط */
+  thead {
+    display: table-header-group;
+  }
 
-  /* فوتر الإيصال الخاص ثابت داخل حدود الصفحة */
+  tfoot {
+    display: table-footer-group;
+  }
+
+  tr,
+  .box,
+  .totals,
+  .receipt-header {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  th,
+  td {
+    border: 1px solid #222;
+    padding: 4px 6px;
+  }
+
+  .no-print,
+  nav,
+  .navbar,
+  .sidebar,
+  .btn,
+  .actions,
+  a {
+    display: none !important;
+  }
+
+  a[href]:after {
+    content: "" !important;
+  }
+
   .receipt-footer {
     position: fixed;
     left: 12mm;
@@ -116,7 +244,6 @@ html, body {
   }
 }
 
-/* في الشاشة، يظهر الفوتر طبيعيًا */
 .receipt-footer {
   margin: 24px auto 8px;
   text-align: center;

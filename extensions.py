@@ -5,6 +5,7 @@ import logging, sys, json
 from datetime import datetime
 from flask import g, has_request_context
 
+# ===== Request ID Filter =====
 class RequestIdFilter(logging.Filter):
     def filter(self, record):
         if has_request_context():
@@ -13,6 +14,7 @@ class RequestIdFilter(logging.Filter):
             record.request_id = "-"
         return True
 
+# ===== JSON Formatter (يبقى كما هو مع دعم exc_info) =====
 class JSONFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         base = {
@@ -23,10 +25,14 @@ class JSONFormatter(logging.Formatter):
             "request_id": getattr(record, "request_id", "-"),
         }
         for k, v in record.__dict__.items():
-            if k.startswith("_"): continue
-            if k in ("name","msg","args","levelname","levelno","pathname","filename","module","exc_info",
-                     "exc_text","stack_info","lineno","funcName","created","msecs","relativeCreated",
-                     "thread","threadName","processName","process","request_id"):
+            if k.startswith("_"):
+                continue
+            if k in (
+                "name","msg","args","levelname","levelno","pathname","filename",
+                "module","exc_info","exc_text","stack_info","lineno","funcName",
+                "created","msecs","relativeCreated","thread","threadName",
+                "processName","process","request_id"
+            ):
                 continue
             try:
                 json.dumps({k: v})
@@ -37,24 +43,71 @@ class JSONFormatter(logging.Formatter):
             base["exc_info"] = self.formatException(record.exc_info)
         return json.dumps(base, ensure_ascii=False)
 
+# ===== Color support (آمن لو colorama غير مثبتة) =====
+try:
+    from colorama import init as colorama_init, Fore, Style
+    colorama_init(autoreset=True)
+except Exception:
+    class _Fore:
+        BLUE = ""; GREEN = ""; YELLOW = ""; RED = ""
+    class _Style:
+        BRIGHT = ""; RESET_ALL = ""
+    Fore, Style = _Fore(), _Style()
+    def colorama_init(*args, **kwargs):  # no-op
+        return
+
+class ColorFormatter(logging.Formatter):
+    COLORS = {
+        "DEBUG":   Fore.BLUE,
+        "INFO":    Fore.GREEN,
+        "WARNING": Fore.YELLOW,
+        "ERROR":   Fore.RED,
+        "CRITICAL": Fore.RED + Style.BRIGHT,
+    }
+
+    def format(self, record: logging.LogRecord) -> str:
+        color = self.COLORS.get(record.levelname, "")
+        reset = Style.RESET_ALL
+        # request_id قد لا يكون مضافًا في بعض المسارات غير Flask، فنتعامل معه بأمان
+        req_id = getattr(record, "request_id", "-")
+        base = f"[{self.formatTime(record, '%Y-%m-%d %H:%M:%S')}] {color}{record.levelname}{reset} {req_id} {record.name}: {record.getMessage()}"
+        if record.exc_info:
+            base += "\n" + self.formatException(record.exc_info)
+        return base
+
+# ===== Setup logging (إخراج ملوّن + JSON اختياري + Traceback على stderr) =====
 def setup_logging(app):
     level_name = app.config.get("LOG_LEVEL", "INFO").upper()
     level = getattr(logging, level_name, logging.INFO)
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(level)
-    handler.addFilter(RequestIdFilter())
+
+    # Handler الأساسي (stdout) لمستويات info وما دون (أو حسب LOG_LEVEL)
+    out_handler = logging.StreamHandler(sys.stdout)
+    out_handler.setLevel(level)
+    out_handler.addFilter(RequestIdFilter())
     if app.config.get("JSON_LOGS"):
-        handler.setFormatter(JSONFormatter())
+        out_handler.setFormatter(JSONFormatter())
     else:
-        handler.setFormatter(logging.Formatter(
-            "[%(asctime)s] %(levelname)s %(request_id)s %(name)s: %(message)s"
-        ))
+        out_handler.setFormatter(ColorFormatter())
+
+    # Handler إضافي للأخطاء (stderr)؛ يضمن طباعة traceback دائمًا
+    err_handler = logging.StreamHandler(sys.stderr)
+    err_handler.setLevel(logging.ERROR)
+    err_handler.addFilter(RequestIdFilter())
+    # نفس الفورماتر (مُلَوَّن أو JSON) ليتطابق المظهر
+    if app.config.get("JSON_LOGS"):
+        err_handler.setFormatter(JSONFormatter())
+    else:
+        err_handler.setFormatter(ColorFormatter())
+
+    # نطبّق الـ handlers على app.logger, root logger, و sqlalchemy.engine
     for lg in (app.logger, logging.getLogger(), logging.getLogger("sqlalchemy.engine")):
         lg.handlers.clear()
         lg.setLevel(level)
-        lg.addHandler(handler)
+        lg.addHandler(out_handler)
+        lg.addHandler(err_handler)
         lg.propagate = False
 
+# ===== Sentry =====
 try:
     import sentry_sdk
     from sentry_sdk.integrations.flask import FlaskIntegration
@@ -77,6 +130,7 @@ def setup_sentry(app):
         max_breadcrumbs=100,
     )
 
+# ===== باقي الإكستنشنز كما هي =====
 import os, sqlite3, glob
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -239,6 +293,18 @@ def init_extensions(app):
                 return False
             return False
 
-    scheduler.add_job(lambda: perform_backup_db(app), "interval", seconds=app.config.get("BACKUP_DB_INTERVAL").total_seconds(), id="db_backup", replace_existing=True)
-    scheduler.add_job(lambda: perform_backup_sql(app), "interval", seconds=app.config.get("BACKUP_SQL_INTERVAL").total_seconds(), id="sql_backup", replace_existing=True)
+    scheduler.add_job(
+        lambda: perform_backup_db(app),
+        "interval",
+        seconds=app.config.get("BACKUP_DB_INTERVAL").total_seconds(),
+        id="db_backup",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        lambda: perform_backup_sql(app),
+        "interval",
+        seconds=app.config.get("BACKUP_SQL_INTERVAL").total_seconds(),
+        id="sql_backup",
+        replace_existing=True,
+    )
     scheduler.start()

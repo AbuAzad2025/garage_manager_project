@@ -3,28 +3,22 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from typing import Any, Dict, Iterable, Optional, List, Tuple
-
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for, abort, current_app
 from flask_login import current_user, login_required
 from sqlalchemy import func, or_, desc, extract, case, and_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
-
 from extensions import db
-from models import (
-    Sale, SaleLine, Invoice, Customer, Product, AuditLog, Warehouse, User, Payment,
-    StockLevel  
-)
+from models import Sale, SaleLine, Invoice, Customer, Product, AuditLog, Warehouse, User, Payment, StockLevel
 from forms import SaleForm
 from utils import permission_required
-
-# ============ MONEY: أدوات Decimal آمنة ============
 from decimal import Decimal, ROUND_HALF_UP
+
+sales_bp = Blueprint("sales_bp", __name__, url_prefix="/sales", template_folder="templates/sales")
 
 TWOPLACES = Decimal("0.01")
 
 def D(x):
-    """حوّل أي قيمة إلى Decimal بشكل آمن."""
     if x is None:
         return Decimal("0")
     if isinstance(x, Decimal):
@@ -32,9 +26,6 @@ def D(x):
     return Decimal(str(x))
 
 def line_total_decimal(qty, unit_price, discount_rate):
-    """
-    qty * unit_price * (1 - discount/100)  => Decimal + تقريب 2 منازل
-    """
     q = D(qty)
     p = D(unit_price)
     dr = D(discount_rate or 0)
@@ -44,11 +35,8 @@ def line_total_decimal(qty, unit_price, discount_rate):
     return total.quantize(TWOPLACES, rounding=ROUND_HALF_UP)
 
 def money_fmt(value):
-    """إرجاع نص مالـي 1,234.56 من Decimal/رقم."""
     v = value if isinstance(value, Decimal) else D(value or 0)
     return f"{v:,.2f}"
-
-# =====================================================
 
 STATUS_MAP = {
     "DRAFT": ("مسودة", "bg-warning text-dark"),
@@ -63,10 +51,6 @@ PAYMENT_STATUS_MAP = {
     "REFUNDED": ("مرتجع", "bg-info"),
 }
 PAYMENT_METHOD_MAP = {"cash": "نقدي", "cheque": "شيك", "card": "بطاقة", "bank": "تحويل بنكي", "online": "دفع إلكتروني"}
-
-sales_bp = Blueprint("sales_bp", __name__, url_prefix="/sales", template_folder="templates/sales")
-
-# -------------------- Helpers: Common --------------------
 
 def _get_or_404(model, ident, options: Optional[Iterable[Any]] = None):
     q = db.session.query(model)
@@ -134,31 +118,7 @@ def _log(s: Sale, action: str, old: Optional[dict] = None, new: Optional[dict] =
     db.session.add(log)
     db.session.flush()
 
-def _reserve_stock(sale: Sale) -> None:
-    # نفترض أن sale.reserve_stock() تقوم برفع reserved_quantity وإلا فعّل الحجز عندك في الموديل
-    if (getattr(sale, "status", "") or "").upper() != "CONFIRMED":
-        return
-    sale.reserve_stock()
-    db.session.flush()
-
-def _release_stock(sale: Sale) -> None:
-    if (getattr(sale, "status", "") or "").upper() != "CONFIRMED":
-        return
-    sale.release_stock()
-    db.session.flush()
-
-# -------------------- Helpers: Warehouse picking & availability --------------------
-
-# ترتيب أولوية أنواع المخازن
-_WAREHOUSE_PRIORITY = {
-    "MAIN": 0,
-    "INVENTORY": 1,
-    "PARTNER": 2,
-    "EXCHANGE": 3,
-}
-
 def _available_expr():
-    # quantity - coalesce(reserved_quantity, 0)
     return (StockLevel.quantity - func.coalesce(StockLevel.reserved_quantity, 0))
 
 def _available_qty(product_id: int, warehouse_id: int) -> int:
@@ -170,11 +130,9 @@ def _available_qty(product_id: int, warehouse_id: int) -> int:
     return int(row.avail or 0) if row else 0
 
 def _auto_pick_warehouse(product_id: int, required_qty: int, preferred_wid: Optional[int] = None) -> Optional[int]:
-    # 1) لو في مخزن مفضّل وكفايته تكفي
     if preferred_wid:
         if _available_qty(product_id, preferred_wid) >= required_qty:
             return preferred_wid
-    # 2) دور على مخزن يلبي الكمية مع أولوية الأنواع
     order_expr = case(
         (Warehouse.warehouse_type == "MAIN", 0),
         (Warehouse.warehouse_type == "INVENTORY", 1),
@@ -193,22 +151,66 @@ def _auto_pick_warehouse(product_id: int, required_qty: int, preferred_wid: Opti
     return int(row.warehouse_id) if row else None
 
 def _lock_stock_rows(pairs: List[Tuple[int, int]]) -> None:
-    """
-    pairs: list of (product_id, warehouse_id) to lock corresponding StockLevel rows
-    """
     if not pairs:
         return
     conds = [and_(StockLevel.product_id == pid, StockLevel.warehouse_id == wid) for (pid, wid) in pairs]
-    # SELECT ... FOR UPDATE to avoid race while confirming
     db.session.query(StockLevel).filter(or_(*conds)).with_for_update(nowait=False).all()
 
+def _collect_requirements_from_lines(lines: Iterable[SaleLine]) -> Dict[Tuple[int, int], int]:
+    req: Dict[Tuple[int, int], int] = {}
+    for ln in lines:
+        pid = int(ln.product_id or 0)
+        wid = int(ln.warehouse_id or 0)
+        qty = int(ln.quantity or 0)
+        if pid and wid and qty > 0:
+            key = (pid, wid)
+            req[key] = req.get(key, 0) + qty
+    return req
+
+def _reserve_stock(sale: Sale) -> None:
+    if (getattr(sale, "status", "") or "").upper() != "CONFIRMED":
+        return
+    req = _collect_requirements_from_lines(sale.lines or [])
+    if not req:
+        return
+    _lock_stock_rows(list(req.keys()))
+    for (pid, wid), qty in req.items():
+        rec = (
+            db.session.query(StockLevel)
+            .filter_by(product_id=pid, warehouse_id=wid)
+            .with_for_update(nowait=False)
+            .first()
+        )
+        if not rec:
+            rec = StockLevel(product_id=pid, warehouse_id=wid, quantity=0, reserved_quantity=0)
+            db.session.add(rec)
+            db.session.flush()
+        available = int(rec.quantity or 0) - int(rec.reserved_quantity or 0)
+        if available < qty:
+            raise ValueError(f"الكمية غير متوفرة للمنتج ID={pid} في المخزن {wid}.")
+        rec.reserved_quantity = int(rec.reserved_quantity or 0) + qty
+        db.session.flush()
+
+def _release_stock(sale: Sale) -> None:
+    req = _collect_requirements_from_lines(sale.lines or [])
+    if not req:
+        return
+    _lock_stock_rows(list(req.keys()))
+    for (pid, wid), qty in req.items():
+        rec = (
+            db.session.query(StockLevel)
+            .filter_by(product_id=pid, warehouse_id=wid)
+            .with_for_update(nowait=False)
+            .first()
+        )
+        if not rec:
+            continue
+        current_reserved = int(rec.reserved_quantity or 0)
+        new_reserved = max(0, current_reserved - qty)
+        rec.reserved_quantity = new_reserved
+        db.session.flush()
+
 def _resolve_lines_from_form(form: SaleForm, require_stock: bool) -> Tuple[List[Dict[str, Any]], Optional[str]]:
-    """
-    تبني قائمة أسطر نظيفة ومعالجة:
-      - تحاول اختيار مخزن تلقائيًا عند الحاجة
-      - تتحقق من التوفر إذا require_stock=True
-    ترجع (lines_payload, error_message)
-    """
     lines_payload: List[Dict[str, Any]] = []
     for ent in form.lines.entries:
         ln = ent.form
@@ -216,24 +218,16 @@ def _resolve_lines_from_form(form: SaleForm, require_stock: bool) -> Tuple[List[
         wid = int(ln.warehouse_id.data) if ln.warehouse_id.data else 0
         qty = int(ln.quantity.data or 0)
         if not (pid and qty > 0):
-            # تجاهل سطر غير صالح
             continue
-
-        # انتقاء المخزن تلقائيًا عند الحاجة
         chosen_wid = wid or _auto_pick_warehouse(pid, qty, preferred_wid=None)
-
-        # لو في مخزن محدد لكن غير كافي، جرّب تلقائي
         if wid and _available_qty(pid, wid) < qty:
             auto_wid = _auto_pick_warehouse(pid, qty, preferred_wid=None)
-            chosen_wid = auto_wid or wid  # ما نغيّر إلا إذا لقينا بديل
-
-        # تحقق صارم عند التأكيد
+            chosen_wid = auto_wid or wid
         if require_stock:
             if not chosen_wid:
                 return [], f"لا يوجد مخزن مناسب متاح للمنتج ID={pid} بالكمية المطلوبة."
             if _available_qty(pid, chosen_wid) < qty:
                 return [], f"الكمية غير متوفرة للمنتج ID={pid} في المخازن بالكمية: {qty}."
-
         line_dict = dict(
             product_id=pid,
             warehouse_id=int(chosen_wid) if chosen_wid else (wid or None),
@@ -244,14 +238,11 @@ def _resolve_lines_from_form(form: SaleForm, require_stock: bool) -> Tuple[List[
             note=(ln.note.data or "").strip() or None,
         )
         lines_payload.append(line_dict)
-
     if require_stock and not lines_payload:
         return [], "لا توجد أسطر صالحة للحفظ."
-
     return lines_payload, None
 
 def _attach_lines(sale: Sale, lines_payload: List[Dict[str, Any]]) -> None:
-    # نحذف القديم (في التعديل) ثم نعيد البناء
     if getattr(sale, "id", None):
         SaleLine.query.filter_by(sale_id=sale.id).delete(synchronize_session=False)
         db.session.flush()
@@ -269,12 +260,9 @@ def _attach_lines(sale: Sale, lines_payload: List[Dict[str, Any]]) -> None:
     db.session.flush()
 
 def _safe_generate_number_after_flush(sale: Sale) -> None:
-    # بعد ما نحصل على sale.id من الـ flush
     if not sale.sale_number:
         sale.sale_number = f"INV-{datetime.utcnow():%Y%m%d}-{sale.id:04d}"
         db.session.flush()
-
-# -------------------- Dashboard & Listing --------------------
 
 @sales_bp.route("/dashboard")
 @login_required
@@ -371,7 +359,6 @@ def list_sales():
     else:
         fld = Sale.sale_date
     q = q.order_by(fld.asc() if order == "asc" else fld.desc())
-
     page = int(f.get("page", 1))
     pag = q.paginate(page=page, per_page=20, error_out=False)
     sales = pag.items
@@ -383,16 +370,12 @@ def list_sales():
                            sellers=User.query.filter_by(is_active=True).order_by(User.username).all(),
                            status_map=STATUS_MAP)
 
-# -------------------- Pricing Helper --------------------
-
 def _resolve_unit_price(product_id: int, warehouse_id: Optional[int]) -> float:
     prod = db.session.get(Product, product_id)
     try:
         return float(getattr(prod, "price", 0) or 0)
     except Exception:
         return 0.0
-
-# -------------------- Create --------------------
 
 @sales_bp.route("/new", methods=["GET", "POST"], endpoint="create_sale")
 @login_required
@@ -418,14 +401,13 @@ def create_sale():
             if require_stock:
                 pairs = [(d["product_id"], d["warehouse_id"]) for d in lines_payload if d.get("warehouse_id")]
                 _lock_stock_rows(pairs)
-
             sale = Sale(
                 sale_number=None,
                 customer_id=form.customer_id.data,
                 seller_id=form.seller_id.data,
                 sale_date=form.sale_date.data or datetime.utcnow(),
                 status=target_status,
-                currency=form.currency.data,
+                currency=(form.currency.data or "ILS").upper(),
                 tax_rate=form.tax_rate.data or 0,
                 discount_total=form.discount_total.data or 0,
                 shipping_cost=form.shipping_cost.data or 0,
@@ -433,14 +415,12 @@ def create_sale():
             )
             db.session.add(sale)
             db.session.flush()
-
             _safe_generate_number_after_flush(sale)
             _attach_lines(sale, lines_payload)
             db.session.flush()
             sale.total_amount = sale.total
             if require_stock:
                 _reserve_stock(sale)
-
             _log(sale, "CREATE", None, sale_to_dict(sale))
             db.session.commit()
             flash("✅ تم إنشاء الفاتورة.", "success")
@@ -451,12 +431,9 @@ def create_sale():
         except Exception as e:
             db.session.rollback()
             flash(f"❌ خطأ أثناء الحفظ: {e}", "danger")
-
     return render_template("sales/form.html", form=form, title="إنشاء فاتورة جديدة",
                            products=Product.query.order_by(Product.name).all(),
                            warehouses=Warehouse.query.order_by(Warehouse.name).all())
-
-# -------------------- Detail --------------------
 
 @sales_bp.route("/<int:id>", methods=["GET"], endpoint="sale_detail")
 @login_required
@@ -492,8 +469,6 @@ def sale_detail(id: int):
         payment_status_map=PAYMENT_STATUS_MAP,
     )
 
-# -------------------- Payments list for a sale --------------------
-
 @sales_bp.route("/<int:id>/payments", methods=["GET"], endpoint="sale_payments")
 @login_required
 @permission_required("manage_sales")
@@ -514,8 +489,6 @@ def sale_payments(id: int):
     return render_template("payments/list.html", payments=pagination.items, pagination=pagination,
                            entity_type="SALE", entity_id=id)
 
-# -------------------- Edit --------------------
-
 @sales_bp.route("/<int:id>/edit", methods=["GET", "POST"], endpoint="edit_sale")
 @login_required
 @permission_required("manage_sales")
@@ -524,10 +497,8 @@ def edit_sale(id: int):
     if sale.status in ("CANCELLED", "REFUNDED"):
         flash("❌ لا يمكن تعديل فاتورة ملغاة/مرتجعة.", "danger")
         return redirect(url_for("sales_bp.sale_detail", id=sale.id))
-
     old = sale_to_dict(sale)
     form = SaleForm(obj=sale)
-
     if request.method == "GET":
         while len(form.lines.entries) < len(sale.lines):
             form.lines.append_entry()
@@ -540,17 +511,14 @@ def edit_sale(id: int):
             e.discount_rate.data = ln.discount_rate
             e.tax_rate.data = ln.tax_rate
             e.note.data = ln.note
-
     if request.method == "POST" and not form.validate_on_submit():
         current_app.logger.warning("Sale form errors (edit): %s", form.errors)
         current_app.logger.debug("POST data (edit): %r", request.form.to_dict(flat=False))
-
     if form.validate_on_submit():
         try:
             was_confirmed = (sale.status == "CONFIRMED")
             if was_confirmed:
                 _release_stock(sale)
-
             target_status = (form.status.data or sale.status or "DRAFT").upper()
             require_stock = (target_status == "CONFIRMED")
             lines_payload, err = _resolve_lines_from_form(form, require_stock=require_stock)
@@ -561,32 +529,26 @@ def edit_sale(id: int):
                 return render_template("sales/form.html", form=form, sale=sale, title="تعديل الفاتورة",
                                        products=Product.query.order_by(Product.name).all(),
                                        warehouses=Warehouse.query.order_by(Warehouse.name).all())
-
             for d in lines_payload:
                 if (d.get("unit_price") or 0) <= 0:
                     d["unit_price"] = _resolve_unit_price(d["product_id"], d.get("warehouse_id"))
-
             if require_stock:
                 pairs = [(d["product_id"], d["warehouse_id"]) for d in lines_payload if d.get("warehouse_id")]
                 _lock_stock_rows(pairs)
-
             sale.customer_id = form.customer_id.data
             sale.seller_id = form.seller_id.data
             sale.sale_date = form.sale_date.data or sale.sale_date
             sale.status = target_status or sale.status
-            sale.currency = form.currency.data
+            sale.currency = (form.currency.data or sale.currency or "ILS").upper()
             sale.tax_rate = form.tax_rate.data or 0
             sale.discount_total = form.discount_total.data or 0
             sale.shipping_cost = form.shipping_cost.data or 0
             sale.notes = form.notes.data
-
             _attach_lines(sale, lines_payload)
             db.session.flush()
             sale.total_amount = sale.total
-
             if require_stock:
                 _reserve_stock(sale)
-
             _log(sale, "UPDATE", old, sale_to_dict(sale))
             db.session.commit()
             flash("✅ تم التعديل بنجاح.", "success")
@@ -597,12 +559,9 @@ def edit_sale(id: int):
         except Exception as e:
             db.session.rollback()
             flash(f"❌ خطأ أثناء التعديل: {e}", "danger")
-
     return render_template("sales/form.html", form=form, sale=sale, title="تعديل الفاتورة",
                            products=Product.query.order_by(Product.name).all(),
                            warehouses=Warehouse.query.order_by(Warehouse.name).all())
-
-# -------------------- Quick sell --------------------
 
 @sales_bp.route("/quick", methods=["POST"])
 @login_required
@@ -617,11 +576,9 @@ def quick_sell():
         customer_id = int(request.form.get("customer_id") or 0)
         seller_id = int(request.form.get("seller_id") or (current_user.id or 0))
         status = (request.form.get("status") or "DRAFT").upper()
-
         if not (pid and qty > 0 and customer_id and seller_id):
             flash("بيانات غير مكتملة للبيع السريع.", "danger")
             return redirect(url_for("sales_bp.list_sales"))
-
         chosen_wid = wid or _auto_pick_warehouse(pid, qty, preferred_wid=None)
         if status == "CONFIRMED":
             if not chosen_wid:
@@ -631,10 +588,8 @@ def quick_sell():
                 flash("الكمية غير متوفرة في المخازن.", "danger")
                 return redirect(url_for("sales_bp.list_sales"))
             _lock_stock_rows([(pid, chosen_wid)])
-
         if price <= 0:
             price = _resolve_unit_price(pid, chosen_wid)
-
         sale = Sale(
             sale_number=None,
             customer_id=customer_id,
@@ -646,17 +601,14 @@ def quick_sell():
         db.session.add(sale)
         db.session.flush()
         _safe_generate_number_after_flush(sale)
-
         db.session.add(SaleLine(
             sale_id=sale.id, product_id=pid, warehouse_id=chosen_wid, quantity=qty,
             unit_price=price, discount_rate=0, tax_rate=0
         ))
         db.session.flush()
-
         sale.total_amount = sale.total
         if status == "CONFIRMED":
             _reserve_stock(sale)
-
         _log(sale, "CREATE", None, sale_to_dict(sale))
         db.session.commit()
         flash("✅ تم إنشاء فاتورة سريعة.", "success")
@@ -669,8 +621,6 @@ def quick_sell():
         db.session.rollback()
         flash(f"❌ فشل البيع السريع: {e}", "danger")
         return redirect(url_for("sales_bp.list_sales"))
-
-# -------------------- Delete --------------------
 
 @sales_bp.route("/<int:id>/delete", methods=["POST"], endpoint="delete_sale")
 @login_required
@@ -690,8 +640,6 @@ def delete_sale(id: int):
         db.session.rollback()
         flash(f"❌ خطأ أثناء الحذف: {e}", "danger")
     return redirect(url_for("sales_bp.list_sales"))
-
-# -------------------- Change Status --------------------
 
 @sales_bp.route("/<int:id>/status/<status>", methods=["POST"], endpoint="change_status")
 @login_required
@@ -740,8 +688,6 @@ def change_status(id: int, status: str):
         flash(f"❌ خطأ أثناء تحديث الحالة: {e}", "danger")
     return redirect(url_for("sales_bp.sale_detail", id=sale.id))
 
-# -------------------- Payments shortcuts --------------------
-
 @sales_bp.route("/<int:id>/payments/add", methods=["GET", "POST"], endpoint="add_payment")
 @login_required
 @permission_required("manage_sales")
@@ -753,8 +699,6 @@ def add_payment(id: int):
 @permission_required("manage_sales")
 def delete_payment(pid: int):
     return redirect(url_for("payments.delete_payment", payment_id=pid))
-
-# -------------------- Print --------------------
 
 @sales_bp.route("/<int:id>/invoice", methods=["GET"], endpoint="generate_invoice")
 @login_required

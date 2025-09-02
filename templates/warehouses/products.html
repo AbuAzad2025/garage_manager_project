@@ -1,5 +1,6 @@
 {% extends 'warehouses/base.html' %}
 {% block title %}قطع المستودعات{% endblock %}
+{% block page_page_title %}{% endblock %}
 {% block page_title %}عرض المخزون عبر مستودعات محددة{% endblock %}
 
 {% block head_extra %}
@@ -12,8 +13,8 @@
   <div class="card-body">
     <form class="row g-3 align-items-end" method="get">
       <div class="col-md-9">
-        <label class="form-label">اختر المستودعات</label>
-        <select class="form-select" name="warehouse_ids" multiple size="6">
+        <label for="warehouse_ids" class="form-label">اختر المستودعات</label>
+        <select id="warehouse_ids" class="form-select" name="warehouse_ids" multiple size="6">
           {% for w in warehouses %}
             <option value="{{ w.id }}" {% if w.id in selected_ids %}selected{% endif %}>{{ w.name }}</option>
           {% endfor %}
@@ -30,26 +31,28 @@
 
 <div class="card shadow-sm">
   <div class="card-body p-0">
-    <table class="table table-striped mb-0" id="stock-table" style="width:100%">
-      <thead class="table-light">
-        <tr>
-          <th>القطعة</th>
-          <th>المستودع</th>
-          <th>الكمية</th>
-          <th>الحد الأدنى</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for sl in stock_levels %}
+    <div class="table-responsive">
+      <table class="table table-striped mb-0" id="stock-table" style="width:100%">
+        <thead class="table-light">
           <tr>
-            <td><a href="{{ url_for('warehouse_bp.product_card', product_id=sl.product.id) }}">{{ sl.product.name }}</a></td>
-            <td>{{ sl.warehouse.name }}</td>
-            <td>{{ sl.quantity }}</td>
-            <td>{{ sl.min_stock or 0 }}</td>
+            <th>القطعة</th>
+            <th>المستودع</th>
+            <th>الكمية</th>
+            <th>الحد الأدنى</th>
           </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {% for sl in stock_levels %}
+            <tr>
+              <td><a href="{{ url_for('warehouse_bp.product_card', product_id=sl.product.id) }}">{{ sl.product.name }}</a></td>
+              <td>{{ sl.warehouse.name }}</td>
+              <td>{{ sl.quantity }}</td>
+              <td>{{ sl.min_stock or 0 }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 {% endblock %}
@@ -58,12 +61,17 @@
   {{ super() }}
   <script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
   <script>
-    (function(){
+    (function () {
       if (window.jQuery && $.fn.DataTable) {
-        $('#stock-table').DataTable({
-          pageLength: 25,
-          language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/ar.json' }
-        });
+        if (!$.fn.DataTable.isDataTable('#stock-table')) {
+          $('#stock-table').DataTable({
+            pageLength: 25,
+            order: [],
+            responsive: true,
+            autoWidth: false,
+            language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/ar.json' }
+          });
+        }
       }
     })();
   </script>

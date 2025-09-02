@@ -1,100 +1,153 @@
-(function(){
-  var rows=window.__IMPORT_ROWS__||[];
-  var table=document.getElementById('previewTable');
-  var extra=document.getElementById('extraTable');
-  var searchBox=document.getElementById('searchBox');
-  var filter=document.getElementById('quickFilter');
-  var btnSave=document.getElementById('btnSave');
-  var btnCommit=document.getElementById('btnCommit');
-  var saveField=document.getElementById('rows_json_save');
-  var commitField=document.getElementById('rows_json_commit');
-  var token=document.getElementById('token')?document.getElementById('token').value:'';
-  var btnCompact=document.getElementById('btnToggleCompact');
+(function () {
+  const rows = window.__IMPORT_ROWS__ || [];
+  const table = document.getElementById('previewTable');
+  const extra = document.getElementById('extraTable');
+  const searchBox = document.getElementById('searchBox');
+  const filter = document.getElementById('quickFilter');
+  const btnSave = document.getElementById('btnSave');
+  const btnCommit = document.getElementById('btnCommit');
+  const saveField = document.getElementById('rows_json_save');
+  const commitField = document.getElementById('rows_json_commit');
+  const token = document.getElementById('token')?.value || '';
+  const btnCompact = document.getElementById('btnToggleCompact');
 
-  function collect(){
-    var map={};
-    Array.from(table.tBodies[0].rows).forEach(function(tr){
-      var idx=parseInt(tr.getAttribute('data-rownum'),10);
-      map[idx]=map[idx]||{};
-      tr.querySelectorAll('.cell').forEach(function(inp){
-        var f=inp.getAttribute('data-field');
-        var v=inp.value;
-        map[idx][f]=v;
+  // Notification system (basic)
+  function notify(message, type = 'info') {
+    const existing = document.getElementById('notifyBox');
+    if (existing) existing.remove();
+
+    const box = document.createElement('div');
+    box.id = 'notifyBox';
+    box.className = `alert alert-${type} shadow-sm position-fixed top-0 end-0 m-3`;
+    box.style.zIndex = 2000;
+    box.innerHTML = message;
+
+    document.body.appendChild(box);
+    setTimeout(() => box.remove(), 4000);
+  }
+
+  // Counter display
+  let resultCount = document.getElementById('resultCount');
+  if (!resultCount) {
+    resultCount = document.createElement('div');
+    resultCount.id = 'resultCount';
+    resultCount.className = 'mt-2 text-muted small';
+    table.parentElement.appendChild(resultCount);
+  }
+
+  function updateResultCount() {
+    const totalRows = table.tBodies[0].rows.length;
+    const visibleRows = Array.from(table.tBodies[0].rows).filter(tr => tr.style.display !== 'none').length;
+    resultCount.textContent = `عدد الصفوف الظاهرة: ${visibleRows} من ${totalRows}`;
+  }
+
+  function collect() {
+    const inputMap = {};
+
+    const extractInputs = (tbody) => {
+      Array.from(tbody.rows).forEach(row => {
+        const rowIndex = parseInt(row.getAttribute('data-rownum'), 10);
+        if (!inputMap[rowIndex]) inputMap[rowIndex] = {};
+
+        row.querySelectorAll('.cell').forEach(input => {
+          const field = input.getAttribute('data-field');
+          const value = input.value;
+          inputMap[rowIndex][field] = value;
+        });
       });
-    });
-    Array.from(extra.tBodies[0].rows).forEach(function(tr){
-      var idx=parseInt(tr.getAttribute('data-rownum'),10);
-      map[idx]=map[idx]||{};
-      tr.querySelectorAll('.cell').forEach(function(inp){
-        var f=inp.getAttribute('data-field');
-        var v=inp.value;
-        map[idx][f]=v;
-      });
-    });
-    var out=rows.map(function(r){
-      var idx=r.rownum;
-      var merged=Object.assign({},r.data||{},map[idx]||{});
-      return { rownum: idx, data: merged, match: r.match||{}, soft_warnings: r.soft_warnings||[] };
-    });
-    return out;
-  }
+    };
 
-  function applyFilters(){
-    var q=(searchBox.value||'').trim().toLowerCase();
-    var mode=filter.value;
-    var body=table.tBodies[0];
-    Array.from(body.rows).forEach(function(tr){
-      var rn=tr.getAttribute('data-rownum');
-      var extraRow=extra.querySelector('tr[data-rownum="'+rn+'"]');
-      var txt=Array.from(tr.querySelectorAll('input')).map(function(i){return i.value.toLowerCase();}).join(' ');
-      var okSearch=!q||txt.indexOf(q)>=0;
-      var cls=tr.className;
-      var okFilter=true;
-      if(mode==='missing') okFilter=cls.indexOf('row-missing')>=0;
-      else if(mode==='warnings') okFilter=cls.indexOf('row-warning')>=0;
-      else if(mode==='new') okFilter=cls.indexOf('row-new')>=0;
-      else if(mode==='matched') okFilter=cls.indexOf('row-matched')>=0;
-      var show=okSearch&&okFilter;
-      tr.style.display=show?'':'none';
-      if(extraRow) extraRow.style.display=show?'':'none';
+    extractInputs(table.tBodies[0]);
+    extractInputs(extra.tBodies[0]);
+
+    return rows.map(row => {
+      const index = row.rownum;
+      const combinedData = Object.assign({}, row.data || {}, inputMap[index] || {});
+      return {
+        rownum: index,
+        data: combinedData,
+        match: row.match || {},
+        soft_warnings: row.soft_warnings || []
+      };
     });
   }
 
-  function validateInline(){
-    Array.from(table.tBodies[0].rows).forEach(function(tr){
-      var name=tr.querySelector('input[data-field="name"]');
-      if(name){
-        if(!name.value.trim()) tr.classList.add('row-missing'); else tr.classList.remove('row-missing');
-      }
+  function applyFilters() {
+    const query = (searchBox?.value || '').trim().toLowerCase();
+    const mode = filter?.value || '';
+    const body = table.tBodies[0];
+
+    let shown = 0;
+
+    Array.from(body.rows).forEach(tr => {
+      const rowNum = tr.getAttribute('data-rownum');
+      const extraRow = extra.querySelector(`tr[data-rownum="${rowNum}"]`);
+      const rowText = Array.from(tr.querySelectorAll('input')).map(i => i.value.toLowerCase()).join(' ');
+
+      const matchesSearch = !query || rowText.includes(query);
+      let matchesFilter = true;
+
+      if (mode === 'missing') matchesFilter = tr.classList.contains('row-missing');
+      else if (mode === 'warnings') matchesFilter = tr.classList.contains('row-warning');
+      else if (mode === 'new') matchesFilter = tr.classList.contains('row-new');
+      else if (mode === 'matched') matchesFilter = tr.classList.contains('row-matched');
+
+      const shouldShow = matchesSearch && matchesFilter;
+      tr.style.display = shouldShow ? '' : 'none';
+      if (extraRow) extraRow.style.display = shouldShow ? '' : 'none';
+
+      if (shouldShow) shown++;
     });
+
+    updateResultCount();
   }
 
-  if(searchBox) searchBox.addEventListener('input',applyFilters);
-  if(filter) filter.addEventListener('change',applyFilters);
-  if(btnCompact) btnCompact.addEventListener('click',function(){
+  function validateInline() {
+    let missingCount = 0;
+    Array.from(table.tBodies[0].rows).forEach(tr => {
+      const nameInput = tr.querySelector('input[data-field="name"]');
+      const isMissing = nameInput && !nameInput.value.trim();
+      tr.classList.toggle('row-missing', isMissing);
+      if (isMissing) missingCount++;
+    });
+
+    if (missingCount > 0) {
+      notify(`⚠️ يوجد ${missingCount} صف بدون اسم.`, 'warning');
+    }
+  }
+
+  function prepare(targetField) {
+    const data = collect();
+    const json = JSON.stringify({ normalized: data });
+    if (targetField) targetField.value = json;
+  }
+
+  // Bind events
+  if (searchBox) searchBox.addEventListener('input', applyFilters);
+  if (filter) filter.addEventListener('change', applyFilters);
+  if (btnCompact) btnCompact.addEventListener('click', () => {
     document.body.classList.toggle('compact');
   });
 
-  function prepare(fieldEl){
-    var data=collect();
-    var json=JSON.stringify({normalized:data});
-    fieldEl.value=json;
-  }
-
-  if(btnSave){
-    btnSave.addEventListener('click',function(){
+  if (btnSave) {
+    btnSave.addEventListener('click', () => {
       validateInline();
       prepare(saveField);
+      notify('✅ تم تجهيز البيانات للحفظ', 'success');
       document.getElementById('saveForm').submit();
     });
   }
-  if(btnCommit){
-    btnCommit.addEventListener('click',function(){
+
+  if (btnCommit) {
+    btnCommit.addEventListener('click', () => {
       validateInline();
       prepare(commitField);
+      notify('✅ تم تجهيز البيانات للإدخال النهائي', 'success');
       document.getElementById('commitForm').submit();
     });
   }
 
+  // Initial
+  validateInline();
   applyFilters();
 })();

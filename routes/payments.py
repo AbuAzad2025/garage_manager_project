@@ -1,5 +1,6 @@
 # routes/payments.py
 from datetime import date, datetime
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 import io
 import uuid
 from flask import Blueprint, Response, abort, current_app, flash, jsonify, redirect, render_template, request, url_for, session
@@ -31,6 +32,38 @@ from models import (
 from utils import log_audit, permission_required, update_entity_balance
 
 payments_bp = Blueprint("payments", __name__, url_prefix="/payments")
+
+TWOPLACES = Decimal("0.01")
+def D(x) -> Decimal:
+    if x is None:
+        return Decimal("0")
+    if isinstance(x, Decimal):
+        return x
+    try:
+        return Decimal(str(x))
+    except (InvalidOperation, ValueError, TypeError):
+        return Decimal("0")
+
+def q2(x) -> Decimal:
+    return D(x).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
+
+def _sum_splits_decimal(splits) -> Decimal:
+    total = Decimal("0")
+    for s in splits or []:
+        total += q2(getattr(s, "amount", 0))
+    return q2(total)
+
+def _validate_splits_total_decimal(target_total, splits):
+    if not splits:
+        return
+    tt = q2(target_total)
+    ss = _sum_splits_decimal(splits)
+    if tt != ss:
+        raise ValueError("splits_mismatch: مجموع التجزئات لا يساوي إجمالي الدفعة (بعد التقريب).")
+
+def _norm_currency(v):
+    return (v or "ILS").strip().upper()
+
 def _get_or_404(model, ident, options=None):
     q = db.session.query(model)
     if options:
@@ -43,7 +76,6 @@ def _get_or_404(model, ident, options=None):
         abort(404)
     return obj
 
-
 def _norm_dir(val):
     if val is None:
         return None
@@ -54,7 +86,6 @@ def _norm_dir(val):
     if v in ("OUT", "OUTGOING", "PAY", "PAYMENT", "EXPENSE"):
         return "OUT"
     return v
-
 
 def _dir_to_db(v: str | None):
     vv = _norm_dir(v)
@@ -77,7 +108,6 @@ def _clean_details(d: dict | None):
             cleaned[k] = str(v)
     return cleaned or None
 
-
 def _val(x):
     return getattr(x, "value", x)
 
@@ -99,10 +129,9 @@ def _sync_payment_method_with_splits(pmt: Payment):
         return
     first = splits[0]
     new_m = getattr(first, "method", None)
-    new_m = getattr(new_m, "value", new_m)
-    if new_m and new_m != getattr(pmt, "method", None):
-        pmt.method = new_m
-
+    new_m_val = getattr(new_m, "value", new_m)
+    if new_m_val and new_m_val != getattr(pmt, "method", None):
+        pmt.method = new_m_val
 
 def _wants_json():
     accept = request.headers.get("Accept", "") or ""
@@ -205,7 +234,6 @@ def entity_search():
         results = []
 
     return jsonify(results=results)
-
 
 @payments_bp.route("/", methods=["GET"])
 @login_required
@@ -571,11 +599,11 @@ def create_payment():
             target_id = getattr(form, field_name).data if field_name and hasattr(form, field_name) else None
 
             parsed_splits = []
-            total_splits = 0.0
+            total_splits_dec = Decimal("0.00")
             for entry in getattr(form, "splits", []).entries:
                 sm = entry.form
-                amt = float(getattr(sm, "amount").data or 0)
-                if amt <= 0:
+                amt_dec = q2(getattr(sm, "amount").data or 0)
+                if amt_dec <= 0:
                     continue
                 m_raw = (getattr(sm, "method").data or "")
                 m_str = str(m_raw).strip().lower()
@@ -600,12 +628,12 @@ def create_payment():
                         else:
                             details[fld] = val
                 details = _clean_details(details)
-                parsed_splits.append(PaymentSplit(method=_coerce_method(m_str), amount=amt, details=details))
-                total_splits += amt
+                parsed_splits.append(PaymentSplit(method=_coerce_method(m_str), amount=amt_dec, details=details))
+                total_splits_dec += amt_dec
 
+            tgt_total_dec = q2(request.form.get("total_amount") or form.total_amount.data or 0)
             if parsed_splits:
-                tgt_total = float(request.form.get("total_amount") or form.total_amount.data or 0)
-                if abs(total_splits - tgt_total) > 0.01:
+                if _sum_splits_decimal(parsed_splits) != tgt_total_dec:
                     msg = "❌ مجموع الدفعات الجزئية لا يساوي المبلغ الكلي."
                     if _wants_json():
                         return jsonify(status="error", message=msg), 400
@@ -639,8 +667,8 @@ def create_payment():
                 direction=direction_db,
                 status=form.status.data or PaymentStatus.COMPLETED.value,
                 payment_date=form.payment_date.data,
-                total_amount=form.total_amount.data,
-                currency=form.currency.data,
+                total_amount=tgt_total_dec,
+                currency=_norm_currency(form.currency.data),
                 method=getattr(method_val, "value", method_val),
                 reference=(form.reference.data or "").strip() or None,
                 receipt_number=(_fd(getattr(form, "receipt_number", None)) or None),
@@ -658,19 +686,6 @@ def create_payment():
                 db.session.add(sp)
             _sync_payment_method_with_splits(payment)
             db.session.add(payment)
-
-            current_app.logger.info(
-                "payment.created",
-                extra={
-                    "event": "payments.create.success",
-                    "payment_id": payment.id,
-                    "entity_type": payment.entity_type,
-                    "direction": payment.direction,
-                    "method": payment.method,
-                    "total": float(payment.total_amount or 0),
-                    "splits": len(parsed_splits or []),
-                },
-            )
 
             try:
                 db.session.commit()
@@ -710,16 +725,26 @@ def create_payment():
                     if inv and hasattr(inv, "update_status"):
                         inv.update_status()
                         db.session.add(inv)
-                if payment.customer_id:
-                    update_entity_balance("customer", payment.customer_id)
-                if payment.supplier_id:
-                    update_entity_balance("supplier", payment.supplier_id)
-                if payment.partner_id:
-                    update_entity_balance("partner", payment.partner_id)
-                if payment.loan_settlement_id:
-                    ls = db.session.get(SupplierLoanSettlement, payment.loan_settlement_id)
-                    if ls and ls.supplier_id:
-                        update_entity_balance("supplier", ls.supplier_id)
+                if payment.status == PaymentStatus.COMPLETED.value:
+                    if payment.customer_id:
+                        update_entity_balance("customer", payment.customer_id)
+                    if payment.supplier_id:
+                        update_entity_balance("supplier", payment.supplier_id)
+                    if payment.partner_id:
+                        update_entity_balance("partner", payment.partner_id)
+                    if payment.loan_settlement_id:
+                        ls = db.session.get(SupplierLoanSettlement, payment.loan_settlement_id)
+                        if ls and ls.supplier_id:
+                            update_entity_balance("supplier", ls.supplier_id)
+                if payment.preorder_id:
+                    po = db.session.get(PreOrder, payment.preorder_id)
+                    if po and payment.direction == PaymentDirection.INCOMING.value and payment.status == PaymentStatus.COMPLETED.value:
+                        if hasattr(PreOrderStatus, "PAID"):
+                            try:
+                                po.status = PreOrderStatus.PAID.value if hasattr(PreOrderStatus.PAID, "value") else PreOrderStatus.PAID
+                                db.session.add(po)
+                            except Exception:
+                                pass
                 db.session.commit()
             except SQLAlchemyError:
                 db.session.rollback()
@@ -788,7 +813,18 @@ def delete_split(split_id):
             pmt = db.session.get(Payment, payment_id)
             if pmt is not None:
                 _sync_payment_method_with_splits(pmt)
+                rem = list(pmt.splits or [])
+                if rem:
+                    new_total = _sum_splits_decimal(rem)
+                    pmt.total_amount = new_total
                 db.session.add(pmt)
+                if pmt.status == PaymentStatus.COMPLETED.value:
+                    if pmt.customer_id:
+                        update_entity_balance("customer", pmt.customer_id)
+                    if pmt.supplier_id:
+                        update_entity_balance("supplier", pmt.supplier_id)
+                    if pmt.partner_id:
+                        update_entity_balance("partner", pmt.partner_id)
         db.session.commit()
         current_app.logger.info(
             "payment.split_deleted",
@@ -806,7 +842,7 @@ def delete_split(split_id):
             extra={"event": "payments.split.error", "split_id": split_id},
         )
         return jsonify(status="error", message=str(e)), 400
-    
+
 @payments_bp.route("/<int:payment_id>/receipt", methods=["GET"], endpoint="view_receipt")
 @login_required
 @permission_required("manage_payments")
@@ -832,7 +868,6 @@ def view_receipt(payment_id):
         payload["sale_info"] = sale_info
         return jsonify(payment=payload)
     return render_template("payments/receipt.html", payment=payment, now=datetime.utcnow(), sale_info=sale_info)
-
 
 @payments_bp.route("/<int:payment_id>/receipt/download", methods=["GET"], endpoint="download_receipt")
 @login_required
@@ -920,7 +955,7 @@ def create_expense_payment(exp_id):
         form.total_amount.data = exp.amount
         form.reference.data = f"دفع مصروف {exp.description or ''}".strip()
         form.direction.data = "OUT"
-        form.currency.data = getattr(exp, "currency", "ILS")
+        form.currency.data = _norm_currency(getattr(exp, "currency", "ILS"))
         if not form.status.data:
             form.status.data = PaymentStatus.COMPLETED.value
         return render_template("payments/form.html", form=form, entity_info=entity_info)
@@ -936,11 +971,11 @@ def create_expense_payment(exp_id):
 
     try:
         parsed_splits = []
-        total_splits = 0.0
+        total_splits_dec = Decimal("0.00")
         for entry in getattr(form, "splits", []).entries:
             sm = entry.form
-            amt = float(getattr(sm, "amount").data or 0)
-            if amt <= 0:
+            amt_dec = q2(getattr(sm, "amount").data or 0)
+            if amt_dec <= 0:
                 continue
             m_raw = getattr(sm, "method").data or ""
             m_str = str(m_raw).strip().lower()
@@ -965,11 +1000,11 @@ def create_expense_payment(exp_id):
                     else:
                         details[fld] = val
             details = _clean_details_local(details)
-            parsed_splits.append(PaymentSplit(method=_coerce_method(m_str), amount=amt, details=details))
-            total_splits += amt
+            parsed_splits.append(PaymentSplit(method=_coerce_method(m_str), amount=amt_dec, details=details))
+            total_splits_dec += amt_dec
 
-        tgt_total = float(request.form.get("total_amount") or form.total_amount.data or 0)
-        if abs(total_splits - tgt_total) > 0.01:
+        tgt_total_dec = q2(request.form.get("total_amount") or form.total_amount.data or 0)
+        if _sum_splits_decimal(parsed_splits) != tgt_total_dec:
             msg = "❌ مجموع الدفعات الجزئية لا يساوي المبلغ الكلي."
             if _wants_json():
                 return jsonify(status="error", message=msg), 400
@@ -982,9 +1017,9 @@ def create_expense_payment(exp_id):
         payment = Payment(
             entity_type="EXPENSE",
             expense_id=exp.id,
-            total_amount=tgt_total,
-            currency=form.currency.data or getattr(exp, "currency", "ILS"),
-            method=method_val,
+            total_amount=tgt_total_dec,
+            currency=_norm_currency(form.currency.data or getattr(exp, "currency", "ILS")),
+            method=getattr(method_val, "value", method_val),
             direction=_dir_to_db("OUT"),
             status=form.status.data or PaymentStatus.COMPLETED.value,
             payment_date=form.payment_date.data or datetime.utcnow(),

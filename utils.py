@@ -4,9 +4,11 @@ import hashlib
 import io
 import json
 import os
+# utils.py
 import re
 from datetime import datetime, timedelta
 from functools import wraps
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 
 import redis
 from flask import Response, abort, current_app, flash, make_response, request
@@ -34,10 +36,33 @@ except Exception:
     Fernet = None
 
 from extensions import db, mail
-from models import Payment, PaymentSplit, PaymentStatus
+from models import (
+    Payment,
+    PaymentSplit,
+    PaymentStatus,
+    PaymentMethod,
+    PaymentDirection,
+    PaymentEntityType,
+    D,
+    q,
+)
 
 redis_client: redis.Redis | None = None
 
+_TWOPLACES = Decimal("0.01")
+
+def _D(x):
+    if x is None:
+        return Decimal("0")
+    if isinstance(x, Decimal):
+        return x
+    try:
+        return Decimal(str(x))
+    except (InvalidOperation, ValueError, TypeError):
+        return Decimal("0")
+
+def _q2(x):
+    return _D(x).quantize(_TWOPLACES, rounding=ROUND_HALF_UP)
 
 def _get_or_404(model, ident, *, load_options=None, pk_name: str = "id"):
     try:
@@ -87,23 +112,31 @@ def init_app(app):
         )
     app.context_processor(_acl_ctx)
     _install_acl_cache_listeners()
-
+    _install_accounting_listeners()
 
 def send_email_notification(subject, recipients, body, html=None):
     mail.send(Message(subject=subject, recipients=recipients, body=body, html=html))
 
 
 def _to_e164(msisdn: str) -> str | None:
-    s = re.sub(r"\D+", "", msisdn or "")
+    raw = (msisdn or "").strip()
+    if not raw:
+        return None
+    if raw.startswith("+"):
+        s = "+" + re.sub(r"\D", "", raw[1:])
+        digits = re.sub(r"\D", "", s)
+        return s if len(digits) >= 7 else None
+    s = re.sub(r"\D", "", raw)
     if not s:
         return None
     if s.startswith("00"):
         s = s[2:]
     cc = str(current_app.config.get("TWILIO_DEFAULT_COUNTRY_CODE") or "").lstrip("+")
-    if s.startswith("0") and cc:
-        s = cc + s[1:]
-    elif cc and not s.startswith(cc) and not msisdn.startswith("+"):
-        s = cc + s
+    if cc:
+        if s.startswith("0"):
+            s = cc + s[1:]
+        elif not s.startswith(cc):
+            s = cc + s
     return "+" + s
 
 
@@ -133,14 +166,14 @@ def send_whatsapp_message(to_number, body) -> tuple[bool, str]:
 
 def format_currency(value):
     try:
-        return f"{float(value):,.2f} ₪"
+        return f"{float(_q2(value)):,.2f} ₪"
     except Exception:
         return "0.00 ₪"
 
 
 def format_percent(value):
     try:
-        return f"{float(value):.2f}%"
+        return f"{float(_q2(value)):.2f}%"
     except Exception:
         return "0.00%"
 
@@ -208,11 +241,6 @@ def _get_id(v):
         return _get_id(v[0])
     return None
 
-
-def _service_consumes_stock(service=None) -> bool:
-    return bool(current_app.config.get("SERVICE_CONSUMES_STOCK", True))
-
-
 def _apply_stock_delta(product_id: int, warehouse_id: int, delta: int) -> int:
     from models import StockLevel
     delta = int(delta or 0)
@@ -229,7 +257,8 @@ def _apply_stock_delta(product_id: int, warehouse_id: int, delta: int) -> int:
         db.session.add(rec)
         db.session.flush()
     new_qty = int(rec.quantity or 0) + delta
-    if new_qty < 0:
+    reserved = int(getattr(rec, "reserved_quantity", 0) or 0)
+    if new_qty < 0 or new_qty < reserved:
         raise ValueError("insufficient stock")
     rec.quantity = new_qty
     db.session.flush()
@@ -284,7 +313,7 @@ def generate_excel_report(data, filename: str = "report.xlsx") -> Response:
         return Response(
             buf.getvalue(),
             mimetype="text/csv",
-            headers={"Content-Disposition": f"attachment; filename={filename.rsplit('.',1)[0]}.csv"},
+            headers={"Content-Disposition": f"attachment; filename=\"{filename.rsplit('.',1)[0]}.csv\""},
         )
 
     buffer = io.BytesIO()
@@ -293,7 +322,7 @@ def generate_excel_report(data, filename: str = "report.xlsx") -> Response:
     return Response(
         buffer.getvalue(),
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
+        headers={"Content-Disposition": f"attachment; filename=\"{filename}\""},
     )
 
 
@@ -321,7 +350,7 @@ def generate_pdf_report(data):
     return Response(
         buffer.getvalue(),
         mimetype="application/pdf",
-        headers={"Content-Disposition": "attachment; filename=report.pdf"},
+        headers={"Content-Disposition": "attachment; filename=\"report.pdf\""},
     )
 
 
@@ -365,7 +394,7 @@ def generate_vcf(customers, fields, filename: str = "contacts.vcf"):
     payload = ("\r\n".join(cards) + "\r\n").encode("utf-8")
     resp = make_response(payload)
     resp.mimetype = "text/vcard"
-    resp.headers["Content-Disposition"] = f"attachment; filename={filename}"
+    resp.headers["Content-Disposition"] = f"attachment; filename=\"{filename}\""
     return resp
 
 
@@ -378,7 +407,7 @@ def generate_csv_contacts(customers, fields):
     return Response(
         buffer.getvalue(),
         mimetype="text/csv",
-        headers={"Content-Disposition": "attachment; filename=contacts.csv"},
+        headers={"Content-Disposition": "attachment; filename=\"contacts.csv\""},
     )
 
 
@@ -398,7 +427,7 @@ def generate_excel_contacts(customers, fields):
     return Response(
         stream.getvalue(),
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=contacts.xlsx"},
+        headers={"Content-Disposition": "attachment; filename=\"contacts.xlsx\""},
     )
 
 
@@ -809,47 +838,44 @@ def log_audit(model_name: str, record_id: int, action: str, old_data: dict | Non
     db.session.flush()
 
 
+_ENUM_AR = {
+    "PaymentMethod": {"cash": "نقداً", "bank": "تحويل", "card": "بطاقة", "cheque": "شيك", "online": "إلكتروني"},
+    "PaymentStatus": {"PENDING": "قيد الانتظار", "COMPLETED": "مكتملة", "FAILED": "فاشلة", "REFUNDED": "مُرجعة"},
+    "PaymentDirection": {"IN": "وارد", "OUT": "صادر"},
+    "PaymentEntityType": {
+        "CUSTOMER": "عميل", "SUPPLIER": "مورد", "PARTNER": "شريك", "SHIPMENT": "شحنة",
+        "EXPENSE": "مصروف", "LOAN": "قرض", "SALE": "بيع", "INVOICE": "فاتورة",
+        "PREORDER": "حجز", "SERVICE": "صيانة"
+    },
+}
+
+def _enum_choices(enum_cls, arabic_labels=True):
+    if not arabic_labels:
+        return [(e.value, e.value) for e in enum_cls]
+    lab = _ENUM_AR.get(enum_cls.__name__, {})
+    return [(e.value, lab.get(e.value, e.value)) for e in enum_cls]
+
+
 def prepare_payment_form_choices(form, *, compat_post: bool = False, arabic_labels: bool = True):
     if hasattr(form, "currency"):
         form.currency.choices = (
-            [("ILS", "شيكل"), ("USD", "دولار"), ("EUR", "يورو")]
-            if arabic_labels else [("ILS", "ILS"), ("USD", "USD"), ("EUR", "EUR")]
+            [("ILS", "شيكل"), ("USD", "دولار"), ("EUR", "يورو"), ("JOD", "دينار")]
+            if arabic_labels else [("ILS", "ILS"), ("USD", "USD"), ("EUR", "EUR"), ("JOD", "JOD")]
         )
     if hasattr(form, "method"):
-        form.method.choices = [
-            ("cash",   "نقداً" if arabic_labels else "cash"),
-            ("cheque", "شيك"   if arabic_labels else "cheque"),
-            ("bank",   "تحويل" if arabic_labels else "bank"),
-            ("card",   "بطاقة" if arabic_labels else "card"),
-            ("online", "إلكتروني" if arabic_labels else "online"),
-        ]
+        form.method.choices = _enum_choices(PaymentMethod, arabic_labels)
     if hasattr(form, "status"):
-        form.status.choices = [
-            ("COMPLETED", "مكتملة"       if arabic_labels else "COMPLETED"),
-            ("PENDING",   "قيد الانتظار" if arabic_labels else "PENDING"),
-            ("FAILED",    "فاشلة"        if arabic_labels else "FAILED"),
-            ("REFUNDED",  "مُرجعة"       if arabic_labels else "REFUNDED"),
-        ]
+        form.status.choices = _enum_choices(PaymentStatus, arabic_labels)
     if hasattr(form, "direction"):
-        base = [("INCOMING", "وارد" if arabic_labels else "INCOMING"),
-                ("OUTGOING", "صادر" if arabic_labels else "OUTGOING")]
+        base = _enum_choices(PaymentDirection, arabic_labels)
         if compat_post:
-            base += [("IN", "وارد" if arabic_labels else "IN"),
-                     ("OUT", "صادر" if arabic_labels else "OUT")]
+            extra = [("INCOMING", "وارد" if arabic_labels else "INCOMING"),
+                     ("OUTGOING", "صادر" if arabic_labels else "OUTGOING")]
+            seen = {v for v, _ in base}
+            base += [x for x in extra if x[0] not in seen]
         form.direction.choices = base
     if hasattr(form, "entity_type"):
-        form.entity_type.choices = [
-            ("CUSTOMER", "عميل"),
-            ("SUPPLIER", "مورد"),
-            ("PARTNER",  "شريك"),
-            ("SALE",     "بيع"),
-            ("INVOICE",  "فاتورة"),
-            ("EXPENSE",  "مصروف"),
-            ("SHIPMENT", "شحنة"),
-            ("PREORDER", "حجز"),
-            ("SERVICE",  "صيانة"),
-            ("LOAN",     "تسوية قرض"),
-        ]
+        form.entity_type.choices = _enum_choices(PaymentEntityType, arabic_labels)
 
 
 def update_entity_balance(entity: str, eid: int) -> float:
@@ -880,7 +906,7 @@ def update_entity_balance(entity: str, eid: int) -> float:
         current_app.logger.debug("update_entity_balance(%s, %s) -> %.2f", entity, eid, float(total))
     except Exception:
         pass
-    return float(total)
+    return float(_q2(total))
 
 
 def customer_required(f):
@@ -913,6 +939,13 @@ def luhn_check(card_number: str) -> bool:
         alt = not alt
     return (s % 10) == 0
 
+def is_valid_ean13(code: str) -> bool:
+    """تحقق من صحة باركود EAN-13"""
+    if not code or len(code) != 13 or not code.isdigit():
+        return False
+    digits = [int(d) for d in code]
+    checksum = (10 - ((sum(digits[::2]) + sum(d * 3 for d in digits[1:-1:2])) % 10)) % 10
+    return checksum == digits[-1]
 
 def is_valid_expiry_mm_yy(s: str) -> bool:
     if not s or not re.match(r"^\d{2}/\d{2}$", s):
@@ -982,3 +1015,86 @@ def detect_card_brand(pan: str) -> str:
     if i2 in (34, 37):
         return "AMEX"
     return "UNKNOWN"
+
+def _install_accounting_listeners():
+    try:
+        from sqlalchemy import event
+        from sqlalchemy.orm import object_session
+        from decimal import Decimal, ROUND_HALF_UP
+        from models import Payment, PaymentStatus, Sale, SaleLine
+        Q = Decimal("0.01")
+    except Exception:
+        return
+
+    def _q2(x):
+        try:
+            return Decimal(str(x or 0)).quantize(Q, rounding=ROUND_HALF_UP)
+        except Exception:
+            return Decimal("0.00")
+
+    def _recompute_sale_totals(sess, sale_id: int):
+        sale = sess.get(Sale, sale_id)
+        if not sale:
+            return
+        total = Decimal("0.00")
+        for ln in sale.lines or []:
+            q = _q2(ln.quantity)
+            p = _q2(ln.unit_price)
+            dr = _q2(ln.discount_rate)
+            tr = _q2(ln.tax_rate)
+            base = (q * p * (Decimal("1") - dr / Decimal("100"))).quantize(Q, rounding=ROUND_HALF_UP)
+            line = (base * (Decimal("1") + tr / Decimal("100"))).quantize(Q, rounding=ROUND_HALF_UP)
+            total += line
+        try:
+            sale.total_amount = float(total)
+        except Exception:
+            pass
+        sess.add(sale)
+
+    def _recompute_sale_payments(sess, sale_id: int):
+        sale = sess.get(Sale, sale_id)
+        if not sale:
+            return
+        paid = Decimal("0.00")
+        for p in sale.payments or []:
+            if getattr(p, "status", None) == PaymentStatus.COMPLETED.value:
+                paid += _q2(p.total_amount)
+        try:
+            sale.total_paid = float(paid)
+        except Exception:
+            pass
+        try:
+            bal = _q2(sale.total_amount) - _q2(sale.total_paid)
+            sale.balance_due = float(bal)
+        except Exception:
+            pass
+        if hasattr(sale, "update_payment_status"):
+            try:
+                sale.update_payment_status()
+            except Exception:
+                pass
+        sess.add(sale)
+
+    @event.listens_for(Payment, "after_insert")
+    @event.listens_for(Payment, "after_update")
+    def _pmt_upd(mapper, conn, target):
+        sess = object_session(target)
+        if not sess or not getattr(target, "sale_id", None):
+            return
+        _recompute_sale_payments(sess, int(target.sale_id))
+
+    @event.listens_for(Payment, "after_delete")
+    def _pmt_del(mapper, conn, target):
+        sess = object_session(target)
+        if not sess or not getattr(target, "sale_id", None):
+            return
+        _recompute_sale_payments(sess, int(target.sale_id))
+
+    @event.listens_for(SaleLine, "after_insert")
+    @event.listens_for(SaleLine, "after_update")
+    @event.listens_for(SaleLine, "after_delete")
+    def _line_changed(mapper, conn, target):
+        sess = object_session(target)
+        if not sess or not getattr(target, "sale_id", None):
+            return
+        _recompute_sale_totals(sess, int(target.sale_id))

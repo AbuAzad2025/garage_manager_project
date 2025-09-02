@@ -1,19 +1,24 @@
 :root {
   --font-family-ar: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
   --sidebar-link-default: #e0e0e0;
   --sidebar-link-hover: #ffffff;
   --sidebar-link-hover-bg: rgba(255, 255, 255, 0.1);
+
   --content-bg: #f4f6f9;
   --content-text: #343a40;
+
   --card-header-bg: #343a40;
   --card-header-text: #f8f9fa;
+
   --footer-bg: #f4f6f9;
+
   --dark-bg: #343a40;
   --dark-sidebar-bg: #1e282c;
   --dark-content-bg: #2e3b4e;
+  --dark-bg-alt: #273143;
   --dark-text: #c2c7d0;
   --dark-text-alt: #e0e0e0;
-  --dark-bg-alt: #273143;
 }
 
 body {

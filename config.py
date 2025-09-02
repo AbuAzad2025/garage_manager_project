@@ -1,6 +1,7 @@
 import os
 from datetime import timedelta
 from dotenv import load_dotenv
+import logging
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 instance_dir = os.path.join(basedir, "instance")
@@ -60,6 +61,7 @@ class Config:
         "pool_pre_ping": True,
         "pool_recycle": 1800,
     }
+    SQLALCHEMY_ECHO = False
     JSON_AS_ASCII = False
     JSON_SORT_KEYS = False
     REMEMBER_COOKIE_HTTPONLY = True
@@ -132,3 +134,5 @@ class Config:
     IMPORT_REPORT_DIR = os.environ.get("IMPORT_REPORT_DIR") or os.path.join(instance_dir, "imports", "reports")
     ONLINE_GATEWAY_DEFAULT = os.environ.get("ONLINE_GATEWAY_DEFAULT", "blooprint").lower()
     BLOOPRINT_WEBHOOK_SECRET = os.environ.get("BLOOPRINT_WEBHOOK_SECRET", "")
+
+logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)

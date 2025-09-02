@@ -9,9 +9,9 @@
           <h4 class="mb-0"><i class="fas fa-handshake me-2"></i>{{ form.name.data and 'تعديل' or 'إضافة' }} شريك</h4>
           {% if partner %}
           <div class="btn-group">
-            <a href="{{ url_for('payments.create_payment', entity_type='partner', entity_id=partner.id) }}" class="btn btn-sm btn-primary"><i class="fas fa-coins me-1"></i> دفع</a>
-            <a href="{{ url_for('vendors_bp.partners_payments', id=partner.id) }}" class="btn btn-sm btn-warning"><i class="fas fa-file-invoice-dollar me-1"></i> دفعات</a>
-            <button type="button" class="btn btn-sm btn-success btn-settle" data-entity-type="partner" data-id="{{ partner.id }}" data-name="{{ partner.name }}" data-balance="{{ '%.2f'|format(partner.net_balance) }}" data-currency="{{ partner.currency or 'ILS' }}"><i class="fas fa-scale-balanced me-1"></i> تسوية</button>
+            <a href="{{ url_for('payments.create_payment', entity_type='PARTNER', entity_id=partner.id) }}" class="btn btn-sm btn-primary"><i class="fas fa-coins me-1"></i> دفع</a>
+            <a href="{{ url_for('payments.index') }}?entity_type=PARTNER&entity_id={{ partner.id }}" class="btn btn-sm btn-warning"><i class="fas fa-file-invoice-dollar me-1"></i> دفعات</a>
+            <button type="button" class="btn btn-sm btn.success btn-settle" data-entity-type="partner" data-id="{{ partner.id }}" data-name="{{ partner.name }}" data-balance="{{ '%.2f'|format(partner.net_balance) }}" data-currency="{{ partner.currency or 'ILS' }}"><i class="fas fa-scale-balanced me-1"></i> تسوية</button>
           </div>
           {% endif %}
         </div>

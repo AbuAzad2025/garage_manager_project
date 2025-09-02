@@ -1,20 +1,30 @@
 {% extends 'shop/base.html' %}
+
 {% block title %}المنتجات المتاحة{% endblock %}
-{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
+{% endblock %}
 
 {% block content %}
 <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-4">
   <h1 class="h3 mb-0">المنتجات المتاحة</h1>
+
   <div class="d-flex align-items-center gap-2 ms-auto">
     <div class="input-group w-auto">
       <input type="text" id="search" class="form-control" placeholder="ابحث عن منتج...">
       <button class="btn btn-outline-primary" type="button"><i class="fas fa-search"></i></button>
     </div>
-    {% if has_any('manage_shop','manage_inventory') %}
+
+    {% if has_any('manage_shop', 'manage_inventory') %}
       <div class="btn-group" role="group" aria-label="admin actions">
-        <a href="{{ url_for('shop.admin_products') }}" class="btn btn-danger"><i class="fas fa-cogs me-1"></i> إدارة المنتجات</a>
+        <a href="{{ url_for('shop.admin_products') }}" class="btn btn-danger">
+          <i class="fas fa-cogs me-1"></i> إدارة المنتجات
+        </a>
         {% if has_any('view_reports','manage_reports') and 'admin_reports.cards' in current_app.view_functions %}
-          <a href="{{ url_for('admin_reports.cards') }}" class="btn btn-warning"><i class="fas fa-chart-line me-1"></i> تقارير البطاقات</a>
+          <a href="{{ url_for('admin_reports.cards') }}" class="btn btn-warning">
+            <i class="fas fa-chart-line me-1"></i> تقارير البطاقات
+          </a>
         {% endif %}
       </div>
     {% endif %}
@@ -27,12 +37,17 @@
     <div class="col product-card" data-name="{{ product.name|lower }}" data-desc="{{ (product.description or '')|lower }}">
       <div class="card h-100">
         <div class="position-relative">
-          <img src="{{ url_for('static', filename='products/' + product.image) if product.image else url_for('static', filename='products/default.png') }}"
-               class="card-img-top" alt="{{ product.name }}" style="height:200px;object-fit:cover;"
-               onerror="this.onerror=null;this.src='{{ url_for('static', filename='products/default.png') }}'">
+          <img
+            src="{{ url_for('static', filename='products/' + (product.image or 'default.png')) }}"
+            class="card-img-top"
+            alt="{{ product.name }}"
+            style="height: 200px; object-fit: cover;"
+            onerror="this.onerror=null;this.src='{{ url_for('static', filename='products/default.png') }}'">
+
           <span class="position-absolute top-0 start-0 m-2 badge bg-success">
             {{ '%.2f'|format(product.price or 0) }} شيكل
           </span>
+
           {% if avail <= 0 %}
             <span class="position-absolute top-0 end-0 m-2 badge bg-danger">غير متوفر</span>
           {% endif %}
@@ -47,27 +62,39 @@
 
             {% if avail > 0 and not has_any('manage_shop','manage_inventory') %}
               {% if current_user.is_authenticated %}
-                <form method="POST" action="{{ url_for('shop.add_to_cart', product_id=product.id) }}" class="d-flex gap-2 align-items-center">
+                <form method="POST" action="{{ url_for('shop.add_to_cart', product_id=product.id) }}"
+                      class="d-flex gap-2 align-items-center">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <div class="input-group input-group-sm w-auto">
-                    <button type="button" class="btn btn-outline-secondary btn-step" data-dir="-1"><i class="fas fa-minus"></i></button>
-                    <input type="number" name="quantity" class="form-control text-center qty-input" value="1" min="1" data-max="{{ avail }}" style="width:60px">
-                    <button type="button" class="btn btn-outline-secondary btn-step" data-dir="1"><i class="fas fa-plus"></i></button>
+                  <div class="input-group input-group-sm w-auto qty-control">
+                    <button type="button" class="btn btn-outline-secondary btn-step" data-dir="-1" title="نقص">
+                      <i class="fas fa-minus"></i>
+                    </button>
+                    <input type="number" name="quantity" class="form-control text-center qty-input"
+                           value="1" min="1" data-max="{{ avail }}" style="width: 60px;">
+                    <button type="button" class="btn btn-outline-secondary btn-step" data-dir="1" title="زيادة">
+                      <i class="fas fa-plus"></i>
+                    </button>
                   </div>
-                  <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-cart-plus"></i></button>
+                  <button type="submit" class="btn btn-primary btn-sm" title="أضف إلى السلة">
+                    <i class="fas fa-cart-plus"></i>
+                  </button>
                 </form>
               {% else %}
                 <a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary btn-sm">سجّل للدفع</a>
               {% endif %}
             {% endif %}
 
-            {% if has_any('manage_shop','manage_inventory') %}
+            {% if has_any('manage_shop', 'manage_inventory') %}
               <div class="btn-group btn-group-sm">
-                <a href="{{ url_for('shop.admin_product_edit', pid=product.id) }}" class="btn btn-warning" title="تعديل المنتج"><i class="fas fa-edit"></i></a>
+                <a href="{{ url_for('shop.admin_product_edit', pid=product.id) }}" class="btn btn-warning" title="تعديل">
+                  <i class="fas fa-edit"></i>
+                </a>
                 <form method="POST" action="{{ url_for('shop.admin_product_delete', pid=product.id) }}"
                       onsubmit="return confirm('هل أنت متأكد من حذف المنتج؟ لا يمكن التراجع.');">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="btn btn-danger" title="حذف المنتج"><i class="fas fa-trash"></i></button>
+                  <button type="submit" class="btn btn-danger" title="حذف">
+                    <i class="fas fa-trash"></i>
+                  </button>
                 </form>
               </div>
             {% endif %}
@@ -76,9 +103,14 @@
       </div>
     </div>
   {% else %}
-    <div class="col-12"><div class="alert alert-info text-center">لا توجد منتجات متاحة حالياً</div></div>
+    <div class="col-12">
+      <div class="alert alert-info text-center">لا توجد منتجات متاحة حالياً</div>
+    </div>
   {% endfor %}
 </div>
 {% endblock %}
 
-{% block scripts %}{{ super() }}<script src="{{ url_for('static', filename='js/shop.js') }}"></script>{% endblock %}
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/shop.js') }}"></script>
+{% endblock %}

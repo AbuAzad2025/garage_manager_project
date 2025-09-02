@@ -1,113 +1,187 @@
-/* ========= متغيّرات وهوية ========= */
-:root{
+:root {
   --radius-lg: 1rem;
   --brand-700: #0054a6;
   --brand-600: #0066cc;
   --brand-500: #2489e9;
   --brand-400: #3ba3ff;
-
-  --bg-dim: rgba(0,0,0,.38);
-  --white-92: rgba(255,255,255,.92);
+  --bg-dim: rgba(0, 0, 0, 0.38);
+  --white-92: rgba(255, 255, 255, 0.92);
 }
 
-html, body{
+html,
+body {
   height: 100%;
   font-family: 'Cairo', system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
 }
 
-body{
-  background: #2d2f31;            /* fallback */
-  direction: rtl; text-align: right;
+body {
+  background: #2d2f31;
+  direction: rtl;
+  text-align: right;
 }
 
-/* شريط تواصل */
-.auth-topbar{
-  position: fixed; top: 0; left: 0; right: 0; z-index: 10;
-  background: rgba(0,0,0,.55);
+.auth-topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.55);
   color: #fff;
   padding: 6px 0;
   backdrop-filter: blur(6px);
 }
-.auth-topbar a{ color: #fff; text-decoration: none; }
-.auth-topbar a:hover{ text-decoration: underline; }
 
-/* الخلفية من data-auth-bg */
-body[data-auth-bg]::before{
-  content:"";
-  position: fixed; inset: 0; z-index:-2;
+.auth-topbar a {
+  color: #fff;
+  text-decoration: none;
+}
+
+.auth-topbar a:hover {
+  text-decoration: underline;
+}
+
+body[data-auth-bg]::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
   background: inherit;
-  background-size: cover; background-position: center; background-attachment: fixed;
-  filter: saturate(1.05) brightness(.95) blur(1px);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  filter: saturate(1.05) brightness(0.95) blur(1px);
 }
 
-/* طبقة التدرّج */
-.auth-overlay{
-  position: fixed; inset: 0; z-index: -1; pointer-events: none;
-  background: linear-gradient(130deg, rgba(0,0,0,.24), rgba(0,0,0,.45));
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(130deg, rgba(0, 0, 0, 0.24), rgba(0, 0, 0, 0.45));
 }
 
-/* ========= الحاوية ========= */
-.auth-container{
-  width: 100%; max-width: 440px;
+.auth-container {
+  width: 100%;
+  max-width: 440px;
   margin: 10vh auto 0;
   padding: 24px 24px 28px;
   background: var(--white-92);
   backdrop-filter: blur(10px);
   border-radius: var(--radius-lg);
-  box-shadow: 0 24px 48px rgba(0,0,0,.28);
-  animation: fadeIn .6s ease;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.28);
+  animation: fadeIn 0.6s ease;
 }
-.auth-compact{ padding: 22px; }
-.auth-narrow{ max-width: 440px; }
 
-.auth-logo{
-  max-width: 170px; height: auto; display: block;
+.auth-compact {
+  padding: 22px;
+}
+
+.auth-narrow {
+  max-width: 440px;
+}
+
+.auth-logo {
+  max-width: 170px;
+  height: auto;
+  display: block;
   margin: 36px auto 12px;
 }
 
-.auth-title{
+.auth-title {
   text-align: center;
-  font-size: 1.55rem; font-weight: 800; margin-bottom: 14px;
+  font-size: 1.55rem;
+  font-weight: 800;
+  margin-bottom: 14px;
   background: linear-gradient(90deg, var(--brand-600), var(--brand-400));
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  letter-spacing: .2px;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: 0.2px;
 }
 
-/* ========= النموذج ========= */
-.auth-form .form-label{ font-weight: 600; }
-.auth-form .form-control{ height: 44px; border-radius: .65rem; }
-.input-group-append .btn{
+.auth-form .form-label {
+  font-weight: 600;
+}
+
+.auth-form .form-control {
   height: 44px;
-  border-top-left-radius: 0; border-bottom-left-radius: 0;
-}
-.btn-block{ width: 100%; }
-.shop-btn{ width: 100%; }
-
-.hr-soft{ border:0; height:1px; margin:18px 0; background:rgba(0,0,0,.08); }
-
-.alert{
-  border-radius: .85rem;
-  box-shadow: 0 6px 16px rgba(0,0,0,.08);
+  border-radius: 0.65rem;
 }
 
-/* ========= RTL تحسينات صغيرة ========= */
-.form-check{ padding-right: 1.25rem; padding-left: 0; }
-.form-check-input{ margin-right: -1.25rem; margin-left: 0; }
-.input-group > .form-control{ text-align: right; }
-
-/* ========= الفوتر ========= */
-.auth-footer{
-  position: fixed; left: 0; right: 0; bottom: 10px;
-  text-align: center; color: #fff; opacity: .95;
-  text-shadow: 0 1px 2px rgba(0,0,0,.45); font-size: .95rem;
+.input-group-append .btn {
+  height: 44px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
 }
 
-/* ========= حركات ========= */
-@keyframes fadeIn{ from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+.btn-block {
+  width: 100%;
+}
 
-/* ========= موبايل ========= */
-@media (max-width: 576px){
-  .auth-container{ margin-top: 12vh; padding: 18px 16px 22px; }
-  .auth-title{ font-size: 1.35rem; }
-  .auth-topbar{ font-size: 0.9rem; }
+.shop-btn {
+  width: 100%;
+}
+
+.hr-soft {
+  border: 0;
+  height: 1px;
+  margin: 18px 0;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.alert {
+  border-radius: 0.85rem;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+.form-check {
+  padding-right: 1.25rem;
+  padding-left: 0;
+}
+
+.form-check-input {
+  margin-right: -1.25rem;
+  margin-left: 0;
+}
+
+.input-group > .form-control {
+  text-align: right;
+}
+
+.auth-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 10px;
+  text-align: center;
+  color: #fff;
+  opacity: 0.95;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  font-size: 0.95rem;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 576px) {
+  .auth-container {
+    margin-top: 12vh;
+    padding: 18px 16px 22px;
+  }
+
+  .auth-title {
+    font-size: 1.35rem;
+  }
+
+  .auth-topbar {
+    font-size: 0.9rem;
+  }
 }

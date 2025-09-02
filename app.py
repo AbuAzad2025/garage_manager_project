@@ -1,11 +1,12 @@
 import os
 import uuid
+import logging
 from datetime import datetime
 from flask import Flask, url_for, request, current_app, render_template, g
 from werkzeug.routing import BuildError
 from flask_cors import CORS
 from flask_login import AnonymousUserMixin, current_user
-from flask_wtf.csrf import generate_csrf
+from flask_wtf.csrf import generate_csrf  # قد تحتاجه بقوالبك
 from jinja2 import ChoiceLoader, FileSystemLoader
 from sqlalchemy import event
 
@@ -50,10 +51,13 @@ from routes.parts import parts_bp
 from routes.barcode import bp_barcode
 from routes.partner_settlements import partner_settlements_bp
 from routes.supplier_settlements import supplier_settlements_bp
+from routes.ledger_blueprint import ledger_bp
+
 
 class MyAnonymousUser(AnonymousUserMixin):
     def has_permission(self, perm_name):
         return False
+
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -93,33 +97,27 @@ def load_user(user_id):
     stmt_cust = select(Customer).options(lazyload("*")).where(Customer.id == ident)
     return db.session.execute(stmt_cust).scalar_one_or_none()
 
+
 def create_app(config_object=Config) -> Flask:
     app = Flask(__name__, static_folder="static", template_folder="templates")
     app.config.from_object(config_object)
     app.config.setdefault("JSON_AS_ASCII", False)
 
-    if app.config.get("SERVER_NAME"):
-        from urllib.parse import urlparse
-        def _relative_url_for(self, endpoint, **values):
-            rv = Flask.url_for(self, endpoint, **values)
-            if not values.get("_external"):
-                parsed = urlparse(rv)
-                rv = parsed.path + ("?" + parsed.query if parsed.query else "")
-            return rv
-        app.url_for = _relative_url_for.__get__(app, Flask)
-
+    # تحميل بيئة .env لو متاحة
     try:
         from dotenv import load_dotenv
         load_dotenv()
     except Exception:
         pass
 
+    # أعلام افتراضية
     app.config.setdefault("SUPER_USER_EMAILS", os.getenv("SUPER_USER_EMAILS", ""))
     app.config.setdefault("SUPER_USER_IDS",    os.getenv("SUPER_USER_IDS", ""))
     app.config.setdefault("ADMIN_USER_EMAILS", os.getenv("ADMIN_USER_EMAILS", ""))
     app.config.setdefault("ADMIN_USER_IDS",    os.getenv("ADMIN_USER_IDS", ""))
     app.config.setdefault("PERMISSIONS_REQUIRE_ALL", False)
 
+    # Engine options
     engine_opts = app.config.setdefault("SQLALCHEMY_ENGINE_OPTIONS", {})
     connect_args = engine_opts.setdefault("connect_args", {})
     uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
@@ -134,6 +132,7 @@ def create_app(config_object=Config) -> Flask:
         elif uri.startswith(("mysql", "mysql+pymysql", "mysql+mysqldb")):
             connect_args.setdefault("connect_timeout", int(os.getenv("DB_CONNECT_TIMEOUT", "10")))
 
+    # init extensions
     db.init_app(app)
     migrate.init_app(app, db)
 
@@ -177,6 +176,28 @@ def create_app(config_object=Config) -> Flask:
     setup_logging(app)
     setup_sentry(app)
 
+    # كتم الضجيج بعد setup_logging:
+    os.environ.setdefault("PERMISSIONS_DEBUG", "0")  # لا تطبع Debug للبيرمشن
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.ERROR)
+    logging.getLogger("sqlalchemy.orm").setLevel(logging.ERROR)
+    logging.getLogger("werkzeug").setLevel(logging.WARNING)
+    # فيك تكتم سكت-IO/إنجن-IO إذا لزم:
+    logging.getLogger("engineio").setLevel(logging.WARNING)
+    logging.getLogger("socketio").setLevel(logging.WARNING)
+    app.logger.setLevel(logging.INFO)
+
+    # دعم SERVER_NAME مع روابط داخلية
+    if app.config.get("SERVER_NAME"):
+        from urllib.parse import urlparse
+        def _relative_url_for(self, endpoint, **values):
+            rv = Flask.url_for(self, endpoint, **values)
+            if not values.get("_external"):
+                parsed = urlparse(rv)
+                rv = parsed.path + ("?" + parsed.query if parsed.query else "")
+            return rv
+        app.url_for = _relative_url_for.__get__(app, Flask)
+
+    # قوالب
     extra_template_paths = [
         os.path.join(app.root_path, "templates"),
         os.path.join(app.root_path, "routes", "templates"),
@@ -214,6 +235,7 @@ def create_app(config_object=Config) -> Flask:
     @app.context_processor
     def inject_permissions():
         ATTRS = ("code", "name", "slug", "perm", "permission", "value")
+
         def _collect_user_perms(u):
             perms = set()
             role = getattr(u, "role", None)
@@ -302,6 +324,7 @@ def create_app(config_object=Config) -> Flask:
     app.jinja_env.globals["url_for_any"] = url_for_any
     app.jinja_env.globals["now"] = datetime.utcnow
 
+    # ACL
     attach_acl(
         shop_bp,
         read_perm="view_shop",
@@ -329,6 +352,7 @@ def create_app(config_object=Config) -> Flask:
     attach_acl(api_bp,             read_perm="access_api",         write_perm="manage_api")
     attach_acl(notes_bp,           read_perm="view_notes",         write_perm="manage_notes")
     attach_acl(bp_barcode,         read_perm="view_parts",         write_perm=None)
+    attach_acl(ledger_bp,          read_perm="manage_ledger",      write_perm="manage_ledger")
 
     BLUEPRINTS = [
         auth_bp,
@@ -353,6 +377,7 @@ def create_app(config_object=Config) -> Flask:
         partner_settlements_bp,
         supplier_settlements_bp,
         api_bp,
+        ledger_bp,
     ]
 
     for bp in BLUEPRINTS:
@@ -447,7 +472,7 @@ def create_app(config_object=Config) -> Flask:
     @app.errorhandler(500)
     def _err_500(e):
         app.logger.exception("unhandled", extra={"event": "app.error", "path": request.path})
-        return render_template("500.html"), 500
+        return render_template("errors/500.html"), 500
 
     critical = app.config.get(
         "CRITICAL_ENDPOINTS",
@@ -473,6 +498,7 @@ def create_app(config_object=Config) -> Flask:
 
     app.cli.add_command(seed_roles)
     return app
+
 
 app = create_app()
 __all__ = ["app", "db"]

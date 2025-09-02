@@ -19,7 +19,7 @@ from models import (
     Customer, Product, Warehouse,
     AuditLog, User, EquipmentType,
     StockLevel, Partner, Permission, Role,
-    ServiceStatus, ServicePriority,
+    ServiceStatus, _service_consumes_stock, ServicePriority,
 )
 
 from forms import (
@@ -35,7 +35,6 @@ from utils import (
     send_whatsapp_message,
     _get_id,
     _apply_stock_delta,
-    _service_consumes_stock,
 )
 
 service_bp = Blueprint('service', __name__, url_prefix='/service')
@@ -425,23 +424,21 @@ def dashboard():
 @permission_required('manage_service')
 def create_request():
     form = ServiceRequestForm()
-    cform = CustomerForm(prefix="customer")
+
     try:
         form.vehicle_type_id.endpoint = 'api.search_equipment_types'
     except Exception:
         pass
 
     if form.validate_on_submit():
-        if form.customer_id.data:
-            customer = db.session.get(Customer, _get_id(form.customer_id.data))
-        else:
-            cname  = cform.name.data
-            cphone = cform.phone.data
-            cemail = cform.email.data
-            customer = Customer.query.filter_by(name=cname, phone=cphone).first()
-            if not customer:
-                customer = Customer(name=cname, phone=cphone, email=cemail)
-                db.session.add(customer); db.session.flush()
+        if not form.customer_id.data:
+            flash("⚠️ يجب اختيار عميل قبل إنشاء طلب صيانة.", "warning")
+            return redirect(url_for("customers_bp.create_form", return_to=url_for("service.create_request")))
+
+        customer = db.session.get(Customer, _get_id(form.customer_id.data))
+        if not customer:
+            flash("⚠️ العميل غير موجود. الرجاء إضافته.", "danger")
+            return redirect(url_for("customers_bp.create_form", return_to=url_for("service.create_request")))
 
         service = ServiceRequest(
             service_number=f"SRV-{datetime.utcnow():%Y%m%d%H%M%S}",
@@ -455,8 +452,10 @@ def create_request():
             estimated_duration=form.estimated_duration.data,
             status=getattr(ServiceStatus, (form.status.data or 'PENDING').upper()),
             received_at=datetime.utcnow(),
+            consume_stock=bool(form.consume_stock.data),
         )
         db.session.add(service)
+
         try:
             db.session.commit()
             log_service_action(service, "CREATE")
@@ -468,7 +467,7 @@ def create_request():
             db.session.rollback()
             flash(f"❌ خطأ في قاعدة البيانات: {exc}", "danger")
 
-    return render_template('service/new.html', form=form, customer_form=cform)
+    return render_template('service/new.html', form=form)
 
 @service_bp.route('/<int:rid>', methods=['GET'])
 @login_required

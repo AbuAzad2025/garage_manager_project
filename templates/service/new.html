@@ -27,12 +27,15 @@
         {{ form.customer_id.label(class="form-label") }}
         <div class="input-group">
           {{ form.customer_id(class="form-select select2", id="customerSelect", data_endpoint=url_for('api.search_customers')) }}
-          <button type="button" class="btn btn-outline-primary" id="addCustomerBtn" title="إضافة عميل سريع">
+          <a href="{{ url_for('customers_bp.create_form', return_to=url_for('service.create_request')) }}" 
+             class="btn btn-outline-primary" 
+             title="إضافة عميل جديد" 
+             target="_blank">
             <i class="fa fa-user-plus"></i>
-          </button>
+          </a>
         </div>
         {% for e in form.customer_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-        <div class="form-text">اختر عميلًا أو أضف عميلًا جديدًا من زر (+).</div>
+        <div class="form-text">اختر عميلًا أو أنشئ عميلًا جديدًا من زر (+).</div>
       </div>
     </div>
 
@@ -81,6 +84,17 @@
       </div>
     </div>
 
+    {# ✅ صف منفصل للشيك بوكس لعدم كسر الشبكة #}
+    <div class="row">
+      <div class="col-md-4 mb-3">
+        <div class="form-check mt-2">
+          {{ form.consume_stock(class="form-check-input", id="consume_stock") }}
+          <label class="form-check-label" for="consume_stock">استهلاك من المخزون</label>
+          <div class="form-text">فعِّل لخصم القطع من المخزون عند بدء/إكمال الطلب.</div>
+        </div>
+      </div>
+    </div>
+
     {% if form.parts %}
     <div class="mb-3">
       <label class="form-label">القطع المستخدمة</label>
@@ -123,37 +137,6 @@
     <button type="submit" class="btn btn-primary">{{ edit_mode and 'تحديث' or 'حفظ' }}</button>
     <a href="{{ url_for('service.list_requests') }}" class="btn btn-secondary ms-2">إلغاء</a>
   </form>
-</div>
-
-<div class="modal fade" id="customerModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <form id="newCustomerForm">
-        <div class="modal-header">
-          <h5 class="modal-title">إضافة عميل</h5>
-          <button type="button" class="btn-close" data-dismiss="modal" aria-label="close"></button>
-        </div>
-        <div class="modal-body">
-          <div class="mb-3">
-            <label class="form-label">الاسم</label>
-            <input type="text" class="form-control" id="c_name" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">الجوال</label>
-            <input type="text" class="form-control" id="c_phone">
-          </div>
-          <div class="mb-3">
-            <label class="form-label">البريد</label>
-            <input type="email" class="form-control" id="c_email">
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-primary">استخدام البيانات</button>
-          <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
-        </div>
-      </form>
-    </div>
-  </div>
 </div>
 
 <div class="modal fade" id="equipmentTypeModal" tabindex="-1" aria-hidden="true">
@@ -216,20 +199,6 @@
         } else {
           $(this).select2({ width: '100%', theme: 'bootstrap4', placeholder: 'اختر...' });
         }
-      });
-
-      $('#addCustomerBtn').on('click', () => { $('#customerModal').modal('show'); });
-      $('#newCustomerForm').on('submit', function(e){
-        e.preventDefault();
-        const name  = $('#c_name').val().trim();
-        const phone = $('#c_phone').val().trim();
-        const email = $('#c_email').val().trim();
-        if (!name) { Swal.fire('خطأ', 'اسم العميل مطلوب', 'error'); return; }
-        const sel = $('#customerSelect');
-        const newOption = new Option(name + (phone ? ' - '+phone : ''), 'new_'+Date.now(), true, true);
-        sel.append(newOption).trigger('change');
-        $('#customerModal').modal('hide');
-        Swal.fire('تم', 'تم إدراج العميل الجديد مؤقتًا. احفظ الطلب لإتمام الإنشاء.', 'success');
       });
 
       $('#addTypeBtn').on('click', () => { $('#equipmentTypeModal').modal('show'); });

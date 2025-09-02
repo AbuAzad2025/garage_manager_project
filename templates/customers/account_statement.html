@@ -14,84 +14,142 @@
 
 {% block content %}
 <div class="content-wrapper">
-  <div class="card shadow-sm rounded mb-4">
+
+  <!-- أزرار الإجراءات -->
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <a class="btn btn-outline-secondary" href="{{ url_for('customers_bp.customer_detail', customer_id=customer.id) }}">
+      <i class="fas fa-arrow-right ms-1"></i> رجوع
+    </a>
+    <button type="button" class="btn btn-outline-primary" id="btn-print">
+      <i class="fas fa-print ms-1"></i> طباعة
+    </button>
+  </div>
+
+  <!-- ملخص الحساب -->
+  <div class="row g-3 mb-4">
+    {% set stats = [
+      ('إجمالي مدين', total_debit, 'text-danger', 'fa-arrow-down'),
+      ('إجمالي دائن', total_credit, 'text-success', 'fa-arrow-up'),
+      ('الرصيد', balance, balance > 0 and 'text-danger' or balance < 0 and 'text-success' or '', 'fa-balance-scale')
+    ] %}
+    {% for label, value, color_class, icon in stats %}
+    <div class="col-12 col-md-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="text-muted small">{{ label }}</div>
+              <div class="fs-5 fw-bold {{ color_class }}">{{ value|format_currency }}</div>
+            </div>
+            <i class="fas {{ icon }} fs-4 {{ color_class or 'text-secondary' }}"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- ملخص الفئات -->
+  <div class="row g-3 mb-4">
+    {% set categories = [
+      ('فواتير', total_invoices),
+      ('مبيعات', total_sales),
+      ('الصيانة', total_services),
+      ('حجوزات مسبقة', total_preorders),
+      ('حجوزات أونلاين', total_online_preorders),
+    ] %}
+    {% for label, value in categories %}
+    <div class="col-12 col-md-3">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="text-muted small">{{ label }}</div>
+          <div class="fs-6 fw-bold">{{ (value or 0)|format_currency }}</div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- جدول الحركات -->
+  {% set type_labels = {
+    'INVOICE': 'فاتورة',
+    'SALE': 'بيع',
+    'SERVICE': 'صيانة',
+    'PREORDER': 'حجز مسبق',
+    'ONLINE_PREORDER': 'حجز أونلاين',
+    'PAYMENT': 'دفعة'
+  } %}
+  {% set type_badges = {
+    'INVOICE': 'bg-secondary',
+    'SALE': 'bg-info',
+    'SERVICE': 'bg-warning text-dark',
+    'PREORDER': 'bg-dark',
+    'ONLINE_PREORDER': 'bg-primary',
+    'PAYMENT': 'bg-success'
+  } %}
+
+  <div class="card shadow-sm rounded">
     <div class="card-header bg-primary text-white">
-      <h5 class="card-title m-0"><i class="fas fa-file-invoice me-2"></i> كشف حساب: {{ customer.name }}</h5>
+      <h5 class="card-title m-0">
+        <i class="fas fa-file-invoice ms-2"></i> كشف حساب: {{ customer.name }}
+      </h5>
     </div>
     <div class="card-body">
-
-      <h6 class="mb-3">الفواتير</h6>
-      <div class="table-responsive mb-4">
+      <div class="table-responsive">
         <table class="table table-bordered table-sm table-striped align-middle">
           <thead class="table-light">
             <tr>
-              <th>رقم الفاتورة</th>
-              <th>التاريخ</th>
-              <th class="text-end">المبلغ</th>
+              <th style="width: 140px">التاريخ</th>
+              <th style="width: 140px">النوع</th>
+              <th>المرجع</th>
+              <th class="text-end" style="width: 140px">مدين</th>
+              <th class="text-end" style="width: 140px">دائن</th>
+              <th class="text-end" style="width: 160px">الرصيد</th>
             </tr>
           </thead>
           <tbody>
-            {% for inv in invoices %}
+            {% for e in ledger_entries %}
             <tr>
-              <td>{{ inv.invoice_number or inv.id }}</td>
-              <td>{{ inv.invoice_date|format_date }}</td>
-              <td class="text-end">{{ inv.total_amount|format_currency }}</td>
+              <td>{{ e.date|format_date }}</td>
+              <td>
+                {% set t = e.type or '' %}
+                <span class="badge {{ type_badges.get(t, 'bg-secondary') }}">{{ type_labels.get(t, t) }}</span>
+              </td>
+              <td class="text-truncate" title="{{ e.ref }}">{{ e.ref }}</td>
+              <td class="text-end">{{ e.debit|format_currency }}</td>
+              <td class="text-end">{{ e.credit|format_currency }}</td>
+              <td class="text-end fw-bold {% if e.balance > 0 %}text-danger{% elif e.balance < 0 %}text-success{% endif %}">
+                {{ e.balance|format_currency }}
+              </td>
             </tr>
             {% else %}
-            <tr><td colspan="3" class="text-center text-muted">لا توجد فواتير.</td></tr>
+            <tr>
+              <td colspan="6" class="text-center text-muted">لا توجد حركات.</td>
+            </tr>
             {% endfor %}
           </tbody>
+          <tfoot class="table-light">
+            <tr>
+              <th colspan="3" class="text-end">الإجمالي</th>
+              <th class="text-end">{{ total_debit|format_currency }}</th>
+              <th class="text-end">{{ total_credit|format_currency }}</th>
+              <th class="text-end {% if balance > 0 %}text-danger{% elif balance < 0 %}text-success{% endif %}">
+                {{ balance|format_currency }}
+              </th>
+            </tr>
+          </tfoot>
         </table>
       </div>
-
-      <h6 class="mb-3">الدفعات</h6>
-      <div class="table-responsive mb-4">
-        <table class="table table-bordered table-sm table-striped align-middle">
-          <thead class="table-light">
-            <tr>
-              <th>رقم الدفع</th>
-              <th>التاريخ</th>
-              <th class="text-end">المبلغ</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for pay in payments %}
-            <tr>
-              <td>{{ pay.payment_number or pay.id }}</td>
-              <td>{{ pay.payment_date|format_date }}</td>
-              <td class="text-end">{{ pay.total_amount|format_currency }}</td>
-            </tr>
-            {% else %}
-            <tr><td colspan="3" class="text-center text-muted">لا توجد دفعات.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-
-      <div class="alert alert-info">
-        <strong>إجمالي الفواتير:</strong> {{ total_invoices|format_currency }}<br>
-        <strong>إجمالي الدفعات:</strong> {{ total_payments|format_currency }}<br>
-        <strong>الرصيد المتبقي:</strong>
-        <span class="fw-bold {% if balance > 0 %}text-danger{% else %}text-success{% endif %}">
-          {{ balance|format_currency }}
-        </span>
-      </div>
-
-      <div class="mt-4 d-flex gap-2">
-        <a class="btn btn-outline-secondary" href="{{ url_for('customers_bp.customer_detail', customer_id=customer.id) }}">
-          <i class="fas fa-arrow-left me-1"></i> عودة للتفاصيل
-        </a>
-        <a class="btn btn-primary" href="{{ url_for('customers_bp.list_customers') }}">
-          <i class="fas fa-users me-1"></i> قائمة العملاء
-        </a>
-      </div>
-
     </div>
   </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-  {{ super() }}
-  <script src="{{ url_for('static', filename='js/customers.js') }}"></script>
+{{ super() }}
+<script>
+  document.getElementById('btn-print')?.addEventListener('click', function () {
+    window.print();
+  });
+</script>
 {% endblock %}

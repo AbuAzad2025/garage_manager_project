@@ -1,74 +1,93 @@
 // File: static/js/reporting.js
+
 (function () {
   'use strict';
 
+  // قائمة الحقول المستثناة من الفلاتر LIKE
   const EXCLUDE_LIKE_KEYS = new Set([
     "csrf_token", "table", "date_field", "start_date", "end_date", "selected_fields"
   ]);
 
-  function $(sel, root) { return (root || document).querySelector(sel); }
-  function $all(sel, root) { return Array.from((root || document).querySelectorAll(sel)); }
-  function safeJSON(s, fallback = null) { try { return JSON.parse(s || ""); } catch { return fallback; } }
-
-  // 🔹 ترجمة أسماء الحقول عبر FIELD_LABELS
-  function translateField(name) {
-    if (window.FIELD_LABELS && window.FIELD_LABELS[name]) {
-      return window.FIELD_LABELS[name];
+  // اختصارات للوصول للعناصر
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const $all = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+  const safeJSON = (s, fallback = null) => {
+    try {
+      return JSON.parse(s || "");
+    } catch {
+      return fallback;
     }
-    return name;
+  };
+
+  // ترجمة اسم الحقل إذا كان متاحًا في FIELD_LABELS
+  function translateField(name) {
+    return (window.FIELD_LABELS && window.FIELD_LABELS[name]) || name;
   }
 
+  // جلب الحقول الخاصة بالموديل المحدد من API
   function fetchModelFields(model) {
     if (!model) return Promise.resolve({ columns: [], date_fields: [] });
+
     return fetch(`/reports/api/model_fields?model=${encodeURIComponent(model)}`)
       .then(r => r.ok ? r.json() : { columns: [], date_fields: [] })
       .catch(() => ({ columns: [], date_fields: [] }));
   }
 
-  function fillSelectOptions(sel, items, keepSelected = true) {
-    if (!sel) return;
-    const prev = keepSelected ? new Set(Array.from(sel.selectedOptions).map(o => o.value)) : new Set();
-    sel.innerHTML = "";
-    (items || []).forEach(v => {
-      const opt = document.createElement("option");
-      opt.value = v;
-      opt.textContent = translateField(v); // تعريب
-      if (prev.has(v)) opt.selected = true;
-      sel.appendChild(opt);
+  // تعبئة خيارات الـ <select> بالقيم المحددة
+  function fillSelectOptions(selectElement, items, keepSelected = true) {
+    if (!selectElement) return;
+
+    const previousSelection = keepSelected
+      ? new Set(Array.from(selectElement.selectedOptions).map(opt => opt.value))
+      : new Set();
+
+    selectElement.innerHTML = "";
+
+    (items || []).forEach(value => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = translateField(value);
+      if (previousSelection.has(value)) option.selected = true;
+      selectElement.appendChild(option);
     });
   }
 
+  // بناء فلاتر LIKE ديناميكيًا
   function buildLikeFilters(columns) {
-    const wrap = $("#like_filters");
-    if (!wrap) return;
-    const initialLike = safeJSON(wrap.getAttribute("data-initial-like"), {}) || {};
-    wrap.innerHTML = "";
+    const wrapper = $("#like_filters");
+    if (!wrapper) return;
+
+    const initialValues = safeJSON(wrapper.getAttribute("data-initial-like"), {}) || {};
+    wrapper.innerHTML = "";
 
     const inputs = [];
+
     (columns || []).forEach(col => {
       if (!col || EXCLUDE_LIKE_KEYS.has(col)) return;
+
       const div = document.createElement("div");
       div.className = "col-md-3 col-sm-6 mb-3";
 
       const label = document.createElement("label");
       label.className = "form-label";
-      label.textContent = translateField(col); // تعريب
+      label.textContent = translateField(col);
 
       const input = document.createElement("input");
       input.type = "text";
       input.className = "form-control";
       input.name = col;
-      input.placeholder = `يحتوي… (${translateField(col)})`; // تعريب
-      if (initialLike[col] != null) input.value = String(initialLike[col]);
+      input.placeholder = `يحتوي… (${translateField(col)})`;
+      if (initialValues[col] != null) input.value = String(initialValues[col]);
 
       div.appendChild(label);
       div.appendChild(input);
-      wrap.appendChild(div);
+      wrapper.appendChild(div);
       inputs.push(input);
     });
 
-    inputs.forEach(inp => {
-      inp.addEventListener("keydown", e => {
+    // تفعيل إرسال النموذج عند الضغط على Enter
+    inputs.forEach(input => {
+      input.addEventListener("keydown", e => {
         if (e.key === "Enter") {
           e.preventDefault();
           const form = $("#report-form");
@@ -78,24 +97,32 @@
     });
   }
 
-  function applyDateFieldOptions(dateSel, dateFields) {
-    if (!dateSel) return;
-    const current = dateSel.value;
-    dateSel.innerHTML = '<option value="">—</option>';
-    (dateFields || []).forEach(d => {
-      const opt = document.createElement("option");
-      opt.value = d;
-      opt.textContent = translateField(d); // تعريب
-      dateSel.appendChild(opt);
+  // إعداد خيارات الحقول الزمنية في <select>
+  function applyDateFieldOptions(dateSelect, dateFields) {
+    if (!dateSelect) return;
+
+    const currentValue = dateSelect.value;
+    const defaultVal = dateSelect.getAttribute("data-default");
+
+    dateSelect.innerHTML = '<option value="">—</option>';
+
+    (dateFields || []).forEach(field => {
+      const option = document.createElement("option");
+      option.value = field;
+      option.textContent = translateField(field);
+      dateSelect.appendChild(option);
     });
-    const want = dateSel.getAttribute("data-default");
-    if (want && !current) {
-      if (Array.from(dateSel.options).some(o => o.value === want)) dateSel.value = want;
-    } else if (Array.from(dateSel.options).some(o => o.value === current)) {
-      dateSel.value = current;
+
+    const options = Array.from(dateSelect.options);
+
+    if (defaultVal && !currentValue && options.some(o => o.value === defaultVal)) {
+      dateSelect.value = defaultVal;
+    } else if (options.some(o => o.value === currentValue)) {
+      dateSelect.value = currentValue;
     }
   }
 
+  // تحديث الواجهة عند اختيار موديل معين
   function refreshForModel(model) {
     return fetchModelFields(model).then(({ columns, date_fields }) => {
       fillSelectOptions($("#selected_fields"), columns, true);
@@ -104,10 +131,13 @@
     });
   }
 
+  // تهيئة جدول البيانات باستخدام DataTables
   function initDataTable() {
     const table = $("#report-table");
-    if (!table || !window.jQuery || !jQuery.fn || !jQuery.fn.DataTable) return;
+
+    if (!table || !window.jQuery || !jQuery.fn?.DataTable) return;
     if (jQuery.fn.dataTable.isDataTable(table)) return;
+
     jQuery(table).DataTable({
       pageLength: 25,
       order: [],
@@ -120,17 +150,26 @@
         processing: "جارٍ المعالجة...",
         search: "بحث:",
         zeroRecords: "لا نتائج مطابقة",
-        paginate: { first: "الأول", last: "الأخير", next: "التالي", previous: "السابق" }
+        paginate: {
+          first: "الأول",
+          last: "الأخير",
+          next: "التالي",
+          previous: "السابق"
+        }
       }
     });
   }
 
-  document.addEventListener("DOMContentLoaded", function () {
-    const tableSel = $("#table");
-    if (tableSel) {
-      refreshForModel(tableSel.value);
-      tableSel.addEventListener("change", function () { refreshForModel(this.value); });
+  // نقطة البداية - عند تحميل الصفحة
+  document.addEventListener("DOMContentLoaded", () => {
+    const tableSelector = $("#table");
+    if (tableSelector) {
+      refreshForModel(tableSelector.value);
+      tableSelector.addEventListener("change", function () {
+        refreshForModel(this.value);
+      });
     }
     initDataTable();
   });
+
 })();

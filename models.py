@@ -1,5 +1,6 @@
+# models.py
 from __future__ import annotations
-
+import hashlib
 import enum
 import json
 import re
@@ -34,12 +35,40 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import object_session, relationship, Session as _SA_Session, validates
-
 from extensions import db
 from barcodes import normalize_barcode
 
+def sa_str_enum(enum_or_values, name=None):
+    native = False
+    if isinstance(enum_or_values, type) and issubclass(enum_or_values, enum.Enum):
+        try:
+            return SAEnum(
+                enum_or_values,
+                name=name,
+                values_callable=lambda e: [m.value for m in e],
+                native_enum=native,
+            )
+        except TypeError:
+            vals = [m.value for m in enum_or_values]
+            return SAEnum(*vals, name=name, native_enum=native)
+    try:
+        vals = [
+            (m.value if isinstance(m, enum.Enum) else str(m))
+            for m in enum_or_values
+        ]
+    except TypeError:
+        vals = [str(enum_or_values)]
+    return SAEnum(*vals, name=name, native_enum=native)
+
+CURRENCY_CHOICES = [("ILS", "ILS"), ("USD", "USD"), ("EUR", "EUR"), ("JOD", "JOD")]
+CENT = Decimal("0.01")
 TWO = Decimal("0.01")
 
+def D(x):
+    try:
+        return Decimal(str(x)) if x is not None else Decimal("0.00")
+    except Exception:
+        return Decimal("0.00")
 
 def q(x) -> Decimal:
     try:
@@ -47,114 +76,131 @@ def q(x) -> Decimal:
     except Exception:
         return Decimal("0.00")
 
+def _ar_label(val, mapping):
+    return mapping.get(val, val)
 
-try:
-    from cryptography.fernet import Fernet
-except Exception:
-    Fernet = None
+_AR_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
 
-def sa_str_enum(enum_or_values, *, name: str):
-    vals = [e.value for e in enum_or_values] if hasattr(enum_or_values, "__members__") else list(enum_or_values)
-    return SAEnum(*vals, name=name, native_enum=False, validate_strings=True)
+def normalize_phone(raw: str | None) -> str:
+    if not raw:
+        return ""
+    s = str(raw).translate(_AR_DIGITS)
+    s = re.sub(r"\D+", "", s)
+    return s[:20]
+
+def normalize_email(raw: str | None) -> str:
+    return (raw or "").strip().lower()
 
 class PaymentMethod(str, enum.Enum):
-    CASH   = "cash"
-    BANK   = "bank"
-    CARD   = "card"
+    CASH = "cash"
+    BANK = "bank"
+    CARD = "card"
     CHEQUE = "cheque"
     ONLINE = "online"
 
 class PaymentStatus(str, enum.Enum):
-    PENDING   = "PENDING"
+    PENDING = "PENDING"
     COMPLETED = "COMPLETED"
-    FAILED    = "FAILED"
-    REFUNDED  = "REFUNDED"
+    FAILED = "FAILED"
+    REFUNDED = "REFUNDED"
 
 class PaymentDirection(str, enum.Enum):
     INCOMING = "IN"
     OUTGOING = "OUT"
 
 class InvoiceStatus(str, enum.Enum):
-    UNPAID    = "UNPAID"
-    PARTIAL   = "PARTIAL"
-    PAID      = "PAID"
+    UNPAID = "UNPAID"
+    PARTIAL = "PARTIAL"
+    PAID = "PAID"
     CANCELLED = "CANCELLED"
-    REFUNDED  = "REFUNDED"
+    REFUNDED = "REFUNDED"
 
 class PaymentProgress(str, enum.Enum):
-    PENDING  = "PENDING"
-    PARTIAL  = "PARTIAL"
-    PAID     = "PAID"
+    PENDING = "PENDING"
+    PARTIAL = "PARTIAL"
+    PAID = "PAID"
     REFUNDED = "REFUNDED"
 
 class SaleStatus(str, enum.Enum):
-    DRAFT     = "DRAFT"
+    DRAFT = "DRAFT"
     CONFIRMED = "CONFIRMED"
     CANCELLED = "CANCELLED"
-    REFUNDED  = "REFUNDED"
+    REFUNDED = "REFUNDED"
 
 class ServiceStatus(str, enum.Enum):
-    PENDING      = "PENDING"
-    DIAGNOSIS    = "DIAGNOSIS"
-    IN_PROGRESS  = "IN_PROGRESS"
-    COMPLETED    = "COMPLETED"
-    CANCELLED    = "CANCELLED"
-    ON_HOLD      = "ON_HOLD"
+    PENDING = "PENDING"
+    DIAGNOSIS = "DIAGNOSIS"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+    ON_HOLD = "ON_HOLD"
 
 class ServicePriority(str, enum.Enum):
-    LOW    = "LOW"
+    LOW = "LOW"
     MEDIUM = "MEDIUM"
-    HIGH   = "HIGH"
+    HIGH = "HIGH"
     URGENT = "URGENT"
 
 class TransferDirection(str, enum.Enum):
-    INCOMING   = "IN"
-    OUTGOING   = "OUT"
+    INCOMING = "IN"
+    OUTGOING = "OUT"
     ADJUSTMENT = "ADJUSTMENT"
 
 class PreOrderStatus(str, enum.Enum):
-    PENDING   = "PENDING"
+    PENDING = "PENDING"
     CONFIRMED = "CONFIRMED"
     FULFILLED = "FULFILLED"
     CANCELLED = "CANCELLED"
 
 class WarehouseType(str, enum.Enum):
-    MAIN      = "MAIN"
-    PARTNER   = "PARTNER"
+    MAIN = "MAIN"
+    PARTNER = "PARTNER"
     INVENTORY = "INVENTORY"
-    EXCHANGE  = "EXCHANGE"
+    EXCHANGE = "EXCHANGE"
 
 class PaymentEntityType(str, enum.Enum):
     CUSTOMER = "CUSTOMER"
     SUPPLIER = "SUPPLIER"
-    PARTNER  = "PARTNER"
+    PARTNER = "PARTNER"
     SHIPMENT = "SHIPMENT"
-    EXPENSE  = "EXPENSE"
-    LOAN     = "LOAN"
-    SALE     = "SALE"
-    INVOICE  = "INVOICE"
+    EXPENSE = "EXPENSE"
+    LOAN = "LOAN"
+    SALE = "SALE"
+    INVOICE = "INVOICE"
     PREORDER = "PREORDER"
-    SERVICE  = "SERVICE"
+    SERVICE = "SERVICE"
 
 class InvoiceSource(str, enum.Enum):
-    MANUAL   = "MANUAL"
-    SALE     = "SALE"
-    SERVICE  = "SERVICE"
+    MANUAL = "MANUAL"
+    SALE = "SALE"
+    SERVICE = "SERVICE"
     PREORDER = "PREORDER"
     SUPPLIER = "SUPPLIER"
-    PARTNER  = "PARTNER"
-    ONLINE   = "ONLINE"
+    PARTNER = "PARTNER"
+    ONLINE = "ONLINE"
 
 class PartnerSettlementStatus(str, enum.Enum):
-    DRAFT     = "DRAFT"
+    DRAFT = "DRAFT"
     CONFIRMED = "CONFIRMED"
     CANCELLED = "CANCELLED"
 
 class SupplierSettlementStatus(str, enum.Enum):
-    DRAFT     = "DRAFT"
+    DRAFT = "DRAFT"
     CONFIRMED = "CONFIRMED"
     CANCELLED = "CANCELLED"
-    
+
+class ProductCondition(str, enum.Enum):
+    NEW = "NEW"
+    USED = "USED"
+    REFURBISHED = "REFURBISHED"
+
+class AccountType(str, enum.Enum):
+    ASSET = "ASSET"
+    LIABILITY = "LIABILITY"
+    EQUITY = "EQUITY"
+    REVENUE = "REVENUE"
+    EXPENSE = "EXPENSE"
+
 user_permissions = db.Table(
     "user_permissions",
     db.Column("user_id", db.Integer, db.ForeignKey("users.id"), primary_key=True),
@@ -170,13 +216,14 @@ role_permissions = db.Table(
 )
 
 class TimestampMixin:
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, server_default=func.now(), index=True)
+    updated_at = db.Column(db.DateTime, nullable=False, server_default=func.now(),
+                           server_onupdate=func.now(), index=True)
 
 class AuditMixin:
     @classmethod
     def __declare_last__(cls):
-        from sqlalchemy import inspect, event as _evt
+        from sqlalchemy import event as _evt
 
         @_evt.listens_for(cls, "before_update", propagate=True)
         def _capture_prev_state(mapper, connection, target):
@@ -194,14 +241,14 @@ class AuditMixin:
 class Permission(db.Model, AuditMixin):
     __tablename__ = "permissions"
 
-    id           = db.Column(db.Integer, primary_key=True)
-    name         = db.Column(db.String(100), unique=True, nullable=False, index=True)
-    code         = db.Column(db.String(100), unique=True, index=True)
-    description  = db.Column(db.String(255))
-    name_ar      = db.Column(db.String(120))
-    module       = db.Column(db.String(50), index=True)
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False, index=True)
+    code = db.Column(db.String(100), unique=True, index=True)
+    description = db.Column(db.String(255))
+    name_ar = db.Column(db.String(120))
+    module = db.Column(db.String(50), index=True)
     is_protected = db.Column(db.Boolean, nullable=False, server_default=text("0"), default=False)
-    aliases      = db.Column(db.JSON, default=list)
+    aliases = db.Column(db.JSON, default=list)
 
     __table_args__ = (
         db.Index("ix_permissions_module_code", "module", "code"),
@@ -275,10 +322,10 @@ class Permission(db.Model, AuditMixin):
 class Role(db.Model, AuditMixin):
     __tablename__ = "roles"
 
-    id          = db.Column(db.Integer, primary_key=True)
-    name        = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False, index=True)
     description = db.Column(db.String(200))
-    is_default  = db.Column(db.Boolean, default=False, nullable=False)
+    is_default = db.Column(db.Boolean, default=False, nullable=False)
 
     permissions = relationship(
         "Permission",
@@ -306,22 +353,22 @@ class Role(db.Model, AuditMixin):
     def __repr__(self):
         return f"<Role {self.name}>"
 
+
 class User(db.Model, UserMixin, TimestampMixin, AuditMixin):
     __tablename__ = "users"
 
-    id              = db.Column(db.Integer, primary_key=True)
-    username        = db.Column(db.String(50),  unique=True, nullable=False, index=True)
-    email           = db.Column(db.String(120), unique=True, nullable=False, index=True)
-    password_hash   = db.Column(db.String(128), nullable=False)
-    role_id         = db.Column(db.Integer, db.ForeignKey("roles.id"), index=True)
-    _is_active      = db.Column("is_active", db.Boolean, nullable=False, server_default=text("1"))
-    last_login      = db.Column(db.DateTime)
-    last_seen       = db.Column(db.DateTime)
-    last_login_ip   = db.Column(db.String(64))
-    login_count     = db.Column(db.Integer, nullable=False, server_default=text("0"))
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    email = db.Column(db.String(120), unique=True, nullable=False, index=True)
+    password_hash = db.Column(db.String(128), nullable=False)
+    role_id = db.Column(db.Integer, db.ForeignKey("roles.id"), index=True)
+    _is_active = db.Column("is_active", db.Boolean, nullable=False, server_default=text("1"))
+    last_login = db.Column(db.DateTime)
+    last_seen = db.Column(db.DateTime)
+    last_login_ip = db.Column(db.String(64))
+    login_count = db.Column(db.Integer, nullable=False, server_default=text("0"))
 
     role = relationship("Role", backref="users", lazy="joined")
-
     extra_permissions = relationship(
         "Permission",
         secondary=user_permissions,
@@ -400,7 +447,6 @@ class User(db.Model, UserMixin, TimestampMixin, AuditMixin):
     def __repr__(self):
         return f"<User {self.username or self.id}>"
 
-# ===================== Customers =====================
 class Customer(db.Model, UserMixin, TimestampMixin, AuditMixin):
     __tablename__ = "customers"
 
@@ -430,6 +476,7 @@ class Customer(db.Model, UserMixin, TimestampMixin, AuditMixin):
     __table_args__ = (
         db.Index("ix_customers_active_online", "is_active", "is_online"),
         db.Index("ix_customers_name", "name"),
+        db.Index("ix_customers_whatsapp", "whatsapp"),
     )
 
     @property
@@ -444,7 +491,10 @@ class Customer(db.Model, UserMixin, TimestampMixin, AuditMixin):
         self.password = password
 
     def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
+        try:
+            return bool(self.password_hash) and check_password_hash(self.password_hash, password)
+        except Exception:
+            return False
 
     def has_permission(self, *_args, **_kwargs) -> bool:
         return False
@@ -456,13 +506,30 @@ class Customer(db.Model, UserMixin, TimestampMixin, AuditMixin):
     def _v_email(self, _, v):
         return (v or "").strip().lower()
 
-    @validates("name", "address", "category", "notes")
+    @validates("name", "address", "notes")
     def _v_strip(self, _, v):
         return (v or "").strip() or None
 
     @validates("phone", "whatsapp")
-    def _v_phone(self, key, v):
-        return (v or "").strip()
+    def _v_phone_like(self, key, v):
+        s = (v or "").strip()
+        s = re.sub(r"\s+", "", s)
+        if s.startswith("+"):
+            s = "+" + re.sub(r"\D", "", s[1:])
+        else:
+            s = re.sub(r"\D", "", s)
+        digits = re.sub(r"\D", "", s)
+        if len(digits) < 7 or len(digits) > 15:
+            raise ValueError(f"{key} must have 7-15 digits")
+        return s
+
+    @validates("category")
+    def _v_category(self, _, v):
+        allowed = {"عادي", "ذهبي", "بلاتيني"}
+        val = (v or "عادي").strip()
+        if val not in allowed:
+            val = "عادي"
+        return val
 
     @validates("currency")
     def _v_currency(self, _, v):
@@ -488,16 +555,30 @@ class Customer(db.Model, UserMixin, TimestampMixin, AuditMixin):
     def total_invoiced(self):
         return float(
             db.session.query(func.coalesce(func.sum(Invoice.total_amount), 0))
-            .filter(Invoice.customer_id == self.id)
-            .scalar()
+            .filter(
+                Invoice.customer_id == self.id,
+                Invoice.status.in_([
+                    InvoiceStatus.UNPAID.value,
+                    InvoiceStatus.PARTIAL.value,
+                    InvoiceStatus.PAID.value
+                ])
+            )
+            .scalar() or 0
         )
 
     @total_invoiced.expression
     def total_invoiced(cls):
         return (
             select(func.coalesce(func.sum(Invoice.total_amount), 0))
-            .where(Invoice.customer_id == cls.id)
-            .label("total_invoiced")
+            .where(
+                (Invoice.customer_id == cls.id) &
+                (Invoice.status.in_([
+                    InvoiceStatus.UNPAID.value,
+                    InvoiceStatus.PARTIAL.value,
+                    InvoiceStatus.PAID.value
+                ]))
+            )
+            .scalar_subquery()
         )
 
     @hybrid_property
@@ -509,7 +590,7 @@ class Customer(db.Model, UserMixin, TimestampMixin, AuditMixin):
                 Payment.direction == PaymentDirection.INCOMING.value,
                 Payment.status == PaymentStatus.COMPLETED.value,
             )
-            .scalar()
+            .scalar() or 0
         )
 
     @total_paid.expression
@@ -521,7 +602,7 @@ class Customer(db.Model, UserMixin, TimestampMixin, AuditMixin):
                 (Payment.direction == PaymentDirection.INCOMING.value) &
                 (Payment.status == PaymentStatus.COMPLETED.value)
             )
-            .label("total_paid")
+            .scalar_subquery()
         )
 
     @hybrid_property
@@ -561,19 +642,6 @@ class Customer(db.Model, UserMixin, TimestampMixin, AuditMixin):
     def __repr__(self):
         return f"<Customer {self.name}>"
 
-@event.listens_for(Customer, "before_insert")
-def _customer_before_insert(_mapper, _connection, target: Customer):
-    target.email = (target.email or "").strip().lower()
-    target.phone = (target.phone or "").strip()
-    target.whatsapp = (target.whatsapp or target.phone or "").strip()
-    target.currency = (target.currency or "ILS").upper()
-@event.listens_for(Customer, "before_update")
-def _customer_before_update(_mapper, _connection, target: Customer):
-    target.email = (target.email or "").strip().lower()
-    target.phone = (target.phone or "").strip()
-    target.whatsapp = (target.whatsapp or target.phone or "").strip()
-    target.currency = (target.currency or "ILS").upper()
-# ===================== Suppliers =====================
 class Supplier(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = "suppliers"
 
@@ -616,38 +684,30 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
     def _v_strip(self, _, v):
         return (v or "").strip() or None
 
-    # --- Aggregates ---
     @hybrid_property
     def total_paid(self):
-        return float(
+        direct = (
             db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
             .filter(
                 Payment.supplier_id == self.id,
                 Payment.direction == PaymentDirection.OUTGOING.value,
-                Payment.status == PaymentStatus.COMPLETED.value
-            )
-            .scalar() or 0
+                Payment.status == PaymentStatus.COMPLETED.value,
+            ).scalar() or 0
         )
+        via_loans = (
+            db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
+            .join(SupplierLoanSettlement, SupplierLoanSettlement.id == Payment.loan_settlement_id)
+            .filter(
+                Payment.direction == PaymentDirection.OUTGOING.value,
+                Payment.status == PaymentStatus.COMPLETED.value,
+                SupplierLoanSettlement.supplier_id == self.id,
+            ).scalar() or 0
+        )
+        return float(direct) + float(via_loans)
 
     @total_paid.expression
     def total_paid(cls):
-        return (
-            select(func.coalesce(func.sum(Payment.total_amount), 0))
-            .where(
-                (Payment.supplier_id == cls.id) &
-                (Payment.direction == PaymentDirection.OUTGOING.value) &
-                (Payment.status == PaymentStatus.COMPLETED.value)
-            )
-            .label("total_paid")
-        )
-
-    @hybrid_property
-    def net_balance(self):
-        return float(self.balance or 0) - self.total_paid
-
-    @net_balance.expression
-    def net_balance(cls):
-        paid_subq = (
+        direct_subq = (
             select(func.coalesce(func.sum(Payment.total_amount), 0))
             .where(
                 (Payment.supplier_id == cls.id) &
@@ -656,7 +716,54 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
             )
             .scalar_subquery()
         )
-        return cls.balance - paid_subq
+        via_loans_subq = (
+            select(func.coalesce(func.sum(Payment.total_amount), 0))
+            .select_from(
+                Payment.__table__.join(
+                    SupplierLoanSettlement,
+                    SupplierLoanSettlement.id == Payment.loan_settlement_id
+                )
+            )
+            .where(
+                (Payment.direction == PaymentDirection.OUTGOING.value) &
+                (Payment.status == PaymentStatus.COMPLETED.value) &
+                (SupplierLoanSettlement.supplier_id == cls.id)
+            )
+            .scalar_subquery()
+        )
+        return direct_subq + via_loans_subq
+
+    @hybrid_property
+    def net_balance(self):
+        return float(self.balance or 0) - self.total_paid
+
+    @net_balance.expression
+    def net_balance(cls):
+        direct_subq = (
+            select(func.coalesce(func.sum(Payment.total_amount), 0))
+            .where(
+                (Payment.supplier_id == cls.id) &
+                (Payment.direction == PaymentDirection.OUTGOING.value) &
+                (Payment.status == PaymentStatus.COMPLETED.value)
+            )
+            .scalar_subquery()
+        )
+        via_loans_subq = (
+            select(func.coalesce(func.sum(Payment.total_amount), 0))
+            .select_from(
+                Payment.__table__.join(
+                    SupplierLoanSettlement,
+                    SupplierLoanSettlement.id == Payment.loan_settlement_id
+                )
+            )
+            .where(
+                (Payment.direction == PaymentDirection.OUTGOING.value) &
+                (Payment.status == PaymentStatus.COMPLETED.value) &
+                (SupplierLoanSettlement.supplier_id == cls.id)
+            )
+            .scalar_subquery()
+        )
+        return cls.balance - (direct_subq + via_loans_subq)
 
     def to_dict(self):
         return {
@@ -676,6 +783,7 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
 def _supplier_before_insert(_m, _c, t: Supplier):
     t.email = (t.email or "").strip().lower() or None
     t.currency = (t.currency or "ILS").upper()
+
 @event.listens_for(Supplier, "before_update")
 def _supplier_before_update(_m, _c, t: Supplier):
     t.email = (t.email or "").strip().lower() or None
@@ -738,18 +846,19 @@ class SupplierSettlementLine(db.Model, TimestampMixin):
 
     id = db.Column(db.Integer, primary_key=True)
     settlement_id = db.Column(db.Integer, db.ForeignKey('supplier_settlements.id', ondelete='CASCADE'), nullable=False, index=True)
-    source_type = db.Column(db.String(30), nullable=False)  # LOAN_SETTLEMENT
-    source_id   = db.Column(db.Integer, index=True)
+    source_type = db.Column(db.String(30), nullable=False)
+    source_id = db.Column(db.Integer, index=True)
     description = db.Column(db.String(255))
-    product_id  = db.Column(db.Integer, db.ForeignKey('products.id'))
-    quantity    = db.Column(db.Numeric(12, 3))
-    unit_price  = db.Column(db.Numeric(12, 2))
-    gross_amount= db.Column(db.Numeric(12, 2))
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'))
+    quantity = db.Column(db.Numeric(12, 3))
+    unit_price = db.Column(db.Numeric(12, 2))
+    gross_amount = db.Column(db.Numeric(12, 2))
 
     settlement = db.relationship('SupplierSettlement', back_populates='lines')
-    product    = db.relationship('Product')
+    product = db.relationship('Product')
 
     __table_args__ = (db.Index('ix_ssl_source', 'source_type', 'source_id'),)
+
 
 def build_supplier_settlement_draft(supplier_id: int, date_from: datetime, date_to: datetime, *, currency: str = "ILS") -> SupplierSettlement:
     ss = SupplierSettlement(
@@ -778,33 +887,10 @@ def build_supplier_settlement_draft(supplier_id: int, date_from: datetime, date_
         total_gross += amount
 
     ss.total_gross = q(total_gross)
-    ss.total_due   = q(total_gross)
+    ss.total_due = q(total_gross)
     ss.ensure_code()
     return ss
 
-# -------- Supplier.total_paid to include Loan-Settlement payments --------
-@hybrid_property
-def supplier_total_paid(self):
-    direct = db.session.query(func.coalesce(func.sum(Payment.total_amount), 0)).filter(
-        Payment.supplier_id == self.id,
-        Payment.direction == PaymentDirection.OUTGOING.value,
-        Payment.status == PaymentStatus.COMPLETED.value
-    ).scalar() or 0
-    via_loans = db.session.query(func.coalesce(func.sum(Payment.total_amount), 0)).filter(
-        Payment.loan_settlement_id.isnot(None),
-        Payment.direction == PaymentDirection.OUTGOING.value,
-        Payment.status == PaymentStatus.COMPLETED.value,
-        Payment.id.in_(
-            db.session.query(Payment.id)
-            .join(SupplierLoanSettlement, SupplierLoanSettlement.id == Payment.loan_settlement_id)
-            .filter(SupplierLoanSettlement.supplier_id == self.id)
-        )
-    ).scalar() or 0
-    return float(direct) + float(via_loans)
-
-Supplier.total_paid = supplier_total_paid
-
-# ===================== Partners =====================
 class Partner(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'partners'
 
@@ -858,7 +944,6 @@ class Partner(db.Model, TimestampMixin, AuditMixin):
         db.Index("ix_partners_name", "name"),
     )
 
-    # --- Validations ---
     @validates("email")
     def _v_email(self, _, v):
         return (v or "").strip().lower() or None
@@ -879,7 +964,6 @@ class Partner(db.Model, TimestampMixin, AuditMixin):
     def _v_strip(self, _, v):
         return (v or "").strip() or None
 
-    # --- Aggregates ---
     @hybrid_property
     def total_paid(self):
         return float(
@@ -934,7 +1018,6 @@ class Partner(db.Model, TimestampMixin, AuditMixin):
 
     def __repr__(self):
         return f"<Partner {self.name}>"
-
 
 @event.listens_for(Partner, "before_insert")
 def _partner_before_insert(_m, _c, t: Partner):
@@ -1050,53 +1133,56 @@ def build_partner_settlement_draft(partner_id: int, date_from: datetime, date_to
     total_gross = Decimal("0.00")
     total_share = Decimal("0.00")
 
-    try:
-        parts_q = (db.session.query(ServicePart)
-                   .filter(ServicePart.created_at >= date_from,
-                           ServicePart.created_at <= date_to,
-                           or_(ServicePart.partner_id == partner_id,
-                               ServicePart.partner_id.is_(None))))
-        for sp in parts_q:
-            base = q(sp.line_total)
-            sp_share_pct = float(sp.share_percentage or 0)
-            if sp.partner_id != partner_id:
-                sp_share_pct = _find_partner_share_percentage(partner_id, sp.part_id, sp.warehouse_id)
-            share_amt = q(base * Decimal(str(sp_share_pct / 100.0))) if sp_share_pct else Decimal("0.00")
-            if share_amt > 0:
-                ps.lines.append(PartnerSettlementLine(
-                    source_type="SERVICE_PART", source_id=sp.id,
-                    description=f"ServicePart #{sp.id}",
-                    product_id=sp.part_id, warehouse_id=sp.warehouse_id,
-                    quantity=sp.quantity, unit_price=sp.unit_price,
-                    gross_amount=base, share_percent=sp_share_pct, share_amount=share_amt
-                ))
-                total_gross += q(base); total_share += q(share_amt)
-    except Exception:
-        pass
+    parts_q = (
+        db.session.query(ServicePart)
+        .join(ServiceRequest, ServiceRequest.id == ServicePart.service_id)
+        .filter(
+            ServiceRequest.received_at >= date_from,
+            ServiceRequest.received_at <= date_to,
+            or_(ServicePart.partner_id == partner_id, ServicePart.partner_id.is_(None)),
+        )
+    )
+    for sp in parts_q:
+        base = q(sp.line_total)
+        sp_share_pct = float(sp.share_percentage or 0)
+        if sp.partner_id != partner_id:
+            sp_share_pct = _find_partner_share_percentage(partner_id, sp.part_id, sp.warehouse_id)
+        share_amt = q(base * Decimal(str(sp_share_pct / 100.0))) if sp_share_pct else Decimal("0.00")
+        if share_amt > 0:
+            ps.lines.append(PartnerSettlementLine(
+                source_type="SERVICE_PART", source_id=sp.id,
+                description=f"ServicePart #{sp.id}",
+                product_id=sp.part_id, warehouse_id=sp.warehouse_id,
+                quantity=sp.quantity, unit_price=sp.unit_price,
+                gross_amount=base, share_percent=sp_share_pct, share_amount=share_amt
+            ))
+            total_gross += q(base); total_share += q(share_amt)
 
-    try:
-        from models import SaleLine
-        sl_q = (db.session.query(SaleLine)
-                .filter(SaleLine.created_at >= date_from, SaleLine.created_at <= date_to))
-        for sl in sl_q:
-            base = q(getattr(sl, "line_total", (Decimal(str(sl.quantity or 0)) * Decimal(str(sl.unit_price or 0)))))
-            pct = float(getattr(sl, "share_percentage", 0) or 0)
-            if not pct:
-                pct = _find_partner_share_percentage(partner_id, getattr(sl, "product_id", None), getattr(sl, "warehouse_id", None))
-            share_amt = q(base * Decimal(str(pct / 100.0))) if pct else Decimal("0.00")
-            if share_amt > 0:
-                ps.lines.append(PartnerSettlementLine(
-                    source_type="SALE_LINE", source_id=sl.id,
-                    description=f"SaleLine #{sl.id}",
-                    product_id=getattr(sl, "product_id", None),
-                    warehouse_id=getattr(sl, "warehouse_id", None),
-                    quantity=getattr(sl, "quantity", None),
-                    unit_price=getattr(sl, "unit_price", None),
-                    gross_amount=base, share_percent=pct, share_amount=share_amt
-                ))
-                total_gross += q(base); total_share += q(share_amt)
-    except Exception:
-        pass
+    sl_q = (
+        db.session.query(SaleLine)
+        .join(Sale, Sale.id == SaleLine.sale_id)
+        .filter(
+            Sale.sale_date >= date_from,
+            Sale.sale_date <= date_to,
+        )
+    )
+    for sl in sl_q:
+        base = q(getattr(sl, "line_total", (Decimal(str(sl.quantity or 0)) * Decimal(str(sl.unit_price or 0)))))
+        pct = float(getattr(sl, "share_percentage", 0) or 0)
+        if not pct:
+            pct = _find_partner_share_percentage(partner_id, getattr(sl, "product_id", None), getattr(sl, "warehouse_id", None))
+        share_amt = q(base * Decimal(str(pct / 100.0))) if pct else Decimal("0.00")
+        if share_amt > 0:
+            ps.lines.append(PartnerSettlementLine(
+                source_type="SALE_LINE", source_id=sl.id,
+                description=f"SaleLine #{sl.id}",
+                product_id=getattr(sl, "product_id", None),
+                warehouse_id=getattr(sl, "warehouse_id", None),
+                quantity=getattr(sl, "quantity", None),
+                unit_price=getattr(sl, "unit_price", None),
+                gross_amount=base, share_percent=pct, share_amount=share_amt
+            ))
+            total_gross += q(base); total_share += q(share_amt)
 
     ps.total_gross = q(total_gross)
     ps.total_share = q(total_share)
@@ -1104,7 +1190,7 @@ def build_partner_settlement_draft(partner_id: int, date_from: datetime, date_to
     ps.total_due   = q(total_share)
     ps.ensure_code()
     return ps
-# ===================== Employees =====================
+
 class Employee(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'employees'
 
@@ -1128,7 +1214,6 @@ class Employee(db.Model, TimestampMixin, AuditMixin):
         db.Index("ix_employees_name", "name"),
     )
 
-    # --- Validations ---
     @validates("email")
     def _v_email(self, _, v):
         return (v or "").strip().lower() or None
@@ -1141,7 +1226,6 @@ class Employee(db.Model, TimestampMixin, AuditMixin):
     def _v_strip(self, _, v):
         return (v or "").strip() or None
 
-    # --- إجمالي المصاريف ---
     @hybrid_property
     def total_expenses(self):
         return float(
@@ -1155,10 +1239,9 @@ class Employee(db.Model, TimestampMixin, AuditMixin):
         return (
             select(func.coalesce(func.sum(Expense.amount), 0))
             .where(Expense.employee_id == cls.id)
-            .label("total_expenses")
+            .scalar_subquery()
         )
 
-    # --- المدفوع ---
     @hybrid_property
     def total_paid(self):
         return float(
@@ -1176,25 +1259,21 @@ class Employee(db.Model, TimestampMixin, AuditMixin):
     def total_paid(cls):
         return (
             select(func.coalesce(func.sum(Payment.total_amount), 0))
-            .select_from(
-                Payment.__table__.join(Expense, Payment.expense_id == Expense.id)
-            )
+            .select_from(Payment.__table__.join(Expense, Payment.expense_id == Expense.id))
             .where(
                 (Expense.employee_id == cls.id) &
                 (Payment.status == PaymentStatus.COMPLETED.value) &
                 (Payment.direction == PaymentDirection.OUTGOING.value)
             )
-            .label("total_paid")
+            .scalar_subquery()
         )
 
-    # --- الرصيد ---
     @hybrid_property
     def balance(self):
         return self.total_expenses - self.total_paid
 
     @balance.expression
     def balance(cls):
-        # استخدام التعبيرات المعرفة للأعلى يضمن SQL صحيح
         return cls.total_expenses - cls.total_paid
 
     def to_dict(self):
@@ -1213,7 +1292,6 @@ class Employee(db.Model, TimestampMixin, AuditMixin):
     def __repr__(self):
         return f"<Employee {self.name}>"
     
-# ==================== Catalog & Inventory =====================
 class EquipmentType(db.Model, TimestampMixin):
     __tablename__ = 'equipment_types'
     id = db.Column(db.Integer, primary_key=True)
@@ -1242,12 +1320,7 @@ class ProductCategory(db.Model, TimestampMixin):
 
     def __repr__(self):
         return f"<ProductCategory {self.name}>"
-
-class ProductCondition(enum.Enum):
-    NEW         = "NEW"
-    USED        = "USED"
-    REFURBISHED = "REFURBISHED"
-    
+ 
 class Product(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'products'
 
@@ -1401,37 +1474,86 @@ class Product(db.Model, TimestampMixin, AuditMixin):
 class Warehouse(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'warehouses'
 
-    id            = Column(db.Integer, primary_key=True)
-    name          = Column(db.String(100), nullable=False)
-
-    warehouse_type = Column(sa_str_enum(WarehouseType, name='warehouse_type'),
-                            default=WarehouseType.MAIN.value, nullable=False)
-
-    location           = Column(db.String(200))
-    is_active          = Column(db.Boolean, default=True)
-    parent_id          = Column(db.Integer, db.ForeignKey('warehouses.id'))
-    supplier_id        = Column(db.Integer, db.ForeignKey('suppliers.id'))
-    partner_id         = Column(db.Integer, db.ForeignKey('partners.id'))
-    share_percent      = Column(db.Numeric(5, 2), default=0)
-    capacity           = Column(db.Integer)
-    current_occupancy  = Column(db.Integer, default=0)
-    notes              = Column(db.Text)
+    id               = Column(db.Integer, primary_key=True)
+    name             = Column(db.String(100), nullable=False)
+    warehouse_type   = Column(sa_str_enum(WarehouseType, name='warehouse_type'), default=WarehouseType.MAIN.value, nullable=False)
+    location         = Column(db.String(200))
+    is_active        = Column(db.Boolean, default=True)
+    parent_id        = Column(db.Integer, db.ForeignKey('warehouses.id'))
+    supplier_id      = Column(db.Integer, db.ForeignKey('suppliers.id'))
+    partner_id       = Column(db.Integer, db.ForeignKey('partners.id'))
+    share_percent    = Column(db.Numeric(5, 2), default=0)
+    capacity         = Column(db.Integer)
+    current_occupancy = Column(db.Integer, default=0)
+    notes            = Column(db.Text)
 
     parent   = db.relationship('Warehouse', remote_side=[id], backref='children')
     supplier = db.relationship('Supplier', back_populates='warehouses')
     partner  = db.relationship('Partner', back_populates='warehouses')
 
-    stock_levels            = db.relationship('StockLevel', back_populates='warehouse')
-    transfers_source        = db.relationship('Transfer', back_populates='source_warehouse', foreign_keys='Transfer.source_id')
-    transfers_destination   = db.relationship('Transfer', back_populates='destination_warehouse', foreign_keys='Transfer.destination_id')
-    sale_lines              = db.relationship('SaleLine', back_populates='warehouse')
-    service_parts           = db.relationship('ServicePart', back_populates='warehouse')
-    exchange_transactions   = db.relationship('ExchangeTransaction', back_populates='warehouse')
-    shipment_items          = db.relationship('ShipmentItem', back_populates='warehouse')
-    shipments_received      = db.relationship('Shipment', back_populates='destination_warehouse', foreign_keys='Shipment.destination_id')
-    preorders               = db.relationship('PreOrder', back_populates='warehouse')
-    partner_shares          = db.relationship('WarehousePartnerShare', back_populates='warehouse')
-    expenses                = db.relationship('Expense', back_populates='warehouse')
+    stock_levels          = db.relationship('StockLevel', back_populates='warehouse')
+    transfers_source      = db.relationship('Transfer', back_populates='source_warehouse', foreign_keys='Transfer.source_id')
+    transfers_destination = db.relationship('Transfer', back_populates='destination_warehouse', foreign_keys='Transfer.destination_id')
+    sale_lines            = db.relationship('SaleLine', back_populates='warehouse')
+    service_parts         = db.relationship('ServicePart', back_populates='warehouse')
+    exchange_transactions = db.relationship('ExchangeTransaction', back_populates='warehouse')
+    shipment_items        = db.relationship('ShipmentItem', back_populates='warehouse')
+    shipments_received    = db.relationship('Shipment', back_populates='destination_warehouse', foreign_keys='Shipment.destination_id')
+    preorders             = db.relationship('PreOrder', back_populates='warehouse')
+    partner_shares        = db.relationship('WarehousePartnerShare', back_populates='warehouse')
+    expenses              = db.relationship('Expense', back_populates='warehouse')
+
+    __table_args__ = (
+        db.Index('ix_warehouses_name', 'name'),
+        db.Index('ix_warehouses_active_type', 'is_active', 'warehouse_type'),
+        db.CheckConstraint('share_percent >= 0 AND share_percent <= 100', name='ck_warehouses_share_percent'),
+        db.CheckConstraint('capacity IS NULL OR capacity >= 0', name='ck_warehouses_capacity_nonneg'),
+        db.CheckConstraint('current_occupancy >= 0', name='ck_warehouses_occupancy_nonneg'),
+        db.CheckConstraint('capacity IS NULL OR current_occupancy <= capacity', name='ck_warehouses_occupancy_le_capacity'),
+    )
+
+    @validates('name', 'location', 'notes')
+    def _v_strip(self, _, v):
+        return (v or '').strip() or None
+
+    @validates('warehouse_type')
+    def _v_warehouse_type(self, _, v):
+        if isinstance(v, WarehouseType):
+            return v.value
+        s = (str(v or '')).strip().upper()
+        allowed = {e.value for e in WarehouseType}
+        return s if s in allowed else WarehouseType.MAIN.value
+
+    @validates('share_percent')
+    def _v_share_percent(self, _, v):
+        if v is None:
+            return 0
+        f = float(v)
+        if f < 0 or f > 100:
+            raise ValueError('share_percent must be between 0 and 100')
+        return f
+
+    @validates('capacity')
+    def _v_capacity(self, _, v):
+        if v is None:
+            return None
+        iv = int(v)
+        if iv < 0:
+            raise ValueError('capacity must be >= 0')
+        if self.current_occupancy is not None and iv is not None and self.current_occupancy > iv:
+            raise ValueError('current_occupancy cannot exceed capacity')
+        return iv
+
+    @validates('current_occupancy')
+    def _v_current_occupancy(self, _, v):
+        if v is None:
+            return 0
+        iv = int(v)
+        if iv < 0:
+            raise ValueError('current_occupancy must be >= 0')
+        if self.capacity is not None and iv > int(self.capacity):
+            raise ValueError('current_occupancy cannot exceed capacity')
+        return iv
 
     @hybrid_property
     def warehouse_type_display(self):
@@ -1447,6 +1569,7 @@ class Warehouse(db.Model, TimestampMixin, AuditMixin):
 
     def __repr__(self):
         return f"<Warehouse {self.name}>"
+
 
 class StockLevel(db.Model, TimestampMixin):
     __tablename__ = 'stock_levels'
@@ -1562,7 +1685,6 @@ class ImportRun(db.Model, TimestampMixin):
     def __repr__(self) -> str:
         return f"<ImportRun id={self.id} wh={self.warehouse_id} dry={self.dry_run} ins={self.inserted} upd={self.updated} skp={self.skipped} err={self.errors}>"
 
-# ---------- Stock helpers (atomic) ----------
 def _ensure_stock_row(connection, product_id: int, warehouse_id: int):
     row = connection.execute(
         text("SELECT id FROM stock_levels WHERE product_id = :p AND warehouse_id = :w"),
@@ -1570,7 +1692,6 @@ def _ensure_stock_row(connection, product_id: int, warehouse_id: int):
     ).first()
     if row:
         return row
-    # Upsert-ish create if missing
     dialect = getattr(connection, "dialect", None)
     dname = getattr(dialect, "name", "") if dialect else ""
     try:
@@ -1675,7 +1796,6 @@ def _ensure_transfer_reference(mapper, connection, target):
     ).scalar() or 0
     target.reference = f"{prefix}-{count+1:04d}"
 
-
 @event.listens_for(Transfer, "after_insert", propagate=True)
 def _transfer_after_insert(mapper, connection, target: "Transfer"):
     qty = int(target.quantity or 0)
@@ -1712,7 +1832,7 @@ class ExchangeTransaction(db.Model, TimestampMixin, AuditMixin):
     partner_id = db.Column(db.Integer, db.ForeignKey('partners.id'))
     quantity = db.Column(db.Integer, nullable=False)
     direction = db.Column(
-        sa_str_enum(['IN', 'OUT', 'ADJUSTMENT'], name='exchange_direction'),
+        sa_str_enum(TransferDirection, name='exchange_direction'),
         default='IN',
         nullable=False,
         index=True,
@@ -1737,7 +1857,6 @@ class ExchangeTransaction(db.Model, TimestampMixin, AuditMixin):
     def __repr__(self):
         return f"<ExchangeTransaction P{self.product_id} W{self.warehouse_id} Q{self.quantity}>"
 
-
 def _ex_dir_sign(direction: str) -> int:
     d = (getattr(direction, "value", direction) or "").upper()
     if d == "IN":
@@ -1745,7 +1864,7 @@ def _ex_dir_sign(direction: str) -> int:
     if d == "OUT":
         return -1
     if d == "ADJUSTMENT":
-        return 1  # إن أردت دعم تعديلات سالبة، غيّر المنطق والقيد في الجدول
+        return 1
     raise ValueError(f"Unknown exchange direction: {direction}")
 
 @event.listens_for(ExchangeTransaction, "after_insert")
@@ -1868,7 +1987,6 @@ class ProductPartner(db.Model):
     def __repr__(self):
         return f"<ProductPartner {self.partner_id} {self.share_percent}%>"
 
-
 class PreOrder(db.Model, TimestampMixin):
     __tablename__ = 'preorders'
 
@@ -1945,7 +2063,7 @@ class PreOrder(db.Model, TimestampMixin):
                 (Payment.status == PaymentStatus.COMPLETED.value) &
                 (Payment.direction == PaymentDirection.INCOMING.value)
             )
-            .label("total_paid")
+            .scalar_subquery()
         )
 
     @hybrid_property
@@ -2032,7 +2150,7 @@ class Sale(db.Model, TimestampMixin, AuditMixin):
                 (Payment.status == PaymentStatus.COMPLETED.value) &
                 (Payment.direction == PaymentDirection.INCOMING.value)
             )
-            .label("total_paid")
+            .scalar_subquery()
         )
 
     @hybrid_property
@@ -2064,7 +2182,6 @@ class Sale(db.Model, TimestampMixin, AuditMixin):
     def __repr__(self):
         return f"<Sale {self.sale_number}>"
 
-
 @event.listens_for(Sale, "before_insert")
 def _sale_before_insert_ref(mapper, connection, target: "Sale"):
     if not getattr(target, "sale_number", None):
@@ -2082,11 +2199,9 @@ def _compute_total_amount(mapper, connection, target):
     discount = q(target.discount_total)
     tax_rate = q(target.tax_rate)
     shipping = q(target.shipping_cost)
-
     base = subtotal - discount
     if base < 0:
         base = Decimal('0.00')
-
     tax = q(base * tax_rate / Decimal('100'))
     target.total_amount = q(subtotal + tax + shipping - discount)
 
@@ -2095,28 +2210,74 @@ def _reserve_release_on_status_change(target, value, oldvalue, initiator):
     newv = getattr(value, "value", value)
     oldv = getattr(oldvalue, "value", oldvalue)
     if newv == SaleStatus.CONFIRMED.value and oldv != SaleStatus.CONFIRMED.value:
+        if target.customer and float(target.customer.credit_limit or 0) > 0:
+            cur_bal = float(target.customer.balance or 0)
+            new_total = float(
+                getattr(target, "total", None)
+                or getattr(target, "total_amount", 0)
+                or 0
+            )
+            if cur_bal + new_total > float(target.customer.credit_limit or 0):
+                raise Exception("تأكيد البيع مرفوض: حد الائتمان للعميل سيتجاوز المسموح.")
         target.reserve_stock()
     elif oldv == SaleStatus.CONFIRMED.value and newv != SaleStatus.CONFIRMED.value:
         target.release_stock()
 
-class SaleLine(db.Model):
-    __tablename__ = 'sale_lines'
+@event.listens_for(Sale, "after_update")
+def _gl_on_sale_confirm(mapper, connection, target: "Sale"):
+    prev = getattr(target, "_previous_state", None) or {}
+    oldv = getattr(prev.get("status"), "value", prev.get("status"))
+    newv = getattr(target.status, "value", target.status)
+    if oldv == SaleStatus.CONFIRMED.value or newv != SaleStatus.CONFIRMED.value:
+        return
+    subtotal = connection.execute(
+        select(func.coalesce(
+            func.sum((SaleLine.quantity * SaleLine.unit_price) *
+                     (1 - (func.coalesce(SaleLine.discount_rate, 0) / 100.0))), 0.0
+        )).where(SaleLine.sale_id == target.id)
+    ).scalar_one() or 0.0
+    row = connection.execute(
+        select(Sale.tax_rate, Sale.discount_total, Sale.shipping_cost, Sale.currency)
+        .where(Sale.id == target.id)
+    ).first()
+    tax_rate, discount, shipping, cur = row[0] or 0, row[1] or 0, row[2] or 0, (row[3] or "ILS")
+    base = subtotal - discount
+    if base < 0:
+        base = 0.0
+    tax = base * float(tax_rate) / 100.0
+    total = subtotal + tax + float(shipping) - float(discount)
+    entries = [
+        (GL_ACCOUNTS["AR"],  total, 0.0),
+        (GL_ACCOUNTS["VAT"], 0.0,   tax),
+        (GL_ACCOUNTS["REV"], 0.0,   total - tax),
+    ]
+    _gl_upsert_batch_and_entries(
+        connection,
+        source_type="SALE",
+        source_id=target.id,
+        purpose="SALE_CONFIRM",
+        currency=cur,
+        memo=f"Sale {target.sale_number} confirmed",
+        entries=entries,
+        ref=str(target.sale_number or target.id),
+        entity_type="CUSTOMER",
+        entity_id=target.customer_id,
+    )
 
+class SaleLine(db.Model, TimestampMixin):
+    __tablename__ = 'sale_lines'
     id          = db.Column(db.Integer, primary_key=True)
     sale_id     = db.Column(db.Integer, db.ForeignKey('sales.id'),      nullable=False)
     product_id  = db.Column(db.Integer, db.ForeignKey('products.id'),   nullable=False)
     warehouse_id= db.Column(db.Integer, db.ForeignKey('warehouses.id'), nullable=False)
-
     quantity      = db.Column(db.Integer,        nullable=False)
     unit_price    = db.Column(db.Numeric(12, 2), nullable=False)
     discount_rate = db.Column(db.Numeric(5, 2),  default=0)
     tax_rate      = db.Column(db.Numeric(5, 2),  default=0)
     note          = db.Column(db.String(200))
-
     sale      = db.relationship('Sale',      back_populates='lines')
     product   = db.relationship('Product',   back_populates='sale_lines')
     warehouse = db.relationship('Warehouse', back_populates='sale_lines')
-
     __table_args__ = (
         db.CheckConstraint('quantity > 0', name='chk_sale_line_qty_positive'),
         db.Index('ix_sale_line_sale', 'sale_id'),
@@ -2145,6 +2306,44 @@ class SaleLine(db.Model):
     def __repr__(self):
         pname = getattr(self.product, "name", None)
         return f"<SaleLine {pname or self.product_id} in Sale {self.sale_id}>"
+
+def _recompute_sale_total_amount(connection, sale_id: int):
+    subtotal = connection.execute(
+        select(
+            func.coalesce(
+                func.sum(
+                    (SaleLine.quantity * SaleLine.unit_price) *
+                    (1 - (func.coalesce(SaleLine.discount_rate, 0) / 100.0))
+                ),
+                0.0
+            )
+        ).where(SaleLine.sale_id == sale_id)
+    ).scalar_one() or 0.0
+
+    tax_rate, shipping, discount = connection.execute(
+        select(Sale.tax_rate, Sale.shipping_cost, Sale.discount_total).where(Sale.id == sale_id)
+    ).first()
+
+    tax_rate = float(tax_rate or 0)
+    shipping = float(shipping or 0)
+    discount = float(discount or 0)
+
+    base = subtotal - discount
+    if base < 0: base = 0.0
+    tax  = base * tax_rate / 100.0
+    total = subtotal + tax + shipping - discount
+
+    connection.execute(
+        update(Sale).where(Sale.id == sale_id).values(total_amount=total)
+    )
+
+@event.listens_for(SaleLine, "after_insert")
+@event.listens_for(SaleLine, "after_update")
+@event.listens_for(SaleLine, "after_delete")
+def _sale_line_touch_sale_total(mapper, connection, target: "SaleLine"):
+    sid = getattr(target, "sale_id", None)
+    if sid:
+        _recompute_sale_total_amount(connection, int(sid))
 
 class Invoice(db.Model, TimestampMixin):
     __tablename__ = 'invoices'
@@ -2179,6 +2378,7 @@ class Invoice(db.Model, TimestampMixin):
     discount_amount = Column(Numeric(12, 2), default=0)
     notes           = Column(Text)
     terms           = Column(Text)
+
     customer = relationship('Customer', back_populates='invoices')
     supplier = relationship('Supplier', back_populates='invoices')
     partner  = relationship('Partner',  back_populates='invoices')
@@ -2191,6 +2391,7 @@ class Invoice(db.Model, TimestampMixin):
 
     __table_args__ = (
         db.Index('ix_invoices_customer_status', 'customer_id', 'status'),
+        db.Index('uq_invoices_number_ci', func.upper(func.replace(invoice_number, ' ', '')), unique=True),
     )
 
     @validates('source', 'status')
@@ -2204,6 +2405,12 @@ class Invoice(db.Model, TimestampMixin):
     @hybrid_property
     def computed_total(self):
         return sum(l.line_total for l in self.lines) if self.lines else 0.0
+
+    @validates('invoice_number')
+    def _v_norm_number(self, _, v):
+        s = (v or "").strip()
+        s = re.sub(r"\s+", "", s)
+        return s.upper() or None
 
     @hybrid_property
     def total_paid(self):
@@ -2226,7 +2433,7 @@ class Invoice(db.Model, TimestampMixin):
                 (Payment.status == PaymentStatus.COMPLETED.value) &
                 (Payment.direction == PaymentDirection.INCOMING.value)
             )
-            .label("total_paid")
+            .scalar_subquery()
         )
 
     @hybrid_property
@@ -2275,19 +2482,65 @@ class InvoiceLine(db.Model):
 
     def __repr__(self):
         return f"<InvoiceLine {self.description}>"
-# -------------------- Events (Invoice) --------------------
+
+
 @event.listens_for(Invoice, 'before_insert')
 @event.listens_for(Invoice, 'before_update')
 def _invoice_normalize_and_total(mapper, connection, target: "Invoice"):
     target.currency = (target.currency or 'ILS').upper()
-    try:
-        total = sum(q(l.line_total) for l in (target.lines or []))
-    except Exception:
-        # fallback لو q مش متاحة
-        from decimal import Decimal
-        total = sum(Decimal(str(getattr(l, 'line_total', 0) or 0)) for l in (target.lines or []))
-    target.total_amount = total
-# ===================== Payment =====================
+    if target.total_amount is None:
+        target.total_amount = 0
+    if target.tax_amount is None:
+        target.tax_amount = 0
+    if target.discount_amount is None:
+        target.discount_amount = 0
+
+
+def _recompute_invoice_totals(connection, invoice_id: int):
+    gross_before_disc = func.coalesce(
+        func.sum(InvoiceLine.quantity * InvoiceLine.unit_price),
+        0.0
+    )
+    disc_amount = func.coalesce(
+        func.sum((InvoiceLine.quantity * InvoiceLine.unit_price) * (func.coalesce(InvoiceLine.discount, 0) / 100.0)),
+        0.0
+    )
+    taxable = gross_before_disc - disc_amount
+    tax = func.coalesce(
+        func.sum(
+            ((InvoiceLine.quantity * InvoiceLine.unit_price)
+             * (1 - (func.coalesce(InvoiceLine.discount, 0) / 100.0)))
+            * (func.coalesce(InvoiceLine.tax_rate, 0) / 100.0)
+        ),
+        0.0
+    )
+    total_expr = taxable + tax
+    connection.execute(
+        update(Invoice)
+        .where(Invoice.id == invoice_id)
+        .values(
+            total_amount=total_expr,
+            tax_amount=tax,
+            discount_amount=disc_amount
+        )
+    )
+
+
+@event.listens_for(Invoice, 'after_insert')
+@event.listens_for(Invoice, 'after_update')
+def _inv_touch_totals(mapper, connection, target: "Invoice"):
+    if target.id:
+        _recompute_invoice_totals(connection, int(target.id))
+
+
+@event.listens_for(InvoiceLine, 'after_insert')
+@event.listens_for(InvoiceLine, 'after_update')
+@event.listens_for(InvoiceLine, 'after_delete')
+def _inv_line_touch_invoice(mapper, connection, target: "InvoiceLine"):
+    if target.invoice_id:
+        _recompute_invoice_totals(connection, int(target.invoice_id))
+
+
 class Payment(db.Model):
     __tablename__ = 'payments'
 
@@ -2313,10 +2566,9 @@ class Payment(db.Model):
     check_number      = Column(String(100))
     check_bank        = Column(String(100))
     check_due_date    = Column(DateTime)
-    card_number       = Column(String(100))
     card_holder       = Column(String(100))
     card_expiry       = Column(String(10))
-    card_cvv          = Column(String(4))
+    card_last4        = Column(String(4))
     bank_transfer_ref = Column(String(100))
 
     created_by = Column(Integer, ForeignKey('users.id'))
@@ -2365,6 +2617,10 @@ class Payment(db.Model):
             (CASE WHEN preorder_id IS NOT NULL THEN 1 ELSE 0 END) +
             (CASE WHEN service_id IS NOT NULL THEN 1 ELSE 0 END)
         ) = 1""", name='ck_payment_one_target'),
+        db.Index('ix_pay_sale_status_dir',     'sale_id',     'status', 'direction'),
+        db.Index('ix_pay_inv_status_dir',      'invoice_id',  'status', 'direction'),
+        db.Index('ix_pay_supplier_status_dir', 'supplier_id', 'status', 'direction'),
+        db.Index('ix_pay_partner_status_dir',  'partner_id',  'status', 'direction'),
     )
 
     @property
@@ -2377,21 +2633,21 @@ class Payment(db.Model):
                 obj = getattr(self, attr, None)
                 if obj is not None:
                     return obj
-                raise ValueError(f"⚠️ Payment points to {attr}_id but no relationship loaded.")
-        raise ValueError("❌ Payment is not linked to any entity.")
+                raise ValueError("Bad link")
+        raise ValueError("No link")
 
     def entity_label(self):
-        if self.customer: return self.customer.name
-        if self.supplier: return self.supplier.name
-        if self.partner:  return self.partner.name
-        if self.invoice:  return self.invoice.invoice_number
-        if self.sale:     return self.sale.sale_number
-        if self.shipment: return self.shipment.shipment_number
-        if self.service:  return self.service.service_number
-        if self.preorder: return self.preorder.reference
-        if self.expense:  return f"Expense #{self.expense.id}"
-        if self.loan_settlement: return f"LoanSettle #{self.loan_settlement.id}"
-        return None
+        if self.customer:  return f"العميل: {self.customer.name}"
+        if self.supplier:  return f"المورد: {self.supplier.name}"
+        if self.partner:   return f"الشريك: {self.partner.name}"
+        if self.invoice:   return f"فاتورة #{self.invoice.invoice_number or self.invoice.id}"
+        if self.sale:      return f"فاتورة مبيعات #{self.sale.sale_number or self.sale.id}"
+        if self.shipment:  return f"شحنة #{self.shipment.shipment_number or self.shipment.id}"
+        if self.service:   return f"طلب صيانة #{self.service.service_number or self.service.id}"
+        if self.preorder:  return f"طلب مسبق #{self.preorder.reference or self.preorder.id}"
+        if self.expense:   return f"مصروف #{self.expense.id}"
+        if self.loan_settlement: return f"تسوية قرض #{self.loan_settlement.id}"
+        return "غير مرتبط"
 
     @validates('total_amount')
     def _validate_total_amount(self, key, value):
@@ -2442,36 +2698,7 @@ class Payment(db.Model):
 
     def __repr__(self):
         return f"<Payment {self.payment_number or self.id} - {self.total_amount} {self.currency}>"
-# ===================== PaymentSplit =====================
-class PaymentSplit(db.Model):
-    __tablename__ = 'payment_splits'
 
-    id          = Column(Integer, primary_key=True)
-    payment_id  = Column(Integer, ForeignKey('payments.id', ondelete='CASCADE'), nullable=False)
-    method      = Column(sa_str_enum(PaymentMethod, name='split_payment_method'), nullable=False)
-    amount      = Column(Numeric(12, 2), nullable=False)
-    details     = Column(db.JSON)
-
-    payment = relationship('Payment', back_populates='splits')
-
-    __table_args__ = (
-        CheckConstraint('amount > 0', name='chk_split_amount_positive'),
-    )
-
-    def __repr__(self):
-        m = getattr(self.method, "value", self.method)
-        return f"<PaymentSplit {m} {self.amount}>"
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'payment_id': self.payment_id,
-            'method': getattr(self.method, 'value', self.method),
-            'amount': float(self.amount or 0),
-            'details': self.details or None
-        }
-
-# ===================== حُرّاس الإدراج والتحديث =====================
 INCOMING_TARGETS = {'customer_id', 'sale_id', 'invoice_id', 'preorder_id', 'service_id'}
 OUTGOING_TARGETS = {'supplier_id', 'partner_id', 'shipment_id', 'expense_id', 'loan_settlement_id'}
 
@@ -2491,34 +2718,153 @@ def _payment_guard(mapper, connection, target: "Payment"):
         v = getattr(target, k, None)
         if hasattr(v, 'value'):
             setattr(target, k, v.value)
-
     exp_dir = _guess_direction_from_links(target)
     if exp_dir and str(target.direction or "").upper() != exp_dir:
         target.direction = exp_dir
-
     splits = getattr(target, 'splits', [])
     if not target.method:
         if splits:
             target.method = getattr(splits[0].method, 'value', splits[0].method)
         else:
-            raise ValueError("❌ Payment.method مطلوب إذا لم توجد PaymentSplits في نفس العملية.")
-
+            raise ValueError("Payment.method required if no splits.")
     if splits:
-        total = sum(q(s.amount or 0) for s in splits)
-        expected = q(target.total_amount or 0)
+        total = sum(Decimal(str(s.amount or 0)).quantize(Decimal("0.01")) for s in splits)
+        expected = Decimal(str(target.total_amount or 0)).quantize(Decimal("0.01"))
         if total != expected:
-            raise ValueError(f"❌ مجموع PaymentSplits ({total}) لا يساوي total_amount ({expected}).")
-
+            raise ValueError("Split totals mismatch.")
         split_methods = {getattr(s.method, 'value', s.method) for s in splits}
         if len(split_methods) > 1:
-            raise ValueError("❌ لا يمكن أن تحتوي PaymentSplits على أكثر من طريقة دفع مختلفة.")
+            raise ValueError("Multiple split methods not allowed.")
+    object.__setattr__(target, "card_last4", getattr(target, "card_last4", None))
+    if hasattr(target, "card_holder"):
+        target.card_holder = (target.card_holder or None)
+    if hasattr(target, "card_expiry"):
+        target.card_expiry = (target.card_expiry or None)
 
-    target.card_cvv = None
-    target.card_number = None
-    target.card_holder = None
-    target.card_expiry = None
+@event.listens_for(Payment, "after_insert")
+@event.listens_for(Payment, "after_update")
+def _gl_on_payment_complete(mapper, connection, target: "Payment"):
+    prev = getattr(target, "_previous_state", None) or {}
+    old_status = getattr(prev.get("status"), "value", prev.get("status"))
+    new_status = getattr(getattr(target, "status", None), "value", getattr(target, "status", None))
+    if new_status != PaymentStatus.COMPLETED.value:
+        return
+    if old_status == PaymentStatus.COMPLETED.value:
+        return
+    method = getattr(target, "method", None)
+    cur    = (getattr(target, "currency", None) or "ILS").upper()
+    amt    = float(getattr(target, "total_amount", 0) or 0)
+    dirv   = getattr(target, "direction", None)
+    dirv   = getattr(dirv, "value", dirv)
+    cash_acc = _gl_get_cash_acct(method)
+    ref = getattr(target, "payment_number", None) or str(target.id)
+    et, eid = None, None
+    if target.customer_id:          et, eid = "CUSTOMER", target.customer_id
+    elif target.supplier_id:        et, eid = "SUPPLIER", target.supplier_id
+    elif target.partner_id:         et, eid = "PARTNER",  target.partner_id
+    elif target.shipment_id:        et, eid = "SHIPMENT", target.shipment_id
+    elif target.expense_id:         et, eid = "EXPENSE",  target.expense_id
+    elif target.loan_settlement_id: et, eid = "LOAN",     target.loan_settlement_id
+    elif target.invoice_id:         et, eid = "INVOICE",  target.invoice_id
+    elif target.sale_id:            et, eid = "SALE",     target.sale_id
+    elif target.service_id:         et, eid = "SERVICE",  target.service_id
+    elif target.preorder_id:        et, eid = "PREORDER", target.preorder_id
+    if dirv in (PaymentDirection.INCOMING.value, "IN"):
+        entries = [(GL_ACCOUNTS["CASH"], amt, 0.0), (GL_ACCOUNTS["AR"], 0.0, amt)]
+    else:
+        if target.expense_id:
+            entries = [(GL_ACCOUNTS["EXP"], amt, 0.0), (GL_ACCOUNTS["CASH"], 0.0, amt)]
+        else:
+            entries = [(GL_ACCOUNTS["AP"],  amt, 0.0), (GL_ACCOUNTS["CASH"], 0.0, amt)]
+    _gl_upsert_batch_and_entries(
+        connection,
+        source_type="PAYMENT",
+        source_id=target.id,
+        purpose="PMT_COMPLETE",
+        currency=cur,
+        memo=f"PMT {ref}",
+        entries=entries,
+        ref=ref,
+        entity_type=et,
+        entity_id=eid,
+    )
+    if target.invoice_id:
+        paid_inv = select(func.coalesce(func.sum(Payment.total_amount), 0)).where(
+            Payment.invoice_id == target.invoice_id,
+            Payment.status == PaymentStatus.COMPLETED.value,
+            Payment.direction == PaymentDirection.INCOMING.value
+        ).scalar_subquery()
+        inv_total = select(Invoice.total_amount).where(Invoice.id == target.invoice_id).scalar_subquery()
+        new_status_expr = case(
+            (paid_inv >= inv_total, InvoiceStatus.PAID.value),
+            (paid_inv > 0,          InvoiceStatus.PARTIAL.value),
+            else_=InvoiceStatus.UNPAID.value
+        )
+        connection.execute(update(Invoice).where(Invoice.id == target.invoice_id).values(status=new_status_expr))
+    if target.sale_id:
+        paid_sale = select(func.coalesce(func.sum(Payment.total_amount), 0)).where(
+            Payment.sale_id == target.sale_id,
+            Payment.status == PaymentStatus.COMPLETED.value,
+            Payment.direction == PaymentDirection.INCOMING.value
+        ).scalar_subquery()
+        sale_total = select(Sale.total_amount).where(Sale.id == target.sale_id).scalar_subquery()
+        new_pp = case(
+            (paid_sale >= sale_total, PaymentProgress.PAID.value),
+            (paid_sale > 0,           PaymentProgress.PARTIAL.value),
+            else_=PaymentProgress.PENDING.value
+        )
+        connection.execute(update(Sale).where(Sale.id == target.sale_id).values(payment_status=new_pp))
 
-# ===================== Shipments =====================
+@event.listens_for(Payment, 'before_insert')
+def _ensure_payment_number(mapper, connection, target: 'Payment'):
+    if getattr(target, 'payment_number', None):
+        return
+    prefix = datetime.utcnow().strftime("PMT%Y%m%d")
+    count = connection.execute(
+        text("SELECT COUNT(*) FROM payments WHERE payment_number LIKE :pfx"),
+        {"pfx": f"{prefix}-%"}
+    ).scalar() or 0
+    target.payment_number = f"{prefix}-{count+1:04d}"
+
+class PaymentSplit(db.Model):
+    __tablename__ = 'payment_splits'
+
+    id          = Column(Integer, primary_key=True)
+    payment_id  = Column(Integer, ForeignKey('payments.id', ondelete='CASCADE'), nullable=False)
+    method      = Column(sa_str_enum(PaymentMethod, name='split_payment_method'), nullable=False)
+    amount      = Column(Numeric(12, 2), nullable=False)
+    details     = Column(db.JSON)
+
+    payment = relationship('Payment', back_populates='splits')
+
+    __table_args__ = (
+        CheckConstraint('amount > 0', name='chk_split_amount_positive'),
+    )
+
+    def label(self):
+        m = getattr(self.method, "value", self.method)
+        names = {
+            PaymentMethod.CASH.value: "نقدًا",
+            PaymentMethod.CHEQUE.value: "شيك",
+            PaymentMethod.CARD.value: "بطاقة",
+            PaymentMethod.BANK.value: "تحويل بنكي",
+            PaymentMethod.ONLINE.value: "دفع إلكتروني",
+        }
+        return f"{names.get(m, m)} - {float(self.amount or 0):,.2f}"
+
+    def __repr__(self):
+        return f"<PaymentSplit {self.label()}>"
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'payment_id': self.payment_id,
+            'method': getattr(self.method, 'value', self.method),
+            'amount': float(self.amount or 0),
+            'details': self.details or None,
+            'label': self.label(),
+        }
+
 class Shipment(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'shipments'
 
@@ -2527,41 +2873,29 @@ class Shipment(db.Model, TimestampMixin, AuditMixin):
     shipment_date    = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     expected_arrival = db.Column(db.DateTime)
     actual_arrival   = db.Column(db.DateTime)
-
     origin           = db.Column(db.String(100))
     destination      = db.Column(db.String(100))
     destination_id   = db.Column(db.Integer, db.ForeignKey('warehouses.id'), index=True)
-
-    status           = db.Column(db.String(20), default='PENDING', nullable=False, index=True)
-
-    value_before     = db.Column(db.Numeric(12, 2))  # مجموع (quantity * unit_cost) لعناصر الشحنة
+    status           = db.Column(db.String(20), default='DRAFT', nullable=False, index=True)
+    value_before     = db.Column(db.Numeric(12, 2))
     shipping_cost    = db.Column(db.Numeric(12, 2))
     customs          = db.Column(db.Numeric(12, 2))
     vat              = db.Column(db.Numeric(12, 2))
     insurance        = db.Column(db.Numeric(12, 2))
-
     carrier          = db.Column(db.String(100))
     tracking_number  = db.Column(db.String(100), index=True)
     notes            = db.Column(db.Text)
     currency         = db.Column(db.String(10), default='USD', nullable=False)
-
     sale_id          = db.Column(db.Integer, db.ForeignKey('sales.id'), index=True)
 
     items     = db.relationship('ShipmentItem', back_populates='shipment', cascade='all, delete-orphan')
     partners  = db.relationship('ShipmentPartner', back_populates='shipment', cascade='all, delete-orphan')
     payments  = db.relationship('Payment', back_populates='shipment')
     sale      = db.relationship('Sale', back_populates='shipments')
-    destination_warehouse = db.relationship(
-        'Warehouse',
-        back_populates='shipments_received',
-        foreign_keys=[destination_id]
-    )
+    destination_warehouse = db.relationship('Warehouse', back_populates='shipments_received', foreign_keys=[destination_id])
 
     __table_args__ = (
-        db.CheckConstraint(
-            "status IN ('PENDING','IN_TRANSIT','ARRIVED','CANCELLED')",
-            name='chk_shipment_status_allowed'
-        ),
+        db.CheckConstraint("status IN ('DRAFT','IN_TRANSIT','ARRIVED','CANCELLED')", name='chk_shipment_status_allowed'),
         db.Index('ix_shipments_dest_status', 'destination_id', 'status'),
     )
 
@@ -2576,13 +2910,7 @@ class Shipment(db.Model, TimestampMixin, AuditMixin):
     @hybrid_property
     def total_value(self):
         vb = float(self.value_before or 0)
-        return (
-            vb +
-            float(self.shipping_cost or 0) +
-            float(self.customs or 0) +
-            float(self.vat or 0) +
-            float(self.insurance or 0)
-        )
+        return vb + float(self.shipping_cost or 0) + float(self.customs or 0) + float(self.vat or 0) + float(self.insurance or 0)
 
     def update_status(self, new_status: str):
         self.status = (new_status or '').strip().upper()
@@ -2591,27 +2919,16 @@ class Shipment(db.Model, TimestampMixin, AuditMixin):
 
     def _apply_arrival_stock(self):
         for it in (self.items or []):
-            lvl = (StockLevel.query
-                   .filter_by(product_id=it.product_id, warehouse_id=it.warehouse_id)
-                   .with_for_update()
-                   .first())
+            lvl = (StockLevel.query.filter_by(product_id=it.product_id, warehouse_id=it.warehouse_id).with_for_update().first())
             if not lvl:
-                lvl = StockLevel(
-                    product_id=it.product_id,
-                    warehouse_id=it.warehouse_id,
-                    quantity=0,
-                    reserved_quantity=0
-                )
+                lvl = StockLevel(product_id=it.product_id, warehouse_id=it.warehouse_id, quantity=0, reserved_quantity=0)
                 db.session.add(lvl)
                 db.session.flush()
             lvl.quantity = int(lvl.quantity or 0) + int(it.quantity or 0)
 
     def _revert_arrival_stock(self):
         for it in (self.items or []):
-            lvl = (StockLevel.query
-                   .filter_by(product_id=it.product_id, warehouse_id=it.warehouse_id)
-                   .with_for_update()
-                   .first())
+            lvl = (StockLevel.query.filter_by(product_id=it.product_id, warehouse_id=it.warehouse_id).with_for_update().first())
             if not lvl:
                 continue
             new_q = int(lvl.quantity or 0) - int(it.quantity or 0)
@@ -2622,20 +2939,13 @@ class Shipment(db.Model, TimestampMixin, AuditMixin):
     def __repr__(self):
         return f"<Shipment {self.shipment_number or self.id}>"
 
-# ==================== Events ====================
 @event.listens_for(Shipment, 'before_insert')
 def _shipment_before_insert(mapper, connection, target: 'Shipment'):
-    # رقم الشحنة
     if not getattr(target, 'shipment_number', None):
         prefix = datetime.utcnow().strftime("SHP%Y%m%d")
-        count = connection.execute(
-            text("SELECT COUNT(*) FROM shipments WHERE shipment_number LIKE :pfx"),
-            {"pfx": f"{prefix}-%"}
-        ).scalar() or 0
+        count = connection.execute(text("SELECT COUNT(*) FROM shipments WHERE shipment_number LIKE :pfx"), {"pfx": f"{prefix}-%"}).scalar() or 0
         target.shipment_number = f"{prefix}-{count+1:04d}"
-    # تطبيع العملة
     target.currency = (target.currency or 'USD').upper()
-    # احتساب value_before من العناصر
     vb = sum((it.quantity or 0) * float(it.unit_cost or 0) for it in (target.items or []))
     target.value_before = vb
 
@@ -2644,27 +2954,6 @@ def _shipment_before_update(mapper, connection, target: 'Shipment'):
     target.currency = (target.currency or 'USD').upper()
     vb = sum((it.quantity or 0) * float(it.unit_cost or 0) for it in (target.items or []))
     target.value_before = vb
-@event.listens_for(Shipment.status, 'set')
-def _shipment_status_stock(target: Shipment, value, oldvalue, initiator):
-    def normalize(v):
-        if hasattr(v, "value"):
-            v = v.value
-        if isinstance(v, int):
-            v = str(v)
-        return (v or "").strip().upper()
-
-    newv = normalize(value)
-    oldv = normalize(oldvalue)
-
-    if newv == 'ARRIVED' and oldv != 'ARRIVED':
-        if not getattr(target, 'actual_arrival', None):
-            target.actual_arrival = datetime.utcnow()
-        try:
-            target._apply_arrival_stock()
-        except Exception as e:
-            raise
-    elif oldv == 'ARRIVED' and newv != 'ARRIVED':
-        target._revert_arrival_stock()
 
 class ShipmentItem(db.Model):
     __tablename__ = 'shipment_items'
@@ -2673,10 +2962,11 @@ class ShipmentItem(db.Model):
     shipment_id  = db.Column(db.Integer, db.ForeignKey('shipments.id', ondelete='CASCADE'), nullable=False, index=True)
     product_id   = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False, index=True)
     warehouse_id = db.Column(db.Integer, db.ForeignKey('warehouses.id'), nullable=False, index=True)
-
     quantity       = db.Column(db.Integer, nullable=False, default=0)
     unit_cost      = db.Column(db.Numeric(10, 2))
     declared_value = db.Column(db.Numeric(12, 2))
+    landed_extra_share = db.Column(db.Numeric(12, 2), default=0)
+    landed_unit_cost   = db.Column(db.Numeric(10, 2), default=0)
     notes          = db.Column(db.String(200))
 
     shipment  = db.relationship('Shipment', back_populates='items')
@@ -2685,7 +2975,7 @@ class ShipmentItem(db.Model):
 
     __table_args__ = (
         db.CheckConstraint('quantity > 0', name='chk_shipment_item_qty_positive'),
-        db.UniqueConstraint('shipment_id', 'product_id', 'warehouse_id', name='uq_shipment_item_unique'),  # منع تكرار نفس المنتج لنفس المخزن ضمن الشحنة
+        db.UniqueConstraint('shipment_id', 'product_id', 'warehouse_id', name='uq_shipment_item_unique'),
         db.Index('ix_shipment_items_prod_wh', 'product_id', 'warehouse_id'),
     )
 
@@ -2703,18 +2993,30 @@ class ShipmentItem(db.Model):
     def __repr__(self):
         return f"<ShipmentItem {self.product_id} Q{self.quantity}>"
 
-
 @event.listens_for(ShipmentItem, 'before_insert')
 def _si_before_insert(mapper, connection, target: 'ShipmentItem'):
     if not getattr(target, 'warehouse_id', None) and getattr(target, 'shipment', None):
         target.warehouse_id = target.shipment.destination_id
+
+def _apply_stock_delta(connection, product_id, warehouse_id, delta):
+    sel = connection.execute(text("SELECT id, quantity, COALESCE(reserved_quantity,0) AS rq FROM stock_levels WHERE product_id=:pid AND warehouse_id=:wid FOR UPDATE"), {"pid": product_id, "wid": warehouse_id}).fetchone()
+    if not sel:
+        connection.execute(text("INSERT INTO stock_levels (product_id, warehouse_id, quantity, reserved_quantity) VALUES (:pid,:wid,0,0)"), {"pid": product_id, "wid": warehouse_id})
+        qty = 0
+        rq = 0
+    else:
+        qty = int(sel.quantity or 0)
+        rq = int(sel.rq or 0)
+    new_qty = qty + int(delta or 0)
+    if new_qty < 0 or new_qty < rq:
+        raise Exception("insufficient stock")
+    connection.execute(text("UPDATE stock_levels SET quantity=:q WHERE product_id=:pid AND warehouse_id=:wid"), {"q": new_qty, "pid": product_id, "wid": warehouse_id})
 
 @event.listens_for(ShipmentItem, 'after_insert')
 def _si_after_insert(mapper, connection, target: 'ShipmentItem'):
     sh = target.shipment
     if sh and (sh.status or '').upper() == 'ARRIVED':
         _apply_stock_delta(connection, target.product_id, target.warehouse_id, +int(target.quantity or 0))
-
 
 @event.listens_for(ShipmentItem, 'after_update')
 def _si_after_update(mapper, connection, target: 'ShipmentItem'):
@@ -2728,54 +3030,49 @@ def _si_after_update(mapper, connection, target: 'ShipmentItem'):
     old_pid = prev.get("product_id", target.product_id)
     old_wid = prev.get("warehouse_id", target.warehouse_id)
     old_qty = int(prev.get("quantity", target.quantity) or 0)
-    # تراجع القديم
     _apply_stock_delta(connection, old_pid, old_wid, -old_qty)
-    # تطبيق الجديد
     _apply_stock_delta(connection, target.product_id, target.warehouse_id, +int(target.quantity or 0))
+
 @event.listens_for(ShipmentItem, 'after_delete')
 def _si_after_delete(mapper, connection, target: 'ShipmentItem'):
     sh = target.shipment
     if sh and (sh.status or '').upper() == 'ARRIVED':
         _apply_stock_delta(connection, target.product_id, target.warehouse_id, -int(target.quantity or 0))
 
+@event.listens_for(Shipment.status, "set")
+def _shipment_status_toggle(target, value, oldvalue, initiator):
+    old = (getattr(oldvalue, "value", oldvalue) or "").upper()
+    new = (getattr(value, "value", value) or "").upper()
+    if old == new:
+        return
+    conn = db.session.connection()
+    if old != "ARRIVED" and new == "ARRIVED":
+        for it in target.items or []:
+            _apply_stock_delta(conn, it.product_id, it.warehouse_id, +int(it.quantity or 0))
+        if not getattr(target, "actual_arrival", None):
+            target.actual_arrival = datetime.utcnow()
+    elif old == "ARRIVED" and new != "ARRIVED":
+        for it in target.items or []:
+            _apply_stock_delta(conn, it.product_id, it.warehouse_id, -int(it.quantity or 0))
+
 class ShipmentPartner(db.Model, TimestampMixin):
     __tablename__ = 'shipment_partners'
 
     id              = db.Column(db.Integer, primary_key=True)
-    shipment_id     = db.Column(
-        db.Integer,
-        db.ForeignKey('shipments.id', ondelete='CASCADE'),
-        nullable=False,
-        index=True
-    )
-    partner_id      = db.Column(
-        db.Integer,
-        db.ForeignKey('partners.id', ondelete='CASCADE'),
-        nullable=False,
-        index=True
-    )
-
+    shipment_id     = db.Column(db.Integer, db.ForeignKey('shipments.id', ondelete='CASCADE'), nullable=False, index=True)
+    partner_id      = db.Column(db.Integer, db.ForeignKey('partners.id', ondelete='CASCADE'), nullable=False, index=True)
     identity_number = db.Column(db.String(100))
     phone_number    = db.Column(db.String(20))
     address         = db.Column(db.String(200))
-
     unit_price_before_tax = db.Column(db.Numeric(12, 2))
     expiry_date     = db.Column(db.Date)
-
-    share_percentage= db.Column(db.Numeric(5, 2), default=0)     
-    share_amount    = db.Column(db.Numeric(12, 2), default=0)    
-
+    share_percentage= db.Column(db.Numeric(5, 2), default=0)
+    share_amount    = db.Column(db.Numeric(12, 2), default=0)
     notes           = db.Column(db.Text)
 
     __table_args__ = (
-        db.CheckConstraint(
-            'share_percentage >= 0 AND share_percentage <= 100',
-            name='chk_shipment_partner_share'
-        ),
-        db.UniqueConstraint(
-            'shipment_id', 'partner_id',
-            name='uq_shipment_partner_unique'
-        ),  
+        db.CheckConstraint('share_percentage >= 0 AND share_percentage <= 100', name='chk_shipment_partner_share'),
+        db.UniqueConstraint('shipment_id', 'partner_id', name='uq_shipment_partner_unique'),
         db.Index('ix_shipment_partner_pair', 'shipment_id', 'partner_id'),
     )
 
@@ -2784,7 +3081,6 @@ class ShipmentPartner(db.Model, TimestampMixin):
 
     @hybrid_property
     def share_value(self):
-        """قيمة حصة الشريك النهائية: إما مبلغ مباشر أو محسوبة من النسبة."""
         if self.share_amount and float(self.share_amount) > 0:
             return float(self.share_amount)
         return (float(self.unit_price_before_tax or 0) * float(self.share_percentage or 0)) / 100.0
@@ -2798,20 +3094,15 @@ class SupplierLoanSettlement(db.Model, TimestampMixin, AuditMixin):
     id              = db.Column(db.Integer, primary_key=True)
     loan_id         = db.Column(db.Integer, db.ForeignKey('product_supplier_loans.id', ondelete='CASCADE'), nullable=True, index=True)
     supplier_id     = db.Column(db.Integer, db.ForeignKey('suppliers.id', ondelete='SET NULL'), nullable=True, index=True)
-
     settled_price   = db.Column(db.Numeric(12, 2), nullable=False)
     settlement_date = db.Column(db.DateTime, default=datetime.utcnow)
     notes           = db.Column(db.Text)
 
     loan     = db.relationship('ProductSupplierLoan', back_populates='settlements')
     supplier = db.relationship('Supplier', back_populates='loan_settlements')
+    payment  = db.relationship('Payment', back_populates='loan_settlement', cascade='all, delete-orphan', passive_deletes=True, uselist=False)
 
-    payment  = db.relationship('Payment', back_populates='loan_settlement',
-                               cascade='all, delete-orphan', passive_deletes=True, uselist=False)
-
-    __table_args__ = (
-        db.CheckConstraint('settled_price >= 0', name='chk_settlement_price_non_negative'),
-    )
+    __table_args__ = (db.CheckConstraint('settled_price >= 0', name='chk_settlement_price_non_negative'),)
 
     @hybrid_property
     def has_payment(self) -> bool:
@@ -2821,15 +3112,13 @@ class SupplierLoanSettlement(db.Model, TimestampMixin, AuditMixin):
     def product(self):
         return getattr(self.loan, 'product', None)
 
-    def build_payment(self, method: 'PaymentMethod' = None, status: 'PaymentStatus' = None,
-                      direction: 'PaymentDirection' = None, currency: str = None,
-                      reference: str = None, notes: str = None, created_by: int = None) -> 'Payment':
+    def build_payment(self, method: 'PaymentMethod' = None, status: 'PaymentStatus' = None, direction: 'PaymentDirection' = None, currency: str = None, reference: str = None, notes: str = None, created_by: int = None) -> 'Payment':
         return Payment(
             total_amount=self.settled_price,
             payment_date=datetime.utcnow(),
             method=method or PaymentMethod.BANK,
             status=status or PaymentStatus.PENDING,
-            direction=direction or PaymentDirection.OUTGOING,   
+            direction=direction or PaymentDirection.OUTGOING,
             entity_type=PaymentEntityType.LOAN,
             currency=currency or (getattr(self.supplier, 'currency', None) or 'ILS'),
             supplier_id=getattr(self.supplier, 'id', None),
@@ -2842,18 +3131,11 @@ class SupplierLoanSettlement(db.Model, TimestampMixin, AuditMixin):
     def __repr__(self):
         return f"<SupplierLoanSettlement Loan{self.loan_id} - {self.settled_price}>"
 
-
 @event.listens_for(SupplierLoanSettlement, 'after_insert')
 def _sync_loan_on_settlement(mapper, connection, target: 'SupplierLoanSettlement'):
     if target.loan_id:
-        connection.execute(
-            update(ProductSupplierLoan)
-            .where(ProductSupplierLoan.id == target.loan_id)
-            .values(
-                deferred_price=target.settled_price,
-                is_settled=True
-            )
-        )
+        connection.execute(update(ProductSupplierLoan).where(ProductSupplierLoan.id == target.loan_id).values(deferred_price=target.settled_price, is_settled=True))
+
 # ===================== Service =====================
 class ServiceRequest(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = "service_requests"
@@ -2861,8 +3143,8 @@ class ServiceRequest(db.Model, TimestampMixin, AuditMixin):
     id = db.Column(db.Integer, primary_key=True)
     service_number = db.Column(db.String(50), unique=True, index=True, nullable=True)
 
-    customer_id     = db.Column(db.Integer, db.ForeignKey("customers.id"), index=True, nullable=False)
-    mechanic_id     = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"), index=True, nullable=False)
+    mechanic_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
     vehicle_type_id = db.Column(db.Integer, db.ForeignKey("equipment_types.id"), index=True)
 
     status = db.Column(
@@ -2878,49 +3160,53 @@ class ServiceRequest(db.Model, TimestampMixin, AuditMixin):
         nullable=False,
         index=True,
     )
-
-    vehicle_vrn        = db.Column(db.String(50))
-    vehicle_model      = db.Column(db.String(100))
-    chassis_number     = db.Column(db.String(100))
-    engineer_notes     = db.Column(db.Text)
-    description        = db.Column(db.Text)
+    vehicle_vrn = db.Column(db.String(50))
+    vehicle_model = db.Column(db.String(100))
+    chassis_number = db.Column(db.String(100))
+    engineer_notes = db.Column(db.Text)
+    description = db.Column(db.Text)
     estimated_duration = db.Column(db.Integer)
-    actual_duration    = db.Column(db.Integer)
-    estimated_cost     = db.Column(db.Numeric(12, 2))
-    total_cost         = db.Column(db.Numeric(12, 2))
-    start_time         = db.Column(db.Date)
-    end_time           = db.Column(db.Date)
+    actual_duration = db.Column(db.Integer)
+    estimated_cost = db.Column(db.Numeric(12, 2))
+    total_cost = db.Column(db.Numeric(12, 2))
+    start_time = db.Column(db.Date)
+    end_time = db.Column(db.Date)
 
     problem_description = db.Column(db.Text)
-    diagnosis           = db.Column(db.Text)
-    resolution          = db.Column(db.Text)
-    notes               = db.Column(db.Text)
+    diagnosis = db.Column(db.Text)
+    resolution = db.Column(db.Text)
+    notes = db.Column(db.Text)
 
-    received_at       = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-    started_at        = db.Column(db.DateTime)
+    received_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    started_at = db.Column(db.DateTime)
     expected_delivery = db.Column(db.DateTime)
-    completed_at      = db.Column(db.DateTime)
+    completed_at = db.Column(db.DateTime)
 
-    currency        = db.Column(db.String(10), nullable=False, default="ILS")
-    tax_rate        = db.Column(db.Numeric(5, 2), default=0)
-    discount_total  = db.Column(db.Numeric(12, 2), default=0)
-    parts_total     = db.Column(db.Numeric(12, 2), default=0)
-    labor_total     = db.Column(db.Numeric(12, 2), default=0)
-    total_amount    = db.Column(db.Numeric(12, 2), default=0)
-
+    currency = db.Column(db.String(10), nullable=False, default="ILS")
+    tax_rate = db.Column(db.Numeric(5, 2), default=0)
+    discount_total = db.Column(db.Numeric(12, 2), default=0)
+    parts_total = db.Column(db.Numeric(12, 2), default=0)
+    labor_total = db.Column(db.Numeric(12, 2), default=0)
+    total_amount = db.Column(db.Numeric(12, 2), default=0)
+    consume_stock = db.Column(db.Boolean, default=True, nullable=False)
     warranty_days = db.Column(db.Integer, default=0)
-
-    customer     = db.relationship("Customer", back_populates="service_requests")
-    mechanic     = db.relationship("User", back_populates="service_requests")
+    customer = db.relationship("Customer", back_populates="service_requests")
+    mechanic = db.relationship("User", back_populates="service_requests")
     vehicle_type = db.relationship("EquipmentType", back_populates="service_requests")
-    invoice      = db.relationship("Invoice", back_populates="service", uselist=False)
-    payments     = db.relationship("Payment", back_populates="service", cascade="all, delete-orphan")
-    parts        = db.relationship("ServicePart", back_populates="request", cascade="all, delete-orphan")
-    tasks        = db.relationship("ServiceTask", back_populates="request", cascade="all, delete-orphan")
+    invoice = db.relationship("Invoice", back_populates="service", uselist=False)
+    payments = db.relationship("Payment", back_populates="service", cascade="all, delete-orphan")
+    parts = db.relationship("ServicePart", back_populates="request", cascade="all, delete-orphan")
+    tasks = db.relationship("ServiceTask", back_populates="request", cascade="all, delete-orphan")
 
     __table_args__ = (
         db.Index("ix_service_customer_status", "customer_id", "status"),
         db.Index("ix_service_mechanic_status", "mechanic_id", "status"),
+        db.CheckConstraint('tax_rate >= 0 AND tax_rate <= 100', name='ck_srv_tax_0_100'),
+        db.CheckConstraint('discount_total >= 0', name='ck_srv_disc_ge_0'),
+        db.CheckConstraint('parts_total >= 0', name='ck_srv_parts_ge_0'),
+        db.CheckConstraint('labor_total >= 0', name='ck_srv_labor_ge_0'),
+        db.CheckConstraint('total_amount >= 0', name='ck_srv_total_ge_0'),
+        db.CheckConstraint('total_cost >= 0', name='ck_srv_totalcost_ge_0'),
     )
 
     @validates("status", "priority")
@@ -2952,9 +3238,21 @@ class ServiceRequest(db.Model, TimestampMixin, AuditMixin):
             db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
             .filter(
                 Payment.service_id == self.id,
-                Payment.status == 'COMPLETED',
-                Payment.direction == 'IN',
-            ).scalar()
+                Payment.status == PaymentStatus.COMPLETED.value,
+                Payment.direction == PaymentDirection.INCOMING.value,
+            ).scalar() or 0
+        )
+
+    @total_paid.expression
+    def total_paid(cls):
+        return (
+            select(func.coalesce(func.sum(Payment.total_amount), 0))
+            .where(
+                (Payment.service_id == cls.id) &
+                (Payment.status == PaymentStatus.COMPLETED.value) &
+                (Payment.direction == PaymentDirection.INCOMING.value)
+            )
+            .scalar_subquery()
         )
 
     @hybrid_property
@@ -3017,66 +3315,84 @@ class ServiceRequest(db.Model, TimestampMixin, AuditMixin):
             "tasks": [t.to_dict() for t in self.tasks] if self.tasks else [],
         }
 
+
 def _D(x):
     try:
         return Decimal(str(x))
     except Exception:
         return Decimal("0")
 
+
+def _Q2(x):
+    return _D(x).quantize(Decimal("0.01"), ROUND_HALF_UP)
+
+
 def _calc_parts_sum(service_id: int) -> Decimal:
     rows = db.session.query(
-        ServicePart.quantity, ServicePart.unit_price, ServicePart.discount, ServicePart.tax_rate
+        ServicePart.quantity, ServicePart.unit_price, ServicePart.discount
     ).filter(ServicePart.service_id == service_id).all()
     total = Decimal("0")
-    for q, u, d, t in rows:
+    for q, u, d in rows:
         qd = _D(q)
         ud = _D(u)
         dd = _D(d) / Decimal("100")
-        td = _D(t) / Decimal("100")
         gross = qd * ud
         taxable = gross * (Decimal("1") - dd)
-        line_total = taxable * (Decimal("1") + td)
-        total += line_total
-    return total
+        total += taxable
+    return _Q2(total)
+
 
 def _calc_tasks_sum(service_id: int) -> Decimal:
     rows = db.session.query(
-        ServiceTask.quantity, ServiceTask.unit_price, ServiceTask.discount, ServiceTask.tax_rate
+        ServiceTask.quantity, ServiceTask.unit_price, ServiceTask.discount
     ).filter(ServiceTask.service_id == service_id).all()
     total = Decimal("0")
-    for q, u, d, t in rows:
+    for q, u, d in rows:
         qd = _D(q)
         ud = _D(u)
         dd = _D(d) / Decimal("100")
-        td = _D(t) / Decimal("100")
         gross = qd * ud
         taxable = gross * (Decimal("1") - dd)
-        line_total = taxable * (Decimal("1") + td)
-        total += line_total
-    return total
+        total += taxable
+    return _Q2(total)
 
-def _recalc_service_request_totals(sr: "ServiceRequest"):
-    parts_sum = _calc_parts_sum(sr.id)
-    tasks_sum = _calc_tasks_sum(sr.id)
-    discount_total = _D(sr.discount_total)
-    tax_rate = _D(sr.tax_rate) / Decimal("100")
-    sr.parts_total = parts_sum
-    sr.labor_total = tasks_sum
-    base = parts_sum + tasks_sum - discount_total
-    if base < 0:
-        base = Decimal("0")
-    tax = base * tax_rate
-    sr.total_amount = base + tax
-    sr.currency = (sr.currency or "ILS").upper()
+from flask import current_app
 
 def _service_consumes_stock(sr: "ServiceRequest") -> bool:
-    st = (getattr(sr.status, "value", sr.status) or "").upper()
-    return st in ("IN_PROGRESS", "COMPLETED")
+    if not sr:
+        return False
+    # إعداد عام يسمح بإطفاء الميزة بالكامل
+    if not bool(current_app.config.get("SERVICE_CONSUMES_STOCK", True)):
+        return False
+    # لازم خانة الطلب تكون مفعلة، والحالة مناسبة
+    status = str(getattr(sr, "status", "")).upper()
+    return bool(getattr(sr, "consume_stock", True)) and status in ("IN_PROGRESS", "COMPLETED")
+
+def _recalc_service_request_totals(sr: "ServiceRequest"):
+    parts_sum = _calc_parts_sum(sr.id) if sr.id else _Q2(sr.parts_total or 0)
+    tasks_sum = _calc_tasks_sum(sr.id) if sr.id else _Q2(sr.labor_total or 0)
+    discount_total = _Q2(sr.discount_total or 0)
+    tax_rate = _D(sr.tax_rate or 0) / Decimal("100")
+    sr.parts_total = _Q2(parts_sum)
+    sr.labor_total = _Q2(tasks_sum)
+    base = parts_sum + tasks_sum - discount_total
+    if base < 0:
+        base = Decimal("0.00")
+    tax = base * tax_rate
+    sr.total_amount = _Q2(base + tax)
+    sr.currency = (sr.currency or "ILS").upper()
+    tc = _D(sr.total_cost or 0)
+    if tc < base:
+        sr.total_cost = _Q2(base)
+    else:
+        sr.total_cost = _Q2(tc)
+
 
 @event.listens_for(ServiceRequest, "before_insert")
 @event.listens_for(ServiceRequest, "before_update")
 def _compute_service_totals(mapper, connection, target: ServiceRequest):
     _recalc_service_request_totals(target)
+
 
 @event.listens_for(ServiceRequest, "before_insert")
 def _ensure_service_number(mapper, connection, target: ServiceRequest):
@@ -3089,16 +3405,56 @@ def _ensure_service_number(mapper, connection, target: ServiceRequest):
     ).scalar() or 0
     target.service_number = f"{prefix}-{cnt + 1:04d}"
 
+
 @event.listens_for(ServiceRequest.status, "set")
 def _set_completed_at_on_status_change(target, value, oldvalue, initiator):
     newv = getattr(value, "value", value)
     if newv == ServiceStatus.COMPLETED.value and not target.completed_at:
         target.completed_at = datetime.utcnow()
 
-# ===================== Service Parts =====================
-class ServicePart(db.Model):
-    __tablename__ = 'service_parts'
+@event.listens_for(ServiceRequest, "after_update")
+def _gl_on_service_complete(mapper, connection, target: "ServiceRequest"):
+    prev = getattr(target, "_previous_state", None) or {}
+    oldv = getattr(prev.get("status"), "value", prev.get("status"))
+    newv = getattr(getattr(target, "status", None), "value", getattr(target, "status", None))
+    if newv != ServiceStatus.COMPLETED.value or oldv == ServiceStatus.COMPLETED.value:
+        return
+    if getattr(target, "invoice_id", None):
+        return
+    parts = float(getattr(target, "parts_total", 0) or 0)
+    labor = float(getattr(target, "labor_total", 0) or 0)
+    discount = float(getattr(target, "discount_total", 0) or 0)
+    tax_rate = float(getattr(target, "tax_rate", 0) or 0)
+    currency = (getattr(target, "currency", None) or "ILS").upper()
+    subtotal = parts + labor
+    base = subtotal - discount
+    if base < 0:
+        base = 0.0
+    tax = base * (tax_rate / 100.0)
+    total = base + tax
+    entries = [
+        (GL_ACCOUNTS["AR"], total, 0.0),
+        (GL_ACCOUNTS["VAT"], 0.0, tax),
+        (GL_ACCOUNTS["REV"], 0.0, total - tax),
+    ]
+    ref = str(getattr(target, "service_number", None) or target.id)
+    memo = f"Service {ref} completed"
+    _gl_upsert_batch_and_entries(
+        connection,
+        source_type="SERVICE",
+        source_id=target.id,
+        purpose="SERVICE_COMPLETE",
+        currency=currency,
+        memo=memo,
+        entries=entries,
+        ref=ref,
+        entity_type="CUSTOMER",
+        entity_id=target.customer_id,
+    )
 
+# ===================== Service Parts =====================
+class ServicePart(db.Model, TimestampMixin):
+    __tablename__ = 'service_parts'
     id = db.Column(db.Integer, primary_key=True)
     service_id = db.Column(db.Integer, db.ForeignKey('service_requests.id', ondelete="CASCADE"), nullable=False, index=True)
     part_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False, index=True)
@@ -3110,12 +3466,10 @@ class ServicePart(db.Model):
     note = db.Column(db.String(200))
     partner_id = db.Column(db.Integer, db.ForeignKey('partners.id'), index=True)
     share_percentage = db.Column(db.Numeric(5, 2), default=0)
-
     request = db.relationship('ServiceRequest', back_populates='parts')
     part = db.relationship('Product', back_populates='service_parts')
     warehouse = db.relationship('Warehouse', back_populates='service_parts')
     partner = db.relationship('Partner', back_populates='service_parts')
-
     __table_args__ = (
         db.CheckConstraint('quantity > 0', name='chk_service_part_qty_positive'),
         db.CheckConstraint('unit_price >= 0', name='chk_service_part_price_non_negative'),
@@ -3125,7 +3479,6 @@ class ServicePart(db.Model):
         db.UniqueConstraint('service_id', 'part_id', 'warehouse_id', name='uq_service_part_unique'),
         db.Index('ix_service_part_pair', 'service_id', 'part_id'),
     )
-
     @validates('quantity')
     def _v_qty(self, _, v):
         v = int(v)
@@ -3183,14 +3536,6 @@ class ServicePart(db.Model):
         pname = getattr(self.part, "name", None)
         return f"<ServicePart {pname or self.part_id} for Service {self.service_id}>"
 
-@event.listens_for(ServicePart, 'after_insert', propagate=True)
-@event.listens_for(ServicePart, 'after_update', propagate=True)
-@event.listens_for(ServicePart, 'after_delete', propagate=True)
-def _sp_changed(mapper, connection, target):
-    sess = object_session(target) or db.session
-    sr = sess.get(ServiceRequest, target.service_id)
-    if sr:
-        _recalc_service_request_totals(sr)
 # ===================== Service Tasks =====================
 class ServiceTask(db.Model):
     __tablename__ = 'service_tasks'
@@ -3273,50 +3618,18 @@ class ServiceTask(db.Model):
     def __repr__(self):
         return f"<ServiceTask {self.description} for Service {self.service_id}>"
 
-@event.listens_for(ServiceTask, 'after_insert')
-@event.listens_for(ServiceTask, 'after_update')
-@event.listens_for(ServiceTask, 'after_delete')
-def _st_changed(mapper, connection, target):
-    sess = object_session(target) or db.session
-    sr = sess.get(ServiceRequest, target.service_id)
-    if sr:
-        _recalc_service_request_totals(sr)
-
 # -------------------- Events: Sync totals + stock on parts/tasks --------------------
-def _maybe_apply_part_stock(connection, sp: ServicePart, sign: int):
-    """يطبّق دلتا المخزون لقطعة خدمة إذا كانت حالة الخدمة تستهلك مخزوناً."""
-    sr = sp.request
-    if not sr or not _service_consumes_stock(sr):
-        return
-    qty = int(sp.quantity or 0)
-    delta = -sign * qty  # استهلاك من المخزون عند الإضافة (sign=+1) → -qty
-    _apply_stock_delta(connection, sp.part_id, sp.warehouse_id, delta)
-
 @event.listens_for(ServicePart, "after_insert")
 def _sp_after_insert(mapper, connection, target: ServicePart):
     _recalc_service_request_totals(target.request)
-    _maybe_apply_part_stock(connection, target, sign=+1)
 
 @event.listens_for(ServicePart, "after_update")
 def _sp_after_update(mapper, connection, target: ServicePart):
     _recalc_service_request_totals(target.request)
-    prev = getattr(target, "_previous_state", None) or {}
-    touched = any(k in prev for k in ("part_id", "warehouse_id", "quantity"))
-    if touched and _service_consumes_stock(target.request):
-        old_pid = prev.get("part_id", target.part_id)
-        old_wid = prev.get("warehouse_id", target.warehouse_id)
-        old_qty = int(prev.get("quantity", target.quantity) or 0)
-        # تراجع استهلاك القديم (إرجاع للستوك)
-        _apply_stock_delta(connection, old_pid, old_wid, +old_qty)
-        # استهلاك الجديد
-        _apply_stock_delta(connection, target.part_id, target.warehouse_id, -int(target.quantity or 0))
 
 @event.listens_for(ServicePart, "after_delete")
 def _sp_after_delete(mapper, connection, target: ServicePart):
     _recalc_service_request_totals(target.request)
-    # إذا كانت الخدمة تستهلك مخزوناً، حذف القطعة يعيد الكمية للمخزون
-    if _service_consumes_stock(target.request):
-        _apply_stock_delta(connection, target.part_id, target.warehouse_id, +int(target.quantity or 0))
 
 @event.listens_for(ServiceTask, "after_insert")
 @event.listens_for(ServiceTask, "after_update")
@@ -3407,7 +3720,7 @@ class OnlineCartItem(db.Model):
         db.CheckConstraint('quantity > 0', name='chk_cart_item_qty_positive'),
         db.CheckConstraint('price >= 0',   name='chk_cart_item_price_non_negative'),
         db.Index('ix_cart_item_cart_product', 'cart_id', 'product_id'),
-        db.UniqueConstraint('cart_id', 'product_id', name='uq_cart_item_cart_product'),  # ← منع تكرار المنتج في نفس السلة
+        db.UniqueConstraint('cart_id', 'product_id', name='uq_cart_item_cart_product'),
     )
 
     @validates('quantity')
@@ -3560,7 +3873,7 @@ class OnlinePreOrderItem(db.Model):
         db.CheckConstraint('quantity > 0', name='chk_online_item_qty_positive'),
         db.CheckConstraint('price >= 0',   name='chk_online_item_price_non_negative'),
         db.Index('ix_online_item_order_product', 'order_id', 'product_id'),
-        db.UniqueConstraint('order_id', 'product_id', name='uq_online_item_order_product'),  # ← منع تكرار المنتج في نفس الطلب
+        db.UniqueConstraint('order_id', 'product_id', name='uq_online_item_order_product'),
     )
 
     @validates('quantity')
@@ -3600,8 +3913,8 @@ class OnlinePayment(db.Model, TimestampMixin):
 
     amount   = db.Column(db.Numeric(12, 2), nullable=False)
     currency = db.Column(db.String(10), default='ILS', nullable=False)
-    method   = db.Column(db.String(50))    # e.g., 'card', 'paypal', 'apple_pay'
-    gateway  = db.Column(db.String(50))    # e.g., 'stripe', 'checkout', 'adyen'
+    method   = db.Column(db.String(50))
+    gateway  = db.Column(db.String(50))
 
     status = db.Column(
         sa_str_enum(['PENDING','SUCCESS','FAILED','REFUNDED'], name='online_payment_status'),
@@ -3613,7 +3926,7 @@ class OnlinePayment(db.Model, TimestampMixin):
 
     card_last4       = db.Column(db.String(4), index=True)
     card_encrypted   = db.Column(db.LargeBinary)
-    card_expiry      = db.Column(db.String(5))   # MM/YY
+    card_expiry      = db.Column(db.String(5))
     cardholder_name  = db.Column(db.String(128))
     card_brand       = db.Column(db.String(20))
     card_fingerprint = db.Column(db.String(64), index=True)
@@ -3816,41 +4129,40 @@ class ExpenseType(db.Model, TimestampMixin, AuditMixin):
 class Expense(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'expenses'
 
-    id           = db.Column(db.Integer, primary_key=True)
-    date         = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
-    amount       = db.Column(db.Numeric(12, 2), nullable=False)
-    currency     = db.Column(db.String(10), default='ILS', nullable=False)
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+    currency = db.Column(db.String(10), default='ILS', nullable=False)
 
-    type_id      = db.Column(db.Integer, db.ForeignKey('expense_types.id', ondelete='RESTRICT'), nullable=False, index=True)
-    employee_id  = db.Column(db.Integer, db.ForeignKey('employees.id',  ondelete='SET NULL'), index=True)
+    type_id = db.Column(db.Integer, db.ForeignKey('expense_types.id', ondelete='RESTRICT'), nullable=False, index=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id', ondelete='SET NULL'), index=True)
     warehouse_id = db.Column(db.Integer, db.ForeignKey('warehouses.id', ondelete='SET NULL'), index=True)
-    partner_id   = db.Column(db.Integer, db.ForeignKey('partners.id',   ondelete='SET NULL'), index=True)
+    partner_id = db.Column(db.Integer, db.ForeignKey('partners.id', ondelete='SET NULL'), index=True)
 
-    paid_to         = db.Column(db.String(200))
-    payment_method  = db.Column(db.String(20), nullable=False, default='cash')
+    paid_to = db.Column(db.String(200))
+    payment_method = db.Column(db.String(20), nullable=False, default='cash')
     payment_details = db.Column(db.String(255))
-    description     = db.Column(db.String(200))
-    notes           = db.Column(db.Text)
+    description = db.Column(db.String(200))
+    notes = db.Column(db.Text)
     tax_invoice_number = db.Column(db.String(100), index=True)
 
-    check_number      = db.Column(db.String(100))
-    check_bank        = db.Column(db.String(100))
-    check_due_date    = db.Column(db.Date)
+    check_number = db.Column(db.String(100))
+    check_bank = db.Column(db.String(100))
+    check_due_date = db.Column(db.Date)
 
     bank_transfer_ref = db.Column(db.String(100))
 
-    # نخزّن آخر 4 فقط في card_number
-    card_number       = db.Column(db.String(8))
-    card_holder       = db.Column(db.String(120))
-    card_expiry       = db.Column(db.String(10))  # MM/YY أو MM/YYYY
+    card_number = db.Column(db.String(8))
+    card_holder = db.Column(db.String(120))
+    card_expiry = db.Column(db.String(10))
 
-    online_gateway    = db.Column(db.String(50))
-    online_ref        = db.Column(db.String(100))
+    online_gateway = db.Column(db.String(50))
+    online_ref = db.Column(db.String(100))
 
-    employee  = relationship('Employee', back_populates='expenses')
-    type      = relationship('ExpenseType', back_populates='expenses')
+    employee = relationship('Employee', back_populates='expenses')
+    type = relationship('ExpenseType', back_populates='expenses')
     warehouse = relationship('Warehouse', back_populates='expenses')
-    partner   = relationship('Partner',   back_populates='expenses')
+    partner = relationship('Partner', back_populates='expenses')
 
     payments = relationship(
         'Payment',
@@ -3917,7 +4229,7 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
 
     @balance.expression
     def balance(cls):
-        subq = (
+        paid_subq = (
             select(func.coalesce(func.sum(Payment.total_amount), 0))
             .where(
                 (Payment.expense_id == cls.id) &
@@ -3926,7 +4238,7 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
             )
             .scalar_subquery()
         )
-        return cls.amount - subq
+        return cls.amount - paid_subq
 
     @hybrid_property
     def is_paid(self):
@@ -3961,6 +4273,8 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
             "balance": self.balance,
             "is_paid": self.is_paid,
         }
+
+
 @event.listens_for(Expense, 'before_insert')
 @event.listens_for(Expense, 'before_update')
 def _expense_normalize(mapper, connection, target: 'Expense'):
@@ -3986,21 +4300,22 @@ def _expense_normalize(mapper, connection, target: 'Expense'):
         digits = ''.join(ch for ch in (target.card_number or '') if ch.isdigit())
         target.card_number = (digits[-4:] if digits else None)
 
+
 # ===================== Audit Log Model =====================
 class AuditLog(db.Model, TimestampMixin):
     __tablename__ = "audit_logs"
 
     id          = db.Column(db.Integer, primary_key=True)
     model_name  = db.Column(db.String(100), nullable=False, index=True)
-    record_id   = db.Column(db.Integer, index=True)  # قد يكون None لحالات خاصة
+    record_id   = db.Column(db.Integer, index=True)
     customer_id = db.Column(db.Integer, db.ForeignKey('customers.id', ondelete='SET NULL'), index=True, nullable=True)
     user_id     = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), index=True, nullable=True)
 
-    action      = db.Column(db.String(20), nullable=False, index=True)  # CREATE / UPDATE / DELETE
+    action      = db.Column(db.String(20), nullable=False, index=True)
     old_data    = db.Column(db.Text)
     new_data    = db.Column(db.Text)
 
-    ip_address  = db.Column(db.String(45))    # IPv4/IPv6
+    ip_address  = db.Column(db.String(45))
     user_agent  = db.Column(db.String(255))
 
     __table_args__ = (
@@ -4027,6 +4342,24 @@ class AuditLog(db.Model, TimestampMixin):
 
     def __repr__(self):
         return f"<AuditLog {self.model_name}#{self.record_id} {self.action}>"
+
+
+@event.listens_for(_SA_Session, "before_flush")
+def _capture_previous(session, ctx, instances=None):
+    for obj in session.dirty:
+        try:
+            insp = inspect(obj)
+        except Exception:
+            continue
+        prev = getattr(obj, "_previous_state", None)
+        if prev is None:
+            obj._previous_state = prev = {}
+        for attr in insp.mapper.column_attrs:
+            hist = insp.attrs[attr.key].history
+            if hist.has_changes() and hist.deleted:
+                if attr.key not in prev:
+                    obj._previous_state[attr.key] = hist.deleted[0]
+
 
 # ===================== Unified Audit Listener =====================
 @event.listens_for(_SA_Session, "after_flush_postexec")
@@ -4086,114 +4419,7 @@ def _audit_after_flush_postexec(session, ctx):
         except Exception:
             curr = None
         add_log("UPDATE", obj, old_data=prev, new_data=curr)
-        try:
-            delattr(obj, "_previous_state")
-        except Exception:
-            pass
-# ===================== Number generators (Invoice/Payment) =====================
-if not getattr(Invoice, "_number_listener_attached", False):
-    @event.listens_for(Invoice, 'before_insert')
-    def _ensure_invoice_number(mapper, connection, target: 'Invoice'):
-        if getattr(target, 'invoice_number', None):
-            return
-        prefix = datetime.utcnow().strftime("INV%Y%m%d")
-        count = connection.execute(
-            text("SELECT COUNT(*) FROM invoices WHERE invoice_number LIKE :pfx"),
-            {"pfx": f"{prefix}-%"}
-        ).scalar() or 0
-        target.invoice_number = f"{prefix}-{count+1:04d}"
 
-    Invoice._number_listener_attached = True
-
-if not getattr(Payment, "_number_listeners_attached", False):
-    @event.listens_for(Payment, 'before_insert')
-    def _ensure_payment_numbers(mapper, connection, target: 'Payment'):
-        if not getattr(target, 'payment_number', None):
-            pfx = datetime.utcnow().strftime("PMT%Y%m%d")
-            cnt = connection.execute(
-                text("SELECT COUNT(*) FROM payments WHERE payment_number LIKE :pfx"),
-                {"pfx": f"{pfx}-%"}
-            ).scalar() or 0
-            target.payment_number = f"{pfx}-{cnt+1:04d}"
-
-        if not getattr(target, 'receipt_number', None):
-            rpfx = datetime.utcnow().strftime("RCT%Y%m%d")
-            rcnt = connection.execute(
-                text("SELECT COUNT(*) FROM payments WHERE receipt_number LIKE :pfx"),
-                {"pfx": f"{rpfx}-%"}
-            ).scalar() or 0
-            target.receipt_number = f"{rpfx}-{rcnt+1:04d}"
-
-    Payment._number_listeners_attached = True
-
-# ======================= Totals & statuses =======================
-if not getattr(Invoice, "_totals_listener_attached", False):
-    @event.listens_for(Invoice, "before_insert")
-    @event.listens_for(Invoice, "before_update")
-    def _compute_invoice_totals(mapper, connection, target: 'Invoice'):
-        total = sum(q(getattr(l, "line_total", 0)) for l in (target.lines or [])) if target.lines else Decimal('0.00')
-        target.total_amount = total
-
-    Invoice._totals_listener_attached = True
-
-if not getattr(Payment, "_sync_listeners_attached", False):
-    @event.listens_for(Payment, "after_insert")
-    @event.listens_for(Payment, "after_update")
-    def _sync_sale_invoice_on_payment(mapper, connection, target: 'Payment'):
-        completed_val = PaymentStatus.COMPLETED.value
-        incoming_vals = (PaymentDirection.INCOMING.value, "IN")
-        sale_id = getattr(target, "sale_id", None)
-        if sale_id:
-            total_paid = connection.execute(
-                select(func.coalesce(func.sum(Payment.total_amount), 0.0))
-                .where(and_(
-                    Payment.sale_id == sale_id,
-                    Payment.status == completed_val,
-                    Payment.direction.in_(incoming_vals)
-                ))
-            ).scalar_one() or 0.0
-
-            sale_total = connection.execute(
-                select(Sale.total_amount).where(Sale.id == sale_id)
-            ).scalar_one() or 0.0
-
-            sale_status = (
-                PaymentProgress.PAID.value if sale_total > 0 and total_paid >= sale_total
-                else PaymentProgress.PARTIAL.value if total_paid > 0
-                else PaymentProgress.PENDING.value
-            )
-
-            connection.execute(
-                update(Sale).where(Sale.id == sale_id).values(payment_status=sale_status)
-            )
-
-        inv_id = getattr(target, "invoice_id", None)
-        if inv_id:
-            inv_total = connection.execute(
-                select(Invoice.total_amount).where(Invoice.id == inv_id)
-            ).scalar_one() or 0.0
-
-            inv_paid = connection.execute(
-                select(func.coalesce(func.sum(Payment.total_amount), 0.0))
-                .where(and_(
-                    Payment.invoice_id == inv_id,
-                    Payment.status == completed_val,
-                    Payment.direction.in_(incoming_vals)
-                ))
-            ).scalar_one() or 0.0
-
-            inv_status = (
-                InvoiceStatus.PAID.value if inv_total > 0 and inv_paid >= inv_total
-                else InvoiceStatus.PARTIAL.value if inv_paid > 0
-                else InvoiceStatus.UNPAID.value
-            )
-
-            connection.execute(
-                update(Invoice).where(Invoice.id == inv_id).values(status=inv_status)
-            )
-    Payment._sync_listeners_attached = True
-
-# =============================== Notes ===============================
 class Note(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'notes'
 
@@ -4202,11 +4428,11 @@ class Note(db.Model, TimestampMixin, AuditMixin):
     author_id   = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'),
                             nullable=True, index=True)
     entity_type = db.Column(db.String(50), index=True)
-    entity_id   = db.Column(db.Integer, index=True)
+    entity_id   = db.Column(db.String(50), index=True)  # <-- تم التغيير من Integer إلى String
 
     is_pinned   = db.Column(db.Boolean, nullable=False, server_default=text("0"), index=True)
     priority    = db.Column(
-        sa_str_enum(['LOW', 'MEDIUM', 'HIGH'], name='note_priority'),
+        sa_str_enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT'], name='note_priority'),
         default='MEDIUM', nullable=False, index=True
     )
 
@@ -4216,7 +4442,7 @@ class Note(db.Model, TimestampMixin, AuditMixin):
         db.Index('ix_notes_entity', 'entity_type', 'entity_id'),
         db.Index('ix_notes_entity_pinned_created', 'entity_type', 'entity_id', 'is_pinned', 'created_at'),
     )
-    # -------------------- Validations / Normalization --------------------
+
     @validates('content')
     def _v_content(self, _, v):
         v = (v or '').strip()
@@ -4230,7 +4456,6 @@ class Note(db.Model, TimestampMixin, AuditMixin):
 
     @validates('priority')
     def _v_priority(self, _, v):
-        # يدعم كلٍ من string و Enum-backed string
         return getattr(v, 'value', (v or '')).strip().upper() or 'MEDIUM'
 
     @hybrid_property
@@ -4253,4 +4478,58 @@ class Note(db.Model, TimestampMixin, AuditMixin):
 
     def __repr__(self):
         et = (self.entity_type or '').upper()
-        return f"<Note {self.id} {et}#{self.entity_id} pinned={bool(self.is_pinned)}>"
+        return f"<Note {self.i} {et}#{self.entity_id} pinned={bool(self.is_pinned)}>"
+
+class Account(db.Model, TimestampMixin):
+    __tablename__ = "accounts"
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(20), unique=True, nullable=False, index=True)
+    name = db.Column(db.String(100), nullable=False)
+    type = db.Column(sa_str_enum(["ASSET", "LIABILITY", "EQUITY", "REVENUE", "EXPENSE"], name="account_type"), nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    def __repr__(self):
+        return f"<Account {self.code} {self.name}>"
+
+class GLBatch(db.Model, TimestampMixin):
+    __tablename__ = "gl_batches"
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(50), unique=True, index=True)
+    source_type = db.Column(db.String(30), index=True)
+    source_id = db.Column(db.Integer, index=True)
+    purpose = db.Column(db.String(30), index=True)
+    memo = db.Column(db.String(255))
+    posted_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    currency = db.Column(db.String(10), default="ILS", nullable=False)
+    entity_type = db.Column(db.String(30), index=True)
+    entity_id = db.Column(db.Integer, index=True)
+    entries = db.relationship("GLEntry", backref="batch", cascade="all, delete-orphan", passive_deletes=True)
+    __table_args__ = (
+        db.UniqueConstraint("source_type", "source_id", "purpose", name="uq_gl_source_purpose"),
+        db.Index("ix_gl_entity", "entity_type", "entity_id"),
+    )
+
+class GLEntry(db.Model, TimestampMixin):
+    __tablename__ = "gl_entries"
+    id = db.Column(db.Integer, primary_key=True)
+    batch_id = db.Column(db.Integer, db.ForeignKey("gl_batches.id", ondelete="CASCADE"), nullable=False, index=True)
+    account = db.Column(db.String(40), index=True)
+    debit = db.Column(db.Numeric(12, 2), default=0)
+    credit = db.Column(db.Numeric(12, 2), default=0)
+    currency = db.Column(db.String(10), default="ILS", nullable=False)
+    ref = db.Column(db.String(100))
+    __table_args__ = (
+        db.CheckConstraint("debit >= 0", name="ck_gl_debit_ge_0"),
+        db.CheckConstraint("credit >= 0", name="ck_gl_credit_ge_0"),
+    )
+
+GL_ACCOUNTS = {
+    "AR": "1100_AR",
+    "REV": "4000_SALES",
+    "VAT": "2100_VAT_PAYABLE",
+    "CASH": "1000_CASH",
+    "BANK": "1010_BANK",
+    "CARD": "1020_CARD_CLEARING",
+    "AP": "2000_AP",
+    "EXP": "5000_EXPENSES",
+}
+

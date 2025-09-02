@@ -1,15 +1,25 @@
-/* badge colors for statuses */
-.badge-pending       { background: #6c757d; }
-.badge-in_transit    { background: #17a2b8; }
-.badge-delivered     { background: #28a745; }
-.badge-cancelled     { background: #dc3545; }
+.badge-pending {
+  background: #6c757d;
+}
 
-/* compact table */
-#shipmentsTable td, #shipmentsTable th {
+.badge-in_transit {
+  background: #17a2b8;
+}
+
+.badge-delivered {
+  background: #28a745;
+}
+
+.badge-cancelled {
+  background: #dc3545;
+}
+
+#shipmentsTable td,
+#shipmentsTable th {
   vertical-align: middle;
 }
 
-/* dynamic form spacing */
-.partner-entry, .item-entry {
+.partner-entry,
+.item-entry {
   margin-bottom: 0.5rem;
 }

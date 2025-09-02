@@ -12,9 +12,22 @@
         جميع سندات الدفع
       {% endif %}
     </h2>
-    <a id="btnAddPayment" href="{% if supplier %}{{ url_for('payments.create_payment', entity_type='SUPPLIER', entity_id=supplier.id) }}{% else %}{{ url_for('payments.create_payment') }}{% endif %}" class="btn btn-success">
-      <i class="fas fa-plus"></i> إضافة سند دفع
-    </a>
+    <div class="btn-group">
+      <a id="btnAddPayment"
+         href="{% if supplier %}{{ url_for('payments.create_payment', entity_type='SUPPLIER', entity_id=supplier.id) }}{% else %}{{ url_for('payments.create_payment') }}{% endif %}"
+         class="btn btn-success">
+        <i class="fas fa-plus"></i> إضافة سند دفع
+      </a>
+      <button type="button" class="btn btn-outline-primary btn-settle"
+              data-entity-type="supplier"
+              data-id="{{ supplier.id if supplier else '' }}"
+              data-name="{{ supplier.name if supplier else '' }}"
+              data-balance="{{ '%.2f'|format(supplier.net_balance) if supplier else '0.00' }}"
+              data-currency="{{ supplier.currency if supplier else 'ILS' }}"
+              {% if not supplier %}disabled{% endif %}>
+        <i class="fas fa-scale-balanced"></i> تسوية
+      </button>
+    </div>
   </div>
 
   {% if total_paid is not none %}
@@ -35,6 +48,7 @@
         <option value="SUPPLIER">مورد</option>
         <option value="PARTNER">شريك</option>
         <option value="SALE">بيع</option>
+        <option value="INVOICE">فاتورة</option>
         <option value="SERVICE">صيانة</option>
         <option value="EXPENSE">مصروف</option>
         <option value="LOAN">تسوية قرض</option>
@@ -94,7 +108,7 @@
             <th>الاتجاه</th>
             <th>الحالة</th>
             <th>الكيان</th>
-            <th style="width:110px">إجراءات</th>
+            <th style="width:150px">إجراءات</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -107,10 +121,14 @@
     </div>
   </div>
 </div>
+
+<div id="vendors-config" data-pay-url="{{ url_for('payments.create_payment') }}"></div>
+{% include 'vendors/_settlement_modal.html' %}
 {% endblock %}
 
 {% block scripts %}
   <script src="{{ url_for('static', filename='js/payments.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/vendors.js') }}"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       var etHidden = document.getElementById('prefilter_entity_type');

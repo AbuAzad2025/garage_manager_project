@@ -4,37 +4,10 @@ from typing import Any, Dict, List, Optional
 from flask import Blueprint, render_template, request, jsonify, flash, Response
 from werkzeug.exceptions import BadRequest
 from sqlalchemy.orm import class_mapper
-from models import (
-    Customer,
-    Supplier,
-    Partner,
-    Product,
-    Warehouse,
-    StockLevel,
-    Expense,
-    OnlinePreOrder,
-    OnlinePayment,
-    Sale,
-    ServiceRequest,
-    Invoice,
-    Payment,
-    Shipment,
-)
-from reports import (
-    advanced_report,
-    ar_aging_report,
-    sales_report,
-    payment_summary_report,
-    top_products_report,
-    ap_aging_report,
-)
+from models import Customer, Supplier, Partner, Product, Warehouse, StockLevel, Expense, OnlinePreOrder, OnlinePayment, Sale, ServiceRequest, Invoice, Payment, Shipment
+from reports import advanced_report, ar_aging_report, sales_report, payment_summary_report, top_products_report, ap_aging_report, service_reports_report
 
-reports_bp = Blueprint(
-    "reports_bp",
-    __name__,
-    url_prefix="/reports",
-    template_folder="templates/reports",
-)
+reports_bp = Blueprint("reports_bp", __name__, url_prefix="/reports", template_folder="templates/reports")
 
 def _parse_date(s: Optional[str]):
     if not s:
@@ -148,7 +121,6 @@ FIELD_LABELS: Dict[str, str] = {
     "available": "المتوفر",
     "min_stock": "الحد الأدنى",
     "max_stock": "الحد الأقصى",
-
     "sales": "المبيعات",
     "sales_by_day": "مبيعات حسب اليوم",
     "date_range": "نطاق التاريخ",
@@ -157,12 +129,10 @@ FIELD_LABELS: Dict[str, str] = {
     "refresh": "تحديث",
     "sales_table": "جدول المبيعات",
     "grand_total": "الإجمالي",
-
     "ap_aging": "أعمار الذمم (الموردون)",
     "ar_aging": "أعمار الذمم (العملاء)",
     "supplier": "المورد",
     "customer": "العميل",
-
     "service_reports": "تقارير الصيانة",
     "total_requests": "عدد الطلبات",
     "completed": "مكتملة",
@@ -170,7 +140,6 @@ FIELD_LABELS: Dict[str, str] = {
     "parts": "قطع",
     "labor": "أجور",
     "total": "الإجمالي",
-
     "payments_summary": "ملخص المدفوعات حسب طريقة الدفع",
     "payment_method": "طريقة الدفع",
 }
@@ -181,174 +150,87 @@ def _ensure_model(name: str):
         raise BadRequest("نموذج غير معروف")
     return model
 
+def _model_columns(model) -> List[str]:
+    return [c.key for c in class_mapper(model).columns]
+
+def _sanitize_fields(fields: List[str], allowed: List[str]) -> List[str]:
+    allowed_set = set(allowed or [])
+    return [f for f in (fields or []) if f in allowed_set]
+
+def _sanitize_likes(like_filters: Dict[str, str], allowed: List[str]) -> Dict[str, str]:
+    allowed_set = set(allowed or [])
+    return {k: v for k, v in (like_filters or {}).items() if k in allowed_set and v not in (None, "")}
+
+def _clamp_limit(v: Optional[int], default: int = 1000, max_v: int = 10000) -> int:
+    try:
+        n = int(v if v is not None else default)
+    except Exception:
+        n = default
+    return max(1, min(n, max_v))
+
 @reports_bp.route("/", methods=["GET"], endpoint="universal")
 @reports_bp.route("", methods=["GET"], endpoint="index")
 def reports_index():
-    return render_template(
-        "reports/index.html",
-        model_names=list(_MODEL_LOOKUP.keys()),
-        defaults=_DEFAULT_DATE_FIELD,
-        FIELD_LABELS=FIELD_LABELS,
-        MODEL_LABELS=MODEL_LABELS,
-    )
+    return render_template("reports/index.html", model_names=list(_MODEL_LOOKUP.keys()), defaults=_DEFAULT_DATE_FIELD, FIELD_LABELS=FIELD_LABELS, MODEL_LABELS=MODEL_LABELS)
 
 @reports_bp.route("/dynamic", methods=["GET", "POST"])
 def dynamic_report():
     model_names = list(_MODEL_LOOKUP.keys())
-
     if request.method == "POST":
         table = (request.form.get("table") or "").strip()
         selected_fields = request.form.getlist("selected_fields") or []
-        date_field = request.form.get("date_field") or ""
+        date_field = (request.form.get("date_field") or "").strip()
         start_date = _parse_date(request.form.get("start_date"))
         end_date = _parse_date(request.form.get("end_date"))
-        try:
-            limit = int(request.form.get("limit") or 1000)
-        except Exception:
-            limit = 1000
-
+        limit = _clamp_limit(request.form.get("limit"))
         try:
             model = _ensure_model(table)
         except BadRequest as e:
             flash(str(e), "danger")
-            return render_template(
-                "reports/dynamic.html",
-                data=None,
-                summary=None,
-                columns=selected_fields,
-                model_names=model_names,
-                selected_table=None,
-                defaults=_DEFAULT_DATE_FIELD,
-                date_field=date_field,
-                start_date=request.form.get("start_date", ""),
-                end_date=request.form.get("end_date", ""),
-                like_filters={},
-                limit=limit,
-                FIELD_LABELS=FIELD_LABELS,
-                MODEL_LABELS=MODEL_LABELS,
-            ), 400
-
-        exclude = {
-            "csrf_token", "table", "date_field",
-            "start_date", "end_date", "selected_fields", "limit"
-        }
+            return render_template("reports/dynamic.html", data=None, summary=None, columns=selected_fields, model_names=model_names, selected_table=None, defaults=_DEFAULT_DATE_FIELD, date_field=date_field, start_date=request.form.get("start_date", ""), end_date=request.form.get("end_date", ""), like_filters={}, limit=limit, FIELD_LABELS=FIELD_LABELS, MODEL_LABELS=MODEL_LABELS), 400
+        cols = _model_columns(model)
+        selected_fields = _sanitize_fields(selected_fields, cols) or None
         like_filters = {
-            k: v for k, v in request.form.items()
-            if k not in exclude and v not in (None, "")
+            k: v for k, v in request.form.items() if k not in {"csrf_token", "table", "date_field", "start_date", "end_date", "selected_fields", "limit"} and v not in (None, "")
         }
-
+        like_filters = _sanitize_likes(like_filters, cols)
+        if date_field and date_field not in cols:
+            date_field = ""
+        if not date_field:
+            df = _DEFAULT_DATE_FIELD.get(table)
+            date_field = df if df in cols else None
         try:
-            rpt = advanced_report(
-                model=model,
-                date_field=date_field or None,
-                start_date=start_date,
-                end_date=end_date,
-                filters=None,
-                like_filters=like_filters or None,
-                columns=selected_fields or None,
-                aggregates={"count": ["id"]},
-            )
+            rpt = advanced_report(model=model, date_field=date_field or None, start_date=start_date, end_date=end_date, filters=None, like_filters=like_filters or None, columns=selected_fields, aggregates={"count": ["id"]})
         except ValueError as e:
             flash(str(e), "danger")
-            return render_template(
-                "reports/dynamic.html",
-                data=None,
-                summary=None,
-                columns=selected_fields,
-                model_names=model_names,
-                selected_table=table,
-                defaults=_DEFAULT_DATE_FIELD,
-                date_field=date_field,
-                start_date=request.form.get("start_date", ""),
-                end_date=request.form.get("end_date", ""),
-                like_filters=like_filters,
-                limit=limit,
-                FIELD_LABELS=FIELD_LABELS,
-                MODEL_LABELS=MODEL_LABELS,
-            ), 400
-
+            return render_template("reports/dynamic.html", data=None, summary=None, columns=selected_fields or [], model_names=model_names, selected_table=table, defaults=_DEFAULT_DATE_FIELD, date_field=date_field or "", start_date=request.form.get("start_date", ""), end_date=request.form.get("end_date", ""), like_filters=like_filters, limit=limit, FIELD_LABELS=FIELD_LABELS, MODEL_LABELS=MODEL_LABELS), 400
         data = rpt.get("data") or []
-        if limit and limit > 0:
+        if limit:
             data = data[:limit]
-
-        return render_template(
-            "reports/dynamic.html",
-            data=data,
-            summary=rpt.get("summary") or {},
-            columns=selected_fields,
-            model_names=model_names,
-            selected_table=table,
-            defaults=_DEFAULT_DATE_FIELD,
-            date_field=date_field,
-            start_date=request.form.get("start_date", ""),
-            end_date=request.form.get("end_date", ""),
-            like_filters=like_filters,
-            limit=limit,
-            FIELD_LABELS=FIELD_LABELS,
-            MODEL_LABELS=MODEL_LABELS,
-        )
-
+        return render_template("reports/dynamic.html", data=data, summary=rpt.get("summary") or {}, columns=selected_fields or [], model_names=model_names, selected_table=table, defaults=_DEFAULT_DATE_FIELD, date_field=date_field or "", start_date=request.form.get("start_date", ""), end_date=request.form.get("end_date", ""), like_filters=like_filters, limit=limit, FIELD_LABELS=FIELD_LABELS, MODEL_LABELS=MODEL_LABELS)
     selected_table = model_names[0] if model_names else None
-    return render_template(
-        "reports/dynamic.html",
-        data=None,
-        summary=None,
-        columns=[],
-        model_names=model_names,
-        selected_table=selected_table,
-        defaults=_DEFAULT_DATE_FIELD,
-        date_field=_DEFAULT_DATE_FIELD.get(selected_table, "") if selected_table else "",
-        start_date="",
-        end_date="",
-        like_filters={},
-        limit=1000,
-        FIELD_LABELS=FIELD_LABELS,
-        MODEL_LABELS=MODEL_LABELS,
-    )
+    return render_template("reports/dynamic.html", data=None, summary=None, columns=[], model_names=model_names, selected_table=selected_table, defaults=_DEFAULT_DATE_FIELD, date_field=_DEFAULT_DATE_FIELD.get(selected_table, "") if selected_table else "", start_date="", end_date="", like_filters={}, limit=1000, FIELD_LABELS=FIELD_LABELS, MODEL_LABELS=MODEL_LABELS)
 
 @reports_bp.route("/sales", methods=["GET"])
 def sales():
     start = _parse_date(request.args.get("start"))
     end = _parse_date(request.args.get("end"))
     rpt = sales_report(start, end)
-    return render_template(
-        "reports/sales.html",
-        **rpt,
-        start=request.args.get("start", ""),
-        end=request.args.get("end", ""),
-        FIELD_LABELS=FIELD_LABELS,
-        MODEL_LABELS=MODEL_LABELS,
-    )
+    return render_template("reports/sales.html", **rpt, start=request.args.get("start", ""), end=request.args.get("end", ""), FIELD_LABELS=FIELD_LABELS, MODEL_LABELS=MODEL_LABELS)
 
 @reports_bp.route("/payments-summary", methods=["GET"])
 def payments_summary():
     start = _parse_date(request.args.get("start"))
     end = _parse_date(request.args.get("end"))
     rpt = payment_summary_report(start, end)
-    return render_template(
-        "reports/payments.html",
-        **rpt,
-        start=request.args.get("start", ""),
-        end=request.args.get("end", ""),
-        FIELD_LABELS=FIELD_LABELS,
-        MODEL_LABELS=MODEL_LABELS,
-    )
+    return render_template("reports/payments.html", **rpt, start=request.args.get("start", ""), end=request.args.get("end", ""), FIELD_LABELS=FIELD_LABELS, MODEL_LABELS=MODEL_LABELS)
 
 @reports_bp.route("/ar-aging", methods=["GET"])
 def ar_aging():
     start = _parse_date(request.args.get("start"))
     end = _parse_date(request.args.get("end"))
     rpt = ar_aging_report(start_date=start, end_date=end)
-    return render_template(
-        "reports/ar_aging.html",
-        data=rpt.get("data", []),
-        totals=rpt.get("totals", {}),
-        as_of=rpt.get("as_of"),
-        start=request.args.get("start", ""),
-        end=request.args.get("end", ""),
-        FIELD_LABELS=FIELD_LABELS,
-        MODEL_LABELS=MODEL_LABELS,
-    )
+    return render_template("reports/ar_aging.html", data=rpt.get("data", []), totals=rpt.get("totals", {}), as_of=rpt.get("as_of"), start=request.args.get("start", ""), end=request.args.get("end", ""), FIELD_LABELS=FIELD_LABELS, MODEL_LABELS=MODEL_LABELS)
 
 @reports_bp.route("/top-products", methods=["GET"])
 def top_products():
@@ -358,32 +240,16 @@ def top_products():
         limit = int(request.args.get("limit") or 20)
     except Exception:
         limit = 20
+    limit = _clamp_limit(limit, default=20, max_v=1000)
     rpt = top_products_report(start, end, limit=limit)
-    return render_template(
-        "reports/top_products.html",
-        data=rpt.get("data", []),
-        start=request.args.get("start", ""),
-        end=request.args.get("end", ""),
-        limit=limit,
-        FIELD_LABELS=FIELD_LABELS,
-        MODEL_LABELS=MODEL_LABELS,
-    )
+    return render_template("reports/top_products.html", data=rpt.get("data", []), start=request.args.get("start", ""), end=request.args.get("end", ""), limit=limit, FIELD_LABELS=FIELD_LABELS, MODEL_LABELS=MODEL_LABELS)
 
 @reports_bp.route("/ap-aging", methods=["GET"])
 def ap_aging():
     start = _parse_date(request.args.get("start"))
     end = _parse_date(request.args.get("end"))
     rpt = ap_aging_report(start_date=start, end_date=end)
-    return render_template(
-        "reports/ap_aging.html",
-        data=rpt.get("data", []),
-        totals=rpt.get("totals", {}),
-        as_of=rpt.get("as_of"),
-        start=request.args.get("start", ""),
-        end=request.args.get("end", ""),
-        FIELD_LABELS=FIELD_LABELS,
-        MODEL_LABELS=MODEL_LABELS,
-    )
+    return render_template("reports/ap_aging.html", data=rpt.get("data", []), totals=rpt.get("totals", {}), as_of=rpt.get("as_of"), start=request.args.get("start", ""), end=request.args.get("end", ""), FIELD_LABELS=FIELD_LABELS, MODEL_LABELS=MODEL_LABELS)
 
 @reports_bp.route("/api/model_fields", methods=["GET"])
 def model_fields():
@@ -396,10 +262,7 @@ def model_fields():
     mapper = class_mapper(model)
     columns = [col.key for col in mapper.columns]
     lower = {c: c.lower() for c in columns}
-    date_fields = [
-        c for c in columns
-        if ("date" in lower[c]) or (lower[c].endswith("_at")) or ("created_at" in lower[c]) or ("updated_at" in lower[c])
-    ]
+    date_fields = [c for c in columns if ("date" in lower[c]) or (lower[c].endswith("_at")) or ("created_at" in lower[c]) or ("updated_at" in lower[c])]
     return jsonify({"columns": columns, "date_fields": date_fields}), 200
 
 @reports_bp.route("/service-reports", methods=["GET"])
@@ -407,35 +270,23 @@ def service_reports():
     start = _parse_date(request.args.get("start"))
     end = _parse_date(request.args.get("end"))
     rpt = service_reports_report(start, end)
-    return render_template(
-        "reports/service_reports.html",
-        total=rpt.get("total", 0),
-        completed=rpt.get("completed", 0),
-        revenue=rpt.get("revenue", 0.0),
-        parts=rpt.get("parts", 0.0),
-        labor=rpt.get("labor", 0.0),
-        data=rpt.get("data", []),
-        start=request.args.get("start", ""),
-        end=request.args.get("end", ""),
-        FIELD_LABELS=FIELD_LABELS,
-        MODEL_LABELS=MODEL_LABELS,
-    )
+    return render_template("reports/service_reports.html", total=rpt.get("total", 0), completed=rpt.get("completed", 0), revenue=rpt.get("revenue", 0.0), parts=rpt.get("parts", 0.0), labor=rpt.get("labor", 0.0), data=rpt.get("data", []), start=request.args.get("start", ""), end=request.args.get("end", ""), FIELD_LABELS=FIELD_LABELS, MODEL_LABELS=MODEL_LABELS)
 
 @reports_bp.route("/api/dynamic", methods=["POST"])
 def api_dynamic():
     payload = request.get_json(silent=True) or {}
-    table = payload.get("table")
+    table = (payload.get("table") or "").strip()
     model = _ensure_model(table)
-    rpt = advanced_report(
-        model=model,
-        date_field=payload.get("date_field") or None,
-        start_date=_parse_date(payload.get("start_date")),
-        end_date=_parse_date(payload.get("end_date")),
-        filters=payload.get("filters"),
-        like_filters=payload.get("like_filters"),
-        columns=payload.get("columns"),
-        aggregates=payload.get("aggregates"),
-    )
+    cols = _model_columns(model)
+    columns = _sanitize_fields(payload.get("columns") or [], cols) or None
+    like_filters = _sanitize_likes(payload.get("like_filters") or {}, cols) or None
+    date_field = (payload.get("date_field") or "").strip()
+    if date_field and date_field not in cols:
+        date_field = ""
+    if not date_field:
+        df = _DEFAULT_DATE_FIELD.get(table)
+        date_field = df if df in cols else None
+    rpt = advanced_report(model=model, date_field=date_field or None, start_date=_parse_date(payload.get("start_date")), end_date=_parse_date(payload.get("end_date")), filters=payload.get("filters"), like_filters=like_filters, columns=columns, aggregates=payload.get("aggregates"))
     return jsonify(rpt), 200
 
 def _csv_from_rows(rows: List[Dict[str, Any]]):
@@ -452,28 +303,26 @@ def _csv_from_rows(rows: List[Dict[str, Any]]):
 
 @reports_bp.route("/export/dynamic.csv", methods=["POST"])
 def export_dynamic_csv():
-    table = request.form.get("table")
+    table = (request.form.get("table") or "").strip()
     model = _ensure_model(table)
-    rpt = advanced_report(
-        model=model,
-        date_field=request.form.get("date_field") or None,
-        start_date=_parse_date(request.form.get("start_date")),
-        end_date=_parse_date(request.form.get("end_date")),
-        like_filters={
-            k: v
-            for k, v in request.form.items()
-            if k not in ("table", "date_field", "start_date", "end_date", "csrf_token", "selected_fields")
-            and v not in (None, "")
-        },
-        columns=request.form.getlist("selected_fields") or None,
-        aggregates={"count": ["id"]},
-    )
+    cols = _model_columns(model)
+    selected_fields = request.form.getlist("selected_fields") or []
+    selected_fields = _sanitize_fields(selected_fields, cols) or None
+    date_field = (request.form.get("date_field") or "").strip()
+    if date_field and date_field not in cols:
+        date_field = ""
+    if not date_field:
+        df = _DEFAULT_DATE_FIELD.get(table)
+        date_field = df if df in cols else None
+    like_filters = {
+        k: v
+        for k, v in request.form.items()
+        if k not in {"table", "date_field", "start_date", "end_date", "csrf_token", "selected_fields"} and v not in (None, "")
+    }
+    like_filters = _sanitize_likes(like_filters, cols)
+    rpt = advanced_report(model=model, date_field=date_field or None, start_date=_parse_date(request.form.get("start_date")), end_date=_parse_date(request.form.get("end_date")), like_filters=like_filters or None, columns=selected_fields, aggregates={"count": ["id"]})
     csv_text = _csv_from_rows(rpt.get("data") or [])
-    return Response(
-        csv_text,
-        mimetype="text/csv; charset=utf-8",
-        headers={"Content-Disposition": "attachment; filename=dynamic_report.csv"},
-    )
+    return Response(csv_text, mimetype="text/csv; charset=utf-8", headers={"Content-Disposition": "attachment; filename=dynamic_report.csv"})
 
 @reports_bp.route("/export/ar_aging.csv", methods=["GET"])
 def export_ar_aging_csv():
@@ -492,11 +341,7 @@ def export_ar_aging_csv():
         }
         rows.append(row)
     csv_text = _csv_from_rows(rows)
-    return Response(
-        csv_text,
-        mimetype="text/csv; charset=utf-8",
-        headers={"Content-Disposition": "attachment; filename=ar_aging.csv"},
-    )
+    return Response(csv_text, mimetype="text/csv; charset=utf-8", headers={"Content-Disposition": "attachment; filename=ar_aging.csv"})
 
 @reports_bp.route("/export/ap_aging.csv", methods=["GET"])
 def export_ap_aging_csv():
@@ -515,8 +360,4 @@ def export_ap_aging_csv():
         }
         rows.append(row)
     csv_text = _csv_from_rows(rows)
-    return Response(
-        csv_text,
-        mimetype="text/csv; charset=utf-8",
-        headers={"Content-Disposition": "attachment; filename=ap_aging.csv"},
-    )
+    return Response(csv_text, mimetype="text/csv; charset=utf-8", headers={"Content-Disposition": "attachment; filename=ap_aging.csv"})

@@ -1,83 +1,73 @@
 // File: static/js/charts.js
+
 (function () {
   'use strict';
 
-  // ==== حِماية: لازم يكون Chart.js محمّل قبل هذا الملف ====
   if (typeof window.Chart === 'undefined') {
     console.error('[charts.js] Chart.js is not loaded. Include it before charts.js');
     return;
   }
 
-  // ==== إعدادات عامة افتراضية ====
   const isRTL = (document.dir || document.documentElement.getAttribute('dir') || '').toLowerCase() === 'rtl';
-  const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1)); // cap to 2 for perf
+  const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
 
-  // ألوان من CSS variables لو متوفرة، وإلا باليت افتراضي
   const fallbackPalette = [
     '#0d6efd', '#198754', '#dc3545', '#fd7e14', '#20c997',
     '#6f42c1', '#0dcaf0', '#6610f2', '#6c757d', '#198754'
   ];
-  function varColor(name, fallback) {
-    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-    return v || fallback;
-  }
+  const varColor = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
   const palette = [
     varColor('--bs-primary', fallbackPalette[0]),
     varColor('--bs-success', fallbackPalette[1]),
-    varColor('--bs-danger',  fallbackPalette[2]),
+    varColor('--bs-danger', fallbackPalette[2]),
     varColor('--bs-warning', fallbackPalette[3]),
-    varColor('--bs-teal',    fallbackPalette[4]),
-    varColor('--bs-purple',  fallbackPalette[5]),
-    varColor('--bs-info',    fallbackPalette[6]),
-    varColor('--bs-indigo',  fallbackPalette[7]),
+    varColor('--bs-teal', fallbackPalette[4]),
+    varColor('--bs-purple', fallbackPalette[5]),
+    varColor('--bs-info', fallbackPalette[6]),
+    varColor('--bs-indigo', fallbackPalette[7]),
     varColor('--bs-secondary', fallbackPalette[8]),
-    varColor('--bs-green',   fallbackPalette[9]),
+    varColor('--bs-green', fallbackPalette[9]),
   ];
   const getColor = (i, custom) => (custom && custom[i]) || palette[i % palette.length];
 
-  // فورماتر أرقام/عملة/وحدة
-  function formatValue(v, opts) {
+  function formatValue(v, opts = {}) {
     const n = Number(v);
     if (!isFinite(n)) return String(v);
-    const {
-      currency = null,   // مثال: "JOD" أو "USD"
-      unit = null,       // مثال: "كم" أو "pcs"
-      digits = 2,        // من 0 إلى 6
-      locale = undefined // اتركها فاضية عشان تاخذ من المتصفح
-    } = opts || {};
+    const { currency, unit, digits = 2, locale } = opts;
     try {
       if (currency) {
         return new Intl.NumberFormat(locale, { style: 'currency', currency, maximumFractionDigits: digits }).format(n);
       }
-      const s = new Intl.NumberFormat(locale, { maximumFractionDigits: digits }).format(n);
-      return unit ? `${s} ${unit}` : s;
+      const str = new Intl.NumberFormat(locale, { maximumFractionDigits: digits }).format(n);
+      return unit ? `${str} ${unit}` : str;
     } catch {
-      const s = n.toFixed(Math.max(0, Math.min(6, digits)));
-      return unit ? `${s} ${unit}` : s;
+      const str = n.toFixed(Math.max(0, Math.min(6, digits)));
+      return unit ? `${str} ${unit}` : str;
     }
   }
 
-  // قراءة خصائص JSON من data-*
-  function parseJsonAttr(el, name, fallback) {
+  const parseJsonAttr = (el, name, fallback) => {
     const raw = el.getAttribute(name);
-    if (!raw) return fallback;
-    try { return JSON.parse(raw); } catch { return fallback; }
-  }
+    try {
+      return raw ? JSON.parse(raw) : fallback;
+    } catch {
+      return fallback;
+    }
+  };
 
-  // يبني datasets من data-datasets أو من data-values مع data-label
   function buildDatasets(el) {
-    const dsFromAttr = parseJsonAttr(el, 'data-datasets', null);
+    const rawDatasets = parseJsonAttr(el, 'data-datasets', null);
     const colors = parseJsonAttr(el, 'data-colors', null);
-    const smooth = (el.getAttribute('data-smooth') || '0') === '1';
-    const fill = (el.getAttribute('data-fill') || '0') === '1';
+    const smooth = el.getAttribute('data-smooth') === '1';
+    const fill = el.getAttribute('data-fill') === '1';
 
-    if (Array.isArray(dsFromAttr)) {
-      return dsFromAttr.map((d, i) => ({
+    if (Array.isArray(rawDatasets)) {
+      return rawDatasets.map((d, i) => ({
         label: d.label || `Dataset ${i + 1}`,
         data: Array.isArray(d.data) ? d.data : [],
         borderWidth: 2,
         tension: smooth ? 0.35 : 0,
-        fill: !!(d.fill ?? fill),
+        fill: d.fill ?? fill,
         borderColor: d.borderColor || getColor(i, colors),
         backgroundColor: d.backgroundColor || getColor(i, colors) + '33'
       }));
@@ -90,21 +80,20 @@
       data: Array.isArray(values) ? values : [],
       borderWidth: 2,
       tension: smooth ? 0.35 : 0,
-      fill: fill,
+      fill,
       borderColor: getColor(0, colors),
-      backgroundColor: (getColor(0, colors)) + '33'
+      backgroundColor: getColor(0, colors) + '33'
     }];
   }
 
-  // تكوين الخيارات
   function buildOptions(el) {
-    const currency = el.getAttribute('data-currency') || null;
-    const unit = el.getAttribute('data-unit') || null;
+    const currency = el.getAttribute('data-currency');
+    const unit = el.getAttribute('data-unit');
     const digits = parseInt(el.getAttribute('data-digits') || '2', 10);
-    const stacked = (el.getAttribute('data-stacked') || '0') === '1';
+    const stacked = el.getAttribute('data-stacked') === '1';
 
-    const commonTicks = {
-      callback: (val) => formatValue(val, { currency, unit, digits }),
+    const tickFormat = {
+      callback: val => formatValue(val, { currency, unit, digits }),
       maxTicksLimit: 8
     };
 
@@ -114,12 +103,16 @@
       devicePixelRatio: dpr,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { display: true, rtl: isRTL, labels: { usePointStyle: true } },
+        legend: {
+          display: true,
+          rtl: isRTL,
+          labels: { usePointStyle: true }
+        },
         tooltip: {
           enabled: true,
           rtl: isRTL,
           callbacks: {
-            label: (ctx) => {
+            label: ctx => {
               const v = ctx.parsed.y ?? ctx.parsed;
               const title = ctx.dataset.label ? `${ctx.dataset.label}: ` : '';
               return title + formatValue(v, { currency, unit, digits });
@@ -128,81 +121,158 @@
         }
       },
       scales: {
-        x: { stacked, grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true } },
-        y: { stacked, beginAtZero: true, ticks: commonTicks }
+        x: {
+          stacked,
+          grid: { display: false },
+          ticks: { maxRotation: 0, autoSkip: true }
+        },
+        y: {
+          stacked,
+          beginAtZero: true,
+          ticks: tickFormat
+        }
       }
     };
   }
 
-  // يبني الكونفيج النهائي
   function buildConfig(el) {
     const type = el.getAttribute('data-chart-type') || el.getAttribute('data-type') || 'line';
     const labels = parseJsonAttr(el, 'data-labels', []);
     const datasets = buildDatasets(el);
-    return {
-      type,
-      data: { labels, datasets },
-      options: buildOptions(el)
-    };
+    return { type, data: { labels, datasets }, options: buildOptions(el) };
   }
 
-  // تهيئة/تدمير
+  function showLoader(el) {
+    let loader = el.parentElement.querySelector('.chartjs-loader');
+    if (!loader) {
+      loader = document.createElement('div');
+      loader.className = 'chartjs-loader';
+      loader.innerHTML = `
+        <div class="spinner-border text-primary" role="status" style="width: 2rem; height: 2rem;">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+      `;
+      loader.style.cssText = `
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 2;
+      `;
+      el.parentElement.style.position = 'relative';
+      el.parentElement.appendChild(loader);
+    }
+  }
+
+  function hideLoader(el) {
+    const loader = el.parentElement.querySelector('.chartjs-loader');
+    if (loader) loader.remove();
+  }
+
   function initCanvas(el) {
     const ctx = el.getContext('2d');
     if (!ctx) return;
-    if (el._chartjsInstance) {
-      try { el._chartjsInstance.destroy(); } catch {}
-      el._chartjsInstance = null;
-    }
-    const cfg = buildConfig(el);
-    el._chartjsInstance = new window.Chart(ctx, cfg);
+
+    showLoader(el);
+
+    setTimeout(() => {
+      if (el._chartjsInstance) {
+        try { el._chartjsInstance.destroy(); } catch {}
+        el._chartjsInstance = null;
+      }
+
+      const config = buildConfig(el);
+      el._chartjsInstance = new Chart(ctx, config);
+
+      hideLoader(el);
+    }, 50);
   }
+
   function destroyCanvas(el) {
-    if (el && el._chartjsInstance) {
+    if (el?._chartjsInstance) {
       try { el._chartjsInstance.destroy(); } catch {}
       el._chartjsInstance = null;
     }
   }
 
-  // Lazy init عند الظهور
+  function updateCanvas(el) {
+    const chart = el._chartjsInstance;
+    if (!chart) {
+      initCanvas(el);
+      return;
+    }
+
+    const labels = parseJsonAttr(el, 'data-labels', []);
+    const datasets = buildDatasets(el);
+
+    chart.data.labels = labels;
+    chart.data.datasets = datasets;
+    chart.options = buildOptions(el);
+
+    chart.update();
+  }
+
   let observer = null;
   function observeAndInit(el) {
     if (!('IntersectionObserver' in window)) {
       initCanvas(el);
       return;
     }
+
     if (!observer) {
-      observer = new IntersectionObserver((entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            initCanvas(e.target);
-            observer.unobserve(e.target);
+      observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            initCanvas(entry.target);
+            observer.unobserve(entry.target);
           }
         });
       }, { rootMargin: '100px' });
     }
+
     observer.observe(el);
   }
 
-  // API عام
+  function attachAutoUpdateButton(el) {
+    if (el.getAttribute('data-auto-button') !== '1') return;
+
+    const button = document.createElement('button');
+    button.className = 'btn btn-sm btn-outline-primary mt-2';
+    button.textContent = 'تحديث الرسم';
+
+    button.addEventListener('click', () => {
+      const oldValues = parseJsonAttr(el, 'data-values', []);
+      const newValues = oldValues.map(v => v + Math.round(Math.random() * 10)); // مثال: تحديث عشوائي
+
+      el.setAttribute('data-values', JSON.stringify(newValues));
+      AppCharts.refresh(el);
+    });
+
+    el.parentElement.appendChild(button);
+  }
+
   const AppCharts = {
-    init(root) {
+    init(root = document) {
       const scope = root instanceof Element ? root : document;
-      scope.querySelectorAll('canvas.chartjs-chart').forEach((el) => observeAndInit(el));
+      scope.querySelectorAll('canvas.chartjs-chart').forEach(el => {
+        observeAndInit(el);
+        attachAutoUpdateButton(el);
+      });
     },
-    refresh(root) {
+    refresh(root = document) {
       const scope = root instanceof Element ? root : document;
-      scope.querySelectorAll('canvas.chartjs-chart').forEach((el) => initCanvas(el));
+      scope.querySelectorAll('canvas.chartjs-chart').forEach(updateCanvas);
     },
-    destroy(root) {
+    destroy(root = document) {
       const scope = root instanceof Element ? root : document;
-      scope.querySelectorAll('canvas.chartjs-chart').forEach((el) => destroyCanvas(el));
+      scope.querySelectorAll('canvas.chartjs-chart').forEach(destroyCanvas);
     }
   };
+
   window.AppCharts = AppCharts;
 
-  // جاهزية DOM
-  document.addEventListener('DOMContentLoaded', function () {
-    AppCharts.init(document);
+  document.addEventListener('DOMContentLoaded', () => {
+    AppCharts.init();
   });
+
 })();
