@@ -7,76 +7,71 @@
 <form method="post" novalidate>
   {{ form.hidden_tag() }}
 
-  <div class="row">
+  <div class="row g-4">
+    <!-- بطاقة المعلومات الأساسية -->
     <div class="col-md-6">
-      <div class="card mb-4 shadow-sm">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-primary text-white">
+          <i class="fas fa-warehouse me-1"></i> معلومات أساسية
+        </div>
         <div class="card-body">
-          <h5 class="card-title">معلومات عامة</h5>
-
           <div class="mb-3">
             {{ form.name.label(class="form-label") }}
-            {{ form.name(class="form-control") }}
+            {{ form.name(class="form-control", placeholder="اسم المستودع", required=True) }}
             {% for e in form.name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
           </div>
 
           <div class="mb-3">
             {{ form.warehouse_type.label(class="form-label") }}
-            {{ form.warehouse_type(class="form-control", id="warehouse_type") }}
+            {{ form.warehouse_type(class="form-select", id="warehouse_type", required=True) }}
             {% for e in form.warehouse_type.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-          </div>
-
-          <div class="mb-3">
-            {{ form.location.label(class="form-label") }}
-            {{ form.location(class="form-control") }}
-            {% for e in form.location.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-          </div>
-
-          <div class="mb-3">
-            {{ form.capacity.label(class="form-label") }}
-            {{ form.capacity(class="form-control") }}
-            {% for e in form.capacity.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-          </div>
-
-          <div class="form-check mb-2">
-            {{ form.is_active(class="form-check-input", id="is_active") }}
-            <label class="form-check-label" for="is_active">{{ form.is_active.label.text }}</label>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- بطاقة الإعدادات -->
     <div class="col-md-6">
-      <div class="card mb-4 shadow-sm">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-secondary text-white">
+          <i class="fas fa-cogs me-1"></i> الإعدادات
+        </div>
         <div class="card-body">
-          <h5 class="card-title">الارتباطات والإعدادات</h5>
+          <div class="mb-3">
+            {{ form.location.label(class="form-label") }}
+            {{ form.location(class="form-control", placeholder="موقع المستودع") }}
+            {% for e in form.location.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
 
           <div class="mb-3">
-            {{ form.parent_id.label(class="form-label") }}
-            {{ form.parent_id(class="form-control") }}
-            {% for e in form.parent_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            {{ form.capacity.label(class="form-label") }}
+            {{ form.capacity(class="form-control", placeholder="السعة القصوى") }}
+            {% for e in form.capacity.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
           </div>
 
-          <div class="mb-3" id="partner_row">
-            {{ form.partner_id.label(class="form-label") }}
-            {{ form.partner_id(class="form-control", id="partner_id") }}
-            {% for e in form.partner_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          <div class="mb-3">
+            {{ form.notes.label(class="form-label") }}
+            {{ form.notes(class="form-control", rows="2", placeholder="ملاحظات إضافية") }}
+            {% for e in form.notes.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
           </div>
 
-          <div class="mb-3" id="share_row">
-            {{ form.share_percent.label(class="form-label") }}
-            {{ form.share_percent(class="form-control", id="share_percent") }}
-            {% for e in form.share_percent.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          <div class="form-check mb-2">
+            {{ form.is_active(class="form-check-input", id="is_active") }}
+            <label class="form-check-label" for="is_active">
+              <i class="fas fa-toggle-on me-1"></i> {{ form.is_active.label.text }}
+            </label>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <div class="d-flex justify-content-start gap-2">
-    <button class="btn btn-primary">
+  <!-- أزرار الحفظ -->
+  <div class="mt-4 d-flex gap-2">
+    <button class="btn btn-success">
       <i class="fas fa-save me-1"></i> حفظ
     </button>
-    <a href="{{ url_for('warehouse_bp.list') }}" class="btn btn-secondary">
+    <a href="{{ url_for('warehouse_bp.list') }}" class="btn btn-outline-secondary">
       <i class="fas fa-arrow-right me-1"></i> رجوع
     </a>
   </div>
@@ -85,28 +80,5 @@
 
 {% block scripts %}
 {{ super() }}
-<script>
-  (function(){
-    const typeEl = document.getElementById('warehouse_type');
-    const partnerRow = document.getElementById('partner_row');
-    const shareRow = document.getElementById('share_row');
-    const partnerInput = document.getElementById('partner_id');
-    const shareInput = document.getElementById('share_percent');
-
-    function togglePartner() {
-      const isPartner = (typeEl?.value || '').toUpperCase() === 'PARTNER';
-      partnerRow.style.display = isPartner ? '' : 'none';
-      shareRow.style.display = isPartner ? '' : 'none';
-      if (!isPartner) {
-        if (partnerInput) partnerInput.value = '';
-        if (shareInput) shareInput.value = '';
-      }
-    }
-
-    if (typeEl) {
-      togglePartner();
-      typeEl.addEventListener('change', togglePartner);
-    }
-  })();
-</script>
+{# لا حاجة لأي سكربت إضافي هنا #}
 {% endblock %}

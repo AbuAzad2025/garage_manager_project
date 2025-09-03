@@ -1858,7 +1858,6 @@ class SaleLineForm(FlaskForm):
     tax_rate     = DecimalField('ضريبة %', places=2, default=0, validators=[Optional(), NumberRange(min=0, max=100)])
     note         = StringField('ملاحظات', validators=[Optional(), Length(max=200)])
 
-
 class SaleForm(FlaskForm):
     sale_number   = StringField('رقم البيع', validators=[Optional(), Length(max=50)])
     sale_date     = DateTimeLocalField('تاريخ البيع', format='%Y-%m-%dT%H:%M', validators=[Optional()])
@@ -1930,12 +1929,10 @@ class SaleForm(FlaskForm):
         ]
         return sale
 
-
 def _norm_invoice_no(v: str | None) -> str | None:
     s = (v or "").strip()
     s = re.sub(r"\s+", "", s)
     return s.upper() or None
-
 
 class InvoiceLineForm(FlaskForm):
     invoice_id  = HiddenField(validators=[Optional()])
@@ -2063,9 +2060,9 @@ class ProductForm(FlaskForm):
         'الفئة',
         endpoint='api.search_categories',
         get_label='name',
-        validators=[InputRequired(message="يجب اختيار فئة للمنتج")],
+        validators=[DataRequired(message="يجب اختيار فئة للمنتج")],
         render_kw={'required': True}
-    )
+        )
     category_name = StringField('اسم الفئة (نصي)', validators=[Optional(), Length(max=100)])
 
     supplier_id = AjaxSelectField('المورد الرئيسي', endpoint='api.search_suppliers', get_label='name', validators=[Optional()])
@@ -2195,16 +2192,16 @@ class WarehouseForm(FlaskForm):
     def validate(self, **kwargs):
         if not super().validate(**kwargs):
             return False
+
         cap = self.capacity.data
         occ = self.current_occupancy.data
         if cap is not None and occ is not None and occ > cap:
             self.current_occupancy.errors.append('المشغول حاليًا لا يمكن أن يتجاوز السعة القصوى.')
             return False
-        if (self.warehouse_type.data or '').upper() == 'PARTNER' and not self.partner_id.data:
-            self.partner_id.errors.append('هذا الحقل مطلوب لمخزن الشركاء.')
-            return False
+
         if (self.warehouse_type.data or '').upper() != 'PARTNER' and self.share_percent.data is None:
             self.share_percent.data = 0
+
         return True
   
 class PartnerShareForm(FlaskForm):

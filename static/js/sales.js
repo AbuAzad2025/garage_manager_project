@@ -10,7 +10,6 @@
   function loadCssOnce(href){if(!document.querySelector(`link[href="${href}"]`)){const l=document.createElement('link');l.rel='stylesheet';l.href=href;document.head.appendChild(l);}}
   function loadJQueryOnce(){return new Promise(res=>{if(window.jQuery) return res();const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/jquery@3.6.4/dist/jquery.min.js';s.onload=()=>res();document.head.appendChild(s);});}
 
-  // debounce helper
   function debounce(fn, delay=200){
     let t;
     return (...args)=>{
@@ -19,7 +18,6 @@
     };
   }
 
-  // unified product info fetch
   async function fetchProductInfo(pid, wid){
     if(!(pid && wid)) return {};
     try{

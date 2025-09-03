@@ -418,7 +418,6 @@ def create_sale():
             _safe_generate_number_after_flush(sale)
             _attach_lines(sale, lines_payload)
             db.session.flush()
-            sale.total_amount = sale.total
             if require_stock:
                 _reserve_stock(sale)
             _log(sale, "CREATE", None, sale_to_dict(sale))
@@ -546,7 +545,6 @@ def edit_sale(id: int):
             sale.notes = form.notes.data
             _attach_lines(sale, lines_payload)
             db.session.flush()
-            sale.total_amount = sale.total
             if require_stock:
                 _reserve_stock(sale)
             _log(sale, "UPDATE", old, sale_to_dict(sale))
@@ -606,7 +604,6 @@ def quick_sell():
             unit_price=price, discount_rate=0, tax_rate=0
         ))
         db.session.flush()
-        sale.total_amount = sale.total
         if status == "CONFIRMED":
             _reserve_stock(sale)
         _log(sale, "CREATE", None, sale_to_dict(sale))

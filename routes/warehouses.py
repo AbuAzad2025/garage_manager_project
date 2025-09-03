@@ -704,8 +704,10 @@ def products(id):
     base_warehouse = _get_or_404(Warehouse, id)
     all_whs = Warehouse.query.order_by(Warehouse.name).all()
     selected_ids = request.args.getlist("warehouse_ids", type=int) or [id]
+    selected_ids = sorted(set(selected_ids))
     whs = [w for w in all_whs if w.id in selected_ids]
-    wh_ids = [w.id for w in whs]
+    wh_ids = [w.id for w in whs] or [id]
+
     search = (request.args.get("q") or "").strip()
     q = (
         db.session.query(StockLevel)
@@ -716,7 +718,15 @@ def products(id):
     )
     if search:
         like = f"%{search}%"
-        q = q.filter(or_(Product.name.ilike(like), Product.sku.ilike(like), Product.part_number.ilike(like)))
+        q = q.filter(
+            or_(
+                Product.name.ilike(like),
+                Product.sku.ilike(like),
+                Product.part_number.ilike(like),
+                Product.brand.ilike(like),
+            )
+        )
+
     rows = q.all()
     pivot = {}
     for sl in rows:
@@ -728,8 +738,16 @@ def products(id):
         res = int(getattr(sl, "reserved_quantity", 0) or 0)
         pivot[pid]["by"][sl.warehouse_id] = {"on": on, "res": res}
         pivot[pid]["total"] += on
+
     rows_data = sorted(pivot.values(), key=lambda d: (d["product"].name or "").lower())
+
     if request.is_json or (request.args.get("format") or "").lower() == "json":
+        def _f(x):
+            try:
+                return float(x) if x is not None else None
+            except Exception:
+                return None
+
         out = []
         for r in rows_data:
             p = r["product"]
@@ -741,13 +759,15 @@ def products(id):
                     "part_number": p.part_number,
                     "name": p.name,
                     "brand": p.brand,
-                    "purchase_price": getattr(p, "purchase_price", None),
-                    "selling_price": getattr(p, "selling_price", None),
-                    "quantity": active_qty,
-                    "total_quantity": r["total"],
+                    "purchase_price": _f(getattr(p, "purchase_price", None)),
+                    "selling_price": _f(getattr(p, "selling_price", None)),
+                    "price": _f(getattr(p, "price", None)),
+                    "quantity": int(active_qty or 0),
+                    "total_quantity": int(r["total"] or 0),
                 }
             )
         return jsonify({"data": out, "warehouse_id": base_warehouse.id})
+
     return render_template(
         "warehouses/products.html",
         warehouse=base_warehouse,
@@ -769,6 +789,7 @@ def update_product_inline(warehouse_id, product_id):
     _get_or_404(Warehouse, warehouse_id)
     p = _get_or_404(Product, product_id)
     payload = request.get_json(silent=True) or {}
+
     allowed_product_fields = {
         "name",
         "sku",
@@ -787,6 +808,7 @@ def update_product_inline(warehouse_id, product_id):
     }
     decimal_fields = {"purchase_price", "selling_price", "price", "min_price", "max_price", "tax_rate"}
     int_fields = {"warranty_period"}
+
     updates = {}
     for k, v in payload.items():
         if k in allowed_product_fields:
@@ -802,17 +824,18 @@ def update_product_inline(warehouse_id, product_id):
                     return jsonify({"ok": False, "error": f"invalid_int:{k}"}), 400
             else:
                 updates[k] = (str(v).strip() if v is not None else None)
+
     for k, v in updates.items():
         setattr(p, k, v)
+
     qty_set = False
     sl = None
     if "quantity" in payload or "reserved_quantity" in payload:
-        sl = (
-            StockLevel.query.filter_by(warehouse_id=warehouse_id, product_id=product_id).one_or_none()
-        )
+        sl = StockLevel.query.filter_by(warehouse_id=warehouse_id, product_id=product_id).one_or_none()
         if not sl:
-            sl = StockLevel(warehouse_id=warehouse_id, product_id=product_id, quantity=0)
+            sl = StockLevel(warehouse_id=warehouse_id, product_id=product_id, quantity=0, reserved_quantity=0)
             db.session.add(sl)
+
         if "quantity" in payload:
             try:
                 qv = int(float(payload.get("quantity") if payload.get("quantity") is not None else 0))
@@ -820,30 +843,41 @@ def update_product_inline(warehouse_id, product_id):
                 qty_set = True
             except Exception:
                 return jsonify({"ok": False, "error": "invalid_int:quantity"}), 400
+
         if "reserved_quantity" in payload:
             try:
                 rv = int(float(payload.get("reserved_quantity") if payload.get("reserved_quantity") is not None else 0))
-                setattr(sl, "reserved_quantity", max(0, rv))
+                rv = max(0, rv)
+                if sl.quantity is not None:
+                    rv = min(rv, int(sl.quantity or 0))
+                sl.reserved_quantity = rv
             except Exception:
                 return jsonify({"ok": False, "error": "invalid_int:reserved_quantity"}), 400
+
     try:
         db.session.commit()
-    except SQLAlchemyError as e:
+    except Exception as e:
         db.session.rollback()
-        return jsonify({"ok": False, "error": f"db:{e.__class__.__name__}"}), 500
-    active_qty = None
+        return jsonify({"ok": False, "error": "db_error"}), 500
+
     if sl:
         active_qty = int(sl.quantity or 0)
     else:
-        sl2 = (
-            StockLevel.query.filter_by(warehouse_id=warehouse_id, product_id=product_id).one_or_none()
-        )
+        sl2 = StockLevel.query.filter_by(warehouse_id=warehouse_id, product_id=product_id).one_or_none()
         active_qty = int(getattr(sl2, "quantity", 0) or 0) if sl2 else 0
+
     total_qty = (
         db.session.query(func.coalesce(func.sum(StockLevel.quantity), 0))
         .filter(StockLevel.product_id == product_id)
         .scalar()
     )
+
+    def _f(x):
+        try:
+            return float(x) if x is not None else None
+        except Exception:
+            return None
+
     return jsonify(
         {
             "ok": True,
@@ -853,14 +887,14 @@ def update_product_inline(warehouse_id, product_id):
                 "part_number": p.part_number,
                 "name": p.name,
                 "brand": p.brand,
-                "purchase_price": getattr(p, "purchase_price", None),
-                "selling_price": getattr(p, "selling_price", None),
+                "purchase_price": _f(getattr(p, "purchase_price", None)),
+                "selling_price": _f(getattr(p, "selling_price", None)),
+                "price": _f(getattr(p, "price", None)),
             },
             "quantity": active_qty if qty_set or sl else None,
             "total_quantity": int(total_qty or 0),
         }
     )
-
 
 @warehouse_bp.get("/<int:warehouse_id>/preview")
 @login_required
@@ -894,7 +928,6 @@ def preview_inventory(warehouse_id: int):
     )
     return render_template("warehouses/preview_inventory.html", warehouse=warehouse, rows=rows)
 
-
 @warehouse_bp.route("/<int:id>/add-product", methods=["GET", "POST"], endpoint="add_product")
 @login_required
 @permission_required("manage_inventory")
@@ -912,6 +945,21 @@ def add_product(id):
         stock_form.warehouse_id.data = warehouse.id
 
     if request.method == "POST":
+        # تحقق أن الفئة المختارة موجودة
+        if product_form.category_id.data:
+            cat = db.session.get(ProductCategory, int(product_form.category_id.data))
+            if not cat:
+                flash("الفئة المختارة غير موجودة.", "danger")
+                return render_template(
+                    "warehouses/add_product.html",
+                    product_form=product_form,
+                    stock_form=stock_form,
+                    warehouse=warehouse,
+                    partners_forms=[],
+                    exchange_vendors_forms=[],
+                    wtype=wtype,
+                )
+
         if product_form.validate_on_submit() and stock_form.validate():
             try:
                 with db.session.begin():
@@ -1376,7 +1424,10 @@ def import_commit(id):
             flash(f"فحص فقط: جديد={inserted}, تحديث={updated}, متجاهل={skipped}", "info")
         else:
             db.session.commit()
-            path = _save_import_report_csv(report_rows, f"wh{w.id}_{token or uuid.uuid4().hex}_{int(time.time())}")
+            path = _save_import_report_csv(
+                report_rows,
+                filename_hint=f"wh{w.id}_{token or uuid.uuid4().hex}_{int(time.time())}"
+            )
             try:
                 db.session.add(ImportRun(
                     warehouse_id=w.id,
@@ -1675,15 +1726,23 @@ def product_card(product_id):
     shipments = ShipmentItem.query.filter_by(product_id=part.id).join(Shipment).options(joinedload(ShipmentItem.shipment), joinedload(ShipmentItem.warehouse)).order_by(func.coalesce(Shipment.actual_arrival, Shipment.expected_arrival, Shipment.shipment_date).desc()).all()
     return render_template("parts/card.html", part=part, stock=stock, transfers=transfers, exchanges=exchanges, shipments=shipments)
 
+from decimal import Decimal
+
 @warehouse_bp.route("/preorders", methods=["GET"], endpoint="preorders_list")
 @login_required
 @permission_required("view_preorders")
 def preorders_list():
-    q = PreOrder.query
-    status = request.args.get("status")
-    code = request.args.get("code")
-    df = request.args.get("date_from")
-    dt = request.args.get("date_to")
+    q = (PreOrder.query.options(
+            joinedload(PreOrder.customer),
+            joinedload(PreOrder.supplier),
+            joinedload(PreOrder.partner),
+            joinedload(PreOrder.product),
+            joinedload(PreOrder.warehouse)
+        ))
+    status = (request.args.get("status") or "").strip()
+    code = (request.args.get("code") or "").strip()
+    df = (request.args.get("date_from") or "").strip()
+    dt = (request.args.get("date_to") or "").strip()
     if status:
         q = q.filter(PreOrder.status == status)
     if code:
@@ -1696,11 +1755,12 @@ def preorders_list():
     except ValueError:
         pass
     q = q.order_by(PreOrder.created_at.desc())
-    page = request.args.get("page", 1, type=int)
-    per_page = request.args.get("per_page", 25, type=int)
+    page = max(1, request.args.get("page", 1, type=int))
+    per_page = min(100, max(1, request.args.get("per_page", 25, type=int)))
     pagination = q.paginate(page=page, per_page=per_page, error_out=False)
     preorders = pagination.items
-    if request.args.get("format") == "json" or request.is_json:
+    wants_json = (request.args.get("format") == "json") or ("application/json" in request.headers.get("Accept", ""))
+    if wants_json:
         def _entity_info(p):
             if p.customer_id:
                 return "customer", (p.customer.name if p.customer else None)
@@ -1709,7 +1769,6 @@ def preorders_list():
             if p.partner_id:
                 return "partner", (p.partner.name if p.partner else None)
             return None, None
-
         data = []
         for p in preorders:
             etype, ename = _entity_info(p)
@@ -1721,15 +1780,15 @@ def preorders_list():
                     "entity_name": ename,
                     "product": p.product.name if p.product else None,
                     "warehouse": p.warehouse.name if p.warehouse else None,
-                    "quantity": p.quantity,
+                    "quantity": int(p.quantity or 0),
                     "prepaid_amount": float(p.prepaid_amount or 0),
                     "status": p.status,
                     "status_label": _inject_utils()["ar_label"]("preorder_status", p.status),
-                    "created_at": p.created_at.isoformat(),
+                    "created_at": p.created_at.isoformat() if p.created_at else None,
                 }
             )
         return jsonify({"data": data, "meta": {"page": pagination.page, "per_page": pagination.per_page, "total": pagination.total, "pages": pagination.pages}})
-    return render_template("parts/preorders_list.html", preorders=preorders, pagination=pagination, filters={"status": status, "code": code, "date_from": df, "date_to": dt})
+    return render_template("parts/preorders_list.html", preorders=preorders, pagination=pagination, filters={"status": status or None, "code": code or None, "date_from": df or None, "date_to": dt or None})
 
 
 @warehouse_bp.route("/preorders/create", methods=["GET", "POST"], endpoint="preorder_create")
@@ -1777,11 +1836,12 @@ def preorder_create():
         db.session.add(preorder)
         db.session.flush()
 
-        sl = StockLevel.query.filter_by(product_id=product_id, warehouse_id=warehouse_id).first()
+        sl = StockLevel.query.filter_by(product_id=product_id, warehouse_id=warehouse_id).with_for_update(nowait=False).first()
         if not sl:
             sl = StockLevel(product_id=product_id, warehouse_id=warehouse_id, quantity=0, reserved_quantity=0)
             db.session.add(sl)
-        sl.reserved_quantity = (sl.reserved_quantity or 0) + qty
+            db.session.flush()
+        sl.reserved_quantity = int(sl.reserved_quantity or 0) + int(qty)
 
         try:
             db.session.commit()
@@ -1860,12 +1920,13 @@ def preorder_fulfill(preorder_id):
     if preorder.status != "FULFILLED":
         try:
             preorder.status = "FULFILLED"
-            sl = StockLevel.query.filter_by(product_id=preorder.product_id, warehouse_id=preorder.warehouse_id).first()
+            sl = StockLevel.query.filter_by(product_id=preorder.product_id, warehouse_id=preorder.warehouse_id).with_for_update(nowait=False).first()
             if not sl:
                 sl = StockLevel(product_id=preorder.product_id, warehouse_id=preorder.warehouse_id, quantity=0, reserved_quantity=0)
                 db.session.add(sl)
-            sl.reserved_quantity = max((sl.reserved_quantity or 0) - preorder.quantity, 0)
-            sl.quantity = (sl.quantity or 0) + preorder.quantity
+                db.session.flush()
+            sl.reserved_quantity = max(int(sl.reserved_quantity or 0) - int(preorder.quantity or 0), 0)
+            sl.quantity = int(sl.quantity or 0) + int(preorder.quantity or 0)
             db.session.commit()
             flash("تم تنفيذ الحجز", "success")
         except SQLAlchemyError as e:
@@ -1886,9 +1947,9 @@ def preorder_cancel(preorder_id):
         flash("لا يمكن إلغاء هذا الحجز", "warning")
         return redirect(url_for("warehouse_bp.preorder_detail", preorder_id=preorder.id))
     try:
-        sl = StockLevel.query.filter_by(product_id=preorder.product_id, warehouse_id=preorder.warehouse_id).first()
+        sl = StockLevel.query.filter_by(product_id=preorder.product_id, warehouse_id=preorder.warehouse_id).with_for_update(nowait=False).first()
         if sl:
-            sl.reserved_quantity = max((sl.reserved_quantity or 0) - preorder.quantity, 0)
+            sl.reserved_quantity = max(int(sl.reserved_quantity or 0) - int(preorder.quantity or 0), 0)
         refunded_val = getattr(PaymentStatus, "REFUNDED", "REFUNDED")
         refunded_val = refunded_val.value if hasattr(refunded_val, "value") else refunded_val
         for pay in preorder.payments:
@@ -1902,7 +1963,6 @@ def preorder_cancel(preorder_id):
         db.session.rollback()
         flash("حدث خطأ أثناء إلغاء الحجز", "danger")
     return redirect(url_for("warehouse_bp.preorder_detail", preorder_id=preorder.id))
-
 
 @warehouse_bp.route("/<int:warehouse_id>/pay", methods=["POST"], endpoint="pay_warehouse")
 @login_required

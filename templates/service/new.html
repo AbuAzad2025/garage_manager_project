@@ -28,9 +28,7 @@
         <div class="input-group">
           {{ form.customer_id(class="form-select select2", id="customerSelect", data_endpoint=url_for('api.search_customers')) }}
           <a href="{{ url_for('customers_bp.create_form', return_to=url_for('service.create_request')) }}" 
-             class="btn btn-outline-primary" 
-             title="إضافة عميل جديد" 
-             target="_blank">
+             class="btn btn-outline-primary" title="إضافة عميل جديد" target="_blank">
             <i class="fa fa-user-plus"></i>
           </a>
         </div>
@@ -84,17 +82,6 @@
       </div>
     </div>
 
-    {# ✅ صف منفصل للشيك بوكس لعدم كسر الشبكة #}
-    <div class="row">
-      <div class="col-md-4 mb-3">
-        <div class="form-check mt-2">
-          {{ form.consume_stock(class="form-check-input", id="consume_stock") }}
-          <label class="form-check-label" for="consume_stock">استهلاك من المخزون</label>
-          <div class="form-text">فعِّل لخصم القطع من المخزون عند بدء/إكمال الطلب.</div>
-        </div>
-      </div>
-    </div>
-
     {% if form.parts %}
     <div class="mb-3">
       <label class="form-label">القطع المستخدمة</label>
@@ -111,7 +98,17 @@
         </div>
         {% endfor %}
       </div>
-      <button type="button" class="btn btn-outline-success btn-sm" id="addPartBtn"><i class="fa fa-plus"></i> إضافة قطعة</button>
+
+      <!-- ✅ Checkbox مدمج أسفل قسم القطع -->
+      <div class="form-check mt-2">
+        {{ form.consume_stock(class="form-check-input", id="consume_stock") }}
+        <label class="form-check-label" for="consume_stock">استهلاك من المخزون</label>
+        <div class="form-text">فعِّل لخصم القطع من المخزون عند بدء/إكمال الطلب.</div>
+      </div>
+
+      <button type="button" class="btn btn-outline-success btn-sm mt-2" id="addPartBtn">
+        <i class="fa fa-plus"></i> إضافة قطعة
+      </button>
     </div>
     {% endif %}
 

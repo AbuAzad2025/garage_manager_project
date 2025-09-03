@@ -6,7 +6,6 @@ import json
 import re
 from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
-
 from flask import current_app, has_request_context, request
 from flask_login import UserMixin, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -2044,6 +2043,10 @@ class PreOrder(db.Model, TimestampMixin):
         return self.total_before_tax * (1 + float(self.tax_rate or 0) / 100.0)
 
     @hybrid_property
+    def total_amount(self):
+        return self.total_with_tax
+
+    @hybrid_property
     def total_paid(self):
         return float(
             db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
@@ -2068,7 +2071,19 @@ class PreOrder(db.Model, TimestampMixin):
 
     @hybrid_property
     def balance_due(self):
-        return float(self.total_with_tax) - float(self.total_paid)
+        return float(self.total_amount) - float(self.total_paid)
+
+    @balance_due.expression
+    def balance_due(cls):
+        return cls.total_amount - cls.total_paid
+
+    @hybrid_property
+    def net_balance(self):
+        return self.balance_due
+
+    @net_balance.expression
+    def net_balance(cls):
+        return cls.balance_due
 
     def __repr__(self):
         return f"<PreOrder {self.reference or self.id}>"
@@ -2118,16 +2133,16 @@ class Sale(db.Model, TimestampMixin, AuditMixin):
 
     @hybrid_property
     def subtotal(self):
-        return sum(l.net_amount for l in self.lines) if self.lines else 0.0
+        return sum(D(l.net_amount) for l in self.lines) if self.lines else Decimal("0.00")
 
     @hybrid_property
     def tax_amount(self):
-        base = float(self.subtotal) - float(self.discount_total or 0)
-        return base * float(self.tax_rate or 0) / 100.0
+        base = D(self.subtotal) - D(self.discount_total or 0)
+        return base * D(self.tax_rate or 0) / Decimal("100.0")
 
     @hybrid_property
     def total(self):
-        return float(self.subtotal) + float(self.tax_amount) + float(self.shipping_cost or 0) - float(self.discount_total or 0)
+        return D(self.subtotal) + D(self.tax_amount) + D(self.shipping_cost or 0) - D(self.discount_total or 0)
 
     @hybrid_property
     def total_paid(self):
@@ -2155,7 +2170,7 @@ class Sale(db.Model, TimestampMixin, AuditMixin):
 
     @hybrid_property
     def balance_due(self):
-        return float(self.total) - float(self.total_paid or 0)
+        return D(self.total) - D(self.total_paid or 0)
 
     def reserve_stock(self):
         for l in self.lines:
@@ -2230,27 +2245,37 @@ def _gl_on_sale_confirm(mapper, connection, target: "Sale"):
     newv = getattr(target.status, "value", target.status)
     if oldv == SaleStatus.CONFIRMED.value or newv != SaleStatus.CONFIRMED.value:
         return
-    subtotal = connection.execute(
-        select(func.coalesce(
-            func.sum((SaleLine.quantity * SaleLine.unit_price) *
-                     (1 - (func.coalesce(SaleLine.discount_rate, 0) / 100.0))), 0.0
-        )).where(SaleLine.sale_id == target.id)
+    subtotal_float = connection.execute(
+        select(
+            func.coalesce(
+                func.sum(
+                    (SaleLine.quantity * SaleLine.unit_price) *
+                    (1 - (func.coalesce(SaleLine.discount_rate, 0) / 100.0))
+                ),
+                0.0
+            )
+        ).where(SaleLine.sale_id == target.id)
     ).scalar_one() or 0.0
     row = connection.execute(
         select(Sale.tax_rate, Sale.discount_total, Sale.shipping_cost, Sale.currency)
         .where(Sale.id == target.id)
     ).first()
-    tax_rate, discount, shipping, cur = row[0] or 0, row[1] or 0, row[2] or 0, (row[3] or "ILS")
+    subtotal = Decimal(str(subtotal_float))
+    tax_rate = Decimal(str(row[0] or 0))
+    discount = Decimal(str(row[1] or 0))
+    shipping = Decimal(str(row[2] or 0))
+    cur = (row[3] or "ILS")
     base = subtotal - discount
-    if base < 0:
-        base = 0.0
-    tax = base * float(tax_rate) / 100.0
-    total = subtotal + tax + float(shipping) - float(discount)
+    if base < Decimal("0"):
+        base = Decimal("0")
+    tax = (base * tax_rate / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    total = (subtotal + tax + shipping - discount).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     entries = [
-        (GL_ACCOUNTS["AR"],  total, 0.0),
-        (GL_ACCOUNTS["VAT"], 0.0,   tax),
-        (GL_ACCOUNTS["REV"], 0.0,   total - tax),
+        (GL_ACCOUNTS["AR"],  float(total), 0.0),
+        (GL_ACCOUNTS["VAT"], 0.0,          float(tax)),
+        (GL_ACCOUNTS["REV"], 0.0,          float(total - tax)),
     ]
+    from utils import _gl_upsert_batch_and_entries
     _gl_upsert_batch_and_entries(
         connection,
         source_type="SALE",
@@ -2266,18 +2291,20 @@ def _gl_on_sale_confirm(mapper, connection, target: "Sale"):
 
 class SaleLine(db.Model, TimestampMixin):
     __tablename__ = 'sale_lines'
-    id          = db.Column(db.Integer, primary_key=True)
-    sale_id     = db.Column(db.Integer, db.ForeignKey('sales.id'),      nullable=False)
-    product_id  = db.Column(db.Integer, db.ForeignKey('products.id'),   nullable=False)
-    warehouse_id= db.Column(db.Integer, db.ForeignKey('warehouses.id'), nullable=False)
-    quantity      = db.Column(db.Integer,        nullable=False)
-    unit_price    = db.Column(db.Numeric(12, 2), nullable=False)
-    discount_rate = db.Column(db.Numeric(5, 2),  default=0)
-    tax_rate      = db.Column(db.Numeric(5, 2),  default=0)
-    note          = db.Column(db.String(200))
+    id           = db.Column(db.Integer, primary_key=True)
+    sale_id      = db.Column(db.Integer, db.ForeignKey('sales.id'),      nullable=False)
+    product_id   = db.Column(db.Integer, db.ForeignKey('products.id'),   nullable=False)
+    warehouse_id = db.Column(db.Integer, db.ForeignKey('warehouses.id'), nullable=False)
+    quantity     = db.Column(db.Integer,        nullable=False)
+    unit_price   = db.Column(db.Numeric(12, 2), nullable=False)
+    discount_rate= db.Column(db.Numeric(5, 2),  default=0)
+    tax_rate     = db.Column(db.Numeric(5, 2),  default=0)
+    note         = db.Column(db.String(200))
+
     sale      = db.relationship('Sale',      back_populates='lines')
     product   = db.relationship('Product',   back_populates='sale_lines')
     warehouse = db.relationship('Warehouse', back_populates='sale_lines')
+
     __table_args__ = (
         db.CheckConstraint('quantity > 0', name='chk_sale_line_qty_positive'),
         db.Index('ix_sale_line_sale', 'sale_id'),
@@ -2285,11 +2312,11 @@ class SaleLine(db.Model, TimestampMixin):
 
     @hybrid_property
     def gross_amount(self):
-        return float(self.unit_price or 0) * float(self.quantity or 0)
+        return D(self.unit_price) * D(self.quantity)
 
     @hybrid_property
     def discount_amount(self):
-        return self.gross_amount * float(self.discount_rate or 0) / 100.0
+        return self.gross_amount * (D(self.discount_rate or 0) / Decimal("100"))
 
     @hybrid_property
     def net_amount(self):
@@ -2297,7 +2324,7 @@ class SaleLine(db.Model, TimestampMixin):
 
     @hybrid_property
     def line_tax(self):
-        return self.net_amount * float(self.tax_rate or 0) / 100.0
+        return self.net_amount * (D(self.tax_rate or 0) / Decimal("100"))
 
     @hybrid_property
     def line_total(self):
@@ -2308,7 +2335,7 @@ class SaleLine(db.Model, TimestampMixin):
         return f"<SaleLine {pname or self.product_id} in Sale {self.sale_id}>"
 
 def _recompute_sale_total_amount(connection, sale_id: int):
-    subtotal = connection.execute(
+    subtotal_float = connection.execute(
         select(
             func.coalesce(
                 func.sum(
@@ -2319,20 +2346,18 @@ def _recompute_sale_total_amount(connection, sale_id: int):
             )
         ).where(SaleLine.sale_id == sale_id)
     ).scalar_one() or 0.0
-
-    tax_rate, shipping, discount = connection.execute(
+    tr, sh, disc = connection.execute(
         select(Sale.tax_rate, Sale.shipping_cost, Sale.discount_total).where(Sale.id == sale_id)
     ).first()
-
-    tax_rate = float(tax_rate or 0)
-    shipping = float(shipping or 0)
-    discount = float(discount or 0)
-
+    subtotal = Decimal(str(subtotal_float))
+    tax_rate = Decimal(str(tr or 0))
+    shipping = Decimal(str(sh or 0))
+    discount = Decimal(str(disc or 0))
     base = subtotal - discount
-    if base < 0: base = 0.0
-    tax  = base * tax_rate / 100.0
+    if base < Decimal("0"):
+        base = Decimal("0")
+    tax = (base * tax_rate / Decimal("100"))
     total = subtotal + tax + shipping - discount
-
     connection.execute(
         update(Sale).where(Sale.id == sale_id).values(total_amount=total)
     )
@@ -2404,7 +2429,7 @@ class Invoice(db.Model, TimestampMixin):
 
     @hybrid_property
     def computed_total(self):
-        return sum(l.line_total for l in self.lines) if self.lines else 0.0
+        return sum(D(l.line_total) for l in self.lines) if self.lines else Decimal("0.00")
 
     @validates('invoice_number')
     def _v_norm_number(self, _, v):
@@ -2452,7 +2477,6 @@ class Invoice(db.Model, TimestampMixin):
     def __repr__(self):
         return f"<Invoice {self.invoice_number}>"
 
-
 class InvoiceLine(db.Model):
     __tablename__ = 'invoice_lines'
 
@@ -2474,15 +2498,11 @@ class InvoiceLine(db.Model):
 
     @hybrid_property
     def line_total(self):
-        gross = float(self.quantity or 0) * float(self.unit_price or 0)
-        discount_amount = gross * (float(self.discount or 0) / 100.0)
+        gross = D(self.quantity) * D(self.unit_price)
+        discount_amount = gross * (D(self.discount or 0) / Decimal("100.0"))
         taxable = gross - discount_amount
-        tax_amount = taxable * (float(self.tax_rate or 0) / 100.0)
+        tax_amount = taxable * (D(self.tax_rate or 0) / Decimal("100.0"))
         return taxable + tax_amount
-
-    def __repr__(self):
-        return f"<InvoiceLine {self.description}>"
-
 
 @event.listens_for(Invoice, 'before_insert')
 @event.listens_for(Invoice, 'before_update')
@@ -2494,7 +2514,6 @@ def _invoice_normalize_and_total(mapper, connection, target: "Invoice"):
         target.tax_amount = 0
     if target.discount_amount is None:
         target.discount_amount = 0
-
 
 def _recompute_invoice_totals(connection, invoice_id: int):
     gross_before_disc = func.coalesce(
@@ -2525,13 +2544,11 @@ def _recompute_invoice_totals(connection, invoice_id: int):
         )
     )
 
-
 @event.listens_for(Invoice, 'after_insert')
 @event.listens_for(Invoice, 'after_update')
 def _inv_touch_totals(mapper, connection, target: "Invoice"):
     if target.id:
         _recompute_invoice_totals(connection, int(target.id))
-
 
 @event.listens_for(InvoiceLine, 'after_insert')
 @event.listens_for(InvoiceLine, 'after_update')
@@ -2539,7 +2556,6 @@ def _inv_touch_totals(mapper, connection, target: "Invoice"):
 def _inv_line_touch_invoice(mapper, connection, target: "InvoiceLine"):
     if target.invoice_id:
         _recompute_invoice_totals(connection, int(target.invoice_id))
-
 
 class Payment(db.Model):
     __tablename__ = 'payments'
@@ -2741,6 +2757,18 @@ def _payment_guard(mapper, connection, target: "Payment"):
     if hasattr(target, "card_expiry"):
         target.card_expiry = (target.card_expiry or None)
 
+def _gl_get_cash_acct(method: str | None) -> str:
+    if not method:
+        return GL_ACCOUNTS["CASH"]
+    m = str(method).lower()
+    if m in ("cash", "نقداً"):
+        return GL_ACCOUNTS["CASH"]
+    if m in ("bank", "تحويل"):
+        return GL_ACCOUNTS["BANK"]
+    if m in ("card", "بطاقة"):
+        return GL_ACCOUNTS["CARD"]
+    return GL_ACCOUNTS["CASH"]
+
 @event.listens_for(Payment, "after_insert")
 @event.listens_for(Payment, "after_update")
 def _gl_on_payment_complete(mapper, connection, target: "Payment"):
@@ -2770,12 +2798,12 @@ def _gl_on_payment_complete(mapper, connection, target: "Payment"):
     elif target.service_id:         et, eid = "SERVICE",  target.service_id
     elif target.preorder_id:        et, eid = "PREORDER", target.preorder_id
     if dirv in (PaymentDirection.INCOMING.value, "IN"):
-        entries = [(GL_ACCOUNTS["CASH"], amt, 0.0), (GL_ACCOUNTS["AR"], 0.0, amt)]
+        entries = [(cash_acc, amt, 0.0), (GL_ACCOUNTS["AR"], 0.0, amt)]
     else:
         if target.expense_id:
-            entries = [(GL_ACCOUNTS["EXP"], amt, 0.0), (GL_ACCOUNTS["CASH"], 0.0, amt)]
+            entries = [(GL_ACCOUNTS["EXP"], amt, 0.0), (cash_acc, 0.0, amt)]
         else:
-            entries = [(GL_ACCOUNTS["AP"],  amt, 0.0), (GL_ACCOUNTS["CASH"], 0.0, amt)]
+            entries = [(GL_ACCOUNTS["AP"],  amt, 0.0), (cash_acc, 0.0, amt)]
     _gl_upsert_batch_and_entries(
         connection,
         source_type="PAYMENT",
@@ -3414,13 +3442,36 @@ def _set_completed_at_on_status_change(target, value, oldvalue, initiator):
 
 @event.listens_for(ServiceRequest, "after_update")
 def _gl_on_service_complete(mapper, connection, target: "ServiceRequest"):
+    # تحقّق أن الحالة الجديدة "COMPLETED" ولم تكن مكتملة قبل
     prev = getattr(target, "_previous_state", None) or {}
     oldv = getattr(prev.get("status"), "value", prev.get("status"))
     newv = getattr(getattr(target, "status", None), "value", getattr(target, "status", None))
     if newv != ServiceStatus.COMPLETED.value or oldv == ServiceStatus.COMPLETED.value:
         return
+
+    # لو في فاتورة مرتبطة، لا نسجّل قيود
     if getattr(target, "invoice_id", None):
         return
+
+    # سويتش عام من الإعدادات لتعطيل/تفعيل القيد الآلي
+    try:
+        cfg = current_app.config
+    except Exception:
+        cfg = {}
+    if not bool(cfg.get("GL_AUTO_POST_ON_SERVICE_COMPLETE", False)):
+        return
+
+    # استيراد كسول لوحدة المحاسبة. لو مش متوفرة -> تخطّى بأمان
+    try:
+        from accounting import GL_ACCOUNTS, _gl_upsert_batch_and_entries
+    except Exception as e:
+        try:
+            current_app.logger.warning("GL posting skipped: accounting module unavailable: %s", e)
+        except Exception:
+            pass
+        return
+
+    # حساب المبالغ
     parts = float(getattr(target, "parts_total", 0) or 0)
     labor = float(getattr(target, "labor_total", 0) or 0)
     discount = float(getattr(target, "discount_total", 0) or 0)
@@ -3432,13 +3483,16 @@ def _gl_on_service_complete(mapper, connection, target: "ServiceRequest"):
         base = 0.0
     tax = base * (tax_rate / 100.0)
     total = base + tax
+
     entries = [
-        (GL_ACCOUNTS["AR"], total, 0.0),
-        (GL_ACCOUNTS["VAT"], 0.0, tax),
-        (GL_ACCOUNTS["REV"], 0.0, total - tax),
+        (GL_ACCOUNTS["AR"],  total,      0.0),
+        (GL_ACCOUNTS["VAT"], 0.0,        tax),
+        (GL_ACCOUNTS["REV"], 0.0,        total - tax),
     ]
     ref = str(getattr(target, "service_number", None) or target.id)
     memo = f"Service {ref} completed"
+
+    # إنشاء/تحديث القيد
     _gl_upsert_batch_and_entries(
         connection,
         source_type="SERVICE",
@@ -4533,3 +4587,66 @@ GL_ACCOUNTS = {
     "EXP": "5000_EXPENSES",
 }
 
+from datetime import datetime
+from sqlalchemy import select
+
+def _gl_upsert_batch_and_entries(
+    connection,
+    *,
+    source_type: str,
+    source_id: int,
+    purpose: str,
+    currency: str,
+    memo: str,
+    entries: list[tuple[str, float, float]],
+    ref: str,
+    entity_type: str | None,
+    entity_id: int | None,
+):
+    from models import GLBatch, GLEntry
+
+    connection.execute(
+        GLBatch.__table__.delete().where(
+            (GLBatch.source_type == source_type) &
+            (GLBatch.source_id == source_id) &
+            (GLBatch.purpose == purpose)
+        )
+    )
+
+    connection.execute(
+        GLBatch.__table__.insert().values(
+            code=f"{source_type}-{source_id}-{purpose}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+            source_type=source_type,
+            source_id=source_id,
+            purpose=purpose,
+            memo=memo,
+            posted_at=datetime.utcnow(),
+            currency=currency,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+        )
+    )
+
+    batch_id = connection.execute(
+        select(GLBatch.id).where(
+            (GLBatch.source_type == source_type) &
+            (GLBatch.source_id == source_id) &
+            (GLBatch.purpose == purpose)
+        ).order_by(GLBatch.id.desc()).limit(1)
+    ).scalar_one()
+
+    for acct, debit, credit in entries:
+        connection.execute(
+            GLEntry.__table__.insert().values(
+                batch_id=batch_id,
+                account=acct,
+                debit=debit,
+                credit=credit,
+                currency=currency,
+                ref=ref,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+            )
+        )

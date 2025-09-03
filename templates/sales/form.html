@@ -87,7 +87,7 @@
               </div>
 
               <div class="form-group col-span-4">
-                <label for="seller_id"><i class="fas fa-user-tي mr-1"></i> البائع</label>
+                <label for="seller_id"><i class="fas fa-user-tie mr-1"></i> البائع</label>
                 {{ form.seller_id(class="form-control select2 ajax-select", id="seller_id",
                   **{'data-endpoint': url_for('api.users'),'data-placeholder': 'اختر البائع','data-allow-clear': 1}) }}
               </div>
@@ -136,18 +136,18 @@
                   {% for line in form.lines %}
                   <div class="sale-line mb-2 p-2 border rounded bg-white" data-index="{{ loop.index0 }}">
                     <div class="form-group">
-                      {{ line.product_id(class="form-control select2 ajax-select product-select",
+                      {{ line.product_id(class="form-control select2 ajax-select product-select", required=True,
                         **{'data-endpoint': url_for('api.products'),'data-placeholder':'اختر الصنف','data-allow-clear':1}) }}
                     </div>
                     <div class="form-group">
-                      {{ line.warehouse_id(class="form-control select2 ajax-select warehouse-select",
+                      {{ line.warehouse_id(class="form-control select2 ajax-select warehouse-select", required=True,
                         **{'data-endpoint': url_for('api.warehouses'),'data-placeholder':'اختر المستودع','data-allow-clear':1}) }}
                     </div>
                     <div class="form-group">
-                      {{ line.quantity(class="form-control quantity-input", min="1", placeholder="الكمية") }}
+                      {{ line.quantity(class="form-control quantity-input", min="1", step="1", required=True, placeholder="الكمية") }}
                     </div>
                     <div class="form-group">
-                      {{ line.unit_price(class="form-control price-input", min="0", step="0.01", placeholder="السعر") }}
+                      {{ line.unit_price(class="form-control price-input", min="0", step="0.01", required=True, placeholder="السعر") }}
                     </div>
                     <div class="form-group">
                       <div class="d-flex align-items-center justify-content-end">
@@ -259,6 +259,52 @@
       });
       window.addEventListener('load',recalc);
     })();
+  </script>
+
+  <!-- التحسينان المطلوبان: تعبئة السعر تلقائياً + منع الإرسال عند النواقص -->
+  <script>
+  (function(){
+    var qs = s=>document.querySelector(s);
+    var qsa = s=>Array.prototype.slice.call(document.querySelectorAll(s));
+    var toNum = v => {
+      var n = parseFloat(String(v==null?'':v).replace(/[^\d\-,.]/g,'').replace(',', '.'));
+      return isFinite(n)?n:0;
+    };
+    var form = document.getElementById('saleForm');
+    if(!form) return;
+
+    document.addEventListener('select2:select', function(e){
+      try{
+        var el = e.target;
+        if(!el || !el.matches('.product-select')) return;
+        var data = e.params && e.params.data;
+        if(!data) return;
+        var row = el.closest('.sale-line');
+        if(!row) return;
+        var priceInput = row.querySelector('[name$="-unit_price"]');
+        if(priceInput && !toNum(priceInput.value) && typeof data.price !== 'undefined'){
+          priceInput.value = Number(data.price||0).toFixed(2);
+          priceInput.dispatchEvent(new Event('input', {bubbles:true}));
+        }
+      }catch(_){}
+    });
+
+    form.addEventListener('submit', function(ev){
+      var ok = true;
+      qsa('.sale-line').forEach(function(row){
+        var pid = (row.querySelector('.product-select')||{}).value;
+        var wid = (row.querySelector('.warehouse-select')||{}).value;
+        var qv  = toNum((row.querySelector('[name$="-quantity"]')||{}).value);
+        var pv  = toNum((row.querySelector('[name$="-unit_price"]')||{}).value);
+        if(!pid || !wid || qv<=0 || pv<0){ ok=false; }
+      });
+      if(!ok){
+        ev.preventDefault();
+        ev.stopPropagation();
+        alert('أكمل بيانات البنود (الصنف/المخزن/الكمية/السعر).');
+      }
+    });
+  })();
   </script>
 {% endblock %}
 

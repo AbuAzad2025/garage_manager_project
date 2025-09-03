@@ -4,17 +4,16 @@ import hashlib
 import io
 import json
 import os
-# utils.py
 import re
 from datetime import datetime, timedelta
 from functools import wraps
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 
 import redis
-from flask import Response, abort, current_app, flash, make_response, request
+from flask import Response, abort, current_app, flash, make_response, request, jsonify
 from flask_login import current_user, login_required
 from flask_mail import Message
-from sqlalchemy import case, func, select
+from sqlalchemy import case, func, select, or_
 from twilio.base.exceptions import TwilioRestException
 from twilio.rest import Client
 
@@ -80,6 +79,89 @@ def _get_or_404(model, ident, *, load_options=None, pk_name: str = "id"):
         abort(404)
     return obj
 
+def search_model(
+    model,
+    search_fields,
+    *,
+    label_attr: str = "name",
+    value_attr: str = "id",
+    extra_filters: list | tuple | None = None,
+    limit_default: int = 20,
+    serializer=None,
+    q_param: str = "q",
+):
+    """
+    بحث عام نمطي للنماذج لإطعام Select2.
+    - يرجّع دائمًا: {"results": [{"id": .., "text": .., "name": ..}, ...], "pagination": {"more": bool}}
+    - يدعم q, page, limit من الـ query string.
+    - يدعم البحث الجزئي بالحروف، والبحث المباشر بالـ id إذا q رقم.
+    """
+
+    # مدخلات الواجهة
+    q = (request.args.get(q_param) or "").strip()
+    try:
+        limit = max(1, min(int(request.args.get("limit") or limit_default), 100))
+    except Exception:
+        limit = limit_default
+    try:
+        page = max(1, int(request.args.get("page") or 1))
+    except Exception:
+        page = 1
+
+    # بناء الاستعلام
+    query = db.session.query(model)
+
+    if extra_filters:
+        # تقدر تمرّر شروط إضافية من الراوت عند الحاجة
+        query = query.filter(*extra_filters)
+
+    if q:
+        ors = []
+        q_low = q.lower()
+        for field_name in (search_fields or []):
+            col = getattr(model, field_name, None)
+            if col is not None:
+                # LIKE مع lower للبحث الجزئي غير الحساس لحالة الأحرف
+                ors.append(func.lower(col).like(f"%{q_low}%"))
+
+        # دعم البحث المباشر بالـ id إذا q رقم
+        if q.isdigit() and hasattr(model, value_attr):
+            try:
+                ors.append(getattr(model, value_attr) == int(q))
+            except Exception:
+                pass
+
+        if ors:
+            query = query.filter(or_(*ors))
+
+    # ترتيب ونتائج
+    if hasattr(model, label_attr):
+        query = query.order_by(getattr(model, label_attr).asc())
+    elif hasattr(model, value_attr):
+        query = query.order_by(getattr(model, value_attr).asc())
+
+    total = query.count()
+    items = query.offset((page - 1) * limit).limit(limit).all()
+
+    # التسلسل للإخراج
+    def _serialize(obj):
+        if serializer:
+            d = serializer(obj)
+        else:
+            d = {
+                "id": getattr(obj, value_attr, None),
+                "text": getattr(obj, label_attr, None) or str(getattr(obj, value_attr, "")),
+            }
+        if "name" not in d:
+            d["name"] = d.get("text")
+        return d
+
+    results = [_serialize(o) for o in items]
+
+    return jsonify({
+        "results": results,                         # ما يحتاجه Select2
+        "pagination": {"more": (page * limit) < total}
+    })
 
 def init_app(app):
     global redis_client
@@ -113,6 +195,8 @@ def init_app(app):
     app.context_processor(_acl_ctx)
     _install_acl_cache_listeners()
     _install_accounting_listeners()
+from datetime import datetime
+from sqlalchemy import select
 
 def send_email_notification(subject, recipients, body, html=None):
     mail.send(Message(subject=subject, recipients=recipients, body=body, html=html))

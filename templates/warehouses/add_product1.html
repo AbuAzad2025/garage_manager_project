@@ -1,6 +1,7 @@
 {% extends 'warehouses/base.html' %}
 {% block title %}إضافة منتج - {{ warehouse.name }}{% endblock %}
 {% block page_title %}إضافة منتج - {{ warehouse.name }}{% endblock %}
+
 {% block head_extra %}
   {{ super() }}
   <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -47,18 +48,47 @@
     <div class="card-header">التعريف / المعرّفات</div>
     <div class="card-body">
       <div class="row g-3">
-        <div class="col-md-6">{{ product_form.name.label }} {{ product_form.name(class_="form-control", required=True) }}</div>
-        <div class="col-md-3">{{ product_form.sku.label }} {{ product_form.sku(class_="form-control") }}</div>
+        <div class="col-md-6">
+          {{ product_form.name.label }}
+          {{ product_form.name(class_="form-control", required=True) }}
+          {% for e in product_form.name.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="col-md-3">
+          {{ product_form.sku.label }}
+          {{ product_form.sku(class_="form-control") }}
+          {% for e in product_form.sku.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
         <div class="col-md-3">
           {{ product_form.barcode.label }}
           {{ product_form.barcode(class_="form-control", id="barcode", dir="ltr", inputmode="numeric", maxlength="13", placeholder="EAN-13 أو UPC-A") }}
           <small id="barcodeHelp" class="form-text text-muted">امسح الباركود بالقارئ</small>
+          {% for e in product_form.barcode.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
         </div>
-        <div class="col-md-4">{{ product_form.part_number.label }} {{ product_form.part_number(class_="form-control") }}</div>
-        <div class="col-md-4">{{ product_form.serial_no.label }} {{ product_form.serial_no(class_="form-control") }}</div>
-        <div class="col-md-4">{{ product_form.chassis_number.label }} {{ product_form.chassis_number(class_="form-control") }}</div>
-        <div class="col-md-6">{{ product_form.commercial_name.label }} {{ product_form.commercial_name(class_="form-control") }}</div>
-        <div class="col-md-6">{{ product_form.brand.label }} {{ product_form.brand(class_="form-control") }}</div>
+        <div class="col-md-4">
+          {{ product_form.part_number.label }}
+          {{ product_form.part_number(class_="form-control") }}
+          {% for e in product_form.part_number.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="col-md-4">
+          {{ product_form.serial_no.label }}
+          {{ product_form.serial_no(class_="form-control") }}
+          {% for e in product_form.serial_no.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="col-md-4">
+          {{ product_form.chassis_number.label }}
+          {{ product_form.chassis_number(class_="form-control") }}
+          {% for e in product_form.chassis_number.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="col-md-6">
+          {{ product_form.commercial_name.label }}
+          {{ product_form.commercial_name(class_="form-control") }}
+          {% for e in product_form.commercial_name.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="col-md-6">
+          {{ product_form.brand.label }}
+          {{ product_form.brand(class_="form-control") }}
+          {% for e in product_form.brand.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
       </div>
     </div>
   </div>
@@ -66,34 +96,38 @@
   <div class="card mb-3 shadow-sm">
     <div class="card-header">الوصف والتصنيف</div>
     <div class="card-body">
-      <div class="mb-3">{{ product_form.description.label }} {{ product_form.description(class_="form-control", rows="3") }}</div>
+      <div class="mb-3">
+        {{ product_form.description.label }}
+        {{ product_form.description(class_="form-control") }}
+        {% for e in product_form.description.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+      </div>
       <div class="row g-3">
         <div class="col-md-4">
           <label class="form-label">{{ product_form.category_id.label.text }}</label>
           <div class="input-group">
-            {{ product_form.category_id(
-                 class_="form-control select2",
-                 id="category_id",
-                 placeholder="اختر الفئة",
-                 **{'data-url': url_for('api.search_categories')}
-               ) }}
+            {{ product_form.category_id(class_="form-control select2", id="category_id", **{'data-url': url_for('api.search_categories')}) }}
             <button type="button" class="btn btn-outline-primary" id="btn-add-category" data-toggle="modal" data-target="#categoryModal">+</button>
           </div>
+          {% for e in product_form.category_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
         </div>
         <div class="col-md-4">
           <label class="form-label">{{ product_form.vehicle_type_id.label.text }}</label>
           <div class="input-group">
-            {{ product_form.vehicle_type_id(
-                 class_="form-control select2",
-                 id="vehicle_type_id",
-                 placeholder="اختر نوع المركبة",
-                 **{'data-url': url_for('api.search_equipment_types')}
-               ) }}
+            {{ product_form.vehicle_type_id(class_="form-control select2", id="vehicle_type_id", **{'data-url': url_for('api.search_equipment_types')}) }}
             <button type="button" class="btn btn-outline-primary" id="btn-add-vehicle-type" data-toggle="modal" data-target="#equipmentTypeModal">+</button>
           </div>
+          {% for e in product_form.vehicle_type_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
         </div>
-        <div class="col-md-2">{{ product_form.condition.label }} {{ product_form.condition(class_="form-select") }}</div>
-        <div class="col-md-2">{{ product_form.origin_country.label }} {{ product_form.origin_country(class_="form-control") }}</div>
+        <div class="col-md-2">
+          {{ product_form.condition.label }}
+          {{ product_form.condition(class_="form-select") }}
+          {% for e in product_form.condition.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="col-md-2">
+          {{ product_form.origin_country.label }}
+          {{ product_form.origin_country(class_="form-control") }}
+          {% for e in product_form.origin_country.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
       </div>
     </div>
   </div>
@@ -102,15 +136,43 @@
     <div class="card-header">التسعير والضرائب</div>
     <div class="card-body">
       <div class="row g-3">
-        <div class="col-md-3">{{ product_form.price.label }} {{ product_form.price(class_="form-control", required=True) }}</div>
-        <div class="col-md-3">{{ product_form.unit_price_before_tax.label }} {{ product_form.unit_price_before_tax(class_="form-control") }}</div>
-        <div class="col-md-2">{{ product_form.tax_rate.label }} {{ product_form.tax_rate(class_="form-control") }}</div>
-        <div class="col-md-2">{{ product_form.min_price.label }} {{ product_form.min_price(class_="form-control") }}</div>
-        <div class="col-md-2">{{ product_form.max_price.label }} {{ product_form.max_price(class_="form-control") }}</div>
+        <div class="col-md-3">
+          {{ product_form.price.label }}
+          {{ product_form.price(class_="form-control", required=True) }}
+          {% for e in product_form.price.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="col-md-3">
+          {{ product_form.unit_price_before_tax.label }}
+          {{ product_form.unit_price_before_tax(class_="form-control") }}
+          {% for e in product_form.unit_price_before_tax.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="col-md-2">
+          {{ product_form.tax_rate.label }}
+          {{ product_form.tax_rate(class_="form-control") }}
+          {% for e in product_form.tax_rate.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="col-md-2">
+          {{ product_form.min_price.label }}
+          {{ product_form.min_price(class_="form-control") }}
+          {% for e in product_form.min_price.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="col-md-2">
+          {{ product_form.max_price.label }}
+          {{ product_form.max_price(class_="form-control") }}
+          {% for e in product_form.max_price.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
       </div>
       <div class="row g-3 mt-3">
-        <div class="col-md-3">{{ product_form.cost_before_shipping.label }} {{ product_form.cost_before_shipping(class_="form-control") }}</div>
-        <div class="col-md-3">{{ product_form.cost_after_shipping.label }} {{ product_form.cost_after_shipping(class_="form-control") }}</div>
+        <div class="col-md-3">
+          {{ product_form.cost_before_shipping.label }}
+          {{ product_form.cost_before_shipping(class_="form-control") }}
+          {% for e in product_form.cost_before_shipping.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="col-md-3">
+          {{ product_form.cost_after_shipping.label }}
+          {{ product_form.cost_after_shipping(class_="form-control") }}
+          {% for e in product_form.cost_after_shipping.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
       </div>
     </div>
   </div>
@@ -119,12 +181,36 @@
     <div class="card-header">المخزون والحدود</div>
     <div class="card-body">
       <div class="row g-3">
-        <div class="col-md-2">{{ stock_form.quantity.label }} {{ stock_form.quantity(class_="form-control") }}</div>
-        <div class="col-md-2">{{ stock_form.reserved_quantity.label }} {{ stock_form.reserved_quantity(class_="form-control") }}</div>
-        <div class="col-md-2">{{ stock_form.min_stock.label }} {{ stock_form.min_stock(class_="form-control") }}</div>
-        <div class="col-md-2">{{ stock_form.max_stock.label }} {{ stock_form.max_stock(class_="form-control") }}</div>
-        <div class="col-md-2">{{ product_form.min_qty.label }} {{ product_form.min_qty(class_="form-control") }}</div>
-        <div class="col-md-2">{{ product_form.reorder_point.label }} {{ product_form.reorder_point(class_="form-control") }}</div>
+        <div class="col-md-2">
+          {{ stock_form.quantity.label }}
+          {{ stock_form.quantity(class_="form-control") }}
+          {% for e in stock_form.quantity.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="col-md-2">
+          {{ stock_form.reserved_quantity.label }}
+          {{ stock_form.reserved_quantity(class_="form-control") }}
+          {% for e in stock_form.reserved_quantity.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="col-md-2">
+          {{ stock_form.min_stock.label }}
+          {{ stock_form.min_stock(class_="form-control") }}
+          {% for e in stock_form.min_stock.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="col-md-2">
+          {{ stock_form.max_stock.label }}
+          {{ stock_form.max_stock(class_="form-control") }}
+          {% for e in stock_form.max_stock.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="col-md-2">
+          {{ product_form.min_qty.label }}
+          {{ product_form.min_qty(class_="form-control") }}
+          {% for e in product_form.min_qty.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="col-md-2">
+          {{ product_form.reorder_point.label }}
+          {{ product_form.reorder_point(class_="form-control") }}
+          {% for e in product_form.reorder_point.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
       </div>
     </div>
   </div>
@@ -133,28 +219,43 @@
     <div class="card-header">المواصفات</div>
     <div class="card-body">
       <div class="row g-3 align-items-center">
-        <div class="col-md-3">{{ product_form.weight.label }} {{ product_form.weight(class_="form-control") }}</div>
-        <div class="col-md-3">{{ product_form.dimensions.label }} {{ product_form.dimensions(class_="form-control") }}</div>
-        <div class="col-md-3">{{ product_form.warranty_period.label }} {{ product_form.warranty_period(class_="form-control") }}</div>
+        <div class="col-md-3">
+          {{ product_form.weight.label }}
+          {{ product_form.weight(class_="form-control") }}
+          {% for e in product_form.weight.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="col-md-3">
+          {{ product_form.dimensions.label }}
+          {{ product_form.dimensions(class_="form-control") }}
+          {% for e in product_form.dimensions.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="col-md-3">
+          {{ product_form.warranty_period.label }}
+          {{ product_form.warranty_period(class_="form-control") }}
+          {% for e in product_form.warranty_period.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
         <div class="col-md-3 d-flex gap-3 align-items-center">
           <div class="form-check">
             {{ product_form.is_active(class_="form-check-input", id="is_active_id") }}
             <label class="form-check-label" for="is_active_id">{{ product_form.is_active.label.text }}</label>
+            {% for e in product_form.is_active.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
           <div class="form-check">
             {{ product_form.is_digital(class_="form-check-input", id="is_digital_id") }}
             <label class="form-check-label" for="is_digital_id">{{ product_form.is_digital.label.text }}</label>
+            {% for e in product_form.is_digital.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
           <div class="form-check">
             {{ product_form.is_exchange(class_="form-check-input", id="is_exchange_id") }}
             <label class="form-check-label" for="is_exchange_id">{{ product_form.is_exchange.label.text }}</label>
+            {% for e in product_form.is_exchange.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <div class="card mb-3 {% if (wtype|upper) == 'PARTNER' %}{% else %}d-none{% endif %}" id="partner-section">
+  <div class="card mb-3 d-none" id="partner-section">
     <div class="card-header d-flex justify-content-between align-items-center">
       <span>مساهمات الشركاء</span>
       <div class="d-flex gap-2">
@@ -166,11 +267,7 @@
       {% for p_form in partners_forms %}
       <div class="partner-entry border rounded p-3 mb-3">
         {{ p_form.partner_id.label }}
-        {{ p_form.partner_id(
-             class_="form-control select2",
-             placeholder="اختر الشريك",
-             **{'data-url': url_for('api.search_partners')}
-           ) }}
+        {{ p_form.partner_id(class_="form-control select2", **{'data-url': url_for('api.search_partners')}) }}
         <div class="row g-2 mt-2">
           <div class="col-md-4">{{ p_form.share_percentage.label }} {{ p_form.share_percentage(class_="form-control") }}</div>
           <div class="col-md-4">{{ p_form.share_amount.label }} {{ p_form.share_amount(class_="form-control") }}</div>
@@ -182,7 +279,7 @@
     </div>
   </div>
 
-  <div class="card mb-3 {% if (wtype|upper) == 'EXCHANGE' %}{% else %}d-none{% endif %}" id="exchange-section">
+  <div class="card mb-3 d-none" id="exchange-section">
     <div class="card-header d-flex justify-content-between align-items-center">
       <span>تجار / مورّدون للتبادل</span>
       <div class="d-flex gap-2">
@@ -197,18 +294,14 @@
           <div class="col-md-6">
             {{ v_form.supplier_id.label }}
             <div class="input-group">
-              {{ v_form.supplier_id(
-                   class_="form-control select2",
-                   placeholder="اختر المورد",
-                   **{'data-url': url_for('api.search_suppliers')}
-                 ) }}
+              {{ v_form.supplier_id(class_="form-control select2", **{'data-url': url_for('api.search_suppliers')}) }}
               <button type="button" class="btn btn-outline-primary add-supplier-btn" data-toggle="modal" data-target="#supplierModal">+</button>
             </div>
           </div>
           <div class="col-md-6">{{ v_form.vendor_phone.label }} {{ v_form.vendor_phone(class_="form-control") }}</div>
           <div class="col-md-6">{{ v_form.vendor_paid.label }} {{ v_form.vendor_paid(class_="form-control") }}</div>
           <div class="col-md-6">{{ v_form.vendor_price.label }} {{ v_form.vendor_price(class_="form-control") }}</div>
-          <div class="col-12"><small class="text-muted">اختر مورّدًا من القائمة أو أضِف جديدًا عند الحاجة.</small></div>
+          <div class="col-12"><small class="text-muted">اختر مورّدًا من القائمة أو املأ البيانات يدوياً عند الحاجة.</small></div>
         </div>
         <button type="button" class="btn btn-sm btn-danger remove-vendor-btn mt-3">حذف</button>
       </div>
@@ -224,7 +317,9 @@
 
 <div class="modal fade" id="categoryModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
-    <form id="create-category-form" class="modal-content" method="post"
+    <form id="create-category-form"
+          class="modal-content"
+          method="post"
           action="{{ url_for('api.create_category') }}"
           data-url="{{ url_for('api.create_category') }}"
           data-search-url="{{ url_for('api.search_categories') }}">
@@ -246,7 +341,9 @@
 
 <div class="modal fade" id="equipmentTypeModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
-    <form id="equipmentTypeForm" class="modal-content" method="post"
+    <form id="equipmentTypeForm"
+          class="modal-content"
+          method="post"
           action="{{ url_for('api.create_equipment_type') }}"
           data-url="{{ url_for('api.create_equipment_type') }}"
           data-search-url="{{ url_for('api.search_equipment_types') }}">
@@ -268,7 +365,9 @@
 
 <div class="modal fade" id="supplierModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
-    <form id="create-supplier-form" class="modal-content" method="post"
+    <form id="create-supplier-form"
+          class="modal-content"
+          method="post"
           action="{{ url_for('api.create_supplier') }}"
           data-url="{{ url_for('api.create_supplier') }}"
           data-search-url="{{ url_for('api.search_suppliers') }}">
@@ -311,8 +410,7 @@
 <template id="partner-template">
   <div class="partner-entry border rounded p-3 mb-3">
     <label>الشريك</label>
-    <select name="partner_id" class="form-control select2" placeholder="اختر الشريك"
-            data-url="{{ url_for('api.search_partners') }}"></select>
+    <select name="partner_id" class="form-control select2" data-url="{{ url_for('api.search_partners') }}"></select>
     <div class="row g-2 mt-2">
       <div class="col-md-4"><label>نسبة المشاركة</label><input type="number" step="0.01" name="share_percentage" class="form-control" /></div>
       <div class="col-md-4"><label>قيمة المساهمة</label><input type="number" step="0.01" name="share_amount" class="form-control" /></div>
@@ -328,15 +426,14 @@
       <div class="col-md-6">
         <label>المورّد / التاجر</label>
         <div class="input-group">
-          <select name="supplier_id" class="form-control select2" placeholder="اختر المورد"
-                  data-url="{{ url_for('api.search_suppliers') }}"></select>
+          <select name="supplier_id" class="form-control select2" data-url="{{ url_for('api.search_suppliers') }}"></select>
           <button type="button" class="btn btn-outline-primary add-supplier-btn" data-toggle="modal" data-target="#supplierModal">+</button>
         </div>
       </div>
       <div class="col-md-6"><label>الهاتف</label><input type="text" name="vendor_phone" class="form-control" /></div>
       <div class="col-md-6"><label>المبلغ المدفوع</label><input type="number" step="0.01" name="vendor_paid" class="form-control" /></div>
       <div class="col-md-6"><label>السعر</label><input type="number" step="0.01" name="vendor_price" class="form-control" /></div>
-      <div class="col-12"><small class="text-muted">اختر مورّدًا من القائمة أو أضف جديدًا عند الحاجة.</small></div>
+      <div class="col-12"><small class="text-muted">اختر مورّدًا من القائمة أو املأ البيانات يدوياً.</small></div>
     </div>
     <button type="button" class="btn btn-sm btn-danger remove-vendor-btn mt-3">حذف</button>
   </div>
@@ -345,184 +442,105 @@
 
 {% block scripts %}
   {{ super() }}
+  <script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
   <script>
   (function () {
-    if (window.__WAREHOUSES_INIT__) return;
-    window.__WAREHOUSES_INIT__ = true;
-
-    function getCSRFToken() {
-      const meta = document.querySelector('meta[name="csrf-token"]');
-      if (meta && meta.content) return meta.content;
-      const input = document.querySelector('input[name="csrf_token"]');
-      if (input && input.value) return input.value;
-      const m = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
-      return m ? decodeURIComponent(m[1]) : null;
-    }
-
-    function notify(message, type) {
+    const notify = (m, t) => {
+      if (window.showNotification) { window.showNotification(m, t || 'info'); return; }
       let c = document.getElementById('notification-container');
-      if (!c) {
-        c = document.createElement('div');
-        c.id = 'notification-container';
-        c.style.position = 'fixed';
-        c.style.top = '20px';
-        c.style.right = '20px';
-        c.style.zIndex = '2000';
-        document.body.appendChild(c);
-      }
-      const el = document.createElement('div');
-      el.className = 'alert alert-' + (type || 'info') + ' alert-dismissible fade show shadow-sm mb-2';
-      const isBS5 = !!(window.bootstrap && typeof bootstrap?.Modal === 'function');
-      const closeBtn = isBS5
-        ? '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>'
-        : '<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>';
-      el.innerHTML = message + closeBtn;
-      c.appendChild(el);
-      setTimeout(function () {
-        if (!el.parentNode) return;
-        el.classList.remove('show');
-        setTimeout(function () { el.remove(); }, 300);
-      }, 5000);
-    }
+      if (!c) { c = document.createElement('div'); c.id = 'notification-container'; c.style.position='fixed'; c.style.top='20px'; c.style.right='20px'; c.style.zIndex='2000'; document.body.appendChild(c); }
+      const el = document.createElement('div'); el.className = 'alert alert-' + (t||'info') + ' alert-dismissible fade show shadow-sm mb-2'; el.innerHTML = m + '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>'; c.appendChild(el); setTimeout(()=>{el.classList.remove('show'); setTimeout(()=>el.remove(),300)},5000);
+    };
+    const getCSRF = () => document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    const wtype = document.getElementById('add-product-form')?.dataset?.wtype || '';
+    const partnerSection = document.getElementById('partner-section');
+    const exchangeSection = document.getElementById('exchange-section');
+    const isExchangeEl = document.getElementById('is_exchange_id');
+    const togglePartnerSection = (on) => partnerSection?.classList.toggle('d-none', !on);
+    const toggleExchangeSection = (on) => exchangeSection?.classList.toggle('d-none', !on);
+    if (wtype && /partner/i.test(wtype)) togglePartnerSection(true);
+    if (isExchangeEl) { const syncExchange = () => toggleExchangeSection(isExchangeEl.checked); isExchangeEl.addEventListener('change', syncExchange); syncExchange(); }
 
-    function prefetchOnce($el, endpoint){
-      if (!$el || !endpoint) return;
-      if ($el.data('prefetched')) return;
-      $el.data('prefetched', true);
-      fetch(endpoint + (endpoint.includes('?') ? '&' : '?') + 'q=&limit=20', {
-        headers: {'X-Requested-With':'XMLHttpRequest'},
-        credentials: 'same-origin'
-      }).then(function(r){ return r.json(); }).then(function(data){
-        const arr = Array.isArray(data) ? data : (data.results || data.data || []);
-        (arr || []).forEach(function(x){
-          const id = x.id;
-          const text = x.text || x.name || String(id);
-          if (!id) return;
-          if ($el.find('option[value="'+id+'"]').length === 0) {
-            const opt = new Option(text, id, false, false);
-            $el.append(opt);
-          }
-        });
-        $el.trigger('change.select2');
-      }).catch(function(){});
-    }
-
-    function initSelect2Smart(root) {
+    const initSelect2Smart = (root) => {
       if (!(window.jQuery && jQuery.fn.select2)) return;
       const $root = jQuery(root || document);
       $root.find('select.select2').each(function () {
         const $el = jQuery(this);
         if ($el.data('select2')) return;
-        const endpoint = $el.data('url') || $el.data('endpoint');
-        const placeholder = $el.attr('placeholder') || 'اختر...';
-        const opts = {
-          width: '100%', dir: 'rtl', theme: 'bootstrap4',
-          allowClear: true, placeholder: placeholder, minimumInputLength: 0
-        };
+        const endpoint = $el.data('url');
+        const opts = { width: '100%', dir: 'rtl', theme: 'bootstrap4', allowClear: true, placeholder: $el.attr('placeholder') || 'اختر...' };
         if (endpoint) {
           opts.ajax = {
-            delay: 250, cache: true, url: endpoint,
-            data: function (params) { return { q: params && params.term ? params.term : '', limit: 20 }; },
-            processResults: function (data) {
+            delay: 250,
+            url: endpoint,
+            data: (params) => ({ q: params.term || '', limit: 20 }),
+            processResults: (data) => {
               const arr = Array.isArray(data) ? data : (data.results || data.data || []);
-              return { results: (arr || []).map(function (x) { return { id: x.id, text: x.text || x.name || String(x.id) }; }) };
+              return { results: (arr || []).map(x => ({ id: x.id, text: x.text || x.name || String(x.id) })) };
             }
           };
         }
         $el.select2(opts);
-        if (endpoint) prefetchOnce($el, endpoint);
       });
-    }
-
-    function postJSON(url, payload) {
-      return fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-          'X-CSRFToken': getCSRFToken() || ''
-        },
-        credentials: 'same-origin',
-        body: JSON.stringify(payload || {})
-      }).then(async function(res){
-        let data = null;
-        try { data = await res.json(); } catch(_){}
-        if (!res.ok) {
-          const msg = (data && (data.error || data.message)) || ('HTTP ' + res.status);
-          throw new Error(msg);
-        }
-        return data;
-      });
-    }
-
-    function appendAndSelectOption(selectEl, id, text) {
-      if (!selectEl || !id) return;
-      const opt = new Option(text, id, true, true);
-      selectEl.add(opt);
-      if (window.jQuery) jQuery(selectEl).trigger('change');
-    }
-
-    const form = document.getElementById('add-product-form');
-    const wtype = (form?.dataset?.wtype || '').toUpperCase();
-    const partnerSection = document.getElementById('partner-section');
-    const exchangeSection = document.getElementById('exchange-section');
-    const isExchangeEl = document.getElementById('is_exchange_id');
-
-    if (wtype === 'PARTNER') partnerSection?.classList.remove('d-none');
-    const defaultExchange = (wtype === 'EXCHANGE');
-    if (isExchangeEl) {
-      if (defaultExchange) isExchangeEl.checked = true;
-      exchangeSection?.classList.toggle('d-none', !(isExchangeEl.checked || defaultExchange));
-      isExchangeEl.addEventListener('change', function () {
-        exchangeSection?.classList.toggle('d-none', !isExchangeEl.checked);
-      });
-    } else {
-      exchangeSection?.classList.toggle('d-none', !defaultExchange);
-    }
-
+    };
     initSelect2Smart(document);
 
     const partnersContainer = document.getElementById('partners-container');
     const vendorsContainer = document.getElementById('vendors-container');
     const partnerTpl = document.getElementById('partner-template');
     const vendorTpl = document.getElementById('vendor-template');
-
-    document.getElementById('add-partner-btn')?.addEventListener('click', function () {
+    document.getElementById('add-partner-btn')?.addEventListener('click', () => {
       if (!partnerTpl || !partnersContainer) return;
       const node = partnerTpl.content.cloneNode(true);
       partnersContainer.appendChild(node);
       initSelect2Smart(partnersContainer);
     });
-
-    document.getElementById('add-vendor-btn')?.addEventListener('click', function () {
+    document.getElementById('add-vendor-btn')?.addEventListener('click', () => {
       if (!vendorTpl || !vendorsContainer) return;
       const node = vendorTpl.content.cloneNode(true);
       vendorsContainer.appendChild(node);
       initSelect2Smart(vendorsContainer);
     });
-
-    document.addEventListener('click', function (e) {
+    document.addEventListener('click', (e) => {
       if (e.target.classList.contains('remove-partner-btn')) e.target.closest('.partner-entry')?.remove();
       if (e.target.classList.contains('remove-vendor-btn')) e.target.closest('.vendor-entry')?.remove();
     });
 
+    async function postJSON(url, payload) {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': getCSRF() },
+        body: JSON.stringify(payload || {})
+      });
+      let data = null;
+      try { data = await res.json(); } catch (_) {}
+      if (!res.ok) { const msg = (data && (data.error || data.message)) || ('HTTP ' + res.status); throw new Error(msg); }
+      return data;
+    }
+    function appendAndSelectOption(selectEl, id, text) {
+      if (!selectEl) return;
+      const opt = new Option(text, id, true, true);
+      selectEl.add(opt);
+      if (window.jQuery) jQuery(selectEl).trigger('change');
+    }
+
     (function initCategoryModal() {
-      const mform = document.getElementById('create-category-form');
+      const form = document.getElementById('create-category-form');
       const select = document.getElementById('category_id');
-      if (!mform || !select) return;
-      mform.addEventListener('submit', async function (e) {
+      if (!form || !select) return;
+      form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const btn = mform.querySelector('button[type="submit"]');
+        const btn = form.querySelector('button[type="submit"]');
         btn?.setAttribute('disabled', 'disabled');
         try {
-          const name = mform.querySelector('input[name="name"]')?.value?.trim();
-          const notes = mform.querySelector('textarea[name="notes"]')?.value?.trim() || '';
+          const name = form.querySelector('input[name="name"]')?.value?.trim();
+          const notes = form.querySelector('textarea[name="notes"]')?.value?.trim() || '';
           if (!name) { notify('أدخل اسم الفئة', 'warning'); return; }
-          const data = await postJSON(mform.dataset.url, { name, notes });
+          const data = await postJSON(form.dataset.url, { name, notes });
           appendAndSelectOption(select, data.id, data.name || name);
           notify('تمت إضافة الفئة.', 'success');
-          if (window.jQuery) jQuery(mform).closest('.modal').modal('hide');
-          mform.reset();
+          if (window.jQuery) jQuery(form).closest('.modal').modal('hide');
+          form.reset();
         } catch (err) {
           notify('تعذر إضافة الفئة: ' + err.message, 'danger');
         } finally {
@@ -532,22 +550,22 @@
     })();
 
     (function initEquipmentTypeModal() {
-      const mform = document.getElementById('equipmentTypeForm');
+      const form = document.getElementById('equipmentTypeForm');
       const select = document.getElementById('vehicle_type_id');
-      if (!mform || !select) return;
-      mform.addEventListener('submit', async function (e) {
+      if (!form || !select) return;
+      form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const btn = mform.querySelector('button[type="submit"]');
+        const btn = form.querySelector('button[type="submit"]');
         btn?.setAttribute('disabled', 'disabled');
         try {
-          const name = mform.querySelector('input[name="name"]')?.value?.trim();
-          const notes = mform.querySelector('textarea[name="notes"]')?.value?.trim() || '';
+          const name = form.querySelector('input[name="name"]')?.value?.trim();
+          const notes = form.querySelector('textarea[name="notes"]')?.value?.trim() || '';
           if (!name) { notify('أدخل اسم النوع', 'warning'); return; }
-          const data = await postJSON(mform.dataset.url, { name, notes });
+          const data = await postJSON(form.dataset.url, { name, notes });
           appendAndSelectOption(select, data.id, data.name || name);
           notify('تمت إضافة النوع.', 'success');
-          if (window.jQuery) jQuery(mform).closest('.modal').modal('hide');
-          mform.reset();
+          if (window.jQuery) jQuery(form).closest('.modal').modal('hide');
+          form.reset();
         } catch (err) {
           notify('تعذر إضافة النوع: ' + err.message, 'danger');
         } finally {
@@ -557,31 +575,31 @@
     })();
 
     (function initSupplierModal() {
-      const mform = document.getElementById('create-supplier-form');
-      if (!mform) return;
+      const form = document.getElementById('create-supplier-form');
+      if (!form) return;
       let lastSupplierSelect = null;
-      document.addEventListener('focusin', function (e) {
+      document.addEventListener('focusin', (e) => {
         if (e.target.matches('#vendors-container select[name="supplier_id"]')) lastSupplierSelect = e.target;
       });
-      mform.addEventListener('submit', async function (e) {
+      form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const btn = mform.querySelector('button[type="submit"]');
+        const btn = form.querySelector('button[type="submit"]');
         btn?.setAttribute('disabled', 'disabled');
         try {
           const payload = {
-            name: mform.querySelector('input[name="name"]')?.value?.trim(),
-            phone: mform.querySelector('input[name="phone"]')?.value?.trim() || '',
-            identity_number: mform.querySelector('input[name="identity_number"]')?.value?.trim() || '',
-            address: mform.querySelector('input[name="address"]')?.value?.trim() || '',
-            notes: mform.querySelector('textarea[name="notes"]')?.value?.trim() || ''
+            name: form.querySelector('input[name="name"]')?.value?.trim(),
+            phone: form.querySelector('input[name="phone"]')?.value?.trim() || '',
+            identity_number: form.querySelector('input[name="identity_number"]')?.value?.trim() || '',
+            address: form.querySelector('input[name="address"]')?.value?.trim() || '',
+            notes: form.querySelector('textarea[name="notes"]')?.value?.trim() || ''
           };
           if (!payload.name) { notify('الاسم مطلوب', 'warning'); return; }
-          const data = await postJSON(mform.dataset.url, payload);
+          const data = await postJSON(form.dataset.url, payload);
           const targetSelect = lastSupplierSelect || document.querySelector('#vendors-container select[name="supplier_id"]');
           appendAndSelectOption(targetSelect, data.id, data.name || payload.name);
           notify('تمت إضافة المورّد.', 'success');
-          if (window.jQuery) jQuery(mform).closest('.modal').modal('hide');
-          mform.reset();
+          if (window.jQuery) jQuery(form).closest('.modal').modal('hide');
+          form.reset();
         } catch (err) {
           notify('تعذر إضافة المورّد: ' + err.message, 'danger');
         } finally {
@@ -589,68 +607,55 @@
         }
       });
     })();
+  })();
+  </script>
 
-    if (form) {
-      form.addEventListener('submit', function () {
-        if (window.jQuery) {
-          var vCat = jQuery('#category_id').val();
-          if (vCat != null) {
-            var catEl = document.querySelector('select[name="category_id"]');
-            if (catEl) catEl.value = Array.isArray(vCat) ? vCat[0] : vCat;
-          }
-          var vType = jQuery('#vehicle_type_id').val();
-          if (vType != null) {
-            var typeEl = document.querySelector('select[name="vehicle_type_id"]');
-            if (typeEl) typeEl.value = Array.isArray(vType) ? vType[0] : vType;
-          }
-        }
-      });
-    }
-
-    (function initBarcode() {
-      const input = document.getElementById('barcode');
-      const help  = document.getElementById('barcodeHelp');
-      if (!input) return;
-      input.addEventListener('input', function () {
-        let v = input.value.replace(/\D+/g,'');
-        if (v.length > 13) v = v.slice(0,13);
-        input.value = v;
-        input.classList.remove('is-invalid','is-valid');
-        if (v.length >= 12) check(v);
-      });
-      input.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          const form = input.closest('form');
-          const focusables = form.querySelectorAll('input,select,textarea,button');
-          for (let i=0;i<focusables.length;i++){
-            if (focusables[i] === input && focusables[i+1]) { focusables[i+1].focus(); break; }
-          }
-        }
-      });
-      async function check(code){
-        try{
-          const url = `{{ url_for('bp_barcode.barcode_validate') }}?code=${encodeURIComponent(code)}`;
-          const res = await fetch(url, { headers: {'X-Requested-With':'XMLHttpRequest'}, credentials: 'same-origin' });
-          const r = await res.json();
-          if (!r.valid) {
-            input.classList.add('is-invalid');
-            help.textContent = 'باركود غير صالح';
-            return;
-          }
-          if (r.normalized && r.normalized !== input.value) input.value = r.normalized;
-          if (r.exists) {
-            input.classList.add('is-invalid');
-            help.textContent = 'الباركود مستخدم بالفعل';
-          } else {
-            input.classList.add('is-valid');
-            help.textContent = 'الباركود صالح';
-          }
-        } catch {
-          help.textContent = 'تعذر التحقق الآن، سيتم الفحص عند الحفظ';
+  <script>
+  (function(){
+    const input = document.getElementById('barcode');
+    const help  = document.getElementById('barcodeHelp');
+    if (!input) return;
+    input.addEventListener('input', () => {
+      let v = input.value.replace(/\D+/g,'');
+      if (v.length > 13) v = v.slice(0,13);
+      input.value = v;
+      input.classList.remove('is-invalid','is-valid');
+      if (v.length >= 12) check(v);
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const form = input.closest('form');
+        const focusables = form.querySelectorAll('input,select,textarea,button');
+        for (let i=0;i<focusables.length;i++){
+          if (focusables[i] === input && focusables[i+1]) { focusables[i+1].focus(); break; }
         }
       }
-    })();
+    });
+    async function check(code){
+      try{
+        const url = `{{ url_for('bp_barcode.barcode_validate') }}?code=${encodeURIComponent(code)}`;
+        const res = await fetch(url, { headers: {'X-Requested-With':'XMLHttpRequest'} });
+        const r = await res.json();
+        if (!r.valid) {
+          input.classList.add('is-invalid');
+          help.textContent = 'باركود غير صالح';
+          return;
+        }
+        if (r.normalized && r.normalized !== input.value) {
+          input.value = r.normalized;
+        }
+        if (r.exists) {
+          input.classList.add('is-invalid');
+          help.textContent = 'الباركود مستخدم بالفعل';
+        } else {
+          input.classList.add('is-valid');
+          help.textContent = 'الباركود صالح';
+        }
+      } catch {
+        help.textContent = 'تعذر التحقق الآن، سيتم الفحص عند الحفظ';
+      }
+    }
   })();
   </script>
 {% endblock %}
