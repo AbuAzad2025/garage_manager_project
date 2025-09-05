@@ -1,147 +1,125 @@
-<!-- File: templates/sales/receipt.html -->
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="UTF-8">
-  <title>فاتورة مبيعات - {{ sale.sale_number or sale.id }}</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+{% extends "base_print.html" %}
+{% block title %}فاتورة مبيعات{% endblock %}
 
-  <!-- أنماط اختيارية لديك -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/sales.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}">
-
+{% block head_extra %}
   <style>
-    @page { size: A4; margin: 0; }
-    @media print { body { margin: 1cm; } .no-print { display: none !important; } }
-    body{font-family:Arial, sans-serif;background:#f8f9fa;color:#333;line-height:1.7;margin:0}
-    .receipt{max-width:900px;margin:20px auto;background:#fff;border:1px solid #e5e7eb;border-radius:1rem;box-shadow:0 .75rem 1.5rem rgba(0,0,0,.08)}
-    .receipt .header{display:flex;justify-content:space-between;gap:16px;padding:20px 24px;border-bottom:2px solid #111}
-    .company{text-align:left}
-    .company .logo{max-height:72px}
-    .title{font-size:28px;margin:0;font-weight:800}
-    .meta p{margin:.25rem 0}
-    .block{padding:16px 24px}
-    table{width:100%;border-collapse:collapse}
-    th,td{border:1px solid #e5e7eb;padding:10px;text-align:center}
-    thead th{background:#f1f3f5}
-    tfoot td{background:#f8f9fa;font-weight:700}
-    .notes{margin:16px 24px;background:#f8f9fa;border:1px dashed #ccc;border-radius:.5rem;padding:12px}
-    .sign{display:flex;gap:24px;justify-content:space-between;margin:24px}
-    .sign .box{flex:1;border-top:2px solid #111;text-align:center;padding-top:24px}
-    .actions{padding:16px 24px;text-align:center}
-    .btn{display:inline-block;margin:5px;padding:10px 16px;border-radius:8px;text-decoration:none}
-    .btn-primary{background:#0d6efd;color:#fff}
-    .btn-secondary{background:#6c757d;color:#fff}
+    @page { size: A4; margin: 12mm; }
+    @media print { .no-print { display: none !important; } }
+    body { background:#fff; font-family:'Amiri','Arial',sans-serif; font-size:14px; }
+    .receipt-footer {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      font-size: 12px; border-top: 1px solid #ccc;
+      padding: 6px; background: #fff; text-align:center;
+    }
+    .receipt-header { display:flex; justify-content:space-between; align-items:center; }
+    .brand { display:flex; align-items:center; gap:12px; }
+    .brand .logo { max-height:60px; }
+    .brand-name { font-size:18px; font-weight:700; }
+    .brand-sub { font-size:14px; color:#555; }
+    .box { border:1px solid #ddd; border-radius:6px; padding:10px; background:#fafafa; margin-bottom:12px; }
+    table { width:100%; border-collapse:collapse; margin-bottom:12px; }
+    th, td { border:1px solid #ddd; padding:8px; text-align:center; }
+    th { background:#f2f2f2; }
+    .totals .rowline { display:flex; justify-content:space-between; margin:4px 0; }
+    .totals .highlight { font-size:16px; color:#0d6efd; font-weight:700; }
   </style>
-</head>
-<body>
-  <div class="receipt">
-    <div class="header">
+{% endblock %}
+
+{% block content %}
+<div id="receipt" class="container my-4">
+
+  <!-- رأس مع الشعار والعنوان -->
+  <div class="receipt-header">
+    <div class="brand">
+      <img class="logo" src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo">
       <div>
-        <h1 class="title">فاتورة مبيعات</h1>
-        <div class="meta">
-          <p><strong>رقم الفاتورة:</strong> {{ sale.sale_number or sale.id }}</p>
-          <p><strong>التاريخ:</strong> {{ sale.sale_date.strftime('%Y-%m-%d') if sale.sale_date else '—' }}</p>
-        </div>
-      </div>
-      <div class="company">
-        <img src="{{ url_for('static', filename='img/logo.png') }}" class="logo" alt="Logo">
-        <p><strong>{{ config.SITE_NAME if config and config.SITE_NAME else 'شركتنا' }}</strong></p>
-        <p>{{ config.SITE_ADDRESS if config and config.SITE_ADDRESS else '' }}</p>
-        <p>{{ config.SITE_PHONE if config and config.SITE_PHONE else '' }}</p>
+        <div class="brand-name">المهندس الفلسطيني للمعدات الثقيلة</div>
+        <div class="brand-sub">فاتورة مبيعات</div>
       </div>
     </div>
-
-    <div class="block">
-      <p><strong>اسم العميل:</strong> {{ sale.customer.name if sale.customer else '-' }}</p>
-      <p><strong>هاتف العميل:</strong> {{ sale.customer.phone if sale.customer else '-' }}</p>
-    </div>
-
-    <div class="block">
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>الصنف</th>
-            <th>المخزن</th>
-            <th>الكمية</th>
-            <th>سعر الوحدة</th>
-            <th>خصم (%)</th>
-            <th>ضريبة (%)</th>
-            <th>الإجمالي</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for item in lines %}
-            {% set ln = item.obj %}
-            <tr>
-              <td>{{ loop.index }}</td>
-              <td>
-                {{ ln.product.name if ln.product else '-' }}
-                {% if ln.note %}<div class="text-muted small">{{ ln.note }}</div>{% endif %}
-              </td>
-              <td>{{ ln.warehouse.name if ln.warehouse else '-' }}</td>
-              <td>{{ ln.quantity }}</td>
-              <td>{{ money_fmt(ln.unit_price) }} {{ sale.currency }}</td>
-              <td>{{ ln.discount_rate or 0 }}</td>
-              <td>{{ ln.tax_rate or 0 }}</td>
-              <td>{{ money_fmt(item.line_total) }} {{ sale.currency }}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-        <tfoot>
-          <tr>
-            <td colspan="7" class="text-end">المجموع الفرعي:</td>
-            <td>{{ money_fmt(subtotal) }} {{ sale.currency }}</td>
-          </tr>
-
-          {% if sale_discount_total and sale_discount_total != 0 %}
-          <tr>
-            <td colspan="7" class="text-end">خصم إجمالي:</td>
-            <td>- {{ money_fmt(sale_discount_total) }} {{ sale.currency }}</td>
-          </tr>
-          {% endif %}
-
-          <tr>
-            <td colspan="7" class="text-end">بعد الخصم:</td>
-            <td>{{ money_fmt(subtotal_after_discount) }} {{ sale.currency }}</td>
-          </tr>
-
-          {% if sale_tax_rate and sale_tax_rate != 0 %}
-          <tr>
-            <td colspan="7" class="text-end">الضريبة ({{ sale_tax_rate }}%):</td>
-            <td>{{ money_fmt(invoice_tax_amount) }} {{ sale.currency }}</td>
-          </tr>
-          {% endif %}
-
-          {% if sale_shipping and sale_shipping != 0 %}
-          <tr>
-            <td colspan="7" class="text-end">الشحن:</td>
-            <td>{{ money_fmt(sale_shipping) }} {{ sale.currency }}</td>
-          </tr>
-          {% endif %}
-
-          <tr>
-            <td colspan="7" class="text-end"><strong>الإجمالي النهائي:</strong></td>
-            <td><strong>{{ money_fmt(grand_total) }} {{ sale.currency }}</strong></td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
-
-    <div class="notes">
-      <p><strong>ملاحظات:</strong> {{ sale.notes or 'لا توجد ملاحظات' }}</p>
-    </div>
-
-    <div class="sign">
-      <div class="box">توقيع البائع<br>الاسم: {{ sale.seller.username if sale.seller else '________' }}</div>
-      <div class="box">توقيع العميل<br>الاسم: _____________</div>
-    </div>
-
-    <div class="actions no-print">
-      <button onclick="window.print()" class="btn btn-primary"><i class="fas fa-print"></i> طباعة</button>
-      <a href="{{ url_for('sales_bp.sale_detail', id=sale.id) }}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> رجوع</a>
+    <div class="text-muted">
+      رقم الفاتورة: <strong>{{ sale.sale_number or sale.id }}</strong><br>
+      التاريخ: {{ sale.sale_date and sale.sale_date.strftime('%Y-%m-%d') or '—' }}
     </div>
   </div>
-</body>
-</html>
+
+  <hr>
+
+  <!-- بيانات العميل -->
+  <div class="box">
+    <p><strong>اسم العميل:</strong> {{ sale.customer.name if sale.customer else '-' }}</p>
+    <p><strong>هاتف العميل:</strong> {{ sale.customer.phone if sale.customer else '-' }}</p>
+  </div>
+
+  <!-- تفاصيل الفاتورة -->
+  <div class="box">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>الصنف</th>
+          <th>المخزن</th>
+          <th>الكمية</th>
+          <th>سعر الوحدة</th>
+          <th>خصم (%)</th>
+          <th>ضريبة (%)</th>
+          <th>الإجمالي</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in lines %}
+          {% set ln = item.obj %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td>
+              {{ ln.product.name if ln.product else '-' }}
+              {% if ln.note %}<div class="text-muted small">{{ ln.note }}</div>{% endif %}
+            </td>
+            <td>{{ ln.warehouse.name if ln.warehouse else '-' }}</td>
+            <td>{{ ln.quantity }}</td>
+            <td>{{ money_fmt(ln.unit_price) }} {{ sale.currency }}</td>
+            <td>{{ ln.discount_rate or 0 }}</td>
+            <td>{{ ln.tax_rate or 0 }}</td>
+            <td>{{ money_fmt(item.line_total) }} {{ sale.currency }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr><td colspan="7" class="text-end">المجموع الفرعي:</td><td>{{ money_fmt(subtotal) }} {{ sale.currency }}</td></tr>
+        {% if sale_discount_total and sale_discount_total != 0 %}
+        <tr><td colspan="7" class="text-end">خصم إجمالي:</td><td>- {{ money_fmt(sale_discount_total) }} {{ sale.currency }}</td></tr>
+        {% endif %}
+        <tr><td colspan="7" class="text-end">بعد الخصم:</td><td>{{ money_fmt(subtotal_after_discount) }} {{ sale.currency }}</td></tr>
+        {% if sale_tax_rate and sale_tax_rate != 0 %}
+        <tr><td colspan="7" class="text-end">الضريبة ({{ sale_tax_rate }}%):</td><td>{{ money_fmt(invoice_tax_amount) }} {{ sale.currency }}</td></tr>
+        {% endif %}
+        {% if sale_shipping and sale_shipping != 0 %}
+        <tr><td colspan="7" class="text-end">الشحن:</td><td>{{ money_fmt(sale_shipping) }} {{ sale.currency }}</td></tr>
+        {% endif %}
+        <tr><td colspan="7" class="text-end"><strong>الإجمالي النهائي:</strong></td><td><strong>{{ money_fmt(grand_total) }} {{ sale.currency }}</strong></td></tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <!-- ملاحظات -->
+  <div class="box">
+    <p><strong>ملاحظات:</strong> {{ sale.notes or '—' }}</p>
+  </div>
+
+  <!-- التواقيع -->
+  <div class="row mt-4">
+    <div class="col-md-6 text-center">توقيع البائع<br><br>{{ sale.seller.username if sale.seller else '________' }}</div>
+    <div class="col-md-6 text-center">توقيع العميل<br><br>__________</div>
+  </div>
+
+  <!-- أزرار -->
+  <div class="text-center mt-4 no-print">
+    <button class="btn btn-dark" onclick="window.print()">🖨️ طباعة</button>
+    <a class="btn btn-secondary" href="{{ url_for('sales_bp.sale_detail', id=sale.id) }}">↩️ رجوع</a>
+  </div>
+</div>
+
+<div class="receipt-footer">
+  مع تحياتنا — نتشرف بخدمتكم — رام الله - فلسطين — جوال: 0592800646 — واتساب: +970592800646
+</div>
+{% endblock %}

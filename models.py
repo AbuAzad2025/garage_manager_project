@@ -2161,10 +2161,17 @@ class PreOrder(db.Model, TimestampMixin):
     quantity       = db.Column(db.Integer, nullable=False)
     prepaid_amount = db.Column(db.Numeric(12, 2), default=0)
     tax_rate       = db.Column(db.Numeric(5, 2), default=0)
-    status         = db.Column(sa_str_enum(PreOrderStatus, name='preorder_status'),
-                               default=PreOrderStatus.PENDING.value)
+    status         = db.Column(
+        sa_str_enum(PreOrderStatus, name='preorder_status'),
+        default=PreOrderStatus.PENDING.value,
+        nullable=False
+    )
     notes          = db.Column(db.Text)
-    payment_method = db.Column(db.String(20), nullable=False, default="cash", server_default="cash")
+    payment_method = db.Column(
+        sa_str_enum(PaymentMethod, name='preorder_payment_method'),
+        default=PaymentMethod.CASH.value,
+        nullable=False
+    )
 
     customer  = db.relationship('Customer', back_populates='preorders')
     supplier  = db.relationship('Supplier', back_populates='preorders')
@@ -2180,7 +2187,6 @@ class PreOrder(db.Model, TimestampMixin):
         CheckConstraint('quantity > 0', name='chk_preorder_quantity_positive'),
         CheckConstraint('prepaid_amount >= 0', name='chk_preorder_prepaid_non_negative'),
         CheckConstraint('tax_rate >= 0 AND tax_rate <= 100', name='chk_preorder_tax_rate'),
-        CheckConstraint("payment_method IN ('cash','card','bank','cheque')", name='chk_preorder_payment_method'),
     )
 
     @property
@@ -2239,12 +2245,9 @@ class PreOrder(db.Model, TimestampMixin):
     def net_balance(self):
         return self.balance_due
 
-    @net_balance.expression
-    def net_balance(cls):
-        return cls.balance_due
-
     def __repr__(self):
         return f"<PreOrder {self.reference or self.id}>"
+
 
 @event.listens_for(PreOrder, 'before_insert')
 def _preorder_before_insert(mapper, connection, target):
@@ -2260,33 +2263,33 @@ def _preorder_before_insert(mapper, connection, target):
 class Sale(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'sales'
 
-    id            = db.Column(db.Integer, primary_key=True)
-    sale_number   = db.Column(db.String(50), unique=True)
-    sale_date     = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    id = db.Column(db.Integer, primary_key=True)
+    sale_number = db.Column(db.String(50), unique=True)
+    sale_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
-    customer_id   = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False)
-    seller_id     = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    preorder_id   = db.Column(db.Integer, db.ForeignKey('preorders.id'))
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False)
+    seller_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    preorder_id = db.Column(db.Integer, db.ForeignKey('preorders.id'))
 
-    tax_rate       = db.Column(db.Numeric(5, 2),  default=0)
+    tax_rate = db.Column(db.Numeric(5, 2), default=0)
     discount_total = db.Column(db.Numeric(12, 2), default=0)
-    notes          = db.Column(db.Text)
+    notes = db.Column(db.Text)
 
-    status         = db.Column(sa_str_enum(SaleStatus, name='sale_status'), default=SaleStatus.DRAFT.value, nullable=False)
+    status = db.Column(sa_str_enum(SaleStatus, name='sale_status'), default=SaleStatus.DRAFT.value, nullable=False)
     payment_status = db.Column(sa_str_enum(PaymentProgress, name='sale_payment_progress'), default=PaymentProgress.PENDING.value, nullable=False)
 
-    currency         = db.Column(db.String(10), default='ILS')
+    currency = db.Column(db.String(10), default='ILS')
     shipping_address = db.Column(db.Text)
-    billing_address  = db.Column(db.Text)
-    shipping_cost    = db.Column(db.Numeric(10, 2), default=0)
-    total_amount     = db.Column(db.Numeric(12, 2), default=0)
+    billing_address = db.Column(db.Text)
+    shipping_cost = db.Column(db.Numeric(10, 2), default=0)
+    total_amount = db.Column(db.Numeric(12, 2), default=0)
 
-    customer  = db.relationship('Customer', back_populates='sales')
-    seller    = db.relationship('User',     back_populates='sales')
-    preorder  = db.relationship('PreOrder', back_populates='sale')
-    lines     = db.relationship('SaleLine', back_populates='sale', cascade='all,delete-orphan')
-    payments  = db.relationship('Payment',  back_populates='sale', cascade='all,delete-orphan')
-    invoice   = db.relationship('Invoice',  back_populates='sale', uselist=False)
+    customer = db.relationship('Customer', back_populates='sales')
+    seller = db.relationship('User', back_populates='sales')
+    preorder = db.relationship('PreOrder', back_populates='sale')
+    lines = db.relationship('SaleLine', back_populates='sale', cascade='all,delete-orphan')
+    payments = db.relationship('Payment', back_populates='sale', cascade='all,delete-orphan')
+    invoice = db.relationship('Invoice', back_populates='sale', uselist=False)
     shipments = db.relationship('Shipment', back_populates='sale', cascade='all,delete-orphan')
 
     @hybrid_property
@@ -2355,6 +2358,7 @@ class Sale(db.Model, TimestampMixin, AuditMixin):
     def __repr__(self):
         return f"<Sale {self.sale_number}>"
 
+
 @event.listens_for(Sale, "before_insert")
 def _sale_before_insert_ref(mapper, connection, target: "Sale"):
     if not getattr(target, "sale_number", None):
@@ -2364,6 +2368,7 @@ def _sale_before_insert_ref(mapper, connection, target: "Sale"):
             {"pfx": f"{prefix}-%"},
         ).scalar() or 0
         target.sale_number = f"{prefix}-{count+1:04d}"
+
 
 @event.listens_for(Sale, "before_insert")
 @event.listens_for(Sale, "before_update")
@@ -2378,6 +2383,7 @@ def _compute_total_amount(mapper, connection, target):
     tax = q(base * tax_rate / Decimal('100'))
     target.total_amount = q(subtotal + tax + shipping - discount)
 
+
 @event.listens_for(Sale.status, 'set')
 def _reserve_release_on_status_change(target, value, oldvalue, initiator):
     newv = getattr(value, "value", value)
@@ -2385,82 +2391,29 @@ def _reserve_release_on_status_change(target, value, oldvalue, initiator):
     if newv == SaleStatus.CONFIRMED.value and oldv != SaleStatus.CONFIRMED.value:
         if target.customer and float(target.customer.credit_limit or 0) > 0:
             cur_bal = float(target.customer.balance or 0)
-            new_total = float(
-                getattr(target, "total", None)
-                or getattr(target, "total_amount", 0)
-                or 0
-            )
+            new_total = float(getattr(target, "total", None) or getattr(target, "total_amount", 0) or 0)
             if cur_bal + new_total > float(target.customer.credit_limit or 0):
                 raise Exception("تأكيد البيع مرفوض: حد الائتمان للعميل سيتجاوز المسموح.")
         target.reserve_stock()
     elif oldv == SaleStatus.CONFIRMED.value and newv != SaleStatus.CONFIRMED.value:
         target.release_stock()
 
-@event.listens_for(Sale, "after_update")
-def _gl_on_sale_confirm(mapper, connection, target: "Sale"):
-    prev = getattr(target, "_previous_state", None) or {}
-    oldv = getattr(prev.get("status"), "value", prev.get("status"))
-    newv = getattr(target.status, "value", target.status)
-    if oldv == SaleStatus.CONFIRMED.value or newv != SaleStatus.CONFIRMED.value:
-        return
-    subtotal_float = connection.execute(
-        select(
-            func.coalesce(
-                func.sum(
-                    (SaleLine.quantity * SaleLine.unit_price) *
-                    (1 - (func.coalesce(SaleLine.discount_rate, 0) / 100.0))
-                ),
-                0.0
-            )
-        ).where(SaleLine.sale_id == target.id)
-    ).scalar_one() or 0.0
-    row = connection.execute(
-        select(Sale.tax_rate, Sale.discount_total, Sale.shipping_cost, Sale.currency)
-        .where(Sale.id == target.id)
-    ).first()
-    subtotal = Decimal(str(subtotal_float))
-    tax_rate = Decimal(str(row[0] or 0))
-    discount = Decimal(str(row[1] or 0))
-    shipping = Decimal(str(row[2] or 0))
-    cur = (row[3] or "ILS")
-    base = subtotal - discount
-    if base < Decimal("0"):
-        base = Decimal("0")
-    tax = (base * tax_rate / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    total = (subtotal + tax + shipping - discount).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    entries = [
-        (GL_ACCOUNTS["AR"],  float(total), 0.0),
-        (GL_ACCOUNTS["VAT"], 0.0,          float(tax)),
-        (GL_ACCOUNTS["REV"], 0.0,          float(total - tax)),
-    ]
-    from utils import _gl_upsert_batch_and_entries
-    _gl_upsert_batch_and_entries(
-        connection,
-        source_type="SALE",
-        source_id=target.id,
-        purpose="SALE_CONFIRM",
-        currency=cur,
-        memo=f"Sale {target.sale_number} confirmed",
-        entries=entries,
-        ref=str(target.sale_number or target.id),
-        entity_type="CUSTOMER",
-        entity_id=target.customer_id,
-    )
 
 class SaleLine(db.Model, TimestampMixin):
     __tablename__ = 'sale_lines'
-    id           = db.Column(db.Integer, primary_key=True)
-    sale_id      = db.Column(db.Integer, db.ForeignKey('sales.id'),      nullable=False)
-    product_id   = db.Column(db.Integer, db.ForeignKey('products.id'),   nullable=False)
-    warehouse_id = db.Column(db.Integer, db.ForeignKey('warehouses.id'), nullable=False)
-    quantity     = db.Column(db.Integer,        nullable=False)
-    unit_price   = db.Column(db.Numeric(12, 2), nullable=False)
-    discount_rate= db.Column(db.Numeric(5, 2),  default=0)
-    tax_rate     = db.Column(db.Numeric(5, 2),  default=0)
-    note         = db.Column(db.String(200))
 
-    sale      = db.relationship('Sale',      back_populates='lines')
-    product   = db.relationship('Product',   back_populates='sale_lines')
+    id = db.Column(db.Integer, primary_key=True)
+    sale_id = db.Column(db.Integer, db.ForeignKey('sales.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
+    warehouse_id = db.Column(db.Integer, db.ForeignKey('warehouses.id'), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    unit_price = db.Column(db.Numeric(12, 2), nullable=False)
+    discount_rate = db.Column(db.Numeric(5, 2), default=0)
+    tax_rate = db.Column(db.Numeric(5, 2), default=0)
+    note = db.Column(db.String(200))
+
+    sale = db.relationship('Sale', back_populates='lines')
+    product = db.relationship('Product', back_populates='sale_lines')
     warehouse = db.relationship('Warehouse', back_populates='sale_lines')
 
     __table_args__ = (
@@ -2492,6 +2445,7 @@ class SaleLine(db.Model, TimestampMixin):
         pname = getattr(self.product, "name", None)
         return f"<SaleLine {pname or self.product_id} in Sale {self.sale_id}>"
 
+
 def _recompute_sale_total_amount(connection, sale_id: int):
     subtotal_float = connection.execute(
         select(
@@ -2516,9 +2470,8 @@ def _recompute_sale_total_amount(connection, sale_id: int):
         base = Decimal("0")
     tax = (base * tax_rate / Decimal("100"))
     total = subtotal + tax + shipping - discount
-    connection.execute(
-        update(Sale).where(Sale.id == sale_id).values(total_amount=total)
-    )
+    connection.execute(update(Sale).where(Sale.id == sale_id).values(total_amount=total))
+
 
 @event.listens_for(SaleLine, "after_insert")
 @event.listens_for(SaleLine, "after_update")
@@ -2528,49 +2481,41 @@ def _sale_line_touch_sale_total(mapper, connection, target: "SaleLine"):
     if sid:
         _recompute_sale_total_amount(connection, int(sid))
 
+
 class Invoice(db.Model, TimestampMixin):
     __tablename__ = 'invoices'
 
-    id             = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True)
     invoice_number = Column(String(50), unique=True)
-    invoice_date   = Column(DateTime, default=datetime.utcnow)
-    due_date       = Column(DateTime)
+    invoice_date = Column(DateTime, default=datetime.utcnow)
+    due_date = Column(DateTime)
 
     customer_id = Column(Integer, ForeignKey('customers.id'), nullable=False)
     supplier_id = Column(Integer, ForeignKey('suppliers.id'))
-    partner_id  = Column(Integer, ForeignKey('partners.id'))
-    sale_id     = Column(Integer, ForeignKey('sales.id'))
-    service_id  = Column(Integer, ForeignKey('service_requests.id'))
+    partner_id = Column(Integer, ForeignKey('partners.id'))
+    sale_id = Column(Integer, ForeignKey('sales.id'))
+    service_id = Column(Integer, ForeignKey('service_requests.id'))
     preorder_id = Column(Integer, ForeignKey('preorders.id'))
 
-    source = Column(
-        sa_str_enum(InvoiceSource, name='invoice_source'),
-        default=InvoiceSource.MANUAL.value,
-        nullable=False
-    )
+    source = Column(sa_str_enum(InvoiceSource, name='invoice_source'), default=InvoiceSource.MANUAL.value, nullable=False)
+    status = Column(sa_str_enum(InvoiceStatus, name='invoice_status'), default=InvoiceStatus.UNPAID.value, nullable=False)
 
-    status = Column(
-        sa_str_enum(InvoiceStatus, name='invoice_status'),
-        default=InvoiceStatus.UNPAID.value,
-        nullable=False
-    )
-
-    currency        = Column(String(10), default='ILS', nullable=False)
-    total_amount    = Column(Numeric(12, 2), nullable=False)
-    tax_amount      = Column(Numeric(12, 2), default=0)
+    currency = Column(String(10), default='ILS', nullable=False)
+    total_amount = Column(Numeric(12, 2), nullable=False)
+    tax_amount = Column(Numeric(12, 2), default=0)
     discount_amount = Column(Numeric(12, 2), default=0)
-    notes           = Column(Text)
-    terms           = Column(Text)
+    notes = Column(Text)
+    terms = Column(Text)
 
     customer = relationship('Customer', back_populates='invoices')
     supplier = relationship('Supplier', back_populates='invoices')
-    partner  = relationship('Partner',  back_populates='invoices')
-    sale     = relationship('Sale',     back_populates='invoice', uselist=False)
-    service  = relationship('ServiceRequest', back_populates='invoice')
+    partner = relationship('Partner', back_populates='invoices')
+    sale = relationship('Sale', back_populates='invoice', uselist=False)
+    service = relationship('ServiceRequest', back_populates='invoice')
     preorder = relationship('PreOrder', back_populates='invoice')
 
-    lines    = relationship('InvoiceLine', back_populates='invoice', cascade='all, delete-orphan')
-    payments = relationship('Payment',     back_populates='invoice', cascade='all, delete-orphan', passive_deletes=True)
+    lines = relationship('InvoiceLine', back_populates='invoice', cascade='all, delete-orphan')
+    payments = relationship('Payment', back_populates='invoice', cascade='all, delete-orphan', passive_deletes=True)
 
     __table_args__ = (
         db.Index('ix_invoices_customer_status', 'customer_id', 'status'),
@@ -2635,16 +2580,17 @@ class Invoice(db.Model, TimestampMixin):
     def __repr__(self):
         return f"<Invoice {self.invoice_number}>"
 
+
 class InvoiceLine(db.Model):
     __tablename__ = 'invoice_lines'
 
-    id         = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)
     invoice_id = db.Column(db.Integer, db.ForeignKey('invoices.id'), nullable=False)
-    description= db.Column(db.String(200), nullable=False)
-    quantity   = db.Column(db.Float,        nullable=False)
+    description = db.Column(db.String(200), nullable=False)
+    quantity = db.Column(db.Float, nullable=False)
     unit_price = db.Column(db.Numeric(12, 2), nullable=False)
-    tax_rate   = db.Column(db.Numeric(5, 2),  default=0)
-    discount   = db.Column(db.Numeric(5, 2),  default=0)
+    tax_rate = db.Column(db.Numeric(5, 2), default=0)
+    discount = db.Column(db.Numeric(5, 2), default=0)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'))
 
     invoice = db.relationship('Invoice', back_populates='lines')
@@ -2662,6 +2608,7 @@ class InvoiceLine(db.Model):
         tax_amount = taxable * (D(self.tax_rate or 0) / Decimal("100.0"))
         return taxable + tax_amount
 
+
 @event.listens_for(Invoice, 'before_insert')
 @event.listens_for(Invoice, 'before_update')
 def _invoice_normalize_and_total(mapper, connection, target: "Invoice"):
@@ -2672,6 +2619,7 @@ def _invoice_normalize_and_total(mapper, connection, target: "Invoice"):
         target.tax_amount = 0
     if target.discount_amount is None:
         target.discount_amount = 0
+
 
 def _recompute_invoice_totals(connection, invoice_id: int):
     gross_before_disc = func.coalesce(
@@ -2702,11 +2650,13 @@ def _recompute_invoice_totals(connection, invoice_id: int):
         )
     )
 
+
 @event.listens_for(Invoice, 'after_insert')
 @event.listens_for(Invoice, 'after_update')
 def _inv_touch_totals(mapper, connection, target: "Invoice"):
     if target.id:
         _recompute_invoice_totals(connection, int(target.id))
+
 
 @event.listens_for(InvoiceLine, 'after_insert')
 @event.listens_for(InvoiceLine, 'after_update')
@@ -2718,57 +2668,57 @@ def _inv_line_touch_invoice(mapper, connection, target: "InvoiceLine"):
 class Payment(db.Model):
     __tablename__ = 'payments'
 
-    id              = Column(Integer, primary_key=True)
-    payment_number  = Column(String(50), unique=True, nullable=False)
-    payment_date    = Column(DateTime, default=datetime.utcnow, nullable=False)
+    id = Column(Integer, primary_key=True)
+    payment_number = Column(String(50), unique=True, nullable=False)
+    payment_date = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-    subtotal        = Column(Numeric(10, 2))
-    tax_rate        = Column(Numeric(5, 2))
-    tax_amount      = Column(Numeric(10, 2))
-    total_amount    = Column(Numeric(10, 2), nullable=False)
-    currency        = Column(String(10), default='ILS', nullable=False)
+    subtotal = Column(Numeric(10, 2))
+    tax_rate = Column(Numeric(5, 2))
+    tax_amount = Column(Numeric(10, 2))
+    total_amount = Column(Numeric(10, 2), nullable=False)
+    currency = Column(String(10), default='ILS', nullable=False)
 
-    method          = Column(sa_str_enum(PaymentMethod, name='payment_method'), nullable=False)
-    status          = Column(sa_str_enum(PaymentStatus, name='payment_status'), default=PaymentStatus.PENDING.value, nullable=False)
-    direction       = Column(sa_str_enum(PaymentDirection, name='payment_direction'), default=PaymentDirection.INCOMING.value, nullable=False)
-    entity_type     = Column(sa_str_enum(PaymentEntityType, name='payment_entity_type'), default=PaymentEntityType.CUSTOMER.value, nullable=False)
+    method = Column(sa_str_enum(PaymentMethod, name='payment_method'), nullable=False)
+    status = Column(sa_str_enum(PaymentStatus, name='payment_status'), default=PaymentStatus.PENDING.value, nullable=False)
+    direction = Column(sa_str_enum(PaymentDirection, name='payment_direction'), default=PaymentDirection.INCOMING.value, nullable=False)
+    entity_type = Column(sa_str_enum(PaymentEntityType, name='payment_entity_type'), default=PaymentEntityType.CUSTOMER.value, nullable=False)
 
-    reference       = Column(String(100))
-    receipt_number  = Column(String(50), unique=True)
-    notes           = Column(Text)
+    reference = Column(String(100))
+    receipt_number = Column(String(50), unique=True)
+    notes = Column(Text)
 
-    check_number      = Column(String(100))
-    check_bank        = Column(String(100))
-    check_due_date    = Column(DateTime)
-    card_holder       = Column(String(100))
-    card_expiry       = Column(String(10))
-    card_last4        = Column(String(4))
+    check_number = Column(String(100))
+    check_bank = Column(String(100))
+    check_due_date = Column(DateTime)
+    card_holder = Column(String(100))
+    card_expiry = Column(String(10))
+    card_last4 = Column(String(4))
     bank_transfer_ref = Column(String(100))
 
     created_by = Column(Integer, ForeignKey('users.id'))
-    creator    = relationship('User', backref='payments_created')
+    creator = relationship('User', backref='payments_created')
 
-    customer_id         = Column(Integer, ForeignKey('customers.id', ondelete='CASCADE'))
-    supplier_id         = Column(Integer, ForeignKey('suppliers.id', ondelete='CASCADE'))
-    partner_id          = Column(Integer, ForeignKey('partners.id',  ondelete='CASCADE'))
-    shipment_id         = Column(Integer, ForeignKey('shipments.id', ondelete='CASCADE'))
-    expense_id          = Column(Integer, ForeignKey('expenses.id',  ondelete='CASCADE'))
-    loan_settlement_id  = Column(Integer, ForeignKey('supplier_loan_settlements.id', ondelete='CASCADE'))
-    sale_id             = Column(Integer, ForeignKey('sales.id',     ondelete='CASCADE'))
-    invoice_id          = Column(Integer, ForeignKey('invoices.id',  ondelete='CASCADE'))
-    preorder_id         = Column(Integer, ForeignKey('preorders.id', ondelete='CASCADE'))
-    service_id          = Column(Integer, ForeignKey('service_requests.id', ondelete='CASCADE'))
+    customer_id = Column(Integer, ForeignKey('customers.id', ondelete='CASCADE'))
+    supplier_id = Column(Integer, ForeignKey('suppliers.id', ondelete='CASCADE'))
+    partner_id = Column(Integer, ForeignKey('partners.id', ondelete='CASCADE'))
+    shipment_id = Column(Integer, ForeignKey('shipments.id', ondelete='CASCADE'))
+    expense_id = Column(Integer, ForeignKey('expenses.id', ondelete='CASCADE'))
+    loan_settlement_id = Column(Integer, ForeignKey('supplier_loan_settlements.id', ondelete='CASCADE'))
+    sale_id = Column(Integer, ForeignKey('sales.id', ondelete='CASCADE'))
+    invoice_id = Column(Integer, ForeignKey('invoices.id', ondelete='CASCADE'))
+    preorder_id = Column(Integer, ForeignKey('preorders.id', ondelete='CASCADE'))
+    service_id = Column(Integer, ForeignKey('service_requests.id', ondelete='CASCADE'))
 
-    customer        = relationship('Customer', back_populates='payments')
-    supplier        = relationship('Supplier', back_populates='payments')
-    partner         = relationship('Partner',  back_populates='payments')
-    shipment        = relationship('Shipment', back_populates='payments')
-    expense         = relationship('Expense',  back_populates='payments')
+    customer = relationship('Customer', back_populates='payments')
+    supplier = relationship('Supplier', back_populates='payments')
+    partner = relationship('Partner', back_populates='payments')
+    shipment = relationship('Shipment', back_populates='payments')
+    expense = relationship('Expense', back_populates='payments')
     loan_settlement = relationship('SupplierLoanSettlement', back_populates='payment')
-    sale            = relationship('Sale',     back_populates='payments')
-    invoice         = relationship('Invoice',  back_populates='payments')
-    preorder        = relationship('PreOrder', back_populates='payments')
-    service         = relationship('ServiceRequest', back_populates='payments')
+    sale = relationship('Sale', back_populates='payments')
+    invoice = relationship('Invoice', back_populates='payments')
+    preorder = relationship('PreOrder', back_populates='payments')
+    service = relationship('ServiceRequest', back_populates='payments')
 
     splits = relationship(
         'PaymentSplit',
@@ -2791,10 +2741,10 @@ class Payment(db.Model):
             (CASE WHEN preorder_id IS NOT NULL THEN 1 ELSE 0 END) +
             (CASE WHEN service_id IS NOT NULL THEN 1 ELSE 0 END)
         ) = 1""", name='ck_payment_one_target'),
-        db.Index('ix_pay_sale_status_dir',     'sale_id',     'status', 'direction'),
-        db.Index('ix_pay_inv_status_dir',      'invoice_id',  'status', 'direction'),
+        db.Index('ix_pay_sale_status_dir', 'sale_id', 'status', 'direction'),
+        db.Index('ix_pay_inv_status_dir', 'invoice_id', 'status', 'direction'),
         db.Index('ix_pay_supplier_status_dir', 'supplier_id', 'status', 'direction'),
-        db.Index('ix_pay_partner_status_dir',  'partner_id',  'status', 'direction'),
+        db.Index('ix_pay_partner_status_dir', 'partner_id', 'status', 'direction'),
     )
 
     @property
@@ -2811,15 +2761,15 @@ class Payment(db.Model):
         raise ValueError("No link")
 
     def entity_label(self):
-        if self.customer:  return f"العميل: {self.customer.name}"
-        if self.supplier:  return f"المورد: {self.supplier.name}"
-        if self.partner:   return f"الشريك: {self.partner.name}"
-        if self.invoice:   return f"فاتورة #{self.invoice.invoice_number or self.invoice.id}"
-        if self.sale:      return f"فاتورة مبيعات #{self.sale.sale_number or self.sale.id}"
-        if self.shipment:  return f"شحنة #{self.shipment.shipment_number or self.shipment.id}"
-        if self.service:   return f"طلب صيانة #{self.service.service_number or self.service.id}"
-        if self.preorder:  return f"طلب مسبق #{self.preorder.reference or self.preorder.id}"
-        if self.expense:   return f"مصروف #{self.expense.id}"
+        if self.customer: return f"العميل: {self.customer.name}"
+        if self.supplier: return f"المورد: {self.supplier.name}"
+        if self.partner: return f"الشريك: {self.partner.name}"
+        if self.invoice: return f"فاتورة #{self.invoice.invoice_number or self.invoice.id}"
+        if self.sale: return f"فاتورة مبيعات #{self.sale.sale_number or self.sale.id}"
+        if self.shipment: return f"شحنة #{self.shipment.shipment_number or self.shipment.id}"
+        if self.service: return f"طلب صيانة #{self.service.service_number or self.service.id}"
+        if self.preorder: return f"طلب مسبق #{self.preorder.reference or self.preorder.id}"
+        if self.expense: return f"مصروف #{self.expense.id}"
         if self.loan_settlement: return f"تسوية قرض #{self.loan_settlement.id}"
         return "غير مرتبط"
 
@@ -2873,161 +2823,35 @@ class Payment(db.Model):
     def __repr__(self):
         return f"<Payment {self.payment_number or self.id} - {self.total_amount} {self.currency}>"
 
-INCOMING_TARGETS = {'customer_id', 'sale_id', 'invoice_id', 'preorder_id', 'service_id'}
-OUTGOING_TARGETS = {'supplier_id', 'partner_id', 'shipment_id', 'expense_id', 'loan_settlement_id'}
-
-def _guess_direction_from_links(p: "Payment") -> str | None:
-    has_in = any(getattr(p, f, None) for f in INCOMING_TARGETS)
-    has_out = any(getattr(p, f, None) for f in OUTGOING_TARGETS)
-    if has_in and not has_out:
-        return PaymentDirection.INCOMING.value
-    if has_out and not has_in:
-        return PaymentDirection.OUTGOING.value
-    return None
-
-@event.listens_for(Payment, 'before_insert')
-@event.listens_for(Payment, 'before_update')
-def _payment_guard(mapper, connection, target: "Payment"):
-    for k in ('method', 'status', 'direction', 'entity_type'):
-        v = getattr(target, k, None)
-        if hasattr(v, 'value'):
-            setattr(target, k, v.value)
-    exp_dir = _guess_direction_from_links(target)
-    if exp_dir and str(target.direction or "").upper() != exp_dir:
-        target.direction = exp_dir
-    splits = getattr(target, 'splits', [])
-    if not target.method:
-        if splits:
-            target.method = getattr(splits[0].method, 'value', splits[0].method)
-        else:
-            raise ValueError("Payment.method required if no splits.")
-    if splits:
-        total = sum(Decimal(str(s.amount or 0)).quantize(Decimal("0.01")) for s in splits)
-        expected = Decimal(str(target.total_amount or 0)).quantize(Decimal("0.01"))
-        if total != expected:
-            raise ValueError("Split totals mismatch.")
-        split_methods = {getattr(s.method, 'value', s.method) for s in splits}
-        if len(split_methods) > 1:
-            raise ValueError("Multiple split methods not allowed.")
-    object.__setattr__(target, "card_last4", getattr(target, "card_last4", None))
-    if hasattr(target, "card_holder"):
-        target.card_holder = (target.card_holder or None)
-    if hasattr(target, "card_expiry"):
-        target.card_expiry = (target.card_expiry or None)
-
-def _gl_get_cash_acct(method: str | None) -> str:
-    if not method:
-        return GL_ACCOUNTS["CASH"]
-    m = str(method).lower()
-    if m in ("cash", "نقداً"):
-        return GL_ACCOUNTS["CASH"]
-    if m in ("bank", "تحويل"):
-        return GL_ACCOUNTS["BANK"]
-    if m in ("card", "بطاقة"):
-        return GL_ACCOUNTS["CARD"]
-    return GL_ACCOUNTS["CASH"]
-
-@event.listens_for(Payment, "after_insert")
-@event.listens_for(Payment, "after_update")
-def _gl_on_payment_complete(mapper, connection, target: "Payment"):
-    prev = getattr(target, "_previous_state", None) or {}
-    old_status = getattr(prev.get("status"), "value", prev.get("status"))
-    new_status = getattr(getattr(target, "status", None), "value", getattr(target, "status", None))
-    if new_status != PaymentStatus.COMPLETED.value:
-        return
-    if old_status == PaymentStatus.COMPLETED.value:
-        return
-    method = getattr(target, "method", None)
-    cur    = (getattr(target, "currency", None) or "ILS").upper()
-    amt    = float(getattr(target, "total_amount", 0) or 0)
-    dirv   = getattr(target, "direction", None)
-    dirv   = getattr(dirv, "value", dirv)
-    cash_acc = _gl_get_cash_acct(method)
-    ref = getattr(target, "payment_number", None) or str(target.id)
-    et, eid = None, None
-    if target.customer_id:          et, eid = "CUSTOMER", target.customer_id
-    elif target.supplier_id:        et, eid = "SUPPLIER", target.supplier_id
-    elif target.partner_id:         et, eid = "PARTNER",  target.partner_id
-    elif target.shipment_id:        et, eid = "SHIPMENT", target.shipment_id
-    elif target.expense_id:         et, eid = "EXPENSE",  target.expense_id
-    elif target.loan_settlement_id: et, eid = "LOAN",     target.loan_settlement_id
-    elif target.invoice_id:         et, eid = "INVOICE",  target.invoice_id
-    elif target.sale_id:            et, eid = "SALE",     target.sale_id
-    elif target.service_id:         et, eid = "SERVICE",  target.service_id
-    elif target.preorder_id:        et, eid = "PREORDER", target.preorder_id
-    if dirv in (PaymentDirection.INCOMING.value, "IN"):
-        entries = [(cash_acc, amt, 0.0), (GL_ACCOUNTS["AR"], 0.0, amt)]
-    else:
-        if target.expense_id:
-            entries = [(GL_ACCOUNTS["EXP"], amt, 0.0), (cash_acc, 0.0, amt)]
-        else:
-            entries = [(GL_ACCOUNTS["AP"],  amt, 0.0), (cash_acc, 0.0, amt)]
-    _gl_upsert_batch_and_entries(
-        connection,
-        source_type="PAYMENT",
-        source_id=target.id,
-        purpose="PMT_COMPLETE",
-        currency=cur,
-        memo=f"PMT {ref}",
-        entries=entries,
-        ref=ref,
-        entity_type=et,
-        entity_id=eid,
-    )
-    if target.invoice_id:
-        paid_inv = select(func.coalesce(func.sum(Payment.total_amount), 0)).where(
-            Payment.invoice_id == target.invoice_id,
-            Payment.status == PaymentStatus.COMPLETED.value,
-            Payment.direction == PaymentDirection.INCOMING.value
-        ).scalar_subquery()
-        inv_total = select(Invoice.total_amount).where(Invoice.id == target.invoice_id).scalar_subquery()
-        new_status_expr = case(
-            (paid_inv >= inv_total, InvoiceStatus.PAID.value),
-            (paid_inv > 0,          InvoiceStatus.PARTIAL.value),
-            else_=InvoiceStatus.UNPAID.value
-        )
-        connection.execute(update(Invoice).where(Invoice.id == target.invoice_id).values(status=new_status_expr))
-    if target.sale_id:
-        paid_sale = select(func.coalesce(func.sum(Payment.total_amount), 0)).where(
-            Payment.sale_id == target.sale_id,
-            Payment.status == PaymentStatus.COMPLETED.value,
-            Payment.direction == PaymentDirection.INCOMING.value
-        ).scalar_subquery()
-        sale_total = select(Sale.total_amount).where(Sale.id == target.sale_id).scalar_subquery()
-        new_pp = case(
-            (paid_sale >= sale_total, PaymentProgress.PAID.value),
-            (paid_sale > 0,           PaymentProgress.PARTIAL.value),
-            else_=PaymentProgress.PENDING.value
-        )
-        connection.execute(update(Sale).where(Sale.id == target.sale_id).values(payment_status=new_pp))
-
-@event.listens_for(Payment, 'before_insert')
-def _ensure_payment_number(mapper, connection, target: 'Payment'):
-    if getattr(target, 'payment_number', None):
-        return
-    prefix = datetime.utcnow().strftime("PMT%Y%m%d")
-    count = connection.execute(
-        text("SELECT COUNT(*) FROM payments WHERE payment_number LIKE :pfx"),
-        {"pfx": f"{prefix}-%"}
-    ).scalar() or 0
-    target.payment_number = f"{prefix}-{count+1:04d}"
 
 class PaymentSplit(db.Model):
-    __tablename__ = 'payment_splits'
+    __tablename__ = "payment_splits"
 
-    id          = Column(Integer, primary_key=True)
-    payment_id  = Column(Integer, ForeignKey('payments.id', ondelete='CASCADE'), nullable=False)
-    method      = Column(sa_str_enum(PaymentMethod, name='split_payment_method'), nullable=False)
-    amount      = Column(Numeric(12, 2), nullable=False)
-    details     = Column(db.JSON)
+    id = Column(Integer, primary_key=True)
+    payment_id = Column(Integer, ForeignKey("payments.id", ondelete="CASCADE"), nullable=False, index=True)
+    method = Column(sa_str_enum(PaymentMethod, name="split_payment_method"), nullable=False, index=True)
+    amount = Column(Numeric(12, 2), nullable=False)
+    details = Column(db.JSON, default=dict, nullable=False)
 
-    payment = relationship('Payment', back_populates='splits')
+    payment = relationship("Payment", back_populates="splits")
 
     __table_args__ = (
-        CheckConstraint('amount > 0', name='chk_split_amount_positive'),
+        CheckConstraint("amount > 0", name="chk_split_amount_positive"),
     )
 
+    def clean_details(self):
+        if not isinstance(self.details, dict):
+            try:
+                if isinstance(self.details, str):
+                    import json
+                    self.details = json.loads(self.details)
+                else:
+                    self.details = {}
+            except Exception:
+                self.details = {}
+
     def label(self):
+        self.clean_details()
         m = getattr(self.method, "value", self.method)
         names = {
             PaymentMethod.CASH.value: "نقدًا",
@@ -3042,13 +2866,14 @@ class PaymentSplit(db.Model):
         return f"<PaymentSplit {self.label()}>"
 
     def to_dict(self):
+        self.clean_details()
         return {
-            'id': self.id,
-            'payment_id': self.payment_id,
-            'method': getattr(self.method, 'value', self.method),
-            'amount': float(self.amount or 0),
-            'details': self.details or None,
-            'label': self.label(),
+            "id": self.id,
+            "payment_id": self.payment_id,
+            "method": getattr(self.method, "value", self.method),
+            "amount": float(self.amount or 0),
+            "details": self.details,
+            "label": self.label(),
         }
 
 class Shipment(db.Model, TimestampMixin, AuditMixin):
@@ -4150,6 +3975,7 @@ class OnlinePayment(db.Model, TimestampMixin):
         db.Index('ix_online_payments_order_status', 'order_id', 'status'),
     )
 
+    # ====== Validations ======
     @validates('amount')
     def _v_amount(self, _, v):
         if v is None or float(v) <= 0:
@@ -4168,6 +3994,7 @@ class OnlinePayment(db.Model, TimestampMixin):
     def _v_lower(self, _, v):
         return (v or None).lower() if isinstance(v, str) and v else v
 
+    # ====== Card helpers ======
     @staticmethod
     def _luhn_check(pan_digits: str) -> bool:
         if not pan_digits or not pan_digits.isdigit():
@@ -4177,7 +4004,8 @@ class OnlinePayment(db.Model, TimestampMixin):
             n = ord(d) - 48
             if alt:
                 n *= 2
-                if n > 9: n -= 9
+                if n > 9:
+                    n -= 9
             s += n
             alt = not alt
         return s % 10 == 0
@@ -4188,7 +4016,8 @@ class OnlinePayment(db.Model, TimestampMixin):
             return False
         mm, yy = exp.split('/')
         try:
-            mm = int(mm); yy = int('20' + yy)
+            mm = int(mm)
+            yy = int('20' + yy)
             if not (1 <= mm <= 12):
                 return False
             now = datetime.utcnow()
@@ -4284,47 +4113,6 @@ class OnlinePayment(db.Model, TimestampMixin):
     def __repr__(self):
         ref = self.payment_ref or f"OP-{self.id}"
         return f"<OnlinePayment {ref} {self.amount} {self.currency} {self.status}>"
-
-
-@event.listens_for(OnlinePayment, 'before_insert')
-def _online_payment_before_insert(mapper, connection, target: 'OnlinePayment'):
-    if not getattr(target, 'payment_ref', None):
-        prefix = datetime.utcnow().strftime("PAY%Y%m%d")
-        count = connection.execute(
-            text("SELECT COUNT(*) FROM online_payments WHERE payment_ref LIKE :pfx"),
-            {"pfx": f"{prefix}-%"}
-        ).scalar() or 0
-        target.payment_ref = f"{prefix}-{count+1:04d}"
-    target.currency = (target.currency or 'ILS').upper()
-    target.status = (target.status or 'PENDING').upper()
-    if target.method:
-        target.method = target.method.lower()
-    if target.gateway:
-        target.gateway = target.gateway.lower()
-    if target.status in ('SUCCESS', 'FAILED', 'REFUNDED') and not target.processed_at:
-        target.processed_at = datetime.utcnow()
-
-
-@event.listens_for(OnlinePayment, 'before_update')
-def _online_payment_before_update(mapper, connection, target: 'OnlinePayment'):
-    target.currency = (target.currency or 'ILS').upper()
-    if target.status:
-        target.status = target.status.upper()
-    if target.method:
-        target.method = target.method.lower()
-    if target.gateway:
-        target.gateway = target.gateway.lower()
-    if target.status in ('SUCCESS', 'FAILED', 'REFUNDED') and not target.processed_at:
-        target.processed_at = datetime.utcnow()
-
-@event.listens_for(OnlinePayment, 'after_insert')
-@event.listens_for(OnlinePayment, 'after_update')
-def _online_payment_sync_order(_mapper, _connection, target: 'OnlinePayment'):
-    if target.order is not None:
-        try:
-            target.order.update_totals_and_status()
-        except Exception:
-            pass
 # ===================== ExpenseType =====================
 class ExpenseType(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'expense_types'
@@ -4512,7 +4300,6 @@ def _expense_normalize(mapper, connection, target: 'Expense'):
         digits = ''.join(ch for ch in (target.card_number or '') if ch.isdigit())
         target.card_number = (digits[-4:] if digits else None)
 
-
 # ===================== Audit Log Model =====================
 class AuditLog(db.Model, TimestampMixin):
     __tablename__ = "audit_logs"
@@ -4694,59 +4481,82 @@ class Note(db.Model, TimestampMixin, AuditMixin):
 
 class Account(db.Model, TimestampMixin):
     __tablename__ = "accounts"
-    id = db.Column(db.Integer, primary_key=True)
-    code = db.Column(db.String(20), unique=True, nullable=False, index=True)
-    name = db.Column(db.String(100), nullable=False)
-    type = db.Column(sa_str_enum(["ASSET", "LIABILITY", "EQUITY", "REVENUE", "EXPENSE"], name="account_type"), nullable=False)
+
+    id       = db.Column(db.Integer, primary_key=True)
+    code     = db.Column(db.String(20), unique=True, nullable=False, index=True)
+    name     = db.Column(db.String(100), nullable=False)
+    type     = db.Column(sa_str_enum(
+        ["ASSET", "LIABILITY", "EQUITY", "REVENUE", "EXPENSE"],
+        name="account_type"
+    ), nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
+
     def __repr__(self):
         return f"<Account {self.code} {self.name}>"
 
+
 class GLBatch(db.Model, TimestampMixin):
     __tablename__ = "gl_batches"
-    id = db.Column(db.Integer, primary_key=True)
-    code = db.Column(db.String(50), unique=True, index=True)
+
+    id          = db.Column(db.Integer, primary_key=True)
+    code        = db.Column(db.String(50), unique=True, index=True)
     source_type = db.Column(db.String(30), index=True)
-    source_id = db.Column(db.Integer, index=True)
-    purpose = db.Column(db.String(30), index=True)
-    memo = db.Column(db.String(255))
-    posted_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-    currency = db.Column(db.String(10), default="ILS", nullable=False)
+    source_id   = db.Column(db.Integer, index=True)
+    purpose     = db.Column(db.String(30), index=True)
+    memo        = db.Column(db.String(255))
+    posted_at   = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    currency    = db.Column(db.String(10), default="ILS", nullable=False)
     entity_type = db.Column(db.String(30), index=True)
-    entity_id = db.Column(db.Integer, index=True)
-    entries = db.relationship("GLEntry", backref="batch", cascade="all, delete-orphan", passive_deletes=True)
+    entity_id   = db.Column(db.Integer, index=True)
+
+    entries = db.relationship(
+        "GLEntry",
+        backref="batch",
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
+
     __table_args__ = (
         db.UniqueConstraint("source_type", "source_id", "purpose", name="uq_gl_source_purpose"),
         db.Index("ix_gl_entity", "entity_type", "entity_id"),
     )
 
+    def __repr__(self):
+        return f"<GLBatch {self.code} {self.source_type}:{self.source_id}>"
+
+
 class GLEntry(db.Model, TimestampMixin):
     __tablename__ = "gl_entries"
-    id = db.Column(db.Integer, primary_key=True)
+
+    id       = db.Column(db.Integer, primary_key=True)
     batch_id = db.Column(db.Integer, db.ForeignKey("gl_batches.id", ondelete="CASCADE"), nullable=False, index=True)
-    account = db.Column(db.String(40), index=True)
-    debit = db.Column(db.Numeric(12, 2), default=0)
-    credit = db.Column(db.Numeric(12, 2), default=0)
+    account  = db.Column(db.String(40), index=True)
+    debit    = db.Column(db.Numeric(12, 2), default=0)
+    credit   = db.Column(db.Numeric(12, 2), default=0)
     currency = db.Column(db.String(10), default="ILS", nullable=False)
-    ref = db.Column(db.String(100))
+    ref      = db.Column(db.String(100))
+
     __table_args__ = (
         db.CheckConstraint("debit >= 0", name="ck_gl_debit_ge_0"),
         db.CheckConstraint("credit >= 0", name="ck_gl_credit_ge_0"),
+        db.CheckConstraint("(debit > 0 OR credit > 0)", name="ck_gl_entry_nonzero"),
     )
 
+    def __repr__(self):
+        return f"<GLEntry {self.account} D:{self.debit} C:{self.credit}>"
+
+
 GL_ACCOUNTS = {
-    "AR": "1100_AR",
-    "REV": "4000_SALES",
-    "VAT": "2100_VAT_PAYABLE",
+    "AR":   "1100_AR",
+    "REV":  "4000_SALES",
+    "VAT":  "2100_VAT_PAYABLE",
     "CASH": "1000_CASH",
     "BANK": "1010_BANK",
     "CARD": "1020_CARD_CLEARING",
-    "AP": "2000_AP",
-    "EXP": "5000_EXPENSES",
+    "AP":   "2000_AP",
+    "EXP":  "5000_EXPENSES",
 }
 
-from datetime import datetime
-from sqlalchemy import select
 
 def _gl_upsert_batch_and_entries(
     connection,
@@ -4763,6 +4573,7 @@ def _gl_upsert_batch_and_entries(
 ):
     from models import GLBatch, GLEntry
 
+    # حذف أي باتش سابق لنفس المصدر والهدف
     connection.execute(
         GLBatch.__table__.delete().where(
             (GLBatch.source_type == source_type) &
@@ -4771,9 +4582,11 @@ def _gl_upsert_batch_and_entries(
         )
     )
 
+    # إنشاء باتش جديد
+    batch_code = f"{source_type}-{source_id}-{purpose}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
     connection.execute(
         GLBatch.__table__.insert().values(
-            code=f"{source_type}-{source_id}-{purpose}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+            code=batch_code,
             source_type=source_type,
             source_id=source_id,
             purpose=purpose,
@@ -4787,14 +4600,19 @@ def _gl_upsert_batch_and_entries(
         )
     )
 
+    # جلب الـ batch_id المضاف
     batch_id = connection.execute(
-        select(GLBatch.id).where(
+        select(GLBatch.id)
+        .where(
             (GLBatch.source_type == source_type) &
             (GLBatch.source_id == source_id) &
             (GLBatch.purpose == purpose)
-        ).order_by(GLBatch.id.desc()).limit(1)
+        )
+        .order_by(GLBatch.id.desc())
+        .limit(1)
     ).scalar_one()
 
+    # إدخال القيود المحاسبية
     for acct, debit, credit in entries:
         connection.execute(
             GLEntry.__table__.insert().values(

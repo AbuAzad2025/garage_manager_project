@@ -8,7 +8,7 @@ import re
 from datetime import datetime, timedelta
 from functools import wraps
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
-
+from typing import Any, Callable, Dict, Iterable, List, Optional
 import redis
 from flask import Response, abort, current_app, flash, make_response, request, jsonify
 from flask_login import current_user, login_required
@@ -92,15 +92,8 @@ def search_model(
     limit_default: int = 20,
     serializer=None,
     q_param: str = "q",
+    **kwargs,
 ):
-    """
-    بحث عام نمطي للنماذج لإطعام Select2.
-    - يرجّع دائمًا: {"results": [{"id": .., "text": .., "name": ..}, ...], "pagination": {"more": bool}}
-    - يدعم q, page, limit من الـ query string.
-    - يدعم البحث الجزئي بالحروف، والبحث المباشر بالـ id إذا q رقم.
-    """
-
-    # مدخلات الواجهة
     q = (request.args.get(q_param) or "").strip()
     try:
         limit = max(1, min(int(request.args.get("limit") or limit_default), 100))
@@ -111,11 +104,8 @@ def search_model(
     except Exception:
         page = 1
 
-    # بناء الاستعلام
     query = db.session.query(model)
-
     if extra_filters:
-        # تقدر تمرّر شروط إضافية من الراوت عند الحاجة
         query = query.filter(*extra_filters)
 
     if q:
@@ -124,20 +114,15 @@ def search_model(
         for field_name in (search_fields or []):
             col = getattr(model, field_name, None)
             if col is not None:
-                # LIKE مع lower للبحث الجزئي غير الحساس لحالة الأحرف
                 ors.append(func.lower(col).like(f"%{q_low}%"))
-
-        # دعم البحث المباشر بالـ id إذا q رقم
         if q.isdigit() and hasattr(model, value_attr):
             try:
                 ors.append(getattr(model, value_attr) == int(q))
             except Exception:
                 pass
-
         if ors:
             query = query.filter(or_(*ors))
 
-    # ترتيب ونتائج
     if hasattr(model, label_attr):
         query = query.order_by(getattr(model, label_attr).asc())
     elif hasattr(model, value_attr):
@@ -146,7 +131,6 @@ def search_model(
     total = query.count()
     items = query.offset((page - 1) * limit).limit(limit).all()
 
-    # التسلسل للإخراج
     def _serialize(obj):
         if serializer:
             d = serializer(obj)
@@ -160,14 +144,18 @@ def search_model(
         return d
 
     results = [_serialize(o) for o in items]
-
-    return jsonify({
-        "results": results,                         # ما يحتاجه Select2
-        "pagination": {"more": (page * limit) < total}
-    })
+    return jsonify({"results": results, "pagination": {"more": (page * limit) < total}})
 
 def _limit(spec: str):
     return limiter.limit(spec)
+
+def _query_limit(default: int = 20, maximum: int = 50) -> int:
+    """يعطي limit للـ SQLAlchemy query من ?limit= مع ضبط الحد الأقصى."""
+    try:
+        limit = int(request.args.get("limit", default))
+    except Exception:
+        limit = default
+    return min(max(limit, 1), maximum)
 
 def init_app(app):
     global redis_client

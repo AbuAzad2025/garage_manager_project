@@ -1,11 +1,50 @@
-# -*- coding: utf-8 -*-
+# extensions.py
 from __future__ import annotations
 
-import logging, sys, json
+import json
+import logging
+import os
+import sys
+import glob
+import sqlite3
 from datetime import datetime
-from flask import g, has_request_context
 
-# ===== Request ID Filter =====
+from flask import g, has_request_context
+from apscheduler.schedulers.background import BackgroundScheduler
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_login import LoginManager
+from flask_mail import Mail
+from flask_migrate import Migrate
+from flask_socketio import SocketIO
+from flask_sqlalchemy import SQLAlchemy
+from flask_wtf import CSRFProtect
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
+try:
+    from colorama import init as colorama_init, Fore, Style
+    colorama_init(autoreset=True)
+except Exception:
+    class _Fore:
+        BLUE = ""; GREEN = ""; YELLOW = ""; RED = ""
+    class _Style:
+        BRIGHT = ""; RESET_ALL = ""
+    Fore, Style = _Fore(), _Style()
+    def colorama_init(*args, **kwargs):
+        return
+
+try:
+    import sentry_sdk
+    from sentry_sdk.integrations.flask import FlaskIntegration
+    from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+except Exception:
+    sentry_sdk = None
+
+
 class RequestIdFilter(logging.Filter):
     def filter(self, record):
         if has_request_context():
@@ -14,7 +53,7 @@ class RequestIdFilter(logging.Filter):
             record.request_id = "-"
         return True
 
-# ===== JSON Formatter (يبقى كما هو مع دعم exc_info) =====
+
 class JSONFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         base = {
@@ -43,18 +82,6 @@ class JSONFormatter(logging.Formatter):
             base["exc_info"] = self.formatException(record.exc_info)
         return json.dumps(base, ensure_ascii=False)
 
-# ===== Color support (آمن لو colorama غير مثبتة) =====
-try:
-    from colorama import init as colorama_init, Fore, Style
-    colorama_init(autoreset=True)
-except Exception:
-    class _Fore:
-        BLUE = ""; GREEN = ""; YELLOW = ""; RED = ""
-    class _Style:
-        BRIGHT = ""; RESET_ALL = ""
-    Fore, Style = _Fore(), _Style()
-    def colorama_init(*args, **kwargs):  # no-op
-        return
 
 class ColorFormatter(logging.Formatter):
     COLORS = {
@@ -68,38 +95,27 @@ class ColorFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         color = self.COLORS.get(record.levelname, "")
         reset = Style.RESET_ALL
-        # request_id قد لا يكون مضافًا في بعض المسارات غير Flask، فنتعامل معه بأمان
         req_id = getattr(record, "request_id", "-")
         base = f"[{self.formatTime(record, '%Y-%m-%d %H:%M:%S')}] {color}{record.levelname}{reset} {req_id} {record.name}: {record.getMessage()}"
         if record.exc_info:
             base += "\n" + self.formatException(record.exc_info)
         return base
 
-# ===== Setup logging (إخراج ملوّن + JSON اختياري + Traceback على stderr) =====
+
 def setup_logging(app):
     level_name = app.config.get("LOG_LEVEL", "INFO").upper()
     level = getattr(logging, level_name, logging.INFO)
 
-    # Handler الأساسي (stdout) لمستويات info وما دون (أو حسب LOG_LEVEL)
     out_handler = logging.StreamHandler(sys.stdout)
     out_handler.setLevel(level)
     out_handler.addFilter(RequestIdFilter())
-    if app.config.get("JSON_LOGS"):
-        out_handler.setFormatter(JSONFormatter())
-    else:
-        out_handler.setFormatter(ColorFormatter())
+    out_handler.setFormatter(JSONFormatter() if app.config.get("JSON_LOGS") else ColorFormatter())
 
-    # Handler إضافي للأخطاء (stderr)؛ يضمن طباعة traceback دائمًا
     err_handler = logging.StreamHandler(sys.stderr)
     err_handler.setLevel(logging.ERROR)
     err_handler.addFilter(RequestIdFilter())
-    # نفس الفورماتر (مُلَوَّن أو JSON) ليتطابق المظهر
-    if app.config.get("JSON_LOGS"):
-        err_handler.setFormatter(JSONFormatter())
-    else:
-        err_handler.setFormatter(ColorFormatter())
+    err_handler.setFormatter(JSONFormatter() if app.config.get("JSON_LOGS") else ColorFormatter())
 
-    # نطبّق الـ handlers على app.logger, root logger, و sqlalchemy.engine
     for lg in (app.logger, logging.getLogger(), logging.getLogger("sqlalchemy.engine")):
         lg.handlers.clear()
         lg.setLevel(level)
@@ -107,13 +123,6 @@ def setup_logging(app):
         lg.addHandler(err_handler)
         lg.propagate = False
 
-# ===== Sentry =====
-try:
-    import sentry_sdk
-    from sentry_sdk.integrations.flask import FlaskIntegration
-    from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
-except Exception:
-    sentry_sdk = None
 
 def setup_sentry(app):
     dsn = app.config.get("SENTRY_DSN") or ""
@@ -130,32 +139,14 @@ def setup_sentry(app):
         max_breadcrumbs=100,
     )
 
-# ===== باقي الإكستنشنز كما هي =====
-import os, sqlite3, glob
-from apscheduler.schedulers.background import BackgroundScheduler
-
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-from flask_login import LoginManager
-from flask_mail import Mail
-from flask_migrate import Migrate
-from flask_socketio import SocketIO
-from flask_sqlalchemy import SQLAlchemy
-from flask_wtf import CSRFProtect
-from sqlalchemy import event
-from sqlalchemy.engine import Engine
 
 db = SQLAlchemy(session_options={"expire_on_commit": False})
 migrate = Migrate()
 login_manager = LoginManager()
 mail = Mail()
 csrf = CSRFProtect()
+socketio = SocketIO(cors_allowed_origins="*", logger=False, engineio_logger=False)
 
-socketio = SocketIO(
-    cors_allowed_origins="*",
-    logger=False,
-    engineio_logger=False,
-)
 
 def _rate_limit_key():
     try:
@@ -166,17 +157,14 @@ def _rate_limit_key():
         pass
     return get_remote_address()
 
-limiter = Limiter(
-    key_func=_rate_limit_key,
-    default_limits=[],
-)
 
+limiter = Limiter(key_func=_rate_limit_key, default_limits=[])
 scheduler = BackgroundScheduler()
+
 
 @event.listens_for(Engine, "connect")
 def _sqlite_pragmas_on_connect(dbapi_connection, connection_record):
     try:
-        import sqlite3
         if isinstance(dbapi_connection, sqlite3.Connection):
             cur = dbapi_connection.cursor()
             cur.execute("PRAGMA busy_timeout=30000")
@@ -186,6 +174,7 @@ def _sqlite_pragmas_on_connect(dbapi_connection, connection_record):
             cur.close()
     except Exception:
         pass
+
 
 def perform_backup_db(app):
     uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
@@ -214,6 +203,7 @@ def perform_backup_db(app):
             except Exception:
                 pass
 
+
 def perform_backup_sql(app):
     uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
     if not uri.startswith("sqlite:///"):
@@ -240,6 +230,24 @@ def perform_backup_sql(app):
                 os.remove(old)
             except Exception:
                 pass
+
+
+def register_fonts(app=None):
+    try:
+        base_path = os.path.join(app.root_path if app else os.getcwd(), "static", "fonts")
+        fonts = {
+            "Amiri": "Amiri-Regular.ttf",
+            "Amiri-Bold": "Amiri-Bold.ttf",
+            "Amiri-Italic": "Amiri-Italic.ttf",
+            "Amiri-BoldItalic": "Amiri-BoldItalic.ttf",
+        }
+        for name, file in fonts.items():
+            path = os.path.join(base_path, file)
+            if os.path.exists(path):
+                pdfmetrics.registerFont(TTFont(name, path))
+    except Exception as e:
+        logging.error("Font registration failed: %s", e)
+
 
 def init_extensions(app):
     db.init_app(app)
@@ -308,3 +316,5 @@ def init_extensions(app):
         replace_existing=True,
     )
     scheduler.start()
+
+    register_fonts(app)

@@ -2,13 +2,24 @@
 {% block title %}إيصال صيانة{% endblock %}
 
 {% block head_extra %}
-  {# دعم اتجاه عرضي اختيارياً عبر ?o=landscape #}
-  {% if request.args.get('o') == 'landscape' %}
   <style>
-    @media print { @page { size: 297mm 210mm; margin: 12mm; } }  /* A4 landscape */
-    @media print { #receipt { width: 273mm !important; padding-bottom: 18mm !important; } }/* 297-24=273 */
+    @page { size: A4; margin: 12mm; }
+    @media print { .no-print { display: none !important; } }
+    body { background:#fff; font-family:'Amiri','Arial',sans-serif; font-size:14px; }
+    .receipt-footer {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      font-size: 12px; border-top: 1px solid #ccc;
+      padding: 6px; background: #fff; text-align:center;
+    }
+    .receipt-header { display:flex; justify-content:space-between; align-items:center; }
+    .brand { display:flex; align-items:center; gap:12px; }
+    .brand .logo { max-height:60px; }
+    .brand-name { font-size:18px; font-weight:700; }
+    .brand-sub { font-size:14px; color:#555; }
+    .box { border:1px solid #ddd; border-radius:6px; padding:10px; background:#fafafa; }
+    .totals .rowline { display:flex; justify-content:space-between; margin:4px 0; }
+    .totals .highlight { font-size:16px; color:#d63384; font-weight:700; }
   </style>
-  {% endif %}
 {% endblock %}
 
 {% block content %}
@@ -18,25 +29,24 @@
   <div class="receipt-header">
     <div class="brand">
       <img class="logo" src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo">
-      <div class="brand-text">
+      <div>
         <div class="brand-name">المهندس الفلسطيني للمعدات الثقيلة</div>
         <div class="brand-sub">سند صيانة / طلب</div>
       </div>
     </div>
     <div class="text-muted">
-      رقم الخدمة:
-      <strong>{{ service.service_number or ('SRV-' ~ service.id) }}</strong><br>
-      التاريخ:
-      {{ service.received_at and service.received_at.strftime('%Y-%m-%d') or (service.created_at and service.created_at.strftime('%Y-%m-%d')) or '' }}
+      رقم الخدمة: <strong>{{ service.service_number or ('SRV-' ~ service.id) }}</strong><br>
+      التاريخ: {{ service.received_at and service.received_at.strftime('%Y-%m-%d') or (service.created_at and service.created_at.strftime('%Y-%m-%d')) or '' }}
     </div>
   </div>
 
-  <div class="brand-line"></div>
+  <hr>
 
+  <!-- بيانات العميل -->
   <div class="row g-3">
     <div class="col-md-6">
       <div class="box">
-        <table class="table table-sm kv mb-0">
+        <table class="table table-sm mb-0">
           <tr><th>العميل</th><td>{{ service.name or (service.customer.name if service.customer else '—') }}</td></tr>
           <tr><th>الجوال</th><td>{{ service.phone or (service.customer.phone if service.customer else '—') }}</td></tr>
           <tr><th>البريد</th><td>{{ service.email or (service.customer.email if service.customer else '—') }}</td></tr>
@@ -52,12 +62,12 @@
     <div class="col-md-6">
       <div class="box">
         <div class="mb-2">
-          <div class="fw-bold mb-1">وصف المشكلة:</div>
-          <div class="border rounded p-2 minh">{{ service.problem_description or '—' }}</div>
+          <div class="fw-bold">وصف المشكلة:</div>
+          <div class="border rounded p-2">{{ service.problem_description or '—' }}</div>
         </div>
         <div>
-          <div class="fw-bold mb-1">تقرير المهندس:</div>
-          <div class="border rounded p-2 minh">{{ service.diagnosis or service.engineer_notes or '—' }}</div>
+          <div class="fw-bold">تقرير المهندس:</div>
+          <div class="border rounded p-2">{{ service.diagnosis or service.engineer_notes or '—' }}</div>
         </div>
       </div>
     </div>
@@ -65,80 +75,74 @@
 
   <!-- جدول البنود -->
   <div class="box mt-3">
-    <div class="table-responsive">
-      <table class="table table-bordered table-sm mb-0 receipt-table">
-        <thead>
+    <table class="table table-bordered table-sm mb-0 receipt-table">
+      <thead>
+        <tr>
+          <th>النوع</th>
+          <th>الوصف</th>
+          <th>الكمية</th>
+          <th>سعر الوحدة</th>
+          <th>الإجمالي</th>
+          <th>الصافي</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set ns = namespace(gross_total=0.0, net_total=0.0, tax_total=0.0) %}
+
+        {# قطع الغيار #}
+        {% for part in service.parts or [] %}
+          {% set qty   = (part.quantity or 0)|float %}
+          {% set price = (part.unit_price or 0)|float %}
+          {% set discp = (part.discount or 0)|float %}
+          {% set taxp  = (part.tax_rate or 0)|float %}
+          {% set gross = qty * price %}
+          {% set disc_amt = gross * (discp/100.0) %}
+          {% set net_before_tax = gross - disc_amt %}
+          {% set tax_amt = net_before_tax * (taxp/100.0) %}
+          {% set line_total = net_before_tax + tax_amt %}
+          {% set ns.gross_total = ns.gross_total + gross %}
+          {% set ns.net_total   = ns.net_total + net_before_tax %}
+          {% set ns.tax_total   = ns.tax_total + tax_amt %}
+
           <tr>
-            <th class="col-type">النوع</th>
-            <th class="col-desc">الوصف</th>
-            <th class="col-qty text-end">الكمية</th>
-            <th class="col-unit text-end">سعر الوحدة</th>
-            <th class="col-sum text-end">الإجمالي</th>  {# قبل الخصم #}
-            <th class="col-net text-end">الصافي</th>    {# بعد الخصم + الضريبة #}
+            <td>قطعة</td>
+            <td>{{ part.part.name if part.part else ('#' ~ part.part_id) }}</td>
+            <td>{{ qty|round(2) }}</td>
+            <td>{{ '%.2f'|format(price) }}</td>
+            <td>{{ '%.2f'|format(gross) }}</td>
+            <td>{{ '%.2f'|format(line_total) }}</td>
           </tr>
-        </thead>
-        <tbody>
-          {% set ns = namespace(gross_total=0.0, net_total=0.0, tax_total=0.0) %}
+        {% endfor %}
 
-          {# قطع الغيار #}
-          {% for part in service.parts or [] %}
-            {% set qty   = (part.quantity or 0)|float %}
-            {% set price = (part.unit_price or 0)|float %}
-            {% set discp = (part.discount or 0)|float %}
-            {% set taxp  = (part.tax_rate or 0)|float %}
+        {# المهام/الأعمال #}
+        {% for task in service.tasks or [] %}
+          {% set qty   = (task.quantity or 0)|float %}
+          {% set price = (task.unit_price or 0)|float %}
+          {% set discp = (task.discount or 0)|float %}
+          {% set taxp  = (task.tax_rate or 0)|float %}
+          {% set gross = qty * price %}
+          {% set disc_amt = gross * (discp/100.0) %}
+          {% set net_before_tax = gross - disc_amt %}
+          {% set tax_amt = net_before_tax * (taxp/100.0) %}
+          {% set line_total = net_before_tax + tax_amt %}
+          {% set ns.gross_total = ns.gross_total + gross %}
+          {% set ns.net_total   = ns.net_total + net_before_tax %}
+          {% set ns.tax_total   = ns.tax_total + tax_amt %}
 
-            {% set gross = qty * price %}
-            {% set disc_amt = gross * (discp/100.0) %}
-            {% set net_before_tax = gross - disc_amt %}
-            {% set tax_amt = net_before_tax * (taxp/100.0) %}
-            {% set line_total = net_before_tax + tax_amt %}
-
-            {% set ns.gross_total = ns.gross_total + gross %}
-            {% set ns.net_total   = ns.net_total + net_before_tax %}
-            {% set ns.tax_total   = ns.tax_total + tax_amt %}
-
-            <tr>
-              <td>قطعة</td>
-              <td>{{ part.part.name if part.part else ('#' ~ part.part_id) }}</td>
-              <td class="text-end">{{ qty|round(2) }}</td>
-              <td class="text-end">{{ '%.2f'|format(price) }}</td>
-              <td class="text-end">{{ '%.2f'|format(gross) }}</td>
-              <td class="text-end">{{ '%.2f'|format(line_total) }}</td>
-            </tr>
-          {% endfor %}
-
-          {# المهام/الأعمال #}
-          {% for task in service.tasks or [] %}
-            {% set qty   = (task.quantity or 0)|float %}
-            {% set price = (task.unit_price or 0)|float %}
-            {% set discp = (task.discount or 0)|float %}
-            {% set taxp  = (task.tax_rate or 0)|float %}
-
-            {% set gross = qty * price %}
-            {% set disc_amt = gross * (discp/100.0) %}
-            {% set net_before_tax = gross - disc_amt %}
-            {% set tax_amt = net_before_tax * (taxp/100.0) %}
-            {% set line_total = net_before_tax + tax_amt %}
-
-            {% set ns.gross_total = ns.gross_total + gross %}
-            {% set ns.net_total   = ns.net_total + net_before_tax %}
-            {% set ns.tax_total   = ns.tax_total + tax_amt %}
-
-            <tr>
-              <td>مهمة</td>
-              <td>{{ task.description or '—' }}</td>
-              <td class="text-end">{{ qty|round(2) }}</td>
-              <td class="text-end">{{ '%.2f'|format(price) }}</td>
-              <td class="text-end">{{ '%.2f'|format(gross) }}</td>
-              <td class="text-end">{{ '%.2f'|format(line_total) }}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+          <tr>
+            <td>مهمة</td>
+            <td>{{ task.description or '—' }}</td>
+            <td>{{ qty|round(2) }}</td>
+            <td>{{ '%.2f'|format(price) }}</td>
+            <td>{{ '%.2f'|format(gross) }}</td>
+            <td>{{ '%.2f'|format(line_total) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 
-  {# المجاميع #}
+  <!-- المجاميع -->
   {% set subtotal_before_discount = ns.gross_total %}
   {% set net_after_discount       = ns.net_total %}
   {% set tax_amount               = ns.tax_total %}
@@ -148,24 +152,23 @@
     <div class="col-md-6"></div>
     <div class="col-md-6">
       <div class="box totals">
-        <div class="rowline"><span class="label">الإجمالي قبل الخصم</span><span class="value">{{ '%.2f'|format(subtotal_before_discount) }} ₪</span></div>
-        <div class="rowline"><span class="label">الصافي بعد الخصم</span><span class="value text-primary">{{ '%.2f'|format(net_after_discount) }} ₪</span></div>
-        <div class="rowline"><span class="label">الضريبة المجمعة</span><span class="value">{{ '%.2f'|format(tax_amount) }} ₪</span></div>
-        <hr class="my-2">
-        <div class="rowline"><span class="label fw-bold">الإجمالي النهائي</span><span class="value highlight">{{ '%.2f'|format(grand_total) }} ₪</span></div>
+        <div class="rowline"><span>الإجمالي قبل الخصم</span><span>{{ '%.2f'|format(subtotal_before_discount) }} ₪</span></div>
+        <div class="rowline"><span>الصافي بعد الخصم</span><span class="text-primary">{{ '%.2f'|format(net_after_discount) }} ₪</span></div>
+        <div class="rowline"><span>الضريبة المجمعة</span><span>{{ '%.2f'|format(tax_amount) }} ₪</span></div>
+        <hr>
+        <div class="rowline"><span class="fw-bold">الإجمالي النهائي</span><span class="highlight">{{ '%.2f'|format(grand_total) }} ₪</span></div>
       </div>
     </div>
   </div>
 
-  <!-- زر للطباعة يظهر على الشاشة فقط -->
-  <div class="text-center mt-4 actions no-print">
+  <!-- أزرار -->
+  <div class="text-center mt-4 no-print">
     <button class="btn btn-dark" onclick="window.print()">🖨️ طباعة</button>
-    <a class="btn btn-secondary" href="{{ url_for('service.view_request', rid=service.id) }}">رجوع</a>
+    <a class="btn btn-secondary" href="{{ url_for('service.view_request', rid=service.id) }}">↩️ رجوع</a>
   </div>
 </div>
 
-<!-- فوتر الإيصال الخاص (ثابت في الطباعة) -->
-<div class="receipt-footer text-center">
+<div class="receipt-footer">
   مع تحياتنا — نتشرف بخدمتكم — رام الله - فلسطين — جوال: 0592800646 — واتساب: +970592800646
 </div>
 {% endblock %}

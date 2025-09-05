@@ -77,7 +77,7 @@
               {% elif method == 'bank' %}
                 مرجع التحويل: {{ d.get('bank_transfer_ref','—') }}
               {% elif method == 'card' %}
-                بطاقة رقم: ****{{ (d.get('card_number','')|string)[-4:] }}<br>
+                بطاقة رقم: ****{{ (d.get('card_last4','') or (d.get('card_number','')|string)[-4:]) }}<br>
                 حامل البطاقة: {{ d.get('card_holder','—') }}<br>
                 انتهاء: {{ d.get('card_expiry','—') }}
               {% elif method == 'online' %}
@@ -118,6 +118,7 @@ document.querySelectorAll('.remove-split').forEach(btn => {
       .then(j => {
         if (j.status === 'success') {
           document.getElementById(`split-${btn.dataset.splitId}`).remove();
+          alert('✅ تم حذف الدفعة الجزئية');
         } else {
           alert('فشل: ' + (j.message || 'خطأ غير معروف'));
         }

@@ -478,15 +478,24 @@ def sale_payments(id: int):
          .filter(Payment.sale_id == id)
          .order_by(Payment.payment_date.desc(), Payment.id.desc()))
     pagination = q.paginate(page=page, per_page=per_page, error_out=False)
+    sale = db.session.get(Sale, id) or abort(404)
+    total_paid = getattr(sale, "total_paid", 0)
     if request.headers.get("Accept", "").startswith("application/json"):
         return jsonify({
             "payments": [p.to_dict() for p in pagination.items],
             "total_pages": pagination.pages,
             "current_page": pagination.page,
-            "entity": {"type": "SALE", "id": id}
+            "entity": {"type": "SALE", "id": id},
+            "total_paid": float(total_paid),
         })
-    return render_template("payments/list.html", payments=pagination.items, pagination=pagination,
-                           entity_type="SALE", entity_id=id)
+    return render_template(
+        "payments/list.html",
+        payments=pagination.items,
+        pagination=pagination,
+        entity_type="SALE",
+        entity_id=id,
+        total_paid=total_paid
+    )
 
 @sales_bp.route("/<int:id>/edit", methods=["GET", "POST"], endpoint="edit_sale")
 @login_required
@@ -685,17 +694,6 @@ def change_status(id: int, status: str):
         flash(f"❌ خطأ أثناء تحديث الحالة: {e}", "danger")
     return redirect(url_for("sales_bp.sale_detail", id=sale.id))
 
-@sales_bp.route("/<int:id>/payments/add", methods=["GET", "POST"], endpoint="add_payment")
-@login_required
-@permission_required("manage_sales")
-def add_payment(id: int):
-    return redirect(url_for("payments.create_payment", entity_type="SALE", entity_id=id))
-
-@sales_bp.route("/payments/<int:pid>/delete", methods=["POST"], endpoint="delete_payment")
-@login_required
-@permission_required("manage_sales")
-def delete_payment(pid: int):
-    return redirect(url_for("payments.delete_payment", payment_id=pid))
 
 @sales_bp.route("/<int:id>/invoice", methods=["GET"], endpoint="generate_invoice")
 @login_required
