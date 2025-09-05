@@ -2,18 +2,19 @@
   if (window.__WAREHOUSES_INIT__) return;
   window.__WAREHOUSES_INIT__ = true;
 
+  // ===== Helpers =====
   function getCSRFToken() {
-    const meta = document.querySelector('meta[name="csrf-token"]');
+    var meta = document.querySelector('meta[name="csrf-token"]');
     if (meta && meta.content) return meta.content;
-    const input = document.querySelector('input[name="csrf_token"]');
+    var input = document.querySelector('input[name="csrf_token"]');
     if (input && input.value) return input.value;
-    const m = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
+    var m = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
     return m ? decodeURIComponent(m[1]) : null;
   }
 
   function showNotification(message, type) {
     type = type || 'info';
-    let c = document.getElementById('notification-container');
+    var c = document.getElementById('notification-container');
     if (!c) {
       c = document.createElement('div');
       c.id = 'notification-container';
@@ -23,11 +24,11 @@
       c.style.zIndex = '2000';
       document.body.appendChild(c);
     }
-    const el = document.createElement('div');
+    var el = document.createElement('div');
     el.className = 'alert alert-' + type + ' alert-dismissible fade show shadow-sm mb-2';
     el.setAttribute('role', 'alert');
-    const isBS5 = !!(window.bootstrap && typeof bootstrap?.Modal === 'function');
-    const closeBtn = isBS5
+    var isBS5 = !!(window.bootstrap && window.bootstrap.Modal);
+    var closeBtn = isBS5
       ? '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>'
       : '<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>';
     el.innerHTML = message + closeBtn;
@@ -35,312 +36,324 @@
     setTimeout(function () {
       if (!el.parentNode) return;
       el.classList.remove('show');
-      setTimeout(function () { el.remove(); }, 300);
+      setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 300);
     }, 5000);
   }
 
+  function prefetchOnce($el, endpoint) {
+    if (!$el || !endpoint) return;
+    if ($el.data('prefetched')) return;
+    $el.data('prefetched', true);
+    fetch(endpoint + (endpoint.indexOf('?') >= 0 ? '&' : '?') + 'q=&limit=20', {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin'
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      var arr = Array.isArray(data) ? data : (data.results || data.data || []);
+      (arr || []).forEach(function (x) {
+        var id = x.id;
+        var text = x.text || x.name || String(id);
+        if (!id) return;
+        if ($el.find('option[value="' + id + '"]').length === 0) {
+          var opt = new Option(text, id, false, false);
+          $el.append(opt);
+        }
+      });
+      $el.trigger('change.select2');
+    })
+    .catch(function () { /* ignore */ });
+  }
+
+  function initSelect2(root) {
+    if (!(window.jQuery && jQuery.fn.select2)) return;
+    var $root = jQuery(root || document);
+    $root.find('select.select2').each(function () {
+      var $el = jQuery(this);
+      if ($el.data('select2')) return;
+      var endpoint = $el.data('url') || $el.data('endpoint');
+      var placeholder = $el.attr('placeholder') || 'اختر...';
+      var opts = {
+        width: '100%',
+        dir: 'rtl',
+        theme: 'bootstrap4',
+        allowClear: true,
+        placeholder: placeholder,
+        minimumInputLength: 0
+      };
+      if (endpoint) {
+        opts.ajax = {
+          delay: 250,
+          cache: true,
+          url: endpoint,
+          data: function (params) {
+            return { q: (params && params.term) ? params.term : '', limit: 20 };
+          },
+          processResults: function (data) {
+            var arr = Array.isArray(data) ? data : (data.results || data.data || []);
+            return {
+              results: (arr || []).map(function (x) {
+                return { id: x.id, text: x.text || x.name || String(x.id) };
+              })
+            };
+          }
+        };
+      }
+      $el.select2(opts);
+      if (endpoint) prefetchOnce($el, endpoint);
+    });
+  }
+
+  function postJSON(url, payload) {
+    return fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRFToken': getCSRFToken() || ''
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify(payload || {})
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (data) {
+        if (!res.ok) {
+          var msg = (data && (data.error || data.message)) || ('HTTP ' + res.status);
+          throw new Error(msg);
+        }
+        return data;
+      });
+    });
+  }
+
+  function postForm(url, formElem) {
+    var fd = new FormData(formElem);
+    var csrf = getCSRFToken();
+    if (csrf && !fd.get('csrf_token')) fd.append('csrf_token', csrf);
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin',
+      body: fd
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (data) {
+        if (!res.ok && !data.success) {
+          var msg = (data && (data.error || data.message)) || ('HTTP ' + res.status);
+          throw new Error(msg);
+        }
+        return data;
+      });
+    });
+  }
+
+  function appendAndSelectOption(selectEl, id, text) {
+    if (!selectEl || !id) return;
+    var opt = new Option(text, id, true, true);
+    selectEl.add(opt);
+    if (window.jQuery) jQuery(selectEl).trigger('change');
+  }
+
   function markRequired(container) {
-    (container || document).querySelectorAll('[required]').forEach(function (el) {
+    var root = container || document;
+    var nodes = root.querySelectorAll('[required]');
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i];
       el.setAttribute('aria-required', 'true');
       var id = el.id;
-      var label = id ? (container || document).querySelector('label[for="' + id + '"]') : el.closest('.form-group')?.querySelector('label');
+      var label = id ? root.querySelector('label[for="' + id + '"]') : null;
+      if (!label) {
+        var grp = el.closest('.form-group');
+        if (grp) label = grp.querySelector('label');
+      }
       if (label && !label.querySelector('.req')) {
         var s = document.createElement('span');
         s.className = 'req';
         s.textContent = '*';
         label.appendChild(s);
       }
-      if (el.classList.contains('select2') || el.matches('select.select2')) {
+      if (el.classList.contains('select2') || (el.tagName === 'SELECT' && el.classList.contains('select2'))) {
         var wrap = el.closest('.form-group') || el.parentElement || el;
-        wrap.classList.add('is-required');
+        if (wrap) wrap.classList.add('is-required');
       }
-    });
-  }
-
-  async function ajaxFormSubmit(form, okMsg, reload, cb) {
-    const submitBtn = form.querySelector('[type="submit"]');
-    const prevDisabled = submitBtn && submitBtn.disabled;
-    if (submitBtn) submitBtn.disabled = true;
-    try {
-      const url = form.dataset.url || form.getAttribute('action') || form.action || window.location.href;
-      const method = (form.getAttribute('method') || 'POST').toUpperCase();
-      const fd = new FormData(form);
-      const headers = { 'X-Requested-With': 'XMLHttpRequest' };
-      const csrf = getCSRFToken();
-      if (csrf) headers['X-CSRFToken'] = csrf;
-      const res = await fetch(url, { method, body: fd, headers, credentials: 'same-origin' });
-      const ct = res.headers.get('content-type') || '';
-      const data = ct.includes('application/json') ? await res.json() : { success: res.ok };
-      if (data.success || res.ok) {
-        showNotification(okMsg || 'تم التنفيذ بنجاح.', 'success');
-        if (cb) cb(data);
-        if (reload === true) setTimeout(function () { location.reload(); }, 900);
-      } else {
-        const err = data.error || data.message || JSON.stringify(data.errors || {});
-        showNotification('خطأ: ' + err, 'danger');
-      }
-      return data;
-    } catch (e) {
-      showNotification('تعذر الاتصال بالخادم.', 'danger');
-      return { success: false };
-    } finally {
-      if (submitBtn) submitBtn.disabled = prevDisabled || false;
     }
   }
 
-  function selectSetValue(selectEl, id, text) {
-    if (!selectEl) return;
-    const val = String(id);
-    let opt = Array.from(selectEl.options).find(function (o) { return o.value === val; });
-    if (!opt) {
-      opt = document.createElement('option');
-      opt.value = val;
-      opt.textContent = text || val;
-      selectEl.appendChild(opt);
-    } else if (text && !opt.textContent) {
-      opt.textContent = text;
-    }
-    selectEl.value = val;
-    if (window.jQuery) {
-      const $sel = window.jQuery(selectEl);
-      $sel.val(val).trigger('change');
-    } else {
-      const evt = new Event('change', { bubbles: true });
-      selectEl.dispatchEvent(evt);
-    }
-  }
-
-  function initSelect2In(root) {
-    if (!(window.jQuery && jQuery.fn.select2)) return;
-    jQuery(root || document).find('.select2').each(function () {
-      const $el = jQuery(this);
-      if ($el.data('select2')) return;
-      const endpoint = $el.data('url') || $el.attr('data-url') || $el.data('endpoint');
-      const opts = { width: '100%', dir: 'rtl', theme: 'bootstrap4', allowClear: true, placeholder: $el.attr('placeholder') || $el.data('placeholder') || 'اختر...' };
-      if (endpoint) {
-        opts.ajax = {
-          delay: 250,
-          url: endpoint,
-          data: function (params) { return { q: params && params.term ? params.term : '', limit: 20 }; },
-          processResults: function (data) {
-            const arr = Array.isArray(data) ? data : (data.results || data.data || []);
-            return { results: (arr || []).map(function (x) { return { id: x.id, text: x.text || x.name || String(x.id) }; }) };
-          }
-        };
-      }
-      $el.select2(opts);
-    });
-  }
-
-  async function loadPartnerShares(warehouseId) {
-    try {
-      const headers = { 'X-Requested-With': 'XMLHttpRequest' };
-      const csrf = getCSRFToken();
-      if (csrf) headers['X-CSRFToken'] = csrf;
-      const res = await fetch('/warehouses/' + warehouseId + '/partner-shares', { headers, credentials: 'same-origin' });
-      const data = await res.json();
-      if (!data.success) throw 0;
-      const tbody = document.querySelector('#partner-shares-table tbody');
-      if (!tbody) return;
-      tbody.innerHTML = '';
-      (data.shares || []).forEach(function (s) {
-        const tr = document.createElement('tr');
-        tr.innerHTML =
-          '<td>' + (s.product || '') + '</td>' +
-          '<td>' + (s.partner || '') + '</td>' +
-          '<td class="text-center">' + Number(s.share_percentage || 0).toFixed(2) + '</td>' +
-          '<td class="text-end">' + Number(s.share_amount || 0).toFixed(2) + '</td>' +
-          '<td>' + (s.notes || '') + '</td>';
-        tbody.appendChild(tr);
-      });
-    } catch {
-      showNotification('فشل تحميل بيانات حصص الشركاء.', 'danger');
-    }
-  }
-
-  function init() {
+  // ===== Page Init =====
+  function initPage() {
     markRequired(document);
+    initSelect2(document);
 
-    document.querySelectorAll('form').forEach(function (f) {
-      if (f.__validatedBound) return;
-      f.__validatedBound = true;
-      f.addEventListener('submit', function () { f.classList.add('was-validated'); }, { once: true });
-    });
+    var form = document.getElementById('add-product-form');
+    var wtype = (form && form.dataset && form.dataset.wtype ? form.dataset.wtype : '').toUpperCase();
+    var partnerSection = document.getElementById('partner-section');
+    var exchangeSection = document.getElementById('exchange-section');
+    var isExchangeEl = document.getElementById('is_exchange_id');
 
-    document.querySelectorAll('form[data-ajax="1"]').forEach(function (f) {
-      f.setAttribute('novalidate', 'novalidate');
-      if (f.__ajaxBound) return;
-      f.__ajaxBound = true;
-      f.addEventListener('submit', function (e) {
-        e.preventDefault();
-        ajaxFormSubmit(f, f.dataset.ok || 'تم الحفظ بنجاح.', f.dataset.reload === '1');
-      });
-    });
-
-    document.querySelectorAll('.stock-level-form').forEach(function (f) {
-      f.setAttribute('novalidate', 'novalidate');
-      if (f.__ajaxBound) return;
-      f.__ajaxBound = true;
-      f.addEventListener('submit', function (e) {
-        e.preventDefault();
-        ajaxFormSubmit(f, 'تم تحديث المخزون بنجاح.');
-      });
-    });
-
-    const transferForm = document.getElementById('transfer-form');
-    if (transferForm && !transferForm.__ajaxBound) {
-      transferForm.setAttribute('novalidate', 'novalidate');
-      transferForm.__ajaxBound = true;
-      transferForm.addEventListener('submit', function (e) {
-        e.preventDefault();
-        ajaxFormSubmit(transferForm, 'تم تسجيل التحويل.', true);
-      });
+    if (wtype === 'PARTNER' && partnerSection) {
+      partnerSection.classList.remove('d-none');
     }
-
-    const exchangeForm = document.getElementById('exchange-form');
-    if (exchangeForm && !exchangeForm.__ajaxBound) {
-      exchangeForm.setAttribute('novalidate', 'novalidate');
-      exchangeForm.__ajaxBound = true;
-      exchangeForm.addEventListener('submit', function (e) {
-        e.preventDefault();
-        ajaxFormSubmit(exchangeForm, 'تم تسجيل حركة التبادل.', true);
-      });
-    }
-
-    const partnerSharesForm = document.getElementById('partner-shares-form');
-    if (partnerSharesForm && !partnerSharesForm.__ajaxBound) {
-      partnerSharesForm.setAttribute('novalidate', 'novalidate');
-      partnerSharesForm.__ajaxBound = true;
-      partnerSharesForm.addEventListener('submit', async function (e) {
-        e.preventDefault();
-        const wid = partnerSharesForm.dataset.warehouseId;
-        const rows = partnerSharesForm.querySelectorAll('.share-row');
-        const shares = [];
-        rows.forEach(function (r) {
-          shares.push({
-            product_id: parseInt(r.querySelector('.product-id')?.value || '0', 10) || null,
-            partner_id: parseInt(r.querySelector('.partner-id')?.value || '0', 10) || null,
-            share_percentage: parseFloat(r.querySelector('.share-percentage')?.value || '0') || 0,
-            share_amount: parseFloat(r.querySelector('.share-amount')?.value || '0') || 0,
-            notes: r.querySelector('.notes')?.value || ''
-          });
+    var defaultExchange = (wtype === 'EXCHANGE');
+    if (exchangeSection) {
+      if (isExchangeEl) {
+        if (defaultExchange) isExchangeEl.checked = true;
+        exchangeSection.classList.toggle('d-none', !(isExchangeEl.checked || defaultExchange));
+        isExchangeEl.addEventListener('change', function () {
+          exchangeSection.classList.toggle('d-none', !isExchangeEl.checked);
         });
-        try {
-          const headers = { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' };
-          const csrf = getCSRFToken();
-          if (csrf) headers['X-CSRFToken'] = csrf;
-          const res = await fetch('/warehouses/' + wid + '/partner-shares', { method: 'POST', headers, body: JSON.stringify({ shares }), credentials: 'same-origin' });
-          const data = await res.json();
-          if (data.success) {
-            showNotification('تم تحديث الحصص.', 'success');
-            loadPartnerShares(wid);
-          } else {
-            showNotification('خطأ: ' + (data.error || 'تعذر التحديث'), 'danger');
-          }
-        } catch {
-          showNotification('تعذر الاتصال أثناء تحديث الحصص.', 'danger');
-        }
-      });
-      const tbl = document.getElementById('partner-shares-table');
-      if (tbl) loadPartnerShares(partnerSharesForm.dataset.warehouseId);
-    }
-
-    initSelect2In(document);
-
-    if (window.jQuery && jQuery.fn.select2) {
-      jQuery(document).on('select2:open select2:close', function () { markRequired(document); });
-    }
-
-    if (window.jQuery && jQuery.fn.DataTable) {
-      jQuery.fn.dataTable.ext.errMode = 'none';
-      jQuery('.datatable').each(function () {
-        const $t = jQuery(this);
-        if ($t.hasClass('dt-initialized')) return;
-        $t.addClass('dt-initialized').DataTable({
-          pageLength: 25,
-          order: [],
-          responsive: true,
-          autoWidth: false,
-          language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/ar.json' }
-        }).on('error.dt', function () { showNotification('حدثت مشكلة أثناء تحميل الجدول.', 'danger'); });
-      });
-    }
-
-    document.addEventListener('click', function (e) {
-      const btn = e.target.closest('.btn-delete');
-      if (!btn) return;
-      e.preventDefault();
-      const form = btn.closest('form');
-      if (!form) return;
-      if (window.Swal && Swal.fire) {
-        Swal.fire({
-          icon: 'warning',
-          title: 'تأكيد الحذف',
-          html: 'سيتم حذف السجل نهائيًا',
-          showCancelButton: true,
-          confirmButtonText: 'حذف',
-          cancelButtonText: 'إلغاء',
-          reverseButtons: true
-        }).then(function (r) { if (r.isConfirmed) form.submit(); });
-      } else if (confirm('تأكيد الحذف؟')) form.submit();
-    });
-
-    (function () {
-      const form = document.getElementById('add-product-form');
-      if (!form) return;
-
-      const wtype = (form.dataset.wtype || '').toUpperCase();
-      const pSec = document.getElementById('partner-section');
-      const eSec = document.getElementById('exchange-section');
-      const isExchangeEl = document.getElementById('is_exchange_id');
-
-      if (wtype === 'PARTNER' && pSec) pSec.classList.remove('d-none');
-
-      const defaultExchange = (wtype === 'EXCHANGE');
-      if (eSec) {
-        if (isExchangeEl) {
-          if (defaultExchange) isExchangeEl.checked = true;
-          const sync = function () { eSec.classList.toggle('d-none', !isExchangeEl.checked && !defaultExchange); };
-          sync();
-          isExchangeEl.addEventListener('change', function () {
-            eSec.classList.toggle('d-none', !isExchangeEl.checked);
-          });
-        } else {
-          eSec.classList.toggle('d-none', !defaultExchange);
-        }
+      } else {
+        exchangeSection.classList.toggle('d-none', !defaultExchange);
       }
+    }
 
-      const partnersWrap = document.getElementById('partners-container');
-      const addPartnerBtn = document.getElementById('add-partner-btn');
-      const partnerTpl = document.getElementById('partner-template')?.content;
-      if (addPartnerBtn && partnersWrap && partnerTpl) {
-        addPartnerBtn.addEventListener('click', function () {
-          const node = document.importNode(partnerTpl, true);
-          partnersWrap.appendChild(node);
-          initSelect2In(partnersWrap);
-          markRequired(partnersWrap);
-        });
-        partnersWrap.addEventListener('click', function (e) {
-          if (e.target.closest('.remove-partner-btn')) e.target.closest('.partner-entry')?.remove();
-        });
+    // إضافة/حذف صفوف الشركاء
+    var partnersContainer = document.getElementById('partners-container');
+    var addPartnerBtn = document.getElementById('add-partner-btn');
+    var partnerTpl = document.getElementById('partner-template');
+    if (addPartnerBtn && partnersContainer && partnerTpl && partnerTpl.content) {
+      addPartnerBtn.addEventListener('click', function () {
+        var node = document.importNode(partnerTpl.content, true);
+        partnersContainer.appendChild(node);
+        initSelect2(partnersContainer);
+        markRequired(partnersContainer);
+      });
+      partnersContainer.addEventListener('click', function (e) {
+        var rm = e.target.closest('.remove-partner-btn');
+        if (rm) { var row = e.target.closest('.partner-entry'); if (row) row.remove(); }
+      });
+    }
+
+    // إضافة/حذف صفوف المورّدين (exchange)
+    var vendorsContainer = document.getElementById('vendors-container');
+    var addVendorBtn = document.getElementById('add-vendor-btn');
+    var vendorTpl = document.getElementById('vendor-template');
+    if (addVendorBtn && vendorsContainer && vendorTpl && vendorTpl.content) {
+      addVendorBtn.addEventListener('click', function () {
+        var node = document.importNode(vendorTpl.content, true);
+        vendorsContainer.appendChild(node);
+        initSelect2(vendorsContainer);
+        markRequired(vendorsContainer);
+      });
+      vendorsContainer.addEventListener('click', function (e) {
+        var rm = e.target.closest('.remove-vendor-btn');
+        if (rm) { var row = e.target.closest('.vendor-entry'); if (row) row.remove(); }
+      });
+    }
+
+    // تذكر آخر select مورد مركّز عليه لإرجاع القيمة بعد إنشاء المورد
+    var lastSupplierSelect = null;
+    document.addEventListener('focusin', function (e) {
+      if (e.target && e.target.matches('#vendors-container select[name="supplier_id"]')) {
+        lastSupplierSelect = e.target;
       }
+    });
 
-      const vendorsWrap = document.getElementById('vendors-container');
-      const addVendorBtn = document.getElementById('add-vendor-btn');
-      const vendorTpl = document.getElementById('vendor-template')?.content;
-      if (addVendorBtn && vendorsWrap && vendorTpl) {
-        addVendorBtn.addEventListener('click', function () {
-          const node = document.importNode(vendorTpl, true);
-          vendorsWrap.appendChild(node);
-          initSelect2In(vendorsWrap);
-          markRequired(vendorsWrap);
-        });
-        vendorsWrap.addEventListener('click', function (e) {
-          if (e.target.closest('.remove-vendor-btn')) e.target.closest('.vendor-entry')?.remove();
-        });
+    // مودال: إنشاء فئة (AJAX JSON) — يدعم شكلي الاستجابة
+    (function initCategoryModal() {
+      var mform = document.getElementById('create-category-form');
+      var select = document.getElementById('category_id');
+      if (!mform || !select) return;
+      mform.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var btn = mform.querySelector('button[type="submit"]');
+        if (btn) btn.disabled = true;
+        var name = (mform.querySelector('input[name="name"]') || {}).value || '';
+        name = name.trim();
+        var notesEl = mform.querySelector('textarea[name="notes"]');
+        var notes = notesEl ? (notesEl.value || '').trim() : '';
+        if (!name) { showNotification('أدخل اسم الفئة', 'warning'); if (btn) btn.disabled = false; return; }
+        var url = mform.getAttribute('data-url') || mform.action || window.location.href;
+        postJSON(url, { name: name, notes: notes })
+          .then(function (data) {
+            var item = data.id ? { id: data.id, text: data.name || name }
+                               : ((data.results && data.results[0]) ? data.results[0] : null);
+            if (!item) throw new Error('استجابة غير متوقعة من الخادم');
+            appendAndSelectOption(select, item.id, item.text || name);
+            showNotification('تمت إضافة الفئة.', 'success');
+            if (window.jQuery) jQuery(mform).closest('.modal').modal('hide');
+            mform.reset();
+          })
+          .catch(function (err) {
+            showNotification('تعذر إضافة الفئة: ' + (err && err.message ? err.message : 'خطأ غير معروف'), 'danger');
+          })
+          .finally(function () { if (btn) btn.disabled = false; });
+      });
+    })();
+
+    // مودال: إنشاء نوع مركبة (FlaskForm → FormData)
+    (function initEquipmentTypeModal() {
+      var mform = document.getElementById('equipmentTypeForm');
+      var select = document.getElementById('vehicle_type_id');
+      if (!mform || !select) return;
+      mform.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var btn = mform.querySelector('button[type="submit"]');
+        if (btn) btn.disabled = true;
+        var nameEl = mform.querySelector('input[name="name"]');
+        var name = nameEl ? (nameEl.value || '').trim() : '';
+        if (!name) { showNotification('أدخل اسم النوع', 'warning'); if (btn) btn.disabled = false; return; }
+        var url = mform.getAttribute('data-url') || mform.action || window.location.href;
+        postForm(url, mform)
+          .then(function (data) {
+            if (!data || !data.id) throw new Error(data && data.error ? data.error : 'استجابة غير متوقعة');
+            appendAndSelectOption(select, data.id, data.name || name);
+            showNotification('تمت إضافة النوع.', 'success');
+            if (window.jQuery) jQuery(mform).closest('.modal').modal('hide');
+            mform.reset();
+          })
+          .catch(function (err) {
+            showNotification('تعذر إضافة النوع: ' + (err && err.message ? err.message : 'خطأ غير معروف'), 'danger');
+          })
+          .finally(function () { if (btn) btn.disabled = false; });
+      });
+    })();
+
+    // مودال: إنشاء مورّد (JSON)
+    (function initSupplierModal() {
+      var mform = document.getElementById('create-supplier-form');
+      if (!mform) return;
+      mform.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var btn = mform.querySelector('button[type="submit"]');
+        if (btn) btn.disabled = true;
+        var payload = {
+          name: ((mform.querySelector('input[name="name"]') || {}).value || '').trim(),
+          phone: ((mform.querySelector('input[name="phone"]') || {}).value || '').trim(),
+          identity_number: ((mform.querySelector('input[name="identity_number"]') || {}).value || '').trim(),
+          address: ((mform.querySelector('input[name="address"]') || {}).value || '').trim(),
+          notes: ((mform.querySelector('textarea[name="notes"]') || {}).value || '').trim()
+        };
+        if (!payload.name) { showNotification('الاسم مطلوب', 'warning'); if (btn) btn.disabled = false; return; }
+        var url = mform.getAttribute('data-url') || mform.action || window.location.href;
+        postJSON(url, payload)
+          .then(function (data) {
+            if (!data || !data.id) throw new Error(data && data.error ? data.error : 'استجابة غير متوقعة');
+            var targetSelect = document.activeElement && document.activeElement.closest('#supplierModal')
+              ? null
+              : null; // لا نعتمد على focus هنا
+            // إن وُجِد آخر select مورّد مركّز عليه، سيتم تعيينه أدناه:
+            var fallback = document.querySelector('#vendors-container select[name="supplier_id"]');
+            var select = window.lastSupplierSelect || fallback;
+            if (select) appendAndSelectOption(select, data.id, data.name || payload.name);
+            showNotification('تمت إضافة المورّد.', 'success');
+            if (window.jQuery) jQuery(mform).closest('.modal').modal('hide');
+            mform.reset();
+          })
+          .catch(function (err) {
+            showNotification('تعذر إضافة المورّد: ' + (err && err.message ? err.message : 'خطأ غير معروف'), 'danger');
+          })
+          .finally(function () { if (btn) btn.disabled = false; });
+      });
+    })();
+
+    // تتبع آخر select للمورّد تم التركيز عليه
+    window.lastSupplierSelect = null;
+    document.addEventListener('focusin', function (e) {
+      if (e.target && e.target.matches('#vendors-container select[name="supplier_id"]')) {
+        window.lastSupplierSelect = e.target;
       }
+    });
 
-      // إجبار select2 على إرسال قيمة مفردة (لا تتحول لمصفوفة)
+    // إجبار select2 على إرسال قيمة مفردة في POST
+    if (form) {
       form.addEventListener('submit', function () {
         if (window.jQuery) {
           var vCat = window.jQuery('#category_id').val();
@@ -355,67 +368,73 @@
           }
         }
       });
-    })();
+    }
 
-    // فحص الباركود (يقرأ الـ URL من data-barcode-url)
-    (function(){
-      const input = document.getElementById('barcode');
-      const help  = document.getElementById('barcodeHelp');
+    // فحص الباركود
+    (function initBarcode() {
+      var input = document.getElementById('barcode');
+      var help  = document.getElementById('barcodeHelp');
       if (!input) return;
-      const validateURL = input.getAttribute('data-barcode-url') || '';
+      var validateURL = input.getAttribute('data-barcode-url') || '';
 
-      input.addEventListener('input', () => {
-        let v = input.value.replace(/\D+/g,'');
-        if (v.length > 13) v = v.slice(0,13);
+      input.addEventListener('input', function () {
+        var v = input.value.replace(/\D+/g, '');
+        if (v.length > 13) v = v.slice(0, 13);
         input.value = v;
-        input.classList.remove('is-invalid','is-valid');
+        input.classList.remove('is-invalid', 'is-valid');
         if (v.length >= 12 && validateURL) check(v);
       });
 
-      input.addEventListener('keydown', (e) => {
+      input.addEventListener('keydown', function (e) {
         if (e.key === 'Enter') {
           e.preventDefault();
-          const form = input.closest('form');
-          const focusables = form.querySelectorAll('input,select,textarea,button');
-          for (let i=0;i<focusables.length;i++){
-            if (focusables[i] === input && focusables[i+1]) { focusables[i+1].focus(); break; }
+          var ff = input.closest('form');
+          if (!ff) return;
+          var focusables = ff.querySelectorAll('input,select,textarea,button');
+          for (var i = 0; i < focusables.length; i++) {
+            if (focusables[i] === input && focusables[i + 1]) {
+              focusables[i + 1].focus(); break;
+            }
           }
         }
       });
 
-      async function check(code){
-        try{
-          const url = validateURL + (validateURL.includes('?') ? '&' : '?') + 'code=' + encodeURIComponent(code);
-          const res = await fetch(url, { headers: {'X-Requested-With':'XMLHttpRequest'} });
-          const r = await res.json();
-          if (!r.valid) {
+      function check(code) {
+        fetch(validateURL + (validateURL.indexOf('?') >= 0 ? '&' : '?') + 'code=' + encodeURIComponent(code), {
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          credentials: 'same-origin'
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+          if (!res.valid) {
             input.classList.add('is-invalid');
             if (help) help.textContent = 'باركود غير صالح';
             return;
           }
-          if (r.normalized && r.normalized !== input.value) {
-            input.value = r.normalized;
+          if (res.normalized && res.normalized !== input.value) {
+            input.value = res.normalized;
           }
-          if (r.exists) {
+          if (res.exists) {
             input.classList.add('is-invalid');
             if (help) help.textContent = 'الباركود مستخدم بالفعل';
           } else {
             input.classList.add('is-valid');
             if (help) help.textContent = 'الباركود صالح';
           }
-        } catch {
+        })
+        .catch(function () {
           if (help) help.textContent = 'تعذر التحقق الآن، سيتم الفحص عند الحفظ';
-        }
+        });
       }
     })();
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', initPage);
   } else {
-    init();
+    initPage();
   }
 
-  // متاح للاستخدام العام إن احتجت
+  // متاح للاستخدام العام
   window.showNotification = showNotification;
 })();

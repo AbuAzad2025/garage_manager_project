@@ -10,8 +10,7 @@ from models import (
     Customer, Supplier, Partner, Product, Warehouse, User, Employee,
     Invoice, ServiceRequest, SupplierLoanSettlement, ProductCategory, Payment,
     EquipmentType, StockLevel, Sale, SaleLine, Shipment, ShipmentItem, ShipmentPartner, Transfer, PreOrder,
-    OnlinePreOrder, Expense, Permission, ExchangeTransaction,
-    WarehousePartnerShare, ProductPartnerShare
+    OnlinePreOrder, Expense, Permission, ExchangeTransaction, Role, WarehousePartnerShare, ProductPartnerShare
 )
 from utils import permission_required, super_only, _get_user_permissions, search_model
 from barcodes import normalize_barcode, validate_barcode
@@ -1093,6 +1092,66 @@ def not_found(e): return jsonify({"error":"Not Found"}), 404
 def server_error(e):
     db.session.rollback(); current_app.logger.exception("API 500: %s", getattr(e,"description",e))
     return jsonify({"error":"Server Error"}), 500
+
+@bp.get("/users", endpoint="users")
+@login_required
+def api_search_users():
+    q = (request.args.get("q") or "").strip()
+    limit = min(int(request.args.get("limit", 20) or 20), 50)
+    active_only = (request.args.get("active_only", "1") or "1") not in {"0", "false", "False"}
+    role_names = [s.strip() for s in (request.args.get("role") or "").split(",") if s.strip()]
+    role_ids = [int(s) for s in (request.args.get("role_id") or "").split(",") if s.strip().isdigit()]
+
+    if request.args.get("id"):
+        uid = request.args.get("id")
+        if str(uid).isdigit():
+            u = db.session.get(User, int(uid))
+            if not u:
+                return jsonify({"results": []})
+            if active_only and not u.is_active:
+                return jsonify({"results": []})
+            if role_names or role_ids:
+                if u.role is None:
+                    return jsonify({"results": []})
+                if role_names and u.role.name not in role_names:
+                    return jsonify({"results": []})
+                if role_ids and u.role_id not in role_ids:
+                    return jsonify({"results": []})
+            txt = (getattr(u, "username", "") or "").strip()
+            disp = (getattr(u, "name", None) or "").strip()
+            email = (getattr(u, "email", "") or "").strip()
+            text = disp or txt or email or f"User #{u.id}"
+            if email and email.lower() != text.lower():
+                text = f"{text} ({email})"
+            return jsonify({"results": [{"id": u.id, "text": text}]})
+
+    qs = User.query
+    if active_only:
+        qs = qs.filter(User._is_active.is_(True))
+    if role_names or role_ids:
+        qs = qs.join(Role, isouter=False)
+        if role_names:
+            qs = qs.filter(Role.name.in_(role_names))
+        if role_ids:
+            qs = qs.filter(Role.id.in_(role_ids))
+    if q:
+        ilike = f"%{q}%"
+        conds = [User.username.ilike(ilike), User.email.ilike(ilike)]
+        if hasattr(User, "name"):
+            conds.append(User.name.ilike(ilike))
+        qs = qs.filter(or_(*conds))
+
+    rows = qs.order_by(User.username.asc()).limit(limit).all()
+    results = []
+    for u in rows:
+        txt = (getattr(u, "username", "") or "").strip()
+        disp = (getattr(u, "name", None) or "").strip()
+        email = (getattr(u, "email", "") or "").strip()
+        text = disp or txt or email or f"User #{u.id}"
+        if email and email.lower() != text.lower():
+            text = f"{text} ({email})"
+        results.append({"id": u.id, "text": text})
+    return jsonify({"results": results})
 
 @bp.get("/equipment-types/search")
 @login_required

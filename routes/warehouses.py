@@ -940,14 +940,40 @@ def add_product(id):
 
     wtype_raw = getattr(warehouse.warehouse_type, "value", str(warehouse.warehouse_type))
     wtype = (wtype_raw or "").upper()
+    is_partner = warehouse.warehouse_type == WarehouseType.PARTNER.value
+    is_exchange = warehouse.warehouse_type == WarehouseType.EXCHANGE.value
+    partners_forms = [ProductPartnerShareForm()] if is_partner else []
+    exchange_vendors_forms = [ExchangeVendorForm()] if is_exchange else []
 
+    # اضبط المخزن الافتراضي إن لم يُرسل من الفورم
     if not stock_form.warehouse_id.data:
-        stock_form.warehouse_id.data = warehouse.id
+        try:
+            stock_form.warehouse_id.process(None, warehouse.id)
+        except Exception:
+            stock_form.warehouse_id.data = warehouse.id
 
     if request.method == "POST":
-        # تحقق أن الفئة المختارة موجودة
+        # DEBUG
+        print("=== DEBUG request.form ===")
+        for k, v in request.form.items():
+            print(f"{k} = {v!r}")
+        print("=== END DEBUG ===")
+
+        print("=== DEBUG product_form.data (pre) ===")
+        for k, v in product_form.data.items():
+            print(f"{k} = {v!r}")
+        print("=== END DEBUG ===")
+        print("=== DEBUG stock_form.data (pre) ===")
+        for k, v in stock_form.data.items():
+            print(f"{k} = {v!r}")
+        print("=== END DEBUG ===")
+        print("=== DEBUG product_form.errors (pre) ===", product_form.errors)
+        print("=== DEBUG stock_form.errors (pre) ===", stock_form.errors)
+
+        # تحقق من الفئة إن كانت مُحددة
         if product_form.category_id.data:
             cat = db.session.get(ProductCategory, int(product_form.category_id.data))
+            print("=== DEBUG category check ===", cat)
             if not cat:
                 flash("الفئة المختارة غير موجودة.", "danger")
                 return render_template(
@@ -955,100 +981,170 @@ def add_product(id):
                     product_form=product_form,
                     stock_form=stock_form,
                     warehouse=warehouse,
-                    partners_forms=[],
-                    exchange_vendors_forms=[],
+                    partners_forms=partners_forms,
+                    exchange_vendors_forms=exchange_vendors_forms,
                     wtype=wtype,
-                )
+                ), 400
 
-        if product_form.validate_on_submit() and stock_form.validate():
-            try:
-                with db.session.begin():
-                    product = product_form.apply_to(Product())
-                    if not product.category_id and product.category_name:
-                        product.category_id = _ensure_category_id(product.category_name)
-                    db.session.add(product)
-
-                    init_qty = max(int(stock_form.quantity.data or 0), 0)
-                    init_res = max(int(stock_form.reserved_quantity.data or 0), 0)
-
-                    sl = StockLevel.query.filter_by(
-                        warehouse_id=warehouse.id, product_id=product.id
-                    ).first()
-                    if not sl:
-                        sl = StockLevel(
-                            warehouse_id=warehouse.id,
-                            product=product,
-                            quantity=0,
-                            reserved_quantity=0,
-                        )
-                        db.session.add(sl)
-
-                    sl.quantity = (sl.quantity or 0) + init_qty
-                    sl.reserved_quantity = init_res
-                    sl.min_stock = stock_form.min_stock.data or None
-                    sl.max_stock = stock_form.max_stock.data or None
-
-                    if warehouse.warehouse_type == WarehouseType.PARTNER.value:
-                        for pid, perc, amt, note in zip(
-                            request.form.getlist("partner_id"),
-                            request.form.getlist("share_percentage"),
-                            request.form.getlist("share_amount"),
-                            request.form.getlist("notes"),
-                        ):
-                            if not pid:
-                                continue
-                            db.session.add(
-                                ProductPartnerShare(
-                                    product=product,
-                                    partner_id=int(pid),
-                                    share_percentage=float(perc or 0),
-                                    share_amount=float(amt or 0),
-                                    notes=note.strip() if note else None,
-                                )
-                            )
-
-                    elif warehouse.warehouse_type == WarehouseType.EXCHANGE.value:
-                        supplier_ids = request.form.getlist("supplier_id")
-                        vendor_phones = request.form.getlist("vendor_phone")
-                        vendor_paid = request.form.getlist("vendor_paid")
-                        vendor_prices = request.form.getlist("vendor_price")
-
-                        for sid, phone, paid, price in zip(
-                            supplier_ids, vendor_phones, vendor_paid, vendor_prices
-                        ):
-                            note_parts = []
-                            if sid and sid.isdigit():
-                                sup = db.session.get(Supplier, int(sid))
-                                note_parts.append(f"SupplierID:{sid}({sup.name if sup else ''})")
-                            if phone:
-                                note_parts.append(f"phone:{phone}")
-                            if paid:
-                                note_parts.append(f"paid:{paid}")
-                            if price:
-                                note_parts.append(f"price:{price}")
-
-                            db.session.add(
-                                ExchangeTransaction(
-                                    product=product,
-                                    warehouse_id=warehouse.id,
-                                    partner_id=None,
-                                    quantity=init_qty,
-                                    direction="IN",
-                                    notes=" | ".join(note_parts) if note_parts else None,
-                                )
-                            )
-
-                flash("تمت إضافة القطعة بنجاح", "success")
-                return redirect(url_for("warehouse_bp.products", id=warehouse.id))
-
-            except Exception as e:
-                log.exception("add_product:exception")
-                flash(f"فشل حفظ المنتج: {e}", "danger")
-        else:
+        # تحقّق من نموذج المنتج أولاً فقط
+        if not product_form.validate_on_submit():
+            print("=== DEBUG product_form INVALID ===", product_form.errors)
             flash("تعذّر حفظ المنتج. تأكّد من الحقول المطلوبة.", "danger")
+            return render_template(
+                "warehouses/add_product.html",
+                product_form=product_form,
+                stock_form=stock_form,
+                warehouse=warehouse,
+                partners_forms=partners_forms,
+                exchange_vendors_forms=exchange_vendors_forms,
+                wtype=wtype,
+            ), 400
 
-    partners_forms = [ProductPartnerShareForm()] if warehouse.warehouse_type == WarehouseType.PARTNER.value else []
-    exchange_vendors_forms = [ExchangeVendorForm()] if warehouse.warehouse_type == WarehouseType.EXCHANGE.value else []
+        try:
+            # ملاحظة: نستخدم begin_nested لأن الجلسة قد تكون بدأت معاملة بالفعل بسبب قراءات سابقة
+            with db.session.begin_nested():
+                print("=== DEBUG saving product ===")
+                product = product_form.apply_to(Product())
+                print("APPLY_TO done (product partial):", product)
+
+                # إنشاء/توليد فئة عند وجود اسم فقط
+                if not product.category_id and product.category_name:
+                    product.category_id = _ensure_category_id(product.category_name)
+                    print("Category ensured:", product.category_id)
+
+                db.session.add(product)
+                db.session.flush()  # product.id جاهز الآن
+                print("=== DEBUG product.id after flush ===", product.id)
+
+                # حقن product_id في فورم المخزون قبل التحقق
+                try:
+                    stock_form.product_id.process(None, product.id)
+                except Exception:
+                    stock_form.product_id.data = product.id
+
+                # تأكيد المخزن
+                if hasattr(stock_form, "warehouse_id") and not stock_form.warehouse_id.data:
+                    try:
+                        stock_form.warehouse_id.process(None, warehouse.id)
+                    except Exception:
+                        stock_form.warehouse_id.data = warehouse.id
+
+                print("=== DEBUG stock_form.data (after inject) ===")
+                for k, v in stock_form.data.items():
+                    print(f"{k} = {v!r}")
+                print("=== END DEBUG ===")
+
+                if not stock_form.validate():
+                    print("=== DEBUG stock_form INVALID ===", stock_form.errors)
+                    raise ValueError(f"Stock form invalid: {stock_form.errors}")
+
+                # قيم المخزون الابتدائي
+                init_qty = max(int(stock_form.quantity.data or 0), 0)
+                init_res = max(int(stock_form.reserved_quantity.data or 0), 0)
+                print("Init stock:", init_qty, "reserved:", init_res)
+
+                # أنشئ/حدّث مستوى المخزون
+                sl = StockLevel.query.filter_by(
+                    warehouse_id=stock_form.warehouse_id.data, product_id=product.id
+                ).first()
+                print("StockLevel existing:", sl)
+                if not sl:
+                    sl = StockLevel(
+                        warehouse_id=stock_form.warehouse_id.data,
+                        product=product,
+                        quantity=0,
+                        reserved_quantity=0,
+                    )
+                    db.session.add(sl)
+                    print("New StockLevel added")
+
+                sl.quantity = (sl.quantity or 0) + init_qty
+                sl.reserved_quantity = init_res
+                sl.min_stock = stock_form.min_stock.data or None
+                sl.max_stock = stock_form.max_stock.data or None
+                print("StockLevel updated:", sl.quantity, sl.reserved_quantity)
+
+                # بيانات الشركاء (Partner)
+                if is_partner:
+                    print("=== DEBUG partner shares ===")
+                    for pid, perc, amt, note in zip(
+                        request.form.getlist("partner_id"),
+                        request.form.getlist("share_percentage"),
+                        request.form.getlist("share_amount"),
+                        request.form.getlist("notes"),
+                    ):
+                        print("Partner row:", pid, perc, amt, note)
+                        if not pid:
+                            continue
+                        try:
+                            share_percentage = float(perc or 0)
+                        except ValueError:
+                            share_percentage = 0.0
+                        try:
+                            share_amount = float(amt or 0)
+                        except ValueError:
+                            share_amount = 0.0
+                        db.session.add(
+                            ProductPartnerShare(
+                                product=product,
+                                partner_id=int(pid),
+                                share_percentage=share_percentage,
+                                share_amount=share_amount,
+                                notes=note.strip() if note else None,
+                            )
+                        )
+                    print("Partners saved")
+
+                # بيانات الاستبدال (Exchange)
+                elif is_exchange:
+                    print("=== DEBUG exchange vendors ===")
+                    supplier_ids = request.form.getlist("supplier_id")
+                    vendor_phones = request.form.getlist("vendor_phone")
+                    vendor_paid = request.form.getlist("vendor_paid")
+                    vendor_prices = request.form.getlist("vendor_price")
+
+                    for sid, phone, paid, price in zip(
+                        supplier_ids, vendor_phones, vendor_paid, vendor_prices
+                    ):
+                        print("Exchange row:", sid, phone, paid, price)
+                        note_parts = []
+                        if sid and sid.isdigit():
+                            sup = db.session.get(Supplier, int(sid))
+                            note_parts.append(f"SupplierID:{sid}({sup.name if sup else ''})")
+                        if phone:
+                            note_parts.append(f"phone:{phone}")
+                        if paid:
+                            note_parts.append(f"paid:{paid}")
+                        if price:
+                            note_parts.append(f"price:{price}")
+
+                        db.session.add(
+                            ExchangeTransaction(
+                                product=product,
+                                warehouse_id=warehouse.id,
+                                partner_id=None,
+                                quantity=init_qty,
+                                direction="IN",
+                                notes=" | ".join(note_parts) if note_parts else None,
+                            )
+                        )
+                    print("Exchange vendors saved")
+
+            # نكمّل الالتزام على المعاملة الخارجية
+            db.session.commit()
+            print("=== DEBUG COMMIT DONE ===")
+            print("Final product.id:", product.id)
+            print("Final category_id:", product.category_id)
+            print("Final warehouse.id:", warehouse.id)
+
+            flash("تمت إضافة القطعة بنجاح", "success")
+            return redirect(url_for("warehouse_bp.products", id=warehouse.id))
+
+        except Exception as e:
+            db.session.rollback()
+            log.exception("add_product:exception")
+            print("=== DEBUG exception ===", repr(e))
+            flash(f"فشل حفظ المنتج: {e}", "danger")
 
     return render_template(
         "warehouses/add_product.html",

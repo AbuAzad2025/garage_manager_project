@@ -2,7 +2,9 @@ from __future__ import annotations
 import re
 from datetime import date, datetime
 from decimal import Decimal
-from barcodes import  validate_barcode
+import json
+
+from barcodes import validate_barcode
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileField
 from sqlalchemy import func
@@ -60,17 +62,15 @@ from models import (
     normalize_barcode,
     SaleStatus,
     PaymentProgress,
-)
-from utils import is_valid_ean13
-import json
-from utils import luhn_check, is_valid_expiry_mm_yy, prepare_payment_form_choices, D, q
-from models import (
     Role,
     ExpenseType,
     Sale, SaleLine,
     ShipmentItem, ShipmentPartner,
     GLBatch, GLEntry,
 )
+
+from utils import is_valid_ean13, luhn_check, is_valid_expiry_mm_yy, prepare_payment_form_choices, D, q
+from validators import Unique
 # -------------------------------------------------------------
 
 CURRENCY_CHOICES = [("ILS", "ILS"), ("USD", "USD"), ("EUR", "EUR"), ("JOD", "JOD")]
@@ -1988,7 +1988,7 @@ class ImportForm(FlaskForm):
     dry_run = BooleanField('فحص فقط (بدون ترحيل)', default=True)
     continue_after_warnings = BooleanField('المتابعة رغم التحذيرات', default=False)
     submit = SubmitField('متابعة')
-    
+
 class ProductForm(FlaskForm):
     id = HiddenField()
     sku = StringField('SKU', validators=[
@@ -2018,57 +2018,37 @@ class ProductForm(FlaskForm):
                case_insensitive=True,
                normalizer=normalize_barcode)
     ])
-
     cost_before_shipping = DecimalField('التكلفة قبل الشحن', places=2, validators=[Optional(), NumberRange(min=0)])
     cost_after_shipping = DecimalField('التكلفة بعد الشحن', places=2, validators=[Optional(), NumberRange(min=0)])
     unit_price_before_tax = DecimalField('سعر الوحدة قبل الضريبة', places=2, validators=[Optional(), NumberRange(min=0)])
-
     price = DecimalField('السعر الأساسي', places=2, validators=[DataRequired(), NumberRange(min=0)])
     purchase_price = DecimalField('سعر الشراء', places=2, validators=[Optional(), NumberRange(min=0)])
     selling_price = DecimalField('سعر البيع', places=2, validators=[Optional(), NumberRange(min=0)])
     min_price = DecimalField('السعر الأدنى', places=2, validators=[Optional(), NumberRange(min=0)])
     max_price = DecimalField('السعر الأعلى', places=2, validators=[Optional(), NumberRange(min=0)])
     tax_rate = DecimalField('نسبة الضريبة', places=2, validators=[Optional(), NumberRange(min=0, max=100)])
-
     unit = StringField('الوحدة', validators=[Optional(), Length(max=50)])
     min_qty = IntegerField('الحد الأدنى', validators=[Optional(), NumberRange(min=0)])
     reorder_point = IntegerField('نقطة إعادة الطلب', validators=[Optional(), NumberRange(min=0)])
-
     condition = SelectField('الحالة', choices=[
         (ProductCondition.NEW.value, 'جديد'),
         (ProductCondition.USED.value, 'مستعمل'),
         (ProductCondition.REFURBISHED.value, 'مجدّد')
     ], validators=[DataRequired()])
-
     origin_country = StringField('بلد المنشأ', validators=[Optional(), Length(max=50)])
     warranty_period = IntegerField('مدة الضمان', validators=[Optional(), NumberRange(min=0)])
     weight = DecimalField('الوزن', places=2, validators=[Optional(), NumberRange(min=0)])
     dimensions = StringField('الأبعاد', validators=[Optional(), Length(max=50)])
     image = StringField('صورة', validators=[Optional(), Length(max=255)])
-
     is_active = BooleanField('نشط', default=True)
     is_digital = BooleanField('منتج رقمي', default=False)
     is_exchange = BooleanField('قابل للتبادل', default=False)
-
-    vehicle_type_id = AjaxSelectField(
-        'نوع المركبة',
-        endpoint='api.search_equipment_types',
-        get_label='name',
-        validators=[Optional()]
-    )
-    category_id = AjaxSelectField(
-        'الفئة',
-        endpoint='api.search_categories',
-        get_label='name',
-        validators=[DataRequired(message="يجب اختيار فئة للمنتج")],
-        render_kw={'required': True}
-        )
+    vehicle_type_id = AjaxSelectField('نوع المركبة', endpoint='api.search_equipment_types', get_label='name', validators=[Optional()], coerce=int)
+    category_id = AjaxSelectField('الفئة', endpoint='api.search_categories', get_label='name', coerce=int, validators=[DataRequired(message="يجب اختيار فئة للمنتج")], render_kw={'required': True})
     category_name = StringField('اسم الفئة (نصي)', validators=[Optional(), Length(max=100)])
-
-    supplier_id = AjaxSelectField('المورد الرئيسي', endpoint='api.search_suppliers', get_label='name', validators=[Optional()])
-    supplier_international_id = AjaxSelectField('المورد الدولي', endpoint='api.search_suppliers', get_label='name', validators=[Optional()])
-    supplier_local_id = AjaxSelectField('المورد المحلي', endpoint='api.search_suppliers', get_label='name', validators=[Optional()])
-
+    supplier_id = AjaxSelectField('المورد الرئيسي', endpoint='api.search_suppliers', get_label='name', validators=[Optional()], coerce=int)
+    supplier_international_id = AjaxSelectField('المورد الدولي', endpoint='api.search_suppliers', get_label='name', validators=[Optional()], coerce=int)
+    supplier_local_id = AjaxSelectField('المورد المحلي', endpoint='api.search_suppliers', get_label='name', validators=[Optional()], coerce=int)
     notes = TextAreaField('ملاحظات', validators=[Optional(), Length(max=2000)])
     submit = SubmitField('حفظ')
 
@@ -2236,8 +2216,8 @@ class ExchangeVendorForm(FlaskForm):
 
 class StockLevelForm(FlaskForm):
     id = HiddenField()
-    product_id = AjaxSelectField('الصنف', endpoint='api.search_products', get_label='name', validators=[DataRequired()])
-    warehouse_id = AjaxSelectField('المخزن', endpoint='api.search_warehouses', get_label='name', validators=[DataRequired()])
+    product_id = AjaxSelectField('الصنف', endpoint='api.search_products', get_label='name', validators=[Optional()], coerce=int)
+    warehouse_id = AjaxSelectField('المخزن', endpoint='api.search_warehouses', get_label='name', validators=[DataRequired()], coerce=int)
     quantity = IntegerField('الكمية', validators=[DataRequired(), NumberRange(min=0)])
     reserved_quantity = IntegerField('محجوز', validators=[Optional(), NumberRange(min=0)], default=0)
     min_stock = IntegerField('الحد الأدنى', validators=[Optional(), NumberRange(min=0)])
