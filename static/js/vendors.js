@@ -1,4 +1,6 @@
 (function () {
+  "use strict";
+
   function fmt(n) {
     return Number(n || 0).toFixed(2);
   }
@@ -100,7 +102,7 @@
   function wireSimpleSearch(inputId, tableId, selectors) {
     const input = document.getElementById(inputId);
     const table = document.getElementById(tableId);
-    if (!input || !table) return;
+    if (!input || !table || !table.tBodies.length) return;
     input.addEventListener('input', function () {
       const q = input.value.trim().toLowerCase();
       Array.from(table.tBodies[0].rows).forEach(function (row) {

@@ -1,11 +1,12 @@
-# models.py
 from __future__ import annotations
-import hashlib
+
 import enum
+import hashlib
 import json
 import re
 from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
+
 from flask import current_app, has_request_context, request
 from flask_login import UserMixin, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -34,6 +35,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import object_session, relationship, Session as _SA_Session, validates
+
 from extensions import db
 from barcodes import normalize_barcode
 
@@ -797,8 +799,11 @@ class SupplierSettlement(db.Model, TimestampMixin, AuditMixin):
     from_date = db.Column(db.DateTime, nullable=False)
     to_date = db.Column(db.DateTime, nullable=False)
     currency = db.Column(db.String(10), default='ILS', nullable=False)
-    status = db.Column(sa_str_enum(SupplierSettlementStatus, name='supplier_settlement_status'),
-                       default=SupplierSettlementStatus.DRAFT.value, nullable=False)
+    status = db.Column(
+        sa_str_enum(SupplierSettlementStatus, name='supplier_settlement_status'),
+        default=SupplierSettlementStatus.DRAFT.value,
+        nullable=False
+    )
     notes = db.Column(db.Text)
 
     total_gross = db.Column(db.Numeric(12, 2), default=0)
@@ -808,7 +813,9 @@ class SupplierSettlement(db.Model, TimestampMixin, AuditMixin):
     lines    = db.relationship('SupplierSettlementLine', back_populates='settlement',
                                cascade='all, delete-orphan')
 
-    __table_args__ = (db.Index('ix_supplier_settlements_supplier_period', 'supplier_id', 'from_date', 'to_date'),)
+    __table_args__ = (
+        db.Index('ix_supplier_settlements_supplier_period', 'supplier_id', 'from_date', 'to_date'),
+    )
 
     @hybrid_property
     def total_paid(self):
@@ -831,7 +838,8 @@ class SupplierSettlement(db.Model, TimestampMixin, AuditMixin):
         return float(self.total_due or 0) - float(self.total_paid or 0)
 
     def ensure_code(self):
-        if self.code: return
+        if self.code:
+            return
         prefix = datetime.utcnow().strftime("SS-%Y%m")
         cnt = (db.session.query(func.count(SupplierSettlement.id))
                .filter(SupplierSettlement.code.like(f"{prefix}-%")).scalar() or 0)
@@ -840,12 +848,18 @@ class SupplierSettlement(db.Model, TimestampMixin, AuditMixin):
     def mark_confirmed(self):
         self.status = SupplierSettlementStatus.CONFIRMED.value
 
+
 class SupplierSettlementLine(db.Model, TimestampMixin):
     __tablename__ = "supplier_settlement_lines"
 
     id = db.Column(db.Integer, primary_key=True)
-    settlement_id = db.Column(db.Integer, db.ForeignKey('supplier_settlements.id', ondelete='CASCADE'), nullable=False, index=True)
-    source_type = db.Column(db.String(30), nullable=False)
+    settlement_id = db.Column(
+        db.Integer,
+        db.ForeignKey('supplier_settlements.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True
+    )
+    source_type = db.Column(db.String(30), nullable=False)  # EXCHANGE_PURCHASE / EXCHANGE_RETURN / EXCHANGE_ADJUST / LOAN_SETTLEMENT
     source_id = db.Column(db.Integer, index=True)
     description = db.Column(db.String(255))
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'))
@@ -859,34 +873,124 @@ class SupplierSettlementLine(db.Model, TimestampMixin):
     __table_args__ = (db.Index('ix_ssl_source', 'source_type', 'source_id'),)
 
 
-def build_supplier_settlement_draft(supplier_id: int, date_from: datetime, date_to: datetime, *, currency: str = "ILS") -> SupplierSettlement:
+def build_supplier_settlement_draft(
+    supplier_id: int,
+    date_from: datetime,
+    date_to: datetime,
+    *,
+    currency: str = "ILS"
+) -> SupplierSettlement:
+    from sqlalchemy.orm import joinedload
+
     ss = SupplierSettlement(
-        supplier_id=supplier_id, from_date=date_from, to_date=date_to,
+        supplier_id=supplier_id,
+        from_date=date_from,
+        to_date=date_to,
         currency=(currency or "ILS").upper(),
         status=SupplierSettlementStatus.DRAFT.value,
     )
-    total_gross = Decimal("0.00")
 
-    loans_q = (db.session.query(SupplierLoanSettlement)
-               .filter(SupplierLoanSettlement.supplier_id == supplier_id,
-                       SupplierLoanSettlement.settlement_date >= date_from,
-                       SupplierLoanSettlement.settlement_date <= date_to))
+    total_purchases = Decimal("0.00")   # EXCHANGE IN/ADJUSTMENT
+    total_returns   = Decimal("0.00")   # EXCHANGE OUT
+    total_loans     = Decimal("0.00")   # SupplierLoanSettlement
+
+    # 1) Exchange Transactions في مخازن التبادل الخاصة بالمورّد ضمن الفترة
+    txs = (
+        db.session.query(ExchangeTransaction)
+        .join(Warehouse, Warehouse.id == ExchangeTransaction.warehouse_id)
+        .options(joinedload(ExchangeTransaction.product))
+        .filter(
+            Warehouse.warehouse_type == WarehouseType.EXCHANGE.value,
+            Warehouse.supplier_id == supplier_id,
+            ExchangeTransaction.created_at >= date_from,
+            ExchangeTransaction.created_at <= date_to,
+        )
+        .all()
+    )
+
+    for tx in txs:
+        dirv = (getattr(tx, "direction", "") or "").upper()
+        qty = Decimal(str(tx.quantity or 0))
+        unit_price = Decimal(str(tx.unit_cost or 0))
+        fallback_note = ""
+
+        # fallback للتسعير من سعر شراء المنتج
+        if (unit_price <= 0 or unit_price is None) and getattr(tx, "product", None):
+            pp = getattr(tx.product, "purchase_price", None)
+            if pp and Decimal(str(pp)) > 0:
+                unit_price = Decimal(str(pp))
+                fallback_note = " (تسعير من سعر شراء المنتج)"
+            else:
+                unit_price = Decimal("0.00")
+                fallback_note = " (سعر غير متوفر)"
+
+        amount = (qty * unit_price).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+        if dirv == "IN":
+            total_purchases += amount
+            ss.lines.append(SupplierSettlementLine(
+                source_type="EXCHANGE_PURCHASE",
+                source_id=tx.id,
+                description=f"توريد تبادل #{tx.id}{fallback_note}",
+                product_id=tx.product_id,
+                quantity=qty,
+                unit_price=unit_price,
+                gross_amount=amount
+            ))
+        elif dirv == "OUT":
+            total_returns += amount
+            ss.lines.append(SupplierSettlementLine(
+                source_type="EXCHANGE_RETURN",
+                source_id=tx.id,
+                description=f"مرتجع تبادل #{tx.id}{fallback_note}",
+                product_id=tx.product_id,
+                quantity=qty,
+                unit_price=unit_price,
+                gross_amount=amount
+            ))
+        elif dirv == "ADJUSTMENT":
+            # نعاملها كإدخال يزيد الالتزام (إن كانت تُستخدم لتسعير/تسوية دخول)
+            total_purchases += amount
+            ss.lines.append(SupplierSettlementLine(
+                source_type="EXCHANGE_ADJUST",
+                source_id=tx.id,
+                description=f"تسوية مخزون (تبادل) #{tx.id}{fallback_note}",
+                product_id=tx.product_id,
+                quantity=qty,
+                unit_price=unit_price,
+                gross_amount=amount
+            ))
+
+    # 2) تسويات القروض للقطع ضمن الفترة (تزيد المستحق)
+    loans_q = (
+        db.session.query(SupplierLoanSettlement)
+        .options(joinedload(SupplierLoanSettlement.loan))
+        .filter(
+            SupplierLoanSettlement.supplier_id == supplier_id,
+            SupplierLoanSettlement.settlement_date >= date_from,
+            SupplierLoanSettlement.settlement_date <= date_to
+        )
+    )
     for ls in loans_q:
         amount = q(ls.settled_price)
         prod_id = getattr(getattr(ls, "loan", None), "product_id", None)
+        total_loans += amount
         ss.lines.append(SupplierSettlementLine(
             source_type="LOAN_SETTLEMENT",
             source_id=ls.id,
-            description=f"Loan Settlement #{ls.id}",
+            description=f"تسوية قرض #{ls.id}",
             product_id=prod_id,
             quantity=None,
             unit_price=None,
             gross_amount=amount
         ))
-        total_gross += amount
 
-    ss.total_gross = q(total_gross)
-    ss.total_due = q(total_gross)
+    # إجماليات
+    gross = q(total_purchases + total_loans)   # قبل طرح المرتجعات
+    due   = q(total_purchases + total_loans - total_returns)
+
+    ss.total_gross = gross
+    ss.total_due   = due
     ss.ensure_code()
     return ss
 
@@ -1828,6 +1932,7 @@ class ExchangeTransaction(db.Model, TimestampMixin, AuditMixin):
     id = db.Column(db.Integer, primary_key=True)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False, index=True)
     warehouse_id = db.Column(db.Integer, db.ForeignKey('warehouses.id'), nullable=False, index=True)
+    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'), index=True, nullable=True)
     partner_id = db.Column(db.Integer, db.ForeignKey('partners.id'))
     quantity = db.Column(db.Integer, nullable=False)
     direction = db.Column(
@@ -1842,11 +1947,13 @@ class ExchangeTransaction(db.Model, TimestampMixin, AuditMixin):
 
     product = db.relationship('Product', back_populates='exchange_transactions')
     warehouse = db.relationship('Warehouse', back_populates='exchange_transactions')
+    supplier = db.relationship('Supplier')
     partner = db.relationship('Partner')
 
     __table_args__ = (
         db.CheckConstraint('quantity > 0', name='chk_exchange_qty_positive'),
         db.Index('ix_exchange_prod_wh', 'product_id', 'warehouse_id'),
+        db.Index('ix_exchange_supplier', 'supplier_id'),
     )
 
     @validates('direction')
@@ -1865,6 +1972,35 @@ def _ex_dir_sign(direction: str) -> int:
     if d == "ADJUSTMENT":
         return 1
     raise ValueError(f"Unknown exchange direction: {direction}")
+
+@event.listens_for(ExchangeTransaction, "before_insert")
+@event.listens_for(ExchangeTransaction, "before_update")
+def _xt_guard_and_price(mapper, connection, target: "ExchangeTransaction"):
+    from models import Warehouse, Product, Supplier  # adjust import path if needed
+
+    wh = db.session.get(Warehouse, target.warehouse_id) if target.warehouse_id else None
+    if not wh:
+        raise ValueError("Warehouse not found.")
+    wt = getattr(wh.warehouse_type, "value", wh.warehouse_type)
+    if wt != WarehouseType.EXCHANGE.value:
+        raise ValueError("ExchangeTransaction must be in an EXCHANGE warehouse.")
+    if not getattr(wh, "supplier_id", None):
+        raise ValueError("EXCHANGE warehouse must be linked to a Supplier.")
+    target.supplier_id = wh.supplier_id
+
+    try:
+        uc = Decimal(str(target.unit_cost or 0))
+    except Exception:
+        uc = Decimal("0.00")
+    if uc <= 0:
+        prod = db.session.get(Product, target.product_id) if target.product_id else None
+        pprice = Decimal(str(getattr(prod, "purchase_price", 0) or 0))
+        target.unit_cost = pprice
+        target.is_priced = bool(pprice > 0)
+    else:
+        target.is_priced = True
+
+    target.direction = (getattr(target.direction, "value", target.direction) or "").strip().upper()
 
 @event.listens_for(ExchangeTransaction, "after_insert")
 def _exchange_after_insert(mapper, connection, target: "ExchangeTransaction"):
@@ -1937,7 +2073,7 @@ class ProductSupplierLoan(db.Model, TimestampMixin):
     supplier_id            = db.Column(db.Integer, db.ForeignKey('suppliers.id'), nullable=False)
     loan_value             = db.Column(db.Numeric(12, 2), default=0)
     deferred_price         = db.Column(db.Numeric(12, 2))
-    is_settled             = db.Column(db.Boolean, default=False)
+    is_settled             = db.Column(db.Boolean, default=False, index=True)
     partner_share_quantity = db.Column(db.Integer, default=0)
     partner_share_value    = db.Column(db.Numeric(12, 2), default=0)
     notes                  = db.Column(db.Text)
@@ -1948,12 +2084,20 @@ class ProductSupplierLoan(db.Model, TimestampMixin):
 
     __table_args__ = (
         db.CheckConstraint('loan_value >= 0', name='chk_loan_value_non_negative'),
+        db.CheckConstraint('deferred_price IS NULL OR deferred_price >= 0', name='chk_deferred_price_non_negative'),
+        db.CheckConstraint('partner_share_quantity >= 0', name='chk_partner_share_qty_non_negative'),
+        db.CheckConstraint('partner_share_value >= 0', name='chk_partner_share_val_non_negative'),
         db.Index('ix_psl_product_supplier', 'product_id', 'supplier_id'),
+        db.Index('ix_psl_supplier_is_settled', 'supplier_id', 'is_settled'),
     )
 
     @hybrid_property
     def effective_price(self):
-        return float(self.deferred_price or self.loan_value or 0)
+        v = self.deferred_price if self.deferred_price not in (None, 0) else self.loan_value
+        if not v or v <= 0:
+            pp = getattr(self.product, 'purchase_price', 0) or 0
+            return float(pp or 0)
+        return float(v)
 
     def mark_settled(self, final_price):
         self.deferred_price = final_price
@@ -1961,6 +2105,20 @@ class ProductSupplierLoan(db.Model, TimestampMixin):
 
     def __repr__(self):
         return f"<ProductSupplierLoan P{self.product_id}-Supplier{self.supplier_id}>"
+
+@event.listens_for(ProductSupplierLoan, 'before_insert')
+def _psl_before_insert(mapper, connection, target: 'ProductSupplierLoan'):
+    if not target.loan_value or target.loan_value <= 0:
+        prod = db.session.get(Product, target.product_id) if target.product_id else None
+        pp = getattr(prod, 'purchase_price', 0) or 0
+        target.loan_value = pp or 0
+
+@event.listens_for(ProductSupplierLoan, 'before_update')
+def _psl_before_update(mapper, connection, target: 'ProductSupplierLoan'):
+    if target.deferred_price is not None and target.deferred_price < 0:
+        target.deferred_price = 0
+    if target.loan_value is not None and target.loan_value < 0:
+        target.loan_value = 0
 
 class ProductPartner(db.Model):
     __tablename__ = 'product_partners'

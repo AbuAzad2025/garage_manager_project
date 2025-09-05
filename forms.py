@@ -1731,30 +1731,62 @@ class ExchangeTransactionForm(FlaskForm):
     notes        = TextAreaField('ملاحظات', validators=[Optional(), Length(max=2000)])
     submit       = SubmitField('حفظ')
 
+    def _numstr(self, v):
+        if v in (None, ""):
+            return None
+        s = str(v).strip()
+        s = s.translate(str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789"))
+        s = s.replace("٫", ".").replace("٬", "").replace(",", "")
+        return s
+
     def _to_int(self, v):
         try:
-            trans = str.maketrans('٠١٢٣٤٥٦٧٨٩', '0123456789')
-            return int(str(v).translate(trans).strip())
+            s = self._numstr(v)
+            return int(s) if s is not None and s != "" else None
         except Exception:
             return None
 
     def _d(self, x):
-        from decimal import Decimal
-        return Decimal(str(x or 0))
+        from decimal import Decimal, InvalidOperation
+        s = self._numstr(x)
+        if not s:
+            return None
+        try:
+            return Decimal(s)
+        except (InvalidOperation, ValueError, TypeError):
+            return None
 
     def validate(self, **kwargs):
         if not super().validate(**kwargs):
             return False
+
+        self.direction.data = (self.direction.data or "").upper()
+
+        wid = self._to_int(self.warehouse_id.data)
+        if wid:
+            try:
+                from models import Warehouse, WarehouseType
+                wh = Warehouse.query.get(wid)
+                wt = getattr(wh.warehouse_type, "value", wh.warehouse_type) if wh else None
+                if not wh or wt != WarehouseType.EXCHANGE.value:
+                    self.warehouse_id.errors.append('يجب أن تكون الحركة على مخزن تبادل.')
+                    return False
+                if not getattr(wh, "supplier_id", None):
+                    self.warehouse_id.errors.append('مخزن التبادل يجب أن يكون مربوطًا بمورد.')
+                    return False
+            except Exception:
+                self.warehouse_id.errors.append('تعذر التحقق من المخزن.')
+                return False
+
         if (self.direction.data or '').upper() == 'OUT':
             pid = self._to_int(self.product_id.data)
-            wid = self._to_int(self.warehouse_id.data)
             q   = self._to_int(self.quantity.data) or 0
             if pid and wid and q:
                 try:
                     from models import StockLevel
                     sl = StockLevel.query.filter_by(product_id=pid, warehouse_id=wid).first()
                     avail = (sl.quantity if sl else 0) - (sl.reserved_quantity if sl else 0)
-                    if q > max(avail, 0):
+                    if q > max(int(avail or 0), 0):
                         self.quantity.errors.append('الكمية غير كافية في المخزن.')
                         return False
                 except Exception:
@@ -1767,11 +1799,11 @@ class ExchangeTransactionForm(FlaskForm):
         xt.partner_id   = self._to_int(self.partner_id.data) if self.partner_id.data else None
         xt.direction    = (self.direction.data or '').upper()
         xt.quantity     = self._to_int(self.quantity.data) or 1
-        xt.unit_cost    = self._d(self.unit_cost.data) if self.unit_cost.data not in (None, "") else None
-        xt.is_priced    = bool(self.is_priced.data)
+        uc              = self._d(self.unit_cost.data)
+        xt.unit_cost    = uc if uc is not None else None
+        xt.is_priced    = bool(uc is not None and uc > 0)
         xt.notes        = (self.notes.data or '').strip() or None
         return xt
-
 
 class EquipmentTypeForm(FlaskForm):
     name           = StringField('اسم نوع المعدة', validators=[DataRequired(), Length(max=100)])

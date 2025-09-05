@@ -47,6 +47,17 @@ def D(x) -> Decimal:
 def q2(x) -> Decimal:
     return D(x).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
 
+def _ensure_payment_number(pmt: Payment) -> None:
+    if getattr(pmt, "payment_number", None):
+        return
+    base_dt = getattr(pmt, "payment_date", None) or datetime.utcnow()
+    prefix = base_dt.strftime("PMT%Y%m%d")
+    cnt = db.session.execute(
+        text("SELECT COUNT(*) FROM payments WHERE payment_number LIKE :pfx"),
+        {"pfx": f"{prefix}-%"},
+    ).scalar() or 0
+    pmt.payment_number = f"{prefix}-{cnt + 1:04d}"
+
 def _sum_splits_decimal(splits) -> Decimal:
     total = Decimal("0")
     for s in splits or []:
@@ -230,6 +241,22 @@ def entity_search():
     elif t == "PARTNER":
         rows = rows_for(Partner)
         results = [{"id": r.id, "label": r.name, "extra": ""} for r in rows]
+    elif t == "LOAN":
+        qdigits = "".join(ch for ch in q if ch.isdigit())
+        like = f"%{q}%"
+        qry = (
+            db.session.query(SupplierLoanSettlement, Supplier.name.label("supplier_name"))
+            .join(Supplier, Supplier.id == SupplierLoanSettlement.supplier_id)
+        )
+        conds = []
+        if qdigits:
+            try:
+                conds.append(SupplierLoanSettlement.id == int(qdigits))
+            except Exception:
+                pass
+        conds.append(Supplier.name.ilike(like))
+        rows = qry.filter(or_(*conds)).order_by(SupplierLoanSettlement.id.desc()).limit(limit).all()
+        results = [{"id": r[0].id, "label": f"Loan Settlement #{r[0].id}", "extra": r[1]} for r in rows]
     else:
         results = []
 
@@ -254,6 +281,8 @@ def index():
     start_date = (request.args.get("start_date") or request.args.get("start") or "").strip()
     end_date = (request.args.get("end_date") or request.args.get("end") or "").strip()
     entity_id = request.args.get("entity_id", type=int)
+    search_q = (request.args.get("q") or "").strip()
+    reference_like = (request.args.get("reference") or "").strip()
 
     filters = []
     if entity_type:
@@ -305,6 +334,18 @@ def index():
             filters.append(Payment.loan_settlement_id == entity_id)
         elif et == "shipment":
             filters.append(Payment.shipment_id == entity_id)
+
+    if search_q:
+        like = f"%{search_q}%"
+        filters.append(
+            or_(
+                Payment.payment_number.ilike(like),
+                Payment.reference.ilike(like),
+                Payment.notes.ilike(like),
+            )
+        )
+    if reference_like:
+        filters.append(Payment.reference.ilike(f"%{reference_like}%"))
 
     base_q = Payment.query.filter(*filters)
     pagination = base_q.order_by(Payment.payment_date.desc(), Payment.id.desc()).paginate(
@@ -650,7 +691,6 @@ def create_payment():
 
             method_val = parsed_splits[0].method if parsed_splits else _coerce_method(getattr(form, "method", None).data)
             notes_raw = (_fd(getattr(form, "note", None)) or _fd(getattr(form, "notes", None)) or "")
-            notes_val = (notes_raw or "").strip() or None
 
             payment = Payment(
                 entity_type=etype,
@@ -672,7 +712,7 @@ def create_payment():
                 method=getattr(method_val, "value", method_val),
                 reference=(form.reference.data or "").strip() or None,
                 receipt_number=(_fd(getattr(form, "receipt_number", None)) or None),
-                notes=notes_val,
+                notes=notes_raw,
                 created_by=current_user.id,
             )
 
@@ -688,6 +728,7 @@ def create_payment():
             db.session.add(payment)
 
             try:
+                _ensure_payment_number(payment)
                 db.session.commit()
             except IntegrityError as ie:
                 db.session.rollback()
@@ -710,6 +751,7 @@ def create_payment():
                     for sp in parsed_splits:
                         sp.payment_id = payment.id
                         db.session.add(sp)
+                    _ensure_payment_number(payment)
                     db.session.commit()
                 else:
                     raise
@@ -1032,6 +1074,7 @@ def create_expense_payment(exp_id):
             payment.splits.append(sp)
 
         db.session.add(payment)
+        _ensure_payment_number(payment)
         db.session.commit()
         log_audit("Payment", payment.id, f"CREATE (expense #{exp.id})")
 

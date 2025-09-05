@@ -1,12 +1,40 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, abort, jsonify
+from datetime import datetime, timedelta
+from decimal import Decimal
+import re
+
+from flask import (
+    abort,
+    Blueprint,
+    current_app,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 from flask_login import login_required
 from flask_wtf import FlaskForm
-from sqlalchemy import or_, func
+from sqlalchemy import func, or_
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import joinedload
+
 from extensions import db
-from forms import SupplierForm, PartnerForm
-from models import Supplier, Partner
+from forms import PartnerForm, SupplierForm
 from utils import permission_required
+from models import (
+    ExchangeTransaction,
+    Partner,
+    Payment,
+    PaymentDirection,
+    PaymentStatus,
+    Product,
+    ProductSupplierLoan,
+    Supplier,
+    SupplierLoanSettlement,
+    Warehouse,
+    WarehouseType,
+)
 
 class CSRFProtectForm(FlaskForm): pass
 
@@ -89,6 +117,180 @@ def suppliers_delete(id):
     except SQLAlchemyError as e:
         db.session.rollback(); flash(f"❌ خطأ أثناء حذف المورد: {e}", "danger")
     return redirect(url_for("vendors_bp.suppliers_list"))
+
+@vendors_bp.get("/suppliers/<int:supplier_id>/statement", endpoint="suppliers_statement")
+@login_required
+@permission_required("manage_vendors")
+def suppliers_statement(supplier_id: int):
+    supplier = _get_or_404(Supplier, supplier_id)
+
+    date_from_s = (request.args.get("from") or "").strip()
+    date_to_s   = (request.args.get("to") or "").strip()
+    try:
+        df = datetime.strptime(date_from_s, "%Y-%m-%d") if date_from_s else None
+        dt = datetime.strptime(date_to_s, "%Y-%m-%d") if date_to_s else None
+    except Exception:
+        df, dt = None, None
+    if dt:
+        dt = dt + timedelta(days=1)
+
+    def q2(x):
+        try:
+            return Decimal(str(x or 0)).quantize(Decimal("0.01"))
+        except Exception:
+            return Decimal("0.00")
+
+    # 1) حركات مخزن التبادل لهذا المورد
+    tx_query = (
+        db.session.query(ExchangeTransaction)
+        .join(Warehouse, Warehouse.id == ExchangeTransaction.warehouse_id)
+        .options(joinedload(ExchangeTransaction.product))
+        .filter(
+            Warehouse.warehouse_type == WarehouseType.EXCHANGE.value,
+            Warehouse.supplier_id == supplier.id,
+        )
+    )
+    if df: tx_query = tx_query.filter(ExchangeTransaction.created_at >= df)
+    if dt: tx_query = tx_query.filter(ExchangeTransaction.created_at < dt)
+
+    txs = tx_query.all()
+
+    entries = []
+    total_debit  = Decimal("0.00")  # مشتريات/توريد IN
+    total_credit = Decimal("0.00")  # مرتجع/دفعات/تسويات OUT
+
+    # تجميع تفصيلي لكل منتج
+    per_product = {}  # product_id -> بيانات
+    def _pp(pid):
+        if pid not in per_product:
+            per_product[pid] = {
+                "product": None,
+                "qty_in": 0, "qty_out": 0, "qty_paid": 0, "qty_unpaid": 0,
+                "val_in": Decimal("0.00"), "val_out": Decimal("0.00"),
+                "val_paid": Decimal("0.00"), "val_unpaid": Decimal("0.00"),
+                "notes": set(),
+            }
+        return per_product[pid]
+
+    for tx in txs:
+        p = tx.product
+        pid = getattr(p, "id", None)
+        row = _pp(pid)
+        if row["product"] is None: row["product"] = p
+
+        qty = int(tx.quantity or 0)
+        unit_cost = tx.unit_cost
+        used_fallback = False
+
+        # قاعدة التسعير: unit_cost ثم purchase_price، وإلا 0 مع ملاحظة
+        if not unit_cost or unit_cost <= 0:
+            pc = getattr(p, "purchase_price", None)
+            if pc and pc > 0:
+                unit_cost = pc
+                used_fallback = True
+            else:
+                unit_cost = 0
+
+        amount = q2(unit_cost) * q2(qty)
+        if used_fallback:
+            row["notes"].add("تم التسعير من سعر شراء المنتج")
+        if unit_cost == 0:
+            row["notes"].add("سعر غير متوفر – راجع التسعير")
+
+        d = getattr(tx, "created_at", None)
+        dirv = (getattr(tx, "direction", "") or "").upper()
+
+        if dirv in {"IN", "PURCHASE", "CONSIGN_IN"}:
+            entries.append({"date": d, "type": "PURCHASE", "ref": f"توريد قطع #{tx.id}",
+                            "debit": amount, "credit": Decimal("0.00")})
+            total_debit += amount
+            row["qty_in"] += qty
+            row["val_in"] += amount
+
+        elif dirv in {"OUT", "RETURN", "CONSIGN_OUT"}:
+            entries.append({"date": d, "type": "RETURN", "ref": f"مرتجع قطع #{tx.id}",
+                            "debit": Decimal("0.00"), "credit": amount})
+            total_credit += amount
+            row["qty_out"] += qty
+            row["val_out"] += amount
+
+        elif dirv in {"SETTLEMENT", "ADJUST"}:
+            entries.append({"date": d, "type": "SETTLEMENT", "ref": f"تسوية مخزون #{tx.id}",
+                            "debit": Decimal("0.00"), "credit": amount})
+            total_credit += amount
+
+    # 2) دفعات المورد (فلوس طالعة)
+    pay_q = (
+        db.session.query(Payment)
+        .filter(
+            Payment.supplier_id == supplier.id,
+            Payment.status == PaymentStatus.COMPLETED.value,
+            Payment.direction == PaymentDirection.OUTGOING.value
+        )
+    )
+    if df: pay_q = pay_q.filter(Payment.payment_date >= df)
+    if dt: pay_q = pay_q.filter(Payment.payment_date < dt)
+
+    for pmt in pay_q.all():
+        d = pmt.payment_date
+        amt = q2(pmt.total_amount)
+        ref = pmt.reference or f"دفعة #{pmt.id}"
+        entries.append({"date": d, "type": "PAYMENT", "ref": ref,
+                        "debit": Decimal("0.00"), "credit": amt})
+        total_credit += amt
+
+    # 3) تسويات قروض/قطع مسدّدة
+    stl_q = (
+        db.session.query(SupplierLoanSettlement)
+        .options(joinedload(SupplierLoanSettlement.loan))
+        .filter(SupplierLoanSettlement.supplier_id == supplier.id)
+    )
+    if df: stl_q = stl_q.filter(SupplierLoanSettlement.settlement_date >= df)
+    if dt: stl_q = stl_q.filter(SupplierLoanSettlement.settlement_date < dt)
+
+    for s in stl_q.all():
+        d = s.settlement_date
+        amt = q2(s.settled_price)
+        ref = f"تسوية قرض #{s.loan_id or s.id}"
+        entries.append({"date": d, "type": "SETTLEMENT", "ref": ref,
+                        "debit": Decimal("0.00"), "credit": amt})
+        total_credit += amt
+
+        pid = getattr(getattr(s, "loan", None), "product_id", None)
+        if pid in per_product:
+            per_product[pid]["qty_paid"] += 1
+            per_product[pid]["val_paid"] += amt
+
+    # 4) ترتيب القيود وحساب الرصيد
+    entries.sort(key=lambda e: (e["date"] or datetime.min, e["type"], e["ref"]))
+    balance = Decimal("0.00")
+    out = []
+    for e in entries:
+        d = q2(e["debit"]); c = q2(e["credit"])
+        balance += (d - c)
+        out.append({**e, "debit": d, "credit": c, "balance": balance})
+
+    # 5) غير المسدّد + قيمة القطع لدى المخزن
+    consignment_value = Decimal("0.00")
+    for pid, row in per_product.items():
+        row["qty_unpaid"] = max(0, int(row["qty_in"] - row["qty_out"] - row["qty_paid"]))
+        row["val_unpaid"] = row["val_in"] - row["val_out"] - row["val_paid"]
+        if row["val_unpaid"] < 0:
+            row["val_unpaid"] = Decimal("0.00")
+        consignment_value += row["val_unpaid"]
+
+    return render_template(
+        "vendors/suppliers/statement.html",
+        supplier=supplier,
+        ledger_entries=out,
+        total_debit=total_debit,
+        total_credit=total_credit,
+        balance=balance,
+        consignment_value=consignment_value,
+        per_product=per_product,   # ← سنعرضه في الواجهة بالخطوة (2)
+        date_from=(df) if df else None,
+        date_to=(dt - timedelta(days=1)) if dt else None,
+    )
 
 @vendors_bp.route("/partners", methods=["GET"], endpoint="partners_list")
 @login_required

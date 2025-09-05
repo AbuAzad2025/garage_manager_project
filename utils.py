@@ -34,7 +34,7 @@ try:
 except Exception:
     Fernet = None
 
-from extensions import db, mail
+from extensions import limiter, db, mail
 from models import (
     Payment,
     PaymentSplit,
@@ -62,6 +62,9 @@ def _D(x):
 
 def _q2(x):
     return _D(x).quantize(_TWOPLACES, rounding=ROUND_HALF_UP)
+
+def _q(x):
+    return q(x)
 
 def _get_or_404(model, ident, *, load_options=None, pk_name: str = "id"):
     try:
@@ -162,6 +165,9 @@ def search_model(
         "results": results,                         # ما يحتاجه Select2
         "pagination": {"more": (page * limit) < total}
     })
+
+def _limit(spec: str):
+    return limiter.limit(spec)
 
 def init_app(app):
     global redis_client
@@ -1182,3 +1188,5 @@ def _install_accounting_listeners():
         if not sess or not getattr(target, "sale_id", None):
             return
         _recompute_sale_totals(sess, int(target.sale_id))
+
+        

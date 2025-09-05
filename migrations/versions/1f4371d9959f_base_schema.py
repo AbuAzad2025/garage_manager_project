@@ -1,8 +1,8 @@
 """base schema
 
-Revision ID: eddafd826fc9
+Revision ID: 1f4371d9959f
 Revises: 
-Create Date: 2025-09-03 01:24:43.271301
+Create Date: 2025-09-05 16:00:36.667957
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'eddafd826fc9'
+revision = '1f4371d9959f'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -485,6 +485,7 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('product_id', sa.Integer(), nullable=False),
     sa.Column('warehouse_id', sa.Integer(), nullable=False),
+    sa.Column('supplier_id', sa.Integer(), nullable=True),
     sa.Column('partner_id', sa.Integer(), nullable=True),
     sa.Column('quantity', sa.Integer(), nullable=False),
     sa.Column('direction', sa.Enum('IN', 'OUT', 'ADJUSTMENT', name='exchange_direction', native_enum=False), nullable=False),
@@ -496,14 +497,17 @@ def upgrade():
     sa.CheckConstraint('quantity > 0', name='chk_exchange_qty_positive'),
     sa.ForeignKeyConstraint(['partner_id'], ['partners.id'], ),
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
+    sa.ForeignKeyConstraint(['supplier_id'], ['suppliers.id'], ),
     sa.ForeignKeyConstraint(['warehouse_id'], ['warehouses.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     with op.batch_alter_table('exchange_transactions', schema=None) as batch_op:
         batch_op.create_index('ix_exchange_prod_wh', ['product_id', 'warehouse_id'], unique=False)
+        batch_op.create_index('ix_exchange_supplier', ['supplier_id'], unique=False)
         batch_op.create_index(batch_op.f('ix_exchange_transactions_created_at'), ['created_at'], unique=False)
         batch_op.create_index(batch_op.f('ix_exchange_transactions_direction'), ['direction'], unique=False)
         batch_op.create_index(batch_op.f('ix_exchange_transactions_product_id'), ['product_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_exchange_transactions_supplier_id'), ['supplier_id'], unique=False)
         batch_op.create_index(batch_op.f('ix_exchange_transactions_updated_at'), ['updated_at'], unique=False)
         batch_op.create_index(batch_op.f('ix_exchange_transactions_warehouse_id'), ['warehouse_id'], unique=False)
 
@@ -744,15 +748,20 @@ def upgrade():
     sa.Column('notes', sa.Text(), nullable=True),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint('deferred_price IS NULL OR deferred_price >= 0', name='chk_deferred_price_non_negative'),
     sa.CheckConstraint('loan_value >= 0', name='chk_loan_value_non_negative'),
+    sa.CheckConstraint('partner_share_quantity >= 0', name='chk_partner_share_qty_non_negative'),
+    sa.CheckConstraint('partner_share_value >= 0', name='chk_partner_share_val_non_negative'),
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
     sa.ForeignKeyConstraint(['supplier_id'], ['suppliers.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     with op.batch_alter_table('product_supplier_loans', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_product_supplier_loans_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_product_supplier_loans_is_settled'), ['is_settled'], unique=False)
         batch_op.create_index(batch_op.f('ix_product_supplier_loans_updated_at'), ['updated_at'], unique=False)
         batch_op.create_index('ix_psl_product_supplier', ['product_id', 'supplier_id'], unique=False)
+        batch_op.create_index('ix_psl_supplier_is_settled', ['supplier_id', 'is_settled'], unique=False)
 
     op.create_table('service_requests',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -1455,8 +1464,10 @@ def downgrade():
 
     op.drop_table('service_requests')
     with op.batch_alter_table('product_supplier_loans', schema=None) as batch_op:
+        batch_op.drop_index('ix_psl_supplier_is_settled')
         batch_op.drop_index('ix_psl_product_supplier')
         batch_op.drop_index(batch_op.f('ix_product_supplier_loans_updated_at'))
+        batch_op.drop_index(batch_op.f('ix_product_supplier_loans_is_settled'))
         batch_op.drop_index(batch_op.f('ix_product_supplier_loans_created_at'))
 
     op.drop_table('product_supplier_loans')
@@ -1529,9 +1540,11 @@ def downgrade():
     with op.batch_alter_table('exchange_transactions', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_exchange_transactions_warehouse_id'))
         batch_op.drop_index(batch_op.f('ix_exchange_transactions_updated_at'))
+        batch_op.drop_index(batch_op.f('ix_exchange_transactions_supplier_id'))
         batch_op.drop_index(batch_op.f('ix_exchange_transactions_product_id'))
         batch_op.drop_index(batch_op.f('ix_exchange_transactions_direction'))
         batch_op.drop_index(batch_op.f('ix_exchange_transactions_created_at'))
+        batch_op.drop_index('ix_exchange_supplier')
         batch_op.drop_index('ix_exchange_prod_wh')
 
     op.drop_table('exchange_transactions')
