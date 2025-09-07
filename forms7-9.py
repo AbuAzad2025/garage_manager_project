@@ -524,6 +524,7 @@ class PermissionForm(FlaskForm):
             s = re.sub(r"_+", "_", s).strip("_")
         field.data = s
 
+
 class CustomerForm(FlaskForm):
     id = HiddenField()
     name = StringField('اسم العميل', validators=[DataRequired(message="هذا الحقل مطلوب"), Length(max=100)])
@@ -731,8 +732,6 @@ class PaymentAllocationForm(FlaskForm):
     payment_id = IntegerField(validators=[Optional()])
     invoice_ids = AjaxSelectMultipleField(endpoint='api.invoices', get_label='invoice_number', validators=[Optional()])
     service_ids = AjaxSelectMultipleField(endpoint='api.services', get_label='service_number', validators=[Optional()])
-    expense_ids = AjaxSelectMultipleField(endpoint='api.expenses', get_label='id', validators=[Optional()])
-    shipment_ids = AjaxSelectMultipleField(endpoint='api.shipments', get_label='shipment_number', validators=[Optional()])
     allocation_amounts = FieldList(DecimalField(places=2, validators=[Optional(), NumberRange(min=0.01)]), min_entries=1)
     notes = TextAreaField(validators=[Optional(), Length(max=300)])
     submit = SubmitField('توزيع')
@@ -741,65 +740,19 @@ class PaymentAllocationForm(FlaskForm):
         ok = super().validate(**kwargs)
         invoices = self.invoice_ids.data or []
         services = self.service_ids.data or []
-        expenses = self.expense_ids.data or []
-        shipments = self.shipment_ids.data or []
-        targets = len(invoices) + len(services) + len(expenses) + len(shipments)
+        targets = len(invoices) + len(services)
         amounts = [fld.data for fld in self.allocation_amounts if fld.data is not None]
         if targets == 0:
-            self.invoice_ids.errors.append('❌ اختر عنصرًا واحدًا على الأقل للتسوية.')
+            self.invoice_ids.errors.append('❌ اختر فاتورة أو خدمة واحدة على الأقل.')
             ok = False
         if not amounts or any((a or 0) <= 0 for a in amounts):
-            self.allocation_amounts.errors.append('❌ كل مبالغ التوزيع يجب أن تكون > 0.')
+            self.allocation_amounts.errors.append('❌ كل مبالغ التوزيع يجب أن تكون أكبر من صفر.')
             ok = False
         if targets and len(amounts) != targets:
             self.allocation_amounts.errors.append('❌ عدد مبالغ التوزيع يجب أن يساوي عدد العناصر المحددة.')
             ok = False
         return ok
 
-class SupplierSettlementForm(FlaskForm):
-    supplier_id = AjaxSelectField('المورد', endpoint='api.search_suppliers', get_label='name', validators=[DataRequired()])
-    settlement_date = DateTimeField('تاريخ التسوية', format='%Y-%m-%d %H:%M', default=datetime.utcnow, validators=[DataRequired()], render_kw={'type': 'datetime-local', 'step': '60'})
-    currency = SelectField('العملة', choices=CURRENCY_CHOICES, default='ILS', validators=[DataRequired()])
-    method = SelectField(choices=[('', '— اختر الطريقة —')] + [(m.value, m.value) for m in PaymentMethod], validators=[DataRequired()], coerce=str, default='')
-    total_amount = DecimalField('المبلغ الكلي', places=2, validators=[DataRequired(), NumberRange(min=0.01)])
-    allocations = FieldList(FormField(PaymentAllocationForm), min_entries=1)
-    reference = StringField('مرجع', validators=[Optional(), Length(max=100)])
-    notes = TextAreaField('ملاحظات', validators=[Optional(), Length(max=500)])
-    submit = SubmitField('حفظ التسوية')
-
-    def validate(self, **kwargs):
-        ok = super().validate(**kwargs)
-        try:
-            total = float(self.total_amount.data or 0)
-        except Exception:
-            total = 0.0
-        sum_alloc = 0.0
-        nonempty = False
-        for entry in self.allocations:
-            fm = entry.form
-            for fld in getattr(fm, 'allocation_amounts', []):
-                val = fld.data or 0
-                try:
-                    v = float(val)
-                except Exception:
-                    v = 0.0
-                if v > 0:
-                    nonempty = True
-                    sum_alloc += v
-            if getattr(fm, 'service_ids', None) and (fm.service_ids.data or []):
-                fm.service_ids.errors.append('❌ لا يُسمح بخدمات العملاء ضمن تسوية المورد.')
-                ok = False
-        if not nonempty:
-            self.allocations.errors.append('❌ أضف عنصر توزيع واحدًا على الأقل.')
-            ok = False
-        if abs(sum_alloc - total) > 0.01:
-            self.total_amount.errors.append('❌ مجموع مبالغ التوزيع يجب أن يساوي المبلغ الكلي.')
-            ok = False
-        sid = (self.supplier_id.data or "").__str__().strip()
-        if not sid or not sid.isdigit() or int(sid) <= 0:
-            self.supplier_id.errors.append('❌ اختر المورد بشكل صحيح.')
-            ok = False
-        return ok
 
 class RefundForm(FlaskForm):
     original_payment_id = IntegerField(validators=[DataRequired()])
@@ -858,10 +811,6 @@ class BulkPaymentForm(FlaskForm):
                 if v > 0:
                     nonempty = True
                     sum_alloc += v
-            if (self.payer_type.data or '').lower() == 'supplier':
-                if getattr(fm, 'service_ids', None) and (fm.service_ids.data or []):
-                    fm.service_ids.errors.append('❌ لا يمكن تسوية خدمات العميل ضمن تسوية مورد.')
-                    ok = False
         if not nonempty:
             self.allocations.errors.append('❌ أضف عنصر توزيع واحدًا على الأقل.')
             ok = False
@@ -1143,6 +1092,7 @@ class PaymentForm(FlaskForm):
             cvv = (self.card_cvv.data or "").strip()
             if cvv and (not cvv.isdigit() or len(cvv) not in (3,4)): self.card_cvv.errors.append("CVV غير صالح."); return False
         return True
+
 class PreOrderForm(FlaskForm):
     reference = StringField('مرجع الحجز', validators=[Optional(), Length(max=50)])
     preorder_date = UnifiedDateTimeField('تاريخ الحجز', format='%Y-%m-%d %H:%M', validators=[Optional()], render_kw={'autocomplete': 'off', 'dir': 'ltr'})
@@ -1209,6 +1159,7 @@ class PreOrderForm(FlaskForm):
         preorder.payment_method = (self.payment_method.data or PaymentMethod.CASH.value).upper()
         preorder.notes = (self.notes.data or '').strip() or None
         return preorder
+
 
 class ServiceRequestForm(FlaskForm):
     service_number = StringField('رقم الخدمة', validators=[Optional(), Length(max=50)])
@@ -2217,14 +2168,10 @@ class ProductForm(FlaskForm):
             raise ValidationError("الباركود غير صالح.")
         field.data = r["normalized"]
 
+
 class WarehouseForm(FlaskForm):
     name = StringField('اسم المستودع', validators=[DataRequired(), Length(max=100)])
-    warehouse_type = SelectField(
-        'نوع المستودع',
-        choices=[(t.value, t.value) for t in WarehouseType],
-        validators=[DataRequired()],
-        coerce=str
-    )
+    warehouse_type = SelectField('نوع المستودع', choices=[(t.value, t.value) for t in WarehouseType], validators=[DataRequired()], coerce=str)
     location = StringField('الموقع', validators=[Optional(), Length(max=200)])
     parent_id = AjaxSelectField('المستودع الأب', endpoint='api.search_warehouses', get_label='name', validators=[Optional()])
     partner_id = AjaxSelectField('الشريك', endpoint='api.search_partners', get_label='name', validators=[Optional()])
@@ -2239,18 +2186,22 @@ class WarehouseForm(FlaskForm):
     def validate(self, **kwargs):
         if not super().validate(**kwargs):
             return False
-
         cap = self.capacity.data
         occ = self.current_occupancy.data
         if cap is not None and occ is not None and occ > cap:
             self.current_occupancy.errors.append('المشغول حاليًا لا يمكن أن يتجاوز السعة القصوى.')
             return False
-
         wt = (self.warehouse_type.data or '').upper()
         if wt != 'PARTNER' and self.share_percent.data is None:
             self.share_percent.data = 0
-
+        if wt == 'EXCHANGE' and not self.supplier_id.data:
+            self.supplier_id.errors.append('يجب ربط مخزن التبادل بمورّد.')
+            return False
+        if wt == 'PARTNER' and not self.partner_id.data:
+            self.partner_id.errors.append('يجب تحديد الشريك لمستودع الشريك.')
+            return False
         return True
+
 
 class PartnerShareForm(FlaskForm):
     partner_id = AjaxSelectField('الشريك', endpoint='api.search_partners', get_label='name', validators=[DataRequired()])

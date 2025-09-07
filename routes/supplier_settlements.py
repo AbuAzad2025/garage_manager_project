@@ -139,7 +139,7 @@ def create(supplier_id):
     amount_str = f"{abs(due):.2f}"
     pay_url = url_for(
         "payments.create_payment",
-        entity_type="supplier",
+        entity_type="SUPPLIER",
         entity_id=str(supplier.id),
         direction=direction,
         total_amount=amount_str,
@@ -174,6 +174,24 @@ def confirm(settlement_id):
     except SQLAlchemyError as e:
         return jsonify({"success": False, "error": str(e)}), 400
     return jsonify({"success": True, "id": ss.id, "code": ss.code})
+
+@supplier_settlements_bp.route("/settlements/<int:settlement_id>/void", methods=["POST"])
+@login_required
+@permission_required("manage_vendors")
+def void(settlement_id):
+    ss = db.session.get(SupplierSettlement, settlement_id)
+    if not ss:
+        abort(404)
+    if ss.status != SupplierSettlementStatus.DRAFT.value:
+        return jsonify({"success": False, "error": "Only DRAFT can be voided"}), 400
+    try:
+        with db.session.begin():
+            db.session.delete(ss)
+            db.session.flush()
+            db.session.add(AuditLog(model_name="SupplierSettlement", record_id=settlement_id, action="VOID", old_data=None, new_data=None))
+    except SQLAlchemyError as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+    return jsonify({"success": True})
 
 @supplier_settlements_bp.route("/settlements/<int:settlement_id>", methods=["GET"])
 @login_required

@@ -1,4 +1,3 @@
-# File: routes/api.py
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
@@ -47,9 +46,10 @@ bp = Blueprint("api", __name__, url_prefix="/api")
 
 _TWOPLACES = Decimal("0.01")
 
-# إبقاء استدعاءات _limit القديمة تعمل عبر تمريرها إلى _query_limit
+
 def _limit(default: int = 20, max_value: int = 100) -> int:
     return _query_limit(default, max_value)
+
 
 def _D(x):
     if x is None:
@@ -479,6 +479,7 @@ def create_supplier():
         db.session.rollback()
         return jsonify({"error": "فشل حفظ المورد"}), 500
 
+
 @bp.get("/suppliers/<int:id>")
 @login_required
 @limiter.limit("60/minute")
@@ -559,7 +560,6 @@ def create_partner():
         )
         db.session.add(partner)
         db.session.commit()
-        # ✅ توحيد الـ output
         return jsonify({"id": partner.id, "text": partner.name}), 201
     except SQLAlchemyError:
         db.session.rollback()
@@ -621,6 +621,7 @@ def delete_partner(id):
         db.session.rollback()
         return jsonify({"error": "فشل حذف الشريك"}), 500
 
+
 @bp.get("/barcode/validate", endpoint="barcode_validate")
 @login_required
 @limiter.limit("120/minute")
@@ -639,6 +640,7 @@ def barcode_validate():
             "exists": bool(exists),
         }
     )
+
 
 @bp.get("/products/barcode/<code>")
 @login_required
@@ -712,6 +714,7 @@ def create_category():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 400
+
 
 @bp.get("/warehouses", endpoint="warehouses")
 @login_required
@@ -846,6 +849,7 @@ def api_delete_warehouse(id):
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 400
 
+
 @bp.get("/products", endpoint="products")
 @login_required
 @limiter.limit("60/minute")
@@ -871,6 +875,7 @@ def api_products():
 @permission_required("view_parts", "view_inventory", "manage_inventory")
 def api_search_products():
     return api_products()
+
 
 @bp.get("/warehouses/<int:wid>/products", endpoint="products_by_warehouse")
 @login_required
@@ -2014,6 +2019,7 @@ def api_search_users():
             text = f"{text} ({email})"
         results.append({"id": u.id, "text": text})
     return jsonify({"results": results})
+
 
 @bp.get("/equipment-types/search")
 @login_required

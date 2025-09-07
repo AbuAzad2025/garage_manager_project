@@ -694,7 +694,6 @@ def change_status(id: int, status: str):
         flash(f"❌ خطأ أثناء تحديث الحالة: {e}", "danger")
     return redirect(url_for("sales_bp.sale_detail", id=sale.id))
 
-
 @sales_bp.route("/<int:id>/invoice", methods=["GET"], endpoint="generate_invoice")
 @login_required
 @permission_required("manage_sales")

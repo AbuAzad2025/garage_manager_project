@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% block title %}الموردون{% endblock %}
+
 {% block content %}
 <div class="container py-5">
   {% set total_balance = 0 %}
@@ -64,37 +65,34 @@
                   <i class="fas fa-coins"></i>
                   <span class="d-none d-lg-inline ms-1">دفع</span>
                 </a>
-
                 <a href="{{ url_for('payments.index') }}?entity_type=SUPPLIER&entity_id={{ s.id }}"
                    class="btn btn-sm btn-warning d-flex align-items-center" title="دفعات">
                   <i class="fas fa-file-invoice-dollar"></i>
                   <span class="d-none d-lg-inline ms-1">دفعات</span>
                 </a>
-
                 <a href="{{ url_for('vendors_bp.suppliers_statement', supplier_id=s.id) }}"
                    class="btn btn-sm btn-outline-primary d-flex align-items-center" title="كشف حساب">
                   <i class="fas fa-file-invoice"></i>
                   <span class="d-none d-lg-inline ms-1">كشف حساب</span>
                 </a>
-
                 <button type="button"
                         class="btn btn-sm btn-outline-success d-flex align-items-center btn-settle"
                         title="تسوية"
-                        data-entity-type="supplier" data-id="{{ s.id }}" data-name="{{ s.name }}"
-                        data-balance="{{ '%.2f'|format(s.net_balance or 0) }}" data-currency="{{ s.currency or 'ILS' }}">
+                        data-entity-type="supplier"
+                        data-id="{{ s.id }}"
+                        data-name="{{ s.name }}"
+                        data-balance="{{ '%.2f'|format(s.net_balance or 0) }}"
+                        data-currency="{{ s.currency or 'ILS' }}">
                   <i class="fas fa-scale-balanced"></i>
                   <span class="d-none d-lg-inline ms-1">تسوية</span>
                 </button>
-
                 {% if current_user.has_permission('manage_vendors') %}
                   <a href="{{ url_for('vendors_bp.suppliers_edit', id=s.id) }}"
                      class="btn btn-sm btn-outline-secondary d-flex align-items-center" title="تعديل">
                     <i class="fas fa-edit"></i>
                     <span class="d-none d-lg-inline ms-1">تعديل</span>
                   </a>
-
-                  <form method="post" action="{{ url_for('vendors_bp.suppliers_delete', id=s.id) }}"
-                        class="d-inline">
+                  <form method="post" action="{{ url_for('vendors_bp.suppliers_delete', id=s.id) }}" class="d-inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit"
                             class="btn btn-sm btn-danger d-flex align-items-center"
@@ -118,7 +116,54 @@
 </div>
 
 <div id="vendors-config" data-pay-url="{{ url_for('payments.create_payment') }}"></div>
-{% include 'vendors/_settlement_modal.html' %}
+
+<div class="modal fade" id="settlementModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4">
+      <div class="modal-header bg-light">
+        <h5 class="modal-title"><i class="fas fa-scale-balanced me-2"></i> تسوية رصيد</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2 text-muted small">الجهة: <span id="stlName"></span></div>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>الرصيد الحالي:</div>
+          <div id="stlBalance" class="fw-bold"></div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">المبلغ للتسوية</label>
+          <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control" id="stlAmount">
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-md-6">
+            <label class="form-label">الاتجاه</label>
+            <div id="stlDirectionBadge"></div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">العملة</label>
+            <input type="text" class="form-control" id="stlCurrency" readonly>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">طريقة الدفع</label>
+          <select id="stlMethod" class="form-select">
+            <option value="cash">نقداً</option>
+            <option value="bank">تحويل بنكي</option>
+            <option value="cheque">شيك</option>
+            <option value="card">بطاقة</option>
+            <option value="online">إلكتروني</option>
+          </select>
+        </div>
+        <input type="hidden" id="stlEntityType">
+        <input type="hidden" id="stlEntityId">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" id="stlPrint"><i class="fas fa-print me-1"></i> طباعة</button>
+        <button type="button" class="btn btn-success" id="stlConfirm"><i class="fas fa-check me-1"></i> إنشاء سند</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}

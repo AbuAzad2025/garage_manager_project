@@ -219,11 +219,7 @@ document.addEventListener('DOMContentLoaded', function () {
           const r = await fetch(`/payments/entity-search?type=${encodeURIComponent(type)}&q=${encodeURIComponent(q)}`);
           const data = await r.json();
           const arr = Array.isArray(data) ? data : (Array.isArray(data?.results) ? data.results : []);
-          const list = arr.map(x => ({
-            id: x.id ?? x.value ?? x.pk ?? x.ID ?? '',
-            label: x.label ?? x.text ?? x.name ?? x.title ?? '',
-            extra: x.extra ?? x.subtitle ?? x.hint ?? ''
-          })).filter(x => x.id && x.label);
+          const list = arr.map(x => ({ id: x.id ?? x.value ?? x.pk ?? x.ID ?? '', label: x.label ?? x.text ?? x.name ?? x.title ?? '', extra: x.extra ?? x.subtitle ?? x.hint ?? '' })).filter(x => x.id && x.label);
           if (list.length > 0) {
             const best = list[0];
             input.value = best.label;
@@ -327,11 +323,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function normalizeResults(data) {
       const arr = Array.isArray(data) ? data : (Array.isArray(data?.results) ? data.results : []);
-      return arr.map(x => ({
-        id: x.id ?? x.value ?? x.pk ?? x.ID ?? '',
-        label: x.label ?? x.text ?? x.name ?? x.title ?? '',
-        extra: x.extra ?? x.subtitle ?? x.hint ?? ''
-      })).filter(x => x.id && (x.label || x.extra));
+      return arr.map(x => ({ id: x.id ?? x.value ?? x.pk ?? x.ID ?? '', label: x.label ?? x.text ?? x.name ?? x.title ?? '', extra: x.extra ?? x.subtitle ?? x.hint ?? '' })).filter(x => x.id && (x.label || x.extra));
     }
 
     function buildMenu() {

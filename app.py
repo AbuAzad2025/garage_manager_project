@@ -1,12 +1,13 @@
 import os
 import uuid
 import logging
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from datetime import datetime
 from flask import Flask, url_for, request, current_app, render_template, g
 from werkzeug.routing import BuildError
 from flask_cors import CORS
 from flask_login import AnonymousUserMixin, current_user
-from flask_wtf.csrf import generate_csrf  # قد تحتاجه بقوالبك
+from flask_wtf.csrf import generate_csrf
 from jinja2 import ChoiceLoader, FileSystemLoader
 from sqlalchemy import event
 
@@ -61,63 +62,61 @@ class MyAnonymousUser(AnonymousUserMixin):
 
 @login_manager.user_loader
 def load_user(user_id):
-    from sqlalchemy.orm import joinedload, lazyload
-    from sqlalchemy import select
-    uid_str = str(user_id or "").strip()
-    if ":" in uid_str:
+        from sqlalchemy.orm import joinedload, lazyload
+        from sqlalchemy import select
+        uid_str = str(user_id or "").strip()
+        if ":" in uid_str:
+            try:
+                prefix, ident = uid_str.split(":", 1)
+                ident = int(ident)
+                prefix = prefix.lower()
+            except Exception:
+                return None
+            if prefix == "u":
+                stmt = (
+                    select(User)
+                    .options(joinedload(User.role).joinedload(Role.permissions))
+                    .where(User.id == ident)
+                )
+                return db.session.execute(stmt).scalar_one_or_none()
+            if prefix == "c":
+                stmt = select(Customer).options(lazyload("*")).where(Customer.id == ident)
+                return db.session.execute(stmt).scalar_one_or_none()
+            return None
         try:
-            prefix, ident = uid_str.split(":", 1)
-            ident = int(ident)
-            prefix = prefix.lower()
+            ident = int(uid_str)
         except Exception:
             return None
-        if prefix == "u":
-            stmt = (
-                select(User)
-                .options(joinedload(User.role).joinedload(Role.permissions))
-                .where(User.id == ident)
-            )
-            return db.session.execute(stmt).scalar_one_or_none()
-        if prefix == "c":
-            stmt = select(Customer).options(lazyload("*")).where(Customer.id == ident)
-            return db.session.execute(stmt).scalar_one_or_none()
-        return None
-    try:
-        ident = int(uid_str)
-    except Exception:
-        return None
-    stmt_user = (
-        select(User)
-        .options(joinedload(User.role).joinedload(Role.permissions))
-        .where(User.id == ident)
-    )
-    user = db.session.execute(stmt_user).unique().scalar_one_or_none()
-    if user:
-        return user
-    stmt_cust = select(Customer).options(lazyload("*")).where(Customer.id == ident)
-    return db.session.execute(stmt_cust).scalar_one_or_none()
+        stmt_user = (
+            select(User)
+            .options(joinedload(User.role).joinedload(Role.permissions))
+            .where(User.id == ident)
+        )
+        user = db.session.execute(stmt_user).unique().scalar_one_or_none()
+        if user:
+            return user
+        stmt_cust = select(Customer).options(lazyload("*")).where(Customer.id == ident)
+        return db.session.execute(stmt_cust).scalar_one_or_none()
 
 
 def create_app(config_object=Config) -> Flask:
     app = Flask(__name__, static_folder="static", template_folder="templates")
     app.config.from_object(config_object)
     app.config.setdefault("JSON_AS_ASCII", False)
+    app.config.setdefault("NUMBER_DECIMALS", 2)
 
-    # تحميل بيئة .env لو متاحة
     try:
         from dotenv import load_dotenv
         load_dotenv()
     except Exception:
         pass
 
-    # أعلام افتراضية
     app.config.setdefault("SUPER_USER_EMAILS", os.getenv("SUPER_USER_EMAILS", ""))
-    app.config.setdefault("SUPER_USER_IDS",    os.getenv("SUPER_USER_IDS", ""))
+    app.config.setdefault("SUPER_USER_IDS", os.getenv("SUPER_USER_IDS", ""))
     app.config.setdefault("ADMIN_USER_EMAILS", os.getenv("ADMIN_USER_EMAILS", ""))
-    app.config.setdefault("ADMIN_USER_IDS",    os.getenv("ADMIN_USER_IDS", ""))
+    app.config.setdefault("ADMIN_USER_IDS", os.getenv("ADMIN_USER_IDS", ""))
     app.config.setdefault("PERMISSIONS_REQUIRE_ALL", False)
 
-    # Engine options
     engine_opts = app.config.setdefault("SQLALCHEMY_ENGINE_OPTIONS", {})
     connect_args = engine_opts.setdefault("connect_args", {})
     uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
@@ -132,7 +131,6 @@ def create_app(config_object=Config) -> Flask:
         elif uri.startswith(("mysql", "mysql+pymysql", "mysql+mysqldb")):
             connect_args.setdefault("connect_timeout", int(os.getenv("DB_CONNECT_TIMEOUT", "10")))
 
-    # init extensions
     db.init_app(app)
     migrate.init_app(app, db)
 
@@ -176,28 +174,29 @@ def create_app(config_object=Config) -> Flask:
     setup_logging(app)
     setup_sentry(app)
 
-    # كتم الضجيج بعد setup_logging:
-    os.environ.setdefault("PERMISSIONS_DEBUG", "0")  # لا تطبع Debug للبيرمشن
-    logging.getLogger("sqlalchemy.engine").setLevel(logging.ERROR)
-    logging.getLogger("sqlalchemy.orm").setLevel(logging.ERROR)
+    os.environ.setdefault("PERMISSIONS_DEBUG", "0")
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+    logging.getLogger("sqlalchemy.orm").setLevel(logging.WARNING)
     logging.getLogger("werkzeug").setLevel(logging.WARNING)
-    # فيك تكتم سكت-IO/إنجن-IO إذا لزم:
     logging.getLogger("engineio").setLevel(logging.WARNING)
     logging.getLogger("socketio").setLevel(logging.WARNING)
+    logging.getLogger("weasyprint").setLevel(logging.WARNING)
+    logging.getLogger("fontTools").setLevel(logging.WARNING)
+    logging.getLogger("PIL").setLevel(logging.WARNING)
     app.logger.setLevel(logging.INFO)
 
-    # دعم SERVER_NAME مع روابط داخلية
     if app.config.get("SERVER_NAME"):
         from urllib.parse import urlparse
+
         def _relative_url_for(self, endpoint, **values):
             rv = Flask.url_for(self, endpoint, **values)
             if not values.get("_external"):
                 parsed = urlparse(rv)
                 rv = parsed.path + ("?" + parsed.query if parsed.query else "")
             return rv
+
         app.url_for = _relative_url_for.__get__(app, Flask)
 
-    # قوالب
     extra_template_paths = [
         os.path.join(app.root_path, "templates"),
         os.path.join(app.root_path, "routes", "templates"),
@@ -206,6 +205,20 @@ def create_app(config_object=Config) -> Flask:
         [FileSystemLoader(p) for p in extra_template_paths]
         + ([app.jinja_loader] if app.jinja_loader else [])
     )
+
+    def _two_dec(v, digits=None, grouping=True):
+        try:
+            d = Decimal(str(v))
+        except (InvalidOperation, ValueError, TypeError):
+            d = Decimal("0")
+        q = Decimal("1." + ("0" * (app.config.get("NUMBER_DECIMALS", 2))))
+        d = d.quantize(q, rounding=ROUND_HALF_UP)
+        if grouping:
+            return f"{d:,.{app.config.get('NUMBER_DECIMALS', 2)}f}"
+        return f"{d:.{app.config.get('NUMBER_DECIMALS', 2)}f}"
+
+    def _safe_number_format(v, digits=None):
+        return _two_dec(v, digits=digits or app.config.get("NUMBER_DECIMALS", 2), grouping=True)
 
     def get_unique_flashes(with_categories=True):
         from flask import get_flashed_messages
@@ -227,10 +240,7 @@ def create_app(config_object=Config) -> Flask:
 
     @app.context_processor
     def inject_common():
-        return {
-            "current_app": current_app,
-            "get_unique_flashes": get_unique_flashes,
-        }
+        return {"current_app": current_app, "get_unique_flashes": get_unique_flashes}
 
     @app.context_processor
     def inject_permissions():
@@ -287,12 +297,6 @@ def create_app(config_object=Config) -> Flask:
 
         return {"has_perm": has_perm, "has_any": has_any, "has_all": has_all}
 
-    def _safe_number_format(v, digits=2):
-        try:
-            return f"{float(v):,.{digits}f}"
-        except (TypeError, ValueError):
-            return f"{0:,.{digits}f}"
-
     def url_for_any(*endpoints, **values):
         last_err = None
         tried = []
@@ -320,11 +324,10 @@ def create_app(config_object=Config) -> Flask:
     app.jinja_env.filters["format_number"] = _safe_number_format
     app.jinja_env.filters["format_date"] = format_date
     app.jinja_env.filters["format_datetime"] = format_datetime
-    app.jinja_env.filters["status_label"] = status_label
+    app.jinja_env.filters["two_dec"] = _two_dec
     app.jinja_env.globals["url_for_any"] = url_for_any
     app.jinja_env.globals["now"] = datetime.utcnow
 
-    # ACL
     attach_acl(
         shop_bp,
         read_perm="view_shop",
@@ -332,27 +335,27 @@ def create_app(config_object=Config) -> Flask:
         public_read=True,
         exempt_prefixes=["/shop/admin", "/shop/webhook"],
     )
-    attach_acl(users_bp,           read_perm="manage_users",       write_perm="manage_users")
-    attach_acl(customers_bp,       read_perm="manage_customers",   write_perm="manage_customers")
-    attach_acl(vendors_bp,         read_perm="manage_vendors",     write_perm="manage_vendors")
-    attach_acl(shipments_bp,       read_perm="manage_shipments",   write_perm="manage_shipments")
-    attach_acl(warehouse_bp,       read_perm="view_warehouses",    write_perm="manage_warehouses")
-    attach_acl(payments_bp,        read_perm="manage_payments",    write_perm="manage_payments")
-    attach_acl(expenses_bp,        read_perm="manage_expenses",    write_perm="manage_expenses")
-    attach_acl(sales_bp,           read_perm="manage_sales",       write_perm="manage_sales")
-    attach_acl(service_bp,         read_perm="manage_service",     write_perm="manage_service")
-    attach_acl(reports_bp,         read_perm="view_reports",       write_perm="manage_reports")
-    attach_acl(roles_bp,           read_perm="manage_roles",       write_perm="manage_roles")
-    attach_acl(permissions_bp,     read_perm="manage_permissions", write_perm="manage_permissions")
-    attach_acl(parts_bp,           read_perm="view_parts",         write_perm="manage_inventory")
-    attach_acl(admin_reports_bp,   read_perm="view_reports",       write_perm="manage_reports")
-    attach_acl(main_bp,            read_perm=None,                 write_perm=None)
-    attach_acl(partner_settlements_bp,   read_perm="manage_vendors", write_perm="manage_vendors")
-    attach_acl(supplier_settlements_bp,  read_perm="manage_vendors", write_perm="manage_vendors")
-    attach_acl(api_bp,             read_perm="access_api",         write_perm="manage_api")
-    attach_acl(notes_bp,           read_perm="view_notes",         write_perm="manage_notes")
-    attach_acl(bp_barcode,         read_perm="view_parts",         write_perm=None)
-    attach_acl(ledger_bp,          read_perm="manage_ledger",      write_perm="manage_ledger")
+    attach_acl(users_bp, read_perm="manage_users", write_perm="manage_users")
+    attach_acl(customers_bp, read_perm="manage_customers", write_perm="manage_customers")
+    attach_acl(vendors_bp, read_perm="manage_vendors", write_perm="manage_vendors")
+    attach_acl(shipments_bp, read_perm="manage_shipments", write_perm="manage_shipments")
+    attach_acl(warehouse_bp, read_perm="view_warehouses", write_perm="manage_warehouses")
+    attach_acl(payments_bp, read_perm="manage_payments", write_perm="manage_payments")
+    attach_acl(expenses_bp, read_perm="manage_expenses", write_perm="manage_expenses")
+    attach_acl(sales_bp, read_perm="manage_sales", write_perm="manage_sales")
+    attach_acl(service_bp, read_perm="manage_service", write_perm="manage_service")
+    attach_acl(reports_bp, read_perm="view_reports", write_perm="manage_reports")
+    attach_acl(roles_bp, read_perm="manage_roles", write_perm="manage_roles")
+    attach_acl(permissions_bp, read_perm="manage_permissions", write_perm="manage_permissions")
+    attach_acl(parts_bp, read_perm="view_parts", write_perm="manage_inventory")
+    attach_acl(admin_reports_bp, read_perm="view_reports", write_perm="manage_reports")
+    attach_acl(main_bp, read_perm=None, write_perm=None)
+    attach_acl(partner_settlements_bp, read_perm="manage_vendors", write_perm="manage_vendors")
+    attach_acl(supplier_settlements_bp, read_perm="manage_vendors", write_perm="manage_vendors")
+    attach_acl(api_bp, read_perm="access_api", write_perm="manage_api")
+    attach_acl(notes_bp, read_perm="view_notes", write_perm="manage_notes")
+    attach_acl(bp_barcode, read_perm="view_parts", write_perm=None)
+    attach_acl(ledger_bp, read_perm="manage_ledger", write_perm="manage_ledger")
 
     BLUEPRINTS = [
         auth_bp,
@@ -379,7 +382,6 @@ def create_app(config_object=Config) -> Flask:
         api_bp,
         ledger_bp,
     ]
-
     for bp in BLUEPRINTS:
         app.register_blueprint(bp)
 

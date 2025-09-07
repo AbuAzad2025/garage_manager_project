@@ -7,7 +7,7 @@
     {% if m == 'cheque' %}
       رقم الشيك: {{ d.get('check_number','—') }}<br>
       البنك: {{ d.get('check_bank','—') }}<br>
-      الاستحقاق: {{ d.get('check_due_date','—')|default('—') }}
+      الاستحقاق: {{ d.get('check_due_date','—') }}
     {% elif m == 'bank' %}
       مرجع التحويل: {{ d.get('bank_transfer_ref','—') }}
     {% elif m == 'card' %}
@@ -17,7 +17,7 @@
     {% elif m == 'online' %}
       دفع إلكتروني ({{ d.get('gateway','—') }})
     {% else %}
-      — 
+      —
     {% endif %}
   </td>
   <td>

@@ -227,8 +227,8 @@ document.addEventListener('DOMContentLoaded', function () {
       const headers = Array.from(document.querySelectorAll('#paymentsTable thead th')).map(function(th){ return th.textContent.trim(); }).slice(0,8);
       const rows = _lastList.map(function(p){
         const dateOnly = (p.payment_date || '').split('T')[0] || '';
-        const method = (p.splits && p.splits.length) ? p.splits.map(function(s){ return String((s.method||'')).toUpperCase()+': '+fmtAmount(s.amount); }).join(' | ') : (p.method || '');
-        return [String(p.id||''), dateOnly, fmtAmount(p.total_amount), String(p.currency||''), method, (p.direction||''), (AR_STATUS[p.status]||p.status||''), String(p.entity_display||p.entity_type||'')];
+        const method = (p.splits && p.splits.length) ? p.splits.map(function(s){ return String((s.method||'')).toUpperCase()+': '+Number(s.amount||0).toFixed(2); }).join(' | ') : (p.method || '');
+        return [String(p.id||''), dateOnly, Number(p.total_amount||0).toFixed(2), String(p.currency||''), method, (p.direction||''), (AR_STATUS[p.status]||p.status||''), String(p.entity_display||p.entity_type||'')];
       });
       const csv = [headers].concat(rows).map(function(r){ return r.map(function(cell){ return '"'+String(cell).replace(/"/g,'""')+'"'; }).join(','); }).join('\n');
       const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });

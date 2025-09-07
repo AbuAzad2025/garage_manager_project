@@ -2,39 +2,62 @@
 {% block title %}وصل دفع{% endblock %}
 
 {% block head_extra %}
-  <style>
-    @page { size: A4 portrait; margin: 12mm; }  /* الوضع الافتراضي */
-    @media print { .no-print { display: none !important; } }
+{% set _size = (request.args.get('s','a4')|lower) %}
+{% set _ori  = (request.args.get('o','portrait')|lower) %}
+{% if _size == 'a5' %}{% set W=148 %}{% set H=210 %}{% else %}{% set W=210 %}{% set H=297 %}{% endif %}
+{% if _ori == 'landscape' %}{% set PW=H %}{% set PH=W %}{% else %}{% set PW=W %}{% set PH=H %}{% endif %}
+{% set MT=12 %}{% set MR=12 %}{% set ML=12 %}{% set footer_h=14 %}
+{% set MB = MT + footer_h %}
+{% set content_w = PW - (ML + MR) %}
 
-    {% if request.args.get('o') == 'landscape' %}
-    @page { size: 297mm 210mm; margin: 12mm; }  /* A4 landscape */
-    #receipt { width: 273mm !important; }
-    {% endif %}
+<style>
+  @page { size: {{PW}}mm {{PH}}mm; margin: {{MT}}mm {{MR}}mm {{MB}}mm {{ML}}mm; }
+  @media print { .no-print{display:none!important} }
 
-    body { background:#fff; font-family:'Amiri','Arial',sans-serif; font-size:14px; }
-    .receipt-footer {
-      position: fixed; bottom: 0; left: 0; right: 0;
-      font-size: 12px; border-top: 1px solid #ccc;
-      padding: 6px; background: #fff; text-align:center;
-    }
-    .receipt-header { display:flex; justify-content:space-between; align-items:center; }
-    .brand { display:flex; align-items:center; gap:12px; }
-    .brand .logo { max-height:60px; }
-    .brand-name { font-size:18px; font-weight:700; }
-    .brand-sub { font-size:14px; color:#555; }
-    .box { border:1px solid #ddd; border-radius:6px; padding:10px; background:#fafafa; margin-bottom:12px; }
-    table { width:100%; border-collapse:collapse; margin-bottom:12px; font-size:13px; }
-    th, td { border:1px solid #ddd; padding:6px 8px; text-align:right; }
-    th { background:#f2f2f2; }
-    .totals .rowline { display:flex; justify-content:space-between; margin:4px 0; }
-    .totals .highlight { font-size:16px; color:#d63384; font-weight:700; }
-  </style>
+  html,body{background:#fff;font-family:"DejaVu Sans","Amiri","Tahoma","Arial",sans-serif;direction:rtl;text-align:right;font-size:13px;line-height:1.5;margin:0;color:#000}
+  #receipt{width:{{content_w}}mm;margin:0 auto;box-sizing:border-box;padding-bottom:{{footer_h}}mm}
+
+  .receipt-header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:6px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand .logo{height:48px;object-fit:contain}
+  .brand-name{font-weight:800;font-size:16px}
+  .brand-sub{font-size:12px;color:#555}
+  .brand-line{height:3px;background:linear-gradient(90deg,#0d6efd,#20c997);border-radius:6px;margin:6px 0 14px}
+
+  .box{background:#fff;border:1px solid #e6e6e6;border-radius:10px;padding:12px;page-break-inside:avoid}
+
+  table{width:100%;border-collapse:collapse;table-layout:fixed}
+  thead{display:table-header-group}
+  tfoot{display:table-footer-group}
+  th,td{border:1px solid #d9d9d9;padding:6px 8px;vertical-align:middle}
+  thead th{background:#f3f6fb;border-color:#e6e6e6;font-weight:800;color:#394b6a;white-space:nowrap}
+  .wrap{overflow-wrap:anywhere;white-space:normal}
+  .num{font-variant-numeric:tabular-nums;text-align:end}
+
+  .kv th{width:38mm;background:#f8f9fa;color:#555;font-weight:700;white-space:nowrap}
+
+  /* جدول الدفعات الجزئية بنِسَب ثابتة */
+  col.col-s-idx{width:10%}
+  col.col-s-amt{width:22%}
+  col.col-s-mth{width:20%}
+  col.col-s-det{width:48%}
+
+  .sign-row{display:flex;gap:14px;margin-top:18px}
+  .sign{flex:1;text-align:center;border-top:1px solid #bbb;padding-top:10px;min-height:40px}
+
+  .receipt-footer{position:fixed;left:{{ML}}mm;right:{{MR}}mm;bottom:{{MT}}mm;height:{{footer_h}}mm;text-align:center;font-size:11px;border-top:1px solid #777;padding-top:3mm;background:transparent}
+
+  @media print{
+    html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .btn,nav,.navbar,.sidebar,.actions,a.no-print{display:none!important}
+    a[href]:after{content:""!important}
+    tr,.receipt-header,.box{break-inside:avoid;page-break-inside:avoid}
+  }
+</style>
 {% endblock %}
 
 {% block content %}
-<div id="receipt" class="container my-4">
-
-  <!-- رأس مع الشعار والعنوان -->
+<div id="receipt">
   <div class="receipt-header">
     <div class="brand">
       <img class="logo" src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo">
@@ -48,66 +71,60 @@
       التاريخ: {{ payment.payment_date and payment.payment_date.strftime('%Y-%m-%d') or '—' }}
     </div>
   </div>
+  <div class="brand-line"></div>
 
-  <hr>
-
-  <!-- تفاصيل الدفع -->
   <div class="box">
-    <table>
+    <table class="kv">
       <tr><th>المبلغ الكلي</th><td>{{ '%.2f'|format(payment.total_amount or 0) }} {{ payment.currency }}</td></tr>
-      <tr><th>طريقة الدفع</th><td>{{ payment.method.value if payment.method else '—' }}</td></tr>
-      <tr><th>الاتجاه</th><td>{{ 'وارد' if payment.direction in ['IN','INCOMING'] else 'صادر' }}</td></tr>
-      <tr><th>الحالة</th><td>{{ payment.status.value if payment.status else '—' }}</td></tr>
+      <tr><th>طريقة الدفع</th><td>{{ (payment.method.value if payment.method and payment.method.value else payment.method) or '—' }}</td></tr>
+      <tr><th>الاتجاه</th><td>{{ 'وارد' if (payment.direction in ['IN','INCOMING'] or (payment.direction.value if payment.direction else '') in ['IN','INCOMING']) else 'صادر' }}</td></tr>
+      <tr><th>الحالة</th><td>{{ payment.status.value if payment.status and payment.status.value else payment.status or '—' }}</td></tr>
       <tr><th>الجهة</th><td>{{ payment.entity_label() or payment.entity_type }}</td></tr>
       <tr><th>المرجع</th><td>{{ payment.reference or '—' }}</td></tr>
       <tr><th>ملاحظات</th><td>{{ payment.notes or '—' }}</td></tr>
     </table>
   </div>
 
-  <!-- الدفعات الجزئية -->
   {% if payment.splits %}
   <div class="box">
-    <h5>💳 تفاصيل الدفعات الجزئية</h5>
+    <h5 style="margin-top:0;margin-bottom:8px">💳 تفاصيل الدفعات الجزئية</h5>
     <table>
+      <colgroup><col class="col-s-idx"><col class="col-s-amt"><col class="col-s-mth"><col class="col-s-det"></colgroup>
       <thead>
-        <tr>
-          <th>#</th><th>المبلغ</th><th>الطريقة</th><th>تفاصيل</th>
-        </tr>
+        <tr><th>#</th><th>المبلغ</th><th>الطريقة</th><th>تفاصيل</th></tr>
       </thead>
       <tbody>
-        {% for split in payment.splits %}
-        {% set m = split.method.value if split.method else split.method %}
-        {% set d = split.details or {} %}
-        <tr>
-          <td>{{ loop.index }}</td>
-          <td>{{ '%.2f'|format(split.amount or 0) }} {{ payment.currency }}</td>
-          <td>{{ (m or '—')|upper }}</td>
-          <td>
-            {% if m == 'cheque' %}
-              شيك: {{ d.get('check_number','—') }}, بنك: {{ d.get('check_bank','—') }}, استحقاق: {{ d.get('check_due_date') or d.get('due_date') or '—' }}
-            {% elif m == 'bank' %}
-              تحويل: {{ d.get('bank_transfer_ref','—') }}
-            {% elif m == 'card' %}
-              بطاقة: ****{{ (d.get('card_number','')|string)[-4:] }}, حامل: {{ d.get('card_holder','—') }}, انتهاء: {{ d.get('card_expiry','—') }}
-            {% elif m == 'online' %}
-              دفع إلكتروني ({{ d.get('gateway','—') }})
-            {% else %} — {% endif %}
-          </td>
-        </tr>
+        {% for s in payment.splits %}
+          {% set m = s.method.value if s.method and s.method.value else s.method %}
+          {% set d = s.details or {} %}
+          <tr>
+            <td style="text-align:center">{{ loop.index }}</td>
+            <td class="num">{{ '%.2f'|format(s.amount or 0) }} {{ payment.currency }}</td>
+            <td style="text-align:center">{{ (m or '—')|upper }}</td>
+            <td class="wrap">
+              {% if m == 'cheque' %}
+                شيك: {{ d.get('check_number','—') }}، بنك: {{ d.get('check_bank','—') }}، استحقاق: {{ d.get('check_due_date') or d.get('due_date') or '—' }}
+              {% elif m == 'bank' %}
+                تحويل: {{ d.get('bank_transfer_ref','—') }}
+              {% elif m == 'card' %}
+                بطاقة: ****{{ (d.get('card_number','')|string)[-4:] }}، حامل: {{ d.get('card_holder','—') }}، انتهاء: {{ d.get('card_expiry','—') }}
+              {% elif m == 'online' %}
+                دفع إلكتروني ({{ d.get('gateway','—') }})
+              {% else %} — {% endif %}
+            </td>
+          </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
   {% endif %}
 
-  <!-- توقيع -->
-  <div class="row mt-4">
-    <div class="col-md-6 text-center">توقيع المستلم<br><br>__________</div>
-    <div class="col-md-6 text-center">توقيع المسؤول<br><br>__________</div>
+  <div class="sign-row">
+    <div class="sign">توقيع المستلم</div>
+    <div class="sign">توقيع المسؤول</div>
   </div>
 
-  <!-- أزرار -->
-  <div class="text-center mt-4 no-print">
+  <div class="text-center mt-3 no-print">
     <button class="btn btn-dark" onclick="window.print()">🖨️ طباعة</button>
     <a class="btn btn-secondary" href="{{ url_for('payments.view_payment', payment_id=payment.id) }}">↩️ رجوع</a>
   </div>

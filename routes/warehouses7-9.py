@@ -486,6 +486,8 @@ def list_warehouses():
         has_partner=has_partner or "",
         order=order,
     )
+
+
 @warehouse_bp.route("/create", methods=["GET", "POST"], endpoint="create")
 @login_required
 @permission_required("manage_warehouses")
@@ -507,11 +509,9 @@ def create_warehouse():
             location=((form.location.data or "").strip() or None),
             parent_id=_to_int(form.parent_id.data),
             partner_id=_to_int(form.partner_id.data),
-            supplier_id=_to_int(form.supplier_id.data),
             share_percent=form.share_percent.data if wh_type == "PARTNER" else 0,
             capacity=form.capacity.data,
             is_active=True if form.is_active.data is None else bool(form.is_active.data),
-            notes=(form.notes.data or "").strip() or None,
         )
         db.session.add(w)
         try:
@@ -528,6 +528,7 @@ def create_warehouse():
                 flash(f"{field}: {err}", "danger")
 
     return render_template("warehouses/form.html", form=form)
+
 
 @warehouse_bp.route("/<int:warehouse_id>/edit", methods=["GET", "POST"], endpoint="edit")
 @login_required
@@ -552,9 +553,7 @@ def edit_warehouse(warehouse_id):
         w.is_active = bool(form.is_active.data)
         w.parent_id = _to_int(form.parent_id.data)
         w.partner_id = _to_int(form.partner_id.data)
-        w.supplier_id = _to_int(form.supplier_id.data)
         w.share_percent = form.share_percent.data if w.warehouse_type == "PARTNER" else 0
-        w.notes = (form.notes.data or "").strip() or None
         try:
             db.session.commit()
             flash("تم تحديث بيانات المستودع", "success")
@@ -564,6 +563,7 @@ def edit_warehouse(warehouse_id):
             flash(f"حدث خطأ: {e}", "danger")
 
     return render_template("warehouses/form.html", form=form, warehouse=w)
+
 
 @warehouse_bp.route("/<int:warehouse_id>/delete", methods=["POST"], endpoint="delete")
 @login_required
@@ -943,9 +943,8 @@ def add_product(id):
 
     wtype_raw = getattr(warehouse.warehouse_type, "value", str(warehouse.warehouse_type))
     wtype = (wtype_raw or "").upper()
-    is_partner = (wtype == "PARTNER")
-    is_exchange = (wtype == "EXCHANGE")
-
+    is_partner = warehouse.warehouse_type == WarehouseType.PARTNER.value
+    is_exchange = warehouse.warehouse_type == WarehouseType.EXCHANGE.value
     partners_forms = [ProductPartnerShareForm()] if is_partner else []
     exchange_vendors_forms = [ExchangeVendorForm()] if is_exchange else []
 
@@ -955,23 +954,7 @@ def add_product(id):
         except Exception:
             stock_form.warehouse_id.data = warehouse.id
 
-    def _to_int(v):
-        try:
-            return int(str(v).strip())
-        except Exception:
-            return None
-
-    def _to_dec(v):
-        from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
-        if v in (None, ""): return None
-        s = str(v).replace(",", "").strip()
-        try:
-            return Decimal(s).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        except (InvalidOperation, ValueError):
-            return None
-
     if request.method == "POST":
-        # تحقق فئة المنتج إن وُجدت
         if product_form.category_id.data:
             cat = db.session.get(ProductCategory, int(product_form.category_id.data))
             if not cat:
@@ -986,7 +969,6 @@ def add_product(id):
                     wtype=wtype,
                 ), 400
 
-        # تحقق أساسي لنماذج المنتج/المخزون
         if not product_form.validate_on_submit():
             flash("تعذّر حفظ المنتج. تأكّد من الحقول المطلوبة.", "danger")
             return render_template(
@@ -999,21 +981,21 @@ def add_product(id):
                 wtype=wtype,
             ), 400
 
-        # سنؤجل validate(stock_form) لما بعد ضبط product_id/warehouse_id
         try:
             with db.session.begin_nested():
-                # إنشاء المنتج
                 product = product_form.apply_to(Product())
+
                 if not product.category_id and product.category_name:
                     product.category_id = _ensure_category_id(product.category_name)
+
                 db.session.add(product)
                 db.session.flush()
 
-                # ربط المخزون الأولي
                 try:
                     stock_form.product_id.process(None, product.id)
                 except Exception:
                     stock_form.product_id.data = product.id
+
                 if hasattr(stock_form, "warehouse_id") and not stock_form.warehouse_id.data:
                     try:
                         stock_form.warehouse_id.process(None, warehouse.id)
@@ -1043,68 +1025,51 @@ def add_product(id):
                 sl.min_stock = stock_form.min_stock.data or None
                 sl.max_stock = stock_form.max_stock.data or None
 
-                # ===== متطلبات خاصة حسب نوع المستودع =====
                 if is_partner:
-                    # نقرأ القوائم من الطلب
-                    p_ids  = request.form.getlist("partner_id")
-                    p_perc = request.form.getlist("share_percentage")
-                    p_amt  = request.form.getlist("share_amount")
-                    p_note = request.form.getlist("notes")
-
-                    rows = []
-                    for pid, perc, amt, note in zip(p_ids, p_perc, p_amt, p_note):
-                        pid_i = _to_int(pid)
-                        perc_d = _to_dec(perc) or Decimal("0.00")
-                        amt_d = _to_dec(amt) or Decimal("0.00")
-                        if pid_i and (perc_d > 0 or amt_d > 0):
-                            rows.append((pid_i, perc_d, amt_d, (note or "").strip() or None))
-
-                    if not rows:
-                        raise ValueError("يرجى إضافة شريك واحد على الأقل مع نسبة أو قيمة مساهمة.")
-
-                    # إن كانت كل القيم كنِسَب، تأكد أن مجموعها <= 100
-                    if all(r[1] > 0 and r[2] == 0 for r in rows):
-                        total_perc = sum((r[1] for r in rows), Decimal("0.00"))
-                        if total_perc > Decimal("100.00") + Decimal("0.0001"):
-                            raise ValueError("مجموع نسب الشركاء يتجاوز 100%.")
-
-                    for pid_i, perc_d, amt_d, note in rows:
+                    for pid, perc, amt, note in zip(
+                        request.form.getlist("partner_id"),
+                        request.form.getlist("share_percentage"),
+                        request.form.getlist("share_amount"),
+                        request.form.getlist("notes"),
+                    ):
+                        if not pid:
+                            continue
+                        try:
+                            share_percentage = float(perc or 0)
+                        except ValueError:
+                            share_percentage = 0.0
+                        try:
+                            share_amount = float(amt or 0)
+                        except ValueError:
+                            share_amount = 0.0
                         db.session.add(
                             ProductPartnerShare(
                                 product=product,
-                                partner_id=pid_i,
-                                share_percentage=float(perc_d) if perc_d > 0 else 0.0,
-                                share_amount=float(amt_d) if amt_d > 0 else 0.0,
-                                notes=note,
+                                partner_id=int(pid),
+                                share_percentage=share_percentage,
+                                share_amount=share_amount,
+                                notes=note.strip() if note else None,
                             )
                         )
-
                 elif is_exchange:
-                    s_ids  = request.form.getlist("supplier_id")
-                    v_phone = request.form.getlist("vendor_phone")
-                    v_paid  = request.form.getlist("vendor_paid")
-                    v_price = request.form.getlist("vendor_price")
+                    supplier_ids = request.form.getlist("supplier_id")
+                    vendor_phones = request.form.getlist("vendor_phone")
+                    vendor_paid = request.form.getlist("vendor_paid")
+                    vendor_prices = request.form.getlist("vendor_price")
 
-                    rows = []
-                    for sid, phone, paid, price in zip(s_ids, v_phone, v_paid, v_price):
-                        sid_i = _to_int(sid)
-                        paid_d = _to_dec(paid)
-                        price_d = _to_dec(price)
-                        # اعتبر الصف صالحًا إن وُجد sid أو أي معلومة أخرى مفيدة
-                        if sid_i or phone or paid_d or price_d:
-                            rows.append((sid_i, (phone or "").strip() or None, paid_d, price_d))
-
-                    if not rows or not any(r[0] for r in rows):
-                        raise ValueError("يرجى إضافة مورد واحد على الأقل لمستودع التبادل.")
-
-                    for sid_i, phone, paid_d, price_d in rows:
+                    for sid, phone, paid, price in zip(
+                        supplier_ids, vendor_phones, vendor_paid, vendor_prices
+                    ):
                         note_parts = []
-                        if sid_i:
-                            sup = db.session.get(Supplier, sid_i)
-                            note_parts.append(f"SupplierID:{sid_i}({sup.name if sup else ''})")
-                        if phone: note_parts.append(f"phone:{phone}")
-                        if paid_d is not None: note_parts.append(f"paid:{paid_d}")
-                        if price_d is not None: note_parts.append(f"price:{price_d}")
+                        if sid and sid.isdigit():
+                            sup = db.session.get(Supplier, int(sid))
+                            note_parts.append(f"SupplierID:{sid}({sup.name if sup else ''})")
+                        if phone:
+                            note_parts.append(f"phone:{phone}")
+                        if paid:
+                            note_parts.append(f"paid:{paid}")
+                        if price:
+                            note_parts.append(f"price:{price}")
 
                         db.session.add(
                             ExchangeTransaction(
@@ -1112,21 +1077,15 @@ def add_product(id):
                                 warehouse_id=warehouse.id,
                                 partner_id=None,
                                 quantity=init_qty,
-                                unit_cost=float(price_d) if price_d is not None else None,
-                                is_priced=bool(price_d is not None and price_d > 0),
                                 direction="IN",
                                 notes=" | ".join(note_parts) if note_parts else None,
                             )
                         )
 
-                # الأنواع الأخرى: لا حقول إضافية مطلوبة
             db.session.commit()
             flash("تمت إضافة القطعة بنجاح", "success")
             return redirect(url_for("warehouse_bp.products", id=warehouse.id))
 
-        except ValueError as ve:
-            db.session.rollback()
-            flash(str(ve), "danger")
         except Exception as e:
             db.session.rollback()
             log.exception("add_product:exception")
@@ -1141,6 +1100,7 @@ def add_product(id):
         exchange_vendors_forms=exchange_vendors_forms,
         wtype=wtype,
     )
+
 
 @warehouse_bp.route("/<int:id>/import", methods=["GET", "POST"], endpoint="import_products")
 @login_required
@@ -1211,6 +1171,7 @@ def import_products(id):
         flash(f"هناك صفوف بدون اسم (إجباري): {len(rpt['missing_required_rows'])} صف. يمكنك تعديل الملف وإعادة الرفع، أو متابعة المعاينة.", "warning")
 
     return redirect(url_for("warehouse_bp.import_preview", id=w.id, token=key))
+
 
 @warehouse_bp.route("/<int:warehouse_id>/preview/update", methods=["POST"], endpoint="preview_update")
 @login_required

@@ -1,13 +1,11 @@
 from datetime import datetime, timedelta
-from decimal import Decimal
-
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from flask import abort, Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import login_required
 from flask_wtf import FlaskForm
 from sqlalchemy import func, or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
-
 from extensions import db
 from forms import PartnerForm, SupplierForm
 from utils import permission_required
@@ -25,13 +23,25 @@ from models import (
     WarehouseType,
 )
 
-
 class CSRFProtectForm(FlaskForm):
     pass
 
-
 vendors_bp = Blueprint("vendors_bp", __name__, url_prefix="/vendors")
 
+TWOPLACES = Decimal("0.01")
+
+def D(x) -> Decimal:
+    if x is None:
+        return Decimal("0")
+    if isinstance(x, Decimal):
+        return x
+    try:
+        return Decimal(str(x))
+    except (InvalidOperation, ValueError, TypeError):
+        return Decimal("0")
+
+def q2(x) -> Decimal:
+    return D(x).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
 
 def _get_or_404(model, ident, options=None):
     q = db.session.query(model)
@@ -44,7 +54,6 @@ def _get_or_404(model, ident, options=None):
     if obj is None:
         abort(404)
     return obj
-
 
 @vendors_bp.route("/suppliers", methods=["GET"], endpoint="suppliers_list")
 @login_required
@@ -64,7 +73,6 @@ def suppliers_list():
         form=form,
         pay_url=url_for("payments.create_payment"),
     )
-
 
 @vendors_bp.route("/suppliers/new", methods=["GET", "POST"], endpoint="suppliers_create")
 @login_required
@@ -91,7 +99,6 @@ def suppliers_create():
         return jsonify({"success": True, "html": html})
     return render_template("vendors/suppliers/form.html", form=form, supplier=None)
 
-
 @vendors_bp.route("/suppliers/<int:id>/edit", methods=["GET", "POST"], endpoint="suppliers_edit")
 @login_required
 @permission_required("manage_vendors")
@@ -110,7 +117,6 @@ def suppliers_edit(id):
             flash(f"❌ خطأ أثناء تحديث المورد: {e}", "danger")
     return render_template("vendors/suppliers/form.html", form=form, supplier=supplier)
 
-
 @vendors_bp.route("/suppliers/<int:id>/delete", methods=["POST"], endpoint="suppliers_delete")
 @login_required
 @permission_required("manage_vendors")
@@ -124,7 +130,6 @@ def suppliers_delete(id):
         db.session.rollback()
         flash(f"❌ خطأ أثناء حذف المورد: {e}", "danger")
     return redirect(url_for("vendors_bp.suppliers_list"))
-
 
 @vendors_bp.get("/suppliers/<int:supplier_id>/statement", endpoint="suppliers_statement")
 @login_required
@@ -140,13 +145,6 @@ def suppliers_statement(supplier_id: int):
         df, dt = None, None
     if dt:
         dt = dt + timedelta(days=1)
-
-    def q2(x):
-        try:
-            return Decimal(str(x or 0)).quantize(Decimal("0.01"))
-        except Exception:
-            return Decimal("0.00")
-
     tx_query = (
         db.session.query(ExchangeTransaction)
         .join(Warehouse, Warehouse.id == ExchangeTransaction.warehouse_id)
@@ -161,13 +159,10 @@ def suppliers_statement(supplier_id: int):
     if dt:
         tx_query = tx_query.filter(ExchangeTransaction.created_at < dt)
     txs = tx_query.all()
-
     entries = []
     total_debit = Decimal("0.00")
     total_credit = Decimal("0.00")
-
     per_product = {}
-
     def _pp(pid):
         if pid not in per_product:
             per_product[pid] = {
@@ -183,7 +178,6 @@ def suppliers_statement(supplier_id: int):
                 "notes": set(),
             }
         return per_product[pid]
-
     for tx in txs:
         p = tx.product
         pid = getattr(p, "id", None)
@@ -191,15 +185,15 @@ def suppliers_statement(supplier_id: int):
         if row["product"] is None:
             row["product"] = p
         qty = int(tx.quantity or 0)
-        unit_cost = tx.unit_cost
+        unit_cost = D(getattr(tx, "unit_cost", 0))
         used_fallback = False
-        if not unit_cost or unit_cost <= 0:
+        if unit_cost <= 0:
             pc = getattr(p, "purchase_price", None)
-            if pc and pc > 0:
-                unit_cost = pc
+            if pc and D(pc) > 0:
+                unit_cost = D(pc)
                 used_fallback = True
             else:
-                unit_cost = 0
+                unit_cost = Decimal("0")
         amount = q2(unit_cost) * q2(qty)
         if used_fallback:
             row["notes"].add("تم التسعير من سعر شراء المنتج")
@@ -220,7 +214,6 @@ def suppliers_statement(supplier_id: int):
         elif dirv in {"SETTLEMENT", "ADJUST"}:
             entries.append({"date": d, "type": "SETTLEMENT", "ref": f"تسوية مخزون #{tx.id}", "debit": Decimal("0.00"), "credit": amount})
             total_credit += amount
-
     pay_q = (
         db.session.query(Payment)
         .filter(
@@ -239,7 +232,6 @@ def suppliers_statement(supplier_id: int):
         ref = pmt.reference or f"دفعة #{pmt.id}"
         entries.append({"date": d, "type": "PAYMENT", "ref": ref, "debit": Decimal("0.00"), "credit": amt})
         total_credit += amt
-
     stl_q = (
         db.session.query(SupplierLoanSettlement)
         .options(joinedload(SupplierLoanSettlement.loan))
@@ -259,7 +251,6 @@ def suppliers_statement(supplier_id: int):
         if pid in per_product:
             per_product[pid]["qty_paid"] += 1
             per_product[pid]["val_paid"] += amt
-
     entries.sort(key=lambda e: (e["date"] or datetime.min, e["type"], e["ref"]))
     balance = Decimal("0.00")
     out = []
@@ -268,7 +259,6 @@ def suppliers_statement(supplier_id: int):
         c = q2(e["credit"])
         balance += d - c
         out.append({**e, "debit": d, "credit": c, "balance": balance})
-
     ex_ids = [
         wid
         for (wid,) in db.session.query(Warehouse.id)
@@ -300,7 +290,6 @@ def suppliers_statement(supplier_id: int):
                 r["product"] = {"name": name}
             r["qty_unpaid"] = qty_i
             r["val_unpaid"] = value
-
     return render_template(
         "vendors/suppliers/statement.html",
         supplier=supplier,
@@ -313,7 +302,6 @@ def suppliers_statement(supplier_id: int):
         date_from=df if df else None,
         date_to=(dt - timedelta(days=1)) if dt else None,
     )
-
 
 @vendors_bp.route("/partners", methods=["GET"], endpoint="partners_list")
 @login_required
@@ -333,7 +321,6 @@ def partners_list():
         form=form,
         pay_url=url_for("payments.create_payment"),
     )
-
 
 @vendors_bp.route("/partners/new", methods=["GET", "POST"], endpoint="partners_create")
 @login_required
@@ -360,7 +347,6 @@ def partners_create():
         return jsonify({"success": True, "html": html})
     return render_template("vendors/partners/form.html", form=form, partner=None)
 
-
 @vendors_bp.route("/partners/<int:id>/edit", methods=["GET", "POST"], endpoint="partners_edit")
 @login_required
 @permission_required("manage_vendors")
@@ -378,7 +364,6 @@ def partners_edit(id):
             db.session.rollback()
             flash(f"❌ خطأ أثناء تحديث الشريك: {e}", "danger")
     return render_template("vendors/partners/form.html", form=form, partner=partner)
-
 
 @vendors_bp.route("/partners/<int:id>/delete", methods=["POST"], endpoint="partners_delete")
 @login_required

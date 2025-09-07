@@ -50,6 +50,7 @@ redis_client: redis.Redis | None = None
 
 _TWOPLACES = Decimal("0.01")
 
+
 def _D(x):
     if x is None:
         return Decimal("0")
@@ -60,11 +61,14 @@ def _D(x):
     except (InvalidOperation, ValueError, TypeError):
         return Decimal("0")
 
+
 def _q2(x):
     return _D(x).quantize(_TWOPLACES, rounding=ROUND_HALF_UP)
 
+
 def _q(x):
     return q(x)
+
 
 def _get_or_404(model, ident, *, load_options=None, pk_name: str = "id"):
     try:
@@ -82,6 +86,7 @@ def _get_or_404(model, ident, *, load_options=None, pk_name: str = "id"):
         abort(404)
     return obj
 
+
 def search_model(
     model,
     search_fields,
@@ -94,7 +99,7 @@ def search_model(
     q_param: str = "q",
     **kwargs,
 ):
-    q = (request.args.get(q_param) or "").strip()
+    qtxt = (request.args.get(q_param) or "").strip()
     try:
         limit = max(1, min(int(request.args.get("limit") or limit_default), 100))
     except Exception:
@@ -108,16 +113,16 @@ def search_model(
     if extra_filters:
         query = query.filter(*extra_filters)
 
-    if q:
+    if qtxt:
         ors = []
-        q_low = q.lower()
+        q_low = qtxt.lower()
         for field_name in (search_fields or []):
             col = getattr(model, field_name, None)
             if col is not None:
                 ors.append(func.lower(col).like(f"%{q_low}%"))
-        if q.isdigit() and hasattr(model, value_attr):
+        if qtxt.isdigit() and hasattr(model, value_attr):
             try:
-                ors.append(getattr(model, value_attr) == int(q))
+                ors.append(getattr(model, value_attr) == int(qtxt))
             except Exception:
                 pass
         if ors:
@@ -146,16 +151,18 @@ def search_model(
     results = [_serialize(o) for o in items]
     return jsonify({"results": results, "pagination": {"more": (page * limit) < total}})
 
+
 def _limit(spec: str):
     return limiter.limit(spec)
 
+
 def _query_limit(default: int = 20, maximum: int = 50) -> int:
-    """يعطي limit للـ SQLAlchemy query من ?limit= مع ضبط الحد الأقصى."""
     try:
         limit = int(request.args.get("limit", default))
     except Exception:
         limit = default
     return min(max(limit, 1), maximum)
+
 
 def init_app(app):
     global redis_client
@@ -189,8 +196,7 @@ def init_app(app):
     app.context_processor(_acl_ctx)
     _install_acl_cache_listeners()
     _install_accounting_listeners()
-from datetime import datetime
-from sqlalchemy import select
+
 
 def send_email_notification(subject, recipients, body, html=None):
     mail.send(Message(subject=subject, recipients=recipients, body=body, html=html))
@@ -319,6 +325,7 @@ def _get_id(v):
         return _get_id(v[0])
     return None
 
+
 def _apply_stock_delta(product_id: int, warehouse_id: int, delta: int) -> int:
     from models import StockLevel
     delta = int(delta or 0)
@@ -391,7 +398,7 @@ def generate_excel_report(data, filename: str = "report.xlsx") -> Response:
         return Response(
             buf.getvalue(),
             mimetype="text/csv",
-            headers={"Content-Disposition": f"attachment; filename=\"{filename.rsplit('.',1)[0]}.csv\""},
+            headers={"Content-Disposition": f'attachment; filename="{filename.rsplit(".",1)[0]}.csv"'},
         )
 
     buffer = io.BytesIO()
@@ -400,7 +407,7 @@ def generate_excel_report(data, filename: str = "report.xlsx") -> Response:
     return Response(
         buffer.getvalue(),
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename=\"{filename}\""},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
@@ -428,7 +435,7 @@ def generate_pdf_report(data):
     return Response(
         buffer.getvalue(),
         mimetype="application/pdf",
-        headers={"Content-Disposition": "attachment; filename=\"report.pdf\""},
+        headers={"Content-Disposition": 'attachment; filename="report.pdf"'},
     )
 
 
@@ -472,7 +479,7 @@ def generate_vcf(customers, fields, filename: str = "contacts.vcf"):
     payload = ("\r\n".join(cards) + "\r\n").encode("utf-8")
     resp = make_response(payload)
     resp.mimetype = "text/vcard"
-    resp.headers["Content-Disposition"] = f"attachment; filename=\"{filename}\""
+    resp.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
     return resp
 
 
@@ -485,7 +492,7 @@ def generate_csv_contacts(customers, fields):
     return Response(
         buffer.getvalue(),
         mimetype="text/csv",
-        headers={"Content-Disposition": "attachment; filename=\"contacts.csv\""},
+        headers={"Content-Disposition": 'attachment; filename="contacts.csv"'},
     )
 
 
@@ -505,7 +512,7 @@ def generate_excel_contacts(customers, fields):
     return Response(
         stream.getvalue(),
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=\"contacts.xlsx\""},
+        headers={"Content-Disposition": 'attachment; filename="contacts.xlsx"'},
     )
 
 
@@ -927,6 +934,7 @@ _ENUM_AR = {
     },
 }
 
+
 def _enum_choices(enum_cls, arabic_labels=True):
     if not arabic_labels:
         return [(e.value, e.value) for e in enum_cls]
@@ -1017,13 +1025,14 @@ def luhn_check(card_number: str) -> bool:
         alt = not alt
     return (s % 10) == 0
 
+
 def is_valid_ean13(code: str) -> bool:
-    """تحقق من صحة باركود EAN-13"""
     if not code or len(code) != 13 or not code.isdigit():
         return False
     digits = [int(d) for d in code]
     checksum = (10 - ((sum(digits[::2]) + sum(d * 3 for d in digits[1:-1:2])) % 10)) % 10
     return checksum == digits[-1]
+
 
 def is_valid_expiry_mm_yy(s: str) -> bool:
     if not s or not re.match(r"^\d{2}/\d{2}$", s):
@@ -1094,6 +1103,7 @@ def detect_card_brand(pan: str) -> str:
         return "AMEX"
     return "UNKNOWN"
 
+
 def _install_accounting_listeners():
     try:
         from sqlalchemy import event
@@ -1116,11 +1126,11 @@ def _install_accounting_listeners():
             return
         total = Decimal("0.00")
         for ln in sale.lines or []:
-            q = _q2(ln.quantity)
-            p = _q2(ln.unit_price)
+            qv = _q2(ln.quantity)
+            pv = _q2(ln.unit_price)
             dr = _q2(ln.discount_rate)
             tr = _q2(ln.tax_rate)
-            base = (q * p * (Decimal("1") - dr / Decimal("100"))).quantize(Q, rounding=ROUND_HALF_UP)
+            base = (qv * pv * (Decimal("1") - dr / Decimal("100"))).quantize(Q, rounding=ROUND_HALF_UP)
             line = (base * (Decimal("1") + tr / Decimal("100"))).quantize(Q, rounding=ROUND_HALF_UP)
             total += line
         try:
@@ -1176,5 +1186,3 @@ def _install_accounting_listeners():
         if not sess or not getattr(target, "sale_id", None):
             return
         _recompute_sale_totals(sess, int(target.sale_id))
-
-        

@@ -1,5 +1,6 @@
 {% extends "layout.html" %}
 {% block title %}تسوية مورد {{ ss.supplier.name }} ({{ ss.code }}){% endblock %}
+
 {% block content %}
 <div class="container" dir="rtl">
   <h3>تسوية مورد: {{ ss.supplier.name }} <small class="text-muted">({{ ss.code }})</small></h3>
@@ -79,7 +80,8 @@
               direction=('OUT' if (ss.remaining or 0) > 0 else 'IN'),
               total_amount=('%.2f'|format((ss.remaining or 0)|abs)),
               currency=ss.currency,
-              reference='SupplierSettle:' ~ ss.code
+              reference='SupplierSettle:' ~ ss.code,
+              notes='تسوية مورد ' ~ ss.supplier.name ~ ' ' ~ ss.from_date.strftime("%Y-%m-%d") ~ ' - ' ~ ss.to_date.strftime("%Y-%m-%d") ~ ' (' ~ ss.code ~ ')'
            ) }}"
       class="btn btn-success">
       <i class="fas fa-coins me-1"></i> إنشاء دفعة

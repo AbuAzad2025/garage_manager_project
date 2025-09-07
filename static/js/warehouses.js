@@ -1,8 +1,8 @@
+<script>
 (function () {
   if (window.__WAREHOUSES_INIT__) return;
   window.__WAREHOUSES_INIT__ = true;
 
-  // ===== Helpers =====
   function getCSRFToken() {
     var meta = document.querySelector('meta[name="csrf-token"]');
     if (meta && meta.content) return meta.content;
@@ -177,34 +177,100 @@
     }
   }
 
-  // ===== Page Init =====
+  function toNumber(v) {
+    if (v == null) return null;
+    var s = String(v)
+      .replace(/[^\d٠-٩.,-]/g, '')
+      .replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); })
+      .replace(/,/g, '.')
+      .trim();
+    if (s === '' || s === '-' || s === '.' || s === '-.') return null;
+    var n = Number(s);
+    return isFinite(n) ? n : null;
+  }
+
+  function validatePartnerSection() {
+    var ok = true;
+    var container = document.getElementById('partners-container');
+    if (!container) return true;
+    var rows = Array.prototype.slice.call(container.querySelectorAll('.partner-entry'));
+    var validRows = [];
+    rows.forEach(function (row) {
+      var pid = row.querySelector('select[name="partner_id"]');
+      var perc = row.querySelector('input[name="share_percentage"]');
+      var amt = row.querySelector('input[name="share_amount"]');
+      var pidVal = pid && pid.value ? String(pid.value).trim() : '';
+      var percVal = toNumber(perc && perc.value);
+      var amtVal = toNumber(amt && amt.value);
+      row.classList.remove('is-invalid');
+      if (pidVal && ((percVal && percVal > 0) || (amtVal && amtVal > 0))) {
+        validRows.push({ perc: percVal || 0, amt: amtVal || 0, row: row });
+      }
+    });
+    if (!validRows.length) {
+      ok = false;
+      showNotification('أضف شريكًا واحدًا على الأقل مع نسبة أو قيمة مساهمة.', 'warning');
+      var btn = document.getElementById('add-partner-btn');
+      if (btn) btn.focus();
+    } else {
+      var allPercOnly = validRows.every(function (r) { return r.perc > 0 && (!r.amt || r.amt === 0); });
+      if (allPercOnly) {
+        var total = validRows.reduce(function (s, r) { return s + r.perc; }, 0);
+        if (total > 100.0001) {
+          ok = false;
+          showNotification('مجموع نسب الشركاء يتجاوز 100٪.', 'danger');
+          validRows.forEach(function (r) { r.row.classList.add('is-invalid'); });
+        }
+      }
+    }
+    return ok;
+  }
+
+  function validateExchangeSection() {
+    var container = document.getElementById('vendors-container');
+    if (!container) return true;
+    var rows = Array.prototype.slice.call(container.querySelectorAll('.vendor-entry'));
+    var hasSupplier = rows.some(function (row) {
+      var sid = row.querySelector('select[name="supplier_id"]');
+      return sid && sid.value && String(sid.value).trim() !== '';
+    });
+    if (!hasSupplier) {
+      showNotification('أضف مورّدًا واحدًا على الأقل لمستودع التبادل.', 'warning');
+      var btn = document.getElementById('add-vendor-btn');
+      if (btn) btn.focus();
+      return false;
+    }
+    return true;
+  }
+
+  function toggleSectionsByType(wtype) {
+    var partnerSection = document.getElementById('partner-section');
+    var exchangeSection = document.getElementById('exchange-section');
+    if (partnerSection) partnerSection.classList.toggle('d-none', wtype !== 'PARTNER');
+    if (exchangeSection) exchangeSection.classList.toggle('d-none', wtype !== 'EXCHANGE');
+  }
+
   function initPage() {
     markRequired(document);
     initSelect2(document);
 
     var form = document.getElementById('add-product-form');
     var wtype = (form && form.dataset && form.dataset.wtype ? form.dataset.wtype : '').toUpperCase();
-    var partnerSection = document.getElementById('partner-section');
-    var exchangeSection = document.getElementById('exchange-section');
     var isExchangeEl = document.getElementById('is_exchange_id');
 
-    if (wtype === 'PARTNER' && partnerSection) {
-      partnerSection.classList.remove('d-none');
-    }
-    var defaultExchange = (wtype === 'EXCHANGE');
-    if (exchangeSection) {
-      if (isExchangeEl) {
-        if (defaultExchange) isExchangeEl.checked = true;
-        exchangeSection.classList.toggle('d-none', !(isExchangeEl.checked || defaultExchange));
+    toggleSectionsByType(wtype);
+
+    if (isExchangeEl) {
+      if (wtype === 'EXCHANGE') isExchangeEl.checked = true;
+      var exchangeSection = document.getElementById('exchange-section');
+      if (exchangeSection) {
+        exchangeSection.classList.toggle('d-none', !(isExchangeEl.checked || wtype === 'EXCHANGE'));
         isExchangeEl.addEventListener('change', function () {
           exchangeSection.classList.toggle('d-none', !isExchangeEl.checked);
         });
-      } else {
-        exchangeSection.classList.toggle('d-none', !defaultExchange);
       }
     }
 
-    // إضافة/حذف صفوف الشركاء
     var partnersContainer = document.getElementById('partners-container');
     var addPartnerBtn = document.getElementById('add-partner-btn');
     var partnerTpl = document.getElementById('partner-template');
@@ -221,7 +287,6 @@
       });
     }
 
-    // إضافة/حذف صفوف المورّدين (exchange)
     var vendorsContainer = document.getElementById('vendors-container');
     var addVendorBtn = document.getElementById('add-vendor-btn');
     var vendorTpl = document.getElementById('vendor-template');
@@ -238,7 +303,6 @@
       });
     }
 
-    // تذكر آخر select مورد مركّز عليه لإرجاع القيمة بعد إنشاء المورد
     var lastSupplierSelect = null;
     document.addEventListener('focusin', function (e) {
       if (e.target && e.target.matches('#vendors-container select[name="supplier_id"]')) {
@@ -246,7 +310,6 @@
       }
     });
 
-    // مودال: إنشاء فئة (AJAX JSON) — يدعم شكلي الاستجابة
     (function initCategoryModal() {
       var mform = document.getElementById('create-category-form');
       var select = document.getElementById('category_id');
@@ -278,7 +341,6 @@
       });
     })();
 
-    // مودال: إنشاء نوع مركبة (FlaskForm → FormData)
     (function initEquipmentTypeModal() {
       var mform = document.getElementById('equipmentTypeForm');
       var select = document.getElementById('vehicle_type_id');
@@ -306,7 +368,6 @@
       });
     })();
 
-    // مودال: إنشاء مورّد (JSON)
     (function initSupplierModal() {
       var mform = document.getElementById('create-supplier-form');
       if (!mform) return;
@@ -326,10 +387,6 @@
         postJSON(url, payload)
           .then(function (data) {
             if (!data || !data.id) throw new Error(data && data.error ? data.error : 'استجابة غير متوقعة');
-            var targetSelect = document.activeElement && document.activeElement.closest('#supplierModal')
-              ? null
-              : null; // لا نعتمد على focus هنا
-            // إن وُجِد آخر select مورّد مركّز عليه، سيتم تعيينه أدناه:
             var fallback = document.querySelector('#vendors-container select[name="supplier_id"]');
             var select = window.lastSupplierSelect || fallback;
             if (select) appendAndSelectOption(select, data.id, data.name || payload.name);
@@ -344,17 +401,8 @@
       });
     })();
 
-    // تتبع آخر select للمورّد تم التركيز عليه
-    window.lastSupplierSelect = null;
-    document.addEventListener('focusin', function (e) {
-      if (e.target && e.target.matches('#vendors-container select[name="supplier_id"]')) {
-        window.lastSupplierSelect = e.target;
-      }
-    });
-
-    // إجبار select2 على إرسال قيمة مفردة في POST
     if (form) {
-      form.addEventListener('submit', function () {
+      form.addEventListener('submit', function (e) {
         if (window.jQuery) {
           var vCat = window.jQuery('#category_id').val();
           if (vCat != null) {
@@ -367,10 +415,25 @@
             if (typeEl) typeEl.value = Array.isArray(vType) ? vType[0] : vType;
           }
         }
+
+        if (wtype === 'PARTNER') {
+          if (!validatePartnerSection()) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+          }
+        }
+        if (wtype === 'EXCHANGE') {
+          if (!validateExchangeSection()) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+          }
+        }
+        return true;
       });
     }
 
-    // فحص الباركود
     (function initBarcode() {
       var input = document.getElementById('barcode');
       var help  = document.getElementById('barcodeHelp');
@@ -435,6 +498,6 @@
     initPage();
   }
 
-  // متاح للاستخدام العام
   window.showNotification = showNotification;
 })();
+</script>

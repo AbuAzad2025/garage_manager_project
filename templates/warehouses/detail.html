@@ -74,10 +74,10 @@
                   {% for err in transfer_form.product_id.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
                 </div>
                 <div class="col-md-4">
-                  {{ transfer_form.source_id.label }} {{ transfer_form.source_id(class="form-control select2", data_endpoint=url_for('api.api_search_warehouses')) }}
+                  {{ transfer_form.source_id.label }} {{ transfer_form.source_id(class="form-control select2", data_endpoint=url_for('api.search_warehouses')) }}
                 </div>
                 <div class="col-md-4">
-                  {{ transfer_form.destination_id.label }} {{ transfer_form.destination_id(class="form-control select2", data_endpoint=url_for('api.api_search_warehouses')) }}
+                  {{ transfer_form.destination_id.label }} {{ transfer_form.destination_id(class="form-control select2", data_endpoint=url_for('api.search_warehouses')) }}
                 </div>
                 <div class="col-md-3">
                   {{ transfer_form.quantity.label }} {{ transfer_form.quantity(class="form-control") }}

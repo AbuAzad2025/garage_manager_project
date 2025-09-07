@@ -2,33 +2,66 @@
 {% block title %}فاتورة مبيعات{% endblock %}
 
 {% block head_extra %}
-  <style>
-    @page { size: A4; margin: 12mm; }
-    @media print { .no-print { display: none !important; } }
-    body { background:#fff; font-family:'Amiri','Arial',sans-serif; font-size:14px; }
-    .receipt-footer {
-      position: fixed; bottom: 0; left: 0; right: 0;
-      font-size: 12px; border-top: 1px solid #ccc;
-      padding: 6px; background: #fff; text-align:center;
-    }
-    .receipt-header { display:flex; justify-content:space-between; align-items:center; }
-    .brand { display:flex; align-items:center; gap:12px; }
-    .brand .logo { max-height:60px; }
-    .brand-name { font-size:18px; font-weight:700; }
-    .brand-sub { font-size:14px; color:#555; }
-    .box { border:1px solid #ddd; border-radius:6px; padding:10px; background:#fafafa; margin-bottom:12px; }
-    table { width:100%; border-collapse:collapse; margin-bottom:12px; }
-    th, td { border:1px solid #ddd; padding:8px; text-align:center; }
-    th { background:#f2f2f2; }
-    .totals .rowline { display:flex; justify-content:space-between; margin:4px 0; }
-    .totals .highlight { font-size:16px; color:#0d6efd; font-weight:700; }
-  </style>
+{% set _size = (request.args.get('s','a4')|lower) %}
+{% set _ori  = (request.args.get('o','portrait')|lower) %}
+{% if _size == 'a5' %}{% set W=148 %}{% set H=210 %}{% else %}{% set W=210 %}{% set H=297 %}{% endif %}
+{% if _ori == 'landscape' %}{% set PW=H %}{% set PH=W %}{% else %}{% set PW=W %}{% set PH=H %}{% endif %}
+{% set MT=12 %}{% set MR=12 %}{% set ML=12 %}{% set footer_h=14 %}
+{% set MB = MT + footer_h %}
+{% set content_w = PW - (ML + MR) %}
+
+<style>
+  @page { size: {{PW}}mm {{PH}}mm; margin: {{MT}}mm {{MR}}mm {{MB}}mm {{ML}}mm; }
+  @media print { .no-print{display:none!important} }
+
+  html,body{background:#fff;font-family:"DejaVu Sans","Amiri","Tahoma","Arial",sans-serif;direction:rtl;text-align:right;font-size:13px;line-height:1.5;margin:0;color:#000}
+  #receipt{width:{{content_w}}mm;margin:0 auto;box-sizing:border-box;padding-bottom:{{footer_h}}mm}
+
+  .receipt-header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:6px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand .logo{height:48px;object-fit:contain}
+  .brand-name{font-weight:800;font-size:16px}
+  .brand-sub{font-size:12px;color:#555}
+  .brand-line{height:3px;background:linear-gradient(90deg,#0d6efd,#20c997);border-radius:6px;margin:6px 0 14px}
+
+  .box{background:#fff;border:1px solid #e6e6e6;border-radius:10px;padding:12px;page-break-inside:avoid}
+
+  table{width:100%;border-collapse:collapse;table-layout:fixed}
+  thead{display:table-header-group}
+  tfoot{display:table-footer-group}
+  th,td{border:1px solid #d9d9d9;padding:6px 8px;vertical-align:middle}
+  thead th{background:#f3f6fb;border-color:#e6e6e6;font-weight:800;color:#394b6a;white-space:nowrap}
+  .wrap{overflow-wrap:anywhere;word-break:normal;white-space:normal}
+  .num{font-variant-numeric:tabular-nums;text-align:end}
+
+  /* توزيع نسبي 100% لتفادي الانكماش */
+  col.col-idx { width: 6%;  }
+  col.col-item{ width: 36%; }
+  col.col-wh  { width: 10%; }
+  col.col-qty { width: 8%;  }
+  col.col-unit{ width: 14%; }
+  col.col-disc{ width: 8%;  }
+  col.col-tax { width: 8%;  }
+  col.col-sum { width: 10%; }
+
+  .kv th{width:38mm;background:#f8f9fa;color:#555;font-weight:700;white-space:nowrap}
+
+  .sign-row{display:flex;gap:14px;margin-top:18px}
+  .sign{flex:1;text-align:center;border-top:1px solid #bbb;padding-top:10px;min-height:40px}
+
+  .receipt-footer{position:fixed;left:{{ML}}mm;right:{{MR}}mm;bottom:{{MT}}mm;height:{{footer_h}}mm;text-align:center;font-size:11px;border-top:1px solid #777;padding-top:3mm;background:transparent}
+
+  @media print{
+    html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .btn,nav,.navbar,.sidebar,.actions,a.no-print{display:none!important}
+    a[href]:after{content:""!important}
+    tr,.receipt-header,.box{break-inside:avoid;page-break-inside:avoid}
+  }
+</style>
 {% endblock %}
 
 {% block content %}
-<div id="receipt" class="container my-4">
-
-  <!-- رأس مع الشعار والعنوان -->
+<div id="receipt">
   <div class="receipt-header">
     <div class="brand">
       <img class="logo" src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo">
@@ -42,18 +75,21 @@
       التاريخ: {{ sale.sale_date and sale.sale_date.strftime('%Y-%m-%d') or '—' }}
     </div>
   </div>
+  <div class="brand-line"></div>
 
-  <hr>
-
-  <!-- بيانات العميل -->
   <div class="box">
-    <p><strong>اسم العميل:</strong> {{ sale.customer.name if sale.customer else '-' }}</p>
-    <p><strong>هاتف العميل:</strong> {{ sale.customer.phone if sale.customer else '-' }}</p>
+    <table class="kv">
+      <tr><th>اسم العميل</th><td>{{ sale.customer.name  if sale.customer else '—' }}</td></tr>
+      <tr><th>هاتف العميل</th><td>{{ sale.customer.phone if sale.customer else '—' }}</td></tr>
+    </table>
   </div>
 
-  <!-- تفاصيل الفاتورة -->
   <div class="box">
     <table>
+      <colgroup>
+        <col class="col-idx"><col class="col-item"><col class="col-wh"><col class="col-qty">
+        <col class="col-unit"><col class="col-disc"><col class="col-tax"><col class="col-sum">
+      </colgroup>
       <thead>
         <tr>
           <th>#</th>
@@ -70,50 +106,45 @@
         {% for item in lines %}
           {% set ln = item.obj %}
           <tr>
-            <td>{{ loop.index }}</td>
-            <td>
-              {{ ln.product.name if ln.product else '-' }}
-              {% if ln.note %}<div class="text-muted small">{{ ln.note }}</div>{% endif %}
+            <td class="num">{{ loop.index }}</td>
+            <td class="wrap">
+              {{ ln.product.name if ln.product else '—' }}
+              {% if ln.note %}<div class="text-muted" style="font-size:11px">{{ ln.note }}</div>{% endif %}
             </td>
-            <td>{{ ln.warehouse.name if ln.warehouse else '-' }}</td>
-            <td>{{ ln.quantity }}</td>
-            <td>{{ money_fmt(ln.unit_price) }} {{ sale.currency }}</td>
-            <td>{{ ln.discount_rate or 0 }}</td>
-            <td>{{ ln.tax_rate or 0 }}</td>
-            <td>{{ money_fmt(item.line_total) }} {{ sale.currency }}</td>
+            <td style="text-align:center">{{ ln.warehouse.name if ln.warehouse else '—' }}</td>
+            <td class="num">{{ ln.quantity }}</td>
+            <td class="num">{{ money_fmt(ln.unit_price) }} {{ sale.currency }}</td>
+            <td class="num">{{ ln.discount_rate or 0 }}</td>
+            <td class="num">{{ ln.tax_rate or 0 }}</td>
+            <td class="num">{{ money_fmt(item.line_total) }} {{ sale.currency }}</td>
           </tr>
         {% endfor %}
       </tbody>
       <tfoot>
-        <tr><td colspan="7" class="text-end">المجموع الفرعي:</td><td>{{ money_fmt(subtotal) }} {{ sale.currency }}</td></tr>
+        <tr><td colspan="7" style="text-align:end">المجموع الفرعي:</td><td class="num">{{ money_fmt(subtotal) }} {{ sale.currency }}</td></tr>
         {% if sale_discount_total and sale_discount_total != 0 %}
-        <tr><td colspan="7" class="text-end">خصم إجمالي:</td><td>- {{ money_fmt(sale_discount_total) }} {{ sale.currency }}</td></tr>
+        <tr><td colspan="7" style="text-align:end">خصم إجمالي:</td><td class="num">- {{ money_fmt(sale_discount_total) }} {{ sale.currency }}</td></tr>
         {% endif %}
-        <tr><td colspan="7" class="text-end">بعد الخصم:</td><td>{{ money_fmt(subtotal_after_discount) }} {{ sale.currency }}</td></tr>
+        <tr><td colspan="7" style="text-align:end">بعد الخصم:</td><td class="num">{{ money_fmt(subtotal_after_discount) }} {{ sale.currency }}</td></tr>
         {% if sale_tax_rate and sale_tax_rate != 0 %}
-        <tr><td colspan="7" class="text-end">الضريبة ({{ sale_tax_rate }}%):</td><td>{{ money_fmt(invoice_tax_amount) }} {{ sale.currency }}</td></tr>
+        <tr><td colspan="7" style="text-align:end">الضريبة ({{ sale_tax_rate }}%):</td><td class="num">{{ money_fmt(invoice_tax_amount) }} {{ sale.currency }}</td></tr>
         {% endif %}
         {% if sale_shipping and sale_shipping != 0 %}
-        <tr><td colspan="7" class="text-end">الشحن:</td><td>{{ money_fmt(sale_shipping) }} {{ sale.currency }}</td></tr>
+        <tr><td colspan="7" style="text-align:end">الشحن:</td><td class="num">{{ money_fmt(sale_shipping) }} {{ sale.currency }}</td></tr>
         {% endif %}
-        <tr><td colspan="7" class="text-end"><strong>الإجمالي النهائي:</strong></td><td><strong>{{ money_fmt(grand_total) }} {{ sale.currency }}</strong></td></tr>
+        <tr><td colspan="7" style="text-align:end"><strong>الإجمالي النهائي:</strong></td><td class="num"><strong>{{ money_fmt(grand_total) }} {{ sale.currency }}</strong></td></tr>
       </tfoot>
     </table>
   </div>
 
-  <!-- ملاحظات -->
-  <div class="box">
-    <p><strong>ملاحظات:</strong> {{ sale.notes or '—' }}</p>
+  <div class="box"><strong>ملاحظات:</strong> {{ sale.notes or '—' }}</div>
+
+  <div class="sign-row">
+    <div class="sign">توقيع البائع<br><br>{{ sale.seller.username if sale.seller else '________' }}</div>
+    <div class="sign">توقيع العميل<br><br>__________</div>
   </div>
 
-  <!-- التواقيع -->
-  <div class="row mt-4">
-    <div class="col-md-6 text-center">توقيع البائع<br><br>{{ sale.seller.username if sale.seller else '________' }}</div>
-    <div class="col-md-6 text-center">توقيع العميل<br><br>__________</div>
-  </div>
-
-  <!-- أزرار -->
-  <div class="text-center mt-4 no-print">
+  <div class="text-center mt-3 no-print">
     <button class="btn btn-dark" onclick="window.print()">🖨️ طباعة</button>
     <a class="btn btn-secondary" href="{{ url_for('sales_bp.sale_detail', id=sale.id) }}">↩️ رجوع</a>
   </div>

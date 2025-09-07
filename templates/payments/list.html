@@ -1,6 +1,5 @@
 {% extends 'base.html' %}
 {% block title %}سندات الدفع{% if supplier %} — {{ supplier.name }}{% endif %}{% endblock %}
-
 {% block content %}
 <div class="container py-5">
   <div class="d-flex justify-content-between align-items-center mb-3">
@@ -13,20 +12,8 @@
       {% endif %}
     </h2>
     <div class="btn-group">
-      <a id="btnAddPayment"
-         href="{% if supplier %}{{ url_for('payments.create_payment', entity_type='SUPPLIER', entity_id=supplier.id) }}{% else %}{{ url_for('payments.create_payment') }}{% endif %}"
-         class="btn btn-success">
-        <i class="fas fa-plus"></i> إضافة سند دفع
-      </a>
-      <button type="button" class="btn btn-outline-primary btn-settle"
-              data-entity-type="supplier"
-              data-id="{{ supplier.id if supplier else '' }}"
-              data-name="{{ supplier.name if supplier else '' }}"
-              data-balance="{{ '%.2f'|format(supplier.net_balance) if supplier else '0.00' }}"
-              data-currency="{{ supplier.currency if supplier else 'ILS' }}"
-              {% if not supplier %}disabled{% endif %}>
-        <i class="fas fa-scale-balanced"></i> تسوية
-      </button>
+      <a id="btnAddPayment" href="{% if supplier %}{{ url_for('payments.create_payment', entity_type='SUPPLIER', entity_id=supplier.id) }}{% else %}{{ url_for('payments.create_payment') }}{% endif %}" class="btn btn-success"><i class="fas fa-plus"></i> إضافة سند دفع</a>
+      <button type="button" class="btn btn-outline-primary btn-settle" data-entity-type="supplier" data-id="{{ supplier.id if supplier else '' }}" data-name="{{ supplier.name if supplier else '' }}" data-balance="{{ '%.2f'|format(supplier.net_balance) if supplier else '0.00' }}" data-currency="{{ supplier.currency if supplier else 'ILS' }}" {% if not supplier %}disabled{% endif %}><i class="fas fa-scale-balanced"></i> تسوية</button>
     </div>
   </div>
 
@@ -115,9 +102,7 @@
       </table>
     </div>
     <div class="card-footer">
-      <nav>
-        <ul id="pagination" class="pagination justify-content-center mb-0"></ul>
-      </nav>
+      <nav><ul id="pagination" class="pagination justify-content-center mb-0"></ul></nav>
     </div>
   </div>
 </div>
