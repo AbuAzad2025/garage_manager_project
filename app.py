@@ -7,7 +7,6 @@ from flask import Flask, url_for, request, current_app, render_template, g
 from werkzeug.routing import BuildError
 from flask_cors import CORS
 from flask_login import AnonymousUserMixin, current_user
-from flask_wtf.csrf import generate_csrf
 from jinja2 import ChoiceLoader, FileSystemLoader
 from sqlalchemy import event
 
@@ -20,11 +19,9 @@ from utils import (
     format_date,
     format_datetime,
     yes_no,
-    status_label,
     init_app as utils_init_app,
     _expand_perms as _perm_expand,
     is_super,
-    is_admin,
 )
 from cli import seed_roles
 from models import User, Role, Permission, Customer
@@ -37,7 +34,7 @@ from routes.service import service_bp
 from routes.customers import customers_bp
 from routes.sales import sales_bp
 from routes.notes import notes_bp
-from routes.reports import reports_bp
+from routes.report_routes import reports_bp
 from routes.shop import shop_bp
 from routes.expenses import expenses_bp
 from routes.vendors import vendors_bp
@@ -62,41 +59,41 @@ class MyAnonymousUser(AnonymousUserMixin):
 
 @login_manager.user_loader
 def load_user(user_id):
-        from sqlalchemy.orm import joinedload, lazyload
-        from sqlalchemy import select
-        uid_str = str(user_id or "").strip()
-        if ":" in uid_str:
-            try:
-                prefix, ident = uid_str.split(":", 1)
-                ident = int(ident)
-                prefix = prefix.lower()
-            except Exception:
-                return None
-            if prefix == "u":
-                stmt = (
-                    select(User)
-                    .options(joinedload(User.role).joinedload(Role.permissions))
-                    .where(User.id == ident)
-                )
-                return db.session.execute(stmt).scalar_one_or_none()
-            if prefix == "c":
-                stmt = select(Customer).options(lazyload("*")).where(Customer.id == ident)
-                return db.session.execute(stmt).scalar_one_or_none()
-            return None
+    from sqlalchemy.orm import joinedload, lazyload
+    from sqlalchemy import select
+    uid_str = str(user_id or "").strip()
+    if ":" in uid_str:
         try:
-            ident = int(uid_str)
+            prefix, ident = uid_str.split(":", 1)
+            ident = int(ident)
+            prefix = prefix.lower()
         except Exception:
             return None
-        stmt_user = (
-            select(User)
-            .options(joinedload(User.role).joinedload(Role.permissions))
-            .where(User.id == ident)
-        )
-        user = db.session.execute(stmt_user).unique().scalar_one_or_none()
-        if user:
-            return user
-        stmt_cust = select(Customer).options(lazyload("*")).where(Customer.id == ident)
-        return db.session.execute(stmt_cust).scalar_one_or_none()
+        if prefix == "u":
+            stmt = (
+                select(User)
+                .options(joinedload(User.role).joinedload(Role.permissions))
+                .where(User.id == ident)
+            )
+            return db.session.execute(stmt).scalar_one_or_none()
+        if prefix == "c":
+            stmt = select(Customer).options(lazyload("*")).where(Customer.id == ident)
+            return db.session.execute(stmt).scalar_one_or_none()
+        return None
+    try:
+        ident = int(uid_str)
+    except Exception:
+        return None
+    stmt_user = (
+        select(User)
+        .options(joinedload(User.role).joinedload(Role.permissions))
+        .where(User.id == ident)
+    )
+    user = db.session.execute(stmt_user).unique().scalar_one_or_none()
+    if user:
+        return user
+    stmt_cust = select(Customer).options(lazyload("*")).where(Customer.id == ident)
+    return db.session.execute(stmt_cust).scalar_one_or_none()
 
 
 def create_app(config_object=Config) -> Flask:
@@ -211,11 +208,12 @@ def create_app(config_object=Config) -> Flask:
             d = Decimal(str(v))
         except (InvalidOperation, ValueError, TypeError):
             d = Decimal("0")
-        q = Decimal("1." + ("0" * (app.config.get("NUMBER_DECIMALS", 2))))
+        digits = digits or app.config.get("NUMBER_DECIMALS", 2)
+        q = (Decimal("1") / (Decimal("10") ** digits))
         d = d.quantize(q, rounding=ROUND_HALF_UP)
         if grouping:
-            return f"{d:,.{app.config.get('NUMBER_DECIMALS', 2)}f}"
-        return f"{d:.{app.config.get('NUMBER_DECIMALS', 2)}f}"
+            return f"{d:,.{digits}f}"
+        return f"{d:.{digits}f}"
 
     def _safe_number_format(v, digits=None):
         return _two_dec(v, digits=digits or app.config.get("NUMBER_DECIMALS", 2), grouping=True)

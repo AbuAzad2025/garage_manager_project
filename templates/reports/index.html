@@ -1,184 +1,198 @@
-{% extends 'base.html' %}
-{% block title %}التقارير{% endblock %}
-{% block page_title %}التقارير{% endblock %}
+{# templates/reports/index.html #}
+{% extends 'reports/_base.html' %}
 
-{% block breadcrumb %}
-<li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
-<li class="breadcrumb-item active">التقارير</li>
+{% block title %}مركز التقارير{% endblock %}
+{% block page_title %}مركز التقارير{% endblock %}
+
+{% block reports_breadcrumb_extra %}
+<li class="breadcrumb-item active">مركز التقارير</li>
 {% endblock %}
 
-{% block content %}
-<div class="container-fluid" dir="rtl">
+{% block report_content %}
+<div class="row g-3">
 
-  <!-- بطاقة إعداد التقرير -->
-  <div class="card report-form mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <span>📊 تقرير ديناميكي</span>
-      <div class="btn-group">
-        <button type="submit" form="report-form" class="btn btn-primary btn-sm">
-          <i class="fas fa-filter"></i> تطبيق الفلاتر
-        </button>
-        <button type="reset" form="report-form" class="btn btn-secondary btn-sm">
-          <i class="fas fa-undo"></i> إعادة ضبط
-        </button>
-        <button type="submit" form="report-form"
-                formaction="{{ url_for('reports_bp.export_dynamic_csv') }}"
-                formmethod="post"
-                class="btn btn-success btn-sm">
-          <i class="fas fa-file-csv"></i> تصدير CSV
-        </button>
-        <button type="button" class="btn btn-outline-dark btn-sm" onclick="window.print()">
-          <i class="fas fa-print"></i> طباعة
-        </button>
-      </div>
-    </div>
-
-    <div class="card-body">
-      <form id="report-form"
-            action="{{ url_for('reports_bp.dynamic_report') }}"
-            method="post"
-            class="row g-3">
-        {% if csrf_token is defined %}
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        {% endif %}
-
-        <!-- اختيار الجدول -->
-        <div class="col-md-3">
-          <label class="form-label">الجدول / الموديل</label>
-          <select name="table" id="table" class="form-select" required>
-            {% for m in model_names or [] %}
-              <option value="{{ m }}" {{ 'selected' if m == (selected_table or '') else '' }}>
-                {{ MODEL_LABELS.get(m, m) }}
-              </option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <!-- اختيار حقل التاريخ -->
-        <div class="col-md-3">
-          <label class="form-label">حقل التاريخ</label>
-          <select name="date_field" id="date_field" class="form-select" data-default="{{ defaults.get(selected_table) }}">
-            <option value="">—</option>
-            {% if date_fields %}
-              {% for d in date_fields %}
-              <option value="{{ d }}" {{ 'selected' if d == (request.form.get('date_field') or '') else '' }}>
-                {{ FIELD_LABELS.get(d, d) }}
-              </option>
-              {% endfor %}
-            {% endif %}
-          </select>
-        </div>
-
-        <!-- التواريخ -->
-        <div class="col-md-3">
-          <label class="form-label">من تاريخ</label>
-          <input type="date" name="start_date" class="form-control" value="{{ start_date or '' }}">
-        </div>
-        <div class="col-md-3">
-          <label class="form-label">إلى تاريخ</label>
-          <input type="date" name="end_date" class="form-control" value="{{ end_date or '' }}">
-        </div>
-
-        <!-- اختيار الأعمدة -->
-        <div class="col-12">
-          <label class="form-label">الأعمدة المعروضة</label>
-          <select name="selected_fields" id="selected_fields" class="form-select" multiple size="6"></select>
-          <div class="form-text">
-            اختر الأعمدة التي تريد عرضها. إن تركتها فارغة سيتم عرض جميع الأعمدة.
-          </div>
-        </div>
-
-        <!-- الفلاتر -->
-        <div class="col-12">
-          <div class="d-flex justify-content-between align-items-center">
-            <label class="form-label mb-0">فلاتر إضافية</label>
-            <button class="btn btn-link p-0" type="button" data-bs-toggle="collapse" data-bs-target="#advFilters">
-              إظهار / إخفاء
-            </button>
-          </div>
-          <div id="advFilters" class="collapse show mt-2">
-            <div id="like_filters"
-                 class="row g-2"
-                 data-initial-like='{{ (like_filters or {})|tojson }}'></div>
-            <div class="form-text">الفلاتر تُطبق باستخدام البحث الجزئي (contains).</div>
-          </div>
-        </div>
-
-      </form>
-    </div>
-  </div>
-
-  <!-- بطاقات الملخص -->
-  {% if summary %}
-  <div class="row" id="summary-cards">
-    {% for k,v in summary.items() %}
-      <div class="col-md-3 col-sm-6 mb-3">
-        <div class="card text-center h-100 shadow-sm">
-          <div class="card-body">
-            <div class="text-muted small">{{ FIELD_LABELS.get(k, k) }}</div>
-            <div class="fs-4 fw-bold">
-              {% if v is number %}
-                {{ "{:,.2f}".format(v) }}
-              {% else %}
-                {{ v }}
-              {% endif %}
-            </div>
-          </div>
+  <div class="col-md-3 col-sm-6">
+    <a class="text-decoration-none" href="{{ url_for('reports_bp.dynamic_report') }}">
+      <div class="card shadow-sm h-100">
+        <div class="card-body text-center">
+          <div class="fs-3 mb-2"><i class="fas fa-sliders-h"></i></div>
+          <div class="fw-bold">تقرير ديناميكي</div>
+          <div class="text-muted small">ابنِ تقريرك حسب الحقول والفلاتر</div>
         </div>
       </div>
-    {% endfor %}
+    </a>
   </div>
-  {% endif %}
 
-  <!-- جدول النتائج -->
-  <div class="card">
-    <div class="card-header">📋 النتائج</div>
-    <div class="card-body">
-      {% if data and (columns or (data|length > 0 and data[0].keys())) %}
-        {% set hdr = columns if columns else data[0].keys() %}
-        <div class="table-responsive">
-          <table id="report-table" class="table table-bordered table-striped align-middle">
-            <thead class="table-dark">
-              <tr>
-                {% for c in hdr %}
-                  <th>{{ FIELD_LABELS.get(c, c) }}</th>
-                {% endfor %}
-              </tr>
-            </thead>
-            <tbody>
-              {% for row in data %}
-              <tr>
-                {% for c in hdr %}
-                  {% set val = row.get(c) %}
-                  <td class="{{ 'text-end' if (val is number) else '' }}">
-                    {% if val is number %}
-                      {{ "{:,.2f}".format(val) }}
-                    {% else %}
-                      {{ val if val is not none else '—' }}
-                    {% endif %}
-                  </td>
-                {% endfor %}
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+  <div class="col-md-3 col-sm-6">
+    <a class="text-decoration-none" href="{{ url_for('reports_bp.customers_report') }}">
+      <div class="card shadow-sm h-100">
+        <div class="card-body text-center">
+          <div class="fs-3 mb-2"><i class="fas fa-user-friends"></i></div>
+          <div class="fw-bold">تقارير العملاء</div>
+          <div class="text-muted small">إجمالي الفواتير / المدفوع / الرصيد</div>
         </div>
-      {% else %}
-        <div class="text-muted">لا توجد بيانات مطابقة.</div>
-      {% endif %}
-    </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6">
+    <a class="text-decoration-none" href="{{ url_for('reports_bp.suppliers_report') }}">
+      <div class="card shadow-sm h-100">
+        <div class="card-body text-center">
+          <div class="fs-3 mb-2"><i class="fas fa-truck-loading"></i></div>
+          <div class="fw-bold">الموردون</div>
+          <div class="text-muted small">الرصيد / المدفوع / الصافي</div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6">
+    <a class="text-decoration-none" href="{{ url_for('reports_bp.partners_report')
+ }}">
+      <div class="card shadow-sm h-100">
+        <div class="card-body text-center">
+          <div class="fs-3 mb-2"><i class="fas fa-handshake"></i></div>
+          <div class="fw-bold">الشركاء</div>
+          <div class="text-muted small">الحصة / الرصيد / المدفوع</div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6">
+    <a class="text-decoration-none" href="{{ url_for('reports_bp.sales') }}">
+      <div class="card shadow-sm h-100">
+        <div class="card-body text-center">
+          <div class="fs-3 mb-2"><i class="fas fa-cash-register"></i></div>
+          <div class="fw-bold">المبيعات</div>
+          <div class="text-muted small">ملخص وفواصل زمنية</div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6">
+    <a class="text-decoration-none" href="{{ url_for('reports_bp.payments_summary') }}">
+      <div class="card shadow-sm h-100">
+        <div class="card-body text-center">
+          <div class="fs-3 mb-2"><i class="fas fa-wallet"></i></div>
+          <div class="fw-bold">ملخص المدفوعات</div>
+          <div class="text-muted small">حسب طريقة الدفع</div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6">
+    <a class="text-decoration-none" href="{{ url_for('reports_bp.top_products') }}">
+      <div class="card shadow-sm h-100">
+        <div class="card-body text-center">
+          <div class="fs-3 mb-2"><i class="fas fa-crown"></i></div>
+          <div class="fw-bold">أفضل المنتجات</div>
+          <div class="text-muted small">كمية وإيراد</div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6">
+    <a class="text-decoration-none" href="{{ url_for('reports_bp.expenses_report') }}"
+>
+      <div class="card shadow-sm h-100">
+        <div class="card-body text-center">
+          <div class="fs-3 mb-2"><i class="fas fa-wallet"></i></div>
+          <div class="fw-bold">المصاريف</div>
+          <div class="text-muted small">حسب النوع / الموظف</div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6">
+    <a class="text-decoration-none" href="{{ url_for('reports_bp.inventory') }}">
+      <div class="card shadow-sm h-100">
+        <div class="card-body text-center">
+          <div class="fs-3 mb-2"><i class="fas fa-boxes"></i></div>
+          <div class="fw-bold">المخزون</div>
+          <div class="text-muted small">منتج × مستودع</div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6">
+    <a class="text-decoration-none" href="{{ url_for('reports_bp.below_min_stock_report') }}"
+>
+      <div class="card shadow-sm h-100">
+        <div class="card-body text-center">
+          <div class="fs-3 mb-2"><i class="fas fa-exclamation-triangle"></i></div>
+          <div class="fw-bold">تحت الحد الأدنى</div>
+          <div class="text-muted small">الأصناف منخفضة المخزون</div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6">
+    <a class="text-decoration-none" href="{{ url_for('reports_bp.shipments') }}">
+      <div class="card shadow-sm h-100">
+        <div class="card-body text-center">
+          <div class="fs-3 mb-2"><i class="fas fa-shipping-fast"></i></div>
+          <div class="fw-bold">الشحنات</div>
+          <div class="text-muted small">قيمة وإجماليات</div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6">
+    <a class="text-decoration-none" href="{{ url_for('reports_bp.online') }}">
+      <div class="card shadow-sm h-100">
+        <div class="card-body text-center">
+          <div class="fs-3 mb-2"><i class="fas fa-globe"></i></div>
+          <div class="fw-bold">الأونلاين</div>
+          <div class="text-muted small">طلبات / مدفوعات / سلال</div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6">
+    <a class="text-decoration-none" href="{{ url_for('reports_bp.ar_aging') }}">
+      <div class="card shadow-sm h-100">
+        <div class="card-body text-center">
+          <div class="fs-3 mb-2"><i class="fas fa-user-clock"></i></div>
+          <div class="fw-bold">أعمار الذمم (عملاء)</div>
+          <div class="text-muted small">تفصيل حسب الفترات</div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6">
+    <a class="text-decoration-none" href="{{ url_for('reports_bp.ap_aging') }}">
+      <div class="card shadow-sm h-100">
+        <div class="card-body text-center">
+          <div class="fs-3 mb-2"><i class="fas fa-truck-loading"></i></div>
+          <div class="fw-bold">أعمار الذمم (موردون)</div>
+          <div class="text-muted small">تفصيل حسب الفترات</div>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6">
+    <a class="text-decoration-none" href="{{ url_for('reports_bp.service_reports') }}">
+      <div class="card shadow-sm h-100">
+        <div class="card-body text-center">
+          <div class="fs-3 mb-2"><i class="fas fa-tools"></i></div>
+          <div class="fw-bold">تقارير الصيانة</div>
+          <div class="text-muted small">عدد / إيراد / قطع / أجور</div>
+        </div>
+      </div>
+    </a>
   </div>
 
 </div>
-{% endblock %}
-
-{% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/reporting.css') }}">
-{% endblock %}
-
-{% block scripts %}
-<script>
-  window.FIELD_LABELS = {{ FIELD_LABELS|tojson }};
-</script>
-<script src="{{ url_for('static', filename='js/reporting.js') }}"></script>
 {% endblock %}

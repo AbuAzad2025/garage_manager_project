@@ -1,161 +1,155 @@
-{% extends 'base.html' %}
-{% block title %}{{ FIELD_LABELS.get("payments", "المدفوعات") }}{% endblock %}
-{% block page_title %}{{ FIELD_LABELS.get("payments_summary", "ملخص المدفوعات حسب طريقة الدفع") }}{% endblock %}
+{# templates/reports/payments_summary.html #}
+{% extends 'reports/_base.html' %}
+{% block title %}{{ FIELD_LABELS['payments_summary'] }}{% endblock %}
+{% block page_title %}{{ FIELD_LABELS['payments_summary'] }}{% endblock %}
 
-{% block breadcrumb %}
-<li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
-<li class="breadcrumb-item active">{{ FIELD_LABELS.get("payments", "المدفوعات") }}</li>
+{% block reports_breadcrumb_extra %}
+<li class="breadcrumb-item active">{{ FIELD_LABELS.get("payments_summary", "ملخص المدفوعات") }}</li>
 {% endblock %}
 
-{% block content %}
+{% block report_content %}
 <div class="container-fluid" dir="rtl">
 
-  <!-- العنوان -->
-  <div class="mb-3">
-    <h4 class="fw-bold">
-      <i class="fas fa-money-check-alt"></i>
-      {{ FIELD_LABELS.get("payments_summary", "ملخص المدفوعات حسب طريقة الدفع") }}
-    </h4>
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+    <h4 class="fw-bold m-0"><i class="fas fa-wallet"></i> {{ FIELD_LABELS['payments_summary'] }}</h4>
+    <form action="{{ url_for('reports_bp.payments_summary') }}" method="get" class="row g-2 align-items-end">
+      <div class="col-auto">
+        <label for="start" class="form-label">{{ FIELD_LABELS['start_date'] }}</label>
+        <input type="date" id="start" name="start" class="form-control form-control-sm" value="{{ start }}">
+      </div>
+      <div class="col-auto">
+        <label for="end" class="form-label">{{ FIELD_LABELS['end_date'] }}</label>
+        <input type="date" id="end" name="end" class="form-control form-control-sm" value="{{ end }}">
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i class="fas fa-sync-alt"></i> {{ FIELD_LABELS['refresh'] }}
+        </button>
+      </div>
+    </form>
   </div>
 
-  <!-- بطاقة الفلاتر -->
-  <div class="card shadow-sm mb-4">
-    <div class="card-header bg-primary text-white">
-      {{ FIELD_LABELS.get("date_range", "نطاق التاريخ") }}
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div>
+            <div class="text-muted small">{{ FIELD_LABELS['grand_total'] }}</div>
+            <div class="fs-4 fw-bold">{{ '%.2f' % (grand_total or 0) }}</div>
+          </div>
+          <div class="display-6">💵</div>
+        </div>
+      </div>
     </div>
-    <div class="card-body">
-      <form class="row g-3" method="get">
-        <div class="col-md-3">
-          <label class="form-label fw-semibold">{{ FIELD_LABELS.get("start_date", "من تاريخ") }}</label>
-          <input type="date" name="start" value="{{ start or '' }}" class="form-control">
+    <div class="col-md-8">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="text-muted small mb-1">{{ FIELD_LABELS['date_range'] }}</div>
+          <div class="fw-semibold">{{ start or '—' }} — {{ end or '—' }}</div>
         </div>
-        <div class="col-md-3">
-          <label class="form-label fw-semibold">{{ FIELD_LABELS.get("end_date", "إلى تاريخ") }}</label>
-          <input type="date" name="end" value="{{ end or '' }}" class="form-control">
-        </div>
-        <div class="col-md-3 align-self-end d-flex gap-2">
-          <button class="btn btn-primary">
-            <i class="fas fa-sync-alt"></i> {{ FIELD_LABELS.get("refresh", "تحديث") }}
-          </button>
-          <button type="button" class="btn btn-outline-dark" onclick="window.print()">
-            <i class="fas fa-print"></i> طباعة
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- جدول النتائج -->
-  <div class="card shadow-sm">
-    <div class="card-header">{{ FIELD_LABELS.get("payments_table", "جدول الملخص") }}</div>
-    <div class="card-body">
-      {% set METHOD_LABELS = {
-        'cash': 'نقدي',
-        'bank': 'بنك/حوالة',
-        'card': 'بطاقة',
-        'cheque': 'شيك',
-        'online': 'أونلاين'
-      } %}
-      <div class="table-responsive">
-        <table id="report-table" class="table table-bordered table-striped align-middle">
-          <thead class="table-dark">
-            <tr>
-              <th>{{ FIELD_LABELS.get("method", "طريقة الدفع") }}</th>
-              <th class="text-end">{{ FIELD_LABELS.get("total_amount", "الإجمالي") }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for i in range(methods|length) %}
-              <tr>
-                <td class="text-center">{{ METHOD_LABELS.get(methods[i], methods[i]|upper) }}</td>
-                <td class="text-end">{{ "{:,.2f}".format(totals[i] or 0) }}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-          <tfoot class="fw-bold table-light">
-            <tr>
-              <th>{{ FIELD_LABELS.get("grand_total", "الإجمالي") }}</th>
-              <th class="text-end">{{ "{:,.2f}".format(grand_total or 0) }}</th>
-            </tr>
-          </tfoot>
-        </table>
-
-        {% if (grand_total or 0) == 0 %}
-          <div class="alert alert-info mt-3 mb-0">لا توجد بيانات في النطاق المحدد.</div>
-        {% endif %}
       </div>
     </div>
   </div>
 
-  {% if (grand_total or 0) > 0 %}
-  <!-- الرسم البياني -->
-  <div class="card shadow-sm mt-4">
-    <div class="card-header">الرسم البياني</div>
-    <div class="card-body">
-      <canvas id="paymentsChart" height="120"></canvas>
+  <div class="row g-3">
+    <div class="col-lg-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-header">{{ FIELD_LABELS['payments_summary'] }}</div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-striped align-middle">
+              <thead>
+                <tr>
+                  <th style="width:60%">{{ FIELD_LABELS['payment_method'] }}</th>
+                  <th class="text-start">{{ FIELD_LABELS['total'] }}</th>
+                </tr>
+              </thead>
+<tbody>
+  {% for m in methods or [] %}
+    {% set i = loop.index0 %}
+    {% set t = totals[i] if totals and totals|length > i else 0 %}
+    <tr>
+      <td class="fw-semibold">{{ METHOD_LABELS[m] if METHOD_LABELS and m in METHOD_LABELS else m }}</td>
+      <td class="text-start">{{ '%.2f' % (t or 0) }}</td>
+    </tr>
+  {% endfor %}
+</tbody>
+              <tfoot>
+                <tr class="fw-bold">
+                  <td>{{ FIELD_LABELS['grand_total'] }}</td>
+                  <td class="text-start">{{ '%.2f' % (grand_total or 0) }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          {% if not methods %}
+            <div class="text-muted text-center py-3">لا توجد بيانات ضمن هذا النطاق.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-header">رسم بياني</div>
+        <div class="card-body">
+          <div id="paymentsChartWrap" class="position-relative" style="height: 340px; width: 100%;">
+            <canvas id="paymentsChart"></canvas>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
-  {% endif %}
-
 </div>
 {% endblock %}
 
 {% block scripts %}
-  {{ super() }}
-  <!-- Chart.js (خفيف وبلا تعقيد) -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script>
-  (function () {
-    const el = document.getElementById('paymentsChart');
-    if (!el || !window.Chart) return;
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const methodsRaw = {{ methods | default([]) | tojson }};
+  const totalsRaw = {{ totals | default([]) | tojson }};
+  const methodLabelsMap = {{ METHOD_LABELS | default({}) | tojson }};
+  const labels = methodsRaw.map(m => methodLabelsMap[m] || m);
+  const totals = totalsRaw.map(v => Number(v || 0));
 
-    const methodLabels = {{ METHOD_LABELS | tojson }};
-    const rawLabels = {{ methods | tojson }};
-    const labels = rawLabels.map(m => methodLabels[m] ?? (m || '').toUpperCase());
-    const data = {{ totals | tojson }};
-    const grand = {{ grand_total or 0 }};
-
-    // إن ما في قيم موجبة، لا نرسم
-    if (!Array.isArray(data) || !data.some(v => (v || 0) > 0)) return;
-
-    // ألوان بسيطة ومحترمة (عددها يتكرر تلقائيًا لو زادت الفئات)
-    const baseColors = [
-      '#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#14b8a6','#f97316'
-    ];
-
-    new Chart(el.getContext('2d'), {
-      type: 'doughnut',
-      data: {
-        labels,
-        datasets: [{
-          data,
-          backgroundColor: labels.map((_, i) => baseColors[i % baseColors.length]),
-          borderWidth: 1
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        aspectRatio: 2,
-        plugins: {
-          legend: { position: 'bottom' },
-          title: { display: true, text: 'توزيع المدفوعات حسب الطريقة' },
-          tooltip: {
-            callbacks: {
-              label: (ctx) => {
-                const val = ctx.parsed || 0;
-                const pct = grand ? (val / grand * 100) : 0;
-                // تنسيق عربي بسيط
-                const valTxt = val.toLocaleString('ar-EG', { maximumFractionDigits: 2 });
-                const pctTxt = pct.toFixed(1);
-                return `${ctx.label}: ${valTxt} (${pctTxt}%)`;
-              }
+  const ctx = document.getElementById('paymentsChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: '{{ FIELD_LABELS["payments_summary"] }}',
+        data: totals,
+        backgroundColor: '#0d6efd'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: 'y',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const v = ctx.parsed.x || 0;
+              return new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(v);
             }
           }
-        },
-        animation: { duration: 400 }
+        }
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          ticks: {
+            callback: (val, i, ticks) => {
+              const v = ticks[i]?.value ?? val;
+              return new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(v);
+            }
+          }
+        }
       }
-    });
-  })();
-  </script>
+    }
+  });
+</script>
 {% endblock %}

@@ -1,14 +1,14 @@
 {# templates/reports/inventory.html #}
-{% extends 'base.html' %}
-{% block title %}المخزون{% endblock %}
-{% block page_title %}المخزون (منتج × مستودع){% endblock %}
+{% extends 'reports/_base.html' %}
 
-{% block breadcrumb %}
-<li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+{% block title %}{{ FIELD_LABELS.get("inventory", "المخزون") }}{% endblock %}
+{% block page_title %}{{ FIELD_LABELS.get("inventory", "المخزون (منتج × مستودع)") }}{% endblock %}
+
+{% block reports_breadcrumb_extra %}
 <li class="breadcrumb-item active">{{ FIELD_LABELS.get("inventory", "المخزون") }}</li>
 {% endblock %}
 
-{% block content %}
+{% block report_content %}
 <div class="container-fluid" dir="rtl">
 
   <!-- العنوان -->

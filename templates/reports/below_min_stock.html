@@ -1,0 +1,72 @@
+{# templates/reports/below_min_stock.html #}
+{% extends 'reports/_base.html' %}
+
+{% block title %}{{ FIELD_LABELS.get("below_min_stock", "المواد تحت الحد الأدنى") }}{% endblock %}
+{% block page_title %}{{ FIELD_LABELS.get("below_min_stock", "المواد تحت الحد الأدنى") }}{% endblock %}
+
+{% block reports_breadcrumb_extra %}
+<li class="breadcrumb-item active">{{ FIELD_LABELS.get("below_min_stock", "المواد تحت الحد الأدنى") }}</li>
+{% endblock %}
+
+{% block report_content %}
+<div class="container-fluid" dir="rtl">
+
+  <!-- العنوان -->
+  <div class="mb-3">
+    <h4 class="fw-bold"><i class="fas fa-box-open"></i> {{ FIELD_LABELS.get("below_min_stock", "المواد تحت الحد الأدنى") }}</h4>
+  </div>
+
+  <!-- بطاقات ملخص -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3 col-sm-6">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body text-center">
+          <div class="text-muted small">{{ FIELD_LABELS.get("products_count", "عدد المنتجات") }}</div>
+          <div class="fs-4 fw-bold">{{ data|length }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body text-center">
+          <div class="text-muted small">{{ FIELD_LABELS.get("total_missing_qty", "إجمالي النقص") }}</div>
+          <div class="fs-4 fw-bold">
+            {{ data|map(attribute='missing')|sum }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- جدول -->
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <div class="table-responsive">
+        <table id="report-table" class="table table-striped table-bordered align-middle">
+          <thead class="table-dark">
+            <tr>
+              <th>#</th>
+              <th>{{ FIELD_LABELS.get("product_name", "المنتج") }}</th>
+              <th>{{ FIELD_LABELS.get("on_hand", "المتوفر") }}</th>
+              <th>{{ FIELD_LABELS.get("min_qty", "الحد الأدنى") }}</th>
+              <th>{{ FIELD_LABELS.get("missing", "النقص") }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in data %}
+              <tr>
+                <td>{{ row.id }}</td>
+                <td>{{ row.name }}</td>
+                <td class="text-end">{{ row.on_hand }}</td>
+                <td class="text-end">{{ row.min_qty }}</td>
+                <td class="text-end text-danger fw-bold">{{ row.missing }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

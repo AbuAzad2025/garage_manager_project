@@ -79,7 +79,7 @@
         </li>
         {% endif %}
 
-        {% if has_perm('manage_warehouses') or has_perm('view_warehouses') or shop_is_super_admin %}
+        {% if has_perm('view_warehouses') or has_perm('manage_warehouses') or shop_is_super_admin %}
         <li class="nav-item">
           <a href="{{ url_for('warehouse_bp.list') }}" class="nav-link {% if request.blueprint == 'warehouse_bp' %}active{% endif %}">
             <i class="nav-icon fas fa-warehouse"></i><p>المستودعات</p>
@@ -95,34 +95,12 @@
         </li>
         {% endif %}
 
+        {# ======= التقارير: رابط وحيد لمركز التقارير ======= #}
         {% if has_perm('view_reports') or has_perm('manage_reports') or shop_is_super_admin %}
-        {% set is_reports = (request.blueprint == 'reports_bp') %}
-        <li class="nav-item has-treeview {% if is_reports %}menu-open{% endif %}">
-          <a href="{{ url_for('reports_bp.universal') }}" class="nav-link {% if is_reports and request.endpoint == 'reports_bp.universal' %}active{% endif %}">
-            <i class="nav-icon fas fa-chart-line"></i><p>التقارير<i class="right fas fa-angle-left"></i></p>
+        <li class="nav-item">
+          <a href="{{ url_for('reports_bp.universal') }}" class="nav-link {% if request.blueprint == 'reports_bp' %}active{% endif %}">
+            <i class="nav-icon fas fa-chart-line"></i><p>التقارير</p>
           </a>
-          <ul class="nav nav-treeview" style="{% if is_reports %}display:block{% else %}display:none{% endif %}">
-            <li class="nav-item">
-              <a href="{{ url_for('reports_bp.universal') }}" class="nav-link {% if request.endpoint == 'reports_bp.universal' %}active{% endif %}">
-                <i class="far fa-circle nav-icon"></i><p>مركز التقارير</p>
-              </a>
-            </li>
-            <li class="nav-item">
-              <a href="{{ url_for('reports_bp.dynamic_report') }}" class="nav-link {% if request.endpoint == 'reports_bp.dynamic_report' %}active{% endif %}">
-                <i class="far fa-circle nav-icon"></i><p>تقرير ديناميكي</p>
-              </a>
-            </li>
-            <li class="nav-item">
-              <a href="{{ url_for('reports_bp.ar_aging') }}" class="nav-link {% if request.endpoint == 'reports_bp.ar_aging' %}active{% endif %}">
-                <i class="far fa-circle nav-icon"></i><p>أعمار الذمم</p>
-              </a>
-            </li>
-            <li class="nav-item">
-              <a href="{{ url_for('reports_bp.sales') }}" class="nav-link {% if request.endpoint == 'reports_bp.sales' %}active{% endif %}">
-                <i class="far fa-circle nav-icon"></i><p>مبيعات</p>
-              </a>
-            </li>
-          </ul>
         </li>
         {% endif %}
 

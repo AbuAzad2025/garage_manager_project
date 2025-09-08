@@ -2043,7 +2043,7 @@ def api_search_users():
 
     qs = User.query
     if active_only:
-        qs = qs.filter(User._is_active.is_(True))
+        qs = qs.filter(User.is_active.is_(True))
     if role_names or role_ids:
         qs = qs.join(Role, isouter=False)
         if role_names:
@@ -2068,7 +2068,6 @@ def api_search_users():
             text = f"{text} ({email})"
         results.append({"id": u.id, "text": text})
     return jsonify({"results": results})
-
 
 @bp.get("/equipment-types/search")
 @login_required

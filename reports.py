@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 from collections import defaultdict
 from datetime import date, datetime, timedelta, time as _t
 from decimal import Decimal
@@ -10,24 +9,12 @@ from sqlalchemy import Date, and_, cast, func, desc
 from sqlalchemy.orm import joinedload
 
 from extensions import db
-from models import (
-    Customer,
-    Supplier,
-    Product,
-    SaleLine,
-    Expense,
-    Invoice,
-    OnlinePreOrder,
-    Payment,
-    PaymentDirection,
-    PaymentStatus,
-    Sale,
-    SaleStatus,
-    ServiceRequest,
-    ServiceStatus,
-    InvoiceStatus,
-)
 
+from models import (
+    Customer, Supplier, Product, SaleLine, Expense, Invoice,
+    OnlinePreOrder, Payment, PaymentSplit, PaymentDirection, PaymentStatus,
+    Sale, SaleStatus, ServiceRequest, ServiceStatus, InvoiceStatus,
+)
 
 def age_bucket(days) -> str:
     try:
@@ -43,7 +30,6 @@ def age_bucket(days) -> str:
         return "61-90"
     return "90+"
 
-
 def _parse_date_like(d):
     if not d:
         return None
@@ -58,10 +44,8 @@ def _parse_date_like(d):
             return None
     return None
 
-
 def _allowed_columns(model) -> set[str]:
     return {c.name for c in model.__table__.columns}
-
 
 def advanced_report(
     model,
@@ -79,18 +63,18 @@ def advanced_report(
     if joins:
         for rel in joins:
             q = q.options(joinedload(rel))
-    start_date = _parse_date_like(start_date)
-    end_date = _parse_date_like(end_date)
-    if date_field and (start_date or end_date):
+    sd = _parse_date_like(start_date)
+    ed = _parse_date_like(end_date)
+    if date_field and (sd or ed):
         fld = getattr(model, date_field, None)
         if fld is None:
             raise ValueError(f"Invalid date field: {date_field}")
-        if start_date and end_date:
-            q = q.filter(cast(fld, Date).between(start_date, end_date))
-        elif start_date:
-            q = q.filter(cast(fld, Date) >= start_date)
+        if sd and ed:
+            q = q.filter(cast(fld, Date).between(sd, ed))
+        elif sd:
+            q = q.filter(cast(fld, Date) >= sd)
         else:
-            q = q.filter(cast(fld, Date) <= end_date)
+            q = q.filter(cast(fld, Date) <= ed)
     if filters:
         for k, v in filters.items():
             fld = getattr(model, k, None)
@@ -109,10 +93,7 @@ def advanced_report(
         if gb:
             q = q.group_by(*gb)
     allowed = _allowed_columns(model)
-    if columns:
-        cols = [c for c in columns if c in allowed]
-    else:
-        cols = sorted(allowed)
+    cols = [c for c in (columns or allowed) if c in allowed]
     objs = q.all()
     data = [{col: getattr(obj, col, None) for col in cols} for obj in objs]
     summary: Dict[str, float] = {}
@@ -129,49 +110,6 @@ def advanced_report(
                 summary[f"{func_name}_{f}"] = float(val or 0)
     return {"data": data, "summary": summary}
 
-
-def expense_report(start_date: date, end_date: date):
-    return advanced_report(
-        model=Expense,
-        date_field="date",
-        start_date=start_date,
-        end_date=end_date,
-        aggregates={"sum": ["amount"], "count": ["id"]},
-    )
-
-
-def shop_report(start_date: date, end_date: date):
-    return advanced_report(
-        model=OnlinePreOrder,
-        date_field="created_at",
-        start_date=start_date,
-        end_date=end_date,
-        aggregates={"sum": ["prepaid_amount", "total_amount"], "count": ["id"]},
-    )
-
-
-def payment_summary_report(start_date: date | None, end_date: date | None):
-    start_date = _parse_date_like(start_date) or date.min
-    end_date = _parse_date_like(end_date) or date.max
-    q = (
-        db.session.query(
-            Payment.method.label("method"),
-            func.sum(func.coalesce(Payment.total_amount, 0)).label("total"),
-        )
-        .filter(Payment.status == PaymentStatus.COMPLETED.value)
-        .filter(Payment.direction == PaymentDirection.INCOMING.value)
-        .filter(cast(Payment.payment_date, Date).between(start_date, end_date))
-        .group_by(Payment.method)
-        .order_by(Payment.method)
-    )
-    rows = q.all()
-    return {
-        "methods": [r.method for r in rows],
-        "totals": [float(r.total or 0) for r in rows],
-        "grand_total": sum(float(r.total or 0) for r in rows),
-    }
-
-
 def sales_report(start_date: date | None, end_date: date | None, tz_name: str = "Asia/Hebron") -> dict:
     TZ = ZoneInfo(tz_name)
     sd = _parse_date_like(start_date)
@@ -180,9 +118,11 @@ def sales_report(start_date: date | None, end_date: date | None, tz_name: str = 
         sd, ed = ed, sd
     engine = db.engine.name
     if engine == "postgresql":
-        sale_day = func.date_trunc("day", func.timezone(tz_name, Sale.sale_date))
+        day_expr = func.to_char(func.timezone(tz_name, Sale.sale_date), "YYYY-MM-DD")
+    elif engine in ("mysql", "mariadb"):
+        day_expr = func.date_format(Sale.sale_date, "%Y-%m-%d")
     else:
-        sale_day = cast(Sale.sale_date, Date)
+        day_expr = func.strftime("%Y-%m-%d", Sale.sale_date)
     filters = []
     if sd:
         start_dt_local = datetime.combine(sd, _t.min).replace(tzinfo=TZ)
@@ -204,7 +144,7 @@ def sales_report(start_date: date | None, end_date: date | None, tz_name: str = 
     excluded_statuses = (SaleStatus.CANCELLED.value, SaleStatus.REFUNDED.value)
     q = (
         db.session.query(
-            sale_day.label("day"),
+            day_expr.label("day"),
             func.coalesce(func.sum(Sale.total_amount), 0).label("revenue"),
         )
         .filter(*filters)
@@ -214,26 +154,92 @@ def sales_report(start_date: date | None, end_date: date | None, tz_name: str = 
         .order_by("day")
     )
     rows = q.all()
-    day_to_sum: dict[date, Decimal] = {}
+    day_to_sum: dict[str, Decimal] = {}
     for d, v in rows:
-        dd = d.date() if hasattr(d, "date") else d
-        day_to_sum[dd] = Decimal(str(v or 0))
+        key = str(d)
+        day_to_sum[key] = Decimal(str(v or 0))
     total = sum(day_to_sum.values(), Decimal("0"))
     labels: list[str] = []
     values: list[float] = []
     if sd and ed:
         cur = sd
         while cur <= ed:
-            val = day_to_sum.get(cur, Decimal("0"))
-            labels.append(cur.isoformat())
-            values.append(float(val))
+            k = cur.isoformat()
+            labels.append(k)
+            values.append(float(day_to_sum.get(k, Decimal("0"))))
             cur += timedelta(days=1)
     else:
-        for d in sorted(day_to_sum.keys()):
-            labels.append(d.isoformat())
-            values.append(float(day_to_sum[d]))
+        for k in sorted(day_to_sum.keys()):
+            labels.append(k)
+            values.append(float(day_to_sum[k]))
     return {"daily_labels": labels, "daily_values": values, "total_revenue": float(total)}
 
+def expense_report(start_date: date | None, end_date: date | None):
+    return advanced_report(
+        model=Expense,
+        date_field="date",
+        start_date=start_date,
+        end_date=end_date,
+        aggregates={"sum": ["amount"], "count": ["id"]},
+    )
+
+def shop_report(start_date: date | None, end_date: date | None):
+    return advanced_report(
+        model=OnlinePreOrder,
+        date_field="created_at",
+        start_date=start_date,
+        end_date=end_date,
+        aggregates={"sum": ["prepaid_amount", "total_amount"], "count": ["id"]},
+    )
+
+def payment_summary_report(start_date, end_date):
+    sd = _parse_date_like(start_date) or date.min
+    ed = _parse_date_like(end_date) or date.max
+    if ed < sd:
+        sd, ed = ed, sd
+
+    ref_date = Payment.payment_date
+
+    base_filters = [
+        Payment.status == PaymentStatus.COMPLETED.value,
+        Payment.direction == PaymentDirection.INCOMING.value,
+        cast(ref_date, Date).between(sd, ed),
+    ]
+
+    # split payments
+    split_rows = (
+        db.session.query(
+            func.coalesce(cast(PaymentSplit.method, db.String()), "other").label("method"),
+            func.coalesce(func.sum(PaymentSplit.amount), 0).label("total"),
+        )
+        .join(Payment, Payment.id == PaymentSplit.payment_id)
+        .filter(*base_filters)
+        .group_by(func.coalesce(cast(PaymentSplit.method, db.String()), "other"))
+        .all()
+    )
+
+    # non-split payments
+    no_split_rows = (
+        db.session.query(
+            func.coalesce(cast(Payment.method, db.String()), "other").label("method"),
+            func.coalesce(func.sum(Payment.total_amount), 0).label("total"),
+        )
+        .outerjoin(PaymentSplit, PaymentSplit.payment_id == Payment.id)
+        .filter(*base_filters)
+        .filter(PaymentSplit.id.is_(None))
+        .group_by(func.coalesce(cast(Payment.method, db.String()), "other"))
+        .all()
+    )
+
+    agg = {}
+    for r in split_rows + no_split_rows:
+        key = (getattr(r, "method", None) or "other").upper()
+        agg[key] = agg.get(key, 0.0) + float(getattr(r, "total") or 0.0)
+
+    methods = sorted(agg.keys())
+    totals = [round(agg[m], 2) for m in methods]
+    grand_total = round(sum(totals), 2)
+    return {"methods": methods, "totals": totals, "grand_total": grand_total}
 
 def service_reports_report(start_date: date | None, end_date: date | None) -> dict:
     start_date = _parse_date_like(start_date) or date.min
@@ -279,7 +285,6 @@ def service_reports_report(start_date: date | None, end_date: date | None) -> di
             }
         )
     return {"total": int(total), "completed": int(completed), "revenue": float(revenue or 0), "parts": float(parts or 0), "labor": float(labor or 0), "data": data}
-
 
 def ar_aging_report(start_date=None, end_date=None):
     as_of = _parse_date_like(end_date) or date.today()
@@ -356,7 +361,6 @@ def ar_aging_report(start_date=None, end_date=None):
     totals = {k: round(v, 2) for k, v in totals.items()}
     return {"as_of": as_of.isoformat(), "data": data, "totals": totals}
 
-
 def ap_aging_report(start_date=None, end_date=None):
     as_of = _parse_date_like(end_date) or date.today()
     ref_cols = []
@@ -432,42 +436,151 @@ def ap_aging_report(start_date=None, end_date=None):
     totals = {k: round(v, 2) for k, v in totals.items()}
     return {"as_of": as_of.isoformat(), "data": data, "totals": totals}
 
-
-def top_products_report(start_date: date | None, end_date: date | None, limit: int = 20, tz_name: str = "Asia/Hebron") -> dict:
+def top_products_report(
+    start_date: date | None,
+    end_date: date | None,
+    limit: int = 20,
+    tz_name: str = "Asia/Hebron",
+    warehouse_id: int | None = None,
+    group_by_warehouse: bool = False,
+) -> dict:
     TZ = ZoneInfo(tz_name)
-    start_date = start_date or date.min
-    end_date = end_date or date.max
-    if end_date < start_date:
-        start_date, end_date = end_date, start_date
-    start_dt_local = datetime.combine(start_date, _t.min).replace(tzinfo=TZ)
-    end_dt_local = datetime.combine(end_date + timedelta(days=1), _t.min).replace(tzinfo=TZ)
+    sd = _parse_date_like(start_date) or date.min
+    ed = _parse_date_like(end_date) or date.max
+    if ed < sd:
+        sd, ed = ed, sd
+
+    start_dt_local = datetime.combine(sd, _t.min).replace(tzinfo=TZ)
+    try:
+        _ed_plus1 = ed + timedelta(days=1)
+        end_dt_local = datetime.combine(_ed_plus1, _t.min).replace(tzinfo=TZ)
+        use_lt_end = True
+    except OverflowError:
+        end_dt_local = datetime.combine(ed, _t.max).replace(tzinfo=TZ)
+        use_lt_end = False
+
     engine = db.engine.name
     if engine == "postgresql":
-        date_filter_lower = Sale.sale_date >= start_dt_local.astimezone(ZoneInfo("UTC"))
-        date_filter_upper = Sale.sale_date < end_dt_local.astimezone(ZoneInfo("UTC"))
+        lower = Sale.sale_date >= start_dt_local.astimezone(ZoneInfo("UTC"))
+        upper = (Sale.sale_date < end_dt_local.astimezone(ZoneInfo("UTC"))) if use_lt_end else (Sale.sale_date <= end_dt_local.astimezone(ZoneInfo("UTC")))
     else:
-        date_filter_lower = Sale.sale_date >= start_dt_local.replace(tzinfo=None)
-        date_filter_upper = Sale.sale_date < end_dt_local.replace(tzinfo=None)
-    value_expr = (SaleLine.quantity * SaleLine.unit_price) * (1 - (func.coalesce(SaleLine.discount_rate, 0) / 100.0)) * (1 + (func.coalesce(SaleLine.tax_rate, 0) / 100.0))
+        lower = Sale.sale_date >= start_dt_local.replace(tzinfo=None)
+        upper = (Sale.sale_date < end_dt_local.replace(tzinfo=None)) if use_lt_end else (Sale.sale_date <= end_dt_local.replace(tzinfo=None))
+
+    gross_expr = (SaleLine.quantity * SaleLine.unit_price)
+    disc_expr = gross_expr * (func.coalesce(SaleLine.discount_rate, 0) / 100.0)
+    net_before_tax_expr = (gross_expr - disc_expr)
+    tax_expr = net_before_tax_expr * (func.coalesce(SaleLine.tax_rate, 0) / 100.0)
+    net_revenue_expr = net_before_tax_expr + tax_expr
+
+    sum_qty = func.coalesce(func.sum(SaleLine.quantity), 0.0)
+    sum_gross = func.coalesce(func.sum(gross_expr), 0.0)
+    sum_discount = func.coalesce(func.sum(disc_expr), 0.0)
+    sum_net = func.coalesce(func.sum(net_revenue_expr), 0.0)
+
+    weighted_price = func.coalesce(
+        func.sum(SaleLine.unit_price * SaleLine.quantity) / func.nullif(func.sum(SaleLine.quantity), 0),
+        0.0,
+    )
+
+    can_group_by_wh = hasattr(SaleLine, "warehouse_id")
+    want_group = bool(group_by_warehouse and can_group_by_wh)
+    want_filter = bool(warehouse_id and can_group_by_wh)
+
+    select_cols = [
+        Product.id.label("product_id"),
+        Product.name.label("name"),
+        sum_qty.label("qty"),
+        sum_gross.label("gross"),
+        sum_discount.label("discount"),
+        sum_net.label("revenue"),
+        weighted_price.label("avg_unit_price"),
+        func.count(func.distinct(Sale.id)).label("orders_count"),
+        func.min(Sale.sale_date).label("first_sale"),
+        func.max(Sale.sale_date).label("last_sale"),
+    ]
+    if want_group:
+        select_cols.append(Warehouse.name.label("warehouse_name"))
+
     q = (
-        db.session.query(
-            Product.id.label("product_id"),
-            Product.name.label("name"),
-            func.coalesce(func.sum(SaleLine.quantity), 0).label("qty"),
-            func.coalesce(func.sum(value_expr), 0).label("revenue"),
-        )
+        db.session.query(*select_cols)
         .join(SaleLine, SaleLine.product_id == Product.id)
         .join(Sale, SaleLine.sale_id == Sale.id)
-        .filter(and_(date_filter_lower, date_filter_upper))
+        .filter(lower, upper)
         .filter(Sale.status == SaleStatus.CONFIRMED.value)
-        .group_by(Product.id, Product.name)
-        .order_by(desc("revenue"))
-        .limit(int(limit or 20))
     )
+
+    if want_group or want_filter:
+        q = q.outerjoin(Warehouse, Warehouse.id == SaleLine.warehouse_id)
+    if want_filter:
+        q = q.filter(Warehouse.id == int(warehouse_id))
+
+    if want_group:
+        q = q.group_by(Product.id, Product.name, Warehouse.name)
+    else:
+        q = q.group_by(Product.id, Product.name)
+
+    q = q.order_by(desc("revenue")).limit(int(limit or 20))
     rows = q.all()
-    data = []
-    rank = 1
-    for r in rows:
-        data.append({"id": rank, "name": r.name, "qty": int(r.qty or 0), "revenue": float(r.revenue or 0), "product_id": r.product_id})
-        rank += 1
-    return {"data": data}
+
+    total_revenue = float(sum((float(getattr(r, "revenue", 0) or 0) for r in rows)) or 0.0)
+    total_qty = int(sum((int(getattr(r, "qty", 0) or 0) for r in rows)) or 0)
+    max_qty = max((int(getattr(r, "qty", 0) or 0) for r in rows), default=0)
+
+    def _rank_label(idx: int) -> str:
+        return ("الأول" if idx == 1 else "الثاني" if idx == 2 else "الثالث" if idx == 3 else f"المرتبة {idx}")
+
+    data: list[dict] = []
+    for i, r in enumerate(rows, start=1):
+        qty = int(getattr(r, "qty", 0) or 0)
+        rev = float(getattr(r, "revenue", 0) or 0)
+        gross = float(getattr(r, "gross", 0) or 0)
+        discount = float(getattr(r, "discount", 0) or 0)
+        orders_count = int(getattr(r, "orders_count", 0) or 0)
+        avg_price = float(getattr(r, "avg_unit_price", 0) or 0)
+        share = (rev / total_revenue * 100.0) if total_revenue > 0 else 0.0
+        if i <= 3 and rev > 0:
+            reason = "ضمن الأعلى إيرادًا"
+        elif qty == max_qty and qty > 0:
+            reason = "أعلى كمية مباعة"
+        elif share >= 10:
+            reason = "حصة إيراد كبيرة"
+        elif orders_count >= 5:
+            reason = "مكرر الطلب من العملاء"
+        else:
+            reason = "أداء جيد ضمن الفترة"
+
+        item = {
+            "id": i,
+            "rank_label": _rank_label(i),
+            "product_id": getattr(r, "product_id", None),
+            "name": getattr(r, "name", None),
+            "qty": qty,
+            "revenue": round(rev, 2),
+            "revenue_share": round(share, 2),
+            "gross": round(gross, 2),
+            "discount": round(discount, 2),
+            "avg_unit_price": round(avg_price, 2),
+            "orders_count": orders_count,
+            "first_sale": (getattr(r, "first_sale", None).isoformat() if getattr(r, "first_sale", None) else None),
+            "last_sale": (getattr(r, "last_sale", None).isoformat() if getattr(r, "last_sale", None) else None),
+            "reason": reason,
+        }
+        if want_group:
+            item["warehouse_name"] = getattr(r, "warehouse_name", None) or "—"
+        data.append(item)
+
+    return {
+        "data": data,
+        "can_group_by_warehouse": can_group_by_wh,
+        "meta": {
+            "start_date": sd.isoformat(),
+            "end_date": ed.isoformat(),
+            "total_revenue": round(total_revenue, 2),
+            "total_qty": total_qty,
+            "count": len(data),
+            "warehouse_id": int(warehouse_id) if warehouse_id else None,
+            "group_by_warehouse": bool(group_by_warehouse and can_group_by_wh),
+        },
+    }
+

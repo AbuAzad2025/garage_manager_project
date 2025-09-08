@@ -1,19 +1,22 @@
 {# templates/reports/suppliers.html #}
-{% extends 'base.html' %}
-{% block title %}الموردون{% endblock %}
-{% block page_title %}الموردون{% endblock %}
+{% extends 'reports/_base.html' %}
 
-{% block breadcrumb %}
-<li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+{% block title %}{{ FIELD_LABELS.get("suppliers", "الموردون") }}{% endblock %}
+{% block page_title %}{{ FIELD_LABELS.get("suppliers", "الموردون") }}{% endblock %}
+
+{% block reports_breadcrumb_extra %}
 <li class="breadcrumb-item active">{{ FIELD_LABELS.get("suppliers", "الموردون") }}</li>
 {% endblock %}
 
-{% block content %}
+{% block report_content %}
 <div class="container-fluid" dir="rtl">
 
   <!-- العنوان -->
   <div class="mb-3">
-    <h4 class="fw-bold"><i class="fas fa-truck-loading"></i> {{ FIELD_LABELS.get("suppliers", "الموردون") }}</h4>
+    <h4 class="fw-bold">
+      <i class="fas fa-truck-loading"></i>
+      {{ FIELD_LABELS.get("suppliers", "الموردون") }}
+    </h4>
   </div>
 
   <!-- الجدول -->

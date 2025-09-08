@@ -1,14 +1,14 @@
 {# templates/reports/expenses.html #}
-{% extends 'base.html' %}
-{% block title %}المصاريف{% endblock %}
-{% block page_title %}المصاريف{% endblock %}
+{% extends 'reports/_base.html' %}
 
-{% block breadcrumb %}
-<li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+{% block title %}{{ FIELD_LABELS.get("expenses", "المصاريف") }}{% endblock %}
+{% block page_title %}{{ FIELD_LABELS.get("expenses", "المصاريف") }}{% endblock %}
+
+{% block reports_breadcrumb_extra %}
 <li class="breadcrumb-item active">{{ FIELD_LABELS.get("expenses", "المصاريف") }}</li>
 {% endblock %}
 
-{% block content %}
+{% block report_content %}
 <div class="container-fluid" dir="rtl">
 
   <!-- العنوان -->
@@ -51,8 +51,8 @@
           <canvas class="chartjs-chart"
                   data-type="doughnut"
                   data-dataset-label="{{ FIELD_LABELS.get('expenses_by_type', 'المصاريف حسب النوع') }}"
-                  data-labels='{{ type_labels|tojson }}'
-                  data-values='{{ type_values|tojson }}'></canvas>
+                  data-labels='{{ (type_labels or [])|tojson }}'
+                  data-values='{{ (type_values or [])|tojson }}'></canvas>
         </div>
       </div>
     </div>
@@ -65,8 +65,8 @@
           <canvas class="chartjs-chart"
                   data-type="bar"
                   data-dataset-label="{{ FIELD_LABELS.get('expenses_by_employee', 'المصاريف حسب الموظف') }}"
-                  data-labels='{{ emp_labels|tojson }}'
-                  data-values='{{ emp_values|tojson }}'></canvas>
+                  data-labels='{{ (emp_labels or [])|tojson }}'
+                  data-values='{{ (emp_values or [])|tojson }}'></canvas>
         </div>
       </div>
     </div>
@@ -92,21 +92,36 @@
             </tr>
           </thead>
           <tbody>
-            {% for e in data %}
+            {% if data and data|length %}
+              {% for e in data %}
+                <tr>
+                  <td>{{ e.id }}</td>
+                  <td>{{ e.date }}</td>
+                  <td>{{ e.type_id }}</td>
+                  <td class="text-end">{{ "{:,.2f}".format(e.amount or 0) }}</td>
+                  <td>{{ e.currency or "—" }}</td>
+                  <td>{{ e.employee_id or "—" }}</td>
+                  <td>{{ e.warehouse_id or "—" }}</td>
+                  <td>{{ e.partner_id or "—" }}</td>
+                  <td>{{ e.desc or "—" }}</td>
+                  <td>{{ "نعم" if e.is_paid else "لا" }}</td>
+                </tr>
+              {% endfor %}
+            {% else %}
               <tr>
-                <td>{{ e.id }}</td>
-                <td>{{ e.date }}</td>
-                <td>{{ e.type_id }}</td>
-                <td class="text-end">{{ "{:,.2f}".format(e.amount) }}</td>
-                <td>{{ e.currency }}</td>
-                <td>{{ e.employee_id }}</td>
-                <td>{{ e.warehouse_id }}</td>
-                <td>{{ e.partner_id }}</td>
-                <td>{{ e.desc }}</td>
-                <td>{{ "نعم" if e.is_paid else "لا" }}</td>
+                <td colspan="10" class="text-center text-muted py-4">
+                  لا توجد بيانات ضمن النطاق المحدد.
+                </td>
               </tr>
-            {% endfor %}
+            {% endif %}
           </tbody>
+          <tfoot>
+            <tr class="fw-bold">
+              <td colspan="3" class="text-end">{{ FIELD_LABELS.get("total", "المجموع") }}</td>
+              <td class="text-end">{{ "{:,.2f}".format(total_amount or 0) }}</td>
+              <td colspan="6"></td>
+            </tr>
+          </tfoot>
         </table>
       </div>
     </div>

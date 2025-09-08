@@ -1,14 +1,14 @@
 {# templates/reports/partners.html #}
-{% extends 'base.html' %}
-{% block title %}الشركاء{% endblock %}
-{% block page_title %}الشركاء{% endblock %}
+{% extends 'reports/_base.html' %}
 
-{% block breadcrumb %}
-<li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+{% block title %}{{ FIELD_LABELS.get("partners", "الشركاء") }}{% endblock %}
+{% block page_title %}{{ FIELD_LABELS.get("partners", "الشركاء") }}{% endblock %}
+
+{% block reports_breadcrumb_extra %}
 <li class="breadcrumb-item active">{{ FIELD_LABELS.get("partners", "الشركاء") }}</li>
 {% endblock %}
 
-{% block content %}
+{% block report_content %}
 <div class="container-fluid" dir="rtl">
 
   <!-- عنوان -->
@@ -22,19 +22,19 @@
     <div class="col-md-3">
       <div class="card shadow-sm"><div class="card-body text-center">
         <div class="text-muted small">{{ FIELD_LABELS.get("balance", "الرصيد") }}</div>
-        <div class="fs-5 fw-bold">{{ "{:,.2f}".format(totals.balance) }}</div>
+        <div class="fs-5 fw-bold">{{ "{:,.2f}".format(totals.balance or 0) }}</div>
       </div></div>
     </div>
     <div class="col-md-3">
       <div class="card shadow-sm"><div class="card-body text-center">
         <div class="text-muted small">{{ FIELD_LABELS.get("total_paid", "مدفوع") }}</div>
-        <div class="fs-5 fw-bold">{{ "{:,.2f}".format(totals.total_paid) }}</div>
+        <div class="fs-5 fw-bold">{{ "{:,.2f}".format(totals.total_paid or 0) }}</div>
       </div></div>
     </div>
     <div class="col-md-3">
       <div class="card shadow-sm"><div class="card-body text-center">
         <div class="text-muted small">{{ FIELD_LABELS.get("net_balance", "صافي") }}</div>
-        <div class="fs-5 fw-bold">{{ "{:,.2f}".format(totals.net_balance) }}</div>
+        <div class="fs-5 fw-bold">{{ "{:,.2f}".format(totals.net_balance or 0) }}</div>
       </div></div>
     </div>
   </div>
@@ -60,10 +60,10 @@
               <tr>
                 <td>{{ r.id }}</td>
                 <td>{{ r.name }}</td>
-                <td class="text-end">{{ "{:,.2f}".format(r.balance) }}</td>
-                <td class="text-end">{{ "{:,.2f}".format(r.total_paid) }}</td>
-                <td class="text-end">{{ "{:,.2f}".format(r.net_balance) }}</td>
-                <td class="text-end">{{ "{:,.2f}".format(r.share_percentage) }}</td>
+                <td class="text-end">{{ "{:,.2f}".format(r.balance or 0) }}</td>
+                <td class="text-end">{{ "{:,.2f}".format(r.total_paid or 0) }}</td>
+                <td class="text-end">{{ "{:,.2f}".format(r.net_balance or 0) }}</td>
+                <td class="text-end">{{ "{:,.2f}".format(r.share_percentage or 0) }}</td>
               </tr>
             {% endfor %}
           </tbody>

@@ -8,10 +8,11 @@ from flask_mail import Message
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from sqlalchemy import select, func
 
-from extensions import db, mail, limiter
+from extensions import db, limiter, mail
 from forms import LoginForm, CustomerFormOnline, CustomerPasswordResetForm, CustomerPasswordResetRequestForm
 from models import Customer, User
 from utils import _audit, redis_client as _redis
+
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
@@ -53,7 +54,6 @@ def _get_login_identifier(form: LoginForm) -> Optional[str]:
 
 MAX_ATTEMPTS = 5
 BLOCK_TIME = timedelta(minutes=10)
-
 _login_attempts_mem: dict[tuple[str, str], tuple[int, datetime]] = {}
 
 
@@ -122,11 +122,15 @@ def clear_attempts(ip: str, identifier: Optional[str]) -> None:
 def login():
     ip = _get_client_ip()
     form = LoginForm()
+    needs_fresh = request.args.get("fresh") == "1"
+    has_next = bool(request.args.get("next"))
 
-    if request.method == "GET" and current_user.is_authenticated:
-        clear_attempts(ip, getattr(current_user, "email", None) or getattr(current_user, "username", None))
-        actor = current_user._get_current_object()
-        return _redirect_back_or("shop.catalog" if isinstance(actor, Customer) else "main.dashboard")
+    if request.method == "GET":
+        if current_user.is_authenticated and not needs_fresh and not has_next:
+            clear_attempts(ip, getattr(current_user, "email", None) or getattr(current_user, "username", None))
+            actor = current_user._get_current_object()
+            return _redirect_back_or("shop.catalog" if isinstance(actor, Customer) else "main.dashboard")
+        return render_template("auth/login.html", form=form)
 
     identifier = _get_login_identifier(form)
     if is_blocked(ip, identifier):
@@ -134,53 +138,47 @@ def login():
         _audit("login.blocked", ok=False, note="blocked window")
         return render_template("auth/login.html", form=form)
 
-    if request.method == "POST":
-        password = request.form.get("password", "") or ""
-        user = None
-        customer = None
+    password = request.form.get("password", "") or ""
+    user = None
+    customer = None
 
-        if identifier:
-            ident_l = identifier.lower()
-            stmt = select(User).where(
-                (func.lower(User.username) == ident_l) | (func.lower(User.email) == ident_l)
-            )
-            user = db.session.execute(stmt).scalars().first()
-            if not user:
-                customer = Customer.query.filter(
-                    (func.lower(Customer.email) == ident_l) |
-                    (Customer.phone == identifier) |
-                    (Customer.name == identifier)
-                ).first()
+    if identifier:
+        ident_l = identifier.lower()
+        stmt = select(User).where((func.lower(User.username) == ident_l) | (func.lower(User.email) == ident_l))
+        user = db.session.execute(stmt).scalars().first()
+        if not user:
+            customer = Customer.query.filter(
+                (func.lower(Customer.email) == ident_l) | (Customer.phone == identifier) | (Customer.name == identifier)
+            ).first()
 
-        if user and user.check_password(password) and bool(getattr(user, "is_active", True)):
-            remember = bool(getattr(form, "remember_me", None) and getattr(form.remember_me, "data", False))
-            if current_user.is_authenticated and getattr(current_user, "id", None) != user.id:
-                logout_user()
-            login_user(user, remember=remember)
-            try:
-                user.last_login = datetime.utcnow()
-                user.last_login_ip = ip
-                user.login_count = (getattr(user, "login_count", 0) or 0) + 1
-                db.session.commit()
-            except Exception:
-                db.session.rollback()
-            clear_attempts(ip, identifier)
-            _audit("login.success", ok=True, user_id=user.id, note=f"ip={ip}")
-            return _redirect_back_or("main.dashboard")
+    if user and user.check_password(password) and bool(getattr(user, "is_active", True)):
+        remember = bool(getattr(form, "remember_me", None) and getattr(form.remember_me, "data", False))
+        if current_user.is_authenticated and getattr(current_user, "id", None) != user.id:
+            logout_user()
+        login_user(user, remember=remember, fresh=True)
+        try:
+            user.last_login = datetime.utcnow()
+            user.last_login_ip = ip
+            user.login_count = (getattr(user, "login_count", 0) or 0) + 1
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+        clear_attempts(ip, identifier)
+        _audit("login.success", ok=True, user_id=user.id, note=f"ip={ip}")
+        return _redirect_back_or("main.dashboard")
 
-        if customer and customer.check_password(password) and customer.is_online and customer.is_active:
-            remember = bool(getattr(form, "remember_me", None) and getattr(form.remember_me, "data", False))
-            if current_user.is_authenticated and getattr(current_user, "id", None) != customer.id:
-                logout_user()
-            login_user(customer, remember=remember)
-            clear_attempts(ip, identifier)
-            _audit("login.success.customer", ok=True, customer_id=customer.id, note=f"ip={ip}")
-            return _redirect_back_or("shop.catalog")
+    if customer and customer.check_password(password) and customer.is_online and customer.is_active:
+        remember = bool(getattr(form, "remember_me", None) and getattr(form.remember_me, "data", False))
+        if current_user.is_authenticated and getattr(current_user, "id", None) != customer.id:
+            logout_user()
+        login_user(customer, remember=remember, fresh=True)
+        clear_attempts(ip, identifier)
+        _audit("login.success.customer", ok=True, customer_id=customer.id, note=f"ip={ip}")
+        return _redirect_back_or("shop.catalog")
 
-        record_attempt(ip, identifier)
-        _audit("login.failed", ok=False, note=f"id={identifier or ''}; ip={ip}")
-        flash("❌ بيانات الدخول غير صحيحة.", "danger")
-
+    record_attempt(ip, identifier)
+    _audit("login.failed", ok=False, note=f"id={identifier or ''}; ip={ip}")
+    flash("❌ بيانات الدخول غير صحيحة.", "danger")
     return render_template("auth/login.html", form=form)
 
 
@@ -190,7 +188,13 @@ def logout():
     _audit("logout", ok=True, user_id=getattr(current_user, "id", None))
     logout_user()
     flash("تم تسجيل الخروج بنجاح.", "info")
-    return redirect(url_for("auth.login"))
+    resp = redirect(url_for("auth.login", fresh=1))
+    rc_name = current_app.config.get("REMEMBER_COOKIE_NAME", "remember_token")
+    rc_domain = current_app.config.get("REMEMBER_COOKIE_DOMAIN", None)
+    rc_path = current_app.config.get("REMEMBER_COOKIE_PATH", "/")
+    resp.delete_cookie(rc_name, domain=rc_domain, path=rc_path)
+    resp.delete_cookie(rc_name, domain=None, path=rc_path)
+    return resp
 
 
 @auth_bp.route("/register/customer", methods=["GET", "POST"])
@@ -216,7 +220,7 @@ def customer_register():
         customer.set_password(form.password.data)
         db.session.add(customer)
         db.session.commit()
-        login_user(customer)
+        login_user(customer, fresh=True)
         _audit("customer.register", ok=True, customer_id=customer.id)
         flash("✅ تم إنشاء حسابك بنجاح! يمكنك الآن استخدام المتجر.", "success")
         return redirect(url_for("shop.catalog"))

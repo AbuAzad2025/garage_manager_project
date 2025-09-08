@@ -1,0 +1,151 @@
+
+{# templates/reports/_base.html #}
+{% extends 'base.html' %}
+
+{% block title %}{% block page_title %}التقارير{% endblock %}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('reports_bp.index') }}">التقارير</a></li>
+{% block reports_breadcrumb_extra %}{% endblock %}
+{% endblock %}
+
+{% macro active_class(eps) -%}
+  {%- if request.endpoint in eps %}active{% endif -%}
+{%- endmacro %}
+
+{% block content %}
+<div class="container-fluid" dir="rtl">
+
+  <!-- شريط روابط التقارير -->
+  <div class="card mb-3 shadow-sm">
+    <div class="card-body p-2">
+      <ul class="nav nav-pills flex-wrap gap-1">
+
+        <li class="nav-item">
+          <a class="nav-link {{ active_class(['reports_bp.index']) }}"
+             href="{{ url_for('reports_bp.index') }}">
+            <i class="fas fa-home"></i> لوحة التقارير
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link {{ active_class(['reports_bp.dynamic_report']) }}"
+             href="{{ url_for('reports_bp.dynamic_report') }}">
+            <i class="fas fa-sliders-h"></i> تقرير ديناميكي
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link {{ active_class(['reports_bp.customers_report']) }}"
+             href="{{ url_for('reports_bp.customers_report') }}">
+            <i class="fas fa-user-friends"></i> العملاء
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link {{ active_class(['reports_bp.suppliers']) }}"
+             href="{{ url_for('reports_bp.suppliers_report')
+ }}">
+            <i class="fas fa-truck-loading"></i> الموردون
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link {{ active_class(['reports_bp.partners']) }}"
+             href="{{ url_for('reports_bp.partners_report')
+ }}">
+            <i class="fas fa-handshake"></i> الشركاء
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link {{ active_class(['reports_bp.sales']) }}"
+             href="{{ url_for('reports_bp.sales') }}">
+            <i class="fas fa-chart-line"></i> المبيعات
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link {{ active_class(['reports_bp.payments_summary']) }}"
+             href="{{ url_for('reports_bp.payments_summary') }}">
+            <i class="fas fa-wallet"></i> ملخص المدفوعات
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link {{ active_class(['reports_bp.top_products']) }}"
+             href="{{ url_for('reports_bp.top_products') }}">
+            <i class="fas fa-crown"></i> أفضل المنتجات
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link {{ active_class(['reports_bp.expenses']) }}"
+             href="{{ url_for('reports_bp.expenses_report') }}"
+>
+            <i class="fas fa-wallet"></i> المصاريف
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link {{ active_class(['reports_bp.inventory']) }}"
+             href="{{ url_for('reports_bp.inventory') }}">
+            <i class="fas fa-boxes"></i> المخزون
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link {{ active_class(['reports_bp.below_min_stock']) }}"
+             href="{{ url_for('reports_bp.below_min_stock_report') }}"
+>
+            <i class="fas fa-exclamation-triangle"></i> تحت الحد الأدنى
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link {{ active_class(['reports_bp.shipments']) }}"
+             href="{{ url_for('reports_bp.shipments') }}">
+            <i class="fas fa-shipping-fast"></i> الشحنات
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link {{ active_class(['reports_bp.online']) }}"
+             href="{{ url_for('reports_bp.online') }}">
+            <i class="fas fa-globe"></i> الأونلاين
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link {{ active_class(['reports_bp.ar_aging']) }}"
+             href="{{ url_for('reports_bp.ar_aging') }}">
+            <i class="fas fa-user-clock"></i> أعمار الذمم (عملاء)
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link {{ active_class(['reports_bp.ap_aging']) }}"
+             href="{{ url_for('reports_bp.ap_aging') }}">
+            <i class="fas fa-truck-loading"></i> أعمار الذمم (موردون)
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link {{ active_class(['reports_bp.service_reports']) }}"
+             href="{{ url_for('reports_bp.service_reports') }}">
+            <i class="fas fa-tools"></i> الصيانة
+          </a>
+        </li>
+
+      </ul>
+    </div>
+  </div>
+
+  {% block report_content %}{% endblock %}
+
+</div>
+{% endblock %}
+
+{% block styles %}{% endblock %}
+{% block scripts %}{% endblock %}
