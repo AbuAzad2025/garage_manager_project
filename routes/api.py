@@ -449,6 +449,49 @@ def create_customer_api():
         db.session.rollback()
         return jsonify({"error": "فشل حفظ العميل"}), 500
 
+# ==== Suppliers ==============================================================
+@bp.get("/search_suppliers", endpoint="search_suppliers")
+@login_required
+@limiter.limit("60/minute")
+@permission_required("manage_vendors", "add_supplier", "view_inventory", "manage_inventory", "view_warehouses")
+def search_suppliers():
+    if not current_user.is_authenticated:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    q = (request.args.get("q") or "").strip()
+    limit = min(int(request.args.get("limit", 20) or 20), 50)
+    sid = (request.args.get("id") or "").strip()
+
+    if sid.isdigit():
+        s = db.session.get(Supplier, int(sid))
+        if not s:
+            return jsonify({"results": []})
+        return jsonify({"results": [{
+            "id": s.id,
+            "text": s.name,
+            "name": s.name,
+            "phone": s.phone,
+            "identity_number": s.identity_number
+        }]})
+
+    qry = Supplier.query
+    if q:
+        like = f"%{q}%"
+        qry = qry.filter(or_(
+            func.lower(Supplier.name).like(f"%{q.lower()}%"),
+            Supplier.phone.ilike(like),
+            Supplier.identity_number.ilike(like),
+            Supplier.email.ilike(like),
+        ))
+    rows = qry.order_by(Supplier.name.asc()).limit(limit).all()
+
+    return jsonify({"results": [{
+        "id": s.id,
+        "text": s.name,
+        "name": s.name,
+        "phone": s.phone,
+        "identity_number": s.identity_number
+    } for s in rows]})
 
 @bp.post("/suppliers", endpoint="create_supplier")
 @login_required
@@ -465,29 +508,21 @@ def create_supplier():
     if not name:
         return jsonify({"error": "الاسم مطلوب"}), 400
     try:
-        supplier = Supplier(
-            name=name,
-            phone=phone,
-            identity_number=identity_number,
-            address=address,
-            notes=notes,
-        )
-        db.session.add(supplier)
+        s = Supplier(name=name, phone=phone, identity_number=identity_number, address=address, notes=notes)
+        db.session.add(s)
         db.session.commit()
-        return jsonify({"id": supplier.id, "text": supplier.name}), 201
+        return jsonify({"id": s.id, "text": s.name}), 201
     except SQLAlchemyError:
         db.session.rollback()
         return jsonify({"error": "فشل حفظ المورد"}), 500
-
 
 @bp.get("/suppliers/<int:id>")
 @login_required
 @limiter.limit("60/minute")
 @permission_required("manage_vendors", "add_supplier")
 def get_supplier(id):
-    supplier = Supplier.query.get_or_404(id)
-    return jsonify({"success": True, "supplier": {"id": supplier.id, "name": supplier.name, "phone": supplier.phone}})
-
+    s = Supplier.query.get_or_404(id)
+    return jsonify({"id": s.id, "name": s.name, "phone": s.phone, "identity_number": s.identity_number, "address": s.address, "notes": s.notes})
 
 @bp.put("/suppliers/<int:id>")
 @bp.patch("/suppliers/<int:id>", endpoint="update_supplier")
@@ -496,20 +531,19 @@ def get_supplier(id):
 @limiter.limit("30/minute")
 @permission_required("manage_vendors", "add_supplier")
 def update_supplier(id):
-    supplier = Supplier.query.get_or_404(id)
+    s = Supplier.query.get_or_404(id)
     data = request.get_json(silent=True) or request.form or {}
-    supplier.name = (data.get("name") or supplier.name).strip()
-    supplier.phone = (data.get("phone") or supplier.phone).strip()
-    supplier.identity_number = (data.get("identity_number") or supplier.identity_number).strip()
-    supplier.address = (data.get("address") or supplier.address).strip()
-    supplier.notes = (data.get("notes") or supplier.notes).strip()
+    s.name = (data.get("name") or s.name).strip()
+    s.phone = (data.get("phone") or s.phone).strip()
+    s.identity_number = (data.get("identity_number") or s.identity_number).strip()
+    s.address = (data.get("address") or s.address).strip()
+    s.notes = (data.get("notes") or s.notes).strip()
     try:
         db.session.commit()
-        return jsonify(success=True, id=supplier.id, name=supplier.name)
+        return jsonify({"id": s.id, "text": s.name})
     except SQLAlchemyError:
         db.session.rollback()
-        return jsonify(success=False, error="فشل تحديث المورد"), 500
-
+        return jsonify({"error": "فشل تحديث المورد"}), 500
 
 @bp.delete("/suppliers/<int:id>", endpoint="delete_supplier")
 @login_required
@@ -517,24 +551,59 @@ def update_supplier(id):
 @limiter.limit("30/minute")
 @permission_required("manage_vendors", "add_supplier")
 def delete_supplier(id):
-    supplier = Supplier.query.get_or_404(id)
+    s = Supplier.query.get_or_404(id)
     try:
-        db.session.delete(supplier)
+        db.session.delete(s)
         db.session.commit()
-        return jsonify(success=True)
+        return jsonify({"success": True})
     except SQLAlchemyError:
         db.session.rollback()
-        return jsonify(success=False, error="فشل حذف المورد"), 500
+        return jsonify({"error": "فشل حذف المورد"}), 500
 
 
-@bp.get("/partners")
+# ==== Partners ===============================================================
 @bp.get("/search_partners", endpoint="search_partners")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("manage_vendors", "add_partner")
-def partners():
-    return search_model(Partner, ["name", "phone_number", "identity_number"], label_attr="name")
+@permission_required("manage_vendors", "add_partner", "view_inventory", "manage_inventory", "view_warehouses")
+def search_partners():
+    if not current_user.is_authenticated:
+        return jsonify({"error": "Unauthorized"}), 401
 
+    q = (request.args.get("q") or "").strip()
+    limit = min(int(request.args.get("limit", 20) or 20), 50)
+    pid = (request.args.get("id") or "").strip()
+
+    if pid.isdigit():
+        p = db.session.get(Partner, int(pid))
+        if not p:
+            return jsonify({"results": []})
+        return jsonify({"results": [{
+            "id": p.id,
+            "text": p.name,
+            "name": p.name,
+            "phone": p.phone_number,
+            "identity_number": p.identity_number
+        }]})
+
+    qry = Partner.query
+    if q:
+        like = f"%{q}%"
+        qry = qry.filter(or_(
+            func.lower(Partner.name).like(f"%{q.lower()}%"),
+            Partner.phone_number.ilike(like),
+            Partner.identity_number.ilike(like),
+            Partner.email.ilike(like),
+        ))
+    rows = qry.order_by(Partner.name.asc()).limit(limit).all()
+
+    return jsonify({"results": [{
+        "id": p.id,
+        "text": p.name,
+        "name": p.name,
+        "phone": p.phone_number,
+        "identity_number": p.identity_number
+    } for p in rows]})
 
 @bp.post("/partners", endpoint="create_partner")
 @login_required
@@ -551,38 +620,21 @@ def create_partner():
     if not name:
         return jsonify({"error": "الاسم مطلوب"}), 400
     try:
-        partner = Partner(
-            name=name,
-            phone_number=phone,
-            identity_number=identity_number,
-            address=address,
-            notes=notes,
-        )
-        db.session.add(partner)
+        p = Partner(name=name, phone_number=phone, identity_number=identity_number, address=address, notes=notes)
+        db.session.add(p)
         db.session.commit()
-        return jsonify({"id": partner.id, "text": partner.name}), 201
+        return jsonify({"id": p.id, "text": p.name}), 201
     except SQLAlchemyError:
         db.session.rollback()
         return jsonify({"error": "فشل حفظ الشريك"}), 500
-
 
 @bp.get("/partners/<int:id>")
 @login_required
 @limiter.limit("60/minute")
 @permission_required("manage_vendors", "add_partner")
 def get_partner(id):
-    partner = Partner.query.get_or_404(id)
-    return jsonify(
-        {
-            "id": partner.id,
-            "name": partner.name,
-            "phone": partner.phone_number,
-            "identity_number": partner.identity_number,
-            "address": partner.address,
-            "notes": partner.notes,
-        }
-    )
-
+    p = Partner.query.get_or_404(id)
+    return jsonify({"id": p.id, "name": p.name, "phone": p.phone_number, "identity_number": p.identity_number, "address": p.address, "notes": p.notes})
 
 @bp.put("/partners/<int:id>")
 @bp.patch("/partners/<int:id>", endpoint="update_partner")
@@ -591,20 +643,19 @@ def get_partner(id):
 @limiter.limit("30/minute")
 @permission_required("manage_vendors", "add_partner")
 def update_partner(id):
-    partner = Partner.query.get_or_404(id)
+    p = Partner.query.get_or_404(id)
     data = request.get_json(silent=True) or request.form or {}
-    partner.name = (data.get("name") or partner.name).strip()
-    partner.phone_number = (data.get("phone_number") or partner.phone_number).strip()
-    partner.identity_number = (data.get("identity_number") or partner.identity_number).strip()
-    partner.address = (data.get("address") or partner.address).strip()
-    partner.notes = (data.get("notes") or partner.notes).strip()
+    p.name = (data.get("name") or p.name).strip()
+    p.phone_number = (data.get("phone_number") or p.phone_number).strip()
+    p.identity_number = (data.get("identity_number") or p.identity_number).strip()
+    p.address = (data.get("address") or p.address).strip()
+    p.notes = (data.get("notes") or p.notes).strip()
     try:
         db.session.commit()
-        return jsonify({"id": partner.id, "text": partner.name})
+        return jsonify({"id": p.id, "text": p.name})
     except SQLAlchemyError:
         db.session.rollback()
         return jsonify({"error": "فشل تحديث الشريك"}), 500
-
 
 @bp.delete("/partners/<int:id>", endpoint="delete_partner")
 @login_required
@@ -612,15 +663,14 @@ def update_partner(id):
 @limiter.limit("30/minute")
 @permission_required("manage_vendors", "add_partner")
 def delete_partner(id):
-    partner = Partner.query.get_or_404(id)
+    p = Partner.query.get_or_404(id)
     try:
-        db.session.delete(partner)
+        db.session.delete(p)
         db.session.commit()
         return jsonify({"success": True})
     except SQLAlchemyError:
         db.session.rollback()
         return jsonify({"error": "فشل حذف الشريك"}), 500
-
 
 @bp.get("/barcode/validate", endpoint="barcode_validate")
 @login_required
@@ -1958,7 +2008,6 @@ def server_error(e):
     db.session.rollback()
     current_app.logger.exception("API 500: %s", getattr(e, "description", e))
     return jsonify({"error": "Server Error"}), 500
-
 
 @bp.get("/users", endpoint="users")
 @login_required

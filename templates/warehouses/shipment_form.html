@@ -5,19 +5,44 @@
 
 {% block head_extra %}
   {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2/css/select2.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/shipments.css') }}">
 {% endblock %}
 
 {% macro item_row(sf, idx) -%}
 <div class="shipment-item border rounded p-2 mb-2" data-index="{{ idx }}">
   <div class="row g-2 align-items-end">
-    <div class="col-md-4">{{ sf.product_id.label }} {{ sf.product_id(class_="select2 form-control") }}</div>
-    <div class="col-md-3">{{ sf.warehouse_id.label }} {{ sf.warehouse_id(class_="select2 form-control") }}</div>
-    <div class="col-md-2">{{ sf.quantity.label }} {{ sf.quantity(class="form-control item-qty", min="1") }}</div>
-    <div class="col-md-2">{{ sf.unit_cost.label }} {{ sf.unit_cost(class="form-control item-cost", step="0.01") }}</div>
-    <div class="col-md-1 text-end"><button type="button" class="btn btn-sm btn-outline-danger btn-remove-item">حذف</button></div>
-    <div class="col-12 mt-1">{{ sf.declared_value.label }} {{ sf.declared_value(class="form-control item-declared", step="0.01") }}</div>
-    {% if sf.notes is defined %}<div class="col-12 mt-1">{{ sf.notes.label }} {{ sf.notes(class="form-control") }}</div>{% endif %}
+    <div class="col-md-4">
+      {{ sf.product_id.label }}
+      {{ sf.product_id(class_="select2 form-control select2-ajax", **{'data-url': url_for('api.products'), 'data-placeholder': 'اختر الصنف'}) }}
+    </div>
+    <div class="col-md-3">
+      {{ sf.warehouse_id.label }}
+      {{ sf.warehouse_id(class_="select2 form-control select2-ajax", **{'data-url': url_for('api.search_warehouses'), 'data-placeholder': 'اختر المخزن'}) }}
+    </div>
+    <div class="col-md-2">
+      {{ sf.quantity.label }}
+      {{ sf.quantity(class="form-control item-qty", min="1", required=True) }}
+    </div>
+    <div class="col-md-2">
+      {{ sf.unit_cost.label }}
+      {{ sf.unit_cost(class="form-control item-cost", step="0.01", required=True) }}
+    </div>
+    <div class="col-md-1 text-end">
+      <button type="button" class="btn btn-sm btn-outline-danger btn-remove-item">حذف</button>
+    </div>
+    <div class="col-12 mt-1">
+      {{ sf.declared_value.label }}
+      {{ sf.declared_value(class="form-control item-declared", step="0.01") }}
+    </div>
+    {% if sf.notes is defined %}
+    <div class="col-12 mt-1">
+      {{ sf.notes.label }}
+      {{ sf.notes(class="form-control") }}
+    </div>
+    {% endif %}
   </div>
 </div>
 {%- endmacro %}
@@ -25,44 +50,70 @@
 {% macro partner_row(pf, idx) -%}
 <div class="shipment-partner border rounded p-2 mb-2" data-index="{{ idx }}">
   <div class="row g-2">
-    <div class="col-md-4">{{ pf.partner_id.label }} {{ pf.partner_id(class_="select2 form-control") }}</div>
-    <div class="col-md-2">{{ pf.share_percentage.label }} {{ pf.share_percentage(class="form-control", step="0.01") }}</div>
-    <div class="col-md-2">{{ pf.share_amount.label }} {{ pf.share_amount(class="form-control", step="0.01") }}</div>
+    <div class="col-md-4">
+      {{ pf.partner_id.label }}
+      {{ pf.partner_id(class_="select2 form-control select2-ajax", **{'data-url': url_for('api.search_partners'), 'data-placeholder': 'اختر الشريك'}) }}
+    </div>
+    <div class="col-md-2">
+      {{ pf.share_percentage.label }}
+      {{ pf.share_percentage(class="form-control", step="0.01") }}
+    </div>
+    <div class="col-md-2">
+      {{ pf.share_amount.label }}
+      {{ pf.share_amount(class="form-control", step="0.01") }}
+    </div>
     <div class="col-md-4 text-end">
       <a href="{{ url_for('vendors_bp.partners_create') }}" target="_blank" class="btn btn-sm btn-outline-secondary">+ شريك جديد</a>
       <button type="button" class="btn btn-sm btn-outline-danger btn-remove-partner">حذف</button>
     </div>
-    {% if pf.identity_number is defined %}<div class="col-md-4 mt-2">{{ pf.identity_number.label }} {{ pf.identity_number(class="form-control") }}</div>{% endif %}
-    {% if pf.phone_number is defined %}<div class="col-md-4 mt-2">{{ pf.phone_number.label }} {{ pf.phone_number(class="form-control") }}</div>{% endif %}
-    {% if pf.address is defined %}<div class="col-md-4 mt-2">{{ pf.address.label }} {{ pf.address(class="form-control") }}</div>{% endif %}
-    {% if pf.unit_price_before_tax is defined %}<div class="col-md-4 mt-2">{{ pf.unit_price_before_tax.label }} {{ pf.unit_price_before_tax(class="form-control", step="0.01") }}</div>{% endif %}
-    {% if pf.expiry_date is defined %}<div class="col-md-4 mt-2">{{ pf.expiry_date.label }} {{ pf.expiry_date(class="form-control") }}</div>{% endif %}
-    {% if pf.notes is defined %}<div class="col-md-4 mt-2">{{ pf.notes.label }} {{ pf.notes(class="form-control") }}</div>{% endif %}
+    {% if pf.identity_number is defined %}
+    <div class="col-md-4 mt-2">{{ pf.identity_number.label }} {{ pf.identity_number(class="form-control") }}</div>
+    {% endif %}
+    {% if pf.phone_number is defined %}
+    <div class="col-md-4 mt-2">{{ pf.phone_number.label }} {{ pf.phone_number(class="form-control") }}</div>
+    {% endif %}
+    {% if pf.address is defined %}
+    <div class="col-md-4 mt-2">{{ pf.address.label }} {{ pf.address(class="form-control") }}</div>
+    {% endif %}
+    {% if pf.unit_price_before_tax is defined %}
+    <div class="col-md-4 mt-2">{{ pf.unit_price_before_tax.label }} {{ pf.unit_price_before_tax(class="form-control", step="0.01") }}</div>
+    {% endif %}
+    {% if pf.expiry_date is defined %}
+    <div class="col-md-4 mt-2">{{ pf.expiry_date.label }} {{ pf.expiry_date(class="form-control dt", dir="ltr") }}</div>
+    {% endif %}
+    {% if pf.notes is defined %}
+    <div class="col-md-4 mt-2">{{ pf.notes.label }} {{ pf.notes(class="form-control") }}</div>
+    {% endif %}
   </div>
 </div>
 {%- endmacro %}
 
 {% block content %}
-<form method="POST" id="shipment-form" novalidate>
+<form method="POST" id="shipment-form" novalidate autocomplete="off">
   {{ form.hidden_tag() }}
 
   <div class="card mb-3">
     <div class="card-header d-flex justify-content-between align-items-center">
       <span>بيانات الشحنة</span>
-      <div class="small text-muted">رقم الشحنة سيُولد تلقائياً لو تركته فارغاً</div>
+      <div class="small text-muted">رقم الشحنة يتولد تلقائياً عند تركه فارغاً</div>
     </div>
     <div class="card-body">
       <div class="row g-2">
         <div class="col-md-3">{{ form.shipment_number.label }} {{ form.shipment_number(class="form-control") }}</div>
-        <div class="col-md-3">{{ form.shipment_date.label }} {{ form.shipment_date(class="form-control") }}</div>
-        <div class="col-md-3">{{ form.expected_arrival.label }} {{ form.expected_arrival(class="form-control") }}</div>
-        <div class="col-md-3">{{ form.actual_arrival.label }} {{ form.actual_arrival(class="form-control") }}</div>
+        <div class="col-md-3">{{ form.shipment_date.label }} {{ form.shipment_date(class="form-control dtp", dir="ltr") }}</div>
+        <div class="col-md-3">{{ form.expected_arrival.label }} {{ form.expected_arrival(class="form-control dtp", dir="ltr") }}</div>
+        <div class="col-md-3">{{ form.actual_arrival.label }} {{ form.actual_arrival(class="form-control dtp", dir="ltr") }}</div>
         <div class="col-md-4">{{ form.origin.label }} {{ form.origin(class="form-control") }}</div>
-        <div class="col-md-4">{{ form.destination_id.label }} {{ form.destination_id(class_="select2 form-control") }}</div>
+        <div class="col-md-4">
+          {{ form.destination_id.label }}
+          {{ form.destination_id(class_="select2 form-control select2-ajax", **{'data-url': url_for('api.search_warehouses'), 'data-placeholder': 'اختر الوجهة'}) }}
+        </div>
         <div class="col-md-2">{{ form.carrier.label }} {{ form.carrier(class="form-control") }}</div>
         <div class="col-md-2">{{ form.tracking_number.label }} {{ form.tracking_number(class="form-control") }}</div>
         <div class="col-md-3">{{ form.status.label }} {{ form.status(class="form-select") }}</div>
-        {% if form.currency is defined %}<div class="col-md-3">{{ form.currency.label }} {{ form.currency(class="form-select") }}</div>{% endif %}
+        {% if form.currency is defined %}
+        <div class="col-md-3">{{ form.currency.label }} {{ form.currency(class="form-select") }}</div>
+        {% endif %}
       </div>
     </div>
   </div>
@@ -71,7 +122,7 @@
     <div class="card-header d-flex justify-content-between align-items-center">
       <span>بنود الشحنة</span>
       <div class="d-flex gap-2">
-        <input type="text" id="barcode-input" class="form-control form-control-sm" placeholder="سكان باركود/بحث سريع">
+        <input type="text" id="barcode-input" class="form-control form-control-sm" placeholder="سكان باركود أو بحث سريع">
         <button type="button" class="btn btn-sm btn-secondary" id="add-item">+ إضافة بند</button>
       </div>
     </div>
@@ -113,12 +164,12 @@
     <div class="card-header">تكاليف الشحنة</div>
     <div class="card-body">
       <div class="row g-2">
-        <div class="col-md-3">{{ form.value_before.label }} {{ form.value_before(class="form-control", step="0.01") }}</div>
+        <div class="col-md-3">{{ form.value_before.label }} {{ form.value_before(class="form-control", step="0.01", readonly=True) }}</div>
         <div class="col-md-3">{{ form.shipping_cost.label }} {{ form.shipping_cost(class="form-control", step="0.01") }}</div>
         <div class="col-md-3">{{ form.customs.label }} {{ form.customs(class="form-control", step="0.01") }}</div>
         <div class="col-md-3">{{ form.vat.label }} {{ form.vat(class="form-control", step="0.01") }}</div>
         <div class="col-md-3">{{ form.insurance.label }} {{ form.insurance(class="form-control", step="0.01") }}</div>
-        <div class="col-md-3">{{ form.total_value.label }} {{ form.total_value(class="form-control", step="0.01") }}</div>
+        <div class="col-md-3">{{ form.total_value.label }} {{ form.total_value(class="form-control", step="0.01", readonly=True) }}</div>
         <div class="col-md-6">{{ form.notes.label }} {{ form.notes(class="form-control") }}</div>
       </div>
     </div>
@@ -132,12 +183,29 @@
   <template id="item-row-template">
     <div class="shipment-item border rounded p-2 mb-2" data-index="__INDEX__">
       <div class="row g-2 align-items-end">
-        <div class="col-md-4"><label>الصنف</label><select name="items-__INDEX__-product_id" class="select2 form-control"></select></div>
-        <div class="col-md-3"><label>المخزن</label><select name="items-__INDEX__-warehouse_id" class="select2 form-control"></select></div>
-        <div class="col-md-2"><label>الكمية</label><input name="items-__INDEX__-quantity" type="number" min="1" class="form-control item-qty"></div>
-        <div class="col-md-2"><label>تكلفة الوحدة</label><input name="items-__INDEX__-unit_cost" type="number" step="0.01" class="form-control item-cost"></div>
-        <div class="col-md-1 text-end"><button type="button" class="btn btn-sm btn-outline-danger btn-remove-item">حذف</button></div>
-        <div class="col-12 mt-1"><label>القيمة المصرّح بها</label><input name="items-__INDEX__-declared_value" type="number" step="0.01" class="form-control item-declared"></div>
+        <div class="col-md-4">
+          <label for="items-__INDEX__-product_id">الصنف</label>
+          <select id="items-__INDEX__-product_id" name="items-__INDEX__-product_id" class="select2 form-control select2-ajax" data-url="{{ url_for('api.products') }}" data-placeholder="اختر الصنف"></select>
+        </div>
+        <div class="col-md-3">
+          <label for="items-__INDEX__-warehouse_id">المخزن</label>
+          <select id="items-__INDEX__-warehouse_id" name="items-__INDEX__-warehouse_id" class="select2 form-control select2-ajax" data-url="{{ url_for('api.search_warehouses') }}" data-placeholder="اختر المخزن"></select>
+        </div>
+        <div class="col-md-2">
+          <label for="items-__INDEX__-quantity">الكمية</label>
+          <input id="items-__INDEX__-quantity" name="items-__INDEX__-quantity" type="number" min="1" class="form-control item-qty" required>
+        </div>
+        <div class="col-md-2">
+          <label for="items-__INDEX__-unit_cost">تكلفة الوحدة</label>
+          <input id="items-__INDEX__-unit_cost" name="items-__INDEX__-unit_cost" type="number" step="0.01" class="form-control item-cost" required>
+        </div>
+        <div class="col-md-1 text-end">
+          <button type="button" class="btn btn-sm btn-outline-danger btn-remove-item">حذف</button>
+        </div>
+        <div class="col-12 mt-1">
+          <label for="items-__INDEX__-declared_value">القيمة المصرّح بها</label>
+          <input id="items-__INDEX__-declared_value" name="items-__INDEX__-declared_value" type="number" step="0.01" class="form-control item-declared">
+        </div>
       </div>
     </div>
   </template>
@@ -151,19 +219,28 @@
   <template id="partner-row-template">
     <div class="shipment-partner border rounded p-2 mb-2" data-index="__INDEX__">
       <div class="row g-2">
-        <div class="col-md-4"><label>الشريك</label><select name="partners-__INDEX__-partner_id" class="select2 form-control"></select></div>
-        <div class="col-md-2"><label>نسبة الشراكة %</label><input name="partners-__INDEX__-share_percentage" type="number" step="0.01" class="form-control"></div>
-        <div class="col-md-2"><label>المبلغ</label><input name="partners-__INDEX__-share_amount" type="number" step="0.01" class="form-control"></div>
+        <div class="col-md-4">
+          <label for="partners-__INDEX__-partner_id">الشريك</label>
+          <select id="partners-__INDEX__-partner_id" name="partners-__INDEX__-partner_id" class="select2 form-control select2-ajax" data-url="{{ url_for('api.search_partners') }}" data-placeholder="اختر الشريك"></select>
+        </div>
+        <div class="col-md-2">
+          <label for="partners-__INDEX__-share_percentage">نسبة الشراكة %</label>
+          <input id="partners-__INDEX__-share_percentage" name="partners-__INDEX__-share_percentage" type="number" step="0.01" class="form-control">
+        </div>
+        <div class="col-md-2">
+          <label for="partners-__INDEX__-share_amount">المبلغ</label>
+          <input id="partners-__INDEX__-share_amount" name="partners-__INDEX__-share_amount" type="number" step="0.01" class="form-control">
+        </div>
         <div class="col-md-4 text-end">
           <a href="{{ url_for('vendors_bp.partners_create') }}" target="_blank" class="btn btn-sm btn-outline-secondary">+ شريك جديد</a>
           <button type="button" class="btn btn-sm btn-outline-danger btn-remove-partner">حذف</button>
         </div>
-        <div class="col-md-4 mt-2"><label>الرقم التعريفي</label><input name="partners-__INDEX__-identity_number" class="form-control"></div>
-        <div class="col-md-4 mt-2"><label>الهاتف</label><input name="partners-__INDEX__-phone_number" class="form-control"></div>
-        <div class="col-md-4 mt-2"><label>العنوان</label><input name="partners-__INDEX__-address" class="form-control"></div>
-        <div class="col-md-4 mt-2"><label>سعر الوحدة قبل الضريبة</label><input name="partners-__INDEX__-unit_price_before_tax" type="number" step="0.01" class="form-control"></div>
-        <div class="col-md-4 mt-2"><label>انتهاء الصلاحية</label><input name="partners-__INDEX__-expiry_date" type="date" class="form-control"></div>
-        <div class="col-md-4 mt-2"><label>ملاحظات</label><input name="partners-__INDEX__-notes" class="form-control"></div>
+        <div class="col-md-4 mt-2"><label for="partners-__INDEX__-identity_number">الرقم التعريفي</label><input id="partners-__INDEX__-identity_number" name="partners-__INDEX__-identity_number" class="form-control"></div>
+        <div class="col-md-4 mt-2"><label for="partners-__INDEX__-phone_number">الهاتف</label><input id="partners-__INDEX__-phone_number" name="partners-__INDEX__-phone_number" class="form-control"></div>
+        <div class="col-md-4 mt-2"><label for="partners-__INDEX__-address">العنوان</label><input id="partners-__INDEX__-address" name="partners-__INDEX__-address" class="form-control"></div>
+        <div class="col-md-4 mt-2"><label for="partners-__INDEX__-unit_price_before_tax">سعر الوحدة قبل الضريبة</label><input id="partners-__INDEX__-unit_price_before_tax" name="partners-__INDEX__-unit_price_before_tax" type="number" step="0.01" class="form-control"></div>
+        <div class="col-md-4 mt-2"><label for="partners-__INDEX__-expiry_date">انتهاء الصلاحية</label><input id="partners-__INDEX__-expiry_date" name="partners-__INDEX__-expiry_date" type="date" class="form-control dt"></div>
+        <div class="col-md-4 mt-2"><label for="partners-__INDEX__-notes">ملاحظات</label><input id="partners-__INDEX__-notes" name="partners-__INDEX__-notes" class="form-control"></div>
       </div>
     </div>
   </template>
@@ -178,6 +255,8 @@
 
 {% block scripts %}
   {{ super() }}
+  <script src="{{ url_for('static', filename='adminlte/plugins/select2/js/select2.full.min.js') }}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ar.js"></script>
   <script src="{{ url_for('static', filename='js/shipments.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
 {% endblock %}

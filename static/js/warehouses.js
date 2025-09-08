@@ -1,8 +1,8 @@
-<script>
 (function () {
   if (window.__WAREHOUSES_INIT__) return;
   window.__WAREHOUSES_INIT__ = true;
 
+  // ========= Helpers =========
   function getCSRFToken() {
     var meta = document.querySelector('meta[name="csrf-token"]');
     if (meta && meta.content) return meta.content;
@@ -71,8 +71,10 @@
     $root.find('select.select2').each(function () {
       var $el = jQuery(this);
       if ($el.data('select2')) return;
+
       var endpoint = $el.data('url') || $el.data('endpoint');
       var placeholder = $el.attr('placeholder') || 'اختر...';
+
       var opts = {
         width: '100%',
         dir: 'rtl',
@@ -81,11 +83,13 @@
         placeholder: placeholder,
         minimumInputLength: 0
       };
+
       if (endpoint) {
         opts.ajax = {
           delay: 250,
           cache: true,
           url: endpoint,
+          dataType: 'json',
           data: function (params) {
             return { q: (params && params.term) ? params.term : '', limit: 20 };
           },
@@ -99,6 +103,7 @@
           }
         };
       }
+
       $el.select2(opts);
       if (endpoint) prefetchOnce($el, endpoint);
     });
@@ -189,24 +194,31 @@
     return isFinite(n) ? n : null;
   }
 
+  // ========= Validations =========
   function validatePartnerSection() {
     var ok = true;
     var container = document.getElementById('partners-container');
     if (!container) return true;
+
     var rows = Array.prototype.slice.call(container.querySelectorAll('.partner-entry'));
     var validRows = [];
+
     rows.forEach(function (row) {
-      var pid = row.querySelector('select[name="partner_id"]');
+      var pid  = row.querySelector('select[name="partner_id"]');
       var perc = row.querySelector('input[name="share_percentage"]');
-      var amt = row.querySelector('input[name="share_amount"]');
-      var pidVal = pid && pid.value ? String(pid.value).trim() : '';
+      var amt  = row.querySelector('input[name="share_amount"]');
+
+      var pidVal  = pid && pid.value ? String(pid.value).trim() : '';
       var percVal = toNumber(perc && perc.value);
-      var amtVal = toNumber(amt && amt.value);
+      var amtVal  = toNumber(amt && amt.value);
+
       row.classList.remove('is-invalid');
+
       if (pidVal && ((percVal && percVal > 0) || (amtVal && amtVal > 0))) {
         validRows.push({ perc: percVal || 0, amt: amtVal || 0, row: row });
       }
     });
+
     if (!validRows.length) {
       ok = false;
       showNotification('أضف شريكًا واحدًا على الأقل مع نسبة أو قيمة مساهمة.', 'warning');
@@ -250,6 +262,7 @@
     if (exchangeSection) exchangeSection.classList.toggle('d-none', wtype !== 'EXCHANGE');
   }
 
+  // ========= Init =========
   function initPage() {
     markRequired(document);
     initSelect2(document);
@@ -271,6 +284,7 @@
       }
     }
 
+    // Partners section (dynamic rows)
     var partnersContainer = document.getElementById('partners-container');
     var addPartnerBtn = document.getElementById('add-partner-btn');
     var partnerTpl = document.getElementById('partner-template');
@@ -287,6 +301,7 @@
       });
     }
 
+    // Vendors section (dynamic rows)
     var vendorsContainer = document.getElementById('vendors-container');
     var addVendorBtn = document.getElementById('add-vendor-btn');
     var vendorTpl = document.getElementById('vendor-template');
@@ -303,13 +318,16 @@
       });
     }
 
+    // Remember last focused supplier select (for + modal)
     var lastSupplierSelect = null;
     document.addEventListener('focusin', function (e) {
       if (e.target && e.target.matches('#vendors-container select[name="supplier_id"]')) {
         lastSupplierSelect = e.target;
       }
     });
+    window.lastSupplierSelect = lastSupplierSelect;
 
+    // --- Category modal ---
     (function initCategoryModal() {
       var mform = document.getElementById('create-category-form');
       var select = document.getElementById('category_id');
@@ -341,6 +359,7 @@
       });
     })();
 
+    // --- Equipment type modal ---
     (function initEquipmentTypeModal() {
       var mform = document.getElementById('equipmentTypeForm');
       var select = document.getElementById('vehicle_type_id');
@@ -368,6 +387,7 @@
       });
     })();
 
+    // --- Supplier modal ---
     (function initSupplierModal() {
       var mform = document.getElementById('create-supplier-form');
       if (!mform) return;
@@ -401,6 +421,7 @@
       });
     })();
 
+    // --- Form submit validations ---
     if (form) {
       form.addEventListener('submit', function (e) {
         if (window.jQuery) {
@@ -434,6 +455,7 @@
       });
     }
 
+    // --- Barcode live validation ---
     (function initBarcode() {
       var input = document.getElementById('barcode');
       var help  = document.getElementById('barcodeHelp');
@@ -463,6 +485,7 @@
       });
 
       function check(code) {
+        if (!validateURL) return;
         fetch(validateURL + (validateURL.indexOf('?') >= 0 ? '&' : '?') + 'code=' + encodeURIComponent(code), {
           headers: { 'X-Requested-With': 'XMLHttpRequest' },
           credentials: 'same-origin'
@@ -498,6 +521,6 @@
     initPage();
   }
 
+  // expose
   window.showNotification = showNotification;
 })();
-</script>

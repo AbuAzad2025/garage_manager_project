@@ -1,8 +1,8 @@
 """base schema
 
-Revision ID: 30859fafda4e
+Revision ID: ab1b4c82226e
 Revises: 
-Create Date: 2025-09-05 23:27:04.218157
+Create Date: 2025-09-07 20:38:16.305221
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '30859fafda4e'
+revision = 'ab1b4c82226e'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -122,6 +122,7 @@ def upgrade():
     sa.Column('currency', sa.String(length=10), nullable=False),
     sa.Column('entity_type', sa.String(length=30), nullable=True),
     sa.Column('entity_id', sa.Integer(), nullable=True),
+    sa.Column('status', sa.Enum('DRAFT', 'POSTED', 'VOID', name='gl_batch_status', native_enum=False), nullable=False),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.PrimaryKeyConstraint('id'),
@@ -136,6 +137,7 @@ def upgrade():
         batch_op.create_index(batch_op.f('ix_gl_batches_purpose'), ['purpose'], unique=False)
         batch_op.create_index(batch_op.f('ix_gl_batches_source_id'), ['source_id'], unique=False)
         batch_op.create_index(batch_op.f('ix_gl_batches_source_type'), ['source_type'], unique=False)
+        batch_op.create_index(batch_op.f('ix_gl_batches_status'), ['status'], unique=False)
         batch_op.create_index(batch_op.f('ix_gl_batches_updated_at'), ['updated_at'], unique=False)
         batch_op.create_index('ix_gl_entity', ['entity_type', 'entity_id'], unique=False)
 
@@ -233,21 +235,24 @@ def upgrade():
     op.create_table('gl_entries',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('batch_id', sa.Integer(), nullable=False),
-    sa.Column('account', sa.String(length=40), nullable=True),
-    sa.Column('debit', sa.Numeric(precision=12, scale=2), nullable=True),
-    sa.Column('credit', sa.Numeric(precision=12, scale=2), nullable=True),
+    sa.Column('account', sa.String(length=20), nullable=False),
+    sa.Column('debit', sa.Numeric(precision=12, scale=2), nullable=False),
+    sa.Column('credit', sa.Numeric(precision=12, scale=2), nullable=False),
     sa.Column('currency', sa.String(length=10), nullable=False),
     sa.Column('ref', sa.String(length=100), nullable=True),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint('(debit = 0 OR credit = 0)', name='ck_gl_entry_one_side'),
     sa.CheckConstraint('(debit > 0 OR credit > 0)', name='ck_gl_entry_nonzero'),
     sa.CheckConstraint('credit >= 0', name='ck_gl_credit_ge_0'),
     sa.CheckConstraint('debit >= 0', name='ck_gl_debit_ge_0'),
+    sa.ForeignKeyConstraint(['account'], ['accounts.code'], ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['batch_id'], ['gl_batches.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     with op.batch_alter_table('gl_entries', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_gl_entries_account'), ['account'], unique=False)
+        batch_op.create_index('ix_gl_entries_account_currency', ['account', 'currency'], unique=False)
         batch_op.create_index(batch_op.f('ix_gl_entries_batch_id'), ['batch_id'], unique=False)
         batch_op.create_index(batch_op.f('ix_gl_entries_created_at'), ['created_at'], unique=False)
         batch_op.create_index(batch_op.f('ix_gl_entries_updated_at'), ['updated_at'], unique=False)
@@ -385,6 +390,7 @@ def upgrade():
     sa.Column('to_date', sa.DateTime(), nullable=False),
     sa.Column('currency', sa.String(length=10), nullable=False),
     sa.Column('status', sa.Enum('DRAFT', 'CONFIRMED', 'CANCELLED', name='supplier_settlement_status', native_enum=False), nullable=False),
+    sa.Column('mode', sa.Enum('ON_RECEIPT', 'ON_CONSUME', name='supplier_settlement_mode', native_enum=False), nullable=False),
     sa.Column('notes', sa.Text(), nullable=True),
     sa.Column('total_gross', sa.Numeric(precision=12, scale=2), nullable=True),
     sa.Column('total_due', sa.Numeric(precision=12, scale=2), nullable=True),
@@ -396,6 +402,7 @@ def upgrade():
     with op.batch_alter_table('supplier_settlements', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_supplier_settlements_code'), ['code'], unique=True)
         batch_op.create_index(batch_op.f('ix_supplier_settlements_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_supplier_settlements_mode'), ['mode'], unique=False)
         batch_op.create_index(batch_op.f('ix_supplier_settlements_supplier_id'), ['supplier_id'], unique=False)
         batch_op.create_index('ix_supplier_settlements_supplier_period', ['supplier_id', 'from_date', 'to_date'], unique=False)
         batch_op.create_index(batch_op.f('ix_supplier_settlements_updated_at'), ['updated_at'], unique=False)
@@ -859,6 +866,8 @@ def upgrade():
     sa.Column('quantity', sa.Numeric(precision=12, scale=3), nullable=True),
     sa.Column('unit_price', sa.Numeric(precision=12, scale=2), nullable=True),
     sa.Column('gross_amount', sa.Numeric(precision=12, scale=2), nullable=True),
+    sa.Column('needs_pricing', sa.Boolean(), nullable=False),
+    sa.Column('cost_source', sa.String(length=20), nullable=True),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
@@ -868,6 +877,7 @@ def upgrade():
     with op.batch_alter_table('supplier_settlement_lines', schema=None) as batch_op:
         batch_op.create_index('ix_ssl_source', ['source_type', 'source_id'], unique=False)
         batch_op.create_index(batch_op.f('ix_supplier_settlement_lines_created_at'), ['created_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_supplier_settlement_lines_needs_pricing'), ['needs_pricing'], unique=False)
         batch_op.create_index(batch_op.f('ix_supplier_settlement_lines_settlement_id'), ['settlement_id'], unique=False)
         batch_op.create_index(batch_op.f('ix_supplier_settlement_lines_source_id'), ['source_id'], unique=False)
         batch_op.create_index(batch_op.f('ix_supplier_settlement_lines_updated_at'), ['updated_at'], unique=False)
@@ -1447,6 +1457,7 @@ def downgrade():
         batch_op.drop_index(batch_op.f('ix_supplier_settlement_lines_updated_at'))
         batch_op.drop_index(batch_op.f('ix_supplier_settlement_lines_source_id'))
         batch_op.drop_index(batch_op.f('ix_supplier_settlement_lines_settlement_id'))
+        batch_op.drop_index(batch_op.f('ix_supplier_settlement_lines_needs_pricing'))
         batch_op.drop_index(batch_op.f('ix_supplier_settlement_lines_created_at'))
         batch_op.drop_index('ix_ssl_source')
 
@@ -1588,6 +1599,7 @@ def downgrade():
         batch_op.drop_index(batch_op.f('ix_supplier_settlements_updated_at'))
         batch_op.drop_index('ix_supplier_settlements_supplier_period')
         batch_op.drop_index(batch_op.f('ix_supplier_settlements_supplier_id'))
+        batch_op.drop_index(batch_op.f('ix_supplier_settlements_mode'))
         batch_op.drop_index(batch_op.f('ix_supplier_settlements_created_at'))
         batch_op.drop_index(batch_op.f('ix_supplier_settlements_code'))
 
@@ -1625,6 +1637,7 @@ def downgrade():
         batch_op.drop_index(batch_op.f('ix_gl_entries_updated_at'))
         batch_op.drop_index(batch_op.f('ix_gl_entries_created_at'))
         batch_op.drop_index(batch_op.f('ix_gl_entries_batch_id'))
+        batch_op.drop_index('ix_gl_entries_account_currency')
         batch_op.drop_index(batch_op.f('ix_gl_entries_account'))
 
     op.drop_table('gl_entries')
@@ -1663,6 +1676,7 @@ def downgrade():
     with op.batch_alter_table('gl_batches', schema=None) as batch_op:
         batch_op.drop_index('ix_gl_entity')
         batch_op.drop_index(batch_op.f('ix_gl_batches_updated_at'))
+        batch_op.drop_index(batch_op.f('ix_gl_batches_status'))
         batch_op.drop_index(batch_op.f('ix_gl_batches_source_type'))
         batch_op.drop_index(batch_op.f('ix_gl_batches_source_id'))
         batch_op.drop_index(batch_op.f('ix_gl_batches_purpose'))

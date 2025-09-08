@@ -1537,12 +1537,13 @@ def import_commit(id):
 
     return redirect(url_for("warehouse_bp.detail", warehouse_id=w.id))
 
-
 @warehouse_bp.route("/<int:warehouse_id>/stock", methods=["POST"], endpoint="ajax_update_stock")
 @login_required
 @permission_required("manage_inventory")
 def ajax_update_stock(warehouse_id):
-    def _to_int(v, default=0):
+    data = request.get_json(silent=True) or request.form
+
+    def _to_int(v, default=None):
         try:
             if v in (None, "", "None"):
                 return default
@@ -1550,36 +1551,76 @@ def ajax_update_stock(warehouse_id):
         except Exception:
             return default
 
-    form = StockLevelForm()
-    if form.validate_on_submit():
-        pid = getattr(getattr(form.product_id.data, "id", None), "__int__", lambda: None)() if hasattr(form.product_id.data, "id") else None
-        if pid is None:
-            pid = _to_int(request.form.get("product_id"), None)
-        if pid is None:
-            return jsonify({"success": False, "errors": {"product_id": ["قيمة غير صالحة"]}}), 400
-        quantity = _to_int(form.quantity.data, 0)
-        min_stock = _to_int(form.min_stock.data, 0)
-        max_stock = _to_int(form.max_stock.data, 0)
-    else:
-        pid = _to_int(request.form.get("product_id"), None)
-        quantity = _to_int(request.form.get("quantity"), 0)
-        min_stock = _to_int(request.form.get("min_stock"), 0)
-        max_stock = _to_int(request.form.get("max_stock"), 0)
-        if pid is None:
-            return jsonify({"success": False, "errors": {"product_id": ["قيمة غير صالحة"]}}), 400
-    sl = StockLevel.query.filter_by(warehouse_id=warehouse_id, product_id=pid).first() or StockLevel(warehouse_id=warehouse_id, product_id=pid, quantity=0, reserved_quantity=0)
-    sl.quantity = max(quantity, 0)
-    sl.min_stock = max(min_stock, 0)
-    sl.max_stock = max(max_stock, 0)
-    db.session.add(sl)
+    # ---- Resolve product by id or reference (sku/part_number/barcode)
+    def _resolve_product_id():
+        pid = _to_int(data.get("product_id"))
+        if pid:
+            return pid
+        ref = (data.get("product_ref") or data.get("barcode") or "").strip()
+        if not ref:
+            return None
+        q = (
+            db.session.query(Product.id)
+            .filter(
+                or_(
+                    func.lower(Product.sku) == ref.lower(),
+                    func.lower(Product.part_number) == ref.lower(),
+                    Product.barcode == ref,
+                )
+            )
+            .first()
+        )
+        return q[0] if q else None
+
+    pid = _resolve_product_id()
+    if pid is None:
+        return jsonify({"success": False, "code": "INVALID_PRODUCT", "errors": {"product_id": "required_or_unresolvable"}}), 400
+
+    quantity  = _to_int(data.get("quantity"), 0)
+    min_stock = _to_int(data.get("min_stock"))
+    max_stock = _to_int(data.get("max_stock"))
+
+    # lock row to avoid races
+    sl = (
+        StockLevel.query.filter_by(warehouse_id=warehouse_id, product_id=pid)
+        .with_for_update(nowait=False)
+        .first()
+    )
+    if not sl:
+        sl = StockLevel(warehouse_id=warehouse_id, product_id=pid, quantity=0, reserved_quantity=0)
+        db.session.add(sl)
+
+    # direct set (doesn't change ownership)
+    sl.quantity = max(0, quantity if quantity is not None else int(sl.quantity or 0))
+    if min_stock is not None:
+        sl.min_stock = max(0, min_stock)
+    if max_stock is not None:
+        sl.max_stock = max(0, max_stock)
+
     try:
         db.session.commit()
     except SQLAlchemyError as e:
         db.session.rollback()
-        return jsonify({"success": False, "error": str(e)}), 400
-    alert = "below_min" if (sl.quantity or 0) <= (sl.min_stock or 0) else None
-    return jsonify({"success": True, "quantity": int(sl.quantity or 0), "partner_share": getattr(sl, "partner_share_quantity", None), "company_share": getattr(sl, "company_share_quantity", None), "alert": alert}), 200
+        return jsonify({"success": False, "code": "DB_ERROR", "error": str(e)}), 500
 
+    alert = "BELOW_MIN" if int(sl.quantity or 0) <= int(sl.min_stock or 0) else "OK"
+    p = db.session.get(Product, pid)
+
+    return jsonify({
+        "success": True,
+        "code": "UPDATED",
+        "data": {
+            "warehouse_id": warehouse_id,
+            "product": {"id": p.id, "name": p.name, "sku": p.sku, "part_number": p.part_number, "barcode": p.barcode},
+            "on_hand": int(sl.quantity or 0),
+            "reserved": int(getattr(sl, "reserved_quantity", 0) or 0),
+            "min_stock": int(sl.min_stock or 0),
+            "max_stock": int(sl.max_stock or 0),
+            "alert": alert,
+            "partner_share": getattr(sl, "partner_share_quantity", None),
+            "company_share": getattr(sl, "company_share_quantity", None),
+        }
+    }), 200
 
 @warehouse_bp.route("/<int:warehouse_id>/transfer", methods=["POST"], endpoint="ajax_transfer")
 @login_required
@@ -1607,30 +1648,34 @@ def ajax_transfer(warehouse_id):
     except Exception:
         tdate = datetime.utcnow()
     notes = (data.get("notes") or "").strip() or None
+
     if not (pid and sid and did and qty > 0) or sid == did:
         return jsonify({"success": False, "errors": {"form": "invalid"}}), 400
     if sid != warehouse_id:
         return jsonify({"success": False, "errors": {"warehouse": "mismatch"}}), 400
+
     src = StockLevel.query.filter_by(warehouse_id=sid, product_id=pid).first()
     available = int((src.quantity or 0) - (src.reserved_quantity or 0)) if src else 0
     if available < qty:
         return jsonify({"success": False, "error": "insufficient_stock", "available": max(available, 0)}), 400
-    src.quantity = (src.quantity or 0) - qty
-    dst = StockLevel.query.filter_by(warehouse_id=did, product_id=pid).first()
-    if not dst:
-        dst = StockLevel(warehouse_id=did, product_id=pid, quantity=0, reserved_quantity=0)
-        db.session.add(dst)
-    dst.quantity = (dst.quantity or 0) + qty
-    t = Transfer(transfer_date=tdate, product_id=pid, source_id=sid, destination_id=did, quantity=qty, direction="OUT", notes=notes, user_id=getattr(current_user, "id", None))
-    setattr(t, "_skip_stock_apply", True)
+
+    t = Transfer(
+        transfer_date=tdate,
+        product_id=pid,
+        source_id=sid,
+        destination_id=did,
+        quantity=qty,
+        direction="OUT",
+        notes=notes,
+        user_id=getattr(current_user, "id", None),
+    )
     db.session.add(t)
     try:
         db.session.commit()
         return jsonify({"success": True, "transfer_id": t.id, "direction": "OUT"}), 200
-    except SQLAlchemyError:
+    except Exception as e:
         db.session.rollback()
-        return jsonify({"success": False, "error": "db_error"}), 500
-
+        return jsonify({"success": False, "error": str(e)}), 400
 
 @warehouse_bp.route("/<int:warehouse_id>/exchange", methods=["POST"], endpoint="ajax_exchange")
 @login_required
@@ -1665,27 +1710,28 @@ def ajax_exchange(warehouse_id):
     notes = data.get("notes") or None
     if not (pid and qty > 0 and direction in ("IN", "OUT", "ADJUSTMENT")):
         return jsonify({"success": False, "errors": {"form": "invalid"}}), 400
-    ex = ExchangeTransaction(product_id=pid, warehouse_id=warehouse_id, partner_id=partner_id, quantity=qty, direction=direction, unit_cost=unit_cost, is_priced=bool(unit_cost is not None), notes=notes)
+
+    ex = ExchangeTransaction(
+        product_id=pid,
+        warehouse_id=warehouse_id,
+        partner_id=partner_id,
+        quantity=qty,
+        direction=direction,
+        unit_cost=unit_cost,
+        is_priced=bool(unit_cost is not None),
+        notes=notes
+    )
     db.session.add(ex)
     try:
         sl = StockLevel.query.filter_by(warehouse_id=warehouse_id, product_id=pid).first()
         if not sl:
             sl = StockLevel(warehouse_id=warehouse_id, product_id=pid, quantity=0, reserved_quantity=0)
             db.session.add(sl)
-        if direction == "IN":
-            sl.quantity = (sl.quantity or 0) + qty
-        elif direction == "OUT":
-            if (sl.quantity or 0) < qty:
-                raise ValueError("insufficient")
-            sl.quantity -= qty
-        else:
-            sl.quantity = max((sl.quantity or 0) + qty, 0)
         db.session.commit()
-        return jsonify({"success": True, "new_quantity": int(sl.quantity or 0)}), 200
+        return jsonify({"success": True, "new_quantity": int((StockLevel.query.filter_by(warehouse_id=warehouse_id, product_id=pid).first() or sl).quantity or 0)}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 400
-
 
 @warehouse_bp.route("/<int:warehouse_id>/partner-shares", methods=["GET", "POST"], endpoint="partner_shares")
 @login_required
@@ -1755,7 +1801,6 @@ def transfers(id):
     transfers = Transfer.query.filter(or_(Transfer.source_id == id, Transfer.destination_id == id)).order_by(Transfer.transfer_date.desc()).all()
     return render_template("warehouses/transfers_list.html", warehouse=warehouse, transfers=transfers)
 
-
 @warehouse_bp.route("/<int:id>/transfers/create", methods=["GET", "POST"], endpoint="create_transfer")
 @login_required
 @permission_required("manage_inventory")
@@ -1768,15 +1813,6 @@ def create_transfer(id=None, warehouse_id=None):
         t.user_id = current_user.id
         db.session.add(t)
         try:
-            src = StockLevel.query.filter_by(warehouse_id=t.source_id, product_id=t.product_id).first()
-            if not src or (src.quantity or 0) < t.quantity:
-                raise ValueError("الكمية غير متوفرة في المصدر")
-            src.quantity -= t.quantity
-            dst = StockLevel.query.filter_by(warehouse_id=t.destination_id, product_id=t.product_id).first()
-            if not dst:
-                dst = StockLevel(warehouse_id=t.destination_id, product_id=t.product_id, quantity=0, reserved_quantity=0)
-            db.session.add(dst)
-            dst.quantity += t.quantity
             db.session.commit()
             flash("تم إضافة التحويل بنجاح", "success")
             return redirect(url_for("warehouse_bp.transfers", id=wid))
@@ -1784,7 +1820,6 @@ def create_transfer(id=None, warehouse_id=None):
             db.session.rollback()
             flash(f"خطأ أثناء إضافة التحويل: {e}", "danger")
     return render_template("warehouses/transfers_form.html", warehouse=warehouse, form=form)
-
 
 @warehouse_bp.route("/parts/<int:product_id>", methods=["GET"], endpoint="product_card")
 @login_required

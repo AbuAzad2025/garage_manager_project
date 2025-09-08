@@ -5,10 +5,11 @@
 {% block page_title %}{{ edit_mode and 'تعديل حجز مسبق' or 'إنشاء حجز مسبق' }}{% endblock %}
 
 {% block head_extra %}
-  {{ super() }}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/sales.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2/css/select2.min.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sales.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2/css/select2.min.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 {% endblock %}
 
 {% block breadcrumb %}
@@ -18,116 +19,156 @@
 
 {% block content %}
 <div class="container my-4">
-  <h2 class="mb-3">{{ edit_mode and 'تعديل' or 'إضافة' }} حجز مسبق</h2>
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h4 class="mb-4">{{ edit_mode and 'تعديل' or 'إضافة' }} حجز مسبق</h4>
 
-  <form method="POST" id="preorderForm" autocomplete="off" action="{{ url_for('warehouse_bp.preorder_create') }}">
-    {{ form.hidden_tag() }}
+      <form method="POST" id="preorderForm" action="{{ url_for('warehouse_bp.preorder_create') }}" autocomplete="off" novalidate>
+        {{ form.hidden_tag() }}
 
-    <div class="row mb-3">
-      <div class="col-md-4">
-        {{ form.reference.label(class="form-label") }}
-        {{ form.reference(class="form-control", placeholder="اختياري") }}
-        {% for e in form.reference.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-      </div>
-      <div class="col-md-4">
-        {{ form.preorder_date.label(class="form-label") }}
-        {{ form.preorder_date(class="form-control dtp", id="preorder_date", autocomplete="off") }}
-      </div>
-      <div class="col-md-4">
-        {{ form.expected_date.label(class="form-label") }}
-        {{ form.expected_date(class="form-control dtp", id="expected_date", autocomplete="off") }}
-      </div>
-    </div>
-
-    <div class="row mb-3">
-      <div class="col-md-3">
-        {{ form.status.label(class="form-label") }}
-        {{ form.status(class="form-select") }}
-      </div>
-      <div class="col-md-9">
-        {{ form.customer_id.label(class="form-label") }}
-        <div class="input-group">
-          {{ form.customer_id(class="form-select select2", id="customerSelect", data_endpoint=url_for('api.search_customers')) }}
-          <a href="{{ url_for('customers_bp.create_form', return_to=url_for('warehouse_bp.preorder_create')) }}" 
-             class="btn btn-outline-primary" title="إضافة عميل جديد" target="_blank">
-            <i class="fa fa-user-plus"></i>
-          </a>
+        <div class="row g-3">
+          <div class="col-md-4">
+            {{ form.reference.label(class="form-label") }}
+            {{ form.reference(class="form-control", placeholder="اختياري") }}
+            {% for e in form.reference.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-md-4">
+            {{ form.preorder_date.label(class="form-label") }}
+            {{ form.preorder_date(class="form-control dtp", id="preorder_date", inputmode="text", autocomplete="off") }}
+            {% for e in form.preorder_date.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-md-4">
+            {{ form.expected_date.label(class="form-label") }}
+            {{ form.expected_date(class="form-control dtp", id="expected_date", inputmode="text", autocomplete="off") }}
+            {% for e in form.expected_date.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
         </div>
-        {% for e in form.customer_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-        <div class="form-text">اختر عميلًا أو أنشئ عميلًا جديدًا من زر (+).</div>
-      </div>
-    </div>
 
-    <div class="row mb-3">
-      <div class="col-md-6">
-        {{ form.product_id.label(class="form-label") }}
-        {{ form.product_id(class="form-select select2", data_endpoint=url_for('api.products'), data_placeholder="اختر القطعة") }}
-      </div>
-      <div class="col-md-6">
-        {{ form.warehouse_id.label(class="form-label") }}
-        {{ form.warehouse_id(class="form-select select2", data_endpoint=url_for('api.api_warehouses'), data_placeholder="اختر المخزن") }}
-      </div>
-    </div>
+        <div class="row g-3 mt-1">
+          <div class="col-md-3">
+            {{ form.status.label(class="form-label") }}
+            {{ form.status(class="form-select") }}
+            {% for e in form.status.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-md-9">
+            {{ form.customer_id.label(class="form-label d-block") }}
+            <div class="input-group">
+              {{ form.customer_id(class="form-select select2", id="customerSelect", data_endpoint=url_for('api.search_customers'), data_placeholder="اختر العميل") }}
+              <a href="{{ url_for('customers_bp.create_form', return_to=url_for('warehouse_bp.preorder_create')) }}"
+                 class="btn btn-outline-primary" title="إضافة عميل جديد" target="_blank">
+                <i class="fa fa-user-plus"></i>
+              </a>
+            </div>
+            {% for e in form.customer_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            <div class="form-text">اختر عميلًا أو أنشئ عميلًا جديدًا من زر (+).</div>
+          </div>
+        </div>
 
-    <div class="row mb-3">
-      <div class="col-md-3">
-        {{ form.quantity.label(class="form-label") }}
-        {{ form.quantity(class="form-control", min="1", step="1", inputmode="numeric") }}
-      </div>
-      <div class="col-md-3">
-        {{ form.prepaid_amount.label(class="form-label") }}
-        {{ form.prepaid_amount(class="form-control", min="0", step="0.01", inputmode="decimal") }}
-      </div>
-      <div class="col-md-3">
-        {{ form.payment_method.label(class="form-label") }}
-        {{ form.payment_method(class="form-select") }}
-      </div>
-      <div class="col-md-3">
-        {{ form.tax_rate.label(class="form-label") }}
-        {{ form.tax_rate(class="form-control", min="0", max="100", step="0.01", inputmode="decimal") }}
-      </div>
-    </div>
+        <div class="row g-3 mt-1">
+          <div class="col-md-6">
+            {{ form.product_id.label(class="form-label") }}
+            {{ form.product_id(class="form-select select2", data_endpoint=url_for('api.search_products'), data_placeholder="اختر القطعة") }}
+            {% for e in form.product_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-md-6">
+            {{ form.warehouse_id.label(class="form-label") }}
+            {{ form.warehouse_id(class="form-select select2", data_endpoint=url_for('api.warehouses'), data_placeholder="اختر المخزن") }}
+            {% for e in form.warehouse_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+        </div>
 
-    <div class="mb-3">
-      {{ form.notes.label(class="form-label") }}
-      {{ form.notes(class="form-control", rows="2") }}
-    </div>
+        <div class="row g-3 mt-1">
+          <div class="col-md-3">
+            {{ form.quantity.label(class="form-label") }}
+            {{ form.quantity(class="form-control", min="1", step="1", inputmode="numeric", placeholder="1") }}
+            {% for e in form.quantity.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-md-3">
+            {{ form.prepaid_amount.label(class="form-label") }}
+            {{ form.prepaid_amount(class="form-control", min="0", step="0.01", inputmode="decimal", placeholder="0.00") }}
+            {% for e in form.prepaid_amount.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-md-3">
+            {{ form.payment_method.label(class="form-label") }}
+            {{ form.payment_method(class="form-select") }}
+            {% for e in form.payment_method.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-md-3">
+            {{ form.tax_rate.label(class="form-label") }}
+            {{ form.tax_rate(class="form-control", min="0", max="100", step="0.01", inputmode="decimal", placeholder="0") }}
+            {% for e in form.tax_rate.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+        </div>
 
-    <button type="submit" class="btn btn-primary">{{ edit_mode and 'تحديث' or 'تأكيد الحجز' }}</button>
-    <a href="{{ url_for('warehouse_bp.preorders_list') }}" class="btn btn-secondary ms-2">رجوع</a>
-  </form>
+        <div class="mt-3">
+          {{ form.notes.label(class="form-label") }}
+          {{ form.notes(class="form-control", rows="2", placeholder="ملاحظات إضافية") }}
+          {% for e in form.notes.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="mt-4">
+          <button type="submit" class="btn btn-primary">{{ edit_mode and 'تحديث' or 'تأكيد الحجز' }}</button>
+          <a href="{{ url_for('warehouse_bp.preorders_list') }}" class="btn btn-secondary ms-2">رجوع</a>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-  <script src="{{ url_for('static', filename='adminlte/plugins/select2/js/select2.full.min.js') }}"></script>
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ar.js"></script>
-  <script>
-    $(function () {
-      $('.select2').each(function(){
-        const ep = $(this).data('endpoint');
-        if (ep) {
-          $(this).select2({
-            width: '100%',
-            theme: 'bootstrap4',
-            ajax: {
-              url: ep, dataType: 'json', delay: 250,
-              data: params => ({ q: params.term || '', limit: 20 }),
-              processResults: data => ({ results: Array.isArray(data) ? data : (data.results || []) })
-            },
-            placeholder: $(this).data('placeholder') || 'اختر...'
-          });
-        } else {
-          $(this).select2({ width: '100%', theme: 'bootstrap4', placeholder: 'اختر...' });
+<script src="{{ url_for('static', filename='adminlte/plugins/select2/js/select2.full.min.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ar.js"></script>
+<script>
+(function () {
+  function initSelect2($el) {
+    var ep = $el.data('endpoint');
+    var opts = {
+      width: '100%',
+      theme: 'bootstrap4',
+      placeholder: $el.data('placeholder') || 'اختر...',
+      allowClear: true
+    };
+    if (ep) {
+      opts.ajax = {
+        url: ep,
+        dataType: 'json',
+        delay: 250,
+        data: function (params) { return { q: params.term || '', limit: 20 }; },
+        processResults: function (data) {
+          var arr = Array.isArray(data) ? data : (data.results || data.data || []);
+          return { results: (arr || []).map(function (r) {
+            if (r.text) return r;
+            var t = r.name || r.text || '';
+            if (r.sku) t += ' • SKU: ' + r.sku;
+            if (r.part_number) t += ' • Part: ' + r.part_number;
+            if (r.barcode) t += ' • Barcode: ' + r.barcode;
+            return { id: r.id, text: t };
+          })};
         }
-      });
+      };
+    }
+    $el.select2(opts);
+  }
 
-      const fpOpts = { enableTime:true, time_24hr:true, dateFormat:"Y-m-d H:i", altInput:true, altFormat:"d-m-Y H:i", locale:flatpickr.l10ns.ar };
-      if (window.flatpickr) {
-        flatpickr("#preorder_date", fpOpts);
-        flatpickr("#expected_date", fpOpts);
-      }
-    });
-  </script>
+  $(function () {
+    $('.select2').each(function(){ initSelect2($(this)); });
+
+    if (window.flatpickr) {
+      var opts = {
+        enableTime: true,
+        time_24hr: true,
+        dateFormat: "Y-m-d H:i",
+        altInput: true,
+        altFormat: "d-m-Y H:i",
+        allowInput: true,
+        locale: flatpickr.l10ns.ar
+      };
+      flatpickr("#preorder_date", opts);
+      flatpickr("#expected_date", opts);
+    }
+  });
+})();
+</script>
 {% endblock %}

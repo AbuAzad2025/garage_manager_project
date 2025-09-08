@@ -1147,16 +1147,34 @@ class PreOrderForm(FlaskForm):
     reference = StringField('مرجع الحجز', validators=[Optional(), Length(max=50)])
     preorder_date = UnifiedDateTimeField('تاريخ الحجز', format='%Y-%m-%d %H:%M', validators=[Optional()], render_kw={'autocomplete': 'off', 'dir': 'ltr'})
     expected_date = UnifiedDateTimeField('تاريخ التسليم المتوقع', format='%Y-%m-%d %H:%M', validators=[Optional()], render_kw={'autocomplete': 'off', 'dir': 'ltr'})
-    status = SelectField('الحالة', choices=[(PreOrderStatus.PENDING.value, 'معلق'), (PreOrderStatus.CONFIRMED.value, 'مؤكد'), (PreOrderStatus.FULFILLED.value, 'منفذ'), (PreOrderStatus.CANCELLED.value, 'ملغي')], default=PreOrderStatus.PENDING.value, validators=[DataRequired()])
+    status = SelectField('الحالة',
+                         choices=[
+                             (PreOrderStatus.PENDING.value, 'معلق'),
+                             (PreOrderStatus.CONFIRMED.value, 'مؤكد'),
+                             (PreOrderStatus.FULFILLED.value, 'منفذ'),
+                             (PreOrderStatus.CANCELLED.value, 'ملغي')
+                         ],
+                         default=PreOrderStatus.PENDING.value,
+                         validators=[DataRequired()])
     customer_id = AjaxSelectField('العميل', endpoint='api.search_customers', get_label='name', validators=[DataRequired()])
     product_id = AjaxSelectField('القطعة', endpoint='api.products', get_label='name', validators=[DataRequired()])
     warehouse_id = AjaxSelectField('المخزن', endpoint='api.warehouses', get_label='name', validators=[DataRequired()])
     supplier_id = AjaxSelectField('المورد', endpoint='api.suppliers', get_label='name', validators=[Optional()])
     partner_id = AjaxSelectField('الشريك', endpoint='api.partners', get_label='name', validators=[Optional()])
     quantity = IntegerField('الكمية', validators=[DataRequired(), NumberRange(min=1)])
-    prepaid_amount = DecimalField('المدفوع مسبقاً', places=2, validators=[DataRequired(), NumberRange(min=0)])
+    prepaid_amount = DecimalField('المدفوع مسبقاً', places=2, validators=[Optional(), NumberRange(min=0)])
     tax_rate = DecimalField('ضريبة %', places=2, default=0, validators=[Optional(), NumberRange(min=0, max=100)])
-    payment_method = SelectField('طريقة الدفع', choices=[(PaymentMethod.CASH.value, 'نقدي'), (PaymentMethod.CARD.value, 'بطاقة'), (PaymentMethod.BANK.value, 'تحويل'), (PaymentMethod.CHEQUE.value, 'شيك'), (PaymentMethod.ONLINE.value, 'دفع إلكتروني')], default=PaymentMethod.CASH.value, validators=[Optional()], coerce=str)
+    payment_method = SelectField('طريقة الدفع',
+                                 choices=[
+                                     (PaymentMethod.CASH.value, 'نقدي'),
+                                     (PaymentMethod.CARD.value, 'بطاقة'),
+                                     (PaymentMethod.BANK.value, 'تحويل'),
+                                     (PaymentMethod.CHEQUE.value, 'شيك'),
+                                     (PaymentMethod.ONLINE.value, 'دفع إلكتروني')
+                                 ],
+                                 default=PaymentMethod.CASH.value,
+                                 validators=[Optional()],
+                                 coerce=str)
     notes = TextAreaField('ملاحظات', validators=[Optional(), Length(max=500)])
     submit = SubmitField('تأكيد الحجز')
 
@@ -1172,8 +1190,8 @@ class PreOrderForm(FlaskForm):
         if self.preorder_date.data and self.expected_date.data and self.expected_date.data < self.preorder_date.data:
             self.expected_date.errors.append('❌ تاريخ التسليم المتوقع يجب أن يكون بعد تاريخ الحجز')
             return False
-        pm = (self.payment_method.data or '').strip().upper()
-        if pm not in {m.value for m in PaymentMethod}:
+        pm = (self.payment_method.data or '').strip()
+        if pm not in {str(m.value) for m in PaymentMethod}:
             self.payment_method.errors.append('❌ طريقة الدفع غير معروفة')
             return False
         qty = self._to_int(self.quantity.data) or 0
@@ -1206,7 +1224,7 @@ class PreOrderForm(FlaskForm):
         preorder.quantity = self._to_int(self.quantity.data) or 0
         preorder.prepaid_amount = self.prepaid_amount.data or 0
         preorder.tax_rate = self.tax_rate.data or 0
-        preorder.payment_method = (self.payment_method.data or PaymentMethod.CASH.value).upper()
+        preorder.payment_method = (self.payment_method.data or PaymentMethod.CASH.value)
         preorder.notes = (self.notes.data or '').strip() or None
         return preorder
 
@@ -1393,9 +1411,15 @@ class ShipmentPartnerForm(FlaskForm):
 
 class ShipmentForm(FlaskForm):
     shipment_number = StringField('رقم الشحنة', validators=[Optional(), Length(max=50)])
-    shipment_date = DateTimeField('تاريخ الشحن', format='%Y-%m-%d %H:%M', validators=[Optional()])
-    expected_arrival = DateTimeField('الوصول المتوقع', format='%Y-%m-%d %H:%M', validators=[Optional()])
-    actual_arrival = DateTimeField('الوصول الفعلي', format='%Y-%m-%d %H:%M', validators=[Optional()])
+    shipment_date = DateTimeField('تاريخ الشحن', format='%Y-%m-%d %H:%M',
+                                  validators=[Optional()],
+                                  render_kw={'autocomplete':'off','dir':'ltr','class':'dtp'})
+    expected_arrival = DateTimeField('الوصول المتوقع', format='%Y-%m-%d %H:%M',
+                                     validators=[Optional()],
+                                     render_kw={'autocomplete':'off','dir':'ltr','class':'dtp'})
+    actual_arrival = DateTimeField('الوصول الفعلي', format='%Y-%m-%d %H:%M',
+                                   validators=[Optional()],
+                                   render_kw={'autocomplete':'off','dir':'ltr','class':'dtp'})
     origin = StringField('المنشأ', validators=[Optional(), Length(max=100)])
     destination = StringField('الوجهة', validators=[Optional(), Length(max=100)])
     destination_id = QuerySelectField('مخزن الوجهة', query_factory=lambda: Warehouse.query.order_by(Warehouse.name).all(), allow_blank=False, get_label='name')

@@ -45,6 +45,13 @@
     dom.direction.innerHTML = directionBadge(dir);
     dom.confirm.disabled = (amount <= 0);
 
+    dom.amount.addEventListener("input", function () {
+      var v = Number(dom.amount.value || 0);
+      if (!isFinite(v) || v < 0) v = 0;
+      dom.amount.value = fmt(v);
+      dom.confirm.disabled = (v <= 0);
+    });
+
     dom.confirm.onclick = function () {
       var cfg = document.getElementById("vendors-config");
       var base = (cfg && cfg.dataset && cfg.dataset.payUrl) ? cfg.dataset.payUrl : "/payments/create";
@@ -125,10 +132,17 @@
     });
   }
 
+  function bindPrint() {
+    var b = document.getElementById("btn-print");
+    if (!b) return;
+    b.addEventListener("click", function () { window.print(); });
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     wireSimpleSearch("partnerSearch", "partnersTable", [".partner-name", ".partner-phone"]);
     wireSimpleSearch("supplierSearch", "suppliersTable", [".supplier-name", ".supplier-phone"]);
     attachSettleButtons();
+    bindPrint();
     document.querySelectorAll("[data-bs-toggle=\"tooltip\"]").forEach(function (el) {
       if (window.bootstrap && bootstrap.Tooltip) new bootstrap.Tooltip(el);
     });

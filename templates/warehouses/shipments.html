@@ -5,13 +5,14 @@
 {% block head_extra %}
   {{ super() }}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/shipments.css') }}">
-  <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.dataTables.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.bootstrap5.min.css">
 {% endblock %}
 
 {% block content %}
 <div class="mb-3 d-flex justify-content-between align-items-center">
   <h3 class="mb-0">الشحنات{% if warehouse %} في {{ warehouse.name }}{% endif %}</h3>
-  <a id="addShipmentBtn" href="{{ url_for('shipments_bp.create_shipment', destination_id=warehouse.id) if warehouse else url_for('shipments_bp.create_shipment') }}" class="btn btn-success btn-sm">
+  <a href="{{ url_for('shipments_bp.create_shipment', destination_id=warehouse.id) if warehouse else url_for('shipments_bp.create_shipment') }}" class="btn btn-success btn-sm">
     <i class="fa fa-plus"></i> إضافة شحنة
   </a>
 </div>
@@ -46,7 +47,7 @@
 </form>
 
 <div class="table-responsive">
-  <table id="shipmentsTable" class="table table-striped table-hover align-middle" style="width:100%">
+  <table id="shipmentsTable" class="table table-striped table-bordered table-hover align-middle w-100">
     <thead class="table-light">
       <tr>
         <th>#</th>
@@ -65,8 +66,14 @@
 
 {% block scripts %}
   {{ super() }}
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
   <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+  <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.bootstrap5.min.js"></script>
   <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
   <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.print.min.js"></script>
+  <script src="{{ url_for('static', filename='adminlte/plugins/select2/js/select2.full.min.js') }}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ar.js"></script>
   <script src="{{ url_for('static', filename='js/shipments.js') }}"></script>
 {% endblock %}
