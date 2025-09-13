@@ -244,5 +244,38 @@ def seed_roles(force: bool, dry_run: bool, reset_roles: bool) -> None:
         db.session.rollback()
         raise click.ClickException(f"Commit failed: {e}") from e
 
+@click.command("seed-palestine")
+@with_appcontext
+def seed_palestine_cmd():
+    from seed_palestine import (
+        seed_permissions_roles_users,
+        seed_customers,
+        seed_suppliers_partners_employees,
+        seed_equipment_types_categories_products,
+        seed_shipments_stock,
+        seed_preorders_sales_invoices_payments,
+        seed_service,
+        seed_online,
+        seed_expenses_and_payables,
+        seed_notes,
+    )
+
+    users = seed_permissions_roles_users()
+    u_owner, u_admin, u_seller, u_mech = users
+
+    customers = seed_customers()
+    suppliers, partners, employees = seed_suppliers_partners_employees()
+    warehouses, products, et_objs, cats = seed_equipment_types_categories_products(suppliers, partners)
+
+    seed_shipments_stock(warehouses, products)
+    seed_preorders_sales_invoices_payments(customers, u_admin, warehouses, products)
+    seed_service(customers, u_mech, warehouses, products, partners)
+    seed_online(customers, products)
+    seed_expenses_and_payables(employees, warehouses, partners, suppliers)
+    seed_notes(customers, users)
+
+    click.echo("OK: Palestine demo data seeded.")
+
 def register_cli(app) -> None:
     app.cli.add_command(seed_roles)
+    app.cli.add_command(seed_palestine_cmd)

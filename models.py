@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import enum
 import hashlib
 import json
@@ -37,6 +38,7 @@ from sqlalchemy.orm import object_session, relationship, Session as _SA_Session,
 
 from extensions import db
 from barcodes import normalize_barcode
+
 
 user_permissions = db.Table(
     "user_permissions",
@@ -170,6 +172,7 @@ class WarehouseType(str, enum.Enum):
     PARTNER = "PARTNER"
     INVENTORY = "INVENTORY"
     EXCHANGE = "EXCHANGE"
+    ONLINE = "ONLINE"
 
 class PaymentEntityType(str, enum.Enum):
     CUSTOMER = "CUSTOMER"
@@ -948,6 +951,7 @@ class Partner(db.Model, TimestampMixin, AuditMixin):
     service_parts = relationship('ServicePart', back_populates='partner')
     service_tasks = relationship('ServiceTask', back_populates='partner')
     expenses = relationship('Expense', back_populates='partner')
+    notes = Column(Text, nullable=True)
 
     __table_args__ = (
         db.Index("ix_partners_name", "name"),
@@ -1348,33 +1352,37 @@ class ProductCategory(db.Model, TimestampMixin):
 
     def __repr__(self):
         return f"<ProductCategory {self.name}>"
- 
+
 class Product(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'products'
 
     id = Column(Integer, primary_key=True)
-    sku = Column(String(50), unique=True)
+    sku = Column(String(50))
     name = Column(String(255), nullable=False, index=True)
     description = Column(Text)
     part_number = Column(String(100), index=True)
     brand = Column(String(100), index=True)
     commercial_name = Column(String(100))
     chassis_number = Column(String(100))
-    serial_no = Column(String(100), unique=True)
-    barcode = Column(String(100), unique=True)
+    serial_no = Column(String(100))
+    barcode = Column(String(100))
     unit = Column(String(50))
     category_name = Column(String(100))
+
     purchase_price = Column(Numeric(12, 2), default=0)
     selling_price = Column(Numeric(12, 2), default=0)
     cost_before_shipping = Column(Numeric(12, 2), default=0)
     cost_after_shipping = Column(Numeric(12, 2), default=0)
     unit_price_before_tax = Column(Numeric(12, 2), default=0)
     price = Column(Numeric(12, 2), nullable=False, default=0)
+
     min_price = Column(Numeric(12, 2))
     max_price = Column(Numeric(12, 2))
     tax_rate = Column(Numeric(5, 2), default=0)
+
     min_qty = Column(Integer, default=0)
     reorder_point = Column(Integer)
+
     image = Column(String(255))
     notes = Column(Text)
     condition = Column(sa_str_enum(ProductCondition, name='product_condition'), default=ProductCondition.NEW.value, nullable=False)
@@ -1385,11 +1393,16 @@ class Product(db.Model, TimestampMixin, AuditMixin):
     is_active = Column(Boolean, default=True)
     is_digital = Column(Boolean, default=False)
     is_exchange = Column(Boolean, default=False)
+
     vehicle_type_id = Column(Integer, ForeignKey('equipment_types.id'))
     category_id = Column(Integer, ForeignKey('product_categories.id'))
     supplier_id = Column(Integer, ForeignKey('suppliers.id'))
     supplier_international_id = Column(Integer, ForeignKey('suppliers.id'))
     supplier_local_id = Column(Integer, ForeignKey('suppliers.id'))
+
+    online_name = Column(String(255))
+    online_price = Column(Numeric(12, 2))
+    online_image = Column(String(255))
 
     __table_args__ = (
         CheckConstraint('price >= 0', name='ck_product_price_ge_0'),
@@ -1404,6 +1417,7 @@ class Product(db.Model, TimestampMixin, AuditMixin):
         CheckConstraint('min_qty >= 0', name='ck_product_min_qty_ge_0'),
         CheckConstraint('reorder_point IS NULL OR reorder_point >= 0', name='ck_product_reorder_ge_0'),
         CheckConstraint('weight IS NULL OR weight >= 0', name='ck_product_weight_ge_0'),
+        CheckConstraint('online_price IS NULL OR online_price >= 0', name='ck_product_online_price_ge_0'),
         Index('ix_products_brand_part', 'brand', 'part_number'),
     )
 
@@ -1412,6 +1426,7 @@ class Product(db.Model, TimestampMixin, AuditMixin):
     supplier_general = relationship('Supplier', foreign_keys=[supplier_id])
     supplier_international = relationship('Supplier', foreign_keys=[supplier_international_id])
     supplier_local = relationship('Supplier', foreign_keys=[supplier_local_id])
+
     partners = relationship('ProductPartner', back_populates='product')
     partner_shares = relationship('ProductPartnerShare', back_populates='product')
     supplier_loans = relationship('ProductSupplierLoan', back_populates='product')
@@ -1444,14 +1459,14 @@ class Product(db.Model, TimestampMixin, AuditMixin):
             v = normalize_barcode(v) or None
         return v
 
-    @validates('name', 'brand', 'part_number', 'commercial_name', 'chassis_number', 'category_name', 'origin_country', 'dimensions', 'unit')
+    @validates('name', 'brand', 'part_number', 'commercial_name', 'chassis_number', 'category_name', 'origin_country', 'dimensions', 'unit', 'online_name', 'online_image', 'image')
     def _v_strip_texts(self, key, v):
         if v is None:
             return None
         v = str(v).strip()
         return v or None
 
-    @validates('purchase_price', 'selling_price', 'cost_before_shipping', 'cost_after_shipping', 'unit_price_before_tax', 'price', 'min_price', 'max_price', 'tax_rate', 'weight')
+    @validates('purchase_price', 'selling_price', 'cost_before_shipping', 'cost_after_shipping', 'unit_price_before_tax', 'price', 'min_price', 'max_price', 'tax_rate', 'weight', 'online_price')
     def _v_money_numeric(self, key, v):
         if v is None or v == "":
             return 0 if key in ('price', 'purchase_price', 'selling_price', 'cost_before_shipping', 'cost_after_shipping', 'unit_price_before_tax') else None
@@ -1495,8 +1510,24 @@ class Product(db.Model, TimestampMixin, AuditMixin):
         val = getattr(self.condition, "value", self.condition)
         return mapping.get(val, val)
 
+    @hybrid_property
+    def effective_name(self):
+        return self.online_name or self.name
+
+    @hybrid_property
+    def effective_price(self):
+        return self.online_price if self.online_price is not None else self.price
+
+    @hybrid_property
+    def effective_image(self):
+        return self.online_image or self.image
+
     def __repr__(self):
         return f"<Product {self.name}>"
+
+Index("uq_products_sku_ci", func.lower(Product.sku), unique=True, postgresql_where=Product.sku.isnot(None))
+Index("uq_products_barcode", Product.barcode, unique=True, postgresql_where=Product.barcode.isnot(None))
+Index("uq_products_serial_ci", func.lower(Product.serial_no), unique=True, postgresql_where=Product.serial_no.isnot(None))
        
 class Warehouse(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'warehouses'
@@ -1513,6 +1544,8 @@ class Warehouse(db.Model, TimestampMixin, AuditMixin):
     capacity = Column(db.Integer)
     current_occupancy = Column(db.Integer, default=0)
     notes = Column(db.Text)
+    online_slug = Column(db.String(150))
+    online_is_default = Column(db.Boolean, nullable=False, default=False)
 
     parent = db.relationship('Warehouse', remote_side=[id], backref='children')
     supplier = db.relationship('Supplier', back_populates='warehouses')
@@ -1533,13 +1566,15 @@ class Warehouse(db.Model, TimestampMixin, AuditMixin):
     __table_args__ = (
         db.Index('ix_warehouses_name', 'name'),
         db.Index('ix_warehouses_active_type', 'is_active', 'warehouse_type'),
+        db.Index('ix_warehouses_online_default', 'online_is_default'),
+        db.UniqueConstraint('online_slug', name='uq_warehouses_online_slug'),
         db.CheckConstraint('share_percent >= 0 AND share_percent <= 100', name='ck_warehouses_share_percent'),
         db.CheckConstraint('capacity IS NULL OR capacity >= 0', name='ck_warehouses_capacity_nonneg'),
         db.CheckConstraint('current_occupancy >= 0', name='ck_warehouses_occupancy_nonneg'),
         db.CheckConstraint('capacity IS NULL OR current_occupancy <= capacity', name='ck_warehouses_occupancy_le_capacity'),
     )
 
-    @validates('name', 'location', 'notes')
+    @validates('name', 'location', 'notes', 'online_slug')
     def _v_strip(self, _, v):
         return (v or '').strip() or None
 
@@ -1589,10 +1624,17 @@ class Warehouse(db.Model, TimestampMixin, AuditMixin):
             WarehouseType.INVENTORY.value: "مخزن",
             WarehouseType.EXCHANGE.value: "تبادل",
             WarehouseType.PARTNER.value: "شريك",
+            WarehouseType.ONLINE.value: "أونلاين",
         }
         wt = getattr(self, "warehouse_type", None)
         key = getattr(wt, "value", wt)
         return mapping.get(key, key)
+
+    @hybrid_property
+    def is_online(self):
+        wt = getattr(self, "warehouse_type", None)
+        key = getattr(wt, "value", wt)
+        return key == WarehouseType.ONLINE.value
 
     def __repr__(self):
         return f"<Warehouse {self.name}>"
@@ -1675,6 +1717,22 @@ class StockLevel(db.Model, TimestampMixin):
     @property
     def last_updated(self):
         return self.updated_at
+
+def get_or_create_online_warehouse():
+    wh = Warehouse.query.filter_by(warehouse_type=WarehouseType.ONLINE.value, is_active=True).first()
+    if not wh:
+        wh = Warehouse(name="ONLINE", warehouse_type=WarehouseType.ONLINE.value, is_active=True)
+        db.session.add(wh)
+        db.session.commit()
+    return wh
+
+def ensure_online_stock_level(product_id: int):
+    wh = get_or_create_online_warehouse()
+    exists = StockLevel.query.filter_by(product_id=product_id, warehouse_id=wh.id).first()
+    if not exists:
+        db.session.add(StockLevel(product_id=product_id, warehouse_id=wh.id, quantity=0))
+        db.session.flush()
+    return wh.id
 
 class ImportRun(db.Model, TimestampMixin):
     __tablename__ = "import_runs"
@@ -1778,6 +1836,33 @@ def _apply_stock_delta(connection, product_id: int, warehouse_id: int, delta_qty
             )
     qty = connection.execute(text("SELECT quantity FROM stock_levels WHERE id = :id"), {"id": sid}).scalar_one()
     return int(qty)
+
+def _apply_reservation_delta(connection, product_id: int, warehouse_id: int, delta_qty: int):
+    """
+    +delta => حجز (يزيد reserved_quantity مع التأكد أن المتاح يكفي)
+    -delta => فك حجز (لا ينزل تحت الصفر)
+    """
+    row = _ensure_stock_row(connection, product_id, warehouse_id)
+    sid = row._mapping["id"]
+    q = int(delta_qty or 0)
+    if q == 0:
+        return
+    if q > 0:
+        res = connection.execute(text("""
+            UPDATE stock_levels
+            SET reserved_quantity = reserved_quantity + :q
+            WHERE id = :id
+              AND (quantity - reserved_quantity) >= :q
+        """), {"id": sid, "q": q})
+        if getattr(res, "rowcount", 0) != 1:
+            from exceptions import InsufficientStockError
+            raise InsufficientStockError("الكمية المتاحة غير كافية للحجز")
+    else:
+        connection.execute(text("""
+            UPDATE stock_levels
+            SET reserved_quantity = GREATEST(reserved_quantity + :q, 0)
+            WHERE id = :id
+        """), {"id": sid, "q": q})
 
 class Transfer(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'transfers'
@@ -1897,7 +1982,6 @@ class ExchangeTransaction(db.Model, TimestampMixin, AuditMixin):
 @event.listens_for(ExchangeTransaction, "before_insert")
 @event.listens_for(ExchangeTransaction, "before_update")
 def _xt_guard_and_price(mapper, connection, target: "ExchangeTransaction"):
-    from models import Warehouse, Product, WarehouseType
     wh = db.session.get(Warehouse, target.warehouse_id) if target.warehouse_id else None
     if not wh:
         raise ValueError("Warehouse not found.")
@@ -2200,6 +2284,8 @@ class Sale(db.Model, TimestampMixin, AuditMixin):
     billing_address = db.Column(db.Text)
     shipping_cost = db.Column(db.Numeric(10, 2), default=0)
     total_amount = db.Column(db.Numeric(12, 2), default=0)
+    total_paid = db.Column(db.Numeric(12, 2), default=0)
+    balance_due = db.Column(db.Numeric(12, 2), default=0)
 
     customer = db.relationship('Customer', back_populates='sales')
     seller = db.relationship('User', back_populates='sales')
@@ -2213,6 +2299,8 @@ class Sale(db.Model, TimestampMixin, AuditMixin):
         CheckConstraint('discount_total >= 0', name='ck_sale_discount_non_negative'),
         CheckConstraint('shipping_cost >= 0', name='ck_sale_shipping_cost_non_negative'),
         CheckConstraint('total_amount >= 0', name='ck_sale_total_amount_non_negative'),
+        CheckConstraint('total_paid >= 0', name='ck_sale_total_paid_non_negative'),
+        CheckConstraint('balance_due >= 0', name='ck_sale_balance_due_non_negative'),
     )
 
     @hybrid_property
@@ -2227,34 +2315,6 @@ class Sale(db.Model, TimestampMixin, AuditMixin):
     @hybrid_property
     def total(self):
         return D(self.subtotal) + D(self.tax_amount) + D(self.shipping_cost or 0) - D(self.discount_total or 0)
-
-    @hybrid_property
-    def total_paid(self):
-        return float(
-            db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
-            .filter(
-                Payment.sale_id == self.id,
-                Payment.status == PaymentStatus.COMPLETED.value,
-                Payment.direction == PaymentDirection.INCOMING.value,
-            )
-            .scalar()
-        )
-
-    @total_paid.expression
-    def total_paid(cls):
-        return (
-            select(func.coalesce(func.sum(Payment.total_amount), 0))
-            .where(
-                (Payment.sale_id == cls.id) &
-                (Payment.status == PaymentStatus.COMPLETED.value) &
-                (Payment.direction == PaymentDirection.INCOMING.value)
-            )
-            .scalar_subquery()
-        )
-
-    @hybrid_property
-    def balance_due(self):
-        return D(self.total) - D(self.total_paid or 0)
 
     def reserve_stock(self):
         for l in self.lines:
@@ -2281,6 +2341,7 @@ class Sale(db.Model, TimestampMixin, AuditMixin):
     def __repr__(self):
         return f"<Sale {self.sale_number}>"
 
+
 @event.listens_for(Sale, "before_insert")
 def _sale_before_insert_ref(mapper, connection, target: "Sale"):
     if not getattr(target, "sale_number", None):
@@ -2290,6 +2351,7 @@ def _sale_before_insert_ref(mapper, connection, target: "Sale"):
             {"pfx": f"{prefix}-%"},
         ).scalar() or 0
         target.sale_number = f"{prefix}-{count+1:04d}"
+
 
 @event.listens_for(Sale, "before_insert")
 @event.listens_for(Sale, "before_update")
@@ -2303,6 +2365,7 @@ def _compute_total_amount(mapper, connection, target):
         base = Decimal('0.00')
     tax = q(base * tax_rate / Decimal('100'))
     target.total_amount = q(subtotal + tax + shipping - discount)
+
 
 @event.listens_for(Sale.status, 'set')
 def _reserve_release_on_status_change(target, value, oldvalue, initiator):
@@ -3009,10 +3072,10 @@ def build_supplier_settlement_draft(
     if final_mode == SupplierSettlementMode.ON_CONSUME.value:
         s_lines = (
             db.session.query(SaleLine)
-            .join(WhModel, WhModel.id == SaleLine.warehouse_id)
+            .join(Warehouse, Warehouse.id == SaleLine.warehouse_id)
             .filter(
-                WhModel.warehouse_type == WarehouseType.EXCHANGE.value,
-                WhModel.supplier_id == supplier_id,
+                Warehouse.warehouse_type == WarehouseType.EXCHANGE.value,
+                Warehouse.supplier_id == supplier_id,
                 SaleLine.created_at >= date_from,
                 SaleLine.created_at <= date_to
             ).all()
@@ -3039,14 +3102,15 @@ def build_supplier_settlement_draft(
             ))
         sp_lines = (
             db.session.query(ServicePart)
-            .join(WhModel, WhModel.id == ServicePart.warehouse_id)
+            .join(Warehouse, Warehouse.id == ServicePart.warehouse_id)
             .filter(
-                WhModel.warehouse_type == WarehouseType.EXCHANGE.value,
-                WhModel.supplier_id == supplier_id,
+                Warehouse.warehouse_type == WarehouseType.EXCHANGE.value,
+                Warehouse.supplier_id == supplier_id,
                 ServicePart.created_at >= date_from,
                 ServicePart.created_at <= date_to
             ).all()
         )
+
         for sp in sp_lines:
             if ("CONSUME_SERVICE", sp.id) in used:
                 continue
@@ -3254,14 +3318,13 @@ def _shipment_status_toggle(target, value, oldvalue, initiator):
 
     if old != "ARRIVED" and new == "ARRIVED":
         for it in target.items or []:
-            _apply_stock_delta_stock(conn, it.product_id, it.warehouse_id, +int(it.quantity or 0))
+            _apply_stock_delta(conn, it.product_id, it.warehouse_id, +int(it.quantity or 0))
         if not getattr(target, "actual_arrival", None):
             target.actual_arrival = datetime.utcnow()
 
     elif old == "ARRIVED" and new != "ARRIVED":
         for it in target.items or []:
-            _apply_stock_delta_stock(conn, it.product_id, it.warehouse_id, -int(it.quantity or 0))
-
+            _apply_stock_delta(conn, it.product_id, it.warehouse_id, -int(it.quantity or 0))
 
 class ShipmentItem(db.Model):
     __tablename__ = 'shipment_items'
@@ -3626,10 +3689,12 @@ def _service_consumes_stock(sr: "ServiceRequest") -> bool:
     return bool(getattr(sr, "consume_stock", True)) and status in ("IN_PROGRESS", "COMPLETED")
 
 def _recalc_service_request_totals(sr: "ServiceRequest"):
-    parts_sum = _calc_parts_sum(sr.id) if sr.id else _Q2(sr.parts_total or 0)
-    tasks_sum = _calc_tasks_sum(sr.id) if sr.id else _Q2(sr.labor_total or 0)
-    discount_total = _Q2(sr.discount_total or 0)
-    tax_rate = _D(sr.tax_rate or 0) / Decimal("100")
+    if sr is None:
+        return
+    parts_sum = _calc_parts_sum(sr.id) if getattr(sr, "id", None) else _Q2(getattr(sr, "parts_total", 0) or 0)
+    tasks_sum = _calc_tasks_sum(sr.id) if getattr(sr, "id", None) else _Q2(getattr(sr, "labor_total", 0) or 0)
+    discount_total = _Q2(getattr(sr, "discount_total", 0) or 0)
+    tax_rate = _D(getattr(sr, "tax_rate", 0) or 0) / Decimal("100")
     sr.parts_total = _Q2(parts_sum)
     sr.labor_total = _Q2(tasks_sum)
     base = parts_sum + tasks_sum - discount_total
@@ -3637,8 +3702,8 @@ def _recalc_service_request_totals(sr: "ServiceRequest"):
         base = Decimal("0.00")
     tax = base * tax_rate
     sr.total_amount = _Q2(base + tax)
-    sr.currency = (sr.currency or "ILS").upper()
-    tc = _D(sr.total_cost or 0)
+    sr.currency = (getattr(sr, "currency", None) or "ILS").upper()
+    tc = _D(getattr(sr, "total_cost", 0) or 0)
     if tc < base:
         sr.total_cost = _Q2(base)
     else:
@@ -3732,6 +3797,7 @@ class ServicePart(db.Model, TimestampMixin):
     discount = db.Column(db.Numeric(5, 2), default=0)
     tax_rate = db.Column(db.Numeric(5, 2), default=0)
     note = db.Column(db.String(200))
+    notes = db.Column(db.Text)  # مضاف ليتوافق مع seed_palestine
     partner_id = db.Column(db.Integer, db.ForeignKey('partners.id'), index=True)
     share_percentage = db.Column(db.Numeric(5, 2), default=0)
 
@@ -3795,6 +3861,7 @@ class ServicePart(db.Model, TimestampMixin):
             "discount": float(self.discount or 0),
             "tax_rate": float(self.tax_rate or 0),
             "note": self.note,
+            "notes": self.notes,
             "gross_amount": float(self.gross_amount),
             "discount_amount": float(self.discount_amount),
             "taxable_amount": float(self.taxable_amount),
@@ -3890,14 +3957,20 @@ class ServiceTask(db.Model):
 
 @event.listens_for(ServicePart, "after_insert")
 def _sp_after_insert(mapper, connection, target: ServicePart):
+    if not target or not getattr(target, "request", None):
+        return
     _recalc_service_request_totals(target.request)
 
 @event.listens_for(ServicePart, "after_update")
 def _sp_after_update(mapper, connection, target: ServicePart):
+    if not target or not getattr(target, "request", None):
+        return
     _recalc_service_request_totals(target.request)
 
 @event.listens_for(ServicePart, "after_delete")
 def _sp_after_delete(mapper, connection, target: ServicePart):
+    if not target or not getattr(target, "request", None):
+        return
     _recalc_service_request_totals(target.request)
 
 @event.listens_for(ServiceTask, "after_insert")
@@ -4025,7 +4098,8 @@ class OnlinePreOrder(db.Model, TimestampMixin):
 
     customer_id = db.Column(db.Integer, db.ForeignKey('customers.id', ondelete='CASCADE'), nullable=False, index=True)
     cart_id = db.Column(db.Integer, db.ForeignKey('online_carts.id', ondelete='SET NULL'))
-
+    warehouse_id = db.Column(db.Integer, db.ForeignKey('warehouses.id', ondelete='SET NULL'), index=True)
+    warehouse = db.relationship('Warehouse')
     prepaid_amount = db.Column(db.Numeric(12, 2), default=0)
     total_amount = db.Column(db.Numeric(12, 2), default=0)
 
@@ -4125,11 +4199,70 @@ def _op_before_insert(mapper, connection, target: 'OnlinePreOrder'):
             {"pfx": f"{prefix}-%"},
         ).scalar() or 0
         target.order_number = f"{prefix}-{count + 1:04d}"
+
+    if not getattr(target, 'warehouse_id', None):
+        tval = WarehouseType.ONLINE.value
+        row = connection.execute(
+            text("SELECT id FROM warehouses WHERE warehouse_type = :t AND is_active = 1 ORDER BY id LIMIT 1"),
+            {"t": tval}
+        ).first()
+        if row:
+            target.warehouse_id = row._mapping["id"]
+        else:
+            connection.execute(
+                text("INSERT INTO warehouses (name, warehouse_type, is_active) VALUES (:n, :t, 1)"),
+                {"n": "ONLINE", "t": tval}
+            )
+            row2 = connection.execute(
+                text("SELECT id FROM warehouses WHERE warehouse_type = :t AND name = :n ORDER BY id DESC LIMIT 1"),
+                {"t": tval, "n": "ONLINE"}
+            ).first()
+            if row2:
+                target.warehouse_id = row2._mapping["id"]
+
     target.update_totals_and_status()
 
 @event.listens_for(OnlinePreOrder, 'before_update')
 def _op_before_update(mapper, connection, target: 'OnlinePreOrder'):
     target.update_totals_and_status()
+@event.listens_for(OnlinePreOrder, "after_update")
+def _op_reservation_flow(mapper, connection, target: "OnlinePreOrder"):
+    prev = getattr(target, "_previous_state", {}) or {}
+    old_status = (getattr(prev.get("status"), "value", prev.get("status")) or "").upper()
+    new_status = (getattr(target, "status", None) or "").upper()
+    if old_status == new_status:
+        return
+
+    wid = getattr(target, "warehouse_id", None)
+    if not wid:
+        tval = WarehouseType.ONLINE.value
+        row = connection.execute(
+            text("SELECT id FROM warehouses WHERE warehouse_type = :t AND is_active = 1 ORDER BY id LIMIT 1"),
+            {"t": tval}
+        ).first()
+        if row:
+            wid = row._mapping["id"]
+        else:
+            return  
+
+    def _each_item(fn):
+        for it in (target.items or []):
+            pid = getattr(it, "product_id", None)
+            qty = int(getattr(it, "quantity", 0) or 0)
+            if pid and qty > 0:
+                fn(pid, qty)
+
+    if new_status == "CONFIRMED" and old_status != "CONFIRMED":
+        _each_item(lambda pid, qty: _apply_reservation_delta(connection, pid, wid, +qty))
+
+    elif old_status == "CONFIRMED" and new_status == "CANCELLED":
+        _each_item(lambda pid, qty: _apply_reservation_delta(connection, pid, wid, -qty))
+
+    elif new_status == "FULFILLED":
+        def _consume(pid, qty):
+            _apply_reservation_delta(connection, pid, wid, -qty)
+            _apply_stock_delta(connection, pid, wid, -qty)
+        _each_item(_consume)
 
 class OnlinePreOrderItem(db.Model):
     __tablename__ = 'online_preorder_items'

@@ -2,7 +2,15 @@
 {% block title %}إتمام الشراء{% endblock %}
 
 {% block styles %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
+<style>
+  .checkout-step{font-weight:600;font-size:.95rem;background:linear-gradient(135deg,#1a237e,#311b92);color:#fff;padding:.35rem .75rem;border-radius:8px}
+  .input-group-text{background:#f1f3f5;border-radius:.5rem 0 0 .5rem}
+  .btn-pay{background:linear-gradient(135deg,#0066cc,#3ba3ff);border:none;font-size:1.1rem;font-weight:bold;transition:.3s}
+  .btn-pay:hover{opacity:.92;transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.2)}
+  .summary-card{border-radius:12px;box-shadow:0 4px 15px rgba(0,0,0,.08)}
+  .list-group-item{border:0;border-bottom:1px solid #eee;padding-left:0;padding-right:0}
+</style>
 {% endblock %}
 
 {% block content %}
@@ -11,28 +19,30 @@
 
     <div class="card shadow-sm border-0 mb-4">
       <div class="card-header bg-white py-3 d-flex flex-wrap gap-2 justify-content-between align-items-center">
-        <h5 class="mb-0">إتمام عملية الشراء</h5>
-        <span class="badge bg-primary">الخطوة 2 من 2</span>
+        <h5 class="mb-0"><i class="fas fa-credit-card me-2 text-primary"></i> إتمام عملية الشراء</h5>
+        <span class="checkout-step">الخطوة 2 من 2</span>
         {% if has_any('manage_payments','view_reports','manage_reports') and 'admin_reports.cards' in current_app.view_functions %}
           <a href="{{ url_for('admin_reports.cards') }}" class="btn btn-sm btn-warning">
-            <i class="fas fa-credit-card"></i> متابعة المدفوعات
+            <i class="fas fa-file-invoice-dollar"></i> متابعة المدفوعات
           </a>
         {% endif %}
       </div>
 
       <div class="card-body">
-        <div class="row">
+        <div class="row g-4">
 
-          <!-- معلومات الدفع -->
           <div class="col-lg-7 border-end">
             {% if not has_any('manage_payments','manage_shop') %}
-              <h6 class="mb-3">معلومات الدفع</h6>
+              <h6 class="mb-3"><i class="fas fa-lock me-2 text-primary"></i> معلومات الدفع</h6>
+
               <form method="POST" id="payment-form" novalidate>
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                 <div class="mb-3">
                   <label for="payment-method" class="form-label">طريقة الدفع</label>
-                  {{ form.payment_method(class="form-select", id="payment-method") }}
+                  <select class="form-select" id="payment-method" name="payment_method">
+                    <option value="card" selected>بطاقة بنكية</option>
+                  </select>
                 </div>
 
                 <div id="card-fields">
@@ -40,7 +50,7 @@
                     <label class="form-label">اسم صاحب البطاقة</label>
                     <div class="input-group">
                       <span class="input-group-text"><i class="fas fa-user"></i></span>
-                      {{ form.card_holder(class="form-control", placeholder="كما هو مدون على البطاقة") }}
+                      <input type="text" class="form-control" name="cardholder_name" placeholder="كما هو مدون على البطاقة" autocomplete="cc-name" maxlength="100">
                     </div>
                   </div>
 
@@ -48,7 +58,7 @@
                     <label class="form-label">رقم البطاقة</label>
                     <div class="input-group">
                       <span class="input-group-text"><i class="fas fa-credit-card"></i></span>
-                      {{ form.card_number(class="form-control", placeholder="1234 5678 9012 3456") }}
+                      <input type="text" class="form-control" name="card_number" placeholder="1234 5678 9012 3456" inputmode="numeric" autocomplete="cc-number" maxlength="23">
                     </div>
                   </div>
 
@@ -57,26 +67,30 @@
                       <label class="form-label">تاريخ الانتهاء</label>
                       <div class="input-group">
                         <span class="input-group-text"><i class="fas fa-calendar"></i></span>
-                        {{ form.expiry(class="form-control", placeholder="MM/YY") }}
+                        <input type="text" class="form-control" name="card_expiry" placeholder="MM/YY" inputmode="numeric" autocomplete="cc-exp" maxlength="5">
                       </div>
                     </div>
                     <div class="col-md-6">
                       <label class="form-label">رمز التحقق (CVV)</label>
                       <div class="input-group">
                         <span class="input-group-text"><i class="fas fa-lock"></i></span>
-                        {{ form.cvv(class="form-control", placeholder="123") }}
+                        <input type="password" class="form-control" name="cvv" placeholder="123" inputmode="numeric" autocomplete="cc-csc" maxlength="4">
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {{ form.shipping_address(class="form-control mb-2", placeholder="عنوان الشحن (اختياري)") }}
-                {{ form.billing_address(class="form-control mb-3", placeholder="عنوان الفاتورة (اختياري)") }}
-                {{ form.transaction_data(class="form-control mb-3", placeholder="بيانات إضافية للبوابة (JSON)") }}
+                <input class="form-control mb-2" name="shipping_address" placeholder="عنوان الشحن (اختياري)">
+                <input class="form-control mb-3" name="billing_address" placeholder="عنوان الفاتورة (اختياري)">
+
+                <textarea class="form-control mb-3" name="transaction_data" id="transaction_data" placeholder="بيانات إضافية للبوابة (JSON)"></textarea>
+
+                <input type="hidden" name="card_last4" id="card_last4">
+                <input type="hidden" name="card_brand" id="card_brand">
 
                 <div class="d-grid">
-                  <button type="submit" class="btn btn-primary btn-lg py-3">
-                    تأكيد الدفع و إتمام الطلب
+                  <button type="submit" class="btn btn-pay btn-lg py-3">
+                    <i class="fas fa-check-circle me-2"></i> تأكيد الدفع وإتمام الطلب
                   </button>
                 </div>
               </form>
@@ -87,38 +101,27 @@
             {% endif %}
           </div>
 
-          <!-- ملخص الطلب -->
           <div class="col-lg-5">
-            <h6 class="mb-3">ملخص الطلب</h6>
-            <div class="card border">
+            <h6 class="mb-3"><i class="fas fa-list-alt me-2 text-primary"></i> ملخص الطلب</h6>
+            <div class="card summary-card">
               <div class="card-body">
                 <ul class="list-group list-group-flush">
                   {% for item in cart.items %}
-                  <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
                     <div>
                       <h6 class="mb-0">{{ item.product.name }}</h6>
                       <small class="text-muted">{{ item.quantity }} × {{ '%.2f'|format(item.price or 0) }}</small>
                     </div>
-                    <span>{{ '%.2f'|format((item.quantity or 0) * (item.price or 0)) }} شيكل</span>
+                    <span class="fw-semibold">{{ '%.2f'|format((item.quantity or 0) * (item.price or 0)) }} شيكل</span>
                   </li>
                   {% endfor %}
                 </ul>
 
-                <div class="d-flex justify-content-between mt-3">
-                  <span>المجموع الفرعي:</span>
-                  <span>{{ '%.2f'|format(subtotal) }} شيكل</span>
-                </div>
-                <div class="d-flex justify-content-between">
-                  <span>الشحن:</span><span>0.00 شيكل</span>
-                </div>
-                <div class="d-flex justify-content-between">
-                  <span>الضريبة:</span><span>0.00 شيكل</span>
-                </div>
+                <div class="d-flex justify-content-between mt-3"><span>المجموع الفرعي:</span><span>{{ '%.2f'|format(subtotal) }} شيكل</span></div>
+                <div class="d-flex justify-content-between"><span>الشحن:</span><span>0.00 شيكل</span></div>
+                <div class="d-flex justify-content-between"><span>الضريبة:</span><span>0.00 شيكل</span></div>
                 <hr>
-                <div class="d-flex justify-content-between fw-bold">
-                  <span>المجموع الكلي:</span>
-                  <span>{{ '%.2f'|format(subtotal) }} شيكل</span>
-                </div>
+                <div class="d-flex justify-content-between fw-bold"><span>المجموع الكلي:</span><span>{{ '%.2f'|format(subtotal) }} شيكل</span></div>
 
                 <div class="alert alert-info mt-3 mb-0">
                   <div class="d-flex justify-content-between">
@@ -150,5 +153,63 @@
 
 {% block scripts %}
   {{ super() }}
+  <script>
+    (function(){
+      const form = document.getElementById('payment-form');
+      if(!form) return;
+
+      const num = form.querySelector('input[name="card_number"]');
+      const exp = form.querySelector('input[name="card_expiry"]');
+      const holder = form.querySelector('input[name="cardholder_name"]');
+      const cvv = form.querySelector('input[name="cvv"]');
+      const txEl = document.getElementById('transaction_data');
+      const last4El = document.getElementById('card_last4');
+      const brandEl = document.getElementById('card_brand');
+
+      function detectBrand(n){
+        const d=n.replace(/\D/g,'');
+        if(/^4\d{12,18}$/.test(d)) return 'VISA';
+        if(/^(5[1-5]\d{14}|2(2[2-9]\d{12}|[3-6]\d{13}|7[01]\d{12}|720\d{12}))$/.test(d)) return 'MASTERCARD';
+        if(/^3[47]\d{13}$/.test(d)) return 'AMEX';
+        if(/^6(?:011|5\d{2})\d{12}$/.test(d)) return 'DISCOVER';
+        return 'CARD';
+      }
+
+      num.addEventListener('input',()=>{ num.value = num.value.replace(/[^\d ]/g,'').replace(/(\d{4})(?=\d)/g,'$1 ').trim(); });
+      exp.addEventListener('input',()=>{ exp.value = exp.value.replace(/[^\d]/g,'').slice(0,4).replace(/^(\d{2})(\d{0,2}).*$/,'$1/$2'); });
+
+      form.addEventListener('submit', function(e){
+        const raw = (num.value||'').replace(/\D/g,'');
+        const last4 = raw.slice(-4);
+        const brand = detectBrand(raw);
+        last4El.value = last4 || '';
+        brandEl.value = brand;
+
+        const payload = {
+          transaction_id: 'TXN-' + Math.random().toString(16).slice(2,10).toUpperCase(),
+          card: {
+            holder: (holder.value||'').trim() || null,
+            last4: last4 || null,
+            expiry: (exp.value||'').trim() || null,
+            brand: brand || null
+          },
+          meta: { ua: navigator.userAgent, t: Date.now() }
+        };
+
+        try{
+          const existing = (txEl.value||'').trim();
+          if(existing){
+            const parsed = JSON.parse(existing);
+            Object.assign(parsed, payload);
+            txEl.value = JSON.stringify(parsed);
+          }else{
+            txEl.value = JSON.stringify(payload);
+          }
+        }catch(_){
+          txEl.value = JSON.stringify(payload);
+        }
+      });
+    })();
+  </script>
   <script src="{{ url_for('static', filename='js/shop.js') }}"></script>
 {% endblock %}

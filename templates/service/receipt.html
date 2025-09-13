@@ -35,7 +35,6 @@
   .wrap{overflow-wrap:anywhere;white-space:normal}
   .num{font-variant-numeric:tabular-nums;text-align:end}
 
-  /* أعمدة البنود (نِسَب لتثبت على أي مقاس/اتجاه) */
   col.col-type{width:10%}
   col.col-desc{width:42%}
   col.col-qty {width:10%}
@@ -64,7 +63,6 @@
 
 {% block content %}
 <div id="receipt">
-  <!-- الرأس -->
   <div class="receipt-header">
     <div class="brand">
       <img class="logo" src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo">
@@ -80,7 +78,6 @@
   </div>
   <div class="brand-line"></div>
 
-  <!-- بيانات العميل والمعدة -->
   <div class="box" style="margin-bottom:10px">
     <table class="kv" style="border-collapse:separate;border-spacing:0">
       <tr><th>العميل</th><td>{{ service.name or (service.customer.name if service.customer else '—') }}</td></tr>
@@ -94,7 +91,6 @@
     </table>
   </div>
 
-  <!-- الوصف والتقرير -->
   <div class="box" style="margin-bottom:10px">
     <div style="display:flex;gap:12px;flex-wrap:wrap">
       <div style="flex:1;min-width:260px">
@@ -103,12 +99,11 @@
       </div>
       <div style="flex:1;min-width:260px">
         <div class="fw-bold" style="margin-bottom:4px">تقرير المهندس:</div>
-        <div class="pill wrap">{{ service.diagnosis or service.engineer_notes or '—' }}</div>
+        <div class="pill wrap">{{ service.engineer_notes or '—' }}</div>
       </div>
     </div>
   </div>
 
-  <!-- جدول البنود -->
   <div class="box">
     <table>
       <colgroup>
@@ -127,8 +122,6 @@
       </thead>
       <tbody>
         {% set ns = namespace(gross_total=0.0, net_total=0.0, tax_total=0.0) %}
-
-        {# قطع الغيار #}
         {% for part in (service.parts or []) %}
           {% set qty   = (part.quantity or 0)|float %}
           {% set price = (part.unit_price or 0)|float %}
@@ -142,7 +135,6 @@
           {% set ns.gross_total = ns.gross_total + gross %}
           {% set ns.net_total   = ns.net_total + net_before_tax %}
           {% set ns.tax_total   = ns.tax_total + tax_amt %}
-
           <tr>
             <td style="text-align:center">قطعة</td>
             <td class="wrap">{{ part.part.name if part.part else ('#' ~ (part.part_id or '')) }}</td>
@@ -152,8 +144,6 @@
             <td class="num">{{ '%.2f'|format(line_total) }}</td>
           </tr>
         {% endfor %}
-
-        {# المهام/الأعمال #}
         {% for task in (service.tasks or []) %}
           {% set qty   = (task.quantity or 0)|float %}
           {% set price = (task.unit_price or 0)|float %}
@@ -167,7 +157,6 @@
           {% set ns.gross_total = ns.gross_total + gross %}
           {% set ns.net_total   = ns.net_total + net_before_tax %}
           {% set ns.tax_total   = ns.tax_total + tax_amt %}
-
           <tr>
             <td style="text-align:center">مهمة</td>
             <td class="wrap">{{ task.description or '—' }}</td>
@@ -186,7 +175,6 @@
   {% set tax_amount               = ns.tax_total %}
   {% set grand_total              = net_after_discount + tax_amount %}
 
-  <!-- المجاميع -->
   <div class="box totals" style="margin-top:10px; max-width:340px; margin-inline-start:auto">
     <div class="rowline"><span>الإجمالي قبل الخصم</span><span class="num">{{ '%.2f'|format(subtotal_before_discount) }} ₪</span></div>
     <div class="rowline"><span>الصافي بعد الخصم</span><span class="num">{{ '%.2f'|format(net_after_discount) }} ₪</span></div>
@@ -195,7 +183,6 @@
     <div class="rowline"><span class="fw-bold">الإجمالي النهائي</span><span class="highlight num">{{ '%.2f'|format(grand_total) }} ₪</span></div>
   </div>
 
-  <!-- التواقيع -->
   <div class="sign-row">
     <div class="sign">توقيع العميل</div>
     <div class="sign">توقيع الفني/المسؤول</div>

@@ -3,13 +3,32 @@
 {% block title %}إدارة المنتجات{% endblock %}
 
 {% block styles %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
+<style>
+  .table thead th { background:#f5f6fa; color:#1a237e; font-weight:600 }
+  .badge-active { background:linear-gradient(135deg,#43cea2,#185a9d); color:#fff }
+  .badge-inactive { background:#b0bec5; color:#333 }
+  .btn-action { border-radius:50%; width:34px; height:34px; display:inline-flex; align-items:center; justify-content:center; font-size:.85rem }
+  .btn-edit { background:linear-gradient(135deg,#ffb300,#ff7043); color:#fff }
+  .btn-edit:hover { opacity:.9 }
+  .btn-delete { background:linear-gradient(135deg,#e53935,#b71c1c); color:#fff }
+  .btn-delete:hover { opacity:.9 }
+  .btn-toggle { background:linear-gradient(135deg,#26a69a,#00897b); color:#fff }
+  .btn-toggle.off { background:linear-gradient(135deg,#90a4ae,#607d8b) }
+  .search-input { max-width:280px }
+</style>
 {% endblock %}
 
 {% block content %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+
 <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-4">
   <h1 class="h3 mb-0">إدارة المنتجات</h1>
   <div class="d-flex align-items-center gap-2 ms-auto">
+    <div class="input-group search-input">
+      <span class="input-group-text"><i class="fas fa-search"></i></span>
+      <input id="searchBox" type="text" class="form-control" placeholder="ابحث بالاسم أو SKU...">
+    </div>
     <a href="{{ url_for('shop.admin_product_new') }}" class="btn btn-primary">
       <i class="fas fa-plus me-1"></i> إضافة منتج
     </a>
@@ -22,12 +41,13 @@
 <div class="card shadow-sm">
   <div class="card-body">
     <div class="table-responsive">
-      <table class="table table-hover align-middle">
+      <table class="table align-middle table-hover" id="productsTable">
         <thead>
           <tr>
             <th>الصورة</th>
             <th>الاسم</th>
             <th class="text-end">السعر</th>
+            <th class="text-center">المتوفر</th>
             <th class="text-center">الحالة</th>
             <th class="text-center">أنشئ في</th>
             <th class="text-center">إجراءات</th>
@@ -35,37 +55,48 @@
         </thead>
         <tbody>
           {% for p in products %}
-          <tr>
+          <tr data-name="{{ (p.name or '')|lower }}" data-sku="{{ (p.sku or '')|lower }}">
             <td style="width:84px;">
               <img
                 src="{{ url_for('static', filename='products/' + (p.image or 'default.png')) }}"
-                class="rounded"
-                width="64" height="64"
-                style="object-fit:cover;"
+                class="rounded" width="64" height="64" style="object-fit:cover;"
                 alt="صورة {{ p.name }}"
                 onerror="this.onerror=null;this.src='{{ url_for('static', filename='products/default.png') }}'">
             </td>
-            <td class="fw-semibold">{{ p.name }}</td>
-            <td class="text-end">{{ '%.2f'|format(p.price or 0) }} شيكل</td>
+            <td class="fw-semibold">
+              <div>{{ p.name }}</div>
+              <div class="text-muted small">{{ p.sku or '' }}</div>
+            </td>
+            <td class="text-end">
+              <span class="price" data-id="{{ p.id }}">{{ '%.2f'|format(p.price or 0) }}</span> شيكل
+            </td>
+            <td class="text-center">
+              <span class="badge bg-light text-dark">{{ avail_map.get(p.id, 0) }}</span>
+            </td>
             <td class="text-center">
               {% if p.is_active %}
-                <span class="badge bg-success">مفعل</span>
+                <span class="badge badge-active status" data-id="{{ p.id }}">مفعل</span>
               {% else %}
-                <span class="badge bg-secondary">غير مفعل</span>
+                <span class="badge badge-inactive status" data-id="{{ p.id }}">غير مفعل</span>
               {% endif %}
             </td>
             <td class="text-center">
               {{ p.created_at.strftime('%Y-%m-%d %H:%M') if p.created_at else '-' }}
             </td>
             <td class="text-center">
-              <div class="btn-group btn-group-sm">
-                <a href="{{ url_for('shop.admin_product_edit', pid=p.id) }}" class="btn btn-warning" title="تعديل المنتج">
+              <div class="d-flex justify-content-center gap-2">
+                <button type="button" class="btn btn-action btn-toggle {% if not p.is_active %}off{% endif %}" data-id="{{ p.id }}" title="تفعيل/تعطيل">
+                  <i class="fas fa-power-off"></i>
+                </button>
+                <button type="button" class="btn btn-action btn-edit edit-price" data-id="{{ p.id }}" title="تعديل السعر">
+                  <i class="fas fa-dollar-sign"></i>
+                </button>
+                <a href="{{ url_for('shop.admin_product_edit', pid=p.id) }}" class="btn btn-action btn-edit" title="تعديل المنتج">
                   <i class="fas fa-edit"></i>
                 </a>
-                <form method="POST" action="{{ url_for('shop.admin_product_delete', pid=p.id) }}"
-                      onsubmit="return confirm('تأكيد حذف {{ p.name }}؟');" class="d-inline">
+                <form method="POST" action="{{ url_for('shop.admin_product_delete', pid=p.id) }}" onsubmit="return confirm('تأكيد حذف {{ p.name }}؟');" class="d-inline">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="btn btn-danger" title="حذف المنتج">
+                  <button type="submit" class="btn btn-action btn-delete" title="حذف المنتج">
                     <i class="fas fa-trash"></i>
                   </button>
                 </form>
@@ -74,7 +105,10 @@
           </tr>
           {% else %}
           <tr>
-            <td colspan="6" class="text-center text-muted py-4">لا توجد منتجات</td>
+            <td colspan="7" class="text-center text-muted py-5">
+              <i class="fas fa-box-open fa-2x mb-2"></i>
+              <div>لا توجد منتجات مضافة بعد</div>
+            </td>
           </tr>
           {% endfor %}
         </tbody>
@@ -85,6 +119,76 @@
 {% endblock %}
 
 {% block scripts %}
-  {{ super() }}
-  <script src="{{ url_for('static', filename='js/shop.js') }}"></script>
+{{ super() }}
+<script src="{{ url_for('static', filename='js/shop.js') }}"></script>
+<script>
+  const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+  const searchBox = document.getElementById('searchBox');
+  const table = document.getElementById('productsTable').querySelector('tbody');
+
+  searchBox.addEventListener('input', function(){
+    const q = this.value.trim().toLowerCase();
+    table.querySelectorAll('tr').forEach(tr => {
+      const name = tr.getAttribute('data-name') || '';
+      const sku = tr.getAttribute('data-sku') || '';
+      tr.style.display = (name.includes(q) || sku.includes(q)) ? '' : 'none';
+    });
+  });
+
+  table.addEventListener('click', async function(e){
+    const btnToggle = e.target.closest('.btn-toggle');
+    const btnEditPrice = e.target.closest('.edit-price');
+
+    if(btnToggle){
+      const id = btnToggle.getAttribute('data-id');
+      try{
+        const res = await fetch(`{{ url_for('shop.admin_product_toggle_active', pid=0) }}`.replace('0', id), {
+          method: 'POST',
+          headers: {'X-CSRFToken': csrfToken}
+        });
+        const data = await res.json();
+        if(res.ok){
+          const st = table.querySelector(`.status[data-id="${id}"]`);
+          btnToggle.classList.toggle('off');
+          if(st){
+            if(st.classList.contains('badge-active')){
+              st.classList.remove('badge-active'); st.classList.add('badge-inactive'); st.textContent = 'غير مفعل';
+            }else{
+              st.classList.remove('badge-inactive'); st.classList.add('badge-active'); st.textContent = 'مفعل';
+            }
+          }
+        }else{
+          alert(data.message || 'تعذر تحديث الحالة');
+        }
+      }catch(err){
+        alert('خطأ في الاتصال');
+      }
+      return;
+    }
+
+    if(btnEditPrice){
+      const id = btnEditPrice.getAttribute('data-id');
+      const priceEl = table.querySelector(`.price[data-id="${id}"]`);
+      const cur = priceEl ? priceEl.textContent.trim() : '';
+      const val = prompt('أدخل السعر الجديد', cur);
+      if(val === null) return;
+      try{
+        const res = await fetch(`{{ url_for('shop.admin_product_update_fields', pid=0) }}`.replace('0', id), {
+          method: 'POST',
+          headers: {'Content-Type':'application/json','X-CSRFToken': csrfToken},
+          body: JSON.stringify({price: val})
+        });
+        const data = await res.json();
+        if(res.ok){
+          if(priceEl) priceEl.textContent = (data.price !== undefined ? Number(data.price).toFixed(2) : parseFloat(val).toFixed(2));
+        }else{
+          alert(data.message || 'تعذر تحديث السعر');
+        }
+      }catch(err){
+        alert('خطأ في الاتصال');
+      }
+      return;
+    }
+  });
+</script>
 {% endblock %}

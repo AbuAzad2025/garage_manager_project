@@ -3,17 +3,17 @@
 {% block title %}قائمة المنتجات{% endblock %}
 
 {% block styles %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
 {% endblock %}
 
 {% block content %}
 <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-4">
   <h1 class="h3 mb-0">قائمة المنتجات</h1>
   <div class="d-flex align-items-center gap-2 ms-auto">
-    <div class="input-group w-auto">
-      <input type="text" id="search" class="form-control" placeholder="ابحث بالاسم...">
-      <button class="btn btn-outline-primary" type="button" title="بحث"><i class="fas fa-search"></i></button>
-    </div>
+    <form id="searchForm" class="input-group w-auto" method="GET" action="{{ url_for('shop.products') }}">
+      <input type="text" id="search" name="query" value="{{ request.args.get('query','') }}" class="form-control" placeholder="ابحث بالاسم أو SKU...">
+      <button class="btn btn-outline-primary" type="submit" title="بحث"><i class="fas fa-search"></i></button>
+    </form>
 
     {% if has_any('manage_shop','manage_inventory') %}
     <div class="btn-group" role="group">
@@ -49,16 +49,20 @@
         <tbody id="products-container">
           {% for p in products %}
           {% set avail = avail_map.get(p.id, 0) %}
-          <tr class="product-row" data-name="{{ p.name|lower }}">
+          <tr class="product-row" data-name="{{ (p.name or '')|lower }}" data-sku="{{ (p.sku or '')|lower }}" data-part="{{ (p.part_number or '')|lower }}">
             <td style="width:84px;">
               <img
                 src="{{ url_for('static', filename='products/' + (p.image or 'default.png')) }}"
-                class="rounded" width="64" height="64" style="object-fit:cover;"
+                class="rounded" width="64" height="64" style="object-fit:cover;" loading="lazy"
                 alt="{{ p.name }}"
                 onerror="this.onerror=null;this.src='{{ url_for('static', filename='products/default.png') }}'">
             </td>
             <td>
               <div class="fw-semibold">{{ p.name }}</div>
+              <div class="text-muted small">
+                {% if p.sku %}<span class="me-2">SKU: {{ p.sku }}</span>{% endif %}
+                {% if p.part_number %}<span>Part: {{ p.part_number }}</span>{% endif %}
+              </div>
               {% if p.description %}
                 <div class="text-muted small">{{ p.description | truncate(80) }}</div>
               {% endif %}
@@ -73,7 +77,7 @@
             </td>
             <td class="text-center">
               {% if avail > 0 %}
-                <span class="badge bg-info">{{ avail }}</span>
+                <span class="badge bg-info" title="المتوفر">{{ avail }}</span>
               {% else %}
                 <span class="badge bg-danger">غير متوفر</span>
               {% endif %}
@@ -85,7 +89,7 @@
                   <i class="fas fa-edit"></i>
                 </a>
                 <form method="POST" action="{{ url_for('shop.admin_product_delete', pid=p.id) }}"
-                      onsubmit="return confirm('تأكيد حذف {{ p.name }}؟ لا يمكن التراجع.');">
+                      onsubmit="return confirm('تأكيد حذف {{ p.name }}؟ لا يمكن التراجع.');" class="d-inline">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" class="btn btn-danger" title="حذف">
                     <i class="fas fa-trash"></i>
@@ -111,28 +115,29 @@
 {% endblock %}
 
 {% block scripts %}
-  {{ super() }}
-  <script>
-    (function () {
-      const search = document.getElementById('search');
-      const rows = Array.from(document.querySelectorAll('#products-container .product-row'));
-      if (!search) return;
+{{ super() }}
+<script>
+  (function () {
+    const input = document.getElementById('search');
+    const tbody = document.getElementById('products-container');
+    const rows = Array.from(tbody.querySelectorAll('.product-row'));
+    let t;
 
-      function run() {
-        const q = (search.value || '').trim().toLowerCase();
-        let matchCount = 0;
-        rows.forEach(row => {
-          const name = row.getAttribute('data-name') || '';
-          const show = name.includes(q);
-          row.style.display = show ? '' : 'none';
-          if (show) matchCount++;
-        });
-      }
-
-      search.addEventListener('input', function () {
-        setTimeout(run, 120);
+    function filterClient() {
+      const q = (input.value || '').trim().toLowerCase();
+      rows.forEach(row => {
+        const name = row.getAttribute('data-name') || '';
+        const sku  = row.getAttribute('data-sku')  || '';
+        const part = row.getAttribute('data-part') || '';
+        row.style.display = (name.includes(q) || sku.includes(q) || part.includes(q)) ? '' : 'none';
       });
-    })();
-  </script>
-  <script src="{{ url_for('static', filename='js/shop.js') }}"></script>
+    }
+
+    input.addEventListener('input', function () {
+      clearTimeout(t);
+      t = setTimeout(filterClient, 120);
+    });
+  })();
+</script>
+<script src="{{ url_for('static', filename='js/shop.js') }}"></script>
 {% endblock %}

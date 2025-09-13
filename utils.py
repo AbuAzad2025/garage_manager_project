@@ -16,6 +16,7 @@ from flask_mail import Message
 from sqlalchemy import case, func, select, or_
 from twilio.base.exceptions import TwilioRestException
 from twilio.rest import Client
+from sqlalchemy.orm.attributes import set_committed_value
 
 try:
     import qrcode
@@ -1109,6 +1110,7 @@ def _install_accounting_listeners():
         from sqlalchemy import event
         from sqlalchemy.orm import object_session
         from decimal import Decimal, ROUND_HALF_UP
+        from sqlalchemy.orm.attributes import set_committed_value
         from models import Payment, PaymentStatus, Sale, SaleLine
         Q = Decimal("0.01")
     except Exception:
@@ -1133,11 +1135,8 @@ def _install_accounting_listeners():
             base = (qv * pv * (Decimal("1") - dr / Decimal("100"))).quantize(Q, rounding=ROUND_HALF_UP)
             line = (base * (Decimal("1") + tr / Decimal("100"))).quantize(Q, rounding=ROUND_HALF_UP)
             total += line
-        try:
-            sale.total_amount = float(total)
-        except Exception:
-            pass
-        sess.add(sale)
+
+        set_committed_value(sale, "total_amount", float(total))
 
     def _recompute_sale_payments(sess, sale_id: int):
         sale = sess.get(Sale, sale_id)
@@ -1147,21 +1146,18 @@ def _install_accounting_listeners():
         for p in sale.payments or []:
             if getattr(p, "status", None) == PaymentStatus.COMPLETED.value:
                 paid += _q2(p.total_amount)
-        try:
-            sale.total_paid = float(paid)
-        except Exception:
-            pass
-        try:
-            bal = _q2(sale.total_amount) - _q2(sale.total_paid)
-            sale.balance_due = float(bal)
-        except Exception:
-            pass
+
+        total_paid = float(paid)
+        balance_due = float(_q2(sale.total_amount) - _q2(total_paid))
+
+        set_committed_value(sale, "total_paid", total_paid)
+        set_committed_value(sale, "balance_due", balance_due)
+
         if hasattr(sale, "update_payment_status"):
             try:
                 sale.update_payment_status()
             except Exception:
                 pass
-        sess.add(sale)
 
     @event.listens_for(Payment, "after_insert")
     @event.listens_for(Payment, "after_update")
@@ -1186,3 +1182,4 @@ def _install_accounting_listeners():
         if not sess or not getattr(target, "sale_id", None):
             return
         _recompute_sale_totals(sess, int(target.sale_id))
+

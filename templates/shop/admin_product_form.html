@@ -3,13 +3,41 @@
 {% block title %}{{ 'تعديل منتج' if product else 'إضافة منتج' }}{% endblock %}
 
 {% block styles %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
+<style>
+  .card{border-radius:1rem;box-shadow:0 6px 20px rgba(0,0,0,0.08)}
+  .card-body{padding:2rem}
+  .form-label{font-weight:600;color:#1a237e}
+  .form-control,.form-select{border-radius:0.6rem}
+  .btn-primary{background:linear-gradient(135deg,#1a237e,#311b92);border:none;font-weight:bold}
+  .btn-primary:hover{background:linear-gradient(135deg,#283593,#4527a0)}
+  .badge-status{font-size:.85rem;padding:.35em .75em;border-radius:.65rem}
+  .badge-active{background:linear-gradient(135deg,#43cea2,#185a9d);color:#fff}
+  .badge-inactive{background:#ccc;color:#333}
+  .btn-ghost{border:1px solid #e0e0e0;background:#fafafa}
+  .btn-ghost:hover{background:#f0f0f0}
+  .small-muted{font-size:.85rem;color:#6b7280}
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-4">
-  <h1 class="h3 mb-0">{{ 'تعديل منتج' if product else 'إضافة منتج' }}</h1>
+  <h1 class="h3 mb-0">
+    {{ 'تعديل منتج' if product else 'إضافة منتج' }}
+    {% if product %}
+      {% if product.is_active %}
+        <span id="prod-status-badge" class="badge badge-status badge-active">مفعل</span>
+      {% else %}
+        <span id="prod-status-badge" class="badge badge-status badge-inactive">غير مفعل</span>
+      {% endif %}
+    {% endif %}
+  </h1>
   <div class="d-flex align-items-center gap-2 ms-auto">
+    {% if has_any('manage_shop','manage_inventory') and product %}
+      <button id="toggle-active-btn" type="button" class="btn btn-ghost">
+        {% if product.is_active %}<i class="fas fa-pause me-1"></i> تعطيل{% else %}<i class="fas fa-play me-1"></i> تفعيل{% endif %}
+      </button>
+    {% endif %}
     {% if has_any('manage_shop','manage_inventory') %}
       <a href="{{ url_for('shop.admin_products') }}" class="btn btn-outline-secondary">
         <i class="fas fa-arrow-right me-1"></i> الرجوع لإدارة المنتجات
@@ -21,10 +49,31 @@
 <div class="row justify-content-center">
   <div class="col-lg-8">
 
-    <div class="card shadow-sm">
+    {% if has_any('manage_shop','manage_inventory') and product %}
+    <div class="card mb-3">
       <div class="card-body">
-        <form method="POST" novalidate>
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="row g-2 align-items-end">
+          <div class="col-md-6">
+            <label class="form-label">تعديل سريع: الاسم</label>
+            <input id="quick-name" type="text" class="form-control" value="{{ product.name or '' }}" autocomplete="off" maxlength="255">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">تعديل سريع: السعر</label>
+            <input id="quick-price" type="text" class="form-control" inputmode="decimal" pattern="[0-9]+([.,٫][0-9]{1,2})?" value="{{ '{:.2f}'.format(product.price or 0) }}">
+            <div class="small-muted mt-1">استخدم فاصلة أو نقطة. سيتم التحويل تلقائيًا.</div>
+          </div>
+          <div class="col-md-2 d-grid">
+            <button id="quick-update-btn" type="button" class="btn btn-primary"><i class="fas fa-bolt me-1"></i> تحديث</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card-body">
+        <form id="product-form" method="POST" novalidate>
+          {{ form.hidden_tag() }}
 
           <div class="mb-3">
             <label for="{{ form.name.id }}" class="form-label">اسم المنتج</label>
@@ -34,11 +83,28 @@
             {% endif %}
           </div>
 
-          <div class="mb-3">
-            <label for="{{ form.price.id }}" class="form-label">السعر (شيكل)</label>
-            {{ form.price(class="form-control", step="0.01", min="0") }}
-            {% if form.price.errors %}
-              <div class="text-danger small mt-1">{{ form.price.errors | join(', ') }}</div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label for="{{ form.price.id }}" class="form-label">السعر (شيكل)</label>
+              {{ form.price(class="form-control", id=form.price.id, inputmode="decimal", autocomplete="off", pattern="[0-9]+([.,٫][0-9]{1,2})?", step="0.01", min="0") }}
+              {% if form.price.errors %}
+                <div class="text-danger small mt-1">{{ form.price.errors | join(', ') }}</div>
+              {% endif %}
+            </div>
+            <div class="col-md-6">
+              <label for="{{ form.condition.id }}" class="form-label">الحالة</label>
+              {{ form.condition(class="form-select", id=form.condition.id) }}
+              {% if form.condition.errors %}
+                <div class="text-danger small mt-1">{{ form.condition.errors | join(', ') }}</div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="mb-3 mt-3">
+            <label for="{{ form.category_id.id }}" class="form-label">الفئة</label>
+            {{ form.category_id(class="form-control", id=form.category_id.id) }}
+            {% if form.category_id.errors %}
+              <div class="text-danger small mt-1">{{ form.category_id.errors | join(', ') }}</div>
             {% endif %}
           </div>
 
@@ -48,20 +114,22 @@
           </div>
 
           {% if has_any('manage_shop','manage_inventory') %}
-            <div class="d-grid">
-              <button type="submit" class="btn btn-primary py-2">
-                <i class="fas fa-save me-1"></i> حفظ
-              </button>
-            </div>
+          <div class="d-grid">
+            <button type="submit" class="btn btn-primary py-2">
+              <i class="fas fa-save me-1"></i> حفظ
+            </button>
+          </div>
           {% endif %}
         </form>
       </div>
     </div>
 
     {% if product %}
-    <div class="alert alert-info mt-3">
-      <div><strong>ملاحظة:</strong> أي تعديل يتم حفظه مباشرة بعد الضغط على "حفظ".</div>
-      <div class="small text-muted mt-2">المعرف: {{ product.id }}</div>
+    <div class="alert alert-info mt-3 shadow-sm">
+      <i class="fas fa-info-circle me-2"></i>
+      <strong>ملاحظة:</strong> أي تعديل يتم حفظه بعد الضغط على "حفظ".
+      <hr>
+      <div class="small text-muted">المعرف: {{ product.id }}</div>
       <div class="small text-muted">أُنشئ في: {{ product.created_at.strftime('%Y-%m-%d %H:%M') if product.created_at else '-' }}</div>
     </div>
     {% endif %}
@@ -71,6 +139,101 @@
 {% endblock %}
 
 {% block scripts %}
-  {{ super() }}
-  <script src="{{ url_for('static', filename='js/shop.js') }}"></script>
+{{ super() }}
+<script>
+  const csrfEl = document.querySelector('input[name="csrf_token"]');
+  const csrf = csrfEl ? csrfEl.value : "";
+  const form = document.getElementById('product-form');
+  const priceInput = document.getElementById('{{ form.price.id }}');
+
+  function normalizeDecimal(s){
+    if(s==null) return "";
+    return String(s).replace(/[٬،]/g,',').replace(/[٫]/g,'.').replace(',', '.').trim();
+  }
+
+  if(priceInput){
+    priceInput.addEventListener('input', function(){
+      this.value = this.value.replace(/[^\d.,٫]/g,'');
+    });
+  }
+
+  if(form){
+    form.addEventListener('submit', function(){
+      if(priceInput){
+        const v = normalizeDecimal(priceInput.value);
+        priceInput.value = v;
+      }
+    });
+  }
+
+  const quickBtn = document.getElementById('quick-update-btn');
+  const quickName = document.getElementById('quick-name');
+  const quickPrice = document.getElementById('quick-price');
+  const badge = document.getElementById('prod-status-badge');
+  const toggleBtn = document.getElementById('toggle-active-btn');
+
+  async function postJSON(url, payload){
+    if(window.shop && window.shop.postJSON){
+      const r = await window.shop.postJSON(url, payload);
+      let data; try{ data = await r.json(); }catch(e){ data = {message:r.ok?'ok':'error'} }
+      return { ok: r.ok, data };
+    }
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, 'X-CSRF-Token': csrf },
+      body: JSON.stringify(payload || {})
+    });
+    let data; try{ data = await r.json(); }catch(e){ data = {message:r.ok?'ok':'error'} }
+    return { ok: r.ok, data };
+  }
+
+  if(quickBtn && quickName && quickPrice){
+    quickBtn.addEventListener('click', async function(){
+      const nameVal = quickName.value.trim();
+      const priceVal = normalizeDecimal(quickPrice.value);
+      const payload = {};
+      if(nameVal) payload.name = nameVal;
+      if(priceVal !== "") payload.price = priceVal;
+      const url = "{{ url_for('shop.admin_product_update_fields', pid=product.id) if product else '' }}";
+      if(!url) return;
+      const {ok, data} = await postJSON(url, payload);
+      if(ok){
+        const mainName = document.getElementById('{{ form.name.id }}');
+        if(mainName && payload.name){ mainName.value = payload.name; }
+        if(priceInput && payload.price){ priceInput.value = Number(payload.price).toFixed(2); }
+        alert(data.message || 'تم التحديث');
+      }else{
+        alert(data.message || 'تعذر التحديث');
+      }
+    });
+  }
+
+  if(toggleBtn){
+    toggleBtn.addEventListener('click', async function(){
+      const url = "{{ url_for('shop.admin_product_toggle_active', pid=product.id) if product else '' }}";
+      if(!url) return;
+      const {ok, data} = await postJSON(url, {});
+      if(ok){
+        if(badge){
+          const isInactive = badge.classList.contains('badge-inactive');
+          if(isInactive){
+            badge.classList.remove('badge-inactive');
+            badge.classList.add('badge-active');
+            badge.textContent = 'مفعل';
+            toggleBtn.innerHTML = '<i class="fas fa-pause me-1"></i> تعطيل';
+          }else{
+            badge.classList.remove('badge-active');
+            badge.classList.add('badge-inactive');
+            badge.textContent = 'غير مفعل';
+            toggleBtn.innerHTML = '<i class="fas fa-play me-1"></i> تفعيل';
+          }
+        }
+        alert(data.message || 'تم التحديث');
+      }else{
+        alert(data.message || 'تعذر التحديث');
+      }
+    });
+  }
+</script>
+<script src="{{ url_for('static', filename='js/shop.js') }}"></script>
 {% endblock %}

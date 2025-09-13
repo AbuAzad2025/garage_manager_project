@@ -2,11 +2,21 @@
 {% block title %}طلباتي{% endblock %}
 
 {% block styles %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
+<style>
+  .table-hover tbody tr:hover{background:rgba(0,0,0,0.03)}
+  .badge{font-size:.85rem;padding:.4em .65em;border-radius:8px}
+  .order-empty i{color:#6c757d}
+  .order-header{display:flex;align-items:center;gap:10px}
+  .order-header i{color:#1a237e}
+</style>
 {% endblock %}
 
 {% block content %}
-<h1 class="h3 mb-4">طلباتي</h1>
+<div class="order-header mb-4">
+  <i class="fas fa-box-open fa-lg"></i>
+  <h1 class="h3 mb-0">طلباتي</h1>
+</div>
 
 {% if preorders %}
 <div class="card shadow-sm">
@@ -14,7 +24,7 @@
 
     {% if has_any('manage_shop','manage_reports','view_reports') %}
     <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
-      <div class="small text-muted">👑 عرض موسّع حسب الصلاحيات</div>
+      <div class="small text-muted"><i class="fas fa-shield-alt me-1"></i> عرض موسّع حسب الصلاحيات</div>
       <div class="btn-group">
         {% if has_any('manage_shop','manage_inventory') %}
           <a href="{{ url_for('shop.admin_products') }}" class="btn btn-sm btn-danger">
@@ -32,7 +42,7 @@
 
     <div class="table-responsive">
       <table class="table table-hover align-middle">
-        <thead>
+        <thead class="table-light">
           <tr>
             <th>رقم الطلب</th>
             <th>التاريخ</th>
@@ -51,14 +61,14 @@
             <td>{{ order.order_number }}</td>
             <td>{{ order.created_at.strftime('%Y-%m-%d') if order.created_at else '' }}</td>
             <td class="text-center">{{ order.items|length }}</td>
-            <td class="text-end">{{ '%.2f'|format(order.total_amount or 0) }} شيكل</td>
+            <td class="text-end fw-semibold">{{ '%.2f'|format(order.total_amount or 0) }} شيكل</td>
             <td class="text-center">
-              {% set status_colors = {
-                'FULFILLED': 'success',
-                'CONFIRMED': 'warning',
-                'PENDING': 'info'
-              } %}
+              {% set status_colors = {'FULFILLED':'success','CONFIRMED':'warning','PENDING':'info','CANCELLED':'secondary'} %}
               <span class="badge bg-{{ status_colors.get(order.status, 'danger') }}">
+                {% if order.status == 'FULFILLED' %}<i class="fas fa-check-circle me-1"></i>{% endif %}
+                {% if order.status == 'CONFIRMED' %}<i class="fas fa-hourglass-half me-1"></i>{% endif %}
+                {% if order.status == 'PENDING' %}<i class="fas fa-clock me-1"></i>{% endif %}
+                {% if order.status == 'CANCELLED' %}<i class="fas fa-times-circle me-1"></i>{% endif %}
                 {{ order.status }}
               </span>
             </td>
@@ -66,20 +76,17 @@
               <td>
                 {{ order.customer.name if order.customer else '' }}
                 {% if order.customer and order.customer.phone %}
-                  <div class="text-muted small">{{ order.customer.phone }}</div>
+                  <div class="text-muted small"><i class="fas fa-phone me-1"></i>{{ order.customer.phone }}</div>
                 {% endif %}
               </td>
             {% endif %}
             <td class="text-center">
               <div class="btn-group btn-group-sm">
-                <a href="{{ url_for('shop.preorder_receipt', preorder_id=order.id) }}"
-                   class="btn btn-outline-primary" title="عرض الوصل">
+                <a href="{{ url_for('shop.preorder_receipt', preorder_id=order.id) }}" class="btn btn-outline-primary" title="عرض الوصل">
                   <i class="fas fa-receipt"></i>
                 </a>
                 {% if order.status in ['PENDING','CONFIRMED'] %}
-                  <form method="POST"
-                        action="{{ url_for('shop.cancel_preorder', preorder_id=order.id) }}"
-                        onsubmit="return confirm('تأكيد إلغاء الطلب {{ order.order_number }}؟');">
+                  <form method="POST" action="{{ url_for('shop.cancel_preorder', preorder_id=order.id) }}" onsubmit="return confirm('تأكيد إلغاء الطلب {{ order.order_number }}؟');">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-outline-danger" title="إلغاء الطلب">
                       <i class="fas fa-times"></i>
@@ -98,12 +105,14 @@
 </div>
 
 {% else %}
-<div class="card shadow-sm text-center py-5">
+<div class="card shadow-sm text-center py-5 order-empty">
   <div class="card-body">
-    <i class="fas fa-clipboard-list fa-4x text-muted mb-4"></i>
+    <i class="fas fa-clipboard-list fa-4x mb-4"></i>
     <h4 class="mb-3">لا توجد طلبات سابقة</h4>
     <p class="text-muted mb-4">يمكنك البدء بالتسوق وإنشاء طلبك الأول</p>
-    <a href="{{ url_for('shop.catalog') }}" class="btn btn-primary px-4">تصفح المنتجات</a>
+    <a href="{{ url_for('shop.catalog') }}" class="btn btn-primary px-4">
+      <i class="fas fa-store me-2"></i> تصفح المنتجات
+    </a>
   </div>
 </div>
 {% endif %}

@@ -1,14 +1,14 @@
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 from flask import Blueprint, Response, current_app, jsonify, request
 from flask_login import current_user, login_required
 from sqlalchemy import func, or_
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 from extensions import csrf, db, limiter
 from utils import _get_user_permissions, _q, _query_limit, permission_required, search_model, super_only
-from barcodes import normalize_barcode, validate_barcode
+from barcodes import validate_barcode
 from forms import EquipmentTypeForm
 from models import (
     Customer,
@@ -449,7 +449,7 @@ def create_customer_api():
         db.session.rollback()
         return jsonify({"error": "فشل حفظ العميل"}), 500
 
-# ==== Suppliers ==============================================================
+
 @bp.get("/search_suppliers", endpoint="search_suppliers")
 @login_required
 @limiter.limit("60/minute")
@@ -457,41 +457,53 @@ def create_customer_api():
 def search_suppliers():
     if not current_user.is_authenticated:
         return jsonify({"error": "Unauthorized"}), 401
-
     q = (request.args.get("q") or "").strip()
     limit = min(int(request.args.get("limit", 20) or 20), 50)
     sid = (request.args.get("id") or "").strip()
-
     if sid.isdigit():
         s = db.session.get(Supplier, int(sid))
         if not s:
             return jsonify({"results": []})
-        return jsonify({"results": [{
-            "id": s.id,
-            "text": s.name,
-            "name": s.name,
-            "phone": s.phone,
-            "identity_number": s.identity_number
-        }]})
-
+        return jsonify(
+            {
+                "results": [
+                    {
+                        "id": s.id,
+                        "text": s.name,
+                        "name": s.name,
+                        "phone": s.phone,
+                        "identity_number": s.identity_number,
+                    }
+                ]
+            }
+        )
     qry = Supplier.query
     if q:
         like = f"%{q}%"
-        qry = qry.filter(or_(
-            func.lower(Supplier.name).like(f"%{q.lower()}%"),
-            Supplier.phone.ilike(like),
-            Supplier.identity_number.ilike(like),
-            Supplier.email.ilike(like),
-        ))
+        qry = qry.filter(
+            or_(
+                func.lower(Supplier.name).like(f"%{q.lower()}%"),
+                Supplier.phone.ilike(like),
+                Supplier.identity_number.ilike(like),
+                Supplier.email.ilike(like),
+            )
+        )
     rows = qry.order_by(Supplier.name.asc()).limit(limit).all()
+    return jsonify(
+        {
+            "results": [
+                {
+                    "id": s.id,
+                    "text": s.name,
+                    "name": s.name,
+                    "phone": s.phone,
+                    "identity_number": s.identity_number,
+                }
+                for s in rows
+            ]
+        }
+    )
 
-    return jsonify({"results": [{
-        "id": s.id,
-        "text": s.name,
-        "name": s.name,
-        "phone": s.phone,
-        "identity_number": s.identity_number
-    } for s in rows]})
 
 @bp.post("/suppliers", endpoint="create_supplier")
 @login_required
@@ -516,13 +528,24 @@ def create_supplier():
         db.session.rollback()
         return jsonify({"error": "فشل حفظ المورد"}), 500
 
+
 @bp.get("/suppliers/<int:id>")
 @login_required
 @limiter.limit("60/minute")
 @permission_required("manage_vendors", "add_supplier")
 def get_supplier(id):
     s = Supplier.query.get_or_404(id)
-    return jsonify({"id": s.id, "name": s.name, "phone": s.phone, "identity_number": s.identity_number, "address": s.address, "notes": s.notes})
+    return jsonify(
+        {
+            "id": s.id,
+            "name": s.name,
+            "phone": s.phone,
+            "identity_number": s.identity_number,
+            "address": s.address,
+            "notes": s.notes,
+        }
+    )
+
 
 @bp.put("/suppliers/<int:id>")
 @bp.patch("/suppliers/<int:id>", endpoint="update_supplier")
@@ -545,6 +568,7 @@ def update_supplier(id):
         db.session.rollback()
         return jsonify({"error": "فشل تحديث المورد"}), 500
 
+
 @bp.delete("/suppliers/<int:id>", endpoint="delete_supplier")
 @login_required
 @csrf.exempt
@@ -561,7 +585,6 @@ def delete_supplier(id):
         return jsonify({"error": "فشل حذف المورد"}), 500
 
 
-# ==== Partners ===============================================================
 @bp.get("/search_partners", endpoint="search_partners")
 @login_required
 @limiter.limit("60/minute")
@@ -569,41 +592,53 @@ def delete_supplier(id):
 def search_partners():
     if not current_user.is_authenticated:
         return jsonify({"error": "Unauthorized"}), 401
-
     q = (request.args.get("q") or "").strip()
     limit = min(int(request.args.get("limit", 20) or 20), 50)
     pid = (request.args.get("id") or "").strip()
-
     if pid.isdigit():
         p = db.session.get(Partner, int(pid))
         if not p:
             return jsonify({"results": []})
-        return jsonify({"results": [{
-            "id": p.id,
-            "text": p.name,
-            "name": p.name,
-            "phone": p.phone_number,
-            "identity_number": p.identity_number
-        }]})
-
+        return jsonify(
+            {
+                "results": [
+                    {
+                        "id": p.id,
+                        "text": p.name,
+                        "name": p.name,
+                        "phone": p.phone_number,
+                        "identity_number": p.identity_number,
+                    }
+                ]
+            }
+        )
     qry = Partner.query
     if q:
         like = f"%{q}%"
-        qry = qry.filter(or_(
-            func.lower(Partner.name).like(f"%{q.lower()}%"),
-            Partner.phone_number.ilike(like),
-            Partner.identity_number.ilike(like),
-            Partner.email.ilike(like),
-        ))
+        qry = qry.filter(
+            or_(
+                func.lower(Partner.name).like(f"%{q.lower()}%"),
+                Partner.phone_number.ilike(like),
+                Partner.identity_number.ilike(like),
+                Partner.email.ilike(like),
+            )
+        )
     rows = qry.order_by(Partner.name.asc()).limit(limit).all()
+    return jsonify(
+        {
+            "results": [
+                {
+                    "id": p.id,
+                    "text": p.name,
+                    "name": p.name,
+                    "phone": p.phone_number,
+                    "identity_number": p.identity_number,
+                }
+                for p in rows
+            ]
+        }
+    )
 
-    return jsonify({"results": [{
-        "id": p.id,
-        "text": p.name,
-        "name": p.name,
-        "phone": p.phone_number,
-        "identity_number": p.identity_number
-    } for p in rows]})
 
 @bp.post("/partners", endpoint="create_partner")
 @login_required
@@ -628,13 +663,17 @@ def create_partner():
         db.session.rollback()
         return jsonify({"error": "فشل حفظ الشريك"}), 500
 
+
 @bp.get("/partners/<int:id>")
 @login_required
 @limiter.limit("60/minute")
 @permission_required("manage_vendors", "add_partner")
 def get_partner(id):
     p = Partner.query.get_or_404(id)
-    return jsonify({"id": p.id, "name": p.name, "phone": p.phone_number, "identity_number": p.identity_number, "address": p.address, "notes": p.notes})
+    return jsonify(
+        {"id": p.id, "name": p.name, "phone": p.phone_number, "identity_number": p.identity_number, "address": p.address, "notes": p.notes}
+    )
+
 
 @bp.put("/partners/<int:id>")
 @bp.patch("/partners/<int:id>", endpoint="update_partner")
@@ -657,6 +696,7 @@ def update_partner(id):
         db.session.rollback()
         return jsonify({"error": "فشل تحديث الشريك"}), 500
 
+
 @bp.delete("/partners/<int:id>", endpoint="delete_partner")
 @login_required
 @csrf.exempt
@@ -671,6 +711,7 @@ def delete_partner(id):
     except SQLAlchemyError:
         db.session.rollback()
         return jsonify({"error": "فشل حذف الشريك"}), 500
+
 
 @bp.get("/barcode/validate", endpoint="barcode_validate")
 @login_required
@@ -751,11 +792,9 @@ def create_category():
     name = (data.get("name") or "").strip()
     if not name:
         return jsonify({"error": "الاسم مطلوب"}), 400
-
     exists = ProductCategory.query.filter(func.lower(ProductCategory.name) == name.lower()).first()
     if exists:
         return jsonify({"id": exists.id, "text": exists.name, "dupe": True}), 200
-
     c = ProductCategory(name=name)
     db.session.add(c)
     try:
@@ -787,10 +826,8 @@ def _warehouses_handler():
     supplier_id = request.args.get("supplier_id", type=int)
     type_param = (request.args.get("type") or "").strip().upper()
     active_only_arg = request.args.get("active_only")
-
     if active_only_arg is None:
         active_only_arg = "1"
-
     qry = Warehouse.query
     if active_only_arg in {"1", "true", "True"}:
         qry = qry.filter(Warehouse.is_active.is_(True))
@@ -801,18 +838,21 @@ def _warehouses_handler():
     if q:
         like = f"%{q}%"
         qry = qry.filter(Warehouse.name.ilike(like))
-
     rows = qry.order_by(Warehouse.name.asc()).limit(_query_limit(20, 50)).all()
-    return jsonify([
+    return jsonify(
         {
-            "id": w.id,
-            "text": w.name,
-            "supplier_id": w.supplier_id,
-            "warehouse_type": getattr(w.warehouse_type, "value", w.warehouse_type),
-            "is_active": bool(w.is_active),
+            "results": [
+                {
+                    "id": w.id,
+                    "text": w.name,
+                    "supplier_id": w.supplier_id,
+                    "warehouse_type": getattr(w.warehouse_type, "value", w.warehouse_type),
+                    "is_active": bool(w.is_active),
+                }
+                for w in rows
+            ]
         }
-        for w in rows
-    ])
+    )
 
 
 @bp.put("/warehouses/<int:id>")
@@ -834,48 +874,39 @@ def api_update_warehouse(id):
     name = data.get("name")
     if name is not None:
         w.name = name.strip()
-
     wt = data.get("warehouse_type")
     if wt is not None:
         w.warehouse_type = wt.strip().upper()
-
     loc = data.get("location")
     if loc is not None:
         w.location = loc.strip() or None
-
     parent_id = _i(data.get("parent_id"))
     partner_id = _i(data.get("partner_id"))
     supplier_id = _i(data.get("supplier_id"))
     share_percent = data.get("share_percent")
     capacity = data.get("capacity")
     is_active = data.get("is_active")
-
     if parent_id is not None:
         w.parent_id = parent_id
     if partner_id is not None:
         w.partner_id = partner_id
     if supplier_id is not None:
         w.supplier_id = supplier_id
-
     try:
         if share_percent not in (None, "", "None"):
             w.share_percent = float(share_percent)
     except Exception:
         pass
-
     try:
         if str(capacity or "").strip() != "":
             w.capacity = int(capacity)
     except Exception:
         pass
-
     if is_active is not None:
         w.is_active = bool(is_active)
-
     wt_effective = getattr(w.warehouse_type, "value", w.warehouse_type)
     if wt_effective == WarehouseType.EXCHANGE.value and not w.supplier_id:
         return jsonify({"success": False, "error": "مخزن التبادل يتطلب تعيين المورد."}), 400
-
     try:
         db.session.commit()
         return jsonify({"success": True, "id": w.id, "name": w.name})
@@ -926,35 +957,67 @@ def api_products():
 def api_search_products():
     return api_products()
 
-
 @bp.get("/warehouses/<int:wid>/products", endpoint="products_by_warehouse")
 @login_required
 @limiter.limit("60/minute")
 @permission_required("view_inventory", "view_warehouses", "manage_inventory")
 def api_products_by_warehouse(wid: int):
-    rows = (
-        db.session.query(Product, StockLevel.quantity, StockLevel.reserved_quantity)
-        .join(StockLevel, StockLevel.product_id == Product.id)
-        .filter(StockLevel.warehouse_id == wid, StockLevel.quantity > 0)
-        .order_by(Product.name)
-        .limit(_limit(200, 500))
-        .all()
-    )
-    return jsonify(
-        [
-            {
-                "id": p.id,
-                "text": p.name,
-                "price": float(p.price or 0),
-                "sku": p.sku,
-                "on_hand": int(qty or 0),
-                "reserved": int(res or 0) if res is not None else 0,
-                "available": int((qty or 0) - (res or 0)) if qty is not None else 0,
-            }
-            for p, qty, res in rows
-        ]
-    )
+    q = (request.args.get("q") or "").strip()
+    selected_ids = request.args.getlist("warehouse_ids", type=int) or []
+    sum_ids = selected_ids or [wid]
 
+    qry = (
+        db.session.query(
+            Product,
+            StockLevel.quantity.label("qty_curr"),
+        )
+        .join(
+            StockLevel,
+            (StockLevel.product_id == Product.id) & (StockLevel.warehouse_id == wid),
+            isouter=True
+        )
+    )
+    if q:
+        like = f"%{q}%"
+        qry = qry.filter(
+            or_(
+                Product.name.ilike(like),
+                Product.sku.ilike(like),
+                Product.part_number.ilike(like),
+                Product.brand.ilike(like),
+            )
+        )
+
+    rows = qry.order_by(Product.name.asc()).limit(_limit(200, 500)).all()
+
+    totals_map = {}
+    if sum_ids:
+        trows = (
+            db.session.query(StockLevel.product_id, func.coalesce(func.sum(StockLevel.quantity), 0))
+            .filter(StockLevel.warehouse_id.in_(sum_ids))
+            .group_by(StockLevel.product_id)
+            .all()
+        )
+        totals_map = {pid: int(t or 0) for pid, t in trows}
+
+    results = []
+    for p, qty_curr in rows:
+        label = f"{p.name} (متاح: {totals_map.get(p.id, int(qty_curr or 0))})"
+        results.append({
+            "id": p.id,
+            "text": label,
+            "sku": p.sku,
+            "part_number": getattr(p, "part_number", None),
+            "brand": getattr(p, "brand", None),
+            "purchase_price": float(getattr(p, "purchase_price", 0) or 0),
+            "selling_price": float(getattr(p, "selling_price", 0) or 0),
+            "price": float(getattr(p, "price", 0) or 0),
+            "online_price": float(getattr(p, "online_price", 0) or 0),
+            "quantity": int(qty_curr or 0),
+            "total_quantity": totals_map.get(p.id, int(qty_curr or 0)),
+        })
+
+    return jsonify({"results": results})
 
 @bp.get("/warehouses/inventory")
 @login_required
@@ -966,7 +1029,6 @@ def api_inventory_summary():
     wh_ids = ids or [w.id for w in Warehouse.query.order_by(Warehouse.name).all()]
     if not wh_ids:
         return jsonify({"data": []})
-
     qry = (
         db.session.query(
             Product.id.label("pid"),
@@ -983,7 +1045,6 @@ def api_inventory_summary():
     if q:
         like = f"%{q}%"
         qry = qry.filter(or_(Product.name.ilike(like), Product.sku.ilike(like)))
-
     rows = qry.limit(_limit(200, 500))
     data = []
     for pid, name, sku, on_hand, reserved in rows:
@@ -992,6 +1053,51 @@ def api_inventory_summary():
         data.append({"product_id": pid, "name": name, "sku": sku, "on_hand": on_hand, "reserved": reserved, "available": max(on_hand - reserved, 0)})
     return jsonify({"data": data, "warehouse_ids": wh_ids})
 
+@bp.patch("/products/<int:id>", endpoint="update_product")
+@login_required
+@csrf.exempt
+@limiter.limit("30/minute")
+@permission_required("manage_inventory")
+def update_product(id: int):
+    p = Product.query.get_or_404(id)
+    data = request.get_json(silent=True) or {}
+
+    def _num(v):
+        try:
+            return float(v)
+        except Exception:
+            return None
+
+    # نصوص
+    for f in ["sku", "part_number", "brand", "online_name", "commercial_name", "description"]:
+        if f in data:
+            setattr(p, f, (data.get(f) or None) or None)
+
+    # أرقام/أسعار
+    for f in ["purchase_price", "selling_price", "price", "online_price", "min_price", "max_price",
+              "unit_price_before_tax", "cost_before_shipping", "cost_after_shipping", "tax_rate"]:
+        if f in data:
+            v = _num(data.get(f))
+            setattr(p, f, v if v is not None else getattr(p, f))
+
+    try:
+        db.session.commit()
+        return jsonify({
+            "success": True,
+            "product": {
+                "id": p.id,
+                "sku": p.sku,
+                "part_number": p.part_number,
+                "brand": p.brand,
+                "purchase_price": float(p.purchase_price or 0),
+                "selling_price": float(p.selling_price or 0),
+                "price": float(p.price or 0),
+                "online_price": float(p.online_price or 0),
+            }
+        })
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 400
 
 @bp.post("/warehouses/<int:warehouse_id>/stock")
 @login_required
@@ -1988,6 +2094,206 @@ def quick_sell_api():
         return jsonify({"success": False, "error": str(e)}), 400
 
 
+@bp.get("/exchange_transactions")
+@login_required
+@limiter.limit("60/minute")
+@permission_required("manage_inventory", "view_inventory", "view_warehouses")
+def list_exchange_transactions():
+    q = _q()
+    qry = ExchangeTransaction.query
+    if q:
+        like = f"%{q}%"
+        qry = qry.filter(
+            or_(
+                ExchangeTransaction.notes.ilike(like),
+                ExchangeTransaction.direction.ilike(like),
+            )
+        )
+    rows = qry.order_by(ExchangeTransaction.id.desc()).limit(_limit(50, 200)).all()
+    data = []
+    for x in rows:
+        data.append(
+            {
+                "id": x.id,
+                "product_id": getattr(x, "product_id", None),
+                "warehouse_id": getattr(x, "warehouse_id", None),
+                "partner_id": getattr(x, "partner_id", None),
+                "direction": getattr(x, "direction", None),
+                "quantity": int(getattr(x, "quantity", 0) or 0),
+                "unit_cost": float(getattr(x, "unit_cost", 0) or 0),
+                "is_priced": bool(getattr(x, "is_priced", False)),
+                "notes": getattr(x, "notes", None),
+            }
+        )
+    return jsonify({"results": data})
+
+
+def _ensure_exchange_warehouse(wid: int) -> Warehouse:
+    wh = Warehouse.query.get(wid)
+    if not wh:
+        raise ValueError("warehouse_not_found")
+    wt = getattr(wh.warehouse_type, "value", wh.warehouse_type)
+    if wt != WarehouseType.EXCHANGE.value:
+        raise ValueError("not_exchange_warehouse")
+    if not getattr(wh, "supplier_id", None):
+        raise ValueError("exchange_requires_supplier")
+    return wh
+
+
+def _stock_row_locked(pid: int, wid: int) -> StockLevel:
+    rec = (
+        db.session.query(StockLevel)
+        .filter_by(product_id=pid, warehouse_id=wid)
+        .with_for_update(nowait=False)
+        .first()
+    )
+    if not rec:
+        rec = StockLevel(product_id=pid, warehouse_id=wid, quantity=0, reserved_quantity=0)
+        db.session.add(rec)
+        db.session.flush()
+    return rec
+
+
+@bp.post("/exchange_transactions")
+@login_required
+@csrf.exempt
+@limiter.limit("30/minute")
+@permission_required("manage_inventory", "manage_warehouses")
+def create_exchange_transaction():
+    d = request.get_json(silent=True) or {}
+    try:
+        pid = int(d.get("product_id") or 0)
+        wid = int(d.get("warehouse_id") or 0)
+        partner_id = int(d.get("partner_id") or 0) or None
+        direction = (d.get("direction") or "").strip().upper()
+        qty = int(float(d.get("quantity") or 0))
+        unit_cost = _D(d.get("unit_cost"))
+        notes = (d.get("notes") or "").strip() or None
+    except Exception:
+        return jsonify({"success": False, "error": "invalid_payload"}), 400
+    if not (pid and wid and direction in {"IN", "OUT", "ADJUSTMENT"} and qty > 0):
+        return jsonify({"success": False, "error": "invalid"}), 400
+    try:
+        _ensure_exchange_warehouse(wid)
+    except ValueError as e:
+        code = str(e)
+        msg = {
+            "warehouse_not_found": "المخزن غير موجود",
+            "not_exchange_warehouse": "يجب أن تكون الحركة على مخزن تبادل.",
+            "exchange_requires_supplier": "مخزن التبادل يجب أن يكون مربوطًا بمورد.",
+        }.get(code, "invalid_warehouse")
+        return jsonify({"success": False, "error": msg}), 400
+    priced = bool(unit_cost and unit_cost > 0)
+    if direction == "ADJUSTMENT":
+        if not priced:
+            return jsonify({"success": False, "error": "هذه تسوية: أدخل تكلفة موجبة للوحدة."}), 400
+    if direction == "OUT":
+        avail = _available_qty(pid, wid)
+        if avail < qty:
+            return jsonify({"success": False, "error": "insufficient_stock", "available": max(avail, 0)}), 400
+    xt = ExchangeTransaction(
+        product_id=pid,
+        warehouse_id=wid,
+        partner_id=partner_id,
+        direction=direction,
+        quantity=qty,
+        unit_cost=(unit_cost if priced else None),
+        is_priced=bool(priced),
+        notes=notes,
+    )
+    db.session.add(xt)
+    db.session.flush()
+    warning = None
+    try:
+        if direction == "IN":
+            _lock_stock_rows([(pid, wid)])
+            rec = _stock_row_locked(pid, wid)
+            rec.quantity = int(rec.quantity or 0) + qty
+            db.session.flush()
+            if not priced:
+                warning = "لم تُدخل تكلفة، ستُحفظ الحركة كغير مسعّرة وسيُطلب تسعيرها لاحقًا."
+        elif direction == "OUT":
+            _lock_stock_rows([(pid, wid)])
+            rec = _stock_row_locked(pid, wid)
+            available = int(rec.quantity or 0) - int(rec.reserved_quantity or 0)
+            if available < qty:
+                db.session.rollback()
+                return jsonify({"success": False, "error": "insufficient_stock", "available": max(available, 0)}), 400
+            rec.quantity = int(rec.quantity or 0) - qty
+            db.session.flush()
+            if not priced:
+                warning = "لم تُدخل تكلفة لهذه الحركة."
+        elif direction == "ADJUSTMENT":
+            if not priced:
+                db.session.rollback()
+                return jsonify({"success": False, "error": "هذه تسوية: أدخل تكلفة موجبة للوحدة."}), 400
+        db.session.commit()
+        resp = {"success": True, "id": xt.id}
+        if warning:
+            resp["warning"] = warning
+        return jsonify(resp), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 400
+
+
+@bp.get("/exchange_transactions/<int:id>")
+@login_required
+@limiter.limit("60/minute")
+@permission_required("manage_inventory", "view_inventory")
+def get_exchange_transaction(id: int):
+    x = ExchangeTransaction.query.get(id)
+    if not x:
+        return jsonify({"error": "Not Found"}), 404
+    return jsonify(
+        {
+            "id": x.id,
+            "product_id": getattr(x, "product_id", None),
+            "warehouse_id": getattr(x, "warehouse_id", None),
+            "partner_id": getattr(x, "partner_id", None),
+            "direction": getattr(x, "direction", None),
+            "quantity": int(getattr(x, "quantity", 0) or 0),
+            "unit_cost": float(getattr(x, "unit_cost", 0) or 0),
+            "is_priced": bool(getattr(x, "is_priced", False)),
+            "notes": getattr(x, "notes", None),
+        }
+    )
+
+
+@bp.delete("/exchange_transactions/<int:id>")
+@login_required
+@csrf.exempt
+@limiter.limit("30/minute")
+@permission_required("manage_inventory", "manage_warehouses")
+def delete_exchange_transaction(id: int):
+    x = ExchangeTransaction.query.get(id)
+    if not x:
+        return jsonify({"error": "Not Found"}), 404
+    pid = int(getattr(x, "product_id", 0) or 0)
+    wid = int(getattr(x, "warehouse_id", 0) or 0)
+    qty = int(getattr(x, "quantity", 0) or 0)
+    direction = (getattr(x, "direction", "") or "").upper()
+    try:
+        if direction in {"IN", "OUT"} and pid and wid and qty > 0:
+            _lock_stock_rows([(pid, wid)])
+            rec = _stock_row_locked(pid, wid)
+            if direction == "IN":
+                reserved = int(rec.reserved_quantity or 0)
+                new_qty = int(rec.quantity or 0) - qty
+                if new_qty < 0 or new_qty < reserved:
+                    return jsonify({"success": False, "error": "insufficient_stock_to_reverse"}), 400
+                rec.quantity = new_qty
+            elif direction == "OUT":
+                rec.quantity = int(rec.quantity or 0) + qty
+            db.session.flush()
+        db.session.delete(x)
+        db.session.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 400
+
+
 @bp.app_errorhandler(403)
 def forbidden(e):
     return jsonify({"error": "Forbidden"}), 403
@@ -2009,6 +2315,7 @@ def server_error(e):
     current_app.logger.exception("API 500: %s", getattr(e, "description", e))
     return jsonify({"error": "Server Error"}), 500
 
+
 @bp.get("/users", endpoint="users")
 @login_required
 def api_search_users():
@@ -2017,7 +2324,6 @@ def api_search_users():
     active_only = (request.args.get("active_only", "1") or "1") not in {"0", "false", "False"}
     role_names = [s.strip() for s in (request.args.get("role") or "").split(",") if s.strip()]
     role_ids = [int(s) for s in (request.args.get("role_id") or "").split(",") if s.strip().isdigit()]
-
     if request.args.get("id"):
         uid = request.args.get("id")
         if str(uid).isdigit():
@@ -2040,7 +2346,6 @@ def api_search_users():
             if email and email.lower() != text.lower():
                 text = f"{text} ({email})"
             return jsonify({"results": [{"id": u.id, "text": text}]})
-
     qs = User.query
     if active_only:
         qs = qs.filter(User.is_active.is_(True))
@@ -2056,7 +2361,6 @@ def api_search_users():
         if hasattr(User, "name"):
             conds.append(User.name.ilike(ilike))
         qs = qs.filter(or_(*conds))
-
     rows = qs.order_by(User.username.asc()).limit(limit).all()
     results = []
     for u in rows:
@@ -2068,6 +2372,7 @@ def api_search_users():
             text = f"{text} ({email})"
         results.append({"id": u.id, "text": text})
     return jsonify({"results": results})
+
 
 @bp.get("/equipment-types/search")
 @login_required
@@ -2088,7 +2393,6 @@ def create_equipment_type():
     name = (data.get("name") or "").strip()
     if not name:
         return jsonify({"error": "الاسم مطلوب"}), 400
-
     et = EquipmentType(
         name=name,
         model_number=(data.get("model") or "").strip() or None,

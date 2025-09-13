@@ -4,32 +4,58 @@ body {
   color: #333;
 }
 
+.navbar {
+  background: linear-gradient(135deg, #1a237e, #311b92);
+}
+.navbar .nav-link, .navbar .navbar-brand {
+  color: #fff !important;
+  font-weight: 600;
+}
+.navbar .nav-link:hover, .navbar .navbar-brand:hover {
+  color: #90caf9 !important;
+}
+.nav-glow {
+  box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #1a237e, #311b92);
+  border: none;
+  font-weight: bold;
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, #283593, #4527a0);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+}
+
+.footer {
+  background: #1a237e;
+  color: #fff;
+}
+
 .card {
   border-radius: 15px;
   overflow: hidden;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+  transition: transform 0.35s ease, box-shadow 0.35s ease;
 }
-
 .card:hover {
-  transform: translateY(-8px);
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.25);
 }
-
 .card-img-top {
-  height: 200px;
+  height: 220px;
   object-fit: cover;
-  border-bottom: 1px solid #ddd;
 }
-
 .card-title {
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 1.15rem;
   color: #1a237e;
 }
-
 .card-text {
   font-size: 0.9rem;
-  color: #666;
+  color: #555;
 }
 
 .badge.bg-success {
@@ -38,25 +64,11 @@ body {
   padding: 0.4em 0.7em;
   border-radius: 12px;
 }
-
 .badge.bg-danger {
   background: #dc3545;
   font-size: 0.9rem;
   padding: 0.4em 0.7em;
   border-radius: 12px;
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, #1a237e, #311b92);
-  border: none;
-}
-
-.btn-primary:hover {
-  background: linear-gradient(135deg, #283593, #4527a0);
-}
-
-#search {
-  max-width: 300px;
 }
 
 .quantity-badge {
@@ -67,20 +79,32 @@ body {
   padding: 0.25em 0.4em;
 }
 
+#search {
+  max-width: 320px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+
+.animate-fade {
+  animation: fadeIn 0.8s ease-in-out;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @media (max-width: 576px) {
   .row-cols-1 > * {
     flex: 0 0 100%;
     max-width: 100%;
   }
 }
-
 @media (min-width: 577px) and (max-width: 991px) {
   .row-cols-md-2 > * {
     flex: 0 0 50%;
     max-width: 50%;
   }
 }
-
 @media (min-width: 992px) {
   .row-cols-lg-4 > * {
     flex: 0 0 25%;

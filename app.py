@@ -24,6 +24,7 @@ from utils import (
     is_super,
 )
 from cli import seed_roles
+from seed_palestine import seed_palestine
 from models import User, Role, Permission, Customer
 from acl import attach_acl
 
@@ -497,6 +498,7 @@ def create_app(config_object=Config) -> Flask:
             app.logger.error("Missing endpoints at startup: %s", ", ".join(missing))
 
     app.cli.add_command(seed_roles)
+    app.cli.add_command(seed_palestine, name="seed_palestine")
     return app
 
 

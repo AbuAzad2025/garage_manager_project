@@ -1,6 +1,9 @@
 (function () {
   'use strict';
 
+  function toNum(v) { var n = parseFloat(v); return isNaN(n) ? 0 : n; }
+  function round2(v) { return (Math.round((toNum(v) + Number.EPSILON) * 100) / 100).toFixed(2); }
+
   function dtSafeInit() {
     var $table = $('#servicesTable');
     if (!$table.length) return;
@@ -77,6 +80,7 @@
 
   function initSelect2Ajax($el, url) {
     $el.select2({
+      theme: 'bootstrap4',
       width: '100%',
       ajax: {
         url: url,
@@ -85,22 +89,57 @@
         data: function (params) { return { q: params.term || '', limit: 20 }; },
         processResults: function (data) {
           var arr = Array.isArray(data) ? data : (data.results || data.data || []);
-          return { results: arr.map(function (x) {
-            return typeof x === 'object' ? x : { id: x, text: String(x) };
-          }) };
+          return {
+            results: arr.map(function (x) {
+              if (typeof x === 'object') {
+                var txt = x.text || x.name || String(x.id);
+                return Object.assign({}, x, { id: x.id, text: txt });
+              }
+              return { id: x, text: String(x) };
+            })
+          };
         }
       },
-      minimumInputLength: 0,
+      minimumInputLength: 1,
       allowClear: true,
-      placeholder: 'اختر...'
+      placeholder: $el.attr('data-placeholder') || 'اختر...'
     });
   }
 
+  function updateAvailHint($scope, available) {
+    var $qtyCol = $scope.find('div:has(input[name="quantity"])').first();
+    var $hint = $qtyCol.find('.avail-hint');
+    if (!$hint.length) $hint = $('<div/>', { class: 'form-text text-muted mt-1 avail-hint' }).appendTo($qtyCol);
+    $hint.text('المتاح في المخزن: ' + (available == null ? '-' : available));
+  }
+
+  function recalcPriceFromDiscount($scope) {
+    var $price = $scope.find('input[name="unit_price"]');
+    var $disc  = $scope.find('input[name="discount"]');
+    var base   = toNum($price.data('basePrice'));
+    var d      = toNum($disc.val());
+    if (base > 0) {
+      var p = base * (1 - (d / 100));
+      $price.val(round2(p));
+    }
+  }
+
+  function recalcDiscountFromPrice($scope) {
+    var $price = $scope.find('input[name="unit_price"]');
+    var $disc  = $scope.find('input[name="discount"]');
+    var base   = toNum($price.data('basePrice'));
+    var p      = toNum($price.val());
+    if (base > 0) {
+      var d = ((base - p) / base) * 100;
+      $disc.val(round2(d));
+    }
+  }
+
   function fetchAndFillUnitPrice($scope) {
-    var $part   = $scope.find('select[name="part_id"]');
-    var $price  = $scope.find('input[name="unit_price"]');
+    var $part  = $scope.find('select[name="part_id"]');
+    var $price = $scope.find('input[name="unit_price"]');
     var infoTpl = $part.attr('data-product-info');
-    var pid     = $part.val();
+    var pid = $part.val();
     if (!infoTpl || !pid || !$price.length) return;
 
     var $wh = $scope.find('select[name="warehouse_id"]');
@@ -111,15 +150,13 @@
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (js) {
         if (!js) return;
+        if (js.available != null) updateAvailHint($scope, js.available);
         if (js.price != null && !isNaN(parseFloat(js.price))) {
-          var prev = parseFloat($price.val());
-          if (isNaN(prev) || prev === 0) $price.val(parseFloat(js.price).toFixed(2));
-        }
-        if (js.available != null) {
-          var $qtyCol = $scope.find('div:has(input[name="quantity"])').first();
-          var $hint = $qtyCol.find('.avail-hint');
-          if (!$hint.length) $hint = $('<div/>', { class: 'form-text text-muted mt-1 avail-hint' }).appendTo($qtyCol);
-          $hint.text('المتاح في المخزن: ' + js.available);
+          var base = toNum(js.price);
+          $price.data('basePrice', base);
+          $price.val(round2(base));
+          var $disc = $scope.find('input[name="discount"]');
+          if ($disc.length) $disc.val('0.00');
         }
       })
       .catch(function () {});
@@ -129,7 +166,6 @@
     if ($scope.data('cascade-bound')) return;
     var $wh = $scope.find('select[name="warehouse_id"]');
     var $pr = $scope.find('select[name="part_id"]');
-
     var whEndpoint = $wh.attr('data-endpoint');
     var prEndpointTemplate = $pr.attr('data-endpoint-by-warehouse');
 
@@ -161,16 +197,31 @@
   function bootSelect2Auto() {
     $('.select2').each(function () {
       var $el = $(this);
+      if ($el.data('bound')) return;
       var ep = $el.attr('data-endpoint');
       if (ep) initSelect2Ajax($el, ep);
+      $el.data('bound', true);
     });
   }
 
   function bindServicePartForm() {
     var $formPart = $('#form-add-part');
     if (!$formPart.length) return;
+
+    // السماح بخصم سالب واجهياً
+    var $disc = $formPart.find('input[name="discount"]');
+    if ($disc.length) { $disc.attr('min', '-100'); $disc.attr('max', '100'); }
+
     bindWarehouseProductCascade($formPart);
     fetchAndFillUnitPrice($formPart);
+
+    $formPart.on('input change', 'input[name="discount"]', function () {
+      recalcPriceFromDiscount($formPart);
+    });
+
+    $formPart.on('input change', 'input[name="unit_price"]', function () {
+      recalcDiscountFromPrice($formPart);
+    });
   }
 
   function bindDynamicRows() {
@@ -200,12 +251,23 @@
         '</div>';
       $('#parts-list').append(tpl);
       var $row = $('#parts-list .part-line').last();
+
       $row.find('.select2').each(function () {
         var $el = $(this);
+        if ($el.data('bound')) return;
         var ep = $el.attr('data-endpoint');
         if (ep) initSelect2Ajax($el, ep);
+        $el.data('bound', true);
       });
+
+      // خصم سالب على الصف الديناميكي
+      var $d = $row.find('input[name="discount"]');
+      if ($d.length) { $d.attr('min','-100').attr('max','100'); }
+
       bindWarehouseProductCascade($row);
+
+      $row.on('input change', 'input[name="discount"]', function () { recalcPriceFromDiscount($row); });
+      $row.on('input change', 'input[name="unit_price"]', function () { recalcDiscountFromPrice($row); });
     });
 
     $(document).on('click', '.remove-part', function () {

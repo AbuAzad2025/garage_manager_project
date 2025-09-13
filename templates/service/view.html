@@ -83,10 +83,6 @@
       <form method="post" action="{{ url_for('service.update_diagnosis', rid=service.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <textarea class="form-control" name="diagnosis" rows="3">{{ service.diagnosis or service.engineer_notes or '' }}</textarea>
-        <input type="hidden" name="problem_description" value="{{ service.problem_description or '' }}">
-        <input type="hidden" name="resolution" value="{{ service.resolution or '' }}">
-        <input type="hidden" name="estimated_duration" value="{{ service.estimated_duration or '' }}">
-        <input type="hidden" name="estimated_cost" value="{{ service.estimated_cost or '' }}">
         <div class="mt-2 text-end">
           <button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> حفظ الملاحظات</button>
         </div>
@@ -103,12 +99,16 @@
     <div class="row g-2 align-items-end">
       <div class="col-md-3">
         <label class="form-label">المستودع</label>
-        <select class="form-select select2" name="warehouse_id" id="warehouse_id"
-                data-endpoint="{{ url_for('api.search_warehouses') }}" required></select>
+        <select class="form-select" name="warehouse_id" required>
+          <option value="">اختر المستودع</option>
+          {% for wh in warehouses %}
+            <option value="{{ wh.id }}">{{ wh.name }}</option>
+          {% endfor %}
+        </select>
       </div>
       <div class="col-md-3">
         <label class="form-label">القطعة</label>
-        <select class="form-select select2" name="part_id" id="part_id"
+        <select class="form-select select2" name="part_id"
                 data-endpoint-by-warehouse="{{ url_for('api.products_by_warehouse', wid=0) }}"
                 data-product-info="{{ url_for('api.product_info', pid=0) }}"
                 required></select>
@@ -123,7 +123,7 @@
       </div>
       <div class="col-md-2">
         <label class="form-label">خصم %</label>
-        <input type="number" class="form-control" name="discount" step="0.01" min="0" value="0">
+        <input type="number" class="form-control" name="discount" step="0.01" min="-100" value="0">
       </div>
       <div class="col-md-2">
         <label class="form-label">ضريبة %</label>
@@ -151,42 +151,4 @@
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="{{ url_for('static', filename='adminlte/plugins/select2/js/select2.full.min.js') }}"></script>
   <script src="{{ url_for('static', filename='js/service.js') }}"></script>
-  <script>
-    document.addEventListener("DOMContentLoaded", function(){
-      if (!window.jQuery || !jQuery.fn.select2) return;
-      $('.select2').select2({ theme: 'bootstrap4', width: '100%' });
-
-      const $wh = $('#warehouse_id');
-      const $part = $('#part_id');
-
-      $wh.on('change', function(){
-        const wid = $(this).val();
-        const base = $part.data('endpoint-by-warehouse');
-        const url = (base || '').replace(/\/(0|\d+)(?=\/products$)/, '/' + wid);
-        $part.empty();
-        $.getJSON(url, function(rows){
-          rows.forEach(function(r){
-            const label = r.text + (r.available != null ? ' (متاح: ' + r.available + ')' : '');
-            $part.append(new Option(label, r.id));
-          });
-          $part.trigger('change');
-        });
-      });
-
-      $part.on('change', function(){
-        const pid = $(this).val();
-        const wid = $wh.val();
-        const infoTpl = $part.data('product-info');
-        if (!pid || !infoTpl) return;
-        const infoUrl = (infoTpl || '').replace(/\/(0|\d+)(?=\/info$)/, '/' + pid) + (wid ? ('?warehouse_id=' + wid) : '');
-        $.getJSON(infoUrl, function(info){
-          if (!info) return;
-          if (typeof info.price !== 'undefined') {
-            const $price = $('[name="unit_price"]');
-            if ($price.val() === '' || Number($price.val()) === 0) $price.val(info.price);
-          }
-        });
-      });
-    });
-  </script>
 {% endblock %}

@@ -4,6 +4,7 @@
   </div>
   <div class="card-body p-0">
     {% if service.parts %}
+    {% set parts_total = (service.parts | map(attribute='line_total') | sum) or 0 %}
     <table class="table table-sm table-striped mb-0 align-middle">
       <thead class="table-light">
         <tr>
@@ -27,20 +28,29 @@
             <td>{{ part.part.name if part.part else '—' }}</td>
             <td>{{ part.quantity or 0 }}</td>
             <td>{{ '%.2f'|format((part.unit_price or 0)|float) }}</td>
-            <td>{{ (part.discount or 0)|float|round(2, 'floor') }}</td>
-            <td>{{ (part.tax_rate or 0)|float|round(2, 'floor') }}</td>
+            <td>{{ '%.2f'|format((part.discount or 0)|float) }}</td>
+            <td>{{ '%.2f'|format((part.tax_rate or 0)|float) }}</td>
             <td>{{ '%.2f'|format((line or 0)|float) }}</td>
             {% if current_user.has_permission('manage_service') %}
             <td>
               <form method="post" action="{{ url_for('service.delete_part', pid=part.id) }}" class="d-inline">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="btn btn-danger btn-sm btn-delete"><i class="fa fa-trash"></i></button>
+                <button class="btn btn-danger btn-sm btn-delete" title="حذف">
+                  <i class="fa fa-trash"></i>
+                </button>
               </form>
             </td>
             {% endif %}
           </tr>
         {% endfor %}
       </tbody>
+      <tfoot class="table-light">
+        <tr>
+          <th colspan="6" class="text-end">إجمالي قطع الغيار</th>
+          <th>{{ '%.2f'|format((parts_total or 0)|float) }}</th>
+          {% if current_user.has_permission('manage_service') %}<th></th>{% endif %}
+        </tr>
+      </tfoot>
     </table>
     {% else %}
     <div class="p-3 text-center text-muted">لا توجد قطع مسجلة لهذا الطلب</div>

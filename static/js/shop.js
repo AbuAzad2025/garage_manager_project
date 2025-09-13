@@ -1,51 +1,29 @@
 (function () {
   "use strict";
 
-  // --- الترجمة متعددة اللغات ---
   const LANG = (document.documentElement.lang || "ar").toLowerCase();
-
   const T = {
-    reset: {
-      ar: "إعادة",
-      en: "Reset",
-      fr: "Réinitialiser"
-    },
-    maxExceeded: {
-      ar: "تجاوزت الحد الأقصى المسموح.",
-      en: "You exceeded the maximum allowed.",
-      fr: "Vous avez dépassé le maximum autorisé."
-    },
-    noResults: {
-      ar: "لا توجد منتجات مطابقة.",
-      en: "No matching products found.",
-      fr: "Aucun produit correspondant trouvé."
-    }
+    reset: { ar: "إعادة", en: "Reset", fr: "Réinitialiser" },
+    maxExceeded: { ar: "تجاوزت الحد الأقصى المسموح.", en: "You exceeded the maximum allowed.", fr: "Vous avez dépassé le maximum autorisé." },
+    noResults: { ar: "لا توجد منتجات مطابقة.", en: "No matching products found.", fr: "Aucun produit correspondant trouvé." }
   };
-
   const t = (key) => T[key]?.[LANG] || T[key]?.ar || key;
 
-  // تضبط القيمة المدخلة حسب min/max
   function clampQuantity(input) {
     const val = Number(input.value || 0);
     const min = input.hasAttribute("min") ? Number(input.min) : 1;
-    const max = input.dataset.max
-      ? Number(input.dataset.max)
-      : (input.hasAttribute("max") ? Number(input.max) : Infinity);
-
+    const max = input.dataset.max ? Number(input.dataset.max) : (input.hasAttribute("max") ? Number(input.max) : Infinity);
     let v = !Number.isFinite(val) || val < min ? min : val;
-
     if (Number.isFinite(max) && v > max) {
       alert(t("maxExceeded"));
       v = max;
     }
-
     input.value = String(v);
     return v;
   }
 
   function wireQtyButtons(root) {
     const scope = root || document;
-
     scope.querySelectorAll(".btn-step").forEach(btn => {
       btn.addEventListener("click", () => {
         const dir = Number(btn.dataset.dir || 0);
@@ -56,26 +34,19 @@
         clampQuantity(input);
       });
     });
-
     scope.querySelectorAll(".qty-input").forEach(inp => {
-      ["input", "change", "blur"].forEach(ev => {
-        inp.addEventListener(ev, () => clampQuantity(inp));
-      });
-
-      // إنشاء زر إعادة إذا لم يكن موجود
+      ["input", "change", "blur"].forEach(ev => inp.addEventListener(ev, () => clampQuantity(inp)));
       const wrapper = inp.closest(".qty-control");
       if (wrapper && !wrapper.querySelector(".btn-reset")) {
         const resetBtn = document.createElement("button");
         resetBtn.type = "button";
         resetBtn.className = "btn-reset btn btn-sm btn-outline-secondary ms-2";
         resetBtn.textContent = t("reset");
-
         resetBtn.addEventListener("click", () => {
           const min = inp.hasAttribute("min") ? Number(inp.min) : 1;
           inp.value = String(min);
           clampQuantity(inp);
         });
-
         wrapper.appendChild(resetBtn);
       }
     });
@@ -93,12 +64,9 @@
     const search = document.getElementById("search");
     const container = document.getElementById("products-container");
     const noResultsMsgId = "no-results-message";
-
     if (!search || !container) return;
 
-    const cards = Array.from(container.querySelectorAll(".product-card"));
-
-    // إنشاء عنصر رسالة عدم وجود نتائج
+    const items = Array.from(container.querySelectorAll(".product-card, .product-row"));
     let noResults = document.getElementById(noResultsMsgId);
     if (!noResults) {
       noResults = document.createElement("div");
@@ -106,22 +74,31 @@
       noResults.textContent = t("noResults");
       noResults.className = "text-center text-muted my-3";
       noResults.style.display = "none";
-      container.parentElement.appendChild(noResults);
+      (container.parentElement || container).appendChild(noResults);
     }
+
+    const getName = (el) =>
+      el.getAttribute("data-name") ||
+      el.querySelector("[data-name]")?.getAttribute("data-name") ||
+      el.textContent ||
+      "";
+
+    const getDesc = (el) =>
+      el.getAttribute("data-desc") ||
+      el.querySelector("[data-desc]")?.getAttribute("data-desc") ||
+      "";
 
     const filter = () => {
       const q = (search.value || "").trim().toLowerCase();
-      let visibleCount = 0;
-
-      cards.forEach(card => {
-        const name = card.getAttribute("data-name") || "";
-        const desc = card.getAttribute("data-desc") || "";
-        const match = name.toLowerCase().includes(q) || desc.toLowerCase().includes(q);
-        card.style.display = match ? "" : "none";
-        if (match) visibleCount++;
+      let visible = 0;
+      items.forEach(el => {
+        const name = getName(el).toLowerCase();
+        const desc = getDesc(el).toLowerCase();
+        const match = !q || name.includes(q) || desc.includes(q);
+        el.style.display = match ? "" : "none";
+        if (match) visible++;
       });
-
-      noResults.style.display = visibleCount === 0 ? "" : "none";
+      noResults.style.display = visible === 0 ? "" : "none";
     };
 
     search.addEventListener("input", debounce(filter, 120));
@@ -130,7 +107,6 @@
   function wireCheckoutForm() {
     const form = document.getElementById("payment-form");
     if (!form) return;
-
     const methodSel = document.getElementById("payment-method");
     const cardFields = document.getElementById("card-fields");
     const cardNumber = form.querySelector('input[name="card_number"]');
@@ -143,9 +119,7 @@
 
     if (methodSel) {
       methodSel.value = "card";
-      Array.from(methodSel.options).forEach(opt => {
-        opt.disabled = opt.value !== "card";
-      });
+      Array.from(methodSel.options).forEach(opt => { opt.disabled = opt.value !== "card"; });
       methodSel.addEventListener("change", toggleCardFields);
     }
 
@@ -181,5 +155,4 @@
     wireCatalogSearch();
     wireCheckoutForm();
   });
-
 })();

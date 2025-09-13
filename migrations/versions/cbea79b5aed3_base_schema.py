@@ -1,8 +1,8 @@
 """base schema
 
-Revision ID: ab1b4c82226e
+Revision ID: cbea79b5aed3
 Revises: 
-Create Date: 2025-09-07 20:38:16.305221
+Create Date: 2025-09-11 18:40:09.902818
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'ab1b4c82226e'
+revision = 'cbea79b5aed3'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -50,6 +50,7 @@ def upgrade():
     sa.Column('currency', sa.String(length=10), nullable=False),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint('credit_limit >= 0', name='ck_customer_credit_limit_non_negative'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('email'),
     sa.UniqueConstraint('phone')
@@ -152,8 +153,11 @@ def upgrade():
     sa.Column('balance', sa.Numeric(precision=12, scale=2), nullable=True),
     sa.Column('share_percentage', sa.Numeric(precision=5, scale=2), nullable=True),
     sa.Column('currency', sa.String(length=10), nullable=False),
+    sa.Column('notes', sa.Text(), nullable=True),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint('balance >= 0', name='ck_partner_balance_non_negative'),
+    sa.CheckConstraint('share_percentage >= 0 AND share_percentage <= 100', name='ck_partner_share_percentage_range'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('identity_number'),
     sa.UniqueConstraint('phone_number')
@@ -222,6 +226,7 @@ def upgrade():
     sa.Column('currency', sa.String(length=10), nullable=False),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint('balance >= 0', name='ck_supplier_balance_non_negative'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('identity_number')
     )
@@ -294,6 +299,10 @@ def upgrade():
     sa.Column('total_due', sa.Numeric(precision=12, scale=2), nullable=True),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint('total_costs >= 0', name='ck_partner_settlement_costs_non_negative'),
+    sa.CheckConstraint('total_due >= 0', name='ck_partner_settlement_due_non_negative'),
+    sa.CheckConstraint('total_gross >= 0', name='ck_partner_settlement_gross_non_negative'),
+    sa.CheckConstraint('total_share >= 0', name='ck_partner_settlement_share_non_negative'),
     sa.ForeignKeyConstraint(['partner_id'], ['partners.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -343,6 +352,9 @@ def upgrade():
     sa.Column('supplier_id', sa.Integer(), nullable=True),
     sa.Column('supplier_international_id', sa.Integer(), nullable=True),
     sa.Column('supplier_local_id', sa.Integer(), nullable=True),
+    sa.Column('online_name', sa.String(length=255), nullable=True),
+    sa.Column('online_price', sa.Numeric(precision=12, scale=2), nullable=True),
+    sa.Column('online_image', sa.String(length=255), nullable=True),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.CheckConstraint('cost_after_shipping >= 0', name='ck_product_cost_after_ge_0'),
@@ -350,6 +362,7 @@ def upgrade():
     sa.CheckConstraint('max_price IS NULL OR max_price >= 0', name='ck_product_max_price_ge_0'),
     sa.CheckConstraint('min_price IS NULL OR min_price >= 0', name='ck_product_min_price_ge_0'),
     sa.CheckConstraint('min_qty >= 0', name='ck_product_min_qty_ge_0'),
+    sa.CheckConstraint('online_price IS NULL OR online_price >= 0', name='ck_product_online_price_ge_0'),
     sa.CheckConstraint('price >= 0', name='ck_product_price_ge_0'),
     sa.CheckConstraint('purchase_price >= 0', name='ck_product_purchase_ge_0'),
     sa.CheckConstraint('reorder_point IS NULL OR reorder_point >= 0', name='ck_product_reorder_ge_0'),
@@ -362,10 +375,7 @@ def upgrade():
     sa.ForeignKeyConstraint(['supplier_international_id'], ['suppliers.id'], ),
     sa.ForeignKeyConstraint(['supplier_local_id'], ['suppliers.id'], ),
     sa.ForeignKeyConstraint(['vehicle_type_id'], ['equipment_types.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('barcode'),
-    sa.UniqueConstraint('serial_no'),
-    sa.UniqueConstraint('sku')
+    sa.PrimaryKeyConstraint('id')
     )
     with op.batch_alter_table('products', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_products_brand'), ['brand'], unique=False)
@@ -374,6 +384,7 @@ def upgrade():
         batch_op.create_index(batch_op.f('ix_products_name'), ['name'], unique=False)
         batch_op.create_index(batch_op.f('ix_products_part_number'), ['part_number'], unique=False)
         batch_op.create_index(batch_op.f('ix_products_updated_at'), ['updated_at'], unique=False)
+        batch_op.create_index('uq_products_barcode', ['barcode'], unique=True, postgresql_where=sa.text('barcode IS NOT NULL'))
 
     op.create_table('role_permissions',
     sa.Column('role_id', sa.Integer(), nullable=False),
@@ -396,6 +407,8 @@ def upgrade():
     sa.Column('total_due', sa.Numeric(precision=12, scale=2), nullable=True),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint('total_due >= 0', name='ck_supplier_settlement_due_non_negative'),
+    sa.CheckConstraint('total_gross >= 0', name='ck_supplier_settlement_gross_non_negative'),
     sa.ForeignKeyConstraint(['supplier_id'], ['suppliers.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -434,7 +447,7 @@ def upgrade():
     op.create_table('warehouses',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
-    sa.Column('warehouse_type', sa.Enum('MAIN', 'PARTNER', 'INVENTORY', 'EXCHANGE', name='warehouse_type', native_enum=False), nullable=False),
+    sa.Column('warehouse_type', sa.Enum('MAIN', 'PARTNER', 'INVENTORY', 'EXCHANGE', 'ONLINE', name='warehouse_type', native_enum=False), nullable=False),
     sa.Column('location', sa.String(length=200), nullable=True),
     sa.Column('is_active', sa.Boolean(), nullable=True),
     sa.Column('parent_id', sa.Integer(), nullable=True),
@@ -444,6 +457,8 @@ def upgrade():
     sa.Column('capacity', sa.Integer(), nullable=True),
     sa.Column('current_occupancy', sa.Integer(), nullable=True),
     sa.Column('notes', sa.Text(), nullable=True),
+    sa.Column('online_slug', sa.String(length=150), nullable=True),
+    sa.Column('online_is_default', sa.Boolean(), nullable=False),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.CheckConstraint('capacity IS NULL OR capacity >= 0', name='ck_warehouses_capacity_nonneg'),
@@ -453,12 +468,14 @@ def upgrade():
     sa.ForeignKeyConstraint(['parent_id'], ['warehouses.id'], ),
     sa.ForeignKeyConstraint(['partner_id'], ['partners.id'], ),
     sa.ForeignKeyConstraint(['supplier_id'], ['suppliers.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('online_slug', name='uq_warehouses_online_slug')
     )
     with op.batch_alter_table('warehouses', schema=None) as batch_op:
         batch_op.create_index('ix_warehouses_active_type', ['is_active', 'warehouse_type'], unique=False)
         batch_op.create_index(batch_op.f('ix_warehouses_created_at'), ['created_at'], unique=False)
         batch_op.create_index('ix_warehouses_name', ['name'], unique=False)
+        batch_op.create_index('ix_warehouses_online_default', ['online_is_default'], unique=False)
         batch_op.create_index(batch_op.f('ix_warehouses_updated_at'), ['updated_at'], unique=False)
 
     op.create_table('audit_logs',
@@ -503,6 +520,7 @@ def upgrade():
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.CheckConstraint('quantity > 0', name='chk_exchange_qty_positive'),
+    sa.CheckConstraint('unit_cost >= 0', name='ck_exchange_unit_cost_non_negative'),
     sa.ForeignKeyConstraint(['partner_id'], ['partners.id'], ),
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
     sa.ForeignKeyConstraint(['supplier_id'], ['suppliers.id'], ),
@@ -641,6 +659,7 @@ def upgrade():
     sa.Column('order_number', sa.String(length=50), nullable=True),
     sa.Column('customer_id', sa.Integer(), nullable=False),
     sa.Column('cart_id', sa.Integer(), nullable=True),
+    sa.Column('warehouse_id', sa.Integer(), nullable=True),
     sa.Column('prepaid_amount', sa.Numeric(precision=12, scale=2), nullable=True),
     sa.Column('total_amount', sa.Numeric(precision=12, scale=2), nullable=True),
     sa.Column('expected_fulfillment', sa.DateTime(), nullable=True),
@@ -657,6 +676,7 @@ def upgrade():
     sa.CheckConstraint('total_amount  >= 0', name='chk_online_total_non_negative'),
     sa.ForeignKeyConstraint(['cart_id'], ['online_carts.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['customer_id'], ['customers.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['warehouse_id'], ['warehouses.id'], ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id')
     )
     with op.batch_alter_table('online_preorders', schema=None) as batch_op:
@@ -667,6 +687,7 @@ def upgrade():
         batch_op.create_index(batch_op.f('ix_online_preorders_payment_status'), ['payment_status'], unique=False)
         batch_op.create_index(batch_op.f('ix_online_preorders_status'), ['status'], unique=False)
         batch_op.create_index(batch_op.f('ix_online_preorders_updated_at'), ['updated_at'], unique=False)
+        batch_op.create_index(batch_op.f('ix_online_preorders_warehouse_id'), ['warehouse_id'], unique=False)
 
     op.create_table('partner_settlement_lines',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -683,6 +704,11 @@ def upgrade():
     sa.Column('share_amount', sa.Numeric(precision=12, scale=2), nullable=True),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint('gross_amount >= 0', name='ck_psl_gross_amount_non_negative'),
+    sa.CheckConstraint('quantity >= 0', name='ck_psl_quantity_non_negative'),
+    sa.CheckConstraint('share_amount >= 0', name='ck_psl_share_amount_non_negative'),
+    sa.CheckConstraint('share_percent >= 0 AND share_percent <= 100', name='ck_psl_share_percent_range'),
+    sa.CheckConstraint('unit_price >= 0', name='ck_psl_unit_price_non_negative'),
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
     sa.ForeignKeyConstraint(['settlement_id'], ['partner_settlements.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['warehouse_id'], ['warehouses.id'], ),
@@ -735,6 +761,7 @@ def upgrade():
     sa.Column('share_percent', sa.Float(), nullable=False),
     sa.Column('share_amount', sa.Numeric(precision=12, scale=2), nullable=True),
     sa.Column('notes', sa.Text(), nullable=True),
+    sa.CheckConstraint('share_amount >= 0', name='ck_product_partner_share_amount_non_negative'),
     sa.CheckConstraint('share_percent >= 0 AND share_percent <= 100', name='chk_partner_share'),
     sa.ForeignKeyConstraint(['partner_id'], ['partners.id'], ),
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
@@ -807,12 +834,15 @@ def upgrade():
     sa.Column('warranty_days', sa.Integer(), nullable=True),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint('actual_duration >= 0', name='ck_srv_actual_duration_non_negative'),
     sa.CheckConstraint('discount_total >= 0', name='ck_srv_disc_ge_0'),
+    sa.CheckConstraint('estimated_duration >= 0', name='ck_srv_estimated_duration_non_negative'),
     sa.CheckConstraint('labor_total >= 0', name='ck_srv_labor_ge_0'),
     sa.CheckConstraint('parts_total >= 0', name='ck_srv_parts_ge_0'),
     sa.CheckConstraint('tax_rate >= 0 AND tax_rate <= 100', name='ck_srv_tax_0_100'),
     sa.CheckConstraint('total_amount >= 0', name='ck_srv_total_ge_0'),
     sa.CheckConstraint('total_cost >= 0', name='ck_srv_totalcost_ge_0'),
+    sa.CheckConstraint('warranty_days >= 0', name='ck_srv_warranty_days_non_negative'),
     sa.ForeignKeyConstraint(['customer_id'], ['customers.id'], ),
     sa.ForeignKeyConstraint(['mechanic_id'], ['users.id'], ),
     sa.ForeignKeyConstraint(['vehicle_type_id'], ['equipment_types.id'], ),
@@ -870,6 +900,9 @@ def upgrade():
     sa.Column('cost_source', sa.String(length=20), nullable=True),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint('gross_amount >= 0', name='ck_ssl_gross_amount_non_negative'),
+    sa.CheckConstraint('quantity >= 0', name='ck_ssl_quantity_non_negative'),
+    sa.CheckConstraint('unit_price >= 0', name='ck_ssl_unit_price_non_negative'),
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
     sa.ForeignKeyConstraint(['settlement_id'], ['supplier_settlements.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
@@ -926,6 +959,8 @@ def upgrade():
     sa.Column('notes', sa.Text(), nullable=True),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint('share_amount >= 0', name='ck_wps_share_amount_non_negative'),
+    sa.CheckConstraint('share_percentage >= 0 AND share_percentage <= 100', name='ck_wps_share_percentage_range'),
     sa.ForeignKeyConstraint(['partner_id'], ['partners.id'], ),
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
     sa.ForeignKeyConstraint(['warehouse_id'], ['warehouses.id'], ),
@@ -1008,8 +1043,15 @@ def upgrade():
     sa.Column('billing_address', sa.Text(), nullable=True),
     sa.Column('shipping_cost', sa.Numeric(precision=10, scale=2), nullable=True),
     sa.Column('total_amount', sa.Numeric(precision=12, scale=2), nullable=True),
+    sa.Column('total_paid', sa.Numeric(precision=12, scale=2), nullable=True),
+    sa.Column('balance_due', sa.Numeric(precision=12, scale=2), nullable=True),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint('balance_due >= 0', name='ck_sale_balance_due_non_negative'),
+    sa.CheckConstraint('discount_total >= 0', name='ck_sale_discount_non_negative'),
+    sa.CheckConstraint('shipping_cost >= 0', name='ck_sale_shipping_cost_non_negative'),
+    sa.CheckConstraint('total_amount >= 0', name='ck_sale_total_amount_non_negative'),
+    sa.CheckConstraint('total_paid >= 0', name='ck_sale_total_paid_non_negative'),
     sa.ForeignKeyConstraint(['customer_id'], ['customers.id'], ),
     sa.ForeignKeyConstraint(['preorder_id'], ['preorders.id'], ),
     sa.ForeignKeyConstraint(['seller_id'], ['users.id'], ),
@@ -1030,6 +1072,7 @@ def upgrade():
     sa.Column('discount', sa.Numeric(precision=5, scale=2), nullable=True),
     sa.Column('tax_rate', sa.Numeric(precision=5, scale=2), nullable=True),
     sa.Column('note', sa.String(length=200), nullable=True),
+    sa.Column('notes', sa.Text(), nullable=True),
     sa.Column('partner_id', sa.Integer(), nullable=True),
     sa.Column('share_percentage', sa.Numeric(precision=5, scale=2), nullable=True),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
@@ -1120,6 +1163,9 @@ def upgrade():
     sa.Column('terms', sa.Text(), nullable=True),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint('discount_amount >= 0', name='ck_invoice_discount_amount_non_negative'),
+    sa.CheckConstraint('tax_amount >= 0', name='ck_invoice_tax_amount_non_negative'),
+    sa.CheckConstraint('total_amount >= 0', name='ck_invoice_total_amount_non_negative'),
     sa.ForeignKeyConstraint(['customer_id'], ['customers.id'], ),
     sa.ForeignKeyConstraint(['partner_id'], ['partners.id'], ),
     sa.ForeignKeyConstraint(['preorder_id'], ['preorders.id'], ),
@@ -1127,7 +1173,8 @@ def upgrade():
     sa.ForeignKeyConstraint(['service_id'], ['service_requests.id'], ),
     sa.ForeignKeyConstraint(['supplier_id'], ['suppliers.id'], ),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('invoice_number')
+    sa.UniqueConstraint('invoice_number'),
+    sa.UniqueConstraint('invoice_number', name='uq_invoice_number')
     )
     with op.batch_alter_table('invoices', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_invoices_created_at'), ['created_at'], unique=False)
@@ -1146,7 +1193,10 @@ def upgrade():
     sa.Column('note', sa.String(length=200), nullable=True),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint('discount_rate >= 0 AND discount_rate <= 100', name='chk_sale_line_discount_rate_range'),
     sa.CheckConstraint('quantity > 0', name='chk_sale_line_qty_positive'),
+    sa.CheckConstraint('tax_rate >= 0 AND tax_rate <= 100', name='chk_sale_line_tax_rate_range'),
+    sa.CheckConstraint('unit_price >= 0', name='chk_sale_line_unit_price_non_negative'),
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
     sa.ForeignKeyConstraint(['sale_id'], ['sales.id'], ),
     sa.ForeignKeyConstraint(['warehouse_id'], ['warehouses.id'], ),
@@ -1180,6 +1230,11 @@ def upgrade():
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.CheckConstraint("status IN ('DRAFT','IN_TRANSIT','ARRIVED','CANCELLED')", name='chk_shipment_status_allowed'),
+    sa.CheckConstraint('customs >= 0', name='ck_shipment_customs_non_negative'),
+    sa.CheckConstraint('insurance >= 0', name='ck_shipment_insurance_non_negative'),
+    sa.CheckConstraint('shipping_cost >= 0', name='ck_shipment_shipping_cost_non_negative'),
+    sa.CheckConstraint('value_before >= 0', name='ck_shipment_value_before_non_negative'),
+    sa.CheckConstraint('vat >= 0', name='ck_shipment_vat_non_negative'),
     sa.ForeignKeyConstraint(['destination_id'], ['warehouses.id'], ),
     sa.ForeignKeyConstraint(['sale_id'], ['sales.id'], ),
     sa.PrimaryKeyConstraint('id')
@@ -1204,6 +1259,10 @@ def upgrade():
     sa.Column('tax_rate', sa.Numeric(precision=5, scale=2), nullable=True),
     sa.Column('discount', sa.Numeric(precision=5, scale=2), nullable=True),
     sa.Column('product_id', sa.Integer(), nullable=True),
+    sa.CheckConstraint('discount >= 0 AND discount <= 100', name='ck_invoice_line_discount_range'),
+    sa.CheckConstraint('quantity >= 0', name='ck_invoice_line_quantity_non_negative'),
+    sa.CheckConstraint('tax_rate >= 0 AND tax_rate <= 100', name='ck_invoice_line_tax_rate_range'),
+    sa.CheckConstraint('unit_price >= 0', name='ck_invoice_line_unit_price_non_negative'),
     sa.ForeignKeyConstraint(['invoice_id'], ['invoices.id'], ),
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
     sa.PrimaryKeyConstraint('id')
@@ -1246,6 +1305,9 @@ def upgrade():
     sa.Column('preorder_id', sa.Integer(), nullable=True),
     sa.Column('service_id', sa.Integer(), nullable=True),
     sa.CheckConstraint('(\n            (CASE WHEN customer_id IS NOT NULL THEN 1 ELSE 0 END) +\n            (CASE WHEN supplier_id IS NOT NULL THEN 1 ELSE 0 END) +\n            (CASE WHEN partner_id IS NOT NULL THEN 1 ELSE 0 END) +\n            (CASE WHEN shipment_id IS NOT NULL THEN 1 ELSE 0 END) +\n            (CASE WHEN expense_id IS NOT NULL THEN 1 ELSE 0 END) +\n            (CASE WHEN loan_settlement_id IS NOT NULL THEN 1 ELSE 0 END) +\n            (CASE WHEN sale_id IS NOT NULL THEN 1 ELSE 0 END) +\n            (CASE WHEN invoice_id IS NOT NULL THEN 1 ELSE 0 END) +\n            (CASE WHEN preorder_id IS NOT NULL THEN 1 ELSE 0 END) +\n            (CASE WHEN service_id IS NOT NULL THEN 1 ELSE 0 END)\n        ) = 1', name='ck_payment_one_target'),
+    sa.CheckConstraint('subtotal >= 0', name='ck_payment_subtotal_non_negative'),
+    sa.CheckConstraint('tax_amount >= 0', name='ck_payment_tax_amount_non_negative'),
+    sa.CheckConstraint('tax_rate >= 0 AND tax_rate <= 100', name='ck_payment_tax_rate_range'),
     sa.CheckConstraint('total_amount > 0', name='ck_payment_total_positive'),
     sa.ForeignKeyConstraint(['created_by'], ['users.id'], ),
     sa.ForeignKeyConstraint(['customer_id'], ['customers.id'], ondelete='CASCADE'),
@@ -1265,6 +1327,7 @@ def upgrade():
     with op.batch_alter_table('payments', schema=None) as batch_op:
         batch_op.create_index('ix_pay_inv_status_dir', ['invoice_id', 'status', 'direction'], unique=False)
         batch_op.create_index('ix_pay_partner_status_dir', ['partner_id', 'status', 'direction'], unique=False)
+        batch_op.create_index('ix_pay_preorder_status_dir', ['preorder_id', 'status', 'direction'], unique=False)
         batch_op.create_index('ix_pay_sale_status_dir', ['sale_id', 'status', 'direction'], unique=False)
         batch_op.create_index('ix_pay_supplier_status_dir', ['supplier_id', 'status', 'direction'], unique=False)
 
@@ -1279,7 +1342,11 @@ def upgrade():
     sa.Column('landed_extra_share', sa.Numeric(precision=12, scale=2), nullable=True),
     sa.Column('landed_unit_cost', sa.Numeric(precision=10, scale=2), nullable=True),
     sa.Column('notes', sa.String(length=200), nullable=True),
+    sa.CheckConstraint('declared_value >= 0', name='ck_shipment_item_declared_value_non_negative'),
+    sa.CheckConstraint('landed_extra_share >= 0', name='ck_shipment_item_landed_extra_share_non_negative'),
+    sa.CheckConstraint('landed_unit_cost >= 0', name='ck_shipment_item_landed_unit_cost_non_negative'),
     sa.CheckConstraint('quantity > 0', name='chk_shipment_item_qty_positive'),
+    sa.CheckConstraint('unit_cost >= 0', name='ck_shipment_item_unit_cost_non_negative'),
     sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
     sa.ForeignKeyConstraint(['shipment_id'], ['shipments.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['warehouse_id'], ['warehouses.id'], ),
@@ -1306,7 +1373,9 @@ def upgrade():
     sa.Column('notes', sa.Text(), nullable=True),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.CheckConstraint('share_amount >= 0', name='ck_shipment_partner_share_amount_non_negative'),
     sa.CheckConstraint('share_percentage >= 0 AND share_percentage <= 100', name='chk_shipment_partner_share'),
+    sa.CheckConstraint('unit_price_before_tax >= 0', name='ck_shipment_partner_unit_price_non_negative'),
     sa.ForeignKeyConstraint(['partner_id'], ['partners.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['shipment_id'], ['shipments.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
@@ -1361,6 +1430,7 @@ def downgrade():
     with op.batch_alter_table('payments', schema=None) as batch_op:
         batch_op.drop_index('ix_pay_supplier_status_dir')
         batch_op.drop_index('ix_pay_sale_status_dir')
+        batch_op.drop_index('ix_pay_preorder_status_dir')
         batch_op.drop_index('ix_pay_partner_status_dir')
         batch_op.drop_index('ix_pay_inv_status_dir')
 
@@ -1508,6 +1578,7 @@ def downgrade():
 
     op.drop_table('partner_settlement_lines')
     with op.batch_alter_table('online_preorders', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_online_preorders_warehouse_id'))
         batch_op.drop_index(batch_op.f('ix_online_preorders_updated_at'))
         batch_op.drop_index(batch_op.f('ix_online_preorders_status'))
         batch_op.drop_index(batch_op.f('ix_online_preorders_payment_status'))
@@ -1581,6 +1652,7 @@ def downgrade():
     op.drop_table('audit_logs')
     with op.batch_alter_table('warehouses', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_warehouses_updated_at'))
+        batch_op.drop_index('ix_warehouses_online_default')
         batch_op.drop_index('ix_warehouses_name')
         batch_op.drop_index(batch_op.f('ix_warehouses_created_at'))
         batch_op.drop_index('ix_warehouses_active_type')
@@ -1606,6 +1678,7 @@ def downgrade():
     op.drop_table('supplier_settlements')
     op.drop_table('role_permissions')
     with op.batch_alter_table('products', schema=None) as batch_op:
+        batch_op.drop_index('uq_products_barcode', postgresql_where=sa.text('barcode IS NOT NULL'))
         batch_op.drop_index(batch_op.f('ix_products_updated_at'))
         batch_op.drop_index(batch_op.f('ix_products_part_number'))
         batch_op.drop_index(batch_op.f('ix_products_name'))

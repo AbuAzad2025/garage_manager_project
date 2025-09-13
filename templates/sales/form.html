@@ -1,17 +1,16 @@
-<!-- File: templates/sales/form.html -->
 {% extends 'base.html' %}
 {% block title %}{{ title }}{% endblock %}
 
 {% block head_extra %}
   {{ super() }}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/sales.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2/css/select2.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
   <style>
     .sales-form .card-header h3{font-weight:700}
     .sales-form .card-header .badge{border-radius:999px;padding:.35rem .6rem}
     .sales-form .section-title{font-weight:700;color:#334155;margin:0 0 .5rem;display:flex;align-items:center;gap:.4rem}
     .sales-form .section-title i{opacity:.8}
-
-    /* شبكة رؤوس الحقول */
     #saleForm .head-grid{display:grid; grid-template-columns:repeat(12,1fr); grid-gap:12px;}
     #saleForm .head-grid .col-span-3{grid-column:span 3}
     #saleForm .head-grid .col-span-4{grid-column:span 4}
@@ -27,19 +26,18 @@
       #saleForm .head-grid .col-span-4,
       #saleForm .head-grid .col-span-6{grid-column:span 12}
     }
-
     #saleForm .form-group label{font-weight:600;color:#475569;margin-bottom:.25rem}
     #saleForm .form-control{border-radius:10px}
     #saleForm select.form-control{padding-top:.35rem;padding-bottom:.35rem}
 
-    /* بنود الفاتورة (بعد إزالة خصم% وضريبة%) */
+    /* بنود الفاتورة */
     .sale-line{
       display:grid;
       grid-template-columns: 4fr 2fr 1fr 1fr 2fr; /* منتج | مستودع | كمية | سعر | إجراءات */
       grid-gap:8px; align-items:start;
     }
     @media(max-width:992px){
-      .sale-line{grid-template-columns: 1fr 1fr 1fr 1fr; }
+      .sale-line{grid-template-columns: 1fr 1fr 1fr 1fr;}
       .sale-line > div:last-child{grid-column:1/-1}
     }
     @media(max-width:576px){
@@ -48,13 +46,13 @@
     }
     .sale-line .form-control{border-radius:8px}
     .stock-badge{min-width:64px}
-
     .totals-table th{background:#f8fafc;font-weight:700;color:#334155}
     .totals-table td,.totals-table th{vertical-align:middle}
     .totals-table .grand{font-size:1.05rem}
     .sales-form .btn{border-radius:10px}
     .lines-wrap{max-height:56vh; overflow:auto}
     .lines-header{border-bottom:1px solid #e9ecef}
+    .sortable-ghost{opacity:.5;background:#c8ebfb}
   </style>
 {% endblock %}
 
@@ -217,97 +215,6 @@
 
 {% block scripts %}
   {{ super() }}
+  <script src="{{ url_for('static', filename='adminlte/plugins/select2/js/select2.full.min.js') }}"></script>
   <script src="{{ url_for('static', filename='js/sales.js') }}"></script>
-  <script>
-    (function(){
-      var qs=function(s,el){return (el||document).querySelector(s);};
-      var qsa=function(s,el){return Array.prototype.slice.call((el||document).querySelectorAll(s));};
-      var toNum=function(v){var n=parseFloat(String(v==null?'':v).replace(/[^\d.-]/g,''));return isFinite(n)?n:0;};
-      var form=document.getElementById('saleForm'); if(!form) return;
-
-      function recalc(){
-        var wrap=qs('#saleLines'); var sub=0;
-        qsa('.sale-line',wrap).forEach(function(row){
-          var q=toNum(qs('[name$="-quantity"]',row)&&qs('[name$="-quantity"]',row).value);
-          var p=toNum(qs('[name$="-unit_price"]',row)&&qs('[name$="-unit_price"]',row).value);
-          var d=0; // خُصم البند أزلناه، يبقى 0
-          sub+=q*p*(1-d/100);
-        });
-        var disc=toNum(qs('#discountTotal')&&qs('#discountTotal').value); if(disc<0) disc=0; if(disc>sub) disc=sub;
-        var tax=toNum(qs('#taxRate')&&qs('#taxRate').value); if(tax<0) tax=0; if(tax>100) tax=100;
-        var shipping=toNum(qs('#shippingCost')&&qs('#shippingCost').value);
-        var base=sub-disc; var taxAmt=base*(tax/100); var total=base+taxAmt+shipping;
-        var curr=(qs('select[name="currency"]')&&qs('select[name="currency"]').value)||'';
-        function setText(sel,val){ var el=qs(sel); if(el){ el.textContent = Number(val).toFixed(2)+(curr?(' '+curr):''); } }
-        setText('#subtotal', sub);
-        setText('#discountTotalDisplay', disc);
-        setText('#taxAmount', taxAmt);
-        setText('#shippingCostDisplay', shipping);
-        setText('#totalAmount', total);
-      }
-      ['#discountTotal','#taxRate','#shippingCost','select[name="currency"]'].forEach(function(sel){
-        var el=qs(sel); if(el){ el.addEventListener('input',recalc); el.addEventListener('change',recalc); }
-      });
-      qsa('.sale-line input').forEach(function(el){ el.addEventListener('input',recalc); el.addEventListener('change',recalc); });
-      document.addEventListener('click',function(e){
-        if(e.target && e.target.id==='addLine'){
-          setTimeout(function(){
-            qsa('.sale-line input').forEach(function(el){ el.addEventListener('input',recalc); el.addEventListener('change',recalc); });
-            recalc();
-          },0);
-        }
-      });
-      window.addEventListener('load',recalc);
-    })();
-  </script>
-
-  <!-- التحسينان المطلوبان: تعبئة السعر تلقائياً + منع الإرسال عند النواقص -->
-  <script>
-  (function(){
-    var qs = s=>document.querySelector(s);
-    var qsa = s=>Array.prototype.slice.call(document.querySelectorAll(s));
-    var toNum = v => {
-      var n = parseFloat(String(v==null?'':v).replace(/[^\d\-,.]/g,'').replace(',', '.'));
-      return isFinite(n)?n:0;
-    };
-    var form = document.getElementById('saleForm');
-    if(!form) return;
-
-    document.addEventListener('select2:select', function(e){
-      try{
-        var el = e.target;
-        if(!el || !el.matches('.product-select')) return;
-        var data = e.params && e.params.data;
-        if(!data) return;
-        var row = el.closest('.sale-line');
-        if(!row) return;
-        var priceInput = row.querySelector('[name$="-unit_price"]');
-        if(priceInput && !toNum(priceInput.value) && typeof data.price !== 'undefined'){
-          priceInput.value = Number(data.price||0).toFixed(2);
-          priceInput.dispatchEvent(new Event('input', {bubbles:true}));
-        }
-      }catch(_){}
-    });
-
-    form.addEventListener('submit', function(ev){
-      var ok = true;
-      qsa('.sale-line').forEach(function(row){
-        var pid = (row.querySelector('.product-select')||{}).value;
-        var wid = (row.querySelector('.warehouse-select')||{}).value;
-        var qv  = toNum((row.querySelector('[name$="-quantity"]')||{}).value);
-        var pv  = toNum((row.querySelector('[name$="-unit_price"]')||{}).value);
-        if(!pid || !wid || qv<=0 || pv<0){ ok=false; }
-      });
-      if(!ok){
-        ev.preventDefault();
-        ev.stopPropagation();
-        alert('أكمل بيانات البنود (الصنف/المخزن/الكمية/السعر).');
-      }
-    });
-  })();
-  </script>
-{% endblock %}
-
-{% block styles %}
-<style>.sortable-ghost{opacity:.5;background:#c8ebfb}</style>
 {% endblock %}

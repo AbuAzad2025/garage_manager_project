@@ -1,4 +1,3 @@
-{# templates/warehouses/base.html #}
 {% extends 'base.html' %}
 
 {% block title %}
@@ -7,12 +6,13 @@
 
 {% block styles %}
   {{ super() }}
+  <meta name="csrf-token" content="{{ csrf_token() if csrf_token is defined }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/warehouses.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2/css/select2.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
+  {% block dt_styles %}{% endblock %}
 {% endblock %}
 
-{# نستخدمه لتفعيل الزر الحالي في مسار التنقل #}
 {% set ep = request.endpoint or '' %}
 {% macro is_active(prefix) -%}{% if ep.startswith(prefix) %}active{% endif %}{%- endmacro %}
 
@@ -47,9 +47,6 @@
     </a>
   </li>
 
-  {# ===== روابط عادية بدون جافاسكربت ===== #}
-
-  {# فتح صفحة منتجات مستودع عبر ID (GET → redirect إلى /warehouses/<id>/products) #}
   <li class="breadcrumb-item">
     <form class="input-group input-group-sm" method="get"
           action="{{ url_for('warehouse_bp.goto_warehouse_products') }}"
@@ -60,7 +57,6 @@
     </form>
   </li>
 
-  {# فتح بطاقة صنف عبر ID (GET → redirect إلى /warehouses/parts/<product_id>) #}
   <li class="breadcrumb-item">
     <form class="input-group input-group-sm" method="get"
           action="{{ url_for('warehouse_bp.goto_product_card') }}"
@@ -72,8 +68,8 @@
   </li>
 {% endblock %}
 
-{# مساحة المحتوى الخاصة بكل صفحة #}
 {% block content %}
+  <div id="notification-container"></div>
   {% block w_content %}{% endblock %}
 {% endblock %}
 
@@ -81,4 +77,5 @@
   {{ super() }}
   <script src="{{ url_for('static', filename='adminlte/plugins/select2/js/select2.full.min.js') }}"></script>
   <script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
+  {% block dt_scripts %}{% endblock %}
 {% endblock %}

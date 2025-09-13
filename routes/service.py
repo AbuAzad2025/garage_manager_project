@@ -482,61 +482,95 @@ def view_request(rid):
             joinedload(ServiceRequest.tasks),
         ]
     )
-    return render_template('service/view.html', service=service)
 
+    warehouses = Warehouse.query.order_by(Warehouse.name.asc()).all()
+    return render_template('service/view.html', service=service, warehouses=warehouses)
 @service_bp.route('/<int:rid>/receipt', methods=['GET'])
 @login_required
 @permission_required('manage_service')
 def view_receipt(rid):
-    service = _get_or_404(ServiceRequest, rid)
+    service = _get_or_404(
+        ServiceRequest, rid,
+        options=[
+            joinedload(ServiceRequest.customer),
+            joinedload(ServiceRequest.parts).joinedload(ServicePart.part),
+            joinedload(ServiceRequest.parts).joinedload(ServicePart.warehouse),
+            joinedload(ServiceRequest.tasks),
+        ]
+    )
     return render_template('service/receipt.html', service=service)
+
 
 @service_bp.route('/<int:rid>/receipt/download', methods=['GET'])
 @login_required
 @permission_required('manage_service')
 def download_receipt(rid):
-    service = _get_or_404(ServiceRequest, rid)
+    service = _get_or_404(
+        ServiceRequest, rid,
+        options=[
+            joinedload(ServiceRequest.customer),
+            joinedload(ServiceRequest.parts).joinedload(ServicePart.part),
+            joinedload(ServiceRequest.parts).joinedload(ServicePart.warehouse),
+            joinedload(ServiceRequest.tasks),
+        ]
+    )
     pdf_data = generate_service_receipt_pdf(service)
-    return send_file(io.BytesIO(pdf_data), as_attachment=True,
-                     download_name=f"service_receipt_{service.service_number}.pdf",
-                     mimetype='application/pdf')
+    return send_file(
+        io.BytesIO(pdf_data),
+        as_attachment=True,
+        download_name=f"service_receipt_{service.service_number}.pdf",
+        mimetype='application/pdf'
+    )
 
 @service_bp.route('/<int:rid>/diagnosis', methods=['POST'])
 @login_required
 @permission_required('manage_service')
 def update_diagnosis(rid):
     service = _get_or_404(ServiceRequest, rid)
-    form = ServiceDiagnosisForm()
-    if form.validate_on_submit():
-        old = {
+
+    old = {
+        'problem_description': service.problem_description,
+        'diagnosis': service.diagnosis,
+        'resolution': service.resolution,
+        'estimated_duration': service.estimated_duration,
+        'estimated_cost': str(service.estimated_cost or 0),
+        'status': getattr(service.status, "value", service.status),
+    }
+
+    diagnosis = request.form.get('diagnosis', '').strip()
+    problem_description = request.form.get('problem_description', service.problem_description)
+    resolution = request.form.get('resolution', service.resolution)
+    estimated_duration = request.form.get('estimated_duration', service.estimated_duration)
+    estimated_cost = request.form.get('estimated_cost', service.estimated_cost)
+
+    service.problem_description = problem_description
+    service.diagnosis = diagnosis
+    service.engineer_notes = diagnosis
+    service.resolution = resolution
+    service.estimated_duration = estimated_duration
+    service.estimated_cost = estimated_cost
+    service.status = ServiceStatus.IN_PROGRESS.value
+
+    try:
+        db.session.commit()
+        log_service_action(service, "DIAGNOSIS", old_data=old, new_data={
             'problem_description': service.problem_description,
             'diagnosis': service.diagnosis,
             'resolution': service.resolution,
             'estimated_duration': service.estimated_duration,
             'estimated_cost': str(service.estimated_cost or 0),
-            'status': getattr(service.status, 'value', service.status),
-        }
-        service.problem_description = form.problem_description.data
-        service.diagnosis           = form.diagnosis.data
-        service.resolution          = form.resolution.data
-        service.estimated_duration  = form.estimated_duration.data
-        service.estimated_cost      = form.estimated_cost.data
-        service.status              = ServiceStatus.IN_PROGRESS
-        try:
-            db.session.commit()
-            log_service_action(service, "DIAGNOSIS", old_data=old, new_data={
-                'problem_description': service.problem_description,
-                'diagnosis': service.diagnosis,
-                'resolution': service.resolution,
-                'estimated_duration': service.estimated_duration,
-                'estimated_cost': str(service.estimated_cost or 0),
-                'status': service.status.value
-            })
-            if service.customer and service.customer.phone:
-                send_whatsapp_message(service.customer.phone, f"تم تشخيص المركبة {service.vehicle_vrn}.")
-            flash('✅ تم تحديث التشخيص بنجاح', 'success')
-        except SQLAlchemyError as e:
-            db.session.rollback(); flash(f'❌ خطأ في قاعدة البيانات: {str(e)}', 'danger')
+            'status': getattr(service.status, "value", service.status),
+        })
+        if service.customer and service.customer.phone:
+            send_whatsapp_message(
+                service.customer.phone,
+                f"تم تحديث ملاحظات المهندس للمركبة {service.vehicle_vrn}."
+            )
+        flash('✅ تم تحديث الملاحظات بنجاح', 'success')
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        flash(f'❌ خطأ في قاعدة البيانات: {str(e)}', 'danger')
+
     return redirect(url_for('service.view_request', rid=rid))
 
 @service_bp.route('/<int:rid>/<action>', methods=['POST'])

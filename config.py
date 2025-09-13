@@ -71,7 +71,7 @@ class Config:
     REMEMBER_COOKIE_DURATION = timedelta(days=_int("REMEMBER_DAYS", 14))
     PERMANENT_SESSION_LIFETIME = timedelta(hours=_int("SESSION_HOURS", 12))
     SESSION_COOKIE_NAME = os.environ.get("SESSION_COOKIE_NAME", "gm_session")
-    MAX_CONTENT_LENGTH = _int("MAX_CONTENT_LENGTH_MB", 32) * 1024 * 1024
+    MAX_CONTENT_LENGTH = _int("MAX_CONTENT_LENGTH_MB", 16) * 1024 * 1024
     MAIL_SERVER = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
     MAIL_PORT = _int("MAIL_PORT", 587)
     MAIL_USE_TLS = _bool(os.environ.get("MAIL_USE_TLS"), True)
