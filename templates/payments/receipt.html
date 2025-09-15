@@ -36,7 +36,6 @@
 
   .kv th{width:38mm;background:#f8f9fa;color:#555;font-weight:700;white-space:nowrap}
 
-  /* جدول الدفعات الجزئية بنِسَب ثابتة */
   col.col-s-idx{width:10%}
   col.col-s-amt{width:22%}
   col.col-s-mth{width:20%}
@@ -57,6 +56,9 @@
 {% endblock %}
 
 {% block content %}
+{% set _receipt_no = payment.receipt_number or payment.payment_number or payment.id %}
+{% set _dir = ((payment.direction.value if payment.direction and payment.direction.value else payment.direction) or '')|string|upper %}
+
 <div id="receipt">
   <div class="receipt-header">
     <div class="brand">
@@ -67,8 +69,8 @@
       </div>
     </div>
     <div class="text-muted">
-      رقم الوصل: <strong>{{ payment.id }}</strong><br>
-      التاريخ: {{ payment.payment_date and payment.payment_date.strftime('%Y-%m-%d') or '—' }}
+      رقم الوصل: <strong>{{ _receipt_no }}</strong><br>
+      التاريخ: {{ payment.payment_date and payment.payment_date.strftime('%Y-%m-%d %H:%M') or '—' }}
     </div>
   </div>
   <div class="brand-line"></div>
@@ -77,7 +79,7 @@
     <table class="kv">
       <tr><th>المبلغ الكلي</th><td>{{ '%.2f'|format(payment.total_amount or 0) }} {{ payment.currency }}</td></tr>
       <tr><th>طريقة الدفع</th><td>{{ (payment.method.value if payment.method and payment.method.value else payment.method) or '—' }}</td></tr>
-      <tr><th>الاتجاه</th><td>{{ 'وارد' if (payment.direction in ['IN','INCOMING'] or (payment.direction.value if payment.direction else '') in ['IN','INCOMING']) else 'صادر' }}</td></tr>
+      <tr><th>الاتجاه</th><td>{{ 'وارد' if _dir in ['IN','INCOMING'] else 'صادر' }}</td></tr>
       <tr><th>الحالة</th><td>{{ payment.status.value if payment.status and payment.status.value else payment.status or '—' }}</td></tr>
       <tr><th>الجهة</th><td>{{ payment.entity_label() or payment.entity_type }}</td></tr>
       <tr><th>المرجع</th><td>{{ payment.reference or '—' }}</td></tr>
@@ -107,7 +109,7 @@
               {% elif m == 'bank' %}
                 تحويل: {{ d.get('bank_transfer_ref','—') }}
               {% elif m == 'card' %}
-                بطاقة: ****{{ (d.get('card_number','')|string)[-4:] }}، حامل: {{ d.get('card_holder','—') }}، انتهاء: {{ d.get('card_expiry','—') }}
+                بطاقة: ****{{ d.get('card_last4') or (d.get('card_number','')|string)[-4:] }}، حامل: {{ d.get('card_holder','—') }}، انتهاء: {{ d.get('card_expiry','—') }}
               {% elif m == 'online' %}
                 دفع إلكتروني ({{ d.get('gateway','—') }})
               {% else %} — {% endif %}

@@ -10,8 +10,10 @@ os.makedirs(instance_dir, exist_ok=True)
 load_dotenv(os.path.join(basedir, ".env"))
 load_dotenv(os.path.join(basedir, ".env.txt"))
 
+
 def _bool(v: str, default=False):
     return (v if v is not None else str(default)).lower() in ("true", "1", "yes", "y")
+
 
 def _int(env_name: str, default: int):
     try:
@@ -19,11 +21,13 @@ def _int(env_name: str, default: int):
     except Exception:
         return default
 
+
 def _float(env_name: str, default: float):
     try:
         return float(os.environ.get(env_name, str(default)))
     except Exception:
         return default
+
 
 def _csv_int(env_name: str):
     raw = os.environ.get(env_name, "")
@@ -38,10 +42,12 @@ def _csv_int(env_name: str):
             continue
     return vals or None
 
+
 def _csv_str(env_name: str, default_list):
     raw = os.environ.get(env_name, "")
     vals = [x.strip() for x in raw.split(",") if x.strip()]
     return vals or list(default_list)
+
 
 class Config:
     FLASK_APP = os.environ.get("FLASK_APP", "garage_manager.app:create_app")
@@ -114,25 +120,23 @@ class Config:
     ADMIN_USER_EMAILS = os.environ.get("ADMIN_USER_EMAILS", "")
     ADMIN_USER_IDS = os.environ.get("ADMIN_USER_IDS", "")
     PERMISSIONS_REQUIRE_ALL = _bool(os.environ.get("PERMISSIONS_REQUIRE_ALL"), False)
-
     BACKUP_DIR = os.environ.get("BACKUP_DIR", os.path.join(instance_dir, "backups"))
     BACKUP_DB_DIR = os.path.join(BACKUP_DIR, "db")
     BACKUP_SQL_DIR = os.path.join(BACKUP_DIR, "sql")
     BACKUP_KEEP_LAST = _int("BACKUP_KEEP_LAST", 5)
     BACKUP_DB_INTERVAL = timedelta(hours=1)
     BACKUP_SQL_INTERVAL = timedelta(hours=24)
-
     LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
-    JSON_LOGS = os.environ.get("JSON_LOGS", "0") in ("1", "true", "True")
+    JSON_LOGS = _bool(os.environ.get("JSON_LOGS"), False)
     SENTRY_DSN = os.environ.get("SENTRY_DSN", "")
     SENTRY_TRACES_SAMPLE_RATE = float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.0"))
     SENTRY_PROFILES_SAMPLE_RATE = float(os.environ.get("SENTRY_PROFILES_SAMPLE_RATE", "0.0"))
     APP_VERSION = os.environ.get("APP_VERSION", None)
     APP_ENV = os.environ.get("APP_ENV", os.environ.get("FLASK_ENV", "production"))
-
     IMPORT_TMP_DIR = os.environ.get("IMPORT_TMP_DIR") or os.path.join(instance_dir, "imports")
     IMPORT_REPORT_DIR = os.environ.get("IMPORT_REPORT_DIR") or os.path.join(instance_dir, "imports", "reports")
-    ONLINE_GATEWAY_DEFAULT = os.environ.get("ONLINE_GATEWAY_DEFAULT", "blooprint").lower()
+    ONLINE_GATEWAY_DEFAULT = (os.environ.get("ONLINE_GATEWAY_DEFAULT") or "blooprint").lower()
     BLOOPRINT_WEBHOOK_SECRET = os.environ.get("BLOOPRINT_WEBHOOK_SECRET", "")
+
 
 logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)

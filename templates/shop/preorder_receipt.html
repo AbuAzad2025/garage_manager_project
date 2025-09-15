@@ -101,8 +101,9 @@
           </thead>
           <tbody>
             {% for item in preorder.items or [] %}
+            {% set display_name = item.product.commercial_name or item.product.name %}
             <tr>
-              <td>{{ item.product.name }}</td>
+              <td>{{ display_name }}</td>
               <td class="text-center num">{{ item.quantity }}</td>
               <td class="text-end num">{{ '%.2f'|format(item.price or 0) }}</td>
               <td class="text-end num">{{ '%.2f'|format((item.quantity or 0) * (item.price or 0)) }}</td>

@@ -56,12 +56,11 @@ from routes.ledger_blueprint import ledger_bp
 class MyAnonymousUser(AnonymousUserMixin):
     def has_permission(self, perm_name):
         return False
-
-
 @login_manager.user_loader
 def load_user(user_id):
     from sqlalchemy.orm import joinedload, lazyload
     from sqlalchemy import select
+
     uid_str = str(user_id or "").strip()
     if ":" in uid_str:
         try:
@@ -76,15 +75,17 @@ def load_user(user_id):
                 .options(joinedload(User.role).joinedload(Role.permissions))
                 .where(User.id == ident)
             )
-            return db.session.execute(stmt).scalar_one_or_none()
+            return db.session.execute(stmt).unique().scalar_one_or_none()
         if prefix == "c":
             stmt = select(Customer).options(lazyload("*")).where(Customer.id == ident)
             return db.session.execute(stmt).scalar_one_or_none()
         return None
+
     try:
         ident = int(uid_str)
     except Exception:
         return None
+
     stmt_user = (
         select(User)
         .options(joinedload(User.role).joinedload(Role.permissions))
@@ -93,6 +94,7 @@ def load_user(user_id):
     user = db.session.execute(stmt_user).unique().scalar_one_or_none()
     if user:
         return user
+
     stmt_cust = select(Customer).options(lazyload("*")).where(Customer.id == ident)
     return db.session.execute(stmt_cust).scalar_one_or_none()
 
@@ -332,8 +334,19 @@ def create_app(config_object=Config) -> Flask:
         read_perm="view_shop",
         write_perm="manage_shop",
         public_read=True,
-        exempt_prefixes=["/shop/admin", "/shop/webhook"],
+        exempt_prefixes=[
+            "/shop/admin",
+            "/shop/webhook",
+            "/shop/cart",
+            "/shop/cart/add",
+            "/shop/cart/update",
+            "/shop/cart/item",
+            "/shop/cart/remove",
+            "/shop/checkout",
+            "/shop/order",
+        ]
     )
+
     attach_acl(users_bp, read_perm="manage_users", write_perm="manage_users")
     attach_acl(customers_bp, read_perm="manage_customers", write_perm="manage_customers")
     attach_acl(vendors_bp, read_perm="manage_vendors", write_perm="manage_vendors")
@@ -475,6 +488,15 @@ def create_app(config_object=Config) -> Flask:
         app.logger.exception("unhandled", extra={"event": "app.error", "path": request.path})
         return render_template("errors/500.html"), 500
 
+    @app.before_request
+    def restrict_customer_from_admin():
+        if getattr(current_user, "is_authenticated", False):
+            role_slug = getattr(getattr(current_user, "role", None), "slug", None)
+            if role_slug == "customer":
+                allowed_paths = ("/shop", "/static", "/auth/logout")
+                if not any(request.path.startswith(p) for p in allowed_paths):
+                    return redirect("/shop")
+
     critical = app.config.get(
         "CRITICAL_ENDPOINTS",
         [
@@ -497,19 +519,7 @@ def create_app(config_object=Config) -> Flask:
         if missing:
             app.logger.error("Missing endpoints at startup: %s", ", ".join(missing))
 
-    app.cli.add_command(seed_roles)
-    app.cli.add_command(seed_palestine, name="seed_palestine")
+    from cli import register_cli
+    register_cli(app)
     return app
 
-
-app = create_app()
-__all__ = ["app", "db"]
-
-if __name__ == "__main__":
-    from extensions import socketio as _socketio
-    _socketio.run(
-        app,
-        host=os.environ.get("HOST", "0.0.0.0"),
-        port=int(os.environ.get("PORT", 5000)),
-        debug=app.config.get("DEBUG", False),
-    )

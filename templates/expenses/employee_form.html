@@ -1,27 +1,81 @@
 {% extends 'base.html' %}
 {% block title %}{{ is_edit and 'تعديل موظف' or 'إضافة موظف' }}{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
-  <h2 class="mb-3">{{ is_edit and 'تعديل موظف' or 'إضافة موظف' }}</h2>
-  <form method="post">
+<div class="container mt-4" dir="rtl">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h3 class="mb-0">{{ is_edit and '✏️ تعديل موظف' or '➕ إضافة موظف' }}</h3>
+    <div>
+      <a href="{{ url_for('expenses_bp.employees_list') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-right"></i> رجوع
+      </a>
+    </div>
+  </div>
+
+  <form method="post" class="needs-validation" novalidate>
     {{ form.hidden_tag() }}
-    <div class="card">
+    <div class="card card-outline card-primary shadow-sm">
       <div class="card-body">
         <div class="row g-3">
-          <div class="col-md-4">{{ form.name.label(class="form-label") }}{{ form.name(class="form-control") }}</div>
-          <div class="col-md-4">{{ form.position.label(class="form-label") }}{{ form.position(class="form-control") }}</div>
-          <div class="col-md-4">{{ form.phone.label(class="form-label") }}{{ form.phone(class="form-control") }}</div>
-          <div class="col-md-4">{{ form.bank_name.label(class="form-label") }}{{ form.bank_name(class="form-control") }}</div>
-          <div class="col-md-4">{{ form.account_number.label(class="form-label") }}{{ form.account_number(class="form-control") }}</div>
-          <div class="col-md-4">{{ form.notes.label(class="form-label") }}{{ form.notes(class="form-control") }}</div>
+          <div class="col-md-4">
+            {{ form.name.label(class="form-label") }}
+            {{ form.name(class=("form-control is-invalid" if form.name.errors else "form-control"), placeholder="اسم الموظف", autofocus=True) }}
+            {% for e in form.name.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="col-md-4">
+            {{ form.position.label(class="form-label") }}
+            {{ form.position(class=("form-control is-invalid" if form.position.errors else "form-control"), placeholder="المسمّى الوظيفي") }}
+            {% for e in form.position.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="col-md-4">
+            {{ form.phone.label(class="form-label") }}
+            {{ form.phone(class=("form-control is-invalid" if form.phone.errors else "form-control"), placeholder="05xxxxxxxx") }}
+            {% for e in form.phone.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="col-md-4">
+            {{ form.email.label(class="form-label") }}
+            {{ form.email(type="email", class=("form-control is-invalid" if form.email.errors else "form-control"), placeholder="name@example.com") }}
+            {% for e in form.email.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="col-md-4">
+            {{ form.bank_name.label(class="form-label") }}
+            {{ form.bank_name(class=("form-control is-invalid" if form.bank_name.errors else "form-control"), placeholder="اسم البنك") }}
+            {% for e in form.bank_name.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="col-md-4">
+            {{ form.account_number.label(class="form-label") }}
+            {{ form.account_number(class=("form-control is-invalid" if form.account_number.errors else "form-control"), placeholder="رقم الحساب البنكي") }}
+            {% for e in form.account_number.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="col-md-4">
+            {{ form.currency.label(class="form-label") }}
+            {{ form.currency(class=("form-select is-invalid" if form.currency.errors else "form-select")) }}
+            {% for e in form.currency.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="col-md-12">
+            {{ form.notes.label(class="form-label") }}
+            {{ form.notes(class=("form-control is-invalid" if form.notes.errors else "form-control"), placeholder="ملاحظات داخلية عن الموظف") }}
+            {% for e in form.notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
         </div>
       </div>
-      <div class="card-footer d-flex gap-2">
-        <button class="btn btn-primary">{{ is_edit and 'تحديث' or 'حفظ' }}</button>
+
+      <div class="card-footer d-flex gap-2 justify-content-start">
+        <button class="btn btn-success">{{ is_edit and '💾 تحديث' or '💾 حفظ' }}</button>
         <a href="{{ url_for('expenses_bp.employees_list') }}" class="btn btn-secondary">إلغاء</a>
       </div>
     </div>
   </form>
 </div>
 {% endblock %}
-{% block scripts %}{{ super() }}{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{% endblock %}

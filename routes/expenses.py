@@ -8,16 +8,18 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy import or_, and_
 
 from extensions import db
-from forms import EmployeeForm, ExpenseTypeForm, ExpenseForm
-from models import Employee, ExpenseType, Expense
+from forms import EmployeeForm, ExpenseTypeForm, ExpenseForm, QuickExpenseForm
+from models import Employee, ExpenseType, Expense, Shipment, UtilityAccount, StockAdjustment
 from utils import permission_required
 
+
 expenses_bp = Blueprint(
-    'expenses_bp',
+    "expenses_bp",
     __name__,
-    url_prefix='/expenses',
-    template_folder='templates/expenses'
+    url_prefix="/expenses",
+    template_folder="templates/expenses",
 )
+
 
 def _get_or_404(model, ident, *options):
     if options:
@@ -31,12 +33,14 @@ def _get_or_404(model, ident, *options):
         abort(404)
     return obj
 
+
 def _to_datetime(value):
     if isinstance(value, datetime):
         return value
     if isinstance(value, _date):
         return datetime.combine(value, datetime.min.time())
     return None
+
 
 def _parse_date_arg(arg_name: str):
     raw = (request.args.get(arg_name) or "").strip()
@@ -47,23 +51,49 @@ def _parse_date_arg(arg_name: str):
     except Exception:
         return None
 
+
+def _int_arg(name):
+    v = (request.args.get(name) or "").strip()
+    if not v:
+        return None
+    try:
+        return int(v)
+    except Exception:
+        return None
+
+
 def _base_query_with_filters():
-    q = Expense.query.options(
-        joinedload(Expense.type),
-        joinedload(Expense.employee),
+    q = (
+        Expense.query.options(
+            joinedload(Expense.type),
+            joinedload(Expense.employee),
+            joinedload(Expense.shipment),
+            joinedload(Expense.utility_account),
+            joinedload(Expense.stock_adjustment),
+        )
+        .outerjoin(Employee, Expense.employee_id == Employee.id)
+        .outerjoin(Shipment, Expense.shipment_id == Shipment.id)
+        .outerjoin(UtilityAccount, Expense.utility_account_id == UtilityAccount.id)
     )
-    search = (request.args.get('q') or "").strip()
+
+    search = (request.args.get("q") or "").strip()
     if search:
         like = f"%{search}%"
         q = q.filter(
             or_(
                 Expense.description.ilike(like),
                 Expense.paid_to.ilike(like),
+                Expense.payee_name.ilike(like),
                 Expense.tax_invoice_number.ilike(like),
+                Employee.name.ilike(like),
+                Shipment.number.ilike(like),
+                UtilityAccount.alias.ilike(like),
+                UtilityAccount.provider.ilike(like),
             )
         )
+
     start_d = _parse_date_arg("start")
-    end_d   = _parse_date_arg("end")
+    end_d = _parse_date_arg("end")
     if start_d or end_d:
         conds = []
         if start_d:
@@ -71,23 +101,61 @@ def _base_query_with_filters():
         if end_d:
             conds.append(Expense.date <= datetime.combine(end_d, datetime.max.time()))
         q = q.filter(and_(*conds))
+
+    type_id = _int_arg("type_id")
+    if type_id:
+        q = q.filter(Expense.type_id == type_id)
+
+    employee_id = _int_arg("employee_id")
+    if employee_id:
+        q = q.filter(Expense.employee_id == employee_id)
+
+    shipment_id = _int_arg("shipment_id")
+    if shipment_id:
+        q = q.filter(Expense.shipment_id == shipment_id)
+
+    utility_id = _int_arg("utility_account_id")
+    if utility_id:
+        q = q.filter(Expense.utility_account_id == utility_id)
+
+    stock_adj_id = _int_arg("stock_adjustment_id")
+    if stock_adj_id:
+        q = q.filter(Expense.stock_adjustment_id == stock_adj_id)
+
+    payee_type = (request.args.get("payee_type") or "").strip().upper()
+    if payee_type:
+        q = q.filter(Expense.payee_type == payee_type)
+
     q = q.order_by(Expense.date.desc(), Expense.id.desc())
-    return q, {"q": search, "start": start_d, "end": end_d}
+    return q, {
+        "q": search,
+        "start": start_d,
+        "end": end_d,
+        "type_id": type_id,
+        "employee_id": employee_id,
+        "shipment_id": shipment_id,
+        "utility_account_id": utility_id,
+        "stock_adjustment_id": stock_adj_id,
+        "payee_type": payee_type or None,
+    }
+
 
 def _csv_safe(v):
     s = "" if v is None else str(v)
     return "'" + s if s.startswith(("=", "+", "-", "@")) else s
 
-@expenses_bp.route('/employees', methods=['GET'], endpoint='employees_list')
+
+@expenses_bp.route("/employees", methods=["GET"], endpoint="employees_list")
 @login_required
-@permission_required('manage_expenses')
+@permission_required("manage_expenses")
 def employees_list():
     employees = Employee.query.order_by(Employee.name).all()
-    return render_template('expenses/employees_list.html', employees=employees)
+    return render_template("expenses/employees_list.html", employees=employees)
 
-@expenses_bp.route('/employees/add', methods=['GET', 'POST'], endpoint='add_employee')
+
+@expenses_bp.route("/employees/add", methods=["GET", "POST"], endpoint="add_employee")
 @login_required
-@permission_required('manage_expenses')
+@permission_required("manage_expenses")
 def add_employee():
     form = EmployeeForm()
     if form.validate_on_submit():
@@ -97,15 +165,16 @@ def add_employee():
         try:
             db.session.commit()
             flash("✅ تمت إضافة الموظف", "success")
-            return redirect(url_for('expenses_bp.employees_list'))
+            return redirect(url_for("expenses_bp.employees_list"))
         except SQLAlchemyError as err:
             db.session.rollback()
             flash(f"❌ خطأ في إضافة الموظف: {err}", "danger")
-    return render_template('expenses/employee_form.html', form=form, is_edit=False)
+    return render_template("expenses/employee_form.html", form=form, is_edit=False)
 
-@expenses_bp.route('/employees/edit/<int:emp_id>', methods=['GET', 'POST'], endpoint='edit_employee')
+
+@expenses_bp.route("/employees/edit/<int:emp_id>", methods=["GET", "POST"], endpoint="edit_employee")
 @login_required
-@permission_required('manage_expenses')
+@permission_required("manage_expenses")
 def edit_employee(emp_id):
     e = _get_or_404(Employee, emp_id)
     form = EmployeeForm(obj=e)
@@ -114,15 +183,16 @@ def edit_employee(emp_id):
         try:
             db.session.commit()
             flash("✅ تم تعديل الموظف", "success")
-            return redirect(url_for('expenses_bp.employees_list'))
+            return redirect(url_for("expenses_bp.employees_list"))
         except SQLAlchemyError as err:
             db.session.rollback()
             flash(f"❌ خطأ في تعديل الموظف: {err}", "danger")
-    return render_template('expenses/employee_form.html', form=form, is_edit=True)
+    return render_template("expenses/employee_form.html", form=form, is_edit=True)
 
-@expenses_bp.route('/employees/delete/<int:emp_id>', methods=['POST'], endpoint='delete_employee')
+
+@expenses_bp.route("/employees/delete/<int:emp_id>", methods=["POST"], endpoint="delete_employee")
 @login_required
-@permission_required('manage_expenses')
+@permission_required("manage_expenses")
 def delete_employee(emp_id):
     e = _get_or_404(Employee, emp_id)
     if Expense.query.filter_by(employee_id=emp_id).first():
@@ -135,18 +205,20 @@ def delete_employee(emp_id):
         except SQLAlchemyError as err:
             db.session.rollback()
             flash(f"❌ خطأ في حذف الموظف: {err}", "danger")
-    return redirect(url_for('expenses_bp.employees_list'))
+    return redirect(url_for("expenses_bp.employees_list"))
 
-@expenses_bp.route('/types', methods=['GET'], endpoint='types_list')
+
+@expenses_bp.route("/types", methods=["GET"], endpoint="types_list")
 @login_required
-@permission_required('manage_expenses')
+@permission_required("manage_expenses")
 def types_list():
     types = ExpenseType.query.order_by(ExpenseType.name).all()
-    return render_template('expenses/types_list.html', types=types)
+    return render_template("expenses/types_list.html", types=types)
 
-@expenses_bp.route('/types/add', methods=['GET', 'POST'], endpoint='add_type')
+
+@expenses_bp.route("/types/add", methods=["GET", "POST"], endpoint="add_type")
 @login_required
-@permission_required('manage_expenses')
+@permission_required("manage_expenses")
 def add_type():
     form = ExpenseTypeForm()
     if form.validate_on_submit():
@@ -155,20 +227,20 @@ def add_type():
             description=(form.description.data or None),
             is_active=bool(getattr(form, "is_active", None) and form.is_active.data),
         )
-        t.id = None
         db.session.add(t)
         try:
             db.session.commit()
             flash("✅ تمت إضافة نوع المصروف", "success")
-            return redirect(url_for('expenses_bp.types_list'))
+            return redirect(url_for("expenses_bp.types_list"))
         except SQLAlchemyError as err:
             db.session.rollback()
             flash(f"❌ خطأ في إضافة النوع: {err}", "danger")
-    return render_template('expenses/type_form.html', form=form, is_edit=False)
+    return render_template("expenses/type_form.html", form=form, is_edit=False)
 
-@expenses_bp.route('/types/edit/<int:type_id>', methods=['GET', 'POST'], endpoint='edit_type')
+
+@expenses_bp.route("/types/edit/<int:type_id>", methods=["GET", "POST"], endpoint="edit_type")
 @login_required
-@permission_required('manage_expenses')
+@permission_required("manage_expenses")
 def edit_type(type_id):
     t = _get_or_404(ExpenseType, type_id)
     form = ExpenseTypeForm(obj=t)
@@ -180,15 +252,16 @@ def edit_type(type_id):
         try:
             db.session.commit()
             flash("✅ تم تعديل النوع", "success")
-            return redirect(url_for('expenses_bp.types_list'))
+            return redirect(url_for("expenses_bp.types_list"))
         except SQLAlchemyError as err:
             db.session.rollback()
             flash(f"❌ خطأ في تعديل النوع: {err}", "danger")
-    return render_template('expenses/type_form.html', form=form, is_edit=True)
+    return render_template("expenses/type_form.html", form=form, is_edit=True)
 
-@expenses_bp.route('/types/delete/<int:type_id>', methods=['POST'], endpoint='delete_type')
+
+@expenses_bp.route("/types/delete/<int:type_id>", methods=["POST"], endpoint="delete_type")
 @login_required
-@permission_required('manage_expenses')
+@permission_required("manage_expenses")
 def delete_type(type_id):
     t = _get_or_404(ExpenseType, type_id)
     if Expense.query.filter_by(type_id=type_id).first():
@@ -201,80 +274,106 @@ def delete_type(type_id):
         except SQLAlchemyError as err:
             db.session.rollback()
             flash(f"❌ خطأ في حذف النوع: {err}", "danger")
-    return redirect(url_for('expenses_bp.types_list'))
+    return redirect(url_for("expenses_bp.types_list"))
 
-@expenses_bp.route('/', methods=['GET'], endpoint='list_expenses')
+
+@expenses_bp.route("/", methods=["GET"], endpoint="list_expenses")
 @login_required
-@permission_required('manage_expenses')
+@permission_required("manage_expenses")
 def index():
     query, filt = _base_query_with_filters()
     expenses = query.all()
-    return render_template('expenses/expenses_list.html', expenses=expenses, search=filt["q"], start=filt["start"], end=filt["end"])
+    return render_template(
+        "expenses/expenses_list.html",
+        expenses=expenses,
+        search=filt["q"],
+        start=filt["start"],
+        end=filt["end"],
+        type_id=filt["type_id"],
+        employee_id=filt["employee_id"],
+        shipment_id=filt["shipment_id"],
+        utility_account_id=filt["utility_account_id"],
+        stock_adjustment_id=filt["stock_adjustment_id"],
+        payee_type=filt["payee_type"],
+    )
 
-@expenses_bp.route('/<int:exp_id>', methods=['GET'], endpoint='detail')
+
+@expenses_bp.route("/<int:exp_id>", methods=["GET"], endpoint="detail")
 @login_required
-@permission_required('manage_expenses')
+@permission_required("manage_expenses")
 def detail(exp_id):
     exp = _get_or_404(
         Expense,
         exp_id,
         joinedload(Expense.type),
         joinedload(Expense.employee),
+        joinedload(Expense.shipment),
+        joinedload(Expense.utility_account),
+        joinedload(Expense.stock_adjustment),
     )
-    return render_template('expenses/detail.html', expense=exp)
+    return render_template("expenses/detail.html", expense=exp)
 
-@expenses_bp.route('/add', methods=['GET', 'POST'], endpoint='create_expense')
+
+@expenses_bp.route("/add", methods=["GET", "POST"], endpoint="create_expense")
 @login_required
-@permission_required('manage_expenses')
+@permission_required("manage_expenses")
 def add():
     form = ExpenseForm()
     form.type_id.choices = [(t.id, t.name) for t in ExpenseType.query.order_by(ExpenseType.name).all()]
     if form.validate_on_submit():
         exp = Expense()
-        form.populate_obj(exp)
-        if hasattr(form, "date"):
-            dt = _to_datetime(form.date.data)
-            if dt:
-                exp.date = dt
-        if not getattr(form.employee_id, "data", None):
-            exp.employee_id = None
+        if hasattr(form, "apply_to"):
+            form.apply_to(exp)
+        else:
+            form.populate_obj(exp)
+            if hasattr(form, "date"):
+                dt = _to_datetime(form.date.data)
+                if dt:
+                    exp.date = dt
+            if not getattr(form.employee_id, "data", None):
+                exp.employee_id = None
         db.session.add(exp)
         try:
             db.session.commit()
             flash("✅ تمت إضافة المصروف", "success")
-            return redirect(url_for('expenses_bp.list_expenses'))
+            return redirect(url_for("expenses_bp.list_expenses"))
         except SQLAlchemyError as err:
             db.session.rollback()
             flash(f"❌ خطأ في إضافة المصروف: {err}", "danger")
-    return render_template('expenses/expense_form.html', form=form, is_edit=False)
+    return render_template("expenses/expense_form.html", form=form, is_edit=False)
 
-@expenses_bp.route('/edit/<int:exp_id>', methods=['GET', 'POST'], endpoint='edit')
+
+@expenses_bp.route("/edit/<int:exp_id>", methods=["GET", "POST"], endpoint="edit")
 @login_required
-@permission_required('manage_expenses')
+@permission_required("manage_expenses")
 def edit(exp_id):
     exp = _get_or_404(Expense, exp_id)
     form = ExpenseForm(obj=exp)
     form.type_id.choices = [(t.id, t.name) for t in ExpenseType.query.order_by(ExpenseType.name).all()]
     if form.validate_on_submit():
-        form.populate_obj(exp)
-        if hasattr(form, "date"):
-            dt = _to_datetime(form.date.data)
-            if dt:
-                exp.date = dt
-        if not getattr(form, "employee_id", None) or not form.employee_id.data:
-            exp.employee_id = None
+        if hasattr(form, "apply_to"):
+            form.apply_to(exp)
+        else:
+            form.populate_obj(exp)
+            if hasattr(form, "date"):
+                dt = _to_datetime(form.date.data)
+                if dt:
+                    exp.date = dt
+            if not getattr(form, "employee_id", None) or not form.employee_id.data:
+                exp.employee_id = None
         try:
             db.session.commit()
             flash("✅ تم تعديل المصروف", "success")
-            return redirect(url_for('expenses_bp.list_expenses'))
+            return redirect(url_for("expenses_bp.list_expenses"))
         except SQLAlchemyError as err:
             db.session.rollback()
             flash(f"❌ خطأ في تعديل المصروف: {err}", "danger")
-    return render_template('expenses/expense_form.html', form=form, is_edit=True)
+    return render_template("expenses/expense_form.html", form=form, is_edit=True)
 
-@expenses_bp.route('/delete/<int:exp_id>', methods=['POST'], endpoint='delete')
+
+@expenses_bp.route("/delete/<int:exp_id>", methods=["POST"], endpoint="delete")
 @login_required
-@permission_required('manage_expenses')
+@permission_required("manage_expenses")
 def delete(exp_id):
     exp = _get_or_404(Expense, exp_id)
     try:
@@ -284,55 +383,140 @@ def delete(exp_id):
     except SQLAlchemyError as err:
         db.session.rollback()
         flash(f"❌ خطأ في حذف المصروف: {err}", "danger")
-    return redirect(url_for('expenses_bp.list_expenses'))
+    return redirect(url_for("expenses_bp.list_expenses"))
 
-@expenses_bp.route('/<int:exp_id>/pay', methods=['GET'], endpoint='pay')
+
+@expenses_bp.route("/<int:exp_id>/pay", methods=["GET"], endpoint="pay")
 @login_required
-@permission_required('manage_expenses')
+@permission_required("manage_expenses")
 def pay(exp_id):
-    return redirect(url_for('payments.create_payment', entity_type='EXPENSE', entity_id=exp_id))
+    exp = _get_or_404(Expense, exp_id)
+    amount = exp.balance if hasattr(exp, "balance") else exp.amount
+    reference = exp.payee_name or (exp.employee.name if exp.employee else None) or (exp.description or f"مصروف #{exp.id}")
+    return redirect(
+        url_for(
+            "payments.create_payment",
+            entity_type="EXPENSE",
+            entity_id=exp.id,
+            direction="OUT",
+            amount=float(amount or 0),
+            currency=exp.currency or "ILS",
+            reference=reference,
+        )
+    )
 
-@expenses_bp.route('/export', methods=['GET'], endpoint='export')
+
+@expenses_bp.route("/export", methods=["GET"], endpoint="export")
 @login_required
-@permission_required('manage_expenses')
+@permission_required("manage_expenses")
 def export_csv():
     query, _ = _base_query_with_filters()
     rows = query.all()
     output = io.StringIO()
     output.write("\ufeff")
     writer = csv.writer(output)
-    writer.writerow([
-        "ID","التاريخ","النوع","الموظف","الجهة","المبلغ","العملة","طريقة الدفع","الوصف","ملاحظات","رقم الفاتورة",
-    ])
+    writer.writerow(
+        [
+            "ID",
+            "التاريخ",
+            "النوع",
+            "نوع المستفيد",
+            "المستفيد",
+            "الموظف",
+            "الشحنة",
+            "حساب مرفق",
+            "تسوية مخزون",
+            "بداية الفترة",
+            "نهاية الفترة",
+            "المبلغ",
+            "العملة",
+            "طريقة الدفع",
+            "الوصف",
+            "ملاحظات",
+            "رقم الفاتورة",
+            "مدفوع",
+            "الرصيد",
+        ]
+    )
     for e in rows:
-        writer.writerow([
-            e.id,
-            e.date.isoformat() if e.date else "",
-            _csv_safe(e.type.name if e.type else ""),
-            _csv_safe(e.employee.name if e.employee else ""),
-            _csv_safe(e.paid_to),
-            float(e.amount or 0),
-            _csv_safe(e.currency or ""),
-            _csv_safe(e.payment_method or ""),
-            _csv_safe(e.description),
-            _csv_safe(e.notes),
-            _csv_safe(e.tax_invoice_number),
-        ])
+        writer.writerow(
+            [
+                e.id,
+                e.date.isoformat() if e.date else "",
+                _csv_safe(e.type.name if e.type else ""),
+                _csv_safe(e.payee_type or ""),
+                _csv_safe(e.payee_name or e.paid_to or ""),
+                _csv_safe(e.employee.name if e.employee else ""),
+                _csv_safe(e.shipment.number if getattr(e, "shipment", None) else ""),
+                _csv_safe((e.utility_account.alias if e.utility_account and e.utility_account.alias else (e.utility_account.provider if e.utility_account else ""))),
+                _csv_safe(e.stock_adjustment_id if getattr(e, "stock_adjustment_id", None) else ""),
+                e.period_start.isoformat() if getattr(e, "period_start", None) else "",
+                e.period_end.isoformat() if getattr(e, "period_end", None) else "",
+                float(e.amount or 0),
+                _csv_safe(e.currency or ""),
+                _csv_safe(e.payment_method or ""),
+                _csv_safe(e.description),
+                _csv_safe(e.notes),
+                _csv_safe(e.tax_invoice_number),
+                float(getattr(e, "total_paid", 0) or 0),
+                float(getattr(e, "balance", 0) or 0),
+            ]
+        )
     csv_data = output.getvalue()
     filename = f"expenses_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
     return Response(
         csv_data,
         mimetype="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
 
-@expenses_bp.route('/print', methods=['GET'], endpoint='print_list')
+
+@expenses_bp.route('/quick_add', methods=['GET', 'POST'], endpoint='quick_add')
 @login_required
 @permission_required('manage_expenses')
+def quick_add():
+    form = QuickExpenseForm()
+    form.currency.choices = [
+        ('ILS', 'شيكل'),
+        ('USD', 'دولار'),
+        ('EUR', 'يورو'),
+        ('JOD', 'دينار')
+    ]
+    form.payment_method.choices = [
+        ('cash', 'نقدي'),
+        ('cheque', 'شيك'),
+        ('bank', 'حوالة بنكية'),
+        ('card', 'بطاقة'),
+        ('online', 'دفع إلكتروني'),
+        ('other', 'أخرى')
+    ]
+    form.type_id.choices = [(t.id, t.name) for t in ExpenseType.query.filter_by(is_active=True).order_by(ExpenseType.name).all()]
+    if form.validate_on_submit():
+        exp = Expense()
+        if hasattr(form, "apply_to"):
+            form.apply_to(exp)
+        else:
+            form.populate_obj(exp)
+            if hasattr(form, "date"):
+                dt = _to_datetime(form.date.data)
+                if dt:
+                    exp.date = dt
+        db.session.add(exp)
+        db.session.commit()
+        flash("✅ تمت إضافة المصروف السريع", "success")
+        return redirect(url_for('expenses_bp.list_expenses'))
+    return render_template('expenses/quick_add.html', form=form)
+
+
+@expenses_bp.route("/print", methods=["GET"], endpoint="print_list")
+@login_required
+@permission_required("manage_expenses")
 def print_list():
     query, filt = _base_query_with_filters()
     rows = query.all()
     total_amount = sum(float(e.amount or 0) for e in rows)
+    total_paid = sum(float(getattr(e, "total_paid", 0) or 0) for e in rows)
+    total_balance = sum(float(getattr(e, "balance", 0) or 0) for e in rows)
     return render_template(
         "expenses/expenses_print.html",
         expenses=rows,
@@ -340,5 +524,7 @@ def print_list():
         start=filt["start"],
         end=filt["end"],
         total_amount=total_amount,
+        total_paid=total_paid,
+        total_balance=total_balance,
         generated_at=datetime.utcnow(),
     )

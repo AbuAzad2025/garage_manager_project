@@ -7,17 +7,26 @@
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
 
-  <!-- مكتبات CSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/fontawesome-free/css/all.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/overlayScrollbars/css/OverlayScrollbars.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/css/adminlte.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2/css/select2.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/datatables-bs4/css/dataTables.bootstrap4.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/datatables-responsive/css/responsive.bootstrap4.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/datatables-buttons/css/buttons.bootstrap4.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
   {% block styles %}{% endblock %}
   {% block head_extra %}{% endblock %}
+
+  <style>
+    .select2-container .select2-selection--single{height:calc(2.25rem + 2px)}
+    .select2-container--default .select2-selection--single .select2-selection__rendered{line-height:2.25rem}
+    .select2-container--default .select2-selection--single .select2-selection__arrow{height:100%}
+  </style>
 </head>
 <body class="hold-transition sidebar-mini layout-fixed text-sm">
 <div class="wrapper">
-
   {% include 'partials/navbar.html' %}
   {% include 'partials/sidebar.html' %}
 
@@ -44,7 +53,9 @@
             {% for category, message in messages %}
               <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
                 <i class="fas fa-info-circle me-2"></i>{{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
+                <button type="button" class="close" data-dismiss="alert" aria-label="إغلاق">
+                  <span aria-hidden="true">&times;</span>
+                </button>
               </div>
             {% endfor %}
           {% endif %}
@@ -58,17 +69,39 @@
   {% include 'partials/footer.html' %}
 </div>
 
-<!-- مكتبات JS -->
 <script src="{{ url_for('static', filename='adminlte/plugins/jquery/jquery.min.js') }}"></script>
 <script src="{{ url_for('static', filename='adminlte/plugins/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
 <script src="{{ url_for('static', filename='adminlte/plugins/overlayScrollbars/js/jquery.overlayScrollbars.min.js') }}"></script>
 <script src="{{ url_for('static', filename='adminlte/js/adminlte.min.js') }}"></script>
-
-<!-- Chart.js + Plugins -->
+<script src="{{ url_for('static', filename='adminlte/plugins/select2/js/select2.full.min.js') }}"></script>
+<script src="{{ url_for('static', filename='adminlte/plugins/datatables/jquery.dataTables.min.js') }}"></script>
+<script src="{{ url_for('static', filename='adminlte/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
+<script src="{{ url_for('static', filename='adminlte/plugins/datatables-responsive/js/dataTables.responsive.min.js') }}"></script>
+<script src="{{ url_for('static', filename='adminlte/plugins/datatables-responsive/js/responsive.bootstrap4.min.js') }}"></script>
+<script src="{{ url_for('static', filename='adminlte/plugins/datatables-buttons/js/dataTables.buttons.min.js') }}"></script>
+<script src="{{ url_for('static', filename='adminlte/plugins/datatables-buttons/js/buttons.bootstrap4.min.js') }}"></script>
+<script src="{{ url_for('static', filename='adminlte/plugins/jszip/jszip.min.js') }}"></script>
+<script src="{{ url_for('static', filename='adminlte/plugins/datatables-buttons/js/buttons.html5.min.js') }}"></script>
+<script src="{{ url_for('static', filename='adminlte/plugins/datatables-buttons/js/buttons.print.min.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 
-<!-- ملفاتك -->
+<script>
+  (function () {
+    var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    if (token && window.jQuery) {
+      $.ajaxSetup({
+        beforeSend: function (xhr) {
+          xhr.setRequestHeader('X-CSRFToken', token);
+          xhr.setRequestHeader('X-CSRF-Token', token);
+        }
+      });
+    }
+    if (window.jQuery && $.fn && $.fn.select2) {
+      try { $.fn.select2.defaults.set('dir', 'rtl'); } catch (_) {}
+    }
+  })();
+</script>
 <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 

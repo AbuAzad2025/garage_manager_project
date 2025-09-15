@@ -17,6 +17,10 @@
   .btn-ghost{border:1px solid #e0e0e0;background:#fafafa}
   .btn-ghost:hover{background:#f0f0f0}
   .small-muted{font-size:.85rem;color:#6b7280}
+  .online-thumb{width:88px;height:88px;object-fit:cover;border-radius:.75rem;border:1px solid #e5e7eb;background:#fff}
+  .inline-spinner{display:inline-flex;align-items:center;gap:.5rem}
+  .inline-spinner i{animation:spin 1s linear infinite}
+  @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
 </style>
 {% endblock %}
 
@@ -34,7 +38,10 @@
   </h1>
   <div class="d-flex align-items-center gap-2 ms-auto">
     {% if has_any('manage_shop','manage_inventory') and product %}
-      <button id="toggle-active-btn" type="button" class="btn btn-ghost">
+      <button id="toggle-active-btn"
+              type="button"
+              class="btn btn-ghost"
+              data-toggle-url="{{ url_for('shop.admin_product_toggle_active', pid=product.id) }}">
         {% if product.is_active %}<i class="fas fa-pause me-1"></i> تعطيل{% else %}<i class="fas fa-play me-1"></i> تفعيل{% endif %}
       </button>
     {% endif %}
@@ -63,7 +70,12 @@
             <div class="small-muted mt-1">استخدم فاصلة أو نقطة. سيتم التحويل تلقائيًا.</div>
           </div>
           <div class="col-md-2 d-grid">
-            <button id="quick-update-btn" type="button" class="btn btn-primary"><i class="fas fa-bolt me-1"></i> تحديث</button>
+            <button id="quick-update-btn"
+                    type="button"
+                    class="btn btn-primary"
+                    data-update-url="{{ url_for('shop.admin_product_update_fields', pid=product.id) }}">
+              <i class="fas fa-bolt me-1"></i> تحديث
+            </button>
           </div>
         </div>
       </div>
@@ -102,7 +114,14 @@
 
           <div class="mb-3 mt-3">
             <label for="{{ form.category_id.id }}" class="form-label">الفئة</label>
-            {{ form.category_id(class="form-control", id=form.category_id.id) }}
+            <div class="input-group">
+              {{ form.category_id(class="form-control", id=form.category_id.id, required=True) }}
+              <button type="button"
+                      class="btn btn-outline-primary"
+                      id="btn-add-category"
+                      data-bs-toggle="modal"
+                      data-bs-target="#quickCategoryModal">+</button>
+            </div>
             {% if form.category_id.errors %}
               <div class="text-danger small mt-1">{{ form.category_id.errors | join(', ') }}</div>
             {% endif %}
@@ -124,6 +143,77 @@
       </div>
     </div>
 
+    {% if product and has_any('manage_shop','manage_inventory') %}
+    {% set _img = product.online_image or product.image %}
+    {% set _img_is_abs = _img and (_img.startswith('http') or _img.startswith('/')) %}
+    {% if _img %}
+      {% if _img_is_abs %}
+        {% set _img_src = _img %}
+      {% else %}
+        {% set _img_src = url_for('static', filename=_img) %}
+      {% endif %}
+    {% else %}
+      {% set _img_src = url_for('static', filename='products/default.png') %}
+    {% endif %}
+
+    <div class="card mt-3" id="online-panel"
+         data-pid="{{ product.id }}"
+         data-list-url="{{ url_for('warehouse_bp.list') }}?type=ONLINE&format=json"
+         data-products-url-template="{{ url_for('warehouse_bp.products', id=0) }}?format=json"
+         data-upload-url="{{ url_for('warehouse_bp.api_upload_product_image') }}"
+         data-update-inline-url-template="{{ url_for('warehouse_bp.update_product_inline', warehouse_id=0, product_id=0) }}">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="h5 mb-0"><i class="fas fa-globe me-2"></i> إدارة الأونلاين</h2>
+          <span id="online-warehouse-badge" class="badge bg-secondary">...</span>
+        </div>
+
+        <div id="online-alert" class="alert alert-warning d-none">
+          لا يوجد مستودع أونلاين. أنشئ واحدًا من
+          <a href="{{ url_for('warehouse_bp.list') }}" class="alert-link">قائمة المستودعات</a>.
+        </div>
+
+        <div id="online-form" class="row g-3 align-items-center">
+          <div class="col-12 col-md-4">
+            <label class="form-label">سعر الأونلاين (شيكل)</label>
+            <input id="online-price" type="text" class="form-control" inputmode="decimal" pattern="[0-9]+([.,٫][0-9]{1,2})?" placeholder="0.00">
+            <div class="small-muted mt-1">إن لم تُدخل قيمة، لن نغيّر السعر.</div>
+          </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label">كمية مستودع الأونلاين</label>
+            <input id="online-qty" type="number" min="0" step="1" class="form-control" placeholder="0">
+            <div class="small-muted mt-1">القيمة تُحفظ كقيمة مطلقة (Set).</div>
+          </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label d-block">صورة الأونلاين</label>
+            <div class="d-flex align-items-center gap-3">
+              <img id="online-thumb" class="online-thumb" src="{{ _img_src }}" alt="preview"
+                   onerror="this.onerror=null;this.src='{{ url_for('static', filename='products/default.png') }}'">
+              <div class="d-grid gap-2">
+                <input id="online-file" type="file" accept=".jpg,.jpeg,.png,.webp,.bmp" class="form-control">
+                <button id="btn-upload-online" type="button" class="btn btn-outline-primary btn-sm">
+                  <i class="fas fa-upload me-1"></i> رفع الصورة
+                </button>
+                <div class="small text-muted" id="online-image-url" dir="ltr" style="max-width:260px;word-break:break-all;">
+                  {{ product.online_image or '' }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <div class="d-flex gap-2">
+              <button id="btn-save-online" type="button" class="btn btn-primary">
+                <i class="fas fa-save me-1"></i> حفظ إعدادات الأونلاين
+              </button>
+              <div id="online-status" class="small text-muted"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
     {% if product %}
     <div class="alert alert-info mt-3 shadow-sm">
       <i class="fas fa-info-circle me-2"></i>
@@ -136,104 +226,36 @@
 
   </div>
 </div>
+
+<div class="modal fade" id="quickCategoryModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="quick-category-form"
+          class="modal-content"
+          method="post"
+          action="{{ url_for('shop.admin_categories_quick_create') }}"
+          data-url="{{ url_for('shop.admin_categories_quick_create') }}">
+      <div class="modal-header">
+        <h5 class="modal-title">إضافة فئة</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-3">
+          <label class="form-label">اسم الفئة *</label>
+          <input type="text" name="name" id="qc-name" class="form-control" required>
+        </div>
+        <div class="text-muted small">سيتم اختيار الفئة تلقائيًا بعد إنشائها.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+        <button type="submit" class="btn btn-primary">حفظ وإختيار</button>
+      </div>
+    </form>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
-<script>
-  const csrfEl = document.querySelector('input[name="csrf_token"]');
-  const csrf = csrfEl ? csrfEl.value : "";
-  const form = document.getElementById('product-form');
-  const priceInput = document.getElementById('{{ form.price.id }}');
-
-  function normalizeDecimal(s){
-    if(s==null) return "";
-    return String(s).replace(/[٬،]/g,',').replace(/[٫]/g,'.').replace(',', '.').trim();
-  }
-
-  if(priceInput){
-    priceInput.addEventListener('input', function(){
-      this.value = this.value.replace(/[^\d.,٫]/g,'');
-    });
-  }
-
-  if(form){
-    form.addEventListener('submit', function(){
-      if(priceInput){
-        const v = normalizeDecimal(priceInput.value);
-        priceInput.value = v;
-      }
-    });
-  }
-
-  const quickBtn = document.getElementById('quick-update-btn');
-  const quickName = document.getElementById('quick-name');
-  const quickPrice = document.getElementById('quick-price');
-  const badge = document.getElementById('prod-status-badge');
-  const toggleBtn = document.getElementById('toggle-active-btn');
-
-  async function postJSON(url, payload){
-    if(window.shop && window.shop.postJSON){
-      const r = await window.shop.postJSON(url, payload);
-      let data; try{ data = await r.json(); }catch(e){ data = {message:r.ok?'ok':'error'} }
-      return { ok: r.ok, data };
-    }
-    const r = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, 'X-CSRF-Token': csrf },
-      body: JSON.stringify(payload || {})
-    });
-    let data; try{ data = await r.json(); }catch(e){ data = {message:r.ok?'ok':'error'} }
-    return { ok: r.ok, data };
-  }
-
-  if(quickBtn && quickName && quickPrice){
-    quickBtn.addEventListener('click', async function(){
-      const nameVal = quickName.value.trim();
-      const priceVal = normalizeDecimal(quickPrice.value);
-      const payload = {};
-      if(nameVal) payload.name = nameVal;
-      if(priceVal !== "") payload.price = priceVal;
-      const url = "{{ url_for('shop.admin_product_update_fields', pid=product.id) if product else '' }}";
-      if(!url) return;
-      const {ok, data} = await postJSON(url, payload);
-      if(ok){
-        const mainName = document.getElementById('{{ form.name.id }}');
-        if(mainName && payload.name){ mainName.value = payload.name; }
-        if(priceInput && payload.price){ priceInput.value = Number(payload.price).toFixed(2); }
-        alert(data.message || 'تم التحديث');
-      }else{
-        alert(data.message || 'تعذر التحديث');
-      }
-    });
-  }
-
-  if(toggleBtn){
-    toggleBtn.addEventListener('click', async function(){
-      const url = "{{ url_for('shop.admin_product_toggle_active', pid=product.id) if product else '' }}";
-      if(!url) return;
-      const {ok, data} = await postJSON(url, {});
-      if(ok){
-        if(badge){
-          const isInactive = badge.classList.contains('badge-inactive');
-          if(isInactive){
-            badge.classList.remove('badge-inactive');
-            badge.classList.add('badge-active');
-            badge.textContent = 'مفعل';
-            toggleBtn.innerHTML = '<i class="fas fa-pause me-1"></i> تعطيل';
-          }else{
-            badge.classList.remove('badge-active');
-            badge.classList.add('badge-inactive');
-            badge.textContent = 'غير مفعل';
-            toggleBtn.innerHTML = '<i class="fas fa-play me-1"></i> تفعيل';
-          }
-        }
-        alert(data.message || 'تم التحديث');
-      }else{
-        alert(data.message || 'تعذر التحديث');
-      }
-    });
-  }
-</script>
 <script src="{{ url_for('static', filename='js/shop.js') }}"></script>
 {% endblock %}

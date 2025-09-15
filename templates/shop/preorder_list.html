@@ -65,11 +65,11 @@
             <td class="text-center">
               {% set status_colors = {'FULFILLED':'success','CONFIRMED':'warning','PENDING':'info','CANCELLED':'secondary'} %}
               <span class="badge bg-{{ status_colors.get(order.status, 'danger') }}">
-                {% if order.status == 'FULFILLED' %}<i class="fas fa-check-circle me-1"></i>{% endif %}
-                {% if order.status == 'CONFIRMED' %}<i class="fas fa-hourglass-half me-1"></i>{% endif %}
-                {% if order.status == 'PENDING' %}<i class="fas fa-clock me-1"></i>{% endif %}
-                {% if order.status == 'CANCELLED' %}<i class="fas fa-times-circle me-1"></i>{% endif %}
-                {{ order.status }}
+                {% if order.status == 'FULFILLED' %}<i class="fas fa-check-circle me-1"></i>مكتمل{% endif %}
+                {% if order.status == 'CONFIRMED' %}<i class="fas fa-hourglass-half me-1"></i>مؤكد{% endif %}
+                {% if order.status == 'PENDING' %}<i class="fas fa-clock me-1"></i>قيد الانتظار{% endif %}
+                {% if order.status == 'CANCELLED' %}<i class="fas fa-times-circle me-1"></i>ملغي{% endif %}
+                {% if order.status not in ['FULFILLED','CONFIRMED','PENDING','CANCELLED'] %}{{ order.status }}{% endif %}
               </span>
             </td>
             {% if has_any('manage_shop','manage_reports','view_reports') %}

@@ -5,11 +5,13 @@
 <div class="container mt-4">
   <h3 class="mb-4">{% if payment %}تعديل دفعة #{{ payment.id }}{% else %}إضافة دفعة جديدة{% endif %}</h3>
 
+  {# بطاقة معلومات مرجعية إن توفرت من الراوت #}
   {% if entity_info %}
   <div class="card mb-4 border-primary">
     <div class="card-header bg-primary text-white"><h5 class="mb-0">معلومات مرتبطة</h5></div>
     <div class="card-body">
       <div class="row gy-2">
+        {# مرجع برقم وتاريخ ومجاميع #}
         {% if entity_info.number %}
           <div class="col-md-4"><strong>الرقم:</strong> {{ entity_info.number }}</div>
           {% if entity_info.date %}<div class="col-md-4"><strong>التاريخ:</strong> {{ entity_info.date }}</div>{% endif %}
@@ -18,13 +20,23 @@
           {% if entity_info.balance is defined %}<div class="col-md-4"><strong>المتبقي:</strong> {{ '%.2f'|format(entity_info.balance) }} {{ entity_info.currency or '' }}</div>{% endif %}
           {% if entity_info.balance_due is defined %}<div class="col-md-4"><strong>المتبقي:</strong> {{ '%.2f'|format(entity_info.balance_due) }} {{ entity_info.currency or '' }}</div>{% endif %}
           {% if entity_info.amount is defined and not entity_info.total %}<div class="col-md-4"><strong>المبلغ:</strong> {{ '%.2f'|format(entity_info.amount) }}</div>{% endif %}
+        {# مرجع باسم (عميل/مورد...) #}
         {% elif entity_info.name %}
           <div class="col-md-6"><strong>الاسم:</strong> {{ entity_info.name }}</div>
           {% if entity_info.balance is defined %}<div class="col-md-6"><strong>الرصيد:</strong> {{ '%.2f'|format(entity_info.balance) }}</div>{% endif %}
+        {# مرجع مصروف مبسّط #}
         {% elif entity_info.type == 'expense' %}
           <div class="col-md-4"><strong>رقم المصروف:</strong> {{ entity_info.number }}</div>
           <div class="col-md-4"><strong>التاريخ:</strong> {{ entity_info.date }}</div>
           <div class="col-md-4"><strong>القيمة:</strong> {{ '%.2f'|format(entity_info.amount) }}</div>
+        {% endif %}
+
+        {# حقول إضافية اختيارية إن وفّرها الراوت: نوع المصروف / الموظف #}
+        {% if entity_info.type_name %}
+          <div class="col-md-4"><strong>نوع المصروف:</strong> {{ entity_info.type_name }}</div>
+        {% endif %}
+        {% if entity_info.employee_name %}
+          <div class="col-md-4"><strong>الموظّف:</strong> {{ entity_info.employee_name }}</div>
         {% endif %}
       </div>
     </div>
@@ -38,6 +50,7 @@
     {% endif %}
 
     <div class="row">
+      <!-- العمود الأيسر: معلومات عامة -->
       <div class="col-md-6">
         <div class="card mb-4">
           <div class="card-header">المعلومات الأساسية</div>
@@ -46,14 +59,19 @@
               {% if field is not none %}
               <div class="mb-3">
                 {{ field.label(class="form-label") }}
+
                 {% if field.type in ["SelectField", "QuerySelectField"] %}
                   {{ field(class="form-select") }}
+
                 {% elif field.name == "payment_date" %}
+                  {# تحويل قيمة التاريخ/الوقت لصيغة datetime-local #}
                   {% set _pd = field.data %}
                   {% set _val = (_pd if _pd is string else (_pd.strftime("%Y-%m-%dT%H:%M") if _pd else "")) %}
                   {{ field(type="datetime-local", class="form-control", value=_val) }}
+
                 {% elif field.type == "TextAreaField" %}
                   {{ field(class="form-control") }}
+
                 {% else %}
                   {% if field.name == "total_amount" %}
                     {{ field(class="form-control", step="0.01", min="0") }}
@@ -61,9 +79,11 @@
                     {{ field(class="form-control") }}
                   {% endif %}
                 {% endif %}
+
                 {% if field.name == 'total_amount' %}
                   <div id="splitSum" class="form-text"></div>
                 {% endif %}
+
                 {% for e in field.errors %}
                   <div class="text-danger small">{{ e }}</div>
                 {% endfor %}
@@ -74,16 +94,19 @@
         </div>
       </div>
 
+      <!-- العمود الأيمن: حقول الجهة المرتبطة (تتغير حسب النوع) -->
       <div class="col-md-6">
         <div class="card mb-4">
           <div class="card-header">الجهة المرتبطة</div>
           <div class="card-body" id="entityFields">
+            {# تحميل أولي من السيرفر حتى لو الـJS معطّل #}
             {% include "payments/_entity_fields.html" %}
           </div>
         </div>
       </div>
     </div>
 
+    <!-- تجزئة الدفعة -->
     <div class="card mb-4">
       <div class="card-header d-flex justify-content-between align-items-center">
         <span>الدفعات الجزئية</span>
@@ -102,21 +125,25 @@
           {% for split in form.splits %}
           <div class="split-form border p-3 mb-3 rounded" data-index="{{ loop.index0 }}">
             <h5>الدفعة الجزئية #{{ loop.index }}</h5>
+
             <div class="row gy-2">
               <div class="col-md-4">
                 {{ split.method.label(class="form-label") }}
                 {{ split.method(class="form-select split-method") }}
                 {% for e in split.method.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
               </div>
+
               <div class="col-md-4">
                 {{ split.amount.label(class="form-label") }}
                 {{ split.amount(class="form-control", step="0.01", min="0") }}
                 {% for e in split.amount.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
               </div>
+
               <div class="col-md-4 d-flex align-items-end">
                 <button type="button" class="btn btn-danger remove-split" {% if loop.first %}disabled{% endif %}>حذف</button>
               </div>
             </div>
+
             <div class="split-details mt-3" style="display:none;">
               <div class="row gy-2">
                 {% for fname in ['check_number','check_bank','check_due_date','card_number','bank_transfer_ref','card_holder','card_expiry'] %}

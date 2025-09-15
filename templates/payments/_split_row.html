@@ -1,21 +1,24 @@
-{% set m = getattr(s.method, 'value', s.method) %}
-{% set d = s.details or {} %}
+{% set m = (getattr(s.method, 'value', s.method) | string) | lower %}
+{% set d = s.details if s.details is mapping else {} %}
 <tr id="split-{{ s.id }}">
   <td>{{ loop.index }}. {{ '%.2f'|format(s.amount or 0) }} {{ payment.currency }}</td>
   <td>{{ m|upper }}</td>
   <td>
-    {% if m == 'cheque' %}
+    {% if m in ['cheque', 'check'] %}
       رقم الشيك: {{ d.get('check_number','—') }}<br>
       البنك: {{ d.get('check_bank','—') }}<br>
       الاستحقاق: {{ d.get('check_due_date','—') }}
-    {% elif m == 'bank' %}
-      مرجع التحويل: {{ d.get('bank_transfer_ref','—') }}
-    {% elif m == 'card' %}
-      بطاقة: ****{{ (d.get('card_last4','')|string) }}<br>
+    {% elif m in ['bank', 'transfer'] %}
+      مرجع التحويل: {{ d.get('bank_transfer_ref', d.get('reference','—')) }}
+    {% elif m in ['card', 'credit'] %}
+      بطاقة: {{ '****' ~ (d.get('card_last4','')|string) if d.get('card_last4') else '—' }}<br>
       حامل البطاقة: {{ d.get('card_holder','—') }}<br>
       انتهاء: {{ d.get('card_expiry','—') }}
-    {% elif m == 'online' %}
-      دفع إلكتروني ({{ d.get('gateway','—') }})
+    {% elif m in ['online', 'mobile'] %}
+      البوابة: {{ d.get('online_gateway', d.get('gateway','—')) }}<br>
+      المرجع: {{ d.get('online_ref', d.get('reference','—')) }}
+    {% elif m == 'cash' %}
+      نقداً
     {% else %}
       —
     {% endif %}

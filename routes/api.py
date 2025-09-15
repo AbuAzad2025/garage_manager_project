@@ -1388,6 +1388,116 @@ def shipments():
         ]
     )
 
+@bp.get("/search_employees", endpoint="search_employees")
+@login_required
+@limiter.limit("60/minute")
+@permission_required("manage_employees", "manage_expenses")
+def search_employees():
+    q = (request.args.get("q") or "").strip()
+    limit = min(int(request.args.get("limit", 20)), 50)
+    sid = (request.args.get("id") or "").strip()
+    if sid.isdigit():
+        e = db.session.get(Employee, int(sid))
+        if not e:
+            return jsonify({"results": []})
+        label = e.name or f"#{e.id}"
+        return jsonify({"results": [{"id": e.id, "text": label, "name": e.name, "phone": e.phone, "email": e.email}]})
+    qry = Employee.query
+    if q:
+        like = f"%{q}%"
+        qry = qry.filter(or_(Employee.name.ilike(like), Employee.phone.ilike(like), Employee.email.ilike(like)))
+    rows = qry.order_by(Employee.name.asc(), Employee.id.asc()).limit(limit).all()
+    out = []
+    for e in rows:
+        label = e.name or f"#{e.id}"
+        out.append({"id": e.id, "text": label, "name": e.name, "phone": e.phone, "email": e.email})
+    return jsonify({"results": out})
+
+
+@bp.get("/search_utility_accounts", endpoint="search_utility_accounts")
+@login_required
+@limiter.limit("60/minute")
+@permission_required("manage_expenses", "view_inventory")
+def search_utility_accounts():
+    q = (request.args.get("q") or "").strip()
+    limit = min(int(request.args.get("limit", 20)), 50)
+    typ = (request.args.get("type") or "").strip().upper()
+    active_only = (request.args.get("active_only", "1") or "1") not in {"0", "false", "False"}
+    aid = (request.args.get("id") or "").strip()
+    if aid.isdigit():
+        a = db.session.get(UtilityAccount, int(aid))
+        if not a or (active_only and not a.is_active) or (typ and a.utility_type != typ):
+            return jsonify({"results": []})
+        label = a.alias or f"{a.provider} - {a.account_no or a.meter_no or a.id}"
+        return jsonify({"results": [{"id": a.id, "text": label, "alias": a.alias, "provider": a.provider}]})
+    qry = UtilityAccount.query
+    if active_only:
+        qry = qry.filter(UtilityAccount.is_active.is_(True))
+    if typ:
+        qry = qry.filter(UtilityAccount.utility_type == typ)
+    if q:
+        like = f"%{q}%"
+        qry = qry.filter(or_(UtilityAccount.alias.ilike(like),
+                             UtilityAccount.provider.ilike(like),
+                             UtilityAccount.account_no.ilike(like),
+                             UtilityAccount.meter_no.ilike(like)))
+    rows = qry.order_by(UtilityAccount.alias.asc().nulls_last(), UtilityAccount.provider.asc(), UtilityAccount.id.asc()).limit(limit).all()
+    out = []
+    for a in rows:
+        label = a.alias or f"{a.provider} - {a.account_no or a.meter_no or a.id}"
+        out.append({"id": a.id, "text": label})
+    return jsonify({"results": out})
+
+
+@bp.get("/search_stock_adjustments", endpoint="search_stock_adjustments")
+@login_required
+@limiter.limit("60/minute")
+@permission_required("manage_inventory", "manage_expenses")
+def search_stock_adjustments():
+    q = (request.args.get("q") or "").strip()
+    limit = min(int(request.args.get("limit", 20)), 50)
+    reason = (request.args.get("reason") or "").strip().upper()
+    warehouse_id = request.args.get("warehouse_id", type=int)
+    sid = (request.args.get("id") or "").strip()
+    def rlabel(x):
+        return "تالف" if x == "DAMAGED" else ("استخدام داخلي" if x == "STORE_USE" else (x or ""))
+    if sid.isdigit():
+        sa = db.session.get(StockAdjustment, int(sid))
+        if not sa:
+            return jsonify({"results": []})
+        if reason and sa.reason != reason:
+            return jsonify({"results": []})
+        if warehouse_id and sa.warehouse_id != warehouse_id:
+            return jsonify({"results": []})
+        dt = sa.date.strftime("%Y-%m-%d") if sa.date else ""
+        label = f"#{sa.id} — {rlabel(sa.reason)} — {dt}"
+        return jsonify({"results": [{"id": sa.id, "text": label, "total_cost": float(sa.total_cost or 0)}]})
+    qry = StockAdjustment.query
+    if reason:
+        qry = qry.filter(StockAdjustment.reason == reason)
+    if warehouse_id:
+        qry = qry.filter(StockAdjustment.warehouse_id == warehouse_id)
+    if q and q.isdigit():
+        qry = qry.filter(StockAdjustment.id == int(q))
+    rows = qry.order_by(StockAdjustment.id.desc()).limit(limit).all()
+    out = []
+    for sa in rows:
+        dt = sa.date.strftime("%Y-%m-%d") if sa.date else ""
+        label = f"#{sa.id} — {rlabel(sa.reason)} — {dt}"
+        out.append({"id": sa.id, "text": label, "total_cost": float(sa.total_cost or 0)})
+    return jsonify({"results": out})
+
+
+@bp.get("/stock_adjustments/<int:id>/total", endpoint="stock_adjustment_total")
+@login_required
+@limiter.limit("60/minute")
+@permission_required("manage_inventory", "manage_expenses")
+def stock_adjustment_total(id: int):
+    sa = db.session.get(StockAdjustment, id)
+    if not sa:
+        return jsonify({"error": "Not Found"}), 404
+    total = float(sa.total_cost or 0)
+    return jsonify({"id": id, "total_cost": total, "amount": total})
 
 @bp.post("/shipments")
 @login_required

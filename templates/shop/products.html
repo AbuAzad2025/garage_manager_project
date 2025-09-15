@@ -7,25 +7,28 @@
 {% endblock %}
 
 {% block content %}
+{% set can_manage = (is_super_admin or (has_any is defined and has_any('manage_shop','manage_inventory'))) %}
+
 <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-4">
   <h1 class="h3 mb-0">قائمة المنتجات</h1>
+
   <div class="d-flex align-items-center gap-2 ms-auto">
     <form id="searchForm" class="input-group w-auto" method="GET" action="{{ url_for('shop.products') }}">
       <input type="text" id="search" name="query" value="{{ request.args.get('query','') }}" class="form-control" placeholder="ابحث بالاسم أو SKU...">
       <button class="btn btn-outline-primary" type="submit" title="بحث"><i class="fas fa-search"></i></button>
     </form>
 
-    {% if has_any('manage_shop','manage_inventory') %}
-    <div class="btn-group" role="group">
-      <a href="{{ url_for('shop.admin_products') }}" class="btn btn-danger">
-        <i class="fas fa-cogs me-1"></i> إدارة المنتجات
-      </a>
-      {% if has_any('view_reports','manage_reports') and 'admin_reports.cards' in current_app.view_functions %}
-      <a href="{{ url_for('admin_reports.cards') }}" class="btn btn-warning">
-        <i class="fas fa-chart-line me-1"></i> تقارير البطاقات
-      </a>
-      {% endif %}
-    </div>
+    {% if can_manage %}
+      <div class="btn-group" role="group">
+        <a href="{{ url_for('shop.admin_products') }}" class="btn btn-danger">
+          <i class="fas fa-cogs me-1"></i> إدارة المنتجات
+        </a>
+        {% if current_app.view_functions and 'admin_reports.cards' in current_app.view_functions and (has_any is not defined or has_any('view_reports','manage_reports')) %}
+          <a href="{{ url_for('admin_reports.cards') }}" class="btn btn-warning">
+            <i class="fas fa-chart-line me-1"></i> تقارير البطاقات
+          </a>
+        {% endif %}
+      </div>
     {% endif %}
   </div>
 </div>
@@ -38,10 +41,10 @@
           <tr>
             <th>الصورة</th>
             <th>الاسم</th>
-            <th class="text-end">السعر</th>
+            <th class="text-end">السعر المعروض</th>
             <th class="text-center">الحالة</th>
             <th class="text-center">المخزون</th>
-            {% if has_any('manage_shop','manage_inventory') %}
+            {% if can_manage %}
               <th class="text-center">إجراءات</th>
             {% endif %}
           </tr>
@@ -49,25 +52,49 @@
         <tbody id="products-container">
           {% for p in products %}
           {% set avail = avail_map.get(p.id, 0) %}
-          <tr class="product-row" data-name="{{ (p.name or '')|lower }}" data-sku="{{ (p.sku or '')|lower }}" data-part="{{ (p.part_number or '')|lower }}">
+          {% set img = p.online_image or p.image %}
+          {% if img %}
+            {% if img.startswith('http') or img.startswith('/') %}
+              {% set src = img %}
+            {% else %}
+              {% set src = url_for('static', filename=img) %}
+            {% endif %}
+          {% else %}
+            {% set src = url_for('static', filename='products/default.png') %}
+          {% endif %}
+
+          {# الاسم المعروض: التجاري ثم العلمي #}
+          {% set display_name = p.commercial_name or p.name %}
+          {% set display_price = (p.online_price if (p.online_price or 0) > 0 else (p.selling_price if (p.selling_price or 0) > 0 else (p.price or 0))) %}
+
+          <tr class="product-row"
+              data-name="{{ (display_name or '')|lower }}"
+              data-alt="{{ (p.name or '')|lower }}"
+              data-sku="{{ (p.sku or '')|lower }}"
+              data-part="{{ (p.part_number or '')|lower }}">
             <td style="width:84px;">
               <img
-                src="{{ url_for('static', filename='products/' + (p.image or 'default.png')) }}"
+                src="{{ src }}"
                 class="rounded" width="64" height="64" style="object-fit:cover;" loading="lazy"
-                alt="{{ p.name }}"
+                alt="{{ display_name }}"
                 onerror="this.onerror=null;this.src='{{ url_for('static', filename='products/default.png') }}'">
             </td>
+
             <td>
-              <div class="fw-semibold">{{ p.name }}</div>
+              <div class="fw-semibold">{{ display_name }}</div>
               <div class="text-muted small">
+                {% if p.commercial_name and p.name and p.commercial_name != p.name %}
+                  <span class="me-2">({{ p.name }})</span>
+                {% endif %}
                 {% if p.sku %}<span class="me-2">SKU: {{ p.sku }}</span>{% endif %}
                 {% if p.part_number %}<span>Part: {{ p.part_number }}</span>{% endif %}
               </div>
-              {% if p.description %}
-                <div class="text-muted small">{{ p.description | truncate(80) }}</div>
-              {% endif %}
             </td>
-            <td class="text-end">{{ '%.2f'|format(p.price or 0) }} شيكل</td>
+
+            <td class="text-end">
+              {{ '%.2f'|format(display_price) }} شيكل
+            </td>
+
             <td class="text-center">
               {% if p.is_active %}
                 <span class="badge bg-success">مفعل</span>
@@ -75,6 +102,7 @@
                 <span class="badge bg-secondary">غير مفعل</span>
               {% endif %}
             </td>
+
             <td class="text-center">
               {% if avail > 0 %}
                 <span class="badge bg-info" title="المتوفر">{{ avail }}</span>
@@ -82,27 +110,27 @@
                 <span class="badge bg-danger">غير متوفر</span>
               {% endif %}
             </td>
-            {% if has_any('manage_shop','manage_inventory') %}
-            <td class="text-center">
-              <div class="btn-group btn-group-sm">
-                <a href="{{ url_for('shop.admin_product_edit', pid=p.id) }}" class="btn btn-warning" title="تعديل">
-                  <i class="fas fa-edit"></i>
-                </a>
-                <form method="POST" action="{{ url_for('shop.admin_product_delete', pid=p.id) }}"
-                      onsubmit="return confirm('تأكيد حذف {{ p.name }}؟ لا يمكن التراجع.');" class="d-inline">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="btn btn-danger" title="حذف">
-                    <i class="fas fa-trash"></i>
-                  </button>
-                </form>
-              </div>
-            </td>
+
+            {% if can_manage %}
+              <td class="text-center">
+                <div class="btn-group btn-group-sm">
+                  <a href="{{ url_for('shop.admin_product_edit', pid=p.id) }}" class="btn btn-warning" title="تعديل">
+                    <i class="fas fa-edit"></i>
+                  </a>
+                  <form method="POST" action="{{ url_for('shop.admin_product_delete', pid=p.id) }}"
+                        onsubmit="return confirm('تأكيد حذف {{ display_name }}؟ لا يمكن التراجع.');" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger" title="حذف">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </form>
+                </div>
+              </td>
             {% endif %}
           </tr>
           {% else %}
           <tr>
-            <td colspan="{{ 6 if has_any('manage_shop','manage_inventory') else 5 }}"
-                class="text-center text-muted py-4">
+            <td colspan="{{ 6 if can_manage else 5 }}" class="text-center text-muted py-4">
               لا توجد منتجات
             </td>
           </tr>
@@ -117,27 +145,24 @@
 {% block scripts %}
 {{ super() }}
 <script>
-  (function () {
-    const input = document.getElementById('search');
-    const tbody = document.getElementById('products-container');
-    const rows = Array.from(tbody.querySelectorAll('.product-row'));
-    let t;
-
-    function filterClient() {
-      const q = (input.value || '').trim().toLowerCase();
-      rows.forEach(row => {
-        const name = row.getAttribute('data-name') || '';
-        const sku  = row.getAttribute('data-sku')  || '';
-        const part = row.getAttribute('data-part') || '';
-        row.style.display = (name.includes(q) || sku.includes(q) || part.includes(q)) ? '' : 'none';
-      });
-    }
-
-    input.addEventListener('input', function () {
-      clearTimeout(t);
-      t = setTimeout(filterClient, 120);
+(function(){
+  const input=document.getElementById('search');
+  const tbody=document.getElementById('products-container');
+  if(!input||!tbody) return;
+  const rows=[...tbody.querySelectorAll('.product-row')];
+  let t;
+  function filter(){
+    const q=(input.value||'').trim().toLowerCase();
+    rows.forEach(r=>{
+      const name=r.getAttribute('data-name')||'';
+      const alt =r.getAttribute('data-alt') ||'';
+      const sku =r.getAttribute('data-sku') ||'';
+      const part=r.getAttribute('data-part')||'';
+      r.style.display=(name.includes(q)||alt.includes(q)||sku.includes(q)||part.includes(q))?'':'none';
     });
-  })();
+  }
+  input.addEventListener('input',()=>{clearTimeout(t);t=setTimeout(filter,120);});
+})();
 </script>
 <script src="{{ url_for('static', filename='js/shop.js') }}"></script>
 {% endblock %}

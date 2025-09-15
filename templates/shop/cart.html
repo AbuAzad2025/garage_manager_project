@@ -1,7 +1,5 @@
 {% extends 'shop/base.html' %}
-
 {% block title %}سلة التسوق{% endblock %}
-
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
 <style>
@@ -13,31 +11,22 @@
   .btn-remove{background:linear-gradient(135deg,#e53935,#b71c1c);color:#fff;border:none}
   .btn-remove:hover{opacity:.9}
   .summary-card .alert-info{background:linear-gradient(135deg,#36d1dc,#5b86e5);color:#fff;border:none}
-  .summary-card .fw-bold{font-size:1.1rem}
   .empty-cart{background:#fff;border-radius:12px;box-shadow:0 6px 20px rgba(0,0,0,.08)}
   .qty-control .btn-step{min-width:36px}
 </style>
 {% endblock %}
-
 {% block content %}
-<h1 class="h3 mb-4">🛒 سلة التسوق</h1>
-
+<h1 class="h3 mb-4">سلة التسوق</h1>
 {% if items %}
 <div class="row">
   <div class="col-lg-8">
     <div class="card shadow-sm mb-4">
       <div class="card-header py-3 d-flex justify-content-between">
         <h5 class="mb-0">المنتجات المختارة</h5>
-        {% if has_any('manage_shop','manage_sales') and 'shop.admin_orders' in current_app.view_functions %}
-          <a href="{{ url_for('shop.admin_orders') }}" class="btn btn-sm btn-light text-dark">
-            <i class="fas fa-list"></i> إدارة الطلبات
-          </a>
-        {% endif %}
       </div>
-
       <div class="card-body">
         <div class="table-responsive">
-          <table class="table align-middle">
+          <table id="cart-table" class="table align-middle">
             <thead>
               <tr>
                 <th>المنتج</th>
@@ -47,51 +36,46 @@
                 <th></th>
               </tr>
             </thead>
-            <tbody>
+            <tbody id="cart-body">
               {% for item in items %}
-              <tr>
+              {% set display_name = item.product.commercial_name or item.product.name %}
+              {% set img = item.product.online_image or item.product.image %}
+              {% if img %}
+                {% if img.startswith('http') or img.startswith('/') %}
+                  {% set src = img %}
+                {% else %}
+                  {% set src = url_for('static', filename=img) %}
+                {% endif %}
+              {% else %}
+                {% set src = url_for('static', filename='products/default.png') %}
+              {% endif %}
+              <tr class="cart-row" data-item-id="{{ item.id }}">
                 <td>
                   <div class="d-flex align-items-center">
-                    <img
-                      src="{{ url_for('static', filename='products/' + (item.product.image or 'default.png')) }}"
-                      class="rounded me-3"
-                      width="60" height="60" loading="lazy"
-                      alt="{{ item.product.name }}"
-                      style="object-fit:cover;"
-                      onerror="this.onerror=null;this.src='{{ url_for('static', filename='products/default.png') }}'">
+                    <img src="{{ src }}" class="rounded me-3" width="60" height="60" loading="lazy" alt="{{ display_name }}" style="object-fit:cover;" onerror="this.onerror=null;this.src='{{ url_for('static', filename='products/default.png') }}'">
                     <div>
-                      <h6 class="mb-0">{{ item.product.name }}</h6>
+                      <h6 class="mb-0">{{ display_name }}</h6>
                       {% if item.product.sku %}<small class="text-muted">{{ item.product.sku }}</small>{% endif %}
                     </div>
                   </div>
                 </td>
-
                 <td class="text-center">
-                  <form method="POST" action="{{ url_for('shop.update_cart_item', item_id=item.id) }}" class="d-inline-flex align-items-center">
+                  <form class="cart-update-form d-inline-flex align-items-center" method="POST" action="{{ url_for('shop.update_cart_item', item_id=item.id) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="input-group input-group-sm qty-control">
-                      <button class="btn btn-outline-secondary btn-step" type="button" data-dir="-1" title="نقص">
-                        <i class="fas fa-minus"></i>
-                      </button>
-                      <input type="number" name="quantity" class="form-control text-center qty-input"
-                             value="{{ item.quantity }}" min="1" step="1" inputmode="numeric" pattern="[0-9]*" style="width:80px">
-                      <button class="btn btn-outline-secondary btn-step" type="button" data-dir="1" title="زيادة">
-                        <i class="fas fa-plus"></i>
-                      </button>
+                      <button class="btn btn-outline-secondary btn-step" type="button" data-dir="-1"><i class="fas fa-minus"></i></button>
+                      <input type="number" name="quantity" class="form-control text-center qty-input" value="{{ item.quantity }}" min="1" step="1" inputmode="numeric" pattern="[0-9]*" style="width:80px">
+                      <button class="btn btn-outline-secondary btn-step" type="button" data-dir="1"><i class="fas fa-plus"></i></button>
                       <button type="submit" class="btn btn-update ms-2">تحديث</button>
                     </div>
                   </form>
                 </td>
-
-                <td class="text-end">{{ '%.2f' | format(item.price or 0) }} شيكل</td>
-                <td class="text-end">{{ '%.2f' | format((item.quantity or 0) * (item.price or 0)) }} شيكل</td>
-
+                <td class="text-end price-unit" data-unit="{{ '%.2f' | format(item.price or 0) }}">{{ '%.2f' | format(item.price or 0) }} شيكل</td>
+                <td class="text-end row-total">{{ '%.2f' | format((item.quantity or 0) * (item.price or 0)) }} شيكل</td>
                 <td class="text-center">
-                  <form method="POST" action="{{ url_for('shop.remove_from_cart', item_id=item.id) }}">
+                  <form class="cart-remove-form" method="POST" action="{{ url_for('shop.remove_from_cart', item_id=item.id) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn btn-sm btn-remove" title="إزالة من السلة">
-                      <i class="fas fa-trash"></i>
-                    </button>
+                    <button type="submit" class="btn btn-sm btn-remove"><i class="fas fa-trash"></i></button>
                   </form>
                 </td>
               </tr>
@@ -102,41 +86,21 @@
       </div>
     </div>
   </div>
-
   <div class="col-lg-4">
     <div class="card shadow-sm sticky-top summary-card" style="top: 100px;">
-      <div class="card-header py-3">
-        <h5 class="mb-0">ملخص الطلب</h5>
-      </div>
+      <div class="card-header py-3"><h5 class="mb-0">ملخص الطلب</h5></div>
       <div class="card-body">
-        <div class="d-flex justify-content-between mb-2">
-          <span>المجموع الفرعي:</span>
-          <span>{{ '%.2f'|format(subtotal) }} شيكل</span>
-        </div>
-        <div class="d-flex justify-content-between mb-2">
-          <span>الشحن:</span>
-          <span>0.00 شيكل</span>
-        </div>
-        <div class="d-flex justify-content-between mb-2">
-          <span>الضريبة:</span>
-          <span>0.00 شيكل</span>
-        </div>
+        <div class="d-flex justify-content-between mb-2"><span>المجموع الفرعي:</span><span id="cart-subtotal">{{ '%.2f'|format(subtotal) }} شيكل</span></div>
+        <div class="d-flex justify-content-between mb-2"><span>الشحن:</span><span id="cart-shipping">0.00 شيكل</span></div>
+        <div class="d-flex justify-content-between mb-2"><span>الضريبة:</span><span id="cart-tax">0.00 شيكل</span></div>
         <hr>
-        <div class="d-flex justify-content-between fw-bold mb-3">
-          <span>المجموع الكلي:</span>
-          <span>{{ '%.2f'|format(subtotal) }} شيكل</span>
-        </div>
-
+        <div class="d-flex justify-content-between fw-bold mb-3"><span>المجموع الكلي:</span><span id="cart-total">{{ '%.2f'|format(subtotal) }} شيكل</span></div>
         <div class="alert alert-info">
-          <div class="d-flex justify-content-between">
-            <span>المبلغ المطلوب للحجز:</span>
-            <span class="fw-bold">{{ '%.2f'|format(prepaid_amount) }} شيكل</span>
-          </div>
-          <small class="d-block mt-1">(20% من قيمة الطلب كحد أدنى)</small>
+          <div class="d-flex justify-content-between"><span>المبلغ المطلوب للحجز:</span><span class="fw-bold" id="cart-prepaid">{{ '%.2f'|format(prepaid_amount) }} شيكل</span></div>
+          <small class="d-block mt-1">20% كحد أدنى</small>
         </div>
-
-        {% if not has_any('manage_shop', 'manage_payments') %}
-          <a href="{{ url_for('shop.checkout') }}" class="btn btn-primary w-100 py-3">إتمام عملية الشراء</a>
+        {% if not has_any('manage_shop','manage_payments') %}
+        <a href="{{ url_for('shop.checkout') }}" class="btn btn-primary w-100 py-3">إتمام عملية الشراء</a>
         {% endif %}
         <a href="{{ url_for('shop.catalog') }}" class="btn btn-outline-secondary w-100 mt-2">العودة للتسوق</a>
       </div>
@@ -154,27 +118,6 @@
 </div>
 {% endif %}
 {% endblock %}
-
 {% block scripts %}
 {{ super() }}
-<script>
-  (function(){
-    document.querySelectorAll('.qty-control').forEach(group => {
-      const input = group.querySelector('.qty-input');
-      group.querySelectorAll('.btn-step').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const dir = parseInt(btn.getAttribute('data-dir')) || 0;
-          const cur = parseInt(input.value || '1') || 1;
-          const next = Math.max(1, cur + dir);
-          input.value = next;
-        });
-      });
-      input.addEventListener('input', () => {
-        input.value = String(input.value).replace(/[^\d]/g,'');
-        if(!input.value || parseInt(input.value) < 1) input.value = '1';
-      });
-    });
-  })();
-</script>
-<script src="{{ url_for('static', filename='js/shop.js') }}"></script>
 {% endblock %}

@@ -23,7 +23,9 @@
     <div class="card-body">
       <div class="row mb-4">
         <div class="col-md-6">
-          <p><strong>المبلغ الكلي:</strong> {{ '%.2f'|format(payment.total_amount or 0) }} {{ payment.currency }}</p>
+          <p><strong>المبلغ الكلي:</strong>
+            <span id="totalAmountValue">{{ '%.2f'|format(payment.total_amount or 0) }}</span> {{ payment.currency }}
+          </p>
           <p><strong>التاريخ:</strong> {{ payment.payment_date and payment.payment_date.strftime('%Y-%m-%d') or '—' }}</p>
           <p><strong>الطريقة (رئيسية):</strong> {{ (payment.method.value if payment.method and payment.method.value else payment.method) or '—' }}</p>
           <p><strong>الحالة:</strong>
@@ -49,7 +51,7 @@
       </div>
 
       <h4 class="mt-4">💳 الدفعات الجزئية:</h4>
-      <table class="table table-bordered table-hover">
+      <table class="table table-bordered table-hover" id="splitsTableWrap">
         <thead class="table-light">
           <tr>
             <th>#</th>
@@ -61,27 +63,29 @@
         </thead>
         <tbody id="splitsTable">
           {% for s in payment.splits %}
-          {% set method = s.method.value if s.method and s.method.value else s.method %}
+          {% set method = (s.method.value if s.method and s.method.value else s.method) %}
+          {% set ml = (method or '')|lower %}
           {% set d = s.details or {} %}
           <tr id="split-{{ s.id }}">
             <td>{{ loop.index }}.</td>
-            <td>{{ '%.2f'|format(s.amount or 0) }} {{ payment.currency }}</td>
+            <td class="amount-cell" data-amount="{{ '%.2f'|format(s.amount or 0) }}">{{ '%.2f'|format(s.amount or 0) }} {{ payment.currency }}</td>
             <td>{{ (method or '—')|upper }}</td>
             <td>
-              {% if method == 'cheque' %}
+              {% if ml == 'cheque' or ml == 'check' %}
                 رقم الشيك: {{ d.get('check_number','—') }}<br>
                 البنك: {{ d.get('check_bank','—') }}<br>
                 الاستحقاق: {{ d.get('check_due_date') or d.get('due_date') or '—' }}
-              {% elif method == 'bank' %}
+              {% elif ml == 'bank' or ml == 'transfer' %}
                 مرجع التحويل: {{ d.get('bank_transfer_ref','—') }}
-              {% elif method == 'card' %}
+              {% elif ml == 'card' or ml == 'credit' %}
                 بطاقة رقم: ****{{ (d.get('card_last4','') or (d.get('card_number','')|string)[-4:]) }}<br>
                 حامل البطاقة: {{ d.get('card_holder','—') }}<br>
                 انتهاء: {{ d.get('card_expiry','—') }}
-              {% elif method == 'online' %}
-                دفع إلكتروني ({{ d.get('gateway','—') }})
+              {% elif ml == 'online' %}
+                البوابة: {{ d.get('online_gateway') or d.get('gateway') or '—' }}<br>
+                مرجع العملية: {{ d.get('online_ref') or d.get('reference') or '—' }}
               {% else %}
-                — 
+                —
               {% endif %}
             </td>
             <td>
@@ -109,80 +113,111 @@
 
 {% block scripts %}
 <script>
-document.querySelectorAll('.remove-split').forEach(function(btn){
-  btn.addEventListener('click', function(){
-    if (!confirm('هل أنت متأكد من حذف هذه الدفعة الجزئية؟')) return;
-    fetch('/payments/split/' + btn.dataset.splitId + '/delete', { method: 'DELETE' })
-      .then(function(r){ return r.json(); })
-      .then(function(j){
-        if (j.status === 'success') {
-          var row = document.getElementById('split-' + btn.dataset.splitId);
-          if (row) row.remove();
-          alert('✅ تم حذف الدفعة الجزئية');
-        } else {
-          alert('فشل: ' + (j.message || 'خطأ غير معروف'));
-        }
-      })
-      .catch(function(){ alert('خطأ في الاتصال بالخادم'); });
-  });
-});
+document.addEventListener('DOMContentLoaded', function () {
+  function recalcTotalFromSplits() {
+    const cells = document.querySelectorAll('#splitsTable .amount-cell');
+    let sum = 0;
+    cells.forEach(function (td) {
+      const v = parseFloat(td.dataset.amount || '0') || 0;
+      sum += v;
+    });
+    const el = document.getElementById('totalAmountValue');
+    if (el) el.textContent = sum.toFixed(2);
+  }
 
-(function(){
-  var btn = document.getElementById('btn-view-receipt');
-  if (!btn) return;
-  btn.addEventListener('click', function(){
-    try {
-      var data = {
-        id: {{ payment.id }},
-        currency: "{{ payment.currency or '' }}",
-        total: "{{ '%.2f'|format(payment.total_amount or 0) }}",
-        date: "{{ payment.payment_date and payment.payment_date.strftime('%Y-%m-%d %H:%M') or '' }}",
-        method: "{{ (payment.method.value if payment.method and payment.method.value else payment.method) or '' }}",
-        status: "{{ (payment.status.value if payment.status and payment.status.value else payment.status) or '' }}",
-        direction: "{{ (payment.direction.value if payment.direction and payment.direction.value else payment.direction) or '' }}",
-        entity: "{{ (payment.entity_label() or payment.entity_type)|replace('\"','&quot;') }}"
-      };
-      var rows = Array.from(document.querySelectorAll('#splitsTable tr')).map(function(tr){
-        var tds = tr.querySelectorAll('td');
-        return {
-          idx: (tds[0] && tds[0].textContent.trim()) || '',
-          amount: (tds[1] && tds[1].textContent.trim()) || '',
-          method: (tds[2] && tds[2].textContent.trim()) || '',
-          details: (tds[3] && tds[3].innerHTML) || '—'
-        };
-      });
-      var items = rows.map(function(r){
-        return '<tr><td>'+r.idx+'</td><td class="text-end">'+r.amount+'</td><td>'+r.method+'</td><td>'+r.details+'</td></tr>';
-      }).join('');
-      var title = 'وصل دفعة #' + data.id;
-      var w = window.open('', 'receipt'+data.id);
-      w.document.write(
-        '<html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>'+title+'</title>'+
-        '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">'+
-        '<style>body{padding:24px} .h{color:#666} .table{font-size:12px}</style>'+
-        '</head><body>'+
-        '<div class="d-flex justify-content-between align-items-start mb-3">'+
-          '<div><h4 class="mb-1">'+title+'</h4><div class="h">التاريخ: '+(data.date||'—')+'</div></div>'+
-          '<div class="text-end"><div class="h">المبلغ الكلي</div><div class="fs-5 fw-bold">'+data.total+' '+(data.currency||'')+'</div></div>'+
-        '</div>'+
-        '<div class="row g-2 mb-3">'+
-          '<div class="col"><div class="h">الجهة</div><div>'+data.entity+'</div></div>'+
-          '<div class="col"><div class="h">الطريقة</div><div>'+(data.method||'—')+'</div></div>'+
-          '<div class="col"><div class="h">الحالة</div><div>'+(data.status||'—')+'</div></div>'+
-          '<div class="col"><div class="h">الاتجاه</div><div>'+(data.direction||'—')+'</div></div>'+
-        '</div>'+
-        '<table class="table table-bordered table-sm"><thead class="table-light"><tr>'+
-          '<th style="width:60px">#</th><th class="text-end" style="width:180px">المبلغ</th><th style="width:140px">الطريقة</th><th>التفاصيل</th>'+
-        '</tr></thead><tbody>'+items+'</tbody></table>'+
-        '<div class="mt-3 text-center"><button onclick="window.print()" class="btn btn-primary">طباعة</button></div>'+
-        '</body></html>'
-      );
-      w.document.close();
-      w.focus();
-    } catch (e) {
-      alert('تعذر عرض الوصل الآن');
+  function ensurePlaceholderRow() {
+    const tbody = document.getElementById('splitsTable');
+    if (!tbody) return;
+    if (!tbody.querySelector('tr')) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td colspan="5" class="text-center text-muted py-3">لا توجد دفعات جزئية</td>';
+      tbody.appendChild(tr);
+    } else {
+      const lone = tbody.querySelector('td[colspan="5"]');
+      if (lone && tbody.querySelectorAll('tr').length > 1) lone.parentElement.remove();
     }
+  }
+
+  document.querySelectorAll('.remove-split').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      if (!confirm('هل أنت متأكد من حذف هذه الدفعة الجزئية؟')) return;
+      fetch('/payments/split/' + btn.dataset.splitId + '/delete', { method: 'DELETE', headers: { 'Accept': 'application/json' } })
+        .then(function(r){ return r.json(); })
+        .then(function(j){
+          if (j.status === 'success') {
+            var row = document.getElementById('split-' + btn.dataset.splitId);
+            if (row) row.remove();
+            recalcTotalFromSplits();
+            ensurePlaceholderRow();
+            alert('✅ تم حذف الدفعة الجزئية');
+          } else {
+            alert('فشل: ' + (j.message || 'خطأ غير معروف'));
+          }
+        })
+        .catch(function(){ alert('خطأ في الاتصال بالخادم'); });
+    });
   });
-})();
+
+  (function(){
+    var btn = document.getElementById('btn-view-receipt');
+    if (!btn) return;
+    btn.addEventListener('click', function(){
+      try {
+        var data = {
+          id: {{ payment.id }},
+          currency: "{{ payment.currency or '' }}",
+          total: document.getElementById('totalAmountValue') ? document.getElementById('totalAmountValue').textContent.trim() : "{{ '%.2f'|format(payment.total_amount or 0) }}",
+          date: "{{ payment.payment_date and payment.payment_date.strftime('%Y-%m-%d %H:%M') or '' }}",
+          method: "{{ (payment.method.value if payment.method and payment.method.value else payment.method) or '' }}",
+          status: "{{ (payment.status.value if payment.status and payment.status.value else payment.status) or '' }}",
+          direction: "{{ (payment.direction.value if payment.direction and payment.direction.value else payment.direction) or '' }}",
+          entity: "{{ (payment.entity_label() or payment.entity_type)|replace('\"','&quot;') }}"
+        };
+        var rows = Array.from(document.querySelectorAll('#splitsTable tr')).map(function(tr, idx){
+          var tds = tr.querySelectorAll('td');
+          if (!tds.length) return null;
+          return {
+            idx: (idx+1),
+            amount: (tds[1] && tds[1].textContent.trim()) || '',
+            method: (tds[2] && tds[2].textContent.trim()) || '',
+            details: (tds[3] && tds[3].innerHTML) || '—'
+          };
+        }).filter(Boolean);
+        var items = rows.map(function(r){
+          return '<tr><td>'+r.idx+'</td><td class="text-end">'+r.amount+'</td><td>'+r.method+'</td><td>'+r.details+'</td></tr>';
+        }).join('');
+        var title = 'وصل دفعة #' + data.id;
+        var w = window.open('', 'receipt'+data.id);
+        w.document.write(
+          '<html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>'+title+'</title>'+
+          '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">'+
+          '<style>body{padding:24px} .h{color:#666} .table{font-size:12px}</style>'+
+          '</head><body>'+
+          '<div class="d-flex justify-content-between align-items-start mb-3">'+
+            '<div><h4 class="mb-1">'+title+'</h4><div class="h">التاريخ: '+(data.date||'—')+'</div></div>'+
+            '<div class="text-end"><div class="h">المبلغ الكلي</div><div class="fs-5 fw-bold">'+data.total+' '+(data.currency||'')+'</div></div>'+
+          '</div>'+
+          '<div class="row g-2 mb-3">'+
+            '<div class="col"><div class="h">الجهة</div><div>'+data.entity+'</div></div>'+
+            '<div class="col"><div class="h">الطريقة</div><div>'+(data.method||'—')+'</div></div>'+
+            '<div class="col"><div class="h">الحالة</div><div>'+(data.status||'—')+'</div></div>'+
+            '<div class="col"><div class="h">الاتجاه</div><div>'+(data.direction||'—')+'</div></div>'+
+          '</div>'+
+          '<table class="table table-bordered table-sm"><thead class="table-light"><tr>'+
+            '<th style="width:60px">#</th><th class="text-end" style="width:180px">المبلغ</th><th style="width:140px">الطريقة</th><th>التفاصيل</th>'+
+          '</tr></thead><tbody>'+items+'</tbody></table>'+
+          '<div class="mt-3 text-center"><button onclick="window.print()" class="btn btn-primary">طباعة</button></div>'+
+          '</body></html>'
+        );
+        w.document.close();
+        w.focus();
+      } catch (e) {
+        alert('تعذر عرض الوصل الآن');
+      }
+    });
+  })();
+
+  ensurePlaceholderRow();
+});
 </script>
 {% endblock %}

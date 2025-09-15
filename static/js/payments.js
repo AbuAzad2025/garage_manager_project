@@ -1,3 +1,4 @@
+<script>
 document.addEventListener('DOMContentLoaded', function () {
   const filterSelectors = ['#filterEntity','#filterStatus','#filterDirection','#filterMethod','#startDate','#endDate'];
   const ENTITY_ENUM = { customer:'CUSTOMER', supplier:'SUPPLIER', partner:'PARTNER', sale:'SALE', service:'SERVICE', expense:'EXPENSE', loan:'LOAN', preorder:'PREORDER', shipment:'SHIPMENT' };
@@ -110,10 +111,12 @@ document.addEventListener('DOMContentLoaded', function () {
         const list = Array.isArray(data.payments) ? data.payments : [];
         renderPaymentsTable(list);
         renderPagination(Number(data.total_pages || 1), Number(data.current_page || 1));
+        renderTotals(data.totals || null);
       })
       .catch(function(){
         renderPaymentsTable([]);
         renderPagination(1, 1);
+        renderTotals(null);
       })
       .finally(function(){ setLoading(false); });
   }
@@ -137,6 +140,26 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function fmtAmount(v){ return Number(v || 0).toFixed(2); }
+
+  function deriveEntityLabel(p) {
+    if (p.entity_display) return p.entity_display;
+    const map = [
+      ['customer_id','عميل'],
+      ['supplier_id','مورد'],
+      ['partner_id','شريك'],
+      ['sale_id','بيع'],
+      ['invoice_id','فاتورة'],
+      ['service_id','صيانة'],
+      ['shipment_id','شحنة'],
+      ['expense_id','مصروف'],
+      ['preorder_id','حجز'],
+      ['loan_settlement_id','تسوية']
+    ];
+    for (const [key,label] of map) {
+      if (p[key]) return label+' #'+p[key];
+    }
+    return p.entity_type || '';
+  }
 
   function renderPaymentsTable(list) {
     _lastList = list.slice();
@@ -164,7 +187,7 @@ document.addEventListener('DOMContentLoaded', function () {
         '<td>'+(splitsHtml || (p.method || ''))+'</td>'+
         '<td>'+badgeForDirection(p.direction)+'</td>'+
         '<td>'+badgeForStatus(p.status)+'</td>'+
-        '<td>'+(p.entity_display || p.entity_type || '')+'</td>'+
+        '<td>'+deriveEntityLabel(p)+'</td>'+
         '<td><a href="/payments/'+p.id+'" class="btn btn-info btn-sm">عرض</a></td>';
       tbody.appendChild(tr);
     });
@@ -209,6 +232,19 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  function renderTotals(totals) {
+    const elIn  = document.getElementById('totalIncoming');
+    const elOut = document.getElementById('totalOutgoing');
+    const elNet = document.getElementById('netTotal');
+    const elAll = document.getElementById('grandTotal');
+    if (!elIn && !elOut && !elNet && !elAll) return;
+    const safe = totals || { total_incoming: 0, total_outgoing: 0, net_total: 0, grand_total: 0, total_paid: 0 };
+    if (elIn)  elIn.textContent  = Number(safe.total_incoming || 0).toFixed(2);
+    if (elOut) elOut.textContent = Number(safe.total_outgoing || 0).toFixed(2);
+    if (elNet) elNet.textContent = Number(safe.net_total || 0).toFixed(2);
+    if (elAll) elAll.textContent = Number(safe.grand_total || 0).toFixed(2);
+  }
+
   function printStatement() {
     try {
       const table = document.getElementById('paymentsTable');
@@ -228,7 +264,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const rows = _lastList.map(function(p){
         const dateOnly = (p.payment_date || '').split('T')[0] || '';
         const method = (p.splits && p.splits.length) ? p.splits.map(function(s){ return String((s.method||'')).toUpperCase()+': '+Number(s.amount||0).toFixed(2); }).join(' | ') : (p.method || '');
-        return [String(p.id||''), dateOnly, Number(p.total_amount||0).toFixed(2), String(p.currency||''), method, (p.direction||''), (AR_STATUS[p.status]||p.status||''), String(p.entity_display||p.entity_type||'')];
+        return [String(p.id||''), dateOnly, Number(p.total_amount||0).toFixed(2), String(p.currency||''), method, (p.direction||''), (AR_STATUS[p.status]||p.status||''), String(deriveEntityLabel(p)||'')];
       });
       const csv = [headers].concat(rows).map(function(r){ return r.map(function(cell){ return '"'+String(cell).replace(/"/g,'""')+'"'; }).join(','); }).join('\n');
       const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -252,3 +288,4 @@ document.addEventListener('DOMContentLoaded', function () {
   loadPayments();
   window.addEventListener('popstate', function(){ syncFiltersFromUrl(); loadPayments(1); });
 });
+</script>

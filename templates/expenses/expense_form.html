@@ -1,10 +1,18 @@
 {% extends "base.html" %}
 {% block title %}{{ is_edit and 'تعديل مصروف' or 'إضافة مصروف' }}{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
+<div class="container mt-4" dir="rtl">
   <div class="d-flex align-items-center justify-content-between mb-3">
     <h3 class="mb-0">{{ is_edit and '✏️ تعديل مصروف' or '➕ إضافة مصروف' }}</h3>
-    <div><a href="{{ url_for('expenses_bp.list_expenses') }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-right"></i> رجوع</a></div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('expenses_bp.list_expenses') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-right"></i> رجوع
+      </a>
+      <a href="{{ url_for('expenses_bp.quick_add') }}" class="btn btn-primary">
+        <i class="fas fa-bolt"></i> مصروف سريع
+      </a>
+    </div>
   </div>
 
   <form method="POST" id="expenseForm" class="needs-validation" novalidate>
@@ -14,61 +22,204 @@
         <div class="card card-outline card-primary">
           <div class="card-header"><h5 class="card-title mb-0">📝 البيانات الأساسية</h5></div>
           <div class="card-body">
-            <div class="mb-3">{{ form.date.label(class="form-label") }}{{ form.date(type="date", class="form-control", id="date") }}{% for e in form.date.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
-            <div class="mb-3">{{ form.amount.label(class="form-label") }}{{ form.amount(class="form-control", step="0.01", id="amount") }}{% for e in form.amount.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
-            <div class="mb-3">{{ form.currency.label(class="form-label") }}{{ form.currency(class="form-select", id="currency") }}{% for e in form.currency.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
-            <div class="mb-3">{{ form.type_id.label(class="form-label") }}{{ form.type_id(class="form-select", id="type_id") }}{% for e in form.type_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
-            <div class="mb-3">{{ form.paid_to.label(class="form-label") }}{{ form.paid_to(class="form-control", id="paid_to") }}{% for e in form.paid_to.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
-            <div class="mb-3">{{ form.payment_method.label(class="form-label") }}{{ form.payment_method(class="form-select", id="payment_method") }}{% for e in form.payment_method.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+            <div class="mb-3">
+              {{ form.date.label(class="form-label") }}
+              {{ form.date(type="date", class="form-control", id="date") }}
+              {% for e in form.date.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="mb-3">
+              {{ form.amount.label(class="form-label") }}
+              {{ form.amount(class="form-control", step="0.01", id="amount") }}
+              <small id="amountHelp" class="text-muted d-none">سيتم تعبئة المبلغ تلقائيًا من تسوية المخزون.</small>
+              {% for e in form.amount.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="mb-3">
+              {{ form.currency.label(class="form-label") }}
+              {{ form.currency(class="form-select", id="currency") }}
+              {% for e in form.currency.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="mb-3">
+              {{ form.type_id.label(class="form-label") }}
+              {{ form.type_id(class="form-select", id="type_id") }}
+              {% for e in form.type_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="mb-3">
+              {{ form.beneficiary_name.label(class="form-label") }}
+              {{ form.beneficiary_name(class="form-control", id="beneficiary_name", placeholder="اسم الجهة المستفيدة") }}
+              {% for e in form.beneficiary_name.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+              <small class="text-muted">يُستخدم للمتفرقات والجمارك إن لم تكن رواتب/مرافق.</small>
+            </div>
+
+            <div class="mb-3">
+              {{ form.paid_to.label(class="form-label") }}
+              {{ form.paid_to(class="form-control", id="paid_to", placeholder="سيُحدَّث تلقائيًا حسب النوع") }}
+              {% for e in form.paid_to.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="mb-3">
+              {{ form.payment_method.label(class="form-label") }}
+              {{ form.payment_method(class="form-select", id="payment_method") }}
+              {% for e in form.payment_method.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            </div>
 
             <div id="methodDetails" class="row gy-2" style="display:none;">
               <div class="col-md-4" data-field="check_number">
-                {% if form.check_number is defined %}{{ form.check_number.label(class="form-label") }}{{ form.check_number(class="form-control") }}{% for e in form.check_number.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}{% endif %}
+                {{ form.check_number.label(class="form-label") }}
+                {{ form.check_number(class="form-control", placeholder="رقم الشيك") }}
+                {% for e in form.check_number.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
               </div>
               <div class="col-md-4" data-field="check_bank">
-                {% if form.check_bank is defined %}{{ form.check_bank.label(class="form-label") }}{{ form.check_bank(class="form-control") }}{% for e in form.check_bank.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}{% endif %}
+                {{ form.check_bank.label(class="form-label") }}
+                {{ form.check_bank(class="form-control", placeholder="اسم البنك") }}
+                {% for e in form.check_bank.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
               </div>
               <div class="col-md-4" data-field="check_due_date">
-                {% if form.check_due_date is defined %}{{ form.check_due_date.label(class="form-label") }}{{ form.check_due_date(type="date", class="form-control") }}{% for e in form.check_due_date.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}{% endif %}
+                {{ form.check_due_date.label(class="form-label") }}
+                {{ form.check_due_date(type="date", class="form-control") }}
+                {% for e in form.check_due_date.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
               </div>
+
               <div class="col-md-6" data-field="bank_transfer_ref">
-                {% if form.bank_transfer_ref is defined %}{{ form.bank_transfer_ref.label(class="form-label") }}{{ form.bank_transfer_ref(class="form-control") }}{% for e in form.bank_transfer_ref.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}{% endif %}
+                {{ form.bank_transfer_ref.label(class="form-label") }}
+                {{ form.bank_transfer_ref(class="form-control", placeholder="مرجع الحوالة") }}
+                {% for e in form.bank_transfer_ref.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
               </div>
+
               <div class="col-md-4" data-field="card_number">
-                {% if form.card_number is defined %}{{ form.card_number.label(class="form-label") }}{{ form.card_number(class="form-control") }}{% for e in form.card_number.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}{% endif %}
+                {{ form.card_number.label(class="form-label") }}
+                {{ form.card_number(class="form-control", placeholder="**** **** **** ****") }}
+                {% for e in form.card_number.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
               </div>
               <div class="col-md-4" data-field="card_holder">
-                {% if form.card_holder is defined %}{{ form.card_holder.label(class="form-label") }}{{ form.card_holder(class="form-control") }}{% for e in form.card_holder.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}{% endif %}
+                {{ form.card_holder.label(class="form-label") }}
+                {{ form.card_holder(class="form-control", placeholder="اسم حامل البطاقة") }}
+                {% for e in form.card_holder.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
               </div>
               <div class="col-md-4" data-field="card_expiry">
-                {% if form.card_expiry is defined %}{{ form.card_expiry.label(class="form-label") }}{{ form.card_expiry(class="form-control", placeholder="MM/YY") }}{% for e in form.card_expiry.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}{% endif %}
+                {{ form.card_expiry.label(class="form-label") }}
+                {{ form.card_expiry(class="form-control", placeholder="MM/YY") }}
+                {% for e in form.card_expiry.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
               </div>
+
               <div class="col-md-4" data-field="online_gateway">
-                {% if form.online_gateway is defined %}{{ form.online_gateway.label(class="form-label") }}{{ form.online_gateway(class="form-control") }}{% for e in form.online_gateway.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}{% endif %}
+                {{ form.online_gateway.label(class="form-label") }}
+                {{ form.online_gateway(class="form-control", placeholder="البوابة الإلكترونية") }}
+                {% for e in form.online_gateway.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
               </div>
               <div class="col-md-4" data-field="online_ref">
-                {% if form.online_ref is defined %}{{ form.online_ref.label(class="form-label") }}{{ form.online_ref(class="form-control") }}{% for e in form.online_ref.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}{% endif %}
+                {{ form.online_ref.label(class="form-label") }}
+                {{ form.online_ref(class="form-control", placeholder="مرجع العملية") }}
+                {% for e in form.online_ref.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
               </div>
             </div>
 
-            <div class="mb-3">{{ form.payment_details.label(class="form-label") }}{{ form.payment_details(class="form-control") }}{% for e in form.payment_details.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+            <div class="mb-3">
+              {{ form.payment_details.label(class="form-label") }}
+              {{ form.payment_details(class="form-control") }}
+              {% for e in form.payment_details.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            </div>
           </div>
         </div>
       </div>
 
       <div class="col-lg-6">
         <div class="card card-outline card-secondary">
-          <div class="card-header"><h5 class="card-title mb-0">🔗 حقول إضافية</h5></div>
+          <div class="card-header"><h5 class="card-title mb-0">🔗 حقول إضافية وربط</h5></div>
           <div class="card-body">
-            <div id="employee-field" class="mb-3">
+            <div id="employee-field" class="mb-3" style="display:none;">
               {{ form.employee_id.label(class="form-label") }}
-              {{ form.employee_id(class="form-control") }}
-              {% for e in form.employee_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-              <small class="text-muted">يظهر هذا الحقل لراتب الموظّف.</small>
+              {{ form.employee_id(class="form-control ajax-select", id="employee_id", **{
+                   "data-endpoint": url_for('api.search_employees'),
+                   "data-placeholder": "اختر موظفًا",
+                   "data-minlen": "1"
+                 }) }}
+              {% for e in form.employee_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+              <div class="row">
+                <div class="col-md-6 mt-2">
+                  {{ form.period_start.label(class="form-label") }}
+                  {{ form.period_start(type="date", class="form-control", id="period_start") }}
+                </div>
+                <div class="col-md-6 mt-2">
+                  {{ form.period_end.label(class="form-label") }}
+                  {{ form.period_end(type="date", class="form-control", id="period_end") }}
+                </div>
+              </div>
             </div>
-            <div class="mb-3">{{ form.description.label(class="form-label") }}{{ form.description(class="form-control") }}{% for e in form.description.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
-            <div class="mb-3">{{ form.tax_invoice_number.label(class="form-label") }}{{ form.tax_invoice_number(class="form-control") }}{% for e in form.tax_invoice_number.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
-            <div class="mb-3">{{ form.notes.label(class="form-label") }}{{ form.notes(class="form-control") }}{% for e in form.notes.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+
+            <div class="mb-3">
+              {{ form.shipment_id.label(class="form-label") }}
+              {{ form.shipment_id(class="form-control ajax-select", id="shipment_id", **{
+                   "data-endpoint": url_for('api.shipments'),
+                   "data-placeholder": "اختر شحنة",
+                   "data-minlen": "1"
+                 }) }}
+              {% for e in form.shipment_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="mb-3">
+              {{ form.utility_account_id.label(class="form-label") }}
+              {{ form.utility_account_id(class="form-control ajax-select", id="utility_account_id", **{
+                   "data-endpoint": url_for('api.search_utility_accounts'),
+                   "data-placeholder": "اختر حساب مرافق",
+                   "data-minlen": "1"
+                 }) }}
+              {% for e in form.utility_account_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                {{ form.warehouse_id.label(class="form-label") }}
+                {{ form.warehouse_id(class="form-control ajax-select", id="warehouse_id", **{
+                     "data-endpoint": url_for('api.search_warehouses'),
+                     "data-placeholder": "اختر مستودعًا",
+                     "data-minlen": "1"
+                   }) }}
+                {% for e in form.warehouse_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+              </div>
+              <div class="col-md-6 mb-3">
+                {{ form.partner_id.label(class="form-label") }}
+                {{ form.partner_id(class="form-control ajax-select", id="partner_id", **{
+                     "data-endpoint": url_for('api.search_partners'),
+                     "data-placeholder": "اختر شريكًا",
+                     "data-minlen": "1"
+                   }) }}
+                {% for e in form.partner_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+              </div>
+            </div>
+
+            <div class="mb-3">
+              {{ form.stock_adjustment_id.label(class="form-label") }}
+              {{ form.stock_adjustment_id(class="form-control ajax-select", id="stock_adjustment_id", **{
+                   "data-endpoint": url_for('api.search_stock_adjustments'),
+                   "data-placeholder": "اختر تسوية مخزون",
+                   "data-minlen": "1",
+                   "data-url-template": "/api/stock_adjustments/{id}/total"
+                 }) }}
+              <small class="text-muted d-block mt-1">عند الربط بتسوية مخزون سيتم احتساب المبلغ تلقائيًا.</small>
+              {% for e in form.stock_adjustment_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="mb-3">
+              {{ form.tax_invoice_number.label(class="form-label") }}
+              {{ form.tax_invoice_number(class="form-control") }}
+              {% for e in form.tax_invoice_number.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="mb-3">
+              {{ form.description.label(class="form-label") }}
+              {{ form.description(class="form-control") }}
+              {% for e in form.description.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="mb-3">
+              {{ form.notes.label(class="form-label") }}
+              {{ form.notes(class="form-control") }}
+              {% for e in form.notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            </div>
           </div>
         </div>
       </div>
@@ -81,4 +232,8 @@
   </form>
 </div>
 {% endblock %}
-{% block scripts %}{{ super() }}<script src="{{ url_for('static', filename='js/expenses.js') }}"></script>{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/expenses.js') }}"></script>
+{% endblock %}

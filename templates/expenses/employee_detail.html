@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+{% block title %}تفاصيل الموظف {{ employee.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4" dir="rtl">
+  <div class="card card-outline card-primary shadow-sm mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h3 class="card-title mb-0">
+        <i class="fas fa-user me-2"></i> تفاصيل الموظف
+      </h3>
+      <div class="d-flex gap-2">
+        <a href="{{ url_for('expenses_bp.employees_list') }}" class="btn btn-outline-secondary">
+          <i class="fas fa-arrow-right"></i> رجوع
+        </a>
+        {% if current_user.has_permission('manage_expenses') %}
+        <a href="{{ url_for('expenses_bp.edit_employee', emp_id=employee.id) }}" class="btn btn-warning">
+          <i class="fas fa-edit me-1"></i> تعديل
+        </a>
+        <form method="post" action="{{ url_for('expenses_bp.delete_employee', emp_id=employee.id) }}" style="display:inline;" onsubmit="return confirm('هل أنت متأكد من حذف الموظف؟');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-danger"><i class="fas fa-trash me-1"></i> حذف</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="row g-3 mb-3">
+        <div class="col-md-4">
+          <div class="card border-0 shadow-sm">
+            <div class="card-body d-flex justify-content-between align-items-center">
+              <div>
+                <div class="text-muted">إجمالي المصاريف</div>
+                <div class="h5 mb-0">{{ employee.total_expenses|number_format(2) }} {{ employee.currency }}</div>
+              </div>
+              <i class="fas fa-sack-dollar fa-lg text-primary"></i>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card border-0 shadow-sm">
+            <div class="card-body d-flex justify-content-between align-items-center">
+              <div>
+                <div class="text-muted">المدفوع</div>
+                <div class="h5 mb-0">{{ employee.total_paid|number_format(2) }} {{ employee.currency }}</div>
+              </div>
+              <i class="fas fa-check-circle fa-lg text-success"></i>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card border-0 shadow-sm">
+            <div class="card-body d-flex justify-content-between align-items-center">
+              <div>
+                <div class="text-muted">الرصيد</div>
+                <div class="h5 mb-0 {{ 'text-success' if employee.balance <= 0 else 'text-warning' }}">{{ employee.balance|number_format(2) }} {{ employee.currency }}</div>
+              </div>
+              <i class="fas fa-wallet fa-lg text-warning"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <dl class="row mb-0">
+        <dt class="col-sm-3 text-end">الاسم</dt>
+        <dd class="col-sm-9">{{ employee.name }}</dd>
+
+        <dt class="col-sm-3 text-end">الوظيفة</dt>
+        <dd class="col-sm-9">{{ employee.position or '—' }}</dd>
+
+        <dt class="col-sm-3 text-end">الجوال</dt>
+        <dd class="col-sm-9">{{ employee.phone or '—' }}</dd>
+
+        <dt class="col-sm-3 text-end">البريد الإلكتروني</dt>
+        <dd class="col-sm-9">{{ employee.email or '—' }}</dd>
+
+        <dt class="col-sm-3 text-end">البنك</dt>
+        <dd class="col-sm-9">{{ employee.bank_name or '—' }}</dd>
+
+        <dt class="col-sm-3 text-end">رقم الحساب</dt>
+        <dd class="col-sm-9">{{ employee.account_number or '—' }}</dd>
+
+        <dt class="col-sm-3 text-end">العملة</dt>
+        <dd class="col-sm-9">{{ employee.currency }}</dd>
+
+        <dt class="col-sm-3 text-end">ملاحظات</dt>
+        <dd class="col-sm-9">{{ employee.notes or '—' }}</dd>
+      </dl>
+    </div>
+  </div>
+
+  {% if employee.expenses and employee.expenses|length > 0 %}
+  <div class="card shadow-sm">
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <h5 class="mb-0"><i class="fas fa-receipt me-2"></i> مصاريف الموظف</h5>
+      <div class="d-flex gap-2">
+        {% set total_emp_amount = employee.expenses|map(attribute='amount')|sum|float %}
+        {% set total_emp_paid = employee.expenses|map(attribute='total_paid')|sum|float %}
+        {% set total_emp_balance = employee.expenses|map(attribute='balance')|sum|float %}
+        <span class="badge bg-light text-dark">إجمالي: {{ total_emp_amount|round(2)|number_format(2) }} {{ employee.currency }}</span>
+        <span class="badge bg-success">مدفوع: {{ total_emp_paid|round(2)|number_format(2) }} {{ employee.currency }}</span>
+        <span class="badge bg-warning text-dark">الرصيد: {{ total_emp_balance|round(2)|number_format(2) }} {{ employee.currency }}</span>
+      </div>
+    </div>
+    <div class="card-body table-responsive">
+      <table id="expenses-table" class="table table-striped table-bordered align-middle">
+        <thead class="table-primary text-center">
+          <tr>
+            <th>التاريخ</th>
+            <th>النوع</th>
+            <th>الوصف</th>
+            <th>المبلغ</th>
+            <th>العملة</th>
+            <th>طريقة الدفع</th>
+            <th>مدفوع</th>
+            <th>الرصيد</th>
+            <th style="width:160px">إجراءات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in employee.expenses %}
+          <tr>
+            <td class="text-nowrap">{{ e.date|format_date }}</td>
+            <td>{{ e.type.name if e.type else '—' }}</td>
+            <td class="text-truncate" style="max-width:240px">{{ e.description or '—' }}</td>
+            <td class="fw-bold text-end">{{ e.amount|number_format(2) }}</td>
+            <td>{{ e.currency }}</td>
+            <td class="text-nowrap">{{ e.payment_method or '—' }}</td>
+            <td class="text-end">{{ (e.total_paid or 0)|float|round(2)|number_format(2) }}</td>
+            <td class="text-end">
+              {% if e.is_paid %}
+                <span class="badge bg-success">مدفوع</span>
+              {% else %}
+                {{ (e.balance or 0)|float|round(2)|number_format(2) }}
+              {% endif %}
+            </td>
+            <td class="text-nowrap text-center">
+              <div class="btn-group">
+                <a href="{{ url_for('expenses_bp.detail', exp_id=e.id) }}" class="btn btn-sm btn-info">
+                  <i class="fas fa-eye"></i>
+                </a>
+                {% if current_user.has_permission('manage_expenses') %}
+                <a href="{{ url_for('expenses_bp.edit', exp_id=e.id) }}" class="btn btn-sm btn-warning">
+                  <i class="fas fa-edit"></i>
+                </a>
+                <form method="post" action="{{ url_for('expenses_bp.delete', exp_id=e.id) }}" onsubmit="return confirm('حذف المصروف؟');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                </form>
+                {% endif %}
+                {% if current_user.has_permission('manage_payments') and not e.is_paid %}
+                <a href="{{ url_for('expenses_bp.pay', exp_id=e.id) }}" class="btn btn-sm btn-outline-success">
+                  <i class="fas fa-money-bill-wave"></i>
+                </a>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="fw-bold">
+            <td colspan="3" class="text-end">الإجماليات</td>
+            <td class="text-end">{{ total_emp_amount|round(2)|number_format(2) }}</td>
+            <td></td>
+            <td></td>
+            <td class="text-end">{{ total_emp_paid|round(2)|number_format(2) }}</td>
+            <td class="text-end">{{ total_emp_balance|round(2)|number_format(2) }}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <div class="alert alert-light border d-flex align-items-center" role="alert">
+    <i class="fas fa-info-circle me-2"></i>
+    لا توجد مصاريف مسجلة لهذا الموظف.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/expenses.js') }}"></script>
+{% endblock %}

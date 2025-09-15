@@ -153,6 +153,47 @@ def _wants_json():
         or request.headers.get("X-Requested-With") == "XMLHttpRequest"
     )
 
+# === Helpers: تحويل الكائنات إلى JSON نظيف للواجهة ===
+def _serialize_split(s):
+    return {
+        "id": s.id,
+        "amount": float(q2(getattr(s, "amount", 0) or 0)),
+        "method": (getattr(getattr(s, "method", None), "value", getattr(s, "method", "")) or ""),
+        "details": (getattr(s, "details", None) or None),
+    }
+
+def _serialize_payment(p, *, full=False):
+    d = {
+        "id": p.id,
+        "payment_date": (p.payment_date.isoformat() if getattr(p, "payment_date", None) else None),
+        "total_amount": float(q2(getattr(p, "total_amount", 0) or 0)),
+        "currency": getattr(p, "currency", "ILS") or "ILS",
+        "method": (getattr(getattr(p, "method", None), "value", getattr(p, "method", "")) or ""),
+        "direction": (getattr(getattr(p, "direction", None), "value", getattr(p, "direction", "")) or ""),
+        "status": (getattr(getattr(p, "status", None), "value", getattr(p, "status", "")) or ""),
+        "entity_type": getattr(p, "entity_type", "") or "",
+        "entity_display": p.entity_label() if hasattr(p, "entity_label") else (getattr(p, "entity_type", "") or ""),
+        "splits": [_serialize_split(s) for s in (list(getattr(p, "splits", []) or []))],
+    }
+    if full:
+        d.update({
+            "payment_number": getattr(p, "payment_number", None),
+            "receipt_number": getattr(p, "receipt_number", None),
+            "reference": getattr(p, "reference", None),
+            "notes": getattr(p, "notes", None),
+            "customer_id": getattr(p, "customer_id", None),
+            "supplier_id": getattr(p, "supplier_id", None),
+            "partner_id": getattr(p, "partner_id", None),
+            "sale_id": getattr(p, "sale_id", None),
+            "invoice_id": getattr(p, "invoice_id", None),
+            "service_id": getattr(p, "service_id", None),
+            "expense_id": getattr(p, "expense_id", None),
+            "preorder_id": getattr(p, "preorder_id", None),
+            "shipment_id": getattr(p, "shipment_id", None),
+            "loan_settlement_id": getattr(p, "loan_settlement_id", None),
+        })
+    return d
+
 def _render_payment_receipt_pdf(payment: Payment) -> bytes:
     html = render_template("payments/receipt.html", payment=payment, now=datetime.utcnow())
     css_inline = """
@@ -543,9 +584,12 @@ def create_payment():
                         "type": "expense",
                         "number": f"EXP-{exp.id}",
                         "date": exp.date.strftime("%Y-%m-%d") if getattr(exp, "date", None) else "",
+                        "description": exp.description or "",
                         "amount": float(getattr(exp, "amount", 0) or 0),
                         "balance": float(getattr(exp, "balance", 0) or 0),
                         "currency": getattr(exp, "currency", "ILS"),
+                        "type_name": getattr(getattr(exp, "type", None), "name", None),
+                        "employee_name": getattr(getattr(exp, "employee", None), "name", None),
                     }
 
             elif et == "SHIPMENT" and eid:
@@ -800,7 +844,7 @@ def create_payment():
             return render_template("payments/form.html", form=form, entity_info=entity_info)
 
         if _wants_json():
-            return jsonify(status="success", payment=payment.to_dict()), 201
+            return jsonify(status="success", payment=_serialize_payment(payment, full=True)), 201
         flash("✅ تم تسجيل الدفعة", "success")
         return redirect(url_for("payments.index"))
 
@@ -927,7 +971,7 @@ def create_expense_payment(exp_id):
         log_audit("Payment", payment.id, f"CREATE (expense #{exp.id})")
 
         if _wants_json():
-            return jsonify(status="success", payment=payment.to_dict()), 201
+            return jsonify(status="success", payment=_serialize_payment(payment, full=True)), 201
 
         flash("✅ تم تسجيل دفع المصروف بنجاح", "success")
         return redirect(url_for("payments.view_payment", payment_id=payment.id))
@@ -937,6 +981,7 @@ def create_expense_payment(exp_id):
             return jsonify(status="error", message=str(e)), 400
         flash(f"❌ خطأ أثناء تسجيل الدفع: {e}", "danger")
         return render_template("payments/form.html", form=form, entity_info=entity_info)
+
 
 @payments_bp.route("/<int:payment_id>", methods=["GET"], endpoint="view_payment")
 @login_required
@@ -960,7 +1005,7 @@ def view_payment(payment_id):
         ),
     )
     if _wants_json():
-        return jsonify(payment=payment.to_dict())
+        return jsonify(payment=_serialize_payment(payment, full=True))
     return render_template("payments/view.html", payment=payment)
 
 @payments_bp.route("/split/<int:split_id>/delete", methods=["DELETE"], endpoint="delete_split")
@@ -1003,6 +1048,7 @@ def delete_split(split_id):
         )
         return jsonify(status="error", message=str(e)), 400
 
+
 @payments_bp.route("/<int:payment_id>/receipt", methods=["GET"], endpoint="view_receipt")
 @login_required
 @permission_required("manage_payments")
@@ -1032,7 +1078,7 @@ def view_receipt(payment_id: int):
         }
 
     if _wants_json():
-        payload = payment.to_dict()
+        payload = _serialize_payment(payment, full=True)
         payload["sale_info"] = sale_info
         return jsonify(payment=payload)
 

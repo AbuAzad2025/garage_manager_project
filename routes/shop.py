@@ -4,7 +4,7 @@ from functools import wraps
 from types import SimpleNamespace
 from typing import Any, Optional, Dict
 from decimal import Decimal, InvalidOperation
-
+from flask_wtf.csrf import generate_csrf
 from flask import Blueprint, render_template, request, abort, jsonify, current_app, redirect, url_for, flash, g
 from flask_login import login_required, current_user
 from sqlalchemy import func
@@ -21,6 +21,7 @@ from models import (
     OnlinePreOrderItem,
     OnlinePayment,
     Product,
+    ProductCategory,
     StockLevel,
     Warehouse,
     WarehouseType,
@@ -32,6 +33,17 @@ from models import (
 from utils import send_whatsapp_message
 
 shop_bp = Blueprint("shop", __name__, url_prefix="/shop", template_folder="templates/shop")
+
+@shop_bp.app_context_processor
+def _inject_shop_helpers():
+    def _display_name_for_shop(p: Product) -> str:
+        v = getattr(p, "online_name", None) or getattr(p, "commercial_name", None) or getattr(p, "name", "")
+        return (v or "").strip()
+    return dict(
+        price_for_shop=_price_for_shop,
+        csrf_token=generate_csrf,
+        display_name_for_shop=_display_name_for_shop
+    )
 
 def _get_or_404(model, ident, options=None):
     q = db.session.query(model)
@@ -281,28 +293,23 @@ def online_customer_required(f):
     @login_required
     def inner(*a, **kw):
         if is_super_admin(current_user):
-            g.viewer_only = True
+            g.viewer_only = False
             g.online_customer = SimpleNamespace(
-                id=None,
-                phone=None,
-                address=None,
+                id=current_user.id,
+                phone=getattr(current_user, "phone", None),
+                address=getattr(current_user, "address", None),
                 currency="ILS",
                 is_online=True,
                 name=getattr(current_user, "username", "Super Admin"),
             )
-            if request.method not in {"GET", "HEAD", "OPTIONS"}:
-                return _resp("السوبر أدمن وضع استعراض فقط. اختر زبونًا فعليًا لإتمام العملية.", "warning")
             return f(*a, **kw)
-        cust = Customer.query.filter_by(id=current_user.id, is_online=True).first()
+        cust = Customer.query.filter_by(id=current_user.id).first()
         if not cust:
-            return _resp("لم يتم العثور على حساب العميل الإلكتروني.", "danger")
+            return _resp("لم يتم العثور على حساب العميل.", "danger")
         g.viewer_only = False
         g.online_customer = cust
         return f(*a, **kw)
     return inner
-
-def get_active_cart(customer_id):
-    return OnlineCart.query.filter_by(customer_id=customer_id, status="ACTIVE").first()
 
 class GatewayAdapter:
     name = "base"
@@ -449,15 +456,16 @@ def catalog():
         return jsonify([
             {
                 "id": p.id,
-                "name": p.name,
+                "name": (getattr(p, "online_name", None) or getattr(p, "commercial_name", None) or p.name),
                 "price": _price_for_shop(p),
-                "online_price": float(p.online_price or 0) if getattr(p, "online_price", None) is not None else 0,
+                "online_price": (float(p.online_price) if getattr(p, "online_price", None) is not None else None),
                 "stock": available_qty(p.id),
                 "image": getattr(p, "image", None),
                 "online_image": getattr(p, "online_image", None),
             }
             for p in products
         ])
+
 
     return render_template(
         "shop/catalog.html",
@@ -503,7 +511,13 @@ def products():
 
     products = q.distinct(Product.id).order_by(Product.name.asc()).all()
     avail_map = {p.id: available_qty(p.id) for p in products}
-    return render_template("shop/products.html", products=products, avail_map=avail_map)
+    return render_template(
+        "shop/products.html",
+        products=products,
+        avail_map=avail_map,
+        is_super_admin=is_super_admin(current_user),
+        price_for_shop=_price_for_shop
+    )
 
 @shop_bp.get("/api/products")
 def api_products():
@@ -518,7 +532,11 @@ def api_products():
                 pass
         if qparam:
             like = f"%{qparam}%"
-            pre = pre.filter((Product.name.ilike(like)) | (Product.sku.ilike(like)) | (Product.part_number.ilike(like)))
+            pre = pre.filter(
+                (Product.name.ilike(like)) |
+                (Product.sku.ilike(like)) |
+                (Product.part_number.ilike(like))
+            )
         pre_ids = [pid for (pid,) in pre.with_entities(Product.id).all()]
         _ensure_online_stocklevels_for_products(pre_ids)
 
@@ -529,24 +547,29 @@ def api_products():
 
     if qparam:
         like = f"%{qparam}%"
-        q = q.filter((Product.name.ilike(like)) | (Product.sku.ilike(like)) | (Product.part_number.ilike(like)))
+        q = q.filter(
+            (Product.name.ilike(like)) |
+            (Product.sku.ilike(like)) |
+            (Product.part_number.ilike(like))
+        )
 
     products = q.distinct(Product.id).order_by(Product.name.asc()).all()
     data = []
     for p in products:
         data.append({
             "id": p.id,
-            "name": p.name,
+            "name": (getattr(p, "online_name", None) or getattr(p, "commercial_name", None) or p.name),
             "sku": getattr(p, "sku", None),
             "part_number": getattr(p, "part_number", None),
             "price": _price_for_shop(p),
-            "online_price": float(p.online_price or 0) if getattr(p, "online_price", None) is not None else 0,
-            "selling_price": float(p.selling_price or 0) if getattr(p, "selling_price", None) is not None else 0,
+            "online_price": (float(p.online_price) if getattr(p, "online_price", None) is not None else None),
+            "selling_price": (float(p.selling_price) if getattr(p, "selling_price", None) is not None else None),
             "stock": available_qty(p.id),
             "image": getattr(p, "image", None),
             "online_image": getattr(p, "online_image", None),
             "brand": getattr(p, "brand", None),
         })
+
     return jsonify({"data": data})
 
 @shop_bp.get("/api/product/<int:pid>")
@@ -554,12 +577,12 @@ def api_product_detail(pid: int):
     p = _get_or_404(Product, pid)
     return jsonify({
         "id": p.id,
-        "name": p.name,
+        "name": (getattr(p, "online_name", None) or getattr(p, "commercial_name", None) or p.name),
         "sku": getattr(p, "sku", None),
         "part_number": getattr(p, "part_number", None),
         "price": _price_for_shop(p),
-        "online_price": float(p.online_price or 0) if getattr(p, "online_price", None) is not None else 0,
-        "selling_price": float(p.selling_price or 0) if getattr(p, "selling_price", None) is not None else 0,
+        "online_price": (float(p.online_price) if getattr(p, "online_price", None) is not None else None),
+        "selling_price": (float(p.selling_price) if getattr(p, "selling_price", None) is not None else None),
         "stock": available_qty(p.id),
         "image": getattr(p, "image", None),
         "online_image": getattr(p, "online_image", None),
@@ -576,17 +599,47 @@ def place_order():
         return _resp("سلتك فارغة.", "warning")
     return redirect(url_for("shop.checkout"))
 
+def get_active_cart(customer_id: int) -> OnlineCart | None:
+    return OnlineCart.query.filter_by(
+        customer_id=customer_id,
+        status="ACTIVE"
+    ).first()
+
+def _json_requested():
+    if request.is_json:
+        return True
+    if request.args.get("format") == "json":
+        return True
+    acc = (request.headers.get("Accept") or "").lower()
+    return "application/json" in acc
+
+def _prepaid_rate():
+    return float(current_app.config.get("SHOP_PREPAID_RATE", 0.2))
+
+def _cart_numbers(cart: "OnlineCart"):
+    subtotal = sum((i.quantity or 0) * float(i.price or 0) for i in cart.items)
+    total = round(subtotal, 2)
+    prepaid = round(total * _prepaid_rate(), 2)
+    count = sum(i.quantity or 0 for i in cart.items)
+    return {"subtotal": total, "total": total, "prepaid_amount": prepaid, "cart_count": count}
+
 @shop_bp.route("/cart/add/<int:product_id>", methods=["POST"], endpoint="add_to_cart")
 @online_customer_required
 def add_to_cart(product_id):
     product = _get_or_404(Product, product_id)
     form = AddToOnlineCartForm()
     if not form.validate_on_submit():
+        if _json_requested():
+            return jsonify({"ok": False, "message": "بيانات غير صحيحة."}), 400
         return _resp("بيانات غير صحيحة.", "danger")
     qty = int(form.quantity.data or 0)
     if qty <= 0:
+        if _json_requested():
+            return jsonify({"ok": False, "message": "كمية غير صالحة."}), 400
         return _resp("كمية غير صالحة.", "danger")
     if qty > available_qty(product.id):
+        if _json_requested():
+            return jsonify({"ok": False, "message": "الكمية المطلوبة غير متوفرة."}), 400
         return _resp("الكمية المطلوبة غير متوفرة.", "danger")
     cart = get_active_cart(g.online_customer.id) or OnlineCart(
         customer_id=g.online_customer.id, session_id=uuid.uuid4().hex, status="ACTIVE"
@@ -598,6 +651,8 @@ def add_to_cart(product_id):
     if item:
         new_total = int(item.quantity or 0) + qty
         if new_total > available_qty(product.id):
+            if _json_requested():
+                return jsonify({"ok": False, "message": "الكمية المطلوبة تتجاوز المتوفر."}), 400
             return _resp("الكمية المطلوبة تتجاوز المتوفر.", "danger")
         item.quantity = new_total
         item.price = unit_price
@@ -612,9 +667,19 @@ def add_to_cart(product_id):
         )
     try:
         db.session.commit()
+        cart = get_active_cart(g.online_customer.id)
+        nums = _cart_numbers(cart)
+        if _json_requested():
+            return jsonify({
+                "ok": True,
+                "message": "تمت إضافة المنتج إلى السلة.",
+                **nums
+            })
         return _resp("تمت إضافة المنتج إلى السلة.", "success", code=200)
     except SQLAlchemyError as e:
         db.session.rollback()
+        if _json_requested():
+            return jsonify({"ok": False, "message": f"خطأ أثناء الإضافة: {e}"}), 500
         return _resp(f"خطأ أثناء الإضافة: {e}", "danger")
 
 @shop_bp.route("/cart", endpoint="cart")
@@ -623,7 +688,7 @@ def cart():
     cart = get_active_cart(g.online_customer.id)
     items = cart.items if cart else []
     subtotal = sum(i.quantity * float(i.price or 0) for i in items)
-    rate = float(current_app.config.get("SHOP_PREPAID_RATE", 0.2))
+    rate = _prepaid_rate()
     prepaid = round(subtotal * rate, 2)
     return render_template(
         "shop/cart.html",
@@ -640,33 +705,56 @@ def cart():
 def update_cart_item(item_id):
     item = _get_or_404(OnlineCartItem, item_id)
     if item.cart.customer_id != g.online_customer.id:
-        return _resp("غير مصرح.", "danger", to="shop.cart")
+        return jsonify({"ok": False, "message": "غير مصرح"}), 403
     new_qty = request.form.get("quantity", type=int)
     if not new_qty or new_qty <= 0:
-        return _resp("كمية غير صالحة.", "danger", to="shop.cart")
+        return jsonify({"ok": False, "message": "كمية غير صالحة"}), 400
     if new_qty > available_qty(item.product_id):
-        return _resp("الكمية المطلوبة غير متوفرة.", "danger", to="shop.cart")
+        return jsonify({"ok": False, "message": "الكمية غير متوفرة"}), 400
     item.quantity = new_qty
     try:
         db.session.commit()
-        return _resp("تم تحديث الكمية.", "success", code=200, to="shop.cart")
-    except SQLAlchemyError as e:
+        cart = item.cart
+        nums = _cart_numbers(cart)
+        item_total = round(item.quantity * float(item.price or 0), 2)
+        payload = {
+            "ok": True,
+            "message": "تم تحديث الكمية",
+            "item": {
+                "id": item.id,
+                "quantity": item.quantity,
+                "price": float(item.price or 0),
+                "total": item_total
+            },
+            **nums
+        }
+        if _json_requested():
+            return jsonify(payload)
+        flash("تم تحديث الكمية", "success")
+        return redirect(url_for("shop.cart"))
+    except SQLAlchemyError:
         db.session.rollback()
-        return _resp(f"خطأ أثناء التحديث: {e}", "danger", to="shop.cart")
+        return jsonify({"ok": False, "message": "فشل التحديث"}), 500
 
 @shop_bp.route("/cart/remove/<int:item_id>", methods=["POST"], endpoint="remove_from_cart")
 @online_customer_required
 def remove_from_cart(item_id):
     item = _get_or_404(OnlineCartItem, item_id)
     if item.cart.customer_id != g.online_customer.id:
-        return _resp("غير مصرح.", "danger", to="shop.cart")
+        return jsonify({"ok": False, "message": "غير مصرح"}), 403
+    cart = item.cart
     db.session.delete(item)
     try:
         db.session.commit()
-        return _resp("تم حذف العنصر.", "info", code=200, to="shop.cart")
-    except SQLAlchemyError as e:
+        nums = _cart_numbers(cart)
+        payload = {"ok": True, "message": "تم الحذف", "removed_id": item_id, **nums}
+        if _json_requested():
+            return jsonify(payload)
+        flash("تم الحذف", "success")
+        return redirect(url_for("shop.cart"))
+    except SQLAlchemyError:
         db.session.rollback()
-        return _resp(f"خطأ أثناء الحذف: {e}", "danger", to="shop.cart")
+        return jsonify({"ok": False, "message": "فشل الحذف"}), 500
 
 @shop_bp.route("/checkout", methods=["GET", "POST"], endpoint="checkout")
 @online_customer_required
@@ -675,7 +763,7 @@ def checkout():
     if not cart or not cart.items:
         return _resp("سلتك فارغة.", "warning", to="shop.catalog")
     subtotal = sum(i.quantity * float(i.price or 0) for i in cart.items)
-    rate = float(current_app.config.get("SHOP_PREPAID_RATE", 0.2))
+    rate = _prepaid_rate()
     prepaid = round(subtotal * rate, 2)
     if request.method == "POST":
         try:
@@ -841,10 +929,53 @@ def admin_products():
     avail_map = {p.id: available_qty(p.id) for p in products}
     return render_template("shop/admin_products.html", products=products, avail_map=avail_map)
 
+@shop_bp.route("/admin/categories/quick_create", methods=["POST"], endpoint="admin_categories_quick_create")
+@super_admin_required
+def admin_categories_quick_create():
+    if request.is_json:
+        name = (request.json.get("name") or "").strip()
+        parent_id = request.json.get("parent_id")
+    else:
+        name = (request.form.get("name") or "").strip()
+        parent_id = request.form.get("parent_id")
+
+    if not name:
+        return jsonify({"ok": False, "error": "الاسم مطلوب"}), 400
+    if len(name) > 100:
+        return jsonify({"ok": False, "error": "الاسم أطول من 100 حرف"}), 400
+
+    exists = (
+        db.session.query(ProductCategory.id, ProductCategory.name)
+        .filter(func.lower(ProductCategory.name) == name.lower())
+        .first()
+    )
+    if exists:
+        return jsonify({"ok": True, "id": exists.id, "name": exists.name}), 200
+
+    cat = ProductCategory(name=name)
+
+    try:
+        if parent_id:
+            try:
+                pid = int(parent_id)
+                parent = db.session.query(ProductCategory).get(pid)
+                if parent:
+                    cat.parent = parent
+            except Exception:
+                pass
+        db.session.add(cat)
+        db.session.commit()
+        return jsonify({"ok": True, "id": cat.id, "name": cat.name}), 201
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": f"{e}"}), 400
+    
 @shop_bp.route("/admin/products/new", methods=["GET", "POST"], endpoint="admin_product_new")
 @super_admin_required
 def admin_product_new():
     form = ProductForm()
+    cats = ProductCategory.query.order_by(ProductCategory.name.asc()).all()
+    form.category_id.choices = [(c.id, c.name) for c in cats]
     if form.validate_on_submit():
         p = Product()
         form.apply_to(p)
@@ -888,6 +1019,8 @@ def admin_product_new():
 def admin_product_edit(pid):
     product = _get_or_404(Product, pid)
     form = ProductForm(obj=product)
+    cats = ProductCategory.query.order_by(ProductCategory.name.asc()).all()
+    form.category_id.choices = [(c.id, c.name) for c in cats]
     if form.validate_on_submit():
         try:
             old_sku = (product.sku or "").strip() if product.sku else None
@@ -946,26 +1079,59 @@ def admin_product_edit(pid):
 def admin_product_update_fields(pid):
     product = _get_or_404(Product, pid)
     payload = request.get_json(silent=True) or {}
-    new_name = (payload.get("name") or "").strip() if payload.get("name") is not None else None
+
+    def _clean_img(v):
+        if v is None:
+            return None
+        s = str(v).strip()
+        if not s:
+            return None
+        if s.startswith("http://") or s.startswith("https://"):
+            return s
+        if s.startswith("/static/"):
+            s = s[len("/static/"):]
+        elif s.startswith("/"):
+            return s
+        s = s.lstrip("./")
+        if s.startswith("static/"):
+            s = s[len("static/"):]
+        if not s.startswith("products/"):
+            s = "products/" + s
+        return s
+
+    new_name = (payload.get("name") or "").strip() if "name" in payload else None
     new_price = _as_decimal(payload.get("price")) if "price" in payload else None
     new_online_price = _as_decimal(payload.get("online_price")) if "online_price" in payload else None
-    new_online_image = (payload.get("online_image") or "").strip() if payload.get("online_image") is not None else None
+    new_online_image = _clean_img(payload.get("online_image")) if "online_image" in payload else None
+    new_image = _clean_img(payload.get("image")) if "image" in payload else None
+
     changed = False
-    if new_name is not None and new_name:
-        product.name = new_name
+
+    if new_name:
+        product.name = new_name[:255]
         changed = True
+
     if new_price is not None and new_price >= 0:
-        product.price = new_price
-        product.selling_price = product.selling_price or new_price
+        product.price = new_price.quantize(Decimal("0.01"))
+        if not product.selling_price:
+            product.selling_price = product.price
         changed = True
+
     if new_online_price is not None and new_online_price >= 0:
-        product.online_price = new_online_price
+        product.online_price = new_online_price.quantize(Decimal("0.01"))
         changed = True
+
     if new_online_image is not None:
         product.online_image = new_online_image or None
         changed = True
+
+    if new_image is not None:
+        product.image = new_image or None
+        changed = True
+
     if not changed:
         return _resp("لا توجد حقول محدثة.", "warning", code=400, to="shop.admin_products")
+
     try:
         db.session.commit()
         return _resp(
@@ -976,8 +1142,9 @@ def admin_product_update_fields(pid):
                 "id": product.id,
                 "name": product.name,
                 "price": float(product.price or 0),
-                "online_price": float(product.online_price or 0) if getattr(product, "online_price", None) is not None else 0,
+                "online_price": (float(product.online_price) if getattr(product, "online_price", None) is not None else None),
                 "online_image": getattr(product, "online_image", None),
+                "image": getattr(product, "image", None),
             },
             to="shop.admin_products",
         )

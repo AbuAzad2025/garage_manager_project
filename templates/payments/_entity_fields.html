@@ -5,8 +5,13 @@
     {% if form.customer_search is defined %}
       {{ form.customer_search.label(class="form-label") }}
       <div class="input-group">
-        {{ form.customer_search(class="form-control", placeholder="اكتب اسم/هاتف العميل") }}
-        <a id="addCustomerBtn" class="btn btn-outline-primary" data-base-href="{{ url_for('customers_bp.create_customer') }}" href="{{ url_for('customers_bp.create_customer', return_to=request.url) }}">➕ عميل جديد</a>
+        {{ form.customer_search(class="form-control", placeholder="اكتب اسم/هاتف العميل", autocomplete="off") }}
+        <a id="addCustomerBtn"
+           class="btn btn-outline-primary"
+           data-base-href="{{ url_for('customers_bp.create_customer') }}"
+           href="{{ url_for('customers_bp.create_customer', return_to=request.url) }}">
+          ➕ عميل جديد
+        </a>
       </div>
     {% endif %}
     {% for e in form.customer_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
@@ -19,8 +24,13 @@
     {% if form.supplier_search is defined %}
       {{ form.supplier_search.label(class="form-label") }}
       <div class="input-group">
-        {{ form.supplier_search(class="form-control", placeholder="اكتب اسم/هاتف المورد/التاجر") }}
-        <a id="addSupplierBtn" class="btn btn-outline-primary" data-base-href="{{ url_for('vendors_bp.suppliers_create') }}" href="{{ url_for('vendors_bp.suppliers_create', return_to=request.url) }}">➕ مورد/تاجر جديد</a>
+        {{ form.supplier_search(class="form-control", placeholder="اكتب اسم/هاتف المورد/التاجر", autocomplete="off") }}
+        <a id="addSupplierBtn"
+           class="btn btn-outline-primary"
+           data-base-href="{{ url_for('vendors_bp.suppliers_create') }}"
+           href="{{ url_for('vendors_bp.suppliers_create', return_to=request.url) }}">
+          ➕ مورد/تاجر جديد
+        </a>
       </div>
     {% endif %}
     {% for e in form.supplier_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
@@ -33,8 +43,13 @@
     {% if form.partner_search is defined %}
       {{ form.partner_search.label(class="form-label") }}
       <div class="input-group">
-        {{ form.partner_search(class="form-control", placeholder="اكتب اسم/هاتف الشريك") }}
-        <a id="addPartnerBtn" class="btn btn-outline-primary" data-base-href="{{ url_for('vendors_bp.partners_create') }}" href="{{ url_for('vendors_bp.partners_create', return_to=request.url) }}">➕ شريك جديد</a>
+        {{ form.partner_search(class="form-control", placeholder="اكتب اسم/هاتف الشريك", autocomplete="off") }}
+        <a id="addPartnerBtn"
+           class="btn btn-outline-primary"
+           data-base-href="{{ url_for('vendors_bp.partners_create') }}"
+           href="{{ url_for('vendors_bp.partners_create', return_to=request.url) }}">
+          ➕ شريك جديد
+        </a>
       </div>
     {% endif %}
     {% for e in form.partner_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
@@ -44,7 +59,10 @@
 
 {% elif etype == 'sale' %}
   <div class="mb-3">
-    {% if form.sale_search is defined %}{{ form.sale_search.label(class="form-label") }}{{ form.sale_search(class="form-control") }}{% else %}
+    {% if form.sale_search is defined %}
+      {{ form.sale_search.label(class="form-label") }}
+      {{ form.sale_search(class="form-control", autocomplete="off") }}
+    {% else %}
       <label class="form-label">دفعة لطلب بيع</label>
     {% endif %}
     {% if form.sale_id  is defined %}{{ form.sale_id(id="sale_id") }}{% endif %}
@@ -53,7 +71,10 @@
 
 {% elif etype == 'service' %}
   <div class="mb-3">
-    {% if form.service_search is defined %}{{ form.service_search.label(class="form-label") }}{{ form.service_search(class="form-control") }}{% endif %}
+    {% if form.service_search is defined %}
+      {{ form.service_search.label(class="form-label") }}
+      {{ form.service_search(class="form-control", autocomplete="off") }}
+    {% endif %}
     {% for e in form.service_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
     {% if form.service_id is defined %}{{ form.service_id(id="service_id") }}{% endif %}
     {% if form.entity_id  is defined %}{{ form.entity_id(id="entity_id") }}{% endif %}
@@ -61,7 +82,10 @@
 
 {% elif etype == 'shipment' %}
   <div class="mb-3">
-    {% if form.shipment_search is defined %}{{ form.shipment_search.label(class="form-label") }}{{ form.shipment_search(class="form-control") }}{% endif %}
+    {% if form.shipment_search is defined %}
+      {{ form.shipment_search.label(class="form-label") }}
+      {{ form.shipment_search(class="form-control", autocomplete="off") }}
+    {% endif %}
     {% for e in form.shipment_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
     {% if form.shipment_id is defined %}{{ form.shipment_id(id="shipment_id") }}{% endif %}
     {% if form.entity_id   is defined %}{{ form.entity_id(id="entity_id") }}{% endif %}
@@ -69,7 +93,10 @@
 
 {% elif etype == 'expense' %}
   <div class="mb-3">
-    {% if form.expense_search is defined %}{{ form.expense_search.label(class="form-label") }}{{ form.expense_search(class="form-control") }}{% endif %}
+    {% if form.expense_search is defined %}
+      {{ form.expense_search.label(class="form-label") }}
+      {{ form.expense_search(class="form-control", autocomplete="off") }}
+    {% endif %}
     {% for e in form.expense_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
     {% if form.expense_id is defined %}{{ form.expense_id(id="expense_id") }}{% endif %}
     {% if form.entity_id   is defined %}{{ form.entity_id(id="entity_id") }}{% endif %}
@@ -77,7 +104,10 @@
 
 {% elif etype == 'loan' %}
   <div class="mb-3">
-    {% if form.loan_settlement_search is defined %}{{ form.loan_settlement_search.label(class="form-label") }}{{ form.loan_settlement_search(class="form-control") }}{% endif %}
+    {% if form.loan_settlement_search is defined %}
+      {{ form.loan_settlement_search.label(class="form-label") }}
+      {{ form.loan_settlement_search(class="form-control", autocomplete="off") }}
+    {% endif %}
     {% for e in form.loan_settlement_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
     {% if form.loan_settlement_id is defined %}{{ form.loan_settlement_id(id="loan_settlement_id") }}{% endif %}
     {% if form.entity_id         is defined %}{{ form.entity_id(id="entity_id") }}{% endif %}
@@ -85,7 +115,10 @@
 
 {% elif etype == 'preorder' %}
   <div class="mb-3">
-    {% if form.preorder_search is defined %}{{ form.preorder_search.label(class="form-label") }}{{ form.preorder_search(class="form-control") }}{% endif %}
+    {% if form.preorder_search is defined %}
+      {{ form.preorder_search.label(class="form-label") }}
+      {{ form.preorder_search(class="form-control", autocomplete="off") }}
+    {% endif %}
     {% for e in form.preorder_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
     {% if form.preorder_id is defined %}{{ form.preorder_id(id="preorder_id") }}{% endif %}
     {% if form.entity_id   is defined %}{{ form.entity_id(id="entity_id") }}{% endif %}
@@ -93,7 +126,10 @@
 
 {% elif etype == 'invoice' %}
   <div class="mb-3">
-    {% if form.invoice_search is defined %}{{ form.invoice_search.label(class="form-label") }}{{ form.invoice_search(class="form-control") }}{% endif %}
+    {% if form.invoice_search is defined %}
+      {{ form.invoice_search.label(class="form-label") }}
+      {{ form.invoice_search(class="form-control", autocomplete="off") }}
+    {% endif %}
     {% for e in form.invoice_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
     {% if form.invoice_id is defined %}{{ form.invoice_id(id="invoice_id") }}{% endif %}
     {% if form.entity_id  is defined %}{{ form.entity_id(id="entity_id") }}{% endif %}
