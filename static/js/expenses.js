@@ -1,9 +1,14 @@
-/* static/js/expenses.js */
-/* eslint-env browser */
-/* global $, jQuery */
-
 document.addEventListener('DOMContentLoaded', function () {
   "use strict";
+
+  const style = document.createElement('style');
+  style.textContent = `
+    .dataTables_wrapper .dataTables_scrollBody{overflow-x:auto !important;overflow-y:hidden}
+    table.table-sticky th:last-child,table.table-sticky td:last-child{
+      position:sticky;right:0;background:var(--bs-body-bg,#fff);z-index:3;box-shadow:-4px 0 6px rgba(0,0,0,.06)
+    }
+  `;
+  document.head.appendChild(style);
 
   const $one = (sel, ctx) => (ctx || document).querySelector(sel);
   const $all = (sel, ctx) => Array.from((ctx || document).querySelectorAll(sel));
@@ -193,9 +198,9 @@ document.addEventListener('DOMContentLoaded', function () {
       paidToInp.dataset.userEdited = (paidToInp.value.trim() ? '1' : '0');
     }));
   }
-  if (benInp) ['input','change'].forEach(() => autoFillPaidTo());
-  if (employeeSel) ['change'].forEach(() => employeeSel.addEventListener('change', autoFillPaidTo));
-  if (utilitySel)  ['change'].forEach(() => utilitySel.addEventListener('change', autoFillPaidTo));
+  if (benInp) ['input','change'].forEach(evt => benInp.addEventListener(evt, autoFillPaidTo));
+  if (employeeSel) employeeSel.addEventListener('change', autoFillPaidTo);
+  if (utilitySel)  utilitySel.addEventListener('change', autoFillPaidTo);
 
   const METHOD_FIELDS = {
     cash:   [],
@@ -261,6 +266,7 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     } catch (_) {}
   }
+
   if (stockAdjSel) {
     stockAdjSel.addEventListener('change', () => {
       toggleGroupsAndAmount();
@@ -275,6 +281,12 @@ document.addEventListener('DOMContentLoaded', function () {
   validatePeriod();
   if (stockAdjSel && stockAdjSel.value) tryPreviewStockAmount();
 
+  const addStickyClass = id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('table-sticky');
+  };
+  ['expenses-table','types-table','employees-table'].forEach(addStickyClass);
+
   if (window.jQuery && $.fn && $.fn.DataTable) {
     const hasButtons = $.fn.dataTable && $.fn.dataTable.Buttons;
     const langUrl = "/static/datatables/Arabic.json";
@@ -288,24 +300,29 @@ document.addEventListener('DOMContentLoaded', function () {
         ordering: true,
         info: true,
         autoWidth: false,
-        responsive: true,
+        responsive: false,
         stateSave: true,
         pageLength: 25,
+        scrollX: true,
+        scrollCollapse: true,
         initComplete: function() {
           if (typeof window.onExpensesTableReady === "function") {
             window.onExpensesTableReady(this.api());
           }
         }
       };
-      if (lastCol !== null) baseOpts.columnDefs = [{ orderable: false, targets: [lastCol] }];
+      if (lastCol !== null) baseOpts.columnDefs = [{ orderable: false, targets: [lastCol], width: 180, className: 'text-nowrap' }];
       baseOpts.dom = hasButtons ? "Bfrtip" : "frtip";
       if (hasButtons) baseOpts.buttons = ["excelHtml5", "print"];
-      $(tableEl).DataTable(Object.assign({}, baseOpts, extraOpts || {}));
+      const api = $(tableEl).DataTable(Object.assign({}, baseOpts, extraOpts || {}));
+      $(window).on('resize', () => api.columns.adjust());
+      document.addEventListener('shown.bs.tab', () => api.columns.adjust());
+      document.addEventListener('shown.bs.collapse', () => api.columns.adjust());
     }
 
-    ['expenses-table', 'types-table', 'employees-table'].forEach(id => {
-      initDT(document.getElementById(id));
-    });
+    initDT(document.getElementById('expenses-table'));
+    initDT(document.getElementById('types-table'));
+    initDT(document.getElementById('employees-table'));
   }
 
   window.ExpensesUI = {

@@ -1,26 +1,19 @@
-// سكريبت نموذج سند الدفع:
-// - إدارة الدفعات الجزئية (Splits) وإظهار/إخفاء حقول تفاصيل الطريقة حسب الاختيار
-// - جمع مجموع مبالغ الـ Splits ومقارنته بالمبلغ الكلي
-// - إعادة تحميل حقول الجهة المرتبطة حسب نوع الكيان
-// - بحث تلقائي (أوتوكومبليت) للعملاء/الموردين/الشركاء باستخدام /payments/entity-search
-// - حفظ نفس أسماء الحقول والأIDs كما في القالب لتجنب أي تعارض
-
 document.addEventListener('DOMContentLoaded', function () {
   const container = document.getElementById('splitsContainer');
   const MAX_SPLITS = parseInt(container?.dataset.maxSplits || '3', 10);
 
-  // خريطة الحقول المطلوبة لكل طريقة دفع
   const METHOD_FIELDS = {
     "": [],
     cash: [],
-    online: [],
-    mobile: [],
     cheque: ["check_number","check_bank","check_due_date"],
     check: ["check_number","check_bank","check_due_date"],
     bank: ["bank_transfer_ref"],
     transfer: ["bank_transfer_ref"],
+    bank_transfer: ["bank_transfer_ref"],
     card: ["card_number","card_holder","card_expiry"],
-    credit: ["card_number","card_holder","card_expiry"]
+    credit: ["card_number","card_holder","card_expiry"],
+    online: ["online_gateway","online_ref"],
+    mobile: ["online_gateway","online_ref"]
   };
 
   const addBtn = document.getElementById('addSplit');
@@ -30,20 +23,19 @@ document.addEventListener('DOMContentLoaded', function () {
   const totalInput = document.querySelector('[name="total_amount"]');
   const entityTypeSelect = document.querySelector('[name="entity_type"]');
 
-  // توحيد أسماء طرق الدفع للنمط المعتمد
   function normalizeMethod(val) {
     if (!val) return '';
     val = String(val).toLowerCase().trim();
     if (val.includes('cheq') || val === 'check' || val === 'cheque') return 'cheque';
-    if (val.includes('bank') || val.includes('transfer')) return 'bank';
+    if (val.includes('bank_transfer') || val.includes('transfer') || val.includes('bank')) return 'bank';
     if (val.includes('card') || val.includes('credit') || val.includes('visa') || val.includes('master')) return 'card';
     if (val.includes('cash')) return 'cash';
     if (val.includes('mobile')) return 'mobile';
-    if (val.includes('online')) return 'online';
+    if (val.includes('online') || val.includes('gateway')) return 'online';
+    if (val.includes('.')) return val.split('.').pop();
     return val;
   }
 
-  // إضافة خيار Placeholder لأول عنصر في Select الطريقة
   function ensurePlaceholderOption(select) {
     if (!select) return;
     if (!select.options.length || select.options[0].value !== '') {
@@ -65,63 +57,50 @@ document.addEventListener('DOMContentLoaded', function () {
     addBtn.disabled = count >= MAX_SPLITS;
   }
 
-  // إظهار/إخفاء تفاصيل الطريقة داخل صف دفعة جزئية
   function applyDetailsForRow(row, method) {
     const details = row.querySelector('.split-details');
     if (!details) return;
     const key = normalizeMethod(method);
     const want = new Set(METHOD_FIELDS[key] || []);
     let anyShown = false;
-
     details.querySelectorAll('[data-field]').forEach(wrap => {
       const field = wrap.dataset.field;
       const show = want.has(field);
       const inp = wrap.querySelector('input,select,textarea');
-
       wrap.style.display = show ? '' : 'none';
       if (inp) {
-        if (show) {
-          inp.disabled = false;
-        } else {
-          inp.value = '';
-          inp.disabled = true;
-        }
+        if (show) inp.disabled = false;
+        else { inp.value = ''; inp.disabled = true; }
       }
       if (show) anyShown = true;
     });
-
     details.style.display = anyShown ? 'block' : 'none';
   }
 
-  // إعادة ترقيم حقول صف دفعة جزئية ليتوافق مع WTForms FieldList
   function renumberRowFields(row, i) {
     row.dataset.index = i;
     const title = row.querySelector('h5');
     if (title) title.textContent = `الدفعة الجزئية #${i + 1}`;
-
     row.querySelectorAll('input,select,textarea').forEach(inp => {
       if (!inp.name) return;
       const field = inp.name.split('-').pop();
       inp.name = `splits-${i}-${field}`;
       inp.id = `splits-${i}-${field}`;
     });
-
-    const sel = row.querySelector('select[name$="-method"]');
+    const sel = row.querySelector('.split-method, select[name$="-method"], select[name$="-payment_method"]');
     if (sel) {
       ensurePlaceholderOption(sel);
       if (!sel.value) sel.selectedIndex = 0;
     }
-
     const btn = row.querySelector('.remove-split');
     if (btn) btn.disabled = (i === 0);
   }
 
-  // تحديث جميع الصفوف وإعادة تطبيق تفاصيل الطرق
   function refreshSplits() {
     if (!container) return;
     container.querySelectorAll('.split-form').forEach((el, i) => {
       renumberRowFields(el, i);
-      const sel = el.querySelector('select[name$="-method"]');
+      const sel = el.querySelector('.split-method, select[name$="-method"], select[name$="-payment_method"]');
       const method = (sel && sel.value ? sel.value : '');
       applyDetailsForRow(el, method);
     });
@@ -129,28 +108,22 @@ document.addEventListener('DOMContentLoaded', function () {
     updateSplitSumHint();
   }
 
-  // إنشاء صف دفعة جزئية جديد من القالب الأول
   function createSplitElement() {
     if (!container || !template) return null;
     const idx = container.querySelectorAll('.split-form').length;
     const clone = template.cloneNode(true);
-
     clone.querySelectorAll('input,select,textarea').forEach(el => {
       if (el.tagName === 'SELECT') el.selectedIndex = 0; else el.value = '';
       if (el.closest('[data-field]')) el.disabled = true;
     });
-
     const details = clone.querySelector('.split-details');
     if (details) details.style.display = 'none';
-
     renumberRowFields(clone, idx);
     return clone;
   }
 
-  // إظهار تلميح مجموع مبالغ الـSplits مقابل المبلغ الكلي
   function updateSplitSumHint() {
     if (!container || !totalInput) return;
-
     const hint = document.getElementById('splitSum') || (() => {
       const small = document.createElement('div');
       small.className = 'form-text';
@@ -158,20 +131,17 @@ document.addEventListener('DOMContentLoaded', function () {
       totalInput.parentElement.appendChild(small);
       return small;
     })();
-
     let sum = 0;
     container.querySelectorAll('.split-form').forEach(el => {
       const amountEl = el.querySelector('[name$="-amount"]');
       const val = parseFloat((amountEl ? amountEl.value : '').replace(',', '.')) || 0;
       sum += val;
     });
-
     const total = parseFloat((totalInput.value || '').replace(',', '.')) || 0;
     hint.textContent = `مجموع الدفعات الجزئية: ${sum.toFixed(2)} — المبلغ الكلي: ${total.toFixed(2)}`;
     hint.style.color = Math.abs(sum - total) < 0.01 ? '' : '#b02a37';
   }
 
-  // زر إضافة دفعة جزئية
   if (addBtn && container) {
     addBtn.addEventListener('click', () => {
       const count = container.querySelectorAll('.split-form').length;
@@ -182,7 +152,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // أحداث على الحاوية: حذف صف/تغيير طريقة/قيمة
   if (container) {
     container.addEventListener('click', e => {
       if (e.target.matches('.remove-split')) {
@@ -195,20 +164,15 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     container.addEventListener('change', e => {
-      if (e.target.matches('select[name$="-method"]')) {
+      const isMethod = e.target.matches('.split-method, select[name$="-method"], select[name$="-payment_method"]');
+      if (isMethod) {
         const row = e.target.closest('.split-form');
-        const method = (e.target.value || '');
-        applyDetailsForRow(row, method);
+        applyDetailsForRow(row, e.target.value || '');
       }
       if (e.target.matches('[name$="-amount"]')) updateSplitSumHint();
     });
 
-    container.addEventListener('input', e => {
-      if (e.target.matches('[name$="-amount"]')) updateSplitSumHint();
-    });
-
-    // تجهيز الصفوف الحالية عند التحميل
-    container.querySelectorAll('.split-form select[name$="-method"]').forEach(sel => {
+    container.querySelectorAll('.split-form .split-method, .split-form select[name$="-method"], .split-form select[name$="-payment_method"]').forEach(sel => {
       ensurePlaceholderOption(sel);
       applyDetailsForRow(sel.closest('.split-form'), (sel.value || ''));
     });
@@ -216,7 +180,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
   if (totalInput) totalInput.addEventListener('input', updateSplitSumHint);
 
-  // إعادة تحميل حقول الجهة المرتبطة عند تغيير نوع الكيان
   function reloadEntityFields() {
     if (!entityTypeSelect || !entityWrap) return;
     const type = entityTypeSelect.value || '';
@@ -228,16 +191,12 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     fetch(`/payments/entity-fields?type=${encodeURIComponent(type)}&entity_id=${encodeURIComponent(eid)}`)
       .then(r => r.text())
-      .then(html => {
-        entityWrap.innerHTML = html;
-        document.dispatchEvent(new Event('payments:entityFieldsReloaded'));
-      })
+      .then(html => { entityWrap.innerHTML = html; document.dispatchEvent(new Event('payments:entityFieldsReloaded')); })
       .catch(() => {});
   }
 
   if (entityTypeSelect) entityTypeSelect.addEventListener('change', reloadEntityFields);
 
-  // محاولة اختيار عميل تلقائيًا قبل الإرسال إذا كُتب اسم ولم يُحدّد ID
   let autoSubmitting = false;
 
   if (form) {
@@ -247,8 +206,6 @@ document.addEventListener('DOMContentLoaded', function () {
       const input = root ? root.querySelector(`input[name="${type.toLowerCase()}_search"]`) : null;
       const hidden = root ? root.querySelector(`input[name="${type.toLowerCase()}_id"]`) : null;
       const generic = root ? root.querySelector('input[name="entity_id"]') : null;
-
-      // أوتوكومبليت سريع للعميل عند الإرسال
       if (!autoSubmitting && type === 'CUSTOMER' && input && hidden && !hidden.value && input.value.trim().length >= 2) {
         e.preventDefault();
         try {
@@ -256,12 +213,7 @@ document.addEventListener('DOMContentLoaded', function () {
           const r = await fetch(`/payments/entity-search?type=${encodeURIComponent(type)}&q=${encodeURIComponent(q)}`);
           const data = await r.json();
           const arr = Array.isArray(data) ? data : (Array.isArray(data?.results) ? data.results : []);
-          const list = arr.map(x => ({
-            id: x.id ?? x.value ?? x.pk ?? x.ID ?? '',
-            label: x.label ?? x.text ?? x.name ?? x.title ?? '',
-            extra: x.extra ?? x.subtitle ?? x.hint ?? ''
-          })).filter(x => x.id && x.label);
-
+          const list = arr.map(x => ({ id: x.id ?? x.value ?? x.pk ?? x.ID ?? '', label: x.label ?? x.text ?? x.name ?? x.title ?? '', extra: x.extra ?? x.subtitle ?? x.hint ?? '' })).filter(x => x.id && x.label);
           if (list.length > 0) {
             const best = list[0];
             input.value = best.label;
@@ -273,28 +225,24 @@ document.addEventListener('DOMContentLoaded', function () {
           }
         } catch (_) {}
       }
-
-      // التحقق السريع: كل Split بمبلغ > 0 لازم يحدد طريقة
       if (!container) return;
       let invalidSplit = null;
       container.querySelectorAll('.split-form').forEach(el => {
         const amountEl = el.querySelector('[name$="-amount"]');
-        const methodEl = el.querySelector('select[name$="-method"]');
+        const methodEl = el.querySelector('.split-method, select[name$="-method"], select[name$="-payment_method"]');
         const amount = parseFloat((amountEl && amountEl.value ? amountEl.value : '').replace(',', '.')) || 0;
         const method = normalizeMethod(methodEl ? methodEl.value : '');
         if (!invalidSplit && amount > 0 && !method) invalidSplit = el;
       });
       if (invalidSplit) {
         e.preventDefault();
-        const mSel = invalidSplit.querySelector('select[name$="-method"]');
+        const mSel = invalidSplit.querySelector('.split-method, select[name$="-method"], select[name$="-payment_method"]');
         if (mSel) mSel.focus();
         return;
       }
-
-      // تنظيف الصفوف الفارغة قبل الإرسال
       container.querySelectorAll('.split-form').forEach(el => {
         const amountEl = el.querySelector('[name$="-amount"]');
-        const methodEl = el.querySelector('select[name$="-method"]');
+        const methodEl = el.querySelector('.split-method, select[name$="-method"], select[name$="-payment_method"]');
         const amount = parseFloat((amountEl && amountEl.value ? amountEl.value : '').replace(',', '.')) || 0;
         if (amount <= 0) {
           if (methodEl) methodEl.value = '';
@@ -304,27 +252,21 @@ document.addEventListener('DOMContentLoaded', function () {
           });
         }
       });
-
-      // حذف الصفوف التي لا تحتوي لا مبلغ ولا طريقة
       container.querySelectorAll('.split-form').forEach(el => {
-        const mEl = el.querySelector('[name$="-method"]');
+        const mEl = el.querySelector('.split-method, select[name$="-method"], select[name$="-payment_method"]');
         const aEl = el.querySelector('[name$="-amount"]');
         const m = mEl ? (mEl.value || '').trim() : '';
         const a = aEl ? (aEl.value || '').trim() : '';
         if (!m && !a) el.remove();
       });
-
-      // تأكيد تفعيل/تعطيل الحقول التفصيلية حسب الاختيار النهائي
       container.querySelectorAll('.split-form').forEach(el => {
-        const sel = el.querySelector('select[name$="-method"]');
+        const sel = el.querySelector('.split-method, select[name$="-method"], select[name$="-payment_method"]');
         applyDetailsForRow(el, (sel && sel.value ? sel.value : ''));
       });
-
       refreshSplits();
     });
   }
 
-  // قراءة باراميترات الاستعلام الأولى (entity_type & entity_id) وتطبيقها
   const qs = new URLSearchParams(location.search);
   const qsEntityType = (qs.get('entity_type') || '').toUpperCase();
   const qsEntityId = qs.get('entity_id') || '';
@@ -332,11 +274,9 @@ document.addEventListener('DOMContentLoaded', function () {
   if (entityTypeSelect && qsEntityType) entityTypeSelect.value = qsEntityType;
   if (entityIdInput && qsEntityId) entityIdInput.value = qsEntityId;
 
-  // تحميل أولي
   reloadEntityFields();
   refreshSplits();
 
-  // ربط أزرار "إضافة ..." الديناميكية داخل حقول الجهة (إن وُجدت)
   function wireAddButtons() {
     const root = document.getElementById('entityFields');
     if (!root) return;
@@ -362,7 +302,6 @@ document.addEventListener('DOMContentLoaded', function () {
   wireAddButtons();
   document.addEventListener('payments:entityFieldsReloaded', wireAddButtons);
 
-  // أوتوكومبليت يدوي بسيط لحقول البحث عن الكيانات
   (function () {
     const root = document.getElementById('entityFields');
     let menu = null;
@@ -372,11 +311,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function normalizeResults(data) {
       const arr = Array.isArray(data) ? data : (Array.isArray(data?.results) ? data.results : []);
-      return arr.map(x => ({
-        id: x.id ?? x.value ?? x.pk ?? x.ID ?? '',
-        label: x.label ?? x.text ?? x.name ?? x.title ?? '',
-        extra: x.extra ?? x.subtitle ?? x.hint ?? ''
-      })).filter(x => x.id && (x.label || x.extra));
+      return arr.map(x => ({ id: x.id ?? x.value ?? x.pk ?? x.ID ?? '', label: x.label ?? x.text ?? x.name ?? x.title ?? '', extra: x.extra ?? x.subtitle ?? x.hint ?? '' })).filter(x => x.id && (x.label || x.extra));
     }
 
     function buildMenu() {
@@ -400,8 +335,6 @@ document.addEventListener('DOMContentLoaded', function () {
         a.addEventListener('click', e => { e.preventDefault(); pick(it, input, hidden); });
         menu.appendChild(a);
       });
-
-      // خيار إضافة عميل سريعًا
       if (currentType === 'CUSTOMER') {
         const divider = document.createElement('div');
         divider.className = 'dropdown-divider';
@@ -418,7 +351,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         menu.appendChild(add);
       }
-
       const rect = input.getBoundingClientRect();
       menu.style.left = (window.scrollX + rect.left) + 'px';
       menu.style.top = (window.scrollY + rect.bottom) + 'px';
@@ -451,7 +383,6 @@ document.addEventListener('DOMContentLoaded', function () {
       currentType = type;
       if (!input.id) input.id = `${type.toLowerCase()}_search`;
       input.setAttribute('autocomplete', 'off');
-
       input.addEventListener('input', () => {
         hidden.value = '';
         const generic = document.querySelector('#entityFields input[name="entity_id"]');
@@ -463,7 +394,6 @@ document.addEventListener('DOMContentLoaded', function () {
           .then(data => showMenu(normalizeResults(data), input, hidden))
           .catch(hideMenu);
       });
-
       input.addEventListener('keydown', e => {
         if (!menu || !items.length) return;
         if (e.key === 'ArrowDown') { e.preventDefault(); activeIndex = (activeIndex + 1) % items.length; renderMenu(input, hidden); }
@@ -471,7 +401,6 @@ document.addEventListener('DOMContentLoaded', function () {
         else if (e.key === 'Enter') { e.preventDefault(); const target = items[Math.max(0, activeIndex)]; if (target) pick(target, input, hidden); }
         else if (e.key === 'Escape') { hideMenu(); }
       });
-
       input.addEventListener('blur', () => { setTimeout(hideMenu, 120); });
     }
 
@@ -484,7 +413,6 @@ document.addEventListener('DOMContentLoaded', function () {
       });
     }
 
-    const root = document.getElementById('entityFields');
     wire();
     document.addEventListener('payments:entityFieldsReloaded', wire);
   })();

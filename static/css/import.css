@@ -3,15 +3,21 @@
   border-radius: 0.5rem;
   padding: 0.5rem 0.75rem;
   background: #fafafa;
+  display: inline-block;
+  min-width: 140px;
+  text-align: center;
 }
 
 .stat-label {
   font-size: 0.85rem;
   color: #6b7280;
+  margin-bottom: 0.2rem;
 }
 
 .stat-value {
   font-weight: 700;
+  font-size: 1.05rem;
+  color: #111827;
 }
 
 #previewTable td,
@@ -19,36 +25,42 @@
 #extraTable td,
 #extraTable th {
   vertical-align: middle;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
 }
 
 .row-missing {
-  background: #fff5f5;
+  background-color: #fff5f5;
 }
 
 .row-warning:not(.row-missing) {
-  background: #fffaf0;
+  background-color: #fffaf0;
 }
 
 .row-matched {
   outline: 2px solid rgba(59, 130, 246, 0.25);
   outline-offset: -2px;
+  background-color: #f0f9ff;
 }
 
 .row-new {
   outline: 2px solid rgba(16, 185, 129, 0.25);
   outline-offset: -2px;
+  background-color: #f0fff4;
 }
 
 .compact #previewTable input.form-control,
 .compact #extraTable input.form-control {
   padding: 0.15rem 0.35rem;
   height: 30px;
+  font-size: 0.85rem;
 }
 
 .compact #previewTable .form-select,
 .compact #extraTable .form-select {
   padding: 0.15rem 0.35rem;
   height: 30px;
+  font-size: 0.85rem;
 }
 
 .table thead th {

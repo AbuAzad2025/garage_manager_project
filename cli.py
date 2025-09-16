@@ -28,6 +28,7 @@ from models import (
     StockAdjustment, StockAdjustmentItem,
     Note, AuditLog,
     Account, GLBatch, GLEntry, GL_ACCOUNTS, _gl_upsert_batch_and_entries,
+    Customer,
 )
 
 RESERVED_CODES = frozenset({
@@ -440,6 +441,25 @@ def list_users(q: str, role_name: str) -> None:
         rn = u.role.name if u.role else "-"
         click.echo(f"{u.id:>3}  {u.username:<20}  {u.email:<30}  role={rn:<18}  active={bool(u.is_active)}")
 
+@click.command("list-customers")
+@click.option("--q", default="", help="بحث بالاسم/الهاتف/الإيميل")
+@click.option("--limit", type=int, default=100)
+@with_appcontext
+def list_customers(q: str, limit: int):
+    s = (q or "").strip().lower()
+    qy = Customer.query
+    if s:
+        like = f"%{s}%"
+        qy = qy.filter(or_(
+            func.lower(Customer.name).like(like),
+            func.lower(Customer.phone).like(like),
+            func.lower(Customer.email).like(like),
+            func.lower(Customer.whatsapp).like(like),
+        ))
+    rows = qy.order_by(Customer.id.asc()).limit(limit).all()
+    for c in rows:
+        click.echo(f"{c.id:>3}  {c.name:<25}  phone={c.phone or '-':<15}  email={c.email or '-':<28}  balance={getattr(c,'balance', 0)}")
+
 @click.command("seed-expense-types")
 @click.option("--force", is_flag=True)
 @click.option("--dry-run", is_flag=True)
@@ -513,31 +533,17 @@ def expense_type_cmd(name: str, desc: str, active: bool) -> None:
         raise click.ClickException(f"Commit failed: {e}") from e
 
 @click.command("seed-palestine")
+@click.option("--reset", is_flag=True)
 @with_appcontext
-def seed_palestine_cmd():
-    from seed_palestine import (
-        seed_permissions_roles_users,
-        seed_customers,
-        seed_suppliers_partners_employees,
-        seed_equipment_types_categories_products,
-        seed_shipments_stock,
-        seed_preorders_sales_invoices_payments,
-        seed_service,
-        seed_online,
-        seed_expenses_and_payables,
-        seed_notes,
-    )
-    users = seed_permissions_roles_users()
-    customers = seed_customers()
-    suppliers, partners, employees = seed_suppliers_partners_employees()
-    warehouses, products, et_objs, cats = seed_equipment_types_categories_products(suppliers, partners)
-    seed_shipments_stock(warehouses, products)
-    seed_preorders_sales_invoices_payments(customers, users[1], warehouses, products)
-    seed_service(customers, users[3], warehouses, products, partners)
-    seed_online(customers, products)
-    seed_expenses_and_payables(employees, warehouses, partners, suppliers)
-    seed_notes(customers, users)
-    click.echo("OK: Palestine demo data seeded.")
+def seed_palestine_cmd(reset: bool):
+    try:
+        from seed_palestine import seed_palestine as _seed_cmd
+    except Exception as e:
+        raise click.ClickException(f"تعذّر استيراد seed_palestine.py: {e}")
+    cb = getattr(_seed_cmd, "callback", None)
+    if callable(cb):
+        return cb(reset=reset)
+    return _seed_cmd(reset=reset)
 
 @click.command("seed-all")
 @click.option("--force", is_flag=True)
@@ -550,7 +556,6 @@ def seed_all(force: bool, reset_roles: bool, deactivate_missing_expense_types: b
             click.echo("Canceled.")
             return
     try:
-        # --- 1. أذونات وأدوار ومستخدمين ---
         for code in sorted(RESERVED_CODES):
             _ensure_permission(code)
 
@@ -577,7 +582,6 @@ def seed_all(force: bool, reset_roles: bool, deactivate_missing_expense_types: b
         _get_or_create_user(MECH_USERNAME, MECH_EMAIL, MECH_PASSWORD, mechanic)
         _get_or_create_user(RC_USERNAME, RC_EMAIL, RC_PASSWORD, registered_customer)
 
-        # --- 2. تنظيف الكاش للأدوار ---
         for r in Role.query.all():
             try:
                 clear_role_permission_cache(r.id)
@@ -585,7 +589,6 @@ def seed_all(force: bool, reset_roles: bool, deactivate_missing_expense_types: b
             except Exception:
                 pass
 
-        # --- 3. أنواع المصروفات ---
         base_types = [
             ("رواتب", "مصروف رواتب وأجور", True),
             ("كهرباء", "فواتير كهرباء", True),
@@ -610,10 +613,8 @@ def seed_all(force: bool, reset_roles: bool, deactivate_missing_expense_types: b
             for ex in others:
                 ex.is_active = False
 
-        # --- 4. حفظ نهائي ---
         db.session.commit()
         click.echo("✔ OK: seed-all completed.")
-
     except SQLAlchemyError as e:
         db.session.rollback()
         raise click.ClickException(f"Commit failed: {e}") from e
@@ -1155,7 +1156,7 @@ def sr_create(customer_id, tax_rate, discount_total, currency, status, notes):
     except SQLAlchemyError as e:
         db.session.rollback()
         raise click.ClickException(str(e)) from e
-    
+
 @click.command("sr-add-part")
 @click.option("--service-id", type=int, required=True)
 @click.option("--product-id", type=int, required=True)
@@ -1608,12 +1609,16 @@ def gl_seed_accounts():
                 acc.is_active = True
                 updated.append(code)
         else:
-            acc = Account(code=code, name=name, type=("ASSET" if code.startswith(("1","12")) else "LIABILITY" if code.startswith("2") else "REVENUE" if code.startswith("4") else "EXPENSE"), is_active=True)
+            acc = Account(
+                code=code,
+                name=name,
+                type=("ASSET" if code.startswith(("1","12")) else "LIABILITY" if code.startswith("2") else "REVENUE" if code.startswith("4") else "EXPENSE"),
+                is_active=True
+            )
             db.session.add(acc)
             created.append(code)
     try:
-        with db.session.begin():
-            pass
+        db.session.commit()  # 👈 بدل with db.session.begin(): pass
         click.echo(json.dumps({"created": created, "updated": updated}, ensure_ascii=False))
     except SQLAlchemyError as e:
         db.session.rollback()
@@ -1690,7 +1695,7 @@ def register_cli(app) -> None:
     commands = [
         seed_roles, sync_permissions, list_permissions, list_roles, role_add_perms,
         create_role, export_rbac, create_user, user_set_password, user_activate,
-        user_assign_role, list_users, seed_expense_types, expense_type_cmd,
+        user_assign_role, list_users, list_customers, seed_expense_types, expense_type_cmd,
         seed_palestine_cmd, seed_all, clear_rbac_caches, wh_create, wh_list, wh_stock,
         product_create, product_find, product_stock, product_set_price, stock_transfer,
         stock_exchange, stock_reserve, stock_unreserve, shipment_create, shipment_status,

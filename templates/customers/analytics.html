@@ -12,6 +12,16 @@
 </nav>
 {% endblock %}
 
+{% block styles %}
+{{ super() }}
+<style>
+  /* تمنع تمدد الرسوم: نحدد ارتفاع الحاوية، ونجعل الـ canvas يملأها بدون تجاوز */
+  .chart-wrap{position:relative;height:300px}
+  @media (min-width:768px){.chart-wrap{height:340px}}
+  .chart-wrap canvas{width:100%!important;height:100%!important;display:block}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="content-wrapper">
   <div class="row g-4">
@@ -42,18 +52,23 @@
     </div>
 
     <div class="col-md-6">
-      <div class="card shadow-sm rounded">
+      <div class="card shadow-sm rounded h-100">
         <div class="card-body">
           <h6 class="mb-3"><i class="fas fa-chart-line me-1"></i>مخطط المشتريات الشهري</h6>
-          <canvas id="purchasesChart" height="140"></canvas>
+          <div class="chart-wrap">
+            <canvas id="purchasesChart"></canvas>
+          </div>
         </div>
       </div>
     </div>
+
     <div class="col-md-6">
-      <div class="card shadow-sm rounded">
+      <div class="card shadow-sm rounded h-100">
         <div class="card-body">
           <h6 class="mb-3"><i class="fas fa-chart-line me-1"></i>مخطط الدفعات الشهري</h6>
-          <canvas id="paymentsChart" height="140"></canvas>
+          <div class="chart-wrap">
+            <canvas id="paymentsChart"></canvas>
+          </div>
         </div>
       </div>
     </div>
@@ -100,13 +115,18 @@
 {{ super() }}
 <script>
   const monthsP = {{ purchases_months|map(attribute='month')|list|tojson }};
-  const dataP = {{ purchases_months|map(attribute='total')|list|tojson }};
+  const dataP   = {{ purchases_months|map(attribute='total')|list|tojson }};
   const monthsPay = {{ payments_months|map(attribute='month')|list|tojson }};
-  const dataPay = {{ payments_months|map(attribute='total')|list|tojson }};
+  const dataPay   = {{ payments_months|map(attribute='total')|list|tojson }};
 
   if (window.Chart) {
+    // نتأكد من عدم إنشاء الرسوم مرتين عند إعادة الدخول للصفحة
+    window.__charts__ = window.__charts__ || {};
+    const destroyIf = (k) => { if (window.__charts__[k]) { window.__charts__[k].destroy(); window.__charts__[k] = null; } };
+
     const ctx1 = document.getElementById('purchasesChart');
-    new Chart(ctx1, {
+    destroyIf('p');
+    window.__charts__['p'] = new Chart(ctx1, {
       type: 'line',
       data: {
         labels: monthsP,
@@ -122,14 +142,15 @@
       },
       options: {
         responsive: true,
-        maintainAspectRatio: false,
+        maintainAspectRatio: false,   // يملأ ارتفاع الحاوية المحدد في CSS
         plugins: { legend: { position: 'bottom' } },
         scales: { y: { beginAtZero: true } }
       }
     });
 
     const ctx2 = document.getElementById('paymentsChart');
-    new Chart(ctx2, {
+    destroyIf('pay');
+    window.__charts__['pay'] = new Chart(ctx2, {
       type: 'line',
       data: {
         labels: monthsPay,

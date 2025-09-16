@@ -2842,9 +2842,9 @@ class Payment(db.Model):
 
     @validates('total_amount')
     def _validate_total_amount(self, key, value):
-        if value is None or value <= 0:
+        if value is None or D(value) <= 0:
             raise ValueError("total_amount must be > 0")
-        return value
+        return q(value)
 
     @validates('method', 'status', 'direction', 'entity_type')
     def _coerce_enums(self, key, value):
@@ -2856,14 +2856,15 @@ class Payment(db.Model):
 
     def to_dict(self):
         _v = lambda x: getattr(x, "value", x)
+        _f = lambda x: float(q(x or 0))
         return {
             'id': self.id,
             'payment_number': self.payment_number,
             'payment_date': self.payment_date.isoformat() if self.payment_date else None,
-            'subtotal': float(self.subtotal or 0),
-            'tax_rate': float(self.tax_rate or 0),
-            'tax_amount': float(self.tax_amount or 0),
-            'total_amount': float(self.total_amount or 0),
+            'subtotal': _f(self.subtotal),
+            'tax_rate': _f(self.tax_rate),
+            'tax_amount': _f(self.tax_amount),
+            'total_amount': _f(self.total_amount),
             'currency': self.currency,
             'method': _v(self.method),
             'status': _v(self.status),
@@ -2909,12 +2910,13 @@ class PaymentSplit(db.Model):
         if not isinstance(self.details, dict):
             try:
                 if isinstance(self.details, str):
-                    import json
                     self.details = json.loads(self.details)
                 else:
                     self.details = {}
             except Exception:
                 self.details = {}
+        # إزالة القيم الفارغة
+        self.details = {k: v for k, v in self.details.items() if v not in (None, "", [])}
 
     def label(self):
         self.clean_details()
@@ -2926,7 +2928,7 @@ class PaymentSplit(db.Model):
             PaymentMethod.BANK.value: "تحويل بنكي",
             PaymentMethod.ONLINE.value: "دفع إلكتروني",
         }
-        return f"{names.get(m, m)} - {float(self.amount or 0):,.2f}"
+        return f"{names.get(m, m)} - {q(self.amount):,.2f}"
 
     def __repr__(self):
         return f"<PaymentSplit {self.label()}>"
@@ -2937,10 +2939,11 @@ class PaymentSplit(db.Model):
             "id": self.id,
             "payment_id": self.payment_id,
             "method": getattr(self.method, "value", self.method),
-            "amount": float(self.amount or 0),
+            "amount": float(q(self.amount)),
             "details": self.details,
             "label": self.label(),
         }
+
 
 def _next_payment_number(connection) -> str:
     prefix = datetime.utcnow().strftime("PMT%Y%m%d")
@@ -2949,6 +2952,7 @@ def _next_payment_number(connection) -> str:
         {"pfx": f"{prefix}-%"}
     ).scalar() or 0
     return f"{prefix}-{count + 1:04d}"
+
 
 @event.listens_for(Payment, "before_insert", propagate=True)
 def _payment_before_insert(mapper, connection, target: "Payment"):
@@ -2959,6 +2963,20 @@ def _payment_before_insert(mapper, connection, target: "Payment"):
         if v is not None:
             setattr(target, k, getattr(v, "value", v))
     target.currency = (getattr(target, "currency", None) or "ILS").upper()
+
+
+@event.listens_for(PaymentSplit, "before_insert", propagate=True)
+@event.listens_for(PaymentSplit, "before_update", propagate=True)
+def _split_before_save(mapper, connection, target: "PaymentSplit"):
+    target.amount = q(target.amount)
+    m = getattr(target, "method", None)
+    if hasattr(m, "value"):
+        target.method = m.value
+    if not isinstance(target.details, dict) or target.details is None:
+        target.details = {}
+    else:
+        target.details = {k: v for k, v in target.details.items() if v not in (None, "", [])}
+
 
 def _avg_cost_until(product_id: int, supplier_id: int, as_of: datetime) -> Decimal:
     qsum = db.session.query(
@@ -2981,12 +2999,14 @@ def _avg_cost_until(product_id: int, supplier_id: int, as_of: datetime) -> Decim
         return pp.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     return Decimal("0.00")
 
+
 def _default_mode_for_supplier(supplier_id: int) -> str:
     sup = db.session.get(Supplier, supplier_id)
     terms = (getattr(sup, "payment_terms", "") or "").upper()
     if "CONSUME" in terms or "ON_CONSUME" in terms or "CONSUMPTION" in terms:
         return SupplierSettlementMode.ON_CONSUME.value
     return SupplierSettlementMode.ON_RECEIPT.value
+
 
 def _used_sources_for_supplier(supplier_id: int):
     rows = (
@@ -2998,6 +3018,7 @@ def _used_sources_for_supplier(supplier_id: int):
         ).all()
     )
     return {(r[0], int(r[1] or 0)) for r in rows if r[1] is not None}
+
 
 def build_supplier_settlement_draft(
     supplier_id: int,
@@ -3261,8 +3282,6 @@ class ShipmentItem(db.Model):
 
     def __repr__(self):
         return f"<ShipmentItem {self.product_id} Q{self.quantity}>"
-    
-# models.py — Shipment
 
 class Shipment(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'shipments'

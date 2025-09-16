@@ -1,4 +1,3 @@
-<script>
 document.addEventListener('DOMContentLoaded', function () {
   const filterSelectors = ['#filterEntity','#filterStatus','#filterDirection','#filterMethod','#startDate','#endDate'];
   const ENTITY_ENUM = { customer:'CUSTOMER', supplier:'SUPPLIER', partner:'PARTNER', sale:'SALE', service:'SERVICE', expense:'EXPENSE', loan:'LOAN', preorder:'PREORDER', shipment:'SHIPMENT' };
@@ -211,18 +210,14 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     add(currentPage - 1, 'السابق', currentPage <= 1, false);
-
     const windowSize = 2;
     const first = 1, last = totalPages;
     let start = Math.max(first, currentPage - windowSize);
     let end = Math.min(last, currentPage + windowSize);
-
     if (start > first) { add(first, '1', false, first === currentPage); if (start > first + 1) add(currentPage, '…', true, false); }
     for (let i = start; i <= end; i++) add(i, String(i), false, i === currentPage);
     if (end < last) { if (end < last - 1) add(currentPage, '…', true, false); add(last, String(last), false, last === currentPage); }
-
     add(currentPage + 1, 'التالي', currentPage >= totalPages, false);
-
     ul.querySelectorAll('.page-link').forEach(function(a){
       a.addEventListener('click', function(e){
         e.preventDefault();
@@ -288,4 +283,3 @@ document.addEventListener('DOMContentLoaded', function () {
   loadPayments();
   window.addEventListener('popstate', function(){ syncFiltersFromUrl(); loadPayments(1); });
 });
-</script>

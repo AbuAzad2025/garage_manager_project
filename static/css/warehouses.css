@@ -15,6 +15,10 @@
   box-shadow: var(--card-shadow);
   direction: ltr;
   text-align: left;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .toolbar-warehouses .btn,
@@ -39,11 +43,17 @@
 
 .table-actions {
   min-width: 120px;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  align-items: center;
 }
 
 .badge-status {
   font-size: 0.9rem;
   padding: 0.35rem 0.55rem;
+  border-radius: 999px;
+  font-weight: 600;
 }
 
 .badge-status.bg-low {
@@ -167,6 +177,8 @@
 @media (max-width: 575.98px) {
   .table-actions {
     min-width: 0;
+    flex-wrap: wrap;
+    justify-content: flex-start;
   }
 
   .dataTables_wrapper .dataTables_filter,

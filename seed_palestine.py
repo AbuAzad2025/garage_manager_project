@@ -1,35 +1,25 @@
-# commands/seed_palestine.py
 from __future__ import annotations
 import click
 from datetime import datetime, timedelta
 from decimal import Decimal
-from sqlalchemy import func, text
 from flask.cli import with_appcontext
-
 from extensions import db
-
-# استورد الموديلات التي عندك (بدون Role/Permission/User إنشاءً)
 from models import (
-    # بشرط أنها موجودة عندك
     Customer, Supplier, Partner,
     Warehouse, WarehouseType,
     ProductCategory, EquipmentType, Product, StockLevel,
-    Transfer, ExchangeTransaction,
+    Transfer, ExchangeTransaction, TransferDirection,
     PreOrder, Sale, SaleLine,
     Invoice, InvoiceLine,
     Payment, PaymentMethod, PaymentStatus, PaymentDirection, PaymentEntityType,
     Shipment, ShipmentItem,
     PartnerSettlement, SupplierSettlement,
 )
-
-# موديلات قد تكون موجودة؛ نتعامل معها اختياريًا
 try:
     from models import ServiceRequest, ServiceStatus, ServicePriority
     HAVE_SERVICE = True
 except Exception:
     HAVE_SERVICE = False
-
-# أدوات مساعدة موجودة عندك
 try:
     from models import get_or_create_online_warehouse, ensure_online_stock_level
 except Exception:
@@ -45,8 +35,6 @@ except Exception:
             db.session.add(StockLevel(product_id=product_id, warehouse_id=wh.id, quantity=0))
             db.session.flush()
         return wh.id
-
-# سنستخدم أول مستخدم موجود كبائع/ميكانيكي بدون إنشاء مستخدمين جدد
 def _pick_user_id() -> int | None:
     try:
         from models import User
@@ -54,16 +42,12 @@ def _pick_user_id() -> int | None:
         return getattr(u, "id", None)
     except Exception:
         return None
-
 SEED_TAG = "SEED-PS"
-
 def _q(x) -> Decimal:
     return Decimal(str(x or 0)).quantize(Decimal("0.01"))
-
 def _get_or_create(model, defaults=None, **kwargs):
     obj = model.query.filter_by(**kwargs).first()
     if obj:
-        # نحدّث بعض الحقول الخفيفة حتى يصير Idempotent قدر الإمكان
         if defaults:
             for k, v in defaults.items():
                 if getattr(obj, k, None) in (None, "", 0):
@@ -75,27 +59,20 @@ def _get_or_create(model, defaults=None, **kwargs):
     obj = model(**params)
     db.session.add(obj)
     return obj, True
-
 def _ensure_categories():
-    names = [
-        "زيوت", "فلاتر", "قطع ميكانيكية", "كهرباء", "إكسسوارات", "إطارات", "بطاريات"
-    ]
+    names = ["زيوت", "فلاتر", "قطع ميكانيكية", "كهرباء", "إكسسوارات", "إطارات", "بطاريات"]
     out = []
     for n in names:
         c, _ = _get_or_create(ProductCategory, name=n)
         out.append(c)
     return out
-
 def _ensure_equipment_types():
-    names = [
-        "سيارة ركوب", "شاحنة خفيفة", "فان تجاري", "معدة ثقيلة"
-    ]
+    names = ["سيارة ركوب", "شاحنة خفيفة", "فان تجاري", "معدة ثقيلة"]
     out = []
     for n in names:
         et, _ = _get_or_create(EquipmentType, name=n)
         out.append(et)
     return out
-
 def _ensure_suppliers():
     data = [
         dict(name="شركة القدس للتجارة", is_local=True, email="qods@supplier.ps", currency="ILS", notes=SEED_TAG),
@@ -109,7 +86,6 @@ def _ensure_suppliers():
         s, _ = _get_or_create(Supplier, name=row["name"], defaults=row)
         out.append(s)
     return out
-
 def _ensure_partners():
     data = [
         dict(name="شريك البيرة للتجارة", email="partner.albireh@partner.ps", share_percentage=20, currency="ILS", balance=0, notes=SEED_TAG),
@@ -121,52 +97,32 @@ def _ensure_partners():
         p, _ = _get_or_create(Partner, name=row["name"], defaults=row)
         out.append(p)
     return out
-
 def _ensure_warehouses(suppliers, partners):
     main, _ = _get_or_create(
         Warehouse, name="الرئيسي - رام الله",
-        defaults=dict(
-            warehouse_type=WarehouseType.MAIN.value,
-            location="رام الله",
-            is_active=True,
-            notes=SEED_TAG,
-        )
+        defaults=dict(warehouse_type=WarehouseType.MAIN.value, location="رام الله", is_active=True, notes=SEED_TAG)
     )
     exch_supplier = suppliers[0] if suppliers else None
     exchange, _ = _get_or_create(
         Warehouse, name="تبادل - مورد القدس",
-        defaults=dict(
-            warehouse_type=WarehouseType.EXCHANGE.value,
-            location="القدس",
-            is_active=True,
-            supplier_id=getattr(exch_supplier, "id", None),
-            notes=SEED_TAG,
-        )
+        defaults=dict(warehouse_type=WarehouseType.EXCHANGE.value, location="القدس", is_active=True, supplier_id=getattr(exch_supplier, "id", None), notes=SEED_TAG)
     )
     partner = partners[0] if partners else None
     w_partner, _ = _get_or_create(
         Warehouse, name="شريك - البيرة",
-        defaults=dict(
-            warehouse_type=WarehouseType.PARTNER.value,
-            location="البيرة",
-            is_active=True,
-            partner_id=getattr(partner, "id", None),
-            share_percent=40,
-            notes=SEED_TAG,
-        )
+        defaults=dict(warehouse_type=WarehouseType.PARTNER.value, location="البيرة", is_active=True, partner_id=getattr(partner, "id", None), share_percent=40, notes=SEED_TAG)
     )
     online = get_or_create_online_warehouse()
-    if not online.online_slug:
+    if not getattr(online, "online_slug", None):
         online.online_slug = "default"
         online.online_is_default = True
     return main, exchange, w_partner, online
-
 def _ensure_customers():
     data = [
         dict(name="محمد بركات", phone="+970599111001", whatsapp="+970599111001", email="m.barakat@test.ps", address="رام الله", currency="ILS", credit_limit=5000, discount_rate=5, notes=SEED_TAG),
         dict(name="أحمد درويش", phone="+970599111002", whatsapp="+970599111002", email="a.darwish@test.ps", address="البيرة", currency="ILS", credit_limit=3000, discount_rate=0, notes=SEED_TAG),
         dict(name="حسام عويضات", phone="+970599111003", whatsapp="+970599111003", email="h.owaidat@test.ps", address="نابلس", currency="ILS", credit_limit=8000, discount_rate=10, notes=SEED_TAG),
-        dict(name="سهى حمزة",  phone="+970569111004", whatsapp="+970569111004", email="suha.hamzeh@test.ps", address="الخليل", currency="ILS", credit_limit=0, discount_rate=0, notes=SEED_TAG),
+        dict(name="سهى حمزة", phone="+970569111004", whatsapp="+970569111004", email="suha.hamzeh@test.ps", address="الخليل", currency="ILS", credit_limit=0, discount_rate=0, notes=SEED_TAG),
         dict(name="زبون نقدي", phone="+970569111005", whatsapp="+970569111005", email="cash@test.ps", address="عام", currency="ILS", credit_limit=0, discount_rate=0, notes=SEED_TAG, category="عادي"),
     ]
     out = []
@@ -174,18 +130,17 @@ def _ensure_customers():
         c, _ = _get_or_create(Customer, phone=row["phone"], defaults=row)
         out.append(c)
     return out
-
 def _ensure_products(categories, equipment_types, suppliers):
     cat_map = {c.name: c for c in categories}
     et = equipment_types[0] if equipment_types else None
     sup = suppliers[0] if suppliers else None
     rows = [
         dict(sku="PS-OIL-5W30", name="زيت محرك 5W-30", brand="Castrol", part_number="5W30-1L", price=35, purchase_price=20, category=cat_map["زيوت"]),
-        dict(sku="PS-FLTR-OP123", name="فلتر زيت OP123", brand="MANN",    part_number="OP123",   price=25, purchase_price=12, category=cat_map["فلاتر"]),
-        dict(sku="PS-BATT-70AH", name="بطارية 70 أمبير", brand="VARTA",   part_number="70AH",    price=380, purchase_price=300, category=cat_map["بطاريات"]),
-        dict(sku="PS-BELT-ALT",  name="سير دينامو",       brand="Gates",   part_number="ALT-BELT",price=90, purchase_price=60,  category=cat_map["قطع ميكانيكية"]),
-        dict(sku="PS-LAMP-H7",   name="لمبة H7 55W",     brand="Philips", part_number="H7-55W",  price=18, purchase_price=10,  category=cat_map["كهرباء"]),
-        dict(sku="PS-WIPER-22",  name="مساحات 22 إنش",   brand="Bosch",   part_number="WIP-22",  price=28, purchase_price=16,  category=cat_map["إكسسوارات"]),
+        dict(sku="PS-FLTR-OP123", name="فلتر زيت OP123", brand="MANN", part_number="OP123", price=25, purchase_price=12, category=cat_map["فلاتر"]),
+        dict(sku="PS-BATT-70AH", name="بطارية 70 أمبير", brand="VARTA", part_number="70AH", price=380, purchase_price=300, category=cat_map["بطاريات"]),
+        dict(sku="PS-BELT-ALT", name="سير دينامو", brand="Gates", part_number="ALT-BELT", price=90, purchase_price=60, category=cat_map["قطع ميكانيكية"]),
+        dict(sku="PS-LAMP-H7", name="لمبة H7 55W", brand="Philips", part_number="H7-55W", price=18, purchase_price=10, category=cat_map["كهرباء"]),
+        dict(sku="PS-WIPER-22", name="مساحات 22 إنش", brand="Bosch", part_number="WIP-22", price=28, purchase_price=16, category=cat_map["إكسسوارات"]),
     ]
     out = []
     for r in rows:
@@ -199,9 +154,7 @@ def _ensure_products(categories, equipment_types, suppliers):
         p, _ = _get_or_create(Product, sku=r["sku"], defaults=defaults)
         out.append(p)
     return out
-
 def _ensure_stock(products, main, exchange, partner, online):
-    # كميات أولية معقولة
     pack = [
         (products[0], main, 60), (products[0], partner, 20),
         (products[1], main, 40), (products[1], exchange, 25),
@@ -219,22 +172,18 @@ def _ensure_stock(products, main, exchange, partner, online):
                 row.quantity = qty
     for p in products:
         ensure_online_stock_level(p.id)
-
 def _make_transfer(products, main, partner, seller_id):
-    # حوّل 5 قطع من الزيت إلى مستودع الشريك
     t = Transfer(
         product_id=products[0].id,
         source_id=main.id,
         destination_id=partner.id,
         quantity=5,
-        direction="IN",  # (حقل إجباري لكن التأثير يتم بالحركتين بعد_insert)
+        direction=TransferDirection.OUTGOING.value if hasattr(TransferDirection, "OUTGOING") else "OUTGOING",
         notes=SEED_TAG,
         user_id=seller_id
     )
     db.session.add(t)
-
 def _make_exchange_purchase(products, exchange):
-    # توريد عبر مستودع تبادل (يرفع المخزون تلقائيًا)
     xt = ExchangeTransaction(
         product_id=products[1].id,
         warehouse_id=exchange.id,
@@ -244,14 +193,11 @@ def _make_exchange_purchase(products, exchange):
         notes=SEED_TAG
     )
     db.session.add(xt)
-
 def _make_shipment(products, main):
     shp = Shipment(
-        shipment_date=datetime.utcnow() - timedelta(days=3),
+        date=datetime.utcnow() - timedelta(days=3),
         destination_id=main.id,
         status="DRAFT",
-        origin="اسطنبول",
-        destination="رام الله",
         currency="USD",
         notes=SEED_TAG
     )
@@ -262,9 +208,7 @@ def _make_shipment(products, main):
     ]
     db.session.add_all(items)
     db.session.flush()
-    # وصول الشحنة => يعكس على المخزون
     shp.status = "ARRIVED"
-
 def _make_sale_and_payment(customers, products, main, seller_id):
     c = customers[0]
     sale = Sale(
@@ -277,16 +221,11 @@ def _make_sale_and_payment(customers, products, main, seller_id):
         notes=SEED_TAG
     )
     db.session.add(sale); db.session.flush()
-
     l1 = SaleLine(sale_id=sale.id, product_id=products[0].id, warehouse_id=main.id, quantity=2, unit_price=products[0].price, discount_rate=0, tax_rate=0)
     l2 = SaleLine(sale_id=sale.id, product_id=products[1].id, warehouse_id=main.id, quantity=1, unit_price=products[1].price, discount_rate=0, tax_rate=0)
     db.session.add_all([l1, l2]); db.session.flush()
-
-    # تأكيد البيع يحجز/يخصم المخزون وفق لوجيكك
     sale.status = "CONFIRMED"
     db.session.flush()
-
-    # دفع جزئي ثم كامل لتحديث الحالة
     pay1 = Payment(
         total_amount=Decimal("50.00"),
         currency="ILS",
@@ -298,8 +237,6 @@ def _make_sale_and_payment(customers, products, main, seller_id):
         notes=SEED_TAG
     )
     db.session.add(pay1); db.session.flush()
-
-    # استكمال الدفع
     remain = Decimal(str(sale.total_amount or 0)) - Decimal("50.00")
     if remain > 0:
         pay2 = Payment(
@@ -313,7 +250,6 @@ def _make_sale_and_payment(customers, products, main, seller_id):
             notes=SEED_TAG
         )
         db.session.add(pay2)
-
 def _make_invoice_and_payment(customers, products):
     c = customers[1]
     inv = Invoice(
@@ -332,8 +268,6 @@ def _make_invoice_and_payment(customers, products):
         InvoiceLine(invoice_id=inv.id, product_id=products[2].id, description="بطارية 70 أمبير", quantity=1, unit_price=products[2].price, tax_rate=0, discount=0),
     ]
     db.session.add_all(lines); db.session.flush()
-
-    # دفعة جزئية
     pay = Payment(
         total_amount=Decimal("100.00"),
         currency="ILS",
@@ -345,7 +279,6 @@ def _make_invoice_and_payment(customers, products):
         notes=SEED_TAG
     )
     db.session.add(pay)
-
 def _make_preorder(customers, products, main):
     pr = PreOrder(
         preorder_date=datetime.utcnow(),
@@ -361,7 +294,6 @@ def _make_preorder(customers, products, main):
         notes=SEED_TAG
     )
     db.session.add(pr); db.session.flush()
-    # تسديد العربون
     pay = Payment(
         total_amount=Decimal("60.00"),
         currency="ILS",
@@ -373,30 +305,32 @@ def _make_preorder(customers, products, main):
         notes=SEED_TAG
     )
     db.session.add(pay)
-
 def _maybe_make_service(customers, products, main, mechanic_id):
     if not HAVE_SERVICE or mechanic_id is None:
         return
-    # نستخدم موديلات الخدمة لو متوفرة عندك
-    from models import ServicePart, ServiceTask, _recalc_service_request_totals
     sr = ServiceRequest(
         customer_id=customers[3].id,
-        mechanic_id=mechanic_id,
-        vehicle_type_id=None,
-        status=ServiceStatus.IN_PROGRESS.value,
-        priority=ServicePriority.MEDIUM.value,
         tax_rate=0,
         discount_total=0,
         currency="ILS",
-        consume_stock=True,
-        received_at=datetime.utcnow() - timedelta(days=1),
-        notes=SEED_TAG,
-        problem_description="صوت في المحرك",
-        diagnosis="بحاجة لتبديل فلتر الزيت",
+        status=ServiceStatus.IN_PROGRESS.value,
+        notes=SEED_TAG
     )
+    if hasattr(sr, "mechanic_id"):
+        sr.mechanic_id = mechanic_id
+    if hasattr(sr, "consume_stock"):
+        sr.consume_stock = True
+    if hasattr(sr, "received_at"):
+        sr.received_at = datetime.utcnow() - timedelta(days=1)
+    if hasattr(sr, "priority"):
+        sr.priority = getattr(ServicePriority, "MEDIUM").value if hasattr(ServicePriority, "MEDIUM") else getattr(ServicePriority, list(ServicePriority)[0].name).value
+    if hasattr(sr, "problem_description"):
+        sr.problem_description = "صوت في المحرك"
+    if hasattr(sr, "diagnosis"):
+        sr.diagnosis = "بحاجة لتبديل فلتر الزيت"
     db.session.add(sr)
     db.session.flush()
-
+    from models import ServicePart, ServiceTask
     sp = ServicePart(
         service_id=sr.id,
         part_id=products[1].id,
@@ -416,10 +350,11 @@ def _maybe_make_service(customers, products, main, mechanic_id):
     )
     db.session.add_all([sp, st])
     db.session.flush()
-
-    _recalc_service_request_totals(sr)
-
-    # إكمال الخدمة + دفع
+    try:
+        from models import _recalc_service_request_totals
+        _recalc_service_request_totals(sr)
+    except Exception:
+        pass
     sr.status = ServiceStatus.COMPLETED.value
     pay = Payment(
         total_amount=Decimal(str(sr.total_amount or 0)),
@@ -432,9 +367,7 @@ def _maybe_make_service(customers, products, main, mechanic_id):
         notes=SEED_TAG,
     )
     db.session.add(pay)
-
 def _make_settlements(partners, suppliers):
-    # مسودّات تسوية (اختياري): نستخدم البنّائين لو عندك
     try:
         from models import build_partner_settlement_draft, build_supplier_settlement_draft
     except Exception:
@@ -447,9 +380,7 @@ def _make_settlements(partners, suppliers):
     if suppliers:
         ss = build_supplier_settlement_draft(suppliers[0].id, date_from, date_to, currency="ILS")
         db.session.add(ss)
-
 def _cleanup_previous():
-    # نحذف العناصر التي عليها وسم السييد فقط (Idempotent-ish)
     for model, field in [
         (Payment, Payment.notes),
         (InvoiceLine, None),
@@ -473,7 +404,6 @@ def _cleanup_previous():
             if field is not None:
                 db.session.query(model).filter(field == SEED_TAG).delete(synchronize_session=False)
             else:
-                # ما في notes: نحاول حذف الآيتمات غير المرتبطة أو التابعة لفواتير/مبيعات موسومة
                 if model is SaleLine:
                     sub = db.session.query(Sale.id).filter(Sale.notes == SEED_TAG).subquery()
                     db.session.query(SaleLine).filter(SaleLine.sale_id.in_(sub)).delete(synchronize_session=False)
@@ -481,7 +411,6 @@ def _cleanup_previous():
                     sub = db.session.query(Invoice.id).filter(Invoice.notes == SEED_TAG).subquery()
                     db.session.query(InvoiceLine).filter(InvoiceLine.invoice_id.in_(sub)).delete(synchronize_session=False)
                 elif model is StockLevel:
-                    # لا نحذف كل المخزون، فقط العائد لمنتجات السييد
                     subp = db.session.query(Product.id).filter(Product.notes == SEED_TAG).subquery()
                     db.session.query(StockLevel).filter(StockLevel.product_id.in_(subp)).delete(synchronize_session=False)
                 elif model is ShipmentItem:
@@ -491,61 +420,33 @@ def _cleanup_previous():
                     pass
         except Exception:
             db.session.rollback()
-
 @click.command("seed-palestine")
-@click.option("--reset", is_flag=True, help="احذف بيانات السييد السابقة (الموسومة فقط) قبل إعادة الإنشاء.")
+@click.option("--reset", is_flag=True)
 @with_appcontext
 def seed_palestine(reset: bool):
-    """
-    يضيف بيانات اختبار فلسطينية للنظام (بدون Roles/Permissions/Users).
-    """
     if reset:
         _cleanup_previous()
         db.session.commit()
-
     seller_id = _pick_user_id()
     mechanic_id = seller_id
-
-    # 1) تصنيفات وأنواع
     cats = _ensure_categories()
     ets = _ensure_equipment_types()
-
-    # 2) موردين + شركاء + مستودعات
     suppliers = _ensure_suppliers()
-    partners  = _ensure_partners()
+    partners = _ensure_partners()
     main, exchange, wpartner, online = _ensure_warehouses(suppliers, partners)
-
-    # 3) زبائن
     customers = _ensure_customers()
-
-    # 4) منتجات + مخزون
     products = _ensure_products(cats, ets, suppliers)
     db.session.flush()
     _ensure_stock(products, main, exchange, wpartner, online)
-
-    # 5) عمليات حركة وشراء تبادل وشحنة
     _make_transfer(products, main, wpartner, seller_id)
     _make_exchange_purchase(products, exchange)
     _make_shipment(products, main)
-
-    # 6) بيع ومدفوعاته
     _make_sale_and_payment(customers, products, main, seller_id)
-
-    # 7) فاتورة ومدفوعاتها
     _make_invoice_and_payment(customers, products)
-
-    # 8) طلب مسبق ومدفوعته
     _make_preorder(customers, products, main)
-
-    # 9) خدمة صيانة (إن وُجدت موديلاتها)
     _maybe_make_service(customers, products, main, mechanic_id)
-
-    # 10) مسودّات تسوية (شريك/مورد)
     _make_settlements(partners, suppliers)
-
     db.session.commit()
-    click.echo("✔️ تم إدخال بيانات الاختبار الفلسطينية بنجاح (seed-palestine).")
-
+    click.echo("تم إدخال بيانات الاختبار الفلسطينية بنجاح.")
 def init_app(app):
-    # استخدمها لو عندك factory
     app.cli.add_command(seed_palestine)

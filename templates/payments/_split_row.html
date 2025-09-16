@@ -1,29 +1,50 @@
+{% set st = payment.status.value if payment.status and payment.status.value else payment.status %}
+{% set is_completed = st == 'COMPLETED' %}
 {% set m = (getattr(s.method, 'value', s.method) | string) | lower %}
 {% set d = s.details if s.details is mapping else {} %}
+
 <tr id="split-{{ s.id }}">
-  <td>{{ loop.index }}. {{ '%.2f'|format(s.amount or 0) }} {{ payment.currency }}</td>
+  <td>{{ loop.index }}.</td>
+  
+  <td class="amount-cell" data-amount="{{ '%.2f'|format(s.amount or 0) }}">
+    {{ '%.2f'|format(s.amount or 0) }} {{ payment.currency }}
+  </td>
+
   <td>{{ m|upper }}</td>
+
   <td>
     {% if m in ['cheque', 'check'] %}
-      رقم الشيك: {{ d.get('check_number','—') }}<br>
-      البنك: {{ d.get('check_bank','—') }}<br>
-      الاستحقاق: {{ d.get('check_due_date','—') }}
-    {% elif m in ['bank', 'transfer'] %}
-      مرجع التحويل: {{ d.get('bank_transfer_ref', d.get('reference','—')) }}
+      رقم الشيك: {{ d.get('check_number') or '—' }}<br>
+      البنك: {{ d.get('check_bank') or '—' }}<br>
+      الاستحقاق: {{ d.get('check_due_date') or d.get('due_date') or '—' }}
+    
+    {% elif m == 'bank' %}
+      مرجع التحويل: {{ d.get('bank_transfer_ref') or d.get('reference') or '—' }}
+    
     {% elif m in ['card', 'credit'] %}
-      بطاقة: {{ '****' ~ (d.get('card_last4','')|string) if d.get('card_last4') else '—' }}<br>
-      حامل البطاقة: {{ d.get('card_holder','—') }}<br>
-      انتهاء: {{ d.get('card_expiry','—') }}
+      بطاقة: {{
+        (d.get('card_last4') and ('****' ~ (d.get('card_last4')|string)))
+        or (d.get('card_number') and ('****' ~ ((d.get('card_number')|string)[-4:])))
+        or '—'
+      }}<br>
+      حامل البطاقة: {{ d.get('card_holder') or '—' }}<br>
+      انتهاء: {{ d.get('card_expiry') or '—' }}
+    
     {% elif m in ['online', 'mobile'] %}
-      البوابة: {{ d.get('online_gateway', d.get('gateway','—')) }}<br>
-      المرجع: {{ d.get('online_ref', d.get('reference','—')) }}
+      البوابة: {{ d.get('online_gateway') or d.get('gateway') or '—' }}<br>
+      المرجع: {{ d.get('online_ref') or d.get('reference') or '—' }}
+    
     {% elif m == 'cash' %}
       نقداً
+
     {% else %}
       —
     {% endif %}
   </td>
+
   <td>
-    <button type="button" class="btn btn-sm btn-danger remove-split" data-split-id="{{ s.id }}">حذف</button>
+    <button type="button" class="btn btn-sm btn-danger remove-split" data-split-id="{{ s.id }}" {% if is_completed %}disabled{% endif %}>
+      حذف
+    </button>
   </td>
 </tr>

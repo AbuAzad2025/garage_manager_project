@@ -70,6 +70,7 @@ def _resp(msg, cat="info", code=None, data=None, to="shop.catalog"):
         return jsonify(payload), code
     flash(msg, cat)
     return redirect(url_for(to))
+
 def _find_default_warehouse():
     default_id = current_app.config.get("SHOP_DEFAULT_WAREHOUSE_ID")
     if default_id:
@@ -131,18 +132,12 @@ def _online_scope_ids():
     return g._online_ids
 
 def _ensure_online_stocklevels_for_products(product_ids):
-    """
-    ينشئ StockLevel(quantity=0) للمنتجات المعطاة على مستودع الأونلاين الافتراضي
-    (أو أول مستودع ضمن نطاق الأونلاين) إذا كانت مفقودة.
-    يرجّع عدد السجلات المُضافة.
-    """
     try:
         product_ids = [int(pid) for pid in (product_ids or []) if pid]
     except Exception:
         product_ids = []
     if not product_ids:
         return 0
-
     targets = []
     default_wh = _find_default_warehouse()
     if default_wh:
@@ -150,11 +145,9 @@ def _ensure_online_stocklevels_for_products(product_ids):
     else:
         ids = _online_scope_ids()
         if ids:
-            targets = [ids[0]]  
-
+            targets = [ids[0]]
     if not targets:
         return 0
-
     wid = targets[0]
     existing_pids = {
         pid for (pid,) in db.session.query(StockLevel.product_id)
@@ -165,8 +158,6 @@ def _ensure_online_stocklevels_for_products(product_ids):
     missing = [pid for pid in product_ids if pid not in existing_pids]
     if not missing:
         return 0
-
-    # reserved_quantity عمود اختياري حسب سكيمة المشروع
     base = {"warehouse_id": wid, "quantity": 0}
     if hasattr(StockLevel, "reserved_quantity"):
         base["reserved_quantity"] = 0
@@ -221,7 +212,6 @@ def available_qty(product_id: int) -> int:
         g._avail_cache = {}
     if product_id in g._avail_cache:
         return g._avail_cache[product_id]
-
     if hasattr(StockLevel, "available"):
         on_hand_q = (
             db.session.query(func.coalesce(func.sum(StockLevel.available), 0))
@@ -236,7 +226,6 @@ def available_qty(product_id: int) -> int:
             .join(Warehouse, StockLevel.warehouse_id == Warehouse.id)
             .filter(StockLevel.product_id == product_id, Warehouse.is_active.is_(True))
         )
-
     ids = _online_scope_ids()
     if ids:
         on_hand_q = on_hand_q.filter(Warehouse.id.in_(ids))
@@ -245,7 +234,6 @@ def available_qty(product_id: int) -> int:
         if tvals and hasattr(Warehouse, "warehouse_type"):
             on_hand_q = on_hand_q.filter(Warehouse.warehouse_type.in_(tvals))
     on_hand = on_hand_q.scalar() or 0
-
     reserved = 0
     if not hasattr(StockLevel, "available"):
         reserved = (
@@ -258,7 +246,6 @@ def available_qty(product_id: int) -> int:
             .scalar()
             or 0
         )
-
     v = max(0, int(on_hand) - int(reserved))
     g._avail_cache[product_id] = v
     return v
@@ -403,31 +390,28 @@ def _apply_online_scope(q):
         q = q.filter(Warehouse.is_online.is_(True))
     if hasattr(Warehouse, "deleted_at"):
         q = q.filter(Warehouse.deleted_at.is_(None))
-
     if ids:
         q = q.filter(Warehouse.id.in_(ids))
     else:
         tvals = _warehouse_types()
         if tvals and hasattr(Warehouse, "warehouse_type"):
             q = q.filter(Warehouse.warehouse_type.in_(tvals))
-
     q = q.filter(Product.is_active.is_(True))
     if hasattr(Product, "is_published"):
         try:
             q = q.filter(Product.is_published.is_(True))
         except Exception:
             pass
-
+    if hasattr(Product, "deleted_at"):
+        q = q.filter(Product.deleted_at.is_(None))
     company_ids = current_app.config.get("SHOP_WAREHOUSE_COMPANY_IDS")
     if company_ids and hasattr(Warehouse, "company_id"):
         q = q.filter(Warehouse.company_id.in_(company_ids))
-
     return q
 
 @shop_bp.route("/", endpoint="catalog")
 def catalog():
     qparam = (request.args.get("query") or "").strip()
-
     if not is_super_admin(current_user):
         pre = db.session.query(Product).filter(Product.is_active.is_(True))
         if hasattr(Product, "is_published"):
@@ -440,18 +424,14 @@ def catalog():
             pre = pre.filter((Product.name.ilike(like)) | (Product.sku.ilike(like)) | (Product.part_number.ilike(like)))
         pre_ids = [pid for (pid,) in pre.with_entities(Product.id).all()]
         _ensure_online_stocklevels_for_products(pre_ids)
-
     if is_super_admin(current_user):
         q = db.session.query(Product)
     else:
         q = _apply_online_scope(db.session.query(Product))
-
     if qparam:
         like = f"%{qparam}%"
         q = q.filter((Product.name.ilike(like)) | (Product.sku.ilike(like)) | (Product.part_number.ilike(like)))
-
     products = q.distinct(Product.id).order_by(Product.name.asc()).all()
-
     if request.is_json or request.args.get("format") == "json":
         return jsonify([
             {
@@ -465,8 +445,6 @@ def catalog():
             }
             for p in products
         ])
-
-
     return render_template(
         "shop/catalog.html",
         products=products,
@@ -478,7 +456,6 @@ def catalog():
 @shop_bp.route("/products", endpoint="products")
 def products():
     qparam = (request.args.get("query") or "").strip()
-
     if not is_super_admin(current_user):
         pre = db.session.query(Product).filter(Product.is_active.is_(True))
         if hasattr(Product, "is_published"):
@@ -495,12 +472,10 @@ def products():
             )
         pre_ids = [pid for (pid,) in pre.with_entities(Product.id).all()]
         _ensure_online_stocklevels_for_products(pre_ids)
-
     if is_super_admin(current_user):
         q = db.session.query(Product)
     else:
         q = _apply_online_scope(db.session.query(Product))
-
     if qparam:
         like = f"%{qparam}%"
         q = q.filter(
@@ -508,7 +483,6 @@ def products():
             (Product.sku.ilike(like)) |
             (Product.part_number.ilike(like))
         )
-
     products = q.distinct(Product.id).order_by(Product.name.asc()).all()
     avail_map = {p.id: available_qty(p.id) for p in products}
     return render_template(
@@ -522,7 +496,6 @@ def products():
 @shop_bp.get("/api/products")
 def api_products():
     qparam = (request.args.get("query") or "").strip()
-
     if not is_super_admin(current_user):
         pre = db.session.query(Product).filter(Product.is_active.is_(True))
         if hasattr(Product, "is_published"):
@@ -539,12 +512,10 @@ def api_products():
             )
         pre_ids = [pid for (pid,) in pre.with_entities(Product.id).all()]
         _ensure_online_stocklevels_for_products(pre_ids)
-
     if is_super_admin(current_user):
         q = db.session.query(Product)
     else:
         q = _apply_online_scope(db.session.query(Product))
-
     if qparam:
         like = f"%{qparam}%"
         q = q.filter(
@@ -552,7 +523,6 @@ def api_products():
             (Product.sku.ilike(like)) |
             (Product.part_number.ilike(like))
         )
-
     products = q.distinct(Product.id).order_by(Product.name.asc()).all()
     data = []
     for p in products:
@@ -569,7 +539,6 @@ def api_products():
             "online_image": getattr(p, "online_image", None),
             "brand": getattr(p, "brand", None),
         })
-
     return jsonify({"data": data})
 
 @shop_bp.get("/api/product/<int:pid>")
@@ -938,27 +907,23 @@ def admin_categories_quick_create():
     else:
         name = (request.form.get("name") or "").strip()
         parent_id = request.form.get("parent_id")
-
     if not name:
         return jsonify({"ok": False, "error": "الاسم مطلوب"}), 400
     if len(name) > 100:
         return jsonify({"ok": False, "error": "الاسم أطول من 100 حرف"}), 400
-
     exists = (
-        db.session.query(ProductCategory.id, ProductCategory.name)
+        db.session.query(ProductCategory)
         .filter(func.lower(ProductCategory.name) == name.lower())
         .first()
     )
     if exists:
         return jsonify({"ok": True, "id": exists.id, "name": exists.name}), 200
-
     cat = ProductCategory(name=name)
-
     try:
         if parent_id:
             try:
                 pid = int(parent_id)
-                parent = db.session.query(ProductCategory).get(pid)
+                parent = db.session.get(ProductCategory, pid)
                 if parent:
                     cat.parent = parent
             except Exception:
@@ -969,7 +934,7 @@ def admin_categories_quick_create():
     except SQLAlchemyError as e:
         db.session.rollback()
         return jsonify({"ok": False, "error": f"{e}"}), 400
-    
+
 @shop_bp.route("/admin/products/new", methods=["GET", "POST"], endpoint="admin_product_new")
 @super_admin_required
 def admin_product_new():
@@ -1106,32 +1071,25 @@ def admin_product_update_fields(pid):
     new_image = _clean_img(payload.get("image")) if "image" in payload else None
 
     changed = False
-
     if new_name:
         product.name = new_name[:255]
         changed = True
-
     if new_price is not None and new_price >= 0:
         product.price = new_price.quantize(Decimal("0.01"))
         if not product.selling_price:
             product.selling_price = product.price
         changed = True
-
     if new_online_price is not None and new_online_price >= 0:
         product.online_price = new_online_price.quantize(Decimal("0.01"))
         changed = True
-
     if new_online_image is not None:
         product.online_image = new_online_image or None
         changed = True
-
     if new_image is not None:
         product.image = new_image or None
         changed = True
-
     if not changed:
         return _resp("لا توجد حقول محدثة.", "warning", code=400, to="shop.admin_products")
-
     try:
         db.session.commit()
         return _resp(

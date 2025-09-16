@@ -10,6 +10,7 @@ from extensions import csrf, db, limiter
 from utils import _get_user_permissions, _q, _query_limit, permission_required, search_model, super_only
 from barcodes import validate_barcode
 from forms import EquipmentTypeForm
+
 from models import (
     Customer,
     Employee,
@@ -40,16 +41,26 @@ from models import (
     Warehouse,
     WarehousePartnerShare,
     WarehouseType,
+    UtilityAccount,
+    StockAdjustment,
 )
+
 
 bp = Blueprint("api", __name__, url_prefix="/api")
 
 _TWOPLACES = Decimal("0.01")
 
+def _q2(x):
+    return _D(x).quantize(_TWOPLACES, rounding=ROUND_HALF_UP)
 
 def _limit(default: int = 20, max_value: int = 100) -> int:
     return _query_limit(default, max_value)
 
+def _limit_from_request(default=20, max_=50):
+    try:
+        return min(int(request.args.get("limit", default) or default), max_)
+    except Exception:
+        return default
 
 def _D(x):
     if x is None:
@@ -61,14 +72,99 @@ def _D(x):
     except (InvalidOperation, ValueError, TypeError):
         return Decimal("0")
 
-
-def _q2(x):
-    return _D(x).quantize(_TWOPLACES, rounding=ROUND_HALF_UP)
-
-
 def _norm_currency(v):
-    return (v or "USD").strip().upper()
+    return (v or "ILS").strip().upper()
 
+def _money(x) -> str:
+    return f"{_q2(x):.2f}"
+
+def _norm_status(v):
+    return (v or "").strip().upper()
+
+def _aggregate_items_payload(items, default_wid=None):
+    acc = {}
+    for it in (items or []):
+        try:
+            pid = int(it.get("product_id") or 0)
+        except Exception:
+            pid = 0
+        wid_raw = it.get("warehouse_id")
+        wid = int(wid_raw) if str(wid_raw or "").isdigit() else (int(default_wid) if default_wid else 0)
+        qty = int(float(it.get("quantity") or 0))
+        uc = _D(it.get("unit_cost"))
+        dec = _D(it.get("declared_value"))
+        notes = (it.get("notes") or None)
+        if not (pid and wid and qty > 0):
+            continue
+        key = (pid, wid)
+        row = acc.get(key) or {"qty": 0, "cost_total": Decimal("0"), "declared": Decimal("0"), "notes": None}
+        row["qty"] += qty
+        row["cost_total"] += Decimal(qty) * uc
+        row["declared"] += dec
+        row["notes"] = notes if notes else row["notes"]
+        acc[key] = row
+    out = []
+    for (pid, wid), v in acc.items():
+        qty = v["qty"]
+        unit_cost = (v["cost_total"] / Decimal(qty)) if qty else Decimal("0")
+        out.append({
+            "product_id": pid,
+            "warehouse_id": wid,
+            "quantity": qty,
+            "unit_cost": float(_q2(unit_cost)),
+            "declared_value": float(_q2(v["declared"])),
+            "notes": v["notes"],
+        })
+    return out
+
+def _aggregate_partners_payload(partners):
+    acc = {}
+    for ln in (partners or []):
+        pid = ln.get("partner_id")
+        try:
+            pid = int(pid) if pid is not None else None
+        except Exception:
+            pid = None
+        if not pid:
+            continue
+        sp = float(ln.get("share_percentage") or 0)
+        sa = float(ln.get("share_amount") or 0)
+        row = acc.get(pid) or {
+            "share_percentage": Decimal("0"),
+            "share_amount": Decimal("0"),
+            "identity_number": None,
+            "phone_number": None,
+            "address": None,
+            "unit_price_before_tax": Decimal("0"),
+            "expiry_date": None,
+            "notes": None,
+            "role": None,
+        }
+        row["share_percentage"] += Decimal(str(sp))
+        row["share_amount"] += Decimal(str(sa))
+        row["identity_number"] = ln.get("identity_number") or row["identity_number"]
+        row["phone_number"] = ln.get("phone_number") or row["phone_number"]
+        row["address"] = ln.get("address") or row["address"]
+        row["unit_price_before_tax"] += _D(ln.get("unit_price_before_tax"))
+        row["expiry_date"] = ln.get("expiry_date") or row["expiry_date"]
+        row["notes"] = ln.get("notes") or row["notes"]
+        row["role"] = ln.get("role") or row["role"]
+        acc[pid] = row
+    out = []
+    for pid, v in acc.items():
+        out.append({
+            "partner_id": pid,
+            "share_percentage": float(v["share_percentage"]),
+            "share_amount": float(v["share_amount"]),
+            "identity_number": v["identity_number"],
+            "phone_number": v["phone_number"],
+            "address": v["address"],
+            "unit_price_before_tax": float(_q2(v["unit_price_before_tax"])),
+            "expiry_date": v["expiry_date"],
+            "notes": v["notes"],
+            "role": v["role"],
+        })
+    return out
 
 def _compute_shipment_totals(sh: Shipment):
     items_total = sum((_q2(it.quantity) * _q2(it.unit_cost)) for it in sh.items)
@@ -588,57 +684,46 @@ def delete_supplier(id):
 @bp.get("/search_partners", endpoint="search_partners")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("manage_vendors", "add_partner", "view_inventory", "manage_inventory", "view_warehouses")
+@permission_required("manage_vendors")
 def search_partners():
-    if not current_user.is_authenticated:
-        return jsonify({"error": "Unauthorized"}), 401
     q = (request.args.get("q") or "").strip()
-    limit = min(int(request.args.get("limit", 20) or 20), 50)
+    limit = _limit_from_request(20, 50)
+
     pid = (request.args.get("id") or "").strip()
     if pid.isdigit():
         p = db.session.get(Partner, int(pid))
         if not p:
             return jsonify({"results": []})
-        return jsonify(
-            {
-                "results": [
-                    {
-                        "id": p.id,
-                        "text": p.name,
-                        "name": p.name,
-                        "phone": p.phone_number,
-                        "identity_number": p.identity_number,
-                    }
-                ]
-            }
-        )
+        return jsonify({
+            "results": [{
+                "id": p.id,
+                "text": p.name,
+                "name": p.name,
+                "phone": p.phone_number,
+                "identity_number": p.identity_number,
+            }]
+        })
+
     qry = Partner.query
     if q:
         like = f"%{q}%"
-        qry = qry.filter(
-            or_(
-                func.lower(Partner.name).like(f"%{q.lower()}%"),
-                Partner.phone_number.ilike(like),
-                Partner.identity_number.ilike(like),
-                Partner.email.ilike(like),
-            )
-        )
-    rows = qry.order_by(Partner.name.asc()).limit(limit).all()
-    return jsonify(
-        {
-            "results": [
-                {
-                    "id": p.id,
-                    "text": p.name,
-                    "name": p.name,
-                    "phone": p.phone_number,
-                    "identity_number": p.identity_number,
-                }
-                for p in rows
-            ]
-        }
-    )
+        qry = qry.filter(or_(
+            Partner.name.ilike(like),
+            Partner.phone_number.ilike(like),
+            Partner.identity_number.ilike(like),
+            Partner.email.ilike(like),
+        ))
 
+    rows = qry.order_by(Partner.name.asc()).limit(limit).all()
+    return jsonify({
+        "results": [{
+            "id": p.id,
+            "text": p.name,
+            "name": p.name,
+            "phone": p.phone_number,
+            "identity_number": p.identity_number,
+        } for p in rows]
+    })
 
 @bp.post("/partners", endpoint="create_partner")
 @login_required
@@ -822,12 +907,32 @@ def api_search_warehouses():
 
 
 def _warehouses_handler():
+    # دعم جلب مستودع معيّن بالـ id (لازم لتهيئة Select2 مع قيمة موجودة)
+    wid = (request.args.get("id") or "").strip()
+    if wid.isdigit():
+        w = db.session.get(Warehouse, int(wid))
+        if not w:
+            return jsonify({"results": []})
+        wt = getattr(w.warehouse_type, "value", w.warehouse_type)
+        wt = str(wt or "")
+        return jsonify({
+            "results": [{
+                "id": w.id,
+                "text": w.name,
+                "name": w.name,
+                "type": wt,
+                "warehouse_type": wt,
+                "supplier_id": w.supplier_id,
+                "is_active": bool(w.is_active),
+            }]
+        })
+
     q = (request.args.get("q") or "").strip()
     supplier_id = request.args.get("supplier_id", type=int)
     type_param = (request.args.get("type") or "").strip().upper()
-    active_only_arg = request.args.get("active_only")
-    if active_only_arg is None:
-        active_only_arg = "1"
+    active_only_arg = (request.args.get("active_only") or "1").strip()
+    limit = _limit_from_request(20, 50)
+
     qry = Warehouse.query
     if active_only_arg in {"1", "true", "True"}:
         qry = qry.filter(Warehouse.is_active.is_(True))
@@ -838,22 +943,19 @@ def _warehouses_handler():
     if q:
         like = f"%{q}%"
         qry = qry.filter(Warehouse.name.ilike(like))
-    rows = qry.order_by(Warehouse.name.asc()).limit(_query_limit(20, 50)).all()
-    return jsonify(
-        {
-            "results": [
-                {
-                    "id": w.id,
-                    "text": w.name,
-                    "supplier_id": w.supplier_id,
-                    "warehouse_type": getattr(w.warehouse_type, "value", w.warehouse_type),
-                    "is_active": bool(w.is_active),
-                }
-                for w in rows
-            ]
-        }
-    )
 
+    rows = qry.order_by(Warehouse.name.asc()).limit(limit).all()
+    return jsonify({
+        "results": [{
+            "id": w.id,
+            "text": w.name,
+            "name": w.name,
+            "type": str(getattr(w.warehouse_type, "value", w.warehouse_type) or ""),
+            "warehouse_type": str(getattr(w.warehouse_type, "value", w.warehouse_type) or ""),
+            "supplier_id": w.supplier_id,
+            "is_active": bool(w.is_active),
+        } for w in rows]
+    })
 
 @bp.put("/warehouses/<int:id>")
 @bp.patch("/warehouses/<int:id>", endpoint="api_update_warehouse")
@@ -957,6 +1059,7 @@ def api_products():
 def api_search_products():
     return api_products()
 
+
 @bp.get("/warehouses/<int:wid>/products", endpoint="products_by_warehouse")
 @login_required
 @limiter.limit("60/minute")
@@ -965,6 +1068,7 @@ def api_products_by_warehouse(wid: int):
     q = (request.args.get("q") or "").strip()
     selected_ids = request.args.getlist("warehouse_ids", type=int) or []
     sum_ids = selected_ids or [wid]
+    limit = _limit_from_request(200, 500)
 
     qry = (
         db.session.query(
@@ -979,16 +1083,14 @@ def api_products_by_warehouse(wid: int):
     )
     if q:
         like = f"%{q}%"
-        qry = qry.filter(
-            or_(
-                Product.name.ilike(like),
-                Product.sku.ilike(like),
-                Product.part_number.ilike(like),
-                Product.brand.ilike(like),
-            )
-        )
+        qry = qry.filter(or_(
+            Product.name.ilike(like),
+            Product.sku.ilike(like),
+            Product.part_number.ilike(like),
+            Product.brand.ilike(like),
+        ))
 
-    rows = qry.order_by(Product.name.asc()).limit(_limit(200, 500)).all()
+    rows = qry.order_by(Product.name.asc()).limit(limit).all()
 
     totals_map = {}
     if sum_ids:
@@ -1506,17 +1608,20 @@ def stock_adjustment_total(id: int):
 @permission_required("manage_warehouses")
 def create_shipment_api():
     data = request.get_json(silent=True) or {}
+    dest_id = None
+    if str(data.get("destination_id", "")).isdigit():
+        dest_id = int(data.get("destination_id"))
     sh = Shipment(
         shipment_number=(data.get("shipment_number") or None),
         shipment_date=data.get("shipment_date"),
         expected_arrival=data.get("expected_arrival"),
         actual_arrival=data.get("actual_arrival"),
         origin=data.get("origin"),
-        destination_id=(int(data["destination_id"]) if str(data.get("destination_id", "")).isdigit() else None),
+        destination_id=dest_id,
         destination=(data.get("destination") or None),
         carrier=data.get("carrier"),
         tracking_number=data.get("tracking_number"),
-        status=data.get("status"),
+        status=_norm_status(data.get("status")),
         shipping_cost=_D(data.get("shipping_cost")),
         customs=_D(data.get("customs")),
         vat=_D(data.get("vat")),
@@ -1527,34 +1632,34 @@ def create_shipment_api():
     )
     db.session.add(sh)
     db.session.flush()
-    for it in (data.get("items") or []):
+    items_payload = _aggregate_items_payload(data.get("items"), default_wid=dest_id)
+    for it in items_payload:
         db.session.add(
             ShipmentItem(
                 shipment_id=sh.id,
-                product_id=int(it["product_id"]),
-                warehouse_id=int(it["warehouse_id"]),
-                quantity=_D(it.get("quantity")),
-                unit_cost=_D(it.get("unit_cost")),
-                declared_value=_D(it.get("declared_value")),
-                notes=(it.get("notes") or None),
+                product_id=it["product_id"],
+                warehouse_id=it["warehouse_id"],
+                quantity=_D(it["quantity"]),
+                unit_cost=_D(it["unit_cost"]),
+                declared_value=_D(it["declared_value"]),
+                notes=it["notes"],
             )
         )
-    for ln in (data.get("partners") or []):
-        if not ln.get("partner_id"):
-            continue
+    partners_payload = _aggregate_partners_payload(data.get("partners"))
+    for ln in partners_payload:
         db.session.add(
             ShipmentPartner(
                 shipment_id=sh.id,
-                partner_id=int(ln["partner_id"]),
-                share_percentage=float(ln.get("share_percentage") or 0),
-                share_amount=float(ln.get("share_amount") or 0),
-                identity_number=ln.get("identity_number"),
-                phone_number=ln.get("phone_number"),
-                address=ln.get("address"),
-                unit_price_before_tax=_D(ln.get("unit_price_before_tax")),
-                expiry_date=ln.get("expiry_date"),
-                notes=ln.get("notes"),
-                role=ln.get("role"),
+                partner_id=ln["partner_id"],
+                share_percentage=ln["share_percentage"],
+                share_amount=ln["share_amount"],
+                identity_number=ln["identity_number"],
+                phone_number=ln["phone_number"],
+                address=ln["address"],
+                unit_price_before_tax=_D(ln["unit_price_before_tax"]),
+                expiry_date=ln["expiry_date"],
+                notes=ln["notes"],
+                role=ln["role"],
             )
         )
     db.session.flush()
@@ -1577,13 +1682,12 @@ def create_shipment_api():
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 400
 
-
 @bp.get("/shipments/<int:id>")
 @login_required
 @limiter.limit("60/minute")
 @permission_required("manage_warehouses", "view_reports")
 def get_shipment_api(id: int):
-    sh = db.session.query(Shipment).filter_by(id=id).first()
+    sh = db.session.query(Shipment).options(joinedload(Shipment.items), joinedload(Shipment.partners)).filter_by(id=id).first()
     if not sh:
         return jsonify({"error": "Not Found"}), 404
     return jsonify(
@@ -1600,10 +1704,10 @@ def get_shipment_api(id: int):
                     "product_id": it.product_id,
                     "warehouse_id": it.warehouse_id,
                     "quantity": float(it.quantity or 0),
-                    "unit_cost": float(it.unit_cost or 0),
-                    "declared_value": float(it.declared_value or 0),
-                    "landed_extra_share": float(it.landed_extra_share or 0),
-                    "landed_unit_cost": float(it.landed_unit_cost or 0),
+                    "unit_cost": float(_q2(it.unit_cost or 0)),
+                    "declared_value": float(_q2(it.declared_value or 0)),
+                    "landed_extra_share": float(_q2(it.landed_extra_share or 0)),
+                    "landed_unit_cost": float(_q2(it.landed_unit_cost or 0)),
                     "notes": it.notes,
                 }
                 for it in sh.items
@@ -1611,12 +1715,12 @@ def get_shipment_api(id: int):
             "partners": [
                 {
                     "partner_id": ln.partner_id,
-                    "share_percentage": float(ln.share_percentage or 0),
-                    "share_amount": float(ln.share_amount or 0),
+                    "share_percentage": float(_q2(ln.share_percentage or 0)),
+                    "share_amount": float(_q2(ln.share_amount or 0)),
                     "identity_number": ln.identity_number,
                     "phone_number": ln.phone_number,
                     "address": ln.address,
-                    "unit_price_before_tax": float(ln.unit_price_before_tax or 0),
+                    "unit_price_before_tax": float(_q2(ln.unit_price_before_tax or 0)),
                     "expiry_date": (ln.expiry_date.isoformat() if getattr(ln, "expiry_date", None) else None),
                     "notes": ln.notes,
                     "role": getattr(ln, "role", None),
@@ -1625,7 +1729,6 @@ def get_shipment_api(id: int):
             ],
         }
     )
-
 
 @bp.patch("/shipments/<int:id>")
 @bp.put("/shipments/<int:id>", endpoint="update_shipment_api")
@@ -1640,9 +1743,11 @@ def update_shipment_api(id: int):
     old_status = (sh.status or "").upper()
     old_items = _items_snapshot(sh)
     data = request.get_json(silent=True) or {}
-    for k in ["shipment_number", "origin", "carrier", "tracking_number", "status", "notes", "destination"]:
+    for k in ["shipment_number", "origin", "carrier", "tracking_number", "notes", "destination"]:
         if k in data:
             setattr(sh, k, (data.get(k) or None))
+    if "status" in data:
+        sh.status = _norm_status(data.get("status"))
     for k in ["shipment_date", "expected_arrival", "actual_arrival", "currency"]:
         if k in data:
             setattr(sh, k, data.get(k))
@@ -1656,35 +1761,35 @@ def update_shipment_api(id: int):
     if "items" in data:
         sh.items.clear()
         db.session.flush()
-        for it in (data.get("items") or []):
+        items_payload = _aggregate_items_payload(data.get("items"), default_wid=sh.destination_id)
+        for it in items_payload:
             sh.items.append(
                 ShipmentItem(
-                    product_id=int(it["product_id"]),
-                    warehouse_id=int(it["warehouse_id"]),
-                    quantity=_D(it.get("quantity")),
-                    unit_cost=_D(it.get("unit_cost")),
-                    declared_value=_D(it.get("declared_value")),
-                    notes=(it.get("notes") or None),
+                    product_id=it["product_id"],
+                    warehouse_id=it["warehouse_id"],
+                    quantity=_D(it["quantity"]),
+                    unit_cost=_D(it["unit_cost"]),
+                    declared_value=_D(it["declared_value"]),
+                    notes=it["notes"],
                 )
             )
     if "partners" in data:
         sh.partners.clear()
         db.session.flush()
-        for ln in (data.get("partners") or []):
-            if not ln.get("partner_id"):
-                continue
+        partners_payload = _aggregate_partners_payload(data.get("partners"))
+        for ln in partners_payload:
             sh.partners.append(
                 ShipmentPartner(
-                    partner_id=int(ln["partner_id"]),
-                    share_percentage=float(ln.get("share_percentage") or 0),
-                    share_amount=float(ln.get("share_amount") or 0),
-                    identity_number=ln.get("identity_number"),
-                    phone_number=ln.get("phone_number"),
-                    address=ln.get("address"),
-                    unit_price_before_tax=_D(ln.get("unit_price_before_tax")),
-                    expiry_date=ln.get("expiry_date"),
-                    notes=ln.get("notes"),
-                    role=ln.get("role"),
+                    partner_id=ln["partner_id"],
+                    share_percentage=ln["share_percentage"],
+                    share_amount=ln["share_amount"],
+                    identity_number=ln["identity_number"],
+                    phone_number=ln["phone_number"],
+                    address=ln["address"],
+                    unit_price_before_tax=_D(ln["unit_price_before_tax"]),
+                    expiry_date=ln["expiry_date"],
+                    notes=ln["notes"],
+                    role=ln["role"],
                 )
             )
     db.session.flush()
@@ -1713,7 +1818,6 @@ def update_shipment_api(id: int):
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 400
-
 
 @bp.post("/shipments/<int:id>/mark-arrived")
 @login_required
@@ -1916,7 +2020,7 @@ def payments():
                 "id": p.id,
                 "text": _number_of(p, "payment_number", "PMT"),
                 "number": _number_of(p, "payment_number", "PMT"),
-                "amount": float(p.total_amount or 0),
+                "amount": _money(p.total_amount),          
                 "status": getattr(p.status, "value", p.status),
                 "method": getattr(p.method, "value", p.method),
             }
@@ -2129,7 +2233,6 @@ def delete_sale_api(id: int):
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 400
 
-
 @bp.get("/sales/<int:id>/payments")
 @login_required
 @limiter.limit("60/minute")
@@ -2141,23 +2244,23 @@ def sale_payments_api(id: int):
         .order_by(Payment.payment_date.desc(), Payment.id.desc())
         .all()
     )
-    return jsonify(
-        {
-            "sale_id": id,
-            "payments": [
-                {
-                    "id": p.id,
-                    "payment_date": (p.payment_date.isoformat() if getattr(p, "payment_date", None) else None),
-                    "total_amount": float(p.total_amount or 0),
-                    "currency": getattr(p, "currency", None),
-                    "status": getattr(p, "status", None),
-                    "method": getattr(p, "method", None),
-                }
-                for p in rows
-            ],
-        }
-    )
-
+    return jsonify({
+        "sale_id": id,
+        "payments": [
+            {
+                "id": p.id,
+                "payment_number": getattr(p, "payment_number", None),
+                "receipt_number": getattr(p, "receipt_number", None),
+                "payment_date": (p.payment_date.isoformat() if getattr(p, "payment_date", None) else None),
+                "total_amount": _money(getattr(p, "total_amount", 0)),
+                "currency": getattr(p, "currency", None),
+                "status": getattr(getattr(p, "status", None), "value", getattr(p, "status", None)),
+                "method": getattr(getattr(p, "method", None), "value", getattr(p, "method", None)),
+                "direction": getattr(getattr(p, "direction", None), "value", getattr(p, "direction", None)),
+            }
+            for p in rows
+        ],
+    })
 
 @bp.post("/sales/quick")
 @login_required

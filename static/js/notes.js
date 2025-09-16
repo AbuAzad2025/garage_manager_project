@@ -35,12 +35,12 @@
   }
 
   function cardHTML(note) {
-    const badgeClass = {
+    const badgeClassMap = {
       URGENT: 'badge-danger',
       HIGH: 'badge-warning',
       MEDIUM: 'badge-info'
-    }[note.priority] || 'badge-secondary';
-
+    };
+    const badgeClass = badgeClassMap[note.priority] || 'badge-secondary';
     return `
       <div class="col-md-6 col-lg-4 mb-3" id="note-card-${note.id}">
         <div class="card note-card h-100 ${note.is_pinned ? 'border-warning' : ''}">
@@ -111,7 +111,15 @@
         const result = await res.json().catch(() => ({ success: false }));
         if (result.success) {
           showAlert(result.is_pinned ? 'تم تثبيت الملاحظة.' : 'تم إلغاء التثبيت.', 'success');
-          location.reload(); // Refresh for updated order
+          const updatedNote = result.note;
+          if (updatedNote) {
+            const existing = document.getElementById(`note-card-${id}`);
+            if (existing) {
+              existing.outerHTML = cardHTML(updatedNote);
+              const newOne = document.getElementById(`note-card-${id}`);
+              wireCardActions(newOne);
+            }
+          }
         } else {
           showAlert(result.error || 'فشل العملية', 'danger');
         }
@@ -120,8 +128,7 @@
   }
 
   function getCSRF() {
-    const el = document.querySelector('meta[name="csrf-token"]') ||
-               document.querySelector('input[name="csrf_token"]');
+    const el = document.querySelector('meta[name="csrf-token"]') || document.querySelector('input[name="csrf_token"]');
     return el ? (el.content || el.value) : '';
   }
 
@@ -144,14 +151,11 @@
     const form = modalBody.querySelector(selector);
     if (!form) return;
 
-    form.addEventListener('submit', async (e) => {
+    form.addEventListener('submit', async e => {
       e.preventDefault();
       clearErrors(form);
 
-      const action = form.getAttribute('action') || (mode === 'edit'
-        ? NOTES_ENDPOINTS.update(id)
-        : NOTES_ENDPOINTS.createForm);
-
+      const action = form.getAttribute('action') || (mode === 'edit' ? NOTES_ENDPOINTS.update(id) : NOTES_ENDPOINTS.createForm);
       const res = await fetch(action, {
         method: 'POST',
         body: new FormData(form),
@@ -166,7 +170,6 @@
       if (result.success) {
         $('#noteModal').modal('hide');
         showAlert(mode === 'edit' ? 'تم تحديث الملاحظة.' : 'تم إضافة الملاحظة.', 'success');
-
         const note = result.note;
         const existingCard = document.getElementById(`note-card-${note.id}`);
         if (existingCard) {
@@ -178,15 +181,13 @@
           const newCard = document.getElementById(`note-card-${note.id}`);
           wireCardActions(newCard);
         }
+      } else if (result.errors) {
+        Object.entries(result.errors).forEach(([field, msg]) => {
+          addFieldError(form, field, Array.isArray(msg) ? msg[0] : msg);
+        });
+        showAlert('تحقق من الحقول.', 'danger');
       } else {
-        if (result.errors) {
-          Object.entries(result.errors).forEach(([field, msg]) => {
-            addFieldError(form, field, Array.isArray(msg) ? msg[0] : msg);
-          });
-          showAlert('تحقق من الحقول.', 'danger');
-        } else {
-          showAlert(result.error || 'حدث خطأ غير متوقع!', 'danger');
-        }
+        showAlert(result.error || 'حدث خطأ غير متوقع!', 'danger');
       }
     });
   }

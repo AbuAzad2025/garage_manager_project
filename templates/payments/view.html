@@ -30,6 +30,7 @@
           <p><strong>الطريقة (رئيسية):</strong> {{ (payment.method.value if payment.method and payment.method.value else payment.method) or '—' }}</p>
           <p><strong>الحالة:</strong>
             {% set st = payment.status.value if payment.status and payment.status.value else payment.status %}
+            {% set is_completed = (st == 'COMPLETED') %}
             <span class="badge
               {% if st == 'COMPLETED' %}bg-success
               {% elif st == 'PENDING' %}bg-warning text-dark
@@ -89,7 +90,7 @@
               {% endif %}
             </td>
             <td>
-              <button type="button" class="btn btn-sm btn-danger remove-split" data-split-id="{{ s.id }}">🗑️ حذف</button>
+              <button type="button" class="btn btn-sm btn-danger remove-split" data-split-id="{{ s.id }}" {% if is_completed %}disabled{% endif %}>🗑️ حذف</button>
             </td>
           </tr>
           {% endfor %}
@@ -103,7 +104,7 @@
         </div>
         <form method="POST" action="{{ url_for('payments.delete_payment', payment_id=payment.id) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="btn btn-danger" onclick="return confirm('هل أنت متأكد؟')">🗑️ حذف</button>
+          <button type="submit" class="btn btn-danger" onclick="return confirm('هل أنت متأكد؟')" {% if is_completed %}disabled{% endif %}>🗑️ حذف</button>
         </form>
       </div>
     </div>
@@ -140,6 +141,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   document.querySelectorAll('.remove-split').forEach(function(btn){
     btn.addEventListener('click', function(){
+      if (btn.hasAttribute('disabled')) return;
       if (!confirm('هل أنت متأكد من حذف هذه الدفعة الجزئية؟')) return;
       fetch('/payments/split/' + btn.dataset.splitId + '/delete', { method: 'DELETE', headers: { 'Accept': 'application/json' } })
         .then(function(r){ return r.json(); })

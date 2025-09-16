@@ -1,4 +1,4 @@
-{% set etype = (form.entity_type.data or '')|lower %}
+{% set etype = (form.entity_type.data or request.args.get('type') or request.args.get('entity_type') or '') | lower %}
 
 {% if etype == 'customer' %}
   <div class="mb-3">
@@ -65,6 +65,7 @@
     {% else %}
       <label class="form-label">دفعة لطلب بيع</label>
     {% endif %}
+    {% for e in form.sale_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
     {% if form.sale_id  is defined %}{{ form.sale_id(id="sale_id") }}{% endif %}
     {% if form.entity_id is defined %}{{ form.entity_id(id="entity_id") }}{% endif %}
   </div>

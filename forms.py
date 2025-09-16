@@ -159,8 +159,6 @@ def to_dec(v):
         return None
 
 class PaymentDetailsMixin:
-    """منطق موحد للتحقق وبناء تفاصيل الدفع."""
-
     def _validate_card_payload(self, number, holder, expiry):
         num_raw = re.sub(r"\D+", "", number or "")
         if not (num_raw and num_raw.isdigit() and luhn_check(num_raw)):
@@ -214,7 +212,6 @@ class PaymentDetailsMixin:
             })
         elif m == 'ONLINE':
             details.update({'gateway': kw.get('online_gateway'), 'ref': kw.get('online_ref')})
-
         if kw.get('extra'):
             details['extra'] = kw['extra']
         return json.dumps({k: v for k, v in details.items() if v}, ensure_ascii=False)
@@ -461,7 +458,49 @@ class UnifiedDateTimeField(DateTimeField):
                 pass
         self.data = None
         raise ValidationError(self.gettext("صيغة التاريخ/الوقت غير صحيحة"))
+class UnifiedDateField(DateField):
+    def __init__(self, label=None, validators=None, format="%Y-%m-%d", formats=None, output_format=None, **kwargs):
+        if formats is not None:
+            fmt_list = list(formats) if isinstance(formats, (list, tuple)) else [formats]
+        elif isinstance(format, (list, tuple)):
+            fmt_list = list(format)
+            format = fmt_list[0] if fmt_list else "%Y-%m-%d"
+        else:
+            fmt_list = [format or "%Y-%m-%d"]
+        super().__init__(label, validators, format=format, **kwargs)
+        self.formats = fmt_list
+        self.output_format = output_format or format
 
+    def _value(self):
+        if self.raw_data:
+            return " ".join([v for v in self.raw_data if v])
+        if self.data:
+            try:
+                return self.data.strftime(self.output_format)
+            except Exception:
+                return self.data.strftime(self.format)
+        return ""
+
+    def process_formdata(self, valuelist):
+        if not valuelist:
+            self.data = None
+            return
+        s = " ".join(v for v in valuelist if v).replace("T", " ").strip()
+        for fmt in self.formats:
+            try:
+                self.data = datetime.strptime(s, fmt).date()
+                return
+            except Exception:
+                pass
+        if s.startswith("ts:"):
+            try:
+                self.data = datetime.fromtimestamp(float(s[3:])).date()
+                return
+            except Exception:
+                pass
+        self.data = None
+        raise ValidationError(self.gettext("صيغة التاريخ غير صحيحة"))
+    
 class ProductImportForm(FlaskForm):
     csv_file = FileField("CSV", validators=[DataRequired(), FileAllowed(["csv"], "CSV فقط")])
     submit = SubmitField("استيراد المنتجات")
@@ -1009,16 +1048,9 @@ class LoanSettlementPaymentForm(FlaskForm):
 
 
 class SplitEntryForm(PaymentDetailsMixin, FlaskForm):
-    class Meta:
-        csrf = False
-
-    method = SelectField(
-        choices=[('', '— اختر الطريقة —')] + [(m.value, m.value) for m in PaymentMethod],
-        validators=[Optional()],
-        default='',
-        coerce=str,
-    )
-    amount = MoneyField(validators=[Optional(), NumberRange(min=0)], default=Decimal('0.00'))
+    class Meta: csrf = False
+    method = SelectField(choices=[('', '— اختر الطريقة —')]+[(m.value, m.value) for m in PaymentMethod], validators=[Optional()], default='', coerce=str)
+    amount = MoneyField(validators=[Optional()], default=Decimal('0.00'))
     check_number = StringField(validators=[Optional(), Length(max=100)])
     check_bank = StringField(validators=[Optional(), Length(max=100)])
     check_due_date = DateField(format='%Y-%m-%d', validators=[Optional()])
@@ -1026,14 +1058,13 @@ class SplitEntryForm(PaymentDetailsMixin, FlaskForm):
     card_holder = StringField(validators=[Optional(), Length(max=100)])
     card_expiry = StringField(validators=[Optional(), Length(max=10)])
     bank_transfer_ref = StringField(validators=[Optional(), Length(max=100)])
+    online_gateway = StringField(validators=[Optional(), Length(max=100)])
+    online_ref = StringField(validators=[Optional(), Length(max=100)])
 
     def validate(self, **kwargs):
         base_ok = super().validate(**kwargs)
         m = (self.method.data or '').strip().upper()
-        try:
-            amt_val = Decimal(str(self.amount.data or '0'))
-        except Exception:
-            amt_val = Decimal('0')
+        amt_val = self.amount.data if self.amount.data is not None else Decimal('0.00')
         if amt_val <= 0:
             details_filled = any([
                 (self.check_number.data or '').strip(),
@@ -1043,328 +1074,194 @@ class SplitEntryForm(PaymentDetailsMixin, FlaskForm):
                 (self.card_holder.data or '').strip(),
                 (self.card_expiry.data or '').strip(),
                 (self.bank_transfer_ref.data or '').strip(),
+                (self.online_gateway.data or '').strip(),
+                (self.online_ref.data or '').strip(),
             ])
             if m or details_filled:
                 self.amount.errors.append('❌ أدخل مبلغًا أكبر من صفر لهذه الدفعة.')
                 return False
             return base_ok
-
         if not m:
             self.method.errors.append('❌ اختر طريقة الدفع.')
             return False
-
         try:
-            if m in {'CHEQUE', 'CHECK'}:
-                self._validate_cheque(self.check_number.data, self.check_bank.data, self.check_due_date.data)
-            elif m in {'BANK', 'TRANSFER', 'WIRE'}:
-                self._validate_bank(self.bank_transfer_ref.data)
-            elif m == 'CARD':
-                last4 = self._validate_card_payload(self.card_number.data, self.card_holder.data, self.card_expiry.data)
-                self.card_number.data = last4  
+            if m in {'CHEQUE','CHECK'}: self._validate_cheque(self.check_number.data,self.check_bank.data,self.check_due_date.data)
+            elif m in {'BANK','TRANSFER','WIRE'}: self._validate_bank(self.bank_transfer_ref.data)
+            elif m=='CARD':
+                last4=self._validate_card_payload(self.card_number.data,self.card_holder.data,self.card_expiry.data)
+                self.card_number.data=last4
+            elif m=='ONLINE': self._validate_online(self.online_gateway.data,self.online_ref.data)
         except ValidationError as e:
-           self.method.errors.append(str(e))
-           return False
-
+            self.method.errors.append(str(e)); return False
         return base_ok
 
+
 class PaymentForm(PaymentDetailsMixin, FlaskForm):
-    id = HiddenField()
-    payment_number = StringField(
-        validators=[
-            Optional(),
-            Length(max=50),
-            Unique(
-                Payment,
-                "payment_number",
-                message="رقم الدفعة مستخدم بالفعل.",
-                case_insensitive=True,
-                normalizer=lambda v: (v or "").strip().upper(),
-            ),
-        ]
-    )
-    payment_date = UnifiedDateTimeField(
-        "تاريخ الدفع",
-        format="%Y-%m-%d %H:%M",
-        formats=["%Y-%m-%d %H:%M", "%Y-%m-%dT%H:%M"],
-        default=datetime.utcnow,
-        validators=[DataRequired()],
-        render_kw={"type": "datetime-local", "step": "60"},
-    )
-    subtotal = MoneyField(validators=[Optional(), NumberRange(min=0)])
-    tax_rate = DecimalField(places=2, validators=[Optional(), NumberRange(min=0)])
-    tax_amount = MoneyField(validators=[Optional(), NumberRange(min=0)])
-    total_amount = MoneyField(validators=[DataRequired(), NumberRange(min=0.01)])
-    currency = SelectField(
-        validators=[DataRequired()],
-        choices=[("ILS", "شيكل"), ("USD", "دولار"), ("EUR", "يورو"), ("JOD", "دينار")],
-        default="ILS",
-    )
-    method = SelectField(validators=[Optional()], coerce=str, validate_choice=False)
-    status = SelectField(validators=[DataRequired()], coerce=str, validate_choice=False)
-    direction = SelectField(validators=[DataRequired()], coerce=str, validate_choice=False)
-    entity_type = SelectField(validators=[DataRequired()], coerce=str, validate_choice=False)
-    entity_id = HiddenField(validators=[Optional()])
-    customer_search = StringField(validators=[Optional(), Length(max=100)])
-    customer_id = HiddenField()
-    supplier_search = StringField(validators=[Optional(), Length(max=100)])
-    supplier_id = HiddenField()
-    partner_search = StringField(validators=[Optional(), Length(max=100)])
-    partner_id = HiddenField()
-    shipment_search = StringField(validators=[Optional(), Length(max=100)])
-    shipment_id = HiddenField()
-    expense_search = StringField(validators=[Optional(), Length(max=100)])
-    expense_id = HiddenField()
-    loan_settlement_search = StringField(validators=[Optional(), Length(max=100)])
-    loan_settlement_id = HiddenField()
-    sale_search = StringField(validators=[Optional(), Length(max=100)])
-    sale_id = HiddenField()
-    invoice_search = StringField(validators=[Optional(), Length(max=100)])
-    invoice_id = HiddenField()
-    preorder_search = StringField(validators=[Optional(), Length(max=100)])
-    preorder_id = HiddenField()
-    service_search = StringField(validators=[Optional(), Length(max=100)])
-    service_id = HiddenField()
-    receipt_number = StringField(
-        validators=[
-            Optional(),
-            Length(max=50),
-            Unique(
-                Payment,
-                "receipt_number",
-                message="رقم الإيصال مستخدم بالفعل.",
-                case_insensitive=True,
-                normalizer=lambda v: (v or "").strip().upper(),
-            ),
-        ]
-    )
-    reference = StringField(validators=[Optional(), Length(max=100)])
-    check_number = StringField(validators=[Optional(), Length(max=100)])
-    check_bank = StringField(validators=[Optional(), Length(max=100)])
-    check_due_date = DateField(format="%Y-%m-%d", validators=[Optional()])
-    card_number = StringField(validators=[Optional(), Length(max=100)])
-    card_holder = StringField(validators=[Optional(), Length(max=100)])
-    card_expiry = StringField(validators=[Optional(), Length(max=10)])
-    card_cvv = StringField(validators=[Optional(), Length(min=3, max=4)])
-    request_token = HiddenField(validators=[Optional()])
-    bank_transfer_ref = StringField(validators=[Optional(), Length(max=100)])
-    created_by = HiddenField()
-    splits = FieldList(FormField(SplitEntryForm), min_entries=1, max_entries=3)
-    notes = TextAreaField(validators=[Optional(), Length(max=500)])
-    submit = SubmitField("💾 حفظ الدفعة")
-    _entity_field_map = {
-        "CUSTOMER": "customer_id",
-        "SUPPLIER": "supplier_id",
-        "PARTNER": "partner_id",
-        "SHIPMENT": "shipment_id",
-        "EXPENSE": "expense_id",
-        "LOAN": "loan_settlement_id",
-        "SALE": "sale_id",
-        "INVOICE": "invoice_id",
-        "PREORDER": "preorder_id",
-        "SERVICE": "service_id",
-    }
-    _incoming_entities = {"CUSTOMER", "SALE", "INVOICE", "PREORDER", "SERVICE"}
-    _outgoing_entities = {"SUPPLIER", "PARTNER", "SHIPMENT", "EXPENSE", "LOAN"}
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        prepare_payment_form_choices(self)
-        if not self.splits.entries:
-            self.splits.append_entry()
-        et = (self.entity_type.data or "").upper()
-        dirv = (self.direction.data or "").upper()
-        if et and dirv not in {"IN", "OUT"}:
-            if et in self._incoming_entities:
-                self.direction.data = "IN"
-            elif et in self._outgoing_entities:
-                self.direction.data = "OUT"
+    id=HiddenField()
+    payment_number=StringField(validators=[Optional(),Length(max=50),Unique(Payment,"payment_number",message="رقم الدفعة مستخدم بالفعل.",case_insensitive=True,normalizer=lambda v:(v or "").strip().upper())])
+    payment_date=UnifiedDateTimeField("تاريخ الدفع",format="%Y-%m-%d %H:%M",formats=["%Y-%m-%d %H:%M","%Y-%m-%dT%H:%M"],default=datetime.utcnow,validators=[DataRequired()],render_kw={"type":"datetime-local","step":"60"})
+    subtotal=MoneyField(validators=[Optional(),NumberRange(min=0)])
+    tax_rate=DecimalField(places=2,validators=[Optional(),NumberRange(min=0)])
+    tax_amount=MoneyField(validators=[Optional(),NumberRange(min=0)])
+    total_amount=MoneyField(validators=[DataRequired(),NumberRange(min=0.01)])
+    currency=SelectField(validators=[DataRequired()],choices=[("ILS","شيكل"),("USD","دولار"),("EUR","يورو"),("JOD","دينار")],default="ILS")
+    method=SelectField(validators=[Optional()],coerce=str,validate_choice=False)
+    status=SelectField(validators=[DataRequired()],coerce=str,validate_choice=False)
+    direction=SelectField(validators=[DataRequired()],coerce=str,validate_choice=False)
+    entity_type=SelectField(validators=[DataRequired()],coerce=str,validate_choice=False)
+    entity_id=HiddenField(validators=[Optional()])
+    customer_search=StringField(validators=[Optional(),Length(max=100)]); customer_id=HiddenField()
+    supplier_search=StringField(validators=[Optional(),Length(max=100)]); supplier_id=HiddenField()
+    partner_search=StringField(validators=[Optional(),Length(max=100)]); partner_id=HiddenField()
+    shipment_search=StringField(validators=[Optional(),Length(max=100)]); shipment_id=HiddenField()
+    expense_search=StringField(validators=[Optional(),Length(max=100)]); expense_id=HiddenField()
+    loan_settlement_search=StringField(validators=[Optional(),Length(max=100)]); loan_settlement_id=HiddenField()
+    sale_search=StringField(validators=[Optional(),Length(max=100)]); sale_id=HiddenField()
+    invoice_search=StringField(validators=[Optional(),Length(max=100)]); invoice_id=HiddenField()
+    preorder_search=StringField(validators=[Optional(),Length(max=100)]); preorder_id=HiddenField()
+    service_search=StringField(validators=[Optional(),Length(max=100)]); service_id=HiddenField()
+    receipt_number=StringField(validators=[Optional(),Length(max=50),Unique(Payment,"receipt_number",message="رقم الإيصال مستخدم بالفعل.",case_insensitive=True,normalizer=lambda v:(v or "").strip().upper())])
+    reference=StringField(validators=[Optional(),Length(max=100)])
+    check_number=StringField(validators=[Optional(),Length(max=100)])
+    check_bank=StringField(validators=[Optional(),Length(max=100)])
+    check_due_date=DateField(format="%Y-%m-%d",validators=[Optional()])
+    card_number=StringField(validators=[Optional(),Length(max=100)])
+    card_holder=StringField(validators=[Optional(),Length(max=100)])
+    card_expiry=StringField(validators=[Optional(),Length(max=10)])
+    card_cvv=StringField(validators=[Optional(),Length(min=3,max=4)])
+    request_token=HiddenField(validators=[Optional()])
+    bank_transfer_ref=StringField(validators=[Optional(),Length(max=100)])
+    online_gateway=StringField(validators=[Optional(),Length(max=100)])
+    online_ref=StringField(validators=[Optional(),Length(max=100)])
+    created_by=HiddenField()
+    splits=FieldList(FormField(SplitEntryForm),min_entries=1,max_entries=3)
+    notes=TextAreaField(validators=[Optional(),Length(max=500)])
+    submit=SubmitField("💾 حفظ الدفعة")
+    _entity_field_map={"CUSTOMER":"customer_id","SUPPLIER":"supplier_id","PARTNER":"partner_id","SHIPMENT":"shipment_id","EXPENSE":"expense_id","LOAN":"loan_settlement_id","SALE":"sale_id","INVOICE":"invoice_id","PREORDER":"preorder_id","SERVICE":"service_id"}
+    _incoming_entities={"CUSTOMER","SALE","INVOICE","PREORDER","SERVICE"}
+    _outgoing_entities={"SUPPLIER","PARTNER","SHIPMENT","EXPENSE","LOAN"}
+    def __init__(self,*args,**kwargs):
+        super().__init__(*args,**kwargs); prepare_payment_form_choices(self)
+        if not self.splits.entries: self.splits.append_entry()
+        et=(self.entity_type.data or "").upper(); dirv=(self.direction.data or "").upper()
+        if et and dirv not in {"IN","OUT"}:
+            if et in self._incoming_entities: self.direction.data="IN"
+            elif et in self._outgoing_entities: self.direction.data="OUT"
         self._sync_entity_id_for_render()
-
-    def _nz(self, v):
-        if v is None:
-            return ""
-        if isinstance(v, str):
-            return v.strip()
+    def _nz(self,v):
+        if v is None: return ""
+        if isinstance(v,str): return v.strip()
         return str(v)
-
     def _get_entity_ids(self):
-        return {
-            "customer_id": self.customer_id.data,
-            "supplier_id": self.supplier_id.data,
-            "partner_id": self.partner_id.data,
-            "shipment_id": self.shipment_id.data,
-            "expense_id": self.expense_id.data,
-            "loan_settlement_id": self.loan_settlement_id.data,
-            "sale_id": self.sale_id.data,
-            "invoice_id": self.invoice_id.data,
-            "preorder_id": self.preorder_id.data,
-            "service_id": self.service_id.data,
-        }
-
+        return {"customer_id":self.customer_id.data,"supplier_id":self.supplier_id.data,"partner_id":self.partner_id.data,"shipment_id":self.shipment_id.data,"expense_id":self.expense_id.data,"loan_settlement_id":self.loan_settlement_id.data,"sale_id":self.sale_id.data,"invoice_id":self.invoice_id.data,"preorder_id":self.preorder_id.data,"service_id":self.service_id.data}
     @staticmethod
     def _norm_dir(val):
-        if val is None:
-            return None
-        v = val.value if hasattr(val, "value") else val
-        v = str(v).strip().upper()
-        if v in ("IN", "INCOMING", "INCOME", "RECEIVE"):
-            return "IN"
-        if v in ("OUT", "OUTGOING", "PAY", "PAYMENT", "EXPENSE"):
-            return "OUT"
+        if val is None: return None
+        v=val.value if hasattr(val,"value") else val; v=str(v).strip().upper()
+        if v in ("IN","INCOMING","INCOME","RECEIVE"): return "IN"
+        if v in ("OUT","OUTGOING","PAY","PAYMENT","EXPENSE"): return "OUT"
         return v
-
     @classmethod
-    def _dir_to_db(cls, v):
-        vv = cls._norm_dir(v)
-        if vv == "IN":
-            return "INCOMING"
-        if vv == "OUT":
-            return "OUTGOING"
+    def _dir_to_db(cls,v):
+        vv=cls._norm_dir(v)
+        if vv=="IN": return "INCOMING"
+        if vv=="OUT": return "OUTGOING"
         return vv
-
     def _sync_entity_id_for_render(self):
-        et = (self.entity_type.data or "").upper()
-        field_name = self._entity_field_map.get(et)
+        et=(self.entity_type.data or "").upper(); field_name=self._entity_field_map.get(et)
         if field_name:
-            raw = getattr(self, field_name).data
-            self.entity_id.data = "" if raw is None else (raw if isinstance(raw, str) else str(raw))
-        else:
-            self.entity_id.data = ""
-
+            raw=getattr(self,field_name).data
+            self.entity_id.data="" if raw is None else (raw if isinstance(raw,str) else str(raw))
+        else: self.entity_id.data=""
     def _push_entity_id_to_specific(self):
-        et = (self.entity_type.data or "").upper()
-        field_name = self._entity_field_map.get(et)
-        if not field_name:
-            return
-        rid = self._nz(self.entity_id.data)
+        et=(self.entity_type.data or "").upper(); field_name=self._entity_field_map.get(et)
+        if not field_name: return
+        rid=self._nz(self.entity_id.data)
         if rid:
-            for k in self._get_entity_ids().keys():
-                setattr(getattr(self, k), "data", rid if k == field_name else "")
-
+            for k in self._get_entity_ids().keys(): setattr(getattr(self,k),"data",rid if k==field_name else "")
     @staticmethod
-    def to_int_any(s):
-        return to_int(s)
-
-    def validate(self, extra_validators=None):
-        if not (self.method.data or "").strip() and getattr(self, "splits", None):
+    def to_int_any(s): return to_int(s)
+    def validate(self,extra_validators=None):
+        if not (self.method.data or "").strip() and getattr(self,"splits",None):
             for entry in self.splits:
-                fm = entry.form
-                try:
-                    amt = float(fm.amount.data or 0)
-                except Exception:
-                    amt = 0.0
-                mv = (getattr(fm, "method").data or "").strip()
-                if amt > 0 and mv:
-                    self.method.data = mv
-                    break
+                fm=entry.form; amt=fm.amount.data if fm.amount.data is not None else Decimal("0.00")
+                mv=(getattr(fm,"method").data or "").strip()
+                if amt>0 and mv: self.method.data=mv; break
         self._push_entity_id_to_specific()
-        if not super().validate(extra_validators=extra_validators):
-            return False
-        if any((s.form.amount.data or 0) <= 0 for s in self.splits):
-            self.splits.errors.append("❌ مبالغ الدفعات الجزئية يجب أن تكون أكبر من صفر.")
-            return False
-        try:
-            total_splits = sum(Decimal(str(s.form.amount.data or "0")) for s in self.splits)
-        except Exception:
-            total_splits = Decimal("0.00")
-        if Q2(total_splits) != Q2(self.total_amount.data or "0"):
-            self.total_amount.errors.append("❌ مجموع الدفعات الجزئية يجب أن يساوي المبلغ الكلي")
-            return False
-        used_methods = {
-            (s.form.method.data or "").strip().upper()
-            for s in self.splits
-            if (s.form.amount.data or 0) > 0
-        }
-        used_methods.discard("")
-        if len(used_methods) > 1:
-            self.splits.errors.append("⚠️ تم استخدام أكثر من طريقة دفع، الرجاء المراجعة.")
-            return False
-        if not (self.method.data or "").strip() and used_methods:
-            self.method.data = next(iter(used_methods))
-        etype = (self.entity_type.data or "").upper()
-        field_name = self._entity_field_map.get(etype)
-        entity_ids = self._get_entity_ids()
-        if not field_name:
-            self.entity_type.errors.append("❌ نوع الكيان غير معروف.")
-            return False
-        raw_id = entity_ids.get(field_name)
-        rid_str = "" if raw_id is None else (raw_id.strip() if isinstance(raw_id, str) else str(raw_id))
-        rid_val = self.to_int_any(rid_str) if rid_str else None
-        if not rid_val and etype == "CUSTOMER":
+        if not super().validate(extra_validators=extra_validators): return False
+        pos_amounts=[]; used_methods=set()
+        for s in self.splits:
+            amt=s.form.amount.data if s.form.amount.data is not None else Decimal("0.00")
+            if amt>0:
+                pos_amounts.append(amt)
+                mv=(s.form.method.data or "").strip().upper()
+                if mv: used_methods.add(mv)
+        if not pos_amounts:
+            self.splits.errors.append("❌ يجب إدخال دفعة جزئية واحدة على الأقل بمبلغ أكبر من صفر."); return False
+        sum_splits=sum(pos_amounts,Decimal("0.00"))
+        total_val=self.total_amount.data if self.total_amount.data is not None else Decimal("0.00")
+        if sum_splits!=total_val:
+            self.total_amount.errors.append("❌ مجموع الدفعات الجزئية يجب أن يساوي المبلغ الكلي"); return False
+        if not (self.method.data or "").strip() and used_methods: self.method.data=next(iter(used_methods))
+        etype=(self.entity_type.data or "").upper(); field_name=self._entity_field_map.get(etype); entity_ids=self._get_entity_ids()
+        if not field_name: self.entity_type.errors.append("❌ نوع الكيان غير معروف."); return False
+        raw_id=entity_ids.get(field_name); rid_str="" if raw_id is None else (raw_id.strip() if isinstance(raw_id,str) else str(raw_id)); rid_val=self.to_int_any(rid_str) if rid_str else None
+        if not rid_val and etype=="CUSTOMER":
             try:
                 from models import Customer
-                search_text = (getattr(self, "customer_search").data or "").strip() if hasattr(self, "customer_search") else ""
+                search_text=(getattr(self,"customer_search").data or "").strip() if hasattr(self,"customer_search") else ""
                 if search_text:
-                    m = Customer.query.filter(Customer.name.ilike(f"%{search_text}%")).first()
-                    if m:
-                        rid_val = m.id
-            except Exception:
-                pass
+                    m=Customer.query.filter(Customer.name.ilike(f"%{search_text}%")).first()
+                    if m: rid_val=m.id
+            except Exception: pass
         if not rid_val:
-            if etype == "CUSTOMER":
-                self.customer_search.errors.append("❌ يجب اختيار العميل لهذه الدفعة.")
-            else:
-                getattr(self, field_name).errors.append("❌ يجب اختيار المرجع المناسب للكيان المحدد.")
+            if etype=="CUSTOMER": self.customer_search.errors.append("❌ يجب اختيار العميل لهذه الدفعة.")
+            else: getattr(self,field_name).errors.append("❌ يجب اختيار المرجع المناسب للكيان المحدد.")
             return False
-        filled = [k for k, v in entity_ids.items() if self._nz(v)]
-        if len(filled) > 1:
+        filled=[k for k,v in entity_ids.items() if self._nz(v)]
+        if len(filled)>1:
             for k in filled:
-                if k != field_name:
-                    getattr(self, k).errors.append("❌ لا يمكن تحديد أكثر من مرجع.")
+                if k!=field_name: getattr(self,k).errors.append("❌ لا يمكن تحديد أكثر من مرجع.")
             return False
-        self.entity_id.data = str(rid_val)
-        for k in entity_ids.keys():
-            setattr(getattr(self, k), "data", str(rid_val) if k == field_name else "")
-        v = (self.direction.data or "").upper()
-        if etype in self._incoming_entities and v not in {"IN", "INCOMING"}:
-            self.direction.errors.append("❌ هذا الكيان يجب أن تكون حركته وارد (IN).")
-            return False
-        if etype in self._outgoing_entities and v not in {"OUT", "OUTGOING"}:
-            self.direction.errors.append("❌ هذا الكيان يجب أن تكون حركته صادر (OUT).")
-            return False
-        v = (self.direction.data or "").upper()
-        if v not in {"IN", "INCOMING", "OUT", "OUTGOING"}:
-            self.direction.errors.append("❌ اتجاه غير صالح.")
-            return False
-        self.direction.data = "IN" if v in {"IN", "INCOMING"} else "OUT"
-        m = (self.method.data or "").strip().upper()
-        if m in {"CHEQUE", "CHECK"}:
-            try:
-                self._validate_cheque(self.check_number.data, self.check_bank.data, self.check_due_date.data, op_date=self.payment_date.data)
+        self.entity_id.data=str(rid_val)
+        for k in entity_ids.keys(): setattr(getattr(self,k),"data",str(rid_val) if k==field_name else "")
+        v=(self.direction.data or "").upper()
+        if etype in self._incoming_entities and v not in {"IN","INCOMING"}: self.direction.errors.append("❌ هذا الكيان يجب أن تكون حركته وارد (IN)."); return False
+        if etype in self._outgoing_entities and v not in {"OUT","OUTGOING"}: self.direction.errors.append("❌ هذا الكيان يجب أن تكون حركته صادر (OUT)."); return False
+        v=(self.direction.data or "").upper()
+        if v not in {"IN","INCOMING","OUT","OUTGOING"}: self.direction.errors.append("❌ اتجاه غير صالح."); return False
+        self.direction.data="IN" if v in {"IN","INCOMING"} else "OUT"
+        m=(self.method.data or "").strip().upper()
+        if m in {"CHEQUE","CHECK"}:
+            try: self._validate_cheque(self.check_number.data,self.check_bank.data,self.check_due_date.data,op_date=self.payment_date.data)
             except ValidationError as e:
-                msg = str(e)
-                if "رقم الشيك" in msg:
-                    self.check_number.errors.append(msg)
-                elif "اسم البنك" in msg:
-                    self.check_bank.errors.append(msg)
-                else:
-                    self.check_due_date.errors.append(msg)
-                return False
-        elif m == "CARD":
+                msg=str(e)
+                if "رقم الشيك" in msg: self.check_number.errors.append(msg)
+                elif "اسم البنك" in msg: self.check_bank.errors.append(msg)
+                else: self.check_due_date.errors.append(msg); return False
+        elif m=="CARD":
             try:
-                last4 = self._validate_card_payload(self.card_number.data, self.card_holder.data, self.card_expiry.data)
-                self.card_number.data = last4
-                self.card_cvv.data = None
+                last4=self._validate_card_payload(self.card_number.data,self.card_holder.data,self.card_expiry.data)
+                self.card_number.data=last4; self.card_cvv.data=None
             except ValidationError as e:
-                msg = str(e)
-                if "رقم البطاقة" in msg:
-                    self.card_number.errors.append(msg)
-                elif "الانتهاء" in msg:
-                    self.card_expiry.errors.append(msg)
-                elif "حامل البطاقة" in msg:
-                    self.card_holder.errors.append(msg)
-                else:
-                    self.method.errors.append(msg)
-                return False
-        elif m in {"BANK", "TRANSFER", "WIRE"}:
-            try:
-                self._validate_bank(self.bank_transfer_ref.data)
+                msg=str(e)
+                if "رقم البطاقة" in msg: self.card_number.errors.append(msg)
+                elif "الانتهاء" in msg: self.card_expiry.errors.append(msg)
+                elif "حامل البطاقة" in msg: self.card_holder.errors.append(msg)
+                else: self.method.errors.append(msg); return False
+        elif m in {"BANK","TRANSFER","WIRE"}:
+            try: self._validate_bank(self.bank_transfer_ref.data)
+            except ValidationError as e: self.bank_transfer_ref.errors.append(str(e)); return False
+        elif m=="ONLINE":
+            try: self._validate_online(self.online_gateway.data,self.online_ref.data)
             except ValidationError as e:
-                self.bank_transfer_ref.errors.append(str(e))
-                return False
+                msg=str(e)
+                if "بوابة" in msg: self.online_gateway.errors.append(msg)
+                elif "مرجع" in msg: self.online_ref.errors.append(msg)
+                else: self.method.errors.append(msg); return False
         return True
 
-
+    
 class PreOrderForm(FlaskForm):
     reference = StrippedStringField('مرجع الحجز', validators=[Optional(), Length(max=50)])
     preorder_date = UnifiedDateTimeField('تاريخ الحجز', format='%Y-%m-%d %H:%M', validators=[Optional()], render_kw={'autocomplete': 'off', 'dir': 'ltr'})
@@ -1578,34 +1475,34 @@ class ShipmentItemForm(FlaskForm):
             return False
         return True
 
-
 class ShipmentPartnerForm(FlaskForm):
-    class Meta:
-        csrf = False
+    partner_id = AjaxSelectField('الشريك',
+        endpoint='api.search_partners', get_label='name',
+        validators=[DataRequired()], coerce=int)
+    identity_number = StrippedStringField('رقم الهوية',
+        validators=[Optional(), Length(max=100)])
+    phone_number = StrippedStringField('هاتف الشريك',
+        validators=[Optional(), Length(max=20)])
+    address = StrippedStringField('العنوان',
+        validators=[Optional(), Length(max=200)])
+    unit_price_before_tax = DecimalField('سعر قبل الضريبة',
+        places=2, validators=[Optional(), NumberRange(min=0)])
+    expiry_date = UnifiedDateField(
+        'تاريخ الانتهاء',
+        format='%Y-%m-%d',
+        formats=['%Y-%m-%d', '%d-%m-%Y', '%d/%m/%Y', '%m/%d/%Y'],
+        validators=[Optional()],
+        render_kw={'type': 'date', 'dir': 'ltr'}
+    )
 
-    shipment_id = HiddenField(validators=[Optional()])
-    partner_id = AjaxSelectField('الشريك', endpoint='api.search_partners', get_label='name', coerce=int, validators=[DataRequired()])
-    role = StrippedStringField('الدور', validators=[Optional(), Length(max=100)])
-    notes = TextAreaField('ملاحظات إضافية', validators=[Optional(), Length(max=500)])
-    identity_number = StrippedStringField('رقم الهوية/السجل', validators=[Optional(), Length(max=100)])
-    phone_number = StrippedStringField('رقم الجوال', validators=[Optional(), Length(max=20)])
-    address = StrippedStringField('العنوان', validators=[Optional(), Length(max=200)])
-    unit_price_before_tax = MoneyField('سعر الوحدة قبل الضريبة', validators=[Optional(), NumberRange(min=0)])
-    expiry_date = DateField('تاريخ الانتهاء', format='%Y-%m-%d', validators=[Optional()])
-    share_percentage = DecimalField('نسبة الشريك (%)', places=2, validators=[Optional(), NumberRange(min=0, max=100)])
-    share_amount = MoneyField('مساهمة الشريك', validators=[Optional(), NumberRange(min=0)])
-
-    def validate(self, extra_validators=None):
-        if not super().validate(extra_validators=extra_validators):
-            return False
-        sp, sa = self.share_percentage.data, self.share_amount.data
-        if sp in (None, '') and sa in (None, ''):
-            self.share_percentage.errors.append('حدد نسبة الشريك أو قيمة مساهمته على الأقل.')
-            self.share_amount.errors.append('حدد نسبة الشريك أو قيمة مساهمته على الأقل.')
-            return False
-        return True
-
-
+    share_percentage = DecimalField('نسبة المشاركة (%)',
+        places=2, validators=[Optional(), NumberRange(min=0, max=100)])
+    share_amount = DecimalField('حصة الشريك',
+        places=2, validators=[Optional(), NumberRange(min=0)])
+    notes = TextAreaField('ملاحظات',
+        validators=[Optional(), Length(max=500)])
+    submit = SubmitField('حفظ')
+    
 class ShipmentForm(FlaskForm):
     shipment_number = StrippedStringField('رقم الشحنة', validators=[Optional(), Length(max=50)])
     shipment_date = UnifiedDateTimeField('تاريخ الشحن', format='%Y-%m-%d %H:%M', formats=['%Y-%m-%d %H:%M', '%Y-%m-%dT%H:%M'], validators=[Optional()], render_kw={'autocomplete': 'off', 'dir': 'ltr', 'step': '60', 'type': 'datetime-local'})

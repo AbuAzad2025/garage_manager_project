@@ -1,8 +1,12 @@
 from datetime import datetime, date, timedelta
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, abort
+from flask import (
+    Blueprint, render_template, request, redirect,
+    url_for, flash, jsonify, abort
+)
 from flask_login import login_required
+from flask_wtf.csrf import generate_csrf
 
 from sqlalchemy import or_, func, desc, asc
 from sqlalchemy.exc import SQLAlchemyError
@@ -10,7 +14,10 @@ from sqlalchemy.orm import joinedload
 
 from extensions import db
 from forms import ShipmentForm
-from models import Shipment, ShipmentItem, ShipmentPartner, Partner, Product, Warehouse
+from models import (
+    Shipment, ShipmentItem, ShipmentPartner,
+    Partner, Product, Warehouse
+)
 from utils import permission_required, format_currency
 
 shipments_bp = Blueprint("shipments_bp", __name__, url_prefix="/shipments")
@@ -159,49 +166,76 @@ def list_shipments():
         joinedload(Shipment.partners).joinedload(ShipmentPartner.partner),
         joinedload(Shipment.destination_warehouse),
     )
-    status = (request.args.get("status") or "").strip()
+
+    status = (request.args.get("status") or "").strip().upper()
     search = (request.args.get("search") or "").strip()
+
     if status:
         q = q.filter(Shipment.status == status)
+
     if search:
         like = f"%{search}%"
-        q = q.filter(
-            or_(
-                Shipment.shipment_number.ilike(like),
-                Shipment.tracking_number.ilike(like),
-                Shipment.origin.ilike(like),
-                Shipment.carrier.ilike(like),
-                Shipment.destination.ilike(like),
-                Shipment.destination_warehouse.has(Warehouse.name.ilike(like)),
-            )
-        )
+        q = q.filter(or_(
+            Shipment.shipment_number.ilike(like),
+            Shipment.tracking_number.ilike(like),
+            Shipment.origin.ilike(like),
+            Shipment.carrier.ilike(like),
+            Shipment.destination.ilike(like),
+            Shipment.destination_warehouse.has(Warehouse.name.ilike(like)),
+        ))
+
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 20, type=int)
     pagination = q.order_by(
         Shipment.expected_arrival.desc().nullslast(),
         Shipment.id.desc(),
     ).paginate(page=page, per_page=per_page, error_out=False)
+
+    def _status_label(st):
+        return {
+            "DRAFT": "مسودة",
+            "IN_TRANSIT": "في الطريق",
+            "ARRIVED": "واصل",
+            "CANCELLED": "ملغاة",
+            "CREATED": "مُنشأة"
+        }.get((st or "").upper(), st)
+
     if _wants_json():
-        return jsonify(
-            {
-                "data": [
-                    {
-                        "id": s.id,
-                        "number": s.shipment_number,
-                        "status": s.status,
-                        "origin": s.origin,
-                        "destination": (s.destination_warehouse.name if s.destination_warehouse else (s.destination or None)),
-                        "expected_arrival": s.expected_arrival.isoformat() if s.expected_arrival else None,
-                        "total_value": float(s.total_value or 0),
-                    }
-                    for s in pagination.items
-                ],
-                "meta": {"page": pagination.page, "pages": pagination.pages, "total": pagination.total},
-            }
-        )
-    return render_template("warehouses/shipments.html", shipments=pagination.items, pagination=pagination, search=search, status=status)
+        return jsonify({
+            "data": [
+                {
+                    "id": s.id,
+                    "number": s.shipment_number,
+                    "status": s.status,
+                    "status_label": _status_label(s.status),
+                    "origin": s.origin,
+                    "destination": (s.destination_warehouse.name if s.destination_warehouse else (s.destination or None)),
+                    "expected_arrival": s.expected_arrival.isoformat() if s.expected_arrival else None,
+                    "total_value": float(s.total_value or 0),
+                    "items_count": len(s.items or []),
+                    "partners_count": len(s.partners or []),
+                }
+                for s in pagination.items
+            ],
+            "meta": {
+                "page": pagination.page,
+                "pages": pagination.pages,
+                "per_page": per_page,
+                "total": pagination.total,
+            },
+        })
+
+    return render_template(
+        "warehouses/shipments.html",
+        shipments=pagination.items,
+        pagination=pagination,
+        search=search,
+        status=status,
+    )
+
 
 shipments_bp.add_url_rule("/", endpoint="shipments", view_func=list_shipments)
+
 
 def _parse_dt(s):
     try:
@@ -213,9 +247,12 @@ def _parse_dt(s):
 @login_required
 @permission_required("manage_warehouses")
 def shipments_data():
+    from flask_wtf.csrf import generate_csrf
+
     draw   = int(request.args.get("draw", 1))
     start  = int(request.args.get("start", 0))
     length = int(request.args.get("length", 10))
+
     f_status = (request.args.get("status") or "").strip().upper()
     f_from   = _parse_dt(request.args.get("from") or request.args.get("search[from]", "") or "")
     f_to     = _parse_dt(request.args.get("to") or request.args.get("search[to]", "") or "")
@@ -223,7 +260,7 @@ def shipments_data():
     f_extra  = (request.args.get("search_extra") or request.args.get("search[value]", "") or "").strip()
 
     base_q = db.session.query(Shipment).options(joinedload(Shipment.destination_warehouse))
-    total_count = base_q.count()
+    total_count = db.session.query(func.count(Shipment.id)).scalar()
     q = base_q
 
     if f_status:
@@ -234,28 +271,48 @@ def shipments_data():
         q = q.filter(Shipment.expected_arrival <= datetime.combine(f_to, datetime.max.time()))
     if f_dest:
         like = f"%{f_dest}%"
-        q = q.filter(or_(Shipment.destination.ilike(like), Shipment.destination_warehouse.has(Warehouse.name.ilike(like))))
+        q = q.filter(or_(
+            Shipment.destination.ilike(like),
+            Shipment.destination_warehouse.has(Warehouse.name.ilike(like))
+        ))
     if f_extra:
         like = f"%{f_extra}%"
-        q = q.filter(
-            or_(
-                Shipment.shipment_number.ilike(like),
-                Shipment.tracking_number.ilike(like),
-                Shipment.origin.ilike(like),
-                Shipment.carrier.ilike(like),
-                Shipment.destination.ilike(like),
-                Shipment.destination_warehouse.has(Warehouse.name.ilike(like)),
-            )
-        )
+        q = q.filter(or_(
+            Shipment.shipment_number.ilike(like),
+            Shipment.tracking_number.ilike(like),
+            Shipment.origin.ilike(like),
+            Shipment.carrier.ilike(like),
+            Shipment.destination.ilike(like),
+            Shipment.destination_warehouse.has(Warehouse.name.ilike(like))
+        ))
 
     order_col_index = int(request.args.get("order[0][column]", 3) or 3)
     order_dir = (request.args.get("order[0][dir]") or "desc").lower()
-    col_map = {1: Shipment.shipment_number, 3: Shipment.expected_arrival, 4: Shipment.status, 5: Shipment.total_value}
+    col_map = {
+        0: Shipment.id,
+        1: Shipment.shipment_number,
+        2: Shipment.destination,
+        3: Shipment.expected_arrival,
+        4: Shipment.status,
+        5: Shipment.value_before
+    }
     order_col = col_map.get(order_col_index, Shipment.expected_arrival)
     q = q.order_by(desc(order_col) if order_dir == "desc" else asc(order_col))
 
-    filtered_count = q.count()
+    filtered_count = q.with_entities(func.count(Shipment.id)).scalar()
     rows = q.offset(start).limit(length).all()
+
+    csrf_token = generate_csrf()
+
+    def _status_label(st):
+        st = (st or "").upper()
+        return {
+            "DRAFT": "مسودة",
+            "IN_TRANSIT": "في الطريق",
+            "ARRIVED": "واصل",
+            "CANCELLED": "ملغاة",
+            "CREATED": "مُنشأة"
+        }.get(st, st)
 
     data = []
     for s in rows:
@@ -264,6 +321,7 @@ def shipments_data():
             <a href="{url_for('shipments_bp.shipment_detail', id=s.id)}" class="btn btn-info" title="تفاصيل"><i class="fa fa-eye"></i></a>
             <a href="{url_for('shipments_bp.edit_shipment', id=s.id)}" class="btn btn-warning" title="تعديل"><i class="fa fa-edit"></i></a>
             <form method="POST" action="{url_for('shipments_bp.delete_shipment', id=s.id)}" style="display:inline;" onsubmit="return confirm('تأكيد الحذف؟');">
+                <input type="hidden" name="csrf_token" value="{csrf_token}">
                 <button type="submit" class="btn btn-danger" title="حذف"><i class="fa fa-trash"></i></button>
             </form>
         </div>
@@ -272,6 +330,7 @@ def shipments_data():
             "id": s.id,
             "number": s.shipment_number,
             "status": s.status,
+            "status_label": _status_label(s.status),
             "origin": s.origin,
             "destination": (s.destination_warehouse.name if s.destination_warehouse else (s.destination or None)),
             "expected_arrival": s.expected_arrival.isoformat() if s.expected_arrival else None,
@@ -279,8 +338,12 @@ def shipments_data():
             "actions": actions_html,
         })
 
-    return jsonify({"draw": draw, "recordsTotal": total_count, "recordsFiltered": filtered_count, "data": data})
-
+    return jsonify({
+        "draw": draw,
+        "recordsTotal": total_count,
+        "recordsFiltered": filtered_count,
+        "data": data
+    })
 
 @shipments_bp.route("/create", methods=["GET", "POST"], endpoint="create_shipment")
 @login_required
@@ -290,19 +353,33 @@ def create_shipment():
     pre_dest_id = request.args.get("destination_id", type=int)
 
     if request.method == "GET":
-        if not getattr(form.items, "entries", []):
-            form.items.append_entry()
-        if not getattr(form.partners, "entries", []):
-            form.partners.append_entry()
         if not form.shipment_date.data:
             form.shipment_date.data = datetime.utcnow()
         if not form.expected_arrival.data:
             form.expected_arrival.data = datetime.utcnow() + timedelta(days=14)
 
+    if request.method == "POST":
+        def _blank_item(f):
+            return not (f.product_id.data and (f.warehouse_id.data or form.destination_id.data) and (f.quantity.data or 0) > 0)
+        def _blank_partner(f):
+            return not f.partner_id.data
+        if hasattr(form, "items"):
+            form.items.entries[:] = [e for e in form.items.entries if not _blank_item(getattr(e, "form", e))]
+        if hasattr(form, "partners"):
+            form.partners.entries[:] = [e for e in form.partners.entries if not _blank_partner(getattr(e, "form", e))]
+
     if pre_dest_id and not form.destination_id.data:
         dest_prefill = db.session.get(Warehouse, pre_dest_id)
         if dest_prefill:
             form.destination_id.data = dest_prefill
+
+    if request.method == "POST" and not form.validate_on_submit():
+        if _wants_json():
+            return jsonify({"ok": False, "errors": form.errors}), 422
+        for field, errors in form.errors.items():
+            for err in errors:
+                flash(f"❌ {form[field].label.text}: {err}", "danger")
+        return render_template("warehouses/shipment_form.html", form=form, shipment=None)
 
     if form.validate_on_submit():
         dest_obj = form.destination_id.data
@@ -328,38 +405,78 @@ def create_shipment():
         db.session.add(sh)
         db.session.flush()
 
+        acc_items = {}
         for entry in getattr(form.items, "entries", []):
             f = getattr(entry, "form", entry)
+            pid = f.product_id.data
             wid = f.warehouse_id.data or (dest_obj.id if dest_obj else None)
-            db.session.add(
-                ShipmentItem(
-                    shipment_id=sh.id,
-                    product_id=f.product_id.data,
-                    warehouse_id=wid,
-                    quantity=f.quantity.data,
-                    unit_cost=f.unit_cost.data or 0,
-                    declared_value=f.declared_value.data or 0,
-                    notes=f.notes.data or None,
-                )
-            )
+            if not pid or not wid:
+                continue
+            qty = f.quantity.data or 0
+            if qty <= 0:
+                continue
+            uc = Decimal(str(f.unit_cost.data or 0))
+            dec = Decimal(str(f.declared_value.data or 0))
+            notes = getattr(f, "notes", None)
+            notes_val = notes.data if notes is not None else None
+            key = (pid, wid)
+            it = acc_items.get(key) or {"qty": 0, "cost_total": Decimal("0"), "declared": Decimal("0"), "notes": None}
+            it["qty"] += qty
+            it["cost_total"] += Decimal(qty) * uc
+            it["declared"] += dec
+            it["notes"] = notes_val if notes_val else it["notes"]
+            acc_items[key] = it
 
+        for (pid, wid), v in acc_items.items():
+            qty = v["qty"]
+            unit_cost = (v["cost_total"] / Decimal(qty)) if qty else Decimal("0")
+            sh.items.append(ShipmentItem(
+                product_id=pid,
+                warehouse_id=wid,
+                quantity=qty,
+                unit_cost=float(unit_cost),
+                declared_value=float(v["declared"]),
+                notes=v["notes"],
+            ))
+
+        acc_partners = {}
         for entry in getattr(form.partners, "entries", []):
             f = getattr(entry, "form", entry)
-            if f.partner_id.data:
-                db.session.add(
-                    ShipmentPartner(
-                        shipment_id=sh.id,
-                        partner_id=f.partner_id.data,
-                        share_percentage=f.share_percentage.data or 0,
-                        share_amount=f.share_amount.data or 0,
-                        identity_number=f.identity_number.data,
-                        phone_number=f.phone_number.data,
-                        address=f.address.data,
-                        unit_price_before_tax=f.unit_price_before_tax.data or 0,
-                        expiry_date=f.expiry_date.data,
-                        notes=f.notes.data,
-                    )
-                )
+            pid = f.partner_id.data
+            if not pid:
+                continue
+            p = acc_partners.get(pid) or {
+                "share_percentage": Decimal("0"),
+                "share_amount": Decimal("0"),
+                "identity_number": None,
+                "phone_number": None,
+                "address": None,
+                "unit_price_before_tax": Decimal("0"),
+                "expiry_date": None,
+                "notes": None,
+            }
+            p["share_percentage"] += Decimal(str(f.share_percentage.data or 0))
+            p["share_amount"] += Decimal(str(f.share_amount.data or 0))
+            p["unit_price_before_tax"] += Decimal(str(f.unit_price_before_tax.data or 0))
+            p["identity_number"] = f.identity_number.data or p["identity_number"]
+            p["phone_number"] = f.phone_number.data or p["phone_number"]
+            p["address"] = f.address.data or p["address"]
+            p["expiry_date"] = f.expiry_date.data or p["expiry_date"]
+            p["notes"] = f.notes.data or p["notes"]
+            acc_partners[pid] = p
+
+        for pid, v in acc_partners.items():
+            sh.partners.append(ShipmentPartner(
+                partner_id=pid,
+                share_percentage=float(v["share_percentage"]),
+                share_amount=float(v["share_amount"]),
+                identity_number=v["identity_number"],
+                phone_number=v["phone_number"],
+                address=v["address"],
+                unit_price_before_tax=float(v["unit_price_before_tax"]),
+                expiry_date=v["expiry_date"],
+                notes=v["notes"],
+            ))
 
         db.session.flush()
 
@@ -382,18 +499,17 @@ def create_shipment():
 
         try:
             db.session.commit()
-            flash("تم إنشاء الشحنة بنجاح", "success")
+            flash("✅ تم إنشاء الشحنة بنجاح", "success")
             dest_id = sh.destination_id or (dest_obj.id if dest_obj else None)
             return redirect(url_for("warehouse_bp.detail", warehouse_id=dest_id)) if dest_id else redirect(url_for("shipments_bp.list_shipments"))
         except SQLAlchemyError as e:
             db.session.rollback()
-            flash(f"خطأ أثناء إنشاء الشحنة: {e}", "danger")
+            flash(f"❌ خطأ أثناء إنشاء الشحنة: {e}", "danger")
         except Exception as e:
             db.session.rollback()
-            flash(f"تعذر إتمام العملية: {e}", "danger")
+            flash(f"❌ تعذر إتمام العملية: {e}", "danger")
 
     return render_template("warehouses/shipment_form.html", form=form, shipment=None)
-
 @shipments_bp.route("/<int:id>/edit", methods=["GET", "POST"], endpoint="edit_shipment")
 @login_required
 @permission_required("manage_warehouses")
@@ -406,41 +522,46 @@ def edit_shipment(id: int):
     if request.method == "GET":
         form.partners.entries.clear()
         for p in sh.partners:
-            form.partners.append_entry(
-                {
-                    "partner_id": p.partner_id,
-                    "share_percentage": p.share_percentage,
-                    "share_amount": p.share_amount,
-                    "identity_number": p.identity_number,
-                    "phone_number": p.phone_number,
-                    "address": p.address,
-                    "unit_price_before_tax": p.unit_price_before_tax,
-                    "expiry_date": p.expiry_date,
-                    "notes": p.notes,
-                }
-            )
-        if not getattr(form.partners, "entries", []):
-            form.partners.append_entry({})
+            form.partners.append_entry({
+                "partner_id": p.partner_id,
+                "share_percentage": p.share_percentage,
+                "share_amount": p.share_amount,
+                "identity_number": p.identity_number,
+                "phone_number": p.phone_number,
+                "address": p.address,
+                "unit_price_before_tax": p.unit_price_before_tax,
+                "expiry_date": p.expiry_date,
+                "notes": p.notes,
+            })
 
         form.items.entries.clear()
         for i in sh.items:
-            form.items.append_entry(
-                {
-                    "product_id": i.product_id,
-                    "warehouse_id": i.warehouse_id,
-                    "quantity": i.quantity,
-                    "unit_cost": i.unit_cost,
-                    "declared_value": i.declared_value,
-                    "notes": i.notes,
-                }
-            )
-        if not getattr(form.items, "entries", []):
-            form.items.append_entry({})
+            form.items.append_entry({
+                "product_id": i.product_id,
+                "warehouse_id": i.warehouse_id,
+                "quantity": i.quantity,
+                "unit_cost": i.unit_cost,
+                "declared_value": i.declared_value,
+                "notes": i.notes,
+            })
+
+    if request.method == "POST":
+        def _blank_item(f):
+            return not (f.product_id.data and f.warehouse_id.data and (f.quantity.data or 0) > 0)
+        def _blank_partner(f):
+            return not f.partner_id.data
+        if hasattr(form, "items"):
+            form.items.entries[:] = [e for e in form.items.entries if not _blank_item(getattr(e, "form", e))]
+        if hasattr(form, "partners"):
+            form.partners.entries[:] = [e for e in form.partners.entries if not _blank_partner(getattr(e, "form", e))]
 
     if request.method == "POST" and not form.validate_on_submit():
         if _wants_json():
             return jsonify({"ok": False, "errors": form.errors}), 422
-        flash("تحقق من الحقول المطلوبة", "danger")
+        for field, errors in form.errors.items():
+            for err in errors:
+                flash(f"❌ {form[field].label.text}: {err}", "danger")
+        return render_template("warehouses/shipment_form.html", form=form, shipment=sh)
 
     if form.validate_on_submit():
         dest_obj = form.destination_id.data
@@ -465,35 +586,78 @@ def edit_shipment(id: int):
         sh.items.clear()
         db.session.flush()
 
+        acc_partners = {}
         for entry in getattr(form.partners, "entries", []):
             f = getattr(entry, "form", entry)
-            if f.partner_id.data:
-                sh.partners.append(
-                    ShipmentPartner(
-                        partner_id=f.partner_id.data,
-                        share_percentage=f.share_percentage.data or 0,
-                        share_amount=f.share_amount.data or 0,
-                        identity_number=f.identity_number.data,
-                        phone_number=f.phone_number.data,
-                        address=f.address.data,
-                        unit_price_before_tax=f.unit_price_before_tax.data or 0,
-                        expiry_date=f.expiry_date.data,
-                        notes=f.notes.data,
-                    )
-                )
+            pid = f.partner_id.data
+            if not pid:
+                continue
+            p = acc_partners.get(pid) or {
+                "share_percentage": Decimal("0"),
+                "share_amount": Decimal("0"),
+                "identity_number": None,
+                "phone_number": None,
+                "address": None,
+                "unit_price_before_tax": Decimal("0"),
+                "expiry_date": None,
+                "notes": None,
+            }
+            sp = f.share_percentage.data or 0
+            sa = f.share_amount.data or 0
+            p["share_percentage"] = Decimal(p["share_percentage"]) + Decimal(str(sp))
+            p["share_amount"] = Decimal(p["share_amount"]) + Decimal(str(sa))
+            p["identity_number"] = f.identity_number.data or p["identity_number"]
+            p["phone_number"] = f.phone_number.data or p["phone_number"]
+            p["address"] = f.address.data or p["address"]
+            p["unit_price_before_tax"] = Decimal(p["unit_price_before_tax"]) + Decimal(str(f.unit_price_before_tax.data or 0))
+            p["expiry_date"] = f.expiry_date.data or p["expiry_date"]
+            p["notes"] = f.notes.data or p["notes"]
+            acc_partners[pid] = p
 
+        for pid, v in acc_partners.items():
+            sh.partners.append(ShipmentPartner(
+                partner_id=pid,
+                share_percentage=float(v["share_percentage"]),
+                share_amount=float(v["share_amount"]),
+                identity_number=v["identity_number"],
+                phone_number=v["phone_number"],
+                address=v["address"],
+                unit_price_before_tax=float(v["unit_price_before_tax"]),
+                expiry_date=v["expiry_date"],
+                notes=v["notes"],
+            ))
+
+        acc_items = {}
         for entry in getattr(form.items, "entries", []):
             f = getattr(entry, "form", entry)
-            sh.items.append(
-                ShipmentItem(
-                    product_id=f.product_id.data,
-                    warehouse_id=f.warehouse_id.data,
-                    quantity=f.quantity.data,
-                    unit_cost=f.unit_cost.data or 0,
-                    declared_value=f.declared_value.data or 0,
-                    notes=(f.notes.data or None),
-                )
-            )
+            pid = f.product_id.data
+            wid = f.warehouse_id.data
+            if not pid or not wid:
+                continue
+            qty = f.quantity.data or 0
+            uc = Decimal(str(f.unit_cost.data or 0))
+            dec = Decimal(str(f.declared_value.data or 0))
+            notes = getattr(f, "notes", None)
+            notes_val = notes.data if notes is not None else None
+            key = (pid, wid)
+            it = acc_items.get(key) or {"qty": 0, "cost_total": Decimal("0"), "declared": Decimal("0"), "notes": None}
+            it["qty"] += qty
+            it["cost_total"] += Decimal(qty) * uc
+            it["declared"] += dec
+            it["notes"] = notes_val if notes_val else it["notes"]
+            acc_items[key] = it
+
+        for (pid, wid), v in acc_items.items():
+            qty = v["qty"]
+            unit_cost = (v["cost_total"] / Decimal(qty)) if qty else Decimal("0")
+            sh.items.append(ShipmentItem(
+                product_id=pid,
+                warehouse_id=wid,
+                quantity=qty,
+                unit_cost=float(unit_cost),
+                declared_value=float(v["declared"]),
+                notes=v["notes"],
+            ))
 
         db.session.flush()
 
@@ -526,19 +690,19 @@ def edit_shipment(id: int):
             if _wants_json():
                 return jsonify({"ok": True, "shipment_id": sh.id, "number": sh.shipment_number})
 
-            flash("تم تحديث بيانات الشحنة", "success")
+            flash("✅ تم تحديث بيانات الشحنة", "success")
             dest_id = sh.destination_id
             return redirect(url_for("warehouse_bp.detail", warehouse_id=dest_id)) if dest_id else redirect(url_for("shipments_bp.list_shipments"))
         except SQLAlchemyError as e:
             db.session.rollback()
             if _wants_json():
                 return jsonify({"ok": False, "error": str(e)}), 500
-            flash(f"خطأ أثناء التحديث: {e}", "danger")
+            flash(f"❌ خطأ أثناء التحديث: {e}", "danger")
         except Exception as e:
             db.session.rollback()
             if _wants_json():
                 return jsonify({"ok": False, "error": str(e)}), 400
-            flash(f"خطأ أثناء ضبط المخزون: {e}", "danger")
+            flash(f"❌ خطأ أثناء ضبط المخزون: {e}", "danger")
 
     return render_template("warehouses/shipment_form.html", form=form, shipment=sh)
 
@@ -546,29 +710,36 @@ def edit_shipment(id: int):
 @login_required
 @permission_required("manage_warehouses")
 def delete_shipment(id: int):
-    sh = _sa_get_or_404(Shipment, id, options=[joinedload(Shipment.items)])
+    sh = _sa_get_or_404(Shipment, id, options=[joinedload(Shipment.items), joinedload(Shipment.partners)])
     dest_id = sh.destination_id
     try:
+        # إذا وصلت الشحنة، لازم نرجع المخزون قبل الحذف
         if (sh.status or "").upper() == "ARRIVED":
             _reverse_arrival_items(_items_snapshot(sh))
+
+        # تنظيف العلاقات قبل الحذف
         sh.partners.clear()
         sh.items.clear()
         db.session.flush()
+
         db.session.delete(sh)
         db.session.commit()
+
         if _wants_json():
-            return jsonify({"ok": True})
-        flash("تم حذف الشحنة", "warning")
+            return jsonify({"ok": True, "message": f"🚮 تم حذف الشحنة رقم {sh.shipment_number or sh.id}"}), 200
+
+        flash(f"🚮 تم حذف الشحنة رقم {sh.shipment_number or sh.id}", "warning")
     except SQLAlchemyError as e:
         db.session.rollback()
         if _wants_json():
             return jsonify({"ok": False, "error": str(e)}), 500
-        flash(f"خطأ أثناء الحذف: {e}", "danger")
+        flash(f"❌ خطأ من قاعدة البيانات أثناء الحذف: {e}", "danger")
     except Exception as e:
         db.session.rollback()
         if _wants_json():
             return jsonify({"ok": False, "error": str(e)}), 400
-        flash(f"خطأ أثناء ضبط المخزون: {e}", "danger")
+        flash(f"❌ خطأ غير متوقع أثناء الحذف: {e}", "danger")
+
     return redirect(url_for("warehouse_bp.detail", warehouse_id=dest_id)) if dest_id else redirect(url_for("shipments_bp.list_shipments"))
 
 @shipments_bp.route("/<int:id>", methods=["GET"], endpoint="shipment_detail")
@@ -584,6 +755,8 @@ def shipment_detail(id: int):
             joinedload(Shipment.destination_warehouse),
         ],
     )
+
+    # احسب المبالغ المدفوعة
     try:
         from models import Payment, PaymentStatus
         total_paid = (
@@ -594,6 +767,19 @@ def shipment_detail(id: int):
         )
     except Exception:
         total_paid = sum(float(p.total_amount or 0) for p in getattr(sh, "payments", []))
+
+    # رسائل تحذيرية بناءً على حالة الشحنة
+    alerts = []
+    status = (sh.status or "").upper()
+    if status == "CANCELLED":
+        alerts.append({"level": "warning", "msg": "⚠️ هذه الشحنة ملغاة ولا يمكن تعديلها."})
+    elif status == "DRAFT":
+        alerts.append({"level": "info", "msg": "✏️ هذه الشحنة ما زالت في وضع المسودة."})
+    elif status == "IN_TRANSIT":
+        alerts.append({"level": "info", "msg": "🚚 الشحنة في الطريق."})
+    elif status == "ARRIVED":
+        alerts.append({"level": "success", "msg": "📦 الشحنة وصلت وتم اعتمادها."})
+
     if _wants_json():
         return jsonify(
             {
@@ -627,43 +813,69 @@ def shipment_detail(id: int):
                         for ln in sh.partners
                     ],
                     "total_paid": float(total_paid or 0),
-                }
+                },
+                "alerts": alerts,
             }
         )
-    return render_template("warehouses/shipment_detail.html", shipment=sh, total_paid=total_paid, format_currency=format_currency)
 
-@shipments_bp.route("/<int:id>/mark-arrived", methods=["POST"])
+    # في حالة HTML نمرر التنبيهات للقالب
+    return render_template(
+        "warehouses/shipment_detail.html",
+        shipment=sh,
+        total_paid=total_paid,
+        alerts=alerts,
+        format_currency=format_currency,
+    )
+
+@shipments_bp.route("/<int:id>/mark-arrived", methods=["POST"], endpoint="mark_arrived")
 @login_required
 @permission_required("manage_warehouses")
-def mark_arrived(id:int):
+def mark_arrived(id: int):
     sh = _sa_get_or_404(Shipment, id, options=[joinedload(Shipment.items)])
     if (sh.status or "").upper() == "ARRIVED":
-        flash("الشحنة معلّمة بواصل مسبقاً", "info")
+        msg = f"📦 الشحنة {sh.shipment_number or sh.id} معلّمة بواصل مسبقاً"
+        if _wants_json():
+            return jsonify({"ok": False, "error": msg}), 400
+        flash(msg, "info")
         return redirect(url_for("shipments_bp.shipment_detail", id=sh.id))
     try:
-        _apply_arrival_items([{"product_id": it.product_id, "warehouse_id": it.warehouse_id, "quantity": it.quantity} for it in sh.items])
+        _apply_arrival_items([
+            {"product_id": it.product_id, "warehouse_id": it.warehouse_id, "quantity": it.quantity}
+            for it in sh.items
+        ])
         sh.status = "ARRIVED"
         sh.actual_arrival = sh.actual_arrival or datetime.utcnow()
         _compute_totals(sh)
         db.session.commit()
-        flash("تم اعتماد وصول الشحنة وتحديث المخزون", "success")
+        msg = f"✅ تم اعتماد وصول الشحنة {sh.shipment_number or sh.id} وتحديث المخزون"
+        if _wants_json():
+            return jsonify({"ok": True, "shipment_id": sh.id, "status": sh.status, "message": msg}), 200
+        flash(msg, "success")
     except Exception as e:
         db.session.rollback()
-        flash(f"تعذّر اعتماد الوصول: {e}", "danger")
+        if _wants_json():
+            return jsonify({"ok": False, "error": str(e)}), 500
+        flash(f"❌ تعذّر اعتماد الوصول: {e}", "danger")
     return redirect(url_for("shipments_bp.shipment_detail", id=sh.id))
 
-@shipments_bp.route("/<int:id>/cancel", methods=["POST"])
+
+@shipments_bp.route("/<int:id>/cancel", methods=["POST"], endpoint="cancel_shipment")
 @login_required
 @permission_required("manage_warehouses")
-def cancel_shipment(id:int):
+def cancel_shipment(id: int):
     sh = _sa_get_or_404(Shipment, id, options=[joinedload(Shipment.items)])
     try:
         if (sh.status or "").upper() == "ARRIVED":
             _reverse_arrival_items(_items_snapshot(sh))
         sh.status = "CANCELLED"
         db.session.commit()
-        flash("تم إلغاء الشحنة", "warning")
+        msg = f"⚠️ تم إلغاء الشحنة {sh.shipment_number or sh.id}"
+        if _wants_json():
+            return jsonify({"ok": True, "shipment_id": sh.id, "status": sh.status, "message": msg}), 200
+        flash(msg, "warning")
     except Exception as e:
         db.session.rollback()
-        flash(f"تعذّر الإلغاء: {e}", "danger")
+        if _wants_json():
+            return jsonify({"ok": False, "error": str(e)}), 500
+        flash(f"❌ تعذّر الإلغاء: {e}", "danger")
     return redirect(url_for("shipments_bp.shipment_detail", id=sh.id))

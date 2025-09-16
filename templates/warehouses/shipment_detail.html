@@ -1,5 +1,5 @@
 {% extends 'warehouses/base.html' %}
-{% block title %}تفاصيل الشحنة {{ shipment.shipment_number or ('#' ~ shipment.id) }}{% endblock %}
+{% block title %}تفاصيل الشحنة {{ shipment.shipment_number or shipment.number or ('#' ~ shipment.id) }}{% endblock %}
 {% block page_title %}تفاصيل الشحنة{% endblock %}
 
 {% block content %}
@@ -7,27 +7,46 @@
   <div></div>
   <div class="btn-group">
     <a href="{{ url_for('shipments_bp.edit_shipment', id=shipment.id) }}" class="btn btn-warning">تعديل</a>
+
     <form method="POST" action="{{ url_for('shipments_bp.delete_shipment', id=shipment.id) }}" onsubmit="return confirm('تأكيد حذف الشحنة؟');" class="d-inline m-0 p-0">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn btn-danger">حذف</button>
     </form>
+
+    {% set st = (shipment.status or '').upper() %}
     <form method="POST" action="{{ url_for('shipments_bp.mark_arrived', id=shipment.id) }}" class="d-inline m-0 p-0">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" class="btn btn-success">اعتماد الوصول</button>
+      <button type="submit" class="btn btn-success" {% if st in ['ARRIVED','CANCELLED'] %}disabled{% endif %}>اعتماد الوصول</button>
     </form>
+
     <form method="POST" action="{{ url_for('shipments_bp.cancel_shipment', id=shipment.id) }}" class="d-inline m-0 p-0">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" class="btn btn-secondary">إلغاء</button>
+      <button type="submit" class="btn btn-secondary" {% if st == 'CANCELLED' %}disabled{% endif %}>إلغاء</button>
     </form>
+
     <a href="{{ url_for('shipments_bp.list_shipments') }}" class="btn btn-outline-secondary">رجوع</a>
   </div>
 </div>
 
 <div class="card">
   <div class="card-body">
+    {% macro status_badge(s) -%}
+      {% set u = (s or '')|upper %}
+      <span class="badge
+        {% if u == 'ARRIVED' %} bg-success
+        {% elif u == 'IN_TRANSIT' %} bg-primary
+        {% elif u == 'CANCELLED' %} bg-secondary
+        {% else %} bg-info {% endif %}
+      ">{{ s or '-' }}</span>
+    {%- endmacro %}
+
     <dl class="row mb-0">
-      <dt class="col-sm-3">رقم الشحنة</dt><dd class="col-sm-9">{{ shipment.shipment_number or '-' }}</dd>
-      <dt class="col-sm-3">من</dt><dd class="col-sm-9">{{ shipment.origin or '-' }}</dd>
+      <dt class="col-sm-3">رقم الشحنة</dt>
+      <dd class="col-sm-9">{{ shipment.shipment_number or shipment.number or '-' }}</dd>
+
+      <dt class="col-sm-3">من</dt>
+      <dd class="col-sm-9">{{ shipment.origin or '-' }}</dd>
+
       <dt class="col-sm-3">إلى</dt>
       <dd class="col-sm-9">
         {% if shipment.destination_warehouse %}
@@ -36,17 +55,48 @@
           {{ shipment.destination or '-' }}
         {% endif %}
       </dd>
-      <dt class="col-sm-3">الحالة</dt><dd class="col-sm-9"><span class="badge bg-info">{{ shipment.status or '-' }}</span></dd>
-      <dt class="col-sm-3">تاريخ الشحن</dt><dd class="col-sm-9">{{ shipment.shipment_date and shipment.shipment_date.strftime('%Y-%m-%d') or '-' }}</dd>
-      <dt class="col-sm-3">متوقع الوصول</dt><dd class="col-sm-9">{{ shipment.expected_arrival and shipment.expected_arrival.strftime('%Y-%m-%d') or '-' }}</dd>
-      <dt class="col-sm-3">الوصول الفعلي</dt><dd class="col-sm-9">{{ shipment.actual_arrival and shipment.actual_arrival.strftime('%Y-%m-%d') or '-' }}</dd>
-      <dt class="col-sm-3">قيمة البضائع</dt><dd class="col-sm-9">{{ format_currency(shipment.value_before or 0) }}</dd>
-      <dt class="col-sm-3">كلفة الشحن</dt><dd class="col-sm-9">{{ format_currency(shipment.shipping_cost or 0) }}</dd>
-      <dt class="col-sm-3">الجمارك</dt><dd class="col-sm-9">{{ format_currency(shipment.customs or 0) }}</dd>
-      <dt class="col-sm-3">VAT</dt><dd class="col-sm-9">{{ format_currency(shipment.vat or 0) }}</dd>
-      <dt class="col-sm-3">التأمين</dt><dd class="col-sm-9">{{ format_currency(shipment.insurance or 0) }}</dd>
-      <dt class="col-sm-3">الإجمالي</dt><dd class="col-sm-9">{{ format_currency(shipment.total_value or 0) }}</dd>
-      <dt class="col-sm-3">ملاحظات</dt><dd class="col-sm-9">{{ shipment.notes or '-' }}</dd>
+
+      <dt class="col-sm-3">الحالة</dt>
+      <dd class="col-sm-9">{{ status_badge(shipment.status) }}</dd>
+
+      <dt class="col-sm-3">تاريخ الشحن</dt>
+      <dd class="col-sm-9">
+        {{ shipment.shipment_date and shipment.shipment_date.strftime('%Y-%m-%d %H:%M') or '-' }}
+      </dd>
+
+      <dt class="col-sm-3">متوقع الوصول</dt>
+      <dd class="col-sm-9">
+        {{ shipment.expected_arrival and shipment.expected_arrival.strftime('%Y-%m-%d %H:%M') or '-' }}
+      </dd>
+
+      <dt class="col-sm-3">الوصول الفعلي</dt>
+      <dd class="col-sm-9">
+        {{ shipment.actual_arrival and shipment.actual_arrival.strftime('%Y-%m-%d %H:%M') or '-' }}
+      </dd>
+
+      <dt class="col-sm-3">قيمة البضائع</dt>
+      <dd class="col-sm-9">{{ format_currency(shipment.value_before or 0) }}</dd>
+
+      <dt class="col-sm-3">كلفة الشحن</dt>
+      <dd class="col-sm-9">{{ format_currency(shipment.shipping_cost or 0) }}</dd>
+
+      <dt class="col-sm-3">الجمارك</dt>
+      <dd class="col-sm-9">{{ format_currency(shipment.customs or 0) }}</dd>
+
+      <dt class="col-sm-3">VAT</dt>
+      <dd class="col-sm-9">{{ format_currency(shipment.vat or 0) }}</dd>
+
+      <dt class="col-sm-3">التأمين</dt>
+      <dd class="col-sm-9">{{ format_currency(shipment.insurance or 0) }}</dd>
+
+      <dt class="col-sm-3">الإجمالي</dt>
+      <dd class="col-sm-9">{{ format_currency(shipment.total_value or 0) }}</dd>
+
+      <dt class="col-sm-3">المدفوع</dt>
+      <dd class="col-sm-9">{{ format_currency(total_paid or 0) }}</dd>
+
+      <dt class="col-sm-3">ملاحظات</dt>
+      <dd class="col-sm-9">{{ shipment.notes or '-' }}</dd>
     </dl>
 
     <hr>
@@ -69,20 +119,22 @@
           {% set qty_sum = 0 %}
           {% set total_sum = 0 %}
           {% for i in shipment.items %}
-            {% set line_total = (i.quantity or 0) * ((i.unit_cost or 0)|float) %}
-            {% set qty_sum = qty_sum + (i.quantity or 0) %}
+            {% set q = (i.quantity or 0) %}
+            {% set uc = (i.unit_cost or 0)|float %}
+            {% set line_total = q * uc %}
+            {% set qty_sum = qty_sum + q %}
             {% set total_sum = total_sum + line_total %}
             <tr>
               <td>{{ i.product and i.product.name or '-' }}</td>
               <td>{{ i.warehouse and i.warehouse.name or '-' }}</td>
-              <td class="text-center">{{ i.quantity or 0 }}</td>
+              <td class="text-center">{{ q }}</td>
               <td class="text-end">{{ format_currency(i.unit_cost or 0) }}</td>
               <td class="text-end">{{ format_currency(i.landed_extra_share or 0) }}</td>
               <td class="text-end">{{ format_currency(i.landed_unit_cost or 0) }}</td>
               <td class="text-end">{{ format_currency(line_total) }}</td>
             </tr>
           {% else %}
-            <tr><td colspan="7" class="text-center">لا توجد عناصر</td></tr>
+            <tr><td colspan="7" class="text-center text-muted">لا توجد عناصر</td></tr>
           {% endfor %}
         </tbody>
         <tfoot>
