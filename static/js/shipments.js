@@ -5,31 +5,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
   const S2_AR = {
     errorLoading: () => 'تعذّر تحميل النتائج',
-    inputTooShort: args => `أدخل ${args.minimum - (args.input ? args.input.length : 0)} أحرف على الأقل`,
-    inputTooLong: args => `احذف ${args.input.length - args.maximum} أحرف`,
-    loadingMore: () => 'جاري تحميل نتائج إضافية…',
-    maximumSelected: args => `لا يمكنك اختيار أكثر من ${args.maximum} عناصر`,
+    inputTooShort: a => `أدخل ${Math.max((a.minimum || 1) - (a.input ? a.input.length : 0), 1)} أحرف على الأقل`,
+    inputTooLong: a => `احذف ${a.input.length - a.maximum} أحرف`,
+    loadingMore: () => 'جاري تحميل المزيد…',
+    maximumSelected: a => `لا يمكنك اختيار أكثر من ${a.maximum} عناصر`,
     noResults: () => 'لا نتائج',
     searching: () => 'جاري البحث…',
     removeAllItems: () => 'إزالة الكل'
   };
 
-const select2Ar = {
-  errorLoading: () => 'تعذّر تحميل النتائج',
-  inputTooLong: a => `احذف ${a.input.length - a.maximum} حرفًا`,
-  inputTooShort: a => `اكتب ${a.minimum - a.input.length} أحرف على الأقل`,
-  loadingMore: () => 'جاري تحميل المزيد…',
-  maximumSelected: a => `يمكنك اختيار ${a.maximum} عنصر فقط`,
-  noResults: () => 'لا توجد نتائج',
-  searching: () => 'جاري البحث…',
-  removeAllItems: () => 'حذف كل العناصر'
-};
-
   function parseDataParams($el) {
-    try {
-      const raw = $el.attr('data-params');
-      return raw ? JSON.parse(raw) : {};
-    } catch { return {}; }
+    try { const raw = $el.attr('data-params'); return raw ? JSON.parse(raw) : {}; }
+    catch { return {}; }
   }
 
   function normalizeNum(v) {
@@ -50,104 +37,107 @@ const select2Ar = {
     }
   }
 
-function initAjaxSelect2(root) {
-  if (!(window.jQuery && window.jQuery.fn.select2)) return;
-  const $ = window.jQuery;
+  function parseNum(v){ v = (v ?? '').toString().trim().replace(',', '.'); const n = parseFloat(v); return isNaN(n)?0:n; }
 
-  const itemsWrapEl    = document.getElementById('items-wrapper');
-  const partnersWrapEl = document.getElementById('partners-wrapper');
+  function initAjaxSelect2(root) {
+    if (!($ && $.fn.select2)) return;
 
-  const resolveUrl = ($el) => {
-    const direct = $el.data('url');
-    if (direct) return direct;
-    const nm = ($el.attr('name') || '');
-    if (nm.endsWith('-product_id')  && itemsWrapEl?.dataset.urlProducts)   return itemsWrapEl.dataset.urlProducts;
-    if (nm.endsWith('-warehouse_id')&& itemsWrapEl?.dataset.urlWarehouses) return itemsWrapEl.dataset.urlWarehouses;
-    if (nm.endsWith('-partner_id')  && partnersWrapEl?.dataset.urlPartners)return partnersWrapEl.dataset.urlPartners;
-    return null;
-  };
+    const itemsWrapEl    = document.getElementById('items-wrapper');
+    const partnersWrapEl = document.getElementById('partners-wrapper');
 
-  function parseDataParams($el) {
-    try { const raw = $el.attr('data-params'); return raw ? JSON.parse(raw) : {}; }
-    catch { return {}; }
-  }
+    const resolveUrl = ($el) => {
+      const direct = $el.data('url');
+      if (direct) return direct;
+      const nm = ($el.attr('name') || '');
+      if (nm.endsWith('-product_id')   && itemsWrapEl?.dataset.urlProducts)   return itemsWrapEl.dataset.urlProducts;
+      if (nm.endsWith('-warehouse_id') && itemsWrapEl?.dataset.urlWarehouses) return itemsWrapEl.dataset.urlWarehouses;
+      if (nm.endsWith('-partner_id')   && partnersWrapEl?.dataset.urlPartners) return partnersWrapEl.dataset.urlPartners;
+      return null;
+    };
 
-  $(root).find('select.select2-ajax').each(function () {
-    const $el = $(this);
-    const url = resolveUrl($el);
-    if (!url) return;
+    $(root).find('select.select2-ajax').each(function () {
+      const $el = $(this);
+      const url = resolveUrl($el);
+      if (!url) return;
+      if ($el.data('select2')) $el.select2('destroy');
 
-    // مهم: دمّر أي تهيئة قديمة حتى لو كانت موجودة
-    if ($el.data('select2')) $el.select2('destroy');
+      const extra       = parseDataParams($el);
+      const placeholder = $el.data('placeholder') || 'اختر...';
+      const nm          = ($el.attr('name') || '');
+      const newUrl      = $el.data('new-url') || (nm.endsWith('-partner_id') && partnersWrapEl?.dataset.newUrlPartners) || null;
 
-    const extra       = parseDataParams($el);
-    const placeholder = $el.data('placeholder') || 'اختر...';
-    const nm          = ($el.attr('name') || '');
-    const newUrl      = $el.data('new-url') ||
-                        (nm.endsWith('-partner_id') && partnersWrapEl?.dataset.newUrlPartners) || null;
+      $el.attr('data-ajax--url', url);
 
-    // مفيد أيضاً لو حبيت تتأكد من قراءة Select2 للـ data attributes
-    $el.attr('data-ajax--url', url);
-
-    $el.select2({
-      width: '100%',
-      theme: 'bootstrap4',
-      dir: 'rtl',
-      placeholder,
-      minimumInputLength: 0,
-      ajax: {
-        url,
-        delay: 150,
-        dataType: 'json',
-        data: params => Object.assign({ q: (params.term || ''), limit: 20 }, extra || {}),
-        processResults: data => {
-          const arr = Array.isArray(data) ? data : (Array.isArray(data.results) ? data.results : []);
-          return {
-            results: arr.map(p => ({
-              id: p.id,
-              text: p.text || p.name || `ID ${p.id}`,
-              name: p.name,
-              phone: p.phone || p.phone_number,
-              phone_number: p.phone_number,
-              identity_number: p.identity_number,
-              address: p.address,
-              unit_price: p.unit_price
-            }))
-          };
+      $el.select2({
+        width: '100%',
+        theme: 'bootstrap4',
+        dir: 'rtl',
+        placeholder,
+        minimumInputLength: 0,
+        ajax: {
+          url,
+          delay: 150,
+          dataType: 'json',
+          data: params => Object.assign({ q: (params.term || ''), limit: 20 }, extra || {}),
+          processResults: data => {
+            const arr = Array.isArray(data) ? data : (Array.isArray(data.results) ? data.results : []);
+            return {
+              results: arr.map(p => ({
+                id: p.id,
+                text: p.text || p.name || `ID ${p.id}`,
+                name: p.name,
+                phone: p.phone || p.phone_number,
+                phone_number: p.phone_number,
+                identity_number: p.identity_number,
+                address: p.address,
+                unit_price: p.unit_price
+              }))
+            };
+          },
+          cache: false
         },
-        cache: false
-      },
-      templateResult: function (item) {
-        if (!item.id) return item.text || item.name || '';
-        const phone = item.phone || item.phone_number || '';
-        const idn   = item.identity_number || '';
-        const name  = item.text || item.name || `ID ${item.id}`;
-        return `${name}${phone ? ' — ' + phone : ''}${idn ? ' — ' + idn : ''}`;
-      },
-      templateSelection: item => (item.text || item.name || 'بدون اسم'),
-      language: {
-        errorLoading: () => 'تعذر تحميل النتائج',
-        inputTooShort: () => 'اكتب حرفاً واحداً على الأقل…',
-        searching: () => 'جارِ البحث…',
-        loadingMore: () => 'جاري تحميل المزيد…',
-        noResults: () => newUrl
-          ? `<a href="${newUrl}" target="_blank" class="select2-add-new-partner">+ شريك جديد</a>`
-          : 'لا نتائج'
-      },
-      escapeMarkup: m => m,
-      dropdownParent: $el.closest('.shipment-partner, .shipment-item, .card')
-    });
+        templateResult: function (item) {
+          if (!item.id) return item.text || item.name || '';
+          const phone = item.phone || item.phone_number || '';
+          const idn   = item.identity_number || '';
+          const name  = item.text || item.name || `ID ${item.id}`;
+          return `${name}${phone ? ' — ' + phone : ''}${idn ? ' — ' + idn : ''}`;
+        },
+        templateSelection: item => (item.text || item.name || 'بدون اسم'),
+        language: {
+          errorLoading: S2_AR.errorLoading,
+          inputTooShort: S2_AR.inputTooShort,
+          inputTooLong: S2_AR.inputTooLong,
+          loadingMore: S2_AR.loadingMore,
+          maximumSelected: S2_AR.maximumSelected,
+          noResults: () => newUrl ? `<a href="${newUrl}" target="_blank" class="select2-add-new-partner">+ شريك جديد</a>` : S2_AR.noResults(),
+          searching: S2_AR.searching,
+          removeAllItems: S2_AR.removeAllItems
+        },
+        escapeMarkup: m => m,
+        dropdownParent: $el.closest('.shipment-partner, .shipment-item, .card')
+      });
 
-    // Prefetch أوّل فتح
-    $el.one('select2:open.prefetch', function () {
-      const $inp = $('.select2-container--open .select2-search__field');
-      if ($inp.length) {
-        $inp.val(' ').trigger('input');
-        setTimeout(() => { $inp.val('').trigger('input'); }, 50);
+      const initId   = $el.data('initId') || $el.data('init-id');
+      const initText = $el.data('initText') || $el.data('init-text');
+      if (initId && (typeof initId === 'number' || String(initId).length)) {
+        const has = $el.find(`option[value="${initId}"]`).length > 0;
+        if (!has) {
+          const opt = new Option(initText || `ID ${initId}`, initId, true, true);
+          $el.append(opt);
+        }
+        $el.val(String(initId)).trigger('change');
       }
+
+      $el.one('select2:open.prefetch', function () {
+        const $inp = $('.select2-container--open .select2-search__field');
+        if ($inp.length) {
+          $inp.val(' ').trigger('input');
+          setTimeout(() => { $inp.val('').trigger('input'); }, 50);
+        }
+      });
     });
-  });
-}
+  }
 
   window.initAjaxSelect2 = initAjaxSelect2;
 
@@ -320,7 +310,7 @@ function initAjaxSelect2(root) {
   if (partnersWrap) {
     partnersWrap.addEventListener('click', e => {
       const btn = e.target.closest('.btn-remove-partner');
-      if (btn) { btn.closest('.shipment-partner')?.remove(); reindexPartners(); }
+      if (btn) { btn.closest('.shipment-partner')?.remove(); reindexPartners(); updatePartnersPercentGuard(); }
     });
     $(partnersWrap).on('select2:select', 'select[name$="-partner_id"]', function (e) {
       const data = e.params.data || {};
@@ -330,6 +320,9 @@ function initAjaxSelect2(root) {
       setIfEmpty('[id$="-phone_number"]', data.phone || data.phone_number);
       setIfEmpty('[id$="-address"]', data.address);
       setIfEmpty('[id$="-unit_price_before_tax"]', data.unit_price);
+    });
+    partnersWrap.addEventListener('input', e=>{
+      if (e.target && e.target.name && e.target.name.endsWith('-share_percentage')) updatePartnersPercentGuard();
     });
   }
 
@@ -361,10 +354,33 @@ function initAjaxSelect2(root) {
     });
   }
 
+  function partnersPercentSum(){
+    let sum = 0;
+    document.querySelectorAll('#partners-wrapper [name$="-share_percentage"]').forEach(el=>{
+      sum += parseNum(el.value);
+    });
+    return sum;
+  }
+
+  function updatePartnersPercentGuard(){
+    const sum = partnersPercentSum();
+    document.querySelectorAll('#partners-wrapper [name$="-share_percentage"]').forEach(el=>{
+      if (sum > 100) el.classList.add('is-invalid'); else el.classList.remove('is-invalid');
+    });
+  }
+
   initAjaxSelect2(document);
   recalcItems();
+  updatePartnersPercentGuard();
 
-  document.getElementById('shipment-form')?.addEventListener('submit', function () {
+  document.getElementById('shipment-form')?.addEventListener('submit', function (e) {
+    if (partnersPercentSum() > 100.000001) {
+      e.preventDefault();
+      updatePartnersPercentGuard();
+      alert('مجموع نسب الشركاء لا يجوز أن يتجاوز 100٪.');
+      return false;
+    }
+
     reindexPartners();
 
     document.querySelectorAll('#partners-wrapper .shipment-partner').forEach(function (row) {

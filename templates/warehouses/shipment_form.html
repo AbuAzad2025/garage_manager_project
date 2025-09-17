@@ -50,7 +50,8 @@
       {{ render_field(sf.quantity, {
         'id': sf.quantity.id,
         'class': 'form-control item-qty',
-        'type': 'number', 'min': '1', 'required': True
+        'type': 'number', 'min': '1', 'required': True,
+        'placeholder': 'الكمية المطلوبة'
       }) }}
     </div>
     <div class="col-md-2">
@@ -58,7 +59,8 @@
       {{ render_field(sf.unit_cost, {
         'id': sf.unit_cost.id,
         'class': 'form-control item-cost',
-        'type': 'number', 'step': '0.01', 'required': True
+        'type': 'number', 'step': '0.01', 'required': True,
+        'placeholder': 'سعر الوحدة'
       }) }}
     </div>
     <div class="col-md-1 text-end">
@@ -69,13 +71,14 @@
       {{ render_field(sf.declared_value, {
         'id': sf.declared_value.id,
         'class': 'form-control item-declared',
-        'type': 'number', 'step': '0.01'
+        'type': 'number', 'step': '0.01',
+        'placeholder': 'قيمة للإفصاح'
       }) }}
     </div>
     {% if sf.notes is defined %}
     <div class="col-12 mt-1">
       {{ sf.notes.label(class="form-label") }}
-      {{ render_field(sf.notes, {'id': sf.notes.id, 'class': 'form-control'}) }}
+      {{ render_field(sf.notes, {'id': sf.notes.id, 'class': 'form-control', 'placeholder': 'ملاحظات البند'}) }}
     </div>
     {% endif %}
   </div>
@@ -92,21 +95,25 @@
         'class': 'select2 form-control select2-ajax',
         'data-url': url_for('api.search_partners'),
         'data-placeholder': 'اختر الشريك',
-               'data-new-url': url_for('vendors_bp.partners_create')
-            }) }}
+        'data-new-url': url_for('vendors_bp.partners_create'),
+        'data-init-id': pf.partner_id.data.id if pf.partner_id.data is not string and pf.partner_id.data and pf.partner_id.data.id is defined else (pf.partner_id.data if pf.partner_id.data else ''),
+        'data-init-text': pf.partner_id.data.name if pf.partner_id.data is not string and pf.partner_id.data and pf.partner_id.data.name is defined else ''
+      }) }}
     </div>
     <div class="col-md-2">
       {{ pf.share_percentage.label(class="form-label") }}
       {{ render_field(pf.share_percentage, {
         'id': pf.share_percentage.id, 'class': 'form-control',
-        'type': 'number', 'step': '0.01'
+        'type': 'number', 'step': '0.01',
+        'placeholder': 'نسبة من 100'
       }) }}
     </div>
     <div class="col-md-2">
       {{ pf.share_amount.label(class="form-label") }}
       {{ render_field(pf.share_amount, {
         'id': pf.share_amount.id, 'class': 'form-control',
-        'type': 'number', 'step': '0.01'
+        'type': 'number', 'step': '0.01',
+        'placeholder': 'مبلغ ثابت'
       }) }}
     </div>
     <div class="col-md-4 text-end">
@@ -117,19 +124,19 @@
     {% if pf.identity_number is defined %}
     <div class="col-md-4 mt-2">
       {{ pf.identity_number.label(class="form-label") }}
-      {{ render_field(pf.identity_number, {'id': pf.identity_number.id, 'class': 'form-control'}) }}
+      {{ render_field(pf.identity_number, {'id': pf.identity_number.id, 'class': 'form-control', 'placeholder': 'رقم الهوية'}) }}
     </div>
     {% endif %}
     {% if pf.phone_number is defined %}
     <div class="col-md-4 mt-2">
       {{ pf.phone_number.label(class="form-label") }}
-      {{ render_field(pf.phone_number, {'id': pf.phone_number.id, 'class': 'form-control'}) }}
+      {{ render_field(pf.phone_number, {'id': pf.phone_number.id, 'class': 'form-control', 'placeholder': 'هاتف الشريك'}) }}
     </div>
     {% endif %}
     {% if pf.address is defined %}
     <div class="col-md-4 mt-2">
       {{ pf.address.label(class="form-label") }}
-      {{ render_field(pf.address, {'id': pf.address.id, 'class': 'form-control'}) }}
+      {{ render_field(pf.address, {'id': pf.address.id, 'class': 'form-control', 'placeholder': 'العنوان'}) }}
     </div>
     {% endif %}
     {% if pf.unit_price_before_tax is defined %}
@@ -137,7 +144,7 @@
       {{ pf.unit_price_before_tax.label(class="form-label") }}
       {{ render_field(pf.unit_price_before_tax, {
         'id': pf.unit_price_before_tax.id, 'class': 'form-control',
-        'type': 'number', 'step': '0.01'
+        'type': 'number', 'step': '0.01', 'placeholder': 'سعر قبل الضريبة'
       }) }}
     </div>
     {% endif %}
@@ -146,14 +153,14 @@
       {{ pf.expiry_date.label(class="form-label") }}
       {{ render_field(pf.expiry_date, {
         'id': pf.expiry_date.id, 'class': 'form-control',
-        'type': 'date', 'dir': 'ltr'
+        'type': 'date', 'dir': 'ltr', 'placeholder': 'تاريخ انتهاء'
       }) }}
     </div>
     {% endif %}
     {% if pf.notes is defined %}
     <div class="col-md-4 mt-2">
       {{ pf.notes.label(class="form-label") }}
-      {{ render_field(pf.notes, {'id': pf.notes.id, 'class': 'form-control'}) }}
+      {{ render_field(pf.notes, {'id': pf.notes.id, 'class': 'form-control', 'placeholder': 'ملاحظات الشريك'}) }}
     </div>
     {% endif %}
   </div>
@@ -173,23 +180,23 @@
       <div class="row g-2">
         <div class="col-md-3">
           {{ form.shipment_number.label(class="form-label") }}
-          {{ render_field(form.shipment_number, {'id': form.shipment_number.id, 'class': 'form-control'}) }}
+          {{ render_field(form.shipment_number, {'id': form.shipment_number.id, 'class': 'form-control', 'placeholder': 'اتركه فارغاً للتوليد التلقائي'}) }}
         </div>
         <div class="col-md-3">
           {{ form.shipment_date.label(class="form-label") }}
-          {{ render_field(form.shipment_date, {'id': form.shipment_date.id, 'class': 'form-control dtp', 'dir': 'ltr'}) }}
+          {{ render_field(form.shipment_date, {'id': form.shipment_date.id, 'class': 'form-control dtp', 'dir': 'ltr', 'placeholder': 'تاريخ الشحن'}) }}
         </div>
         <div class="col-md-3">
           {{ form.expected_arrival.label(class="form-label") }}
-          {{ render_field(form.expected_arrival, {'id': form.expected_arrival.id, 'class': 'form-control dtp', 'dir': 'ltr'}) }}
+          {{ render_field(form.expected_arrival, {'id': form.expected_arrival.id, 'class': 'form-control dtp', 'dir': 'ltr', 'placeholder': 'تاريخ الوصول المتوقع'}) }}
         </div>
         <div class="col-md-3">
           {{ form.actual_arrival.label(class="form-label") }}
-          {{ render_field(form.actual_arrival, {'id': form.actual_arrival.id, 'class': 'form-control dtp', 'dir': 'ltr'}) }}
+          {{ render_field(form.actual_arrival, {'id': form.actual_arrival.id, 'class': 'form-control dtp', 'dir': 'ltr', 'placeholder': 'تاريخ الوصول الفعلي'}) }}
         </div>
         <div class="col-md-4">
           {{ form.origin.label(class="form-label") }}
-          {{ render_field(form.origin, {'id': form.origin.id, 'class': 'form-control'}) }}
+          {{ render_field(form.origin, {'id': form.origin.id, 'class': 'form-control', 'placeholder': 'بلد/مدينة المنشأ'}) }}
         </div>
         <div class="col-md-4">
           {{ form.destination_id.label(class="form-label") }}
@@ -203,11 +210,11 @@
         </div>
         <div class="col-md-2">
           {{ form.carrier.label(class="form-label") }}
-          {{ render_field(form.carrier, {'id': form.carrier.id, 'class': 'form-control'}) }}
+          {{ render_field(form.carrier, {'id': form.carrier.id, 'class': 'form-control', 'placeholder': 'شركة النقل'}) }}
         </div>
         <div class="col-md-2">
           {{ form.tracking_number.label(class="form-label") }}
-          {{ render_field(form.tracking_number, {'id': form.tracking_number.id, 'class': 'form-control'}) }}
+          {{ render_field(form.tracking_number, {'id': form.tracking_number.id, 'class': 'form-control', 'placeholder': 'رقم التتبع'}) }}
         </div>
         <div class="col-md-3">
           {{ form.status.label(class="form-label") }}
@@ -256,10 +263,10 @@
       </div>
     </div>
     <div class="card-body">
-<div id="partners-wrapper"
-     data-index="{{ form.partners|length }}"
-     data-url-partners="{{ url_for('api.search_partners') }}"
-     data-new-url-partners="{{ url_for('vendors_bp.partners_create') }}">
+      <div id="partners-wrapper"
+           data-index="{{ form.partners|length }}"
+           data-url-partners="{{ url_for('api.search_partners') }}"
+           data-new-url-partners="{{ url_for('vendors_bp.partners_create') }}">
         {% for pf in form.partners %}
           {{ partner_row(pf, loop.index0) }}
         {% else %}
@@ -275,31 +282,31 @@
       <div class="row g-2">
         <div class="col-md-3">
           {{ form.value_before.label(class="form-label") }}
-          {{ render_field(form.value_before, {'id': form.value_before.id, 'class': 'form-control', 'step': '0.01', 'readonly': True}) }}
+          {{ render_field(form.value_before, {'id': form.value_before.id, 'class': 'form-control', 'step': '0.01', 'readonly': True, 'placeholder': 'إجمالي البنود'}) }}
         </div>
         <div class="col-md-3">
           {{ form.shipping_cost.label(class="form-label") }}
-          {{ render_field(form.shipping_cost, {'id': form.shipping_cost.id, 'class': 'form-control', 'step': '0.01'}) }}
+          {{ render_field(form.shipping_cost, {'id': form.shipping_cost.id, 'class': 'form-control', 'step': '0.01', 'placeholder': 'تكلفة الشحن'}) }}
         </div>
         <div class="col-md-3">
           {{ form.customs.label(class="form-label") }}
-          {{ render_field(form.customs, {'id': form.customs.id, 'class': 'form-control', 'step': '0.01'}) }}
+          {{ render_field(form.customs, {'id': form.customs.id, 'class': 'form-control', 'step': '0.01', 'placeholder': 'الجمارك'}) }}
         </div>
         <div class="col-md-3">
           {{ form.vat.label(class="form-label") }}
-          {{ render_field(form.vat, {'id': form.vat.id, 'class': 'form-control', 'step': '0.01'}) }}
+          {{ render_field(form.vat, {'id': form.vat.id, 'class': 'form-control', 'step': '0.01', 'placeholder': 'ضريبة القيمة المضافة'}) }}
         </div>
         <div class="col-md-3">
           {{ form.insurance.label(class="form-label") }}
-          {{ render_field(form.insurance, {'id': form.insurance.id, 'class': 'form-control', 'step': '0.01'}) }}
+          {{ render_field(form.insurance, {'id': form.insurance.id, 'class': 'form-control', 'step': '0.01', 'placeholder': 'التأمين'}) }}
         </div>
         <div class="col-md-3">
           {{ form.total_value.label(class="form-label") }}
-          {{ render_field(form.total_value, {'id': form.total_value.id, 'class': 'form-control', 'step': '0.01', 'readonly': True}) }}
+          {{ render_field(form.total_value, {'id': form.total_value.id, 'class': 'form-control', 'step': '0.01', 'readonly': True, 'placeholder': 'الإجمالي'}) }}
         </div>
         <div class="col-md-6">
           {{ form.notes.label(class="form-label") }}
-          {{ render_field(form.notes, {'id': form.notes.id, 'class': 'form-control'}) }}
+          {{ render_field(form.notes, {'id': form.notes.id, 'class': 'form-control', 'placeholder': 'ملاحظات عامة'}) }}
         </div>
       </div>
     </div>
@@ -328,12 +335,12 @@
       <div class="col-md-2">
         <label class="form-label" for="items-__INDEX__-quantity">الكمية</label>
         <input type="number" min="1" required name="items-__INDEX__-quantity"
-               id="items-__INDEX__-quantity" class="form-control item-qty">
+               id="items-__INDEX__-quantity" class="form-control item-qty" placeholder="الكمية المطلوبة">
       </div>
       <div class="col-md-2">
         <label class="form-label" for="items-__INDEX__-unit_cost">سعر الوحدة</label>
         <input type="number" step="0.01" required name="items-__INDEX__-unit_cost"
-               id="items-__INDEX__-unit_cost" class="form-control item-cost">
+               id="items-__INDEX__-unit_cost" class="form-control item-cost" placeholder="سعر الوحدة">
       </div>
       <div class="col-md-1 text-end">
         <button type="button" class="btn btn-sm btn-outline-danger btn-remove-item">حذف</button>
@@ -341,7 +348,7 @@
       <div class="col-12 mt-1">
         <label class="form-label" for="items-__INDEX__-declared_value">القيمة المعلنة</label>
         <input type="number" step="0.01" name="items-__INDEX__-declared_value"
-               id="items-__INDEX__-declared_value" class="form-control item-declared">
+               id="items-__INDEX__-declared_value" class="form-control item-declared" placeholder="قيمة للإفصاح">
       </div>
     </div>
   </div>
@@ -352,29 +359,26 @@
     <div class="row g-2">
       <div class="col-md-4">
         <label class="form-label" for="partners-__INDEX__-partner_id">الشريك</label>
-<select name="partners-__INDEX__-partner_id"
-        id="partners-__INDEX__-partner_id"
-        class="select2 form-control select2-ajax"
-        data-placeholder="اختر الشريك"
-        data-url="{{ url_for('api.search_partners') }}"
-        data-new-url="{{ url_for('vendors_bp.partners_create') }}">
-</select>
-
-
+        <select name="partners-__INDEX__-partner_id"
+                id="partners-__INDEX__-partner_id"
+                class="select2 form-control select2-ajax"
+                data-placeholder="اختر الشريك"
+                data-url="{{ url_for('api.search_partners') }}"
+                data-new-url="{{ url_for('vendors_bp.partners_create') }}"></select>
       </div>
       <div class="col-md-2">
         <label class="form-label" for="partners-__INDEX__-share_percentage">نسبة الشريك %</label>
         <input type="number" step="0.01"
                name="partners-__INDEX__-share_percentage"
                id="partners-__INDEX__-share_percentage"
-               class="form-control">
+               class="form-control" placeholder="نسبة من 100">
       </div>
       <div class="col-md-2">
         <label class="form-label" for="partners-__INDEX__-share_amount">حصة الشريك</label>
         <input type="number" step="0.01"
                name="partners-__INDEX__-share_amount"
                id="partners-__INDEX__-share_amount"
-               class="form-control">
+               class="form-control" placeholder="مبلغ ثابت">
       </div>
       <div class="col-md-4 text-end">
         <button type="button" class="btn btn-sm btn-outline-danger btn-remove-partner">حذف</button>
@@ -385,47 +389,46 @@
         <input type="text"
                name="partners-__INDEX__-identity_number"
                id="partners-__INDEX__-identity_number"
-               class="form-control">
+               class="form-control" placeholder="رقم الهوية">
       </div>
       <div class="col-md-4 mt-2">
         <label class="form-label" for="partners-__INDEX__-phone_number">الجوال</label>
         <input type="text"
                name="partners-__INDEX__-phone_number"
                id="partners-__INDEX__-phone_number"
-               class="form-control">
+               class="form-control" placeholder="هاتف الشريك">
       </div>
       <div class="col-md-4 mt-2">
         <label class="form-label" for="partners-__INDEX__-address">العنوان</label>
         <input type="text"
                name="partners-__INDEX__-address"
                id="partners-__INDEX__-address"
-               class="form-control">
+               class="form-control" placeholder="العنوان">
       </div>
       <div class="col-md-4 mt-2">
         <label class="form-label" for="partners-__INDEX__-unit_price_before_tax">سعر قبل الضريبة</label>
         <input type="number" step="0.01"
                name="partners-__INDEX__-unit_price_before_tax"
                id="partners-__INDEX__-unit_price_before_tax"
-               class="form-control">
+               class="form-control" placeholder="سعر قبل الضريبة">
       </div>
       <div class="col-md-4 mt-2">
         <label class="form-label" for="partners-__INDEX__-expiry_date">تاريخ انتهاء</label>
         <input type="date" dir="ltr"
                name="partners-__INDEX__-expiry_date"
                id="partners-__INDEX__-expiry_date"
-               class="form-control">
+               class="form-control" placeholder="تاريخ انتهاء">
       </div>
       <div class="col-md-4 mt-2">
         <label class="form-label" for="partners-__INDEX__-notes">ملاحظات</label>
         <input type="text"
                name="partners-__INDEX__-notes"
                id="partners-__INDEX__-notes"
-               class="form-control">
+               class="form-control" placeholder="ملاحظات الشريك">
       </div>
     </div>
   </div>
 </template>
-
 {% endblock %}
 
 {% block scripts %}
@@ -434,91 +437,89 @@
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ar.js"></script>
   <script src="{{ url_for('static', filename='js/shipments.js') }}"></script>
-<!-- مودال: إضافة شريك جديد -->
-<div class="modal fade" id="partnerModal" tabindex="-1" role="dialog">
-  <div class="modal-dialog modal-lg" role="document">
-    <div class="modal-content">
-      <form id="partnerForm" method="POST">
-        <div class="modal-header">
-          <h5 class="modal-title">إضافة شريك جديد</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
-        </div>
-        <div class="modal-body">
-          <div class="mb-3">
-            <label for="partner-name" class="form-label">اسم الشريك</label>
-            <input type="text" class="form-control" name="name" id="partner-name" required>
-          </div>
-          <div class="mb-3">
-            <label for="partner-phone" class="form-label">رقم الجوال</label>
-            <input type="text" class="form-control" name="phone" id="partner-phone">
-          </div>
-          <div class="mb-3">
-            <label for="partner-identity" class="form-label">رقم الهوية</label>
-            <input type="text" class="form-control" name="identity_number" id="partner-identity">
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-primary">حفظ</button>
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
 
-<!-- مودال: إضافة منتج جديد -->
-<div class="modal fade" id="productModal" tabindex="-1" role="dialog">
-  <div class="modal-dialog modal-lg" role="document">
-    <div class="modal-content">
-      <form id="productForm" method="POST">
-        <div class="modal-header">
-          <h5 class="modal-title">إضافة منتج جديد</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
-        </div>
-        <div class="modal-body">
-          <div class="mb-3">
-            <label for="product-name" class="form-label">اسم المنتج</label>
-            <input type="text" class="form-control" name="name" id="product-name" required>
+  <div class="modal fade" id="partnerModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+        <form id="partnerForm" method="POST">
+          <div class="modal-header">
+            <h5 class="modal-title">إضافة شريك جديد</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
           </div>
-          <div class="mb-3">
-            <label for="product-barcode" class="form-label">الباركود</label>
-            <input type="text" class="form-control" name="barcode" id="product-barcode">
+          <div class="modal-body">
+            <div class="mb-3">
+              <label for="partner-name" class="form-label">اسم الشريك</label>
+              <input type="text" class="form-control" name="name" id="partner-name" required placeholder="اسم الشريك">
+            </div>
+            <div class="mb-3">
+              <label for="partner-phone" class="form-label">رقم الجوال</label>
+              <input type="text" class="form-control" name="phone" id="partner-phone" placeholder="رقم الجوال">
+            </div>
+            <div class="mb-3">
+              <label for="partner-identity" class="form-label">رقم الهوية</label>
+              <input type="text" class="form-control" name="identity_number" id="partner-identity" placeholder="رقم الهوية">
+            </div>
           </div>
-        </div>
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-primary">حفظ</button>
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-        </div>
-      </form>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">حفظ</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
-</div>
 
-<!-- مودال: إضافة مخزن جديد -->
-<div class="modal fade" id="warehouseModal" tabindex="-1" role="dialog">
-  <div class="modal-dialog modal-lg" role="document">
-    <div class="modal-content">
-      <form id="warehouseForm" method="POST">
-        <div class="modal-header">
-          <h5 class="modal-title">إضافة مخزن جديد</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
-        </div>
-        <div class="modal-body">
-          <div class="mb-3">
-            <label for="warehouse-name" class="form-label">اسم المخزن</label>
-            <input type="text" class="form-control" name="name" id="warehouse-name" required>
+  <div class="modal fade" id="productModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+        <form id="productForm" method="POST">
+          <div class="modal-header">
+            <h5 class="modal-title">إضافة منتج جديد</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
           </div>
-          <div class="mb-3">
-            <label for="warehouse-location" class="form-label">الموقع</label>
-            <input type="text" class="form-control" name="location" id="warehouse-location">
+          <div class="modal-body">
+            <div class="mb-3">
+              <label for="product-name" class="form-label">اسم المنتج</label>
+              <input type="text" class="form-control" name="name" id="product-name" required placeholder="اسم المنتج">
+            </div>
+            <div class="mb-3">
+              <label for="product-barcode" class="form-label">الباركود</label>
+              <input type="text" class="form-control" name="barcode" id="product-barcode" placeholder="الباركود">
+            </div>
           </div>
-        </div>
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-primary">حفظ</button>
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-        </div>
-      </form>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">حفظ</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
-</div>
+
+  <div class="modal fade" id="warehouseModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+        <form id="warehouseForm" method="POST">
+          <div class="modal-header">
+            <h5 class="modal-title">إضافة مخزن جديد</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label for="warehouse-name" class="form-label">اسم المخزن</label>
+              <input type="text" class="form-control" name="name" id="warehouse-name" required placeholder="اسم المخزن">
+            </div>
+            <div class="mb-3">
+              <label for="warehouse-location" class="form-label">الموقع</label>
+              <input type="text" class="form-control" name="location" id="warehouse-location" placeholder="الموقع">
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">حفظ</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 {% endblock %}
