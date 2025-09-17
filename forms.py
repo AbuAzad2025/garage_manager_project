@@ -1530,11 +1530,21 @@ class ShipmentForm(FlaskForm):
     def validate(self, extra_validators=None):
         if not super().validate(extra_validators=extra_validators):
             return False
-        if not any(
-            f.product_id.data and f.warehouse_id.data and (f.quantity.data or 0) >= 1
-            for f in (entry.form for entry in self.items)
-        ):
+        if not any(f.product_id.data and f.warehouse_id.data and (f.quantity.data or 0) >= 1 for f in (e.form for e in self.items)):
             self.items.errors.append('أدخل عنصرًا واحدًا على الأقل.')
+            return False
+        total_pct = 0.0
+        for e in self.partners.entries:
+            f = e.form
+            if getattr(f, "partner_id", None) and f.partner_id.data:
+                try:
+                    total_pct += float(f.share_percentage.data or 0)
+                except Exception:
+                    pass
+        if total_pct > 100.000001:
+            self.partners.errors.append('مجموع نسب الشركاء لا يجوز أن يتجاوز 100٪.')
+            if self.partners.entries:
+                self.partners.entries[0].form.share_percentage.errors.append('يجب ألا يتجاوز مجموع النسب 100٪.')
             return False
         return True
 
@@ -1568,7 +1578,7 @@ class ShipmentForm(FlaskForm):
                 declared_value=f.declared_value.data,
                 notes=(f.notes.data or '').strip() or None
             )
-            for f in (entry.form for entry in self.items)
+            for f in (e.form for e in self.items)
             if f.product_id.data and f.warehouse_id.data and (f.quantity.data or 0) >= 1
         ]
         shipment.partners = [
@@ -1584,11 +1594,10 @@ class ShipmentForm(FlaskForm):
                 share_percentage=f.share_percentage.data or None,
                 share_amount=f.share_amount.data or None
             )
-            for f in (entry.form for entry in self.partners)
+            for f in (e.form for e in self.partners)
             if f.partner_id.data
         ]
         return shipment
-
 
 class UniversalReportForm(FlaskForm):
     table = SelectField('نوع التقرير', choices=[], validators=[Optional()])
