@@ -1,10 +1,12 @@
 document.addEventListener('DOMContentLoaded', function () {
-  const filterSelectors = ['#filterEntity','#filterStatus','#filterDirection','#filterMethod','#startDate','#endDate'];
+  'use strict';
+
+  const filterSelectors = ['#filterEntity', '#filterStatus', '#filterDirection', '#filterMethod', '#startDate', '#endDate'];
   const ENTITY_ENUM = { customer:'CUSTOMER', supplier:'SUPPLIER', partner:'PARTNER', sale:'SALE', service:'SERVICE', expense:'EXPENSE', loan:'LOAN', preorder:'PREORDER', shipment:'SHIPMENT' };
   const AR_STATUS = { COMPLETED:'مكتملة', PENDING:'قيد الانتظار', FAILED:'فاشلة', REFUNDED:'مُرجعة' };
 
   function inferEntityContext() {
-    const path = location.pathname.replace(/\/+$/,'');
+    const path = location.pathname.replace(/\/+$/, '');
     const m = path.match(/^\/vendors\/(suppliers|partners)\/(\d+)\/payments$/i);
     if (m) return { entity_type: m[1].toLowerCase()==='suppliers' ? 'SUPPLIER' : 'PARTNER', entity_id: m[2] };
     const qs = new URLSearchParams(location.search);
@@ -30,14 +32,14 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   injectStatementButtons();
 
-  function debounce(fn, ms){ let t; return function(){ clearTimeout(t); t=setTimeout(()=>fn.apply(this, arguments), ms); }; }
-  const debouncedReload = debounce(function(){ updateUrlQuery(); loadPayments(1); }, 250);
+  function debounce(fn, ms) { let t; return function () { clearTimeout(t); t = setTimeout(() => fn.apply(this, arguments), ms); }; }
+  const debouncedReload = debounce(function () { updateUrlQuery(); loadPayments(1); }, 250);
 
-  filterSelectors.forEach(function(sel){
+  filterSelectors.forEach(function (sel) {
     const el = document.querySelector(sel);
     if (!el) return;
-    el.addEventListener('change', debouncedReload);
-    if (el.tagName === 'INPUT') el.addEventListener('input', debouncedReload);
+    el.addEventListener('change', debouncedReload, { passive: true });
+    if (el.tagName === 'INPUT') el.addEventListener('input', debouncedReload, { passive: true });
   });
 
   function normalizeEntity(val) {
@@ -45,6 +47,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const k = val.toString().toLowerCase();
     return ENTITY_ENUM[k] || val.toString().toUpperCase();
   }
+
+  function normalizeMethod(v) {
+    v = String(v || '').trim();
+    if (!v) return '';
+    return v.replace(/\s+/g,'_').replace(/-/g,'_').toUpperCase(); // CASH, BANK_TRANSFER, CREDIT, ...
+  }
+
   function normDir(v) {
     v = (v || '').toUpperCase();
     if (v === 'IN') return 'INCOMING';
@@ -52,7 +61,7 @@ document.addEventListener('DOMContentLoaded', function () {
     return v;
   }
 
-  function validDates(start, end){
+  function validDates(start, end) {
     if (!start || !end) return { start, end };
     const s = new Date(start), e = new Date(end);
     if (isNaN(s) || isNaN(e)) return { start, end };
@@ -63,11 +72,11 @@ document.addEventListener('DOMContentLoaded', function () {
   function currentFilters(page = 1) {
     const raw = {
       entity_type: normalizeEntity(document.querySelector('#filterEntity')?.value || ctx.entity_type || ''),
-      status:      document.querySelector('#filterStatus')?.value || '',
-      direction:   normDir(document.querySelector('#filterDirection')?.value || ''),
-      method:      document.querySelector('#filterMethod')?.value || '',
-      start_date:  document.querySelector('#startDate')?.value || '',
-      end_date:    document.querySelector('#endDate')?.value || '',
+      status: document.querySelector('#filterStatus')?.value || '',
+      direction: normDir(document.querySelector('#filterDirection')?.value || ''),
+      method: normalizeMethod(document.querySelector('#filterMethod')?.value || ''),
+      start_date: document.querySelector('#startDate')?.value || '',
+      end_date: document.querySelector('#endDate')?.value || '',
       page
     };
     const v = validDates(raw.start_date, raw.end_date);
@@ -76,9 +85,9 @@ document.addEventListener('DOMContentLoaded', function () {
     return raw;
   }
 
-  function syncFiltersFromUrl(){
+  function syncFiltersFromUrl() {
     const qs = new URLSearchParams(location.search);
-    const setVal = (sel, v)=>{ const el=document.querySelector(sel); if (el && v!=null) el.value=v; };
+    const setVal = (sel, v) => { const el = document.querySelector(sel); if (el && v != null) el.value = v; };
     setVal('#filterEntity', qs.get('entity_type'));
     setVal('#filterStatus', qs.get('status'));
     setVal('#filterDirection', qs.get('direction'));
@@ -90,7 +99,7 @@ document.addEventListener('DOMContentLoaded', function () {
   function updateUrlQuery() {
     const raw = currentFilters();
     const params = new URLSearchParams();
-    Object.entries(raw).forEach(function([k, v]){ if (v && k !== 'page') params.append(k, v); });
+    Object.entries(raw).forEach(function ([k, v]) { if (v && k !== 'page') params.append(k, v); });
     history.replaceState(null, '', location.pathname + (params.toString() ? ('?' + params.toString()) : ''));
   }
 
@@ -100,63 +109,70 @@ document.addEventListener('DOMContentLoaded', function () {
   function loadPayments(page = 1) {
     const raw = currentFilters(page);
     const params = new URLSearchParams();
-    Object.entries(raw).forEach(function([k, v]){ if (v) params.append(k, v); });
+    Object.entries(raw).forEach(function ([k, v]) { if (v) params.append(k, v); });
     if (_abortCtrl) _abortCtrl.abort();
     _abortCtrl = new AbortController();
     setLoading(true);
     fetch('/payments/?' + params.toString(), { headers: { 'Accept': 'application/json' }, signal: _abortCtrl.signal })
-      .then(function(r){ return r.json(); })
-      .then(function(data){
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function (data) {
         const list = Array.isArray(data.payments) ? data.payments : [];
         renderPaymentsTable(list);
         renderPagination(Number(data.total_pages || 1), Number(data.current_page || 1));
         renderTotals(data.totals || null);
       })
-      .catch(function(){
+      .catch(function () {
         renderPaymentsTable([]);
         renderPagination(1, 1);
         renderTotals(null);
       })
-      .finally(function(){ setLoading(false); });
+      .finally(function () { setLoading(false); });
   }
 
   function setLoading(is) {
     const tbody = document.querySelector('#paymentsTable tbody');
     if (!tbody) return;
-    if (is) {
-      tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm me-2"></div>جارِ التحميل…</td></tr>';
-    }
+    if (is) tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm me-2"></div>جارِ التحميل…</td></tr>';
   }
 
   function badgeForDirection(dir) {
-    const v = (dir || '').toUpperCase();
+    const v = String(dir || '').toUpperCase();
     return (v === 'IN' || v === 'INCOMING') ? '<span class="badge bg-success">وارد</span>' : '<span class="badge bg-danger">صادر</span>';
   }
+
   function badgeForStatus(st) {
-    const cls = st === 'COMPLETED' ? 'bg-success' : st === 'PENDING' ? 'bg-warning text-dark' : st === 'FAILED' ? 'bg-danger' : 'bg-secondary';
-    const txt = AR_STATUS[st] || st || '';
-    return '<span class="badge '+cls+'">'+txt+'</span>';
+    const s = String(st || '');
+    const cls = s === 'COMPLETED' ? 'bg-success' : s === 'PENDING' ? 'bg-warning text-dark' : s === 'FAILED' ? 'bg-danger' : 'bg-secondary';
+    const txt = AR_STATUS[s] || s || '';
+    return '<span class="badge ' + cls + '">' + txt + '</span>';
   }
 
-  function fmtAmount(v){ return Number(v || 0).toFixed(2); }
+  function toNumber(s) {
+    s = String(s || '')
+      .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+      .replace(/[٬،\s]/g, '')
+      .replace(',', '.');
+    const n = parseFloat(s);
+    return isNaN(n) ? 0 : n;
+  }
+
+  function fmtAmount(v) { return toNumber(v).toFixed(2); }
 
   function deriveEntityLabel(p) {
     if (p.entity_display) return p.entity_display;
     const map = [
-      ['customer_id','عميل'],
-      ['supplier_id','مورد'],
-      ['partner_id','شريك'],
-      ['sale_id','بيع'],
-      ['invoice_id','فاتورة'],
-      ['service_id','صيانة'],
-      ['shipment_id','شحنة'],
-      ['expense_id','مصروف'],
-      ['preorder_id','حجز'],
-      ['loan_settlement_id','تسوية']
+      ['customer_id', 'عميل'],
+      ['supplier_id', 'مورد'],
+      ['partner_id', 'شريك'],
+      ['sale_id', 'بيع'],
+      ['invoice_id', 'فاتورة'],
+      ['service_id', 'صيانة'],
+      ['shipment_id', 'شحنة'],
+      ['expense_id', 'مصروف'],
+      ['preorder_id', 'حجز'],
+      ['loan_settlement_id', 'تسوية']
     ];
-    for (const [key,label] of map) {
-      if (p[key]) return label+' #'+p[key];
-    }
+    for (const [key, label] of map) if (p[key]) return label + ' #' + p[key];
     return p.entity_type || '';
   }
 
@@ -171,27 +187,27 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
     let pageSum = 0;
-    list.forEach(function(p){
-      const splitsHtml = (p.splits || []).map(function(s){
-        return '<span class="badge bg-secondary me-1">'+String((s.method || '')).toUpperCase()+': '+fmtAmount(s.amount)+' '+(p.currency || '')+'</span>';
+    list.forEach(function (p) {
+      const splitsHtml = (p.splits || []).map(function (s) {
+        return '<span class="badge bg-secondary me-1">' + String((s.method || '')).toUpperCase() + ': ' + fmtAmount(s.amount) + ' ' + (p.currency || '') + '</span>';
       }).join(' ');
       const dateOnly = (p.payment_date || '').split('T')[0] || '';
-      pageSum += Number(p.total_amount || 0);
+      pageSum += toNumber(p.total_amount);
       const tr = document.createElement('tr');
       tr.innerHTML =
-        '<td>'+p.id+'</td>'+
-        '<td>'+dateOnly+'</td>'+
-        '<td>'+fmtAmount(p.total_amount)+'</td>'+
-        '<td>'+(p.currency || '')+'</td>'+
-        '<td>'+(splitsHtml || (p.method || ''))+'</td>'+
-        '<td>'+badgeForDirection(p.direction)+'</td>'+
-        '<td>'+badgeForStatus(p.status)+'</td>'+
-        '<td>'+deriveEntityLabel(p)+'</td>'+
-        '<td><a href="/payments/'+p.id+'" class="btn btn-info btn-sm">عرض</a></td>';
+        '<td>' + p.id + '</td>' +
+        '<td>' + dateOnly + '</td>' +
+        '<td>' + fmtAmount(p.total_amount) + '</td>' +
+        '<td>' + (p.currency || '') + '</td>' +
+        '<td>' + (splitsHtml || (p.method || '')) + '</td>' +
+        '<td>' + badgeForDirection(p.direction) + '</td>' +
+        '<td>' + badgeForStatus(p.status) + '</td>' +
+        '<td>' + deriveEntityLabel(p) + '</td>' +
+        '<td><a href="/payments/' + p.id + '" class="btn btn-info btn-sm">عرض</a></td>';
       tbody.appendChild(tr);
     });
     const t = document.createElement('tr');
-    t.innerHTML = '<td></td><td class="text-end fw-bold">إجمالي الصفحة</td><td class="fw-bold">'+fmtAmount(pageSum)+'</td><td colspan="6"></td>';
+    t.innerHTML = '<td></td><td class="text-end fw-bold">إجمالي الصفحة</td><td class="fw-bold">' + fmtAmount(pageSum) + '</td><td colspan="6"></td>';
     tbody.appendChild(t);
   }
 
@@ -204,8 +220,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function add(page, label, disabled, active) {
       const li = document.createElement('li');
-      li.className = 'page-item '+(disabled ? 'disabled' : '')+' '+(active ? 'active' : '');
-      li.innerHTML = '<a class="page-link" href="#" data-page="'+page+'">'+label+'</a>';
+      li.className = 'page-item ' + (disabled ? 'disabled' : '') + ' ' + (active ? 'active' : '');
+      li.innerHTML = '<a class="page-link" href="#" data-page="' + page + '">' + label + '</a>';
       ul.appendChild(li);
     }
 
@@ -218,35 +234,35 @@ document.addEventListener('DOMContentLoaded', function () {
     for (let i = start; i <= end; i++) add(i, String(i), false, i === currentPage);
     if (end < last) { if (end < last - 1) add(currentPage, '…', true, false); add(last, String(last), false, last === currentPage); }
     add(currentPage + 1, 'التالي', currentPage >= totalPages, false);
-    ul.querySelectorAll('.page-link').forEach(function(a){
-      a.addEventListener('click', function(e){
+    ul.querySelectorAll('.page-link').forEach(function (a) {
+      a.addEventListener('click', function (e) {
         e.preventDefault();
         const page = parseInt(a.dataset.page, 10);
         if (!isNaN(page)) loadPayments(page);
-      });
+      }, { passive: false });
     });
   }
 
   function renderTotals(totals) {
-    const elIn  = document.getElementById('totalIncoming');
+    const elIn = document.getElementById('totalIncoming');
     const elOut = document.getElementById('totalOutgoing');
     const elNet = document.getElementById('netTotal');
     const elAll = document.getElementById('grandTotal');
     if (!elIn && !elOut && !elNet && !elAll) return;
     const safe = totals || { total_incoming: 0, total_outgoing: 0, net_total: 0, grand_total: 0, total_paid: 0 };
-    if (elIn)  elIn.textContent  = Number(safe.total_incoming || 0).toFixed(2);
-    if (elOut) elOut.textContent = Number(safe.total_outgoing || 0).toFixed(2);
-    if (elNet) elNet.textContent = Number(safe.net_total || 0).toFixed(2);
-    if (elAll) elAll.textContent = Number(safe.grand_total || 0).toFixed(2);
+    if (elIn) elIn.textContent = fmtAmount(safe.total_incoming || 0);
+    if (elOut) elOut.textContent = fmtAmount(safe.total_outgoing || 0);
+    if (elNet) elNet.textContent = fmtAmount(safe.net_total || 0);
+    if (elAll) elAll.textContent = fmtAmount(safe.grand_total || 0);
   }
 
   function printStatement() {
     try {
       const table = document.getElementById('paymentsTable');
       const htmlTable = table.outerHTML;
-      const title = 'كشف حساب - '+(ctx.entity_type || '')+' #'+(ctx.entity_id || '');
+      const title = 'كشف حساب - ' + (ctx.entity_type || '') + ' #' + (ctx.entity_id || '');
       const w = window.open('', 'stmt');
-      w.document.write('<html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>'+title+'</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"><style>body{padding:24px}h3{margin-bottom:16px}table{font-size:12px}</style></head><body><h3>'+title+'</h3>'+htmlTable+'<script>window.onload=function(){window.print();}</script></body></html>');
+      w.document.write('<html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>' + title + '</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"><style>body{padding:24px}h3{margin-bottom:16px}table{font-size:12px}</style></head><body><h3>' + title + '</h3>' + htmlTable + '<script>window.onload=function(){window.print();}</script></body></html>');
       w.document.close();
     } catch (e) {
       alert('تعذر الطباعة الآن.');
@@ -255,20 +271,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function exportCsv() {
     try {
-      const headers = Array.from(document.querySelectorAll('#paymentsTable thead th')).map(function(th){ return th.textContent.trim(); }).slice(0,8);
-      const rows = _lastList.map(function(p){
+      const headers = Array.from(document.querySelectorAll('#paymentsTable thead th')).map(function (th) { return th.textContent.trim(); }).slice(0, 8);
+      const rows = _lastList.map(function (p) {
         const dateOnly = (p.payment_date || '').split('T')[0] || '';
-        const method = (p.splits && p.splits.length) ? p.splits.map(function(s){ return String((s.method||'')).toUpperCase()+': '+Number(s.amount||0).toFixed(2); }).join(' | ') : (p.method || '');
-        return [String(p.id||''), dateOnly, Number(p.total_amount||0).toFixed(2), String(p.currency||''), method, (p.direction||''), (AR_STATUS[p.status]||p.status||''), String(deriveEntityLabel(p)||'')];
+        const method = (p.splits && p.splits.length) ? p.splits.map(function (s) { return String((s.method || '')).toUpperCase() + ': ' + fmtAmount(s.amount); }).join(' | ') : (p.method || '');
+        return [String(p.id || ''), dateOnly, fmtAmount(p.total_amount), String(p.currency || ''), method, (p.direction || ''), (AR_STATUS[p.status] || p.status || ''), String(deriveEntityLabel(p) || '')];
       });
-      const csv = [headers].concat(rows).map(function(r){ return r.map(function(cell){ return '"'+String(cell).replace(/"/g,'""')+'"'; }).join(','); }).join('\n');
+      const csv = [headers].concat(rows).map(function (r) { return r.map(function (cell) { return '"' + String(cell).replace(/"/g, '""') + '"'; }).join(','); }).join('\n');
       const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       const now = new Date();
-      const ymd = ''+now.getFullYear()+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0');
+      const ymd = '' + now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0');
       a.href = url;
-      a.download = 'statement_'+(ctx.entity_type || 'ALL').toLowerCase()+'_'+(ctx.entity_id || 'all')+'_'+ymd+'.csv';
+      a.download = 'statement_' + (ctx.entity_type || 'ALL').toLowerCase() + '_' + (ctx.entity_id || 'all') + '_' + ymd + '.csv';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -281,5 +297,5 @@ document.addEventListener('DOMContentLoaded', function () {
   syncFiltersFromUrl();
   updateUrlQuery();
   loadPayments();
-  window.addEventListener('popstate', function(){ syncFiltersFromUrl(); loadPayments(1); });
+  window.addEventListener('popstate', function () { syncFiltersFromUrl(); loadPayments(1); });
 });

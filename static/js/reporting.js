@@ -7,24 +7,34 @@
   const safeJSON = (s, fallback = null) => { try { return JSON.parse(s || ""); } catch { return fallback; } };
   const t = (k) => (window.FIELD_LABELS && FIELD_LABELS[k]) || k;
 
+  const EXCLUDED = (window.EXCLUDED_FIELDS || []).map(String);
+  const filterList = (arr) => (arr || []).filter((x) => !EXCLUDED.includes(String(x)));
+
   const STORAGE_KEY = 'dynamic_report_state.v2';
   const saveState = () => {
     const f = $('#report-form');
     if (!f) return;
     const sel = (name) => $(`[name="${name}"]`, f);
+    const selected = Array.from($('#selected_fields')?.selectedOptions || []).map(o => o.value);
     const state = {
       table: sel('table')?.value || '',
       date_field: sel('date_field')?.value || '',
       start_date: sel('start_date')?.value || '',
       end_date: sel('end_date')?.value || '',
       limit: sel('limit')?.value || '',
-      selected_fields: Array.from($('#selected_fields')?.selectedOptions || []).map(o => o.value),
+      selected_fields: filterList(selected),
       like_filters: collectLikeFilters()
     };
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
   };
   const loadState = () => {
-    try { return safeJSON(localStorage.getItem(STORAGE_KEY), null) || null; } catch { return null; }
+    try {
+      const st = safeJSON(localStorage.getItem(STORAGE_KEY), null) || null;
+      if (!st) return null;
+      st.selected_fields = filterList(st.selected_fields);
+      if (st.date_field && EXCLUDED.includes(st.date_field)) st.date_field = '';
+      return st;
+    } catch { return null; }
   };
 
   let dt;
@@ -52,13 +62,18 @@
       }
     });
   }
+
   function renderTable(headers, rows) {
+    headers = filterList(Array.isArray(headers) ? headers : []);
+    rows = Array.isArray(rows) ? rows.map(r => {
+      const o = {};
+      headers.forEach(h => { o[h] = r[h]; });
+      return o;
+    }) : [];
+
     const thead = $('#thead-dynamic');
     const tbody = $('#tbody-dynamic');
     const noData = $('#no-data');
-
-    if (!Array.isArray(headers)) headers = [];
-    if (!Array.isArray(rows)) rows = [];
 
     thead.innerHTML = '';
     const trh = document.createElement('tr');
@@ -95,24 +110,28 @@
     } else {
       initDataTable();
     }
-
     $('#result-count').textContent = rows.length || 0;
     noData.classList.toggle('d-none', rows.length > 0);
   }
 
   function translateField(name) { return t(name); }
+
   async function fetchModelFields(model) {
-    if (!model) return { columns: [], date_fields: [] };
+    if (!model) return { columns: [], date_fields: [], all_fields: [] };
     const r = await fetch(`/reports/api/model_fields?model=${encodeURIComponent(model)}`);
-    if (!r.ok) return { columns: [], date_fields: [] };
-    return r.json();
+    if (!r.ok) return { columns: [], date_fields: [], all_fields: [] };
+    const json = await r.json();
+    json.columns = filterList(json.columns);
+    json.date_fields = filterList(json.date_fields);
+    json.all_fields = filterList(json.all_fields);
+    return json;
   }
 
   function fillSelectOptions(select, items, keepSelected = true) {
     if (!select) return;
     const prev = keepSelected ? new Set(Array.from(select.selectedOptions).map(o => o.value)) : new Set();
     select.innerHTML = '';
-    (items || []).forEach(v => {
+    filterList(items || []).forEach(v => {
       const opt = document.createElement('option');
       opt.value = v;
       opt.textContent = translateField(v);
@@ -121,25 +140,30 @@
     });
     const pre = safeJSON(select.getAttribute('data-selected'), []);
     if (pre?.length) {
-      $$('#selected_fields option').forEach(o => o.selected = pre.includes(o.value));
+      const filteredPre = filterList(pre);
+      $$('#selected_fields option').forEach(o => o.selected = filteredPre.includes(o.value));
       select.removeAttribute('data-selected');
     }
   }
+
   function applyDateFieldOptions(select, dateFields) {
     if (!select) return;
     const current = select.getAttribute('data-selected') || select.value || '';
     const def = select.getAttribute('data-default') || '';
     select.innerHTML = '<option value="">—</option>';
-    (dateFields || []).forEach(df => {
+    filterList(dateFields || []).forEach(df => {
       const opt = document.createElement('option');
       opt.value = df;
       opt.textContent = translateField(df);
       select.appendChild(opt);
     });
-    if (current && $(`option[value="${CSS.escape(current)}"]`, select)) {
+    const canUse = (v) => v && $(`option[value="${CSS.escape(v)}"]`, select);
+    if (canUse(current)) {
       select.value = current;
-    } else if (def && $(`option[value="${CSS.escape(def)}"]`, select)) {
+    } else if (canUse(def)) {
       select.value = def;
+    } else {
+      select.value = '';
     }
     select.setAttribute('data-selected', select.value || '');
   }
@@ -154,7 +178,7 @@
     if (!wrap) return;
     const initial = safeJSON(wrap.getAttribute('data-initial-like'), {}) || {};
     wrap.innerHTML = '';
-    const textCols = (columns || []).filter(isLikelyTextField).slice(0, 12);
+    const textCols = filterList(columns || []).filter(isLikelyTextField).slice(0, 12);
     textCols.forEach(col => {
       const div = document.createElement('div');
       div.className = 'col-lg-3 col-md-4 col-sm-6';
@@ -178,6 +202,7 @@
       });
     });
   }
+
   function collectLikeFilters() {
     const obj = {};
     $$('#like_filters input[name]').forEach(inp => {
@@ -193,13 +218,15 @@
     const form = $('#report-form');
     if (!form) return;
     const fd = new FormData(form);
+    let cols = Array.from($('#selected_fields')?.selectedOptions || []).map(o => o.value);
+    cols = filterList(cols);
     const payload = {
       table: fd.get('table') || '',
-      date_field: fd.get('date_field') || '',
+      date_field: EXCLUDED.includes(String(fd.get('date_field') || '')) ? '' : (fd.get('date_field') || ''),
       start_date: fd.get('start_date') || '',
       end_date: fd.get('end_date') || '',
       limit: Number(fd.get('limit') || 1000),
-      columns: Array.from($('#selected_fields')?.selectedOptions || []).map(o => o.value),
+      columns: cols,
       like_filters: collectLikeFilters(),
       aggregates: { count: ['id'] }
     };
@@ -216,8 +243,14 @@
       });
       if (!r.ok) throw new Error('فشل الاتصال بالسيرفر');
       const data = await r.json();
-      const rows = Array.isArray(data.data) ? data.data : [];
-      const headers = rows.length ? Object.keys(rows[0]) : (payload.columns || []);
+      let rows = Array.isArray(data.data) ? data.data : [];
+      const headersFromRows = rows.length ? Object.keys(rows[0]) : (cols || []);
+      const headers = filterList(headersFromRows);
+      rows = rows.map(rec => {
+        const o = {};
+        headers.forEach(h => { o[h] = rec[h]; });
+        return o;
+      });
       const limited = rows.slice(0, payload.limit || 1000);
       renderTable(headers, limited);
       renderSummary(data.summary || {});
@@ -261,8 +294,13 @@
   }
 
   async function refreshForModel(model) {
-    const { columns, date_fields } = await fetchModelFields(model);
-    fillSelectOptions($('#selected_fields'), columns, true);
+    const { columns, date_fields, all_fields } = await fetchModelFields(model);
+    const sel = $('#selected_fields');
+    const keep = new Set(filterList(Array.from(sel?.selectedOptions || []).map(o => o.value)));
+    fillSelectOptions(sel, (all_fields && all_fields.length ? all_fields : columns), true);
+    if (keep.size) {
+      $$('#selected_fields option').forEach(o => { if (keep.has(o.value)) o.selected = true; });
+    }
     applyDateFieldOptions($('#date_field'), date_fields);
     buildLikeFilters(columns);
   }
@@ -285,12 +323,14 @@
       f.limit.value = state.limit || f.limit.value;
       const sel = $('#selected_fields');
       if (sel && Array.isArray(state.selected_fields) && state.selected_fields.length) {
-        $$('#selected_fields option').forEach(o => { o.selected = state.selected_fields.includes(o.value); });
+        const allowed = new Set(filterList(Array.from(sel.options).map(o => o.value)));
+        $$('#selected_fields option').forEach(o => { o.selected = state.selected_fields.includes(o.value) && allowed.has(o.value); });
       }
       const wrap = $('#like_filters');
       if (wrap) {
         const iv = state.like_filters || {};
         Object.keys(iv).forEach(k => {
+          if (EXCLUDED.includes(k)) return;
           const inp = $(`#like_filters input[name="${CSS.escape(k)}"]`);
           if (inp) inp.value = iv[k];
         });
@@ -312,7 +352,11 @@
       }
     });
     if (window.__initialData) {
-      renderTable(window.__initialHeaders || [], window.__initialData || []);
+      renderTable(filterList(window.__initialHeaders || []), (window.__initialData || []).map(rec => {
+        const o = {};
+        filterList(window.__initialHeaders || []).forEach(h => { o[h] = rec[h]; });
+        return o;
+      }));
       renderSummary(window.__initialSummary || {});
     }
   });

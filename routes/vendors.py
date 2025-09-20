@@ -4,7 +4,7 @@ from flask import abort, Blueprint, flash, jsonify, redirect, render_template, r
 from flask_login import login_required
 from flask_wtf import FlaskForm
 from sqlalchemy import func, or_
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import joinedload
 from extensions import db
 from forms import PartnerForm, SupplierForm
@@ -117,18 +117,35 @@ def suppliers_edit(id):
             flash(f"❌ خطأ أثناء تحديث المورد: {e}", "danger")
     return render_template("vendors/suppliers/form.html", form=form, supplier=supplier)
 
+
 @vendors_bp.route("/suppliers/<int:id>/delete", methods=["POST"], endpoint="suppliers_delete")
 @login_required
 @permission_required("manage_vendors")
 def suppliers_delete(id):
     supplier = _get_or_404(Supplier, id)
+
+    w_count = db.session.query(Warehouse.id).filter(Warehouse.supplier_id == id).count()
+    pay_count = db.session.query(Payment.id).filter(Payment.supplier_id == id).count()
+    stl_count = db.session.query(SupplierLoanSettlement.id).filter(SupplierLoanSettlement.supplier_id == id).count()
+
+    if any([w_count, pay_count, stl_count]):
+        parts = []
+        if w_count: parts.append(f"مستودعات مرتبطة: {w_count}")
+        if pay_count: parts.append(f"دفعات مرتبطة: {pay_count}")
+        if stl_count: parts.append(f"تسويات قروض: {stl_count}")
+        flash("لا يمكن حذف المورد لوجود مراجع مرتبطة — " + "، ".join(parts), "danger")
+        return redirect(url_for("vendors_bp.suppliers_list"))
+
     try:
         db.session.delete(supplier)
         db.session.commit()
-        flash("✅ تم حذف المورد بنجاح", "success")
+        flash("تم حذف المورد بنجاح", "success")
+    except IntegrityError:
+        db.session.rollback()
+        flash("لا يمكن حذف المورد لوجود بيانات مرتبطة به. الرجاء فك الارتباط أولًا.", "danger")
     except SQLAlchemyError as e:
         db.session.rollback()
-        flash(f"❌ خطأ أثناء حذف المورد: {e}", "danger")
+        flash("تعذّر تنفيذ العملية. الرجاء المحاولة لاحقًا.", "danger")
     return redirect(url_for("vendors_bp.suppliers_list"))
 
 @vendors_bp.get("/suppliers/<int:supplier_id>/statement", endpoint="suppliers_statement")
@@ -136,6 +153,7 @@ def suppliers_delete(id):
 @permission_required("manage_vendors")
 def suppliers_statement(supplier_id: int):
     supplier = _get_or_404(Supplier, supplier_id)
+
     date_from_s = (request.args.get("from") or "").strip()
     date_to_s = (request.args.get("to") or "").strip()
     try:
@@ -145,6 +163,8 @@ def suppliers_statement(supplier_id: int):
         df, dt = None, None
     if dt:
         dt = dt + timedelta(days=1)
+
+    # حركات التوريد/المرتجع من مستودعات العهدة (EXCHANGE) للمورد
     tx_query = (
         db.session.query(ExchangeTransaction)
         .join(Warehouse, Warehouse.id == ExchangeTransaction.warehouse_id)
@@ -159,10 +179,12 @@ def suppliers_statement(supplier_id: int):
     if dt:
         tx_query = tx_query.filter(ExchangeTransaction.created_at < dt)
     txs = tx_query.all()
+
     entries = []
     total_debit = Decimal("0.00")
     total_credit = Decimal("0.00")
     per_product = {}
+
     def _pp(pid):
         if pid not in per_product:
             per_product[pid] = {
@@ -178,12 +200,14 @@ def suppliers_statement(supplier_id: int):
                 "notes": set(),
             }
         return per_product[pid]
+
     for tx in txs:
         p = tx.product
         pid = getattr(p, "id", None)
         row = _pp(pid)
         if row["product"] is None:
             row["product"] = p
+
         qty = int(tx.quantity or 0)
         unit_cost = D(getattr(tx, "unit_cost", 0))
         used_fallback = False
@@ -194,13 +218,18 @@ def suppliers_statement(supplier_id: int):
                 used_fallback = True
             else:
                 unit_cost = Decimal("0")
+
         amount = q2(unit_cost) * q2(qty)
         if used_fallback:
             row["notes"].add("تم التسعير من سعر شراء المنتج")
         if unit_cost == 0:
             row["notes"].add("سعر غير متوفر – راجع التسعير")
+
         d = getattr(tx, "created_at", None)
         dirv = (getattr(tx, "direction", "") or "").upper()
+
+        # المدين = قيمة التوريد (يزيد ما ندين به للمورد)
+        # الدائن = قيمة المرتجع/التسويات (تُخفّض ما ندين به)
         if dirv in {"IN", "PURCHASE", "CONSIGN_IN"}:
             entries.append({"date": d, "type": "PURCHASE", "ref": f"توريد قطع #{tx.id}", "debit": amount, "credit": Decimal("0.00")})
             total_debit += amount
@@ -214,6 +243,8 @@ def suppliers_statement(supplier_id: int):
         elif dirv in {"SETTLEMENT", "ADJUST"}:
             entries.append({"date": d, "type": "SETTLEMENT", "ref": f"تسوية مخزون #{tx.id}", "debit": Decimal("0.00"), "credit": amount})
             total_credit += amount
+
+    # الدفعات الخارجة للمورد (OUTGOING) — تُسجّل دائن لأنها تُخفّض ما ندين به
     pay_q = (
         db.session.query(Payment)
         .filter(
@@ -226,12 +257,15 @@ def suppliers_statement(supplier_id: int):
         pay_q = pay_q.filter(Payment.payment_date >= df)
     if dt:
         pay_q = pay_q.filter(Payment.payment_date < dt)
+
     for pmt in pay_q.all():
         d = pmt.payment_date
         amt = q2(pmt.total_amount)
         ref = pmt.reference or f"دفعة #{pmt.id}"
         entries.append({"date": d, "type": "PAYMENT", "ref": ref, "debit": Decimal("0.00"), "credit": amt})
         total_credit += amt
+
+    # تسويات القروض مع المورد — دائن أيضًا (تُخفّض الالتزام)
     stl_q = (
         db.session.query(SupplierLoanSettlement)
         .options(joinedload(SupplierLoanSettlement.loan))
@@ -241,6 +275,7 @@ def suppliers_statement(supplier_id: int):
         stl_q = stl_q.filter(SupplierLoanSettlement.settlement_date >= df)
     if dt:
         stl_q = stl_q.filter(SupplierLoanSettlement.settlement_date < dt)
+
     for s in stl_q.all():
         d = s.settlement_date
         amt = q2(s.settled_price)
@@ -251,7 +286,9 @@ def suppliers_statement(supplier_id: int):
         if pid in per_product:
             per_product[pid]["qty_paid"] += 1
             per_product[pid]["val_paid"] += amt
+
     entries.sort(key=lambda e: (e["date"] or datetime.min, e["type"], e["ref"]))
+
     balance = Decimal("0.00")
     out = []
     for e in entries:
@@ -259,6 +296,8 @@ def suppliers_statement(supplier_id: int):
         c = q2(e["credit"])
         balance += d - c
         out.append({**e, "debit": d, "credit": c, "balance": balance})
+
+    # قيمة العهدة المتبقية عندنا (مخزون العهدة)
     ex_ids = [
         wid
         for (wid,) in db.session.query(Warehouse.id)
@@ -290,6 +329,7 @@ def suppliers_statement(supplier_id: int):
                 r["product"] = {"name": name}
             r["qty_unpaid"] = qty_i
             r["val_unpaid"] = value
+
     return render_template(
         "vendors/suppliers/statement.html",
         supplier=supplier,
@@ -320,6 +360,73 @@ def partners_list():
         search=s,
         form=form,
         pay_url=url_for("payments.create_payment"),
+    )
+
+@vendors_bp.get("/partners/<int:partner_id>/statement", endpoint="partners_statement")
+@login_required
+@permission_required("manage_vendors")
+def partners_statement(partner_id: int):
+    partner = _get_or_404(Partner, partner_id)
+
+    date_from_s = (request.args.get("from") or "").strip()
+    date_to_s = (request.args.get("to") or "").strip()
+    try:
+        df = datetime.strptime(date_from_s, "%Y-%m-%d") if date_from_s else None
+        dt = datetime.strptime(date_to_s, "%Y-%m-%d") if date_to_s else None
+    except Exception:
+        df, dt = None, None
+    if dt:
+        dt = dt + timedelta(days=1)
+
+    q = (
+        db.session.query(Payment)
+        .filter(
+            Payment.partner_id == partner.id,
+            Payment.status == PaymentStatus.COMPLETED.value,
+        )
+    )
+    if df:
+        q = q.filter(Payment.payment_date >= df)
+    if dt:
+        q = q.filter(Payment.payment_date < dt)
+
+    entries = []
+    total_debit = Decimal("0.00")
+    total_credit = Decimal("0.00")
+
+    for p in q.all():
+        d = p.payment_date
+        amt = q2(p.total_amount or 0)
+        ref = p.reference or f"سند #{p.id}"
+        dirv = getattr(p, "direction", None)
+        # OUTGOING => مدين (خارج منا للشريك)
+        # INCOMING => دائن (وارد منا من الشريك)
+        if dirv == PaymentDirection.OUTGOING.value:
+            entries.append({"date": d, "type": "PAYMENT_OUT", "ref": ref, "debit": amt, "credit": Decimal("0.00")})
+            total_debit += amt
+        else:
+            entries.append({"date": d, "type": "PAYMENT_IN", "ref": ref, "debit": Decimal("0.00"), "credit": amt})
+            total_credit += amt
+
+    entries.sort(key=lambda e: (e["date"] or datetime.min, e["type"], e["ref"]))
+
+    balance = Decimal("0.00")
+    out = []
+    for e in entries:
+        d = q2(e["debit"])
+        c = q2(e["credit"])
+        balance += d - c
+        out.append({**e, "debit": d, "credit": c, "balance": balance})
+
+    return render_template(
+        "vendors/partners/statement.html",
+        partner=partner,
+        ledger_entries=out,
+        total_debit=total_debit,
+        total_credit=total_credit,
+        balance=balance,
+        date_from=df if df else None,
+        date_to=(dt - timedelta(days=1)) if dt else None,
     )
 
 @vendors_bp.route("/partners/new", methods=["GET", "POST"], endpoint="partners_create")
@@ -370,11 +477,35 @@ def partners_edit(id):
 @permission_required("manage_vendors")
 def partners_delete(id):
     partner = _get_or_404(Partner, id)
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.args.get("modal") == "1"
     try:
+        linked_wh = (
+            db.session.query(Warehouse)
+            .filter(Warehouse.partner_id == partner.id)
+            .all()
+        )
+        bad_wh = [
+            w for w in linked_wh
+            if getattr(w.warehouse_type, "value", w.warehouse_type) == WarehouseType.PARTNER.value
+        ]
+        if bad_wh:
+            msg = "لا يمكن حذف الشريك لوجود مستودعات نوع PARTNER مرتبطة به."
+            details = [{"id": w.id, "name": w.name} for w in bad_wh]
+            if is_ajax:
+                return jsonify({"success": False, "error": "has_partner_warehouses", "detail": msg, "warehouses": details}), 400
+            else:
+                names = "، ".join(f"#{w['id']} - {w['name']}" for w in details)
+                flash(f"❌ {msg} المستودعات: {names}", "danger")
+                return redirect(url_for("vendors_bp.partners_list"))
         db.session.delete(partner)
         db.session.commit()
+        if is_ajax:
+            return jsonify({"success": True}), 200
         flash("✅ تم حذف الشريك بنجاح", "success")
-    except SQLAlchemyError as e:
+        return redirect(url_for("vendors_bp.partners_list"))
+    except Exception as e:
         db.session.rollback()
+        if is_ajax:
+            return jsonify({"success": False, "error": "delete_failed", "detail": str(e)}), 400
         flash(f"❌ خطأ أثناء حذف الشريك: {e}", "danger")
-    return redirect(url_for("vendors_bp.partners_list"))
+        return redirect(url_for("vendors_bp.partners_list"))

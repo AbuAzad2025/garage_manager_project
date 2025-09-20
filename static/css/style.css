@@ -21,6 +21,8 @@
   --dark-bg-alt:#273143;
   --dark-text:#c2c7d0;
   --dark-text-alt:#e0e0e0;
+  --navbar-bg:linear-gradient(90deg,#1f4037,#99f2c8);
+  --navbar-text:#ffffff;
 }
 
 *, *::before, *::after {
@@ -76,6 +78,12 @@ body {
   font-weight:700;
   font-size:1.1rem;
   letter-spacing:.5px;
+}
+
+.main-header.navbar {
+  background:var(--navbar-bg);
+  color:var(--navbar-text);
+  border-bottom:none;
 }
 
 .content-wrapper {
@@ -307,4 +315,24 @@ button:focus, .btn:focus {
 }
 .tab-content.active {
   display:block;
+}
+
+#noteForm .form-check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: .5rem;
+}
+
+#noteForm .form-check-input {
+  margin: 0;
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+#noteForm .form-check-label {
+  font-size: .95rem;
+  line-height: 1.2;
+  color: #222;
 }

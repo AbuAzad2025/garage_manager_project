@@ -1,6 +1,5 @@
 {% extends 'warehouses/base.html' %}
 {% block title %}عرض المخزون عبر مستودعات محددة{% endblock %}
-{% block page_page_title %}{% endblock %}
 {% block page_title %}عرض المخزون عبر مستودعات محددة{% endblock %}
 
 {% block head_extra %}
@@ -35,7 +34,8 @@
       </div>
       <div class="col-lg-2 d-flex gap-2">
         <button class="btn btn-primary flex-fill">تطبيق</button>
-        <a class="btn btn-secondary flex-fill" href="{{ url_for('warehouse_bp.detail', warehouse_id=active_warehouse_id) }}">رجوع</a>
+<a class="btn btn-secondary flex-fill"
+   href="{{ url_for('warehouse_bp.detail', warehouse_id=active_warehouse_id) }}">رجوع</a>
       </div>
     </form>
   </div>
@@ -71,11 +71,13 @@
   <script>
     (function(){
       var DT=null;
+
       function csrfToken(){
         var m=document.querySelector('meta[name="csrf-token"]');if(m&&m.content)return m.content;
         var i=document.querySelector('input[name="csrf_token"]');if(i&&i.value)return i.value;
         var c=document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);return c?decodeURIComponent(c[1]):null;
       }
+
       function notify(msg,type){
         type=type||'info';
         var c=document.getElementById('notification-container');
@@ -88,25 +90,34 @@
         c.appendChild(el);
         setTimeout(function(){if(!el.parentNode)return;el.classList.remove('show');setTimeout(function(){if(el.parentNode)el.parentNode.removeChild(el);},300);},4000);
       }
+
       function toStr(v){return v==null?'':String(v)}
       function fmt(n){if(n==null||n==='')return '';var x=Number(n);if(!isFinite(x))return String(n);return x.toLocaleString('ar-EG',{minimumFractionDigits:0,maximumFractionDigits:2})}
+
       function buildQuery(){
         var q=document.getElementById('q').value||'';
         var sel=document.getElementById('warehouse_ids');
         var params=['format=json'];
         if(q)params.push('q='+encodeURIComponent(q));
-        if(sel){for(var i=0;i<sel.options.length;i++){var o=sel.options[i];if(o.selected)params.push('warehouse_ids='+encodeURIComponent(o.value))}}
-        return params.join('&')
+        if(sel){
+          for(var i=0;i<sel.options.length;i++){
+            var o=sel.options[i];
+            if(o.selected)params.push('warehouse_ids='+encodeURIComponent(o.value));
+          }
+        }
+        return params.join('&');
       }
-      function productsURL(){
-        var aw=document.getElementById('products-table').dataset.activeWarehouseId;
-        return '/warehouses/'+aw+'/products'
-      }
+
+function productsURL(){
+  var aw = document.getElementById('products-table').dataset.activeWarehouseId;
+  return '/api/warehouses/' + aw + '/products'; // الصحيح
+}
+
       function renderRow(p){
         var tr=document.createElement('tr');
         tr.dataset.id=p.id;
         tr.innerHTML=
-          '<td class="align-middle"><a href="/warehouses/parts/'+p.id+'">'+toStr(p.name)+'</a></td>'+
+          '<td class="align-middle"><a href="/warehouses/parts/'+p.id+'">'+toStr(p.name||p.text)+'</a></td>'+
           '<td class="align-middle"><input class="form-control form-control-sm inline-input" data-field="sku" value="'+toStr(p.sku||'')+'"></td>'+
           '<td class="align-middle"><input class="form-control form-control-sm inline-input" data-field="part_number" value="'+toStr(p.part_number||'')+'"></td>'+
           '<td class="align-middle"><input class="form-control form-control-sm inline-input" data-field="brand" value="'+toStr(p.brand||'')+'"></td>'+
@@ -116,46 +127,68 @@
           '<td class="align-middle text-end w-price"><input type="number" step="0.01" class="form-control form-control-sm inline-input text-end" data-field="online_price" value="'+toStr(p.online_price!=null?p.online_price:'')+'"></td>'+
           '<td class="align-middle text-end w-qty"><input type="number" step="1" class="form-control form-control-sm inline-input text-end" data-field="quantity" value="'+toStr(p.quantity!=null?p.quantity:'0')+'"></td>'+
           '<td class="align-middle text-end" data-role="total_quantity">'+fmt(p.total_quantity||0)+'</td>';
-        return tr
+        return tr;
       }
+
       function initDT(){
         if(!(window.jQuery&&jQuery.fn.DataTable))return;
         if(!DT){
-          DT=window.jQuery('#products-table').DataTable({pageLength:25,order:[],responsive:true,autoWidth:false,language:{url:'https://cdn.datatables.net/plug-ins/1.13.6/i18n/ar.json'}});
+          DT=window.jQuery('#products-table').DataTable({
+            pageLength:25,
+            order:[],
+            responsive:true,
+            autoWidth:false,
+            language:{ url:"{{ url_for('static', filename='datatables/Arabic.json') }}" }
+          });
         }
       }
+
       function loadProducts(){
         var url=productsURL()+'?'+buildQuery();
         var tbody=document.getElementById('products-body');
         fetch(url,{headers:{'X-Requested-With':'XMLHttpRequest'},credentials:'same-origin'})
           .then(function(r){return r.json()})
           .then(function(res){
-            var arr=res&&res.data?res.data:[];
+            var arr=(res&&res.results)?res.results:[];
             if(window.jQuery&&jQuery.fn.DataTable&&DT){
               DT.clear();
-              for(var i=0;i<arr.length;i++){DT.row.add(renderRow(arr[i]))}
+              for(var i=0;i<arr.length;i++){ DT.row.add( renderRow(arr[i]) ); }
               DT.draw(false);
             }else{
               var frag=document.createDocumentFragment();
-              for(var j=0;j<arr.length;j++){frag.appendChild(renderRow(arr[j]))}
+              for(var j=0;j<arr.length;j++){ frag.appendChild(renderRow(arr[j])); }
               tbody.innerHTML='';
               tbody.appendChild(frag);
               initDT();
             }
           })
-          .catch(function(){notify('تعذر جلب البيانات','danger')})
+          .catch(function(){notify('تعذر جلب البيانات','danger')});
       }
+
       function saveInline(productId, field, value){
         var aw=document.getElementById('products-table').dataset.activeWarehouseId;
         var url='/warehouses/'+aw+'/products/'+productId;
         var payload={};payload[field]=value;
-        return fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest','X-CSRFToken':csrfToken()||''},credentials:'same-origin',body:JSON.stringify(payload)}).then(function(res){
+        return fetch(url,{
+          method:'POST',
+          headers:{
+            'Content-Type':'application/json',
+            'X-Requested-With':'XMLHttpRequest',
+            'X-CSRFToken':csrfToken()||''
+          },
+          credentials:'same-origin',
+          body:JSON.stringify(payload)
+        }).then(function(res){
           return res.json().catch(function(){return{}}).then(function(data){
-            if(!res.ok||data.ok===false){var msg=(data&&(data.error||data.message))||'فشل الحفظ';throw new Error(msg)}
-            return data
-          })
-        })
+            if(!res.ok || data.ok===false){
+              var msg=(data&&(data.error||data.message))||'فشل الحفظ';
+              throw new Error(msg);
+            }
+            return data;
+          });
+        });
       }
+
       function onEditCommit(e){
         var input=e.target;
         if(!input.classList.contains('inline-input'))return;
@@ -186,27 +219,31 @@
             if(typeof p.brand!=='undefined'){tr.querySelector('input[data-field="brand"]').value=p.brand||''}
           }
           input.dataset.oldValue=''+val;
-          notify('تم الحفظ','success')
+          notify('تم الحفظ','success');
         }).catch(function(err){
           if(old!=null)input.value=old;
-          notify(err&&err.message?err.message:'فشل الحفظ','danger')
-        }).finally(function(){delete input.dataset.saving})
+          notify(err&&err.message?err.message:'فشل الحفظ','danger');
+        }).finally(function(){delete input.dataset.saving});
       }
+
       function onInputFocus(e){
         var input=e.target;
         if(!input.classList.contains('inline-input'))return;
-        input.dataset.oldValue=input.value
+        input.dataset.oldValue=input.value;
       }
+
       function onInputKey(e){
         if(!e.target.classList.contains('inline-input'))return;
-        if(e.key==='Enter'){e.preventDefault();e.target.blur()}
-        if(e.key==='Escape'){if(e.target.dataset.oldValue!=null)e.target.value=e.target.dataset.oldValue;e.target.blur()}
+        if(e.key==='Enter'){e.preventDefault();e.target.blur();}
+        if(e.key==='Escape'){if(e.target.dataset.oldValue!=null)e.target.value=e.target.dataset.oldValue;e.target.blur();}
       }
-      document.getElementById('filter-form').addEventListener('submit',function(e){e.preventDefault();loadProducts()});
+
+      document.getElementById('filter-form').addEventListener('submit',function(e){e.preventDefault();loadProducts();});
       document.getElementById('products-table').addEventListener('change',onEditCommit);
       document.getElementById('products-table').addEventListener('focusin',onInputFocus);
       document.getElementById('products-table').addEventListener('keydown',onInputKey);
-      loadProducts()
+
+      loadProducts();
     })();
   </script>
 {% endblock %}

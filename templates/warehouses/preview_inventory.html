@@ -30,7 +30,8 @@
         <span class="badge bg-success" id="savedBadge" style="display:none">تم الحفظ</span>
       </div>
       <div class="d-flex gap-2">
-        <button id="btnToggleExpanded" class="btn btn-outline-secondary">نسخة موسعة</button>
+        <button id="btnCompact"  class="btn btn-outline-secondary">نسخة مبسطة</button>
+        <button id="btnExpanded" class="btn btn-outline-secondary">نسخة موسعة</button>
         <button id="btnSave" class="btn btn-primary">حفظ التغييرات</button>
         <a href="{{ url_for('warehouse_bp.list') }}" class="btn btn-light">رجوع</a>
       </div>
@@ -215,10 +216,12 @@
       const csrfToken = "{{ csrf_token() }}";
       const updateUrl = "{{ url_for('warehouse_bp.preview_update', warehouse_id=warehouse.id) }}";
       const tableEl = document.getElementById('inventory-table');
-      const btnToggle = document.getElementById('btnToggleExpanded');
+      const btnCompact = document.getElementById('btnCompact');
+      const btnExpanded = document.getElementById('btnExpanded');
       const btnSave = document.getElementById('btnSave');
       const savedBadge = document.getElementById('savedBadge');
       const pendingBadge = document.getElementById('pendingCount');
+      const VIEW_KEY = 'inv_preview_view';
 
       const pending = new Map();
 
@@ -267,6 +270,25 @@
         }
       }
 
+      function applyView(mode){
+        const wrapper = tableEl.closest('.table-responsive');
+        const isExpanded = (mode === 'expanded');
+        tableEl.classList.toggle('expanded-on', isExpanded);
+        localStorage.setItem(VIEW_KEY, isExpanded ? 'expanded' : 'compact');
+
+        if (window.jQuery && window.jQuery.fn && jQuery.fn.DataTable && jQuery.fn.DataTable.isDataTable('#inventory-table')) {
+          jQuery('#inventory-table').DataTable().columns.adjust().draw(false);
+        }
+        if (wrapper) wrapper.scrollLeft = 0;
+
+        btnExpanded.classList.toggle('btn-secondary', isExpanded);
+        btnExpanded.classList.toggle('btn-outline-secondary', !isExpanded);
+        btnCompact.classList.toggle('btn-secondary', !isExpanded);
+        btnCompact.classList.toggle('btn-outline-secondary', isExpanded);
+        btnExpanded.setAttribute('aria-pressed', isExpanded ? 'true' : 'false');
+        btnCompact.setAttribute('aria-pressed', isExpanded ? 'false' : 'true');
+      }
+
       tableEl.addEventListener('input', function(e){
         const input = e.target;
         if (!(input instanceof HTMLInputElement)) return;
@@ -286,16 +308,8 @@
         if (field === 'quantity' || field === 'selling_price') recalcRowTotal(row);
       });
 
-      btnToggle.addEventListener('click', function(){
-        const wrapper = tableEl.closest('.table-responsive');
-        const on = tableEl.classList.toggle('expanded-on');
-        btnToggle.textContent = on ? 'نسخة مصغرة' : 'نسخة موسعة';
-        if (window.jQuery && $.fn.DataTable) {
-          const dt = $('#inventory-table').DataTable();
-          dt.columns.adjust().draw(false);
-        }
-        if (wrapper) wrapper.scrollLeft = 0;
-      });
+      btnCompact.addEventListener('click', function(e){ e.preventDefault(); applyView('compact'); });
+      btnExpanded.addEventListener('click', function(e){ e.preventDefault(); applyView('expanded'); });
 
       async function sendUpdate(pid, field, value){
         const row = tableEl.querySelector(`tr[data-product="${pid}"]`);
@@ -342,14 +356,31 @@
         }
       });
 
-      if (window.jQuery && $.fn.DataTable) {
-        $('#inventory-table').DataTable({
-          pageLength: 50,
-          order: [[3,'asc']],
-          scrollX: true,
-          language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/ar.json' }
-        });
-      }
+if (window.jQuery && $.fn.DataTable) {
+  const dt = $('#inventory-table').DataTable({
+    pageLength: 50,
+    order: [[3, 'asc']],
+    scrollX: true,
+    scrollCollapse: true,
+    autoWidth: false,
+    orderMulti: false,
+    orderCellsTop: true,
+    language: { url: '{{ url_for("static", filename="datatables/Arabic.json") }}' }
+  });
+
+  // حدّث الأعمدة بعد التبديل بين مبسطة/موسعة
+  document.getElementById('btnCompact')?.addEventListener('click', () => {
+    document.getElementById('inventory-table').classList.remove('expanded-on');
+    dt.columns.adjust().draw(false);
+  });
+  document.getElementById('btnExpanded')?.addEventListener('click', () => {
+    document.getElementById('inventory-table').classList.add('expanded-on');
+    dt.columns.adjust().draw(false);
+  });
+}
+
+      const initial = localStorage.getItem(VIEW_KEY) || 'compact';
+      applyView(initial === 'expanded' ? 'expanded' : 'compact');
     })();
   </script>
 {% endblock %}

@@ -5,50 +5,72 @@
   'CUSTOMER':'عميل','SALE':'بيع','PRODUCT':'منتج','SUPPLIER':'مورد','PARTNER':'شريك',
   'INVOICE':'فاتورة','SHIPMENT':'شحنة','SERVICE':'صيانة','USER':'مستخدم','OTHER':'أخرى'
 } %}
-{% set prio_labels = {'LOW':'منخفضة','MEDIUM':'متوسطة','HIGH':'عالية','URGENT':'عاجلة'} %}
+{% set prio_labels  = {'LOW':'منخفضة','MEDIUM':'متوسطة','HIGH':'عالية','URGENT':'عاجلة'} %}
+{% set prio_classes = {'LOW':'badge-secondary','MEDIUM':'badge-info','HIGH':'badge-warning','URGENT':'badge-danger'} %}
 
 {% block content %}
-<h1 class="mb-4"><i class="fas fa-sticky-note"></i> تفاصيل الملاحظة</h1>
+
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h1 class="h4 mb-0"><i class="fas fa-sticky-note ml-2"></i> تفاصيل الملاحظة</h1>
+  <a href="{{ url_for('notes_bp.list_notes') }}" class="btn btn-outline-secondary">
+    <i class="fas fa-arrow-right ml-1"></i> رجوع إلى الملاحظات
+  </a>
+</div>
 
 <div class="card shadow-sm">
   <div class="card-body">
-    <div class="d-flex justify-content-between small text-muted mb-2">
-      <span><i class="fas fa-user"></i> {{ note.author.username if note.author else '-' }}</span>
-      <span><i class="fas fa-clock"></i> {{ note.created_at.strftime('%Y-%m-%d %H:%M') if note.created_at else '-' }}</span>
+    <div class="d-flex flex-wrap justify-content-between small text-muted mb-3">
+      <span><i class="fas fa-user ml-1"></i> {{ note.author.username if note.author else '-' }}</span>
+      <span><i class="fas fa-clock ml-1"></i> {{ note.created_at.strftime('%Y-%m-%d %H:%M') if note.created_at else '-' }}</span>
     </div>
 
-    {% if note.is_pinned %}
-      <div class="mb-2"><span class="badge badge-warning"><i class="fas fa-thumbtack"></i> مثبّت</span></div>
-    {% endif %}
+    {% set pl = prio_labels.get(note.priority, note.priority or '-') %}
+    {% set pc = prio_classes.get(note.priority, 'badge-light') %}
+    <div class="mb-3 d-flex align-items-center flex-wrap" style="gap:.5rem">
+      <span id="pinBadge" class="badge badge-warning" style="{{ '' if note.is_pinned else 'display:none;' }}"><i class="fas fa-thumbtack ml-1"></i> مثبّت</span>
+      <span id="prioBadge" class="badge {{ pc }}">{{ pl }}</span>
+    </div>
 
-    <p class="mb-3 pre-wrap">{{ note.content or '-' }}</p>
+    <div class="border rounded p-3 bg-light">
+      <p id="noteContent" class="mb-0 pre-wrap" dir="auto">{{ note.content or '-' }}</p>
+    </div>
 
-    <div class="row g-3">
-      <div class="col-md-3"><strong>مثبّت:</strong> {{ 'نعم' if note.is_pinned else 'لا' }}</div>
-      <div class="col-md-3"><strong>الأولوية:</strong> {{ prio_labels.get(note.priority, note.priority or '-') }}</div>
-      <div class="col-md-3"><strong>نوع الكيان:</strong> {{ entity_labels.get(note.entity_type, note.entity_type or '-') }}</div>
-      <div class="col-md-3"><strong>معرّف الكيان:</strong> {{ note.entity_id or '-' }}</div>
+    <div class="row mt-3">
+      {% if note.entity_type %}
+        <div class="col-md-3 mb-2">
+          <div class="text-muted small">نوع الكيان</div>
+          <div id="entityTypeLabel" class="font-weight-bold">{{ entity_labels.get(note.entity_type, note.entity_type) }}</div>
+        </div>
+      {% endif %}
+      <div class="col-md-3 mb-2">
+        <div class="text-muted small">مثبّت</div>
+        <div id="pinText" class="font-weight-bold">{{ 'نعم' if note.is_pinned else 'لا' }}</div>
+      </div>
+      <div class="col-md-3 mb-2">
+        <div class="text-muted small">الأولوية</div>
+        <div id="prioText" class="font-weight-bold">{{ pl }}</div>
+      </div>
     </div>
   </div>
 
-  <div class="card-footer bg-transparent d-flex align-items-center">
+  <div class="card-footer bg-white d-flex flex-wrap align-items-center" style="gap:.5rem">
     <a href="{{ url_for('notes_bp.list_notes') }}" class="btn btn-outline-secondary">
-      <i class="fas fa-arrow-right"></i> رجوع إلى الملاحظات
+      <i class="fas fa-list ml-1"></i> جميع الملاحظات
     </a>
 
     {% if has_perm('manage_notes') or (current_user.is_authenticated and note.author_id and current_user.id == note.author_id) %}
-      <button class="btn btn-primary ml-2" id="btnEditDetail" data-id="{{ note.id }}">
-        <i class="fas fa-edit"></i> تعديل
+      <button class="btn btn-primary" id="btnEditDetail" data-id="{{ note.id }}">
+        <i class="fas fa-edit ml-1"></i> تعديل
       </button>
 
-      <form class="d-inline ml-2" id="formDeleteDetail" action="{{ url_for('notes_bp.delete_note', note_id=note.id) }}" method="post" onsubmit="return confirm('تأكيد حذف الملاحظة؟');">
+      <form class="d-inline" id="formDeleteDetail" action="{{ url_for('notes_bp.delete_note', note_id=note.id) }}" method="post" onsubmit="return confirm('تأكيد حذف الملاحظة؟');">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="btn btn-danger"><i class="fas fa-trash"></i> حذف</button>
+        <button type="submit" class="btn btn-danger"><i class="fas fa-trash ml-1"></i> حذف</button>
       </form>
 
-      <form class="d-inline ml-2" id="formPinDetail" action="{{ url_for('notes_bp.toggle_pin', note_id=note.id) }}" method="post">
+      <form class="d-inline" id="formPinDetail" action="{{ url_for('notes_bp.toggle_pin', note_id=note.id) }}" method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="btn btn-warning"><i class="fas fa-thumbtack"></i> تبديل التثبيت</button>
+        <button type="submit" class="btn btn-warning"><i class="fas fa-thumbtack ml-1"></i> تبديل التثبيت</button>
       </form>
     {% endif %}
   </div>
@@ -72,15 +94,80 @@
 <script>
   (function(){
     var editBtn = document.getElementById('btnEditDetail');
-    if (editBtn) {
-      editBtn.addEventListener('click', function () {
+    var modalBody = document.getElementById('noteModalBody');
+
+    function badgeClassFor(prio){
+      switch((prio||'').toUpperCase()){
+        case 'URGENT': return {cls:'badge-danger', text:'عاجلة'};
+        case 'HIGH':   return {cls:'badge-warning', text:'عالية'};
+        case 'MEDIUM': return {cls:'badge-info', text:'متوسطة'};
+        case 'LOW':    return {cls:'badge-secondary', text:'منخفضة'};
+        default:       return {cls:'badge-light', text:(prio||'-')};
+      }
+    }
+
+    function wireFormSubmit(noteId){
+      var form = modalBody.querySelector('#noteForm');
+      if(!form) return;
+      form.addEventListener('submit', async function(e){
+        e.preventDefault();
+        var action = form.getAttribute('action');
+        var fd = new FormData(form);
+        try{
+          var res = await fetch(action, {method:'POST', body:fd, headers:{'X-Requested-With':'XMLHttpRequest'}});
+          var data = await res.json();
+          if(!res.ok || data.success===false) throw data;
+
+          var note = data.note || {};
+          document.getElementById('noteContent').textContent = note.content || '-';
+
+          var pinBadge = document.getElementById('pinBadge');
+          var pinText  = document.getElementById('pinText');
+          if(note.is_pinned){
+            pinBadge.style.display = '';
+            pinText.textContent = 'نعم';
+          }else{
+            pinBadge.style.display = 'none';
+            pinText.textContent = 'لا';
+          }
+
+          var map = badgeClassFor(note.priority);
+          var prioBadge = document.getElementById('prioBadge');
+          var prioText  = document.getElementById('prioText');
+          prioBadge.className = 'badge ' + map.cls;
+          prioBadge.textContent = map.text;
+          prioText.textContent = map.text;
+
+          $('#noteModal').modal('hide');
+        }catch(err){
+          if(err && err.errors){
+            Object.entries(err.errors).forEach(function([k,msg]){
+              var el = form.querySelector('[name="'+k+'"]');
+              if(el){
+                el.classList.add('is-invalid');
+                var fb = document.createElement('div');
+                fb.className = 'invalid-feedback d-block';
+                fb.textContent = Array.isArray(msg)? msg[0] : msg;
+                el.parentElement.appendChild(fb);
+              }
+            });
+          }else{
+            alert('فشل الحفظ');
+          }
+        }
+      });
+    }
+
+    if(editBtn){
+      editBtn.addEventListener('click', function(){
         var id = editBtn.getAttribute('data-id');
-        fetch("{{ url_for('notes_bp.edit_note', note_id=0) }}".replace('/0/', '/' + id + '/'))
+        fetch("{{ url_for('notes_bp.edit_note', note_id=0) }}".replace('/0/', '/' + id + '/'),
+              {headers:{'X-Requested-With':'XMLHttpRequest'}})
           .then(function(r){ return r.text(); })
           .then(function(html){
-            var body = document.getElementById('noteModalBody');
-            body.innerHTML = html;
+            modalBody.innerHTML = html;
             $('#noteModal').modal('show');
+            wireFormSubmit(id);
           })
           .catch(function(){ alert('تعذر تحميل نموذج التعديل'); });
       });

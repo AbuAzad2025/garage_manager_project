@@ -4,13 +4,14 @@
 {% block page_title %}تقرير ديناميكي{% endblock %}
 
 {% block reports_breadcrumb_extra %}
+
 <li class="breadcrumb-item active">تقرير ديناميكي</li>
 {% endblock %}
 
 {% block report_content %}
+
 <div class="container-fluid" dir="rtl">
 
-  <!-- شريط أدوات ثابت -->
   <div class="report-toolbar shadow-sm">
     <div class="container-fluid d-flex align-items-center gap-2">
       <button type="submit" form="report-form" class="btn btn-primary btn-sm">
@@ -30,14 +31,16 @@
         <i class="fas fa-print"></i> طباعة
       </button>
 
-      <div class="ms-auto d-flex align-items-center gap-2">
-        <span class="text-muted small d-none d-md-inline">نتائج:</span>
-        <span id="result-count" class="badge bg-secondary">0</span>
-      </div>
-    </div>
+```
+  <div class="ms-auto d-flex align-items-center gap-2">
+    <span class="text-muted small d-none d-md-inline">نتائج:</span>
+    <span id="result-count" class="badge bg-secondary">0</span>
+  </div>
+</div>
+```
+
   </div>
 
-  <!-- بطاقة الإعدادات -->
   <div class="card shadow-sm mb-4 mt-toolbar">
     <div class="card-header d-flex justify-content-between align-items-center">
       <span>إعدادات التقرير</span>
@@ -51,87 +54,85 @@
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         {% endif %}
 
-        <!-- الجدول -->
-        <div class="col-md-3">
-          <label class="form-label fw-semibold">الجدول</label>
-          <select name="table" id="table" class="form-select" required>
-            {% for m in model_names %}
-              <option value="{{ m }}" {% if selected_table == m %}selected{% endif %}>
-                {{ MODEL_LABELS.get(m, m) }}
-              </option>
-            {% endfor %}
-          </select>
-        </div>
-
-        <!-- حقل التاريخ -->
-        <div class="col-md-3">
-          <label class="form-label fw-semibold">حقل التاريخ</label>
-          <select
-            name="date_field"
-            id="date_field"
-            class="form-select"
-            data-default="{{ defaults.get(selected_table) }}"
-            data-selected="{{ date_field or '' }}"
-          >
-            <option value="">—</option>
-          </select>
-        </div>
-
-        <!-- من / إلى -->
-        <div class="col-md-3">
-          <label class="form-label fw-semibold">من</label>
-          <input type="date" name="start_date" value="{{ start_date or '' }}" class="form-control">
-        </div>
-
-        <div class="col-md-3">
-          <label class="form-label fw-semibold">إلى</label>
-          <input type="date" name="end_date" value="{{ end_date or '' }}" class="form-control">
-        </div>
-
-        <!-- الأعمدة -->
-        <div class="col-12">
-          <label class="form-label fw-semibold">الأعمدة</label>
-          <select
-            name="selected_fields"
-            id="selected_fields"
-            multiple
-            size="6"
-            class="form-select"
-            data-selected='{{ (columns or [])|tojson }}'
-          ></select>
-          <div class="form-text">اتركها فارغة لعرض جميع الأعمدة.</div>
-        </div>
-
-        <!-- فلاتر LIKE (مخفية افتراضيًا) -->
-        <div class="col-12">
-          <div id="advFilters" class="collapse">
-            <label class="form-label fw-semibold">فلاتر تحتوي على</label>
-            <div id="like_filters" class="row g-2" data-initial-like='{{ (like_filters or {})|tojson }}'></div>
-            <div class="form-text">يتم تطبيق البحث الجزئي على الحقول النصية الشائعة فقط.</div>
-          </div>
-        </div>
-
-        <!-- الحد -->
-        <div class="col-md-2">
-          <label class="form-label fw-semibold">الحد</label>
-          <input type="number" name="limit" min="1" max="5000" value="{{ limit or 1000 }}" class="form-control">
-        </div>
-
-        <!-- أزرار إضافية -->
-        <div class="col-12 d-flex gap-2 mt-2">
-          <button class="btn btn-primary"><i class="fas fa-eye"></i> عرض</button>
-          <button formaction="{{ url_for('reports_bp.export_dynamic_csv') }}" class="btn btn-outline-secondary">
-            <i class="fas fa-file-csv"></i> تصدير CSV
-          </button>
-        </div>
-      </form>
+```
+    <div class="col-md-3">
+      <label class="form-label fw-semibold">الجدول</label>
+      <select name="table" id="table" class="form-select" required>
+        {% for m in model_names %}
+          <option value="{{ m }}" {% if selected_table == m %}selected{% endif %}>
+            {{ MODEL_LABELS.get(m, m) }}
+          </option>
+        {% endfor %}
+      </select>
     </div>
+
+    <div class="col-md-3">
+      <label class="form-label fw-semibold">حقل التاريخ</label>
+      <select
+        name="date_field"
+        id="date_field"
+        class="form-select"
+        data-default="{{ defaults.get(selected_table) }}"
+        data-selected="{{ date_field or '' }}"
+      >
+        <option value="">—</option>
+      </select>
+    </div>
+
+    <div class="col-md-3">
+      <label class="form-label fw-semibold">من</label>
+      <input type="date" name="start_date" value="{{ start_date or '' }}" class="form-control">
+    </div>
+
+    <div class="col-md-3">
+      <label class="form-label fw-semibold">إلى</label>
+      <input type="date" name="end_date" value="{{ end_date or '' }}" class="form-control">
+    </div>
+
+    <div class="col-12">
+      <label class="form-label fw-semibold">الأعمدة</label>
+      <select
+        name="selected_fields"
+        id="selected_fields"
+        multiple
+        size="6"
+        class="form-select"
+        data-selected='{{ (columns or [])|tojson }}'
+      ></select>
+      <div class="form-text">اتركها فارغة لعرض جميع الأعمدة.</div>
+    </div>
+
+    <div class="col-12">
+      <div id="advFilters" class="collapse">
+        <label class="form-label fw-semibold">فلاتر تحتوي على</label>
+        <div id="like_filters" class="row g-2" data-initial-like='{{ (like_filters or {})|tojson }}'></div>
+        <div class="form-text">يتم تطبيق البحث الجزئي على الحقول النصية الشائعة فقط.</div>
+      </div>
+    </div>
+
+    <div class="col-md-2">
+      <label class="form-label fw-semibold">الحد</label>
+      <input type="number" name="limit" min="1" max="10000" value="{{ limit or 1000 }}" class="form-control">
+    </div>
+
+    <div class="col-12 d-flex gap-2 mt-2">
+      <button class="btn btn-primary"><i class="fas fa-eye"></i> عرض</button>
+      <button
+        formaction="{{ url_for('reports_bp.export_dynamic_csv') }}"
+        form="report-form"
+        formmethod="post"
+        class="btn btn-outline-secondary">
+        <i class="fas fa-file-csv"></i> تصدير CSV
+      </button>
+    </div>
+  </form>
+</div>
+```
+
   </div>
 
-  <!-- بطاقات الملخص -->
   <div id="summary-cards" class="row g-3 mb-3 d-none"></div>
 
-  <!-- الجدول -->
   <div class="card shadow-sm">
     <div class="card-body">
       <div class="table-responsive">
@@ -144,7 +145,6 @@
     </div>
   </div>
 
-  <!-- مُحمّل -->
   <div id="loading-overlay" class="loading-overlay d-none">
     <div class="spinner-border" role="status" aria-hidden="true"></div>
     <div class="mt-2 small">جارٍ جلب البيانات…</div>
@@ -153,12 +153,16 @@
 {% endblock %}
 
 {% block scripts %}
+
 <script>
   window.FIELD_LABELS = {{ FIELD_LABELS|tojson }};
   window.MODEL_LABELS = {{ MODEL_LABELS|tojson }};
   window.__selectedTable = "{{ selected_table or '' }}";
   window.__selectedDateField = "{{ date_field or '' }}";
   window.__selectedColumns = {{ (columns or [])|tojson }};
+  window.EXCLUDED_FIELDS = ["warranty_until"];
 </script>
+
 <script src="{{ url_for('static', filename='js/reporting.js') }}"></script>
+
 {% endblock %}

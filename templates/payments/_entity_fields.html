@@ -6,12 +6,7 @@
       {{ form.customer_search.label(class="form-label") }}
       <div class="input-group">
         {{ form.customer_search(class="form-control", placeholder="اكتب اسم/هاتف العميل", autocomplete="off") }}
-        <a id="addCustomerBtn"
-           class="btn btn-outline-primary"
-           data-base-href="{{ url_for('customers_bp.create_customer') }}"
-           href="{{ url_for('customers_bp.create_customer', return_to=request.url) }}">
-          ➕ عميل جديد
-        </a>
+        <a id="addCustomerBtn" class="btn btn-outline-primary" data-base-href="{{ url_for('customers_bp.create_customer') }}" href="{{ url_for('customers_bp.create_customer', return_to=request.url) }}">➕ عميل جديد</a>
       </div>
     {% endif %}
     {% for e in form.customer_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
@@ -25,12 +20,7 @@
       {{ form.supplier_search.label(class="form-label") }}
       <div class="input-group">
         {{ form.supplier_search(class="form-control", placeholder="اكتب اسم/هاتف المورد/التاجر", autocomplete="off") }}
-        <a id="addSupplierBtn"
-           class="btn btn-outline-primary"
-           data-base-href="{{ url_for('vendors_bp.suppliers_create') }}"
-           href="{{ url_for('vendors_bp.suppliers_create', return_to=request.url) }}">
-          ➕ مورد/تاجر جديد
-        </a>
+        <a id="addSupplierBtn" class="btn btn-outline-primary" data-base-href="{{ url_for('vendors_bp.suppliers_create') }}" href="{{ url_for('vendors_bp.suppliers_create', return_to=request.url) }}">➕ مورد/تاجر جديد</a>
       </div>
     {% endif %}
     {% for e in form.supplier_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
@@ -44,12 +34,7 @@
       {{ form.partner_search.label(class="form-label") }}
       <div class="input-group">
         {{ form.partner_search(class="form-control", placeholder="اكتب اسم/هاتف الشريك", autocomplete="off") }}
-        <a id="addPartnerBtn"
-           class="btn btn-outline-primary"
-           data-base-href="{{ url_for('vendors_bp.partners_create') }}"
-           href="{{ url_for('vendors_bp.partners_create', return_to=request.url) }}">
-          ➕ شريك جديد
-        </a>
+        <a id="addPartnerBtn" class="btn btn-outline-primary" data-base-href="{{ url_for('vendors_bp.partners_create') }}" href="{{ url_for('vendors_bp.partners_create', return_to=request.url) }}">➕ شريك جديد</a>
       </div>
     {% endif %}
     {% for e in form.partner_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
@@ -69,6 +54,13 @@
     {% if form.sale_id  is defined %}{{ form.sale_id(id="sale_id") }}{% endif %}
     {% if form.entity_id is defined %}{{ form.entity_id(id="entity_id") }}{% endif %}
   </div>
+  <div class="mb-3">
+    {% if form.customer_search is defined %}
+      <label class="form-label">الجهة المرتبطة</label>
+      {{ form.customer_search(class="form-control", placeholder="العميل المرتبط بالبيع", autocomplete="off") }}
+    {% endif %}
+    {% if form.customer_id is defined %}{{ form.customer_id(id="customer_id") }}{% endif %}
+  </div>
 
 {% elif etype == 'service' %}
   <div class="mb-3">
@@ -79,6 +71,13 @@
     {% for e in form.service_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
     {% if form.service_id is defined %}{{ form.service_id(id="service_id") }}{% endif %}
     {% if form.entity_id  is defined %}{{ form.entity_id(id="entity_id") }}{% endif %}
+  </div>
+  <div class="mb-3">
+    {% if form.customer_search is defined %}
+      <label class="form-label">الجهة المرتبطة</label>
+      {{ form.customer_search(class="form-control", placeholder="العميل المرتبط بالصيانة", autocomplete="off") }}
+    {% endif %}
+    {% if form.customer_id is defined %}{{ form.customer_id(id="customer_id") }}{% endif %}
   </div>
 
 {% elif etype == 'shipment' %}
@@ -91,6 +90,13 @@
     {% if form.shipment_id is defined %}{{ form.shipment_id(id="shipment_id") }}{% endif %}
     {% if form.entity_id   is defined %}{{ form.entity_id(id="entity_id") }}{% endif %}
   </div>
+  <div class="mb-3">
+    {% if form.supplier_search is defined %}
+      <label class="form-label">الجهة المرتبطة</label>
+      {{ form.supplier_search(class="form-control", placeholder="المورد/التاجر المرتبط بالشحنة", autocomplete="off") }}
+    {% endif %}
+    {% if form.supplier_id is defined %}{{ form.supplier_id(id="supplier_id") }}{% endif %}
+  </div>
 
 {% elif etype == 'expense' %}
   <div class="mb-3">
@@ -101,6 +107,14 @@
     {% for e in form.expense_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
     {% if form.expense_id is defined %}{{ form.expense_id(id="expense_id") }}{% endif %}
     {% if form.entity_id   is defined %}{{ form.entity_id(id="entity_id") }}{% endif %}
+  </div>
+  <div class="mb-3">
+    {% if form.supplier_search is defined %}
+      <label class="form-label">الجهة المرتبطة</label>
+      {{ form.supplier_search(class="form-control", placeholder="المورد/التاجر أو الموظف المرتبط بالمصروف", autocomplete="off") }}
+    {% endif %}
+    {% if form.supplier_id is defined %}{{ form.supplier_id(id="supplier_id") }}{% endif %}
+    {% if form.employee_id is defined %}{{ form.employee_id(id="employee_id") }}{% endif %}
   </div>
 
 {% elif etype == 'loan' %}
@@ -113,6 +127,13 @@
     {% if form.loan_settlement_id is defined %}{{ form.loan_settlement_id(id="loan_settlement_id") }}{% endif %}
     {% if form.entity_id         is defined %}{{ form.entity_id(id="entity_id") }}{% endif %}
   </div>
+  <div class="mb-3">
+    {% if form.supplier_search is defined %}
+      <label class="form-label">الجهة المرتبطة</label>
+      {{ form.supplier_search(class="form-control", placeholder="المورد المرتبط بالتسوية", autocomplete="off") }}
+    {% endif %}
+    {% if form.supplier_id is defined %}{{ form.supplier_id(id="supplier_id") }}{% endif %}
+  </div>
 
 {% elif etype == 'preorder' %}
   <div class="mb-3">
@@ -124,6 +145,13 @@
     {% if form.preorder_id is defined %}{{ form.preorder_id(id="preorder_id") }}{% endif %}
     {% if form.entity_id   is defined %}{{ form.entity_id(id="entity_id") }}{% endif %}
   </div>
+  <div class="mb-3">
+    {% if form.customer_search is defined %}
+      <label class="form-label">الجهة المرتبطة</label>
+      {{ form.customer_search(class="form-control", placeholder="العميل المرتبط بالحجز", autocomplete="off") }}
+    {% endif %}
+    {% if form.customer_id is defined %}{{ form.customer_id(id="customer_id") }}{% endif %}
+  </div>
 
 {% elif etype == 'invoice' %}
   <div class="mb-3">
@@ -134,6 +162,13 @@
     {% for e in form.invoice_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
     {% if form.invoice_id is defined %}{{ form.invoice_id(id="invoice_id") }}{% endif %}
     {% if form.entity_id  is defined %}{{ form.entity_id(id="entity_id") }}{% endif %}
+  </div>
+  <div class="mb-3">
+    {% if form.customer_search is defined %}
+      <label class="form-label">الجهة المرتبطة</label>
+      {{ form.customer_search(class="form-control", placeholder="العميل المرتبط بالفاتورة", autocomplete="off") }}
+    {% endif %}
+    {% if form.customer_id is defined %}{{ form.customer_id(id="customer_id") }}{% endif %}
   </div>
 
 {% else %}

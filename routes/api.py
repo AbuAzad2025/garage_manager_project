@@ -1,11 +1,13 @@
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 from flask import Blueprint, Response, current_app, jsonify, request
 from flask_login import current_user, login_required
 from sqlalchemy import func, or_
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import aliased
+from sqlalchemy.sql import exists
 from extensions import csrf, db, limiter
 from utils import _get_user_permissions, _q, _query_limit, permission_required, search_model, super_only
 from barcodes import validate_barcode
@@ -45,22 +47,9 @@ from models import (
     StockAdjustment,
 )
 
-
 bp = Blueprint("api", __name__, url_prefix="/api")
 
 _TWOPLACES = Decimal("0.01")
-
-def _q2(x):
-    return _D(x).quantize(_TWOPLACES, rounding=ROUND_HALF_UP)
-
-def _limit(default: int = 20, max_value: int = 100) -> int:
-    return _query_limit(default, max_value)
-
-def _limit_from_request(default=20, max_=50):
-    try:
-        return min(int(request.args.get("limit", default) or default), max_)
-    except Exception:
-        return default
 
 def _D(x):
     if x is None:
@@ -72,6 +61,40 @@ def _D(x):
     except (InvalidOperation, ValueError, TypeError):
         return Decimal("0")
 
+def _q2(x):
+    return _D(x).quantize(_TWOPLACES, rounding=ROUND_HALF_UP)
+
+def _limit_from_request(default: int = 20, max_: int = 100) -> int:
+    try:
+        v = int(request.args.get("limit", default) or default)
+        return min(max(1, v), max_)
+    except Exception:
+        return default
+
+def _as_int(v, default=None, *, min_=None, max_=None):
+    try:
+        if v in (None, "", "None"):
+            return default
+        x = int(float(v))
+        if min_ is not None and x < min_:
+            return default
+        if max_ is not None and x > max_:
+            return default
+        return x
+    except Exception:
+        return default
+
+def _as_float(v, default=None):
+    try:
+        return float(v)
+    except Exception:
+        return default
+
+def _req(value, field, errors: dict):
+    if value in (None, "", 0, 0.0):
+        errors[field] = "required"
+    return value
+
 def _norm_currency(v):
     return (v or "ILS").strip().upper()
 
@@ -80,6 +103,201 @@ def _money(x) -> str:
 
 def _norm_status(v):
     return (v or "").strip().upper()
+
+def normalize_email(s: Optional[str]) -> Optional[str]:
+    s = (s or "").strip().lower()
+    return s or None
+
+def normalize_phone(s: Optional[str]) -> Optional[str]:
+    raw = (s or "").strip()
+    if not raw:
+        return None
+    keep = []
+    for i, ch in enumerate(raw):
+        if ch.isdigit() or (ch == "+" and i == 0):
+            keep.append(ch)
+    out = "".join(keep)
+    return out or None
+
+def _number_of(o, attr: Optional[str] = None, fallback_prefix: Optional[str] = None) -> str:
+    if attr and getattr(o, attr, None):
+        return str(getattr(o, attr))
+    for cand in (
+        "invoice_number",
+        "service_number",
+        "sale_number",
+        "shipment_number",
+        "order_number",
+        "payment_number",
+        "receipt_number",
+        "reference",
+        "cart_id",
+        "tax_invoice_number",
+    ):
+        v = getattr(o, cand, None)
+        if v:
+            return str(v)
+    if fallback_prefix:
+        return f"{fallback_prefix}-{getattr(o, 'id', '')}"
+    return str(getattr(o, "id", ""))
+
+def _ok(data=None, status=200):
+    return jsonify({"success": True, **({} if data is None else data)}), status
+
+def _created(location: str, data=None):
+    resp = jsonify({"success": True, **({} if data is None else data)})
+    return resp, 201, {"Location": location}
+
+def _err(code="error", detail="", status=400, errors: Optional[dict] = None):
+    payload = {"success": False, "error": code}
+    if detail:
+        payload["detail"] = detail
+    if errors:
+        payload["errors"] = errors
+    return jsonify(payload), status
+
+def _simple_id_lookup(model, rec_id: str):
+    if not rec_id or not str(rec_id).isdigit():
+        return None
+    return db.session.get(model, int(rec_id))
+
+def _simple_search_endpoint(
+    *,
+    model,
+    label_fields: List[str],
+    id_first: bool = True,
+    order_field: Optional[str] = None,
+    base_filters: Optional[List] = None,
+    q_param: str = "q",
+    id_param: str = "id",
+    limit_default: int = 20,
+    limit_max: int = 50,
+    extra_like_fields: Optional[List] = None,
+    serializer: Optional[Callable[[Any], Dict[str, Any]]] = None,
+):
+    sid = (request.args.get(id_param) or "").strip()
+    if id_first and sid.isdigit():
+        row = _simple_id_lookup(model, sid)
+        if not row:
+            return jsonify({"results": []})
+        if serializer:
+            return jsonify({"results": [serializer(row)]})
+        label = getattr(row, label_fields[0], None)
+        return jsonify({"results": [{"id": row.id, "text": label}]})
+
+    q = (request.args.get(q_param) or "").strip()
+    limit = _limit_from_request(limit_default, limit_max)
+
+    qry = model.query
+    if base_filters:
+        for f in base_filters:
+            qry = qry.filter(f)
+
+    if q:
+        like = f"%{q}%"
+        like_fields = (extra_like_fields or []) + label_fields
+        conds = []
+        for f in like_fields:
+            col = getattr(model, f, None)
+            if col is not None:
+                conds.append(col.ilike(like))
+        if conds:
+            qry = qry.filter(or_(*conds))
+
+    if order_field:
+        order_col = getattr(model, order_field, None)
+    else:
+        order_col = getattr(model, (label_fields[0] if label_fields else "id"), None)
+
+    if order_col is not None:
+        qry = qry.order_by(order_col.asc())
+
+    rows = qry.limit(limit).all()
+    if serializer:
+        return jsonify({"results": [serializer(r) for r in rows]})
+    out = []
+    for r in rows:
+        label = getattr(r, label_fields[0], None)
+        out.append({"id": r.id, "text": label})
+    return jsonify({"results": out})
+
+def _available_expr():
+    return StockLevel.quantity - func.coalesce(StockLevel.reserved_quantity, 0)
+
+def _available_qty(product_id: int, warehouse_id: int) -> int:
+    row = (
+        db.session.query(_available_expr().label("avail"))
+        .filter(StockLevel.product_id == product_id, StockLevel.warehouse_id == warehouse_id)
+        .first()
+    )
+    return int(row.avail or 0) if row else 0
+
+def _auto_pick_warehouse(product_id: int, required_qty: int, preferred_wid: Optional[int] = None) -> Optional[int]:
+    if preferred_wid and _available_qty(product_id, preferred_wid) >= required_qty:
+        return preferred_wid
+    row = (
+        db.session.query(StockLevel.warehouse_id, _available_expr().label("avail"))
+        .filter(StockLevel.product_id == product_id)
+        .filter(_available_expr() >= required_qty)
+        .order_by(StockLevel.warehouse_id.asc())
+        .first()
+    )
+    return int(row.warehouse_id) if row else None
+
+def _lock_stock_rows(pairs: List[Tuple[int, int]]) -> None:
+    if not pairs:
+        return
+    conds = [((StockLevel.product_id == pid) & (StockLevel.warehouse_id == wid)) for (pid, wid) in pairs]
+    db.session.query(StockLevel).filter(or_(*conds)).with_for_update(nowait=False).all()
+
+def _collect_requirements_from_lines(lines: Iterable[SaleLine]) -> Dict[Tuple[int, int], int]:
+    req = {}
+    for ln in lines:
+        pid, wid, qty = int(ln.product_id or 0), int(ln.warehouse_id or 0), int(ln.quantity or 0)
+        if pid and wid and qty > 0:
+            req[(pid, wid)] = req.get((pid, wid), 0) + qty
+    return req
+
+def _reserve_stock(sale: Sale) -> None:
+    if (getattr(sale, "status", "") or "").upper() != "CONFIRMED":
+        return
+    req = _collect_requirements_from_lines(sale.lines or [])
+    if not req:
+        return
+    _lock_stock_rows(list(req.keys()))
+    for (pid, wid), qty in req.items():
+        rec = (
+            db.session.query(StockLevel)
+            .filter_by(product_id=pid, warehouse_id=wid)
+            .with_for_update(nowait=False)
+            .first()
+        )
+        if not rec:
+            rec = StockLevel(product_id=pid, warehouse_id=wid, quantity=0, reserved_quantity=0)
+            db.session.add(rec)
+            db.session.flush()
+        available = int(rec.quantity or 0) - int(rec.reserved_quantity or 0)
+        if available < qty:
+            raise ValueError(f"insufficient:{pid}:{wid}")
+        rec.reserved_quantity = int(rec.reserved_quantity or 0) + qty
+        db.session.flush()
+
+def _release_stock(sale: Sale) -> None:
+    req = _collect_requirements_from_lines(sale.lines or [])
+    if not req:
+        return
+    _lock_stock_rows(list(req.keys()))
+    for (pid, wid), qty in req.items():
+        rec = (
+            db.session.query(StockLevel)
+            .filter_by(product_id=pid, warehouse_id=wid)
+            .with_for_update(nowait=False)
+            .first()
+        )
+        if not rec:
+            continue
+        rec.reserved_quantity = max(0, int(rec.reserved_quantity or 0) - qty)
+        db.session.flush()
 
 def _aggregate_items_payload(items, default_wid=None):
     acc = {}
@@ -173,7 +391,6 @@ def _compute_shipment_totals(sh: Shipment):
     sh.total_value = _q2(items_total + extras)
     sh.currency = _norm_currency(sh.currency)
 
-
 def _landed_allocation(items, extras_total):
     total_value = sum(_q2(it.quantity) * _q2(it.unit_cost) for it in items)
     if total_value <= 0 or _q2(extras_total) <= 0:
@@ -192,7 +409,6 @@ def _landed_allocation(items, extras_total):
         rem -= Decimal("0.01") if rem > 0 else Decimal("-0.01")
         k += 1
     return alloc
-
 
 def _apply_arrival_items(items):
     for it in items:
@@ -216,7 +432,6 @@ def _apply_arrival_items(items):
         sl.quantity = new_qty
         db.session.flush()
 
-
 def _reverse_arrival_items(items):
     for it in items:
         pid, wid, qty = int(it.get("product_id") or 0), int(it.get("warehouse_id") or 0), int(it.get("quantity") or 0)
@@ -237,7 +452,6 @@ def _reverse_arrival_items(items):
         sl.quantity = new_qty
         db.session.flush()
 
-
 def _items_snapshot(sh):
     return [
         {
@@ -248,97 +462,10 @@ def _items_snapshot(sh):
         for i in sh.items
     ]
 
-
-def _available_expr():
-    return StockLevel.quantity - func.coalesce(StockLevel.reserved_quantity, 0)
-
-
-def _available_qty(product_id: int, warehouse_id: int) -> int:
-    row = (
-        db.session.query(_available_expr().label("avail"))
-        .filter(StockLevel.product_id == product_id, StockLevel.warehouse_id == warehouse_id)
-        .first()
-    )
-    return int(row.avail or 0) if row else 0
-
-
-def _auto_pick_warehouse(product_id: int, required_qty: int, preferred_wid: Optional[int] = None) -> Optional[int]:
-    if preferred_wid and _available_qty(product_id, preferred_wid) >= required_qty:
-        return preferred_wid
-    row = (
-        db.session.query(StockLevel.warehouse_id, _available_expr().label("avail"))
-        .filter(StockLevel.product_id == product_id)
-        .filter(_available_expr() >= required_qty)
-        .order_by(StockLevel.warehouse_id.asc())
-        .first()
-    )
-    return int(row.warehouse_id) if row else None
-
-
-def _lock_stock_rows(pairs: List[Tuple[int, int]]) -> None:
-    if not pairs:
-        return
-    conds = [((StockLevel.product_id == pid) & (StockLevel.warehouse_id == wid)) for (pid, wid) in pairs]
-    db.session.query(StockLevel).filter(or_(*conds)).with_for_update(nowait=False).all()
-
-
-def _collect_requirements_from_lines(lines: Iterable[SaleLine]) -> Dict[Tuple[int, int], int]:
-    req = {}
-    for ln in lines:
-        pid, wid, qty = int(ln.product_id or 0), int(ln.warehouse_id or 0), int(ln.quantity or 0)
-        if pid and wid and qty > 0:
-            req[(pid, wid)] = req.get((pid, wid), 0) + qty
-    return req
-
-
-def _reserve_stock(sale: Sale) -> None:
-    if (getattr(sale, "status", "") or "").upper() != "CONFIRMED":
-        return
-    req = _collect_requirements_from_lines(sale.lines or [])
-    if not req:
-        return
-    _lock_stock_rows(list(req.keys()))
-    for (pid, wid), qty in req.items():
-        rec = (
-            db.session.query(StockLevel)
-            .filter_by(product_id=pid, warehouse_id=wid)
-            .with_for_update(nowait=False)
-            .first()
-        )
-        if not rec:
-            rec = StockLevel(product_id=pid, warehouse_id=wid, quantity=0, reserved_quantity=0)
-            db.session.add(rec)
-            db.session.flush()
-        available = int(rec.quantity or 0) - int(rec.reserved_quantity or 0)
-        if available < qty:
-            raise ValueError(f"insufficient:{pid}:{wid}")
-        rec.reserved_quantity = int(rec.reserved_quantity or 0) + qty
-        db.session.flush()
-
-
-def _release_stock(sale: Sale) -> None:
-    req = _collect_requirements_from_lines(sale.lines or [])
-    if not req:
-        return
-    _lock_stock_rows(list(req.keys()))
-    for (pid, wid), qty in req.items():
-        rec = (
-            db.session.query(StockLevel)
-            .filter_by(product_id=pid, warehouse_id=wid)
-            .with_for_update(nowait=False)
-            .first()
-        )
-        if not rec:
-            continue
-        rec.reserved_quantity = max(0, int(rec.reserved_quantity or 0) - qty)
-        db.session.flush()
-
-
 def _safe_generate_number_after_flush(sale: Sale) -> None:
     if not getattr(sale, "sale_number", None):
         sale.sale_number = f"INV-{datetime.utcnow():%Y%m%d}-{sale.id:04d}"
         db.session.flush()
-
 
 def sale_to_dict(s: Sale) -> Dict[str, Any]:
     return {
@@ -370,47 +497,6 @@ def sale_to_dict(s: Sale) -> Dict[str, Any]:
         ],
     }
 
-
-def _number_of(o, attr: Optional[str] = None, fallback_prefix: Optional[str] = None) -> str:
-    if attr and getattr(o, attr, None):
-        return str(getattr(o, attr))
-    for cand in (
-        "invoice_number",
-        "service_number",
-        "sale_number",
-        "shipment_number",
-        "order_number",
-        "payment_number",
-        "receipt_number",
-        "reference",
-        "cart_id",
-        "tax_invoice_number",
-    ):
-        v = getattr(o, cand, None)
-        if v:
-            return str(v)
-    if fallback_prefix:
-        return f"{fallback_prefix}-{getattr(o, 'id', '')}"
-    return str(getattr(o, "id", ""))
-
-
-def normalize_email(s: Optional[str]) -> Optional[str]:
-    s = (s or "").strip().lower()
-    return s or None
-
-
-def normalize_phone(s: Optional[str]) -> Optional[str]:
-    raw = (s or "").strip()
-    if not raw:
-        return None
-    keep = []
-    for i, ch in enumerate(raw):
-        if ch.isdigit() or (ch == "+" and i == 0):
-            keep.append(ch)
-    out = "".join(keep)
-    return out or None
-
-
 @bp.get("/me")
 @login_required
 def me():
@@ -426,12 +512,10 @@ def me():
         }
     )
 
-
 @bp.get("/permissions.json")
 @super_only
 def permissions_json():
     rows = Permission.query.order_by(Permission.name.asc()).all()
-
     def _row(p):
         return {
             "id": p.id,
@@ -441,16 +525,13 @@ def permissions_json():
             "category": getattr(p, "category", None),
             "aliases": getattr(p, "aliases", None),
         }
-
     return jsonify([_row(p) for p in rows])
-
 
 @bp.get("/permissions.csv")
 @super_only
 def permissions_csv():
     rows = Permission.query.order_by(Permission.name.asc()).all()
     import io, csv
-
     buf = io.StringIO()
     buf.write("\ufeff")
     w = csv.writer(buf)
@@ -472,29 +553,26 @@ def permissions_csv():
         headers={"Content-Disposition": "attachment; filename=permissions.csv"},
     )
 
-
-@bp.get("/search_categories", endpoint="search_categories")
+@bp.get("/search_categories")
 @login_required
 @limiter.limit("60/minute")
 @permission_required("manage_inventory", "view_inventory")
 def search_categories():
     q = (request.args.get("q") or "").strip()
-    limit = min(int(request.args.get("limit", 20)), 50)
+    limit = _limit_from_request(20, 50)
     query = ProductCategory.query
     if q:
         query = query.filter(func.lower(ProductCategory.name).like(f"%{q.lower()}%"))
     results = query.order_by(ProductCategory.name).limit(limit).all()
     return jsonify({"results": [{"id": c.id, "text": c.name} for c in results]})
 
-
-@bp.get("/customers")
+@bp.get("/customers", endpoint="customers")
 @bp.get("/search_customers", endpoint="search_customers")
 @login_required
 @limiter.limit("60/minute")
 @permission_required("manage_customers", "add_customer")
-def customers():
+def api_customers():
     return search_model(Customer, ["name", "phone", "email"], label_attr="name")
-
 
 @bp.post("/customers")
 @login_required
@@ -508,16 +586,8 @@ def create_customer_api():
     whatsapp = normalize_phone(data.get("whatsapp"))
     address = (data.get("address") or "").strip()
     notes = (data.get("notes") or "").strip()
-    discount_rate = data.get("discount_rate", 0)
-    try:
-        discount_rate = float(discount_rate or 0)
-    except Exception:
-        discount_rate = 0.0
-    credit_limit = data.get("credit_limit", 0)
-    try:
-        credit_limit = float(credit_limit or 0)
-    except Exception:
-        credit_limit = 0.0
+    discount_rate = _as_float(data.get("discount_rate"), 0.0) or 0.0
+    credit_limit = _as_float(data.get("credit_limit"), 0.0) or 0.0
     is_online = bool(data.get("is_online"))
     is_active = bool(data.get("is_active", "1"))
     if not name or not email:
@@ -545,34 +615,27 @@ def create_customer_api():
         db.session.rollback()
         return jsonify({"error": "فشل حفظ العميل"}), 500
 
-
-@bp.get("/search_suppliers", endpoint="search_suppliers")
+@bp.get("/search_suppliers")
 @login_required
 @limiter.limit("60/minute")
 @permission_required("manage_vendors", "add_supplier", "view_inventory", "manage_inventory", "view_warehouses")
 def search_suppliers():
-    if not current_user.is_authenticated:
-        return jsonify({"error": "Unauthorized"}), 401
-    q = (request.args.get("q") or "").strip()
-    limit = min(int(request.args.get("limit", 20) or 20), 50)
+    def _ser(s: Supplier):
+        return {
+            "id": s.id,
+            "text": s.name,
+            "name": s.name,
+            "phone": s.phone,
+            "identity_number": s.identity_number,
+        }
     sid = (request.args.get("id") or "").strip()
     if sid.isdigit():
         s = db.session.get(Supplier, int(sid))
         if not s:
             return jsonify({"results": []})
-        return jsonify(
-            {
-                "results": [
-                    {
-                        "id": s.id,
-                        "text": s.name,
-                        "name": s.name,
-                        "phone": s.phone,
-                        "identity_number": s.identity_number,
-                    }
-                ]
-            }
-        )
+        return jsonify({"results": [_ser(s)]})
+    q = (request.args.get("q") or "").strip()
+    limit = _limit_from_request(20, 50)
     qry = Supplier.query
     if q:
         like = f"%{q}%"
@@ -585,23 +648,9 @@ def search_suppliers():
             )
         )
     rows = qry.order_by(Supplier.name.asc()).limit(limit).all()
-    return jsonify(
-        {
-            "results": [
-                {
-                    "id": s.id,
-                    "text": s.name,
-                    "name": s.name,
-                    "phone": s.phone,
-                    "identity_number": s.identity_number,
-                }
-                for s in rows
-            ]
-        }
-    )
+    return jsonify({"results": [_ser(s) for s in rows]})
 
-
-@bp.post("/suppliers", endpoint="create_supplier")
+@bp.post("/suppliers")
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
@@ -624,7 +673,6 @@ def create_supplier():
         db.session.rollback()
         return jsonify({"error": "فشل حفظ المورد"}), 500
 
-
 @bp.get("/suppliers/<int:id>")
 @login_required
 @limiter.limit("60/minute")
@@ -642,9 +690,8 @@ def get_supplier(id):
         }
     )
 
-
 @bp.put("/suppliers/<int:id>")
-@bp.patch("/suppliers/<int:id>", endpoint="update_supplier")
+@bp.patch("/suppliers/<int:id>")
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
@@ -665,46 +712,85 @@ def update_supplier(id):
         return jsonify({"error": "فشل تحديث المورد"}), 500
 
 
-@bp.delete("/suppliers/<int:id>", endpoint="delete_supplier")
+@bp.delete("/suppliers/<int:id>")
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
 @permission_required("manage_vendors", "add_supplier")
 def delete_supplier(id):
     s = Supplier.query.get_or_404(id)
+
+    w_count = db.session.query(Warehouse.id).filter(Warehouse.supplier_id == id).count()
+    pay_count = db.session.query(Payment.id).filter(Payment.supplier_id == id).count()
+    stl_count = db.session.query(SupplierLoanSettlement.id).filter(SupplierLoanSettlement.supplier_id == id).count()
+
+    if any([w_count, pay_count, stl_count]):
+        return jsonify({
+            "success": False,
+            "error": "cannot_delete",
+            "message": "لا يمكن حذف المورد لوجود مراجع مرتبطة.",
+            "reasons": {
+                "warehouses": w_count,
+                "payments": pay_count,
+                "loan_settlements": stl_count
+            }
+        }), 400
+
     try:
         db.session.delete(s)
         db.session.commit()
         return jsonify({"success": True})
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({
+            "success": False,
+            "error": "integrity_violation",
+            "message": "لا يمكن حذف المورد لوجود بيانات مرتبطة به."
+        }), 400
     except SQLAlchemyError:
         db.session.rollback()
-        return jsonify({"error": "فشل حذف المورد"}), 500
+        return jsonify({
+            "success": False,
+            "error": "db_error",
+            "message": "تعذّر تنفيذ العملية."
+        }), 400
 
-
-@bp.get("/search_partners", endpoint="search_partners")
+@bp.get("/search_partners")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("manage_vendors")
+@permission_required("manage_vendors", "manage_inventory", "view_inventory", "view_warehouses")
 def search_partners():
-    q = (request.args.get("q") or "").strip()
-    limit = _limit_from_request(20, 50)
+    def _ser(p: Partner):
+        return {
+            "id": p.id,
+            "text": p.name,
+            "name": p.name,
+            "phone": p.phone_number,
+            "identity_number": p.identity_number,
+            "email": getattr(p, "email", None),
+            "is_active": bool(getattr(p, "is_active", True)),
+        }
 
     pid = (request.args.get("id") or "").strip()
     if pid.isdigit():
         p = db.session.get(Partner, int(pid))
         if not p:
             return jsonify({"results": []})
-        return jsonify({
-            "results": [{
-                "id": p.id,
-                "text": p.name,
-                "name": p.name,
-                "phone": p.phone_number,
-                "identity_number": p.identity_number,
-            }]
-        })
+        return jsonify({"results": [_ser(p)]})
+
+    q = (request.args.get("q") or "").strip()
+    limit = _limit_from_request(20, 50)
+    active_only = (request.args.get("active_only", "1") or "1") not in {"0", "false", "False"}
+    has_partner_warehouse = (request.args.get("has_partner_warehouse") or "").strip() in {"1", "true", "True"}
 
     qry = Partner.query
+    if active_only and hasattr(Partner, "is_active"):
+        qry = qry.filter(Partner.is_active.is_(True))
+    if has_partner_warehouse:
+        qry = qry.join(Warehouse, Warehouse.partner_id == Partner.id).filter(
+            getattr(Warehouse.warehouse_type, "in_", None) and Warehouse.warehouse_type == WarehouseType.PARTNER.value
+            or Warehouse.warehouse_type == WarehouseType.PARTNER.value
+        )
     if q:
         like = f"%{q}%"
         qry = qry.filter(or_(
@@ -714,91 +800,62 @@ def search_partners():
             Partner.email.ilike(like),
         ))
 
-    rows = qry.order_by(Partner.name.asc()).limit(limit).all()
-    return jsonify({
-        "results": [{
-            "id": p.id,
-            "text": p.name,
-            "name": p.name,
-            "phone": p.phone_number,
-            "identity_number": p.identity_number,
-        } for p in rows]
-    })
-
-@bp.post("/partners", endpoint="create_partner")
-@login_required
-@csrf.exempt
-@limiter.limit("30/minute")
-@permission_required("manage_vendors", "add_partner")
-def create_partner():
-    data = request.get_json(silent=True) or request.form or {}
-    name = (data.get("name") or "").strip()
-    phone = (data.get("phone_number") or "").strip()
-    identity_number = (data.get("identity_number") or "").strip()
-    address = (data.get("address") or "").strip()
-    notes = (data.get("notes") or "").strip()
-    if not name:
-        return jsonify({"error": "الاسم مطلوب"}), 400
-    try:
-        p = Partner(name=name, phone_number=phone, identity_number=identity_number, address=address, notes=notes)
-        db.session.add(p)
-        db.session.commit()
-        return jsonify({"id": p.id, "text": p.name}), 201
-    except SQLAlchemyError:
-        db.session.rollback()
-        return jsonify({"error": "فشل حفظ الشريك"}), 500
-
-
-@bp.get("/partners/<int:id>")
-@login_required
-@limiter.limit("60/minute")
-@permission_required("manage_vendors", "add_partner")
-def get_partner(id):
-    p = Partner.query.get_or_404(id)
-    return jsonify(
-        {"id": p.id, "name": p.name, "phone": p.phone_number, "identity_number": p.identity_number, "address": p.address, "notes": p.notes}
-    )
-
+    rows = qry.order_by(func.lower(Partner.name).asc(), Partner.id.asc()).limit(limit).all()
+    return jsonify({"results": [_ser(p) for p in rows]})
 
 @bp.put("/partners/<int:id>")
-@bp.patch("/partners/<int:id>", endpoint="update_partner")
+@bp.patch("/partners/<int:id>")
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
-@permission_required("manage_vendors", "add_partner")
-def update_partner(id):
+@permission_required("manage_vendors")
+def api_update_partner(id):
     p = Partner.query.get_or_404(id)
-    data = request.get_json(silent=True) or request.form or {}
-    p.name = (data.get("name") or p.name).strip()
-    p.phone_number = (data.get("phone_number") or p.phone_number).strip()
-    p.identity_number = (data.get("identity_number") or p.identity_number).strip()
-    p.address = (data.get("address") or p.address).strip()
-    p.notes = (data.get("notes") or p.notes).strip()
+    d = request.get_json(silent=True) or request.form or {}
+    if "name" in d:
+        p.name = (d.get("name") or "").strip() or p.name
+    if "phone_number" in d:
+        p.phone_number = (d.get("phone_number") or "").strip() or None
+    if "identity_number" in d:
+        p.identity_number = (d.get("identity_number") or "").strip() or None
+    if "email" in d:
+        p.email = (d.get("email") or "").strip() or None
+    if "address" in d:
+        p.address = (d.get("address") or "").strip() or None
+    if "notes" in d:
+        p.notes = (d.get("notes") or "").strip() or None
     try:
         db.session.commit()
-        return jsonify({"id": p.id, "text": p.name})
-    except SQLAlchemyError:
+        return jsonify({"success": True, "id": p.id, "name": p.name})
+    except SQLAlchemyError as e:
         db.session.rollback()
-        return jsonify({"error": "فشل تحديث الشريك"}), 500
+        return jsonify({"success": False, "error": "db_error", "detail": str(e)}), 400
 
-
-@bp.delete("/partners/<int:id>", endpoint="delete_partner")
+@bp.delete("/partners/<int:id>")
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
-@permission_required("manage_vendors", "add_partner")
-def delete_partner(id):
+@permission_required("manage_vendors")
+def api_delete_partner(id):
     p = Partner.query.get_or_404(id)
     try:
+        linked_wh = db.session.query(Warehouse).filter(Warehouse.partner_id == p.id).all()
+        bad_wh = [w for w in linked_wh if getattr(w.warehouse_type, "value", w.warehouse_type) == WarehouseType.PARTNER.value]
+        if bad_wh:
+            return jsonify({
+                "success": False,
+                "error": "has_partner_warehouses",
+                "detail": "لا يمكن حذف الشريك لوجود مستودعات شريك مرتبطة به.",
+                "warehouses": [{"id": w.id, "name": w.name} for w in bad_wh],
+            }), 400
         db.session.delete(p)
         db.session.commit()
         return jsonify({"success": True})
-    except SQLAlchemyError:
+    except SQLAlchemyError as e:
         db.session.rollback()
-        return jsonify({"error": "فشل حذف الشريك"}), 500
+        return jsonify({"success": False, "error": "delete_failed", "detail": str(e)}), 400
 
-
-@bp.get("/barcode/validate", endpoint="barcode_validate")
+@bp.get("/barcode/validate")
 @login_required
 @limiter.limit("120/minute")
 def barcode_validate():
@@ -817,6 +874,24 @@ def barcode_validate():
         }
     )
 
+@bp.get("/products", endpoint="products")
+@bp.get("/search_products", endpoint="search_products")
+@login_required
+@limiter.limit("60/minute")
+@permission_required("view_parts", "view_inventory", "manage_inventory")
+def api_products():
+    return search_model(
+        Product,
+        ["name", "sku", "part_number", "barcode"],
+        label_attr="name",
+        serializer=lambda p: {
+            "id": p.id,
+            "text": p.name,
+            "name": p.name,
+            "price": float(p.price or 0),
+            "sku": p.sku,
+        },
+    )
 
 @bp.get("/products/barcode/<code>")
 @login_required
@@ -848,7 +923,6 @@ def product_by_barcode(code: str):
         }
     )
 
-
 @bp.get("/products/<int:pid>/info")
 @login_required
 @limiter.limit("60/minute")
@@ -866,8 +940,7 @@ def product_info(pid: int):
         {"id": p.id, "name": p.name, "sku": p.sku, "price": float(p.price or 0), "available": (int(available) if available is not None else None)}
     )
 
-
-@bp.post("/categories", endpoint="create_category")
+@bp.post("/categories")
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
@@ -889,25 +962,12 @@ def create_category():
         db.session.rollback()
         return jsonify({"error": str(e)}), 400
 
-
 @bp.get("/warehouses", endpoint="warehouses")
-@login_required
-@limiter.limit("60/minute")
-@permission_required("view_warehouses", "manage_warehouses", "view_inventory", "manage_inventory")
-def api_warehouses():
-    return _warehouses_handler()
-
-
 @bp.get("/search_warehouses", endpoint="search_warehouses")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("view_warehouses", "manage_warehouses", "view_inventory", "manage_inventory")
-def api_search_warehouses():
-    return _warehouses_handler()
-
-
-def _warehouses_handler():
-    # دعم جلب مستودع معيّن بالـ id (لازم لتهيئة Select2 مع قيمة موجودة)
+@permission_required("view_warehouses", "manage_warehouses")
+def api_warehouses():
     wid = (request.args.get("id") or "").strip()
     if wid.isdigit():
         w = db.session.get(Warehouse, int(wid))
@@ -958,7 +1018,7 @@ def _warehouses_handler():
     })
 
 @bp.put("/warehouses/<int:id>")
-@bp.patch("/warehouses/<int:id>", endpoint="api_update_warehouse")
+@bp.patch("/warehouses/<int:id>")
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
@@ -1016,8 +1076,7 @@ def api_update_warehouse(id):
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
 
-
-@bp.delete("/warehouses/<int:id>", endpoint="api_delete_warehouse")
+@bp.delete("/warehouses/<int:id>")
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
@@ -1033,34 +1092,7 @@ def api_delete_warehouse(id):
         return jsonify({"success": False, "error": str(e)}), 400
 
 
-@bp.get("/products", endpoint="products")
-@login_required
-@limiter.limit("60/minute")
-@permission_required("view_parts", "view_inventory", "manage_inventory")
-def api_products():
-    return search_model(
-        Product,
-        ["name", "sku", "part_number", "barcode"],
-        label_attr="name",
-        serializer=lambda p: {
-            "id": p.id,
-            "text": p.name,
-            "name": p.name,
-            "price": float(p.price or 0),
-            "sku": p.sku,
-        },
-    )
-
-
-@bp.get("/search_products", endpoint="search_products")
-@login_required
-@limiter.limit("60/minute")
-@permission_required("view_parts", "view_inventory", "manage_inventory")
-def api_search_products():
-    return api_products()
-
-
-@bp.get("/warehouses/<int:wid>/products", endpoint="products_by_warehouse")
+@bp.get("/warehouses/<int:wid>/products")
 @login_required
 @limiter.limit("60/minute")
 @permission_required("view_inventory", "view_warehouses", "manage_inventory")
@@ -1070,17 +1102,27 @@ def api_products_by_warehouse(wid: int):
     sum_ids = selected_ids or [wid]
     limit = _limit_from_request(200, 500)
 
+    SL_curr = aliased(StockLevel)
+
     qry = (
         db.session.query(
             Product,
-            StockLevel.quantity.label("qty_curr"),
+            SL_curr.quantity.label("qty_curr"),
         )
-        .join(
-            StockLevel,
-            (StockLevel.product_id == Product.id) & (StockLevel.warehouse_id == wid),
-            isouter=True
+        .outerjoin(
+            SL_curr,
+            (SL_curr.product_id == Product.id) & (SL_curr.warehouse_id == wid),
         )
     )
+
+    if sum_ids:
+        qry = qry.filter(
+            exists().where(
+                (StockLevel.product_id == Product.id) &
+                (StockLevel.warehouse_id.in_(sum_ids))
+            )
+        )
+
     if q:
         like = f"%{q}%"
         qry = qry.filter(or_(
@@ -1092,22 +1134,30 @@ def api_products_by_warehouse(wid: int):
 
     rows = qry.order_by(Product.name.asc()).limit(limit).all()
 
+    pid_list = [p.id for p, _ in rows]
     totals_map = {}
-    if sum_ids:
+    if sum_ids and pid_list:
         trows = (
-            db.session.query(StockLevel.product_id, func.coalesce(func.sum(StockLevel.quantity), 0))
-            .filter(StockLevel.warehouse_id.in_(sum_ids))
+            db.session.query(
+                StockLevel.product_id,
+                func.coalesce(func.sum(StockLevel.quantity), 0)
+            )
+            .filter(
+                StockLevel.warehouse_id.in_(sum_ids),
+                StockLevel.product_id.in_(pid_list),
+            )
             .group_by(StockLevel.product_id)
             .all()
         )
         totals_map = {pid: int(t or 0) for pid, t in trows}
 
-    results = []
+    out = []
     for p, qty_curr in rows:
-        label = f"{p.name} (متاح: {totals_map.get(p.id, int(qty_curr or 0))})"
-        results.append({
+        total_q = totals_map.get(p.id, int(qty_curr or 0))
+        out.append({
             "id": p.id,
-            "text": label,
+            "name": p.name,
+            "text": f"{p.name} (متاح: {total_q})",
             "sku": p.sku,
             "part_number": getattr(p, "part_number", None),
             "brand": getattr(p, "brand", None),
@@ -1116,10 +1166,10 @@ def api_products_by_warehouse(wid: int):
             "price": float(getattr(p, "price", 0) or 0),
             "online_price": float(getattr(p, "online_price", 0) or 0),
             "quantity": int(qty_curr or 0),
-            "total_quantity": totals_map.get(p.id, int(qty_curr or 0)),
+            "total_quantity": total_q,
         })
 
-    return jsonify({"results": results})
+    return jsonify({"data": out, "results": out})
 
 @bp.get("/warehouses/inventory")
 @login_required
@@ -1147,7 +1197,7 @@ def api_inventory_summary():
     if q:
         like = f"%{q}%"
         qry = qry.filter(or_(Product.name.ilike(like), Product.sku.ilike(like)))
-    rows = qry.limit(_limit(200, 500))
+    rows = qry.limit(_query_limit(200, 500)).all()
     data = []
     for pid, name, sku, on_hand, reserved in rows:
         on_hand = int(on_hand or 0)
@@ -1155,7 +1205,7 @@ def api_inventory_summary():
         data.append({"product_id": pid, "name": name, "sku": sku, "on_hand": on_hand, "reserved": reserved, "available": max(on_hand - reserved, 0)})
     return jsonify({"data": data, "warehouse_ids": wh_ids})
 
-@bp.patch("/products/<int:id>", endpoint="update_product")
+@bp.patch("/products/<int:id>")
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
@@ -1170,12 +1220,10 @@ def update_product(id: int):
         except Exception:
             return None
 
-    # نصوص
     for f in ["sku", "part_number", "brand", "online_name", "commercial_name", "description"]:
         if f in data:
             setattr(p, f, (data.get(f) or None) or None)
 
-    # أرقام/أسعار
     for f in ["purchase_price", "selling_price", "price", "online_price", "min_price", "max_price",
               "unit_price_before_tax", "cost_before_shipping", "cost_after_shipping", "tax_rate"]:
         if f in data:
@@ -1207,48 +1255,39 @@ def update_product(id: int):
 @limiter.limit("60/minute")
 @permission_required("manage_inventory")
 def update_stock(warehouse_id: int):
-    data = request.get_json(silent=True) or request.form
+    data = request.get_json(silent=True) or request.form or {}
+    pid = _as_int(data.get("product_id"))
+    quantity = _as_int(data.get("quantity"), 0)
+    min_stock = _as_int(data.get("min_stock"))
+    max_stock = _as_int(data.get("max_stock"))
 
-    def _to_int(v, default=None):
-        try:
-            if v in (None, "", "None"):
-                return default
-            return int(float(v))
-        except Exception:
-            return default
+    if not pid:
+        return _err("validation_error", "", 422, {"product_id": ["قيمة غير صالحة"]})
 
-    pid = _to_int(data.get("product_id"))
-    quantity = _to_int(data.get("quantity"), 0)
-    min_stock = _to_int(data.get("min_stock"))
-    max_stock = _to_int(data.get("max_stock"))
-    if pid is None:
-        return jsonify({"success": False, "errors": {"product_id": ["قيمة غير صالحة"]}}), 400
     sl = StockLevel.query.filter_by(warehouse_id=warehouse_id, product_id=pid).first()
     if not sl:
         sl = StockLevel(warehouse_id=warehouse_id, product_id=pid, quantity=0, reserved_quantity=0)
         db.session.add(sl)
+
     if quantity is not None:
         sl.quantity = max(0, quantity)
     if min_stock is not None:
         sl.min_stock = max(0, min_stock)
     if max_stock is not None:
         sl.max_stock = max(0, max_stock)
+
     try:
         db.session.commit()
         alert = "below_min" if (sl.quantity or 0) <= (sl.min_stock or 0) else None
-        return jsonify(
-            {
-                "success": True,
-                "quantity": int(sl.quantity or 0),
-                "min_stock": int(sl.min_stock or 0),
-                "max_stock": int(sl.max_stock or 0),
-                "alert": alert,
-            }
-        ), 200
+        return _ok({
+            "quantity": int(sl.quantity or 0),
+            "min_stock": int(sl.min_stock or 0),
+            "max_stock": int(sl.max_stock or 0),
+            "alert": alert,
+        })
     except SQLAlchemyError as e:
         db.session.rollback()
-        return jsonify({"success": False, "error": str(e)}), 400
-
+        return _err("db_error", str(e), 400)
 
 @bp.post("/warehouses/<int:warehouse_id>/transfer")
 @login_required
@@ -1256,37 +1295,34 @@ def update_stock(warehouse_id: int):
 @limiter.limit("30/minute")
 @permission_required("manage_inventory", "manage_warehouses", "warehouse_transfer")
 def transfer_between_warehouses(warehouse_id: int):
-    data = request.get_json(silent=True) or request.form
+    data = request.get_json(silent=True) or request.form or {}
 
-    def _i(name):
-        v = data.get(name)
-        try:
-            return int(v) if v is not None and str(v).strip() != "" else None
-        except Exception:
-            return None
-
-    pid = _i("product_id")
-    sid = _i("source_id") or warehouse_id
-    did = _i("destination_id")
-    try:
-        qty = int(float(data.get("quantity", 0)))
-    except Exception:
-        qty = 0
+    pid = _as_int(data.get("product_id"))
+    sid = _as_int(data.get("source_id")) or warehouse_id
+    did = _as_int(data.get("destination_id"))
+    qty = _as_int(data.get("quantity"), 0)
     notes = (data.get("notes") or "").strip() or None
-    if not (pid and sid and did and qty > 0) or sid == did:
-        return jsonify({"success": False, "errors": {"form": "invalid"}}), 400
-    if sid != warehouse_id:
-        return jsonify({"success": False, "errors": {"warehouse": "mismatch"}}), 400
+
+    if not (pid and sid and did and qty and qty > 0) or sid == did:
+        return _err("invalid", "invalid form", 400)
+
     src = StockLevel.query.filter_by(warehouse_id=sid, product_id=pid).first()
-    available = int((src.quantity or 0) - (src.reserved_quantity or 0)) if src else 0
+    available = int((getattr(src, "quantity", 0) or 0) - (getattr(src, "reserved_quantity", 0) or 0)) if src else 0
     if available < qty:
-        return jsonify({"success": False, "error": "insufficient_stock", "available": max(available, 0)}), 400
-    src.quantity = (src.quantity or 0) - qty
+        return _err("insufficient_stock", "", 400, {"available": max(available, 0)})
+
+    _lock_stock_rows([(pid, sid), (pid, did)])
+    if not src:
+        src = StockLevel(warehouse_id=sid, product_id=pid, quantity=0, reserved_quantity=0)
+        db.session.add(src)
+    src.quantity = int(src.quantity or 0) - qty
+
     dst = StockLevel.query.filter_by(warehouse_id=did, product_id=pid).first()
     if not dst:
         dst = StockLevel(warehouse_id=did, product_id=pid, quantity=0, reserved_quantity=0)
         db.session.add(dst)
-    dst.quantity = (dst.quantity or 0) + qty
+    dst.quantity = int(dst.quantity or 0) + qty
+
     t = Transfer(
         product_id=pid,
         source_id=sid,
@@ -1294,16 +1330,17 @@ def transfer_between_warehouses(warehouse_id: int):
         quantity=qty,
         direction="OUT",
         user_id=getattr(current_user, "id", None),
+        notes=notes,
     )
     setattr(t, "_skip_stock_apply", True)
     db.session.add(t)
+
     try:
         db.session.commit()
-        return jsonify({"success": True, "transfer_id": t.id}), 200
+        return _ok({"transfer_id": t.id})
     except SQLAlchemyError:
         db.session.rollback()
-        return jsonify({"success": False, "error": "db_error"}), 500
-
+        return _err("db_error", "db_error", 500)
 
 @bp.get("/warehouses/<int:warehouse_id>/partner_shares")
 @login_required
@@ -1336,7 +1373,6 @@ def get_partner_shares(warehouse_id: int):
             }
         )
     return jsonify({"success": True, "shares": data}), 200
-
 
 @bp.post("/warehouses/<int:warehouse_id>/partner_shares")
 @login_required
@@ -1385,7 +1421,6 @@ def update_partner_shares(warehouse_id: int):
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 400
 
-
 @bp.get("/invoices")
 @login_required
 @limiter.limit("60/minute")
@@ -1396,7 +1431,7 @@ def invoices():
     if q:
         like = f"%{q}%"
         qry = qry.filter(or_(Invoice.invoice_number.ilike(like), Invoice.currency.ilike(like)))
-    rows = qry.order_by(Invoice.id.desc()).limit(_limit()).all()
+    rows = qry.order_by(Invoice.id.desc()).limit(_query_limit(20, 100)).all()
     return jsonify(
         [
             {
@@ -1409,7 +1444,6 @@ def invoices():
             for i in rows
         ]
     )
-
 
 @bp.get("/services")
 @login_required
@@ -1434,11 +1468,10 @@ def services():
                 ServiceRequest.notes.ilike(like),
             )
         )
-    rows = qry.order_by(ServiceRequest.id.desc()).limit(_limit()).all()
+    rows = qry.order_by(ServiceRequest.id.desc()).limit(_query_limit(20, 100)).all()
     return jsonify(
         [{"id": s.id, "text": _number_of(s, "service_number", "SVC"), "number": _number_of(s, "service_number", "SVC")} for s in rows]
     )
-
 
 @bp.get("/sales")
 @login_required
@@ -1450,7 +1483,7 @@ def sales():
     if q:
         like = f"%{q}%"
         qry = qry.filter(or_(Sale.sale_number.ilike(like),))
-    rows = qry.order_by(Sale.id.desc()).limit(_limit()).all()
+    rows = qry.order_by(Sale.id.desc()).limit(_query_limit(20, 100)).all()
     return jsonify(
         [
             {
@@ -1465,18 +1498,17 @@ def sales():
         ]
     )
 
-
 @bp.get("/shipments")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("manage_shipments", "view_reports")
+@permission_required("manage_warehouses", "view_reports")
 def shipments():
     q = _q()
     qry = Shipment.query
     if q:
         like = f"%{q}%"
         qry = qry.filter(or_(Shipment.shipment_number.ilike(like), Shipment.tracking_number.ilike(like)))
-    rows = qry.order_by(Shipment.id.desc()).limit(_limit()).all()
+    rows = qry.order_by(Shipment.id.desc()).limit(_query_limit(20, 100)).all()
     return jsonify(
         [
             {
@@ -1490,39 +1522,38 @@ def shipments():
         ]
     )
 
-@bp.get("/search_employees", endpoint="search_employees")
+@bp.get("/search_employees")
 @login_required
 @limiter.limit("60/minute")
 @permission_required("manage_employees", "manage_expenses")
 def search_employees():
-    q = (request.args.get("q") or "").strip()
-    limit = min(int(request.args.get("limit", 20)), 50)
+    def _ser(e: Employee):
+        label = e.name or f"#{e.id}"
+        return {"id": e.id, "text": label, "name": e.name, "phone": e.phone, "email": e.email}
     sid = (request.args.get("id") or "").strip()
     if sid.isdigit():
         e = db.session.get(Employee, int(sid))
         if not e:
             return jsonify({"results": []})
-        label = e.name or f"#{e.id}"
-        return jsonify({"results": [{"id": e.id, "text": label, "name": e.name, "phone": e.phone, "email": e.email}]})
+        return jsonify({"results": [_ser(e)]})
+    q = (request.args.get("q") or "").strip()
+    limit = _limit_from_request(20, 50)
     qry = Employee.query
     if q:
         like = f"%{q}%"
         qry = qry.filter(or_(Employee.name.ilike(like), Employee.phone.ilike(like), Employee.email.ilike(like)))
     rows = qry.order_by(Employee.name.asc(), Employee.id.asc()).limit(limit).all()
-    out = []
-    for e in rows:
-        label = e.name or f"#{e.id}"
-        out.append({"id": e.id, "text": label, "name": e.name, "phone": e.phone, "email": e.email})
-    return jsonify({"results": out})
+    return jsonify({"results": [_ser(e) for e in rows]})
 
-
-@bp.get("/search_utility_accounts", endpoint="search_utility_accounts")
+@bp.get("/search_utility_accounts")
 @login_required
 @limiter.limit("60/minute")
 @permission_required("manage_expenses", "view_inventory")
 def search_utility_accounts():
+    def _label(a: UtilityAccount):
+        return a.alias or f"{a.provider} - {a.account_no or a.meter_no or a.id}"
     q = (request.args.get("q") or "").strip()
-    limit = min(int(request.args.get("limit", 20)), 50)
+    limit = _limit_from_request(20, 50)
     typ = (request.args.get("type") or "").strip().upper()
     active_only = (request.args.get("active_only", "1") or "1") not in {"0", "false", "False"}
     aid = (request.args.get("id") or "").strip()
@@ -1530,8 +1561,7 @@ def search_utility_accounts():
         a = db.session.get(UtilityAccount, int(aid))
         if not a or (active_only and not a.is_active) or (typ and a.utility_type != typ):
             return jsonify({"results": []})
-        label = a.alias or f"{a.provider} - {a.account_no or a.meter_no or a.id}"
-        return jsonify({"results": [{"id": a.id, "text": label, "alias": a.alias, "provider": a.provider}]})
+        return jsonify({"results": [{"id": a.id, "text": _label(a), "alias": a.alias, "provider": a.provider}]})
     qry = UtilityAccount.query
     if active_only:
         qry = qry.filter(UtilityAccount.is_active.is_(True))
@@ -1544,20 +1574,15 @@ def search_utility_accounts():
                              UtilityAccount.account_no.ilike(like),
                              UtilityAccount.meter_no.ilike(like)))
     rows = qry.order_by(UtilityAccount.alias.asc().nulls_last(), UtilityAccount.provider.asc(), UtilityAccount.id.asc()).limit(limit).all()
-    out = []
-    for a in rows:
-        label = a.alias or f"{a.provider} - {a.account_no or a.meter_no or a.id}"
-        out.append({"id": a.id, "text": label})
-    return jsonify({"results": out})
+    return jsonify({"results": [{"id": a.id, "text": _label(a)} for a in rows]})
 
-
-@bp.get("/search_stock_adjustments", endpoint="search_stock_adjustments")
+@bp.get("/search_stock_adjustments")
 @login_required
 @limiter.limit("60/minute")
 @permission_required("manage_inventory", "manage_expenses")
 def search_stock_adjustments():
     q = (request.args.get("q") or "").strip()
-    limit = min(int(request.args.get("limit", 20)), 50)
+    limit = _limit_from_request(20, 50)
     reason = (request.args.get("reason") or "").strip().upper()
     warehouse_id = request.args.get("warehouse_id", type=int)
     sid = (request.args.get("id") or "").strip()
@@ -1589,8 +1614,7 @@ def search_stock_adjustments():
         out.append({"id": sa.id, "text": label, "total_cost": float(sa.total_cost or 0)})
     return jsonify({"results": out})
 
-
-@bp.get("/stock_adjustments/<int:id>/total", endpoint="stock_adjustment_total")
+@bp.get("/stock_adjustments/<int:id>/total")
 @login_required
 @limiter.limit("60/minute")
 @permission_required("manage_inventory", "manage_expenses")
@@ -1731,7 +1755,7 @@ def get_shipment_api(id: int):
     )
 
 @bp.patch("/shipments/<int:id>")
-@bp.put("/shipments/<int:id>", endpoint="update_shipment_api")
+@bp.put("/shipments/<int:id>")
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
@@ -1841,7 +1865,6 @@ def api_mark_arrived(id: int):
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 400
 
-
 @bp.post("/shipments/<int:id>/cancel")
 @login_required
 @csrf.exempt
@@ -1860,7 +1883,6 @@ def api_cancel_shipment(id: int):
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 400
-
 
 @bp.delete("/shipments/<int:id>")
 @login_required
@@ -1884,7 +1906,6 @@ def delete_shipment_api(id: int):
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 400
 
-
 @bp.get("/transfers")
 @login_required
 @limiter.limit("60/minute")
@@ -1895,7 +1916,7 @@ def transfers():
     if q:
         like = f"%{q}%"
         qry = qry.filter(or_(Transfer.reference.ilike(like),))
-    rows = qry.order_by(Transfer.id.desc()).limit(_limit()).all()
+    rows = qry.order_by(Transfer.id.desc()).limit(_query_limit(50, 200)).all()
     return jsonify(
         [
             {
@@ -1910,7 +1931,6 @@ def transfers():
         ]
     )
 
-
 @bp.get("/preorders")
 @login_required
 @limiter.limit("60/minute")
@@ -1921,7 +1941,7 @@ def preorders():
     if q:
         like = f"%{q}%"
         qry = qry.filter(or_(PreOrder.reference.ilike(like),))
-    rows = qry.order_by(PreOrder.id.desc()).limit(_limit()).all()
+    rows = qry.order_by(PreOrder.id.desc()).limit(_query_limit(20, 100)).all()
     return jsonify(
         [
             {
@@ -1935,7 +1955,6 @@ def preorders():
         ]
     )
 
-
 @bp.get("/online_preorders")
 @login_required
 @limiter.limit("60/minute")
@@ -1946,7 +1965,7 @@ def online_preorders():
     if q:
         like = f"%{q}%"
         qry = qry.filter(or_(OnlinePreOrder.order_number.ilike(like),))
-    rows = qry.order_by(OnlinePreOrder.id.desc()).limit(_limit()).all()
+    rows = qry.order_by(OnlinePreOrder.id.desc()).limit(_query_limit(20, 100)).all()
     return jsonify(
         [
             {
@@ -1961,7 +1980,6 @@ def online_preorders():
         ]
     )
 
-
 @bp.get("/expenses")
 @login_required
 @limiter.limit("60/minute")
@@ -1972,7 +1990,7 @@ def expenses():
     if q:
         like = f"%{q}%"
         qry = qry.filter(or_(Expense.tax_invoice_number.ilike(like), Expense.description.ilike(like)))
-    rows = qry.order_by(Expense.id.desc()).limit(_limit()).all()
+    rows = qry.order_by(Expense.id.desc()).limit(_query_limit(20, 100)).all()
     return jsonify(
         [
             {
@@ -1986,7 +2004,6 @@ def expenses():
         ]
     )
 
-
 @bp.get("/loan_settlements")
 @login_required
 @limiter.limit("60/minute")
@@ -1996,13 +2013,12 @@ def loan_settlements():
     qry = SupplierLoanSettlement.query
     if q.isdigit():
         qry = qry.filter(SupplierLoanSettlement.id == int(q))
-    rows = qry.order_by(SupplierLoanSettlement.id.desc()).limit(_limit()).all()
+    rows = qry.order_by(SupplierLoanSettlement.id.desc()).limit(_query_limit(50, 200)).all()
     return jsonify(
         [{"id": x.id, "text": f"Settlement #{x.id}", "number": f"SET-{x.id}", "amount": float(x.settled_price or 0)} for x in rows]
     )
 
-
-@bp.get("/payments")
+@bp.get("/payments", endpoint="payments")
 @bp.get("/search_payments", endpoint="search_payments")
 @login_required
 @limiter.limit("60/minute")
@@ -2013,14 +2029,14 @@ def payments():
     if q:
         like = f"%{q}%"
         qry = qry.filter(or_(Payment.payment_number.ilike(like), Payment.receipt_number.ilike(like)))
-    rows = qry.order_by(Payment.id.desc()).limit(_limit()).all()
+    rows = qry.order_by(Payment.id.desc()).limit(_query_limit(50, 200)).all()
     return jsonify(
         [
             {
                 "id": p.id,
                 "text": _number_of(p, "payment_number", "PMT"),
                 "number": _number_of(p, "payment_number", "PMT"),
-                "amount": _money(p.total_amount),          
+                "amount": _money(p.total_amount),
                 "status": getattr(p.status, "value", p.status),
                 "method": getattr(p.method, "value", p.method),
             }
@@ -2028,79 +2044,83 @@ def payments():
         ]
     )
 
-
-@bp.get("/sales/<int:id>")
-@login_required
-@limiter.limit("60/minute")
-@permission_required("manage_sales", "view_reports")
-def get_sale(id: int):
-    s = db.session.query(Sale).options(joinedload(Sale.lines)).filter_by(id=id).first()
-    if not s:
-        return jsonify({"error": "Not Found"}), 404
-    return jsonify({"sale": sale_to_dict(s)})
-
-
 @bp.post("/sales")
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
 @permission_required("manage_sales")
 def create_sale_api():
-    data = request.get_json(silent=True) or {}
-    status = (data.get("status") or "DRAFT").upper()
+    d = request.get_json(silent=True) or {}
+    errors = {}
+
+    status = (d.get("status") or "DRAFT").upper()
+    customer_id = _req(_as_int(d.get("customer_id")), "customer_id", errors)
+    seller_id = _as_int(d.get("seller_id")) or getattr(current_user, "id", None)
+    if errors:
+        return _err("validation_error", "Invalid input", 422, errors)
+
     s = Sale(
         sale_number=None,
-        customer_id=data.get("customer_id"),
-        seller_id=data.get("seller_id") or getattr(current_user, "id", None),
-        sale_date=data.get("sale_date") or datetime.utcnow(),
+        customer_id=customer_id,
+        seller_id=seller_id,
+        sale_date=d.get("sale_date") or datetime.utcnow(),
         status=status,
-        currency=(data.get("currency") or "ILS").upper(),
-        tax_rate=float(data.get("tax_rate") or 0),
-        discount_total=_D(data.get("discount_total")),
-        shipping_cost=_D(data.get("shipping_cost")),
-        notes=(data.get("notes") or None),
+        currency=(d.get("currency") or "ILS").upper(),
+        tax_rate=_as_float(d.get("tax_rate")) or 0.0,
+        discount_total=_D(d.get("discount_total")),
+        shipping_cost=_D(d.get("shipping_cost")),
+        notes=(d.get("notes") or None),
     )
     db.session.add(s)
     db.session.flush()
     _safe_generate_number_after_flush(s)
-    lines = []
-    for it in (data.get("lines") or []):
-        pid = int(it.get("product_id") or 0)
-        qty = int(float(it.get("quantity") or 0))
-        wid = it.get("warehouse_id")
-        wid = int(wid) if str(wid or "").isdigit() else None
-        if not (pid and qty > 0):
+
+    requirements = {}
+    pairs = []
+
+    for it in (d.get("lines") or []):
+        pid = _as_int(it.get("product_id"))
+        qty = _as_int(it.get("quantity"), 0)
+        wid = _as_int(it.get("warehouse_id"))
+        if not (pid and qty and qty > 0):
             continue
         chosen = wid or _auto_pick_warehouse(pid, qty, preferred_wid=None)
         if status == "CONFIRMED":
             if not chosen or _available_qty(pid, chosen) < qty:
                 db.session.rollback()
-                return jsonify({"success": False, "error": "insufficient_stock", "product_id": pid}), 400
-        ln = SaleLine(
-            sale_id=s.id,
-            product_id=pid,
-            warehouse_id=chosen,
-            quantity=qty,
-            unit_price=float(it.get("unit_price") or 0),
-            discount_rate=float(it.get("discount_rate") or 0),
-            tax_rate=float(it.get("tax_rate") or 0),
-            note=(it.get("note") or None),
+                return _err("insufficient_stock", f"product:{pid}", 400, {"product_id": pid})
+            requirements[(pid, chosen)] = requirements.get((pid, chosen), 0) + qty
+            pairs.append((pid, chosen))
+        db.session.add(
+            SaleLine(
+                sale_id=s.id,
+                product_id=pid,
+                warehouse_id=chosen,
+                quantity=qty,
+                unit_price=_as_float(it.get("unit_price")) or 0.0,
+                discount_rate=_as_float(it.get("discount_rate")) or 0.0,
+                tax_rate=_as_float(it.get("tax_rate")) or 0.0,
+                note=(it.get("note") or None),
+            )
         )
-        db.session.add(ln)
-        lines.append((pid, chosen))
-    if status == "CONFIRMED":
-        _lock_stock_rows([(p, w) for (p, w) in lines if w])
-        _reserve_stock(s)
+
+    if status == "CONFIRMED" and pairs:
+        _lock_stock_rows(pairs)
+        try:
+            _reserve_stock(s)
+        except ValueError as e:
+            db.session.rollback()
+            return _err("insufficient_stock", str(e), 400)
+
     try:
         db.session.commit()
-        return jsonify({"success": True, "id": s.id, "sale_number": s.sale_number}), 201
+        return _created(f"/api/sales/{s.id}", {"id": s.id, "sale_number": s.sale_number})
     except Exception as e:
         db.session.rollback()
-        return jsonify({"success": False, "error": str(e)}), 400
-
+        return _err("db_error", str(e), 400)
 
 @bp.put("/sales/<int:id>")
-@bp.patch("/sales/<int:id>", endpoint="update_sale_api")
+@bp.patch("/sales/<int:id>")
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
@@ -2176,7 +2196,6 @@ def update_sale_api(id: int):
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 400
 
-
 @bp.post("/sales/<int:id>/status")
 @login_required
 @csrf.exempt
@@ -2211,7 +2230,6 @@ def change_sale_status_api(id: int):
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 400
-
 
 @bp.delete("/sales/<int:id>")
 @login_required
@@ -2306,6 +2324,31 @@ def quick_sell_api():
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 400
 
+# ---------------- Exchange Transactions ----------------
+
+def _ensure_exchange_warehouse(wid: int) -> Warehouse:
+    wh = Warehouse.query.get(wid)
+    if not wh:
+        raise ValueError("warehouse_not_found")
+    wt = getattr(wh.warehouse_type, "value", wh.warehouse_type)
+    if wt != WarehouseType.EXCHANGE.value:
+        raise ValueError("not_exchange_warehouse")
+    if not getattr(wh, "supplier_id", None):
+        raise ValueError("exchange_requires_supplier")
+    return wh
+
+def _stock_row_locked(pid: int, wid: int) -> StockLevel:
+    rec = (
+        db.session.query(StockLevel)
+        .filter_by(product_id=pid, warehouse_id=wid)
+        .with_for_update(nowait=False)
+        .first()
+    )
+    if not rec:
+        rec = StockLevel(product_id=pid, warehouse_id=wid, quantity=0, reserved_quantity=0)
+        db.session.add(rec)
+        db.session.flush()
+    return rec
 
 @bp.get("/exchange_transactions")
 @login_required
@@ -2322,7 +2365,7 @@ def list_exchange_transactions():
                 ExchangeTransaction.direction.ilike(like),
             )
         )
-    rows = qry.order_by(ExchangeTransaction.id.desc()).limit(_limit(50, 200)).all()
+    rows = qry.order_by(ExchangeTransaction.id.desc()).limit(_query_limit(50, 200)).all()
     data = []
     for x in rows:
         data.append(
@@ -2339,33 +2382,6 @@ def list_exchange_transactions():
             }
         )
     return jsonify({"results": data})
-
-
-def _ensure_exchange_warehouse(wid: int) -> Warehouse:
-    wh = Warehouse.query.get(wid)
-    if not wh:
-        raise ValueError("warehouse_not_found")
-    wt = getattr(wh.warehouse_type, "value", wh.warehouse_type)
-    if wt != WarehouseType.EXCHANGE.value:
-        raise ValueError("not_exchange_warehouse")
-    if not getattr(wh, "supplier_id", None):
-        raise ValueError("exchange_requires_supplier")
-    return wh
-
-
-def _stock_row_locked(pid: int, wid: int) -> StockLevel:
-    rec = (
-        db.session.query(StockLevel)
-        .filter_by(product_id=pid, warehouse_id=wid)
-        .with_for_update(nowait=False)
-        .first()
-    )
-    if not rec:
-        rec = StockLevel(product_id=pid, warehouse_id=wid, quantity=0, reserved_quantity=0)
-        db.session.add(rec)
-        db.session.flush()
-    return rec
-
 
 @bp.post("/exchange_transactions")
 @login_required
@@ -2449,7 +2465,6 @@ def create_exchange_transaction():
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 400
 
-
 @bp.get("/exchange_transactions/<int:id>")
 @login_required
 @limiter.limit("60/minute")
@@ -2471,7 +2486,6 @@ def get_exchange_transaction(id: int):
             "notes": getattr(x, "notes", None),
         }
     )
-
 
 @bp.delete("/exchange_transactions/<int:id>")
 @login_required
@@ -2506,21 +2520,104 @@ def delete_exchange_transaction(id: int):
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 400
 
+# =============================================================================
+# Equipment Types
+# =============================================================================
+
+@bp.get("/equipment-types/search")
+@login_required
+def search_equipment_types():
+    q = (request.args.get("q") or "").strip()
+    query = EquipmentType.query
+    if q:
+        query = query.filter(EquipmentType.name.ilike(f"%{q}%"))
+    results = [{"id": et.id, "text": et.name} for et in query.order_by(EquipmentType.name).limit(20).all()]
+    return jsonify(results)
+
+@bp.post("/equipment-types/create")
+@login_required
+@csrf.exempt
+def create_equipment_type():
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "الاسم مطلوب"}), 400
+    et = EquipmentType(
+        name=name,
+        model_number=(data.get("model") or "").strip() or None,
+        chassis_number=(data.get("chassis_number") or "").strip() or None,
+        category=(data.get("category") or "").strip() or None,
+        notes=(data.get("notes") or "").strip() or None,
+    )
+    db.session.add(et)
+    try:
+        db.session.commit()
+        return jsonify({"id": et.id, "text": et.name}), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
+
+@bp.get("/search_supplier_loans")
+@login_required
+@limiter.limit("60/minute")
+@permission_required("manage_vendors")
+def search_supplier_loans():
+    q = (request.args.get("q") or "").strip()
+    limit = _limit_from_request(20, 50)
+    supplier_id = request.args.get("supplier_id", type=int)
+    loan_id = (request.args.get("id") or "").strip()
+
+    if loan_id.isdigit():
+        from models import ProductSupplierLoan, Product, Supplier
+        ln = db.session.get(ProductSupplierLoan, int(loan_id))
+        if not ln:
+            return jsonify({"results": []})
+        prod = getattr(ln, "product", None)
+        sup = getattr(ln, "supplier", None)
+        txt = f"Loan #{ln.id} — {getattr(prod, 'name', '') or 'Product'} — {getattr(sup, 'name', '') or 'Supplier'}"
+        return jsonify({"results": [{"id": ln.id, "text": txt}]})
+
+    from models import ProductSupplierLoan, Product, Supplier
+    qry = (
+        db.session.query(ProductSupplierLoan, Product.name, Supplier.name)
+        .join(Product, Product.id == ProductSupplierLoan.product_id)
+        .join(Supplier, Supplier.id == ProductSupplierLoan.supplier_id)
+        .filter(ProductSupplierLoan.is_settled.is_(False))
+    )
+    if supplier_id:
+        qry = qry.filter(ProductSupplierLoan.supplier_id == supplier_id)
+    if q:
+        like = f"%{q}%"
+        qry = qry.filter(
+            or_(
+                Product.name.ilike(like),
+                Supplier.name.ilike(like),
+            )
+        )
+    rows = qry.order_by(ProductSupplierLoan.id.desc()).limit(limit).all()
+    results = []
+    for ln, pname, sname in rows:
+        results.append({
+            "id": ln.id,
+            "text": f"Loan #{ln.id} — {pname} — {sname} — value {float(ln.loan_value or 0):.2f}",
+        })
+    return jsonify({"results": results})
+
+# =============================================================================
+# Error handlers
+# =============================================================================
 
 @bp.app_errorhandler(403)
 def forbidden(e):
     return jsonify({"error": "Forbidden"}), 403
 
-
 @bp.app_errorhandler(429)
 def ratelimit_handler(e):
     return jsonify({"error": "Too Many Requests", "detail": str(e.description)}), 429
 
-
 @bp.app_errorhandler(404)
 def not_found(e):
     return jsonify({"error": "Not Found"}), 404
-
 
 @bp.app_errorhandler(500)
 def server_error(e):
@@ -2528,12 +2625,15 @@ def server_error(e):
     current_app.logger.exception("API 500: %s", getattr(e, "description", e))
     return jsonify({"error": "Server Error"}), 500
 
+# =============================================================================
+# Users search
+# =============================================================================
 
 @bp.get("/users", endpoint="users")
 @login_required
 def api_search_users():
     q = (request.args.get("q") or "").strip()
-    limit = min(int(request.args.get("limit", 20) or 20), 50)
+    limit = _limit_from_request(20, 50)
     active_only = (request.args.get("active_only", "1") or "1") not in {"0", "false", "False"}
     role_names = [s.strip() for s in (request.args.get("role") or "").split(",") if s.strip()]
     role_ids = [int(s) for s in (request.args.get("role_id") or "").split(",") if s.strip().isdigit()]
@@ -2585,38 +2685,3 @@ def api_search_users():
             text = f"{text} ({email})"
         results.append({"id": u.id, "text": text})
     return jsonify({"results": results})
-
-
-@bp.get("/equipment-types/search")
-@login_required
-def search_equipment_types():
-    q = (request.args.get("q") or "").strip()
-    query = EquipmentType.query
-    if q:
-        query = query.filter(EquipmentType.name.ilike(f"%{q}%"))
-    results = [{"id": et.id, "text": et.name} for et in query.order_by(EquipmentType.name).limit(20).all()]
-    return jsonify(results)
-
-
-@bp.post("/equipment-types/create")
-@login_required
-@csrf.exempt
-def create_equipment_type():
-    data = request.get_json(silent=True) or {}
-    name = (data.get("name") or "").strip()
-    if not name:
-        return jsonify({"error": "الاسم مطلوب"}), 400
-    et = EquipmentType(
-        name=name,
-        model_number=(data.get("model") or "").strip() or None,
-        chassis_number=(data.get("chassis_number") or "").strip() or None,
-        category=(data.get("category") or "").strip() or None,
-        notes=(data.get("notes") or "").strip() or None,
-    )
-    db.session.add(et)
-    try:
-        db.session.commit()
-        return jsonify({"id": et.id, "text": et.name}), 201
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 400

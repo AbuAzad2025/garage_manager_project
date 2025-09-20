@@ -144,7 +144,7 @@ def create(partner_id):
     amount_str = f"{abs(due):.2f}"
     pay_url = url_for(
         "payments.create_payment",
-        entity_type="partner",
+        entity_type="PARTNER",   # <-- كانت "partner"
         entity_id=str(partner.id),
         direction=direction,
         total_amount=amount_str,

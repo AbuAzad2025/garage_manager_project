@@ -5,9 +5,9 @@
 
 <tr id="split-{{ s.id }}">
   <td>{{ loop.index }}.</td>
-  
-  <td class="amount-cell" data-amount="{{ '%.2f'|format(s.amount or 0) }}">
-    {{ '%.2f'|format(s.amount or 0) }} {{ payment.currency }}
+
+  <td class="amount-cell" data-amount="{{ '%.0f'|format(s.amount or 0) }}">
+    {{ '%.0f'|format(s.amount or 0) }} {{ payment.currency or '' }}
   </td>
 
   <td>{{ m|upper }}</td>
@@ -17,10 +17,10 @@
       رقم الشيك: {{ d.get('check_number') or '—' }}<br>
       البنك: {{ d.get('check_bank') or '—' }}<br>
       الاستحقاق: {{ d.get('check_due_date') or d.get('due_date') or '—' }}
-    
+
     {% elif m == 'bank' %}
       مرجع التحويل: {{ d.get('bank_transfer_ref') or d.get('reference') or '—' }}
-    
+
     {% elif m in ['card', 'credit'] %}
       بطاقة: {{
         (d.get('card_last4') and ('****' ~ (d.get('card_last4')|string)))
@@ -29,11 +29,11 @@
       }}<br>
       حامل البطاقة: {{ d.get('card_holder') or '—' }}<br>
       انتهاء: {{ d.get('card_expiry') or '—' }}
-    
+
     {% elif m in ['online', 'mobile'] %}
       البوابة: {{ d.get('online_gateway') or d.get('gateway') or '—' }}<br>
       المرجع: {{ d.get('online_ref') or d.get('reference') or '—' }}
-    
+
     {% elif m == 'cash' %}
       نقداً
 
@@ -43,7 +43,10 @@
   </td>
 
   <td>
-    <button type="button" class="btn btn-sm btn-danger remove-split" data-split-id="{{ s.id }}" {% if is_completed %}disabled{% endif %}>
+    <button type="button"
+            class="btn btn-sm btn-danger remove-split"
+            data-split-id="{{ s.id }}"
+            {% if is_completed %}disabled{% endif %}>
       حذف
     </button>
   </td>

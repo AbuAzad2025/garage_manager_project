@@ -1,6 +1,26 @@
 {% extends 'base.html' %}
 {% block title %}الشركاء{% endblock %}
 
+{% block head_extra %}
+  {{ super() }}
+  <style>
+    #partnersTable td .btn {
+      min-width: 75px;   /* كانت 90px */
+      font-size: 0.85rem; /* حجم الخط أصغر */
+      padding: 0.35rem 0.6rem; /* أصغر من قبل */
+      text-align: center;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #partnersTable td .btn i {
+      margin-inline-end: 3px;
+      font-size: 0.85em;
+    }
+  </style>
+{% endblock %}
+
 {% block content %}
 <div class="container py-5">
   {% set total_balance = 0 %}
@@ -56,7 +76,7 @@
             <th>الاسم</th>
             <th>الهاتف</th>
             <th>الرصيد</th>
-            <th style="width:280px">عمليات</th>
+            <th style="width:480px">عمليات</th>
           </tr>
         </thead>
         <tbody>
@@ -70,37 +90,36 @@
                 {{ '%.2f'|format(p.net_balance or 0) }}
               </span>
             </td>
-            <td class="text-nowrap">
+            <td class="d-flex flex-wrap gap-1">
               <a href="{{ url_for('payments.create_payment', entity_type='PARTNER', entity_id=p.id) }}"
-                 class="btn btn-sm btn-primary" title="دفع">
-                <i class="fas fa-coins"></i>
+                 class="btn btn-sm btn-primary">
+                <i class="fas fa-coins"></i> دفع
               </a>
               <a href="{{ url_for('payments.index') }}?entity_type=PARTNER&entity_id={{ p.id }}"
-                 class="btn btn-sm btn-warning" title="دفعات">
-                <i class="fas fa-file-invoice-dollar"></i>
+                 class="btn btn-sm btn-info">
+                <i class="fas fa-file-invoice-dollar"></i> كشف حساب
               </a>
               <button type="button"
-                      class="btn btn-sm btn-outline-success btn-settle"
-                      title="تسوية"
+                      class="btn btn-sm btn-success btn-settle"
                       data-entity-type="partner"
                       data-id="{{ p.id }}"
                       data-name="{{ p.name }}"
                       data-balance="{{ '%.2f'|format(p.net_balance or 0) }}"
                       data-currency="{{ p.currency or 'ILS' }}">
-                <i class="fas fa-scale-balanced"></i>
+                <i class="fas fa-scale-balanced"></i> تسوية
               </button>
               {% if current_user.has_permission('manage_vendors') %}
                 <a href="{{ url_for('vendors_bp.partners_edit', id=p.id) }}"
-                   class="btn btn-sm btn-outline-secondary" title="تعديل">
-                  <i class="fas fa-edit"></i>
+                   class="btn btn-sm btn-secondary">
+                  <i class="fas fa-edit"></i> تعديل
                 </a>
                 <form method="post"
                       action="{{ url_for('vendors_bp.partners_delete', id=p.id) }}"
                       class="d-inline"
                       onsubmit="return confirm('حذف الشريك؟');">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="btn btn-sm btn-danger" title="حذف">
-                    <i class="fas fa-trash"></i>
+                  <button type="submit" class="btn btn-sm btn-danger">
+                    <i class="fas fa-trash"></i> حذف
                   </button>
                 </form>
               {% endif %}
@@ -115,10 +134,8 @@
   </div>
 </div>
 
-<!-- Config لرابط إنشاء الدفع -->
 <div id="vendors-config" data-pay-url="{{ url_for('payments.create_payment') }}"></div>
 
-<!-- مودال التسوية (مضمن) -->
 <div class="modal fade" id="settlementModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content rounded-4">

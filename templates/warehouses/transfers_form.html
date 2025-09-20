@@ -2,14 +2,10 @@
 {% block title %}تحويل جديد{% endblock %}
 {% block page_title %}تحويل جديد - {{ warehouse.name }}{% endblock %}
 
-{% block head_extra %}
-  {{ super() }}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/warehouses.css') }}">
-{% endblock %}
-
-{% block content %}
-<form method="post" novalidate>
+{% block w_content %}
+<form id="transferForm" method="post" action="{{ url_for('warehouse_bp.transfer_inline', id=warehouse.id) }}" novalidate>
   {{ form.hidden_tag() }}
+  <input type="hidden" name="source_id" value="{{ warehouse.id }}">
 
   <div class="card shadow-sm mb-3">
     <div class="card-body">
@@ -45,7 +41,7 @@
   </div>
 
   <div class="d-flex justify-content-end gap-2">
-    <button class="btn btn-primary"><i class="fas fa-check-circle me-1"></i> حفظ</button>
+    {{ form.submit(class="btn btn-primary") }}
     <a class="btn btn-secondary" href="{{ url_for('warehouse_bp.transfers', id=warehouse.id) }}">
       <i class="fas fa-arrow-left me-1"></i> رجوع
     </a>
@@ -54,15 +50,14 @@
 {% endblock %}
 
 {% block scripts %}
-  {{ super() }}
-  <script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
-  <script>
-    (function(){
-      var s = document.getElementById('source_id');
-      if (s) {
-        s.value = '{{ warehouse.id }}';
-        s.setAttribute('disabled','disabled');
-      }
-    })();
-  </script>
+{{ super() }}
+<script>
+  (function(){
+    var s = document.getElementById('source_id');
+    if (s) {
+      s.value = '{{ warehouse.id }}';
+      s.setAttribute('disabled','disabled');
+    }
+  })();
+</script>
 {% endblock %}

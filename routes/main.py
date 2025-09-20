@@ -1,24 +1,31 @@
 # routes/main.py
+from __future__ import annotations
 import os
 import sqlite3
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, time
 
 from flask import Blueprint, current_app, flash, redirect, render_template, send_file, send_from_directory, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import Date, cast, func
+from sqlalchemy import func, case
 
 from extensions import db
 from forms import RestoreForm
-from models import ExchangeTransaction, Note, Product, Sale, ServiceRequest, Supplier, StockLevel
+from models import (
+    ExchangeTransaction,
+    Note,
+    Product,
+    Sale,
+    ServiceRequest,
+    Supplier,
+    StockLevel,
+    Payment,
+    PaymentDirection,
+    PaymentStatus,
+)
 from utils import permission_required
 from reports import sales_report, ar_aging_report
 
 main_bp = Blueprint("main", __name__, template_folder="templates")
-
-
-@main_bp.route("/favicon.ico")
-def favicon():
-    return send_from_directory(current_app.static_folder, "favicon.ico", mimetype="image/vnd.microsoft.icon")
 
 
 def _has_perm(code: str) -> bool:
@@ -31,12 +38,36 @@ def _has_perm(code: str) -> bool:
     return False
 
 
+@main_bp.app_context_processor
+def _inject_sidebar_helpers():
+    def has_any(*codes) -> bool:
+        return any(_has_perm(c) for c in codes)
+    role_name = str(getattr(getattr(current_user, "role", None), "name", "")).lower()
+    is_super = (role_name == "super_admin") or bool(getattr(current_user, "is_super_admin", False))
+    return {
+        "has_perm": _has_perm,
+        "has_any": has_any,
+        "shop_is_super_admin": is_super,
+    }
+
+
+@main_bp.route("/favicon.ico")
+def favicon():
+    return send_from_directory(current_app.static_folder, "favicon.ico", mimetype="image/vnd.microsoft.icon")
+
+
 @main_bp.route("/", methods=["GET"], endpoint="dashboard")
 @login_required
 def dashboard():
     today = date.today()
     start = today - timedelta(days=6)
     end = today
+
+    # حدود زمنية دقيقة لليوم والأسبوع (Exclusive للحد الأعلى)
+    day_start_dt = datetime.combine(today, time.min)
+    day_end_dt = datetime.combine(today + timedelta(days=1), time.min)
+    week_start_dt = datetime.combine(start, time.min)
+    week_end_dt = datetime.combine(end + timedelta(days=1), time.min)
 
     inv_rows = (
         db.session.query(Product, func.coalesce(func.sum(StockLevel.quantity), 0).label("on_hand_sum"))
@@ -68,17 +99,102 @@ def dashboard():
         week_revenue = float(srep.get("total_revenue", 0) or 0)
         today_revenue = float(
             db.session.query(func.coalesce(func.sum(Sale.total_amount), 0))
-            .filter(cast(Sale.sale_date, Date) == today, Sale.status == "CONFIRMED")
-            .scalar()
-            or 0
+            .filter(
+                Sale.status == "CONFIRMED",
+                Sale.sale_date >= day_start_dt,
+                Sale.sale_date < day_end_dt,
+            )
+            .scalar() or 0
         )
+
+    today_incoming = float(
+        db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
+        .filter(
+            Payment.payment_date >= day_start_dt,
+            Payment.payment_date < day_end_dt,
+            Payment.direction == PaymentDirection.INCOMING.value,
+            Payment.status == PaymentStatus.COMPLETED.value,
+        )
+        .scalar() or 0
+    )
+    today_outgoing = float(
+        db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
+        .filter(
+            Payment.payment_date >= day_start_dt,
+            Payment.payment_date < day_end_dt,
+            Payment.direction == PaymentDirection.OUTGOING.value,
+            Payment.status == PaymentStatus.COMPLETED.value,
+        )
+        .scalar() or 0
+    )
+    today_net = today_incoming - today_outgoing
+
+    week_incoming = float(
+        db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
+        .filter(
+            Payment.payment_date >= week_start_dt,
+            Payment.payment_date < week_end_dt,
+            Payment.direction == PaymentDirection.INCOMING.value,
+            Payment.status == PaymentStatus.COMPLETED.value,
+        )
+        .scalar() or 0
+    )
+    week_outgoing = float(
+        db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
+        .filter(
+            Payment.payment_date >= week_start_dt,
+            Payment.payment_date < week_end_dt,
+            Payment.direction == PaymentDirection.OUTGOING.value,
+            Payment.status == PaymentStatus.COMPLETED.value,
+        )
+        .scalar() or 0
+    )
+    week_net = week_incoming - week_outgoing
+
+    pay_rows = (
+        db.session.query(
+            func.date(Payment.payment_date).label("day"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (Payment.direction == PaymentDirection.INCOMING.value, Payment.total_amount),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("incoming"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (Payment.direction == PaymentDirection.OUTGOING.value, Payment.total_amount),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("outgoing"),
+        )
+        .filter(
+            Payment.payment_date >= week_start_dt,
+            Payment.payment_date < week_end_dt,
+            Payment.status == PaymentStatus.COMPLETED.value,
+        )
+        .group_by("day")
+        .order_by("day")
+        .all()
+    )
+    payments_day_labels = [str(r.day) for r in pay_rows]
+    payments_in_values = [float(r.incoming or 0) for r in pay_rows]
+    payments_out_values = [float(r.outgoing or 0) for r in pay_rows]
+    payments_net_values = [i - o for i, o in zip(payments_in_values, payments_out_values)]
 
     recent_services = []
     if _has_perm("manage_service"):
-        q = ServiceRequest.query.order_by(ServiceRequest.created_at.desc())
+        q = ServiceRequest.query
         if current_user.role and (current_user.role.name or "").lower() == "mechanic":
             q = q.filter_by(mechanic_id=current_user.id)
-        recent_services = q.limit(5).all()
+        done_statuses = ("COMPLETED", "CANCELLED", "CLOSED", "DELIVERED", "FINISHED")
+        q = q.filter(~ServiceRequest.status.in_(done_statuses)).order_by(ServiceRequest.created_at.desc())
+        recent_services = q.all()
         for s in recent_services:
             if not hasattr(s, "started_at"):
                 s.started_at = getattr(s, "start_time", None)
@@ -88,14 +204,14 @@ def dashboard():
     customer_metrics = {}
     if _has_perm("view_reports"):
         rows = (
-            db.session.query(cast(ServiceRequest.start_time, Date).label("day"), func.count(ServiceRequest.id).label("cnt"))
-            .filter(cast(ServiceRequest.start_time, Date).between(start, end))
+            db.session.query(func.date(ServiceRequest.start_time).label("day"), func.count(ServiceRequest.id).label("cnt"))
+            .filter(ServiceRequest.start_time >= week_start_dt, ServiceRequest.start_time < week_end_dt)
             .group_by("day")
             .order_by("day")
             .all()
         )
         service_metrics = {
-            "day_labels": [r.day.strftime("%Y-%m-%d") for r in rows],
+            "day_labels": [str(r.day) for r in rows],
             "day_counts": [int(r.cnt) for r in rows],
         }
         recent_notes = Note.query.order_by(Note.created_at.desc()).limit(5).all()
@@ -119,6 +235,16 @@ def dashboard():
         service_metrics=service_metrics,
         recent_notes=recent_notes,
         customer_metrics=customer_metrics,
+        today_incoming=today_incoming,
+        today_outgoing=today_outgoing,
+        today_net=today_net,
+        week_incoming=week_incoming,
+        week_outgoing=week_outgoing,
+        week_net=week_net,
+        payments_day_labels=payments_day_labels,
+        payments_in_values=payments_in_values,
+        payments_out_values=payments_out_values,
+        payments_net_values=payments_net_values,
     )
 
 
@@ -177,6 +303,7 @@ def backup_db():
         conn.close()
 
     return send_file(db_out, as_attachment=True, download_name=os.path.basename(db_out))
+
 
 @main_bp.route("/restore_db", methods=["GET", "POST"], endpoint="restore_db")
 @login_required

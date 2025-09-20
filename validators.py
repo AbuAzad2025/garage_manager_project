@@ -2,12 +2,15 @@ from wtforms.validators import ValidationError
 from sqlalchemy import func
 
 class Unique:
-    def __init__(self, model, field, message=None, case_insensitive=False, normalizer=None):
-        self.model = model
+    def __init__(
+        self, model, field, message=None, case_insensitive=False, normalizer=None, pk_name="id"
+    ):
+        self.model = model              # class أو callable بيرجع class
         self.field = field
         self.message = message or "Value already exists."
         self.case_insensitive = case_insensitive
         self.normalizer = normalizer
+        self.pk_name = pk_name
 
     def __call__(self, form, field):
         data = field.data
@@ -16,17 +19,17 @@ class Unique:
         if not data:
             return
 
-        query = self.model.query
-        column = getattr(self.model, self.field)
+        model = self.model() if callable(self.model) else self.model
+        query = model.query
+        column = getattr(model, self.field)
 
         if self.case_insensitive and isinstance(data, str):
             query = query.filter(func.lower(column) == data.lower())
         else:
             query = query.filter(column == data)
 
-        # لو تعديل (id موجود) → تجاهل نفسه
         if getattr(form, "id", None) and form.id.data:
-            query = query.filter(self.model.id != form.id.data)
+            query = query.filter(getattr(model, self.pk_name) != form.id.data)
 
         if query.first():
             raise ValidationError(self.message)

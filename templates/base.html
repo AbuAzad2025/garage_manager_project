@@ -6,7 +6,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/fontawesome-free/css/all.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/overlayScrollbars/css/OverlayScrollbars.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/css/adminlte.min.css') }}">
@@ -15,10 +14,8 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/datatables-responsive/css/responsive.bootstrap4.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/datatables-buttons/css/buttons.bootstrap4.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-
   {% block styles %}{% endblock %}
   {% block head_extra %}{% endblock %}
-
   <style>
     .select2-container .select2-selection--single{height:calc(2.25rem + 2px)}
     .select2-container--default .select2-selection--single .select2-selection__rendered{line-height:2.25rem}
@@ -29,7 +26,6 @@
 <div class="wrapper">
   {% include 'partials/navbar.html' %}
   {% include 'partials/sidebar.html' %}
-
   <div class="content-wrapper">
     <div class="content-header border-bottom mb-3 pb-2 bg-light">
       <div class="container-fluid">
@@ -45,7 +41,6 @@
         </div>
       </div>
     </div>
-
     <section class="content">
       <div class="container-fluid">
         {% with messages = get_unique_flashes(with_categories=true) %}
@@ -60,12 +55,10 @@
             {% endfor %}
           {% endif %}
         {% endwith %}
-
         {% block content %}{% endblock %}
       </div>
     </section>
   </div>
-
   {% include 'partials/footer.html' %}
 </div>
 
@@ -100,11 +93,16 @@
     if (window.jQuery && $.fn && $.fn.select2) {
       try { $.fn.select2.defaults.set('dir', 'rtl'); } catch (_) {}
     }
+    if (window.jQuery && $.fn && $.fn.dataTable) {
+      $.extend(true, $.fn.dataTable.defaults, {
+        language: { url: "{{ url_for('static', filename='datatables/Arabic.json') }}" }
+      });
+    }
   })();
 </script>
+
 <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
-
 {% block scripts %}{% endblock %}
 </body>
 </html>

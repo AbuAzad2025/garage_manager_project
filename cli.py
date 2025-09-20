@@ -1618,7 +1618,7 @@ def gl_seed_accounts():
             db.session.add(acc)
             created.append(code)
     try:
-        db.session.commit()  # 👈 بدل with db.session.begin(): pass
+        db.session.commit()
         click.echo(json.dumps({"created": created, "updated": updated}, ensure_ascii=False))
     except SQLAlchemyError as e:
         db.session.rollback()

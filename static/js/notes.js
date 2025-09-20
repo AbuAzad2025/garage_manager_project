@@ -18,7 +18,7 @@
   }
 
   async function loadModalContent(title, url, formMode, noteId = null) {
-    modalTitle.textContent = title;
+    modalTitle && (modalTitle.textContent = title);
     const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
     const html = await res.text();
     modalBody.innerHTML = html;
@@ -27,19 +27,15 @@
   }
 
   function openCreateModal() {
-    loadModalContent('ملاحظة جديدة', NOTES_ENDPOINTS.createForm, 'create');
+    loadModalContent('ملاحظة جديدة', window.NOTES_ENDPOINTS.createForm, 'create');
   }
 
   function openEditModal(id) {
-    loadModalContent('تعديل الملاحظة', NOTES_ENDPOINTS.editForm(id), 'edit', id);
+    loadModalContent('تعديل الملاحظة', window.NOTES_ENDPOINTS.editForm(id), 'edit', id);
   }
 
   function cardHTML(note) {
-    const badgeClassMap = {
-      URGENT: 'badge-danger',
-      HIGH: 'badge-warning',
-      MEDIUM: 'badge-info'
-    };
+    const badgeClassMap = { URGENT: 'badge-danger', HIGH: 'badge-warning', MEDIUM: 'badge-info' };
     const badgeClass = badgeClassMap[note.priority] || 'badge-secondary';
     return `
       <div class="col-md-6 col-lg-4 mb-3" id="note-card-${note.id}">
@@ -56,7 +52,6 @@
             <p class="mb-3 pre-wrap">${note.content || ''}</p>
             <div class="small text-muted d-flex flex-wrap gap-2">
               <span><i class="fas fa-clock"></i> ${note.created_at || '-'}</span>
-              ${(note.entity_type || note.entity_id) ? `<span class="ml-2"><i class="fas fa-link"></i> ${note.entity_type || ''} ${note.entity_id || ''}</span>` : ''}
             </div>
           </div>
           <div class="card-footer d-flex justify-content-between">
@@ -80,12 +75,9 @@
       btn.addEventListener('click', async () => {
         if (!confirm('تأكيد حذف الملاحظة؟')) return;
         const id = btn.dataset.id;
-        const res = await fetch(NOTES_ENDPOINTS.delete(id), {
+        const res = await fetch(window.NOTES_ENDPOINTS.delete(id), {
           method: 'POST',
-          headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRFToken': getCSRF()
-          }
+          headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': getCSRF() }
         });
         const result = await res.json().catch(() => ({ success: false }));
         if (result.success) {
@@ -101,21 +93,17 @@
     scope.querySelectorAll('.btn-pin-note').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = btn.dataset.id;
-        const res = await fetch(NOTES_ENDPOINTS.togglePin(id), {
+        const res = await fetch(window.NOTES_ENDPOINTS.togglePin(id), {
           method: 'POST',
-          headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRFToken': getCSRF()
-          }
+          headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': getCSRF() }
         });
         const result = await res.json().catch(() => ({ success: false }));
         if (result.success) {
           showAlert(result.is_pinned ? 'تم تثبيت الملاحظة.' : 'تم إلغاء التثبيت.', 'success');
-          const updatedNote = result.note;
-          if (updatedNote) {
+          if (result.note) {
             const existing = document.getElementById(`note-card-${id}`);
             if (existing) {
-              existing.outerHTML = cardHTML(updatedNote);
+              existing.outerHTML = cardHTML(result.note);
               const newOne = document.getElementById(`note-card-${id}`);
               wireCardActions(newOne);
             }
@@ -144,7 +132,7 @@
     const feedback = document.createElement('div');
     feedback.className = 'invalid-feedback dynamic';
     feedback.textContent = message;
-    input.parentElement?.appendChild(feedback);
+    (input.parentElement || input).appendChild(feedback);
   }
 
   function wireForm(selector, mode, id) {
@@ -155,7 +143,7 @@
       e.preventDefault();
       clearErrors(form);
 
-      const action = form.getAttribute('action') || (mode === 'edit' ? NOTES_ENDPOINTS.update(id) : NOTES_ENDPOINTS.createForm);
+      const action = form.getAttribute('action') || (mode === 'edit' ? window.NOTES_ENDPOINTS.update(id) : window.NOTES_ENDPOINTS.createForm);
       const res = await fetch(action, {
         method: 'POST',
         body: new FormData(form),
@@ -163,14 +151,14 @@
       });
 
       let result = {};
-      try {
-        result = await res.json();
-      } catch (_) {}
+      try { result = await res.json(); } catch (_) {}
 
       if (result.success) {
         $('#noteModal').modal('hide');
         showAlert(mode === 'edit' ? 'تم تحديث الملاحظة.' : 'تم إضافة الملاحظة.', 'success');
         const note = result.note;
+        if (!grid || !note) return;
+
         const existingCard = document.getElementById(`note-card-${note.id}`);
         if (existingCard) {
           existingCard.outerHTML = cardHTML(note);

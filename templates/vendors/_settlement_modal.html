@@ -36,6 +36,58 @@
             <option value="online">إلكتروني</option>
           </select>
         </div>
+<div class="mb-3" id="methodFields">
+
+  <div id="sec-cheque" class="row g-2 d-none">
+    <div class="col-6">
+      <label class="form-label">رقم الشيك</label>
+      <input type="text" class="form-control" id="mf_check_number" autocomplete="off">
+    </div>
+    <div class="col-6">
+      <label class="form-label">البنك</label>
+      <input type="text" class="form-control" id="mf_check_bank" autocomplete="off">
+    </div>
+    <div class="col-12">
+      <label class="form-label">تاريخ الاستحقاق</label>
+      <input type="date" class="form-control" id="mf_check_due_date">
+    </div>
+  </div>
+
+  <div id="sec-bank" class="row g-2 d-none">
+    <div class="col-12">
+      <label class="form-label">مرجع التحويل</label>
+      <input type="text" class="form-control" id="mf_bank_transfer_ref" autocomplete="off">
+    </div>
+  </div>
+
+  <div id="sec-card" class="row g-2 d-none">
+    <div class="col-6">
+      <label class="form-label">اسم حامل البطاقة</label>
+      <input type="text" class="form-control" id="mf_card_holder" autocomplete="off">
+    </div>
+    <div class="col-6">
+      <label class="form-label">انتهاء البطاقة</label>
+      <input type="text" class="form-control" id="mf_card_expiry" placeholder="MM/YY" autocomplete="off">
+    </div>
+    <div class="col-12">
+      <label class="form-label">رقم البطاقة</label>
+      <input type="text" class="form-control" id="mf_card_number" inputmode="numeric" autocomplete="cc-number">
+    </div>
+  </div>
+
+  <div id="sec-online" class="row g-2 d-none">
+    <div class="col-6">
+      <label class="form-label">البوابة</label>
+      <input type="text" class="form-control" id="mf_online_gateway" autocomplete="off">
+    </div>
+    <div class="col-6">
+      <label class="form-label">المرجع</label>
+      <input type="text" class="form-control" id="mf_online_ref" autocomplete="off">
+    </div>
+  </div>
+
+</div>
+
         <input type="hidden" id="stlEntityType">
         <input type="hidden" id="stlEntityId">
       </div>

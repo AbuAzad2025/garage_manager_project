@@ -3,6 +3,7 @@
 
 {% block content %}
 <div class="container py-5">
+
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h2 class="fw-bold mb-0">
       <i class="fas fa-money-check-alt me-2"></i>
@@ -13,13 +14,26 @@
       {% endif %}
     </h2>
     <div class="btn-group">
-      <a id="btnAddPayment" href="{% if supplier %}{{ url_for('payments.create_payment', entity_type='SUPPLIER', entity_id=supplier.id) }}{% else %}{{ url_for('payments.create_payment') }}{% endif %}" class="btn btn-success"><i class="fas fa-plus"></i> إضافة سند دفع</a>
-      <button type="button" class="btn btn-outline-primary btn-settle" data-entity-type="supplier" data-id="{{ supplier.id if supplier else '' }}" data-name="{{ supplier.name if supplier else '' }}" data-balance="{{ '%.2f'|format(supplier.net_balance) if supplier else '0.00' }}" data-currency="{{ supplier.currency if supplier else 'ILS' }}" {% if not supplier %}disabled{% endif %}><i class="fas fa-scale-balanced"></i> تسوية</button>
+      <a id="btnAddPayment"
+         href="{% if supplier %}{{ url_for('payments.create_payment', entity_type='SUPPLIER', entity_id=supplier.id) }}{% else %}{{ url_for('payments.create_payment') }}{% endif %}"
+         class="btn btn-success">
+        <i class="fas fa-plus"></i> إضافة سند دفع
+      </a>
+      <button type="button"
+              class="btn btn-outline-primary btn-settle"
+              data-entity-type="supplier"
+              data-id="{{ supplier.id if supplier else '' }}"
+              data-name="{{ supplier.name if supplier else '' }}"
+              data-balance="{{ '%.0f'|format(supplier.net_balance) if supplier else '0' }}"
+              data-currency="{{ supplier.currency if supplier else 'ILS' }}"
+              {% if not supplier %}disabled{% endif %}>
+        <i class="fas fa-scale-balanced"></i> تسوية
+      </button>
     </div>
   </div>
 
   {% if total_paid is not none %}
-    <div class="alert alert-info">إجمالي المدفوع: {{ '%.2f'|format(total_paid) }}</div>
+    <div class="alert alert-info">إجمالي المدفوع: {{ '%.0f'|format(total_paid) }}</div>
   {% endif %}
 
   {% if supplier %}
@@ -71,6 +85,7 @@
         <option value="bank">تحويل بنكي</option>
         <option value="card">بطاقة</option>
         <option value="online">إلكتروني</option>
+        <option value="mobile">محفظة/موبايل</option>
       </select>
     </div>
     <div class="col-auto">
@@ -88,7 +103,7 @@
       <div class="card text-center">
         <div class="card-body">
           <div class="text-muted small mb-1">الوارد المكتمل</div>
-          <div id="totalIncoming" class="fs-5 fw-bold">0.00</div>
+          <div id="totalIncoming" class="fs-5 fw-bold">0</div>
         </div>
       </div>
     </div>
@@ -96,7 +111,7 @@
       <div class="card text-center">
         <div class="card-body">
           <div class="text-muted small mb-1">الصادر المكتمل</div>
-          <div id="totalOutgoing" class="fs-5 fw-bold">0.00</div>
+          <div id="totalOutgoing" class="fs-5 fw-bold">0</div>
         </div>
       </div>
     </div>
@@ -104,7 +119,7 @@
       <div class="card text-center">
         <div class="card-body">
           <div class="text-muted small mb-1">الصافي</div>
-          <div id="netTotal" class="fs-5 fw-bold">0.00</div>
+          <div id="netTotal" class="fs-5 fw-bold">0</div>
         </div>
       </div>
     </div>
@@ -112,7 +127,7 @@
       <div class="card text-center">
         <div class="card-body">
           <div class="text-muted small mb-1">الإجمالي الكلي</div>
-          <div id="grandTotal" class="fs-5 fw-bold">0.00</div>
+          <div id="grandTotal" class="fs-5 fw-bold">0</div>
         </div>
       </div>
     </div>
@@ -158,17 +173,17 @@
       }
       var btn = document.getElementById('btnAddPayment');
       if (btn) {
-        var hidType = document.getElementById('prefilter_entity_type') ? document.getElementById('prefilter_entity_type').value : '';
-        var hidId = document.getElementById('prefilter_entity_id') ? document.getElementById('prefilter_entity_id').value : '';
+        var hidType = document.getElementById('prefilter_entity_type')?.value || '';
+        var hidId   = document.getElementById('prefilter_entity_id')?.value   || '';
         var qs = new URLSearchParams(location.search);
         var qsType = (qs.get('entity_type') || '').toUpperCase();
-        var qsId = qs.get('entity_id') || '';
-        var et = hidType || qsType;
-        var eid = hidId || qsId;
+        var qsId   = qs.get('entity_id') || '';
+        var et  = hidType || qsType;
+        var eid = hidId   || qsId;
         if (et && eid) {
           var u = new URL(btn.href, location.origin);
           if (!u.searchParams.get('entity_type')) u.searchParams.set('entity_type', et);
-          if (!u.searchParams.get('entity_id')) u.searchParams.set('entity_id', eid);
+          if (!u.searchParams.get('entity_id'))   u.searchParams.set('entity_id', eid);
           btn.href = u.toString();
         }
       }

@@ -1,3 +1,4 @@
+/* static/css/reporting.css */
 .report-toolbar {
   position: sticky;
   top: 64px;
@@ -93,6 +94,97 @@
   color: #6c757d !important;
   font-style: italic;
 }
+
+.nav-pills .nav-link {
+  color: #fff !important;
+  font-weight: 500;
+  border-radius: 0.5rem;
+  padding: 0.4rem 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.nav-pills .nav-link i {
+  font-size: 1rem;
+}
+
+.nav-report-dashboard { background-color: #0d6efd; }
+.nav-report-dynamic { background-color: #6610f2; }
+.nav-report-customers { background-color: #20c997; }
+.nav-report-suppliers { background-color: #fd7e14; }
+.nav-report-partners { background-color: #6f42c1; }
+.nav-report-sales { background-color: #198754; }
+.nav-report-payments { background-color: #0dcaf0; }
+.nav-report-products { background-color: #ffc107; color: #000 !important; }
+.nav-report-expenses { background-color: #e83e8c; }
+.nav-report-inventory { background-color: #17a2b8; }
+.nav-report-below-min { background-color: #dc3545; }
+.nav-report-shipments { background-color: #6610f2; }
+.nav-report-online { background-color: #0dcaf0; }
+.nav-report-ar { background-color: #198754; }
+.nav-report-ap { background-color: #fd7e14; }
+.nav-report-service { background-color: #6c757d; }
+
+.nav-pills .nav-link.active {
+  box-shadow: 0 0 0 0.2rem rgba(0,0,0,0.15);
+  transform: translateY(-2px);
+}
+
+.report-card {
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  text-align: center;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.report-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+}
+
+.report-card i {
+  font-size: 2.5rem;
+  margin-bottom: 0.75rem;
+  display: block;
+  line-height: 1;
+}
+
+.report-card h5 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.report-card p {
+  font-size: 0.85rem;
+  color: #6c757d;
+  margin: 0;
+}
+
+.report-card.dashboard { color: #0d6efd; background: #e7f0ff; }
+.report-card.dynamic { color: #6610f2; background: #f1e7ff; }
+.report-card.customers { color: #20c997; background: #e6f9f4; }
+.report-card.suppliers { color: #fd7e14; background: #fff3e6; }
+.report-card.partners { color: #6f42c1; background: #f3e9fc; }
+.report-card.sales { color: #198754; background: #e9f7ef; }
+.report-card.payments { color: #0dcaf0; background: #e6fafd; }
+.report-card.products { color: #ffc107; background: #fffbe6; }
+.report-card.expenses { color: #e83e8c; background: #ffe6f0; }
+.report-card.inventory { color: #17a2b8; background: #e6f6f9; }
+.report-card.below-min { color: #dc3545; background: #fde7ea; }
+.report-card.shipments { color: #6610f2; background: #f1e7ff; }
+.report-card.online { color: #0dcaf0; background: #e6fafd; }
+.report-card.ar { color: #198754; background: #e9f7ef; }
+.report-card.ap { color: #fd7e14; background: #fff3e6; }
+.report-card.service { color: #6c757d; background: #f2f2f2; }
 
 @media print {
   .report-toolbar,

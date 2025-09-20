@@ -27,6 +27,7 @@
     </div>
   </div>
 
+  <!-- بطاقات أساسية -->
   <div class="row g-3 mb-4">
     <div class="col-lg-3 col-md-6">
       <div class="card border-0 shadow-lg text-white h-100" style="background:linear-gradient(135deg,#00c6ff,#0072ff)">
@@ -69,7 +70,7 @@
         <div class="card-body d-flex align-items-center justify-content-between">
           <div>
             <h2 class="fw-bold mb-1">{{ today_revenue|default(0)|format_currency }}</h2>
-            <div class="small">إيرادات اليوم</div>
+            <div class="small">إيرادات اليوم (مبيعات)</div>
           </div>
           <i class="fas fa-dollar-sign fa-2x opacity-75"></i>
         </div>
@@ -78,29 +79,181 @@
     </div>
   </div>
 
+  <!-- بطاقات التدفقات النقدية - اليوم -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-4 col-md-6">
+      <div class="card border-0 shadow h-100" style="background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff">
+        <div class="card-body d-flex align-items-center justify-content-between">
+          <div>
+            <div class="small opacity-75">وارد اليوم</div>
+            <h3 class="fw-bold mb-0">{{ today_incoming|default(0)|format_currency }}</h3>
+          </div>
+          <i class="fas fa-arrow-down fa-2x opacity-75"></i>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4 col-md-6">
+      <div class="card border-0 shadow h-100" style="background:linear-gradient(135deg,#ff9966,#ff5e62);color:#fff">
+        <div class="card-body d-flex align-items-center justify-content-between">
+          <div>
+            <div class="small opacity-75">صادر اليوم</div>
+            <h3 class="fw-bold mb-0">{{ today_outgoing|default(0)|format_currency }}</h3>
+          </div>
+          <i class="fas fa-arrow-up fa-2x opacity-75"></i>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4 col-md-12">
+      <div class="card border-0 shadow h-100" style="background:linear-gradient(135deg,#56ab2f,#a8e063);color:#fff">
+        <div class="card-body d-flex align-items-center justify-content-between">
+          <div>
+            <div class="small opacity-75">صافي اليوم</div>
+            <h3 class="fw-bold mb-0">{{ (today_incoming|default(0) - today_outgoing|default(0))|format_currency }}</h3>
+          </div>
+          <i class="fas fa-balance-scale fa-2x opacity-75"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- بطاقات التدفقات النقدية - الأسبوع -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-4 col-md-6">
+      <div class="card border-0 shadow h-100" style="background:linear-gradient(135deg,#36d1dc,#5b86e5);color:#fff">
+        <div class="card-body d-flex align-items-center justify-content-between">
+          <div>
+            <div class="small opacity-75">وارد الأسبوع</div>
+            <h3 class="fw-bold mb-0">{{ week_incoming|default(0)|format_currency }}</h3>
+          </div>
+          <i class="fas fa-sign-in-alt fa-2x opacity-75"></i>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4 col-md-6">
+      <div class="card border-0 shadow h-100" style="background:linear-gradient(135deg,#f7971e,#ffd200);color:#2b2b2b">
+        <div class="card-body d-flex align-items-center justify-content-between">
+          <div>
+            <div class="small opacity-75">صادر الأسبوع</div>
+            <h3 class="fw-bold mb-0">{{ week_outgoing|default(0)|format_currency }}</h3>
+          </div>
+          <i class="fas fa-sign-out-alt fa-2x opacity-75"></i>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4 col-md-12">
+      <div class="card border-0 shadow h-100" style="background:linear-gradient(135deg,#00b09b,#96c93d);color:#fff">
+        <div class="card-body d-flex align-items-center justify-content-between">
+          <div>
+            <div class="small opacity-75">صافي الأسبوع</div>
+            <h3 class="fw-bold mb-0">{{ week_net|default(0)|format_currency }}</h3>
+          </div>
+          <i class="fas fa-equals fa-2x opacity-75"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- مخططات -->
   <div class="row g-3 mb-4">
     <div class="col-lg-6">
       <div class="card border-0 shadow-lg h-100">
         <div class="card-header fw-bold text-white" style="background:linear-gradient(45deg,#ee0979,#ff6a00)">
-          <i class="fas fa-chart-line me-1"></i> إيرادات الأسبوع
+          <i class="fas fa-chart-line me-1"></i> إيرادات الأسبوع (مبيعات)
         </div>
         <div class="card-body" style="height:320px">
-          <canvas class="chartjs-chart" data-chart-type="line" data-label="إيرادات الأسبوع" data-labels='{{ revenue_labels|default([])|tojson }}' data-values='{{ revenue_values|default([])|tojson }}' data-fill="1" data-smooth="1" data-unit="₪"></canvas>
+          <canvas
+            class="chartjs-chart"
+            data-chart-type="line"
+            data-label="إيرادات الأسبوع"
+            data-labels='{{ revenue_labels|default([])|tojson }}'
+            data-values='{{ revenue_values|default([])|tojson }}'
+            data-fill="1"
+            data-smooth="1"
+            data-unit="₪">
+          </canvas>
         </div>
       </div>
     </div>
+
     <div class="col-lg-6">
       <div class="card border-0 shadow-lg h-100">
         <div class="card-header fw-bold text-white" style="background:linear-gradient(45deg,#36d1dc,#5b86e5)">
           <i class="fas fa-tools me-1"></i> طلبات الصيانة الأسبوعية
         </div>
         <div class="card-body" style="height:320px">
-          <canvas class="chartjs-chart" data-chart-type="bar" data-label="طلبات الصيانة" data-labels='{{ service_metrics.day_labels|default([])|tojson }}' data-values='{{ service_metrics.day_counts|default([])|tojson }}' data-unit="طلب"></canvas>
+          <canvas
+            class="chartjs-chart"
+            data-chart-type="bar"
+            data-label="طلبات الصيانة"
+            data-labels='{{ service_metrics.day_labels|default([])|tojson }}'
+            data-values='{{ service_metrics.day_counts|default([])|tojson }}'
+            data-unit="طلب">
+          </canvas>
         </div>
       </div>
     </div>
   </div>
 
+  <!-- مخططات وارد/صادر/صافي الأسبوع (كل واحد Dataset منفصل لتوافق المُولِّد الحالي) -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-lg h-100">
+        <div class="card-header fw-bold text-white" style="background:linear-gradient(45deg,#00c6ff,#0072ff)">
+          <i class="fas fa-arrow-down me-1"></i> وارد الأسبوع
+        </div>
+        <div class="card-body" style="height:260px">
+          <canvas
+            class="chartjs-chart"
+            data-chart-type="line"
+            data-label="وارد"
+            data-labels='{{ payments_day_labels|default([])|tojson }}'
+            data-values='{{ payments_in_values|default([])|tojson }}'
+            data-fill="0"
+            data-smooth="1"
+            data-unit="₪">
+          </canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-lg h-100">
+        <div class="card-header fw-bold text-white" style="background:linear-gradient(45deg,#ff9966,#ff5e62)">
+          <i class="fas fa-arrow-up me-1"></i> صادر الأسبوع
+        </div>
+        <div class="card-body" style="height:260px">
+          <canvas
+            class="chartjs-chart"
+            data-chart-type="line"
+            data-label="صادر"
+            data-labels='{{ payments_day_labels|default([])|tojson }}'
+            data-values='{{ payments_out_values|default([])|tojson }}'
+            data-fill="0"
+            data-smooth="1"
+            data-unit="₪">
+          </canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-lg h-100">
+        <div class="card-header fw-bold text-white" style="background:linear-gradient(45deg,#00b09b,#96c93d)">
+          <i class="fas fa-equals me-1"></i> صافي الأسبوع
+        </div>
+        <div class="card-body" style="height:260px">
+          <canvas
+            class="chartjs-chart"
+            data-chart-type="bar"
+            data-label="صافي"
+            data-labels='{{ payments_day_labels|default([])|tojson }}'
+            data-values='{{ payments_net_values|default([])|tojson }}'
+            data-unit="₪">
+          </canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- آخر 5 طلبات صيانة -->
   <div class="card border-0 shadow-lg">
     <div class="card-header fw-bold text-white" style="background:linear-gradient(45deg,#232526,#414345)">
       <i class="fas fa-history me-1"></i> آخر 5 طلبات صيانة

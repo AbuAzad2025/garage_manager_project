@@ -3,15 +3,16 @@ import uuid
 import logging
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from datetime import datetime
-from flask import Flask, url_for, request, current_app, render_template, g
+from flask import Flask, url_for, request, current_app, render_template, g, redirect
 from werkzeug.routing import BuildError
 from flask_cors import CORS
 from flask_login import AnonymousUserMixin, current_user
 from jinja2 import ChoiceLoader, FileSystemLoader
 from sqlalchemy import event
 
-from config import Config
+from config import Config, ensure_runtime_dirs, assert_production_sanity
 from extensions import db, migrate, login_manager, socketio, mail, csrf, limiter, setup_logging, setup_sentry
+from extensions import init_extensions
 from utils import (
     qr_to_base64,
     format_currency,
@@ -23,8 +24,6 @@ from utils import (
     _expand_perms as _perm_expand,
     is_super,
 )
-from cli import seed_roles
-from seed_palestine import seed_palestine
 from models import User, Role, Permission, Customer
 from acl import attach_acl
 
@@ -56,6 +55,8 @@ from routes.ledger_blueprint import ledger_bp
 class MyAnonymousUser(AnonymousUserMixin):
     def has_permission(self, perm_name):
         return False
+
+
 @login_manager.user_loader
 def load_user(user_id):
     from sqlalchemy.orm import joinedload, lazyload
@@ -105,6 +106,9 @@ def create_app(config_object=Config) -> Flask:
     app.config.setdefault("JSON_AS_ASCII", False)
     app.config.setdefault("NUMBER_DECIMALS", 2)
 
+    ensure_runtime_dirs(config_object)
+    assert_production_sanity(config_object)
+
     try:
         from dotenv import load_dotenv
         load_dotenv()
@@ -131,8 +135,8 @@ def create_app(config_object=Config) -> Flask:
         elif uri.startswith(("mysql", "mysql+pymysql", "mysql+mysqldb")):
             connect_args.setdefault("connect_timeout", int(os.getenv("DB_CONNECT_TIMEOUT", "10")))
 
-    db.init_app(app)
-    migrate.init_app(app, db)
+    init_extensions(app)
+    utils_init_app(app)
 
     @event.listens_for(db.session.__class__, "before_attach")
     def _dedupe_entities(session, instance):
@@ -142,34 +146,12 @@ def create_app(config_object=Config) -> Flask:
             if existing is not None and existing is not instance:
                 session.expunge(existing)
 
-    login_manager.init_app(app)
     login_manager.login_view = "auth.login"
     login_manager.anonymous_user = MyAnonymousUser
     try:
         login_manager.session_protection = None
     except Exception:
         pass
-
-    csrf.init_app(app)
-
-    app.config.setdefault("RATELIMIT_STORAGE_URI", os.getenv("RATELIMIT_STORAGE_URI", "memory://"))
-    app.config.setdefault("RATELIMIT_HEADERS_ENABLED", True)
-    limiter.init_app(app)
-    default_limit = app.config.get("RATELIMIT_DEFAULT")
-    if default_limit:
-        if isinstance(default_limit, (list, tuple)):
-            limiter.default_limits = [str(x).strip() for x in default_limit if str(x).strip()]
-        else:
-            parts = [p.strip() for p in str(default_limit).split(";") if p.strip()]
-            limiter.default_limits = parts
-
-    socketio.init_app(
-        app,
-        async_mode=app.config.get("SOCKETIO_ASYNC_MODE", "threading"),
-        message_queue=app.config.get("SOCKETIO_MESSAGE_QUEUE"),
-    )
-    mail.init_app(app)
-    utils_init_app(app)
 
     setup_logging(app)
     setup_sentry(app)
@@ -521,5 +503,8 @@ def create_app(config_object=Config) -> Flask:
 
     from cli import register_cli
     register_cli(app)
-    return app
 
+    from seed_palestine import init_app as init_seed_commands
+    init_seed_commands(app)
+
+    return app

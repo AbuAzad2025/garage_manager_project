@@ -7,6 +7,10 @@
 <li class="breadcrumb-item active">{{ 'تعديل' if user_id else 'إضافة' }}</li>
 {% endblock %}
 
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/users.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid" dir="rtl">
   <form method="post" novalidate action="{% if user_id %}{{ url_for('users_bp.edit_user', user_id=user_id) }}{% else %}{{ url_for('users_bp.create_user') }}{% endif %}">
@@ -40,7 +44,6 @@
                   {% for e in form.password.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
                 </div>
               </div>
-
               {% if form.confirm is defined %}
               <div class="col-md-6">
                 <div class="form-group mb-3">
@@ -79,18 +82,18 @@
             <strong>صلاحيات إضافية</strong>
             <div class="d-flex align-items-center" style="gap:.5rem">
               <input type="text" class="form-control form-control-sm" style="max-width:220px" id="perm-filter" placeholder="بحث في الصلاحيات…">
-              <div class="btn-group btn-group-sm" role="group" aria-label="bulk actions">
+              <div class="btn-group btn-group-sm" role="group">
                 <button type="button" id="perm-select-visible" class="btn btn-outline-primary">تحديد المعروض</button>
                 <button type="button" id="perm-clear-visible" class="btn btn-outline-secondary">إلغاء المعروض</button>
               </div>
             </div>
           </div>
-          <div class="card-body">
+          <div class="card-body p-2">
             {% if all_permissions %}
-              <div class="row" id="perm-list">
+              <div id="perm-list">
                 {% for perm in all_permissions %}
                   {% set disp = (perm.display_name if perm.display_name is defined else (perm.name_ar or perm.name)) %}
-                  <div class="col-md-6 col-lg-4 mb-2 perm-item" data-name="{{ (disp|string)|lower }} {{ (perm.code or '')|lower }}">
+                  <div class="perm-item" data-name="{{ (disp|string)|lower }} {{ (perm.code or '')|lower }}">
                     <div class="form-check">
                       <input class="form-check-input" type="checkbox" name="extra_permissions" id="perm-{{ perm.id }}" value="{{ perm.id }}" {% if perm.id in selected_perm_ids %}checked{% endif %}>
                       <label class="form-check-label" for="perm-{{ perm.id }}">{{ disp }}</label>

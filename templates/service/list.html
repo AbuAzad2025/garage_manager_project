@@ -20,6 +20,21 @@
 {% block content %}
 <div class="content">
 
+  {% set PRIORITY_LABELS = {
+    'LOW':'منخفضة','MEDIUM':'متوسطة','HIGH':'عالية','URGENT':'عاجلة'
+  } %}
+  {% set STATUS_LABELS = {
+    'PENDING':'معلّق','DIAGNOSIS':'تشخيص','IN_PROGRESS':'قيد التنفيذ',
+    'COMPLETED':'مكتمل','CANCELLED':'ملغي','ON_HOLD':'مؤجّل'
+  } %}
+  {% set PRIORITY_COLORS = {
+    'LOW':'info','MEDIUM':'warning','HIGH':'danger','URGENT':'dark'
+  } %}
+  {% set STATUS_COLORS = {
+    'PENDING':'secondary','DIAGNOSIS':'info','IN_PROGRESS':'primary',
+    'COMPLETED':'success','CANCELLED':'danger','ON_HOLD':'warning'
+  } %}
+
   {% if current_user.has_permission('manage_service') %}
   <div class="card card-outline card-primary mb-3">
     <div class="card-body d-flex flex-wrap gap-2 toolbar">
@@ -92,40 +107,40 @@
     <div class="card-body">
       <form class="row g-3 align-items-end" method="get" action="{{ url_for('service.list_requests') }}">
 
-        <div class="col-12 col-xl-6">
-          <fieldset class="chip-fieldset">
-            <legend><i class="fas fa-traffic-light"></i> الحالة</legend>
-            {% set selected_status = filter_values.status or [] %}
-            {% set status_opts = ['PENDING','DIAGNOSIS','IN_PROGRESS','COMPLETED','CANCELLED','ON_HOLD'] %}
-            <div class="chip-group">
-              {% for st in status_opts %}
-                <input class="btn-check" type="checkbox" name="status" id="st_{{st}}" value="{{st}}" {% if st in selected_status %}checked{% endif %}>
-                <label class="btn btn-sm btn-outline-secondary {% if st in selected_status %}active{% endif %}" for="st_{{st}}">
-                  {{ status_labels.get(st, st) }}
-                </label>
-              {% endfor %}
+        <div class="col-12">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <fieldset class="chip-fieldset">
+                <legend><i class="fas fa-traffic-light"></i> الحالة</legend>
+                {% set selected_status = filter_values.status or [] %}
+                {% set status_opts = ['PENDING','DIAGNOSIS','IN_PROGRESS','COMPLETED','CANCELLED','ON_HOLD'] %}
+                <div class="chip-group">
+                  {% for st in status_opts %}
+                    <input class="btn-check" type="checkbox" name="status" id="st_{{st}}" value="{{st}}" {% if st in selected_status %}checked{% endif %}>
+                    <label class="btn btn-sm btn-outline-{{ STATUS_COLORS.get(st,'secondary') }} {% if st in selected_status %}active{% endif %}" for="st_{{st}}">
+                      {{ STATUS_LABELS.get(st, st) }}
+                    </label>
+                  {% endfor %}
+                </div>
+              </fieldset>
             </div>
-            <div class="filter-help">
-              <i class="fas fa-info-circle"></i> يمكن اختيار أكثر من حالة.
-            </div>
-          </fieldset>
-        </div>
 
-        <div class="col-12 col-xl-6">
-          <fieldset class="chip-fieldset">
-            <legend><i class="fas fa-bolt"></i> الأولوية</legend>
-            {% set selected_pri = filter_values.priority or [] %}
-            {% set pri_opts = ['LOW','MEDIUM','HIGH','URGENT'] %}
-            {% set pri_color = {'LOW':'info','MEDIUM':'warning','HIGH':'danger','URGENT':'dark'} %}
-            <div class="chip-group">
-              {% for pr in pri_opts %}
-                <input class="btn-check" type="checkbox" name="priority" id="pr_{{pr}}" value="{{pr}}" {% if pr in selected_pri %}checked{% endif %}>
-                <label class="btn btn-sm btn-outline-{{ pri_color.get(pr,'secondary') }} {% if pr in selected_pri %}active{% endif %}" for="pr_{{pr}}">
-                  {{ pr }}
-                </label>
-              {% endfor %}
+            <div class="col-md-6">
+              <fieldset class="chip-fieldset">
+                <legend><i class="fas fa-bolt"></i> الأولوية</legend>
+                {% set selected_pri = filter_values.priority or [] %}
+                {% set pri_opts = ['LOW','MEDIUM','HIGH','URGENT'] %}
+                <div class="chip-group">
+                  {% for pr in pri_opts %}
+                    <input class="btn-check" type="checkbox" name="priority" id="pr_{{pr}}" value="{{pr}}" {% if pr in selected_pri %}checked{% endif %}>
+                    <label class="btn btn-sm btn-outline-{{ PRIORITY_COLORS.get(pr,'secondary') }} {% if pr in selected_pri %}active{% endif %}" for="pr_{{pr}}">
+                      {{ PRIORITY_LABELS.get(pr, pr) }}
+                    </label>
+                  {% endfor %}
+                </div>
+              </fieldset>
             </div>
-          </fieldset>
+          </div>
         </div>
 
         <div class="col-12 col-md-6 col-xl-4">
@@ -212,19 +227,14 @@
             <td class="text-nowrap">{{ s.vehicle_vrn or '—' }}</td>
             <td>
               {% set p = (s.priority.value if s.priority is not string else s.priority)|upper %}
-              <span class="badge badge-status bg-{{ PRIORITY_COLORS.get(p, 'secondary') }}">{{ p }}</span>
+              <span class="badge badge-status bg-{{ PRIORITY_COLORS.get(p, 'secondary') }}">
+                {{ PRIORITY_LABELS.get(p, p) }}
+              </span>
             </td>
             <td>
               {% set st = (s.status.value if s.status is not string else s.status)|upper %}
-              <span class="badge badge-status
-                {% if st == 'PENDING' %}badge-pending
-                {% elif st == 'DIAGNOSIS' %}badge-diagnosis
-                {% elif st == 'IN_PROGRESS' %}badge-inprogress
-                {% elif st == 'COMPLETED' %}badge-completed
-                {% elif st == 'CANCELLED' %}badge-cancelled
-                {% elif st == 'ON_HOLD' %}badge-onhold
-                {% else %}bg-secondary{% endif %}">
-                {{ status_labels.get(st, st) }}
+              <span class="badge badge-status bg-{{ STATUS_COLORS.get(st,'secondary') }}">
+                {{ STATUS_LABELS.get(st, st) }}
               </span>
             </td>
             <td class="d-flex flex-wrap gap-1">

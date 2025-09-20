@@ -1,21 +1,8 @@
+'use strict';
 document.addEventListener('DOMContentLoaded', function () {
   const container = document.getElementById('splitsContainer');
   const MAX_SPLITS = parseInt(container?.dataset.maxSplits || '3', 10);
-
-  const METHOD_FIELDS = {
-    "": [],
-    cash: [],
-    cheque: ["check_number","check_bank","check_due_date"],
-    check: ["check_number","check_bank","check_due_date"],
-    bank: ["bank_transfer_ref"],
-    transfer: ["bank_transfer_ref"],
-    bank_transfer: ["bank_transfer_ref"],
-    card: ["card_number","card_holder","card_expiry"],
-    credit: ["card_number","card_holder","card_expiry"],
-    online: ["online_gateway","online_ref"],
-    mobile: ["online_gateway","online_ref"]
-  };
-
+  const METHOD_FIELDS = { "": [], cash: [], cheque: ["check_number","check_bank","check_due_date"], check: ["check_number","check_bank","check_due_date"], bank: ["bank_transfer_ref"], transfer: ["bank_transfer_ref"], bank_transfer: ["bank_transfer_ref"], card: ["card_number","card_holder","card_expiry"], credit: ["card_number","card_holder","card_expiry"], online: ["online_gateway","online_ref"], mobile: ["online_gateway","online_ref"] };
   const addBtn = document.getElementById('addSplit');
   const form = document.getElementById('paymentForm');
   const template = container && container.querySelector('.split-form') ? container.querySelector('.split-form').cloneNode(true) : null;
@@ -23,17 +10,16 @@ document.addEventListener('DOMContentLoaded', function () {
   const totalInput = document.querySelector('[name="total_amount"]');
   const entityTypeSelect = document.querySelector('[name="entity_type"]');
 
-  function normalizeMethod(val) {
-    if (!val) return '';
-    val = String(val).toLowerCase().trim();
-    if (val.includes('cheq') || val === 'check' || val === 'cheque') return 'cheque';
-    if (val.includes('bank_transfer') || val.includes('transfer') || val.includes('bank')) return 'bank';
-    if (val.includes('card') || val.includes('credit') || val.includes('visa') || val.includes('master')) return 'card';
-    if (val.includes('cash')) return 'cash';
-    if (val.includes('mobile')) return 'mobile';
-    if (val.includes('online') || val.includes('gateway')) return 'online';
-    if (val.includes('.')) return val.split('.').pop();
-    return val;
+  function normalizeMethod(val){
+    const v = String(val || '').trim().toLowerCase();
+    if (!v) return '';
+    if (/(cash|نقد)/.test(v)) return 'cash';
+    if (/(cheq|cheque|check|شيك)/.test(v)) return 'cheque';
+    if (/(bank[_\s-]*transfer|transfer|حوالة|بنكي)/.test(v)) return 'bank';
+    if (/(card|credit|visa|master|بطاقة)/.test(v)) return 'card';
+    if (/(mobile|momo|جوال|محفظة)/.test(v)) return 'mobile';
+    if (/(online|gateway|بوابة)/.test(v)) return 'online';
+    return v.replace(/[^a-z_]/g,'');
   }
 
   function ensurePlaceholderOption(select) {
@@ -122,22 +108,26 @@ document.addEventListener('DOMContentLoaded', function () {
     return clone;
   }
 
+  function toNumber(s){
+    s = String(s || '')
+          .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+          .replace(/[٬،\s]/g,'')
+          .replace(',', '.');
+    const n = parseFloat(s);
+    return isNaN(n) ? 0 : n;
+  }
+
   function updateSplitSumHint() {
     if (!container || !totalInput) return;
     const hint = document.getElementById('splitSum') || (() => {
       const small = document.createElement('div');
-      small.className = 'form-text';
-      small.id = 'splitSum';
+      small.className = 'form-text'; small.id = 'splitSum';
       totalInput.parentElement.appendChild(small);
       return small;
     })();
     let sum = 0;
-    container.querySelectorAll('.split-form').forEach(el => {
-      const amountEl = el.querySelector('[name$="-amount"]');
-      const val = parseFloat((amountEl ? amountEl.value : '').replace(',', '.')) || 0;
-      sum += val;
-    });
-    const total = parseFloat((totalInput.value || '').replace(',', '.')) || 0;
+    container.querySelectorAll('.split-form [name$="-amount"]').forEach(amountEl => { sum += toNumber(amountEl.value); });
+    const total = toNumber(totalInput.value);
     hint.textContent = `مجموع الدفعات الجزئية: ${sum.toFixed(2)} — المبلغ الكلي: ${total.toFixed(2)}`;
     hint.style.color = Math.abs(sum - total) < 0.01 ? '' : '#b02a37';
   }
@@ -383,16 +373,21 @@ document.addEventListener('DOMContentLoaded', function () {
       currentType = type;
       if (!input.id) input.id = `${type.toLowerCase()}_search`;
       input.setAttribute('autocomplete', 'off');
+      let ctrl = null, lastQ = '';
       input.addEventListener('input', () => {
         hidden.value = '';
         const generic = document.querySelector('#entityFields input[name="entity_id"]');
         if (generic) generic.value = '';
         const q = input.value.trim();
         if (q.length < 2) { hideMenu(); return; }
-        fetch(`/payments/entity-search?type=${encodeURIComponent(type)}&q=${encodeURIComponent(q)}`)
+        if (q === lastQ) return;
+        lastQ = q;
+        if (ctrl) ctrl.abort();
+        ctrl = new AbortController();
+        fetch(`/payments/entity-search?type=${encodeURIComponent(type)}&q=${encodeURIComponent(q)}`, { signal: ctrl.signal })
           .then(r => r.json())
           .then(data => showMenu(normalizeResults(data), input, hidden))
-          .catch(hideMenu);
+          .catch(() => {});
       });
       input.addEventListener('keydown', e => {
         if (!menu || !items.length) return;

@@ -16,33 +16,45 @@
     {% endif %}
   {% endwith %}
 
+  {# استخدم enum_val بدلاً من attribute('value') #}
+  {% set st = enum_val(payment.status) %}
+  {% set is_completed = (st == 'COMPLETED') %}
+  {% set dirv = enum_val(payment.direction) %}
+  {% set methodv = enum_val(payment.method) %}
+
   <div class="card">
-    <div class="card-header bg-primary text-white">
-      <h3>💰 تفاصيل الدفعة #{{ payment.id }}</h3>
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+      <h3 class="mb-0">💰 تفاصيل الدفعة #{{ payment.id }}</h3>
+      <div class="d-flex gap-2 flex-wrap">
+        {% if payment.payment_number %}
+          <span class="badge bg-light text-dark">السند: {{ payment.payment_number }}</span>
+        {% endif %}
+        {% if payment.receipt_number %}
+          <span class="badge bg-light text-dark">الوصل: {{ payment.receipt_number }}</span>
+        {% endif %}
+      </div>
     </div>
+
     <div class="card-body">
       <div class="row mb-4">
         <div class="col-md-6">
           <p><strong>المبلغ الكلي:</strong>
-            <span id="totalAmountValue">{{ '%.2f'|format(payment.total_amount or 0) }}</span> {{ payment.currency }}
+            <span id="totalAmountValue">{{ '%.0f'|format(payment.total_amount or 0) }}</span> {{ payment.currency or '' }}
           </p>
           <p><strong>التاريخ:</strong> {{ payment.payment_date and payment.payment_date.strftime('%Y-%m-%d') or '—' }}</p>
-          <p><strong>الطريقة (رئيسية):</strong> {{ (payment.method.value if payment.method and payment.method.value else payment.method) or '—' }}</p>
+          <p><strong>الطريقة (رئيسية):</strong> {{ methodv or '—' }}</p>
           <p><strong>الحالة:</strong>
-            {% set st = payment.status.value if payment.status and payment.status.value else payment.status %}
-            {% set is_completed = (st == 'COMPLETED') %}
             <span class="badge
               {% if st == 'COMPLETED' %}bg-success
               {% elif st == 'PENDING' %}bg-warning text-dark
               {% elif st == 'FAILED' %}bg-danger
-              {% else %}bg-secondary{% endif %}">{{ st }}</span>
+              {% else %}bg-secondary{% endif %}">{{ st or '—' }}</span>
           </p>
         </div>
         <div class="col-md-6">
           <p><strong>الاتجاه:</strong>
-            {% set d = payment.direction.value if payment.direction and payment.direction.value else payment.direction %}
-            <span class="badge {% if d in ['IN','INCOMING'] %}bg-success{% else %}bg-danger{% endif %}">
-              {{ 'وارد' if d in ['IN','INCOMING'] else 'صادر' }}
+            <span class="badge {% if dirv in ['IN','INCOMING'] %}bg-success{% else %}bg-danger{% endif %}">
+              {{ 'وارد' if dirv in ['IN','INCOMING'] else 'صادر' }}
             </span>
           </p>
           <p><strong>الجهة:</strong> {{ payment.entity_label() or (payment.entity_type|capitalize) }}</p>
@@ -64,35 +76,45 @@
         </thead>
         <tbody id="splitsTable">
           {% for s in payment.splits %}
-          {% set method = (s.method.value if s.method and s.method.value else s.method) %}
-          {% set ml = (method or '')|lower %}
-          {% set d = s.details or {} %}
-          <tr id="split-{{ s.id }}">
-            <td>{{ loop.index }}.</td>
-            <td class="amount-cell" data-amount="{{ '%.2f'|format(s.amount or 0) }}">{{ '%.2f'|format(s.amount or 0) }} {{ payment.currency }}</td>
-            <td>{{ (method or '—')|upper }}</td>
-            <td>
-              {% if ml == 'cheque' or ml == 'check' %}
-                رقم الشيك: {{ d.get('check_number','—') }}<br>
-                البنك: {{ d.get('check_bank','—') }}<br>
-                الاستحقاق: {{ d.get('check_due_date') or d.get('due_date') or '—' }}
-              {% elif ml == 'bank' or ml == 'transfer' %}
-                مرجع التحويل: {{ d.get('bank_transfer_ref','—') }}
-              {% elif ml == 'card' or ml == 'credit' %}
-                بطاقة رقم: ****{{ (d.get('card_last4','') or (d.get('card_number','')|string)[-4:]) }}<br>
-                حامل البطاقة: {{ d.get('card_holder','—') }}<br>
-                انتهاء: {{ d.get('card_expiry','—') }}
-              {% elif ml == 'online' %}
-                البوابة: {{ d.get('online_gateway') or d.get('gateway') or '—' }}<br>
-                مرجع العملية: {{ d.get('online_ref') or d.get('reference') or '—' }}
-              {% else %}
-                —
-              {% endif %}
-            </td>
-            <td>
-              <button type="button" class="btn btn-sm btn-danger remove-split" data-split-id="{{ s.id }}" {% if is_completed %}disabled{% endif %}>🗑️ حذف</button>
-            </td>
-          </tr>
+            {% set m = enum_val(s.method)|string|lower %}
+            {% set d = s.details if s.details is mapping else {} %}
+            <tr id="split-{{ s.id }}">
+              <td>{{ loop.index }}.</td>
+              <td class="amount-cell" data-amount="{{ '%.0f'|format(s.amount or 0) }}">
+                {{ '%.0f'|format(s.amount or 0) }} {{ payment.currency or '' }}
+              </td>
+              <td>{{ m|upper }}</td>
+              <td>
+                {% if m in ['cheque', 'check'] %}
+                  رقم الشيك: {{ d.get('check_number') or '—' }}<br>
+                  البنك: {{ d.get('check_bank') or '—' }}<br>
+                  الاستحقاق: {{ d.get('check_due_date') or d.get('due_date') or '—' }}
+                {% elif m in ['bank', 'transfer', 'bank_transfer'] %}
+                  مرجع التحويل: {{ d.get('bank_transfer_ref') or d.get('reference') or '—' }}
+                {% elif m in ['card', 'credit'] %}
+                  بطاقة: {{
+                    (d.get('card_last4') and ('****' ~ (d.get('card_last4')|string)))
+                    or (d.get('card_number') and ('****' ~ ((d.get('card_number')|string)[-4:])))
+                    or '—'
+                  }}<br>
+                  حامل البطاقة: {{ d.get('card_holder') or '—' }}<br>
+                  انتهاء: {{ d.get('card_expiry') or '—' }}
+                {% elif m in ['online', 'mobile'] %}
+                  البوابة: {{ d.get('online_gateway') or d.get('gateway') or '—' }}<br>
+                  المرجع: {{ d.get('online_ref') or d.get('reference') or '—' }}
+                {% elif m == 'cash' %}
+                  نقداً
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+              <td>
+                <button type="button" class="btn btn-sm btn-danger remove-split"
+                        data-split-id="{{ s.id }}" {% if is_completed %}disabled{% endif %}>
+                  🗑️ حذف
+                </button>
+              </td>
+            </tr>
           {% endfor %}
         </tbody>
       </table>
@@ -115,21 +137,26 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+  function toNumber(s){
+    return parseFloat(String(s||'')
+      .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+      .replace(/[٬،\s]/g,'')
+      .replace(',', '.')) || 0;
+  }
+
   function recalcTotalFromSplits() {
     const cells = document.querySelectorAll('#splitsTable .amount-cell');
     let sum = 0;
-    cells.forEach(function (td) {
-      const v = parseFloat(td.dataset.amount || '0') || 0;
-      sum += v;
-    });
+    cells.forEach(td => { sum += toNumber(td.dataset.amount || '0'); });
     const el = document.getElementById('totalAmountValue');
-    if (el) el.textContent = sum.toFixed(2);
+    if (el) el.textContent = sum.toFixed(0);
   }
 
   function ensurePlaceholderRow() {
     const tbody = document.getElementById('splitsTable');
     if (!tbody) return;
-    if (!tbody.querySelector('tr')) {
+    const hasRows = !!tbody.querySelector('tr');
+    if (!hasRows) {
       const tr = document.createElement('tr');
       tr.innerHTML = '<td colspan="5" class="text-center text-muted py-3">لا توجد دفعات جزئية</td>';
       tbody.appendChild(tr);
@@ -139,57 +166,63 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  document.querySelectorAll('.remove-split').forEach(function(btn){
-    btn.addEventListener('click', function(){
+  const table = document.getElementById('splitsTable');
+  if (table) {
+    table.addEventListener('click', async function(e){
+      const btn = e.target.closest('.remove-split');
+      if (!btn) return;
       if (btn.hasAttribute('disabled')) return;
       if (!confirm('هل أنت متأكد من حذف هذه الدفعة الجزئية؟')) return;
-      fetch('/payments/split/' + btn.dataset.splitId + '/delete', { method: 'DELETE', headers: { 'Accept': 'application/json' } })
-        .then(function(r){ return r.json(); })
-        .then(function(j){
-          if (j.status === 'success') {
-            var row = document.getElementById('split-' + btn.dataset.splitId);
-            if (row) row.remove();
-            recalcTotalFromSplits();
-            ensurePlaceholderRow();
-            alert('✅ تم حذف الدفعة الجزئية');
-          } else {
-            alert('فشل: ' + (j.message || 'خطأ غير معروف'));
-          }
-        })
-        .catch(function(){ alert('خطأ في الاتصال بالخادم'); });
-    });
-  });
-
-  (function(){
-    var btn = document.getElementById('btn-view-receipt');
-    if (!btn) return;
-    btn.addEventListener('click', function(){
       try {
-        var data = {
+        const r = await fetch('/payments/split/' + btn.dataset.splitId + '/delete', {
+          method: 'DELETE',
+          headers: { 'Accept': 'application/json' }
+        });
+        const j = await r.json();
+        if (j.status === 'success') {
+          const row = document.getElementById('split-' + btn.dataset.splitId);
+          if (row) row.remove();
+          recalcTotalFromSplits();
+          ensurePlaceholderRow();
+          alert('✅ تم حذف الدفعة الجزئية');
+        } else {
+          alert('فشل: ' + (j.message || 'خطأ غير معروف'));
+        }
+      } catch (_) {
+        alert('خطأ في الاتصال بالخادم');
+      }
+    });
+  }
+
+  const btnView = document.getElementById('btn-view-receipt');
+  if (btnView) {
+    btnView.addEventListener('click', function(){
+      try {
+        const data = {
           id: {{ payment.id }},
           currency: "{{ payment.currency or '' }}",
-          total: document.getElementById('totalAmountValue') ? document.getElementById('totalAmountValue').textContent.trim() : "{{ '%.2f'|format(payment.total_amount or 0) }}",
+          total: (document.getElementById('totalAmountValue')?.textContent.trim()) || "{{ '%.0f'|format(payment.total_amount or 0) }}",
           date: "{{ payment.payment_date and payment.payment_date.strftime('%Y-%m-%d %H:%M') or '' }}",
-          method: "{{ (payment.method.value if payment.method and payment.method.value else payment.method) or '' }}",
-          status: "{{ (payment.status.value if payment.status and payment.status.value else payment.status) or '' }}",
-          direction: "{{ (payment.direction.value if payment.direction and payment.direction.value else payment.direction) or '' }}",
-          entity: "{{ (payment.entity_label() or payment.entity_type)|replace('\"','&quot;') }}"
+          method: "{{ methodv or '' }}",
+          status: "{{ st or '' }}",
+          direction: "{{ dirv or '' }}",
+          entity: "{{ (payment.entity_label() or payment.entity_type)|e }}"
         };
-        var rows = Array.from(document.querySelectorAll('#splitsTable tr')).map(function(tr, idx){
-          var tds = tr.querySelectorAll('td');
+        const rows = Array.from(document.querySelectorAll('#splitsTable tr')).map((tr, idx) => {
+          const tds = tr.querySelectorAll('td');
           if (!tds.length) return null;
           return {
             idx: (idx+1),
-            amount: (tds[1] && tds[1].textContent.trim()) || '',
-            method: (tds[2] && tds[2].textContent.trim()) || '',
-            details: (tds[3] && tds[3].innerHTML) || '—'
+            amount: (tds[1]?.textContent.trim()) || '',
+            method: (tds[2]?.textContent.trim()) || '',
+            details: (tds[3]?.innerHTML) || '—'
           };
         }).filter(Boolean);
-        var items = rows.map(function(r){
-          return '<tr><td>'+r.idx+'</td><td class="text-end">'+r.amount+'</td><td>'+r.method+'</td><td>'+r.details+'</td></tr>';
-        }).join('');
-        var title = 'وصل دفعة #' + data.id;
-        var w = window.open('', 'receipt'+data.id);
+        const items = rows.map(r =>
+          '<tr><td>'+r.idx+'</td><td class="text-end">'+r.amount+'</td><td>'+r.method+'</td><td>'+r.details+'</td></tr>'
+        ).join('');
+        const title = 'وصل دفعة #' + data.id;
+        const w = window.open('', 'receipt'+data.id);
         w.document.write(
           '<html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>'+title+'</title>'+
           '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">'+
@@ -217,7 +250,7 @@ document.addEventListener('DOMContentLoaded', function () {
         alert('تعذر عرض الوصل الآن');
       }
     });
-  })();
+  }
 
   ensurePlaceholderRow();
 });

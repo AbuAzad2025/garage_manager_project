@@ -37,7 +37,22 @@ def _get_or_404(model, ident, options=None):
         abort(404)
     return obj
 
-# ========== قائمة مع فلترة ==========
+def _coalesce_entity(form):
+    etype = None
+    eid = None
+    if hasattr(form, 'entity_type') and form.entity_type.data:
+        etype = (form.entity_type.data or '').strip() or None
+    else:
+        etype = (request.values.get('entity_type') or '').strip() or None
+    if hasattr(form, 'entity_id') and form.entity_id.data:
+        try:
+            eid = int(form.entity_id.data) if str(form.entity_id.data).strip() != '' else None
+        except Exception:
+            eid = None
+    else:
+        eid = request.values.get('entity_id', type=int)
+    return etype, eid
+
 @notes_bp.route('/', methods=['GET'], endpoint='list_notes')
 @login_required
 @permission_required('view_notes')
@@ -98,7 +113,6 @@ def list_notes():
         entity_choices=ENTITY_TYPES
     )
 
-# ========== إنشاء ==========
 @notes_bp.route('/new', methods=['GET', 'POST'], endpoint='create_note')
 @login_required
 @permission_required('add_notes')
@@ -107,7 +121,12 @@ def create_note():
     form.entity_type.choices = ENTITY_TYPES
 
     if request.method == 'GET':
-        # لعرض فورم ضمن مودال
+        pre_etype = (request.args.get('entity_type') or '').strip() or None
+        pre_eid = request.args.get('entity_id', type=int)
+        if hasattr(form, 'entity_type') and pre_etype is not None:
+            form.entity_type.data = pre_etype
+        if hasattr(form, 'entity_id') and pre_eid is not None:
+            form.entity_id.data = pre_eid
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return render_template('notes/_form.html', form=form, entity_choices=ENTITY_TYPES, mode='create')
         return redirect(url_for('notes_bp.list_notes'))
@@ -119,11 +138,13 @@ def create_note():
         flash('فشل إضافة الملاحظة: ' + ', '.join(errors.values()), 'danger')
         return redirect(url_for('notes_bp.list_notes'))
 
+    etype, eid = _coalesce_entity(form)
+
     note = Note(
         content=form.content.data.strip(),
         author_id=current_user.id,
-        entity_type=form.entity_type.data or None,
-        entity_id=form.entity_id.data or None,
+        entity_type=etype,
+        entity_id=eid,
         is_pinned=form.is_pinned.data,
         priority=form.priority.data,
         created_at=datetime.utcnow()
@@ -157,7 +178,6 @@ def create_note():
     flash('تم إضافة الملاحظة بنجاح.', 'success')
     return redirect(url_for('notes_bp.list_notes'))
 
-# ========== تفاصيل ==========
 @notes_bp.route('/<int:note_id>', methods=['GET'], endpoint='note_detail')
 @login_required
 @permission_required('view_notes')
@@ -165,7 +185,6 @@ def note_detail(note_id):
     note = _get_or_404(Note, note_id, options=[joinedload(Note.author)])
     return render_template('notes/detail.html', note=note)
 
-# ========== جلب فورم التعديل (مودال) ==========
 @notes_bp.route('/<int:note_id>/edit', methods=['GET'], endpoint='edit_note')
 @login_required
 @permission_required('edit_notes')
@@ -173,11 +192,9 @@ def edit_note(note_id):
     note = _get_or_404(Note, note_id)
     form = NoteForm(obj=note)
     form.entity_type.choices = ENTITY_TYPES
-    # لتعبئة الحقول النصية بشكل صريح
     form.entity_id.data = str(note.entity_id or '') if hasattr(form, 'entity_id') else ''
     return render_template('notes/_form.html', form=form, entity_choices=ENTITY_TYPES, mode='edit', note_id=note.id)
 
-# ========== تحديث ==========
 @notes_bp.route('/<int:note_id>', methods=['POST', 'PATCH'], endpoint='update_note')
 @login_required
 @permission_required('edit_notes')
@@ -193,9 +210,11 @@ def update_note(note_id):
         flash('فشل تعديل الملاحظة: ' + ', '.join(errors.values()), 'danger')
         return redirect(url_for('notes_bp.list_notes'))
 
+    etype, eid = _coalesce_entity(form)
+
     note.content = form.content.data.strip()
-    note.entity_type = form.entity_type.data or None
-    note.entity_id = form.entity_id.data or None
+    note.entity_type = etype
+    note.entity_id = eid
     note.is_pinned = form.is_pinned.data
     note.priority = form.priority.data
 
@@ -227,7 +246,6 @@ def update_note(note_id):
     flash('تم تحديث الملاحظة.', 'success')
     return redirect(url_for('notes_bp.list_notes'))
 
-# ========== حذف ==========
 @notes_bp.route('/<int:note_id>/delete', methods=['POST', 'DELETE'], endpoint='delete_note')
 @login_required
 @permission_required('delete_notes')
@@ -250,7 +268,6 @@ def delete_note(note_id):
     flash('تم حذف الملاحظة.', 'success')
     return redirect(url_for('notes_bp.list_notes'))
 
-# ========== تثبيت/إلغاء تثبيت ==========
 @notes_bp.route('/<int:note_id>/toggle-pin', methods=['POST'], endpoint='toggle_pin')
 @login_required
 @permission_required('edit_notes')

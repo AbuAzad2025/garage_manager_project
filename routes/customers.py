@@ -136,6 +136,7 @@ def list_customers():
         flash("⚠️ لا توجد بيانات لعرضها", "info")
     return render_template("customers/list.html", customers=pagination.items, pagination=pagination, args=args)
 
+
 @customers_bp.route("/<int:customer_id>", methods=["GET"], endpoint="customer_detail")
 @login_required
 @permission_required("manage_customers")
@@ -143,62 +144,149 @@ def customer_detail(customer_id):
     customer = db.session.get(Customer, customer_id) or abort(404)
     return render_template("customers/detail.html", customer=customer)
 
+
 @customers_bp.route("/<int:customer_id>/analytics", methods=["GET"], endpoint="customer_analytics")
 @login_required
 @permission_required("manage_customers")
 def customer_analytics(customer_id):
     customer = db.session.get(Customer, customer_id) or abort(404)
+
+    def D(x):
+        from decimal import Decimal
+        if x is None:
+            return Decimal("0")
+        if isinstance(x, Decimal):
+            return x
+        try:
+            return Decimal(str(x))
+        except Exception:
+            return Decimal("0")
+
+    def q0(x):
+        from decimal import Decimal
+        return D(x).quantize(Decimal("1"))
+
+    def _f2(v):
+        try:
+            return float(v or 0)
+        except Exception:
+            return 0.0
+
+    def _line_total(qty, unit_price, disc_pct, tax_pct):
+        q = int(qty or 0)
+        u = _f2(unit_price)
+        d = _f2(disc_pct)
+        t = _f2(tax_pct)
+        gross = q * u
+        disc = gross * (d / 100.0)
+        taxable = gross - disc
+        tax = taxable * (t / 100.0)
+        from decimal import Decimal
+        taxable_d = q0(taxable)
+        tax_d = q0(tax)
+        total_d = q0(taxable_d + tax_d)
+        return taxable_d, tax_d, total_d
+
+    def service_grand_total(svc):
+        from decimal import Decimal
+        grand = Decimal("0")
+        for p in (getattr(svc, "parts", None) or []):
+            _, _, g = _line_total(p.quantity, p.unit_price, p.discount, p.tax_rate)
+            grand += g
+        for tsk in (getattr(svc, "tasks", None) or []):
+            _, _, g = _line_total(tsk.quantity or 1, tsk.unit_price, tsk.discount, tsk.tax_rate)
+            grand += g
+        if grand > 0:
+            return int(q0(grand))
+        return int(q0(getattr(svc, "total_amount", getattr(svc, "total_cost", 0)) or 0))
+
     invoices = Invoice.query.filter_by(customer_id=customer_id).all()
-    payments = Payment.query.filter_by(customer_id=customer_id).all()
-    total_purchases = sum((inv.total_amount or Decimal("0")) for inv in invoices)
-    total_payments = sum((p.total_amount or Decimal("0")) for p in payments)
-    avg_purchase = (total_purchases / len(invoices)) if invoices else Decimal("0")
-    cats = (
-        db.session.query(
-            ProductCategory.name.label("name"),
-            func.count(SaleLine.id).label("count"),
-            func.sum(SaleLine.quantity * SaleLine.unit_price).label("total"),
-        )
-        .select_from(SaleLine)
-        .join(Sale, Sale.id == SaleLine.sale_id)
-        .join(Product, Product.id == SaleLine.product_id)
-        .join(ProductCategory, ProductCategory.id == Product.category_id)
-        .filter(Sale.customer_id == customer_id)
-        .group_by(ProductCategory.name)
-        .all()
-    )
-    purchase_categories = [
-        {
-            "name": name,
-            "count": count,
-            "total": total,
-            "percentage": (float(total) / float(total_purchases) * 100.0) if total_purchases else 0.0,
-        }
-        for name, count, total in cats
-    ]
+    sales = Sale.query.filter_by(customer_id=customer_id).all()
+    services = ServiceRequest.query.filter_by(customer_id=customer_id).all()
+
+    total_invoices = sum((D(inv.total_amount or 0)) for inv in invoices)
+    total_sales = sum((D(s.total_amount or 0)) for s in sales)
+    total_services = sum((D(service_grand_total(srv))) for srv in services)
+
+    total_purchases = total_invoices + total_sales + total_services
+    docs_count = len(invoices) + len(sales) + len(services)
+    avg_purchase = (total_purchases / docs_count) if docs_count else D(0)
+
+    payments_direct = Payment.query.filter_by(customer_id=customer_id).all()
+    payments_from_sales = Payment.query.join(Sale, Payment.sale_id == Sale.id).filter(Sale.customer_id == customer_id).all()
+    payments_from_invoices = Payment.query.join(Invoice, Payment.invoice_id == Invoice.id).filter(Invoice.customer_id == customer_id).all()
+    payments_from_services = Payment.query.join(ServiceRequest, Payment.service_id == ServiceRequest.id).filter(ServiceRequest.customer_id == customer_id).all()
+    payments_from_preorders = Payment.query.join(PreOrder, Payment.preorder_id == PreOrder.id).filter(PreOrder.customer_id == customer_id).all()
+
+    seen = set()
+    all_payments = []
+    for p in payments_direct + payments_from_sales + payments_from_invoices + payments_from_services + payments_from_preorders:
+        if p.id in seen:
+            continue
+        seen.add(p.id)
+        all_payments.append(p)
+
+    total_payments = sum((D(p.total_amount or 0)) for p in all_payments)
+
+    from dateutil.relativedelta import relativedelta
     today = datetime.utcnow()
     months = [(today - relativedelta(months=i)).strftime("%Y-%m") for i in reversed(range(6))]
-    pm = {m: Decimal("0") for m in months}
+
+    pm = {m: D(0) for m in months}
     for inv in invoices:
         if inv.invoice_date:
             m = inv.invoice_date.strftime("%Y-%m")
             if m in pm:
-                pm[m] += (inv.total_amount or Decimal("0"))
+                pm[m] += (D(inv.total_amount or 0))
+    for s in sales:
+        d = getattr(s, "sale_date", None) or getattr(s, "created_at", None)
+        if d:
+            m = d.strftime("%Y-%m")
+            if m in pm:
+                pm[m] += (D(s.total_amount or 0))
+    for srv in services:
+        d = getattr(srv, "completed_at", None) or getattr(srv, "created_at", None)
+        if d:
+            m = d.strftime("%Y-%m")
+            if m in pm:
+                pm[m] += D(service_grand_total(srv))
     purchases_months = [{"month": m, "total": float(pm[m])} for m in months]
-    paym = {m: Decimal("0") for m in months}
-    for p in payments:
-        if getattr(p, "payment_date", None):
-            m = p.payment_date.strftime("%Y-%m")
+
+    paym = {m: D(0) for m in months}
+    for p in all_payments:
+        d = getattr(p, "payment_date", None) or getattr(p, "created_at", None)
+        if d:
+            m = d.strftime("%Y-%m")
             if m in paym:
-                paym[m] += (p.total_amount or Decimal("0"))
+                paym[m] += (D(p.total_amount or 0))
     payments_months = [{"month": m, "total": float(paym[m])} for m in months]
+
     return render_template(
         "customers/analytics.html",
         customer=customer,
         total_purchases=total_purchases,
         total_payments=total_payments,
         avg_purchase=avg_purchase,
-        purchase_categories=purchase_categories,
+        purchase_categories=[
+            {
+                "name": name,
+                "count": count,
+                "total": total,
+                "percentage": (float(total) / float(total_purchases) * 100.0) if total_purchases else 0.0,
+            }
+            for name, count, total in db.session.query(
+                ProductCategory.name.label("name"),
+                func.count(SaleLine.id).label("count"),
+                func.sum(SaleLine.quantity * SaleLine.unit_price).label("total"),
+            )
+            .select_from(SaleLine)
+            .join(Sale, Sale.id == SaleLine.sale_id)
+            .join(Product, Product.id == SaleLine.product_id)
+            .join(ProductCategory, ProductCategory.id == Product.category_id)
+            .filter(Sale.customer_id == customer_id)
+            .group_by(ProductCategory.name)
+            .all()
+        ],
         purchases_months=purchases_months,
         payments_months=payments_months,
     )
@@ -451,79 +539,123 @@ def export_customer_vcf(customer_id):
 def account_statement(customer_id):
     c = db.session.get(Customer, customer_id) or abort(404)
 
+    TWOPLACES = Decimal("0.01")
+    ZERO_PLACES = Decimal("1")
+
+    def D(x):
+        if x is None:
+            return Decimal("0")
+        if isinstance(x, Decimal):
+            return x
+        try:
+            return Decimal(str(x))
+        except Exception:
+            return Decimal("0")
+
+    def q0(x):
+        return D(x).quantize(ZERO_PLACES)
+
+    def _f2(v):
+        try:
+            return float(v or 0)
+        except Exception:
+            return 0.0
+
+    def _line_total(qty, unit_price, disc_pct, tax_pct):
+        q = int(qty or 0)
+        u = _f2(unit_price)
+        d = _f2(disc_pct)
+        t = _f2(tax_pct)
+        gross = q * u
+        disc = gross * (d / 100.0)
+        taxable = gross - disc
+        tax = taxable * (t / 100.0)
+        taxable_d = q0(taxable)
+        tax_d = q0(tax)
+        total_d = q0(taxable_d + tax_d)
+        return taxable_d, tax_d, total_d
+
+    def service_grand_total(svc):
+        grand = Decimal("0")
+        for p in (getattr(svc, "parts", None) or []):
+            _, _, g = _line_total(p.quantity, p.unit_price, p.discount, p.tax_rate)
+            grand += g
+        for tsk in (getattr(svc, "tasks", None) or []):
+            _, _, g = _line_total(tsk.quantity or 1, tsk.unit_price, tsk.discount, tsk.tax_rate)
+            grand += g
+        if grand > 0:
+            return int(q0(grand))
+        return int(q0(getattr(svc, "total_amount", getattr(svc, "total_cost", 0)) or 0))
+
     entries = []
 
-    # الفواتير
     invoices = Invoice.query.filter_by(customer_id=customer_id).order_by(Invoice.invoice_date, Invoice.id).all()
     for inv in invoices:
         entries.append({
             "date": inv.invoice_date or inv.created_at,
             "type": "INVOICE",
             "ref": inv.invoice_number or f"INV-{inv.id}",
-            "debit": Decimal(inv.total_amount or 0),
-            "credit": Decimal("0"),
+            "debit": D(inv.total_amount or 0),
+            "credit": D(0),
         })
 
-    # المبيعات
     sales = Sale.query.filter_by(customer_id=customer_id).order_by(Sale.sale_date, Sale.id).all()
     for s in sales:
         entries.append({
             "date": getattr(s, "sale_date", None) or getattr(s, "created_at", None),
             "type": "SALE",
             "ref": getattr(s, "sale_number", None) or f"SALE-{s.id}",
-            "debit": Decimal(s.total_amount or 0),
-            "credit": Decimal("0"),
+            "debit": D(s.total_amount or 0),
+            "credit": D(0),
         })
 
-    # الصيانة
     services = ServiceRequest.query.filter_by(customer_id=customer_id).order_by(ServiceRequest.completed_at, ServiceRequest.id).all()
     for srv in services:
         entries.append({
             "date": getattr(srv, "completed_at", None) or getattr(srv, "created_at", None),
             "type": "SERVICE",
             "ref": getattr(srv, "service_number", None) or f"SRV-{srv.id}",
-            "debit": Decimal(srv.total_amount or 0),
-            "credit": Decimal("0"),
+            "debit": D(service_grand_total(srv)),
+            "credit": D(0),
         })
 
-    # الحجوزات المسبقة (محلي)
     preorders = PreOrder.query.filter_by(customer_id=customer_id).order_by(PreOrder.created_at, PreOrder.id).all()
     for pre in preorders:
         entries.append({
             "date": pre.created_at,
             "type": "PREORDER",
             "ref": getattr(pre, "order_number", None) or f"PRE-{pre.id}",
-            "debit": Decimal(pre.total_amount or 0),
-            "credit": Decimal("0"),
+            "debit": D(pre.total_amount or 0),
+            "credit": D(0),
         })
 
-    # الحجوزات المسبقة (أونلاين)
-    online_preorders = OnlinePreOrder.query.filter_by(customer_id=customer_id).order_by(OnlinePreOrder.created_at, OnlinePreOrder.id).all()
-    for opre in online_preorders:
-        entries.append({
-            "date": opre.created_at,
-            "type": "ONLINE_PREORDER",
-            "ref": getattr(opre, "order_number", None) or f"OPRE-{opre.id}",
-            "debit": Decimal(opre.total_amount or 0),
-            "credit": Decimal("0"),
-        })
+    payments_direct = Payment.query.filter_by(customer_id=customer_id).all()
+    payments_from_sales = Payment.query.join(Sale, Payment.sale_id == Sale.id).filter(Sale.customer_id == customer_id).all()
+    payments_from_invoices = Payment.query.join(Invoice, Payment.invoice_id == Invoice.id).filter(Invoice.customer_id == customer_id).all()
+    payments_from_services = Payment.query.join(ServiceRequest, Payment.service_id == ServiceRequest.id).filter(ServiceRequest.customer_id == customer_id).all()
+    payments_from_preorders = Payment.query.join(PreOrder, Payment.preorder_id == PreOrder.id).filter(PreOrder.customer_id == customer_id).all()
 
-    # الدفعات
-    payments = Payment.query.filter_by(customer_id=customer_id).order_by(Payment.payment_date, Payment.id).all()
-    for p in payments:
+    seen = set()
+    all_payments = []
+    for p in payments_direct + payments_from_sales + payments_from_invoices + payments_from_services + payments_from_preorders:
+        if p.id in seen:
+            continue
+        seen.add(p.id)
+        all_payments.append(p)
+
+    all_payments.sort(key=lambda x: (getattr(x, "payment_date", None) or getattr(x, "created_at", None) or datetime.min, x.id))
+    for p in all_payments:
         entries.append({
             "date": getattr(p, "payment_date", None) or getattr(p, "created_at", None),
             "type": "PAYMENT",
             "ref": getattr(p, "payment_number", None) or getattr(p, "receipt_number", None) or f"PMT-{p.id}",
-            "debit": Decimal("0"),
-            "credit": Decimal(p.total_amount or 0),
+            "debit": D(0),
+            "credit": D(p.total_amount or 0),
         })
 
-    # ترتيب حسب التاريخ
     entries.sort(key=lambda x: (x["date"] or datetime.min, x["ref"]))
 
-    # حساب الرصيد الجاري
-    running = Decimal("0")
+    running = D(0)
     for e in entries:
         running += e["debit"] - e["credit"]
         e["balance"] = running
@@ -536,34 +668,24 @@ def account_statement(customer_id):
         "customers/account_statement.html",
         customer=c,
         ledger_entries=entries,
-        total_invoices=sum(inv.total_amount or Decimal("0") for inv in invoices),
-        total_sales=sum(s.total_amount or Decimal("0") for s in sales),
-        total_services=sum(srv.total_amount or Decimal("0") for srv in services),
-        total_preorders=sum(pre.total_amount or Decimal("0") for pre in preorders),
-        total_online_preorders=sum(opre.total_amount or Decimal("0") for opre in online_preorders),
-        total_payments=sum(p.total_amount or Decimal("0") for p in payments),
+        total_invoices=sum(D(inv.total_amount or 0) for inv in invoices),
+        total_sales=sum(D(s.total_amount or 0) for s in sales),
+        total_services=sum(D(service_grand_total(srv)) for srv in services),
+        total_preorders=sum(D(pre.total_amount or 0) for pre in preorders),
+        total_online_preorders=D(0),
+        total_payments=sum(D(p.total_amount or 0) for p in all_payments),
         total_debit=total_debit,
         total_credit=total_credit,
         balance=balance,
     )
 
-@customers_bp.route("/api/all", methods=["GET"], endpoint="api_customers")
-@login_required
-@permission_required("manage_customers")
-def api_customers():
-    q = Customer.query
-    if term := request.args.get("q"):
-        q = q.filter(or_(Customer.name.ilike(f"%{term}%"), Customer.phone.ilike(f"%{term}%")))
-    pagination = q.order_by(Customer.name).paginate(
-        page=request.args.get("page", 1, type=int), per_page=request.args.get("per_page", 20, type=int), error_out=False
-    )
-    return jsonify({"results": [{"id": c.id, "text": c.name} for c in pagination.items], "pagination": {"more": pagination.has_next}})
-
 @customers_bp.route("/advanced_filter", methods=["GET"], endpoint="advanced_filter")
 @login_required
 @permission_required("manage_customers")
 def advanced_filter():
+    import io, csv
     q = Customer.query
+
     balance_min = request.args.get("balance_min")
     balance_max = request.args.get("balance_max")
     try:
@@ -573,6 +695,7 @@ def advanced_filter():
             q = q.filter(Customer.balance <= float(balance_max))
     except ValueError:
         pass
+
     if created_at_min := request.args.get("created_at_min"):
         try:
             q = q.filter(Customer.created_at >= datetime.fromisoformat(created_at_min))
@@ -583,6 +706,7 @@ def advanced_filter():
             q = q.filter(Customer.created_at <= datetime.fromisoformat(created_at_max))
         except ValueError:
             pass
+
     if last_activity_min := request.args.get("last_activity_min"):
         try:
             q = q.filter(Customer.last_activity >= datetime.fromisoformat(last_activity_min))
@@ -593,32 +717,58 @@ def advanced_filter():
             q = q.filter(Customer.last_activity <= datetime.fromisoformat(last_activity_max))
         except ValueError:
             pass
+
     if category := request.args.get("category"):
         q = q.filter(Customer.category == category)
+
     if status := request.args.get("status"):
-        if status == "active":
+        if status == "archived" and hasattr(Customer, "is_archived"):
+            q = q.filter(Customer.is_archived.is_(True))
+        elif status == "not_archived" and hasattr(Customer, "is_archived"):
+            q = q.filter(Customer.is_archived.is_(False))
+        elif status == "active":
             q = q.filter(Customer.is_active.is_(True))
         elif status == "inactive":
             q = q.filter(Customer.is_active.is_(False))
         elif status == "credit_hold":
             q = q.filter(Customer.balance > Customer.credit_limit)
+
     pagination = q.order_by(Customer.id.desc()).paginate(
-        page=request.args.get("page", 1, type=int), per_page=request.args.get("per_page", 20, type=int), error_out=False
+        page=request.args.get("page", 1, type=int),
+        per_page=request.args.get("per_page", 20, type=int),
+        error_out=False,
     )
     customers = pagination.items
+
     if request.args.get("format") == "csv":
         output = io.StringIO()
         output.write("\ufeff")
         writer = csv.writer(output)
         writer.writerow(["ID", "Name", "Phone", "Email", "Balance", "Category", "Status"])
+
+        def _status_label(c):
+            if hasattr(c, "is_archived") and getattr(c, "is_archived", False):
+                return "مؤرشف"
+            if not getattr(c, "is_active", True):
+                return "غير نشط"
+            try:
+                bal = float(c.balance or 0)
+                lim = float(c.credit_limit or 0)
+            except Exception:
+                bal, lim = 0.0, 0.0
+            if bal > lim:
+                return "معلق ائتمانيًا"
+            return "نشط"
+
         for c in customers:
-            st = "نشط" if c.is_active else "غير نشط"
-            if c.balance > c.credit_limit:
-                st = "معلق ائتمانيًا"
-            writer.writerow([c.id, c.name, c.phone, c.email, c.balance, c.category, st])
+            writer.writerow([c.id, c.name, c.phone, c.email, c.balance, c.category, _status_label(c)])
+
         return Response(
-            output.getvalue(), mimetype="text/csv; charset=utf-8", headers={"Content-Disposition": "attachment; filename=customers_advanced_filter.csv"}
+            output.getvalue(),
+            mimetype="text/csv; charset=utf-8",
+            headers={"Content-Disposition": "attachment; filename=customers_advanced_filter.csv"},
         )
+
     return render_template("customers/advanced_filter.html", customers=customers, pagination=pagination)
 
 @customers_bp.route("/export", methods=["GET"], endpoint="export_customers")

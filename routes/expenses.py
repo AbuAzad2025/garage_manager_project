@@ -1,6 +1,7 @@
 import csv
 import io
 from datetime import datetime, date as _date
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from flask import Blueprint, flash, redirect, render_template, abort, request, url_for, Response
 from flask_login import login_required
 from sqlalchemy.exc import SQLAlchemyError
@@ -12,7 +13,6 @@ from forms import EmployeeForm, ExpenseTypeForm, ExpenseForm, QuickExpenseForm
 from models import Employee, ExpenseType, Expense, Shipment, UtilityAccount, StockAdjustment
 from utils import permission_required
 
-
 expenses_bp = Blueprint(
     "expenses_bp",
     __name__,
@@ -20,6 +20,21 @@ expenses_bp = Blueprint(
     template_folder="templates/expenses",
 )
 
+TWOPLACES = Decimal("0.01")
+ZERO_PLACES = Decimal("1")
+
+def D(x) -> Decimal:
+    if x is None:
+        return Decimal("0")
+    if isinstance(x, Decimal):
+        return x
+    try:
+        return Decimal(str(x))
+    except (InvalidOperation, ValueError, TypeError):
+        return Decimal("0")
+
+def q0(x) -> Decimal:
+    return D(x).quantize(ZERO_PLACES, rounding=ROUND_HALF_UP)
 
 def _get_or_404(model, ident, *options):
     if options:
@@ -33,14 +48,12 @@ def _get_or_404(model, ident, *options):
         abort(404)
     return obj
 
-
 def _to_datetime(value):
     if isinstance(value, datetime):
         return value
     if isinstance(value, _date):
         return datetime.combine(value, datetime.min.time())
     return None
-
 
 def _parse_date_arg(arg_name: str):
     raw = (request.args.get(arg_name) or "").strip()
@@ -51,7 +64,6 @@ def _parse_date_arg(arg_name: str):
     except Exception:
         return None
 
-
 def _int_arg(name):
     v = (request.args.get(name) or "").strip()
     if not v:
@@ -60,7 +72,6 @@ def _int_arg(name):
         return int(v)
     except Exception:
         return None
-
 
 def _base_query_with_filters():
     q = (
@@ -139,11 +150,9 @@ def _base_query_with_filters():
         "payee_type": payee_type or None,
     }
 
-
 def _csv_safe(v):
     s = "" if v is None else str(v)
     return "'" + s if s.startswith(("=", "+", "-", "@")) else s
-
 
 @expenses_bp.route("/employees", methods=["GET"], endpoint="employees_list")
 @login_required
@@ -151,7 +160,6 @@ def _csv_safe(v):
 def employees_list():
     employees = Employee.query.order_by(Employee.name).all()
     return render_template("expenses/employees_list.html", employees=employees)
-
 
 @expenses_bp.route("/employees/add", methods=["GET", "POST"], endpoint="add_employee")
 @login_required
@@ -171,7 +179,6 @@ def add_employee():
             flash(f"❌ خطأ في إضافة الموظف: {err}", "danger")
     return render_template("expenses/employee_form.html", form=form, is_edit=False)
 
-
 @expenses_bp.route("/employees/edit/<int:emp_id>", methods=["GET", "POST"], endpoint="edit_employee")
 @login_required
 @permission_required("manage_expenses")
@@ -188,7 +195,6 @@ def edit_employee(emp_id):
             db.session.rollback()
             flash(f"❌ خطأ في تعديل الموظف: {err}", "danger")
     return render_template("expenses/employee_form.html", form=form, is_edit=True)
-
 
 @expenses_bp.route("/employees/delete/<int:emp_id>", methods=["POST"], endpoint="delete_employee")
 @login_required
@@ -207,14 +213,12 @@ def delete_employee(emp_id):
             flash(f"❌ خطأ في حذف الموظف: {err}", "danger")
     return redirect(url_for("expenses_bp.employees_list"))
 
-
 @expenses_bp.route("/types", methods=["GET"], endpoint="types_list")
 @login_required
 @permission_required("manage_expenses")
 def types_list():
     types = ExpenseType.query.order_by(ExpenseType.name).all()
     return render_template("expenses/types_list.html", types=types)
-
 
 @expenses_bp.route("/types/add", methods=["GET", "POST"], endpoint="add_type")
 @login_required
@@ -237,7 +241,6 @@ def add_type():
             flash(f"❌ خطأ في إضافة النوع: {err}", "danger")
     return render_template("expenses/type_form.html", form=form, is_edit=False)
 
-
 @expenses_bp.route("/types/edit/<int:type_id>", methods=["GET", "POST"], endpoint="edit_type")
 @login_required
 @permission_required("manage_expenses")
@@ -258,7 +261,6 @@ def edit_type(type_id):
             flash(f"❌ خطأ في تعديل النوع: {err}", "danger")
     return render_template("expenses/type_form.html", form=form, is_edit=True)
 
-
 @expenses_bp.route("/types/delete/<int:type_id>", methods=["POST"], endpoint="delete_type")
 @login_required
 @permission_required("manage_expenses")
@@ -275,7 +277,6 @@ def delete_type(type_id):
             db.session.rollback()
             flash(f"❌ خطأ في حذف النوع: {err}", "danger")
     return redirect(url_for("expenses_bp.types_list"))
-
 
 @expenses_bp.route("/", methods=["GET"], endpoint="list_expenses")
 @login_required
@@ -297,7 +298,6 @@ def index():
         payee_type=filt["payee_type"],
     )
 
-
 @expenses_bp.route("/<int:exp_id>", methods=["GET"], endpoint="detail")
 @login_required
 @permission_required("manage_expenses")
@@ -312,7 +312,6 @@ def detail(exp_id):
         joinedload(Expense.stock_adjustment),
     )
     return render_template("expenses/detail.html", expense=exp)
-
 
 @expenses_bp.route("/add", methods=["GET", "POST"], endpoint="create_expense")
 @login_required
@@ -342,7 +341,6 @@ def add():
             flash(f"❌ خطأ في إضافة المصروف: {err}", "danger")
     return render_template("expenses/expense_form.html", form=form, is_edit=False)
 
-
 @expenses_bp.route("/edit/<int:exp_id>", methods=["GET", "POST"], endpoint="edit")
 @login_required
 @permission_required("manage_expenses")
@@ -370,7 +368,6 @@ def edit(exp_id):
             flash(f"❌ خطأ في تعديل المصروف: {err}", "danger")
     return render_template("expenses/expense_form.html", form=form, is_edit=True)
 
-
 @expenses_bp.route("/delete/<int:exp_id>", methods=["POST"], endpoint="delete")
 @login_required
 @permission_required("manage_expenses")
@@ -385,13 +382,15 @@ def delete(exp_id):
         flash(f"❌ خطأ في حذف المصروف: {err}", "danger")
     return redirect(url_for("expenses_bp.list_expenses"))
 
-
 @expenses_bp.route("/<int:exp_id>/pay", methods=["GET"], endpoint="pay")
 @login_required
 @permission_required("manage_expenses")
 def pay(exp_id):
     exp = _get_or_404(Expense, exp_id)
-    amount = exp.balance if hasattr(exp, "balance") else exp.amount
+    amount_src = getattr(exp, "balance", None)
+    if amount_src is None:
+        amount_src = getattr(exp, "amount", 0)
+    amount = int(q0(amount_src))
     reference = exp.payee_name or (exp.employee.name if exp.employee else None) or (exp.description or f"مصروف #{exp.id}")
     return redirect(
         url_for(
@@ -399,12 +398,11 @@ def pay(exp_id):
             entity_type="EXPENSE",
             entity_id=exp.id,
             direction="OUT",
-            amount=float(amount or 0),
-            currency=exp.currency or "ILS",
+            amount=amount,
+            currency=(exp.currency or "ILS").upper(),
             reference=reference,
         )
     )
-
 
 @expenses_bp.route("/export", methods=["GET"], endpoint="export")
 @login_required
@@ -452,14 +450,14 @@ def export_csv():
                 _csv_safe(e.stock_adjustment_id if getattr(e, "stock_adjustment_id", None) else ""),
                 e.period_start.isoformat() if getattr(e, "period_start", None) else "",
                 e.period_end.isoformat() if getattr(e, "period_end", None) else "",
-                float(e.amount or 0),
-                _csv_safe(e.currency or ""),
+                int(q0(getattr(e, "amount", 0) or 0)),
+                _csv_safe((e.currency or "").upper()),
                 _csv_safe(e.payment_method or ""),
                 _csv_safe(e.description),
                 _csv_safe(e.notes),
                 _csv_safe(e.tax_invoice_number),
-                float(getattr(e, "total_paid", 0) or 0),
-                float(getattr(e, "balance", 0) or 0),
+                int(q0(getattr(e, "total_paid", 0) or 0)),
+                int(q0(getattr(e, "balance", 0) or 0)),
             ]
         )
     csv_data = output.getvalue()
@@ -469,7 +467,6 @@ def export_csv():
         mimetype="text/csv; charset=utf-8",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
-
 
 @expenses_bp.route('/quick_add', methods=['GET', 'POST'], endpoint='quick_add')
 @login_required
@@ -507,16 +504,15 @@ def quick_add():
         return redirect(url_for('expenses_bp.list_expenses'))
     return render_template('expenses/quick_add.html', form=form)
 
-
 @expenses_bp.route("/print", methods=["GET"], endpoint="print_list")
 @login_required
 @permission_required("manage_expenses")
 def print_list():
     query, filt = _base_query_with_filters()
     rows = query.all()
-    total_amount = sum(float(e.amount or 0) for e in rows)
-    total_paid = sum(float(getattr(e, "total_paid", 0) or 0) for e in rows)
-    total_balance = sum(float(getattr(e, "balance", 0) or 0) for e in rows)
+    total_amount = int(q0(sum(D(getattr(e, "amount", 0) or 0) for e in rows)))
+    total_paid = int(q0(sum(D(getattr(e, "total_paid", 0) or 0) for e in rows)))
+    total_balance = int(q0(sum(D(getattr(e, "balance", 0) or 0) for e in rows)))
     return render_template(
         "expenses/expenses_print.html",
         expenses=rows,

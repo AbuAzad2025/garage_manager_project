@@ -11,7 +11,7 @@ from sqlalchemy.orm import joinedload
 from extensions import db
 
 from models import (
-    Customer, Supplier, Product, SaleLine, Expense, Invoice,
+    Customer, Supplier, Product, Warehouse, SaleLine, Expense, Invoice,
     OnlinePreOrder, Payment, PaymentSplit, PaymentDirection, PaymentStatus,
     Sale, SaleStatus, ServiceRequest, ServiceStatus, InvoiceStatus,
 )
@@ -93,7 +93,10 @@ def advanced_report(
         if gb:
             q = q.group_by(*gb)
     allowed = _allowed_columns(model)
-    cols = [c for c in (columns or allowed) if c in allowed]
+    if columns:
+        cols = [c for c in columns if hasattr(model, c)]
+    else:
+        cols = list(allowed)
     objs = q.all()
     data = [{col: getattr(obj, col, None) for col in cols} for obj in objs]
     summary: Dict[str, float] = {}
@@ -197,16 +200,12 @@ def payment_summary_report(start_date, end_date):
     ed = _parse_date_like(end_date) or date.max
     if ed < sd:
         sd, ed = ed, sd
-
     ref_date = Payment.payment_date
-
     base_filters = [
         Payment.status == PaymentStatus.COMPLETED.value,
         Payment.direction == PaymentDirection.INCOMING.value,
         cast(ref_date, Date).between(sd, ed),
     ]
-
-    # split payments
     split_rows = (
         db.session.query(
             func.coalesce(cast(PaymentSplit.method, db.String()), "other").label("method"),
@@ -217,8 +216,6 @@ def payment_summary_report(start_date, end_date):
         .group_by(func.coalesce(cast(PaymentSplit.method, db.String()), "other"))
         .all()
     )
-
-    # non-split payments
     no_split_rows = (
         db.session.query(
             func.coalesce(cast(Payment.method, db.String()), "other").label("method"),
@@ -230,12 +227,10 @@ def payment_summary_report(start_date, end_date):
         .group_by(func.coalesce(cast(Payment.method, db.String()), "other"))
         .all()
     )
-
     agg = {}
     for r in split_rows + no_split_rows:
         key = (getattr(r, "method", None) or "other").upper()
         agg[key] = agg.get(key, 0.0) + float(getattr(r, "total") or 0.0)
-
     methods = sorted(agg.keys())
     totals = [round(agg[m], 2) for m in methods]
     grand_total = round(sum(totals), 2)
@@ -449,7 +444,6 @@ def top_products_report(
     ed = _parse_date_like(end_date) or date.max
     if ed < sd:
         sd, ed = ed, sd
-
     start_dt_local = datetime.combine(sd, _t.min).replace(tzinfo=TZ)
     try:
         _ed_plus1 = ed + timedelta(days=1)
@@ -458,7 +452,6 @@ def top_products_report(
     except OverflowError:
         end_dt_local = datetime.combine(ed, _t.max).replace(tzinfo=TZ)
         use_lt_end = False
-
     engine = db.engine.name
     if engine == "postgresql":
         lower = Sale.sale_date >= start_dt_local.astimezone(ZoneInfo("UTC"))
@@ -466,27 +459,22 @@ def top_products_report(
     else:
         lower = Sale.sale_date >= start_dt_local.replace(tzinfo=None)
         upper = (Sale.sale_date < end_dt_local.replace(tzinfo=None)) if use_lt_end else (Sale.sale_date <= end_dt_local.replace(tzinfo=None))
-
     gross_expr = (SaleLine.quantity * SaleLine.unit_price)
     disc_expr = gross_expr * (func.coalesce(SaleLine.discount_rate, 0) / 100.0)
     net_before_tax_expr = (gross_expr - disc_expr)
     tax_expr = net_before_tax_expr * (func.coalesce(SaleLine.tax_rate, 0) / 100.0)
     net_revenue_expr = net_before_tax_expr + tax_expr
-
     sum_qty = func.coalesce(func.sum(SaleLine.quantity), 0.0)
     sum_gross = func.coalesce(func.sum(gross_expr), 0.0)
     sum_discount = func.coalesce(func.sum(disc_expr), 0.0)
     sum_net = func.coalesce(func.sum(net_revenue_expr), 0.0)
-
     weighted_price = func.coalesce(
         func.sum(SaleLine.unit_price * SaleLine.quantity) / func.nullif(func.sum(SaleLine.quantity), 0),
         0.0,
     )
-
     can_group_by_wh = hasattr(SaleLine, "warehouse_id")
     want_group = bool(group_by_warehouse and can_group_by_wh)
     want_filter = bool(warehouse_id and can_group_by_wh)
-
     select_cols = [
         Product.id.label("product_id"),
         Product.name.label("name"),
@@ -501,7 +489,6 @@ def top_products_report(
     ]
     if want_group:
         select_cols.append(Warehouse.name.label("warehouse_name"))
-
     q = (
         db.session.query(*select_cols)
         .join(SaleLine, SaleLine.product_id == Product.id)
@@ -509,27 +496,21 @@ def top_products_report(
         .filter(lower, upper)
         .filter(Sale.status == SaleStatus.CONFIRMED.value)
     )
-
     if want_group or want_filter:
         q = q.outerjoin(Warehouse, Warehouse.id == SaleLine.warehouse_id)
     if want_filter:
         q = q.filter(Warehouse.id == int(warehouse_id))
-
     if want_group:
         q = q.group_by(Product.id, Product.name, Warehouse.name)
     else:
         q = q.group_by(Product.id, Product.name)
-
     q = q.order_by(desc("revenue")).limit(int(limit or 20))
     rows = q.all()
-
     total_revenue = float(sum((float(getattr(r, "revenue", 0) or 0) for r in rows)) or 0.0)
     total_qty = int(sum((int(getattr(r, "qty", 0) or 0) for r in rows)) or 0)
     max_qty = max((int(getattr(r, "qty", 0) or 0) for r in rows), default=0)
-
     def _rank_label(idx: int) -> str:
         return ("الأول" if idx == 1 else "الثاني" if idx == 2 else "الثالث" if idx == 3 else f"المرتبة {idx}")
-
     data: list[dict] = []
     for i, r in enumerate(rows, start=1):
         qty = int(getattr(r, "qty", 0) or 0)
@@ -549,7 +530,6 @@ def top_products_report(
             reason = "مكرر الطلب من العملاء"
         else:
             reason = "أداء جيد ضمن الفترة"
-
         item = {
             "id": i,
             "rank_label": _rank_label(i),
@@ -569,7 +549,6 @@ def top_products_report(
         if want_group:
             item["warehouse_name"] = getattr(r, "warehouse_name", None) or "—"
         data.append(item)
-
     return {
         "data": data,
         "can_group_by_warehouse": can_group_by_wh,
@@ -583,4 +562,3 @@ def top_products_report(
             "group_by_warehouse": bool(group_by_warehouse and can_group_by_wh),
         },
     }
-

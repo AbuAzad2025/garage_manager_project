@@ -1,21 +1,21 @@
+from __future__ import annotations
+
 import base64
 import csv
 import hashlib
 import io
 import json
-import os
 import re
 from datetime import datetime, timedelta
-from functools import wraps
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
-from typing import Any, Callable, Dict, Iterable, List, Optional
+from functools import wraps
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+
 import redis
-from flask import Response, abort, current_app, flash, make_response, request, jsonify
+from flask import Response, abort, current_app, make_response, request, jsonify
 from flask_login import current_user, login_required
 from flask_mail import Message
 from sqlalchemy import case, func, select, or_
-from twilio.base.exceptions import TwilioRestException
-from twilio.rest import Client
 from sqlalchemy.orm.attributes import set_committed_value
 
 try:
@@ -36,23 +36,12 @@ except Exception:
     Fernet = None
 
 from extensions import limiter, db, mail
-from models import (
-    Payment,
-    PaymentSplit,
-    PaymentStatus,
-    PaymentMethod,
-    PaymentDirection,
-    PaymentEntityType,
-    D,
-    q,
-)
 
-redis_client: redis.Redis | None = None
-
+redis_client: Optional[redis.Redis] = None
 _TWOPLACES = Decimal("0.01")
 
 
-def _D(x):
+def _D(x: Any) -> Decimal:
     if x is None:
         return Decimal("0")
     if isinstance(x, Decimal):
@@ -63,12 +52,35 @@ def _D(x):
         return Decimal("0")
 
 
-def _q2(x):
-    return _D(x).quantize(_TWOPLACES, rounding=ROUND_HALF_UP)
+def q(value: Any, places: int = 2) -> Decimal:
+    try:
+        p = int(places)
+    except Exception:
+        p = 2
+    try:
+        quant = Decimal(10) ** (-p)
+    except Exception:
+        quant = _TWOPLACES
+    try:
+        return _D(value).quantize(quant, rounding=ROUND_HALF_UP)
+    except Exception:
+        return Decimal("0").quantize(quant, rounding=ROUND_HALF_UP)
 
 
-def _q(x):
-    return q(x)
+def Q2(value: Any) -> Decimal:
+    return q(value, 2)
+
+
+def D(value: Any) -> Decimal:
+    return _D(value)
+
+
+def _q2(x: Any) -> Decimal:
+    return q(x, 2)
+
+
+def _q(x: Any) -> Decimal:
+    return q(x, 2)
 
 
 def _get_or_404(model, ident, *, load_options=None, pk_name: str = "id"):
@@ -90,13 +102,13 @@ def _get_or_404(model, ident, *, load_options=None, pk_name: str = "id"):
 
 def search_model(
     model,
-    search_fields,
+    search_fields: List[str],
     *,
     label_attr: str = "name",
     value_attr: str = "id",
-    extra_filters: list | tuple | None = None,
+    extra_filters: Optional[List] = None,
     limit_default: int = 20,
-    serializer=None,
+    serializer: Optional[Callable[[Any], Dict[str, Any]]] = None,
     q_param: str = "q",
     **kwargs,
 ):
@@ -167,6 +179,7 @@ def _query_limit(default: int = 20, maximum: int = 50) -> int:
 
 def init_app(app):
     global redis_client
+
     app.jinja_env.filters.update({
         "format_currency": format_currency,
         "format_percent": format_percent,
@@ -175,8 +188,12 @@ def init_app(app):
         "yes_no": yes_no,
         "status_label": status_label,
     })
+
     try:
-        rc = redis.StrictRedis.from_url(app.config.get("REDIS_URL", "redis://localhost:6379/0"), decode_responses=True)
+        rc = redis.StrictRedis.from_url(
+            app.config.get("REDIS_URL", "redis://localhost:6379/0"),
+            decode_responses=True,
+        )
         if getattr(rc, "ping", None):
             rc.ping()
         redis_client = rc
@@ -186,24 +203,36 @@ def init_app(app):
     def _acl_ctx():
         def can(code: str) -> bool:
             try:
-                return bool(getattr(current_user, "is_authenticated", False) and current_user.has_permission(code))
+                if not getattr(current_user, "is_authenticated", False):
+                    return False
+                if is_super() or is_admin():
+                    return True
+                needed = _expand_perms(code)
+                if hasattr(current_user, "has_permission") and callable(current_user.has_permission):
+                    for p in needed:
+                        if current_user.has_permission(p):
+                            return True
+                user_perms = _get_user_permissions(current_user)
+                return bool(user_perms & needed)
             except Exception:
                 return False
+
         return dict(
             can=can,
             can_super=lambda: is_super(),
             can_admin=lambda: is_admin(),
         )
+
     app.context_processor(_acl_ctx)
+
     _install_acl_cache_listeners()
     _install_accounting_listeners()
 
-
-def send_email_notification(subject, recipients, body, html=None):
+def send_email_notification(subject: str, recipients: List[str], body: str, html: Optional[str] = None):
     mail.send(Message(subject=subject, recipients=recipients, body=body, html=html))
 
 
-def _to_e164(msisdn: str) -> str | None:
+def _to_e164(msisdn: str) -> Optional[str]:
     raw = (msisdn or "").strip()
     if not raw:
         return None
@@ -225,7 +254,10 @@ def _to_e164(msisdn: str) -> str | None:
     return "+" + s
 
 
-def send_whatsapp_message(to_number, body) -> tuple[bool, str]:
+def send_whatsapp_message(to_number: str, body: str) -> Tuple[bool, str]:
+    from twilio.base.exceptions import TwilioRestException
+    from twilio.rest import Client
+
     sid = current_app.config.get("TWILIO_ACCOUNT_SID")
     token = current_app.config.get("TWILIO_AUTH_TOKEN")
     from_number = current_app.config.get("TWILIO_WHATSAPP_NUMBER")
@@ -249,43 +281,43 @@ def send_whatsapp_message(to_number, body) -> tuple[bool, str]:
         return (False, str(e))
 
 
-def format_currency(value):
+def format_currency(value: Any) -> str:
     try:
         return f"{float(_q2(value)):,.2f} ₪"
     except Exception:
         return "0.00 ₪"
 
 
-def format_percent(value):
+def format_percent(value: Any) -> str:
     try:
         return f"{float(_q2(value)):.2f}%"
     except Exception:
         return "0.00%"
 
 
-def format_date(value, fmt: str = "%Y-%m-%d"):
+def format_date(value: Optional[datetime], fmt: str = "%Y-%m-%d") -> str:
     try:
         return value.strftime(fmt) if value else "-"
     except Exception:
         return "-"
 
 
-def format_datetime(value, fmt: str = "%Y-%m-%d %H:%M"):
+def format_datetime(value: Optional[datetime], fmt: str = "%Y-%m-%d %H:%M") -> str:
     try:
         return value.strftime(fmt) if value else ""
     except Exception:
         return ""
 
 
-def active_archived(value):
+def active_archived(value: Any) -> str:
     return "نشط" if value else "مؤرشف"
 
 
-def yes_no(value):
+def yes_no(value: Any) -> str:
     return active_archived(value)
 
 
-def status_label(status):
+def status_label(status: Any) -> str:
     m = {
         "active": "نشط",
         "inactive": "غير نشط",
@@ -307,7 +339,7 @@ def qr_to_base64(value: str) -> str:
     return base64.b64encode(buf.read()).decode("ascii")
 
 
-def _get_id(v):
+def _get_id(v: Any) -> Optional[int]:
     if v is None:
         return None
     if isinstance(v, int):
@@ -329,6 +361,7 @@ def _get_id(v):
 
 def _apply_stock_delta(product_id: int, warehouse_id: int, delta: int) -> int:
     from models import StockLevel
+
     delta = int(delta or 0)
     rec = (
         StockLevel.query
@@ -342,10 +375,12 @@ def _apply_stock_delta(product_id: int, warehouse_id: int, delta: int) -> int:
         rec = StockLevel(product_id=product_id, warehouse_id=warehouse_id, quantity=0)
         db.session.add(rec)
         db.session.flush()
+
     new_qty = int(rec.quantity or 0) + delta
     reserved = int(getattr(rec, "reserved_quantity", 0) or 0)
     if new_qty < 0 or new_qty < reserved:
         raise ValueError("insufficient stock")
+
     rec.quantity = new_qty
     db.session.flush()
     return new_qty
@@ -356,7 +391,7 @@ def recent_notes(limit: int = 5):
     return Note.query.order_by(Note.created_at.desc()).limit(limit).all()
 
 
-def generate_excel_report(data, filename: str = "report.xlsx") -> Response:
+def generate_excel_report(data: Iterable[Any], filename: str = "report.xlsx") -> Response:
     def _row_to_dict(item):
         if hasattr(item, "to_dict"):
             try:
@@ -412,13 +447,14 @@ def generate_excel_report(data, filename: str = "report.xlsx") -> Response:
     )
 
 
-def generate_pdf_report(data):
+def generate_pdf_report(data: Iterable[Any]) -> Response:
     if not all([colors, letter, SimpleDocTemplate, Table, TableStyle]):
         abort(500, description="ReportLab غير متوفر على الخادم")
+
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
     table_data = [["ID", "Name", "Balance"]] + [
-        [str(item.id), getattr(item, "name", ""), f"{getattr(item, 'balance', 0):,.2f}"]
+        [str(getattr(item, "id", "")), getattr(item, "name", ""), f"{getattr(item, 'balance', 0):,.2f}"]
         for item in data
     ]
     table = Table(table_data)
@@ -440,7 +476,7 @@ def generate_pdf_report(data):
     )
 
 
-def generate_vcf(customers, fields, filename: str = "contacts.vcf"):
+def generate_vcf(customers: Iterable[Any], fields: List[str], filename: str = "contacts.vcf") -> Response:
     cards = []
     for c in customers:
         def _get(attr, default=""):
@@ -484,7 +520,7 @@ def generate_vcf(customers, fields, filename: str = "contacts.vcf"):
     return resp
 
 
-def generate_csv_contacts(customers, fields):
+def generate_csv_contacts(customers: Iterable[Any], fields: List[str]) -> Response:
     buffer = io.StringIO()
     w = csv.writer(buffer)
     w.writerow(fields)
@@ -497,7 +533,7 @@ def generate_csv_contacts(customers, fields):
     )
 
 
-def generate_excel_contacts(customers, fields):
+def generate_excel_contacts(customers: Iterable[Any], fields: List[str]) -> Response:
     try:
         from openpyxl import Workbook
     except Exception:
@@ -538,11 +574,11 @@ _PERMISSION_ALIASES = {
     "restore_database": {"restore_database", "restore", "restore_db", "upload_backup", "db_restore"},
     "view_shop": {"view_shop", "browse_products"},
     "browse_products": {"browse_products", "view_shop"},
-    "manage_shop": {"manage_shop", "view_shop", "browse_products"}
+    "manage_shop": {"manage_shop", "view_shop", "browse_products"},
 }
 
 
-def _expand_perms(*names):
+def _expand_perms(*names) -> set:
     expanded = set()
     for n in names:
         if isinstance(n, (list, tuple, set)):
@@ -560,7 +596,7 @@ def _iter_rel(rel):
         return rel or []
 
 
-def _fetch_permissions_from_db(user):
+def _fetch_permissions_from_db(user) -> set:
     perms = set()
     if getattr(user, "role", None):
         try:
@@ -579,7 +615,7 @@ def _fetch_permissions_from_db(user):
     return perms
 
 
-def _get_user_permissions(user):
+def _get_user_permissions(user) -> set:
     if not user:
         return set()
     key = f"user_permissions:{user.id}"
@@ -613,7 +649,7 @@ def _get_user_permissions(user):
     return perms
 
 
-def _csv_set(val):
+def _csv_set(val: Optional[str]) -> set:
     if not val:
         return set()
     return {x.strip().lower() for x in str(val).split(",") if x.strip()}
@@ -685,6 +721,7 @@ def admin_or_super(f):
         return f(*args, **kwargs)
     return _w
 
+
 def permission_required(*permission_names):
     base_needed = {str(p).strip().lower() for p in permission_names if p}
 
@@ -701,30 +738,24 @@ def permission_required(*permission_names):
                 return f(*args, **kwargs)
             if not getattr(current_user, "is_authenticated", False):
                 abort(403)
-
             if hasattr(current_user, "__tablename__") and current_user.__tablename__ == "customers":
                 return f(*args, **kwargs)
-
             needed = set(base_needed)
             if needed:
                 try:
                     needed = {str(x).lower() for x in _expand_perms(*needed)}
                 except Exception:
                     needed = {str(x).lower() for x in needed}
-
             if not needed:
                 return f(*args, **kwargs)
-
             try:
                 user_perms = _get_user_permissions(current_user) or set()
             except Exception:
                 user_perms = set()
-
             require_all = bool(cfg.get("PERMISSIONS_REQUIRE_ALL"))
             allowed = needed.issubset(user_perms) if require_all else bool(user_perms & needed or needed.issubset(user_perms))
             if allowed:
                 return f(*args, **kwargs)
-
             if hasattr(current_user, "has_permission") and callable(getattr(current_user, "has_permission")):
                 if require_all:
                     if all(current_user.has_permission(p) for p in needed):
@@ -733,9 +764,7 @@ def permission_required(*permission_names):
                     for p in needed:
                         if current_user.has_permission(p):
                             return f(*args, **kwargs)
-
             abort(403)
-
         return wrapped
     return decorator
 
@@ -804,7 +833,7 @@ def get_role_permissions(role) -> set:
 def _install_acl_cache_listeners():
     try:
         from sqlalchemy import event
-        from models import Role, User, role_permissions as _rp, user_permissions as _up
+        from models import Role, User
     except Exception:
         return
 
@@ -854,8 +883,9 @@ def _install_acl_cache_listeners():
         pass
 
 
-def log_customer_action(cust, action: str, old_data: dict | None = None, new_data: dict | None = None) -> None:
+def log_customer_action(cust, action: str, old_data: Optional[dict] = None, new_data: Optional[dict] = None) -> None:
     from models import AuditLog
+
     old_json = json.dumps(old_data, ensure_ascii=False, default=str) if old_data else None
     new_json = json.dumps(new_data, ensure_ascii=False, default=str) if new_data else None
     entry = AuditLog(
@@ -874,8 +904,9 @@ def log_customer_action(cust, action: str, old_data: dict | None = None, new_dat
     db.session.flush()
 
 
-def _audit(event: str, *, ok: bool = True, user_id=None, customer_id=None, note: str | None = None, extra: dict | None = None) -> None:
+def _audit(event: str, *, ok: bool = True, user_id=None, customer_id=None, note: Optional[str] = None, extra: Optional[dict] = None) -> None:
     from models import AuditLog
+
     details_old = {"ok": bool(ok)}
     if note:
         details_old["note"] = str(note)
@@ -897,8 +928,9 @@ def _audit(event: str, *, ok: bool = True, user_id=None, customer_id=None, note:
     db.session.flush()
 
 
-def log_audit(model_name: str, record_id: int, action: str, old_data: dict | None = None, new_data: dict | None = None):
+def log_audit(model_name: str, record_id: int, action: str, old_data: Optional[dict] = None, new_data: Optional[dict] = None):
     from models import AuditLog
+
     old_json = json.dumps(old_data, ensure_ascii=False, default=str) if old_data else None
     new_json = json.dumps(new_data, ensure_ascii=False, default=str) if new_data else None
     entry = AuditLog(
@@ -928,7 +960,7 @@ _ENUM_AR = {
 }
 
 
-def _enum_choices(enum_cls, arabic_labels=True):
+def _enum_choices(enum_cls, arabic_labels: bool = True):
     if not arabic_labels:
         return [(e.value, e.value) for e in enum_cls]
     lab = _ENUM_AR.get(enum_cls.__name__, {})
@@ -936,6 +968,8 @@ def _enum_choices(enum_cls, arabic_labels=True):
 
 
 def prepare_payment_form_choices(form, *, compat_post: bool = False, arabic_labels: bool = True):
+    from models import PaymentMethod, PaymentStatus, PaymentDirection, PaymentEntityType
+
     if hasattr(form, "currency"):
         form.currency.choices = (
             [("ILS", "شيكل"), ("USD", "دولار"), ("EUR", "يورو"), ("JOD", "دينار")]
@@ -958,6 +992,8 @@ def prepare_payment_form_choices(form, *, compat_post: bool = False, arabic_labe
 
 
 def update_entity_balance(entity: str, eid: int) -> float:
+    from models import Payment, PaymentSplit, PaymentStatus
+
     entity = entity.upper()
     col = getattr(Payment, f"{entity.lower()}_id")
     total = (
@@ -1055,7 +1091,7 @@ def get_fernet():
         return None
 
 
-def encrypt_card_number(pan: str) -> bytes | None:
+def encrypt_card_number(pan: str) -> Optional[bytes]:
     f = get_fernet()
     if not f:
         return None
@@ -1065,7 +1101,7 @@ def encrypt_card_number(pan: str) -> bytes | None:
     return f.encrypt(digits.encode("utf-8"))
 
 
-def decrypt_card_number(token: bytes) -> str | None:
+def decrypt_card_number(token: bytes) -> Optional[str]:
     f = get_fernet()
     if not f or not token:
         return None
@@ -1075,7 +1111,7 @@ def decrypt_card_number(token: bytes) -> str | None:
         return None
 
 
-def card_fingerprint(pan: str) -> str | None:
+def card_fingerprint(pan: str) -> Optional[str]:
     digits = "".join(ch for ch in (pan or "") if ch.isdigit())
     if not digits:
         return None
@@ -1101,14 +1137,12 @@ def _install_accounting_listeners():
     try:
         from sqlalchemy import event
         from sqlalchemy.orm import object_session
-        from decimal import Decimal, ROUND_HALF_UP
-        from sqlalchemy.orm.attributes import set_committed_value
         from models import Payment, PaymentStatus, Sale, SaleLine
         Q = Decimal("0.01")
     except Exception:
         return
 
-    def _q2(x):
+    def _q2_local(x):
         try:
             return Decimal(str(x or 0)).quantize(Q, rounding=ROUND_HALF_UP)
         except Exception:
@@ -1120,14 +1154,13 @@ def _install_accounting_listeners():
             return
         total = Decimal("0.00")
         for ln in sale.lines or []:
-            qv = _q2(ln.quantity)
-            pv = _q2(ln.unit_price)
-            dr = _q2(ln.discount_rate)
-            tr = _q2(ln.tax_rate)
+            qv = _q2_local(ln.quantity)
+            pv = _q2_local(ln.unit_price)
+            dr = _q2_local(ln.discount_rate)
+            tr = _q2_local(ln.tax_rate)
             base = (qv * pv * (Decimal("1") - dr / Decimal("100"))).quantize(Q, rounding=ROUND_HALF_UP)
             line = (base * (Decimal("1") + tr / Decimal("100"))).quantize(Q, rounding=ROUND_HALF_UP)
             total += line
-
         set_committed_value(sale, "total_amount", float(total))
 
     def _recompute_sale_payments(sess, sale_id: int):
@@ -1137,14 +1170,11 @@ def _install_accounting_listeners():
         paid = Decimal("0.00")
         for p in sale.payments or []:
             if getattr(p, "status", None) == PaymentStatus.COMPLETED.value:
-                paid += _q2(p.total_amount)
-
+                paid += _q2_local(p.total_amount)
         total_paid = float(paid)
-        balance_due = float(_q2(sale.total_amount) - _q2(total_paid))
-
+        balance_due = float(_q2_local(sale.total_amount) - _q2_local(total_paid))
         set_committed_value(sale, "total_paid", total_paid)
         set_committed_value(sale, "balance_due", balance_due)
-
         if hasattr(sale, "update_payment_status"):
             try:
                 sale.update_payment_status()
@@ -1174,4 +1204,3 @@ def _install_accounting_listeners():
         if not sess or not getattr(target, "sale_id", None):
             return
         _recompute_sale_totals(sess, int(target.sale_id))
-

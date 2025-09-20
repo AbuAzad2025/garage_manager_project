@@ -22,8 +22,12 @@ from flask_wtf import CSRFProtect
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
+try:
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+except Exception:
+    pdfmetrics = None
+    TTFont = None
 
 try:
     from colorama import init as colorama_init, Fore, Style
@@ -125,19 +129,24 @@ def setup_logging(app):
 
 
 def setup_sentry(app):
-    dsn = app.config.get("SENTRY_DSN") or ""
+    dsn = (app.config.get("SENTRY_DSN") or "").strip()
     if not dsn or not sentry_sdk:
+        app.logger.info("Sentry disabled (no DSN configured).")
         return
-    sentry_sdk.init(
-        dsn=dsn,
-        integrations=[FlaskIntegration(), SqlalchemyIntegration()],
-        traces_sample_rate=app.config.get("SENTRY_TRACES_SAMPLE_RATE", 0.0),
-        profiles_sample_rate=app.config.get("SENTRY_PROFILES_SAMPLE_RATE", 0.0),
-        environment=app.config.get("APP_ENV", "production"),
-        release=app.config.get("APP_VERSION") or None,
-        send_default_pii=False,
-        max_breadcrumbs=100,
-    )
+    try:
+        sentry_sdk.init(
+            dsn=dsn,
+            integrations=[FlaskIntegration(), SqlalchemyIntegration()],
+            traces_sample_rate=app.config.get("SENTRY_TRACES_SAMPLE_RATE", 0.0),
+            profiles_sample_rate=app.config.get("SENTRY_PROFILES_SAMPLE_RATE", 0.0),
+            environment=app.config.get("APP_ENV", "production"),
+            release=app.config.get("APP_VERSION") or None,
+            send_default_pii=False,
+            max_breadcrumbs=100,
+        )
+        app.logger.info("Sentry initialized.")
+    except Exception as e:
+        app.logger.warning("Sentry setup failed: %s", e)
 
 
 db = SQLAlchemy(session_options={"expire_on_commit": False})
@@ -234,6 +243,8 @@ def perform_backup_sql(app):
 
 def register_fonts(app=None):
     try:
+        if not pdfmetrics or not TTFont:
+            return
         base_path = os.path.join(app.root_path if app else os.getcwd(), "static", "fonts")
         fonts = {
             "Amiri": "Amiri-Regular.ttf",

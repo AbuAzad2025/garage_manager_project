@@ -1,3 +1,4 @@
+<!-- templates/_sidebar.html -->
 <aside class="main-sidebar sidebar-dark-primary elevation-4" dir="rtl">
   <a href="{{ url_for('main.dashboard') }}" class="brand-link text-center">
     <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Garage Logo"
@@ -95,7 +96,6 @@
         </li>
         {% endif %}
 
-        {# ======= التقارير: رابط وحيد لمركز التقارير ======= #}
         {% if has_perm('view_reports') or has_perm('manage_reports') or shop_is_super_admin %}
         <li class="nav-item">
           <a href="{{ url_for('reports_bp.universal') }}" class="nav-link {% if request.blueprint == 'reports_bp' %}active{% endif %}">
@@ -136,7 +136,7 @@
         </li>
         {% endif %}
 
-        {% if shop_is_super_admin %}
+        {% if has_perm('restore_database') or shop_is_super_admin %}
         <li class="nav-item">
           <a href="{{ url_for('main.restore_db') }}" class="nav-link {% if request.endpoint == 'main.restore_db' %}active{% endif %}">
             <i class="nav-icon fas fa-upload"></i><p>استعادة النسخ</p>

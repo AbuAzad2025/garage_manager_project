@@ -1,19 +1,21 @@
-# routes/report_routes.py
 from __future__ import annotations
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 from werkzeug.exceptions import BadRequest
-from flask import Blueprint, Response, flash, jsonify, render_template, request
+from flask import Blueprint, Response, flash, jsonify, render_template, request, current_app, redirect, url_for
 from sqlalchemy.orm import class_mapper
-from sqlalchemy import func, cast, Date, desc
-from extensions import db                 
+from sqlalchemy import func, cast, Date, desc, or_
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy import inspect as sa_inspect
+from extensions import db
 from flask_login import login_required
 from utils import permission_required
 from sqlalchemy.exc import SQLAlchemyError
+import inspect as pyinspect
 
 from models import (
     Customer, Supplier, Partner, Product, Warehouse, StockLevel, Expense,
-    OnlinePreOrder, OnlinePayment, OnlineCart, Sale, SaleStatus, ServiceRequest,InvoiceStatus, Invoice, Payment,
+    OnlinePreOrder, OnlinePayment, OnlineCart, Sale, SaleStatus, ServiceRequest, InvoiceStatus, Invoice, Payment,
     Shipment, PaymentDirection, PaymentStatus, PaymentSplit
 )
 from reports import (
@@ -118,7 +120,7 @@ FIELD_LABELS: Dict[str, str] = {
     "date": "التاريخ",
     "type_id": "نوع المصروف",
     "amount": "المبلغ",
-    "employee_id": "الموظف",
+    "employee_id": "الوظف",
     "warehouse_id": "المستودع",
     "partner_id": "الشريك",
     "desc": "الوصف",
@@ -161,7 +163,7 @@ FIELD_LABELS: Dict[str, str] = {
     "ar_aging": "أعمار الذمم (العملاء)",
     "supplier": "المورد",
     "customer": "العميل",
-    "customers": "العملاء", 
+    "customers": "العملاء",
     "service_reports": "تقارير الصيانة",
     "total_requests": "عدد الطلبات",
     "completed": "مكتملة",
@@ -192,6 +194,30 @@ def _ensure_model(name: str):
 
 def _model_columns(model) -> List[str]:
     return [c.key for c in class_mapper(model).columns]
+
+def _model_all_fields(model):
+    cols = set(c.key for c in class_mapper(model).columns)
+    hybrids = []
+    for name in dir(model):
+        if name.startswith("_") or name in cols:
+            continue
+        attr = pyinspect.getattr_static(model, name, None)
+        if isinstance(attr, hybrid_property):
+            hybrids.append(name)
+    return sorted(list(cols.union(hybrids)))
+
+def _is_selectable_field(model, name):
+    mapper_cols = {c.key for c in class_mapper(model).columns}
+    if name in mapper_cols:
+        return True
+    attr = pyinspect.getattr_static(model, name, None)
+    if isinstance(attr, hybrid_property):
+        try:
+            _ = getattr(model, name).expression
+            return True
+        except Exception:
+            return False
+    return False
 
 def _sanitize_fields(fields: List[str], allowed: List[str]) -> List[str]:
     allowed_set = set(allowed or [])
@@ -228,8 +254,9 @@ def dynamic_report():
         except BadRequest as e:
             flash(str(e), "danger")
             return render_template("reports/dynamic.html", data=None, summary=None, columns=selected_fields, model_names=model_names, selected_table=None, defaults=_DEFAULT_DATE_FIELD, date_field=date_field, start_date=request.form.get("start_date", ""), end_date=request.form.get("end_date", ""), like_filters={}, limit=limit, FIELD_LABELS=FIELD_LABELS, MODEL_LABELS=MODEL_LABELS), 400
-        cols = _model_columns(model)
-        selected_fields = _sanitize_fields(selected_fields, cols) or None
+        cols = [c for c in _model_all_fields(model) if _is_selectable_field(model, c)]
+        all_fields = _model_all_fields(model)
+        selected_fields = _sanitize_fields(selected_fields, all_fields) or None
         like_filters = {k: v for k, v in request.form.items() if k not in {"csrf_token", "table", "date_field", "start_date", "end_date", "selected_fields", "limit"} and v not in (None, "")}
         like_filters = _sanitize_likes(like_filters, cols)
         if date_field and date_field not in cols:
@@ -241,11 +268,11 @@ def dynamic_report():
             rpt = advanced_report(model=model, date_field=date_field or None, start_date=start_date, end_date=end_date, filters=None, like_filters=like_filters or None, columns=selected_fields, aggregates={"count": ["id"]})
         except ValueError as e:
             flash(str(e), "danger")
-            return render_template("reports/dynamic.html", data=None, summary=None, columns=selected_fields or [], model_names=model_names, selected_table=table, defaults=_DEFAULT_DATE_FIELD, date_field=date_field or "", start_date=request.form.get("start_date", ""), end_date=request.form.get("end_date", ""), like_filters=like_filters, limit=limit, FIELD_LABELS=FIELD_LABELS, MODEL_LABELS=MODEL_LABELS), 400
+            return render_template("reports/dynamic.html", data=None, summary=None, columns=(selected_fields or []), model_names=model_names, selected_table=table, defaults=_DEFAULT_DATE_FIELD, date_field=(date_field or ""), start_date=request.form.get("start_date", ""), end_date=request.form.get("end_date", ""), like_filters=like_filters, limit=limit, FIELD_LABELS=FIELD_LABELS, MODEL_LABELS=MODEL_LABELS), 400
         data = rpt.get("data") or []
         if limit:
             data = data[:limit]
-        return render_template("reports/dynamic.html", data=data, summary=rpt.get("summary") or {}, columns=selected_fields or [], model_names=model_names, selected_table=table, defaults=_DEFAULT_DATE_FIELD, date_field=date_field or "", start_date=request.form.get("start_date", ""), end_date=request.form.get("end_date", ""), like_filters=like_filters, limit=limit, FIELD_LABELS=FIELD_LABELS, MODEL_LABELS=MODEL_LABELS)
+        return render_template("reports/dynamic.html", data=data, summary=rpt.get("summary") or {}, columns=(selected_fields or []), model_names=model_names, selected_table=table, defaults=_DEFAULT_DATE_FIELD, date_field=(date_field or ""), start_date=request.form.get("start_date", ""), end_date=request.form.get("end_date", ""), like_filters=like_filters, limit=limit, FIELD_LABELS=FIELD_LABELS, MODEL_LABELS=MODEL_LABELS)
     selected_table = model_names[0] if model_names else None
     return render_template("reports/dynamic.html", data=None, summary=None, columns=[], model_names=model_names, selected_table=selected_table, defaults=_DEFAULT_DATE_FIELD, date_field=_DEFAULT_DATE_FIELD.get(selected_table, "") if selected_table else "", start_date="", end_date="", like_filters={}, limit=1000, FIELD_LABELS=FIELD_LABELS, MODEL_LABELS=MODEL_LABELS)
 
@@ -263,7 +290,6 @@ def below_min_stock_report():
             .filter(Product.min_qty.isnot(None))
             .group_by(Product.id)
         )
-
         rows = q.all()
         data = []
         for p, on_hand in rows:
@@ -274,7 +300,6 @@ def below_min_stock_report():
                     "on_hand": int(on_hand),
                     "min_qty": p.min_qty,
                 })
-
         return render_template(
             "reports/below_min_stock.html",
             data=data,
@@ -292,7 +317,6 @@ def below_min_stock_report():
 def shipments_report():
     start_str = request.args.get("start")
     end_str = request.args.get("end")
-
     start = None
     end = None
     try:
@@ -302,22 +326,17 @@ def shipments_report():
             end = datetime.strptime(end_str, "%Y-%m-%d").date()
     except Exception:
         flash("❌ صيغة التاريخ غير صحيحة", "danger")
-
     q = db.session.query(Shipment)
-
     if start:
         q = q.filter(Shipment.shipment_date >= start)
     if end:
         q = q.filter(Shipment.shipment_date <= end)
-
     rows = q.order_by(Shipment.shipment_date.desc()).all()
-
     totals = {
         "shipments": len(rows),
         "value_before": sum(float(s.value_before or 0) for s in rows),
         "total_value": sum(float(s.total_value or 0) for s in rows),
     }
-
     return render_template(
         "reports/shipments.html",
         data=rows,
@@ -333,8 +352,8 @@ def shipments_report():
 def online_report():
     orders_count = db.session.query(func.count(OnlinePreOrder.id)).scalar() or 0
     orders_total = db.session.query(func.coalesce(func.sum(OnlinePreOrder.total_amount), 0)).scalar() or 0
-    payments_total = db.session.query(func.coalesce(func.sum(OnlinePayment.amount), 0)).filter(OnlinePayment.status=="SUCCESS").scalar() or 0
-    carts_active = db.session.query(func.count(OnlineCart.id)).filter(OnlineCart.status=="ACTIVE").scalar() or 0
+    payments_total = db.session.query(func.coalesce(func.sum(OnlinePayment.amount), 0)).filter(OnlinePayment.status == "SUCCESS").scalar() or 0
+    carts_active = db.session.query(func.count(OnlineCart.id)).filter(OnlineCart.status == "ACTIVE").scalar() or 0
     return render_template(
         "reports/online.html",
         orders_count=orders_count,
@@ -354,7 +373,7 @@ def sales():
 @reports_bp.route("/payments-summary", methods=["GET"], strict_slashes=False)
 def payments_summary():
     start = _parse_date(request.args.get("start"))
-    end   = _parse_date(request.args.get("end"))
+    end = _parse_date(request.args.get("end"))
     rpt = payment_summary_report(start, end)
     method_labels = {m: METHOD_LABELS_DEFAULT.get(m.upper(), METHOD_LABELS_DEFAULT.get(m, m)) for m in rpt.get("methods", [])}
     return render_template(
@@ -374,18 +393,15 @@ def ar_aging():
     rpt = ar_aging_report(start_date=start, end_date=end)
     return render_template("reports/ar_aging.html", data=rpt.get("data", []), totals=rpt.get("totals", {}), as_of=rpt.get("as_of"), start=request.args.get("start", ""), end=request.args.get("end", ""), FIELD_LABELS=FIELD_LABELS, MODEL_LABELS=MODEL_LABELS)
 
-
 @reports_bp.route("/inventory", methods=["GET"], endpoint="inventory")
 @login_required
 @permission_required("view_inventory")
 def inventory_report():
     from models import Warehouse, StockLevel, Product
     from sqlalchemy.orm import joinedload
-
     search = (request.args.get("q") or "").strip()
     whs = Warehouse.query.order_by(Warehouse.name).all()
     wh_ids = [w.id for w in whs]
-
     q = (
         db.session.query(StockLevel)
         .join(Product, StockLevel.product_id == Product.id)
@@ -402,7 +418,6 @@ def inventory_report():
                 Product.part_number.ilike(like),
             )
         )
-
     rows = q.all()
     pivot = {}
     for sl in rows:
@@ -418,9 +433,7 @@ def inventory_report():
         res = int(getattr(sl, "reserved_quantity", 0) or 0)
         pivot[pid]["by"][sl.warehouse_id] = {"on": on, "res": res}
         pivot[pid]["total"] += on
-
     rows_data = sorted(pivot.values(), key=lambda d: (d["product"].name or "").lower())
-
     return render_template(
         "reports/inventory.html",
         warehouses=whs,
@@ -438,17 +451,14 @@ def top_products():
     except Exception:
         limit = 20
     limit = _clamp_limit(limit, default=20, max_v=1000)
-
     warehouse_id = request.args.get("warehouse_id")
     group_by_warehouse = (request.args.get("group_by") == "warehouse")
-
     rpt = top_products_report(
         start, end,
         limit=limit,
         warehouse_id=int(warehouse_id) if warehouse_id else None,
         group_by_warehouse=group_by_warehouse,
     )
-
     warehouses = Warehouse.query.order_by(Warehouse.name.asc()).all()
     return render_template(
         "reports/top_products.html",
@@ -470,6 +480,7 @@ def suppliers_report():
         db.session.query(
             Supplier.id,
             Supplier.name,
+            func.coalesce(Supplier.balance, 0).label("balance"),
             func.coalesce(func.sum(Payment.total_amount), 0).label("total_paid"),
         )
         .outerjoin(
@@ -478,13 +489,13 @@ def suppliers_report():
             & (Payment.status == PaymentStatus.COMPLETED.value)
             & (Payment.direction == PaymentDirection.OUTGOING.value),
         )
-        .group_by(Supplier.id, Supplier.name)
+        .group_by(Supplier.id, Supplier.name, Supplier.balance)
         .order_by(Supplier.name.asc())
     )
     data = []
     for r in q.all():
         paid = float(r.total_paid or 0)
-        balance = float(getattr(r, "balance", 0)) if hasattr(r, "balance") else 0
+        balance = float(r.balance or 0)
         net_balance = balance - paid
         data.append(
             {
@@ -508,7 +519,7 @@ def partners_report():
         db.session.query(
             Partner.id,
             Partner.name,
-            Partner.balance,
+            func.coalesce(Partner.balance, 0).label("balance"),
             Partner.share_percentage,
             func.coalesce(func.sum(Payment.total_amount), 0).label("total_paid"),
         )
@@ -520,16 +531,13 @@ def partners_report():
         .group_by(Partner.id, Partner.name, Partner.balance, Partner.share_percentage)
         .order_by(Partner.name.asc())
     )
-
     data = []
     total_balance = total_paid = total_net = 0
-
     for r in q.all():
         paid = float(r.total_paid or 0)
         balance = float(r.balance or 0)
         net_balance = balance - paid
         share = float(r.share_percentage or 0)
-
         data.append(
             {
                 "id": r.id,
@@ -540,17 +548,14 @@ def partners_report():
                 "share_percentage": share,
             }
         )
-
         total_balance += balance
         total_paid += paid
         total_net += net_balance
-
     totals = {
         "balance": total_balance,
         "total_paid": total_paid,
         "net_balance": total_net,
     }
-
     return render_template(
         "reports/partners.html",
         data=data,
@@ -566,15 +571,13 @@ def customers_report():
     if sd and ed and ed < sd:
         sd, ed = ed, sd
     start = sd or date.min
-    end   = ed or date.max
-
+    end = ed or date.max
     inv_date = cast(Invoice.invoice_date, Date).between(start, end)
     sale_date = cast(Sale.sale_date, Date).between(start, end)
     srv_ref_dt = func.coalesce(ServiceRequest.completed_at, ServiceRequest.received_at, ServiceRequest.created_at)
     srv_date = cast(srv_ref_dt, Date).between(start, end)
     opre_date = cast(OnlinePreOrder.created_at, Date).between(start, end)
     pay_date = cast(Payment.payment_date, Date).between(start, end)
-
     inv_agg = (
         db.session.query(
             Invoice.customer_id.label("cid"),
@@ -590,7 +593,6 @@ def customers_report():
         .group_by(Invoice.customer_id)
         .subquery()
     )
-
     sale_agg = (
         db.session.query(
             Sale.customer_id.label("cid"),
@@ -602,7 +604,6 @@ def customers_report():
         .group_by(Sale.customer_id)
         .subquery()
     )
-
     srv_agg = (
         db.session.query(
             ServiceRequest.customer_id.label("cid"),
@@ -613,7 +614,6 @@ def customers_report():
         .group_by(ServiceRequest.customer_id)
         .subquery()
     )
-
     opre_agg = (
         db.session.query(
             OnlinePreOrder.customer_id.label("cid"),
@@ -624,7 +624,6 @@ def customers_report():
         .group_by(OnlinePreOrder.customer_id)
         .subquery()
     )
-
     pay_agg = (
         db.session.query(
             Payment.customer_id.label("cid"),
@@ -637,7 +636,6 @@ def customers_report():
         .group_by(Payment.customer_id)
         .subquery()
     )
-
     q = (
         db.session.query(
             Customer.id.label("id"),
@@ -657,13 +655,12 @@ def customers_report():
         .outerjoin(pay_agg,  pay_agg.c.cid  == Customer.id)
         .order_by(desc("total_invoiced"), Customer.name.asc())
     )
-
     rows = q.all()
     data = []
     for r in rows:
         invoiced = float(r.total_invoiced or 0)
-        paid     = float(r.total_paid or 0)
-        balance  = invoiced - paid
+        paid = float(r.total_paid or 0)
+        balance = invoiced - paid
         data.append({
             "id": r.id,
             "name": r.name,
@@ -671,7 +668,6 @@ def customers_report():
             "total_paid": paid,
             "balance": balance,
         })
-
     return render_template(
         "reports/customers.html",
         data=data,
@@ -684,19 +680,15 @@ def customers_report():
 @reports_bp.route("/expenses", methods=["GET"])
 def expenses_report():
     start = _parse_date(request.args.get("start"))
-    end   = _parse_date(request.args.get("end"))
-
+    end = _parse_date(request.args.get("end"))
     q = Expense.query
     if start:
         q = q.filter(Expense.date >= start)
     if end:
         q = q.filter(Expense.date <= end)
-
     q = q.order_by(Expense.date.desc())
     rows = q.all()
-
     total = sum(float(e.amount or 0) for e in rows)
-
     type_labels, type_values = [], []
     by_type = {}
     for e in rows:
@@ -705,7 +697,6 @@ def expenses_report():
     for k, v in by_type.items():
         type_labels.append(str(k))
         type_values.append(v)
-
     emp_labels, emp_values = [], []
     by_emp = {}
     for e in rows:
@@ -714,10 +705,9 @@ def expenses_report():
     for k, v in by_emp.items():
         emp_labels.append(str(k))
         emp_values.append(v)
-
     return render_template(
         "reports/expenses.html",
-        data=rows,                    
+        data=rows,
         total_amount=total,
         start=request.args.get("start", ""),
         end=request.args.get("end", ""),
@@ -744,11 +734,12 @@ def model_fields():
     model = _MODEL_LOOKUP.get(model_name)
     if not model:
         return jsonify({"error": "Unknown model", "models": list(_MODEL_LOOKUP.keys())}), 404
-    mapper = class_mapper(model)
+    mapper = sa_inspect(model)
     columns = [col.key for col in mapper.columns]
     lower = {c: c.lower() for c in columns}
     date_fields = [c for c in columns if ("date" in lower[c]) or (lower[c].endswith("_at")) or ("created_at" in lower[c]) or ("updated_at" in lower[c])]
-    return jsonify({"columns": columns, "date_fields": date_fields}), 200
+    all_fields = _model_all_fields(model)
+    return jsonify({"columns": columns, "date_fields": date_fields, "all_fields": all_fields}), 200
 
 @reports_bp.route("/service-reports", methods=["GET"])
 def service_reports():
@@ -762,8 +753,9 @@ def api_dynamic():
     payload = request.get_json(silent=True) or {}
     table = (payload.get("table") or "").strip()
     model = _ensure_model(table)
-    cols = _model_columns(model)
-    columns = _sanitize_fields(payload.get("columns") or [], cols) or None
+    cols = [c for c in _model_all_fields(model) if _is_selectable_field(model, c)]
+    all_fields = _model_all_fields(model)
+    columns = _sanitize_fields(payload.get("columns") or [], all_fields) or None
     like_filters = _sanitize_likes(payload.get("like_filters") or {}, cols) or None
     date_field = (payload.get("date_field") or "").strip()
     if date_field and date_field not in cols:
@@ -801,9 +793,10 @@ def _csv_from_rows(rows: List[Dict[str, Any]]):
 def export_dynamic_csv():
     table = (request.form.get("table") or "").strip()
     model = _ensure_model(table)
-    cols = _model_columns(model)
+    cols = [c for c in _model_all_fields(model) if _is_selectable_field(model, c)]
+    all_fields = _model_all_fields(model)
     selected_fields = request.form.getlist("selected_fields") or []
-    selected_fields = _sanitize_fields(selected_fields, cols) or None
+    selected_fields = _sanitize_fields(selected_fields, all_fields) or None
     date_field = (request.form.get("date_field") or "").strip()
     if date_field and date_field not in cols:
         date_field = ""

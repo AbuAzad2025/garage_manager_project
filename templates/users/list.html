@@ -9,6 +9,7 @@
 {% block styles %}
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap4.min.css">
 <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap4.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/users.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -39,15 +40,47 @@
       {% for user in users %}
         {% set _q = user.extra_permissions %}
         {% set perms = (_q.all() if _q.__class__.__name__ in ['AppenderQuery','AppenderBaseQuery'] else _q) | list %}
+        {% set role = user.role.name|lower if user.role else 'unknown' %}
 
-        <tr>
+        <tr class="role-row {{ role }}">
           <td class="text-nowrap">{{ user.username }}</td>
           <td class="text-nowrap">
             {% if user.email %}
               <a href="mailto:{{ user.email }}" dir="ltr">{{ user.email }}</a>
             {% else %}—{% endif %}
           </td>
-          <td>{{ user.role.name if user.role else '—' }}</td>
+          <td class="text-center">
+            {% if user.role %}
+              <span class="user-role {{ role }}">
+                {% if role == 'super_admin' %}
+                  <i class="fas fa-user-shield"></i>
+                {% elif role == 'staff' %}
+                  <i class="fas fa-user-tie"></i>
+                {% elif role == 'mechanic' %}
+                  <i class="fas fa-tools"></i>
+                {% elif role == 'registered_customer' %}
+                  <i class="fas fa-id-card"></i>
+                {% elif role == 'customer' %}
+                  <i class="fas fa-user"></i>
+                {% elif role == 'guest' %}
+                  <i class="fas fa-user-clock"></i>
+                {% elif role == 'admin' %}
+                  <i class="fas fa-user-cog"></i>
+                {% elif role == 'manager' %}
+                  <i class="fas fa-briefcase"></i>
+                {% elif role == 'support' %}
+                  <i class="fas fa-headset"></i>
+                {% elif role == 'suspended' %}
+                  <i class="fas fa-ban"></i>
+                {% else %}
+                  <i class="fas fa-user"></i>
+                {% endif %}
+                {{ user.role.name }}
+              </span>
+            {% else %}
+              —
+            {% endif %}
+          </td>
           <td>
             {% if user.is_active %}
               <span class="badge bg-success">نشط</span>
@@ -83,7 +116,6 @@
           <td class="text-center" data-order="{{ user.created_at.isoformat() if user.created_at else '' }}">
             {{ user.created_at|format_date if user.created_at else '—' }}
           </td>
-
           {% if has_perm('manage_users') %}
             <td class="text-center text-nowrap">
               <a href="{{ url_for('users_bp.user_detail', user_id=user.id) }}" class="btn btn-sm btn-info" title="تفاصيل"><i class="fas fa-eye"></i></a>
