@@ -1,125 +1,133 @@
-﻿from sqlalchemy import text as sa_text
+﻿from __future__ import annotations
+
+import re
+import uuid
+from io import BytesIO
 from datetime import date, datetime, time
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
-import uuid
-from flask import Blueprint, Response, abort, current_app, flash, jsonify, redirect, render_template, request, url_for, session
+
+from flask import (
+    Response,
+    abort,
+    current_app,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
+    session,
+    send_file,
+    make_response,
+)
 from flask_login import current_user, login_required
-from sqlalchemy import func, text, and_, case, or_
+from sqlalchemy import (
+    func,
+    text,
+    and_,
+    case,
+    or_,
+    select,
+    text as sa_text,
+)
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import joinedload
-from extensions import db
-from forms import PaymentForm
-from models import Customer, Expense, Invoice, Partner, Payment, PaymentDirection, PaymentMethod, PaymentSplit, PaymentStatus, PreOrder, PreOrderStatus, Sale, ServiceRequest, Shipment, Supplier, SupplierLoanSettlement
-from utils import log_audit, permission_required, update_entity_balance
 from weasyprint import HTML, CSS
 
-payments_bp = Blueprint("payments", __name__, url_prefix="/payments")
+from extensions import db
+from forms import PaymentForm
+from models import (
+    Customer,
+    Expense,
+    Invoice,
+    Partner,
+    Payment,
+    PaymentDirection,
+    PaymentMethod,
+    PaymentSplit,
+    PaymentStatus,
+    PreOrder,
+    PreOrderStatus,
+    Sale,
+    ServiceRequest,
+    Shipment,
+    Supplier,
+    SupplierLoanSettlement,
+)
+from utils import (
+    log_audit,
+    permission_required,
+    update_entity_balance,
+    _get_or_404,
+    q,
+    Q2,
+    D,
+)
+from acl import super_only
+from .blueprint import payments_bp
 
-TWOPLACES = Decimal("0.01")
-ZERO_PLACES = Decimal("1")
 
-def D(x) -> Decimal:
-    if x is None:
-        return Decimal("0")
-    if isinstance(x, Decimal):
-        return x
+_FULL_LOAD_OPTIONS = (
+    joinedload(Payment.customer),
+    joinedload(Payment.supplier),
+    joinedload(Payment.partner),
+    joinedload(Payment.sale),
+    joinedload(Payment.invoice),
+    joinedload(Payment.service),
+    joinedload(Payment.preorder),
+    joinedload(Payment.shipment),
+    joinedload(Payment.loan_settlement),
+    joinedload(Payment.splits),
+)
+
+def _wants_json() -> bool:
+    fmt = (request.args.get("format") or "").lower()
+    if fmt in ("json", "1", "true", "yes"):
+        return True
     try:
-        return Decimal(str(x))
-    except (InvalidOperation, ValueError, TypeError):
-        return Decimal("0")
+        best = request.accept_mimetypes.best or ""
+    except Exception:
+        best = ""
+    return best == "application/json" or request.path.startswith("/api/")
 
-def q2(x) -> Decimal:
-    return D(x).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
+def _safe_filename_component(s: str) -> str:
+    if not s:
+        return ""
+    s = re.sub(r"\s+", "_", s.strip())
+    s = re.sub(r"[^0-9A-Za-z\u0600-\u06FF\-\._]", "", s)
+    return s[:120] or ""
+
+def _ok_not_found(msg: str = "السند غير موجود"):
+    if _wants_json():
+        return jsonify(error="not_found", message=msg), 200
+    html = "<!doctype html><meta charset='utf-8'><title>غير موجود</title><div style='padding:24px;font-family:system-ui,Arial,sans-serif'>" + msg + "</div>"
+    return make_response(html, 200)
+
+def _safe_get_payment(payment_id: int, *, all_rels: bool = False) -> Payment | None:
+    try:
+        opts = _FULL_LOAD_OPTIONS if all_rels else (joinedload(Payment.customer), joinedload(Payment.supplier))
+        stmt = select(Payment).options(*opts).where(Payment.id == int(payment_id))
+        return db.session.execute(stmt).unique().scalar_one_or_none()
+    except Exception:
+        return None
 
 def q0(x) -> Decimal:
-    return D(x).quantize(ZERO_PLACES, rounding=ROUND_HALF_UP)
+    return q(x, 0)
 
-def _f2(v):
-    try:
-        return float(v or 0)
-    except:
-        return 0.0
-
-def _line_total(qty, unit_price, disc_pct, tax_pct):
-    q = int(qty or 0)
-    u = _f2(unit_price)
-    d = _f2(disc_pct)
-    t = _f2(tax_pct)
-    gross = q * u
-    disc = gross * (d / 100.0)
-    taxable = gross - disc
-    tax = taxable * (t / 100.0)
-    taxable_d = q0(taxable)
-    tax_d = q0(tax)
-    total_d = q0(taxable_d + tax_d)
-    return taxable_d, tax_d, total_d
-
-def _service_totals(svc: ServiceRequest):
-    subtotal = Decimal("0")
-    tax_total = Decimal("0")
-    grand = Decimal("0")
-    for p in (getattr(svc, "parts", None) or []):
-        s, t, g = _line_total(p.quantity, p.unit_price, p.discount, p.tax_rate)
-        subtotal += s
-        tax_total += t
-        grand += g
-    for tsk in (getattr(svc, "tasks", None) or []):
-        s, t, g = _line_total(tsk.quantity or 1, tsk.unit_price, tsk.discount, tsk.tax_rate)
-        subtotal += s
-        tax_total += t
-        grand += g
-    return int(q0(subtotal)), int(q0(tax_total)), int(q0(grand))
-
-def _ensure_payment_number(pmt: Payment) -> None:
-    if getattr(pmt, "payment_number", None):
-        return
-    base_dt = getattr(pmt, "payment_date", None) or datetime.utcnow()
-    prefix = base_dt.strftime("PMT%Y%m%d")
-    cnt = db.session.execute(sa_text("SELECT COUNT(*) FROM payments WHERE payment_number LIKE :pfx"), {"pfx": f"{prefix}-%"}).scalar() or 0
-    pmt.payment_number = f"{prefix}-{cnt+1:04d}"
-
-def _sum_splits_decimal(splits) -> Decimal:
-    total = Decimal("0")
-    for s in splits or []:
-        total += q0(getattr(s, "amount", 0))
-    return q0(total)
-
-def _norm_currency(v):
-    return (v or "ILS").strip().upper()
-
-try:
-    from models import ensure_currency as _ensure_ccy
-except Exception:
-    _ensure_ccy = None
-
-def ensure_currency(cur):
-    if _ensure_ccy:
-        return _ensure_ccy(cur)
-    return (cur or "ILS").strip().upper()
-
-def _get_or_404(model, ident, options=None):
-    if options:
-        obj = db.session.query(model).options(*options).filter_by(id=ident).first()
-    else:
-        obj = db.session.get(model, ident)
-    if obj is None:
-        abort(404)
-    return obj
-
-def _norm_dir(val):
-    if val is None:
+def _sale_info_dict(sale) -> dict | None:
+    if not sale:
         return None
-    v = val.value if hasattr(val, "value") else val
-    v = str(v).strip().upper()
-    if v in ("IN", "INCOMING", "INCOME", "RECEIVE"):
-        return "IN"
-    if v in ("OUT", "OUTGOING", "PAY", "PAYMENT", "EXPENSE"):
-        return "OUT"
-    return v
-
-def _dir_to_db(v: str | None):
-    vv = _norm_dir(v)
-    return vv
+    try:
+        return {
+            "number": getattr(sale, "sale_number", None),
+            "date": sale.sale_date.strftime("%Y-%m-%d") if getattr(sale, "sale_date", None) else "-",
+            "total": int(q0(getattr(sale, "total_amount", 0) or 0)),
+            "paid": int(q0(getattr(sale, "total_paid", 0) or 0)),
+            "balance": int(q0(getattr(sale, "balance_due", 0) or 0)),
+            "currency": (getattr(sale, "currency", "") or "").upper(),
+        }
+    except Exception:
+        return None
 
 def _clean_details(d: dict | None):
     if not d:
@@ -151,6 +159,21 @@ def _coerce_method(v):
             return m
     return PaymentMethod.CASH
 
+def _norm_dir(val):
+    if val is None:
+        return None
+    v = val.value if hasattr(val, "value") else val
+    v = str(v).strip().upper()
+    if v in ("IN", "INCOMING", "INCOME", "RECEIVE"):
+        return "IN"
+    if v in ("OUT", "OUTGOING", "PAY", "PAYMENT", "EXPENSE"):
+        return "OUT"
+    return v
+
+def _dir_to_db(v: str | None):
+    vv = _norm_dir(v)
+    return vv
+
 def _sync_payment_method_with_splits(pmt: Payment):
     try:
         splits = list(pmt.splits or [])
@@ -166,10 +189,6 @@ def _sync_payment_method_with_splits(pmt: Payment):
     if new_m_val and new_m_val != getattr(pmt, "method", None):
         pmt.method = new_m_val
 
-def _wants_json():
-    accept = request.headers.get("Accept", "") or ""
-    return (request.args.get("format") == "json" or ("application/json" in accept and "text/html" not in accept) or request.headers.get("X-Requested-With") == "XMLHttpRequest")
-
 def _serialize_split(s):
     return {
         "id": s.id,
@@ -178,7 +197,7 @@ def _serialize_split(s):
         "details": (getattr(s, "details", None) or None),
     }
 
-def _serialize_payment(p, *, full=False):
+def _serialize_payment_min(p, *, full=False):
     d = {
         "id": p.id,
         "payment_date": (p.payment_date.isoformat() if getattr(p, "payment_date", None) else None),
@@ -210,6 +229,18 @@ def _serialize_payment(p, *, full=False):
         })
     return d
 
+def _serialize_payment(p, *, full=False):
+    return _serialize_payment_min(p, full=full)
+
+def ensure_currency(cur):
+    try:
+        from models import ensure_currency as _ensure_ccy
+    except Exception:
+        _ensure_ccy = None
+    if _ensure_ccy:
+        return _ensure_ccy(cur)
+    return (cur or "ILS").strip().upper()
+
 def _render_payment_receipt_pdf(payment: Payment) -> bytes:
     html = render_template("payments/receipt.html", payment=payment, now=datetime.utcnow())
     css_inline = "@page { size: A4; margin: 14mm; } html, body { direction: rtl; font-family: 'Cairo','Noto Naskh Arabic',Arial,sans-serif; font-size: 12px; } h1,h2,h3 { margin: 0 0 8px 0; } table { width: 100%; border-collapse: collapse; } th, td { padding: 6px 8px; border-bottom: 1px solid #ddd; } .muted { color: #666; }"
@@ -220,6 +251,7 @@ def _render_payment_receipt_pdf(payment: Payment) -> bytes:
         return HTML(string=html, base_url=request.url_root).write_pdf()
 
 MAX_SEARCH_LIMIT = 25
+
 
 @payments_bp.route("/entity-search", methods=["GET"])
 @login_required
@@ -259,7 +291,7 @@ def entity_search():
         results = [{"id": r[0].id, "label": f"Loan Settlement #{r[0].id}", "extra": r[1]} for r in rows]
     return jsonify(results=results)
 
-@payments_bp.route("/", methods=["GET"])
+@payments_bp.route("/", methods=["GET"], endpoint="index")
 @login_required
 @permission_required("manage_payments")
 def index():
@@ -623,7 +655,7 @@ def create_payment():
             if _wants_json():
                 return jsonify(status="error", message=msg), 409
             flash(msg, "warning")
-            return redirect(url_for("payments.index"))
+            return redirect(url_for(".index"))
         raw_dir = request.form.get("direction")
         if raw_dir:
             form.direction.data = _norm_dir(raw_dir)
@@ -680,7 +712,7 @@ def create_payment():
                 flash(msg, "danger")
                 return render_template("payments/form.html", form=form, entity_info=None)
             if parsed_splits:
-                sum_splits = _sum_splits_decimal(parsed_splits)
+                sum_splits = _sum_splits_decimal(parsed_splits=parsed_splits)
                 if sum_splits != tgt_total_dec:
                     msg = f"❌ مجموع الدفعات الجزئية لا يساوي المبلغ الكلي. المجموع={int(sum_splits)} المطلوب={int(tgt_total_dec)}"
                     if _wants_json():
@@ -808,6 +840,8 @@ def create_payment():
                     if inv and hasattr(inv, "update_status"):
                         inv.update_status()
                         db.session.add(inv)
+                related_customer_id = related_customer_id
+                related_supplier_id = related_supplier_id
                 if payment.status == PaymentStatus.COMPLETED.value:
                     if related_customer_id:
                         update_entity_balance("customer", related_customer_id)
@@ -849,7 +883,7 @@ def create_payment():
         if _wants_json():
             return jsonify(status="success", payment=_serialize_payment(payment, full=True)), 201
         flash("✅ تم تسجيل الدفعة", "success")
-        return redirect(url_for("payments.index"))
+        return redirect(url_for(".index"))
     return render_template("payments/form.html", form=form, entity_info=entity_info)
 
 @payments_bp.route("/expense/<int:exp_id>/create", methods=["GET", "POST"], endpoint="create_expense_payment")
@@ -882,7 +916,7 @@ def create_expense_payment(exp_id):
         form.total_amount.data = int(q0(D(getattr(exp, "amount", 0) or 0)))
         form.reference.data = f"دفع مصروف {exp.description or ''}".strip()
         form.direction.data = "OUT"
-        form.currency.data = ensure_currency(_norm_currency(getattr(exp, "currency", "ILS")))
+        form.currency.data = ensure_currency((getattr(exp, "currency", "ILS") or "ILS"))
         if not form.status.data:
             form.status.data = PaymentStatus.COMPLETED.value
         return render_template("payments/form.html", form=form, entity_info=entity_info)
@@ -959,7 +993,7 @@ def create_expense_payment(exp_id):
         if _wants_json():
             return jsonify(status="success", payment=_serialize_payment(payment, full=True)), 201
         flash("✅ تم تسجيل دفع المصروف بنجاح", "success")
-        return redirect(url_for("payments.view_payment", payment_id=payment.id))
+        return redirect(url_for(".index"))
     except Exception as e:
         db.session.rollback()
         if _wants_json():
@@ -995,144 +1029,67 @@ def delete_split(split_id):
         current_app.logger.exception("payment.split_delete_failed", extra={"event": "payments.split.error", "split_id": split_id})
         return jsonify(status="error", message=str(e)), 400
 
-
-@payments_bp.route("/<int:payment_id>/delete", methods=["POST"], endpoint="delete_payment")
+@payments_bp.route("/<int:payment_id>", methods=["DELETE"], endpoint="delete_payment")
 @login_required
-@permission_required("manage_payments")
-def delete_payment(payment_id):
-    wants_json = _wants_json()
+@super_only
+def delete_payment(payment_id: int):
+    payment = _safe_get_payment(payment_id, all_rels=True)
+    if not payment:
+        return _ok_not_found("السند غير موجود (لا حاجة لإجراء)")
     try:
-        payment = _get_or_404(Payment, payment_id, options=(joinedload(Payment.splits),))
-        related_customer_id = payment.customer_id or (payment.sale.customer_id if payment.sale_id and payment.sale else None) or (payment.invoice.customer_id if payment.invoice_id and payment.invoice else None) or (payment.service.customer_id if payment.service_id and payment.service else None) or (payment.preorder.customer_id if payment.preorder_id and payment.preorder else None)
-        related_supplier_id = payment.supplier_id or (payment.shipment.supplier_id if payment.shipment_id and payment.shipment else None) or (payment.loan_settlement.supplier_id if payment.loan_settlement_id and payment.loan_settlement else None)
-        related_partner_id = payment.partner_id
-        related_sale_id = payment.sale_id
-        related_invoice_id = payment.invoice_id
-        related_service_id = payment.service_id
-        related_preorder_id = payment.preorder_id
-        related_loan_settle = payment.loan_settlement_id
-        pid = payment.id
-        db.session.delete(payment)
-        db.session.flush()
-        if related_sale_id:
-            s = db.session.get(Sale, related_sale_id)
-            if s and hasattr(s, "update_payment_status"):
-                s.update_payment_status()
-                db.session.add(s)
-        if related_invoice_id:
-            inv = db.session.get(Invoice, related_invoice_id)
-            if inv and hasattr(inv, "update_status"):
-                inv.update_status()
-                db.session.add(inv)
-        db.session.commit()
-        try:
-            if related_customer_id:
-                update_entity_balance("customer", related_customer_id)
-            if related_supplier_id:
-                update_entity_balance("supplier", related_supplier_id)
-            if related_partner_id:
-                update_entity_balance("partner", related_partner_id)
-            if related_loan_settle:
-                ls = db.session.get(SupplierLoanSettlement, related_loan_settle)
-                if ls and ls.supplier_id:
-                    update_entity_balance("supplier", ls.supplier_id)
-        except Exception:
-            pass
-        log_audit("Payment", pid, "DELETE")
-        if wants_json:
-            return jsonify(status="success", message="تم حذف السند وتحديث الأرصدة"), 200
-        flash("✅ تم حذف السند وتحديث الأرصدة بنجاح", "success")
-        return redirect(url_for("payments.index"))
-    except SQLAlchemyError as e:
+        with db.session.begin():
+            if hasattr(payment, "splits") and payment.splits:
+                for sp in list(payment.splits):
+                    db.session.delete(sp)
+            db.session.delete(payment)
+        if _wants_json():
+            return jsonify(status="ok", deleted_id=payment_id), 200
+        return redirect(url_for(".index"))
+    except Exception as e:
         db.session.rollback()
-        if wants_json:
-            return jsonify(status="error", message=str(e)), 400
-        flash(f"❌ تعذر حذف السند: {e}", "danger")
-        return redirect(url_for("payments.view_payment", payment_id=payment_id))
-
-from datetime import datetime
-from flask import jsonify, render_template
-from sqlalchemy.orm import joinedload
+        current_app.logger.exception("payment.delete_error", extra={"payment_id": payment_id})
+        if _wants_json():
+            return jsonify(ok=False, error="delete_failed", message=str(e)), 500
+        return make_response("<!doctype html><meta charset='utf-8'><div style='padding:24px;font-family:system-ui,Arial,sans-serif'>تعذّر حذف السند</div>", 500)
 
 @payments_bp.route("/<int:payment_id>/receipt", methods=["GET"], endpoint="view_receipt")
 @login_required
 @permission_required("manage_payments")
 def view_receipt(payment_id: int):
-    payment = _get_or_404(
-        Payment,
-        payment_id,
-        options=(
-            joinedload(Payment.customer),
-            joinedload(Payment.supplier),
-            joinedload(Payment.partner),
-            joinedload(Payment.sale),
-            joinedload(Payment.splits),
-        ),
-    )
-
-    sale_info = None
-    if payment.sale_id and payment.sale:
-        s = payment.sale
-        sale_info = {
-            "number": s.sale_number,
-            "date": s.sale_date.strftime("%Y-%m-%d") if s.sale_date else "-",
-            "total": int(q0(s.total_amount)),
-            "paid": int(q0(s.total_paid)),
-            "balance": int(q0(s.balance_due)),
-            "currency": (s.currency or "").upper(),
-        }
-
+    payment = _safe_get_payment(payment_id, all_rels=True)
+    if not payment:
+        return _ok_not_found()
+    sale_info = _sale_info_dict(payment.sale) if getattr(payment, "sale_id", None) else None
     if _wants_json():
-        payload = _serialize_payment(payment, full=True)
+        payload = _serialize_payment_min(payment)
         payload["sale_info"] = sale_info
         return jsonify(payment=payload)
-
-    return render_template(
-        "payments/receipt.html",
-        payment=payment,
-        now=datetime.utcnow(),
-        sale_info=sale_info,
-    )
+    return render_template("payments/receipt.html", payment=payment, now=datetime.utcnow(), sale_info=sale_info)
 
 @payments_bp.route("/<int:payment_id>/receipt/download", methods=["GET"], endpoint="download_receipt")
 @login_required
 @permission_required("manage_payments")
 def download_receipt(payment_id: int):
-    """
-    Generate a PDF receipt for a payment and return it as a downloadable (or inline) file.
-
-    Query params:
-      - inline=1  → show in browser instead of forcing download
-    """
-    payment = _get_or_404(
-        Payment,
-        payment_id,
-        options=(joinedload(Payment.customer), joinedload(Payment.supplier)),
-    )
-
+    payment = _safe_get_payment(payment_id, all_rels=False)
+    if not payment:
+        return _ok_not_found("السند غير موجود للتنزيل")
     try:
-        pdf_bytes = _render_payment_receipt_pdf(payment)  # must return raw bytes
+        pdf_bytes = _render_payment_receipt_pdf(payment)
         if not pdf_bytes:
-            current_app.logger.error("receipt.pdf_empty", extra={"payment_id": payment_id})
-            abort(500, description="PDF render returned empty content.")
+            if _wants_json():
+                return jsonify(error="render_error", message="تعذّر توليد PDF"), 500
+            return make_response("<!doctype html><meta charset='utf-8'><div style='padding:24px;font-family:system-ui,Arial,sans-serif'>تعذّر توليد PDF</div>", 500)
     except Exception as e:
         current_app.logger.exception("receipt.pdf_error", extra={"payment_id": payment_id})
-        abort(500, description=f"Failed to render receipt PDF: {e}")
-
-    # File name: prefer receipt_number, then payment_number, then fallback to id+date
-    safe_suffix = (
-        (payment.receipt_number or "").strip()
-        or (payment.payment_number or "").strip()
-        or f"{payment_id}_{datetime.utcnow():%Y%m%d}"
-    )
-    # Keep it ASCII-safe for headers
-    safe_suffix = "".join(ch for ch in safe_suffix if ch.isalnum() or ch in ("-", "_"))
+        if _wants_json():
+            return jsonify(error="exception", message=str(e)), 500
+        return make_response("<!doctype html><meta charset='utf-8'><div style='padding:24px;font-family:system-ui,Arial,sans-serif'>حصل خطأ أثناء توليد PDF</div>", 500)
+    safe_suffix = (getattr(payment, "receipt_number", "") or "").strip() or (getattr(payment, "payment_number", "") or "").strip() or f"{payment_id}_{datetime.utcnow():%Y%m%d}"
+    safe_suffix = _safe_filename_component(safe_suffix)
     filename = f"payment_receipt_{safe_suffix or payment_id}.pdf"
-
-    inline = (request.args.get("inline") or "").strip() in ("1", "true", "yes")
+    inline = (request.args.get("inline") or "").strip().lower() in ("1", "true", "yes")
     buf = BytesIO(pdf_bytes)
     buf.seek(0)
-
     resp = send_file(
         buf,
         mimetype="application/pdf",
@@ -1143,13 +1100,11 @@ def download_receipt(payment_id: int):
         etag=False,
         last_modified=None,
     )
-
-    # Harden caching behavior
     resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     resp.headers["Pragma"] = "no-cache"
-    # Explicit content disposition for some proxies
     resp.headers["Content-Disposition"] = ("inline" if inline else "attachment") + f'; filename="{filename}"'
     return resp
+
 @payments_bp.route("/entity-fields", methods=["GET"], endpoint="entity_fields")
 @login_required
 @permission_required("manage_payments")
@@ -1184,3 +1139,19 @@ def entity_fields():
     if hasattr(form, "_sync_entity_id_for_render"):
         form._sync_entity_id_for_render()
     return render_template("payments/_entity_fields.html", form=form)
+
+
+def _ensure_payment_number(pmt: Payment) -> None:
+    if getattr(pmt, "payment_number", None):
+        return
+    base_dt = getattr(pmt, "payment_date", None) or datetime.utcnow()
+    prefix = base_dt.strftime("PMT%Y%m%d")
+    cnt = db.session.execute(sa_text("SELECT COUNT(*) FROM payments WHERE payment_number LIKE :pfx"), {"pfx": f"{prefix}-%"}).scalar() or 0
+    pmt.payment_number = f"{prefix}-{cnt+1:04d}"
+
+def _sum_splits_decimal(splits=None, parsed_splits=None) -> Decimal:
+    seq = parsed_splits if parsed_splits is not None else splits
+    total = Decimal("0")
+    for s in (seq or []):
+        total += q0(getattr(s, "amount", 0))
+    return q0(total)
