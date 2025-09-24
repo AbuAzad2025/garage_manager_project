@@ -4,7 +4,7 @@ import re
 import uuid
 from io import BytesIO
 from datetime import date, datetime, time
-from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
+from decimal import Decimal
 
 from flask import (
     Response,
@@ -23,7 +23,6 @@ from flask import (
 from flask_login import current_user, login_required
 from sqlalchemy import (
     func,
-    text,
     and_,
     case,
     or_,
@@ -62,10 +61,21 @@ from utils import (
     q,
     Q2,
     D,
+    is_super,
 )
-from acl import super_only
+try:
+    from acl import super_only
+except Exception:
+    from functools import wraps
+    @login_required
+    def super_only(f):
+        @wraps(f)
+        def _w(*a, **kw):
+            if is_super():
+                return f(*a, **kw)
+            abort(403)
+        return _w
 from .blueprint import payments_bp
-
 
 _FULL_LOAD_OPTIONS = (
     joinedload(Payment.customer),
@@ -113,6 +123,42 @@ def _safe_get_payment(payment_id: int, *, all_rels: bool = False) -> Payment | N
 
 def q0(x) -> Decimal:
     return q(x, 0)
+
+def _f2(v):
+    try:
+        return float(v or 0)
+    except Exception:
+        return 0.0
+
+def _line_total(qty, unit_price, disc_pct, tax_pct):
+    qy = int(qty or 0)
+    u = _f2(unit_price)
+    d = _f2(disc_pct)
+    t = _f2(tax_pct)
+    gross = qy * u
+    disc = gross * (d / 100.0)
+    taxable = gross - disc
+    tax = taxable * (t / 100.0)
+    taxable_d = q0(taxable)
+    tax_d = q0(tax)
+    total_d = q0(taxable_d + tax_d)
+    return taxable_d, tax_d, total_d
+
+def _service_totals(svc: ServiceRequest):
+    subtotal = Decimal("0")
+    tax_total = Decimal("0")
+    grand = Decimal("0")
+    for p in (getattr(svc, "parts", None) or []):
+        s, t, g = _line_total(p.quantity, p.unit_price, p.discount, p.tax_rate)
+        subtotal += s
+        tax_total += t
+        grand += g
+    for tsk in (getattr(svc, "tasks", None) or []):
+        s, t, g = _line_total(tsk.quantity or 1, tsk.unit_price, tsk.discount, tsk.tax_rate)
+        subtotal += s
+        tax_total += t
+        grand += g
+    return int(q0(subtotal)), int(q0(tax_total)), int(q0(grand))
 
 def _sale_info_dict(sale) -> dict | None:
     if not sale:
@@ -252,17 +298,16 @@ def _render_payment_receipt_pdf(payment: Payment) -> bytes:
 
 MAX_SEARCH_LIMIT = 25
 
-
 @payments_bp.route("/entity-search", methods=["GET"])
 @login_required
 @permission_required("manage_payments")
 def entity_search():
     t = (request.args.get("type") or "").strip().upper()
-    q = (request.args.get("q") or "").strip()
+    qtxt = (request.args.get("q") or "").strip()
     limit = min(request.args.get("limit", 8, type=int) or 8, MAX_SEARCH_LIMIT)
-    if len(q) < 2:
+    if len(qtxt) < 2:
         return jsonify(results=[])
-    like = f"%{q}%"
+    like = f"%{qtxt}%"
     def rows_for(model, extra_cols=("phone", "mobile", "email")):
         conds = [getattr(model, "name").ilike(like)]
         for c in extra_cols:
@@ -278,7 +323,7 @@ def entity_search():
     elif t == "PARTNER":
         rows = rows_for(Partner); results = [{"id": r.id, "label": r.name, "extra": ""} for r in rows]
     elif t == "LOAN":
-        qdigits = "".join(ch for ch in q if ch.isdigit())
+        qdigits = "".join(ch for ch in qtxt if ch.isdigit())
         qry = db.session.query(SupplierLoanSettlement, Supplier.name.label("supplier_name")).join(Supplier, Supplier.id == SupplierLoanSettlement.supplier_id)
         conds = []
         if qdigits:
@@ -840,8 +885,6 @@ def create_payment():
                     if inv and hasattr(inv, "update_status"):
                         inv.update_status()
                         db.session.add(inv)
-                related_customer_id = related_customer_id
-                related_supplier_id = related_supplier_id
                 if payment.status == PaymentStatus.COMPLETED.value:
                     if related_customer_id:
                         update_entity_balance("customer", related_customer_id)
@@ -1139,7 +1182,6 @@ def entity_fields():
     if hasattr(form, "_sync_entity_id_for_render"):
         form._sync_entity_id_for_render()
     return render_template("payments/_entity_fields.html", form=form)
-
 
 def _ensure_payment_number(pmt: Payment) -> None:
     if getattr(pmt, "payment_number", None):
