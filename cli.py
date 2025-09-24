@@ -1,34 +1,24 @@
 from __future__ import annotations
 
-import os
-import re
-import json
-import uuid
+import json, os, re, uuid
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 
 import click
 from flask.cli import with_appcontext
-from sqlalchemy import func, or_, select
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import func, or_, select, text as sa_text
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from extensions import db
 from utils import clear_role_permission_cache, clear_users_cache_by_role
 from models import (
-    Role, Permission, User, ExpenseType, Expense,
-    Product, Warehouse, StockLevel,
-    Transfer, ExchangeTransaction, Shipment, ShipmentItem,
-    SupplierSettlement, PartnerSettlement,
-    build_supplier_settlement_draft, build_partner_settlement_draft,
-    Payment, PaymentMethod, PaymentStatus, PaymentDirection, PaymentEntityType,
-    PreOrder, Invoice,
-    WarehouseType, TransferDirection,
-    ServiceRequest, ServiceStatus, ServicePart, ServiceTask,
-    OnlineCart, OnlineCartItem, OnlinePreOrder, OnlinePreOrderItem, OnlinePayment,
-    StockAdjustment, StockAdjustmentItem,
-    Note, AuditLog,
-    Account, GLBatch, GLEntry, GL_ACCOUNTS, _gl_upsert_batch_and_entries,
-    Customer,
+    Account, AuditLog, Customer, ExchangeTransaction, Expense, ExpenseType, GLBatch, GLEntry, GL_ACCOUNTS,
+    Invoice, Note, OnlineCart, OnlineCartItem, OnlinePayment, OnlinePreOrder, OnlinePreOrderItem,
+    PartnerSettlement, Payment, PaymentDirection, PaymentEntityType, PaymentMethod, PaymentStatus, Permission,
+    PreOrder, Product, Role, ServicePart, ServiceRequest, ServiceStatus, ServiceTask,
+    Shipment, ShipmentItem, StockAdjustment, StockAdjustmentItem, StockLevel,
+    SupplierSettlement, Transfer, TransferDirection, Warehouse, _gl_upsert_batch_and_entries,
+    build_partner_settlement_draft, build_supplier_settlement_draft, User,
 )
 
 RESERVED_CODES = frozenset({
@@ -38,121 +28,63 @@ RESERVED_CODES = frozenset({
     "manage_payments","manage_expenses","view_inventory","manage_inventory","warehouse_transfer",
     "view_parts","view_preorders","add_preorder","edit_preorder","delete_preorder",
     "add_customer","add_supplier","add_partner","place_online_order",
-    "view_shop","browse_products","manage_shop",
-    "access_api","manage_api",
-    "view_notes","manage_notes",
-    "view_barcode","manage_barcode",
+    "view_shop","browse_products","manage_shop","access_api","manage_api",
+    "view_notes","manage_notes","view_barcode","manage_barcode",
 })
 
 PERM_ALIASES = {
-    "backup_database": "نسخ احتياطي",
-    "restore_database": "استعادة نسخة",
-    "manage_permissions": "إدارة الصلاحيات",
-    "manage_roles": "إدارة الأدوار",
-    "manage_users": "إدارة المستخدمين",
-    "manage_customers": "إدارة العملاء",
-    "manage_sales": "إدارة المبيعات",
-    "manage_service": "إدارة الصيانة",
-    "manage_reports": "إدارة التقارير",
-    "view_reports": "عرض التقارير",
-    "manage_vendors": "إدارة الموردين",
-    "manage_shipments": "إدارة الشحن",
-    "manage_warehouses": "إدارة المستودعات",
-    "view_warehouses": "عرض المستودعات",
-    "manage_exchange": "إدارة التحويلات",
-    "manage_payments": "إدارة المدفوعات",
-    "manage_expenses": "إدارة المصاريف",
-    "view_inventory": "عرض الجرد",
-    "manage_inventory": "إدارة الجرد",
-    "warehouse_transfer": "تحويل مخزني",
-    "view_parts": "عرض القطع",
-    "view_preorders": "عرض الطلبات المسبقة",
-    "add_preorder": "إضافة طلب مسبق",
-    "edit_preorder": "تعديل طلب مسبق",
-    "delete_preorder": "حذف طلب مسبق",
-    "add_customer": "إضافة عميل",
-    "add_supplier": "إضافة مورد",
-    "add_partner": "إضافة شريك",
-    "place_online_order": "طلب أونلاين",
-    "view_shop": "عرض المتجر",
-    "browse_products": "تصفح المنتجات",
-    "manage_shop": "إدارة المتجر",
-    "access_api": "الوصول إلى API",
-    "manage_api": "إدارة API",
-    "view_notes": "عرض الملاحظات",
-    "manage_notes": "إدارة الملاحظات",
-    "view_barcode": "عرض الباركود",
-    "manage_barcode": "إدارة الباركود",
+    "backup_database":"نسخ احتياطي","restore_database":"استعادة نسخة","manage_permissions":"إدارة الصلاحيات",
+    "manage_roles":"إدارة الأدوار","manage_users":"إدارة المستخدمين","manage_customers":"إدارة العملاء",
+    "manage_sales":"إدارة المبيعات","manage_service":"إدارة الصيانة","manage_reports":"إدارة التقارير",
+    "view_reports":"عرض التقارير","manage_vendors":"إدارة الموردين","manage_shipments":"إدارة الشحن",
+    "manage_warehouses":"إدارة المستودعات","view_warehouses":"عرض المستودعات","manage_exchange":"إدارة التحويلات",
+    "manage_payments":"إدارة المدفوعات","manage_expenses":"إدارة المصاريف","view_inventory":"عرض الجرد",
+    "manage_inventory":"إدارة الجرد","warehouse_transfer":"تحويل مخزني","view_parts":"عرض القطع",
+    "view_preorders":"عرض الطلبات المسبقة","add_preorder":"إضافة طلب مسبق","edit_preorder":"تعديل طلب مسبق",
+    "delete_preorder":"حذف طلب مسبق","add_customer":"إضافة عميل","add_supplier":"إضافة مورد","add_partner":"إضافة شريك",
+    "place_online_order":"طلب أونلاين","view_shop":"عرض المتجر","browse_products":"تصفح المنتجات","manage_shop":"إدارة المتجر",
+    "access_api":"الوصول إلى API","manage_api":"إدارة API","view_notes":"عرض الملاحظات","manage_notes":"إدارة الملاحظات",
+    "view_barcode":"عرض الباركود","manage_barcode":"إدارة الباركود",
 }
 
 ROLE_PERMISSIONS = {
-    "admin": {
-        "backup_database","manage_permissions","manage_roles","manage_users",
-        "manage_customers","manage_service","manage_reports","view_reports",
-        "manage_vendors","manage_shipments","manage_warehouses","view_warehouses","manage_exchange",
-        "manage_payments","manage_expenses","view_inventory","warehouse_transfer","view_parts",
-        "add_customer","add_supplier","add_partner",
-        "manage_sales",
-        "access_api","manage_api",
-        "view_notes","manage_notes",
-        "view_barcode","manage_barcode",
-    },
-    "staff": {
-        "manage_customers","manage_service",
-        "view_parts","view_warehouses","view_inventory",
-        "view_notes",
-    },
-    "registered_customer": {
-        "place_online_order","view_preorders","view_parts","view_shop","browse_products",
-    },
-    "mechanic": {
-        "manage_service","view_warehouses","view_inventory","view_parts",
-    },
+    "admin":{"backup_database","manage_permissions","manage_roles","manage_users","manage_customers","manage_service","manage_reports","view_reports","manage_vendors","manage_shipments","manage_warehouses","view_warehouses","manage_exchange","manage_payments","manage_expenses","view_inventory","warehouse_transfer","view_parts","add_customer","add_supplier","add_partner","manage_sales","access_api","manage_api","view_notes","manage_notes","view_barcode","manage_barcode"},
+    "staff":{"manage_customers","manage_service","view_parts","view_warehouses","view_inventory","view_notes"},
+    "registered_customer":{"place_online_order","view_preorders","view_parts","view_shop","browse_products"},
+    "mechanic":{"manage_service","view_warehouses","view_inventory","view_parts"},
 }
 
-SUPER_USERNAME = os.getenv("SUPER_ADMIN_USERNAME", "azad").strip()
-SUPER_EMAIL = (os.getenv("SUPER_ADMIN_EMAIL", "rafideen.ahmadghannam@gmail.com") or "").strip().lower()
-SUPER_PASSWORD = os.getenv("SUPER_ADMIN_PASSWORD", "AZ123456")
-ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin").strip()
-ADMIN_EMAIL = (os.getenv("ADMIN_EMAIL", "admin@example.com") or "").strip().lower()
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "ADMIN123")
-STAFF_USERNAME = os.getenv("STAFF_USERNAME", "staff").strip()
-STAFF_EMAIL = (os.getenv("STAFF_EMAIL", "staff@example.com") or "").strip().lower()
-STAFF_PASSWORD = os.getenv("STAFF_PASSWORD", "STAFF123")
-MECH_USERNAME = os.getenv("MECHANIC_USERNAME", "mechanic").strip()
-MECH_EMAIL = (os.getenv("MECHANIC_EMAIL", "mechanic@example.com") or "").strip().lower()
-MECH_PASSWORD = os.getenv("MECHANIC_PASSWORD", "MECH123")
-RC_USERNAME = os.getenv("REGISTERED_CUSTOMER_USERNAME", "customer").strip()
-RC_EMAIL = (os.getenv("REGISTERED_CUSTOMER_EMAIL", "customer@example.com") or "").strip().lower()
-RC_PASSWORD = os.getenv("REGISTERED_CUSTOMER_PASSWORD", "CUST123")
+SUPER_USERNAME = os.getenv("SUPER_ADMIN_USERNAME","azad").strip()
+SUPER_EMAIL = (os.getenv("SUPER_ADMIN_EMAIL","rafideen.ahmadghannam@gmail.com") or "").strip().lower()
+SUPER_PASSWORD = os.getenv("SUPER_ADMIN_PASSWORD","AZ123456")
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME","admin").strip()
+ADMIN_EMAIL = (os.getenv("ADMIN_EMAIL","admin@example.com") or "").strip().lower()
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD","ADMIN123")
+STAFF_USERNAME = os.getenv("STAFF_USERNAME","staff").strip()
+STAFF_EMAIL = (os.getenv("STAFF_EMAIL","staff@example.com") or "").strip().lower()
+STAFF_PASSWORD = os.getenv("STAFF_PASSWORD","STAFF123")
+MECH_USERNAME = os.getenv("MECHANIC_USERNAME","mechanic").strip()
+MECH_EMAIL = (os.getenv("MECHANIC_EMAIL","mechanic@example.com") or "").strip().lower()
+MECH_PASSWORD = os.getenv("MECHANIC_PASSWORD","MECH123")
+RC_USERNAME = os.getenv("REGISTERED_CUSTOMER_USERNAME","customer").strip()
+RC_EMAIL = (os.getenv("REGISTERED_CUSTOMER_EMAIL","customer@example.com") or "").strip().lower()
+RC_PASSWORD = os.getenv("REGISTERED_CUSTOMER_PASSWORD","CUST123")
 
 def _normalize_code(s: str | None) -> str | None:
-    if not s:
-        return None
-    s = s.strip().lower()
-    s = re.sub(r"[\s\-]+", "_", s)
-    s = re.sub(r"[^a-z0-9_]+", "", s)
-    s = re.sub(r"_+", "_", s).strip("_")
+    if not s: return None
+    s = re.sub(r"_+","_",re.sub(r"[^a-z0-9_]+","",re.sub(r"[\s\-]+","_",s.strip().lower()))).strip("_")
     return s or None
 
-def _D(x):
-    try:
-        return Decimal(str(x))
-    except Exception:
-        return Decimal("0")
+def _D(x): 
+    try: return Decimal(str(x))
+    except Exception: return Decimal("0")
+def _Q2(x): return _D(x).quantize(Decimal("0.01"), ROUND_HALF_UP)
 
-def _Q2(x):
-    return _D(x).quantize(Decimal("0.01"), ROUND_HALF_UP)
-
-def _parse_dt(s: str) -> datetime:
-    s = (s or "").strip()
-    for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S"):
-        try:
-            return datetime.strptime(s, fmt)
-        except Exception:
-            pass
-    raise click.ClickException("Bad date format, use YYYY-MM-DD")
-
+def _clean_role_perms(role: Role) -> None:
+    if getattr(role, "permissions", None) is None:
+        role.permissions = []
+        return
+    role.permissions[:] = [p for p in role.permissions if isinstance(p, Permission)]
 def _get_or_create_role(name: str) -> Role:
     r = Role.query.filter(func.lower(Role.name) == name.lower()).first()
     if not r:
@@ -166,103 +98,179 @@ def _ensure_permission(code: str) -> Permission:
     if not code_n:
         raise click.ClickException(f"Invalid permission code: {code!r}")
     p = Permission.query.filter(func.lower(Permission.code) == code_n).first()
-    if not p:
+    if p:
+        p.name = p.name or code_n
+        p.name_ar = p.name_ar or PERM_ALIASES.get(code_n)
+        return p
+    try:
         p = Permission(code=code_n, name=code_n, name_ar=PERM_ALIASES.get(code_n))
         db.session.add(p)
         db.session.flush()
-    else:
-        if not p.name or p.name != code_n:
-            p.name = code_n
-        if not getattr(p, "name_ar", None):
-            p.name_ar = PERM_ALIASES.get(code_n)
-    return p
+        return p
+    except IntegrityError:
+        db.session.rollback()
+        p = Permission.query.filter(func.lower(Permission.code) == code_n).first()
+        if not p:
+            raise
+        return p
 
 def _assign_role_perms(role: Role, desired_codes: set[str], *, reset: bool = False) -> None:
-    desired = {_normalize_code(c) for c in desired_codes if _normalize_code(c)}
+    if not isinstance(role, Role):
+        return
+    desired = {(_normalize_code(c) or "").lower() for c in (desired_codes or set())}
+    desired.discard("")
+    if getattr(role, "permissions", None) is None:
+        role.permissions = []
+    else:
+        role.permissions[:] = [p for p in role.permissions if isinstance(p, Permission)]
     if reset:
         role.permissions.clear()
         db.session.flush()
     current = {(p.code or "").lower() for p in role.permissions}
-    missing = [_ensure_permission(c) for c in desired if c not in current]
-    role.permissions.extend(missing)
+    missing = desired - current
+    if not missing:
+        return
+    to_add: list[Permission] = []
+    for code in sorted(missing):
+        perm = _ensure_permission(code)
+        if isinstance(perm, Permission):
+            to_add.append(perm)
+    if to_add:
+        role.permissions.extend(to_add)
+        db.session.flush()
+
+def _norm_email(s: str) -> str:
+    return (s or "").strip().lower()
+
+def _norm_user(s: str) -> str:
+    return re.sub(r"\s+", "", (s or "").strip().lower())
 
 def _get_or_create_user(username: str, email: str, password: str, role: Role) -> User:
-    q = User.query.filter(
-        or_(func.lower(User.email) == email.lower(),
-            func.lower(User.username) == username.lower())
-    )
-    u = q.first()
-    if not u:
-        u = User(username=username, email=email, is_active=True)
-        u.set_password(password)
+    uname, mail = _norm_user(username), _norm_email(email)
+    if not uname or not mail:
+        raise click.ClickException("username/email required")
+    u = User.query.filter(or_(func.lower(User.email) == mail, func.lower(User.username) == uname)).first()
+    if u:
+        u.is_active = True if u.is_active is not True else u.is_active
+        u.username = u.username or uname
+        u.email = u.email or mail
+        if not u.password_hash and password:
+            u.set_password(password)
+        u.role = role
+        return u
+    try:
+        u = User(username=uname, email=mail, is_active=True, role=role)
+        if password:
+            u.set_password(password)
         db.session.add(u)
         db.session.flush()
-    else:
-        if not u.is_active:
-            u.is_active = True
-        if not u.username:
-            u.username = username
-        if not u.email:
-            u.email = email
-        if not u.password_hash:
-            u.set_password(password)
-    u.role = role
-    return u
+        return u
+    except IntegrityError:
+        db.session.rollback()
+        u = User.query.filter(or_(func.lower(User.email) == mail, func.lower(User.username) == uname)).first()
+        if not u:
+            raise
+        if not u.role:
+            u.role = role
+        return u
 
 def _is_production() -> bool:
-    fe = os.getenv("FLASK_ENV", "").lower()
-    env = os.getenv("ENVIRONMENT", "").lower()
-    debug = os.getenv("DEBUG", "").lower()
-    return (fe == "production") or (env == "production") or (debug not in ("1", "true", "yes"))
+    fe = os.getenv("FLASK_ENV","").lower(); env = os.getenv("ENVIRONMENT","").lower(); debug = os.getenv("DEBUG","").lower()
+    return (fe=="production") or (env=="production") or (debug not in ("1","true","yes"))
+
+def _ensure_schema_ready(): db.session.execute(select(1))
+
+def _begin():
+    try: db.session.rollback()
+    except Exception: pass
+    return db.session.begin()
 
 @click.command("seed-roles")
 @click.option("--force", is_flag=True)
 @click.option("--dry-run", is_flag=True)
 @click.option("--reset", "reset_roles", is_flag=True)
+@click.option("--allow-default-passwords", is_flag=True)
 @with_appcontext
-def seed_roles(force: bool, dry_run: bool, reset_roles: bool) -> None:
+def seed_roles(force: bool, dry_run: bool, reset_roles: bool, allow_default_passwords: bool) -> None:
     if not force and os.getenv("ALLOW_SEED_ROLES") != "1":
         raise click.ClickException("seed-roles disabled. Set ALLOW_SEED_ROLES=1 or use --force.")
     if _is_production() and not force:
         if not click.confirm("Production environment detected. Continue?", default=False):
             click.echo("Canceled.")
             return
+    if _is_production() and not allow_default_passwords:
+        weak = {"AZ123456", "ADMIN123", "STAFF123", "MECH123", "CUST123"}
+        if any(p in weak for p in (SUPER_PASSWORD, ADMIN_PASSWORD, STAFF_PASSWORD, MECH_PASSWORD, RC_PASSWORD)):
+            raise click.ClickException("Refusing to seed weak default passwords in production. Use --allow-default-passwords to override.")
+
+    try:
+        _ensure_schema_ready()
+    except click.ClickException:
+        raise
+    except Exception:
+        pass
+
     if dry_run:
         click.echo(f"- Ensure {len(RESERVED_CODES)} permissions exist")
         click.echo("- Ensure roles: super_admin, admin, staff, registered_customer, mechanic")
         click.echo(f"- Assign role permissions (reset={reset_roles})")
-        click.echo(f"- Ensure users:")
+        click.echo("- Ensure users:")
         click.echo(f"  super_admin: {SUPER_USERNAME} <{SUPER_EMAIL}>")
         click.echo(f"  admin      : {ADMIN_USERNAME} <{ADMIN_EMAIL}>")
         click.echo(f"  staff      : {STAFF_USERNAME} <{STAFF_EMAIL}>")
         click.echo(f"  mechanic   : {MECH_USERNAME} <{MECH_EMAIL}>")
         click.echo(f"  reg_cust   : {RC_USERNAME} <{RC_EMAIL}>")
         return
+
     affected_roles: set[int] = set()
     try:
-        with db.session.begin():
+        with _begin():
             for code in sorted(RESERVED_CODES):
                 _ensure_permission(code)
+
             super_admin = _get_or_create_role("super_admin")
             admin = _get_or_create_role("admin")
             staff = _get_or_create_role("staff")
             registered_customer = _get_or_create_role("registered_customer")
             mechanic = _get_or_create_role("mechanic")
-            all_perms = Permission.query.all()
+
+            for r in (super_admin, admin, staff, registered_customer, mechanic):
+                if getattr(r, "permissions", None) is None:
+                    r.permissions = []
+                else:
+                    r.permissions[:] = [p for p in r.permissions if isinstance(p, Permission)]
+
+            all_perms = [p for p in Permission.query.all() if isinstance(p, Permission)]
             curr_sa = {(p.code or "").lower() for p in super_admin.permissions}
-            to_add_sa = [p for p in all_perms if (p.code or "").lower() not in curr_sa]
-            if to_add_sa:
-                super_admin.permissions.extend(to_add_sa)
+            for p in all_perms:
+                if (p.code or "").lower() not in curr_sa:
+                    super_admin.permissions.append(p)
+            db.session.flush()
+            if super_admin.id is not None:
                 affected_roles.add(super_admin.id)
-            _assign_role_perms(admin, ROLE_PERMISSIONS["admin"], reset=reset_roles); affected_roles.add(admin.id)
-            _assign_role_perms(staff, ROLE_PERMISSIONS["staff"], reset=reset_roles); affected_roles.add(staff.id)
-            _assign_role_perms(registered_customer, ROLE_PERMISSIONS["registered_customer"], reset=reset_roles); affected_roles.add(registered_customer.id)
-            _assign_role_perms(mechanic, ROLE_PERMISSIONS["mechanic"], reset=reset_roles); affected_roles.add(mechanic.id)
+
+            _assign_role_perms(admin, ROLE_PERMISSIONS["admin"], reset=reset_roles)
+            if admin.id is not None:
+                affected_roles.add(admin.id)
+
+            _assign_role_perms(staff, ROLE_PERMISSIONS["staff"], reset=reset_roles)
+            if staff.id is not None:
+                affected_roles.add(staff.id)
+
+            _assign_role_perms(registered_customer, ROLE_PERMISSIONS["registered_customer"], reset=reset_roles)
+            if registered_customer.id is not None:
+                affected_roles.add(registered_customer.id)
+
+            _assign_role_perms(mechanic, ROLE_PERMISSIONS["mechanic"], reset=reset_roles)
+            if mechanic.id is not None:
+                affected_roles.add(mechanic.id)
+
             _get_or_create_user(SUPER_USERNAME, SUPER_EMAIL, SUPER_PASSWORD, super_admin)
             _get_or_create_user(ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD, admin)
             _get_or_create_user(STAFF_USERNAME, STAFF_EMAIL, STAFF_PASSWORD, staff)
             _get_or_create_user(MECH_USERNAME, MECH_EMAIL, MECH_PASSWORD, mechanic)
             _get_or_create_user(RC_USERNAME, RC_EMAIL, RC_PASSWORD, registered_customer)
+
         for rid in affected_roles:
             try:
                 clear_role_permission_cache(rid)
@@ -272,45 +280,42 @@ def seed_roles(force: bool, dry_run: bool, reset_roles: bool) -> None:
                 clear_users_cache_by_role(rid)
             except Exception:
                 pass
+
         click.echo("OK: roles, permissions, and users synced.")
+    except IntegrityError as e:
+        db.session.rollback()
+        raise click.ClickException(f"Constraint/unique violation: {getattr(e, 'orig', e)}") from e
     except SQLAlchemyError as e:
         db.session.rollback()
-        raise click.ClickException(f"Commit failed: {e}") from e
-
+        raise click.ClickException(f"DB error: {e.__class__.__name__}: {e}") from e
+    
 @click.command("sync-permissions")
 @click.option("--dry-run", is_flag=True)
 @with_appcontext
 def sync_permissions(dry_run: bool) -> None:
-    desired = set(RESERVED_CODES)
-    if dry_run:
-        click.echo(f"Would ensure {len(desired)} permissions exist")
-        return
+    desired=set(RESERVED_CODES)
+    if dry_run: click.echo(f"Would ensure {len(desired)} permissions exist"); return
     try:
-        with db.session.begin():
-            for code in sorted(desired):
-                _ensure_permission(code)
+        with _begin():
+            for code in sorted(desired): _ensure_permission(code)
         click.echo("OK: permissions synced.")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(f"Commit failed: {e}") from e
+        db.session.rollback(); raise click.ClickException(f"Commit failed: {e}") from e
 
 @click.command("list-permissions")
-@click.option("--q", help="filter by code/name", default="")
+@click.option("--q", default="")
 @with_appcontext
 def list_permissions(q: str) -> None:
-    s = (q or "").strip().lower()
-    qy = Permission.query
-    if s:
-        qy = qy.filter(or_(func.lower(Permission.code).contains(s), func.lower(Permission.name_ar).contains(s)))
-    rows = qy.order_by(Permission.code).all()
-    for p in rows:
-        click.echo(f"{p.id:>3}  {p.code:<30}  {p.name_ar or ''}")
+    s=(q or "").strip().lower()
+    qy=Permission.query
+    if s: qy=qy.filter(or_(func.lower(Permission.code).contains(s), func.lower(Permission.name_ar).contains(s)))
+    for p in qy.order_by(Permission.code).all(): click.echo(f"{p.id:>3}  {p.code:<30}  {p.name_ar or ''}")
 
 @click.command("list-roles")
 @with_appcontext
 def list_roles() -> None:
     for r in Role.query.order_by(Role.name).all():
-        cnt = len(r.permissions or [])
+        cnt=len(r.permissions or [])
         click.echo(f"{r.id:>3}  {r.name:<25} perms={cnt}")
 
 @click.command("role-add-perms")
@@ -318,13 +323,13 @@ def list_roles() -> None:
 @click.argument("codes", nargs=-1)
 @click.option("--reset", is_flag=True)
 @with_appcontext
-def role_add_perms(role_name: str, codes: tuple[str], reset: bool) -> None:
+def role_add_perms(role_name: str, codes: tuple[str, ...], reset: bool) -> None:
     if not role_name:
         raise click.ClickException("role_name is required")
     if not codes and not reset:
         raise click.ClickException("provide at least one permission code or use --reset")
     try:
-        with db.session.begin():
+        with _begin():
             r = _get_or_create_role(role_name)
             _assign_role_perms(r, set(codes), reset=reset)
         clear_role_permission_cache(r.id)
@@ -333,31 +338,28 @@ def role_add_perms(role_name: str, codes: tuple[str], reset: bool) -> None:
     except SQLAlchemyError as e:
         db.session.rollback()
         raise click.ClickException(f"Commit failed: {e}") from e
-
+    
 @click.command("create-role")
+@click.option("--codes", default="")
 @click.argument("name", nargs=1)
-@click.option("--codes", help="comma-separated permission codes", default="")
 @with_appcontext
 def create_role(name: str, codes: str) -> None:
-    desired = {c.strip() for c in (codes or "").split(",") if c.strip()}
+    desired={c.strip() for c in (codes or "").split(",") if c.strip()}
     try:
-        with db.session.begin():
-            r = _get_or_create_role(name)
-            if desired:
-                _assign_role_perms(r, desired, reset=False)
-        clear_role_permission_cache(r.id)
-        click.echo(f"OK: role {name} created/updated.")
+        with _begin():
+            r=_get_or_create_role(name)
+            if desired: _assign_role_perms(r, desired, reset=False)
+        clear_role_permission_cache(r.id); click.echo(f"OK: role {name} created/updated.")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(f"Commit failed: {e}") from e
+        db.session.rollback(); raise click.ClickException(f"Commit failed: {e}") from e
 
 @click.command("export-rbac")
 @with_appcontext
 def export_rbac() -> None:
-    data = []
+    data=[]
     for r in Role.query.order_by(Role.name).all():
-        perms = sorted([(p.code or "") for p in r.permissions or []])
-        data.append({"role": r.name, "permissions": perms})
+        perms=sorted([(p.code or "") for p in r.permissions or []])
+        data.append({"role":r.name,"permissions":perms})
     click.echo(json.dumps(data, ensure_ascii=False, indent=2))
 
 @click.command("create-user")
@@ -368,97 +370,75 @@ def export_rbac() -> None:
 @with_appcontext
 def create_user(username: str, email: str, password: str, role_name: str) -> None:
     try:
-        with db.session.begin():
-            r = _get_or_create_role(role_name)
-            _get_or_create_user(username, email, password, r)
+        with _begin():
+            r=_get_or_create_role(role_name); _get_or_create_user(username,email,password,r)
         click.echo("OK: user created/updated.")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(f"Commit failed: {e}") from e
+        db.session.rollback(); raise click.ClickException(f"Commit failed: {e}") from e
 
 @click.command("user-set-password")
 @click.argument("identifier")
 @click.argument("password")
 @with_appcontext
 def user_set_password(identifier: str, password: str) -> None:
-    u = User.query.filter(or_(func.lower(User.email) == identifier.lower(), func.lower(User.username) == identifier.lower())).first()
-    if not u:
-        raise click.ClickException("User not found")
+    u=User.query.filter(or_(func.lower(User.email)==identifier.lower(), func.lower(User.username)==identifier.lower())).first()
+    if not u: raise click.ClickException("User not found")
     try:
-        with db.session.begin():
-            u.set_password(password)
+        with _begin(): u.set_password(password)
         click.echo("OK: password updated.")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(f"Commit failed: {e}") from e
+        db.session.rollback(); raise click.ClickException(f"Commit failed: {e}") from e
 
 @click.command("user-activate")
 @click.argument("identifier")
 @click.option("--active/--inactive", default=True)
 @with_appcontext
 def user_activate(identifier: str, active: bool) -> None:
-    u = User.query.filter(or_(func.lower(User.email) == identifier.lower(), func.lower(User.username) == identifier.lower())).first()
-    if not u:
-        raise click.ClickException("User not found")
+    u=User.query.filter(or_(func.lower(User.email)==identifier.lower(), func.lower(User.username)==identifier.lower())).first()
+    if not u: raise click.ClickException("User not found")
     try:
-        with db.session.begin():
-            u.is_active = bool(active)
+        with _begin(): u.is_active=bool(active)
         click.echo(f"OK: user {'activated' if active else 'deactivated'}.")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(f"Commit failed: {e}") from e
+        db.session.rollback(); raise click.ClickException(f"Commit failed: {e}") from e
 
 @click.command("user-assign-role")
 @click.argument("identifier")
 @click.argument("role_name")
 @with_appcontext
 def user_assign_role(identifier: str, role_name: str) -> None:
-    u = User.query.filter(or_(func.lower(User.email) == identifier.lower(), func.lower(User.username) == identifier.lower())).first()
-    if not u:
-        raise click.ClickException("User not found")
+    u=User.query.filter(or_(func.lower(User.email)==identifier.lower(), func.lower(User.username)==identifier.lower())).first()
+    if not u: raise click.ClickException("User not found")
     try:
-        with db.session.begin():
-            r = _get_or_create_role(role_name)
-            u.role = r
-        clear_users_cache_by_role(r.id)
-        click.echo("OK: user role updated.")
+        with _begin():
+            r=_get_or_create_role(role_name); u.role=r
+        clear_users_cache_by_role(r.id); click.echo("OK: user role updated.")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(f"Commit failed: {e}") from e
+        db.session.rollback(); raise click.ClickException(f"Commit failed: {e}") from e
 
 @click.command("list-users")
 @click.option("--q", default="")
 @click.option("--role", "role_name", default="")
 @with_appcontext
 def list_users(q: str, role_name: str) -> None:
-    s = (q or "").strip().lower()
-    qy = User.query
-    if s:
-        qy = qy.filter(or_(func.lower(User.username).contains(s), func.lower(User.email).contains(s)))
-    if role_name.strip():
-        qy = qy.join(Role).filter(func.lower(Role.name) == role_name.strip().lower())
+    s=(q or "").strip().lower(); qy=User.query
+    if s: qy=qy.filter(or_(func.lower(User.username).contains(s), func.lower(User.email).contains(s)))
+    if role_name.strip(): qy=qy.join(Role).filter(func.lower(Role.name)==role_name.strip().lower())
     for u in qy.order_by(User.id).all():
-        rn = u.role.name if u.role else "-"
+        rn=u.role.name if u.role else "-"
         click.echo(f"{u.id:>3}  {u.username:<20}  {u.email:<30}  role={rn:<18}  active={bool(u.is_active)}")
 
 @click.command("list-customers")
-@click.option("--q", default="", help="بحث بالاسم/الهاتف/الإيميل")
+@click.option("--q", default="")
 @click.option("--limit", type=int, default=100)
 @with_appcontext
 def list_customers(q: str, limit: int):
-    s = (q or "").strip().lower()
-    qy = Customer.query
+    s=(q or "").strip().lower(); qy=Customer.query
     if s:
-        like = f"%{s}%"
-        qy = qy.filter(or_(
-            func.lower(Customer.name).like(like),
-            func.lower(Customer.phone).like(like),
-            func.lower(Customer.email).like(like),
-            func.lower(Customer.whatsapp).like(like),
-        ))
-    rows = qy.order_by(Customer.id.asc()).limit(limit).all()
-    for c in rows:
-        click.echo(f"{c.id:>3}  {c.name:<25}  phone={c.phone or '-':<15}  email={c.email or '-':<28}  balance={getattr(c,'balance', 0)}")
+        like=f"%{s}%"
+        qy=qy.filter(or_(func.lower(Customer.name).like(like), func.lower(Customer.phone).like(like), func.lower(Customer.email).like(like), func.lower(Customer.whatsapp).like(like)))
+    rows=qy.order_by(Customer.id.asc()).limit(limit).all()
+    for c in rows: click.echo(f"{c.id:>3}  {c.name:<25}  phone={c.phone or '-':<15}  email={c.email or '-':<28}  balance={getattr(c,'balance',0)}")
 
 @click.command("seed-expense-types")
 @click.option("--force", is_flag=True)
@@ -466,51 +446,31 @@ def list_customers(q: str, limit: int):
 @click.option("--deactivate-missing", is_flag=True)
 @with_appcontext
 def seed_expense_types(force: bool, dry_run: bool, deactivate_missing: bool) -> None:
-    if not force and os.getenv("ALLOW_SEED_EXPENSE_TYPES") != "1":
-        raise click.ClickException("seed-expense-types disabled. Set ALLOW_SEED_EXPENSE_TYPES=1 or use --force.")
+    if not force and os.getenv("ALLOW_SEED_EXPENSE_TYPES")!="1": raise click.ClickException("seed-expense-types disabled. Set ALLOW_SEED_EXPENSE_TYPES=1 or use --force.")
     if _is_production() and not force:
-        if not click.confirm("Production environment detected. Continue?", default=False):
-            click.echo("Canceled.")
-            return
-    base_types = [
-        ("رواتب", "مصروف رواتب وأجور", True),
-        ("كهرباء", "فواتير كهرباء", True),
-        ("مياه", "فواتير مياه", True),
-        ("جمارك", "رسوم جمركية", True),
-        ("تالف", "توالف/هدر مخزون", True),
-        ("استخدام داخلي", "استهلاك داخلي للمخزون", True),
-        ("متفرقات", "مصروفات أخرى", True),
-    ]
+        if not click.confirm("Production environment detected. Continue?", default=False): click.echo("Canceled."); return
+    base_types=[("رواتب","مصروف رواتب وأجور",True),("كهرباء","فواتير كهرباء",True),("مياه","فواتير مياه",True),("جمارك","رسوم جمركية",True),("تالف","توالف/هدر مخزون",True),("استخدام داخلي","استهلاك داخلي للمخزون",True),("متفرقات","مصروفات أخرى",True)]
     if dry_run:
-        click.echo("Would ensure these expense types exist/active:")
-        for n, d, a in base_types:
-            click.echo(f"- {n} ({'active' if a else 'inactive'})")
-        if deactivate_missing:
-            click.echo("Would deactivate missing types not in the list.")
-        return
+        click.echo("Would ensure these expense types exist/active:"); 
+        for n,d,a in base_types: click.echo(f"- {n} ({'active' if a else 'inactive'})")
+        if deactivate_missing: click.echo("Would deactivate missing types not in the list."); return
     try:
-        with db.session.begin():
-            wanted_names = set()
-            for name, desc, active in base_types:
+        with _begin():
+            wanted_names=set()
+            for name,desc,active in base_types:
                 wanted_names.add(name.lower())
-                ex = ExpenseType.query.filter(func.lower(ExpenseType.name) == name.lower()).first()
-                if not ex:
-                    ex = ExpenseType(name=name, description=desc, is_active=bool(active))
-                    db.session.add(ex)
+                ex=ExpenseType.query.filter(func.lower(ExpenseType.name)==name.lower()).first()
+                if not ex: ex=ExpenseType(name=name, description=desc, is_active=bool(active)); db.session.add(ex)
                 else:
-                    if ex.description != desc and desc:
-                        ex.description = desc
-                    if ex.is_active != bool(active):
-                        ex.is_active = bool(active)
+                    if desc: ex.description=desc
+                    ex.is_active=bool(active)
             if deactivate_missing:
-                others = ExpenseType.query.filter(func.lower(ExpenseType.name).notin_(wanted_names)).all()
+                others=ExpenseType.query.filter(func.lower(ExpenseType.name).notin_(wanted_names)).all()
                 for ex in others:
-                    if ex.is_active:
-                        ex.is_active = False
+                    if ex.is_active: ex.is_active=False
         click.echo("OK: expense types seeded.")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(f"Commit failed: {e}") from e
+        db.session.rollback(); raise click.ClickException(f"Commit failed: {e}") from e
 
 @click.command("expense-type")
 @click.option("--name", required=True)
@@ -519,18 +479,14 @@ def seed_expense_types(force: bool, dry_run: bool, deactivate_missing: bool) -> 
 @with_appcontext
 def expense_type_cmd(name: str, desc: str, active: bool) -> None:
     try:
-        with db.session.begin():
-            ex = ExpenseType.query.filter(func.lower(ExpenseType.name) == name.strip().lower()).first()
-            if not ex:
-                ex = ExpenseType(name=name.strip(), description=(desc or "").strip(), is_active=bool(active))
-                db.session.add(ex)
+        with _begin():
+            ex=ExpenseType.query.filter(func.lower(ExpenseType.name)==name.strip().lower()).first()
+            if not ex: ex=ExpenseType(name=name.strip(), description=(desc or "").strip(), is_active=bool(active)); db.session.add(ex)
             else:
-                ex.description = (desc or ex.description or "").strip()
-                ex.is_active = bool(active)
+                ex.description=(desc or ex.description or "").strip(); ex.is_active=bool(active)
         click.echo("OK: expense type created/updated.")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(f"Commit failed: {e}") from e
+        db.session.rollback(); raise click.ClickException(f"Commit failed: {e}") from e
 
 @click.command("seed-palestine")
 @click.option("--reset", is_flag=True)
@@ -540,9 +496,8 @@ def seed_palestine_cmd(reset: bool):
         from seed_palestine import seed_palestine as _seed_cmd
     except Exception as e:
         raise click.ClickException(f"تعذّر استيراد seed_palestine.py: {e}")
-    cb = getattr(_seed_cmd, "callback", None)
-    if callable(cb):
-        return cb(reset=reset)
+    cb=getattr(_seed_cmd,"callback",None)
+    if callable(cb): return cb(reset=reset)
     return _seed_cmd(reset=reset)
 
 @click.command("seed-all")
@@ -556,64 +511,86 @@ def seed_all(force: bool, reset_roles: bool, deactivate_missing_expense_types: b
             click.echo("Canceled.")
             return
     try:
-        for code in sorted(RESERVED_CODES):
-            _ensure_permission(code)
+        with _begin():
+            for code in sorted(RESERVED_CODES):
+                _ensure_permission(code)
 
-        super_admin = _get_or_create_role("super_admin")
-        admin = _get_or_create_role("admin")
-        staff = _get_or_create_role("staff")
-        registered_customer = _get_or_create_role("registered_customer")
-        mechanic = _get_or_create_role("mechanic")
+            super_admin = _get_or_create_role("super_admin")
+            admin = _get_or_create_role("admin")
+            staff = _get_or_create_role("staff")
+            registered_customer = _get_or_create_role("registered_customer")
+            mechanic = _get_or_create_role("mechanic")
 
-        all_perms = Permission.query.all()
-        curr_sa = {(p.code or "").lower() for p in super_admin.permissions}
-        to_add_sa = [p for p in all_perms if (p.code or "").lower() not in curr_sa]
-        if to_add_sa:
-            super_admin.permissions.extend(to_add_sa)
-
-        _assign_role_perms(admin, ROLE_PERMISSIONS["admin"], reset=reset_roles)
-        _assign_role_perms(staff, ROLE_PERMISSIONS["staff"], reset=reset_roles)
-        _assign_role_perms(registered_customer, ROLE_PERMISSIONS["registered_customer"], reset=reset_roles)
-        _assign_role_perms(mechanic, ROLE_PERMISSIONS["mechanic"], reset=reset_roles)
-
-        _get_or_create_user(SUPER_USERNAME, SUPER_EMAIL, SUPER_PASSWORD, super_admin)
-        _get_or_create_user(ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD, admin)
-        _get_or_create_user(STAFF_USERNAME, STAFF_EMAIL, STAFF_PASSWORD, staff)
-        _get_or_create_user(MECH_USERNAME, MECH_EMAIL, MECH_PASSWORD, mechanic)
-        _get_or_create_user(RC_USERNAME, RC_EMAIL, RC_PASSWORD, registered_customer)
-
-        for r in Role.query.all():
-            try:
-                clear_role_permission_cache(r.id)
-                clear_users_cache_by_role(r.id)
-            except Exception:
-                pass
-
-        base_types = [
-            ("رواتب", "مصروف رواتب وأجور", True),
-            ("كهرباء", "فواتير كهرباء", True),
-            ("مياه", "فواتير مياه", True),
-            ("جمارك", "رسوم جمركية", True),
-            ("تالف", "توالف/هدر مخزون", True),
-            ("استخدام داخلي", "استهلاك داخلي للمخزون", True),
-            ("متفرقات", "مصروفات أخرى", True),
-        ]
-        wanted_names = set()
-        for name, desc, active in base_types:
-            wanted_names.add(name.lower())
-            ex = ExpenseType.query.filter(func.lower(ExpenseType.name) == name.lower()).first()
-            if not ex:
-                db.session.add(ExpenseType(name=name, description=desc, is_active=bool(active)))
+            if getattr(super_admin, "permissions", None) is None:
+                super_admin.permissions = []
             else:
-                ex.description = desc
-                ex.is_active = bool(active)
+                super_admin.permissions[:] = [p for p in super_admin.permissions if isinstance(p, Permission)]
+            if getattr(admin, "permissions", None) is None:
+                admin.permissions = []
+            else:
+                admin.permissions[:] = [p for p in admin.permissions if isinstance(p, Permission)]
+            if getattr(staff, "permissions", None) is None:
+                staff.permissions = []
+            else:
+                staff.permissions[:] = [p for p in staff.permissions if isinstance(p, Permission)]
+            if getattr(registered_customer, "permissions", None) is None:
+                registered_customer.permissions = []
+            else:
+                registered_customer.permissions[:] = [p for p in registered_customer.permissions if isinstance(p, Permission)]
+            if getattr(mechanic, "permissions", None) is None:
+                mechanic.permissions = []
+            else:
+                mechanic.permissions[:] = [p for p in mechanic.permissions if isinstance(p, Permission)]
 
-        if deactivate_missing_expense_types:
-            others = ExpenseType.query.filter(func.lower(ExpenseType.name).notin_(wanted_names)).all()
-            for ex in others:
-                ex.is_active = False
+            all_perms = [p for p in Permission.query.all() if isinstance(p, Permission)]
+            curr_sa = {(p.code or "").lower() for p in super_admin.permissions}
+            for p in all_perms:
+                code = (p.code or "").lower()
+                if code and code not in curr_sa:
+                    super_admin.permissions.append(p)
+            db.session.flush()
 
-        db.session.commit()
+            _assign_role_perms(admin, ROLE_PERMISSIONS["admin"], reset=reset_roles)
+            _assign_role_perms(staff, ROLE_PERMISSIONS["staff"], reset=reset_roles)
+            _assign_role_perms(registered_customer, ROLE_PERMISSIONS["registered_customer"], reset=reset_roles)
+            _assign_role_perms(mechanic, ROLE_PERMISSIONS["mechanic"], reset=reset_roles)
+
+            _get_or_create_user(SUPER_USERNAME, SUPER_EMAIL, SUPER_PASSWORD, super_admin)
+            _get_or_create_user(ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD, admin)
+            _get_or_create_user(STAFF_USERNAME, STAFF_EMAIL, STAFF_PASSWORD, staff)
+            _get_or_create_user(MECH_USERNAME, MECH_EMAIL, MECH_PASSWORD, mechanic)
+            _get_or_create_user(RC_USERNAME, RC_EMAIL, RC_PASSWORD, registered_customer)
+
+            for r in Role.query.all():
+                try:
+                    clear_role_permission_cache(r.id)
+                    clear_users_cache_by_role(r.id)
+                except Exception:
+                    pass
+
+            base_types = [
+                ("رواتب", "مصروف رواتب وأجور", True),
+                ("كهرباء", "فواتير كهرباء", True),
+                ("مياه", "فواتير مياه", True),
+                ("جمارك", "رسوم جمركية", True),
+                ("تالف", "توالف/هدر مخزون", True),
+                ("استخدام داخلي", "استهلاك داخلي للمخزون", True),
+                ("متفرقات", "مصروفات أخرى", True),
+            ]
+            wanted_names = set()
+            for name, desc, active in base_types:
+                wanted_names.add(name.lower())
+                ex = ExpenseType.query.filter(func.lower(ExpenseType.name) == name.lower()).first()
+                if not ex:
+                    db.session.add(ExpenseType(name=name, description=desc, is_active=bool(active)))
+                else:
+                    ex.description = desc
+                    ex.is_active = bool(active)
+            if deactivate_missing_expense_types:
+                others = ExpenseType.query.filter(func.lower(ExpenseType.name).notin_(wanted_names)).all()
+                for ex in others:
+                    ex.is_active = False
+
         click.echo("✔ OK: seed-all completed.")
     except SQLAlchemyError as e:
         db.session.rollback()
@@ -623,11 +600,8 @@ def seed_all(force: bool, reset_roles: bool, deactivate_missing_expense_types: b
 @with_appcontext
 def clear_rbac_caches() -> None:
     for r in Role.query.all():
-        try:
-            clear_role_permission_cache(r.id)
-            clear_users_cache_by_role(r.id)
-        except Exception:
-            pass
+        try: clear_role_permission_cache(r.id); clear_users_cache_by_role(r.id)
+        except Exception: pass
     click.echo("OK: RBAC caches cleared.")
 
 @click.command("wh-create")
@@ -642,33 +616,21 @@ def clear_rbac_caches() -> None:
 @with_appcontext
 def wh_create(name, wtype, location, supplier_id, partner_id, share_percent, online_slug, online_default):
     try:
-        with db.session.begin():
-            w = Warehouse(
-                name=name.strip(),
-                warehouse_type=wtype.strip().upper(),
-                location=location or None,
-                supplier_id=supplier_id,
-                partner_id=partner_id,
-                share_percent=share_percent or 0,
-                online_slug=(online_slug or None),
-                online_is_default=bool(online_default),
-            )
+        with _begin():
+            w=Warehouse(name=name.strip(), warehouse_type=wtype.strip().upper(), location=location or None, supplier_id=supplier_id, partner_id=partner_id, share_percent=share_percent or 0, online_slug=(online_slug or None), online_is_default=bool(online_default))
             db.session.add(w)
         click.echo(f"OK: warehouse {w.id} created.")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
 @click.command("wh-list")
 @click.option("--active", type=bool)
 @click.option("--type", "wtype", default="")
 @with_appcontext
 def wh_list(active, wtype):
-    q = Warehouse.query
-    if active is not None:
-        q = q.filter(Warehouse.is_active == bool(active))
-    if wtype:
-        q = q.filter(Warehouse.warehouse_type == wtype.strip().upper())
+    q=Warehouse.query
+    if active is not None: q=q.filter(Warehouse.is_active==bool(active))
+    if wtype: q=q.filter(Warehouse.warehouse_type==wtype.strip().upper())
     for w in q.order_by(Warehouse.id).all():
         click.echo(f"{w.id:>3}  {w.name:<25} type={getattr(w.warehouse_type,'value',w.warehouse_type)} active={w.is_active} partner={w.partner_id or '-'} supplier={w.supplier_id or '-'}")
 
@@ -677,18 +639,28 @@ def wh_list(active, wtype):
 @click.option("--q", default="")
 @with_appcontext
 def wh_stock(warehouse_id: int, q: str):
-    qry = (db.session.query(StockLevel, Product)
-           .join(Product, Product.id == StockLevel.product_id)
-           .filter(StockLevel.warehouse_id == warehouse_id))
+    qry = (
+        db.session.query(StockLevel, Product)
+        .join(Product, Product.id == StockLevel.product_id)
+        .filter(StockLevel.warehouse_id == warehouse_id)
+    )
     s = (q or "").strip()
     if s:
         ss = f"%{s.lower()}%"
-        qry = qry.filter(or_(func.lower(Product.name).like(ss),
-                             func.lower(Product.sku).like(ss),
-                             func.lower(Product.part_number).like(ss),
-                             func.lower(Product.brand).like(ss)))
+        qry = qry.filter(
+            or_(
+                func.lower(Product.name).like(ss),
+                func.lower(Product.sku).like(ss),
+                func.lower(Product.part_number).like(ss),
+                func.lower(Product.brand).like(ss),
+            )
+        )
     for lvl, prod in qry.order_by(Product.name).all():
-        click.echo(f"P{prod.id:<5} {prod.name[:40]:<40} qty={lvl.quantity:<6} reserved={lvl.reserved_quantity:<6} avail={lvl.available_quantity:<6} status={lvl.status}")
+        click.echo(
+            f"P{prod.id:<5} {prod.name[:40]:<40} "
+            f"qty={lvl.quantity:<6} reserved={lvl.reserved_quantity:<6} "
+            f"avail={lvl.available_quantity:<6} status={lvl.status}"
+        )
 
 @click.command("product-create")
 @click.option("--name", required=True)
@@ -701,22 +673,12 @@ def wh_stock(warehouse_id: int, q: str):
 @with_appcontext
 def product_create(name, price, brand, part_number, sku, barcode, tax_rate):
     try:
-        with db.session.begin():
-            p = Product(
-                name=name.strip(),
-                price=_Q2(price),
-                selling_price=_Q2(price),
-                brand=brand or None,
-                part_number=part_number or None,
-                sku=sku or None,
-                barcode=barcode or None,
-                tax_rate=_Q2(tax_rate),
-            )
+        with _begin():
+            p=Product(name=name.strip(), price=_Q2(price), selling_price=_Q2(price), brand=brand or None, part_number=part_number or None, sku=sku or None, barcode=barcode or None, tax_rate=_Q2(tax_rate))
             db.session.add(p)
         click.echo(f"OK: product {p.id} created.")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
 @click.command("product-find")
 @click.option("--q", default="")
@@ -731,24 +693,29 @@ def product_find(q: str, barcode: str, limit: int):
         s = (q or "").strip().lower()
         if s:
             ss = f"%{s}%"
-            qry = qry.filter(or_(func.lower(Product.name).like(ss),
-                                 func.lower(Product.brand).like(ss),
-                                 func.lower(Product.part_number).like(ss),
-                                 func.lower(Product.sku).like(ss)))
+            qry = qry.filter(
+                or_(
+                    func.lower(Product.name).like(ss),
+                    func.lower(Product.brand).like(ss),
+                    func.lower(Product.part_number).like(ss),
+                    func.lower(Product.sku).like(ss),
+                )
+            )
     rows = qry.order_by(Product.id.desc()).limit(limit).all()
     for p in rows:
-        click.echo(f"{p.id:>4}  {p.name[:50]:<50} price={float(p.price or 0):.2f} brand={p.brand or '-'} part={p.part_number or '-'} sku={p.sku or '-'}")
+        click.echo(
+            f"{p.id:>4}  {p.name[:50]:<50} price={float(p.price or 0):.2f} "
+            f"brand={p.brand or '-'} part={p.part_number or '-'} sku={p.sku or '-'}"
+        )
 
 @click.command("product-stock")
 @click.option("--product-id", type=int, required=True)
 @with_appcontext
 def product_stock(product_id: int):
-    lvls = StockLevel.query.filter(StockLevel.product_id == product_id).all()
-    if not lvls:
-        click.echo("No stock rows.")
-        return
+    lvls=StockLevel.query.filter(StockLevel.product_id==product_id).all()
+    if not lvls: click.echo("No stock rows."); return
     for lvl in lvls:
-        w = db.session.get(Warehouse, lvl.warehouse_id)
+        w=db.session.get(Warehouse, lvl.warehouse_id)
         click.echo(f"WH{lvl.warehouse_id:<4} {w.name if w else '-':<25} qty={lvl.quantity:<6} reserved={lvl.reserved_quantity:<6} avail={lvl.available_quantity:<6}")
 
 @click.command("product-set-price")
@@ -756,17 +723,13 @@ def product_stock(product_id: int):
 @click.option("--price", type=float, required=True)
 @with_appcontext
 def product_set_price(product_id: int, price: float):
-    p = db.session.get(Product, product_id)
-    if not p:
-        raise click.ClickException("Product not found")
+    p=db.session.get(Product, product_id)
+    if not p: raise click.ClickException("Product not found")
     try:
-        with db.session.begin():
-            p.price = _Q2(price)
-            p.selling_price = _Q2(price)
+        with _begin(): p.price=_Q2(price); p.selling_price=_Q2(price)
         click.echo("OK: price updated.")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
 @click.command("stock-transfer")
 @click.option("--product-id", type=int, required=True)
@@ -778,21 +741,12 @@ def product_set_price(product_id: int, price: float):
 @with_appcontext
 def stock_transfer(product_id, source_id, destination_id, qty, ref, notes):
     try:
-        with db.session.begin():
-            t = Transfer(
-                reference=ref or None,
-                product_id=product_id,
-                source_id=source_id,
-                destination_id=destination_id,
-                quantity=int(qty),
-                direction=TransferDirection.OUTGOING.value,
-                notes=notes or None,
-            )
+        with _begin():
+            t=Transfer(reference=ref or None, product_id=product_id, source_id=source_id, destination_id=destination_id, quantity=int(qty), direction=TransferDirection.OUTGOING.value, notes=notes or None)
             db.session.add(t)
         click.echo(f"OK: transfer {t.reference} saved.")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
 @click.command("stock-exchange")
 @click.option("--product-id", type=int, required=True)
@@ -804,20 +758,12 @@ def stock_transfer(product_id, source_id, destination_id, qty, ref, notes):
 @with_appcontext
 def stock_exchange(product_id, warehouse_id, direction, qty, unit_cost, notes):
     try:
-        with db.session.begin():
-            tx = ExchangeTransaction(
-                product_id=product_id,
-                warehouse_id=warehouse_id,
-                direction=direction.upper(),
-                quantity=int(qty),
-                unit_cost=_Q2(unit_cost) if unit_cost else None,
-                notes=notes or None,
-            )
+        with _begin():
+            tx=ExchangeTransaction(product_id=product_id, warehouse_id=warehouse_id, direction=direction.upper(), quantity=int(qty), unit_cost=_Q2(unit_cost) if unit_cost else None, notes=notes or None)
             db.session.add(tx)
         click.echo(f"OK: exchange tx #{tx.id} saved.")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
 @click.command("stock-reserve")
 @click.option("--product-id", type=int, required=True)
@@ -825,20 +771,14 @@ def stock_exchange(product_id, warehouse_id, direction, qty, unit_cost, notes):
 @click.option("--qty", type=int, required=True)
 @with_appcontext
 def stock_reserve(product_id, warehouse_id, qty):
-    row = db.session.execute(
-        select(StockLevel).where(StockLevel.product_id == product_id, StockLevel.warehouse_id == warehouse_id)
-    ).scalar_one_or_none()
-    if not row:
-        raise click.ClickException("Stock row not found")
-    if row.available_quantity < qty:
-        raise click.ClickException("Insufficient available quantity")
+    row=db.session.execute(select(StockLevel).where(StockLevel.product_id==product_id, StockLevel.warehouse_id==warehouse_id)).scalar_one_or_none()
+    if not row: raise click.ClickException("Stock row not found")
+    if row.available_quantity < qty: raise click.ClickException("Insufficient available quantity")
     try:
-        with db.session.begin():
-            row.reserved_quantity = int(row.reserved_quantity or 0) + int(qty)
+        with _begin(): row.reserved_quantity=int(row.reserved_quantity or 0)+int(qty)
         click.echo("OK: reserved.")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
 @click.command("stock-unreserve")
 @click.option("--product-id", type=int, required=True)
@@ -846,75 +786,51 @@ def stock_reserve(product_id, warehouse_id, qty):
 @click.option("--qty", type=int, required=True)
 @with_appcontext
 def stock_unreserve(product_id, warehouse_id, qty):
-    row = db.session.execute(
-        select(StockLevel).where(StockLevel.product_id == product_id, StockLevel.warehouse_id == warehouse_id)
-    ).scalar_one_or_none()
-    if not row:
-        raise click.ClickException("Stock row not found")
-    newv = int(row.reserved_quantity or 0) - int(qty)
-    if newv < 0:
-        newv = 0
+    row=db.session.execute(select(StockLevel).where(StockLevel.product_id==product_id, StockLevel.warehouse_id==warehouse_id)).scalar_one_or_none()
+    if not row: raise click.ClickException("Stock row not found")
+    newv=int(row.reserved_quantity or 0)-int(qty)
+    if newv < 0: newv=0
     try:
-        with db.session.begin():
-            row.reserved_quantity = newv
+        with _begin(): row.reserved_quantity=newv
         click.echo("OK: unreserved.")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
 @click.command("shipment-create")
 @click.option("--destination-id", type=int, required=True)
 @click.option("--currency", default="USD")
 @click.option("--date", "sdate", default="")
-@click.option("--items-json", "items_json", required=True, help="path or json string")
+@click.option("--items-json", "items_json", required=True)
 @click.option("--status", default="DRAFT")
 @with_appcontext
 def shipment_create(destination_id, currency, sdate, items_json, status):
-    try_load = items_json.strip()
+    try_load=items_json.strip()
     if os.path.exists(try_load):
-        with open(try_load, "r", encoding="utf-8") as f:
-            items = json.load(f)
+        with open(try_load,"r",encoding="utf-8") as f: items=json.load(f)
     else:
-        items = json.loads(try_load)
+        items=json.loads(try_load)
     try:
-        with db.session.begin():
-            sh = Shipment(
-                destination_id=destination_id,
-                currency=currency.upper(),
-                date=_parse_dt(sdate) if sdate else datetime.utcnow(),
-                status=status.strip().upper(),
-            )
-            db.session.add(sh)
-            db.session.flush()
+        with _begin():
+            sh=Shipment(destination_id=destination_id, currency=currency.upper(), date=_parse_dt(sdate) if sdate else datetime.utcnow(), status=status.strip().upper())
+            db.session.add(sh); db.session.flush()
             for it in items:
-                db.session.add(ShipmentItem(
-                    shipment_id=sh.id,
-                    product_id=int(it["product_id"]),
-                    warehouse_id=int(it.get("warehouse_id") or destination_id),
-                    quantity=int(it["quantity"]),
-                    unit_cost=_Q2(it.get("unit_cost", 0)),
-                    notes=it.get("notes"),
-                ))
+                db.session.add(ShipmentItem(shipment_id=sh.id, product_id=int(it["product_id"]), warehouse_id=int(it.get("warehouse_id") or destination_id), quantity=int(it["quantity"]), unit_cost=_Q2(it.get("unit_cost",0)), notes=it.get("notes")))
         click.echo(f"OK: shipment {sh.shipment_number or sh.number} created.")
     except Exception as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
 @click.command("shipment-status")
 @click.option("--shipment-id", type=int, required=True)
 @click.option("--status", type=click.Choice(["DRAFT","IN_TRANSIT","ARRIVED","CANCELLED","CREATED"], case_sensitive=False), required=True)
 @with_appcontext
 def shipment_status(shipment_id: int, status: str):
-    sh = db.session.get(Shipment, shipment_id)
-    if not sh:
-        raise click.ClickException("Shipment not found")
+    sh=db.session.get(Shipment, shipment_id)
+    if not sh: raise click.ClickException("Shipment not found")
     try:
-        with db.session.begin():
-            sh.update_status(status.upper())
+        with _begin(): sh.update_status(status.upper())
         click.echo(f"OK: shipment {shipment_id} -> {status.upper()}")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
 @click.command("supplier-settlement-draft")
 @click.option("--supplier-id", type=int, required=True)
@@ -924,30 +840,25 @@ def shipment_status(shipment_id: int, status: str):
 @click.option("--mode", type=click.Choice(["ON_RECEIPT","ON_CONSUME"], case_sensitive=False))
 @with_appcontext
 def supplier_settlement_draft(supplier_id, date_from, date_to, currency, mode):
-    df = _parse_dt(date_from); dt = _parse_dt(date_to)
-    ss = build_supplier_settlement_draft(supplier_id, df, dt, currency=currency, mode=mode)
+    df=_parse_dt(date_from); dt=_parse_dt(date_to)
+    ss=build_supplier_settlement_draft(supplier_id, df, dt, currency=currency, mode=mode)
     try:
-        with db.session.begin():
-            db.session.add(ss)
+        with _begin(): db.session.add(ss)
         click.echo(f"OK: supplier settlement {ss.code} draft with {len(ss.lines or [])} lines, due={float(ss.total_due or 0):.2f}")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
 @click.command("supplier-settlement-confirm")
 @click.option("--id", "settlement_id", type=int, required=True)
 @with_appcontext
 def supplier_settlement_confirm(settlement_id: int):
-    ss = db.session.get(SupplierSettlement, settlement_id)
-    if not ss:
-        raise click.ClickException("Settlement not found")
+    ss=db.session.get(SupplierSettlement, settlement_id)
+    if not ss: raise click.ClickException("Settlement not found")
     try:
-        with db.session.begin():
-            ss.mark_confirmed()
+        with _begin(): ss.mark_confirmed()
         click.echo(f"OK: supplier settlement {ss.code} confirmed.")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
 @click.command("partner-settlement-draft")
 @click.option("--partner-id", type=int, required=True)
@@ -956,45 +867,33 @@ def supplier_settlement_confirm(settlement_id: int):
 @click.option("--currency", default="ILS")
 @with_appcontext
 def partner_settlement_draft(partner_id, date_from, date_to, currency):
-    df = _parse_dt(date_from); dt = _parse_dt(date_to)
-    ps = build_partner_settlement_draft(partner_id, df, dt, currency=currency)
+    df=_parse_dt(date_from); dt=_parse_dt(date_to)
+    ps=build_partner_settlement_draft(partner_id, df, dt, currency=currency)
     try:
-        with db.session.begin():
-            db.session.add(ps)
+        with _begin(): db.session.add(ps)
         click.echo(f"OK: partner settlement {ps.code} draft with {len(ps.lines or [])} lines, due={float(ps.total_due or 0):.2f}")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
 @click.command("partner-settlement-confirm")
 @click.option("--id", "settlement_id", type=int, required=True)
 @with_appcontext
 def partner_settlement_confirm(settlement_id: int):
-    ps = db.session.get(PartnerSettlement, settlement_id)
-    if not ps:
-        raise click.ClickException("Settlement not found")
+    ps=db.session.get(PartnerSettlement, settlement_id)
+    if not ps: raise click.ClickException("Settlement not found")
     try:
-        with db.session.begin():
-            ps.mark_confirmed()
+        with _begin(): ps.mark_confirmed()
         click.echo(f"OK: partner settlement {ps.code} confirmed.")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
-def _method_enum(v: str):
-    return getattr(PaymentMethod, v.upper()).value if v else PaymentMethod.CASH.value
-
-def _status_enum(v: str):
-    return getattr(PaymentStatus, v.upper()).value if v else PaymentStatus.PENDING.value
-
-def _direction_enum(v: str):
-    return getattr(PaymentDirection, v.upper()).value if v else PaymentDirection.INCOMING.value
-
-def _entity_enum(v: str):
-    return getattr(PaymentEntityType, v.upper()).value if v else PaymentEntityType.CUSTOMER.value
+def _method_enum(v: str): return getattr(PaymentMethod, v.upper()).value if v else PaymentMethod.CASH.value
+def _status_enum(v: str): return getattr(PaymentStatus, v.upper()).value if v else PaymentStatus.PENDING.value
+def _direction_enum(v: str): return getattr(PaymentDirection, v.upper()).value if v else PaymentDirection.INCOMING.value
+def _entity_enum(v: str): return getattr(PaymentEntityType, v.upper()).value if v else PaymentEntityType.CUSTOMER.value
 
 @click.command("payment-create")
-@click.option("--direction", default="IN", type=click.Choice(["IN","OUT"], case_sensitive=False))
+@click.option("--direction", default="IN", type=click.Choice(["IN", "OUT"], case_sensitive=False))
 @click.option("--entity-type", "entity_type", required=True, type=click.Choice([e.value for e in PaymentEntityType], case_sensitive=False))
 @click.option("--target-id", type=int, required=True)
 @click.option("--amount", type=float, required=True)
@@ -1019,9 +918,9 @@ def payment_create(direction, entity_type, target_id, amount, method, status, cu
     }
     fk = fields.get(entity_type)
     if not fk:
-        raise click.ClickException("Unsupported entity-type")
+        raise click.ClickException(f"Unsupported entity-type: {entity_type}")
     try:
-        with db.session.begin():
+        with _begin():
             p = Payment(
                 total_amount=_Q2(amount),
                 method=_method_enum(method),
@@ -1031,7 +930,7 @@ def payment_create(direction, entity_type, target_id, amount, method, status, cu
                 currency=currency.upper(),
                 reference=reference or None,
                 notes=notes or None,
-                **{fk: int(target_id)}
+                **{fk: int(target_id)},
             )
             db.session.add(p)
         click.echo(f"OK: payment {p.payment_number} created for {entity_type}={target_id} amount={float(p.total_amount):.2f}")
@@ -1046,13 +945,10 @@ def payment_create(direction, entity_type, target_id, amount, method, status, cu
 @click.option("--limit", type=int, default=100)
 @with_appcontext
 def payment_list(status, direction, entity_type, limit):
-    q = Payment.query
-    if status.strip():
-        q = q.filter(Payment.status == status.strip().upper())
-    if direction.strip():
-        q = q.filter(Payment.direction == direction.strip().upper())
-    if entity_type.strip():
-        q = q.filter(Payment.entity_type == entity_type.strip().upper())
+    q=Payment.query
+    if status.strip(): q=q.filter(Payment.status==status.strip().upper())
+    if direction.strip(): q=q.filter(Payment.direction==direction.strip().upper())
+    if entity_type.strip(): q=q.filter(Payment.entity_type==entity_type.strip().upper())
     for p in q.order_by(Payment.id.desc()).limit(limit).all():
         click.echo(f"{p.id:>5} {p.payment_number:<16} {p.payment_date} {getattr(p,'entity_type',''):<10} amt={float(p.total_amount):.2f} {getattr(p,'status','')} {getattr(p,'direction','')} -> {p.entity_label()}")
 
@@ -1062,11 +958,9 @@ def payment_list(status, direction, entity_type, limit):
 @click.option("--limit", type=int, default=100)
 @with_appcontext
 def invoice_list(status, customer_id, limit):
-    q = Invoice.query
-    if status.strip():
-        q = q.filter(Invoice.status == status.strip().upper())
-    if customer_id:
-        q = q.filter(Invoice.customer_id == int(customer_id))
+    q=Invoice.query
+    if status.strip(): q=q.filter(Invoice.status==status.strip().upper())
+    if customer_id: q=q.filter(Invoice.customer_id==int(customer_id))
     for inv in q.order_by(Invoice.id.desc()).limit(limit).all():
         click.echo(f"{inv.id:>5} {inv.invoice_number or '-':<14} cust={inv.customer_id or '-':<5} total={float(inv.total_amount or 0):.2f} paid={float(inv.total_paid):.2f} due={float(inv.balance_due):.2f} status={inv.status}")
 
@@ -1074,16 +968,13 @@ def invoice_list(status, customer_id, limit):
 @click.option("--id", "invoice_id", type=int, required=True)
 @with_appcontext
 def invoice_update_status(invoice_id: int):
-    inv = db.session.get(Invoice, invoice_id)
-    if not inv:
-        raise click.ClickException("Invoice not found")
+    inv=db.session.get(Invoice, invoice_id)
+    if not inv: raise click.ClickException("Invoice not found")
     try:
-        with db.session.begin():
-            inv.update_status()
+        with _begin(): inv.update_status()
         click.echo(f"OK: invoice {invoice_id} status -> {inv.status}")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
 @click.command("preorder-create")
 @click.option("--product-id", type=int, required=True)
@@ -1100,7 +991,7 @@ def preorder_create(product_id, warehouse_id, quantity, customer_id, supplier_id
     if not any([customer_id, supplier_id, partner_id]):
         raise click.ClickException("One of customer-id/supplier-id/partner-id is required")
     try:
-        with db.session.begin():
+        with _begin():
             po = PreOrder(
                 product_id=product_id,
                 warehouse_id=warehouse_id,
@@ -1114,24 +1005,32 @@ def preorder_create(product_id, warehouse_id, quantity, customer_id, supplier_id
             )
             db.session.add(po)
             db.session.flush()
-            if _Q2(prepaid) > 0 and customer_id:
-                p = Payment(
-                    total_amount=_Q2(prepaid),
-                    method=getattr(PaymentMethod, method.upper()).value,
-                    status=PaymentStatus.COMPLETED.value,
-                    direction=PaymentDirection.INCOMING.value,
-                    entity_type=PaymentEntityType.PREORDER.value,
-                    customer_id=customer_id,
-                    preorder_id=po.id,
-                    currency="ILS",
-                    reference=f"PreOrder:{po.reference}",
-                )
-                db.session.add(p)
+            if _Q2(prepaid) > 0:
+                fk = None
+                etype = None
+                if customer_id:
+                    fk, etype = "customer_id", PaymentEntityType.CUSTOMER.value
+                elif supplier_id:
+                    fk, etype = "supplier_id", PaymentEntityType.SUPPLIER.value
+                elif partner_id:
+                    fk, etype = "partner_id", PaymentEntityType.PARTNER.value
+                if fk and etype:
+                    p = Payment(
+                        total_amount=_Q2(prepaid),
+                        method=getattr(PaymentMethod, method.upper()).value,
+                        status=PaymentStatus.COMPLETED.value,
+                        direction=PaymentDirection.INCOMING.value,
+                        entity_type=etype,
+                        preorder_id=po.id,
+                        currency="ILS",
+                        reference=f"PreOrder:{po.reference}",
+                        **{fk: (customer_id or supplier_id or partner_id)},
+                    )
+                    db.session.add(p)
         click.echo(f"OK: preorder {po.reference} created.")
     except SQLAlchemyError as e:
         db.session.rollback()
         raise click.ClickException(str(e)) from e
-
 @click.command("sr-create")
 @click.option("--customer-id", type=int, required=True)
 @click.option("--tax-rate", type=float, default=0.0)
@@ -1141,21 +1040,12 @@ def preorder_create(product_id, warehouse_id, quantity, customer_id, supplier_id
 @click.option("--notes", type=str, default=None)
 @with_appcontext
 def sr_create(customer_id, tax_rate, discount_total, currency, status, notes):
-    sr = ServiceRequest(
-        customer_id=customer_id,
-        tax_rate=_Q2(tax_rate),
-        discount_total=_Q2(discount_total),
-        currency=(currency or "ILS").upper(),
-        status=status,
-        notes=notes,
-    )
+    sr=ServiceRequest(customer_id=customer_id, tax_rate=_Q2(tax_rate), discount_total=_Q2(discount_total), currency=(currency or "ILS").upper(), status=status, notes=notes)
     try:
-        with db.session.begin():
-            db.session.add(sr)
+        with _begin(): db.session.add(sr)
         click.echo(f"OK: service {sr.service_number} created.")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
 @click.command("sr-add-part")
 @click.option("--service-id", type=int, required=True)
@@ -1171,28 +1061,14 @@ def sr_create(customer_id, tax_rate, discount_total, currency, status, notes):
 @click.option("--notes", type=str, default=None)
 @with_appcontext
 def sr_add_part(service_id, product_id, warehouse_id, quantity, unit_price, discount, tax_rate, partner_id, share_percentage, note, notes):
-    sr = db.session.get(ServiceRequest, service_id)
-    if not sr:
-        raise click.ClickException("ServiceRequest not found")
-    part = ServicePart(
-        service_id=sr.id,
-        part_id=product_id,
-        warehouse_id=warehouse_id,
-        quantity=int(quantity),
-        unit_price=_Q2(unit_price),
-        discount=_Q2(discount),
-        tax_rate=_Q2(tax_rate),
-        partner_id=partner_id,
-        share_percentage=_Q2(share_percentage),
-        note=note, notes=notes,
-    )
+    sr=db.session.get(ServiceRequest, service_id)
+    if not sr: raise click.ClickException("ServiceRequest not found")
+    part=ServicePart(service_id=sr.id, part_id=product_id, warehouse_id=warehouse_id, quantity=int(quantity), unit_price=_Q2(unit_price), discount=_Q2(discount), tax_rate=_Q2(tax_rate), partner_id=partner_id, share_percentage=_Q2(share_percentage), note=note, notes=notes)
     try:
-        with db.session.begin():
-            db.session.add(part)
+        with _begin(): db.session.add(part)
         click.echo(f"OK: part {part.id} added to service {sr.service_number or sr.id}.")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
 @click.command("sr-add-task")
 @click.option("--service-id", type=int, required=True)
@@ -1206,27 +1082,14 @@ def sr_add_part(service_id, product_id, warehouse_id, quantity, unit_price, disc
 @click.option("--note", type=str, default=None)
 @with_appcontext
 def sr_add_task(service_id, description, quantity, unit_price, discount, tax_rate, partner_id, share_percentage, note):
-    sr = db.session.get(ServiceRequest, service_id)
-    if not sr:
-        raise click.ClickException("ServiceRequest not found")
-    task = ServiceTask(
-        service_id=sr.id,
-        description=description,
-        quantity=int(quantity),
-        unit_price=_Q2(unit_price),
-        discount=_Q2(discount),
-        tax_rate=_Q2(tax_rate),
-        partner_id=partner_id,
-        share_percentage=_Q2(share_percentage),
-        note=note
-    )
+    sr=db.session.get(ServiceRequest, service_id)
+    if not sr: raise click.ClickException("ServiceRequest not found")
+    task=ServiceTask(service_id=sr.id, description=description, quantity=int(quantity), unit_price=_Q2(unit_price), discount=_Q2(discount), tax_rate=_Q2(tax_rate), partner_id=partner_id, share_percentage=_Q2(share_percentage), note=note)
     try:
-        with db.session.begin():
-            db.session.add(task)
+        with _begin(): db.session.add(task)
         click.echo(f"OK: task {task.id} added to service {sr.service_number or sr.id}.")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
 @click.command("sr-recalc")
 @click.option("--service-id", type=int, required=True)
@@ -1236,8 +1099,9 @@ def sr_recalc(service_id):
     if not sr:
         raise click.ClickException("ServiceRequest not found")
     try:
-        with db.session.begin():
+        with _begin():
             sr.updated_at = datetime.utcnow()
+            sr.recalc_totals()
         click.echo(f"OK: recalc -> total={float(sr.total_amount or 0):.2f} parts={float(sr.parts_total or 0):.2f} labor={float(sr.labor_total or 0):.2f}")
     except SQLAlchemyError as e:
         db.session.rollback()
@@ -1254,7 +1118,7 @@ def sr_set_status(service_id, status, post_gl):
         raise click.ClickException("ServiceRequest not found")
     prev = sr.status
     try:
-        with db.session.begin():
+        with _begin():
             sr.status = status
         if post_gl and status == ServiceStatus.COMPLETED.value:
             parts = _D(getattr(sr, "parts_total", 0) or 0)
@@ -1266,50 +1130,38 @@ def sr_set_status(service_id, status, post_gl):
                 base = Decimal("0.00")
             tax = base * (tax_rate / Decimal("100"))
             total = base + tax
-            entries = [
-                (GL_ACCOUNTS["AR"],  float(_Q2(total)),      0.0),
-                (GL_ACCOUNTS["VAT"], 0.0,                    float(_Q2(tax))),
-                (GL_ACCOUNTS["REV"], 0.0,                    float(_Q2(total - tax))),
-            ]
-            _gl_upsert_batch_and_entries(
-                db.session.connection(),
-                source_type="SERVICE",
-                source_id=sr.id,
-                purpose="SERVICE_COMPLETE",
-                currency=(sr.currency or "ILS").upper(),
-                memo=f"Service {sr.service_number or sr.id} completed",
-                entries=entries,
-                ref=str(sr.service_number or sr.id),
-                entity_type="CUSTOMER",
-                entity_id=sr.customer_id,
-            )
+            entries = []
+            if "AR" in GL_ACCOUNTS:
+                entries.append((GL_ACCOUNTS["AR"], float(_Q2(total)), 0.0))
+            if "VAT" in GL_ACCOUNTS:
+                entries.append((GL_ACCOUNTS["VAT"], 0.0, float(_Q2(tax))))
+            if "REV" in GL_ACCOUNTS:
+                entries.append((GL_ACCOUNTS["REV"], 0.0, float(_Q2(total - tax))))
+            if entries:
+                _gl_upsert_batch_and_entries(
+                    db.session.connection(),
+                    source_type="SERVICE",
+                    source_id=sr.id,
+                    purpose="SERVICE_COMPLETE",
+                    currency=(sr.currency or "ILS").upper(),
+                    memo=f"Service {sr.service_number or sr.id} completed",
+                    entries=entries,
+                    ref=str(sr.service_number or sr.id),
+                    entity_type="CUSTOMER",
+                    entity_id=sr.customer_id,
+                )
         click.echo(f"OK: service {service_id} {prev} -> {status}")
     except SQLAlchemyError as e:
         db.session.rollback()
         raise click.ClickException(str(e)) from e
-
+    
 @click.command("sr-show")
 @click.option("--service-id", type=int, required=True)
 @with_appcontext
 def sr_show(service_id):
-    sr = db.session.get(ServiceRequest, service_id)
-    if not sr:
-        raise click.ClickException("ServiceRequest not found")
-    data = {
-        "id": sr.id,
-        "service_number": sr.service_number,
-        "customer_id": sr.customer_id,
-        "status": getattr(sr.status, "value", sr.status),
-        "parts_total": float(sr.parts_total or 0),
-        "labor_total": float(sr.labor_total or 0),
-        "discount_total": float(sr.discount_total or 0),
-        "tax_rate": float(sr.tax_rate or 0),
-        "total_amount": float(sr.total_amount or 0),
-        "currency": sr.currency,
-        "completed_at": sr.completed_at.isoformat() if getattr(sr, "completed_at", None) else None,
-        "parts": [p.to_dict() for p in (sr.parts or [])],
-        "tasks": [t.to_dict() for t in (sr.tasks or [])],
-    }
+    sr=db.session.get(ServiceRequest, service_id)
+    if not sr: raise click.ClickException("ServiceRequest not found")
+    data={"id":sr.id,"service_number":sr.service_number,"customer_id":sr.customer_id,"status":getattr(sr.status,"value",sr.status),"parts_total":float(sr.parts_total or 0),"labor_total":float(sr.labor_total or 0),"discount_total":float(sr.discount_total or 0),"tax_rate":float(sr.tax_rate or 0),"total_amount":float(sr.total_amount or 0),"currency":sr.currency,"completed_at":sr.completed_at.isoformat() if getattr(sr,"completed_at",None) else None,"parts":[p.to_dict() for p in (sr.parts or [])],"tasks":[t.to_dict() for t in (sr.tasks or [])]}
     click.echo(json.dumps(data, ensure_ascii=False, indent=2))
 
 @click.command("cart-create")
@@ -1317,14 +1169,12 @@ def sr_show(service_id):
 @click.option("--session-id", type=str, default=None)
 @with_appcontext
 def cart_create(customer_id, session_id):
-    cart = OnlineCart(customer_id=customer_id, session_id=session_id)
+    cart=OnlineCart(customer_id=customer_id, session_id=session_id)
     try:
-        with db.session.begin():
-            db.session.add(cart)
+        with _begin(): db.session.add(cart)
         click.echo(f"OK: cart {cart.cart_id} created.")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
 @click.command("cart-add-item")
 @click.option("--cart-id", type=int, required=True)
@@ -1333,22 +1183,14 @@ def cart_create(customer_id, session_id):
 @click.option("--price", type=str, required=True)
 @with_appcontext
 def cart_add_item(cart_id, product_id, quantity, price):
-    cart = db.session.get(OnlineCart, cart_id)
-    if not cart:
-        raise click.ClickException("Cart not found")
-    item = OnlineCartItem(
-        cart_id=cart.id,
-        product_id=product_id,
-        quantity=int(quantity),
-        price=_Q2(price),
-    )
+    cart=db.session.get(OnlineCart, cart_id)
+    if not cart: raise click.ClickException("Cart not found")
+    item=OnlineCartItem(cart_id=cart.id, product_id=product_id, quantity=int(quantity), price=_Q2(price))
     try:
-        with db.session.begin():
-            db.session.add(item)
+        with _begin(): db.session.add(item)
         click.echo(f"OK: item {item.id} added. subtotal={cart.subtotal} count={cart.item_count}")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
 @click.command("order-from-cart")
 @click.option("--cart-id", type=int, required=True)
@@ -1356,39 +1198,32 @@ def cart_add_item(cart_id, product_id, quantity, price):
 @click.option("--warehouse-id", type=int, default=None)
 @with_appcontext
 def order_from_cart(cart_id, customer_id, warehouse_id):
-    cart = db.session.get(OnlineCart, cart_id)
-    if not cart:
-        raise click.ClickException("Cart not found")
-    order = OnlinePreOrder(customer_id=customer_id, cart_id=cart.id, warehouse_id=warehouse_id)
+    cart=db.session.get(OnlineCart, cart_id)
+    if not cart: raise click.ClickException("Cart not found")
+    order=OnlinePreOrder(customer_id=customer_id, cart_id=cart.id, warehouse_id=warehouse_id)
     try:
-        with db.session.begin():
-            db.session.add(order)
-            db.session.flush()
+        with _begin():
+            db.session.add(order); db.session.flush()
             for it in (cart.items or []):
-                oi = OnlinePreOrderItem(order_id=order.id, product_id=it.product_id, quantity=it.quantity, price=it.price)
-                db.session.add(oi)
+                db.session.add(OnlinePreOrderItem(order_id=order.id, product_id=it.product_id, quantity=it.quantity, price=it.price))
             order.update_totals_and_status()
         click.echo(f"OK: order {order.order_number} total={float(order.total_amount or 0):.2f}")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
 @click.command("order-set-status")
 @click.option("--order-id", type=int, required=True)
 @click.option("--status", type=click.Choice(["PENDING","CONFIRMED","FULFILLED","CANCELLED"]), required=True)
 @with_appcontext
 def order_set_status(order_id, status):
-    order = db.session.get(OnlinePreOrder, order_id)
-    if not order:
-        raise click.ClickException("Order not found")
-    prev = order.status
+    order=db.session.get(OnlinePreOrder, order_id)
+    if not order: raise click.ClickException("Order not found")
+    prev=order.status
     try:
-        with db.session.begin():
-            order.status = status
+        with _begin(): order.status=status
         click.echo(f"OK: order {order_id} {prev} -> {status} total={float(order.total_amount or 0):.2f}")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
 @click.command("order-add-item")
 @click.option("--order-id", type=int, required=True)
@@ -1397,18 +1232,14 @@ def order_set_status(order_id, status):
 @click.option("--price", type=str, required=True)
 @with_appcontext
 def order_add_item(order_id, product_id, quantity, price):
-    order = db.session.get(OnlinePreOrder, order_id)
-    if not order:
-        raise click.ClickException("Order not found")
-    it = OnlinePreOrderItem(order_id=order.id, product_id=product_id, quantity=int(quantity), price=_Q2(price))
+    order=db.session.get(OnlinePreOrder, order_id)
+    if not order: raise click.ClickException("Order not found")
+    it=OnlinePreOrderItem(order_id=order.id, product_id=product_id, quantity=int(quantity), price=_Q2(price))
     try:
-        with db.session.begin():
-            db.session.add(it)
-            order.update_totals_and_status()
+        with _begin(): db.session.add(it); order.update_totals_and_status()
         click.echo(f"OK: item {it.id} added. order_total={float(order.total_amount or 0):.2f} payment_status={order.payment_status}")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
 @click.command("onlinepay-create")
 @click.option("--order-id", type=int, required=True)
@@ -1422,37 +1253,24 @@ def order_add_item(order_id, product_id, quantity, price):
 @click.option("--card-expiry", type=str, default=None)
 @with_appcontext
 def onlinepay_create(order_id, amount, currency, method, gateway, status, card_pan, card_holder, card_expiry):
-    order = db.session.get(OnlinePreOrder, order_id)
-    if not order:
-        raise click.ClickException("Order not found")
-    p = OnlinePayment(
-        order_id=order.id,
-        amount=_Q2(amount),
-        currency=(currency or "ILS").upper(),
-        method=method, gateway=gateway, status=status
-    )
-    if card_pan or card_holder or card_expiry:
-        p.set_card_details(card_pan, card_holder, card_expiry, validate=True)
-    p.payment_ref = f"OP-{uuid.uuid4().hex[:10].upper()}"
+    order=db.session.get(OnlinePreOrder, order_id)
+    if not order: raise click.ClickException("Order not found")
+    p=OnlinePayment(order_id=order.id, amount=_Q2(amount), currency=(currency or "ILS").upper(), method=method, gateway=gateway, status=status)
+    if card_pan or card_holder or card_expiry: p.set_card_details(card_pan, card_holder, card_expiry, validate=True)
+    p.payment_ref=f"OP-{uuid.uuid4().hex[:10].upper()}"
     try:
-        with db.session.begin():
-            db.session.add(p)
-            db.session.flush()
-            order.update_totals_and_status()
+        with _begin(): db.session.add(p); db.session.flush(); order.update_totals_and_status()
         click.echo(f"OK: payment {p.payment_ref} status={p.status} balance_due={order.balance_due}")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
 @click.command("onlinepay-decrypt-card")
 @click.option("--payment-id", type=int, required=True)
 @with_appcontext
 def onlinepay_decrypt_card(payment_id):
-    p = db.session.get(OnlinePayment, payment_id)
-    if not p:
-        raise click.ClickException("Payment not found")
-    num = p.decrypt_card_number()
-    click.echo(num or "")
+    p=db.session.get(OnlinePayment, payment_id)
+    if not p: raise click.ClickException("Payment not found")
+    num=p.decrypt_card_number(); click.echo(num or "")
 
 @click.command("expense-create")
 @click.option("--amount", type=str, required=True)
@@ -1466,25 +1284,12 @@ def onlinepay_decrypt_card(payment_id):
 @click.option("--notes", type=str, default=None)
 @with_appcontext
 def expense_create(amount, type_id, currency, payee_type, payee_entity_id, payee_name, payment_method, description, notes):
-    ex = Expense(
-        amount=_Q2(amount),
-        type_id=type_id,
-        currency=(currency or "ILS").upper(),
-        payee_type=payee_type,
-        payee_entity_id=payee_entity_id,
-        payee_name=payee_name,
-        payment_method=payment_method,
-        description=description,
-        notes=notes,
-        date=datetime.utcnow(),
-    )
+    ex=Expense(amount=_Q2(amount), type_id=type_id, currency=(currency or "ILS").upper(), payee_type=payee_type, payee_entity_id=payee_entity_id, payee_name=payee_name, payment_method=payment_method, description=description, notes=notes, date=datetime.utcnow())
     try:
-        with db.session.begin():
-            db.session.add(ex)
+        with _begin(): db.session.add(ex)
         click.echo(f"OK: expense {ex.id} amount={float(ex.amount):.2f} balance={ex.balance:.2f}")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
 @click.command("expense-pay")
 @click.option("--expense-id", type=int, required=True)
@@ -1493,27 +1298,15 @@ def expense_create(amount, type_id, currency, payee_type, payee_entity_id, payee
 @click.option("--currency", type=str, default="ILS")
 @with_appcontext
 def expense_pay(expense_id, amount, method, currency):
-    ex = db.session.get(Expense, expense_id)
-    if not ex:
-        raise click.ClickException("Expense not found")
-    amt = _Q2(amount)
-    p = Payment(
-        direction=PaymentDirection.OUTGOING.value,
-        entity_type=PaymentEntityType.EXPENSE.value,
-        expense_id=ex.id,
-        total_amount=amt,
-        currency=(currency or "ILS").upper(),
-        method=method.lower(),
-        status=PaymentStatus.COMPLETED.value,
-        reference=f"EXP-{ex.id}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
-    )
+    ex=db.session.get(Expense, expense_id)
+    if not ex: raise click.ClickException("Expense not found")
+    amt=_Q2(amount)
+    p=Payment(direction=PaymentDirection.OUTGOING.value, entity_type=PaymentEntityType.EXPENSE.value, expense_id=ex.id, total_amount=amt, currency=(currency or "ILS").upper(), method=method.lower(), status=PaymentStatus.COMPLETED.value, reference=f"EXP-{ex.id}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}")
     try:
-        with db.session.begin():
-            db.session.add(p)
+        with _begin(): db.session.add(p)
         click.echo(f"OK: expense paid. payment_id={p.id} balance={ex.balance:.2f} is_paid={ex.is_paid}")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
 @click.command("stock-adjustment-create")
 @click.option("--warehouse-id", type=int, required=True)
@@ -1521,14 +1314,12 @@ def expense_pay(expense_id, amount, method, currency):
 @click.option("--notes", type=str, default=None)
 @with_appcontext
 def stock_adjustment_create(warehouse_id, reason, notes):
-    adj = StockAdjustment(warehouse_id=warehouse_id, reason=reason, notes=notes)
+    adj=StockAdjustment(warehouse_id=warehouse_id, reason=reason, notes=notes)
     try:
-        with db.session.begin():
-            db.session.add(adj)
+        with _begin(): db.session.add(adj)
         click.echo(f"OK: adjustment {adj.id} created.")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
 @click.command("stock-adjustment-add-item")
 @click.option("--adjustment-id", type=int, required=True)
@@ -1537,115 +1328,64 @@ def stock_adjustment_create(warehouse_id, reason, notes):
 @click.option("--unit-cost", type=str, required=True)
 @with_appcontext
 def stock_adjustment_add_item(adjustment_id, product_id, quantity, unit_cost):
-    adj = db.session.get(StockAdjustment, adjustment_id)
-    if not adj:
-        raise click.ClickException("Adjustment not found")
-    it = StockAdjustmentItem(
-        adjustment_id=adj.id,
-        product_id=product_id,
-        quantity=int(quantity),
-        unit_cost=_Q2(unit_cost),
-    )
+    adj=db.session.get(StockAdjustment, adjustment_id)
+    if not adj: raise click.ClickException("Adjustment not found")
+    it=StockAdjustmentItem(adjustment_id=adj.id, product_id=product_id, quantity=int(quantity), unit_cost=_Q2(unit_cost))
     try:
-        with db.session.begin():
-            db.session.add(it)
-            db.session.flush()
-            total = Decimal("0")
-            for x in (adj.items or []):
-                total += _D(x.quantity or 0) * _D(x.unit_cost or 0)
-            adj.total_cost = _Q2(total)
+        with _begin():
+            db.session.add(it); db.session.flush()
+            total=Decimal("0")
+            for x in (adj.items or []): total += _D(x.quantity or 0)*_D(x.unit_cost or 0)
+            adj.total_cost=_Q2(total)
         click.echo(f"OK: item {it.id} added. total_cost={float(adj.total_cost):.2f}")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
 @click.command("stock-adjustment-finalize")
 @click.option("--adjustment-id", type=int, required=True)
 @click.option("--expense-type-id", type=int, required=True)
 @with_appcontext
 def stock_adjustment_finalize(adjustment_id, expense_type_id):
-    adj = db.session.get(StockAdjustment, adjustment_id)
-    if not adj:
-        raise click.ClickException("Adjustment not found")
-    if float(adj.total_cost or 0) <= 0:
-        raise click.ClickException("No total_cost to finalize")
-    ex = Expense(
-        amount=_Q2(adj.total_cost or 0),
-        type_id=expense_type_id,
-        currency="ILS",
-        stock_adjustment_id=adj.id,
-        description=f"Stock Adjustment {adj.reason} #{adj.id}",
-        date=datetime.utcnow(),
-        payment_method="other",
-    )
+    adj=db.session.get(StockAdjustment, adjustment_id)
+    if not adj: raise click.ClickException("Adjustment not found")
+    if float(adj.total_cost or 0) <= 0: raise click.ClickException("No total_cost to finalize")
+    ex=Expense(amount=_Q2(adj.total_cost or 0), type_id=expense_type_id, currency="ILS", stock_adjustment_id=adj.id, description=f"Stock Adjustment {adj.reason} #{adj.id}", date=datetime.utcnow(), payment_method="other")
     try:
-        with db.session.begin():
-            db.session.add(ex)
+        with _begin(): db.session.add(ex)
         click.echo(f"OK: expense {ex.id} created for adjustment.")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
 @click.command("gl-seed-accounts")
 @with_appcontext
 def gl_seed_accounts():
     created, updated = [], []
-    for code, name in [
-        ("1100_AR", "Accounts Receivable"),
-        ("4000_SALES", "Sales Revenue"),
-        ("2100_VAT_PAYABLE", "VAT Payable"),
-        ("1000_CASH", "Cash on Hand"),
-        ("1010_BANK", "Bank"),
-        ("1020_CARD_CLEARING", "Card Clearing"),
-        ("2000_AP", "Accounts Payable"),
-        ("5000_EXPENSES", "Expenses"),
-        ("1205_INV_EXCHANGE", "Inventory Exchange"),
-        ("5105_COGS_EXCHANGE", "COGS Exchange"),
-    ]:
-        acc = db.session.query(Account).filter_by(code=code).one_or_none()
-        if acc:
-            if (acc.is_active != True) or (acc.name != name):
-                acc.name = name
-                acc.is_active = True
-                updated.append(code)
-        else:
-            acc = Account(
-                code=code,
-                name=name,
-                type=("ASSET" if code.startswith(("1","12")) else "LIABILITY" if code.startswith("2") else "REVENUE" if code.startswith("4") else "EXPENSE"),
-                is_active=True
-            )
-            db.session.add(acc)
-            created.append(code)
-    try:
-        db.session.commit()
-        click.echo(json.dumps({"created": created, "updated": updated}, ensure_ascii=False))
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+    mapping=[("1100_AR","Accounts Receivable"),("4000_SALES","Sales Revenue"),("2100_VAT_PAYABLE","VAT Payable"),("1000_CASH","Cash on Hand"),("1010_BANK","Bank"),("1020_CARD_CLEARING","Card Clearing"),("2000_AP","Accounts Payable"),("5000_EXPENSES","Expenses"),("1205_INV_EXCHANGE","Inventory Exchange"),("5105_COGS_EXCHANGE","COGS Exchange")]
+    with _begin():
+        for code,name in mapping:
+            acc=db.session.query(Account).filter_by(code=code).one_or_none()
+            if acc:
+                if (acc.is_active!=True) or (acc.name!=name):
+                    acc.name=name; acc.is_active=True; updated.append(code)
+            else:
+                acc=Account(code=code, name=name, type=("ASSET" if code.startswith(("1","12")) else "LIABILITY" if code.startswith("2") else "REVENUE" if code.startswith("4") else "EXPENSE"), is_active=True)
+                db.session.add(acc); created.append(code)
+    click.echo(json.dumps({"created":created,"updated":updated}, ensure_ascii=False))
 
 @click.command("gl-batches")
 @click.option("--limit", type=int, default=20)
 @with_appcontext
 def gl_list_batches(limit):
-    rows = (db.session.query(GLBatch).order_by(GLBatch.created_at.desc()).limit(limit).all())
-    out = [{
-        "id": r.id, "code": r.code, "status": getattr(r.status, "value", r.status),
-        "source": f"{r.source_type}:{r.source_id}", "purpose": r.purpose,
-        "currency": r.currency, "posted_at": r.posted_at,
-    } for r in rows]
+    rows=(db.session.query(GLBatch).order_by(GLBatch.created_at.desc()).limit(limit).all())
+    out=[{"id":r.id,"code":r.code,"status":getattr(r.status,"value",r.status),"source":f"{r.source_type}:{r.source_id}","purpose":r.purpose,"currency":r.currency,"posted_at":r.posted_at} for r in rows]
     click.echo(json.dumps(out, default=str, ensure_ascii=False))
 
 @click.command("gl-entries")
 @click.option("--batch-id", type=int, required=True)
 @with_appcontext
 def gl_list_entries(batch_id):
-    rows = (db.session.query(GLEntry).filter(GLEntry.batch_id == batch_id).order_by(GLEntry.id.asc()).all())
-    out = [{
-        "id": e.id, "account": e.account,
-        "debit": float(e.debit or 0), "credit": float(e.credit or 0),
-        "currency": e.currency, "ref": e.ref
-    } for e in rows]
+    rows=(db.session.query(GLEntry).filter(GLEntry.batch_id==batch_id).order_by(GLEntry.id.asc()).all())
+    out=[{"id":e.id,"account":e.account,"debit":float(e.debit or 0),"credit":float(e.credit or 0),"currency":e.currency,"ref":e.ref} for e in rows]
     click.echo(json.dumps(out, ensure_ascii=False))
 
 @click.command("note-add")
@@ -1656,57 +1396,30 @@ def gl_list_entries(batch_id):
 @click.option("--pin/--no-pin", default=False)
 @with_appcontext
 def note_add(entity_type, entity_id, content, priority, pin):
-    n = Note(entity_type=entity_type.strip().upper(), entity_id=str(entity_id), content=content.strip(), priority=priority, is_pinned=bool(pin))
+    n=Note(entity_type=entity_type.strip().upper(), entity_id=str(entity_id), content=content.strip(), priority=priority, is_pinned=bool(pin))
     try:
-        with db.session.begin():
-            db.session.add(n)
+        with _begin(): db.session.add(n)
         click.echo(f"OK: note {n.id} added.")
     except SQLAlchemyError as e:
-        db.session.rollback()
-        raise click.ClickException(str(e)) from e
+        db.session.rollback(); raise click.ClickException(str(e)) from e
 
 @click.command("note-list")
 @click.option("--entity-type", type=str, required=True)
 @click.option("--entity-id", type=str, required=True)
 @with_appcontext
 def note_list(entity_type, entity_id):
-    rows = (db.session.query(Note).filter(Note.entity_type == entity_type.strip().upper(), Note.entity_id == str(entity_id)).order_by(Note.is_pinned.desc(), Note.created_at.desc()).all())
-    out = [r.to_dict() for r in rows]
+    rows=(db.session.query(Note).filter(Note.entity_type==entity_type.strip().upper(), Note.entity_id==str(entity_id)).order_by(Note.is_pinned.desc(), Note.created_at.desc()).all())
+    out=[r.to_dict() for r in rows]
     click.echo(json.dumps(out, ensure_ascii=False, default=str))
 
 @click.command("audit-tail")
 @click.option("--limit", type=int, default=50)
 @with_appcontext
 def audit_tail(limit):
-    rows = (db.session.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(limit).all())
-    out = [{
-        "id": r.id,
-        "time": r.created_at.isoformat() if r.created_at else None,
-        "model": r.model_name,
-        "record_id": r.record_id,
-        "action": r.action,
-        "user_id": r.user_id,
-        "customer_id": r.customer_id,
-        "ip": r.ip_address,
-    } for r in rows]
+    rows=(db.session.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(limit).all())
+    out=[{"id":r.id,"time":r.created_at.isoformat() if r.created_at else None,"model":r.model_name,"record_id":r.record_id,"action":r.action,"user_id":r.user_id,"customer_id":r.customer_id,"ip":r.ip_address} for r in rows]
     click.echo(json.dumps(out, ensure_ascii=False))
 
 def register_cli(app) -> None:
-    commands = [
-        seed_roles, sync_permissions, list_permissions, list_roles, role_add_perms,
-        create_role, export_rbac, create_user, user_set_password, user_activate,
-        user_assign_role, list_users, list_customers, seed_expense_types, expense_type_cmd,
-        seed_palestine_cmd, seed_all, clear_rbac_caches, wh_create, wh_list, wh_stock,
-        product_create, product_find, product_stock, product_set_price, stock_transfer,
-        stock_exchange, stock_reserve, stock_unreserve, shipment_create, shipment_status,
-        supplier_settlement_draft, supplier_settlement_confirm, partner_settlement_draft,
-        partner_settlement_confirm, payment_create, payment_list, invoice_list,
-        invoice_update_status, preorder_create, sr_create, sr_add_part, sr_add_task,
-        sr_recalc, sr_set_status, sr_show, cart_create, cart_add_item, order_from_cart,
-        order_set_status, order_add_item, onlinepay_create, onlinepay_decrypt_card,
-        expense_create, expense_pay, stock_adjustment_create, stock_adjustment_add_item,
-        stock_adjustment_finalize, gl_seed_accounts, gl_list_batches, gl_list_entries,
-        note_add, note_list, audit_tail,
-    ]
-    for cmd in commands:
-        app.cli.add_command(cmd)
+    commands=[seed_roles, sync_permissions, list_permissions, list_roles, role_add_perms, create_role, export_rbac, create_user, user_set_password, user_activate, user_assign_role, list_users, list_customers, seed_expense_types, expense_type_cmd, seed_palestine_cmd, seed_all, clear_rbac_caches, wh_create, wh_list, wh_stock, product_create, product_find, product_stock, product_set_price, stock_transfer, stock_exchange, stock_reserve, stock_unreserve, shipment_create, shipment_status, supplier_settlement_draft, supplier_settlement_confirm, partner_settlement_draft, partner_settlement_confirm, payment_create, payment_list, invoice_list, invoice_update_status, preorder_create, sr_create, sr_add_part, sr_add_task, sr_recalc, sr_set_status, sr_show, cart_create, cart_add_item, order_from_cart, order_set_status, order_add_item, onlinepay_create, onlinepay_decrypt_card, expense_create, expense_pay, stock_adjustment_create, stock_adjustment_add_item, stock_adjustment_finalize, gl_seed_accounts, gl_list_batches, gl_list_entries, note_add, note_list, audit_tail]
+    for cmd in commands: app.cli.add_command(cmd)

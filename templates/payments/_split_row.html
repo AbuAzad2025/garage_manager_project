@@ -1,6 +1,6 @@
-{% set st = payment.status.value if payment.status and payment.status.value else payment.status %}
+{% set st = enum_val(payment.status) %}
 {% set is_completed = st == 'COMPLETED' %}
-{% set m = (getattr(s.method, 'value', s.method) | string) | lower %}
+{% set m = (enum_val(s.method) | string) | lower %}
 {% set d = s.details if s.details is mapping else {} %}
 
 <tr id="split-{{ s.id }}">
@@ -18,13 +18,13 @@
       البنك: {{ d.get('check_bank') or '—' }}<br>
       الاستحقاق: {{ d.get('check_due_date') or d.get('due_date') or '—' }}
 
-    {% elif m == 'bank' %}
+    {% elif m in ['bank', 'transfer', 'bank_transfer'] %}
       مرجع التحويل: {{ d.get('bank_transfer_ref') or d.get('reference') or '—' }}
 
     {% elif m in ['card', 'credit'] %}
       بطاقة: {{
         (d.get('card_last4') and ('****' ~ (d.get('card_last4')|string)))
-        or (d.get('card_number') and ('****' ~ ((d.get('card_number')|string)[-4:])))
+        or (d.get('card_number') and ('****' ~ ((d.get('card_number')|string)[-4:])) )
         or '—'
       }}<br>
       حامل البطاقة: {{ d.get('card_holder') or '—' }}<br>
@@ -47,7 +47,7 @@
             class="btn btn-sm btn-danger remove-split"
             data-split-id="{{ s.id }}"
             {% if is_completed %}disabled{% endif %}>
-      حذف
+      🗑️ حذف
     </button>
   </td>
 </tr>

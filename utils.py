@@ -684,8 +684,6 @@ def is_super() -> bool:
 
 
 def is_admin() -> bool:
-    if is_super():
-        return True
     try:
         if _match_user(
             current_user,
@@ -697,11 +695,9 @@ def is_admin() -> bool:
         pass
     try:
         role_name = str(getattr(getattr(current_user, "role", None), "name", "")).lower()
-        if role_name == "admin":
-            return True
+        return role_name == "admin"
     except Exception:
-        pass
-    return bool(getattr(current_user, "is_admin", False))
+        return False
 
 
 def super_only(f):
@@ -980,16 +976,10 @@ def prepare_payment_form_choices(form, *, compat_post: bool = False, arabic_labe
     if hasattr(form, "status"):
         form.status.choices = _enum_choices(PaymentStatus, arabic_labels)
     if hasattr(form, "direction"):
-        base = _enum_choices(PaymentDirection, arabic_labels)
-        if compat_post:
-            extra = [("INCOMING", "وارد" if arabic_labels else "INCOMING"),
-                     ("OUTGOING", "صادر" if arabic_labels else "OUTGOING")]
-            seen = {v for v, _ in base}
-            base += [x for x in extra if x[0] not in seen]
-        form.direction.choices = base
+        # 👈 فقط قيم enum: "IN"/"OUT"
+        form.direction.choices = _enum_choices(PaymentDirection, arabic_labels)
     if hasattr(form, "entity_type"):
         form.entity_type.choices = _enum_choices(PaymentEntityType, arabic_labels)
-
 
 def update_entity_balance(entity: str, eid: int) -> float:
     from models import Payment, PaymentSplit, PaymentStatus

@@ -1,10 +1,8 @@
 document.addEventListener('DOMContentLoaded', function () {
   'use strict';
-
-  const filterSelectors = ['#filterEntity', '#filterStatus', '#filterDirection', '#filterMethod', '#startDate', '#endDate'];
+  const filterSelectors = ['#filterEntity', '#filterStatus', '#filterDirection', '#filterMethod', '#startDate', '#endDate', '#filterCurrency'];
   const ENTITY_ENUM = { customer:'CUSTOMER', supplier:'SUPPLIER', partner:'PARTNER', sale:'SALE', service:'SERVICE', expense:'EXPENSE', loan:'LOAN', preorder:'PREORDER', shipment:'SHIPMENT' };
   const AR_STATUS = { COMPLETED:'مكتملة', PENDING:'قيد الانتظار', FAILED:'فاشلة', REFUNDED:'مُرجعة' };
-
   function inferEntityContext() {
     const path = location.pathname.replace(/\/+$/, '');
     const m = path.match(/^\/vendors\/(suppliers|partners)\/(\d+)\/payments$/i);
@@ -14,11 +12,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const ei = qs.get('entity_id') || '';
     return { entity_type: ENTITY_ENUM[et] || '', entity_id: ei || '' };
   }
-
   const ctx = inferEntityContext();
   const entSel = document.querySelector('#filterEntity');
   if (entSel && ctx.entity_type) { entSel.value = ctx.entity_type; entSel.disabled = true; }
-
   function injectStatementButtons() {
     if (!ctx.entity_type || !ctx.entity_id) return;
     const filtersRow = document.querySelector('.row.mb-4.g-2.align-items-end') || document.querySelector('.row.mb-4');
@@ -31,36 +27,30 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('btnExportCsv').addEventListener('click', exportCsv);
   }
   injectStatementButtons();
-
   function debounce(fn, ms) { let t; return function () { clearTimeout(t); t = setTimeout(() => fn.apply(this, arguments), ms); }; }
   const debouncedReload = debounce(function () { updateUrlQuery(); loadPayments(1); }, 250);
-
   filterSelectors.forEach(function (sel) {
     const el = document.querySelector(sel);
     if (!el) return;
     el.addEventListener('change', debouncedReload, { passive: true });
     if (el.tagName === 'INPUT') el.addEventListener('input', debouncedReload, { passive: true });
   });
-
   function normalizeEntity(val) {
     if (!val) return '';
     const k = val.toString().toLowerCase();
     return ENTITY_ENUM[k] || val.toString().toUpperCase();
   }
-
   function normalizeMethod(v) {
     v = String(v || '').trim();
     if (!v) return '';
-    return v.replace(/\s+/g,'_').replace(/-/g,'_').toUpperCase(); // CASH, BANK_TRANSFER, CREDIT, ...
+    return v.replace(/\s+/g,'_').replace(/-/g,'_').toUpperCase();
   }
-
   function normDir(v) {
     v = (v || '').toUpperCase();
     if (v === 'IN') return 'INCOMING';
     if (v === 'OUT') return 'OUTGOING';
     return v;
   }
-
   function validDates(start, end) {
     if (!start || !end) return { start, end };
     const s = new Date(start), e = new Date(end);
@@ -68,7 +58,6 @@ document.addEventListener('DOMContentLoaded', function () {
     if (s.getTime() > e.getTime()) return { start: end, end: start };
     return { start, end };
   }
-
   function currentFilters(page = 1) {
     const raw = {
       entity_type: normalizeEntity(document.querySelector('#filterEntity')?.value || ctx.entity_type || ''),
@@ -77,6 +66,7 @@ document.addEventListener('DOMContentLoaded', function () {
       method: normalizeMethod(document.querySelector('#filterMethod')?.value || ''),
       start_date: document.querySelector('#startDate')?.value || '',
       end_date: document.querySelector('#endDate')?.value || '',
+      currency: (document.querySelector('#filterCurrency')?.value || '').toUpperCase(),
       page
     };
     const v = validDates(raw.start_date, raw.end_date);
@@ -84,7 +74,6 @@ document.addEventListener('DOMContentLoaded', function () {
     if (ctx.entity_id) raw.entity_id = ctx.entity_id;
     return raw;
   }
-
   function syncFiltersFromUrl() {
     const qs = new URLSearchParams(location.search);
     const setVal = (sel, v) => { const el = document.querySelector(sel); if (el && v != null) el.value = v; };
@@ -94,18 +83,16 @@ document.addEventListener('DOMContentLoaded', function () {
     setVal('#filterMethod', qs.get('method'));
     setVal('#startDate', qs.get('start_date'));
     setVal('#endDate', qs.get('end_date'));
+    setVal('#filterCurrency', qs.get('currency'));
   }
-
   function updateUrlQuery() {
     const raw = currentFilters();
     const params = new URLSearchParams();
     Object.entries(raw).forEach(function ([k, v]) { if (v && k !== 'page') params.append(k, v); });
     history.replaceState(null, '', location.pathname + (params.toString() ? ('?' + params.toString()) : ''));
   }
-
   let _abortCtrl = null;
   let _lastList = [];
-
   function loadPayments(page = 1) {
     const raw = currentFilters(page);
     const params = new URLSearchParams();
@@ -121,32 +108,29 @@ document.addEventListener('DOMContentLoaded', function () {
         renderPagination(Number(data.total_pages || 1), Number(data.current_page || 1));
         renderTotals(data.totals || null);
       })
-      .catch(function () {
+      .catch(function (err) {
+        if (err && err.name === 'AbortError') return;
         renderPaymentsTable([]);
         renderPagination(1, 1);
         renderTotals(null);
       })
       .finally(function () { setLoading(false); });
   }
-
   function setLoading(is) {
     const tbody = document.querySelector('#paymentsTable tbody');
     if (!tbody) return;
     if (is) tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm me-2"></div>جارِ التحميل…</td></tr>';
   }
-
   function badgeForDirection(dir) {
     const v = String(dir || '').toUpperCase();
     return (v === 'IN' || v === 'INCOMING') ? '<span class="badge bg-success">وارد</span>' : '<span class="badge bg-danger">صادر</span>';
   }
-
   function badgeForStatus(st) {
     const s = String(st || '');
     const cls = s === 'COMPLETED' ? 'bg-success' : s === 'PENDING' ? 'bg-warning text-dark' : s === 'FAILED' ? 'bg-danger' : 'bg-secondary';
     const txt = AR_STATUS[s] || s || '';
     return '<span class="badge ' + cls + '">' + txt + '</span>';
   }
-
   function toNumber(s) {
     s = String(s || '')
       .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
@@ -155,9 +139,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const n = parseFloat(s);
     return isNaN(n) ? 0 : n;
   }
-
   function fmtAmount(v) { return toNumber(v).toFixed(2); }
-
   function deriveEntityLabel(p) {
     if (p.entity_display) return p.entity_display;
     const map = [
@@ -175,7 +157,6 @@ document.addEventListener('DOMContentLoaded', function () {
     for (const [key, label] of map) if (p[key]) return label + ' #' + p[key];
     return p.entity_type || '';
   }
-
   function renderPaymentsTable(list) {
     _lastList = list.slice();
     const tbody = document.querySelector('#paymentsTable tbody');
@@ -193,6 +174,11 @@ document.addEventListener('DOMContentLoaded', function () {
       }).join(' ');
       const dateOnly = (p.payment_date || '').split('T')[0] || '';
       pageSum += toNumber(p.total_amount);
+      const actions =
+        '<div class="btn-group btn-group-sm" role="group">' +
+          '<a href="/payments/' + p.id + '" class="btn btn-info">عرض</a>' +
+          '<button type="button" class="btn btn-danger btn-del" data-id="' + p.id + '">حذف</button>' +
+        '</div>';
       const tr = document.createElement('tr');
       tr.innerHTML =
         '<td>' + p.id + '</td>' +
@@ -203,38 +189,61 @@ document.addEventListener('DOMContentLoaded', function () {
         '<td>' + badgeForDirection(p.direction) + '</td>' +
         '<td>' + badgeForStatus(p.status) + '</td>' +
         '<td>' + deriveEntityLabel(p) + '</td>' +
-        '<td><a href="/payments/' + p.id + '" class="btn btn-info btn-sm">عرض</a></td>';
+        '<td>' + actions + '</td>';
       tbody.appendChild(tr);
     });
     const t = document.createElement('tr');
     t.innerHTML = '<td></td><td class="text-end fw-bold">إجمالي الصفحة</td><td class="fw-bold">' + fmtAmount(pageSum) + '</td><td colspan="6"></td>';
     tbody.appendChild(t);
   }
-
+  document.addEventListener('click', async function (e) {
+    const btn = e.target.closest('.btn-del');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    if (!id) return;
+    if (!confirm('هل أنت متأكد من حذف سند الدفع #' + id + '؟')) return;
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || document.getElementById('csrf_token')?.value || '';
+    try {
+      const r = await fetch('/payments/' + id + '/delete', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+        },
+        body: new URLSearchParams({ csrf_token: csrf }).toString()
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok && (j.status === 'success' || j.ok)) {
+        loadPayments();
+      } else {
+        alert('تعذر الحذف: ' + (j.message || 'خطأ غير معروف'));
+      }
+    } catch (err) {
+      alert('خطأ في الاتصال بالخادم.');
+    }
+  });
   function renderPagination(totalPages, currentPage) {
     const ul = document.querySelector('#pagination');
     if (!ul) return;
     ul.innerHTML = '';
     totalPages = Math.max(1, totalPages || 1);
     currentPage = Math.min(Math.max(1, currentPage || 1), totalPages);
-
-    function add(page, label, disabled, active) {
+    function add(page, label, disabled, active, isEllipsis=false) {
       const li = document.createElement('li');
       li.className = 'page-item ' + (disabled ? 'disabled' : '') + ' ' + (active ? 'active' : '');
-      li.innerHTML = '<a class="page-link" href="#" data-page="' + page + '">' + label + '</a>';
+      li.innerHTML = '<a class="page-link' + (isEllipsis ? '' : '" data-page="' + page + '"') + '" href="#" ' + (isEllipsis ? 'tabindex="-1" aria-disabled="true"' : '') + '>' + label + '</a>';
       ul.appendChild(li);
     }
-
     add(currentPage - 1, 'السابق', currentPage <= 1, false);
     const windowSize = 2;
     const first = 1, last = totalPages;
     let start = Math.max(first, currentPage - windowSize);
     let end = Math.min(last, currentPage + windowSize);
-    if (start > first) { add(first, '1', false, first === currentPage); if (start > first + 1) add(currentPage, '…', true, false); }
+    if (start > first) { add(first, '1', false, first === currentPage); if (start > first + 1) add(currentPage, '…', true, false, true); }
     for (let i = start; i <= end; i++) add(i, String(i), false, i === currentPage);
-    if (end < last) { if (end < last - 1) add(currentPage, '…', true, false); add(last, String(last), false, last === currentPage); }
+    if (end < last) { if (end < last - 1) add(currentPage, '…', true, false, true); add(last, String(last), false, last === currentPage); }
     add(currentPage + 1, 'التالي', currentPage >= totalPages, false);
-    ul.querySelectorAll('.page-link').forEach(function (a) {
+    ul.querySelectorAll('.page-link[data-page]').forEach(function (a) {
       a.addEventListener('click', function (e) {
         e.preventDefault();
         const page = parseInt(a.dataset.page, 10);
@@ -242,7 +251,6 @@ document.addEventListener('DOMContentLoaded', function () {
       }, { passive: false });
     });
   }
-
   function renderTotals(totals) {
     const elIn = document.getElementById('totalIncoming');
     const elOut = document.getElementById('totalOutgoing');
@@ -255,20 +263,18 @@ document.addEventListener('DOMContentLoaded', function () {
     if (elNet) elNet.textContent = fmtAmount(safe.net_total || 0);
     if (elAll) elAll.textContent = fmtAmount(safe.grand_total || 0);
   }
-
   function printStatement() {
     try {
       const table = document.getElementById('paymentsTable');
       const htmlTable = table.outerHTML;
       const title = 'كشف حساب - ' + (ctx.entity_type || '') + ' #' + (ctx.entity_id || '');
       const w = window.open('', 'stmt');
-      w.document.write('<html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>' + title + '</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"><style>body{padding:24px}h3{margin-bottom:16px}table{font-size:12px}</style></head><body><h3>' + title + '</h3>' + htmlTable + '<script>window.onload=function(){window.print();}</script></body></html>');
+      w.document.write('<html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>' + title + '</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"><style>body{padding:24px}h3{margin-bottom:16px}table{font-size:12px}</style></head><body><h3>' + title + '</h3>' + htmlTable + '<script>window.onload=function(){window.print();}<\/script></body></html>');
       w.document.close();
     } catch (e) {
       alert('تعذر الطباعة الآن.');
     }
   }
-
   function exportCsv() {
     try {
       const headers = Array.from(document.querySelectorAll('#paymentsTable thead th')).map(function (th) { return th.textContent.trim(); }).slice(0, 8);
@@ -293,7 +299,6 @@ document.addEventListener('DOMContentLoaded', function () {
       alert('تعذر إنشاء CSV.');
     }
   }
-
   syncFiltersFromUrl();
   updateUrlQuery();
   loadPayments();

@@ -1,4 +1,4 @@
-# routes/payments.py
+﻿from sqlalchemy import text as sa_text
 from datetime import date, datetime, time
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 import uuid
@@ -75,7 +75,7 @@ def _ensure_payment_number(pmt: Payment) -> None:
         return
     base_dt = getattr(pmt, "payment_date", None) or datetime.utcnow()
     prefix = base_dt.strftime("PMT%Y%m%d")
-    cnt = db.session.execute(text("SELECT COUNT(*) FROM payments WHERE payment_number LIKE :pfx"), {"pfx": f"{prefix}-%"}).scalar() or 0
+    cnt = db.session.execute(sa_text("SELECT COUNT(*) FROM payments WHERE payment_number LIKE :pfx"), {"pfx": f"{prefix}-%"}).scalar() or 0
     pmt.payment_number = f"{prefix}-{cnt+1:04d}"
 
 def _sum_splits_decimal(splits) -> Decimal:
@@ -86,6 +86,16 @@ def _sum_splits_decimal(splits) -> Decimal:
 
 def _norm_currency(v):
     return (v or "ILS").strip().upper()
+
+try:
+    from models import ensure_currency as _ensure_ccy
+except Exception:
+    _ensure_ccy = None
+
+def ensure_currency(cur):
+    if _ensure_ccy:
+        return _ensure_ccy(cur)
+    return (cur or "ILS").strip().upper()
 
 def _get_or_404(model, ident, options=None):
     if options:
@@ -109,10 +119,6 @@ def _norm_dir(val):
 
 def _dir_to_db(v: str | None):
     vv = _norm_dir(v)
-    if vv == "IN":
-        return PaymentDirection.INCOMING.value
-    if vv == "OUT":
-        return PaymentDirection.OUTGOING.value
     return vv
 
 def _clean_details(d: dict | None):
@@ -269,6 +275,7 @@ def index():
     method = (request.args.get("method") or "").strip()
     start_date = (request.args.get("start_date") or request.args.get("start") or "").strip()
     end_date = (request.args.get("end_date") or request.args.get("end") or "").strip()
+    currency_param = (request.args.get("currency") or "").strip().upper()
     entity_id = request.args.get("entity_id", type=int)
     search_q = (request.args.get("q") or "").strip()
     reference_like = (request.args.get("reference") or "").strip()
@@ -292,6 +299,8 @@ def index():
             m = _coerce_method(method); mv = getattr(m, "value", m); filters.append(Payment.method == mv)
         except Exception:
             filters.append(Payment.method == method)
+    if currency_param:
+        filters.append(Payment.currency == ensure_currency(currency_param))
     def _parse_ymd(s: str | None):
         if not s:
             return None
@@ -333,38 +342,83 @@ def index():
         filters.append(Payment.reference.ilike(f"%{reference_like}%"))
     base_q = Payment.query.filter(*filters)
     pagination = base_q.order_by(Payment.payment_date.desc(), Payment.id.desc()).paginate(page=page, per_page=per_page, error_out=False)
-    totals_row = db.session.query(
+    if currency_param:
+        totals_row = db.session.query(
+            func.coalesce(func.sum(case((and_(Payment.direction == PaymentDirection.INCOMING.value, Payment.status == PaymentStatus.COMPLETED.value), Payment.total_amount), else_=0)), 0).label("total_incoming"),
+            func.coalesce(func.sum(case((and_(Payment.direction == PaymentDirection.OUTGOING.value, Payment.status == PaymentStatus.COMPLETED.value), Payment.total_amount), else_=0)), 0).label("total_outgoing"),
+            func.coalesce(func.sum(Payment.total_amount), 0).label("grand_total")
+        ).filter(*filters).one()
+        total_incoming_d = q0(D(totals_row.total_incoming or 0))
+        total_outgoing_d = q0(D(totals_row.total_outgoing or 0))
+        net_total_d = q0(total_incoming_d - total_outgoing_d)
+        grand_total_d = q0(D(totals_row.grand_total or 0))
+        totals_by_currency = {
+            ensure_currency(currency_param): {
+                "total_incoming": int(total_incoming_d),
+                "total_outgoing": int(total_outgoing_d),
+                "net_total": int(net_total_d),
+                "grand_total": int(grand_total_d),
+                "total_paid": int(total_incoming_d),
+            }
+        }
+        if _wants_json():
+            return jsonify({
+                "payments": [_serialize_payment(p, full=False) for p in pagination.items],
+                "total_pages": pagination.pages,
+                "current_page": pagination.page,
+                "total_items": pagination.total,
+                "currency": ensure_currency(currency_param),
+                "totals_by_currency": totals_by_currency,
+                "totals": totals_by_currency[ensure_currency(currency_param)]
+            })
+        return render_template(
+            "payments/list.html",
+            payments=pagination.items,
+            pagination=pagination,
+            total_paid=int(total_incoming_d),
+            total_incoming=int(total_incoming_d),
+            total_outgoing=int(total_outgoing_d),
+            net_total=int(net_total_d),
+            grand_total=int(grand_total_d),
+            totals_by_currency=totals_by_currency
+        )
+    rows = db.session.query(
+        Payment.currency.label("ccy"),
         func.coalesce(func.sum(case((and_(Payment.direction == PaymentDirection.INCOMING.value, Payment.status == PaymentStatus.COMPLETED.value), Payment.total_amount), else_=0)), 0).label("total_incoming"),
         func.coalesce(func.sum(case((and_(Payment.direction == PaymentDirection.OUTGOING.value, Payment.status == PaymentStatus.COMPLETED.value), Payment.total_amount), else_=0)), 0).label("total_outgoing"),
         func.coalesce(func.sum(Payment.total_amount), 0).label("grand_total")
-    ).filter(*filters).one()
-    total_incoming_d = q0(D(totals_row.total_incoming or 0))
-    total_outgoing_d = q0(D(totals_row.total_outgoing or 0))
-    net_total_d = q0(total_incoming_d - total_outgoing_d)
-    grand_total_d = q0(D(totals_row.grand_total or 0))
+    ).filter(*filters).group_by(Payment.currency).all()
+    totals_by_currency = {}
+    for r in rows:
+        ti = q0(D(r.total_incoming or 0))
+        to = q0(D(r.total_outgoing or 0))
+        gt = q0(D(r.grand_total or 0))
+        totals_by_currency[r.ccy] = {
+            "total_incoming": int(ti),
+            "total_outgoing": int(to),
+            "net_total": int(q0(ti - to)),
+            "grand_total": int(gt),
+            "total_paid": int(ti)
+        }
     if _wants_json():
         return jsonify({
             "payments": [_serialize_payment(p, full=False) for p in pagination.items],
             "total_pages": pagination.pages,
             "current_page": pagination.page,
             "total_items": pagination.total,
-            "totals": {
-                "total_incoming": int(total_incoming_d),
-                "total_outgoing": int(total_outgoing_d),
-                "net_total": int(net_total_d),
-                "grand_total": int(grand_total_d),
-                "total_paid": int(total_incoming_d)
-            }
+            "currency": None,
+            "totals_by_currency": totals_by_currency
         })
     return render_template(
         "payments/list.html",
         payments=pagination.items,
         pagination=pagination,
-        total_paid=int(total_incoming_d),
-        total_incoming=int(total_incoming_d),
-        total_outgoing=int(total_outgoing_d),
-        net_total=int(net_total_d),
-        grand_total=int(grand_total_d)
+        total_paid=0,
+        total_incoming=0,
+        total_outgoing=0,
+        net_total=0,
+        grand_total=0,
+        totals_by_currency=totals_by_currency
     )
 
 @payments_bp.route("/create", methods=["GET", "POST"], endpoint="create_payment")
@@ -372,14 +426,11 @@ def index():
 @permission_required("manage_payments")
 def create_payment():
     form = PaymentForm(meta={"csrf": not current_app.testing})
+    form._incoming_entities = set()
+    form._outgoing_entities = {"EXPENSE"}
     entity_info = None
-
     def _fd(f):
         return getattr(f, "data", None) if f is not None else None
-
-    if hasattr(form, "direction"):
-        form.direction.choices = [("IN", "وارد"), ("OUT", "صادر"), ("INCOMING", "وارد"), ("OUTGOING", "صادر")]
-
     if request.method == "GET":
         form.payment_date.data = datetime.utcnow()
         try:
@@ -394,130 +445,72 @@ def create_payment():
         except Exception:
             if hasattr(form, "request_token"):
                 form.request_token.data = None
-
         raw_et = (request.args.get("entity_type") or "").strip().upper()
         if raw_et == "SHIPMENT_CUSTOMS":
             raw_et = "SHIPMENT"
         et = raw_et if hasattr(form, "_entity_field_map") and raw_et in form._entity_field_map else ""
         eid = request.args.get("entity_id")
-
         pre_amount = D(request.args.get("amount"))
         if pre_amount <= 0:
             pre_amount = D(request.args.get("total_amount"))
         if pre_amount <= 0:
             pre_amount = None
-
         preset_direction = _norm_dir(request.args.get("direction"))
         preset_method = request.args.get("method")
         preset_currency = request.args.get("currency")
         preset_ref = (request.args.get("reference") or "").strip() or None
         preset_notes = (request.args.get("notes") or "").strip()
-
         if et:
             form.entity_type.data = et
-            if hasattr(form, "_incoming_entities") and et in form._incoming_entities:
-                form.direction.data = "IN"
-            elif hasattr(form, "_outgoing_entities") and et in form._outgoing_entities:
-                form.direction.data = "OUT"
             field_name = form._entity_field_map[et]
             if eid and str(eid).isdigit() and hasattr(form, field_name):
                 getattr(form, field_name).data = int(eid)
-
             if et == "CUSTOMER" and eid:
                 c = db.session.get(Customer, int(eid))
                 if c:
                     entity_info = {"type": "customer", "name": c.name, "balance": int(q0(getattr(c, "balance", 0) or 0)), "currency": getattr(c, "currency", "ILS")}
-                    form.currency.data = getattr(c, "currency", "ILS")
-                    if pre_amount is not None:
-                        form.total_amount.data = int(q0(pre_amount))
-                        form.reference.data = form.reference.data or f"دفعة من العميل {c.name}"
-
+                    if not preset_currency:
+                        form.currency.data = getattr(c, "currency", "ILS")
             elif et == "SUPPLIER" and eid:
                 s = db.session.get(Supplier, int(eid))
-                if s:
-                    nb = D(getattr(s, "net_balance", 0) or 0)
-                    entity_info = {"type": "supplier", "name": s.name, "balance": int(q0(nb)), "currency": getattr(s, "currency", "ILS")}
+                if s and not preset_currency:
                     form.currency.data = getattr(s, "currency", "ILS")
-                    if pre_amount is None:
-                        pre_amount = abs(nb)
-                        if nb > 0:
-                            form.direction.data = "OUT"
-                        elif nb < 0:
-                            form.direction.data = "IN"
-                    if pre_amount is not None:
-                        form.total_amount.data = int(q0(pre_amount))
-                        form.reference.data = form.reference.data or f"تسوية حساب المورد {s.name}"
-
             elif et == "PARTNER" and eid:
                 p = db.session.get(Partner, int(eid))
-                if p:
-                    nb = D(getattr(p, "net_balance", 0) or 0)
-                    entity_info = {"type": "partner", "name": p.name, "balance": int(q0(nb)), "currency": getattr(p, "currency", "ILS")}
+                if p and not preset_currency:
                     form.currency.data = getattr(p, "currency", "ILS")
-                    if pre_amount is None:
-                        pre_amount = abs(nb)
-                        if nb > 0:
-                            form.direction.data = "OUT"
-                        elif nb < 0:
-                            form.direction.data = "IN"
-                    if pre_amount is not None:
-                        form.total_amount.data = int(q0(pre_amount))
-                        form.reference.data = form.reference.data or f"تسوية حساب الشريك {p.name}"
-
             elif et == "SALE" and eid:
                 rec = db.session.get(Sale, int(eid))
                 if rec:
                     total_i = int(q0(getattr(rec, "total_amount", getattr(rec, "total", 0)) or 0))
                     paid_i = int(q0(getattr(rec, "total_paid", 0) or 0))
                     due_i = int(q0(D(total_i) - D(paid_i)))
-                    form.total_amount.data = int(q0(pre_amount if pre_amount is not None else due_i))
-                    form.reference.data = f"دفعة لبيع {rec.sale_number or rec.id}"
-                    form.currency.data = getattr(rec, "currency", form.currency.data)
+                    if pre_amount is None:
+                        pre_amount = due_i
+                    if not preset_currency:
+                        form.currency.data = getattr(rec, "currency", form.currency.data)
                     person = None
                     if getattr(rec, "customer_id", None):
                         cust = db.session.get(Customer, rec.customer_id)
                         if cust:
                             person = {"type": "customer", "id": cust.id, "name": cust.name}
-                            if not preset_ref and not form.reference.data:
-                                form.reference.data = f"دفعة من العميل {cust.name} لبيع {rec.sale_number or rec.id}"
-                    entity_info = {
-                        "type": "sale",
-                        "number": rec.sale_number,
-                        "date": rec.sale_date.strftime("%Y-%m-%d") if rec.sale_date else "",
-                        "total": total_i,
-                        "paid": paid_i,
-                        "balance": due_i,
-                        "currency": getattr(rec, "currency", "ILS"),
-                        "person": person
-                    }
-
+                    entity_info = {"type": "sale","number": rec.sale_number,"date": rec.sale_date.strftime("%Y-%m-%d") if rec.sale_date else "","total": total_i,"paid": paid_i,"balance": due_i,"currency": getattr(rec, "currency", "ILS"),"person": person}
             elif et == "INVOICE" and eid:
                 rec = db.session.get(Invoice, int(eid))
                 if rec:
                     total_i = int(q0(getattr(rec, "total_amount", 0) or 0))
                     paid_i = int(q0(getattr(rec, "total_paid", 0) or 0))
                     due_i = int(q0(D(total_i) - D(paid_i)))
-                    form.total_amount.data = int(q0(pre_amount if pre_amount is not None else due_i))
-                    form.reference.data = f"دفعة للفاتورة {rec.invoice_number or rec.id}"
-                    form.currency.data = getattr(rec, "currency", form.currency.data)
+                    if pre_amount is None:
+                        pre_amount = due_i
+                    if not preset_currency:
+                        form.currency.data = getattr(rec, "currency", form.currency.data)
                     person = None
                     if getattr(rec, "customer_id", None):
                         cust = db.session.get(Customer, rec.customer_id)
                         if cust:
                             person = {"type": "customer", "id": cust.id, "name": cust.name}
-                            if not preset_ref and not form.reference.data:
-                                form.reference.data = f"دفعة من العميل {cust.name} للفاتورة {rec.invoice_number or rec.id}"
-                    entity_info = {
-                        "type": "invoice",
-                        "number": rec.invoice_number,
-                        "date": rec.invoice_date.strftime("%Y-%m-%d") if rec.invoice_date else "",
-                        "total": total_i,
-                        "paid": paid_i,
-                        "balance": due_i,
-                        "currency": getattr(rec, "currency", "ILS"),
-                        "person": person
-                    }
-
+                    entity_info = {"type": "invoice","number": rec.invoice_number,"date": rec.invoice_date.strftime("%Y-%m-%d") if rec.invoice_date else "","total": total_i,"paid": paid_i,"balance": due_i,"currency": getattr(rec, "currency", "ILS"),"person": person}
             elif et == "SERVICE" and eid:
                 svc = db.session.get(ServiceRequest, int(eid))
                 if svc:
@@ -529,43 +522,27 @@ def create_payment():
                         grand_i = subtotal_i
                     total_paid_i = int(q0(getattr(svc, "total_paid", 0) or 0))
                     due_i = int(q0(D(grand_i) - D(total_paid_i)))
-                    form.total_amount.data = int(q0(pre_amount if pre_amount is not None else due_i))
-                    form.reference.data = f"دفعة صيانة {svc.service_number or svc.id}"
+                    if pre_amount is None:
+                        pre_amount = due_i
                     person = None
                     if getattr(svc, "customer_id", None):
                         cust = db.session.get(Customer, svc.customer_id)
                         if cust:
                             person = {"type": "customer", "id": cust.id, "name": cust.name}
-                            if not preset_ref and not form.reference.data:
-                                form.reference.data = f"دفعة من العميل {cust.name} لصيانة {svc.service_number or svc.id}"
-                    entity_info = {
-                        "type": "service",
-                        "number": svc.service_number,
-                        "date": svc.request_date.strftime("%Y-%m-%d") if getattr(svc, "request_date", None) else "",
-                        "total": int(q0(grand_i)),
-                        "paid": total_paid_i,
-                        "balance": due_i,
-                        "currency": getattr(svc, "currency", "ILS") if hasattr(svc, "currency") else "ILS",
-                        "person": person
-                    }
-
+                    entity_info = {"type": "service","number": svc.service_number,"date": svc.request_date.strftime("%Y-%m-%d") if getattr(svc, "request_date", None) else "","total": int(q0(grand_i)),"paid": total_paid_i,"balance": due_i,"currency": getattr(svc, "currency", "ILS") if hasattr(svc, "currency") else "ILS","person": person}
             elif et == "EXPENSE" and eid:
                 exp = db.session.get(Expense, int(eid))
                 if exp:
                     bal = D(getattr(exp, "balance", getattr(exp, "amount", 0)) or 0)
-                    form.total_amount.data = int(q0(pre_amount if pre_amount is not None else bal))
-                    form.direction.data = "OUT"
-                    form.currency.data = getattr(exp, "currency", form.currency.data)
-                    if hasattr(exp, "payment_method") and exp.payment_method:
-                        try:
-                            form.method.data = _coerce_method(exp.payment_method).value
-                        except Exception:
-                            pass
+                    if pre_amount is None:
+                        pre_amount = bal
+                    if not preset_currency:
+                        form.currency.data = getattr(exp, "currency", form.currency.data)
                     person = None
                     if getattr(exp, "employee", None) and getattr(exp.employee, "name", None):
                         person = {"type": "employee", "id": getattr(exp.employee, "id", None), "name": exp.employee.name}
                     elif getattr(exp, "shipment", None):
-                        person = {"type": "shipment", "id": getattr(exp.shipment, "id", None), "name": getattr(exp.shipment, "number", f"Shipment #{exp.shipment_id or ''}")}
+                        person = {"type": "shipment", "id": getattr(exp.shipment, "id", None), "name": getattr(exp.shipment, "number", f"شحنة رقم {exp.shipment_id or ''}")}
                     elif getattr(exp, "utility_account", None):
                         ua = exp.utility_account
                         ua_name = ua.alias or ua.provider or f"Utility #{getattr(ua, 'id', '')}"
@@ -580,36 +557,16 @@ def create_payment():
                     ref_txt = (person and person.get("name")) or getattr(exp, "payee_name", None) or getattr(exp, "paid_to", None) or getattr(exp, "description", None) or f"مصروف #{exp.id}"
                     if not form.reference.data:
                         form.reference.data = f"دفع مصروف {ref_txt}"
-                    entity_info = {
-                        "type": "expense",
-                        "number": f"EXP-{exp.id}",
-                        "date": exp.date.strftime("%Y-%m-%d") if getattr(exp, "date", None) else "",
-                        "description": exp.description or "",
-                        "amount": int(q0(getattr(exp, "amount", 0) or 0)),
-                        "balance": int(q0(getattr(exp, "balance", 0) or 0)),
-                        "currency": getattr(exp, "currency", "ILS"),
-                        "type_name": getattr(getattr(exp, "type", None), "name", None),
-                        "employee_name": getattr(getattr(exp, "employee", None), "name", None),
-                        "person": person
-                    }
-
+                    entity_info = {"type": "expense","number": f"EXP-{exp.id}","date": exp.date.strftime("%Y-%m-%d") if getattr(exp, "date", None) else "","description": exp.description or "","amount": int(q0(getattr(exp, "amount", 0) or 0)),"balance": int(q0(getattr(exp, "balance", 0) or 0)),"currency": getattr(exp, "currency", "ILS"),"type_name": getattr(getattr(exp, "type", None), "name", None),"employee_name": getattr(getattr(exp, "employee", None), "name", None),"person": person}
             elif et == "SHIPMENT" and eid:
                 shp = db.session.get(Shipment, int(eid))
                 if shp:
-                    form.direction.data = "OUT"
-                    if hasattr(shp, "currency") and shp.currency:
+                    if hasattr(shp, "currency") and shp.currency and not preset_currency:
                         form.currency.data = shp.currency
-                    if hasattr(shp, "payment_method") and shp.payment_method and not getattr(form, "method", None).data:
-                        try:
-                            form.method.data = _coerce_method(shp.payment_method).value
-                        except Exception:
-                            pass
                     if pre_amount is None:
                         amt = D(getattr(shp, "customs_due", None) or 0) or D(getattr(shp, "total_due", None) or 0) or D(getattr(shp, "balance", None) or 0) or D(getattr(shp, "total_cost", None) or 0)
                         if amt > 0:
-                            form.total_amount.data = int(q0(amt))
-                    else:
-                        form.total_amount.data = int(q0(pre_amount))
+                            pre_amount = amt
                     if not form.reference.data:
                         ref_no = getattr(shp, "shipment_number", None) or shp.id
                         form.reference.data = f"دفع شحنة {ref_no}"
@@ -619,32 +576,16 @@ def create_payment():
                         sup = db.session.get(Supplier, supplier_id)
                         if sup:
                             person = {"type": "supplier", "id": sup.id, "name": sup.name}
-                    entity_info = {
-                        "type": "shipment",
-                        "number": getattr(shp, "shipment_number", None),
-                        "date": shp.shipment_date.strftime("%Y-%m-%d") if getattr(shp, "shipment_date", None) else "",
-                        "destination": getattr(shp, "destination", "") or "",
-                        "currency": getattr(shp, "currency", "USD"),
-                        "person": person
-                    }
-
+                    entity_info = {"type": "shipment","number": getattr(shp, "shipment_number", None),"date": shp.shipment_date.strftime("%Y-%m-%d") if getattr(shp, "shipment_date", None) else "","destination": getattr(shp, "destination", "") or "","currency": getattr(shp, "currency", "USD"),"person": person}
             elif et == "PREORDER" and eid:
                 po = db.session.get(PreOrder, int(eid))
                 if po:
-                    form.direction.data = "IN"
-                    if hasattr(po, "currency") and po.currency:
-                        form.currency.data = po.currency
-                    if hasattr(po, "payment_method") and po.payment_method and not getattr(form, "method", None).data:
-                        try:
-                            form.method.data = _coerce_method(po.payment_method).value
-                        except Exception:
-                            pass
+                    if not preset_currency:
+                        form.currency.data = getattr(po, "currency", "ILS")
                     if pre_amount is None:
                         amt = D(getattr(po, "balance_due", None) or 0) or D(getattr(po, "prepaid_amount", None) or 0) or D(getattr(po, "deposit_amount", None) or 0)
                         if amt > 0:
-                            form.total_amount.data = int(q0(amt))
-                    else:
-                        form.total_amount.data = int(q0(pre_amount))
+                            pre_amount = amt
                     if not form.reference.data:
                         ref_no = getattr(po, "reference", None) or po.id
                         form.reference.data = f"دفعة حجز {ref_no}"
@@ -653,18 +594,9 @@ def create_payment():
                         cust = db.session.get(Customer, po.customer_id)
                         if cust:
                             person = {"type": "customer", "id": cust.id, "name": cust.name}
-                            if not preset_ref and not form.reference.data:
-                                form.reference.data = f"دفعة من العميل {cust.name} للحجز {ref_no}"
-                    entity_info = {
-                        "type": "preorder",
-                        "number": getattr(po, "reference", None),
-                        "date": po.created_at.strftime("%Y-%m-%d") if getattr(po, "created_at", None) else "",
-                        "currency": getattr(po, "currency", "ILS"),
-                        "person": person
-                    }
-
+                    entity_info = {"type": "preorder","number": getattr(po, "reference", None),"date": po.created_at.strftime("%Y-%m-%d") if getattr(po, "created_at", None) else "","currency": getattr(po, "currency", "ILS"),"person": person}
         if preset_currency:
-            form.currency.data = (preset_currency or "").upper()
+            form.currency.data = ensure_currency((preset_currency or "").upper())
         if preset_method and hasattr(form, "method"):
             try:
                 form.method.data = _coerce_method(preset_method).value
@@ -680,7 +612,6 @@ def create_payment():
             form.total_amount.data = int(q0(pre_amount))
         if not form.status.data:
             form.status.data = PaymentStatus.COMPLETED.value
-
     if request.method == "POST":
         req_tok = (request.form.get("request_token") or "").strip()
         tokens = set(session.get("pmt_tokens") or [])
@@ -693,16 +624,18 @@ def create_payment():
                 return jsonify(status="error", message=msg), 409
             flash(msg, "warning")
             return redirect(url_for("payments.index"))
-
         raw_dir = request.form.get("direction")
         if raw_dir:
             form.direction.data = _norm_dir(raw_dir)
-
+        etype = (request.form.get("entity_type") or form.entity_type.data or "").upper()
+        if etype == "EXPENSE":
+            form.direction.data = "OUT"
+        form._incoming_entities = set()
+        form._outgoing_entities = {"EXPENSE"}
         if not form.validate():
             if _wants_json():
                 return jsonify(status="error", errors=form.errors), 400
-            return render_template("payments/form.html", form=form, entity_info=entity_info)
-
+            return render_template("payments/form.html", form=form, entity_info=None)
         try:
             etype = (form.entity_type.data or "").upper()
             field_name = getattr(form, "_entity_field_map", {}).get(etype)
@@ -712,8 +645,7 @@ def create_payment():
                 if _wants_json():
                     return jsonify(status="error", message=msg), 400
                 flash(msg, "danger")
-                return render_template("payments/form.html", form=form, entity_info=entity_info)
-
+                return render_template("payments/form.html", form=form, entity_info=None)
             parsed_splits = []
             for entry in getattr(form, "splits", []).entries:
                 sm = entry.form
@@ -740,15 +672,13 @@ def create_payment():
                             details[fld] = val
                 details = _clean_details(details)
                 parsed_splits.append(PaymentSplit(method=_coerce_method(m_str).value, amount=q0(amt_dec), details=details))
-
             tgt_total_dec = q0(D(request.form.get("total_amount") or form.total_amount.data or 0))
             if tgt_total_dec <= 0:
                 msg = "❌ المبلغ الكلي يجب أن يكون أكبر من صفر."
                 if _wants_json():
                     return jsonify(status="error", message=msg), 400
                 flash(msg, "danger")
-                return render_template("payments/form.html", form=form, entity_info=entity_info)
-
+                return render_template("payments/form.html", form=form, entity_info=None)
             if parsed_splits:
                 sum_splits = _sum_splits_decimal(parsed_splits)
                 if sum_splits != tgt_total_dec:
@@ -756,19 +686,13 @@ def create_payment():
                     if _wants_json():
                         return jsonify(status="error", message=msg), 400
                     flash(msg, "danger")
-                    return render_template("payments/form.html", form=form, entity_info=entity_info)
-
-            auto_dir = None
-            if hasattr(form, "_incoming_entities") and etype in form._incoming_entities:
-                auto_dir = "IN"
-            elif hasattr(form, "_outgoing_entities") and etype in form._outgoing_entities:
-                auto_dir = "OUT"
-            direction_val = _norm_dir(form.direction.data or auto_dir)
-            direction_val = "IN" if direction_val in {"IN", "INCOMING"} else "OUT"
+                    return render_template("payments/form.html", form=form, entity_info=None)
+            direction_val = _norm_dir(form.direction.data or request.form.get("direction"))
+            if etype == "EXPENSE":
+                direction_val = "OUT"
             direction_db = _dir_to_db(direction_val)
             method_val = parsed_splits[0].method if parsed_splits else _coerce_method(getattr(form, "method", None).data or "cash").value
             notes_raw = (_fd(getattr(form, "note", None)) or _fd(getattr(form, "notes", None)) or "")
-
             related_customer_id = None
             related_supplier_id = None
             person_name = None
@@ -810,14 +734,12 @@ def create_payment():
                 if related_supplier_id:
                     s = db.session.get(Supplier, related_supplier_id)
                     person_name = getattr(s, "name", None)
-
             ref_text = (form.reference.data or "").strip()
             if not ref_text and person_name:
                 if direction_val == "IN":
                     ref_text = f"دفعة واردة من {person_name}"
                 else:
                     ref_text = f"دفعة صادرة إلى {person_name}"
-
             payment = Payment(
                 entity_type=etype,
                 customer_id=(target_id if etype == "CUSTOMER" else None),
@@ -834,7 +756,7 @@ def create_payment():
                 status=form.status.data or PaymentStatus.COMPLETED.value,
                 payment_date=form.payment_date.data,
                 total_amount=q0(tgt_total_dec),
-                currency=_norm_currency(form.currency.data),
+                currency=ensure_currency(form.currency.data),
                 method=getattr(method_val, "value", method_val),
                 reference=ref_text or None,
                 receipt_number=(_fd(getattr(form, "receipt_number", None)) or None),
@@ -849,7 +771,6 @@ def create_payment():
                 db.session.add(sp)
             _sync_payment_method_with_splits(payment)
             db.session.add(payment)
-
             try:
                 db.session.commit()
             except IntegrityError as ie:
@@ -859,7 +780,7 @@ def create_payment():
                 if "payments.payment_number" in msg or "unique constraint failed: payments.payment_number" in msg:
                     base_dt = payment.payment_date or datetime.utcnow()
                     prefix = base_dt.strftime("PMT%Y%m%d")
-                    cnt = db.session.execute(text("SELECT COUNT(*) FROM payments WHERE payment_number LIKE :pfx"), {"pfx": f"{prefix}-%"}).scalar() or 0
+                    cnt = db.session.execute(sa_text("SELECT COUNT(*) FROM payments WHERE payment_number LIKE :pfx"), {"pfx": f"{prefix}-%"}).scalar() or 0
                     payment.payment_number = f"{prefix}-{cnt+1:04d}"
                     fixed = True
                 if "payments.method" in msg or "may not be null" in msg:
@@ -876,7 +797,6 @@ def create_payment():
                     db.session.commit()
                 else:
                     raise
-
             try:
                 if payment.sale_id:
                     sale = db.session.get(Sale, payment.sale_id)
@@ -913,26 +833,23 @@ def create_payment():
                 db.session.commit()
             except SQLAlchemyError:
                 db.session.rollback()
-
             log_audit("Payment", payment.id, "CREATE")
         except SQLAlchemyError as e:
             db.session.rollback()
             if _wants_json():
                 return jsonify(status="error", message=str(e)), 400
             flash(f"❌ خطأ في الحفظ: {e}", "danger")
-            return render_template("payments/form.html", form=form, entity_info=entity_info)
+            return render_template("payments/form.html", form=form, entity_info=None)
         except Exception as e:
             db.session.rollback()
             if _wants_json():
                 return jsonify(status="error", message=str(e)), 400
             flash(f"❌ خطأ في الحفظ: {e}", "danger")
-            return render_template("payments/form.html", form=form, entity_info=entity_info)
-
+            return render_template("payments/form.html", form=form, entity_info=None)
         if _wants_json():
             return jsonify(status="success", payment=_serialize_payment(payment, full=True)), 201
         flash("✅ تم تسجيل الدفعة", "success")
         return redirect(url_for("payments.index"))
-
     return render_template("payments/form.html", form=form, entity_info=entity_info)
 
 @payments_bp.route("/expense/<int:exp_id>/create", methods=["GET", "POST"], endpoint="create_expense_payment")
@@ -941,23 +858,17 @@ def create_payment():
 def create_expense_payment(exp_id):
     exp = _get_or_404(Expense, exp_id)
     form = PaymentForm(meta={"csrf": not current_app.testing})
-    if hasattr(form, "direction"):
-        form.direction.choices = [("IN", "وارد"), ("OUT", "صادر"), ("INCOMING", "وارد"), ("OUTGOING", "صادر")]
+    form._incoming_entities = set()
+    form._outgoing_entities = {"EXPENSE"}
     form.entity_type.data = "EXPENSE"
     if hasattr(form, "_entity_field_map") and "EXPENSE" in form._entity_field_map:
         getattr(form, form._entity_field_map["EXPENSE"]).data = exp.id
-    entity_info = {
-        "type": "expense",
-        "number": f"EXP-{exp.id}",
-        "date": exp.date.strftime("%Y-%m-%d") if getattr(exp, "date", None) else "",
-        "description": exp.description or "",
-        "amount": int(q0(D(getattr(exp, "amount", 0) or 0))),
-        "currency": getattr(exp, "currency", "ILS")
-    }
+    entity_info = {"type": "expense","number": f"EXP-{exp.id}","date": exp.date.strftime("%Y-%m-%d") if getattr(exp, "date", None) else "","description": exp.description or "","amount": int(q0(D(getattr(exp, "amount", 0) or 0))),"currency": getattr(exp, "currency", "ILS")}
     def _clean_details_local(d):
         if not d:
             return None
-        out = {}; DateT = type(datetime.utcnow().date())
+        out = {}
+        DateT = type(datetime.utcnow().date())
         for k, v in d.items():
             if v in (None, "", []):
                 continue
@@ -971,13 +882,14 @@ def create_expense_payment(exp_id):
         form.total_amount.data = int(q0(D(getattr(exp, "amount", 0) or 0)))
         form.reference.data = f"دفع مصروف {exp.description or ''}".strip()
         form.direction.data = "OUT"
-        form.currency.data = _norm_currency(getattr(exp, "currency", "ILS"))
+        form.currency.data = ensure_currency(_norm_currency(getattr(exp, "currency", "ILS")))
         if not form.status.data:
             form.status.data = PaymentStatus.COMPLETED.value
         return render_template("payments/form.html", form=form, entity_info=entity_info)
     raw_dir = request.form.get("direction")
     if raw_dir:
         form.direction.data = _norm_dir(raw_dir)
+    form.direction.data = "OUT"
     if not form.validate_on_submit():
         if _wants_json():
             return jsonify(status="error", errors=form.errors), 400
@@ -1014,20 +926,22 @@ def create_expense_payment(exp_id):
             msg = "❌ المبلغ الكلي يجب أن يكون أكبر من صفر."
             if _wants_json():
                 return jsonify(status="error", message=msg), 400
-            flash(msg, "danger"); return render_template("payments/form.html", form=form, entity_info=entity_info)
+            flash(msg, "danger")
+            return render_template("payments/form.html", form=form, entity_info=entity_info)
         sum_splits = _sum_splits_decimal(parsed_splits)
         if sum_splits != tgt_total_dec:
             msg = f"❌ مجموع الدفعات الجزئية لا يساوي المبلغ الكلي. المجموع={int(sum_splits)} المطلوب={int(tgt_total_dec)}"
             if _wants_json():
                 return jsonify(status="error", message=msg), 400
-            flash(msg, "danger"); return render_template("payments/form.html", form=form, entity_info=entity_info)
+            flash(msg, "danger")
+            return render_template("payments/form.html", form=form, entity_info=entity_info)
         method_val = parsed_splits[0].method if parsed_splits else _coerce_method(getattr(form, "method", None).data or "cash").value
         notes_raw = (getattr(form, "note", None).data if hasattr(form, "note") else None) or (getattr(form, "notes", None).data if hasattr(form, "notes") else None) or ""
         payment = Payment(
             entity_type="EXPENSE",
             expense_id=exp.id,
             total_amount=q0(tgt_total_dec),
-            currency=_norm_currency(form.currency.data or getattr(exp, "currency", "ILS")),
+            currency=ensure_currency(form.currency.data or getattr(exp, "currency", "ILS")),
             method=getattr(method_val, "value", method_val),
             direction=_dir_to_db("OUT"),
             status=form.status.data or PaymentStatus.COMPLETED.value,
@@ -1039,69 +953,19 @@ def create_expense_payment(exp_id):
         _ensure_payment_number(payment)
         for sp in parsed_splits:
             payment.splits.append(sp)
-        db.session.add(payment); db.session.commit()
+        db.session.add(payment)
+        db.session.commit()
         log_audit("Payment", payment.id, f"CREATE (expense #{exp.id})")
         if _wants_json():
             return jsonify(status="success", payment=_serialize_payment(payment, full=True)), 201
-        flash("✅ تم تسجيل دفع المصروف بنجاح", "success"); return redirect(url_for("payments.view_payment", payment_id=payment.id))
+        flash("✅ تم تسجيل دفع المصروف بنجاح", "success")
+        return redirect(url_for("payments.view_payment", payment_id=payment.id))
     except Exception as e:
         db.session.rollback()
         if _wants_json():
             return jsonify(status="error", message=str(e)), 400
-        flash(f"❌ خطأ أثناء تسجيل الدفع: {e}", "danger"); return render_template("payments/form.html", form=form, entity_info=entity_info)
-
-@payments_bp.route("/<int:payment_id>", methods=["GET"], endpoint="view_payment")
-@login_required
-@permission_required("manage_payments")
-def view_payment(payment_id):
-    payment = _get_or_404(
-        Payment, payment_id,
-        options=(
-            joinedload(Payment.customer),
-            joinedload(Payment.supplier),
-            joinedload(Payment.partner),
-            joinedload(Payment.shipment),
-            joinedload(Payment.expense),
-            joinedload(Payment.loan_settlement),
-            joinedload(Payment.sale),
-            joinedload(Payment.invoice),
-            joinedload(Payment.preorder),
-            joinedload(Payment.service),
-            joinedload(Payment.splits),
-        ),
-    )
-
-    payload = _serialize_payment(payment, full=True)
-    if payment.customer:
-        payload["person"] = {"type": "customer", "id": payment.customer.id, "name": payment.customer.name}
-    elif payment.supplier:
-        payload["person"] = {"type": "supplier", "id": payment.supplier.id, "name": payment.supplier.name}
-    elif payment.partner:
-        payload["person"] = {"type": "partner", "id": payment.partner.id, "name": payment.partner.name}
-    elif payment.sale and payment.sale.customer_id:
-        c = db.session.get(Customer, payment.sale.customer_id)
-        if c:
-            payload["person"] = {"type": "customer", "id": c.id, "name": c.name}
-    elif payment.invoice and payment.invoice.customer_id:
-        c = db.session.get(Customer, payment.invoice.customer_id)
-        if c:
-            payload["person"] = {"type": "customer", "id": c.id, "name": c.name}
-    elif payment.service and getattr(payment.service, "customer_id", None):
-        c = db.session.get(Customer, payment.service.customer_id)
-        if c:
-            payload["person"] = {"type": "customer", "id": c.id, "name": c.name}
-
-    if _wants_json():
-        return jsonify(payment=payload)
-
-    def enum_val(x):
-        try:
-            v = getattr(x, "value", x)
-            return "" if v is None else str(v)
-        except Exception:
-            return ""
-
-    return render_template("payments/view.html", payment=payment, enum_val=enum_val)
+        flash(f"❌ خطأ أثناء تسجيل الدفع: {e}", "danger")
+        return render_template("payments/form.html", form=form, entity_info=entity_info)
 
 @payments_bp.route("/split/<int:split_id>/delete", methods=["DELETE"], endpoint="delete_split")
 @login_required
@@ -1111,19 +975,17 @@ def delete_split(split_id):
     try:
         payment_id = split.payment_id
         pmt = db.session.get(Payment, payment_id)
-        if pmt and pmt.status == PaymentStatus.COMPLETED.value:
+        if pmt and (pmt.status == PaymentStatus.COMPLETED.value or str(getattr(pmt.status, "value", pmt.status)) == "COMPLETED"):
             return jsonify(status="error", message="لا يمكن تعديل دفعات سند مكتمل."), 409
-        db.session.delete(split); db.session.flush()
+        db.session.delete(split)
+        db.session.flush()
         if payment_id:
             if pmt is None:
                 pmt = db.session.get(Payment, payment_id)
             if pmt is not None:
                 _sync_payment_method_with_splits(pmt)
                 rem = list(pmt.splits or [])
-                if rem:
-                    pmt.total_amount = _sum_splits_decimal(rem)
-                else:
-                    pmt.total_amount = q0(0)
+                pmt.total_amount = _sum_splits_decimal(rem) if rem else q0(0)
                 db.session.add(pmt)
         db.session.commit()
         current_app.logger.info("payment.split_deleted", extra={"event": "payments.split.delete", "payment_id": payment_id, "split_id": split_id})
@@ -1133,11 +995,81 @@ def delete_split(split_id):
         current_app.logger.exception("payment.split_delete_failed", extra={"event": "payments.split.error", "split_id": split_id})
         return jsonify(status="error", message=str(e)), 400
 
+
+@payments_bp.route("/<int:payment_id>/delete", methods=["POST"], endpoint="delete_payment")
+@login_required
+@permission_required("manage_payments")
+def delete_payment(payment_id):
+    wants_json = _wants_json()
+    try:
+        payment = _get_or_404(Payment, payment_id, options=(joinedload(Payment.splits),))
+        related_customer_id = payment.customer_id or (payment.sale.customer_id if payment.sale_id and payment.sale else None) or (payment.invoice.customer_id if payment.invoice_id and payment.invoice else None) or (payment.service.customer_id if payment.service_id and payment.service else None) or (payment.preorder.customer_id if payment.preorder_id and payment.preorder else None)
+        related_supplier_id = payment.supplier_id or (payment.shipment.supplier_id if payment.shipment_id and payment.shipment else None) or (payment.loan_settlement.supplier_id if payment.loan_settlement_id and payment.loan_settlement else None)
+        related_partner_id = payment.partner_id
+        related_sale_id = payment.sale_id
+        related_invoice_id = payment.invoice_id
+        related_service_id = payment.service_id
+        related_preorder_id = payment.preorder_id
+        related_loan_settle = payment.loan_settlement_id
+        pid = payment.id
+        db.session.delete(payment)
+        db.session.flush()
+        if related_sale_id:
+            s = db.session.get(Sale, related_sale_id)
+            if s and hasattr(s, "update_payment_status"):
+                s.update_payment_status()
+                db.session.add(s)
+        if related_invoice_id:
+            inv = db.session.get(Invoice, related_invoice_id)
+            if inv and hasattr(inv, "update_status"):
+                inv.update_status()
+                db.session.add(inv)
+        db.session.commit()
+        try:
+            if related_customer_id:
+                update_entity_balance("customer", related_customer_id)
+            if related_supplier_id:
+                update_entity_balance("supplier", related_supplier_id)
+            if related_partner_id:
+                update_entity_balance("partner", related_partner_id)
+            if related_loan_settle:
+                ls = db.session.get(SupplierLoanSettlement, related_loan_settle)
+                if ls and ls.supplier_id:
+                    update_entity_balance("supplier", ls.supplier_id)
+        except Exception:
+            pass
+        log_audit("Payment", pid, "DELETE")
+        if wants_json:
+            return jsonify(status="success", message="تم حذف السند وتحديث الأرصدة"), 200
+        flash("✅ تم حذف السند وتحديث الأرصدة بنجاح", "success")
+        return redirect(url_for("payments.index"))
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        if wants_json:
+            return jsonify(status="error", message=str(e)), 400
+        flash(f"❌ تعذر حذف السند: {e}", "danger")
+        return redirect(url_for("payments.view_payment", payment_id=payment_id))
+
+from datetime import datetime
+from flask import jsonify, render_template
+from sqlalchemy.orm import joinedload
+
 @payments_bp.route("/<int:payment_id>/receipt", methods=["GET"], endpoint="view_receipt")
 @login_required
 @permission_required("manage_payments")
 def view_receipt(payment_id: int):
-    payment = _get_or_404(Payment, payment_id, options=(joinedload(Payment.customer), joinedload(Payment.supplier), joinedload(Payment.partner), joinedload(Payment.sale), joinedload(Payment.splits)))
+    payment = _get_or_404(
+        Payment,
+        payment_id,
+        options=(
+            joinedload(Payment.customer),
+            joinedload(Payment.supplier),
+            joinedload(Payment.partner),
+            joinedload(Payment.sale),
+            joinedload(Payment.splits),
+        ),
+    )
+
     sale_info = None
     if payment.sale_id and payment.sale:
         s = payment.sale
@@ -1147,20 +1079,77 @@ def view_receipt(payment_id: int):
             "total": int(q0(s.total_amount)),
             "paid": int(q0(s.total_paid)),
             "balance": int(q0(s.balance_due)),
-            "currency": s.currency
+            "currency": (s.currency or "").upper(),
         }
+
     if _wants_json():
-        payload = _serialize_payment(payment, full=True); payload["sale_info"] = sale_info; return jsonify(payment=payload)
-    return render_template("payments/receipt.html", payment=payment, now=datetime.utcnow(), sale_info=sale_info)
+        payload = _serialize_payment(payment, full=True)
+        payload["sale_info"] = sale_info
+        return jsonify(payment=payload)
+
+    return render_template(
+        "payments/receipt.html",
+        payment=payment,
+        now=datetime.utcnow(),
+        sale_info=sale_info,
+    )
 
 @payments_bp.route("/<int:payment_id>/receipt/download", methods=["GET"], endpoint="download_receipt")
 @login_required
 @permission_required("manage_payments")
 def download_receipt(payment_id: int):
-    payment = _get_or_404(Payment, payment_id)
-    pdf_bytes = _render_payment_receipt_pdf(payment)
-    return Response(pdf_bytes, mimetype="application/pdf", headers={"Content-Disposition": f"attachment; filename=payment_receipt_{payment_id}.pdf"})
+    """
+    Generate a PDF receipt for a payment and return it as a downloadable (or inline) file.
 
+    Query params:
+      - inline=1  → show in browser instead of forcing download
+    """
+    payment = _get_or_404(
+        Payment,
+        payment_id,
+        options=(joinedload(Payment.customer), joinedload(Payment.supplier)),
+    )
+
+    try:
+        pdf_bytes = _render_payment_receipt_pdf(payment)  # must return raw bytes
+        if not pdf_bytes:
+            current_app.logger.error("receipt.pdf_empty", extra={"payment_id": payment_id})
+            abort(500, description="PDF render returned empty content.")
+    except Exception as e:
+        current_app.logger.exception("receipt.pdf_error", extra={"payment_id": payment_id})
+        abort(500, description=f"Failed to render receipt PDF: {e}")
+
+    # File name: prefer receipt_number, then payment_number, then fallback to id+date
+    safe_suffix = (
+        (payment.receipt_number or "").strip()
+        or (payment.payment_number or "").strip()
+        or f"{payment_id}_{datetime.utcnow():%Y%m%d}"
+    )
+    # Keep it ASCII-safe for headers
+    safe_suffix = "".join(ch for ch in safe_suffix if ch.isalnum() or ch in ("-", "_"))
+    filename = f"payment_receipt_{safe_suffix or payment_id}.pdf"
+
+    inline = (request.args.get("inline") or "").strip() in ("1", "true", "yes")
+    buf = BytesIO(pdf_bytes)
+    buf.seek(0)
+
+    resp = send_file(
+        buf,
+        mimetype="application/pdf",
+        as_attachment=not inline,
+        download_name=filename,
+        max_age=0,
+        conditional=False,
+        etag=False,
+        last_modified=None,
+    )
+
+    # Harden caching behavior
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    # Explicit content disposition for some proxies
+    resp.headers["Content-Disposition"] = ("inline" if inline else "attachment") + f'; filename="{filename}"'
+    return resp
 @payments_bp.route("/entity-fields", methods=["GET"], endpoint="entity_fields")
 @login_required
 @permission_required("manage_payments")
@@ -1168,6 +1157,8 @@ def entity_fields():
     entity_type = (request.args.get("type") or "customer").strip().lower()
     entity_id = request.args.get("entity_id")
     form = PaymentForm()
+    form._incoming_entities = set()
+    form._outgoing_entities = {"EXPENSE"}
     form.entity_type.data = entity_type.upper()
     model_map = {
         "customer": (Customer, "customer_id"),
@@ -1189,24 +1180,7 @@ def entity_fields():
                 getattr(form, field_name).data = eid
         except (ValueError, TypeError):
             if _wants_json():
-                return jsonify(status="error", message="entity_id غير صالح"), 400
+                return jsonify(status="error", message="رقم الجهة غير صالح"), 400
     if hasattr(form, "_sync_entity_id_for_render"):
         form._sync_entity_id_for_render()
     return render_template("payments/_entity_fields.html", form=form)
-
-@payments_bp.route("/<int:payment_id>/delete", methods=["POST"], endpoint="delete_payment")
-@login_required
-@permission_required("manage_payments")
-def delete_payment(payment_id):
-    payment = db.session.get(Payment, payment_id) or abort(404)
-    try:
-        if payment.status == PaymentStatus.COMPLETED.value:
-            flash("لا يمكن حذف سند مكتمل.", "danger")
-            return redirect(url_for("payments.index"))
-        pid = payment.id
-        db.session.delete(payment); db.session.commit()
-        log_audit("Payment", pid, "DELETE")
-        flash("✅ تم حذف السند بنجاح", "success")
-    except SQLAlchemyError as e:
-        db.session.rollback(); flash(f"❌ خطأ أثناء الحذف: {e}", "danger")
-    return redirect(url_for("payments.index"))

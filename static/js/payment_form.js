@@ -1,414 +1,304 @@
-'use strict';
 document.addEventListener('DOMContentLoaded', function () {
-  const container = document.getElementById('splitsContainer');
-  const MAX_SPLITS = parseInt(container?.dataset.maxSplits || '3', 10);
-  const METHOD_FIELDS = { "": [], cash: [], cheque: ["check_number","check_bank","check_due_date"], check: ["check_number","check_bank","check_due_date"], bank: ["bank_transfer_ref"], transfer: ["bank_transfer_ref"], bank_transfer: ["bank_transfer_ref"], card: ["card_number","card_holder","card_expiry"], credit: ["card_number","card_holder","card_expiry"], online: ["online_gateway","online_ref"], mobile: ["online_gateway","online_ref"] };
-  const addBtn = document.getElementById('addSplit');
-  const form = document.getElementById('paymentForm');
-  const template = container && container.querySelector('.split-form') ? container.querySelector('.split-form').cloneNode(true) : null;
-  const entityWrap = document.getElementById('entityFields');
-  const totalInput = document.querySelector('[name="total_amount"]');
-  const entityTypeSelect = document.querySelector('[name="entity_type"]');
+  'use strict';
 
-  function normalizeMethod(val){
-    const v = String(val || '').trim().toLowerCase();
+  const filterSelectors = ['#filterEntity', '#filterStatus', '#filterDirection', '#filterMethod', '#startDate', '#endDate', '#filterCurrency'];
+  const ENTITY_ENUM = { customer:'CUSTOMER', supplier:'SUPPLIER', partner:'PARTNER', sale:'SALE', service:'SERVICE', expense:'EXPENSE', loan:'LOAN', preorder:'PREORDER', shipment:'SHIPMENT' };
+  const AR_STATUS = { COMPLETED:'مكتملة', PENDING:'قيد الانتظار', FAILED:'فاشلة', REFUNDED:'مُرجعة' };
+
+  function inferEntityContext() {
+    const path = location.pathname.replace(/\/+$/, '');
+    const m = path.match(/^\/vendors\/(suppliers|partners)\/(\d+)\/payments$/i);
+    if (m) return { entity_type: m[1].toLowerCase()==='suppliers' ? 'SUPPLIER' : 'PARTNER', entity_id: m[2] };
+    const qs = new URLSearchParams(location.search);
+    const et = (qs.get('entity_type') || '').toLowerCase();
+    const ei = qs.get('entity_id') || '';
+    return { entity_type: ENTITY_ENUM[et] || '', entity_id: ei || '' };
+  }
+
+  const ctx = inferEntityContext();
+  const entSel = document.querySelector('#filterEntity');
+  if (entSel && ctx.entity_type) { entSel.value = ctx.entity_type; entSel.disabled = true; }
+
+  function injectStatementButtons() {
+    if (!ctx.entity_type || !ctx.entity_id) return;
+    const filtersRow = document.querySelector('.row.mb-4.g-2.align-items-end') || document.querySelector('.row.mb-4');
+    if (!filtersRow || document.getElementById('btnExportCsv')) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'col-auto d-flex gap-2';
+    wrap.innerHTML = '<button id="btnPrint" class="btn btn-outline-secondary"><i class="fas fa-print me-1"></i> طباعة كشف</button><button id="btnExportCsv" class="btn btn-outline-success"><i class="fas fa-file-csv me-1"></i> تصدير CSV</button>';
+    filtersRow.appendChild(wrap);
+    document.getElementById('btnPrint').addEventListener('click', printStatement);
+    document.getElementById('btnExportCsv').addEventListener('click', exportCsv);
+  }
+  injectStatementButtons();
+
+  function debounce(fn, ms) { let t; return function () { clearTimeout(t); t = setTimeout(() => fn.apply(this, arguments), ms); }; }
+  const debouncedReload = debounce(function () { updateUrlQuery(); loadPayments(1); }, 250);
+
+  filterSelectors.forEach(function (sel) {
+    const el = document.querySelector(sel);
+    if (!el) return;
+    el.addEventListener('change', debouncedReload, { passive: true });
+    if (el.tagName === 'INPUT') el.addEventListener('input', debouncedReload, { passive: true });
+  });
+
+  function normalizeEntity(val) {
+    if (!val) return '';
+    const k = val.toString().toLowerCase();
+    return ENTITY_ENUM[k] || val.toString().toUpperCase();
+  }
+
+  function normalizeMethod(v) {
+    v = String(v || '').trim();
     if (!v) return '';
-    if (/(cash|نقد)/.test(v)) return 'cash';
-    if (/(cheq|cheque|check|شيك)/.test(v)) return 'cheque';
-    if (/(bank[_\s-]*transfer|transfer|حوالة|بنكي)/.test(v)) return 'bank';
-    if (/(card|credit|visa|master|بطاقة)/.test(v)) return 'card';
-    if (/(mobile|momo|جوال|محفظة)/.test(v)) return 'mobile';
-    if (/(online|gateway|بوابة)/.test(v)) return 'online';
-    return v.replace(/[^a-z_]/g,'');
+    return v.replace(/\s+/g,'_').replace(/-/g,'_').toUpperCase();
   }
 
-  function ensurePlaceholderOption(select) {
-    if (!select) return;
-    if (!select.options.length || select.options[0].value !== '') {
-      const opt = document.createElement('option');
-      opt.value = '';
-      opt.textContent = '— اختر الطريقة —';
-      opt.disabled = true;
-      opt.selected = !select.value;
-      select.insertBefore(opt, select.firstChild);
-    } else {
-      select.options[0].disabled = true;
-      if (!select.value) select.selectedIndex = 0;
-    }
+  function normDir(v) {
+    v = (v || '').toUpperCase();
+    if (v === 'IN') return 'INCOMING';
+    if (v === 'OUT') return 'OUTGOING';
+    return v;
   }
 
-  function toggleAddBtn() {
-    if (!container || !addBtn) return;
-    const count = container.querySelectorAll('.split-form').length;
-    addBtn.disabled = count >= MAX_SPLITS;
+  function validDates(start, end) {
+    if (!start || !end) return { start, end };
+    const s = new Date(start), e = new Date(end);
+    if (isNaN(s) || isNaN(e)) return { start, end };
+    if (s.getTime() > e.getTime()) return { start: end, end: start };
+    return { start, end };
   }
 
-  function applyDetailsForRow(row, method) {
-    const details = row.querySelector('.split-details');
-    if (!details) return;
-    const key = normalizeMethod(method);
-    const want = new Set(METHOD_FIELDS[key] || []);
-    let anyShown = false;
-    details.querySelectorAll('[data-field]').forEach(wrap => {
-      const field = wrap.dataset.field;
-      const show = want.has(field);
-      const inp = wrap.querySelector('input,select,textarea');
-      wrap.style.display = show ? '' : 'none';
-      if (inp) {
-        if (show) inp.disabled = false;
-        else { inp.value = ''; inp.disabled = true; }
-      }
-      if (show) anyShown = true;
-    });
-    details.style.display = anyShown ? 'block' : 'none';
+  function currentFilters(page = 1) {
+    const raw = {
+      entity_type: normalizeEntity(document.querySelector('#filterEntity')?.value || ctx.entity_type || ''),
+      status: document.querySelector('#filterStatus')?.value || '',
+      direction: normDir(document.querySelector('#filterDirection')?.value || ''),
+      method: normalizeMethod(document.querySelector('#filterMethod')?.value || ''),
+      start_date: document.querySelector('#startDate')?.value || '',
+      end_date: document.querySelector('#endDate')?.value || '',
+      currency: (document.querySelector('#filterCurrency')?.value || '').toUpperCase(),
+      page
+    };
+    const v = validDates(raw.start_date, raw.end_date);
+    raw.start_date = v.start; raw.end_date = v.end;
+    if (ctx.entity_id) raw.entity_id = ctx.entity_id;
+    return raw;
   }
 
-  function renumberRowFields(row, i) {
-    row.dataset.index = i;
-    const title = row.querySelector('h5');
-    if (title) title.textContent = `الدفعة الجزئية #${i + 1}`;
-    row.querySelectorAll('input,select,textarea').forEach(inp => {
-      if (!inp.name) return;
-      const field = inp.name.split('-').pop();
-      inp.name = `splits-${i}-${field}`;
-      inp.id = `splits-${i}-${field}`;
-    });
-    const sel = row.querySelector('.split-method, select[name$="-method"], select[name$="-payment_method"]');
-    if (sel) {
-      ensurePlaceholderOption(sel);
-      if (!sel.value) sel.selectedIndex = 0;
-    }
-    const btn = row.querySelector('.remove-split');
-    if (btn) btn.disabled = (i === 0);
+  function syncFiltersFromUrl() {
+    const qs = new URLSearchParams(location.search);
+    const setVal = (sel, v) => { const el = document.querySelector(sel); if (el && v != null) el.value = v; };
+    setVal('#filterEntity', qs.get('entity_type'));
+    setVal('#filterStatus', qs.get('status'));
+    setVal('#filterDirection', qs.get('direction'));
+    setVal('#filterMethod', qs.get('method'));
+    setVal('#startDate', qs.get('start_date'));
+    setVal('#endDate', qs.get('end_date'));
+    setVal('#filterCurrency', qs.get('currency'));
   }
 
-  function refreshSplits() {
-    if (!container) return;
-    container.querySelectorAll('.split-form').forEach((el, i) => {
-      renumberRowFields(el, i);
-      const sel = el.querySelector('.split-method, select[name$="-method"], select[name$="-payment_method"]');
-      const method = (sel && sel.value ? sel.value : '');
-      applyDetailsForRow(el, method);
-    });
-    toggleAddBtn();
-    updateSplitSumHint();
+  function updateUrlQuery() {
+    const raw = currentFilters();
+    const params = new URLSearchParams();
+    Object.entries(raw).forEach(function ([k, v]) { if (v && k !== 'page') params.append(k, v); });
+    history.replaceState(null, '', location.pathname + (params.toString() ? ('?' + params.toString()) : ''));
   }
 
-  function createSplitElement() {
-    if (!container || !template) return null;
-    const idx = container.querySelectorAll('.split-form').length;
-    const clone = template.cloneNode(true);
-    clone.querySelectorAll('input,select,textarea').forEach(el => {
-      if (el.tagName === 'SELECT') el.selectedIndex = 0; else el.value = '';
-      if (el.closest('[data-field]')) el.disabled = true;
-    });
-    const details = clone.querySelector('.split-details');
-    if (details) details.style.display = 'none';
-    renumberRowFields(clone, idx);
-    return clone;
+  let _abortCtrl = null;
+  let _lastList = [];
+
+  function loadPayments(page = 1) {
+    const raw = currentFilters(page);
+    const params = new URLSearchParams();
+    Object.entries(raw).forEach(function ([k, v]) { if (v) params.append(k, v); });
+    if (_abortCtrl) _abortCtrl.abort();
+    _abortCtrl = new AbortController();
+    setLoading(true);
+    fetch('/payments/?' + params.toString(), { headers: { 'Accept': 'application/json' }, signal: _abortCtrl.signal })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function (data) {
+        const list = Array.isArray(data.payments) ? data.payments : [];
+        renderPaymentsTable(list);
+        renderPagination(Number(data.total_pages || 1), Number(data.current_page || 1));
+        renderTotals(data.totals || null);
+      })
+      .catch(function (err) {
+        if (err && err.name === 'AbortError') return;
+        renderPaymentsTable([]);
+        renderPagination(1, 1);
+        renderTotals(null);
+      })
+      .finally(function () { setLoading(false); });
   }
 
-  function toNumber(s){
+  function setLoading(is) {
+    const tbody = document.querySelector('#paymentsTable tbody');
+    if (!tbody) return;
+    if (is) tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm me-2"></div>جارِ التحميل…</td></tr>';
+  }
+
+  function badgeForDirection(dir) {
+    const v = String(dir || '').toUpperCase();
+    return (v === 'IN' || v === 'INCOMING') ? '<span class="badge bg-success">وارد</span>' : '<span class="badge bg-danger">صادر</span>';
+  }
+
+  function badgeForStatus(st) {
+    const s = String(st || '');
+    const cls = s === 'COMPLETED' ? 'bg-success' : s === 'PENDING' ? 'bg-warning text-dark' : s === 'FAILED' ? 'bg-danger' : 'bg-secondary';
+    const txt = AR_STATUS[s] || s || '';
+    return '<span class="badge ' + cls + '">' + txt + '</span>';
+  }
+
+  function toNumber(s) {
     s = String(s || '')
-          .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
-          .replace(/[٬،\s]/g,'')
-          .replace(',', '.');
+      .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+      .replace(/[٬،\s]/g, '')
+      .replace(',', '.');
     const n = parseFloat(s);
     return isNaN(n) ? 0 : n;
   }
 
-  function updateSplitSumHint() {
-    if (!container || !totalInput) return;
-    const hint = document.getElementById('splitSum') || (() => {
-      const small = document.createElement('div');
-      small.className = 'form-text'; small.id = 'splitSum';
-      totalInput.parentElement.appendChild(small);
-      return small;
-    })();
-    let sum = 0;
-    container.querySelectorAll('.split-form [name$="-amount"]').forEach(amountEl => { sum += toNumber(amountEl.value); });
-    const total = toNumber(totalInput.value);
-    hint.textContent = `مجموع الدفعات الجزئية: ${sum.toFixed(2)} — المبلغ الكلي: ${total.toFixed(2)}`;
-    hint.style.color = Math.abs(sum - total) < 0.01 ? '' : '#b02a37';
+  function fmtAmount(v) { return toNumber(v).toFixed(2); }
+
+  function deriveEntityLabel(p) {
+    if (p.entity_display) return p.entity_display;
+    const map = [
+      ['customer_id', 'عميل'],
+      ['supplier_id', 'مورد'],
+      ['partner_id', 'شريك'],
+      ['sale_id', 'بيع'],
+      ['invoice_id', 'فاتورة'],
+      ['service_id', 'صيانة'],
+      ['shipment_id', 'شحنة'],
+      ['expense_id', 'مصروف'],
+      ['preorder_id', 'حجز'],
+      ['loan_settlement_id', 'تسوية']
+    ];
+    for (const [key, label] of map) if (p[key]) return label + ' #' + p[key];
+    return p.entity_type || '';
   }
 
-  if (addBtn && container) {
-    addBtn.addEventListener('click', () => {
-      const count = container.querySelectorAll('.split-form').length;
-      if (count >= MAX_SPLITS) return;
-      const el = createSplitElement();
-      if (el) container.appendChild(el);
-      refreshSplits();
-    });
-  }
-
-  if (container) {
-    container.addEventListener('click', e => {
-      if (e.target.matches('.remove-split')) {
-        e.preventDefault();
-        const row = e.target.closest('.split-form');
-        if (!row) return;
-        row.remove();
-        refreshSplits();
-      }
-    });
-
-    container.addEventListener('change', e => {
-      const isMethod = e.target.matches('.split-method, select[name$="-method"], select[name$="-payment_method"]');
-      if (isMethod) {
-        const row = e.target.closest('.split-form');
-        applyDetailsForRow(row, e.target.value || '');
-      }
-      if (e.target.matches('[name$="-amount"]')) updateSplitSumHint();
-    });
-
-    container.querySelectorAll('.split-form .split-method, .split-form select[name$="-method"], .split-form select[name$="-payment_method"]').forEach(sel => {
-      ensurePlaceholderOption(sel);
-      applyDetailsForRow(sel.closest('.split-form'), (sel.value || ''));
-    });
-  }
-
-  if (totalInput) totalInput.addEventListener('input', updateSplitSumHint);
-
-  function reloadEntityFields() {
-    if (!entityTypeSelect || !entityWrap) return;
-    const type = entityTypeSelect.value || '';
-    const eidEl = document.getElementById('entity_id') || entityWrap.querySelector('input[name="entity_id"]');
-    const eid = eidEl ? (eidEl.value || '') : '';
-    if (!type) {
-      entityWrap.innerHTML = '<div class="text-muted">اختر نوع الجهة أولاً.</div>';
+  function renderPaymentsTable(list) {
+    _lastList = list.slice();
+    const tbody = document.querySelector('#paymentsTable tbody');
+    tbody.innerHTML = '';
+    if (!list.length) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td colspan="9" class="text-center text-muted py-4">لا توجد بيانات</td>';
+      tbody.appendChild(tr);
       return;
     }
-    fetch(`/payments/entity-fields?type=${encodeURIComponent(type)}&entity_id=${encodeURIComponent(eid)}`)
-      .then(r => r.text())
-      .then(html => { entityWrap.innerHTML = html; document.dispatchEvent(new Event('payments:entityFieldsReloaded')); })
-      .catch(() => {});
+    let pageSum = 0;
+    list.forEach(function (p) {
+      const splitsHtml = (p.splits || []).map(function (s) {
+        return '<span class="badge bg-secondary me-1">' + String((s.method || '')).toUpperCase() + ': ' + fmtAmount(s.amount) + ' ' + (p.currency || '') + '</span>';
+      }).join(' ');
+      const dateOnly = (p.payment_date || '').split('T')[0] || '';
+      pageSum += toNumber(p.total_amount);
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td>' + p.id + '</td>' +
+        '<td>' + dateOnly + '</td>' +
+        '<td>' + fmtAmount(p.total_amount) + '</td>' +
+        '<td>' + (p.currency || '') + '</td>' +
+        '<td>' + (splitsHtml || (p.method || '')) + '</td>' +
+        '<td>' + badgeForDirection(p.direction) + '</td>' +
+        '<td>' + badgeForStatus(p.status) + '</td>' +
+        '<td>' + deriveEntityLabel(p) + '</td>' +
+        '<td><a href="/payments/' + p.id + '" class="btn btn-info btn-sm">عرض</a></td>';
+      tbody.appendChild(tr);
+    });
+    const t = document.createElement('tr');
+    t.innerHTML = '<td></td><td class="text-end fw-bold">إجمالي الصفحة</td><td class="fw-bold">' + fmtAmount(pageSum) + '</td><td colspan="6"></td>';
+    tbody.appendChild(t);
   }
 
-  if (entityTypeSelect) entityTypeSelect.addEventListener('change', reloadEntityFields);
+  function renderPagination(totalPages, currentPage) {
+    const ul = document.querySelector('#pagination');
+    if (!ul) return;
+    ul.innerHTML = '';
+    totalPages = Math.max(1, totalPages || 1);
+    currentPage = Math.min(Math.max(1, currentPage || 1), totalPages);
 
-  let autoSubmitting = false;
+    function add(page, label, disabled, active, isEllipsis=false) {
+      const li = document.createElement('li');
+      li.className = 'page-item ' + (disabled ? 'disabled' : '') + ' ' + (active ? 'active' : '');
+      li.innerHTML = '<a class="page-link" href="#" ' + (isEllipsis ? 'tabindex="-1" aria-disabled="true"' : 'data-page="' + page + '"') + '>' + label + '</a>';
+      ul.appendChild(li);
+    }
 
-  if (form) {
-    form.addEventListener('submit', async (e) => {
-      const type = entityTypeSelect ? (entityTypeSelect.value || '').toUpperCase() : '';
-      const root = document.getElementById('entityFields');
-      const input = root ? root.querySelector(`input[name="${type.toLowerCase()}_search"]`) : null;
-      const hidden = root ? root.querySelector(`input[name="${type.toLowerCase()}_id"]`) : null;
-      const generic = root ? root.querySelector('input[name="entity_id"]') : null;
-      if (!autoSubmitting && type === 'CUSTOMER' && input && hidden && !hidden.value && input.value.trim().length >= 2) {
+    add(currentPage - 1, 'السابق', currentPage <= 1, false);
+    const windowSize = 2;
+    const first = 1, last = totalPages;
+    let start = Math.max(first, currentPage - windowSize);
+    let end = Math.min(last, currentPage + windowSize);
+    if (start > first) { add(first, '1', false, first === currentPage); if (start > first + 1) add(currentPage, '…', true, false, true); }
+    for (let i = start; i <= end; i++) add(i, String(i), false, i === currentPage);
+    if (end < last) { if (end < last - 1) add(currentPage, '…', true, false, true); add(last, String(last), false, last === currentPage); }
+    add(currentPage + 1, 'التالي', currentPage >= totalPages, false);
+    ul.querySelectorAll('.page-link[data-page]').forEach(function (a) {
+      a.addEventListener('click', function (e) {
         e.preventDefault();
-        try {
-          const q = input.value.trim();
-          const r = await fetch(`/payments/entity-search?type=${encodeURIComponent(type)}&q=${encodeURIComponent(q)}`);
-          const data = await r.json();
-          const arr = Array.isArray(data) ? data : (Array.isArray(data?.results) ? data.results : []);
-          const list = arr.map(x => ({ id: x.id ?? x.value ?? x.pk ?? x.ID ?? '', label: x.label ?? x.text ?? x.name ?? x.title ?? '', extra: x.extra ?? x.subtitle ?? x.hint ?? '' })).filter(x => x.id && x.label);
-          if (list.length > 0) {
-            const best = list[0];
-            input.value = best.label;
-            hidden.value = String(best.id).replace(/[^\d]/g,'');
-            if (generic) generic.value = hidden.value;
-            autoSubmitting = true;
-            if (typeof form.requestSubmit === 'function') form.requestSubmit(); else form.submit();
-            return;
-          }
-        } catch (_) {}
-      }
-      if (!container) return;
-      let invalidSplit = null;
-      container.querySelectorAll('.split-form').forEach(el => {
-        const amountEl = el.querySelector('[name$="-amount"]');
-        const methodEl = el.querySelector('.split-method, select[name$="-method"], select[name$="-payment_method"]');
-        const amount = parseFloat((amountEl && amountEl.value ? amountEl.value : '').replace(',', '.')) || 0;
-        const method = normalizeMethod(methodEl ? methodEl.value : '');
-        if (!invalidSplit && amount > 0 && !method) invalidSplit = el;
-      });
-      if (invalidSplit) {
-        e.preventDefault();
-        const mSel = invalidSplit.querySelector('.split-method, select[name$="-method"], select[name$="-payment_method"]');
-        if (mSel) mSel.focus();
-        return;
-      }
-      container.querySelectorAll('.split-form').forEach(el => {
-        const amountEl = el.querySelector('[name$="-amount"]');
-        const methodEl = el.querySelector('.split-method, select[name$="-method"], select[name$="-payment_method"]');
-        const amount = parseFloat((amountEl && amountEl.value ? amountEl.value : '').replace(',', '.')) || 0;
-        if (amount <= 0) {
-          if (methodEl) methodEl.value = '';
-          el.querySelectorAll('[data-field] input,[data-field] select,[data-field] textarea').forEach(inp => {
-            inp.value = '';
-            inp.disabled = true;
-          });
-        }
-      });
-      container.querySelectorAll('.split-form').forEach(el => {
-        const mEl = el.querySelector('.split-method, select[name$="-method"], select[name$="-payment_method"]');
-        const aEl = el.querySelector('[name$="-amount"]');
-        const m = mEl ? (mEl.value || '').trim() : '';
-        const a = aEl ? (aEl.value || '').trim() : '';
-        if (!m && !a) el.remove();
-      });
-      container.querySelectorAll('.split-form').forEach(el => {
-        const sel = el.querySelector('.split-method, select[name$="-method"], select[name$="-payment_method"]');
-        applyDetailsForRow(el, (sel && sel.value ? sel.value : ''));
-      });
-      refreshSplits();
+        const page = parseInt(a.dataset.page, 10);
+        if (!isNaN(page)) loadPayments(page);
+      }, { passive: false });
     });
   }
 
-  const qs = new URLSearchParams(location.search);
-  const qsEntityType = (qs.get('entity_type') || '').toUpperCase();
-  const qsEntityId = qs.get('entity_id') || '';
-  const entityIdInput = document.getElementById('entity_id');
-  if (entityTypeSelect && qsEntityType) entityTypeSelect.value = qsEntityType;
-  if (entityIdInput && qsEntityId) entityIdInput.value = qsEntityId;
-
-  reloadEntityFields();
-  refreshSplits();
-
-  function wireAddButtons() {
-    const root = document.getElementById('entityFields');
-    if (!root) return;
-    [
-      { btn: '#addCustomerBtn', input: 'customer_search' },
-      { btn: '#addSupplierBtn', input: 'supplier_search' },
-      { btn: '#addPartnerBtn',  input: 'partner_search'  }
-    ].forEach(map => {
-      const btn = root.querySelector(map.btn);
-      const input = root.querySelector(`input[name="${map.input}"]`);
-      if (!btn || !input) return;
-      const base = btn.getAttribute('data-base-href') || btn.getAttribute('href');
-      const ret = encodeURIComponent(window.location.pathname + window.location.search);
-      const update = () => {
-        const name = encodeURIComponent((input.value || '').trim());
-        btn.href = `${base}?name=${name}&return_to=${ret}`;
-      };
-      input.addEventListener('input', update);
-      update();
-    });
+  function renderTotals(totals) {
+    const elIn = document.getElementById('totalIncoming');
+    const elOut = document.getElementById('totalOutgoing');
+    const elNet = document.getElementById('netTotal');
+    const elAll = document.getElementById('grandTotal');
+    if (!elIn && !elOut && !elNet && !elAll) return;
+    const safe = totals || { total_incoming: 0, total_outgoing: 0, net_total: 0, grand_total: 0, total_paid: 0 };
+    if (elIn) elIn.textContent = fmtAmount(safe.total_incoming || 0);
+    if (elOut) elOut.textContent = fmtAmount(safe.total_outgoing || 0);
+    if (elNet) elNet.textContent = fmtAmount(safe.net_total || 0);
+    if (elAll) elAll.textContent = fmtAmount(safe.grand_total || 0);
   }
 
-  wireAddButtons();
-  document.addEventListener('payments:entityFieldsReloaded', wireAddButtons);
-
-  (function () {
-    const root = document.getElementById('entityFields');
-    let menu = null;
-    let items = [];
-    let activeIndex = -1;
-    let currentType = null;
-
-    function normalizeResults(data) {
-      const arr = Array.isArray(data) ? data : (Array.isArray(data?.results) ? data.results : []);
-      return arr.map(x => ({ id: x.id ?? x.value ?? x.pk ?? x.ID ?? '', label: x.label ?? x.text ?? x.name ?? x.title ?? '', extra: x.extra ?? x.subtitle ?? x.hint ?? '' })).filter(x => x.id && (x.label || x.extra));
+  function printStatement() {
+    try {
+      const table = document.getElementById('paymentsTable');
+      const htmlTable = table.outerHTML;
+      const title = 'كشف حساب - ' + (ctx.entity_type || '') + ' #' + (ctx.entity_id || '');
+      const w = window.open('', 'stmt');
+      w.document.write('<html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>' + title + '</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"><style>body{padding:24px}h3{margin-bottom:16px}table{font-size:12px}</style></head><body><h3>' + title + '</h3>' + htmlTable + '<script>window.onload=function(){window.print();}</script></body></html>');
+      w.document.close();
+    } catch (e) {
+      alert('تعذر الطباعة الآن.');
     }
+  }
 
-    function buildMenu() {
-      if (!menu) {
-        menu = document.createElement('div');
-        menu.className = 'dropdown-menu show';
-        menu.style.position = 'absolute';
-        menu.style.zIndex = '2000';
-        document.body.appendChild(menu);
-      }
-    }
-
-    function renderMenu(input, hidden) {
-      if (!menu) return;
-      menu.innerHTML = '';
-      items.forEach((it, idx) => {
-        const a = document.createElement('a');
-        a.href = '#';
-        a.className = 'dropdown-item' + (idx === activeIndex ? ' active' : '');
-        a.textContent = it.label + (it.extra ? ' — ' + it.extra : '');
-        a.addEventListener('click', e => { e.preventDefault(); pick(it, input, hidden); });
-        menu.appendChild(a);
+  function exportCsv() {
+    try {
+      const headers = Array.from(document.querySelectorAll('#paymentsTable thead th')).map(function (th) { return th.textContent.trim(); }).slice(0, 8);
+      const rows = _lastList.map(function (p) {
+        const dateOnly = (p.payment_date || '').split('T')[0] || '';
+        const method = (p.splits && p.splits.length) ? p.splits.map(function (s) { return String((s.method || '')).toUpperCase() + ': ' + fmtAmount(s.amount); }).join(' | ') : (p.method || '');
+        return [String(p.id || ''), dateOnly, fmtAmount(p.total_amount), String(p.currency || ''), method, (p.direction || ''), (AR_STATUS[p.status] || p.status || ''), String(deriveEntityLabel(p) || '')];
       });
-      if (currentType === 'CUSTOMER') {
-        const divider = document.createElement('div');
-        divider.className = 'dropdown-divider';
-        menu.appendChild(divider);
-        const add = document.createElement('a');
-        add.href = '#';
-        add.className = 'dropdown-item';
-        add.textContent = '➕ إضافة عميل جديد…';
-        add.addEventListener('click', e => {
-          e.preventDefault();
-          const returnTo = location.pathname + location.search;
-          const url = `/customers/create?name=${encodeURIComponent(input.value.trim())}&return_to=${encodeURIComponent(returnTo)}`;
-          window.location.assign(url);
-        });
-        menu.appendChild(add);
-      }
-      const rect = input.getBoundingClientRect();
-      menu.style.left = (window.scrollX + rect.left) + 'px';
-      menu.style.top = (window.scrollY + rect.bottom) + 'px';
-      menu.style.minWidth = rect.width + 'px';
+      const csv = [headers].concat(rows).map(function (r) { return r.map(function (cell) { return '"' + String(cell).replace(/"/g, '""') + '"'; }).join(','); }).join('\n');
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const now = new Date();
+      const ymd = '' + now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0');
+      a.href = url;
+      a.download = 'statement_' + (ctx.entity_type || 'ALL').toLowerCase() + '_' + (ctx.entity_id || 'all') + '_' + ymd + '.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('تعذر إنشاء CSV.');
     }
+  }
 
-    function showMenu(list, input, hidden) {
-      items = list || [];
-      activeIndex = items.length ? 0 : -1;
-      buildMenu();
-      renderMenu(input, hidden);
-    }
-
-    function hideMenu() {
-      if (menu) { menu.remove(); menu = null; }
-      items = []; activeIndex = -1;
-    }
-
-    function pick(it, input, hidden) {
-      const generic = document.querySelector('#entityFields input[name="entity_id"]');
-      input.value = it.label || it.text || it.name || '';
-      hidden.value = String(it.id).replace(/[^\d]/g,'');
-      if (generic) generic.value = hidden.value;
-      hideMenu();
-      input.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-
-    function mount(input, hidden, type) {
-      if (!input || !hidden) return;
-      currentType = type;
-      if (!input.id) input.id = `${type.toLowerCase()}_search`;
-      input.setAttribute('autocomplete', 'off');
-      let ctrl = null, lastQ = '';
-      input.addEventListener('input', () => {
-        hidden.value = '';
-        const generic = document.querySelector('#entityFields input[name="entity_id"]');
-        if (generic) generic.value = '';
-        const q = input.value.trim();
-        if (q.length < 2) { hideMenu(); return; }
-        if (q === lastQ) return;
-        lastQ = q;
-        if (ctrl) ctrl.abort();
-        ctrl = new AbortController();
-        fetch(`/payments/entity-search?type=${encodeURIComponent(type)}&q=${encodeURIComponent(q)}`, { signal: ctrl.signal })
-          .then(r => r.json())
-          .then(data => showMenu(normalizeResults(data), input, hidden))
-          .catch(() => {});
-      });
-      input.addEventListener('keydown', e => {
-        if (!menu || !items.length) return;
-        if (e.key === 'ArrowDown') { e.preventDefault(); activeIndex = (activeIndex + 1) % items.length; renderMenu(input, hidden); }
-        else if (e.key === 'ArrowUp') { e.preventDefault(); activeIndex = (activeIndex - 1 + items.length) % items.length; renderMenu(input, hidden); }
-        else if (e.key === 'Enter') { e.preventDefault(); const target = items[Math.max(0, activeIndex)]; if (target) pick(target, input, hidden); }
-        else if (e.key === 'Escape') { hideMenu(); }
-      });
-      input.addEventListener('blur', () => { setTimeout(hideMenu, 120); });
-    }
-
-    function wire() {
-      if (!root) return;
-      ['customer','supplier','partner'].forEach(t => {
-        const input = root.querySelector(`input[name="${t}_search"]`);
-        const hidden = root.querySelector(`input[name="${t}_id"]`);
-        if (input && hidden) mount(input, hidden, t.toUpperCase());
-      });
-    }
-
-    wire();
-    document.addEventListener('payments:entityFieldsReloaded', wire);
-  })();
+  syncFiltersFromUrl();
+  updateUrlQuery();
+  loadPayments();
+  window.addEventListener('popstate', function () { syncFiltersFromUrl(); loadPayments(1); });
 });

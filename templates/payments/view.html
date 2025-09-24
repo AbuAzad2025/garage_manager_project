@@ -1,3 +1,4 @@
+{# templates/payments/view.html #}
 {% extends 'base.html' %}
 {% block title %}تفاصيل الدفعة #{{ payment.id }}{% endblock %}
 
@@ -16,9 +17,7 @@
     {% endif %}
   {% endwith %}
 
-  {# استخدم enum_val بدلاً من attribute('value') #}
   {% set st = enum_val(payment.status) %}
-  {% set is_completed = (st == 'COMPLETED') %}
   {% set dirv = enum_val(payment.direction) %}
   {% set methodv = enum_val(payment.method) %}
 
@@ -48,6 +47,7 @@
               {% if st == 'COMPLETED' %}bg-success
               {% elif st == 'PENDING' %}bg-warning text-dark
               {% elif st == 'FAILED' %}bg-danger
+              {% elif st == 'REFUNDED' %}bg-info text-dark
               {% else %}bg-secondary{% endif %}">{{ st or '—' }}</span>
           </p>
         </div>
@@ -109,10 +109,7 @@
                 {% endif %}
               </td>
               <td>
-                <button type="button" class="btn btn-sm btn-danger remove-split"
-                        data-split-id="{{ s.id }}" {% if is_completed %}disabled{% endif %}>
-                  🗑️ حذف
-                </button>
+                <button type="button" class="btn btn-sm btn-danger remove-split" data-split-id="{{ s.id }}">🗑️ حذف</button>
               </td>
             </tr>
           {% endfor %}
@@ -126,7 +123,7 @@
         </div>
         <form method="POST" action="{{ url_for('payments.delete_payment', payment_id=payment.id) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="btn btn-danger" onclick="return confirm('هل أنت متأكد؟')" {% if is_completed %}disabled{% endif %}>🗑️ حذف</button>
+          <button type="submit" class="btn btn-danger" onclick="return confirm('هل أنت متأكد؟')">🗑️ حذف</button>
         </form>
       </div>
     </div>
@@ -135,73 +132,72 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-  function toNumber(s){
-    return parseFloat(String(s||'')
-      .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
-      .replace(/[٬،\s]/g,'')
-      .replace(',', '.')) || 0;
-  }
-
-  function recalcTotalFromSplits() {
-    const cells = document.querySelectorAll('#splitsTable .amount-cell');
-    let sum = 0;
-    cells.forEach(td => { sum += toNumber(td.dataset.amount || '0'); });
-    const el = document.getElementById('totalAmountValue');
-    if (el) el.textContent = sum.toFixed(0);
-  }
-
-  function ensurePlaceholderRow() {
-    const tbody = document.getElementById('splitsTable');
-    if (!tbody) return;
-    const hasRows = !!tbody.querySelector('tr');
-    if (!hasRows) {
-      const tr = document.createElement('tr');
-      tr.innerHTML = '<td colspan="5" class="text-center text-muted py-3">لا توجد دفعات جزئية</td>';
-      tbody.appendChild(tr);
-    } else {
-      const lone = tbody.querySelector('td[colspan="5"]');
-      if (lone && tbody.querySelectorAll('tr').length > 1) lone.parentElement.remove();
+  <script src="{{ url_for('static', filename='js/payments.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/payment_form.js') }}"></script>
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+    function toNumber(s){
+      return parseFloat(String(s||'')
+        .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+        .replace(/[٬،\s]/g,'')
+        .replace(',', '.')) || 0;
     }
-  }
-
-  const table = document.getElementById('splitsTable');
-  if (table) {
-    table.addEventListener('click', async function(e){
-      const btn = e.target.closest('.remove-split');
-      if (!btn) return;
-      if (btn.hasAttribute('disabled')) return;
-      if (!confirm('هل أنت متأكد من حذف هذه الدفعة الجزئية؟')) return;
-      try {
-        const r = await fetch('/payments/split/' + btn.dataset.splitId + '/delete', {
-          method: 'DELETE',
-          headers: { 'Accept': 'application/json' }
-        });
-        const j = await r.json();
-        if (j.status === 'success') {
-          const row = document.getElementById('split-' + btn.dataset.splitId);
-          if (row) row.remove();
-          recalcTotalFromSplits();
-          ensurePlaceholderRow();
-          alert('✅ تم حذف الدفعة الجزئية');
-        } else {
-          alert('فشل: ' + (j.message || 'خطأ غير معروف'));
-        }
-      } catch (_) {
-        alert('خطأ في الاتصال بالخادم');
+    function recalcTotalFromSplits() {
+      const cells = document.querySelectorAll('#splitsTable .amount-cell');
+      let sum = 0;
+      cells.forEach(td => { sum += toNumber(td.dataset.amount || '0'); });
+      const el = document.getElementById('totalAmountValue');
+      if (el) el.textContent = sum.toFixed(0);
+    }
+    function ensurePlaceholderRow() {
+      const tbody = document.getElementById('splitsTable');
+      if (!tbody) return;
+      const hasRows = !!tbody.querySelector('tr');
+      if (!hasRows) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan="5" class="text-center text-muted py-3">لا توجد دفعات جزئية</td>';
+        tbody.appendChild(tr);
+      } else {
+        const lone = tbody.querySelector('td[colspan="5"]');
+        if (lone && tbody.querySelectorAll('tr').length > 1) lone.parentElement.remove();
       }
-    });
-  }
+    }
 
-  const btnView = document.getElementById('btn-view-receipt');
-  if (btnView) {
-    btnView.addEventListener('click', function(){
-      try {
+    const table = document.getElementById('splitsTable');
+    if (table) {
+      table.addEventListener('click', async function(e){
+        const btn = e.target.closest('.remove-split');
+        if (!btn) return;
+        if (!confirm('هل أنت متأكد من حذف هذه الدفعة الجزئية؟')) return;
+        try {
+          const r = await fetch('/payments/split/' + btn.dataset.splitId + '/delete', {
+            method: 'DELETE',
+            headers: { 'Accept': 'application/json' }
+          });
+          const j = await r.json();
+          if (j.status === 'success') {
+            const row = document.getElementById('split-' + btn.dataset.splitId);
+            if (row) row.remove();
+            recalcTotalFromSplits();
+            ensurePlaceholderRow();
+            alert('✅ تم حذف الدفعة الجزئية');
+          } else {
+            alert('فشل: ' + (j.message || 'خطأ غير معروف'));
+          }
+        } catch (_) {
+          alert('خطأ في الاتصال بالخادم');
+        }
+      });
+    }
+
+    const btnView = document.getElementById('btn-view-receipt');
+    if (btnView) {
+      btnView.addEventListener('click', function(){
+        const total = (document.getElementById('totalAmountValue')?.textContent.trim()) || "{{ '%.0f'|format(payment.total_amount or 0) }}";
         const data = {
           id: {{ payment.id }},
           currency: "{{ payment.currency or '' }}",
-          total: (document.getElementById('totalAmountValue')?.textContent.trim()) || "{{ '%.0f'|format(payment.total_amount or 0) }}",
+          total: total,
           date: "{{ payment.payment_date and payment.payment_date.strftime('%Y-%m-%d %H:%M') or '' }}",
           method: "{{ methodv or '' }}",
           status: "{{ st or '' }}",
@@ -246,13 +242,10 @@ document.addEventListener('DOMContentLoaded', function () {
         );
         w.document.close();
         w.focus();
-      } catch (e) {
-        alert('تعذر عرض الوصل الآن');
-      }
-    });
-  }
+      });
+    }
 
-  ensurePlaceholderRow();
-});
-</script>
+    ensurePlaceholderRow();
+  });
+  </script>
 {% endblock %}
