@@ -261,6 +261,323 @@ def ai_assistant():
     return render_template('security/ai_assistant.html', suggestions=suggestions)
 
 
+@security_bp.route('/ai-diagnostics')
+@owner_only
+def ai_diagnostics():
+    """واجهة التشخيص الذاتي للمساعد الذكي"""
+    from services.ai_data_awareness import load_data_schema, auto_build_if_needed
+    from services.ai_auto_discovery import load_system_map
+    from services.ai_self_review import analyze_recent_interactions, get_system_status
+    import os
+    
+    # تحميل البيانات
+    data_schema = auto_build_if_needed()
+    system_map = load_system_map()
+    interactions_analysis = analyze_recent_interactions(100)
+    system_status = get_system_status()
+    
+    diagnostics = {
+        'data_awareness': {
+            'status': 'active' if data_schema else 'inactive',
+            'tables_known': data_schema['statistics']['total_tables'] if data_schema else 0,
+            'columns_known': data_schema['statistics']['total_columns'] if data_schema else 0,
+            'relationships_known': data_schema['statistics']['total_relationships'] if data_schema else 0,
+            'functional_modules': len(data_schema['functional_mapping']) if data_schema else 0,
+        },
+        'navigation_awareness': {
+            'status': 'active' if system_map else 'inactive',
+            'routes_known': system_map['statistics']['total_routes'] if system_map else 0,
+            'templates_known': system_map['statistics']['total_templates'] if system_map else 0,
+            'blueprints_known': len(system_map['blueprints']) if system_map else 0,
+        },
+        'performance': {
+            'total_interactions': interactions_analysis.get('total', 0),
+            'avg_confidence': interactions_analysis.get('avg_confidence', 0),
+            'quality_score': interactions_analysis.get('quality_score', 'N/A'),
+            'weak_count': interactions_analysis.get('weak_count', 0),
+            'weak_areas': interactions_analysis.get('weak_areas', []),
+        },
+        'system_health': system_status.get('health', 'unknown'),
+    }
+    
+    return render_template('security/ai_diagnostics.html', diagnostics=diagnostics)
+
+
+@security_bp.route('/system-map', methods=['GET', 'POST'])
+@owner_only
+def system_map():
+    """خريطة النظام - Auto Discovery"""
+    from services.ai_auto_discovery import (
+        build_system_map,
+        load_system_map,
+        SYSTEM_MAP_FILE,
+        DISCOVERY_LOG_FILE
+    )
+    import os
+    
+    system_map_data = load_system_map()
+    map_exists = os.path.exists(SYSTEM_MAP_FILE)
+    
+    logs = []
+    if os.path.exists(DISCOVERY_LOG_FILE):
+        try:
+            with open(DISCOVERY_LOG_FILE, 'r', encoding='utf-8') as f:
+                import json
+                logs = json.load(f)[-10:]  # آخر 10 أحداث
+        except:
+            pass
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'rebuild':
+            try:
+                system_map_data = build_system_map()
+                flash('✅ تم إعادة بناء خريطة النظام بنجاح!', 'success')
+            except Exception as e:
+                flash(f'⚠️ خطأ: {str(e)}', 'danger')
+            return redirect(url_for('security.system_map'))
+    
+    return render_template('security/system_map.html',
+                         system_map=system_map_data,
+                         map_exists=map_exists,
+                         logs=logs)
+
+
+@security_bp.route('/ai-training', methods=['GET', 'POST'])
+@owner_only
+def ai_training():
+    """واجهة التدريب الشامل - نظام الوعي الذاتي الكامل"""
+    from services.ai_knowledge import get_knowledge_base, KNOWLEDGE_CACHE_FILE, TRAINING_LOG_FILE
+    from services.ai_auto_discovery import build_system_map, load_system_map
+    from services.ai_data_awareness import build_data_schema, load_data_schema
+    from services.ai_self_review import analyze_recent_interactions
+    import os
+    import json
+    from datetime import datetime
+    
+    # تحميل البيانات الحالية
+    kb = get_knowledge_base()
+    structure = kb.get_system_structure()
+    cache_exists = os.path.exists(KNOWLEDGE_CACHE_FILE)
+    last_indexed = kb.knowledge.get('last_indexed', 'لم يتم الفهرسة بعد')
+    index_count = kb.knowledge.get('index_count', 0)
+    
+    # تحميل حالة النظام
+    system_map = load_system_map()
+    data_schema = load_data_schema()
+    
+    # التقرير الشامل
+    training_report = None
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'comprehensive_training':
+            # 🧠 التدريب الشامل
+            training_report = {
+                'start_time': datetime.now().isoformat(),
+                'steps': [],
+                'status': 'in_progress'
+            }
+            
+            try:
+                # 1️⃣ تحليل النظام الكامل (Auto Discovery)
+                training_report['steps'].append({'name': 'Auto Discovery', 'status': 'started'})
+                system_map = build_system_map()
+                training_report['steps'][-1]['status'] = 'completed'
+                training_report['steps'][-1]['result'] = {
+                    'routes': system_map['statistics']['total_routes'],
+                    'templates': system_map['statistics']['total_templates'],
+                    'blueprints': len(system_map['blueprints'])
+                }
+                
+                # 2️⃣ تحليل البيانات (Data Profiling)
+                training_report['steps'].append({'name': 'Data Profiling', 'status': 'started'})
+                data_schema = build_data_schema()
+                training_report['steps'][-1]['status'] = 'completed'
+                training_report['steps'][-1]['result'] = {
+                    'tables': data_schema['statistics']['total_tables'],
+                    'columns': data_schema['statistics']['total_columns'],
+                    'relationships': data_schema['statistics']['total_relationships']
+                }
+                
+                # 3️⃣ تحديث المعرفة
+                training_report['steps'].append({'name': 'Knowledge Update', 'status': 'started'})
+                kb.index_all_files(force_reindex=True)
+                training_report['steps'][-1]['status'] = 'completed'
+                
+                # 4️⃣ الاختبار الذاتي
+                training_report['steps'].append({'name': 'Self Validation', 'status': 'started'})
+                
+                # اختبار 5 استعلامات
+                from models import Customer, Expense, ServiceRequest, ExchangeTransaction, Payment
+                
+                test_results = {
+                    'customers_count': Customer.query.count(),
+                    'expenses_count': Expense.query.count(),
+                    'services_count': ServiceRequest.query.count(),
+                    'last_exchange_rate': 'N/A',
+                    'last_payment': 'N/A'
+                }
+                
+                try:
+                    latest_fx = ExchangeTransaction.query.order_by(
+                        ExchangeTransaction.created_at.desc()
+                    ).first()
+                    if latest_fx:
+                        test_results['last_exchange_rate'] = f"{float(latest_fx.rate):.2f}"
+                except:
+                    pass
+                
+                try:
+                    latest_payment = Payment.query.order_by(
+                        Payment.created_at.desc()
+                    ).first()
+                    if latest_payment:
+                        test_results['last_payment'] = f"{float(latest_payment.total_amount):.2f}"
+                except:
+                    pass
+                
+                # حساب درجة الثقة
+                confidence = 0
+                if test_results['customers_count'] > 0:
+                    confidence += 20
+                if test_results['expenses_count'] > 0:
+                    confidence += 20
+                if test_results['services_count'] > 0:
+                    confidence += 20
+                if test_results['last_exchange_rate'] != 'N/A':
+                    confidence += 20
+                if test_results['last_payment'] != 'N/A':
+                    confidence += 20
+                
+                training_report['steps'][-1]['status'] = 'completed'
+                training_report['steps'][-1]['result'] = test_results
+                training_report['confidence'] = confidence
+                
+                # 5️⃣ تحليل الأداء
+                training_report['steps'].append({'name': 'Performance Analysis', 'status': 'started'})
+                interactions = analyze_recent_interactions(100)
+                training_report['steps'][-1]['status'] = 'completed'
+                training_report['steps'][-1]['result'] = {
+                    'avg_confidence': interactions.get('avg_confidence', 0),
+                    'quality_score': interactions.get('quality_score', 'N/A')
+                }
+                
+                training_report['status'] = 'success' if confidence >= 70 else 'partial'
+                training_report['end_time'] = datetime.now().isoformat()
+                
+                # حفظ التقرير
+                _log_training_event('comprehensive_training', current_user.id, training_report)
+                
+                if confidence >= 70:
+                    flash(f'✅ تم التدريب الشامل بنجاح! درجة الثقة: {confidence}%', 'success')
+                else:
+                    flash(f'⚠️ تدريب جزئي. درجة الثقة: {confidence}%', 'warning')
+                
+            except Exception as e:
+                training_report['status'] = 'failed'
+                training_report['error'] = str(e)
+                flash(f'❌ فشل التدريب: {str(e)}', 'danger')
+                _log_training_event('training_failed', current_user.id, {'error': str(e)})
+            
+            return redirect(url_for('security.ai_training'))
+        
+        elif action == 'reindex':
+            kb.index_all_files(force_reindex=True)
+            flash('✅ تمت إعادة الفهرسة بنجاح!', 'success')
+            _log_training_event('manual_reindex', current_user.id)
+            return redirect(url_for('security.ai_training'))
+        
+        elif action == 'clear_cache':
+            try:
+                if os.path.exists(KNOWLEDGE_CACHE_FILE):
+                    os.remove(KNOWLEDGE_CACHE_FILE)
+                flash('✅ تم حذف الذاكرة!', 'success')
+                _log_training_event('clear_cache', current_user.id)
+            except Exception as e:
+                flash(f'⚠️ خطأ: {str(e)}', 'danger')
+            return redirect(url_for('security.ai_training'))
+    
+    # إحصائيات النظام
+    system_stats = {
+        'knowledge': {
+            'cache_exists': cache_exists,
+            'last_indexed': last_indexed,
+            'index_count': index_count,
+            'models_count': len(structure.get('models', {})),
+            'routes_count': len(structure.get('routes', {}))
+        },
+        'navigation': {
+            'routes': system_map['statistics']['total_routes'] if system_map else 0,
+            'templates': system_map['statistics']['total_templates'] if system_map else 0,
+            'blueprints': len(system_map['blueprints']) if system_map else 0
+        },
+        'data_awareness': {
+            'tables': data_schema['statistics']['total_tables'] if data_schema else 0,
+            'columns': data_schema['statistics']['total_columns'] if data_schema else 0,
+            'modules': len(data_schema['functional_mapping']) if data_schema else 0
+        }
+    }
+    
+    training_logs = _load_training_logs()
+    
+    return render_template('security/ai_training.html',
+                         structure=structure,
+                         system_stats=system_stats,
+                         training_report=training_report,
+                         training_logs=training_logs)
+
+
+def _log_training_event(event_type, user_id, details=None):
+    """تسجيل حدث تدريب - محسّن"""
+    try:
+        from services.ai_knowledge import TRAINING_LOG_FILE
+        import os
+        
+        os.makedirs('instance', exist_ok=True)
+        
+        logs = []
+        if os.path.exists(TRAINING_LOG_FILE):
+            try:
+                with open(TRAINING_LOG_FILE, 'r', encoding='utf-8') as f:
+                    logs = json.load(f)
+            except:
+                logs = []
+        
+        log_entry = {
+            'event': event_type,
+            'user_id': user_id,
+            'timestamp': datetime.now(timezone.utc).isoformat()
+        }
+        
+        if details:
+            log_entry['details'] = details
+        
+        logs.append(log_entry)
+        logs = logs[-50:]
+        
+        with open(TRAINING_LOG_FILE, 'w', encoding='utf-8') as f:
+            json.dump(logs, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"⚠️ فشل تسجيل حدث التدريب: {str(e)}")
+
+
+def _load_training_logs():
+    """تحميل سجل التدريب"""
+    try:
+        from services.ai_knowledge import TRAINING_LOG_FILE
+        import os
+        
+        if os.path.exists(TRAINING_LOG_FILE):
+            with open(TRAINING_LOG_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return []
+    except:
+        return []
+
+
 @security_bp.route('/database-browser')
 @owner_only
 def database_browser():
