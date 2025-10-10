@@ -313,15 +313,29 @@ tail -f error.log
 
 ## 📄 الترخيص
 
-هذا المشروع مرخص تحت [اسم الترخيص] - راجع ملف `LICENSE` للتفاصيل.
+هذا المشروع مرخص تحت **MIT License** - راجع ملف `LICENSE` للتفاصيل.
+
+**حقوق النشر © 2024-2025 شركة أزاد للأنظمة الذكية**  
+**Copyright © 2024-2025 Azad Smart Systems Company**
+
+## 🏢 معلومات الشركة
+
+**شركة أزاد للأنظمة الذكية** | **Azad Smart Systems**  
+**المطور الرئيسي:** المهندس أحمد غنام | **Lead Developer:** Eng. Ahmed Ghannam  
+**الموقع:** رام الله - فلسطين 🇵🇸 | **Location:** Ramallah, Palestine  
+**الإصدار:** v4.0.0 Enterprise Edition  
+**التخصص:** أنظمة إدارة الكراجات والمعدات الثقيلة
 
 ## 📞 الدعم
 
 للدعم والاستفسارات:
-- Email: rafideen.ahmadghannam@gmail.com
-- Issues: [GitHub Issues](https://github.com/your-repo/issues)
+- 📧 Email: ahmed@azad-systems.com
+- 🌐 Website: https://azad-systems.com
+- 📱 Phone: +970-XXX-XXXX (Palestine)
+- 📍 Location: Ramallah, Palestine 🇵🇸
 
 ---
 
-**تم بناؤه بـ ❤️ باستخدام Flask و SQLAlchemy**
+**Made with ❤️ in Palestine 🇵🇸 by Azad Smart Systems**  
+**تم بناؤه بـ ❤️ في فلسطين من قبل شركة أزاد للأنظمة الذكية**
 

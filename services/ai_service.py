@@ -39,6 +39,8 @@ from services.ai_data_awareness import (
 
 _conversation_memory = {}
 _last_audit_time = None
+_groq_failures = []
+_local_fallback_mode = False
 
 
 def get_system_setting(key, default=''):
@@ -1150,6 +1152,52 @@ def search_database_for_query(query):
         results['error'] = str(e)
     
     return results
+
+
+def check_groq_health():
+    """فحص صحة اتصال Groq وتفعيل Local Fallback إذا لزم الأمر"""
+    global _groq_failures, _local_fallback_mode
+    
+    # تنظيف الأخطاء القديمة (أكثر من 24 ساعة)
+    current_time = datetime.now(timezone.utc)
+    _groq_failures = [
+        f for f in _groq_failures 
+        if (current_time - f).total_seconds() < 86400
+    ]
+    
+    # إذا فشل 3 مرات خلال 24 ساعة → تفعيل Local Fallback
+    if len(_groq_failures) >= 3:
+        _local_fallback_mode = True
+        return False
+    
+    return True
+
+
+def get_local_fallback_response(message, search_results):
+    """الرد باستخدام المعرفة المحلية فقط (بدون Groq)"""
+    try:
+        response = "📡 تم استخدام المعرفة المحلية مؤقتًا لتعذر الوصول إلى مزود Groq.\n\n"
+        
+        # تحليل بسيط من search_results
+        if search_results:
+            response += "📊 البيانات المتاحة:\n\n"
+            
+            for key, value in search_results.items():
+                if isinstance(value, int):
+                    response += f"• {key}: {value}\n"
+                elif isinstance(value, dict):
+                    response += f"• {key}: {len(value)} عنصر\n"
+                elif isinstance(value, list):
+                    response += f"• {key}: {len(value)} صف\n"
+        else:
+            response += "⚠️ لا توجد بيانات متاحة للسؤال المطروح.\n"
+        
+        response += "\n💡 سيتم استعادة الاتصال بـ Groq تلقائياً عند حل المشكلة."
+        
+        return response
+    
+    except Exception as e:
+        return f"⚠️ خطأ في الوضع المحلي: {str(e)}"
 
 
 def ai_chat_response(message, search_results=None, session_id='default'):

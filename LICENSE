@@ -1,0 +1,97 @@
+MIT License
+
+Copyright (c) 2024-2025 Azad Smart Systems | أزاد للأنظمة الذكية
+Developed by: Ahmed Ghannam | المهندس أحمد غنام
+Location: Ramallah, Palestine 🇵🇸
+Website: https://azad-systems.com
+Contact: ahmed@azad-systems.com
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+## 🇵🇸 النسخة العربية
+
+رخصة MIT
+
+حقوق النشر © 2024-2025 شركة أزاد للأنظمة الذكية
+المطور: المهندس أحمد غنام
+الموقع: رام الله - فلسطين 🇵🇸
+الموقع الإلكتروني: https://azad-systems.com
+البريد الإلكتروني: ahmed@azad-systems.com
+
+يُمنح بموجب هذه الرخصة، مجاناً، لأي شخص يحصل على نسخة من هذا البرنامج
+والملفات المرفقة ("البرنامج")، الحق في التعامل مع البرنامج دون قيود، بما في
+ذلك على سبيل المثال لا الحصر، حقوق الاستخدام، النسخ، التعديل، الدمج، النشر،
+التوزيع، الترخيص من الباطن، و/أو بيع نسخ من البرنامج، والسماح للأشخاص الذين
+يتم تزويدهم بالبرنامج بذلك، وفقاً للشروط التالية:
+
+يجب تضمين إشعار حقوق النشر أعلاه وهذا الإشعار في جميع النسخ أو الأجزاء
+الجوهرية من البرنامج.
+
+يُقدم البرنامج "كما هو"، دون أي ضمانات من أي نوع، صريحة أو ضمنية، بما في ذلك
+على سبيل المثال لا الحصر، الضمانات الضمنية للتسويق، الملاءمة لغرض معين وعدم
+الانتهاك. في أي حال من الأحوال، لا يتحمل المؤلفون أو أصحاب حقوق النشر أي
+مسؤولية عن أي مطالبة أو أضرار أو مسؤولية أخرى، سواء في إجراء عقد أو ضرر أو
+غير ذلك، ناشئة عن أو فيما يتعلق بالبرنامج أو الاستخدام أو غيره من التعاملات
+في البرنامج.
+
+---
+
+## 📜 Company Information | معلومات الشركة
+
+**Company Name:** Azad Smart Systems | شركة أزاد للأنظمة الذكية  
+**Developer:** Eng. Ahmed Ghannam | المهندس أحمد غنام  
+**Location:** Ramallah, Palestine 🇵🇸  
+**Industry:** Automotive Management Systems | أنظمة إدارة الكراجات  
+**Established:** 2024  
+**Version:** 4.0.0 Enterprise Edition  
+
+**Contact Information:**
+- 📧 Email: ahmed@azad-systems.com
+- 🌐 Website: https://azad-systems.com
+- 📱 Phone: +970-XXX-XXXX (Palestine)
+- 🏢 Address: Ramallah, Palestine
+
+**Technologies Used:**
+- Python 3.11+ with Flask Framework
+- SQLAlchemy ORM
+- Jinja2 Templating
+- AI Integration (Groq LLaMA-3.3-70B)
+- Multi-currency Support (ILS, USD, JOD, EUR)
+- Real-time Analytics & Reporting
+- Advanced Security Module
+- Auto-discovery AI Training System
+
+---
+
+## 🛡️ Commercial Use
+
+This software is developed by **Azad Smart Systems** for commercial and 
+enterprise use. For licensing inquiries or custom development, please contact:
+
+**Ahmed Ghannam**  
+Lead Developer & Founder  
+Azad Smart Systems  
+📧 ahmed@azad-systems.com
+
+---
+
+**Made with ❤️ in Palestine 🇵🇸**
+

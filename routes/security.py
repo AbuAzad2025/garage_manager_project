@@ -500,6 +500,9 @@ def ai_training():
                 flash(f'⚠️ خطأ: {str(e)}', 'danger')
             return redirect(url_for('security.ai_training'))
     
+    # حساب Learning Quality Index
+    learning_quality = kb.knowledge.get('learning_quality', {})
+    
     # إحصائيات النظام
     system_stats = {
         'knowledge': {
@@ -507,7 +510,14 @@ def ai_training():
             'last_indexed': last_indexed,
             'index_count': index_count,
             'models_count': len(structure.get('models', {})),
-            'routes_count': len(structure.get('routes', {}))
+            'enums_count': structure.get('enums_count', 0),
+            'forms_count': structure.get('forms_count', 0),
+            'functions_count': structure.get('functions_count', 0),
+            'routes_count': len(structure.get('routes', {})),
+            'javascript_count': structure.get('javascript_count', 0),
+            'css_count': structure.get('css_count', 0),
+            'static_count': structure.get('static_files_count', 0),
+            'total_items': structure.get('total_items', 0)
         },
         'navigation': {
             'routes': system_map['statistics']['total_routes'] if system_map else 0,
@@ -518,6 +528,13 @@ def ai_training():
             'tables': data_schema['statistics']['total_tables'] if data_schema else 0,
             'columns': data_schema['statistics']['total_columns'] if data_schema else 0,
             'modules': len(data_schema['functional_mapping']) if data_schema else 0
+        },
+        'learning_quality': {
+            'index': learning_quality.get('index', 0),
+            'avg_confidence': learning_quality.get('avg_confidence', 0),
+            'data_density': learning_quality.get('data_density', 0),
+            'system_health': learning_quality.get('system_health', 0),
+            'tables_with_data': learning_quality.get('tables_with_data', 0)
         }
     }
     

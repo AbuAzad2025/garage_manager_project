@@ -87,7 +87,7 @@ class SystemKnowledgeBase:
         
         total_items = (
             len(self.knowledge['models']) +
-            len(self.knowledge['enums']) +
+            len(self.knowledge.get('enums', {})) +
             len(self.knowledge['forms']) +
             len(self.knowledge['routes']) +
             len(self.knowledge['functions']) +
@@ -97,7 +97,73 @@ class SystemKnowledgeBase:
         )
         
         print(f"✅ فهرسة كاملة: {total_items} عنصر")
+        
+        # حساب جودة التعلم (Learning Quality Index)
+        self.calculate_learning_quality()
+        
         return self.knowledge
+    
+    def calculate_learning_quality(self):
+        """حساب مؤشر جودة التعلم (Learning Quality Index)"""
+        try:
+            # 1. نسبة الجداول التي تحتوي بيانات
+            from models import (
+                Customer, Supplier, Product, ServiceRequest, Invoice, 
+                Payment, Expense, Warehouse, User
+            )
+            
+            tables_with_data = 0
+            total_critical_tables = 8
+            
+            if Customer.query.count() > 0: tables_with_data += 1
+            if Supplier.query.count() > 0: tables_with_data += 1
+            if Product.query.count() > 0: tables_with_data += 1
+            if ServiceRequest.query.count() > 0: tables_with_data += 1
+            if Invoice.query.count() > 0: tables_with_data += 1
+            if Payment.query.count() > 0: tables_with_data += 1
+            if Expense.query.count() > 0: tables_with_data += 1
+            if Warehouse.query.count() > 0: tables_with_data += 1
+            
+            data_density_score = (tables_with_data / total_critical_tables) * 100
+            
+            # 2. نسبة المكونات المفهرسة
+            total_indexed = (
+                len(self.knowledge.get('models', {})) +
+                len(self.knowledge.get('routes', {})) +
+                len(self.knowledge.get('templates', {}))
+            )
+            
+            system_health_score = min(100, (total_indexed / 10))  # كل 10 عناصر = 1%
+            
+            # 3. متوسط الثقة (من ai_interactions.json)
+            avg_confidence = 75  # افتراضي
+            try:
+                import json
+                if os.path.exists('instance/ai_interactions.json'):
+                    with open('instance/ai_interactions.json', 'r', encoding='utf-8') as f:
+                        interactions = json.load(f)
+                        if interactions:
+                            recent = interactions[-20:]
+                            avg_confidence = sum(i.get('confidence', 0) for i in recent) / len(recent)
+            except:
+                pass
+            
+            # حساب المؤشر النهائي
+            learning_quality = (avg_confidence + data_density_score + system_health_score) / 3
+            
+            self.knowledge['learning_quality'] = {
+                'index': round(learning_quality, 2),
+                'avg_confidence': round(avg_confidence, 2),
+                'data_density': round(data_density_score, 2),
+                'system_health': round(system_health_score, 2),
+                'tables_with_data': tables_with_data,
+                'total_critical_tables': total_critical_tables
+            }
+            
+            print(f"   📈 Learning Quality: {learning_quality:.1f}%")
+        
+        except Exception as e:
+            print(f"⚠️  خطأ في حساب جودة التعلم: {str(e)}")
     
     def extract_currency_rules(self):
         """استخراج قواعد العملات وسعر الصرف"""
@@ -225,6 +291,202 @@ class SystemKnowledgeBase:
             
         except Exception as e:
             print(f"⚠️  خطأ في فهرسة Routes: {str(e)}")
+    
+    def index_forms(self):
+        """فهرسة Forms من forms.py"""
+        try:
+            forms_file = self.base_path / 'forms.py'
+            if not forms_file.exists():
+                return
+            
+            content = forms_file.read_text(encoding='utf-8')
+            
+            # اكتشاف كل الـ Forms
+            form_pattern = r'^class\s+(\w+Form)\s*\('
+            forms = re.findall(form_pattern, content, re.MULTILINE)
+            
+            for form_name in forms:
+                # استخراج الحقول
+                form_body_pattern = rf'class\s+{re.escape(form_name)}.*?:(.*?)(?=\nclass\s|\Z)'
+                form_body = re.search(form_body_pattern, content, re.DOTALL)
+                
+                if form_body:
+                    fields = re.findall(r'(\w+)\s*=\s*(?:StringField|IntegerField|SelectField|TextAreaField|BooleanField|PasswordField|FileField|DateField)', form_body.group(1))
+                    
+                    self.knowledge['forms'][form_name] = {
+                        'fields': fields[:30],
+                        'file': 'forms.py'
+                    }
+            
+            print(f"   📝 Forms: {len(self.knowledge['forms'])}")
+        
+        except Exception as e:
+            print(f"⚠️  خطأ في فهرسة Forms: {str(e)}")
+    
+    def index_all_functions(self):
+        """فهرسة جميع الدوال في كل ملفات Python"""
+        try:
+            function_count = 0
+            
+            # فهرسة دوال routes/
+            routes_dir = self.base_path / 'routes'
+            if routes_dir.exists():
+                for py_file in routes_dir.glob('*.py'):
+                    if py_file.name.startswith('__'):
+                        continue
+                    
+                    content = py_file.read_text(encoding='utf-8')
+                    
+                    # اكتشاف كل الدوال
+                    func_pattern = r'^def\s+(\w+)\s*\('
+                    functions = re.findall(func_pattern, content, re.MULTILINE)
+                    
+                    module_name = f"routes.{py_file.stem}"
+                    self.knowledge['functions'][module_name] = functions[:100]
+                    function_count += len(functions)
+            
+            # فهرسة دوال services/
+            services_dir = self.base_path / 'services'
+            if services_dir.exists():
+                for py_file in services_dir.glob('*.py'):
+                    if py_file.name.startswith('__'):
+                        continue
+                    
+                    content = py_file.read_text(encoding='utf-8')
+                    func_pattern = r'^def\s+(\w+)\s*\('
+                    functions = re.findall(func_pattern, content, re.MULTILINE)
+                    
+                    module_name = f"services.{py_file.stem}"
+                    self.knowledge['functions'][module_name] = functions[:100]
+                    function_count += len(functions)
+            
+            # فهرسة الملفات الرئيسية
+            for main_file in ['app.py', 'utils.py', 'validators.py', 'acl.py']:
+                main_path = self.base_path / main_file
+                if main_path.exists():
+                    content = main_path.read_text(encoding='utf-8')
+                    func_pattern = r'^def\s+(\w+)\s*\('
+                    functions = re.findall(func_pattern, content, re.MULTILINE)
+                    
+                    self.knowledge['functions'][main_file] = functions[:100]
+                    function_count += len(functions)
+            
+            print(f"   ⚙️  Functions: {function_count} دالة")
+        
+        except Exception as e:
+            print(f"⚠️  خطأ في فهرسة Functions: {str(e)}")
+    
+    def index_javascript(self):
+        """فهرسة ملفات JavaScript"""
+        try:
+            js_dir = self.base_path / 'static' / 'js'
+            if not js_dir.exists():
+                return
+            
+            for js_file in js_dir.glob('*.js'):
+                content = js_file.read_text(encoding='utf-8')
+                
+                # اكتشاف الدوال
+                func_pattern = r'(?:function\s+(\w+)|const\s+(\w+)\s*=\s*(?:async\s*)?\()'
+                functions = re.findall(func_pattern, content)
+                functions_names = [f[0] or f[1] for f in functions if f[0] or f[1]]
+                
+                # اكتشاف event listeners
+                events = re.findall(r'addEventListener\(["\'](\w+)["\']', content)
+                
+                self.knowledge['javascript'][js_file.name] = {
+                    'functions': functions_names[:50],
+                    'events': list(set(events))[:20],
+                    'file': str(js_file.relative_to(self.base_path))
+                }
+            
+            print(f"   📜 JavaScript: {len(self.knowledge['javascript'])} ملف")
+        
+        except Exception as e:
+            print(f"⚠️  خطأ في فهرسة JavaScript: {str(e)}")
+    
+    def index_css(self):
+        """فهرسة ملفات CSS"""
+        try:
+            css_dir = self.base_path / 'static' / 'css'
+            if not css_dir.exists():
+                return
+            
+            for css_file in css_dir.glob('*.css'):
+                content = css_file.read_text(encoding='utf-8')
+                
+                # اكتشاف الـ classes
+                css_classes = re.findall(r'\.([a-zA-Z][\w-]*)\s*\{', content)
+                
+                # اكتشاف الـ IDs
+                css_ids = re.findall(r'#([a-zA-Z][\w-]*)\s*\{', content)
+                
+                self.knowledge['css'][css_file.name] = {
+                    'classes': list(set(css_classes))[:100],
+                    'ids': list(set(css_ids))[:50],
+                    'file': str(css_file.relative_to(self.base_path))
+                }
+            
+            print(f"   🎨 CSS: {len(self.knowledge['css'])} ملف")
+        
+        except Exception as e:
+            print(f"⚠️  خطأ في فهرسة CSS: {str(e)}")
+    
+    def index_static_files(self):
+        """فهرسة الملفات الثابتة (صور، خطوط، إلخ)"""
+        try:
+            static_dir = self.base_path / 'static'
+            if not static_dir.exists():
+                return
+            
+            file_types = {
+                'images': ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.ico'],
+                'fonts': ['.ttf', '.woff', '.woff2', '.eot'],
+                'data': ['.json', '.xml', '.csv'],
+                'other': []
+            }
+            
+            for category in file_types:
+                file_types[category] = []
+            
+            for file_path in static_dir.rglob('*'):
+                if file_path.is_file() and not file_path.name.startswith('.'):
+                    ext = file_path.suffix.lower()
+                    
+                    categorized = False
+                    for category, extensions in file_types.items():
+                        if category == 'other':
+                            continue
+                        if ext in ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.ico'] and category == 'images':
+                            file_types['images'].append(str(file_path.relative_to(static_dir)))
+                            categorized = True
+                            break
+                        elif ext in ['.ttf', '.woff', '.woff2', '.eot'] and category == 'fonts':
+                            file_types['fonts'].append(str(file_path.relative_to(static_dir)))
+                            categorized = True
+                            break
+                        elif ext in ['.json', '.xml', '.csv'] and category == 'data':
+                            file_types['data'].append(str(file_path.relative_to(static_dir)))
+                            categorized = True
+                            break
+                    
+                    if not categorized and ext not in ['.js', '.css']:
+                        file_types['other'].append(str(file_path.relative_to(static_dir)))
+            
+            self.knowledge['static_files'] = {
+                'images': file_types['images'][:50],
+                'fonts': file_types['fonts'],
+                'data': file_types['data'],
+                'images_count': len(file_types['images']),
+                'fonts_count': len(file_types['fonts']),
+                'data_count': len(file_types['data']),
+            }
+            
+            total_static = len(file_types['images']) + len(file_types['fonts']) + len(file_types['data'])
+            print(f"   📁 Static: {total_static} ملف")
+        
+        except Exception as e:
+            print(f"⚠️  خطأ في فهرسة Static: {str(e)}")
     
     def index_templates(self):
         """فهرسة Templates - فهم الواجهات"""
