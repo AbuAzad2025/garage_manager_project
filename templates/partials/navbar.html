@@ -120,7 +120,7 @@
         <!-- تسجيل الخروج -->
         <div class="px-3 py-2">
           <form action="{{ url_for('auth.logout') }}" method="post">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-danger btn-block" style="font-weight: 700; font-size: 15px; padding: 10px; border-radius: 8px;">
               <i class="fas fa-sign-out-alt mr-2"></i> <strong>تسجيل خروج</strong>
             </button>
