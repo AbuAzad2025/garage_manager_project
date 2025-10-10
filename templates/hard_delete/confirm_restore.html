@@ -78,7 +78,7 @@
                     </div>
 
                     <form method="POST" action="{{ url_for('hard_delete_bp.restore_deletion', deletion_id=deletion_log.id) }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         
                         <div class="form-group">
                             <label for="restore_reason">سبب الاستعادة:</label>
