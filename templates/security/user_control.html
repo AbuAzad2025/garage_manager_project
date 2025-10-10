@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% block title %}التحكم بالمستخدمين{% endblock %}
+{% block page_title %}👥 التحكم الكامل بالمستخدمين{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle"></i> <strong>صلاحيات خارقة:</strong> يمكنك التحكم الكامل بأي مستخدم!
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-hover" id="usersTable">
+          <thead class="table-dark">
+            <tr>
+              <th>ID</th>
+              <th>اسم المستخدم</th>
+              <th>البريد</th>
+              <th>الدور</th>
+              <th>الحالة</th>
+              <th>آخر دخول</th>
+              <th>إجراءات خارقة</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for user in users %}
+            <tr>
+              <td>{{ user.id }}</td>
+              <td>{{ user.username }}</td>
+              <td>{{ user.email or 'N/A' }}</td>
+              <td><span class="badge bg-info">{{ user.role or 'user' }}</span></td>
+              <td>
+                {% if user.is_active %}
+                <span class="badge bg-success">نشط</span>
+                {% else %}
+                <span class="badge bg-danger">معطل</span>
+                {% endif %}
+              </td>
+              <td><small>{{ user.last_login.strftime('%Y-%m-%d %H:%M') if user.last_login else 'N/A' }}</small></td>
+              <td>
+                <div class="btn-group btn-group-sm">
+                  <!-- تسجيل دخول كهذا المستخدم -->
+                  <form method="POST" action="{{ url_for('security.impersonate_user', user_id=user.id) }}" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-warning" title="تسجيل الدخول كـ {{ user.username }}">
+                      <i class="fas fa-user-secret"></i>
+                    </button>
+                  </form>
+                  
+                  <!-- تفعيل/تعطيل -->
+                  <form method="POST" action="{{ url_for('security.toggle_user_status', user_id=user.id) }}" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-{{ user.is_active and 'danger' or 'success' }}">
+                      <i class="fas fa-power-off"></i>
+                    </button>
+                  </form>
+                  
+                  <!-- إعادة تعيين كلمة المرور -->
+                  <button class="btn btn-info" onclick="resetPassword({{ user.id }}, '{{ user.username }}')">
+                    <i class="fas fa-key"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal لإعادة تعيين كلمة المرور -->
+<div class="modal fade" id="resetPasswordModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" id="resetPasswordForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-header bg-warning">
+          <h5 class="modal-title">إعادة تعيين كلمة المرور</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p>المستخدم: <strong id="resetUsername"></strong></p>
+          <div class="mb-3">
+            <label class="form-label">كلمة المرور الجديدة</label>
+            <input type="text" name="new_password" class="form-control" value="123456" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+          <button type="submit" class="btn btn-warning">إعادة تعيين</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function resetPassword(userId, username) {
+  document.getElementById('resetUsername').textContent = username;
+  document.getElementById('resetPasswordForm').action = `/security/force-reset-password/${userId}`;
+  new bootstrap.Modal(document.getElementById('resetPasswordModal')).show();
+}
+
+$(document).ready(function() {
+  $('#usersTable').DataTable({
+    order: [[0, 'asc']],
+    pageLength: 25
+  });
+});
+</script>
+{% endblock %}
+

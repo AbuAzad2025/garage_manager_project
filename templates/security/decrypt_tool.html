@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}فك التشفير{% endblock %}
+{% block page_title %}🔓 أداة فك التشفير{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <div class="card">
+    <div class="card-header bg-warning text-dark">
+      <h5 class="mb-0">فك تشفير البيانات</h5>
+    </div>
+    <div class="card-body">
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="mb-3">
+          <label class="form-label">البيانات المشفرة</label>
+          <textarea name="encrypted_data" class="form-control" rows="5" placeholder="الصق البيانات المشفرة هنا..." required></textarea>
+        </div>
+        
+        <div class="mb-3">
+          <label class="form-label">نوع التشفير</label>
+          <select name="decrypt_type" class="form-select">
+            <option value="auto">تلقائي (محاولة جميع الطرق)</option>
+            <option value="base64">Base64</option>
+            <option value="fernet">Fernet (CARD_ENC_KEY)</option>
+          </select>
+        </div>
+        
+        <button type="submit" class="btn btn-warning">
+          <i class="fas fa-unlock"></i> فك التشفير
+        </button>
+      </form>
+      
+      {% if result %}
+      <hr>
+      <h6 class="mt-4">النتيجة:</h6>
+      {% if result.success %}
+      <div class="alert alert-success">
+        <strong>تم فك التشفير بنجاح!</strong><br>
+        <strong>الطريقة:</strong> {{ result.method }}<br>
+        <strong>البيانات:</strong><br>
+        <pre class="bg-light p-3 rounded">{{ result.decrypted }}</pre>
+      </div>
+      {% else %}
+      <div class="alert alert-danger">
+        <strong>فشل فك التشفير</strong><br>
+        {{ result.error or 'لم يتم التعرف على نوع التشفير' }}
+      </div>
+      {% endif %}
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

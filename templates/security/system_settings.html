@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block title %}إعدادات النظام{% endblock %}
+{% block page_title %}⚙️ إعدادات النظام الحرجة{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <div class="card">
+    <div class="card-header bg-secondary text-white">
+      <h5 class="mb-0">تحكم كامل بإعدادات النظام</h5>
+    </div>
+    <div class="card-body">
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="row">
+          <div class="col-md-6">
+            <div class="card mb-3">
+              <div class="card-header bg-warning text-dark">
+                <strong>وضع الصيانة</strong>
+              </div>
+              <div class="card-body">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" name="maintenance_mode" id="maintenance_mode" {% if settings.maintenance_mode %}checked{% endif %}>
+                  <label class="form-check-label" for="maintenance_mode">
+                    تفعيل وضع الصيانة (سيمنع الوصول لجميع المستخدمين)
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-md-6">
+            <div class="card mb-3">
+              <div class="card-header bg-info text-white">
+                <strong>التسجيل</strong>
+              </div>
+              <div class="card-body">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" name="registration_enabled" id="registration_enabled" {% if settings.registration_enabled %}checked{% endif %}>
+                  <label class="form-check-label" for="registration_enabled">
+                    السماح بتسجيل مستخدمين جدد
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-md-6">
+            <div class="card mb-3">
+              <div class="card-header bg-primary text-white">
+                <strong>API</strong>
+              </div>
+              <div class="card-body">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" name="api_enabled" id="api_enabled" {% if settings.api_enabled %}checked{% endif %}>
+                  <label class="form-check-label" for="api_enabled">
+                    تفعيل الوصول لـ API
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-save"></i> حفظ الإعدادات
+        </button>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+{% block title %}وحدة الأمان المتقدمة{% endblock %}
+{% block page_title %}🔒 وحدة الأمان المتقدمة{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <div class="alert alert-danger border-0 shadow-sm">
+    <i class="fas fa-exclamation-triangle"></i>
+    <strong>تحذير:</strong> هذه الوحدة سرية ومتاحة فقط لـ Super Admin. جميع الإجراءات يتم تسجيلها.
+  </div>
+
+  <!-- الإحصائيات -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-3 col-md-6">
+      <div class="small-box bg-info">
+        <div class="inner">
+          <h3>{{ stats.total_users }}</h3>
+          <p>إجمالي المستخدمين</p>
+        </div>
+        <div class="icon"><i class="fas fa-users"></i></div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="small-box bg-success">
+        <div class="inner">
+          <h3>{{ stats.active_users }}</h3>
+          <p>مستخدمين نشطين</p>
+        </div>
+        <div class="icon"><i class="fas fa-user-check"></i></div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="small-box bg-danger">
+        <div class="inner">
+          <h3>{{ stats.blocked_users }}</h3>
+          <p>مستخدمين محظورين</p>
+        </div>
+        <div class="icon"><i class="fas fa-user-lock"></i></div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="small-box bg-warning">
+        <div class="inner">
+          <h3>{{ stats.failed_logins_24h }}</h3>
+          <p>محاولات فاشلة (24 ساعة)</p>
+        </div>
+        <div class="icon"><i class="fas fa-exclamation-triangle"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- الإجراءات السريعة -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-danger text-white">
+        <div class="card-body text-center">
+          <i class="fas fa-crown fa-3x mb-3"></i>
+          <h5>لوحة التحكم النهائية</h5>
+          <p class="small">صلاحيات خارقة</p>
+          <a href="{{ url_for('security.ultimate_control') }}" class="btn btn-light btn-sm">
+            <i class="fas fa-bolt"></i> التحكم النهائي
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <i class="fas fa-robot fa-3x text-primary mb-3"></i>
+          <h5>AI Assistant</h5>
+          <p class="text-muted small">مساعد ذكاء اصطناعي</p>
+          <a href="{{ url_for('security.ai_assistant') }}" class="btn btn-primary btn-sm">
+            <i class="fas fa-brain"></i> AI
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <i class="fas fa-database fa-3x text-info mb-3"></i>
+          <h5>Database Browser</h5>
+          <p class="text-muted small">تصفح قاعدة البيانات</p>
+          <a href="{{ url_for('security.database_browser') }}" class="btn btn-info btn-sm">
+            <i class="fas fa-table"></i> تصفح
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <i class="fas fa-ban fa-3x text-danger mb-3"></i>
+          <h5>حظر IP</h5>
+          <p class="text-muted small">حظر عنوان IP معين</p>
+          <a href="{{ url_for('security.block_ip') }}" class="btn btn-danger btn-sm">
+            <i class="fas fa-shield-alt"></i> حظر IP
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <i class="fas fa-globe fa-3x text-warning mb-3"></i>
+          <h5>حظر دولة</h5>
+          <p class="text-muted small">حظر دولة كاملة</p>
+          <a href="{{ url_for('security.block_country') }}" class="btn btn-warning btn-sm">
+            <i class="fas fa-flag"></i> حظر دولة
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <i class="fas fa-broom fa-3x text-primary mb-3"></i>
+          <h5>تنظيف النظام</h5>
+          <p class="text-muted small">حذف بيانات الجداول</p>
+          <a href="{{ url_for('security.system_cleanup') }}" class="btn btn-primary btn-sm">
+            <i class="fas fa-trash-alt"></i> تنظيف
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <i class="fas fa-history fa-3x text-info mb-3"></i>
+          <h5>سجل التدقيق</h5>
+          <p class="text-muted small">عرض جميع الأنشطة</p>
+          <a href="{{ url_for('security.audit_logs') }}" class="btn btn-info btn-sm">
+            <i class="fas fa-file-alt"></i> عرض السجل
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- المحظورين -->
+  <div class="row g-3">
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-danger text-white">
+          <h5 class="mb-0"><i class="fas fa-ban"></i> IPs محظورة</h5>
+        </div>
+        <div class="card-body">
+          <p class="mb-2"><strong>العدد:</strong> {{ stats.blocked_ips }}</p>
+          <a href="{{ url_for('security.blocked_ips') }}" class="btn btn-sm btn-outline-danger">عرض القائمة</a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-warning text-dark">
+          <h5 class="mb-0"><i class="fas fa-globe"></i> دول محظورة</h5>
+        </div>
+        <div class="card-body">
+          <p class="mb-2"><strong>العدد:</strong> {{ stats.blocked_countries }}</p>
+          <a href="{{ url_for('security.blocked_countries') }}" class="btn btn-sm btn-outline-warning">عرض القائمة</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

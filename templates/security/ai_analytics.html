@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}AI Analytics{% endblock %}
+{% block page_title %}🧠 تحليلات الذكاء الاصطناعي{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <!-- مستوى التهديد -->
+  <div class="alert alert-{{ analytics.threat_level.color }} border-0 shadow-sm">
+    <h5><i class="fas fa-shield-alt"></i> مستوى التهديد: {{ analytics.threat_level.label }}</h5>
+  </div>
+
+  <div class="row g-3">
+    <!-- سلوك المستخدمين -->
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header bg-info text-white">
+          <h5 class="mb-0"><i class="fas fa-users"></i> سلوك المستخدمين</h5>
+        </div>
+        <div class="card-body">
+          <h6>الأكثر نشاطاً:</h6>
+          <ul>
+            {% for user in analytics.user_behavior.most_active %}
+            <li>{{ user.username }} - {{ user.login_count }} دخول</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+    
+    <!-- الأنماط الأمنية -->
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header bg-warning text-dark">
+          <h5 class="mb-0"><i class="fas fa-search"></i> أنماط أمنية</h5>
+        </div>
+        <div class="card-body">
+          <h6>أكثر IPs مع محاولات فاشلة:</h6>
+          <ul>
+            {% for ip_data in analytics.security_patterns.failed_login_ips %}
+            <li><code>{{ ip_data.ip }}</code> - {{ ip_data.count }} محاولة</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+    
+    <!-- الشذوذات -->
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header bg-danger text-white">
+          <h5 class="mb-0"><i class="fas fa-exclamation-triangle"></i> الشذوذات</h5>
+        </div>
+        <div class="card-body">
+          {% if analytics.anomalies %}
+            {% for anomaly in analytics.anomalies %}
+            <div class="alert alert-{{ anomaly.severity == 'high' and 'danger' or 'warning' }}">
+              <strong>{{ anomaly.type }}</strong><br>
+              {{ anomaly.description }}
+            </div>
+            {% endfor %}
+          {% else %}
+            <p class="text-success"><i class="fas fa-check"></i> لا توجد شذوذات</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    
+    <!-- التوصيات -->
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0"><i class="fas fa-lightbulb"></i> توصيات AI</h5>
+        </div>
+        <div class="card-body">
+          {% if analytics.recommendations %}
+            <ul>
+              {% for rec in analytics.recommendations %}
+              <li>{{ rec }}</li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="text-muted">لا توجد توصيات</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

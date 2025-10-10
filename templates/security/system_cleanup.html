@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block title %}تنظيف النظام{% endblock %}
+{% block page_title %}🧹 تنظيف النظام (Format){% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <div class="alert alert-danger">
+    <i class="fas fa-exclamation-triangle"></i>
+    <strong>تحذير خطير:</strong> هذه العملية ستحذف البيانات بشكل نهائي ولا يمكن التراجع عنها!
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-danger text-white">
+      <h5 class="mb-0">تنظيف جداول النظام</h5>
+    </div>
+    <div class="card-body">
+      <form method="POST" onsubmit="return confirm('هل أنت متأكد؟ هذه العملية لا يمكن التراجع عنها!');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <h6 class="mb-3">اختر الجداول للتنظيف:</h6>
+        
+        {% for table in tables %}
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" name="tables" value="{{ table.name }}" id="table_{{ loop.index }}">
+          <label class="form-check-label" for="table_{{ loop.index }}">
+            {{ table.display }}
+            {% if table.danger == 'high' %}
+              <span class="badge bg-danger">خطر عالي</span>
+            {% elif table.danger == 'medium' %}
+              <span class="badge bg-warning">خطر متوسط</span>
+            {% else %}
+              <span class="badge bg-info">خطر منخفض</span>
+            {% endif %}
+          </label>
+        </div>
+        {% endfor %}
+        
+        <hr class="my-4">
+        
+        <div class="mb-3">
+          <label class="form-label text-danger">
+            اكتب <strong>FORMAT_SYSTEM</strong> للتأكيد *
+          </label>
+          <input type="text" name="confirm" class="form-control" placeholder="FORMAT_SYSTEM" required>
+        </div>
+        
+        <button type="submit" class="btn btn-danger">
+          <i class="fas fa-trash-alt"></i> تنظيف الجداول
+        </button>
+        <a href="{{ url_for('security.index') }}" class="btn btn-secondary">إلغاء</a>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

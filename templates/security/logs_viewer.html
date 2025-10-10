@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}عارض اللوجات{% endblock %}
+{% block page_title %}📋 عارض اللوجات{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <div class="alert alert-warning">
+    <i class="fas fa-file-alt"></i> <strong>لوجات النظام:</strong> تتبع كامل لجميع الأحداث والأخطاء
+  </div>
+
+  <div class="row g-3">
+    {% for log in log_files %}
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header bg-{{ log.type == 'error' and 'danger' or (log.type == 'server' and 'warning' or 'info') }} text-white">
+          <h6 class="mb-0">{{ log.type|upper }}.log</h6>
+        </div>
+        <div class="card-body">
+          <p><strong>المسار:</strong> <code>{{ log.path }}</code></p>
+          <p><strong>الحجم:</strong> {{ log.size }}</p>
+          <p><strong>آخر تعديل:</strong> {{ log.modified.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+          
+          <div class="btn-group w-100">
+            <a href="{{ url_for('security.logs_view', log_type=log.type) }}" class="btn btn-sm btn-primary">
+              <i class="fas fa-eye"></i> عرض
+            </a>
+            <a href="{{ url_for('security.logs_download', log_type=log.type) }}" class="btn btn-sm btn-success">
+              <i class="fas fa-download"></i> تحميل
+            </a>
+            <form method="POST" action="{{ url_for('security.logs_clear', log_type=log.type) }}" style="display:inline;" onsubmit="return confirm('هل تريد مسح هذا اللوج؟');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-sm btn-danger">
+                <i class="fas fa-trash"></i> مسح
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    
+    {% if not log_files %}
+    <div class="col-12">
+      <div class="alert alert-info text-center">
+        <i class="fas fa-info-circle"></i> لا توجد ملفات لوج متاحة
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+

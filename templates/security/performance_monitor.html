@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block title %}مراقبة الأداء{% endblock %}
+{% block page_title %}⚡ مراقبة الأداء{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header bg-primary text-white">
+          <h6 class="mb-0">CPU Usage</h6>
+        </div>
+        <div class="card-body text-center">
+          <h2>{{ performance.cpu_usage }}%</h2>
+          <div class="progress" style="height:20px;">
+            <div class="progress-bar" style="width:{{ performance.cpu_usage }}%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header bg-success text-white">
+          <h6 class="mb-0">Memory Usage</h6>
+        </div>
+        <div class="card-body text-center">
+          <h2>{{ performance.memory_usage }}%</h2>
+          <div class="progress" style="height:20px;">
+            <div class="progress-bar bg-success" style="width:{{ performance.memory_usage }}%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header bg-info text-white">
+          <h6 class="mb-0">Avg Response Time</h6>
+        </div>
+        <div class="card-body text-center">
+          <h2>{{ performance.response_times.avg }}</h2>
+          <p class="mb-0">
+            <small>Min: {{ performance.response_times.min }} | Max: {{ performance.response_times.max }}</small>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-3">
+    <div class="card-header bg-warning text-dark">
+      <h5 class="mb-0">استعلامات بطيئة</h5>
+    </div>
+    <div class="card-body">
+      {% if performance.db_queries %}
+        <table class="table">
+          <thead>
+            <tr>
+              <th>الاستعلام</th>
+              <th>الوقت</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for query in performance.db_queries %}
+            <tr>
+              <td><code>{{ query.sql }}</code></td>
+              <td>{{ query.time }}ms</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="text-success text-center">لا توجد استعلامات بطيئة! ✅</p>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

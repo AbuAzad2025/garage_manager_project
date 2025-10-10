@@ -1,0 +1,259 @@
+{% extends 'base.html' %}
+{% block title %}Ultimate Control Panel{% endblock %}
+{% block page_title %}👑 لوحة التحكم النهائية{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  {% if session.get('impersonating') %}
+  <div class="alert alert-warning border-0 shadow-sm">
+    <strong>⚠️ تحذير:</strong> أنت الآن تتصفح كمستخدم آخر!
+    <form method="POST" action="{{ url_for('security.stop_impersonate') }}" style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-sm btn-danger">العودة لحسابك</button>
+    </form>
+  </div>
+  {% endif %}
+
+  <div class="alert alert-danger border-0 shadow-sm">
+    <i class="fas fa-crown"></i> <strong>صلاحيات خارقة:</strong> أنت المالك - لديك سيطرة كاملة على كل شيء!
+  </div>
+
+  <!-- إحصائيات سريعة -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-2 col-md-4 col-sm-6">
+      <div class="small-box bg-success">
+        <div class="inner">
+          <h3>{{ stats.users_online }}</h3>
+          <p>متصل الآن</p>
+        </div>
+        <div class="icon"><i class="fas fa-users"></i></div>
+      </div>
+    </div>
+    
+    <div class="col-lg-2 col-md-4 col-sm-6">
+      <div class="small-box bg-info">
+        <div class="inner">
+          <h3>{{ stats.total_users }}</h3>
+          <p>إجمالي المستخدمين</p>
+        </div>
+        <div class="icon"><i class="fas fa-user"></i></div>
+      </div>
+    </div>
+    
+    <div class="col-lg-2 col-md-4 col-sm-6">
+      <div class="small-box bg-warning">
+        <div class="inner">
+          <h3>{{ stats.db_size }}</h3>
+          <p>حجم قاعدة البيانات</p>
+        </div>
+        <div class="icon"><i class="fas fa-database"></i></div>
+      </div>
+    </div>
+    
+    <div class="col-lg-2 col-md-4 col-sm-6">
+      <div class="small-box bg-primary">
+        <div class="inner">
+          <h3>{{ stats.system_health }}</h3>
+          <p>صحة النظام</p>
+        </div>
+        <div class="icon"><i class="fas fa-heartbeat"></i></div>
+      </div>
+    </div>
+    
+    <div class="col-lg-2 col-md-4 col-sm-6">
+      <div class="small-box bg-danger">
+        <div class="inner">
+          <h3>{{ stats.active_sessions }}</h3>
+          <p>جلسات نشطة</p>
+        </div>
+        <div class="icon"><i class="fas fa-clock"></i></div>
+      </div>
+    </div>
+    
+    <div class="col-lg-2 col-md-4 col-sm-6">
+      <div class="small-box bg-dark">
+        <div class="inner">
+          <h3>{{ stats.total_services }}</h3>
+          <p>خدمات</p>
+        </div>
+        <div class="icon"><i class="fas fa-wrench"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- الأدوات الرئيسية -->
+  <div class="row g-3">
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <i class="fas fa-eye fa-3x text-success mb-3"></i>
+          <h5>مراقبة فورية</h5>
+          <p class="text-muted small">شاهد كل شيء لحظياً</p>
+          <a href="{{ url_for('security.live_monitoring') }}" class="btn btn-success btn-sm">
+            <i class="fas fa-tv"></i> مراقبة
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <i class="fas fa-users-cog fa-3x text-primary mb-3"></i>
+          <h5>التحكم بالمستخدمين</h5>
+          <p class="text-muted small">سيطرة كاملة</p>
+          <a href="{{ url_for('security.user_control') }}" class="btn btn-primary btn-sm">
+            <i class="fas fa-crown"></i> تحكم
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <i class="fas fa-terminal fa-3x text-warning mb-3"></i>
+          <h5>SQL Console</h5>
+          <p class="text-muted small">تنفيذ استعلامات مباشرة</p>
+          <a href="{{ url_for('security.sql_console') }}" class="btn btn-warning btn-sm">
+            <i class="fas fa-code"></i> SQL
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <i class="fab fa-python fa-3x text-info mb-3"></i>
+          <h5>Python Console</h5>
+          <p class="text-muted small">تنفيذ كود Python</p>
+          <a href="{{ url_for('security.python_console') }}" class="btn btn-info btn-sm">
+            <i class="fas fa-code"></i> Python
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <i class="fas fa-cogs fa-3x text-secondary mb-3"></i>
+          <h5>إعدادات النظام</h5>
+          <p class="text-muted small">تحكم كامل بالإعدادات</p>
+          <a href="{{ url_for('security.system_settings') }}" class="btn btn-secondary btn-sm">
+            <i class="fas fa-sliders-h"></i> إعدادات
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
+          <h5>أدوات الطوارئ</h5>
+          <p class="text-muted small">للحالات الحرجة فقط</p>
+          <a href="{{ url_for('security.emergency_tools') }}" class="btn btn-danger btn-sm">
+            <i class="fas fa-fire-extinguisher"></i> طوارئ
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <i class="fas fa-download fa-3x text-success mb-3"></i>
+          <h5>تصدير البيانات</h5>
+          <p class="text-muted small">تصدير أي جدول</p>
+          <a href="{{ url_for('security.data_export') }}" class="btn btn-success btn-sm">
+            <i class="fas fa-file-export"></i> تصدير
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <i class="fas fa-tachometer-alt fa-3x text-primary mb-3"></i>
+          <h5>مراقبة الأداء</h5>
+          <p class="text-muted small">سرعة النظام</p>
+          <a href="{{ url_for('security.performance_monitor') }}" class="btn btn-primary btn-sm">
+            <i class="fas fa-chart-line"></i> أداء
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <i class="fas fa-palette fa-3x text-info mb-3"></i>
+          <h5>العلامة التجارية</h5>
+          <p class="text-muted small">شعار + ألوان</p>
+          <a href="{{ url_for('security.system_branding') }}" class="btn btn-info btn-sm">
+            <i class="fas fa-paint-brush"></i> تخصيص
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <i class="fas fa-file-alt fa-3x text-warning mb-3"></i>
+          <h5>اللوجات</h5>
+          <p class="text-muted small">تتبع كامل</p>
+          <a href="{{ url_for('security.logs_viewer') }}" class="btn btn-warning btn-sm">
+            <i class="fas fa-eye"></i> لوجات
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <i class="fas fa-bug fa-3x text-danger mb-3"></i>
+          <h5>تتبع الأخطاء</h5>
+          <p class="text-muted small">مراقبة فورية</p>
+          <a href="{{ url_for('security.error_tracker') }}" class="btn btn-danger btn-sm">
+            <i class="fas fa-search"></i> أخطاء
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <i class="fas fa-cogs fa-3x text-dark mb-3"></i>
+          <h5>ثوابت النظام</h5>
+          <p class="text-muted small">معلومات الشركة</p>
+          <a href="{{ url_for('security.system_constants') }}" class="btn btn-dark btn-sm">
+            <i class="fas fa-wrench"></i> ثوابت
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <i class="fas fa-sliders-h fa-3x text-secondary mb-3"></i>
+          <h5>تكوين متقدم</h5>
+          <p class="text-muted small">إعدادات دقيقة</p>
+          <a href="{{ url_for('security.advanced_config') }}" class="btn btn-secondary btn-sm">
+            <i class="fas fa-tools"></i> تكوين
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

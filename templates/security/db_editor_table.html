@@ -1,0 +1,259 @@
+{% extends 'base.html' %}
+{% block title %}تحرير {{ table_name }}{% endblock %}
+{% block page_title %}✏️ تحرير جدول: {{ table_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <div class="mb-3">
+    <a href="{{ url_for('security.db_editor') }}" class="btn btn-secondary">
+      <i class="fas fa-arrow-left"></i> رجوع
+    </a>
+    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addColumnModal">
+      <i class="fas fa-plus"></i> إضافة عمود
+    </button>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addRowModal">
+      <i class="fas fa-plus"></i> إضافة صف
+    </button>
+    <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#bulkUpdateModal">
+      <i class="fas fa-edit"></i> تحديث جماعي
+    </button>
+    <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#fillMissingModal">
+      <i class="fas fa-fill"></i> ملء ناقص
+    </button>
+    <a href="{{ url_for('security.db_schema_editor', table_name=table_name) }}" class="btn btn-dark">
+      <i class="fas fa-cogs"></i> هيكل الجدول
+    </a>
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0">البيانات ({{ data|length }} صف)</h5>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive" style="max-height:600px; overflow:auto;">
+        <table class="table table-sm table-bordered table-hover" id="dataTable">
+          <thead class="table-dark sticky-top">
+            <tr>
+              {% for col in columns %}
+              <th>{{ col }}</th>
+              {% endfor %}
+              <th>إجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in data %}
+            <tr>
+              {% for col in columns %}
+              <td>
+                <small class="editable-cell" data-row-id="{{ row.id }}" data-column="{{ col }}">
+                  {{ row[col] }}
+                </small>
+              </td>
+              {% endfor %}
+              <td>
+                <div class="btn-group btn-group-sm">
+                  <button class="btn btn-warning" onclick="editRow({{ row.id }}, {{ row|tojson }})">
+                    <i class="fas fa-edit"></i>
+                  </button>
+                  <form method="POST" action="{{ url_for('security.db_delete_row', table_name=table_name, row_id=row.id) }}" style="display:inline;" onsubmit="return confirm('هل تريد الحذف؟');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal: إضافة عمود -->
+<div class="modal fade" id="addColumnModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('security.db_add_column', table_name=table_name) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-header bg-success text-white">
+          <h5 class="modal-title">إضافة عمود جديد</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">اسم العمود</label>
+            <input type="text" name="column_name" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">نوع البيانات</label>
+            <select name="column_type" class="form-select">
+              <option value="TEXT">TEXT</option>
+              <option value="INTEGER">INTEGER</option>
+              <option value="REAL">REAL</option>
+              <option value="BOOLEAN">BOOLEAN</option>
+              <option value="DATETIME">DATETIME</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">القيمة الافتراضية</label>
+            <input type="text" name="default_value" class="form-control">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+          <button type="submit" class="btn btn-success">إضافة</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: إضافة صف -->
+<div class="modal fade" id="addRowModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('security.db_add_row', table_name=table_name) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title">إضافة صف جديد</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          {% for col in columns %}
+          {% if col != 'id' %}
+          <div class="mb-3">
+            <label class="form-label">{{ col }}</label>
+            <input type="text" name="{{ col }}" class="form-control">
+          </div>
+          {% endif %}
+          {% endfor %}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+          <button type="submit" class="btn btn-primary">إضافة</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: تحديث جماعي -->
+<div class="modal fade" id="bulkUpdateModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('security.db_bulk_update', table_name=table_name) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-header bg-warning text-dark">
+          <h5 class="modal-title">تحديث جماعي</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">العمود</label>
+            <select name="column" class="form-select" required>
+              {% for col in columns %}
+              <option value="{{ col }}">{{ col }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">القيمة القديمة (فارغ = NULL)</label>
+            <input type="text" name="old_value" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">القيمة الجديدة</label>
+            <input type="text" name="new_value" class="form-control" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+          <button type="submit" class="btn btn-warning">تحديث</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: ملء ناقص -->
+<div class="modal fade" id="fillMissingModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('security.db_fill_missing', table_name=table_name) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-header bg-info text-white">
+          <h5 class="modal-title">ملء البيانات الناقصة</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">العمود</label>
+            <select name="column" class="form-select" required>
+              {% for col in columns %}
+              <option value="{{ col }}">{{ col }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">القيمة للملء</label>
+            <input type="text" name="fill_value" class="form-control" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+          <button type="submit" class="btn btn-info">ملء</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: تعديل صف -->
+<div class="modal fade" id="editRowModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" id="editRowForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-header bg-warning text-dark">
+          <h5 class="modal-title">تعديل صف</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="editRowBody">
+          <!-- سيتم ملؤها ديناميكياً -->
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+          <button type="submit" class="btn btn-warning">حفظ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function editRow(rowId, rowData) {
+  const form = document.getElementById('editRowForm');
+  form.action = `/security/db-editor/edit-row/{{ table_name }}/${rowId}`;
+  
+  const body = document.getElementById('editRowBody');
+  body.innerHTML = '';
+  
+  {% for col in columns %}
+  const div{{ loop.index }} = document.createElement('div');
+  div{{ loop.index }}.className = 'mb-3';
+  div{{ loop.index }}.innerHTML = `
+    <label class="form-label">{{ col }}</label>
+    <input type="text" name="{{ col }}" class="form-control" value="${rowData['{{ col }}'] || ''}" ${{'{{ col }}' === 'id' ? 'readonly' : ''}}>
+  `;
+  body.appendChild(div{{ loop.index }});
+  {% endfor %}
+  
+  new bootstrap.Modal(document.getElementById('editRowModal')).show();
+}
+</script>
+{% endblock %}
+

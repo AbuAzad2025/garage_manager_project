@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}Python Console{% endblock %}
+{% block page_title %}🐍 Python Console{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <div class="alert alert-danger">
+    <i class="fas fa-skull-crossbones"></i> <strong>خطر:</strong> تنفيذ Python مباشر! صلاحيات كاملة!
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-dark text-white">
+      <h5 class="mb-0">Python Code Editor</h5>
+    </div>
+    <div class="card-body">
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="mb-3">
+          <textarea name="python_code" class="form-control" rows="15" style="font-family:monospace; background:#1e1e1e; color:#d4d4d4;" placeholder="# مثال&#10;users = User.query.all()&#10;output = f'Total users: {len(users)}'" required></textarea>
+        </div>
+        
+        <button type="submit" class="btn btn-danger">
+          <i class="fas fa-play"></i> تنفيذ
+        </button>
+        
+        <div class="btn-group ms-2">
+          <button type="button" class="btn btn-sm btn-secondary" onclick="insertCode('users = User.query.all()\noutput = f\\'Total users: {len(users)}\\'')">Count Users</button>
+          <button type="button" class="btn btn-sm btn-secondary" onclick="insertCode('from datetime import datetime, timezone\noutput = datetime.now(timezone.utc)')">Current Time</button>
+        </div>
+      </form>
+      
+      {% if error %}
+      <div class="alert alert-danger mt-3">
+        <strong>خطأ:</strong><br>
+        <pre>{{ error }}</pre>
+      </div>
+      {% endif %}
+      
+      {% if result %}
+      <hr>
+      <h6 class="mt-4">النتيجة:</h6>
+      <div class="alert alert-success">
+        <pre>{{ result }}</pre>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<script>
+function insertCode(code) {
+  document.querySelector('textarea[name="python_code"]').value = code;
+}
+</script>
+{% endblock %}
+

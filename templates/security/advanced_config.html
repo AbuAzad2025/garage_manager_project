@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% block title %}تكوين متقدم{% endblock %}
+{% block page_title %}⚡ تكوين متقدم{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <div class="alert alert-danger">
+    <i class="fas fa-radiation"></i> <strong>تحذير:</strong> تعديل هذه الإعدادات يؤثر على سلوك النظام!
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-dark text-white">
+      <h5 class="mb-0">إعدادات متقدمة</h5>
+    </div>
+    <div class="card-body">
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="row">
+          <div class="col-md-6">
+            <div class="card mb-3">
+              <div class="card-header bg-primary text-white">
+                <strong>الجلسات والأمان</strong>
+              </div>
+              <div class="card-body">
+                <div class="mb-3">
+                  <label class="form-label">مهلة الجلسة (ثانية)</label>
+                  <input type="number" name="session_timeout" class="form-control" value="{{ config.SESSION_TIMEOUT }}">
+                </div>
+                
+                <div class="mb-3">
+                  <label class="form-label">محاولات الدخول القصوى</label>
+                  <input type="number" name="max_login_attempts" class="form-control" value="{{ config.MAX_LOGIN_ATTEMPTS }}">
+                </div>
+                
+                <div class="mb-3">
+                  <label class="form-label">الحد الأدنى لطول كلمة المرور</label>
+                  <input type="number" name="password_min_length" class="form-control" value="{{ config.PASSWORD_MIN_LENGTH }}">
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-md-6">
+            <div class="card mb-3">
+              <div class="card-header bg-success text-white">
+                <strong>النسخ الاحتياطي</strong>
+              </div>
+              <div class="card-body">
+                <div class="mb-3">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" name="auto_backup_enabled" id="auto_backup" {% if config.AUTO_BACKUP_ENABLED %}checked{% endif %}>
+                    <label class="form-check-label" for="auto_backup">
+                      تفعيل النسخ الاحتياطي التلقائي
+                    </label>
+                  </div>
+                </div>
+                
+                <div class="mb-3">
+                  <label class="form-label">فاصل النسخ الاحتياطي (ساعات)</label>
+                  <input type="number" name="backup_interval_hours" class="form-control" value="{{ config.BACKUP_INTERVAL_HOURS }}">
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-md-6">
+            <div class="card mb-3">
+              <div class="card-header bg-info text-white">
+                <strong>الإشعارات</strong>
+              </div>
+              <div class="card-body">
+                <div class="mb-3">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" name="enable_email_notifications" id="email_notif" {% if config.ENABLE_EMAIL_NOTIFICATIONS %}checked{% endif %}>
+                    <label class="form-check-label" for="email_notif">
+                      تفعيل إشعارات البريد الإلكتروني
+                    </label>
+                  </div>
+                </div>
+                
+                <div class="mb-3">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" name="enable_sms_notifications" id="sms_notif" {% if config.ENABLE_SMS_NOTIFICATIONS %}checked{% endif %}>
+                    <label class="form-check-label" for="sms_notif">
+                      تفعيل إشعارات SMS
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-save"></i> حفظ التكوين
+        </button>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

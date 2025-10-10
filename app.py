@@ -59,6 +59,7 @@ from routes.other_systems import other_systems_bp
 from routes.pricing import pricing_bp
 from routes.checks import checks_bp
 from routes.health import health_bp
+from routes.security import security_bp
 
 
 class MyAnonymousUser(AnonymousUserMixin):
@@ -404,6 +405,7 @@ def create_app(config_object=Config) -> Flask:
         pricing_bp,
         checks_bp,
         health_bp,
+        security_bp,
     ]
     for bp in BLUEPRINTS:
         app.register_blueprint(bp)

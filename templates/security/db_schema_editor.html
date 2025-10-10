@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block title %}هيكل {{ table_name }}{% endblock %}
+{% block page_title %}🏗️ هيكل جدول: {{ table_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <div class="mb-3">
+    <a href="{{ url_for('security.db_editor_table', table_name=table_name) }}" class="btn btn-secondary">
+      <i class="fas fa-arrow-left"></i> رجوع للبيانات
+    </a>
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-dark text-white">
+      <h5 class="mb-0">تفاصيل الأعمدة</h5>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-bordered">
+          <thead class="table-dark">
+            <tr>
+              <th>ID</th>
+              <th>اسم العمود</th>
+              <th>النوع</th>
+              <th>NOT NULL</th>
+              <th>القيمة الافتراضية</th>
+              <th>Primary Key</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for col in table_info %}
+            <tr>
+              <td>{{ col.cid }}</td>
+              <td><strong>{{ col.name }}</strong></td>
+              <td><span class="badge bg-primary">{{ col.type }}</span></td>
+              <td>
+                {% if col.notnull %}
+                <span class="badge bg-danger">نعم</span>
+                {% else %}
+                <span class="badge bg-success">لا</span>
+                {% endif %}
+              </td>
+              <td><code>{{ col.default or 'NULL' }}</code></td>
+              <td>
+                {% if col.pk %}
+                <span class="badge bg-warning">نعم</span>
+                {% else %}
+                <span class="badge bg-secondary">لا</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-info mt-3">
+    <i class="fas fa-info-circle"></i> <strong>ملاحظة:</strong> 
+    في SQLite، لا يمكن حذف أو تعديل أعمدة موجودة مباشرةً. يمكنك فقط إضافة أعمدة جديدة.
+  </div>
+
+</div>
+{% endblock %}
+

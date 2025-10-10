@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block title %}سجل التدقيق{% endblock %}
+{% block page_title %}📜 سجل التدقيق الأمني{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <div class="card"><div class="card-body">
+    <table class="table table-sm table-striped">
+      <thead><tr><th>التاريخ</th><th>النوع</th><th>الإجراء</th><th>المستخدم</th><th>IP</th></tr></thead>
+      <tbody>
+        {% for log in logs.items %}
+        <tr><td>{{ log.created_at|format_datetime }}</td><td>{{ log.model_name }}</td><td>{{ log.action }}</td><td>{{ log.user_id or '—' }}</td><td><code>{{ log.ip_address or '—' }}</code></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if logs.has_prev or logs.has_next %}
+    <nav><ul class="pagination">
+      {% if logs.has_prev %}<li class="page-item"><a class="page-link" href="?page={{ logs.prev_num }}">السابق</a></li>{% endif %}
+      {% if logs.has_next %}<li class="page-item"><a class="page-link" href="?page={{ logs.next_num }}">التالي</a></li>{% endif %}
+    </ul></nav>
+    {% endif %}
+  </div></div>
+</div>
+{% endblock %}
+

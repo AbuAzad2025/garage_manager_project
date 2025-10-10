@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% block title %}AI Security Assistant{% endblock %}
+{% block page_title %}🤖 مساعد الأمان الذكي{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <div class="row g-3">
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0"><i class="fas fa-robot"></i> محادثة مع AI</h5>
+        </div>
+        <div class="card-body" style="height: 500px; overflow-y: auto;" id="chatContainer">
+          <div class="chat-messages" id="chatMessages">
+            <div class="alert alert-info">
+              <strong>مرحباً!</strong> أنا مساعد الأمان الذكي. اسألني عن أي شيء يتعلق بأمان النظام.
+            </div>
+          </div>
+        </div>
+        <div class="card-footer">
+          <form id="chatForm">
+            <div class="input-group">
+              <input type="text" class="form-control" id="chatInput" placeholder="اسأل AI...">
+              <button class="btn btn-primary" type="submit">
+                <i class="fas fa-paper-plane"></i> إرسال
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-4">
+      <div class="card">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0"><i class="fas fa-lightbulb"></i> اقتراحات ذكية</h5>
+        </div>
+        <div class="card-body">
+          {% if suggestions %}
+            {% for sug in suggestions %}
+            <div class="alert alert-{{ sug.type }} alert-sm">
+              <strong>{{ sug.title }}</strong><br>
+              <small>{{ sug.action }}</small>
+            </div>
+            {% endfor %}
+          {% else %}
+            <p class="text-muted">لا توجد اقتراحات حالياً</p>
+          {% endif %}
+        </div>
+      </div>
+      
+      <div class="card mt-3">
+        <div class="card-header bg-info text-white">
+          <h5 class="mb-0"><i class="fas fa-chart-line"></i> روابط سريعة</h5>
+        </div>
+        <div class="card-body">
+          <a href="{{ url_for('security.database_browser') }}" class="btn btn-sm btn-outline-primary w-100 mb-2">
+            <i class="fas fa-database"></i> متصفح قاعدة البيانات
+          </a>
+          <a href="{{ url_for('security.decrypt_tool') }}" class="btn btn-sm btn-outline-warning w-100 mb-2">
+            <i class="fas fa-key"></i> فك التشفير
+          </a>
+          <a href="{{ url_for('security.ai_analytics') }}" class="btn btn-sm btn-outline-success w-100 mb-2">
+            <i class="fas fa-brain"></i> تحليلات AI
+          </a>
+          <a href="{{ url_for('security.pattern_detection') }}" class="btn btn-sm btn-outline-danger w-100">
+            <i class="fas fa-search"></i> كشف الأنماط
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+document.getElementById('chatForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const input = document.getElementById('chatInput');
+  const message = input.value.trim();
+  if (!message) return;
+  
+  // عرض رسالة المستخدم
+  const chatMessages = document.getElementById('chatMessages');
+  chatMessages.innerHTML += `<div class="alert alert-secondary"><strong>أنت:</strong> ${message}</div>`;
+  input.value = '';
+  
+  // إرسال للـ AI
+  try {
+    const response = await fetch('{{ url_for("security.ai_chat") }}', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({message})
+    });
+    const data = await response.json();
+    
+    // عرض رد AI
+    chatMessages.innerHTML += `<div class="alert alert-primary"><strong>AI:</strong> ${data.response}</div>`;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  } catch (err) {
+    chatMessages.innerHTML += `<div class="alert alert-danger">خطأ في الاتصال بـ AI</div>`;
+  }
+});
+</script>
+{% endblock %}
+
