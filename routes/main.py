@@ -37,7 +37,6 @@ def _has_perm(code: str) -> bool:
         pass
     return False
 
-
 @main_bp.app_context_processor
 def _inject_sidebar_helpers():
     def has_any(*codes) -> bool:
@@ -50,12 +49,9 @@ def _inject_sidebar_helpers():
         "shop_is_super_admin": is_super,
     }
 
-
 @main_bp.route("/favicon.ico")
 def favicon():
     return send_from_directory(current_app.static_folder, "favicon.ico", mimetype="image/vnd.microsoft.icon")
-
-
 
 @main_bp.route("/", methods=["GET"], endpoint="dashboard")
 @login_required
@@ -104,7 +100,7 @@ def dashboard():
             Sale.sale_date >= day_start_dt,
             Sale.sale_date < day_end_dt,
         ).all()
-        
+
         today_revenue = 0.0
         for sale in today_sales:
             try:
@@ -116,7 +112,6 @@ def dashboard():
                         amount = float(amount * rate)
                 today_revenue += amount
             except Exception as e:
-                print(f"Error converting sale {sale.id}: {str(e)}")
                 today_revenue += float(sale.total_amount or 0)
 
     # حساب الدفعات مع تحويل العملات للشيكل
@@ -124,20 +119,20 @@ def dashboard():
     today_outgoing = 0.0
     week_incoming = 0.0
     week_outgoing = 0.0
-    
+
     # الدفعات اليومية
     today_payments = Payment.query.filter(
         Payment.payment_date >= day_start_dt,
         Payment.payment_date < day_end_dt,
         Payment.status == PaymentStatus.COMPLETED.value,
     ).all()
-    
+
     for payment in today_payments:
         try:
             from models import fx_rate
             from decimal import Decimal
             amount = float(payment.total_amount or 0)
-            
+
             # استخدام fx_rate_used إذا كان موجوداً
             if payment.fx_rate_used:
                 fx_rate_value = float(payment.fx_rate_used) if isinstance(payment.fx_rate_used, Decimal) else payment.fx_rate_used
@@ -146,33 +141,32 @@ def dashboard():
                 rate = fx_rate(payment.currency, 'ILS', payment.payment_date, raise_on_missing=False)
                 if rate > 0:
                     amount = float(amount * float(rate))
-            
+
             if payment.direction == PaymentDirection.IN.value:
                 today_incoming += amount
             else:
                 today_outgoing += amount
         except Exception as e:
-            print(f"Error converting payment {payment.id}: {str(e)}")
             if payment.direction == PaymentDirection.IN.value:
                 today_incoming += float(payment.total_amount or 0)
             else:
                 today_outgoing += float(payment.total_amount or 0)
-    
+
     today_net = today_incoming - today_outgoing
-    
+
     # الدفعات الأسبوعية
     week_payments = Payment.query.filter(
         Payment.payment_date >= week_start_dt,
         Payment.payment_date < week_end_dt,
         Payment.status == PaymentStatus.COMPLETED.value,
     ).all()
-    
+
     for payment in week_payments:
         try:
             from models import fx_rate
             from decimal import Decimal
             amount = float(payment.total_amount or 0)
-            
+
             # استخدام fx_rate_used إذا كان موجوداً
             if payment.fx_rate_used:
                 fx_rate_value = float(payment.fx_rate_used) if isinstance(payment.fx_rate_used, Decimal) else payment.fx_rate_used
@@ -181,18 +175,17 @@ def dashboard():
                 rate = fx_rate(payment.currency, 'ILS', payment.payment_date, raise_on_missing=False)
                 if rate > 0:
                     amount = float(amount * float(rate))
-            
+
             if payment.direction == PaymentDirection.IN.value:
                 week_incoming += amount
             else:
                 week_outgoing += amount
         except Exception as e:
-            print(f"Error converting payment {payment.id}: {str(e)}")
             if payment.direction == PaymentDirection.IN.value:
                 week_incoming += float(payment.total_amount or 0)
             else:
                 week_outgoing += float(payment.total_amount or 0)
-    
+
     week_net = week_incoming - week_outgoing
 
     pay_rows = (
@@ -291,7 +284,6 @@ def dashboard():
         payments_net_values=payments_net_values,
     )
 
-
 @main_bp.route("/backup_db", methods=["GET"], endpoint="backup_db")
 @login_required
 @permission_required("backup_database")
@@ -347,7 +339,6 @@ def backup_db():
         conn.close()
 
     return send_file(db_out, as_attachment=True, download_name=os.path.basename(db_out))
-
 
 @main_bp.route("/restore_db", methods=["GET", "POST"], endpoint="restore_db")
 @login_required

@@ -9,7 +9,7 @@ import os
 import sys
 import time
 import psutil
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Dict, Any
 
@@ -29,7 +29,7 @@ def _check_database() -> Dict[str, Any]:
         start = time.time()
         result = db.session.execute(text("SELECT 1")).scalar()
         duration = time.time() - start
-        
+
         if result == 1:
             # إحصائيات إضافية
             stats = {
@@ -37,7 +37,7 @@ def _check_database() -> Dict[str, Any]:
                 "response_time_ms": round(duration * 1000, 2),
                 "type": "SQLite" if "sqlite" in current_app.config.get("SQLALCHEMY_DATABASE_URI", "") else "PostgreSQL",
             }
-            
+
             # عدد السجلات الأساسية
             try:
                 stats["records"] = {
@@ -49,7 +49,7 @@ def _check_database() -> Dict[str, Any]:
                 }
             except Exception:
                 pass
-            
+
             return stats
         else:
             return {
@@ -70,18 +70,17 @@ def _check_database() -> Dict[str, Any]:
             "type": "unknown_error"
         }
 
-
 def _check_cache() -> Dict[str, Any]:
     """فحص نظام التخزين المؤقت"""
     try:
         test_key = "health_check_test"
         test_value = str(time.time())
-        
+
         start = time.time()
         cache.set(test_key, test_value, timeout=10)
         retrieved = cache.get(test_key)
         duration = time.time() - start
-        
+
         if retrieved == test_value:
             cache.delete(test_key)
             return {
@@ -102,7 +101,6 @@ def _check_cache() -> Dict[str, Any]:
             "type": "cache_error"
         }
 
-
 def _check_disk_space() -> Dict[str, Any]:
     """فحص المساحة المتوفرة على القرص"""
     try:
@@ -112,15 +110,15 @@ def _check_disk_space() -> Dict[str, Any]:
             instance_dir = os.path.dirname(instance_dir)
         else:
             instance_dir = os.path.join(os.getcwd(), "instance")
-        
+
         disk = psutil.disk_usage(instance_dir)
-        
+
         status = "healthy"
         if disk.percent > 90:
             status = "critical"
         elif disk.percent > 80:
             status = "warning"
-        
+
         return {
             "status": status,
             "total_gb": round(disk.total / (1024**3), 2),
@@ -135,20 +133,19 @@ def _check_disk_space() -> Dict[str, Any]:
             "error": str(e)
         }
 
-
 def _check_memory() -> Dict[str, Any]:
     """فحص استخدام الذاكرة"""
     try:
         process = psutil.Process()
         mem_info = process.memory_info()
         virtual_mem = psutil.virtual_memory()
-        
+
         status = "healthy"
         if virtual_mem.percent > 90:
             status = "critical"
         elif virtual_mem.percent > 80:
             status = "warning"
-        
+
         return {
             "status": status,
             "process_mb": round(mem_info.rss / (1024**2), 2),
@@ -162,7 +159,6 @@ def _check_memory() -> Dict[str, Any]:
             "status": "unknown",
             "error": str(e)
         }
-
 
 def _check_socketio() -> Dict[str, Any]:
     """فحص Socket.IO"""
@@ -184,7 +180,6 @@ def _check_socketio() -> Dict[str, Any]:
             "error": str(e)
         }
 
-
 def _get_system_info() -> Dict[str, Any]:
     """معلومات النظام الأساسية"""
     try:
@@ -199,19 +194,18 @@ def _get_system_info() -> Dict[str, Any]:
             "error": str(e)
         }
 
-
 @health_bp.route("/", methods=["GET"])
 @health_bp.route("/status", methods=["GET"])
 def health_check():
     """
     نقطة نهاية فحص الصحة الشاملة
     Comprehensive health check endpoint
-    
+
     Returns:
         JSON response with system health status
     """
     start_time = time.time()
-    
+
     # جمع معلومات الصحة
     checks = {
         "database": _check_database(),
@@ -220,7 +214,7 @@ def health_check():
         "memory": _check_memory(),
         "socketio": _check_socketio(),
     }
-    
+
     # تحديد الحالة الإجمالية
     overall_status = "healthy"
     for check_name, check_result in checks.items():
@@ -230,26 +224,25 @@ def health_check():
             break
         elif check_status == "warning" and overall_status != "unhealthy":
             overall_status = "degraded"
-    
+
     response = {
         "status": overall_status,
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
         "version": current_app.config.get("APP_VERSION", "unknown"),
         "environment": current_app.config.get("APP_ENV", "unknown"),
         "checks": checks,
         "system": _get_system_info(),
         "response_time_ms": round((time.time() - start_time) * 1000, 2)
     }
-    
+
     # تحديد HTTP status code بناءً على الحالة
     http_status = 200
     if overall_status == "unhealthy":
         http_status = 503  # Service Unavailable
     elif overall_status == "degraded":
         http_status = 200  # OK but with warnings
-    
-    return jsonify(response), http_status
 
+    return jsonify(response), http_status
 
 @health_bp.route("/ping", methods=["GET"])
 def ping():
@@ -259,10 +252,9 @@ def ping():
     """
     return jsonify({
         "status": "ok",
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
         "message": "pong"
     }), 200
-
 
 @health_bp.route("/ready", methods=["GET"])
 def readiness():
@@ -273,18 +265,17 @@ def readiness():
     try:
         # فحص الاتصال بقاعدة البيانات فقط
         db.session.execute(text("SELECT 1")).scalar()
-        
+
         return jsonify({
             "status": "ready",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
         }), 200
     except Exception as e:
         return jsonify({
             "status": "not_ready",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
             "error": str(e)
         }), 503
-
 
 @health_bp.route("/live", methods=["GET"])
 def liveness():
@@ -294,9 +285,8 @@ def liveness():
     """
     return jsonify({
         "status": "alive",
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
     }), 200
-
 
 @health_bp.route("/metrics", methods=["GET"])
 def metrics():
@@ -306,9 +296,9 @@ def metrics():
     """
     try:
         process = psutil.Process()
-        
+
         metrics_data = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
             "process": {
                 "memory_rss_mb": round(process.memory_info().rss / (1024**2), 2),
                 "memory_percent": round(process.memory_percent(), 2),
@@ -324,7 +314,7 @@ def metrics():
                 "memory_percent": round(psutil.virtual_memory().percent, 2),
             }
         }
-        
+
         return jsonify(metrics_data), 200
     except Exception as e:
         return jsonify({

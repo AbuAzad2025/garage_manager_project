@@ -47,7 +47,6 @@ PERM_ALIASES = {
     "view_barcode":"عرض الباركود","manage_barcode":"إدارة الباركود","manage_currencies":"إدارة العملات",
 }
 
-
 def _parse_dt(val: str | None, end: bool = False):
     """تحويل التاريخ من نص إلى datetime"""
     if not val:
@@ -88,7 +87,7 @@ def _normalize_code(s: str | None) -> str | None:
     s = re.sub(r"_+","_",re.sub(r"[^a-z0-9_]+","",re.sub(r"[\s\-]+","_",s.strip().lower()))).strip("_")
     return s or None
 
-def _D(x): 
+def _D(x):
     try: return Decimal(str(x))
     except Exception: return Decimal("0")
 def _Q2(x): return _D(x).quantize(Decimal("0.01"), ROUND_HALF_UP)
@@ -330,7 +329,7 @@ def seed_roles(force: bool, dry_run: bool, reset_roles: bool, allow_default_pass
     except SQLAlchemyError as e:
         db.session.rollback()
         raise click.ClickException(f"DB error: {e.__class__.__name__}: {e}") from e
-    
+
 @click.command("sync-permissions")
 @click.option("--dry-run", is_flag=True)
 @with_appcontext
@@ -380,7 +379,7 @@ def role_add_perms(role_name: str, codes: tuple[str, ...], reset: bool) -> None:
     except SQLAlchemyError as e:
         db.session.rollback()
         raise click.ClickException(f"Commit failed: {e}") from e
-    
+
 @click.command("create-role")
 @click.option("--codes", default="")
 @click.argument("name", nargs=1)
@@ -493,7 +492,7 @@ def seed_expense_types(force: bool, dry_run: bool, deactivate_missing: bool) -> 
         if not click.confirm("Production environment detected. Continue?", default=False): click.echo("Canceled."); return
     base_types=[("رواتب","مصروف رواتب وأجور",True),("كهرباء","فواتير كهرباء",True),("مياه","فواتير مياه",True),("جمارك","رسوم جمركية",True),("تالف","توالف/هدر مخزون",True),("استخدام داخلي","استهلاك داخلي للمخزون",True),("متفرقات","مصروفات أخرى",True)]
     if dry_run:
-        click.echo("Would ensure these expense types exist/active:"); 
+        click.echo("Would ensure these expense types exist/active:");
         for n,d,a in base_types: click.echo(f"- {n} ({'active' if a else 'inactive'})")
         if deactivate_missing: click.echo("Would deactivate missing types not in the list."); return
     try:
@@ -1196,7 +1195,7 @@ def sr_set_status(service_id, status, post_gl):
     except SQLAlchemyError as e:
         db.session.rollback()
         raise click.ClickException(str(e)) from e
-    
+
 @click.command("sr-show")
 @click.option("--service-id", type=int, required=True)
 @with_appcontext
@@ -1499,7 +1498,7 @@ def currency_report(entity_type):
     """تقرير الأرصدة بالشيكل"""
     try:
         from reports import customer_balance_report_ils, supplier_balance_report_ils, partner_balance_report_ils
-        
+
         if entity_type.upper() == "CUSTOMER":
             report = customer_balance_report_ils()
         elif entity_type.upper() == "SUPPLIER":
@@ -1509,13 +1508,13 @@ def currency_report(entity_type):
         else:
             click.echo("نوع الكيان غير مدعوم")
             return
-        
+
         if 'error' in report:
             click.echo(f"خطأ: {report['error']}")
             return
-        
+
         click.echo(f"إجمالي الأرصدة: {report['formatted_total']}")
-        
+
         # تحديد نوع الكيان والبيانات المناسبة
         if entity_type.upper() == 'CUSTOMER':
             count_key = 'total_customers'
@@ -1529,19 +1528,19 @@ def currency_report(entity_type):
             count_key = 'total_partners'
             entities_key = 'partners'
             name_key = 'partner_name'
-        
+
         click.echo(f"عدد الكيانات: {report[count_key]}")
-        
+
         # عرض تفاصيل أول 10 كيانات
         entities = report[entities_key]
         for entity in entities[:10]:
             name = entity[name_key]
             balance = entity['formatted_balance']
             click.echo(f"- {name}: {balance}")
-        
+
         if len(entities) > 10:
             click.echo(f"... و {len(entities) - 10} كيان آخر")
-            
+
     except Exception as e:
         click.echo(f"خطأ: {e}")
 
@@ -1552,18 +1551,18 @@ def currency_health():
     try:
         from models import Currency, ExchangeRate, fx_rate, convert_amount, get_fx_rate_with_fallback
         from datetime import datetime
-        
+
         click.echo("=== فحص صحة نظام العملات ===")
         click.echo()
-        
+
         # فحص العملات النشطة
         active_currencies = Currency.query.filter_by(is_active=True).count()
         click.echo(f"✅ العملات النشطة: {active_currencies}")
-        
+
         # فحص أسعار الصرف
         total_rates = ExchangeRate.query.filter_by(is_active=True).count()
         click.echo(f"✅ أسعار الصرف: {total_rates}")
-        
+
         # فحص سعر صرف تجريبي مع معلومات المصدر
         try:
             rate_info = get_fx_rate_with_fallback("USD", "ILS")
@@ -1574,17 +1573,17 @@ def currency_health():
                 click.echo(f"❌ خطأ في سعر USD/ILS: {rate_info.get('error', 'غير معروف')}")
         except Exception as e:
             click.echo(f"❌ خطأ في سعر USD/ILS: {e}")
-        
+
         # فحص تحويل تجريبي
         try:
             converted = convert_amount(100, "USD", "ILS")
             click.echo(f"✅ تحويل 100 USD إلى ILS: {converted}")
         except Exception as e:
             click.echo(f"❌ خطأ في التحويل: {e}")
-        
+
         click.echo()
         click.echo("🎉 فحص النظام مكتمل!")
-        
+
     except Exception as e:
         click.echo(f"خطأ: {e}")
 
@@ -1594,12 +1593,12 @@ def currency_update():
     """تحديث أسعار الصرف من السيرفرات العالمية"""
     try:
         from models import auto_update_missing_rates
-        
+
         click.echo("=== تحديث أسعار الصرف ===")
         click.echo()
-        
+
         result = auto_update_missing_rates()
-        
+
         if result['success']:
             click.echo(f"✅ {result['message']}")
             click.echo(f"📊 تم تحديث {result['updated_rates']} سعر صرف")
@@ -1607,7 +1606,7 @@ def currency_update():
             click.echo(f"❌ {result['message']}")
             if 'error' in result:
                 click.echo(f"🔍 تفاصيل الخطأ: {result['error']}")
-        
+
     except Exception as e:
         click.echo(f"خطأ: {e}")
 
@@ -1619,19 +1618,19 @@ def currency_test(base, quote):
     """اختبار سعر الصرف مع معلومات المصدر"""
     try:
         from models import get_fx_rate_with_fallback, convert_amount
-        
+
         click.echo(f"=== اختبار سعر الصرف {base}/{quote} ===")
         click.echo()
-        
+
         # اختبار الحصول على السعر
         rate_info = get_fx_rate_with_fallback(base, quote)
-        
+
         if rate_info['success']:
             source_text = "محلي (مدخل من الادمن)" if rate_info['source'] == "local" else "عالمي (من السيرفرات)"
             click.echo(f"✅ السعر: {rate_info['rate']}")
             click.echo(f"📡 المصدر: {source_text}")
             click.echo(f"⏰ الوقت: {rate_info['timestamp']}")
-            
+
             # اختبار التحويل
             try:
                 converted = convert_amount(100, base, quote)
@@ -1640,40 +1639,39 @@ def currency_test(base, quote):
                 click.echo(f"❌ خطأ في التحويل: {e}")
         else:
             click.echo(f"❌ فشل في الحصول على السعر: {rate_info.get('error', 'غير معروف')}")
-        
+
     except Exception as e:
         click.echo(f"خطأ: {e}")
-        
+
         # التحقق من الموردين
         suppliers = db.session.query(Supplier).all()
         click.echo(f"عدد الموردين: {len(suppliers)}")
-        
+
         click.echo("✅ نظام العملات يعمل بشكل طبيعي")
-        
+
     except Exception as e:
         click.echo(f"❌ خطأ في النظام: {e}")
-
 
 @click.command('create-superadmin', help="إنشاء مستخدم Super Admin")
 @with_appcontext
 def create_superadmin():
     """إنشاء مستخدم Super Admin بصلاحيات كاملة"""
     from werkzeug.security import generate_password_hash
-    
+
     email = click.prompt("البريد الإلكتروني", type=str)
     username = click.prompt("اسم المستخدم", type=str)
     password = click.prompt("كلمة المرور", type=str, hide_input=True)
     password_confirm = click.prompt("تأكيد كلمة المرور", type=str, hide_input=True)
-    
+
     if password != password_confirm:
         click.echo(click.style("كلمة المرور غير متطابقة", fg="red"))
         return
-    
+
     # التحقق من وجود المستخدم
     if User.query.filter_by(email=email).first():
         click.echo(click.style(f"المستخدم {email} موجود بالفعل", fg="yellow"))
         return
-    
+
     # البحث عن دور Super Admin أو إنشاؤه
     super_role = Role.query.filter_by(slug="super_admin").first()
     if not super_role:
@@ -1684,7 +1682,7 @@ def create_superadmin():
         )
         db.session.add(super_role)
         db.session.flush()
-    
+
     # إنشاء المستخدم
     user = User(
         email=email,
@@ -1694,7 +1692,7 @@ def create_superadmin():
         is_active=True,
         email_confirmed=True
     )
-    
+
     try:
         db.session.add(user)
         db.session.commit()
@@ -1703,14 +1701,13 @@ def create_superadmin():
         db.session.rollback()
         click.echo(click.style(f"❌ خطأ: {str(e)}", fg="red"))
 
-
 @click.command('optimize-db', help="تحسين أداء قاعدة البيانات")
 @with_appcontext
 def optimize_db():
     """تحسين أداء قاعدة البيانات بإنشاء الفهارس وتحليل الجداول"""
     try:
         from sqlalchemy import text
-        
+
         # قائمة الفهارس الموصى بها
         recommended_indexes = [
             "CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)",
@@ -1724,7 +1721,7 @@ def optimize_db():
             "CREATE INDEX IF NOT EXISTS idx_service_customer ON service_requests(customer_id)",
             "CREATE INDEX IF NOT EXISTS idx_service_status ON service_requests(status)",
         ]
-        
+
         created = 0
         for idx_sql in recommended_indexes:
             try:
@@ -1732,20 +1729,19 @@ def optimize_db():
                 created += 1
             except Exception:
                 pass
-        
+
         db.session.commit()
-        
+
         # تحليل قاعدة البيانات
         try:
             db.session.execute(text("ANALYZE"))
             db.session.commit()
         except Exception:
             pass
-        
+
         click.echo(click.style(f"✅ اكتمل تحسين قاعدة البيانات: تم إنشاء {created} فهرس", fg="green"))
     except Exception as e:
         click.echo(click.style(f"❌ خطأ: {str(e)}", fg="red"))
-
 
 def register_cli(app) -> None:
     commands=[

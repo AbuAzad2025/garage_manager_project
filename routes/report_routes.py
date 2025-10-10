@@ -18,12 +18,12 @@ from models import (
     OnlinePreOrder, OnlinePayment, OnlineCart, Sale, SaleStatus, ServiceRequest, InvoiceStatus, Invoice, Payment,
     Shipment, PaymentDirection, PaymentStatus, PaymentSplit
 )
+reports_bp = Blueprint('reports_bp', __name__, url_prefix='/reports')
+
 from reports import (
     advanced_report, ap_aging_report, ar_aging_report,
     payment_summary_report_ils, sales_report_ils, service_reports_report, top_products_report
 )
-
-reports_bp = Blueprint("reports_bp", __name__, url_prefix="/reports")
 
 def _parse_date(s: Optional[str]):
     if not s:
@@ -854,11 +854,11 @@ def export_ap_aging_csv():
 def customer_detail_report(customer_id):
     """كشف مفصل للعميل يظهر جميع المعاملات"""
     customer = Customer.query.get_or_404(customer_id)
-    
+
     # تاريخ البداية والنهاية
     start_date = _parse_date(request.args.get("start"))
     end_date = _parse_date(request.args.get("end"))
-    
+
     # جميع المبيعات
     sales_query = Sale.query.filter(Sale.customer_id == customer_id)
     if start_date:
@@ -866,7 +866,7 @@ def customer_detail_report(customer_id):
     if end_date:
         sales_query = sales_query.filter(Sale.sale_date <= end_date)
     sales = sales_query.order_by(Sale.sale_date.desc()).all()
-    
+
     # جميع الفواتير
     invoices_query = Invoice.query.filter(Invoice.customer_id == customer_id)
     if start_date:
@@ -874,7 +874,7 @@ def customer_detail_report(customer_id):
     if end_date:
         invoices_query = invoices_query.filter(Invoice.invoice_date <= end_date)
     invoices = invoices_query.order_by(Invoice.invoice_date.desc()).all()
-    
+
     # جميع طلبات الصيانة
     services_query = ServiceRequest.query.filter(ServiceRequest.customer_id == customer_id)
     if start_date:
@@ -882,7 +882,7 @@ def customer_detail_report(customer_id):
     if end_date:
         services_query = services_query.filter(ServiceRequest.received_at <= end_date)
     services = services_query.order_by(ServiceRequest.received_at.desc()).all()
-    
+
     # جميع المدفوعات
     payments_query = Payment.query.filter(
         Payment.customer_id == customer_id,
@@ -893,7 +893,7 @@ def customer_detail_report(customer_id):
     if end_date:
         payments_query = payments_query.filter(Payment.payment_date <= end_date)
     payments = payments_query.order_by(Payment.payment_date.desc()).all()
-    
+
     # جميع الطلبات المسبقة
     preorders_query = OnlinePreOrder.query.filter(OnlinePreOrder.customer_id == customer_id)
     if start_date:
@@ -901,17 +901,17 @@ def customer_detail_report(customer_id):
     if end_date:
         preorders_query = preorders_query.filter(OnlinePreOrder.created_at <= end_date)
     preorders = preorders_query.order_by(OnlinePreOrder.created_at.desc()).all()
-    
+
     # حساب الإجماليات
     total_sales = sum(float(s.total_amount or 0) for s in sales)
     total_invoices = sum(float(i.total_amount or 0) for i in invoices)
     total_services = sum(float(s.total_amount or 0) for s in services)
     total_payments = sum(float(p.total_amount or 0) for p in payments)
     total_preorders = sum(float(p.total_amount or 0) for p in preorders)
-    
+
     # الرصيد الحالي
     current_balance = float(customer.balance or 0)
-    
+
     return render_template(
         "reports/customer_detail.html",
         customer=customer,
@@ -939,11 +939,11 @@ def customer_detail_report(customer_id):
 def supplier_detail_report(supplier_id):
     """كشف مفصل للمورد يظهر جميع المعاملات"""
     supplier = Supplier.query.get_or_404(supplier_id)
-    
+
     # تاريخ البداية والنهاية
     start_date = _parse_date(request.args.get("start"))
     end_date = _parse_date(request.args.get("end"))
-    
+
     # جميع المدفوعات للمورد
     payments_query = Payment.query.filter(
         Payment.supplier_id == supplier_id,
@@ -954,7 +954,7 @@ def supplier_detail_report(supplier_id):
     if end_date:
         payments_query = payments_query.filter(Payment.payment_date <= end_date)
     payments = payments_query.order_by(Payment.payment_date.desc()).all()
-    
+
     # جميع الشحنات
     shipments_query = Shipment.query.filter(Shipment.supplier_id == supplier_id)
     if start_date:
@@ -962,7 +962,7 @@ def supplier_detail_report(supplier_id):
     if end_date:
         shipments_query = shipments_query.filter(Shipment.shipment_date <= end_date)
     shipments = shipments_query.order_by(Shipment.shipment_date.desc()).all()
-    
+
     # جميع المصاريف المتعلقة بالمورد
     expenses_query = Expense.query.filter(Expense.supplier_id == supplier_id)
     if start_date:
@@ -970,15 +970,15 @@ def supplier_detail_report(supplier_id):
     if end_date:
         expenses_query = expenses_query.filter(Expense.date <= end_date)
     expenses = expenses_query.order_by(Expense.date.desc()).all()
-    
+
     # حساب الإجماليات
     total_payments = sum(float(p.total_amount or 0) for p in payments)
     total_shipments = sum(float(s.total_value or 0) for s in shipments)
     total_expenses = sum(float(e.amount or 0) for e in expenses)
-    
+
     # الرصيد الحالي
     current_balance = float(supplier.balance or 0)
-    
+
     return render_template(
         "reports/supplier_detail.html",
         supplier=supplier,
@@ -1002,11 +1002,11 @@ def supplier_detail_report(supplier_id):
 def partner_detail_report(partner_id):
     """كشف مفصل للشريك يظهر جميع المعاملات"""
     partner = Partner.query.get_or_404(partner_id)
-    
+
     # تاريخ البداية والنهاية
     start_date = _parse_date(request.args.get("start"))
     end_date = _parse_date(request.args.get("end"))
-    
+
     # جميع المدفوعات للشريك
     payments_query = Payment.query.filter(
         Payment.partner_id == partner_id,
@@ -1017,7 +1017,7 @@ def partner_detail_report(partner_id):
     if end_date:
         payments_query = payments_query.filter(Payment.payment_date <= end_date)
     payments = payments_query.order_by(Payment.payment_date.desc()).all()
-    
+
     # جميع المبيعات التي شارك فيها الشريك (من خلال PreOrder)
     preorders_query = OnlinePreOrder.query.filter(OnlinePreOrder.partner_id == partner_id)
     if start_date:
@@ -1025,7 +1025,7 @@ def partner_detail_report(partner_id):
     if end_date:
         preorders_query = preorders_query.filter(OnlinePreOrder.created_at <= end_date)
     preorders = preorders_query.order_by(OnlinePreOrder.created_at.desc()).all()
-    
+
     # جميع قطع الغيار في طلبات الصيانة التي شارك فيها الشريك
     service_parts_query = ServicePart.query.filter(ServicePart.partner_id == partner_id)
     if start_date:
@@ -1033,10 +1033,10 @@ def partner_detail_report(partner_id):
     if end_date:
         service_parts_query = service_parts_query.filter(ServicePart.created_at <= end_date)
     service_parts = service_parts_query.order_by(ServicePart.created_at.desc()).all()
-    
+
     # جميع المبيعات (بدون فلتر partner_id لأن Sale لا يحتوي على هذا الحقل)
     sales = []
-    
+
     # جميع المصاريف المتعلقة بالشريك
     expenses_query = Expense.query.filter(Expense.partner_id == partner_id)
     if start_date:
@@ -1044,19 +1044,19 @@ def partner_detail_report(partner_id):
     if end_date:
         expenses_query = expenses_query.filter(Expense.date <= end_date)
     expenses = expenses_query.order_by(Expense.date.desc()).all()
-    
+
     # حساب الإجماليات
     total_payments = sum(float(p.total_amount or 0) for p in payments)
     total_preorders = sum(float(p.total_amount or 0) for p in preorders)
     total_service_parts = sum(float(sp.quantity * sp.unit_price or 0) for sp in service_parts)
     total_expenses = sum(float(e.amount or 0) for e in expenses)
-    
+
     # الرصيد الحالي
     current_balance = float(partner.balance or 0)
-    
+
     # حساب حصة الشريك من الطلبات المسبقة وقطع الغيار
     partner_share = (float(partner.share_percentage or 0) / 100) * (total_preorders + total_service_parts) if partner.share_percentage else 0
-    
+
     return render_template(
         "reports/partner_detail.html",
         partner=partner,

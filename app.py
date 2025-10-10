@@ -2,7 +2,7 @@ import os
 import uuid
 import logging
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import Flask, url_for, request, current_app, render_template, g, redirect
 from werkzeug.routing import BuildError
 from flask_cors import CORS
@@ -370,7 +370,6 @@ def create_app(config_object=Config) -> Flask:
     attach_acl(barcode_scanner_bp, read_perm="scan_barcode", write_perm=None)
     attach_acl(hard_delete_bp, read_perm="manage_system", write_perm="manage_system")
     attach_acl(checks_bp, read_perm="view_payments", write_perm="manage_payments")
-    attach_acl(health_bp, read_perm=None, write_perm=None)  # عام للجميع
     
     BLUEPRINTS = [
         auth_bp,
@@ -461,8 +460,8 @@ def create_app(config_object=Config) -> Flask:
         if getattr(current_user, "is_authenticated", False):
             try:
                 ls = getattr(current_user, "last_seen", None)
-                if (not ls) or (datetime.utcnow() - ls).total_seconds() > 60:
-                    current_user.last_seen = datetime.utcnow()
+                if (not ls) or (datetime.now(timezone.utc) - ls).total_seconds() > 60:
+                    current_user.last_seen = datetime.now(timezone.utc)
                     db.session.commit()
             except Exception:
                 db.session.rollback()

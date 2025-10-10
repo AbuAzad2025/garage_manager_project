@@ -6,7 +6,7 @@ import os
 import sys
 import glob
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import g, has_request_context
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -61,7 +61,7 @@ class RequestIdFilter(logging.Filter):
 class JSONFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         base = {
-            "ts": datetime.utcnow().isoformat(timespec="milliseconds") + "Z",
+            "ts": datetime.now(timezone.utc).isoformat(timespec="milliseconds") + "Z",
             "level": record.levelname,
             "logger": record.name,
             "msg": record.getMessage(),
@@ -164,7 +164,7 @@ def send_notification(user_id: int, notification_type: str, title: str, message:
             "type": notification_type,
             "title": title,
             "message": message,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "data": data or {}
         }
         socketio.emit('notification', notification, room=f'user_{user_id}')
@@ -178,7 +178,7 @@ def send_broadcast_notification(notification_type: str, title: str, message: str
             "type": notification_type,
             "title": title,
             "message": message,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "data": data or {}
         }
         socketio.emit('broadcast_notification', notification)
@@ -193,7 +193,7 @@ def send_system_alert(alert_type: str, message: str, severity: str = "warning"):
             "alert_type": alert_type,
             "message": message,
             "severity": severity,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         socketio.emit('system_alert', alert)
     except Exception as e:
@@ -246,7 +246,7 @@ def perform_backup_db(app):
         os.makedirs(backup_dir, exist_ok=True)
         
         # إضافة معلومات إضافية للنسخة الاحتياطية
-        ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         backup_path = os.path.join(backup_dir, f"backup_{ts}.db")
         
         # نسخ احتياطي مع التحقق من التكامل
@@ -324,7 +324,7 @@ def perform_backup_sql(app):
         backup_dir = app.config.get("BACKUP_SQL_DIR")
         os.makedirs(backup_dir, exist_ok=True)
         
-        ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         backup_path = os.path.join(backup_dir, f"backup_{ts}.sql")
         
         conn = sqlite3.connect(db_path)
