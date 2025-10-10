@@ -44,16 +44,32 @@
     {{ form.submit(class="btn btn-primary btn-block py-2 fw-bold btn-glow") }}
   </form>
 
-  <div class="mt-3 small">
-    <a href="{{ url_for('auth.customer_register') }}">إنشاء حساب عميل</a> •
-    <a href="{{ url_for('auth.customer_password_reset_request') }}">نسيت كلمة المرور؟</a>
+  <div class="mt-4">
+    <div class="row g-2">
+      <div class="col-6">
+        <a href="{{ url_for('auth.customer_register') }}" class="btn btn-outline-primary btn-sm w-100">
+          <i class="fas fa-user-plus"></i> إنشاء حساب
+        </a>
+      </div>
+      <div class="col-6">
+        <a href="{{ url_for('auth.customer_password_reset_request') }}" class="btn btn-outline-secondary btn-sm w-100">
+          <i class="fas fa-key"></i> نسيت كلمة المرور
+        </a>
+      </div>
+    </div>
   </div>
 
-  <hr class="hr-soft">
+  <hr class="hr-soft my-4">
 
   <div class="auth-buttons">
-    <a href="{{ url_for('shop.catalog') }}" class="btn btn-secondary shop-btn fw-bold mb-2">
+    <a href="{{ url_for('shop.catalog') }}" class="btn btn-success shop-btn fw-bold w-100 mb-2">
       <i class="fas fa-store"></i> تصفح المتجر بدون تسجيل
+    </a>
+    <a href="{{ url_for('user_guide.index') }}" class="btn btn-outline-info btn-sm w-100 mb-2">
+      <i class="fas fa-book"></i> دليل المستخدم
+    </a>
+    <a href="{{ url_for('pricing.index') }}" class="btn btn-outline-warning btn-sm w-100">
+      <i class="fas fa-tags"></i> الأسعار والباقات
     </a>
   </div>
 {% endblock %}
