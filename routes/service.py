@@ -445,7 +445,14 @@ def add_part(rid):
 @login_required
 @permission_required('manage_service')
 def delete_part(pid):
-    part=_get_or_404(ServicePart, pid); rid=part.service_id; service=_get_or_404(ServiceRequest, rid)
+    part=_get_or_404(ServicePart, pid)
+    rid=part.service_id
+    service=_get_or_404(ServiceRequest, rid)
+    
+    # SECURITY: التحقق من صلاحية الوصول
+    if not current_user.has_permission('manage_service'):
+        flash('❌ غير مصرح لك بحذف قطع الغيار', 'danger')
+        return redirect(url_for('service.view_request', rid=rid))
     try:
         if _service_consumes_stock(service):
             new_qty=_apply_stock_delta(part.part_id, part.warehouse_id, +int(part.quantity or 0))

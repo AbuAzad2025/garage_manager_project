@@ -59,7 +59,12 @@ class Config:
     _APP_ENV_LOWER = str(APP_ENV).lower()
     _IS_DEV = DEBUG or (_APP_ENV_LOWER in {"dev", "development", "local"})
 
+    # SECURITY: SECRET_KEY يجب أن يكون قوي في الإنتاج
     SECRET_KEY = os.environ.get("SECRET_KEY") or "dev-secret-key-change-in-production-12345"
+    if not os.environ.get("SECRET_KEY"):
+        import secrets
+        # توليد مفتاح قوي تلقائياً إذا لم يكن موجود
+        SECRET_KEY = secrets.token_hex(32)
 
     HOST = os.environ.get("HOST", "127.0.0.1")
     PORT = _int("PORT", 5000)
@@ -90,7 +95,25 @@ class Config:
     PERMANENT_SESSION_LIFETIME = timedelta(hours=_int("SESSION_HOURS", 12))
     SESSION_COOKIE_NAME = os.environ.get("SESSION_COOKIE_NAME", "gm_session")
 
+    # SECURITY: حد أقصى لحجم الملفات المرفوعة (16 MB)
     MAX_CONTENT_LENGTH = _int("MAX_CONTENT_LENGTH_MB", 16) * 1024 * 1024
+    
+    # SECURITY: أنواع الملفات المسموح برفعها
+    ALLOWED_UPLOAD_EXTENSIONS = {
+        'images': {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'},
+        'documents': {'.pdf', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.txt'},
+        'all': {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.txt'}
+    }
+    
+    # SECURITY: الحد الأقصى لمحاولات تسجيل الدخول الفاشلة
+    MAX_LOGIN_ATTEMPTS = _int("MAX_LOGIN_ATTEMPTS", 5)
+    LOGIN_BLOCK_DURATION = _int("LOGIN_BLOCK_DURATION_MINUTES", 15) * 60  # بالثواني
+    
+    # SECURITY: حماية متقدمة
+    ENABLE_TIMING_ATTACK_PROTECTION = _bool(os.environ.get("ENABLE_TIMING_ATTACK_PROTECTION"), True)
+    ENABLE_RACE_CONDITION_PROTECTION = _bool(os.environ.get("ENABLE_RACE_CONDITION_PROTECTION"), True)
+    MAX_AMOUNT_CHANGE_PERCENT = _float("MAX_AMOUNT_CHANGE_PERCENT", 50.0)  # أقصى تغيير مسموح في المبالغ
+    SUSPICIOUS_ACTIVITY_LOG_ENABLED = _bool(os.environ.get("SUSPICIOUS_ACTIVITY_LOG_ENABLED"), True)
 
     MAIL_SERVER = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
     MAIL_PORT = _int("MAIL_PORT", 587)
@@ -110,7 +133,8 @@ class Config:
 
     SOCKETIO_ASYNC_MODE = os.environ.get("SOCKETIO_ASYNC_MODE", "threading")
     SOCKETIO_MESSAGE_QUEUE = os.environ.get("SOCKETIO_MESSAGE_QUEUE")
-    _sock_cors_raw = os.environ.get("SOCKETIO_CORS_ORIGINS", "*")
+    # SECURITY: تقييد SocketIO CORS للأمان - لا تستخدم "*" في الإنتاج
+    _sock_cors_raw = os.environ.get("SOCKETIO_CORS_ORIGINS", "http://localhost:5000,http://127.0.0.1:5000")
     SOCKETIO_CORS_ORIGINS = [x.strip() for x in _sock_cors_raw.split(",")] if "," in _sock_cors_raw else _sock_cors_raw
     SOCKETIO_PING_TIMEOUT = _int("SOCKETIO_PING_TIMEOUT", 20)
     SOCKETIO_PING_INTERVAL = _int("SOCKETIO_PING_INTERVAL", 25)
@@ -119,13 +143,18 @@ class Config:
     WTF_CSRF_ENABLED = _bool(os.environ.get("WTF_CSRF_ENABLED"), True)
     WTF_CSRF_TIME_LIMIT = None
 
-    _cors_raw = os.environ.get("CORS_ORIGINS", "*")
+    # SECURITY: تقييد CORS للأمان - لا تستخدم "*" في الإنتاج
+    _cors_raw = os.environ.get("CORS_ORIGINS", "http://localhost:5000,http://127.0.0.1:5000")
     CORS_ORIGINS = [x.strip() for x in _cors_raw.split(",")] if "," in _cors_raw else _cors_raw
     CORS_SUPPORTS_CREDENTIALS = _bool(os.environ.get("CORS_SUPPORTS_CREDENTIALS"), True)
 
-    RATELIMIT_DEFAULT = os.environ.get("RATELIMIT_DEFAULT", "200 per day;50 per hour")
+    # SECURITY: Rate Limiting محسّن للحماية من Brute Force
+    RATELIMIT_DEFAULT = os.environ.get("RATELIMIT_DEFAULT", "100 per day;20 per hour;5 per minute")
     RATELIMIT_STORAGE_URI = os.environ.get("RATELIMIT_STORAGE_URI", "memory://")
     RATELIMIT_HEADERS_ENABLED = _bool(os.environ.get("RATELIMIT_HEADERS_ENABLED"), True)
+    # حدود خاصة لصفحة تسجيل الدخول
+    RATELIMIT_LOGIN = "10 per hour;3 per minute"
+    RATELIMIT_API = "60 per hour;1 per second"
     
     # Cache
     CACHE_TYPE = os.environ.get("CACHE_TYPE", "simple")

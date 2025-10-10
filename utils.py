@@ -6,7 +6,7 @@ import hashlib
 import io
 import json
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from functools import wraps
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
@@ -15,7 +15,7 @@ import redis
 from flask import Response, abort, current_app, make_response, request, jsonify
 from flask_login import current_user, login_required
 from flask_mail import Message
-from sqlalchemy import case, func, select, or_
+from sqlalchemy import case, func, select, or_, text
 from sqlalchemy.orm.attributes import set_committed_value
 from extensions import cache
 
@@ -37,6 +37,12 @@ except Exception:
     Fernet = None
 
 from extensions import limiter, db, mail
+
+# Import models للحماية من circular imports
+def _get_models():
+    """Lazy import للـ models"""
+    from models import Customer, Supplier, Partner
+    return Customer, Supplier, Partner
 
 redis_client: Optional[redis.Redis] = None
 _TWOPLACES = Decimal("0.01")
@@ -377,13 +383,13 @@ def validate_currency_consistency(entity_type: str, entity_id: int) -> dict:
             'old_balance': old_balance,
             'difference': difference,
             'tolerance': tolerance,
-            'validation_date': datetime.utcnow()
+            'validation_date': datetime.now(timezone.utc)
         }
     except Exception as e:
         return {
             'is_consistent': False,
             'error': str(e),
-            'validation_date': datetime.utcnow()
+            'validation_date': datetime.now(timezone.utc)
         }
 
 
@@ -1161,7 +1167,7 @@ def log_customer_action(cust, action: str, old_data: Optional[dict] = None, new_
     old_json = json.dumps(old_data, ensure_ascii=False, default=str) if old_data else None
     new_json = json.dumps(new_data, ensure_ascii=False, default=str) if new_data else None
     entry = AuditLog(
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
         model_name="Customer",
         customer_id=cust.id,
         record_id=cust.id,
@@ -1177,16 +1183,46 @@ def log_customer_action(cust, action: str, old_data: Optional[dict] = None, new_
 
 
 def _audit(event: str, *, ok: bool = True, user_id=None, customer_id=None, note: Optional[str] = None, extra: Optional[dict] = None) -> None:
+    """
+    SECURITY: تسجيل آمن - تنظيف البيانات الحساسة من Logs
+    """
     from models import AuditLog
+    import re
+    
+    # SECURITY: تنظيف note من البيانات الحساسة
+    if note:
+        note = str(note)
+        # إزالة كلمات المرور
+        note = re.sub(r'(password|pwd|pass)[=:\s]+\S+', r'\1=***', note, flags=re.IGNORECASE)
+        # إزالة tokens
+        note = re.sub(r'(token|auth|bearer)[=:\s]+\S+', r'\1=***', note, flags=re.IGNORECASE)
+        # إزالة API keys
+        note = re.sub(r'(api[_-]?key|secret)[=:\s]+\S+', r'\1=***', note, flags=re.IGNORECASE)
+        # إزالة أرقام البطاقات (16 رقم)
+        note = re.sub(r'\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b', '****-****-****-****', note)
+        # تحديد الطول
+        if len(note) > 500:
+            note = note[:497] + '...'
+    
+    # SECURITY: تنظيف extra من البيانات الحساسة
+    if extra:
+        extra_clean = {}
+        for key, val in extra.items():
+            key_lower = key.lower()
+            if any(sensitive in key_lower for sensitive in ['password', 'token', 'secret', 'api_key', 'card', 'cvv', 'pin']):
+                extra_clean[key] = '***'
+            else:
+                extra_clean[key] = val
+        extra = extra_clean
 
     details_old = {"ok": bool(ok)}
     if note:
-        details_old["note"] = str(note)
+        details_old["note"] = note
     record_id = int(customer_id) if customer_id is not None else (int(user_id) if user_id is not None else None)
     old_json = json.dumps(details_old, ensure_ascii=False, default=str) if details_old else None
     new_json = json.dumps(extra, ensure_ascii=False, default=str) if extra else None
     entry = AuditLog(
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
         model_name="Auth",
         record_id=record_id,
         user_id=(user_id if user_id is not None else (getattr(current_user, "id", None) if getattr(current_user, "is_authenticated", False) else None)),
@@ -1206,7 +1242,7 @@ def log_audit(model_name: str, record_id: int, action: str, old_data: Optional[d
     old_json = json.dumps(old_data, ensure_ascii=False, default=str) if old_data else None
     new_json = json.dumps(new_data, ensure_ascii=False, default=str) if new_data else None
     entry = AuditLog(
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
         model_name=model_name,
         record_id=record_id,
         user_id=(current_user.id if getattr(current_user, "is_authenticated", False) else None),
@@ -1338,7 +1374,7 @@ def is_valid_expiry_mm_yy(s: str) -> bool:
         yy = int("20" + yy_str)
         if not (1 <= mm <= 12):
             return False
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         y, m = now.year, now.month
         return (yy > y) or (yy == y and mm >= m)
     except Exception:

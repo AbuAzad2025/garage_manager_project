@@ -93,9 +93,16 @@ docs/_build/
 Thumbs.db
 desktop.ini
 
-# Secrets
+# SECURITY: Secrets & Sensitive Files
 *.pem
 *.key
 *.cert
+*.p12
+*.pfx
 secrets/
+.env*
+!.env.example
+ENV_EXAMPLE_AI.txt
+AI_REQUIREMENTS.txt
+git add -A.txt
 

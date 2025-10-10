@@ -89,13 +89,23 @@
             {% endif %}
           </td>
           <td class="text-center" data-order="{{ user.last_seen.isoformat() if user.last_seen else '' }}">
-            {% if user.last_seen %}
+            {# FIX: عرض "الآن" للمستخدم الحالي #}
+            {% if current_user.is_authenticated and user.id == current_user.id %}
+              <span class="badge bg-success">
+                <i class="fas fa-circle" style="font-size:8px"></i> متصل الآن
+              </span>
+            {% elif user.last_seen %}
               <span>{{ user.last_seen|format_datetime }}</span>
               <small class="text-muted d-block timeago" data-dt="{{ user.last_seen.isoformat() }}"></small>
             {% else %} — {% endif %}
           </td>
           <td class="text-center" data-order="{{ user.last_login.isoformat() if user.last_login else '' }}">
-            {% if user.last_login %}
+            {# FIX: عرض "الآن" للمستخدم الحالي #}
+            {% if current_user.is_authenticated and user.id == current_user.id %}
+              <span class="badge bg-primary">
+                <i class="fas fa-circle" style="font-size:8px"></i> نشط الآن
+              </span>
+            {% elif user.last_login %}
               <span>{{ user.last_login|format_datetime }}</span>
               <small class="text-muted d-block timeago" data-dt="{{ user.last_login.isoformat() }}"></small>
             {% else %} — {% endif %}
@@ -171,7 +181,7 @@
     const $tbl = $('#users-table');
     if ($.fn.DataTable && $tbl.length) {
       const cols = $tbl.find('thead th').length;
-      const hasActions = {{ 'true' if has_perm('manage_users') else 'false' }};
+      const hasActions = {% if has_perm('manage_users') %}true{% else %}false{% endif %};
       $tbl.DataTable({
         responsive: true,
         autoWidth: false,

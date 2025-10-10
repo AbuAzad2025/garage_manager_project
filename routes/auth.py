@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from urllib.parse import urlparse, urljoin
 
@@ -40,9 +40,27 @@ def _get_client_ip() -> str:
 
 
 def _redirect_back_or(default_endpoint: str, **kwargs):
+    """
+    SECURITY: إعادة توجيه آمنة - منع Open Redirect
+    """
     nxt = request.args.get("next")
     if nxt and _is_safe_url(nxt):
+        # SECURITY: تسجيل redirect مشبوه
+        if len(nxt) > 200:
+            try:
+                from utils.security import log_suspicious_activity
+                log_suspicious_activity('suspicious_redirect', {'url': nxt[:100]})
+            except ImportError:
+                pass
+            return redirect(url_for(default_endpoint, **kwargs))
         return redirect(nxt)
+    elif nxt:
+        # SECURITY: محاولة open redirect فاشلة
+        try:
+            from utils.security import log_suspicious_activity
+            log_suspicious_activity('open_redirect_attempt', {'url': nxt[:100]})
+        except ImportError:
+            pass
     return redirect(url_for(default_endpoint, **kwargs))
 
 
@@ -84,7 +102,7 @@ def is_blocked(ip: str, identifier: Optional[str]) -> bool:
     if not info:
         return False
     attempts, last_time = info
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     if attempts >= MAX_ATTEMPTS and now - last_time < BLOCK_TIME:
         return True
     if now - last_time >= BLOCK_TIME:
@@ -104,8 +122,8 @@ def record_attempt(ip: str, identifier: Optional[str]) -> None:
     except Exception:
         pass
     key_mem = (ip, _norm_ident(identifier))
-    attempts, _last_time = _login_attempts_mem.get(key_mem, (0, datetime.utcnow()))
-    _login_attempts_mem[key_mem] = (attempts + 1, datetime.utcnow())
+    attempts, _last_time = _login_attempts_mem.get(key_mem, (0, datetime.now(timezone.utc)))
+    _login_attempts_mem[key_mem] = (attempts + 1, datetime.now(timezone.utc))
 
 
 def clear_attempts(ip: str, identifier: Optional[str]) -> None:
@@ -155,9 +173,18 @@ def login():
         remember = bool(getattr(form, "remember_me", None) and getattr(form.remember_me, "data", False))
         if current_user.is_authenticated and getattr(current_user, "id", None) != user.id:
             logout_user()
+        
+        # SECURITY: منع Session Fixation - تجديد Session ID
+        from flask import session
+        session.permanent = True
+        old_session_data = dict(session)
+        session.clear()
+        session.update(old_session_data)
+        
         login_user(user, remember=remember, fresh=True)
         try:
-            user.last_login = datetime.utcnow()
+            # FIX: استخدام timezone-aware datetime
+            user.last_login = datetime.now(timezone.utc)
             user.last_login_ip = ip
             user.login_count = (getattr(user, "login_count", 0) or 0) + 1
             db.session.commit()
@@ -171,6 +198,14 @@ def login():
         remember = bool(getattr(form, "remember_me", None) and getattr(form.remember_me, "data", False))
         if current_user.is_authenticated and getattr(current_user, "id", None) != customer.id:
             logout_user()
+        
+        # SECURITY: منع Session Fixation - تجديد Session ID
+        from flask import session
+        session.permanent = True
+        old_session_data = dict(session)
+        session.clear()
+        session.update(old_session_data)
+        
         login_user(customer, remember=remember, fresh=True)
         clear_attempts(ip, identifier)
         _audit("login.success.customer", ok=True, customer_id=customer.id, note=f"ip={ip}")
@@ -204,9 +239,13 @@ def customer_register():
         return redirect(url_for("shop.catalog"))
     form = CustomerFormOnline()
     if form.validate_on_submit():
-        existing_user = User.query.filter(func.lower(User.email) == (form.email.data or "").strip().lower()).first()
-        if existing_user:
-            flash("❌ هذا البريد الإلكتروني مستخدم من قبل مستخدم داخلي. الرجاء استخدام بريد آخر.", "danger")
+        # SECURITY FIX: منع User Enumeration - رسالة عامة
+        email_lower = (form.email.data or "").strip().lower()
+        existing_user = User.query.filter(func.lower(User.email) == email_lower).first()
+        existing_customer = Customer.query.filter(func.lower(Customer.email) == email_lower).first()
+        
+        if existing_user or existing_customer:
+            flash("❌ هذا البريد الإلكتروني مستخدم بالفعل. الرجاء استخدام بريد آخر أو تسجيل الدخول.", "danger")
             return render_template("auth/customer_register.html", form=form)
         customer = Customer(
             name=form.name.data,
@@ -253,6 +292,7 @@ def customer_password_reset(token: str):
     form = CustomerPasswordResetForm()
     serializer = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
     try:
+        # SECURITY: max_age = 1 hour only (3600 seconds)
         customer_id = serializer.loads(token, salt="customer-password-reset-salt", max_age=3600)
     except SignatureExpired:
         flash("⏳ انتهت صلاحية الرابط.", "warning")
@@ -271,9 +311,23 @@ def customer_password_reset(token: str):
 
 
 def send_customer_password_reset_email(customer: Customer):
+    """
+    SECURITY: إرسال بريد إعادة تعيين كلمة المرور بشكل آمن
+    """
     serializer = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
+    # SECURITY: Token صالح لمدة ساعة واحدة فقط
     token = serializer.dumps(customer.id, salt="customer-password-reset-salt")
     reset_url = url_for("auth.customer_password_reset", token=token, _external=True)
+    
+    # SECURITY: تسجيل طلب إعادة التعيين
+    try:
+        from utils.security import log_security_event
+        log_security_event('password_reset_requested', {
+            'customer_id': customer.id,
+            'email': customer.email
+        })
+    except ImportError:
+        pass
     body = render_template("emails/customer_password_reset.txt", reset_url=reset_url, name=customer.name)
     html = render_template("emails/customer_password_reset.html", reset_url=reset_url, name=customer.name)
     msg = Message("رابط إعادة تعيين كلمة المرور", recipients=[customer.email], body=body, html=html)

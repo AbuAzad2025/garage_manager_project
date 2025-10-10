@@ -408,16 +408,60 @@ def create_app(config_object=Config) -> Flask:
     for bp in BLUEPRINTS:
         app.register_blueprint(bp)
 
+    # SECURITY: CORS محمي
     CORS(
         app,
         resources={
             r"/api/*": {
-                "origins": app.config.get("CORS_ORIGINS", "*"),
+                "origins": app.config.get("CORS_ORIGINS", ["http://localhost:5000"]),
                 "supports_credentials": app.config.get("CORS_SUPPORTS_CREDENTIALS", True),
+                "allow_headers": ["Content-Type", "Authorization", "X-CSRF-TOKEN"],
+                "methods": ["GET", "POST", "PUT", "DELETE", "PATCH"],
+                "max_age": 3600,
             }
         },
     )
+    
+    # SECURITY: Security Headers لحماية ضد XSS, Clickjacking, MIME Sniffing
+    @app.after_request
+    def security_headers(response):
+        # حماية من XSS
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        # حماية من Clickjacking
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        # حماية من XSS في المتصفحات القديمة
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        # Content Security Policy - حماية قوية من XSS
+        if not app.config.get('DEBUG'):
+            response.headers['Content-Security-Policy'] = (
+                "default-src 'self'; "
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://code.jquery.com https://cdn.datatables.net; "
+                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com https://cdn.datatables.net; "
+                "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; "
+                "img-src 'self' data: https:; "
+                "connect-src 'self';"
+            )
+        # HSTS - إجبار HTTPS (فقط في الإنتاج)
+        if app.config.get('SESSION_COOKIE_SECURE'):
+            response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+        # منع تسريب المعلومات عبر Referrer
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        # حماية من Feature Policy
+        response.headers['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=()'
+        
+        # SECURITY: إخفاء معلومات الخادم
+        response.headers.pop('Server', None)
+        response.headers.pop('X-Powered-By', None)
+        
+        # SECURITY: Cache Control للصفحات الحساسة
+        if request.path.startswith('/auth/') or request.path.startswith('/api/'):
+            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, private'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+        
+        return response
 
+    
     @app.shell_context_processor
     def _ctx():
         return {"db": db, "User": User}
