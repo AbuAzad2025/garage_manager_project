@@ -189,3 +189,20 @@ def get_customs_info(hs_code):
     """معلومات الجمارك حسب الكود"""
     return FINANCE_KNOWLEDGE['customs_codes'].get(hs_code, None)
 
+
+def get_all_system_modules():
+    """معلومات كل وحدات النظام"""
+    return {
+        'auth': {'name': 'المصادقة', 'route': '/auth'},
+        'customers': {'name': 'العملاء', 'route': '/customers'},
+        'service': {'name': 'الصيانة', 'route': '/service'},
+        'sales': {'name': 'المبيعات', 'route': '/sales'},
+        'shop': {'name': 'المتجر', 'route': '/shop'},
+        'warehouses': {'name': 'المستودعات', 'route': '/warehouses'},
+        'expenses': {'name': 'النفقات', 'route': '/expenses'},
+        'payments': {'name': 'المدفوعات', 'route': '/payments'},
+        'vendors': {'name': 'الموردين', 'route': '/vendors'},
+        'ledger': {'name': 'دفتر الأستاذ', 'route': '/ledger'},
+        'security': {'name': 'الأمان', 'route': '/security'},
+    }
+
