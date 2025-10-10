@@ -1,251 +1,232 @@
-{# templates/payments/view.html #}
 {% extends 'base.html' %}
 {% block title %}تفاصيل الدفعة #{{ payment.id }}{% endblock %}
-
+{% block head %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+{% endblock %}
 {% block content %}
-<div class="container mt-4">
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      <div class="container mt-3">
-        {% for category, message in messages %}
-          <div class="alert alert-{{ 'success' if category=='success' else 'danger' }} alert-dismissible fade show" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+<div class="container py-5">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold mb-0">
+      <i class="fas fa-money-check-alt me-2"></i>
+      تفاصيل الدفعة #{{ payment.id }}
+    </h2>
+    <div class="btn-group">
+      <a href="{{ url_for('payments.index') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-right me-1"></i> العودة للقائمة
+      </a>
+      <a href="{{ url_for('payments.view_receipt', payment_id=payment.id) }}" class="btn btn-primary">
+        <i class="fas fa-receipt me-1"></i> عرض الإيصال
+      </a>
+      {% if payment.status == 'PENDING' %}
+        <button id="completePayment" class="btn btn-success" data-payment-id="{{ payment.id }}">
+          <i class="fas fa-check me-1"></i> تأكيد الدفعة
+        </button>
+        <button id="failPayment" class="btn btn-danger" data-payment-id="{{ payment.id }}">
+          <i class="fas fa-times me-1"></i> رفض الدفعة
+        </button>
+      {% elif payment.status == 'COMPLETED' %}
+        <button id="refundPayment" class="btn btn-warning" data-payment-id="{{ payment.id }}">
+          <i class="fas fa-undo me-1"></i> إرجاع الدفعة
+        </button>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-lg-8">
+      <div class="card shadow-sm">
+        <div class="card-header bg-light">
+          <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>معلومات الدفعة</h5>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-bold">رقم الدفعة</label>
+              <p class="form-control-plaintext">{{ payment.id }}</p>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">تاريخ الدفعة</label>
+              <p class="form-control-plaintext">{{ payment.payment_date.strftime('%Y-%m-%d') if payment.payment_date else 'غير محدد' }}</p>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">المبلغ</label>
+              <p class="form-control-plaintext fw-bold text-primary">{{ "%.2f"|format(payment.total_amount) }} {{ payment.currency }}</p>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">الاتجاه</label>
+              <p class="form-control-plaintext">
+                {% if payment.direction == 'IN' %}
+                  <span class="badge bg-success">وارد</span>
+                {% else %}
+                  <span class="badge bg-danger">صادر</span>
+                {% endif %}
+              </p>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">الطريقة</label>
+              <p class="form-control-plaintext">{{ payment.method or 'غير محدد' }}</p>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">الحالة</label>
+              <p class="form-control-plaintext">
+                {% if payment.status == 'COMPLETED' %}
+                  <span class="badge bg-success">مكتملة</span>
+                {% elif payment.status == 'PENDING' %}
+                  <span class="badge bg-warning text-dark">قيد الانتظار</span>
+                {% elif payment.status == 'FAILED' %}
+                  <span class="badge bg-danger">فاشلة</span>
+                {% elif payment.status == 'REFUNDED' %}
+                  <span class="badge bg-secondary">مُرجعة</span>
+                {% else %}
+                  <span class="badge bg-secondary">{{ payment.status or 'غير محدد' }}</span>
+                {% endif %}
+              </p>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">نوع الكيان</label>
+              <p class="form-control-plaintext">{{ payment.entity_type or 'غير محدد' }}</p>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">المرجع</label>
+              <p class="form-control-plaintext">{{ payment.reference or 'غير محدد' }}</p>
+            </div>
+            {% if payment.notes %}
+            <div class="col-12">
+              <label class="form-label fw-bold">الملاحظات</label>
+              <p class="form-control-plaintext">{{ payment.notes }}</p>
+            </div>
+            {% endif %}
           </div>
-        {% endfor %}
-      </div>
-    {% endif %}
-  {% endwith %}
-
-  {% set st = enum_val(payment.status) %}
-  {% set dirv = enum_val(payment.direction) %}
-  {% set methodv = enum_val(payment.method) %}
-
-  <div class="card">
-    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-      <h3 class="mb-0">💰 تفاصيل الدفعة #{{ payment.id }}</h3>
-      <div class="d-flex gap-2 flex-wrap">
-        {% if payment.payment_number %}
-          <span class="badge bg-light text-dark">السند: {{ payment.payment_number }}</span>
-        {% endif %}
-        {% if payment.receipt_number %}
-          <span class="badge bg-light text-dark">الوصل: {{ payment.receipt_number }}</span>
-        {% endif %}
+        </div>
       </div>
     </div>
 
-    <div class="card-body">
-      <div class="row mb-4">
-        <div class="col-md-6">
-          <p><strong>المبلغ الكلي:</strong>
-            <span id="totalAmountValue">{{ '%.0f'|format(payment.total_amount or 0) }}</span> {{ payment.currency or '' }}
-          </p>
-          <p><strong>التاريخ:</strong> {{ payment.payment_date and payment.payment_date.strftime('%Y-%m-%d') or '—' }}</p>
-          <p><strong>الطريقة (رئيسية):</strong> {{ methodv or '—' }}</p>
-          <p><strong>الحالة:</strong>
-            <span class="badge
-              {% if st == 'COMPLETED' %}bg-success
-              {% elif st == 'PENDING' %}bg-warning text-dark
-              {% elif st == 'FAILED' %}bg-danger
-              {% elif st == 'REFUNDED' %}bg-info text-dark
-              {% else %}bg-secondary{% endif %}">{{ st or '—' }}</span>
-          </p>
+    <div class="col-lg-4">
+      <div class="card shadow-sm">
+        <div class="card-header bg-light">
+          <h5 class="mb-0"><i class="fas fa-link me-2"></i>الجهة المرتبطة</h5>
         </div>
-        <div class="col-md-6">
-          <p><strong>الاتجاه:</strong>
-            <span class="badge {% if dirv in ['IN','INCOMING'] %}bg-success{% else %}bg-danger{% endif %}">
-              {{ 'وارد' if dirv in ['IN','INCOMING'] else 'صادر' }}
-            </span>
-          </p>
-          <p><strong>الجهة:</strong> {{ payment.entity_label() or (payment.entity_type|capitalize) }}</p>
-          <p><strong>المرجع:</strong> {{ payment.reference or '—' }}</p>
-          <p><strong>الملاحظات:</strong> {{ payment.notes or '—' }}</p>
-        </div>
-      </div>
-
-      <h4 class="mt-4">💳 الدفعات الجزئية:</h4>
-      <table class="table table-bordered table-hover" id="splitsTableWrap">
-        <thead class="table-light">
-          <tr>
-            <th>#</th>
-            <th>المبلغ</th>
-            <th>الطريقة</th>
-            <th>التفاصيل</th>
-            <th>إجراءات</th>
-          </tr>
-        </thead>
-        <tbody id="splitsTable">
-          {% for s in payment.splits %}
-            {% set m = enum_val(s.method)|string|lower %}
-            {% set d = s.details if s.details is mapping else {} %}
-            <tr id="split-{{ s.id }}">
-              <td>{{ loop.index }}.</td>
-              <td class="amount-cell" data-amount="{{ '%.0f'|format(s.amount or 0) }}">
-                {{ '%.0f'|format(s.amount or 0) }} {{ payment.currency or '' }}
-              </td>
-              <td>{{ m|upper }}</td>
-              <td>
-                {% if m in ['cheque', 'check'] %}
-                  رقم الشيك: {{ d.get('check_number') or '—' }}<br>
-                  البنك: {{ d.get('check_bank') or '—' }}<br>
-                  الاستحقاق: {{ d.get('check_due_date') or d.get('due_date') or '—' }}
-                {% elif m in ['bank', 'transfer', 'bank_transfer'] %}
-                  مرجع التحويل: {{ d.get('bank_transfer_ref') or d.get('reference') or '—' }}
-                {% elif m in ['card', 'credit'] %}
-                  بطاقة: {{
-                    (d.get('card_last4') and ('****' ~ (d.get('card_last4')|string)))
-                    or (d.get('card_number') and ('****' ~ ((d.get('card_number')|string)[-4:])))
-                    or '—'
-                  }}<br>
-                  حامل البطاقة: {{ d.get('card_holder') or '—' }}<br>
-                  انتهاء: {{ d.get('card_expiry') or '—' }}
-                {% elif m in ['online', 'mobile'] %}
-                  البوابة: {{ d.get('online_gateway') or d.get('gateway') or '—' }}<br>
-                  المرجع: {{ d.get('online_ref') or d.get('reference') or '—' }}
-                {% elif m == 'cash' %}
-                  نقداً
-                {% else %}
-                  —
+        <div class="card-body">
+          {% if payment.customer %}
+            <div class="d-flex align-items-center">
+              <i class="fas fa-user text-primary me-2"></i>
+              <div>
+                <strong>عميل:</strong> {{ payment.customer.name }}
+                {% if payment.customer.phone %}
+                  <br><small class="text-muted">{{ payment.customer.phone }}</small>
                 {% endif %}
-              </td>
-              <td>
-                <button type="button" class="btn btn-sm btn-danger remove-split" data-split-id="{{ s.id }}">🗑️ حذف</button>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-
-      <div class="mt-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <div class="btn-group">
-          <a href="{{ url_for('payments.download_receipt', payment_id=payment.id) }}" class="btn btn-info">📄 تحميل الوصل</a>
-          <button type="button" class="btn btn-outline-secondary" id="btn-view-receipt">👁️ عرض الوصل</button>
+              </div>
+            </div>
+          {% elif payment.supplier %}
+            <div class="d-flex align-items-center">
+              <i class="fas fa-truck text-warning me-2"></i>
+              <div>
+                <strong>مورد:</strong> {{ payment.supplier.name }}
+                {% if payment.supplier.contact %}
+                  <br><small class="text-muted">{{ payment.supplier.contact }}</small>
+                {% endif %}
+              </div>
+            </div>
+          {% elif payment.partner %}
+            <div class="d-flex align-items-center">
+              <i class="fas fa-handshake text-success me-2"></i>
+              <div>
+                <strong>شريك:</strong> {{ payment.partner.name }}
+                {% if payment.partner.contact %}
+                  <br><small class="text-muted">{{ payment.partner.contact }}</small>
+                {% endif %}
+              </div>
+            </div>
+          {% else %}
+            <p class="text-muted">لا توجد جهة مرتبطة</p>
+          {% endif %}
         </div>
-        <form method="POST" action="{{ url_for('payments.delete_payment', payment_id=payment.id) }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="btn btn-danger" onclick="return confirm('هل أنت متأكد؟')">🗑️ حذف</button>
-        </form>
       </div>
+
+      {% if payment.splits %}
+      <div class="card shadow-sm mt-3">
+        <div class="card-header bg-light">
+          <h5 class="mb-0"><i class="fas fa-list me-2"></i>تفاصيل الدفع</h5>
+        </div>
+        <div class="card-body">
+          {% for split in payment.splits %}
+            <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+              <div>
+                <strong>{{ split.method or 'غير محدد' }}</strong>
+                {% if split.reference %}
+                  <br><small class="text-muted">{{ split.reference }}</small>
+                {% endif %}
+              </div>
+              <span class="fw-bold">{{ "%.2f"|format(split.amount) }} {{ payment.currency }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
     </div>
   </div>
 </div>
-{% endblock %}
 
-{% block scripts %}
-  <script src="{{ url_for('static', filename='js/payments.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/payment_form.js') }}"></script>
-  <script>
-  document.addEventListener('DOMContentLoaded', function () {
-    function toNumber(s){
-      return parseFloat(String(s||'')
-        .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
-        .replace(/[٬،\s]/g,'')
-        .replace(',', '.')) || 0;
-    }
-    function recalcTotalFromSplits() {
-      const cells = document.querySelectorAll('#splitsTable .amount-cell');
-      let sum = 0;
-      cells.forEach(td => { sum += toNumber(td.dataset.amount || '0'); });
-      const el = document.getElementById('totalAmountValue');
-      if (el) el.textContent = sum.toFixed(0);
-    }
-    function ensurePlaceholderRow() {
-      const tbody = document.getElementById('splitsTable');
-      if (!tbody) return;
-      const hasRows = !!tbody.querySelector('tr');
-      if (!hasRows) {
-        const tr = document.createElement('tr');
-        tr.innerHTML = '<td colspan="5" class="text-center text-muted py-3">لا توجد دفعات جزئية</td>';
-        tbody.appendChild(tr);
-      } else {
-        const lone = tbody.querySelector('td[colspan="5"]');
-        if (lone && tbody.querySelectorAll('tr').length > 1) lone.parentElement.remove();
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // تأكيد الدفعة
+  const completeBtn = document.getElementById('completePayment');
+  if (completeBtn) {
+    completeBtn.addEventListener('click', function() {
+      if (confirm('هل أنت متأكد من تأكيد هذه الدفعة؟')) {
+        updatePaymentStatus(this.dataset.paymentId, 'COMPLETED');
       }
-    }
+    });
+  }
 
-    const table = document.getElementById('splitsTable');
-    if (table) {
-      table.addEventListener('click', async function(e){
-        const btn = e.target.closest('.remove-split');
-        if (!btn) return;
-        if (!confirm('هل أنت متأكد من حذف هذه الدفعة الجزئية؟')) return;
-        try {
-          const r = await fetch('/payments/split/' + btn.dataset.splitId + '/delete', {
-            method: 'DELETE',
-            headers: { 'Accept': 'application/json' }
-          });
-          const j = await r.json();
-          if (j.status === 'success') {
-            const row = document.getElementById('split-' + btn.dataset.splitId);
-            if (row) row.remove();
-            recalcTotalFromSplits();
-            ensurePlaceholderRow();
-            alert('✅ تم حذف الدفعة الجزئية');
-          } else {
-            alert('فشل: ' + (j.message || 'خطأ غير معروف'));
-          }
-        } catch (_) {
-          alert('خطأ في الاتصال بالخادم');
-        }
-      });
-    }
+  // رفض الدفعة
+  const failBtn = document.getElementById('failPayment');
+  if (failBtn) {
+    failBtn.addEventListener('click', function() {
+      if (confirm('هل أنت متأكد من رفض هذه الدفعة؟')) {
+        updatePaymentStatus(this.dataset.paymentId, 'FAILED');
+      }
+    });
+  }
 
-    const btnView = document.getElementById('btn-view-receipt');
-    if (btnView) {
-      btnView.addEventListener('click', function(){
-        const total = (document.getElementById('totalAmountValue')?.textContent.trim()) || "{{ '%.0f'|format(payment.total_amount or 0) }}";
-        const data = {
-          id: {{ payment.id }},
-          currency: "{{ payment.currency or '' }}",
-          total: total,
-          date: "{{ payment.payment_date and payment.payment_date.strftime('%Y-%m-%d %H:%M') or '' }}",
-          method: "{{ methodv or '' }}",
-          status: "{{ st or '' }}",
-          direction: "{{ dirv or '' }}",
-          entity: "{{ (payment.entity_label() or payment.entity_type)|e }}"
-        };
-        const rows = Array.from(document.querySelectorAll('#splitsTable tr')).map((tr, idx) => {
-          const tds = tr.querySelectorAll('td');
-          if (!tds.length) return null;
-          return {
-            idx: (idx+1),
-            amount: (tds[1]?.textContent.trim()) || '',
-            method: (tds[2]?.textContent.trim()) || '',
-            details: (tds[3]?.innerHTML) || '—'
-          };
-        }).filter(Boolean);
-        const items = rows.map(r =>
-          '<tr><td>'+r.idx+'</td><td class="text-end">'+r.amount+'</td><td>'+r.method+'</td><td>'+r.details+'</td></tr>'
-        ).join('');
-        const title = 'وصل دفعة #' + data.id;
-        const w = window.open('', 'receipt'+data.id);
-        w.document.write(
-          '<html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>'+title+'</title>'+
-          '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">'+
-          '<style>body{padding:24px} .h{color:#666} .table{font-size:12px}</style>'+
-          '</head><body>'+
-          '<div class="d-flex justify-content-between align-items-start mb-3">'+
-            '<div><h4 class="mb-1">'+title+'</h4><div class="h">التاريخ: '+(data.date||'—')+'</div></div>'+
-            '<div class="text-end"><div class="h">المبلغ الكلي</div><div class="fs-5 fw-bold">'+data.total+' '+(data.currency||'')+'</div></div>'+
-          '</div>'+
-          '<div class="row g-2 mb-3">'+
-            '<div class="col"><div class="h">الجهة</div><div>'+data.entity+'</div></div>'+
-            '<div class="col"><div class="h">الطريقة</div><div>'+(data.method||'—')+'</div></div>'+
-            '<div class="col"><div class="h">الحالة</div><div>'+(data.status||'—')+'</div></div>'+
-            '<div class="col"><div class="h">الاتجاه</div><div>'+(data.direction||'—')+'</div></div>'+
-          '</div>'+
-          '<table class="table table-bordered table-sm"><thead class="table-light"><tr>'+
-            '<th style="width:60px">#</th><th class="text-end" style="width:180px">المبلغ</th><th style="width:140px">الطريقة</th><th>التفاصيل</th>'+
-          '</tr></thead><tbody>'+items+'</tbody></table>'+
-          '<div class="mt-3 text-center"><button onclick="window.print()" class="btn btn-primary">طباعة</button></div>'+
-          '</body></html>'
-        );
-        w.document.close();
-        w.focus();
-      });
-    }
+  // إرجاع الدفعة
+  const refundBtn = document.getElementById('refundPayment');
+  if (refundBtn) {
+    refundBtn.addEventListener('click', function() {
+      if (confirm('هل أنت متأكد من إرجاع هذه الدفعة؟')) {
+        updatePaymentStatus(this.dataset.paymentId, 'REFUNDED');
+      }
+    });
+  }
 
-    ensurePlaceholderRow();
-  });
-  </script>
+  function updatePaymentStatus(paymentId, status) {
+    fetch(`/payments/${paymentId}/status`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({ status: status })
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.success) {
+        alert('تم تحديث حالة الدفعة بنجاح');
+        location.reload();
+      } else {
+        alert('خطأ: ' + (data.message || 'فشل في تحديث الحالة'));
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('خطأ في الاتصال بالخادم: ' + error.message);
+    });
+  }
+});
+</script>
 {% endblock %}

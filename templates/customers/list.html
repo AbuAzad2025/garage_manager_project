@@ -2,6 +2,57 @@
 
 {% block title %}قائمة العملاء{% endblock %}
 
+{% block extra_css %}
+<style>
+.customer-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: none;
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+.customer-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+.customer-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(45deg, #667eea, #764ba2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+.balance-badge {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.balance-positive {
+    background: linear-gradient(45deg, #56ab2f, #a8e6cf);
+    color: white;
+}
+
+.balance-negative {
+    background: linear-gradient(45deg, #ff416c, #ff4b2b);
+    color: white;
+}
+
+.balance-zero {
+    background: linear-gradient(45deg, #bdc3c7, #2c3e50);
+    color: white;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="content-wrapper py-4 px-3">
 
@@ -21,11 +72,80 @@
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="h4 m-0 text-dark"><i class="fas fa-users ml-2"></i> قائمة العملاء</h2>
     <div class="btn-group" role="group" aria-label="إجراءات">
-      <a href="{{ url_for('customers_bp.create_form') }}" class="btn btn-success"><i class="fas fa-user-plus"></i> إضافة</a>
-      <a href="{{ url_for('customers_bp.import_customers') }}" class="btn btn-secondary"><i class="fas fa-file-csv"></i> استيراد</a>
-      <a href="{{ url_for('customers_bp.export_customers', format='excel') }}" class="btn btn-outline-primary"><i class="fas fa-file-excel"></i> Excel</a>
-      <a href="{{ url_for('customers_bp.export_contacts') }}" class="btn btn-outline-info"><i class="fas fa-address-book"></i> جهات الاتصال</a>
+      <a href="{{ url_for('customers_bp.create_form') }}" class="btn btn-success"><i class="fas fa-user-plus"></i> إضافة عميل</a>
+      <div class="btn-group" role="group">
+        <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          <i class="fas fa-download"></i> تصدير
+        </button>
+        <div class="dropdown-menu">
+          <a class="dropdown-item" href="{{ url_for('customers_bp.export_customers', format='excel') }}"><i class="fas fa-file-excel"></i> Excel</a>
+          <a class="dropdown-item" href="{{ url_for('customers_bp.export_contacts') }}"><i class="fas fa-address-book"></i> جهات الاتصال</a>
+        </div>
+      </div>
+      <a href="{{ url_for('customers_bp.import_customers') }}" class="btn btn-outline-info"><i class="fas fa-file-csv"></i> استيراد</a>
       <a href="{{ url_for('customers_bp.advanced_filter') }}" class="btn btn-outline-warning"><i class="fas fa-filter"></i> بحث متقدم</a>
+    </div>
+  </div>
+
+  <!-- ملخصات العملاء -->
+  <div class="row mb-4">
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+      <div class="card bg-primary text-white shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="card-title"><i class="fas fa-users"></i> إجمالي العملاء</h6>
+          <h3 class="mb-0">{{ summary.total_customers }}</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+      <div class="card {% if summary.total_balance > 0 %}bg-success{% elif summary.total_balance < 0 %}bg-danger{% else %}bg-secondary{% endif %} text-white shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="card-title"><i class="fas fa-balance-scale"></i> الرصيد الصافي</h6>
+          <h3 class="mb-0">{{ "%.2f"|format(summary.total_balance) }} ₪</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+      <div class="card bg-warning text-white shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="card-title"><i class="fas fa-shopping-cart"></i> إجمالي المبيعات</h6>
+          <h3 class="mb-0">{{ "%.2f"|format(summary.total_sales) }} ₪</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+      <div class="card bg-info text-white shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="card-title"><i class="fas fa-money-bill-wave"></i> إجمالي المدفوعات</h6>
+          <h3 class="mb-0">{{ "%.2f"|format(summary.total_payments) }} ₪</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+      <div class="card bg-danger text-white shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="card-title"><i class="fas fa-exclamation-triangle"></i> عملاء بذمة</h6>
+          <h3 class="mb-0">{{ summary.customers_with_debt }}</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+      <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);" class="text-white shadow-sm">
+        <div class="card-body text-center text-white">
+          <h6 class="card-title"><i class="fas fa-chart-line"></i> متوسط الرصيد</h6>
+          <h3 class="mb-0">{{ "%.2f"|format(summary.average_balance) }} ₪</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+      <div class="card bg-secondary text-white">
+        <div class="card-body text-center">
+          <h6 class="card-title">إجمالي المدفوعات</h6>
+          <h3 class="mb-0">
+            <span id="total-payments">0.00</span> ₪
+          </h3>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -115,4 +235,65 @@
 {% block scripts %}
   {{ super() }}
   <script src="{{ url_for('static', filename='js/customers.js') }}"></script>
+  <script>
+    // حساب الملخصات - الحل المضمون
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('بدء حساب الملخصات...');
+      
+      const rows = document.querySelectorAll('tbody tr');
+      console.log('عدد الصفوف:', rows.length);
+      
+      let totalBalance = 0;
+      let totalDebit = 0;
+      let totalCredit = 0;
+      
+      rows.forEach((row, index) => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length >= 6) {
+          const balanceText = cells[5].textContent.trim();
+          console.log(`الصف ${index + 1}: ${balanceText}`);
+          
+          // استخراج الرقم من النص
+          const balanceMatch = balanceText.match(/-?\d+(?:,\d{3})*(?:\.\d{2})?/);
+          if (balanceMatch) {
+            const balance = parseFloat(balanceMatch[0].replace(/,/g, ''));
+            console.log(`الرصيد المستخرج: ${balance}`);
+            
+            totalBalance += balance;
+            
+            if (balance < 0) {
+              totalDebit += Math.abs(balance);
+            } else {
+              totalCredit += balance;
+            }
+          }
+        }
+      });
+      
+      console.log('المجاميع المحسوبة:');
+      console.log('الرصيد الصافي:', totalBalance);
+      console.log('مستحق دفع:', totalDebit);
+      console.log('مستحق قبض:', totalCredit);
+      
+      // تحديث الملخصات
+      const totalBalanceEl = document.getElementById('total-balance');
+      const totalDebitEl = document.getElementById('total-debit');
+      const totalCreditEl = document.getElementById('total-credit');
+      
+      if (totalBalanceEl) {
+        totalBalanceEl.textContent = totalBalance.toFixed(2);
+        console.log('تم تحديث الرصيد الصافي:', totalBalanceEl.textContent);
+      }
+      
+      if (totalDebitEl) {
+        totalDebitEl.textContent = totalDebit.toFixed(2);
+        console.log('تم تحديث مستحق دفع:', totalDebitEl.textContent);
+      }
+      
+      if (totalCreditEl) {
+        totalCreditEl.textContent = totalCredit.toFixed(2);
+        console.log('تم تحديث مستحق قبض:', totalCreditEl.textContent);
+      }
+    });
+  </script>
 {% endblock %}

@@ -1,6 +1,55 @@
 {% extends 'base.html' %}
 {% block title %}كشف حساب المورد{% endblock %}
 
+{% block head_extra %}
+<style>
+/* تحسين تباين الألوان */
+.statement-card {
+    border-radius: 12px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+}
+
+.statement-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white !important;
+    padding: 20px;
+    border-radius: 12px 12px 0 0;
+}
+
+.stat-box {
+    border-left: 4px solid #667eea;
+    transition: all 0.3s;
+}
+
+.stat-box:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+}
+
+.table thead th {
+    background-color: #343a40 !important;
+    color: white !important;
+    font-weight: 600 !important;
+    border-color: #454d55 !important;
+}
+
+.table tbody td {
+    color: #343a40 !important;
+    font-weight: 500 !important;
+}
+
+.balance-positive {
+    color: #dc3545 !important;
+    font-weight: bold !important;
+}
+
+.balance-negative {
+    color: #28a745 !important;
+    font-weight: bold !important;
+}
+</style>
+{% endblock %}
+
 {% block breadcrumb %}
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb bg-white px-3 py-2 rounded mb-4">
@@ -148,16 +197,19 @@
   </div>
 
   {% if per_product %}
-  <div class="card shadow-sm rounded mt-4">
-    <div class="card-header bg-secondary text-white">
-      <h6 class="m-0"><i class="fas fa-boxes ms-2"></i> تفصيل حسب المنتج (توريد/مرتجع/مدفوع/غير مدفوع)</h6>
+  <div class="card shadow-sm rounded mt-4 statement-card">
+    <div class="card-header statement-header">
+      <h4 class="m-0"><i class="fas fa-boxes"></i> تفصيل حسب المنتج</h4>
+      <small>توريد / مرتجع / مدفوع / غير مدفوع</small>
     </div>
     <div class="card-body">
       <div class="table-responsive">
-        <table class="table table-bordered table-sm align-middle">
-          <thead class="table-light">
+        <table class="table table-bordered table-hover">
+          <thead class="thead-dark">
             <tr>
+              <th style="width: 40px;">#</th>
               <th>المنتج</th>
+              <th>SKU</th>
               <th class="text-end">كمية واردة</th>
               <th class="text-end">قيمة واردة</th>
               <th class="text-end">كمية مرتجعة</th>
@@ -170,27 +222,29 @@
           <tbody>
             {% for pid, row in per_product.items() %}
             <tr>
-              <td>{{ row.product and row.product.name or pid }}</td>
-              <td class="text-end">{{ row.qty_in }}</td>
-              <td class="text-end">{{ row.val_in|format_currency }}</td>
-              <td class="text-end">{{ row.qty_out }}</td>
-              <td class="text-end">{{ row.val_out|format_currency }}</td>
-              <td class="text-end text-success fw-bold">{{ row.val_paid|format_currency }}</td>
-              <td class="text-end text-warning fw-bold">{{ row.val_unpaid|format_currency }}</td>
+              <td class="text-center"><strong>{{ loop.index }}</strong></td>
+              <td><strong>{{ row.product and row.product.name or pid }}</strong></td>
+              <td><code>{{ row.product and row.product.sku or '—' }}</code></td>
+              <td class="text-end"><strong class="text-info">{{ row.qty_in }}</strong></td>
+              <td class="text-end"><strong class="text-info">{{ row.val_in|format_currency }}</strong></td>
+              <td class="text-end"><strong class="text-warning">{{ row.qty_out }}</strong></td>
+              <td class="text-end"><strong class="text-warning">{{ row.val_out|format_currency }}</strong></td>
+              <td class="text-end"><strong class="text-success">{{ row.val_paid|format_currency }}</strong></td>
+              <td class="text-end"><strong class="text-danger">{{ row.val_unpaid|format_currency }}</strong></td>
               <td>
                 {% for n in row.notes %}
-                  <span class="badge bg-info text-dark">{{ n }}</span>
+                  <span class="badge badge-info">{{ n }}</span>
                 {% endfor %}
                 {% if not row.notes %}<span class="text-muted">—</span>{% endif %}
               </td>
             </tr>
             {% endfor %}
           </tbody>
-          <tfoot class="table-light">
+          <tfoot class="bg-light">
             <tr>
-              <th colspan="5" class="text-end">إجمالي غير المدفوع</th>
-              <th colspan="2" class="text-end text-warning fw-bold">
-                {{ consignment_value|format_currency }}
+              <th colspan="7" class="text-end">إجمالي غير المدفوع:</th>
+              <th colspan="2" class="text-end">
+                <strong class="text-danger" style="font-size: 1.2rem;">{{ consignment_value|format_currency }}</strong>
               </th>
               <th></th>
             </tr>

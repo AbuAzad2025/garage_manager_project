@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+
+{% block page_title %}أسعار الصرف{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('currencies.list') }}">إدارة العملات</a></li>
+<li class="breadcrumb-item active">أسعار الصرف</li>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.market-rate-success { background-color: #d4edda !important; }
+.market-rate-info { background-color: #d1ecf1 !important; }
+.market-rate-danger { background-color: #f8d7da !important; }
+.rate-comparison {
+    font-size: 0.9em;
+    font-weight: 500;
+}
+.rate-difference {
+    font-size: 0.8em;
+    margin-top: 2px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-exchange-alt me-2"></i>
+                    أسعار الصرف
+                </h3>
+                <div class="card-tools">
+                    <button type="button" class="btn btn-info btn-sm me-2" onclick="updateRates()">
+                        <i class="fas fa-sync-alt me-1"></i>
+                        تحديث من السيرفرات
+                    </button>
+                    <button type="button" class="btn btn-warning btn-sm me-2" onclick="refreshMarketRates()">
+                        <i class="fas fa-chart-line me-1"></i>
+                        تحديث أسعار السوق
+                    </button>
+                    <button type="button" class="btn btn-warning btn-sm me-2" onclick="testRate()">
+                        <i class="fas fa-vial me-1"></i>
+                        اختبار سعر
+                    </button>
+                    <a href="{{ url_for('currencies.new_exchange_rate') }}" class="btn btn-success btn-sm me-2">
+                        <i class="fas fa-plus me-1"></i>
+                        إضافة سعر صرف
+                    </a>
+                    <a href="{{ url_for('currencies.list') }}" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-coins me-1"></i>
+                        العملات
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if exchange_rates.items %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-bordered table-striped">
+                        <thead class="table-primary">
+                            <tr>
+                                <th>#</th>
+                                <th>العملة الأساسية</th>
+                                <th>العملة المقابلة</th>
+                                <th>السعر المدخل</th>
+                                <th>سعر السوق الآن</th>
+                                <th>تاريخ السريان</th>
+                                <th>المصدر</th>
+                                <th>الحالة</th>
+                                <th>العمليات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for rate in exchange_rates.items %}
+                            <tr class="{% if not rate.is_active %}table-secondary{% endif %}">
+                                <td>{{ loop.index + (exchange_rates.page - 1) * exchange_rates.per_page }}</td>
+                                <td class="fw-bold">
+                                    {{ rate.base_code }}
+                                    <br><small class="text-muted">{{ get_currency_name(rate.base_code) }}</small>
+                                </td>
+                                <td class="fw-bold">
+                                    {{ rate.quote_code }}
+                                    <br><small class="text-muted">{{ get_currency_name(rate.quote_code) }}</small>
+                                </td>
+                                <td class="text-end">
+                                    <div class="rate-comparison">
+                                        <span class="badge bg-primary">{{ "{:,.4f}".format(rate.rate) }}</span>
+                                        <br><small class="text-muted">يدوي</small>
+                                    </div>
+                                </td>
+                                <td class="text-end">
+                                    {% set market_data = market_rates.get(rate.id, {}) %}
+                                    {% if market_data.get('success', False) %}
+                                        {% set market_rate = market_data.get('rate', 0) %}
+                                        {% set manual_rate = rate.rate|float %}
+                                        {% set difference = ((market_rate - manual_rate) / manual_rate * 100) if manual_rate > 0 else 0 %}
+                                        
+                                        <div class="rate-comparison">
+                                            <span class="badge bg-{% if market_data.get('source') == 'local' %}success{% else %}info{% endif %}">
+                                                {{ "{:,.4f}".format(market_rate) }}
+                                            </span>
+                                            <br><small class="text-muted">
+                                                {% if market_data.get('source') == 'local' %}محلي{% else %}عالمي{% endif %}
+                                            </small>
+                                            {% if difference != 0 %}
+                                            <br><small class="rate-difference {% if difference > 0 %}text-success{% else %}text-danger{% endif %}">
+                                                {% if difference > 0 %}+{% endif %}{{ "{:,.2f}".format(difference) }}%
+                                            </small>
+                                            {% endif %}
+                                        </div>
+                                    {% else %}
+                                        <div class="rate-comparison">
+                                            <span class="badge bg-danger">غير متوفر</span>
+                                            <br><small class="text-muted">فشل الجلب</small>
+                                        </div>
+                                    {% endif %}
+                                </td>
+                                <td>{{ rate.valid_from.strftime('%Y-%m-%d %H:%M') if rate.valid_from else '-' }}</td>
+                                <td>{{ rate.source or '-' }}</td>
+                                <td>
+                                    {% if rate.is_active %}
+                                    <span class="badge bg-success">نشط</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">غير نشط</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('currencies.edit_exchange_rate', rate_id=rate.id) }}" 
+                                           class="btn btn-outline-primary" title="تعديل">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <form method="POST" action="{{ url_for('currencies.toggle_exchange_rate', rate_id=rate.id) }}" 
+                                              style="display: inline;">
+                                            <button type="submit" class="btn btn-outline-{% if rate.is_active %}warning{% else %}success{% endif %}" 
+                                                    title="{% if rate.is_active %}إلغاء تفعيل{% else %}تفعيل{% endif %}"
+                                                    onclick="return confirm('هل أنت متأكد؟')">
+                                                <i class="fas fa-{% if rate.is_active %}pause{% else %}play{% endif %}"></i>
+                                            </button>
+                                        </form>
+                                        <form method="POST" action="{{ url_for('currencies.delete_exchange_rate', rate_id=rate.id) }}" 
+                                              style="display: inline;">
+                                            <button type="submit" class="btn btn-outline-danger" title="حذف"
+                                                    onclick="return confirm('هل أنت متأكد من الحذف؟')">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                {% if exchange_rates.pages > 1 %}
+                <nav aria-label="Page navigation">
+                    <ul class="pagination justify-content-center">
+                        {% if exchange_rates.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('currencies.exchange_rates', page=exchange_rates.prev_num) }}">السابق</a>
+                        </li>
+                        {% endif %}
+                        
+                        {% for page_num in exchange_rates.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != exchange_rates.page %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('currencies.exchange_rates', page=page_num) }}">{{ page_num }}</a>
+                                </li>
+                                {% else %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ page_num }}</span>
+                                </li>
+                                {% endif %}
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if exchange_rates.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('currencies.exchange_rates', page=exchange_rates.next_num) }}">التالي</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+                
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-exchange-alt fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">لا توجد أسعار صرف</h5>
+                    <p class="text-muted">ابدأ بإضافة أسعار الصرف للعملات المختلفة</p>
+                    <a href="{{ url_for('currencies.new_exchange_rate') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>
+                        إضافة سعر صرف
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal لاختبار سعر الصرف -->
+<div class="modal fade" id="testRateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">اختبار سعر الصرف</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">العملة الأساسية</label>
+                        <select class="form-select" id="testBaseCurrency">
+                            <option value="USD">USD - الدولار الأمريكي</option>
+                            <option value="EUR">EUR - اليورو</option>
+                            <option value="ILS">ILS - الشيكل الإسرائيلي</option>
+                            <option value="JOD">JOD - الدينار الأردني</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">العملة المقابلة</label>
+                        <select class="form-select" id="testQuoteCurrency">
+                            <option value="ILS">ILS - الشيكل الإسرائيلي</option>
+                            <option value="USD">USD - الدولار الأمريكي</option>
+                            <option value="EUR">EUR - اليورو</option>
+                            <option value="JOD">JOD - الدينار الأردني</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <div id="testResult" class="alert" style="display: none;"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-primary" onclick="performTest()">اختبار</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function updateRates() {
+    if (confirm('هل تريد تحديث أسعار الصرف من السيرفرات العالمية؟')) {
+        fetch('{{ url_for("currencies.update_rates") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('خطأ: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('خطأ في التحديث: ' + error);
+        });
+    }
+}
+
+function testRate() {
+    const modal = new bootstrap.Modal(document.getElementById('testRateModal'));
+    modal.show();
+}
+
+function refreshMarketRates() {
+    if (confirm('هل تريد تحديث أسعار السوق الحالية؟')) {
+        // إعادة تحميل الصفحة لتحديث أسعار السوق
+        window.location.reload();
+    }
+}
+
+function performTest() {
+    const base = document.getElementById('testBaseCurrency').value;
+    const quote = document.getElementById('testQuoteCurrency').value;
+    const resultDiv = document.getElementById('testResult');
+    
+    if (base === quote) {
+        resultDiv.className = 'alert alert-warning';
+        resultDiv.innerHTML = 'العملة الأساسية والمقابلة يجب أن تكونا مختلفتين';
+        resultDiv.style.display = 'block';
+        return;
+    }
+    
+    resultDiv.className = 'alert alert-info';
+    resultDiv.innerHTML = 'جاري الاختبار...';
+    resultDiv.style.display = 'block';
+    
+    fetch('{{ url_for("currencies.test_rate") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            base: base,
+            quote: quote
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            resultDiv.className = 'alert alert-success';
+            resultDiv.innerHTML = `
+                <strong>✅ النتيجة:</strong><br>
+                السعر: ${data.rate}<br>
+                المصدر: ${data.source === 'local' ? 'محلي (مدخل من الادمن)' : 'عالمي (من السيرفرات)'}
+            `;
+        } else {
+            resultDiv.className = 'alert alert-danger';
+            resultDiv.innerHTML = `<strong>❌ خطأ:</strong> ${data.message}`;
+        }
+    })
+    .catch(error => {
+        resultDiv.className = 'alert alert-danger';
+        resultDiv.innerHTML = `<strong>❌ خطأ:</strong> ${error}`;
+    });
+}
+</script>
+{% endblock %}

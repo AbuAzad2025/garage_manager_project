@@ -1,16 +1,104 @@
 {% extends 'base.html' %}
 {% block title %}سندات الدفع{% if supplier %} — {{ supplier.name }}{% endif %}{% endblock %}
+
+{% block head_extra %}
+<style>
+/* تحسين تباين الألوان */
+.table thead th {
+    background-color: #343a40 !important;
+    color: white !important;
+    font-weight: 600 !important;
+    border-color: #454d55 !important;
+}
+
+.table tbody td {
+    color: #343a40 !important;
+    font-weight: 500 !important;
+    vertical-align: middle !important;
+}
+
+.badge {
+    padding: 6px 12px !important;
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+}
+
+.btn-group-sm .btn {
+    font-weight: 600 !important;
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container py-5">
+<div class="content-wrapper">
+    <div class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <div class="col-sm-6">
+                    <h1 class="m-0">
+                        <i class="fas fa-money-check-alt"></i>
+                        {% if supplier %}
+                            سندات دفع المورد: <span class="text-primary">{{ supplier.name }}</span>
+                        {% else %}
+                            جميع سندات الدفع
+                        {% endif %}
+                    </h1>
+                </div>
+                <div class="col-sm-6">
+                    <ol class="breadcrumb float-sm-right">
+                        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+                        <li class="breadcrumb-item active">الدفعات</li>
+                    </ol>
+                </div>
+            </div>
+            
+            <!-- الملخصات المالية -->
+            {% if total_incoming is defined and total_outgoing is defined %}
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <div class="card text-white bg-success">
+                        <div class="card-body">
+                            <h5 class="card-title">💰 دفعات واردة</h5>
+                            <h3>{{ "{:,.2f}".format(total_incoming) }} ₪</h3>
+                            <small>من العملاء</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-danger">
+                        <div class="card-body">
+                            <h5 class="card-title">💸 دفعات صادرة</h5>
+                            <h3>{{ "{:,.2f}".format(total_outgoing) }} ₪</h3>
+                            <small>للموردين والشركاء</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white {% if net_total >= 0 %}bg-primary{% else %}bg-warning{% endif %}">
+                        <div class="card-body">
+                            <h5 class="card-title">📊 صافي التدفق</h5>
+                            <h3>{{ "{:,.2f}".format(net_total) }} ₪</h3>
+                            <small>واردة - صادرة</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-info">
+                        <div class="card-body">
+                            <h5 class="card-title">💳 الإجمالي</h5>
+                            <h3>{{ "{:,.2f}".format(grand_total) }} ₪</h3>
+                            <small>جميع الدفعات</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <section class="content">
+        <div class="container-fluid">
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h2 class="fw-bold mb-0">
-      <i class="fas fa-money-check-alt me-2"></i>
-      {% if supplier %}
-        سندات دفع المورد: <span class="text-primary">{{ supplier.name }}</span>
-      {% else %}
-        جميع سندات الدفع
-      {% endif %}
-    </h2>
     <div class="btn-group">
       <a id="btnAddPayment"
          href="{% if supplier %}{{ url_for('payments.create_payment', entity_type='SUPPLIER', entity_id=supplier.id) }}{% else %}{{ url_for('payments.create_payment') }}{% endif %}"
@@ -129,17 +217,18 @@
   <div class="card shadow-sm rounded-4">
     <div class="card-body p-0">
       <table id="paymentsTable" class="table table-hover table-bordered align-middle mb-0">
-        <thead class="table-light">
+        <thead class="table-dark">
           <tr>
-            <th style="width:70px">#</th>
-            <th>التاريخ</th>
-            <th>المبلغ</th>
-            <th>العملة</th>
-            <th>الطريقة</th>
-            <th>الاتجاه</th>
-            <th>الحالة</th>
-            <th>الكيان</th>
-            <th style="width:150px">إجراءات</th>
+            <th style="width:60px">#</th>
+            <th style="width:110px">التاريخ</th>
+            <th style="width:120px">المبلغ</th>
+            <th style="width:70px">العملة</th>
+            <th style="width:130px">المبلغ بالشيكل</th>
+            <th style="width:150px">الطريقة</th>
+            <th style="width:90px">الاتجاه</th>
+            <th style="width:100px">الحالة</th>
+            <th style="min-width:250px">التفاصيل والمرجع</th>
+            <th style="width:200px">إجراءات</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -149,7 +238,11 @@
       <nav><ul id="pagination" class="pagination justify-content-center mb-0"></ul></nav>
     </div>
   </div>
+
+        </div>
+    </section>
 </div>
+
 <input type="hidden" id="csrf_token" value="{{ csrf_token() }}">
 <div id="vendors-config" data-pay-url="{{ url_for('payments.create_payment') }}"></div>
 {% include 'vendors/_settlement_modal.html' %}

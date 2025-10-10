@@ -100,13 +100,24 @@ def _landed_allocation(items, extras_total):
     return alloc
 
 def _apply_arrival_items(items):
-    from models import StockLevel
+    from models import StockLevel, Warehouse, WarehouseType
     for it in items:
         pid = int(it.get("product_id") or 0)
         wid = int(it.get("warehouse_id") or 0)
         qty = int(it.get("quantity") or 0)
         if not (pid and wid and qty > 0):
             continue
+        
+        # التحقق من نوع المستودع
+        warehouse = db.session.get(Warehouse, wid)
+        if not warehouse:
+            continue
+            
+        # إذا كان المستودع من نوع PARTNER، تأكد من وجود شريك
+        if warehouse.warehouse_type == WarehouseType.PARTNER.value:
+            if not warehouse.partner_id:
+                raise ValueError(f"مستودع الشريك {warehouse.name} غير مربوط بشريك")
+        
         sl = (
             db.session.query(StockLevel)
             .filter_by(product_id=pid, warehouse_id=wid)
@@ -125,13 +136,24 @@ def _apply_arrival_items(items):
         db.session.flush()
 
 def _reverse_arrival_items(items):
-    from models import StockLevel
+    from models import StockLevel, Warehouse, WarehouseType
     for it in items:
         pid = int(it.get("product_id") or 0)
         wid = int(it.get("warehouse_id") or 0)
         qty = int(it.get("quantity") or 0)
         if not (pid and wid and qty > 0):
             continue
+        
+        # التحقق من نوع المستودع
+        warehouse = db.session.get(Warehouse, wid)
+        if not warehouse:
+            continue
+            
+        # إذا كان المستودع من نوع PARTNER، تأكد من وجود شريك
+        if warehouse.warehouse_type == WarehouseType.PARTNER.value:
+            if not warehouse.partner_id:
+                raise ValueError(f"مستودع الشريك {warehouse.name} غير مربوط بشريك")
+        
         sl = (
             db.session.query(StockLevel)
             .filter_by(product_id=pid, warehouse_id=wid)
@@ -156,6 +178,17 @@ def _items_snapshot(sh):
         }
         for i in sh.items
     ]
+
+def _ensure_partner_warehouse(warehouse_id):
+    """تأكد من أن المستودع مربوط بشريك إذا كان من نوع PARTNER"""
+    from models import Warehouse, WarehouseType
+    warehouse = db.session.get(Warehouse, warehouse_id)
+    if not warehouse:
+        raise ValueError("warehouse_not_found")
+    if warehouse.warehouse_type == WarehouseType.PARTNER.value:
+        if not warehouse.partner_id:
+            raise ValueError("partner_warehouse_requires_partner")
+    return warehouse
 
 @shipments_bp.route("/", methods=["GET"], endpoint="list_shipments")
 @login_required
@@ -194,9 +227,13 @@ def list_shipments():
     def _status_label(st):
         return {
             "DRAFT": "مسودة",
-            "IN_TRANSIT": "في الطريق",
-            "ARRIVED": "واصل",
+            "PENDING": "قيد الانتظار",
+            "IN_TRANSIT": "قيد النقل",
+            "IN_CUSTOMS": "في الجمارك",
+            "ARRIVED": "وصلت",
+            "DELIVERED": "تم التسليم",
             "CANCELLED": "ملغاة",
+            "RETURNED": "مرتجعة",
             "CREATED": "مُنشأة"
         }.get((st or "").upper(), st)
 
@@ -839,6 +876,11 @@ def mark_arrived(id: int):
         flash(msg, "info")
         return redirect(url_for("shipments_bp.shipment_detail", id=sh.id))
     try:
+        # التحقق من المستودعات قبل اعتماد الوصول
+        for item in sh.items:
+            if item.warehouse_id:
+                _ensure_partner_warehouse(item.warehouse_id)
+        
         _apply_arrival_items([
             {"product_id": it.product_id, "warehouse_id": it.warehouse_id, "quantity": it.quantity}
             for it in sh.items
@@ -866,6 +908,11 @@ def cancel_shipment(id: int):
     sh = _sa_get_or_404(Shipment, id, options=[joinedload(Shipment.items)])
     try:
         if (sh.status or "").upper() == "ARRIVED":
+            # التحقق من المستودعات قبل إلغاء الوصول
+            for item in sh.items:
+                if item.warehouse_id:
+                    _ensure_partner_warehouse(item.warehouse_id)
+            
             _reverse_arrival_items(_items_snapshot(sh))
         sh.status = "CANCELLED"
         db.session.commit()
@@ -878,4 +925,145 @@ def cancel_shipment(id: int):
         if _wants_json():
             return jsonify({"ok": False, "error": str(e)}), 500
         flash(f"❌ تعذّر الإلغاء: {e}", "danger")
+    return redirect(url_for("shipments_bp.shipment_detail", id=sh.id))
+
+
+@shipments_bp.route("/<int:id>/mark-in-transit", methods=["POST"])
+@login_required
+@permission_required("manage_warehouses")
+def mark_in_transit(id):
+    sh = _sa_get_or_404(Shipment, id)
+    if (sh.status or "").upper() == "IN_TRANSIT":
+        if _wants_json():
+            return jsonify({"ok": True, "message": "already_in_transit"})
+        flash("✅ الشحنة في الطريق بالفعل", "info")
+    else:
+        try:
+            # التحقق من المستودعات قبل وضع الشحنة في الطريق
+            for item in sh.items:
+                if item.warehouse_id:
+                    _ensure_partner_warehouse(item.warehouse_id)
+            
+            sh.status = "IN_TRANSIT"
+            db.session.commit()
+            if _wants_json():
+                return jsonify({"ok": True, "message": "marked_in_transit"})
+            flash("✅ تم وضع الشحنة في الطريق", "success")
+        except Exception as e:
+            db.session.rollback()
+            if _wants_json():
+                return jsonify({"ok": False, "error": str(e)}), 500
+            flash(f"❌ تعذّر التحديث: {e}", "danger")
+    return redirect(url_for("shipments_bp.shipment_detail", id=sh.id))
+
+
+@shipments_bp.route("/<int:id>/mark-in-customs", methods=["POST"])
+@login_required
+@permission_required("manage_warehouses")
+def mark_in_customs(id):
+    sh = _sa_get_or_404(Shipment, id)
+    if (sh.status or "").upper() == "IN_CUSTOMS":
+        if _wants_json():
+            return jsonify({"ok": True, "message": "already_in_customs"})
+        flash("✅ الشحنة في الجمارك بالفعل", "info")
+    else:
+        try:
+            # التحقق من المستودعات قبل وضع الشحنة في الجمارك
+            for item in sh.items:
+                if item.warehouse_id:
+                    _ensure_partner_warehouse(item.warehouse_id)
+            
+            sh.status = "IN_CUSTOMS"
+            db.session.commit()
+            if _wants_json():
+                return jsonify({"ok": True, "message": "marked_in_customs"})
+            flash("✅ تم وضع الشحنة في الجمارك", "success")
+        except Exception as e:
+            db.session.rollback()
+            if _wants_json():
+                return jsonify({"ok": False, "error": str(e)}), 500
+            flash(f"❌ تعذّر التحديث: {e}", "danger")
+    return redirect(url_for("shipments_bp.shipment_detail", id=sh.id))
+
+
+@shipments_bp.route("/<int:id>/mark-delivered", methods=["POST"])
+@login_required
+@permission_required("manage_warehouses")
+def mark_delivered(id):
+    sh = _sa_get_or_404(Shipment, id)
+    if (sh.status or "").upper() == "DELIVERED":
+        if _wants_json():
+            return jsonify({"ok": True, "message": "already_delivered"})
+        flash("✅ الشحنة مسلمة بالفعل", "info")
+    else:
+        try:
+            # التحقق من المستودعات قبل تسليم الشحنة
+            for item in sh.items:
+                if item.warehouse_id:
+                    _ensure_partner_warehouse(item.warehouse_id)
+            
+            sh.status = "DELIVERED"
+            sh.delivered_date = datetime.utcnow()
+            db.session.commit()
+            if _wants_json():
+                return jsonify({"ok": True, "message": "marked_delivered"})
+            flash("✅ تم تسليم الشحنة", "success")
+        except Exception as e:
+            db.session.rollback()
+            if _wants_json():
+                return jsonify({"ok": False, "error": str(e)}), 500
+            flash(f"❌ تعذّر التحديث: {e}", "danger")
+    return redirect(url_for("shipments_bp.shipment_detail", id=sh.id))
+
+
+@shipments_bp.route("/<int:id>/mark-returned", methods=["POST"])
+@login_required
+@permission_required("manage_warehouses")
+def mark_returned(id):
+    sh = _sa_get_or_404(Shipment, id)
+    if (sh.status or "").upper() == "RETURNED":
+        if _wants_json():
+            return jsonify({"ok": True, "message": "already_returned"})
+        flash("✅ الشحنة مرتجعة بالفعل", "info")
+    else:
+        try:
+            # التحقق من المستودعات قبل إرجاع الشحنة
+            for item in sh.items:
+                if item.warehouse_id:
+                    _ensure_partner_warehouse(item.warehouse_id)
+            
+            sh.status = "RETURNED"
+            db.session.commit()
+            if _wants_json():
+                return jsonify({"ok": True, "message": "marked_returned"})
+            flash("✅ تم إرجاع الشحنة", "success")
+        except Exception as e:
+            db.session.rollback()
+            if _wants_json():
+                return jsonify({"ok": False, "error": str(e)}), 500
+            flash(f"❌ تعذّر التحديث: {e}", "danger")
+    return redirect(url_for("shipments_bp.shipment_detail", id=sh.id))
+
+
+@shipments_bp.route("/<int:id>/update-delivery-attempt", methods=["POST"])
+@login_required
+@permission_required("manage_warehouses")
+def update_delivery_attempt(id):
+    sh = _sa_get_or_404(Shipment, id)
+    data = request.get_json(silent=True) or {}
+    
+    try:
+        sh.delivery_attempts = (sh.delivery_attempts or 0) + 1
+        sh.last_delivery_attempt = datetime.utcnow()
+        if data.get("notes"):
+            sh.notes = (sh.notes or "") + f"\nمحاولة تسليم #{sh.delivery_attempts}: {data.get('notes')}"
+        db.session.commit()
+        if _wants_json():
+            return jsonify({"ok": True, "message": "delivery_attempt_updated"})
+        flash("✅ تم تحديث محاولة التسليم", "success")
+    except Exception as e:
+        db.session.rollback()
+        if _wants_json():
+            return jsonify({"ok": False, "error": str(e)}), 500
+        flash(f"❌ تعذّر التحديث: {e}", "danger")
     return redirect(url_for("shipments_bp.shipment_detail", id=sh.id))

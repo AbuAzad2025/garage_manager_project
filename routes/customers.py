@@ -22,6 +22,7 @@ from flask import (
 from flask_login import current_user, login_required
 from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.orm import joinedload
 
 from extensions import db
 from forms import CustomerForm, CustomerImportForm, ExportContactsForm
@@ -117,7 +118,12 @@ def log_customer_action(cust, action, old_data=None, new_data=None):
 @login_required
 @permission_required("manage_customers")
 def list_customers():
-    q = Customer.query
+    # استخدام joinedload لتحسين الأداء
+    q = Customer.query.options(
+        joinedload(Customer.payments),
+        joinedload(Customer.sales)
+    )
+    
     if name := request.args.get("name"):
         q = q.filter(Customer.name.ilike(f"%{name}%"))
     if phone := request.args.get("phone"):
@@ -126,15 +132,100 @@ def list_customers():
         q = q.filter(Customer.category == category)
     if "is_active" in request.args:
         q = q.filter(Customer.is_active == (request.args.get("is_active") == "1"))
+    
     page = max(1, request.args.get("page", 1, type=int))
     per_page = request.args.get("per_page", 20, type=int)
     per_page = min(max(1, per_page), 200)
-    pagination = q.order_by(Customer.id.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    
+    # ترتيب محسّن
+    pagination = q.order_by(Customer.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
     args = request.args.to_dict(flat=True)
     args.pop("page", None)
+    
+    # حساب الملخصات الإجمالية لجميع العملاء
+    all_customers = Customer.query.all()
+    
+    total_balance = 0.0
+    total_sales = 0.0
+    total_payments = 0.0
+    customers_with_debt = 0
+    customers_with_credit = 0
+    
+    for customer in all_customers:
+        try:
+            from models import fx_rate
+            from decimal import Decimal
+            
+            # حساب المبيعات - تحويل كل عملية للشيقل
+            sales = Sale.query.filter(Sale.customer_id == customer.id).all()
+            sales_total = 0.0
+            for s in sales:
+                amount = float(s.total_amount or 0)
+                if s.currency and s.currency != 'ILS':
+                    try:
+                        from decimal import Decimal
+                        rate = fx_rate(s.currency, 'ILS', s.sale_date, raise_on_missing=False)
+                        if rate > 0:
+                            amount = float(amount * float(rate))
+                        else:
+                            print(f"⚠️ WARNING: سعر صرف مفقود لـ {s.currency}/ILS في المبيعات #{s.id}")
+                    except ValueError as ve:
+                        print(f"⚠️ ERROR: {str(ve)} - Sale #{s.id}")
+                    except Exception as e:
+                        print(f"⚠️ ERROR: خطأ في تحويل العملة للمبيعات #{s.id}: {str(e)}")
+                sales_total += amount
+            
+            # حساب الدفعات - استخدام fx_rate_used
+            payments = Payment.query.filter(
+                Payment.customer_id == customer.id,
+                Payment.direction == 'incoming'
+            ).all()
+            payments_total = 0.0
+            for p in payments:
+                amount = float(p.total_amount or 0)
+                if p.fx_rate_used:
+                    amount *= float(p.fx_rate_used)
+                elif p.currency and p.currency != 'ILS':
+                    try:
+                        rate = fx_rate(p.currency, 'ILS', p.payment_date, raise_on_missing=False)
+                        if rate > 0:
+                            amount = float(amount * rate)
+                        else:
+                            print(f"⚠️ WARNING: سعر صرف مفقود لـ {p.currency}/ILS في الدفعة #{p.id}")
+                    except ValueError as ve:
+                        print(f"⚠️ ERROR: {str(ve)} - Payment #{p.id}")
+                    except Exception as e:
+                        print(f"⚠️ ERROR: خطأ في تحويل العملة للدفعة #{p.id}: {str(e)}")
+                payments_total += amount
+            
+            balance = sales_total - payments_total
+            
+            total_sales += float(sales_total)
+            total_payments += float(payments_total)
+            total_balance += balance
+            
+            if balance > 0:
+                customers_with_debt += 1
+            elif balance < 0:
+                customers_with_credit += 1
+                
+        except Exception as e:
+            print(f"Error calculating customer {customer.id} balance: {str(e)}")
+            pass
+    
+    summary = {
+        'total_customers': len(all_customers),
+        'total_balance': total_balance,
+        'total_sales': total_sales,
+        'total_payments': total_payments,
+        'customers_with_debt': customers_with_debt,
+        'customers_with_credit': customers_with_credit,
+        'average_balance': total_balance / len(all_customers) if all_customers else 0
+    }
+    
     if not pagination.items:
         flash("⚠️ لا توجد بيانات لعرضها", "info")
-    return render_template("customers/list.html", customers=pagination.items, pagination=pagination, args=args)
+    return render_template("customers/list.html", customers=pagination.items, pagination=pagination, args=args, summary=summary)
 
 
 @customers_bp.route("/<int:customer_id>", methods=["GET"], endpoint="customer_detail")

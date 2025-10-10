@@ -6,16 +6,32 @@
 {% block content %}
 <div class="card shadow-sm">
   <div class="card-body">
-    <div class="d-flex justify-content-end gap-2 mb-4">
-      <a href="{{ url_for('warehouse_bp.add_product', id=warehouse.id) }}" class="btn btn-outline-primary btn-sm">
-        <i class="fas fa-plus"></i> إضافة منتج
-      </a>
-      <a href="{{ url_for('warehouse_bp.import_products', id=warehouse.id) }}" class="btn btn-outline-secondary btn-sm">
-        <i class="fas fa-file-upload"></i> استيراد (CSV)
-      </a>
-      <a href="{{ url_for('shipments_bp.create_shipment', destination_id=warehouse.id) }}" class="btn btn-success btn-sm">
-        <i class="fas fa-truck-loading"></i> إنشاء شحنة
-      </a>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div class="d-flex gap-2">
+        <button class="btn btn-primary btn-sm" onclick="openBarcodeScanner()">
+          <i class="fas fa-barcode"></i> ماسح الباركود
+        </button>
+        <button class="btn btn-info btn-sm" onclick="openQuickStockUpdate()">
+          <i class="fas fa-edit"></i> تحديث سريع
+        </button>
+        <button class="btn btn-warning btn-sm" onclick="generateBarcodesForMissing()">
+          <i class="fas fa-qrcode"></i> توليد باركودات
+        </button>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="{{ url_for('warehouse_bp.add_product', id=warehouse.id) }}" class="btn btn-outline-primary btn-sm">
+          <i class="fas fa-plus"></i> إضافة منتج
+        </a>
+        <a href="{{ url_for('barcode_scanner.bulk_scan_page') }}" class="btn btn-outline-info btn-sm">
+          <i class="fas fa-barcode"></i> مسح جماعي
+        </a>
+        <a href="{{ url_for('warehouse_bp.import_products', id=warehouse.id) }}" class="btn btn-outline-secondary btn-sm">
+          <i class="fas fa-file-upload"></i> استيراد (CSV)
+        </a>
+        <a href="{{ url_for('shipments_bp.create_shipment', destination_id=warehouse.id) }}" class="btn btn-success btn-sm">
+          <i class="fas fa-truck-loading"></i> إنشاء شحنة
+        </a>
+      </div>
     </div>
 
     <div class="row gy-4">
@@ -88,7 +104,7 @@
                   {{ stock_form.max_stock(class_="form-control", placeholder="حد أعلى للتنبيه") }}
                 </div>
                 <div class="col-12">
-                  <button type="submit" class="btn btn-success">تحديث</button>
+                  <button type="submit" class="btn btn-success" onclick="return confirm('تأكيد تحديث المخزون؟')">تحديث</button>
                 </div>
               </div>
             </form>
@@ -140,7 +156,7 @@
                   {{ transfer_form.notes(class_="form-control", placeholder="ملاحظات (اختياري)") }}
                 </div>
                 <div class="col-12">
-                  <button type="submit" class="btn btn-primary">تنفيذ التحويل</button>
+                  <button type="submit" class="btn btn-primary" onclick="return confirm('تأكيد تنفيذ التحويل بين المستودعين؟')">تنفيذ التحويل</button>
                 </div>
               </div>
             </form>
@@ -194,7 +210,7 @@
                   <input type="text" name="notes" class="form-control" placeholder="سبب العملية أو أي تفاصيل إضافية">
                 </div>
                 <div class="col-12">
-                  <button class="btn btn-secondary">تسجيل العملية</button>
+                  <button class="btn btn-secondary" onclick="return confirm('تأكيد تسجيل العملية؟')">تسجيل العملية</button>
                 </div>
               </div>
             </form>
@@ -250,4 +266,76 @@
 {% block scripts %}
   {{ super() }}
   {# كل الجافاسكربت في static/js/warehouses.js #}
+  
+  <script>
+    // فتح ماسح الباركود
+    function openBarcodeScanner() {
+      window.open('/barcode/', '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+    }
+    
+    // تحديث سريع للمخزون
+    function openQuickStockUpdate() {
+      const productId = prompt('أدخل معرف المنتج أو امسح الباركود:');
+      if (productId) {
+        const quantity = prompt('أدخل الكمية الجديدة:');
+        if (quantity && !isNaN(quantity)) {
+          updateStockQuickly(productId, parseInt(quantity));
+        }
+      }
+    }
+    
+    // تحديث المخزون بسرعة
+    function updateStockQuickly(productId, quantity) {
+      fetch('/barcode/inventory/update', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          barcode: productId,
+          warehouse_id: {{ warehouse.id }},
+          quantity_change: quantity,
+          operation: 'adjust'
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          alert('تم تحديث المخزون بنجاح');
+          location.reload();
+        } else {
+          alert('خطأ: ' + data.error);
+        }
+      })
+      .catch(error => {
+        alert('حدث خطأ أثناء تحديث المخزون');
+        console.error('Error:', error);
+      });
+    }
+    
+    // توليد باركودات للمنتجات المفقودة
+    function generateBarcodesForMissing() {
+      if (confirm('هل تريد توليد باركودات فريدة لجميع المنتجات التي لا تحتوي على باركود؟')) {
+        fetch('/barcode/auto-assign', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            alert(data.message);
+            location.reload();
+          } else {
+            alert('خطأ: ' + data.error);
+          }
+        })
+        .catch(error => {
+          alert('حدث خطأ أثناء توليد الباركودات');
+          console.error('Error:', error);
+        });
+      }
+    }
+  </script>
 {% endblock %}

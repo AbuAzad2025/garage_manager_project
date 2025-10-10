@@ -63,7 +63,16 @@ def sa_str_enum(enum_or_values, name=None):
         vals = [str(enum_or_values)]
     return SAEnum(*vals, name=name, native_enum=native)
 
-CURRENCY_CHOICES = [("ILS", "ILS"), ("USD", "USD"), ("EUR", "EUR"), ("JOD", "JOD"), ("AED", "AED"), ("SAR", "SAR")]
+CURRENCY_CHOICES = [
+    ("ILS", "شيكل إسرائيلي"), 
+    ("USD", "دولار أمريكي"), 
+    ("EUR", "يورو"), 
+    ("JOD", "دينار أردني"), 
+    ("AED", "درهم إماراتي"), 
+    ("SAR", "ريال سعودي"),
+    ("EGP", "جنيه مصري"),
+    ("GBP", "جنيه إسترليني")
+]
 CENT = Decimal("0.01")
 TWOPLACES = Decimal("0.01")
 TWO = TWOPLACES
@@ -132,8 +141,8 @@ class PaymentStatus(str, enum.Enum):
 
 
 class PaymentDirection(str, enum.Enum):
-    INCOMING = "IN"
-    OUTGOING = "OUT"
+    IN = "IN"
+    OUT = "OUT"
 
     @property
     def label(self):
@@ -235,8 +244,8 @@ class ServicePriority(str, enum.Enum):
 
 
 class TransferDirection(str, enum.Enum):
-    INCOMING = "IN"
-    OUTGOING = "OUT"
+    IN = "IN"
+    OUT = "OUT"
     ADJUSTMENT = "ADJUSTMENT"
 
     @property
@@ -388,17 +397,113 @@ class ProductCondition(str, enum.Enum):
 
 class ShipmentStatus(str, enum.Enum):
     DRAFT = "DRAFT"
+    PENDING = "PENDING"
     IN_TRANSIT = "IN_TRANSIT"
+    IN_CUSTOMS = "IN_CUSTOMS"
     ARRIVED = "ARRIVED"
+    DELIVERED = "DELIVERED"
     CANCELLED = "CANCELLED"
+    RETURNED = "RETURNED"
 
     @property
     def label(self):
         return {
             "DRAFT": "مسودة",
+            "PENDING": "قيد الانتظار",
             "IN_TRANSIT": "قيد النقل",
+            "IN_CUSTOMS": "في الجمارك",
             "ARRIVED": "وصلت",
+            "DELIVERED": "تم التسليم",
             "CANCELLED": "ملغاة",
+            "RETURNED": "مرتجعة",
+        }[self.value]
+
+    @property
+    def color(self):
+        return {
+            "DRAFT": "secondary",
+            "PENDING": "warning",
+            "IN_TRANSIT": "info",
+            "IN_CUSTOMS": "primary",
+            "ARRIVED": "success",
+            "DELIVERED": "success",
+            "CANCELLED": "danger",
+            "RETURNED": "warning",
+        }[self.value]
+
+    @property
+    def icon(self):
+        return {
+            "DRAFT": "fa-edit",
+            "PENDING": "fa-clock",
+            "IN_TRANSIT": "fa-truck",
+            "IN_CUSTOMS": "fa-building",
+            "ARRIVED": "fa-check-circle",
+            "DELIVERED": "fa-check-double",
+            "CANCELLED": "fa-times-circle",
+            "RETURNED": "fa-undo",
+        }[self.value]
+
+
+class ShipmentPriority(str, enum.Enum):
+    LOW = "LOW"
+    NORMAL = "NORMAL"
+    HIGH = "HIGH"
+    URGENT = "URGENT"
+
+    @property
+    def label(self):
+        return {
+            "LOW": "منخفضة",
+            "NORMAL": "عادية",
+            "HIGH": "عالية",
+            "URGENT": "عاجلة",
+        }[self.value]
+
+    @property
+    def color(self):
+        return {
+            "LOW": "success",
+            "NORMAL": "info",
+            "HIGH": "warning",
+            "URGENT": "danger",
+        }[self.value]
+
+    @property
+    def icon(self):
+        return {
+            "LOW": "fa-arrow-down",
+            "NORMAL": "fa-minus",
+            "HIGH": "fa-arrow-up",
+            "URGENT": "fa-exclamation-triangle",
+        }[self.value]
+
+
+class DeliveryMethod(str, enum.Enum):
+    STANDARD = "STANDARD"
+    EXPRESS = "EXPRESS"
+    OVERNIGHT = "OVERNIGHT"
+    SAME_DAY = "SAME_DAY"
+    PICKUP = "PICKUP"
+
+    @property
+    def label(self):
+        return {
+            "STANDARD": "عادي",
+            "EXPRESS": "سريع",
+            "OVERNIGHT": "ليلي",
+            "SAME_DAY": "نفس اليوم",
+            "PICKUP": "استلام",
+        }[self.value]
+
+    @property
+    def color(self):
+        return {
+            "STANDARD": "info",
+            "EXPRESS": "warning",
+            "OVERNIGHT": "primary",
+            "SAME_DAY": "success",
+            "PICKUP": "secondary",
         }[self.value]
 
 
@@ -419,6 +524,115 @@ class AccountType(str, enum.Enum):
             "EXPENSE": "مصروف",
         }[self.value]
 
+
+class DeletionType(str, enum.Enum):
+    CUSTOMER = "CUSTOMER"
+    SUPPLIER = "SUPPLIER"
+    PARTNER = "PARTNER"
+    SALE = "SALE"
+    INVOICE = "INVOICE"
+    PAYMENT = "PAYMENT"
+    PURCHASE = "PURCHASE"
+    EXPENSE = "EXPENSE"
+
+    @property
+    def label(self):
+        return {
+            "CUSTOMER": "عميل",
+            "SUPPLIER": "مورد",
+            "PARTNER": "شريك",
+            "SALE": "بيع",
+            "INVOICE": "فاتورة",
+            "PAYMENT": "دفعة",
+            "PURCHASE": "مشتريات",
+            "EXPENSE": "مصروف",
+        }[self.value]
+
+
+class DeletionStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    RESTORED = "RESTORED"
+
+    @property
+    def label(self):
+        return {
+            "PENDING": "قيد الانتظار",
+            "COMPLETED": "مكتمل",
+            "FAILED": "فشل",
+            "RESTORED": "مستعاد",
+        }[self.value]
+
+    @property
+    def color(self):
+        return {
+            "PENDING": "warning",
+            "COMPLETED": "success",
+            "FAILED": "danger",
+            "RESTORED": "info",
+        }[self.value]
+
+class SystemSettings(db.Model):
+    __tablename__ = "system_settings"
+
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(100), unique=True, nullable=False, index=True)
+    value = db.Column(db.Text)
+    description = db.Column(db.Text)
+    data_type = db.Column(db.String(20), default='string')  # string, boolean, number, json
+    is_public = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @classmethod
+    def get_setting(cls, key, default=None):
+        """Get a system setting value"""
+        setting = cls.query.filter_by(key=key).first()
+        if not setting:
+            return default
+        
+        if setting.data_type == 'boolean':
+            return setting.value.lower() in ('true', '1', 'yes', 'on')
+        elif setting.data_type == 'number':
+            try:
+                return float(setting.value)
+            except (ValueError, TypeError):
+                return default
+        elif setting.data_type == 'json':
+            try:
+                return json.loads(setting.value)
+            except (ValueError, TypeError):
+                return default
+        else:
+            return setting.value or default
+
+    @classmethod
+    def set_setting(cls, key, value, description=None, data_type='string', is_public=False):
+        """Set a system setting value"""
+        setting = cls.query.filter_by(key=key).first()
+        if not setting:
+            setting = cls(
+                key=key,
+                description=description,
+                data_type=data_type,
+                is_public=is_public
+            )
+            db.session.add(setting)
+        
+        if data_type == 'json':
+            setting.value = json.dumps(value)
+        else:
+            setting.value = str(value)
+        
+        setting.description = description or setting.description
+        setting.data_type = data_type
+        setting.is_public = is_public
+        setting.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        return setting
+
 class Currency(db.Model):
     __tablename__ = "currencies"
     code = db.Column(db.String(10), primary_key=True)
@@ -426,7 +640,84 @@ class Currency(db.Model):
     symbol = db.Column(db.String(10))
     decimals = db.Column(db.Integer, nullable=False, server_default=sa_text("2"), default=2)
     is_active = db.Column(db.Boolean, nullable=False, server_default=sa_text("1"), default=True)
-    __table_args__ = (db.Index("ix_currencies_active_name", "is_active", "name"),)
+    __table_args__ = ()
+
+
+class DeletionLog(db.Model):
+    """سجل عمليات الحذف القوي مع إمكانية الاستعادة"""
+    __tablename__ = "deletion_logs"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    deletion_type = db.Column(db.String(20), nullable=False, index=True)  # DeletionType
+    entity_id = db.Column(db.Integer, nullable=False, index=True)  # معرف الكيان المحذوف
+    entity_name = db.Column(db.String(200), nullable=False)  # اسم الكيان المحذوف
+    status = db.Column(db.String(20), nullable=False, default="PENDING", index=True)  # DeletionStatus
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # تفاصيل الحذف
+    deleted_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    deletion_reason = db.Column(db.Text)  # سبب الحذف
+    confirmation_code = db.Column(db.String(50), unique=True, index=True)  # كود التأكيد
+    
+    # البيانات المحذوفة (JSON)
+    deleted_data = db.Column(db.JSON)  # البيانات المحذوفة للاستعادة
+    related_entities = db.Column(db.JSON)  # الكيانات المرتبطة المحذوفة
+    
+    # تفاصيل العمليات العكسية
+    stock_reversals = db.Column(db.JSON)  # عمليات إرجاع المخزون
+    accounting_reversals = db.Column(db.JSON)  # عمليات إرجاع المحاسبة
+    balance_reversals = db.Column(db.JSON)  # عمليات إرجاع الأرصدة
+    
+    # تفاصيل الاستعادة
+    restored_at = db.Column(db.DateTime)
+    restored_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    restoration_notes = db.Column(db.Text)
+    
+    # علاقات
+    deleted_by_user = db.relationship("User", foreign_keys=[deleted_by], backref="deletions_made")
+    restored_by_user = db.relationship("User", foreign_keys=[restored_by], backref="deletions_restored")
+    
+    __table_args__ = (
+        db.Index('ix_deletion_type_status', 'deletion_type', 'status'),
+        db.Index('ix_deletion_entity', 'deletion_type', 'entity_id'),
+        db.CheckConstraint('status IN ("PENDING","COMPLETED","FAILED","RESTORED")', name='chk_deletion_status'),
+    )
+    
+    def __repr__(self):
+        return f"<DeletionLog {self.deletion_type}:{self.entity_id} by {self.deleted_by}>"
+    
+    @property
+    def can_restore(self):
+        """هل يمكن استعادة هذا الحذف؟"""
+        return self.status == DeletionStatus.COMPLETED.value and self.deleted_data is not None
+    
+    @property
+    def is_restored(self):
+        """هل تم استعادة هذا الحذف؟"""
+        return self.status == DeletionStatus.RESTORED.value
+    
+    def mark_completed(self, deleted_data=None, related_entities=None, 
+                      stock_reversals=None, accounting_reversals=None, balance_reversals=None):
+        """تسجيل اكتمال الحذف"""
+        self.status = DeletionStatus.COMPLETED.value
+        self.deleted_data = deleted_data
+        self.related_entities = related_entities
+        self.stock_reversals = stock_reversals
+        self.accounting_reversals = accounting_reversals
+        self.balance_reversals = balance_reversals
+    
+    def mark_failed(self, error_message):
+        """تسجيل فشل الحذف"""
+        self.status = DeletionStatus.FAILED.value
+        self.deletion_reason = f"{self.deletion_reason or ''}\nخطأ: {error_message}"
+    
+    def mark_restored(self, restored_by, notes=None):
+        """تسجيل الاستعادة"""
+        self.status = DeletionStatus.RESTORED.value
+        self.restored_at = datetime.utcnow()
+        self.restored_by = restored_by
+        self.restoration_notes = notes
 
 class ExchangeRate(db.Model):
     __tablename__ = "exchange_rates"
@@ -438,7 +729,6 @@ class ExchangeRate(db.Model):
     source = db.Column(db.String(50))
     is_active = db.Column(db.Boolean, nullable=False, server_default=sa_text("1"), default=True)
     __table_args__ = (
-        db.Index("ix_fx_pair_from", "base_code", "quote_code", "valid_from"),
         db.UniqueConstraint("base_code", "quote_code", "valid_from", name="uq_fx_pair_from"),
     )
 
@@ -475,7 +765,7 @@ ALLOWED_PAYMENT_DIRECTIONS: dict[PaymentEntityType, set[str]] = {
     PaymentEntityType.INVOICE: {"IN", "OUT"},
     PaymentEntityType.PREORDER: {"IN", "OUT"},
     PaymentEntityType.LOAN: {"IN", "OUT"},
-    PaymentEntityType.EXPENSE: {"OUT"},
+    PaymentEntityType.EXPENSE: {"OUT"},  # المصاريف دائماً صادرة
     PaymentEntityType.SHIPMENT: {"IN", "OUT"},
 }
 
@@ -519,12 +809,25 @@ def _get_payment_model():
     except Exception:
         return None
 
-def fx_rate(base: str, quote: str, at: datetime | None = None) -> Decimal:
+def fx_rate(base: str, quote: str, at: datetime | None = None, raise_on_missing: bool = False) -> Decimal:
+    """سعر الصرف الذكي - محلي أولاً، ثم عالمي
+    
+    Args:
+        base: العملة الأساسية
+        quote: العملة المقابلة
+        at: التاريخ (اختياري)
+        raise_on_missing: إذا True، يرمي استثناء بدلاً من إرجاع صفر
+    
+    Returns:
+        سعر الصرف أو Decimal("0") أو يرمي استثناء
+    """
     b = ensure_currency(base)
     qv = ensure_currency(quote)
     if b == qv:
         return Decimal("1")
     t = at or datetime.utcnow()
+    
+    # 1. البحث عن سعر محلي (مدخل من الادمن)
     q = (
         db.session.query(ExchangeRate.rate)
         .filter(
@@ -536,9 +839,162 @@ def fx_rate(base: str, quote: str, at: datetime | None = None) -> Decimal:
         .order_by(ExchangeRate.valid_from.desc())
     )
     v = q.first()
-    if not v:
-        return Decimal("0")
-    return Decimal(str(v[0]))
+    if v:
+        return Decimal(str(v[0]))
+    
+    # 2. في حال عدم وجود سعر محلي، جرب السيرفرات العالمية
+    try:
+        online_rate = _fetch_external_fx_rate(b, qv, t)
+        if online_rate and online_rate > Decimal("0"):
+            return online_rate
+    except Exception as e:
+        if raise_on_missing:
+            raise ValueError(f"⚠️ سعر الصرف غير متوفر لـ {b}/{qv}. يرجى:\n1. إدخال سعر يدوي من إعدادات العملات\n2. تفعيل السيرفر الأونلاين\n3. إعادة المحاولة لاحقاً")
+    
+    # 3. إذا فشل كل شيء
+    if raise_on_missing:
+        raise ValueError(f"⚠️ سعر الصرف غير متوفر لـ {b}/{qv}. يرجى:\n1. إدخال سعر يدوي من إعدادات العملات\n2. تفعيل السيرفر الأونلاين\n3. إعادة المحاولة لاحقاً")
+    
+    return Decimal("0")
+
+def _fetch_external_fx_rate(base: str, quote: str, at: datetime) -> Decimal:
+    """سحب سعر الصرف من السيرفرات العالمية مع التحكم في الإعدادات"""
+    import requests
+    import json
+    from decimal import Decimal
+    
+    # التحقق من إعدادات النظام
+    try:
+        from models import SystemSettings
+        online_fx_enabled = SystemSettings.get_setting('online_fx_enabled', True)
+        if not online_fx_enabled:
+            return None
+    except:
+        # في حالة عدم وجود SystemSettings، استمر بالطريقة العادية
+        pass
+    
+    # قائمة السيرفرات العالمية (بترتيب الأولوية)
+    fx_services = [
+        _fetch_from_fixer_io,
+        _fetch_from_exchangerate_api,
+        _fetch_from_currencylayer,
+        _fetch_from_exchangerate_host
+    ]
+    
+    for service in fx_services:
+        try:
+            rate = service(base, quote, at)
+            if rate and rate > Decimal("0"):
+                # حفظ السعر في قاعدة البيانات للاستخدام المستقبلي
+                _save_external_rate(base, quote, rate, at)
+                return rate
+        except Exception:
+            continue
+    
+    raise ValueError("fx.external_services_unavailable")
+
+def _fetch_from_fixer_io(base: str, quote: str, at: datetime) -> Decimal:
+    """سحب من Fixer.io"""
+    import requests
+    from decimal import Decimal
+    
+    # Fixer.io API (مجاني مع حدود)
+    url = f"http://data.fixer.io/api/latest"
+    params = {
+        'access_key': 'YOUR_FIXER_API_KEY',  # يحتاج API key
+        'base': base,
+        'symbols': quote
+    }
+    
+    response = requests.get(url, params=params, timeout=10)
+    data = response.json()
+    
+    if data.get('success') and quote in data.get('rates', {}):
+        return Decimal(str(data['rates'][quote]))
+    
+    raise ValueError("fixer_io_failed")
+
+def _fetch_from_exchangerate_api(base: str, quote: str, at: datetime) -> Decimal:
+    """سحب من ExchangeRate-API.com"""
+    import requests
+    from decimal import Decimal
+    
+    # ExchangeRate-API.com (مجاني بدون API key)
+    url = f"https://api.exchangerate-api.com/v4/latest/{base}"
+    
+    response = requests.get(url, timeout=10)
+    data = response.json()
+    
+    if 'rates' in data and quote in data['rates']:
+        return Decimal(str(data['rates'][quote]))
+    
+    raise ValueError("exchangerate_api_failed")
+
+def _fetch_from_currencylayer(base: str, quote: str, at: datetime) -> Decimal:
+    """سحب من CurrencyLayer"""
+    import requests
+    from decimal import Decimal
+    
+    # CurrencyLayer API
+    url = f"http://api.currencylayer.com/live"
+    params = {
+        'access_key': 'YOUR_CURRENCYLAYER_API_KEY',  # يحتاج API key
+        'currencies': quote,
+        'source': base
+    }
+    
+    response = requests.get(url, params=params, timeout=10)
+    data = response.json()
+    
+    if data.get('success') and f"{base}{quote}" in data.get('quotes', {}):
+        return Decimal(str(data['quotes'][f"{base}{quote}"]))
+    
+    raise ValueError("currencylayer_failed")
+
+def _fetch_from_exchangerate_host(base: str, quote: str, at: datetime) -> Decimal:
+    """سحب من ExchangeRate-Host"""
+    import requests
+    from decimal import Decimal
+    
+    # ExchangeRate-Host (مجاني)
+    url = f"https://api.exchangerate.host/latest"
+    params = {
+        'base': base,
+        'symbols': quote
+    }
+    
+    response = requests.get(url, params=params, timeout=10)
+    data = response.json()
+    
+    if data.get('success') and 'rates' in data and quote in data['rates']:
+        return Decimal(str(data['rates'][quote]))
+    
+    raise ValueError("exchangerate_host_failed")
+
+def _save_external_rate(base: str, quote: str, rate: Decimal, at: datetime):
+    """حفظ السعر الخارجي في قاعدة البيانات"""
+    try:
+        # التحقق من وجود السعر مسبقاً
+        existing = db.session.query(ExchangeRate).filter(
+            ExchangeRate.base_code == base,
+            ExchangeRate.quote_code == quote,
+            ExchangeRate.valid_from == at.date()
+        ).first()
+        
+        if not existing:
+            external_rate = ExchangeRate(
+                base_code=base,
+                quote_code=quote,
+                rate=rate,
+                valid_from=at,
+                source="External API",
+                is_active=True
+            )
+            db.session.add(external_rate)
+            db.session.commit()
+    except Exception:
+        # في حال فشل الحفظ، لا نريد إيقاف العملية
+        pass
 
 def convert_amount(amount: Decimal | float | str, from_code: str, to_code: str, at: datetime | None = None) -> Decimal:
     amt = money(amount)
@@ -546,6 +1002,104 @@ def convert_amount(amount: Decimal | float | str, from_code: str, to_code: str, 
     if r <= Decimal("0"):
         raise ValueError("fx.rate_unavailable")
     return money(amt * r)
+
+def auto_update_missing_rates():
+    """تحديث تلقائي للأسعار المفقودة من السيرفرات العالمية"""
+    try:
+        # الحصول على جميع العملات النشطة
+        currencies = db.session.query(Currency).filter_by(is_active=True).all()
+        currency_codes = [c.code for c in currencies]
+        
+        updated_count = 0
+        today = datetime.utcnow().date()
+        
+        for base_code in currency_codes:
+            for quote_code in currency_codes:
+                if base_code == quote_code:
+                    continue
+                
+                # التحقق من وجود سعر لهذا اليوم
+                existing_rate = db.session.query(ExchangeRate).filter(
+                    ExchangeRate.base_code == base_code,
+                    ExchangeRate.quote_code == quote_code,
+                    ExchangeRate.valid_from == today
+                ).first()
+                
+                if not existing_rate:
+                    try:
+                        # محاولة سحب السعر من السيرفرات العالمية
+                        rate = _fetch_external_fx_rate(base_code, quote_code, datetime.utcnow())
+                        if rate and rate > Decimal("0"):
+                            updated_count += 1
+                    except Exception:
+                        continue
+        
+        return {
+            'success': True,
+            'updated_rates': updated_count,
+            'message': f'تم تحديث {updated_count} سعر صرف'
+        }
+    except Exception as e:
+        return {
+            'success': False,
+            'error': str(e),
+            'message': 'فشل في التحديث التلقائي'
+        }
+
+def get_fx_rate_with_fallback(base: str, quote: str, at: datetime | None = None) -> dict:
+    """الحصول على سعر الصرف مع معلومات المصدر والبديل الذكي"""
+    try:
+        # محاولة جلب السعر من السيرفرات الأونلاين أولاً
+        try:
+            online_rate = _fetch_external_fx_rate(base, quote, at or datetime.utcnow())
+            if online_rate and online_rate > Decimal("0"):
+                return {
+                    'rate': float(online_rate),
+                    'source': 'online',
+                    'base': base,
+                    'quote': quote,
+                    'timestamp': at or datetime.utcnow(),
+                    'success': True
+                }
+        except:
+            pass
+        
+        # في حالة فشل الأونلاين، جرب السعر المحلي
+        try:
+            local_rate = fx_rate(base, quote, at)
+            if local_rate and local_rate > Decimal("0"):
+                return {
+                    'rate': float(local_rate),
+                    'source': 'manual',
+                    'base': base,
+                    'quote': quote,
+                    'timestamp': at or datetime.utcnow(),
+                    'success': True
+                }
+        except:
+            pass
+        
+        # في حالة فشل كل شيء، استخدم سعر افتراضي
+        return {
+            'rate': 1.0,
+            'source': 'default',
+            'base': base,
+            'quote': quote,
+            'timestamp': at or datetime.utcnow(),
+            'success': False,
+            'error': 'No exchange rate available'
+        }
+        
+    except Exception as e:
+        return {
+            'rate': 0.0,
+            'source': 'failed',
+            'base': base,
+            'quote': quote,
+            'timestamp': at or datetime.utcnow(),
+            'success': False,
+            'error': str(e)
+        }
 
 def _payment_fk_column_for_type(PaymentModel, et: PaymentEntityType | str):
     etv = PaymentEntityType(str(et)).value
@@ -582,7 +1136,7 @@ def refundable_amount_for(entity_type: PaymentEntityType | str, entity_id: int, 
             PaymentModel.entity_type == et.value,
             fk_col == int(entity_id),
             PaymentModel.currency == ccy,
-            PaymentModel.direction == PaymentDirection.INCOMING.value,
+            PaymentModel.direction == PaymentDirection.IN.value,
             PaymentModel.status == PaymentStatus.COMPLETED.value,
         ).scalar() or 0
     ))
@@ -593,7 +1147,7 @@ def refundable_amount_for(entity_type: PaymentEntityType | str, entity_id: int, 
             PaymentModel.entity_type == et.value,
             fk_col == int(entity_id),
             PaymentModel.currency == ccy,
-            PaymentModel.direction == PaymentDirection.OUTGOING.value,
+            PaymentModel.direction == PaymentDirection.OUT.value,
             PaymentModel.status.in_([PaymentStatus.PENDING.value, PaymentStatus.COMPLETED.value]),
         ).scalar() or 0
     ))
@@ -620,7 +1174,7 @@ def receivable_amount_for(entity_type: PaymentEntityType | str, entity_id: int, 
             PaymentModel.entity_type == et.value,
             fk_col == int(entity_id),
             PaymentModel.currency == ccy,
-            PaymentModel.direction == PaymentDirection.OUTGOING.value,
+            PaymentModel.direction == PaymentDirection.OUT.value,
             PaymentModel.status == PaymentStatus.COMPLETED.value,
         ).scalar() or 0
     ))
@@ -631,7 +1185,7 @@ def receivable_amount_for(entity_type: PaymentEntityType | str, entity_id: int, 
             PaymentModel.entity_type == et.value,
             fk_col == int(entity_id),
             PaymentModel.currency == ccy,
-            PaymentModel.direction == PaymentDirection.INCOMING.value,
+            PaymentModel.direction == PaymentDirection.IN.value,
             PaymentModel.status.in_([PaymentStatus.PENDING.value, PaymentStatus.COMPLETED.value]),
         ).scalar() or 0
     ))
@@ -641,12 +1195,9 @@ def receivable_amount_for(entity_type: PaymentEntityType | str, entity_id: int, 
 
 
 def validate_payment_policies(*, entity_type: PaymentEntityType | str, entity_id: int, direction: PaymentDirection | str, amount, currency: str | None = None) -> None:
-    if not is_direction_allowed(entity_type, direction):
-        raise ValueError("payment.direction_not_allowed_for_entity")
-
     amt = money(amount)
     if amt <= Decimal("0.00"):
-        raise ValueError("payment.amount_must_be_positive")
+        raise ValueError("المبلغ يجب أن يكون أكبر من صفر")
 
     cur = ensure_currency(currency)
 
@@ -657,26 +1208,13 @@ def validate_payment_policies(*, entity_type: PaymentEntityType | str, entity_id
 
     et = PaymentEntityType(str(entity_type))
 
-    if dval == "OUT" and et in {
-        PaymentEntityType.CUSTOMER,
-        PaymentEntityType.SALE,
-        PaymentEntityType.INVOICE,
-        PaymentEntityType.SERVICE,
-        PaymentEntityType.PREORDER,
-    }:
-        cap = refundable_amount_for(et, entity_id, cur)
-        if amt > cap:
-            raise ValueError("payment.refund_exceeds_captured_total")
+    # السماح بجميع الاتجاهات للجميع عدا النفقات
+    # النفقات دائماً صادرة فقط
+    if et == PaymentEntityType.EXPENSE and dval == "IN":
+        raise ValueError("النفقات دائماً صادرة فقط")
 
-    if dval == "IN" and et in {
-        PaymentEntityType.SUPPLIER,
-        PaymentEntityType.PARTNER,
-        PaymentEntityType.SHIPMENT,
-        PaymentEntityType.LOAN,
-    }:
-        cap = receivable_amount_for(et, entity_id, cur)
-        if amt > cap:
-            raise ValueError("payment.incoming_exceeds_paid_total")
+    # إزالة القيود الأخرى للسماح بمرونة أكبر في الدفعات
+    # يمكن إضافة قيود إضافية هنا حسب الحاجة
 
 class TimestampMixin:
     created_at = db.Column(db.DateTime, nullable=False, server_default=func.now(), default=func.now(), index=True)
@@ -727,7 +1265,7 @@ class AuthAudit(db.Model):
 
     user = relationship("User", backref=db.backref("auth_events", lazy="dynamic"))
 
-    __table_args__ = (db.Index("ix_auth_audit_event_time", "event", "created_at"),)
+    __table_args__ = ()
 
 
 def _auth_log(
@@ -787,6 +1325,7 @@ class User(db.Model, UserMixin, TimestampMixin, AuditMixin):
     last_seen = db.Column(db.DateTime)
     last_login_ip = db.Column(db.String(64))
     login_count = db.Column(db.Integer, nullable=False, server_default=sa_text("0"))
+    avatar_url = db.Column(db.String(500))
     notes_text = db.Column(db.Text)
     role = relationship("Role", backref="users", lazy="joined")
     extra_permissions = relationship(
@@ -822,7 +1361,7 @@ class User(db.Model, UserMixin, TimestampMixin, AuditMixin):
         foreign_keys="[Sale.cancelled_by]",
     )
 
-    __table_args__ = (db.Index("ix_users_role_active", "role_id", "is_active"),)
+    __table_args__ = ()
 
     @validates("email")
     def _v_email(self, key, value):
@@ -913,6 +1452,22 @@ class User(db.Model, UserMixin, TimestampMixin, AuditMixin):
     def touch(self) -> None:
         self.last_seen = datetime.utcnow()
 
+    @property
+    def avatar_or_initials(self) -> str:
+        """Returns avatar URL if available, otherwise returns initials"""
+        if self.avatar_url:
+            return self.avatar_url
+        
+        # Generate initials from username or email
+        name = self.username or self.email or "U"
+        initials = "".join([word[0].upper() for word in name.split()[:2]])
+        return initials[:2] if initials else "U"
+
+    @property
+    def display_name(self) -> str:
+        """Returns display name for the user"""
+        return self.username or self.email or f"User {self.id}"
+
     def __repr__(self):
         return f"<User {self.username or self.id}>"
 
@@ -928,7 +1483,7 @@ class Permission(db.Model, AuditMixin):
     is_protected = db.Column(db.Boolean, nullable=False, server_default=sa_text("0"), default=False)
     aliases = db.Column(db.JSON, default=list)
 
-    __table_args__ = (db.Index("ix_permissions_module_code", "module", "code"),)
+    __table_args__ = ()
 
     @validates("name", "code")
     def _v_norm(self, key, value):
@@ -1010,7 +1565,7 @@ class Role(db.Model, AuditMixin):
         backref=db.backref("role_permissions", lazy="selectin"),
     )
 
-    __table_args__ = (db.Index("ix_roles_default_name", "is_default", "name"),)
+    __table_args__ = ()
 
     @validates("name")
     def _v_name(self, key, value):
@@ -1055,10 +1610,6 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
     online_preorders = relationship("OnlinePreOrder", back_populates="customer")
 
     __table_args__ = (
-        db.Index("ix_customers_active_online", "is_active", "is_online"),
-        db.Index("ix_customers_name", "name"),
-        db.Index("ix_customers_whatsapp", "whatsapp"),
-        db.Index("ix_customers_archived", "is_archived"),
         CheckConstraint("credit_limit >= 0", name="ck_customer_credit_limit_non_negative"),
         CheckConstraint("discount_rate >= 0 AND discount_rate <= 100", name="ck_customer_discount_0_100"),
     )
@@ -1167,7 +1718,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
             db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
             .filter(
                 Payment.customer_id == self.id,
-                Payment.direction == PaymentDirection.INCOMING.value,
+                Payment.direction == PaymentDirection.IN.value,
                 Payment.status == PaymentStatus.COMPLETED.value,
             )
             .scalar()
@@ -1180,7 +1731,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
             select(func.coalesce(func.sum(Payment.total_amount), 0))
             .where(
                 (Payment.customer_id == cls.id)
-                & (Payment.direction == PaymentDirection.INCOMING.value)
+                & (Payment.direction == PaymentDirection.IN.value)
                 & (Payment.status == PaymentStatus.COMPLETED.value)
             )
             .scalar_subquery()
@@ -1189,6 +1740,76 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
     @hybrid_property
     def balance(self):
         return self.total_invoiced - self.total_paid
+
+    @hybrid_property
+    def balance_in_ils(self):
+        """الرصيد بالشيكل - حساب دقيق مع تحويل العملات"""
+        try:
+            # حساب المدفوعات بالشيكل
+            payments = db.session.query(Payment).filter(
+                Payment.customer_id == self.id,
+                Payment.status == PaymentStatus.COMPLETED.value
+            ).all()
+            
+            total_paid_ils = Decimal("0.00")
+            for payment in payments:
+                amount = Decimal(str(payment.total_amount or 0))
+                currency = payment.currency or "ILS"
+                direction = payment.direction
+                
+                # تحويل للشيكل باستخدام الأسعار الحقيقية
+                if currency == "ILS":
+                    converted_amount = amount
+                else:
+                    try:
+                        # استخدام الأسعار اليدوية فقط لتجنب مشاكل قاعدة البيانات
+                        converted_amount = convert_amount(amount, currency, "ILS", payment.payment_date)
+                    except Exception as e:
+                        # تسجيل الخطأ - لا نستخدم المبلغ الأصلي لأنه بعملة مختلفة
+                        try:
+                            from flask import current_app
+                            current_app.logger.error(f"❌ خطأ في تحويل العملة لحساب رصيد العميل #{self.id}: {str(e)}")
+                        except:
+                            pass
+                        # تجاهل هذا المبلغ من الحساب
+                        continue
+                
+                # تطبيق اتجاه الدفع
+                if direction == PaymentDirection.IN.value:
+                    total_paid_ils += converted_amount
+                else:
+                    total_paid_ils -= converted_amount
+            
+            # حساب الفواتير بالشيكل
+            invoices = db.session.query(Invoice).filter(
+                Invoice.customer_id == self.id,
+                Invoice.status.in_(["UNPAID", "PARTIAL", "PAID"])
+            ).all()
+            
+            total_invoiced_ils = Decimal("0.00")
+            for invoice in invoices:
+                amount = Decimal(str(invoice.total_amount or 0))
+                currency = getattr(invoice, 'currency', 'ILS')
+                
+                if currency == "ILS":
+                    total_invoiced_ils += amount
+                else:
+                    try:
+                        converted_amount = convert_amount(amount, currency, "ILS", invoice.invoice_date)
+                        total_invoiced_ils += converted_amount
+                    except Exception as e:
+                        # تسجيل الخطأ عند فشل التحويل
+                        try:
+                            from flask import current_app
+                            current_app.logger.error(f"❌ خطأ في تحويل العملة للفاتورة #{invoice.id}: {str(e)}")
+                        except:
+                            pass
+                        # تجاهل هذا المبلغ
+                        continue
+            
+            return total_invoiced_ils - total_paid_ils
+        except Exception:
+            return Decimal("0.00")
 
     @hybrid_property
     def credit_status(self):
@@ -1265,10 +1886,7 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
     warehouses = db.relationship("Warehouse", back_populates="supplier")
     loan_settlements = db.relationship("SupplierLoanSettlement", back_populates="supplier", cascade="all, delete-orphan")
 
-    __table_args__ = (
-        db.Index("ix_suppliers_name", "name"),
-        CheckConstraint("balance >= 0", name="ck_supplier_balance_non_negative"),
-    )
+    __table_args__ = ()
 
     @validates("email")
     def _v_email(self, _, v):
@@ -1289,7 +1907,7 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
             db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
             .filter(
                 Payment.supplier_id == self.id,
-                Payment.direction == PaymentDirection.OUTGOING.value,
+                Payment.direction == PaymentDirection.OUT.value,
                 Payment.status == PaymentStatus.COMPLETED.value,
             )
             .scalar()
@@ -1299,7 +1917,7 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
             db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
             .join(SupplierLoanSettlement, SupplierLoanSettlement.id == Payment.loan_settlement_id)
             .filter(
-                Payment.direction == PaymentDirection.OUTGOING.value,
+                Payment.direction == PaymentDirection.OUT.value,
                 Payment.status == PaymentStatus.COMPLETED.value,
                 SupplierLoanSettlement.supplier_id == self.id,
             )
@@ -1314,7 +1932,7 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
             select(func.coalesce(func.sum(Payment.total_amount), 0))
             .where(
                 (Payment.supplier_id == cls.id)
-                & (Payment.direction == PaymentDirection.OUTGOING.value)
+                & (Payment.direction == PaymentDirection.OUT.value)
                 & (Payment.status == PaymentStatus.COMPLETED.value)
             )
             .scalar_subquery()
@@ -1323,7 +1941,7 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
             select(func.coalesce(func.sum(Payment.total_amount), 0))
             .select_from(Payment.__table__.join(SupplierLoanSettlement, SupplierLoanSettlement.id == Payment.loan_settlement_id))
             .where(
-                (Payment.direction == PaymentDirection.OUTGOING.value)
+                (Payment.direction == PaymentDirection.OUT.value)
                 & (Payment.status == PaymentStatus.COMPLETED.value)
                 & (SupplierLoanSettlement.supplier_id == cls.id)
             )
@@ -1341,7 +1959,7 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
             select(func.coalesce(func.sum(Payment.total_amount), 0))
             .where(
                 (Payment.supplier_id == cls.id)
-                & (Payment.direction == PaymentDirection.OUTGOING.value)
+                & (Payment.direction == PaymentDirection.OUT.value)
                 & (Payment.status == PaymentStatus.COMPLETED.value)
             )
             .scalar_subquery()
@@ -1350,13 +1968,66 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
             select(func.coalesce(func.sum(Payment.total_amount), 0))
             .select_from(Payment.__table__.join(SupplierLoanSettlement, SupplierLoanSettlement.id == Payment.loan_settlement_id))
             .where(
-                (Payment.direction == PaymentDirection.OUTGOING.value)
+                (Payment.direction == PaymentDirection.OUT.value)
                 & (Payment.status == PaymentStatus.COMPLETED.value)
                 & (SupplierLoanSettlement.supplier_id == cls.id)
             )
             .scalar_subquery()
         )
         return cls.balance - (direct_subq + via_loans_subq)
+
+    @hybrid_property
+    def balance_in_ils(self):
+        """الرصيد بالشيكل - حساب دقيق مع تحويل العملات"""
+        try:
+            # حساب المدفوعات بالشيكل
+            payments = db.session.query(Payment).filter(
+                Payment.supplier_id == self.id,
+                Payment.status == PaymentStatus.COMPLETED.value
+            ).all()
+            
+            total_paid_ils = Decimal("0.00")
+            for payment in payments:
+                amount = Decimal(str(payment.total_amount or 0))
+                currency = payment.currency or "ILS"
+                direction = payment.direction
+                
+                # تحويل للشيكل باستخدام الأسعار الحقيقية
+                if currency == "ILS":
+                    converted_amount = amount
+                else:
+                    try:
+                        # استخدام الأسعار اليدوية فقط لتجنب مشاكل قاعدة البيانات
+                        converted_amount = convert_amount(amount, currency, "ILS", payment.payment_date)
+                    except Exception as e:
+                        # تسجيل الخطأ - لا نستخدم المبلغ الأصلي لأنه بعملة مختلفة
+                        try:
+                            from flask import current_app
+                            current_app.logger.error(f"❌ خطأ في تحويل العملة لحساب رصيد المورد #{self.id}: {str(e)}")
+                        except:
+                            pass
+                        # تجاهل هذا المبلغ من الحساب
+                        continue
+                
+                # تطبيق اتجاه الدفع
+                if direction == PaymentDirection.OUT.value:
+                    total_paid_ils += converted_amount
+                else:
+                    total_paid_ils -= converted_amount
+            
+            # حساب الرصيد الأساسي بالشيكل
+            base_balance = Decimal(str(self.balance or 0))
+            if self.currency == "ILS":
+                base_balance_ils = base_balance
+            else:
+                try:
+                    base_balance_ils = convert_amount(base_balance, self.currency, "ILS")
+                except Exception:
+                    base_balance_ils = base_balance
+            
+            return base_balance_ils - total_paid_ils
+        except Exception:
+            return Decimal("0.00")
 
     def to_dict(self):
         return {
@@ -1412,12 +2083,7 @@ class SupplierSettlement(db.Model, TimestampMixin, AuditMixin):
     supplier = db.relationship("Supplier", backref="settlements")
     lines = db.relationship("SupplierSettlementLine", back_populates="settlement", cascade="all, delete-orphan")
 
-    __table_args__ = (
-        db.Index("ix_supplier_settlements_supplier_period", "supplier_id", "from_date", "to_date"),
-        CheckConstraint("total_gross >= 0", name="ck_supplier_settlement_gross_non_negative"),
-        CheckConstraint("total_due >= 0", name="ck_supplier_settlement_due_non_negative"),
-        CheckConstraint("to_date >= from_date", name="ck_supplier_settlement_dates_order"),
-    )
+    __table_args__ = ()
 
     @validates("status", "mode")
     def _v_str_enums(self, _, v):
@@ -1436,7 +2102,7 @@ class SupplierSettlement(db.Model, TimestampMixin, AuditMixin):
             db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
             .filter(
                 Payment.status == PaymentStatus.COMPLETED.value,
-                Payment.direction == PaymentDirection.OUTGOING.value,
+                Payment.direction == PaymentDirection.OUT.value,
                 Payment.entity_type == PaymentEntityType.SUPPLIER.value,
                 Payment.supplier_id == self.supplier_id,
                 Payment.reference == ref,
@@ -1479,12 +2145,7 @@ class SupplierSettlementLine(db.Model, TimestampMixin):
     settlement = db.relationship("SupplierSettlement", back_populates="lines")
     product = db.relationship("Product")
 
-    __table_args__ = (
-        db.Index("ix_ssl_source", "source_type", "source_id"),
-        CheckConstraint("quantity >= 0", name="ck_ssl_quantity_non_negative"),
-        CheckConstraint("unit_price >= 0", name="ck_ssl_unit_price_non_negative"),
-        CheckConstraint("gross_amount >= 0", name="ck_ssl_gross_amount_non_negative"),
-    )
+    __table_args__ = ()
 
 
 def _ex_dir_sign(direction: str) -> int:
@@ -1537,7 +2198,7 @@ class SupplierLoanSettlement(db.Model, TimestampMixin, AuditMixin):
             payment_date=datetime.utcnow(),
             method=method or PaymentMethod.BANK,
             status=status or PaymentStatus.PENDING,
-            direction=direction or PaymentDirection.OUTGOING,
+            direction=direction or PaymentDirection.OUT,
             entity_type=PaymentEntityType.LOAN,
             currency=currency or (getattr(self.supplier, "currency", None) or "ILS"),
             supplier_id=getattr(self.supplier, "id", None),
@@ -1703,11 +2364,7 @@ class Partner(db.Model, TimestampMixin, AuditMixin):
     service_tasks = db.relationship("ServiceTask", back_populates="partner")
     expenses = db.relationship("Expense", back_populates="partner")
 
-    __table_args__ = (
-        db.Index("ix_partners_name", "name"),
-        db.CheckConstraint("balance >= 0", name="ck_partner_balance_non_negative"),
-        db.CheckConstraint("share_percentage >= 0 AND share_percentage <= 100", name="ck_partner_share_percentage_range"),
-    )
+    __table_args__ = ()
 
     @validates("email")
     def _v_email(self, _, v):
@@ -1737,7 +2394,7 @@ class Partner(db.Model, TimestampMixin, AuditMixin):
             db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
             .filter(
                 Payment.partner_id == self.id,
-                Payment.direction == PaymentDirection.OUTGOING.value,
+                Payment.direction == PaymentDirection.OUT.value,
                 Payment.status == PaymentStatus.COMPLETED.value,
             )
             .scalar()
@@ -1751,11 +2408,64 @@ class Partner(db.Model, TimestampMixin, AuditMixin):
             select(func.coalesce(func.sum(Payment.total_amount), 0))
             .where(
                 (Payment.partner_id == cls.id)
-                & (Payment.direction == PaymentDirection.OUTGOING.value)
+                & (Payment.direction == PaymentDirection.OUT.value)
                 & (Payment.status == PaymentStatus.COMPLETED.value)
             )
             .scalar_subquery()
         )
+
+    @hybrid_property
+    def balance_in_ils(self):
+        """الرصيد بالشيكل - حساب دقيق مع تحويل العملات"""
+        try:
+            # حساب المدفوعات بالشيكل
+            payments = db.session.query(Payment).filter(
+                Payment.partner_id == self.id,
+                Payment.status == PaymentStatus.COMPLETED.value
+            ).all()
+
+            total_paid_ils = Decimal("0.00")
+            for payment in payments:
+                amount = Decimal(str(payment.total_amount or 0))
+                currency = payment.currency or "ILS"
+                direction = payment.direction
+
+                # تحويل للشيكل باستخدام الأسعار الحقيقية
+                if currency == "ILS":
+                    converted_amount = amount
+                else:
+                    try:
+                        # استخدام الأسعار اليدوية فقط لتجنب مشاكل قاعدة البيانات
+                        converted_amount = convert_amount(amount, currency, "ILS", payment.payment_date)
+                    except Exception as e:
+                        # تسجيل الخطأ - لا نستخدم المبلغ الأصلي لأنه بعملة مختلفة
+                        try:
+                            from flask import current_app
+                            current_app.logger.error(f"❌ خطأ في تحويل العملة لحساب رصيد الشريك #{self.id}: {str(e)}")
+                        except:
+                            pass
+                        # تجاهل هذا المبلغ من الحساب
+                        continue
+
+                # تطبيق اتجاه الدفع
+                if direction == PaymentDirection.OUT.value:
+                    total_paid_ils += converted_amount
+                else:
+                    total_paid_ils -= converted_amount
+
+            # حساب الرصيد الأساسي بالشيكل
+            base_balance = Decimal(str(self.balance or 0))
+            if self.currency == "ILS":
+                base_balance_ils = base_balance
+            else:
+                try:
+                    base_balance_ils = convert_amount(base_balance, self.currency, "ILS")
+                except Exception:
+                    base_balance_ils = base_balance
+
+            return base_balance_ils - total_paid_ils
+        except Exception:
+            return Decimal("0.00")
 
     @hybrid_property
     def net_balance(self):
@@ -1767,7 +2477,7 @@ class Partner(db.Model, TimestampMixin, AuditMixin):
             select(func.coalesce(func.sum(Payment.total_amount), 0))
             .where(
                 (Payment.partner_id == cls.id)
-                & (Payment.direction == PaymentDirection.OUTGOING.value)
+                & (Payment.direction == PaymentDirection.OUT.value)
                 & (Payment.status == PaymentStatus.COMPLETED.value)
             )
             .scalar_subquery()
@@ -1821,13 +2531,7 @@ class PartnerSettlement(db.Model, TimestampMixin, AuditMixin):
     partner = db.relationship("Partner", backref="settlements")
     lines = db.relationship("PartnerSettlementLine", back_populates="settlement", cascade="all, delete-orphan")
 
-    __table_args__ = (
-        db.Index("ix_partner_settlements_partner_period", "partner_id", "from_date", "to_date"),
-        db.CheckConstraint("total_gross >= 0", name="ck_partner_settlement_gross_non_negative"),
-        db.CheckConstraint("total_share >= 0", name="ck_partner_settlement_share_non_negative"),
-        db.CheckConstraint("total_costs >= 0", name="ck_partner_settlement_costs_non_negative"),
-        db.CheckConstraint("total_due >= 0", name="ck_partner_settlement_due_non_negative"),
-    )
+    __table_args__ = ()
 
     @hybrid_property
     def total_paid(self):
@@ -1839,7 +2543,7 @@ class PartnerSettlement(db.Model, TimestampMixin, AuditMixin):
             .filter(
                 Payment.partner_id == self.partner_id,
                 Payment.status == PaymentStatus.COMPLETED.value,
-                Payment.direction == PaymentDirection.OUTGOING.value,
+                Payment.direction == PaymentDirection.OUT.value,
                 Payment.entity_type == PaymentEntityType.PARTNER.value,
                 Payment.reference == ref,
             )
@@ -1900,14 +2604,7 @@ class PartnerSettlementLine(db.Model, TimestampMixin):
     product = db.relationship("Product")
     warehouse = db.relationship("Warehouse")
 
-    __table_args__ = (
-        db.Index("ix_psl_source", "source_type", "source_id"),
-        db.CheckConstraint("quantity >= 0", name="ck_psl_quantity_non_negative"),
-        db.CheckConstraint("unit_price >= 0", name="ck_psl_unit_price_non_negative"),
-        db.CheckConstraint("gross_amount >= 0", name="ck_psl_gross_amount_non_negative"),
-        db.CheckConstraint("share_percent >= 0 AND share_percent <= 100", name="ck_psl_share_percent_range"),
-        db.CheckConstraint("share_amount >= 0", name="ck_psl_share_amount_non_negative"),
-    )
+    __table_args__ = ()
 
 
 def _find_partner_share_percentage(partner_id: int, product_id: int | None, warehouse_id: int | None) -> float:
@@ -2029,7 +2726,7 @@ class Employee(db.Model, TimestampMixin, AuditMixin):
 
     expenses = relationship("Expense", back_populates="employee", cascade="all, delete-orphan")
 
-    __table_args__ = (db.Index("ix_employees_name", "name"),)
+    __table_args__ = ()
 
     @validates("email")
     def _v_email(self, _, v):
@@ -2060,7 +2757,7 @@ class Employee(db.Model, TimestampMixin, AuditMixin):
             .filter(
                 Expense.employee_id == self.id,
                 Payment.status == PaymentStatus.COMPLETED.value,
-                Payment.direction == PaymentDirection.OUTGOING.value,
+                Payment.direction == PaymentDirection.OUT.value,
             )
             .scalar()
         )
@@ -2073,7 +2770,7 @@ class Employee(db.Model, TimestampMixin, AuditMixin):
             .where(
                 (Expense.employee_id == cls.id)
                 & (Payment.status == PaymentStatus.COMPLETED.value)
-                & (Payment.direction == PaymentDirection.OUTGOING.value)
+                & (Payment.direction == PaymentDirection.OUT.value)
             )
             .scalar_subquery()
         )
@@ -2123,9 +2820,7 @@ class ProductCategory(db.Model, TimestampMixin):
     image_url = db.Column(db.String(255))
     parent = db.relationship('ProductCategory', remote_side=[id], backref='subcategories')
     products = db.relationship('Product', back_populates='category')
-    __table_args__ = (
-        Index("uq_category_parent_lower_name", func.lower(name), parent_id, unique=True),
-    )
+    __table_args__ = ()
     @validates("name", "description", "image_url")
     def _v_strip(self, _, v):
         return (v or "").strip() or None
@@ -2328,14 +3023,7 @@ class Warehouse(db.Model, TimestampMixin, AuditMixin):
     partner_shares = db.relationship('WarehousePartnerShare', back_populates='warehouse')
     expenses = db.relationship('Expense', back_populates='warehouse')
     stock_adjustments = db.relationship('StockAdjustment', back_populates='warehouse', passive_deletes=True)
-    __table_args__ = (
-        db.Index('ix_warehouses_active_type', 'is_active', 'warehouse_type'),
-        db.Index('ix_warehouses_online_default', 'online_is_default'),
-        db.CheckConstraint('share_percent >= 0 AND share_percent <= 100', name='ck_warehouses_share_percent'),
-        db.CheckConstraint('capacity IS NULL OR capacity >= 0', name='ck_warehouses_capacity_nonneg'),
-        db.CheckConstraint('current_occupancy >= 0', name='ck_warehouses_occupancy_nonneg'),
-        db.CheckConstraint('capacity IS NULL OR current_occupancy <= capacity', name='ck_warehouses_occupancy_le_capacity'),
-    )
+    __table_args__ = ()
     @validates('name','location','notes','online_slug')
     def _v_strip(self,_,v): return (v or '').strip() or None
     @validates('warehouse_type')
@@ -2511,7 +3199,7 @@ class ImportRun(db.Model, TimestampMixin):
     meta = db.Column(db.JSON, default=dict)
     warehouse = db.relationship("Warehouse", backref=db.backref("import_runs", lazy="dynamic"))
     user = db.relationship("User", backref=db.backref("import_runs", lazy="dynamic"))
-    __table_args__ = (db.Index("ix_import_runs_wh_dryrun_dt", "warehouse_id", "dry_run", "created_at"),)
+    __table_args__ = ()
     def __repr__(self) -> str:
         return f"<ImportRun id={self.id} wh={self.warehouse_id} dry={self.dry_run} ins={self.inserted} upd={self.updated} skp={self.skipped} err={self.errors}>"
 
@@ -2860,16 +3548,16 @@ class PreOrder(db.Model, TimestampMixin, AuditMixin):
     def total_amount(cls): return cls.total_with_tax
     @hybrid_property
     def total_paid(self):
-        return float(db.session.query(func.coalesce(func.sum(Payment.total_amount), 0)).filter(Payment.preorder_id == self.id, Payment.status == PaymentStatus.COMPLETED.value, Payment.direction == PaymentDirection.INCOMING.value).scalar() or 0)
+        return float(db.session.query(func.coalesce(func.sum(Payment.total_amount), 0)).filter(Payment.preorder_id == self.id, Payment.status == PaymentStatus.COMPLETED.value, Payment.direction == PaymentDirection.IN.value).scalar() or 0)
     @total_paid.expression
     def total_paid(cls):
-        return (select(func.coalesce(func.sum(Payment.total_amount), 0)).where((Payment.preorder_id == cls.id) & (Payment.status == PaymentStatus.COMPLETED.value) & (Payment.direction == PaymentDirection.INCOMING.value)).scalar_subquery())
+        return (select(func.coalesce(func.sum(Payment.total_amount), 0)).where((Payment.preorder_id == cls.id) & (Payment.status == PaymentStatus.COMPLETED.value) & (Payment.direction == PaymentDirection.IN.value)).scalar_subquery())
     @hybrid_property
     def balance_due(self): return D(self.total_amount) - D(self.total_paid or 0)
     @balance_due.expression
     def balance_due(cls):
         total_expr = (select((Product.price * cls.quantity) * (1 + (func.coalesce(cls.tax_rate, 0) / 100.0))).select_from(Product).where(Product.id == cls.product_id).scalar_subquery())
-        paid_expr = (select(func.coalesce(func.sum(Payment.total_amount), 0)).where((Payment.preorder_id == cls.id) & (Payment.status == PaymentStatus.COMPLETED.value) & (Payment.direction == PaymentDirection.INCOMING.value)).scalar_subquery())
+        paid_expr = (select(func.coalesce(func.sum(Payment.total_amount), 0)).where((Payment.preorder_id == cls.id) & (Payment.status == PaymentStatus.COMPLETED.value) & (Payment.direction == PaymentDirection.IN.value)).scalar_subquery())
         return total_expr - paid_expr
     @hybrid_property
     def net_balance(self): return self.balance_due
@@ -3218,7 +3906,7 @@ class SaleReturn(db.Model, TimestampMixin, AuditMixin):
     credit_note = db.relationship("Invoice")
     lines = db.relationship("SaleReturnLine", back_populates="sale_return", cascade="all, delete-orphan", order_by="SaleReturnLine.id")
 
-    __table_args__ = (db.Index("ix_sale_return_sale_status", "sale_id", "status"),)
+    __table_args__ = ()
 
 class SaleReturnLine(db.Model):
     __tablename__ = "sale_return_lines"
@@ -3313,18 +4001,7 @@ class Invoice(db.Model, TimestampMixin):
 
     gl_batches = relationship("GLBatch", primaryjoin="and_(foreign(GLBatch.source_id)==Invoice.id, GLBatch.source_type=='INVOICE')", viewonly=True, order_by="GLBatch.id", lazy="selectin")
 
-    __table_args__ = (
-        db.Index("ix_invoices_customer_status", "customer_id", "status"),
-        db.Index("ix_invoices_supplier_status", "supplier_id", "status"),
-        db.Index("ix_invoices_partner_status", "partner_id", "status"),
-        db.Index("ix_invoices_kind_creditfor", "kind", "credit_for_id"),
-        db.Index("ix_invoices_refund_of", "refund_of_id"),
-        db.Index("ix_invoices_status_date", "status", "invoice_date"),
-        CheckConstraint("total_amount >= 0", name="ck_invoice_total_amount_non_negative"),
-        CheckConstraint("tax_amount >= 0", name="ck_invoice_tax_amount_non_negative"),
-        CheckConstraint("discount_amount >= 0", name="ck_invoice_discount_amount_non_negative"),
-        CheckConstraint("refunded_total >= 0", name="ck_invoice_refunded_total_non_negative"),
-    )
+    __table_args__ = ()
 
     @validates("source", "status", "kind")
     def _uppercase_enum(self, key, value):
@@ -3356,7 +4033,7 @@ class Invoice(db.Model, TimestampMixin):
             .filter(
                 Payment.invoice_id == self.id,
                 Payment.status == PaymentStatus.COMPLETED.value,
-                Payment.direction == PaymentDirection.INCOMING.value,
+                Payment.direction == PaymentDirection.IN.value,
             )
             .scalar() or 0
         )
@@ -3368,7 +4045,7 @@ class Invoice(db.Model, TimestampMixin):
             .where(
                 (Payment.invoice_id == cls.id)
                 & (Payment.status == PaymentStatus.COMPLETED.value)
-                & (Payment.direction == PaymentDirection.INCOMING.value)
+                & (Payment.direction == PaymentDirection.IN.value)
             ).scalar_subquery()
         )
 
@@ -3584,10 +4261,17 @@ class Payment(db.Model):
     tax_amount = Column(Numeric(12, 2))
     total_amount = Column(Numeric(12, 2), nullable=False)
     currency = Column(String(10), default="ILS", nullable=False)
+    
+    # حقول سعر الصرف
+    fx_rate_used = Column(Numeric(10, 6))  # السعر المستخدم في التحويل
+    fx_rate_source = Column(String(20))    # مصدر السعر (online, manual, default)
+    fx_rate_timestamp = Column(DateTime)   # وقت الحصول على السعر
+    fx_base_currency = Column(String(10))  # العملة الأساسية
+    fx_quote_currency = Column(String(10))  # العملة المقابلة
 
     method = Column(sa_str_enum(PaymentMethod, name="payment_method"), nullable=False, index=True)
     status = Column(sa_str_enum(PaymentStatus, name="payment_status"), default=PaymentStatus.PENDING.value, nullable=False, index=True)
-    direction = Column(sa_str_enum(PaymentDirection, name="payment_direction"), default=PaymentDirection.INCOMING.value, nullable=False, index=True)
+    direction = Column(sa_str_enum(PaymentDirection, name="payment_direction"), default=PaymentDirection.IN.value, nullable=False, index=True)
     entity_type = Column(sa_str_enum(PaymentEntityType, name="payment_entity_type"), default=PaymentEntityType.CUSTOMER.value, nullable=False, index=True)
 
     reference = Column(String(100))
@@ -3918,7 +4602,7 @@ def _payment_before_insert(mapper, connection, target: "Payment"):
     validate_payment_policies(
         entity_type=et,
         entity_id=eid,
-        direction=getattr(target, "direction", PaymentDirection.INCOMING.value),
+        direction=getattr(target, "direction", PaymentDirection.IN),
         amount=getattr(target, "total_amount", 0),
         currency=getattr(target, "currency", "ILS"),
     )
@@ -3943,7 +4627,7 @@ def _payment_before_update(mapper, connection, target: "Payment"):
     validate_payment_policies(
         entity_type=et,
         entity_id=eid,
-        direction=getattr(target, "direction", PaymentDirection.INCOMING.value),
+        direction=getattr(target, "direction", PaymentDirection.IN),
         amount=getattr(target, "total_amount", 0),
         currency=getattr(target, "currency", "ILS"),
     )
@@ -4331,6 +5015,7 @@ class Shipment(db.Model, TimestampMixin, AuditMixin):
     shipment_date = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     expected_arrival = db.Column(db.DateTime)
     actual_arrival   = db.Column(db.DateTime)
+    delivered_date = db.Column(db.DateTime)
 
     origin = db.Column(db.String(100))
     destination = db.Column(db.String(100))
@@ -4342,12 +5027,26 @@ class Shipment(db.Model, TimestampMixin, AuditMixin):
     customs = db.Column(db.Numeric(12, 2))
     vat = db.Column(db.Numeric(12, 2))
     insurance = db.Column(db.Numeric(12, 2))
+    total_cost = db.Column(db.Numeric(12, 2))
 
     carrier = db.Column(db.String(100))
     tracking_number = db.Column(db.String(100), index=True)
     notes = db.Column(db.Text)
     currency = db.Column(db.String(10), default="USD", nullable=False)
     sale_id = db.Column(db.Integer, db.ForeignKey("sales.id"), index=True)
+    
+    # حقول إضافية للشحنات
+    weight = db.Column(db.Numeric(10, 3))  # الوزن بالكيلو
+    dimensions = db.Column(db.String(100))  # الأبعاد
+    package_count = db.Column(db.Integer, default=1)  # عدد الطرود
+    priority = db.Column(db.String(20), default="NORMAL")  # الأولوية
+    delivery_method = db.Column(db.String(50))  # طريقة التسليم
+    delivery_instructions = db.Column(db.Text)  # تعليمات التسليم
+    customs_declaration = db.Column(db.String(100))  # رقم البيان الجمركي
+    customs_cleared_date = db.Column(db.DateTime)  # تاريخ التخليص الجمركي
+    delivery_attempts = db.Column(db.Integer, default=0)  # محاولات التسليم
+    last_delivery_attempt = db.Column(db.DateTime)  # آخر محاولة تسليم
+    return_reason = db.Column(db.Text)  # سبب الإرجاع
 
     items    = db.relationship("ShipmentItem", back_populates="shipment", cascade="all, delete-orphan", order_by="ShipmentItem.id")
     partners = db.relationship("ShipmentPartner", back_populates="shipment", cascade="all, delete-orphan", order_by="ShipmentPartner.id")
@@ -4366,7 +5065,6 @@ class Shipment(db.Model, TimestampMixin, AuditMixin):
     __table_args__ = (
         db.CheckConstraint("status IN ('DRAFT','IN_TRANSIT','ARRIVED','CANCELLED','CREATED')", name="chk_shipment_status_allowed"),
         db.Index("ix_shipments_dest_status", "destination_id", "status"),
-        db.Index("ix_shipments_created_at", "created_at"),
         db.CheckConstraint("value_before >= 0", name="ck_shipment_value_before_non_negative"),
         db.CheckConstraint("shipping_cost >= 0", name="ck_shipment_shipping_cost_non_negative"),
         db.CheckConstraint("customs >= 0", name="ck_shipment_customs_non_negative"),
@@ -4674,20 +5372,7 @@ class ServiceRequest(db.Model, TimestampMixin, AuditMixin):
 
     refund_of = db.relationship("ServiceRequest", remote_side=[id])
 
-    __table_args__ = (
-        db.Index("ix_service_customer_status", "customer_id", "status"),
-        db.Index("ix_service_mechanic_status", "mechanic_id", "status"),
-        db.CheckConstraint("tax_rate >= 0 AND tax_rate <= 100", name="ck_srv_tax_0_100"),
-        db.CheckConstraint("discount_total >= 0", name="ck_srv_disc_ge_0"),
-        db.CheckConstraint("parts_total >= 0", name="ck_srv_parts_ge_0"),
-        db.CheckConstraint("labor_total >= 0", name="ck_srv_labor_ge_0"),
-        db.CheckConstraint("total_amount >= 0", name="ck_srv_total_ge_0"),
-        db.CheckConstraint("total_cost >= 0", name="ck_srv_totalcost_ge_0"),
-        db.CheckConstraint("estimated_duration >= 0", name="ck_srv_estimated_duration_non_negative"),
-        db.CheckConstraint("actual_duration >= 0", name="ck_srv_actual_duration_non_negative"),
-        db.CheckConstraint("warranty_days >= 0", name="ck_srv_warranty_days_non_negative"),
-        db.CheckConstraint("refunded_total >= 0", name="ck_srv_refunded_total_ge_0"),
-    )
+    __table_args__ = ()
 
     @validates("status", "priority")
     def _v_enum_strings(self, _, v): return getattr(v, "value", v)
@@ -4740,11 +5425,11 @@ class ServiceRequest(db.Model, TimestampMixin, AuditMixin):
 
     @hybrid_property
     def total_paid(self):
-        return float(db.session.query(func.coalesce(func.sum(Payment.total_amount), 0)).filter(Payment.service_id == self.id, Payment.status == PaymentStatus.COMPLETED.value, Payment.direction == PaymentDirection.INCOMING.value).scalar() or 0)
+        return float(db.session.query(func.coalesce(func.sum(Payment.total_amount), 0)).filter(Payment.service_id == self.id, Payment.status == PaymentStatus.COMPLETED.value, Payment.direction == PaymentDirection.IN.value).scalar() or 0)
 
     @total_paid.expression
     def total_paid(cls):
-        return select(func.coalesce(func.sum(Payment.total_amount), 0)).where((Payment.service_id == cls.id) & (Payment.status == PaymentStatus.COMPLETED.value) & (Payment.direction == PaymentDirection.INCOMING.value)).scalar_subquery()
+        return select(func.coalesce(func.sum(Payment.total_amount), 0)).where((Payment.service_id == cls.id) & (Payment.status == PaymentStatus.COMPLETED.value) & (Payment.direction == PaymentDirection.IN.value)).scalar_subquery()
 
     @hybrid_property
     def balance_due(self):
@@ -5198,10 +5883,7 @@ class OnlineCart(db.Model, TimestampMixin):
     customer = db.relationship('Customer', back_populates='online_carts')
     items = db.relationship('OnlineCartItem', back_populates='cart', cascade='all, delete-orphan')
 
-    __table_args__ = (
-        db.Index('ix_online_cart_customer_status', 'customer_id', 'status'),
-        db.Index('ix_online_cart_status_expires', 'status', 'expires_at'),
-    )
+    __table_args__ = ()
 
     @hybrid_property
     def subtotal(self) -> float:
@@ -5970,9 +6652,7 @@ class ExpenseType(db.Model, TimestampMixin, AuditMixin):
 
     expenses = relationship("Expense", back_populates="type", order_by="Expense.id")
 
-    __table_args__ = (
-        db.Index("ix_expense_types_active_name", "is_active", "name"),
-    )
+    __table_args__ = ()
 
     @validates("name")
     def _v_name(self, _, v):
@@ -6120,7 +6800,7 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
             .filter(
                 Payment.expense_id == self.id,
                 Payment.status == PaymentStatus.COMPLETED.value,
-                Payment.direction == PaymentDirection.OUTGOING.value,
+                Payment.direction == PaymentDirection.OUT.value,
             )
             .scalar()
             or 0
@@ -6133,7 +6813,7 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
             .where(
                 (Payment.expense_id == cls.id)
                 & (Payment.status == PaymentStatus.COMPLETED.value)
-                & (Payment.direction == PaymentDirection.OUTGOING.value)
+                & (Payment.direction == PaymentDirection.OUT.value)
             )
             .scalar_subquery()
         )
@@ -6149,7 +6829,7 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
             .where(
                 (Payment.expense_id == cls.id)
                 & (Payment.status == PaymentStatus.COMPLETED.value)
-                & (Payment.direction == PaymentDirection.OUTGOING.value)
+                & (Payment.direction == PaymentDirection.OUT.value)
             )
             .scalar_subquery()
         )
@@ -6243,10 +6923,7 @@ class AuditLog(db.Model, TimestampMixin):
     ip_address  = db.Column(db.String(45))
     user_agent  = db.Column(db.String(255))
 
-    __table_args__ = (
-        db.Index("ix_audit_model_record", "model_name", "record_id"),
-        db.Index("ix_audit_user_time", "user_id", "created_at"),
-    )
+    __table_args__ = ()
 
     @validates('action')
     def _v_action(self, _, v):
@@ -6354,14 +7031,17 @@ class Note(db.Model, TimestampMixin, AuditMixin):
     entity_id = db.Column(db.String(50), index=True)
     is_pinned = db.Column(db.Boolean, nullable=False, server_default=sa_text("0"), index=True)
     priority = db.Column(sa_str_enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT'], name='note_priority'), default='MEDIUM', nullable=False, index=True)
+    
+    # حقول جديدة للمستهدفين والإشعارات
+    target_type = db.Column(db.String(50), index=True)  # نوع المستهدفين
+    target_ids = db.Column(db.Text)  # معرفات المستهدفين مفصولة بفاصلة
+    notification_type = db.Column(db.String(50), index=True)  # نوع الإشعار
+    notification_date = db.Column(db.DateTime, index=True)  # تاريخ الإشعار
+    is_sent = db.Column(db.Boolean, nullable=False, server_default=sa_text("0"), index=True)  # تم الإرسال
 
     author = relationship('User', backref='notes')
 
-    __table_args__ = (
-        db.Index('ix_notes_entity', 'entity_type', 'entity_id'),
-        db.Index('ix_notes_entity_pinned_created', 'entity_type', 'entity_id', 'is_pinned', 'created_at'),
-        db.Index('ix_notes_author_created', 'author_id', 'created_at'),
-    )
+    __table_args__ = ()
 
     @validates('content')
     def _v_content(self, _, v):
@@ -6416,10 +7096,7 @@ class Account(db.Model, TimestampMixin):
     type = db.Column(sa_str_enum(["ASSET", "LIABILITY", "EQUITY", "REVENUE", "EXPENSE"], name="account_type"), nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
 
-    __table_args__ = (
-        db.Index("ix_accounts_type_active", "type", "is_active"),
-        db.Index("ix_accounts_name_active", "name", "is_active"),
-    )
+    __table_args__ = ()
 
     @validates("code", "name")
     def _v_req_strip(self, _, v):
@@ -6634,3 +7311,290 @@ def _gl_upsert_batch_and_entries(
         )
 
     return int(batch_id)
+
+
+# ===== نظام تقييمات المنتجات =====
+
+class ProductRating(db.Model, TimestampMixin, AuditMixin):
+    """تقييمات المنتجات"""
+    __tablename__ = "product_ratings"
+    
+    id = Column(Integer, primary_key=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)  # يمكن أن يكون تقييم مجهول
+    rating = Column(Integer, nullable=False)  # من 1 إلى 5
+    title = Column(String(255), nullable=True)
+    comment = Column(Text, nullable=True)
+    is_verified_purchase = Column(Boolean, default=False, nullable=False)
+    is_approved = Column(Boolean, default=True, nullable=False)  # للمراجعة
+    helpful_count = Column(Integer, default=0, nullable=False)
+    
+    # العلاقات
+    product = relationship("Product", backref="ratings")
+    customer = relationship("Customer", backref="product_ratings")
+    
+    # فهارس
+    __table_args__ = (
+        CheckConstraint("rating >= 1 AND rating <= 5", name="ck_rating_range"),
+        Index("ix_product_ratings_product_id", "product_id"),
+        Index("ix_product_ratings_customer_id", "customer_id"),
+        Index("ix_product_ratings_rating", "rating"),
+    )
+    
+    def to_dict(self):
+        """تحويل التقييم إلى قاموس"""
+        return {
+            "id": self.id,
+            "product_id": self.product_id,
+            "customer_id": self.customer_id,
+            "customer_name": self.customer.name if self.customer else "عميل مجهول",
+            "rating": self.rating,
+            "title": self.title,
+            "comment": self.comment,
+            "is_verified_purchase": self.is_verified_purchase,
+            "is_approved": self.is_approved,
+            "helpful_count": self.helpful_count,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+    
+    @classmethod
+    def get_product_ratings(cls, product_id, approved_only=True):
+        """الحصول على تقييمات منتج معين"""
+        query = cls.query.filter_by(product_id=product_id)
+        if approved_only:
+            query = query.filter_by(is_approved=True)
+        return query.order_by(cls.created_at.desc()).all()
+    
+    @classmethod
+    def get_product_average_rating(cls, product_id):
+        """الحصول على متوسط تقييم المنتج"""
+        result = cls.query.filter_by(
+            product_id=product_id,
+            is_approved=True
+        ).with_entities(
+            func.avg(cls.rating).label('avg_rating'),
+            func.count(cls.id).label('total_ratings')
+        ).first()
+        
+        if result and result.avg_rating:
+            return {
+                'average': round(float(result.avg_rating), 1),
+                'total': result.total_ratings
+            }
+        return {'average': 0, 'total': 0}
+    
+    @classmethod
+    def get_rating_distribution(cls, product_id):
+        """الحصول على توزيع التقييمات"""
+        results = cls.query.filter_by(
+            product_id=product_id,
+            is_approved=True
+        ).with_entities(
+            cls.rating,
+            func.count(cls.id).label('count')
+        ).group_by(cls.rating).all()
+        
+        distribution = {i: 0 for i in range(1, 6)}
+        for result in results:
+            distribution[result.rating] = result.count
+        
+        return distribution
+
+
+class ProductRatingHelpful(db.Model, TimestampMixin):
+    """تقييمات مفيدة للتقييمات"""
+    __tablename__ = "product_rating_helpful"
+    
+    id = Column(Integer, primary_key=True)
+    rating_id = Column(Integer, ForeignKey("product_ratings.id"), nullable=False)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
+    ip_address = Column(String(45), nullable=True)  # للعملاء غير المسجلين
+    is_helpful = Column(Boolean, nullable=False)
+    
+    # العلاقات
+    rating = relationship("ProductRating")
+    customer = relationship("Customer")
+    
+    # فهارس
+    __table_args__ = (
+        Index("ix_rating_helpful_rating_id", "rating_id"),
+        Index("ix_rating_helpful_customer_id", "customer_id"),
+        Index("ix_rating_helpful_ip", "ip_address"),
+    )
+    
+    @classmethod
+    def mark_helpful(cls, rating_id, customer_id=None, ip_address=None, is_helpful=True):
+        """تحديد التقييم كمفيد أو غير مفيد"""
+        # التحقق من عدم التكرار
+        existing = cls.query.filter_by(rating_id=rating_id)
+        if customer_id:
+            existing = existing.filter_by(customer_id=customer_id)
+        elif ip_address:
+            existing = existing.filter_by(ip_address=ip_address)
+        
+        existing = existing.first()
+        
+        if existing:
+            existing.is_helpful = is_helpful
+            existing.updated_at = datetime.utcnow()
+        else:
+            new_helpful = cls(
+                rating_id=rating_id,
+                customer_id=customer_id,
+                ip_address=ip_address,
+                is_helpful=is_helpful
+            )
+            db.session.add(new_helpful)
+        
+        # تحديث عداد المفيد
+        rating = ProductRating.query.get(rating_id)
+        if rating:
+            helpful_count = cls.query.filter_by(
+                rating_id=rating_id,
+                is_helpful=True
+            ).count()
+            rating.helpful_count = helpful_count
+            db.session.add(rating)
+        
+        db.session.commit()
+
+
+# ===== نظام الولاء للعملاء =====
+
+class CustomerLoyalty(db.Model, TimestampMixin, AuditMixin):
+    """نظام الولاء للعملاء"""
+    __tablename__ = "customer_loyalty"
+    
+    id = Column(Integer, primary_key=True)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False, unique=True)
+    total_points = Column(Integer, default=0, nullable=False)
+    available_points = Column(Integer, default=0, nullable=False)
+    used_points = Column(Integer, default=0, nullable=False)
+    loyalty_tier = Column(String(50), default="BRONZE", nullable=False)  # BRONZE, SILVER, GOLD, PLATINUM
+    total_spent = Column(Numeric(12, 2), default=0, nullable=False)
+    last_activity = Column(DateTime, nullable=True)
+    
+    # العلاقات
+    customer = relationship("Customer", backref="loyalty")
+    
+    # فهارس
+    __table_args__ = (
+        Index("ix_customer_loyalty_customer_id", "customer_id"),
+        Index("ix_customer_loyalty_tier", "loyalty_tier"),
+    )
+    
+    def to_dict(self):
+        """تحويل بيانات الولاء إلى قاموس"""
+        return {
+            "id": self.id,
+            "customer_id": self.customer_id,
+            "total_points": self.total_points,
+            "available_points": self.available_points,
+            "used_points": self.used_points,
+            "loyalty_tier": self.loyalty_tier,
+            "total_spent": float(self.total_spent),
+            "last_activity": self.last_activity.isoformat() if self.last_activity else None,
+        }
+    
+    def add_points(self, points, reason="شراء"):
+        """إضافة نقاط للعميل"""
+        self.total_points += points
+        self.available_points += points
+        self.last_activity = datetime.utcnow()
+        
+        # إنشاء سجل النقاط
+        point_record = CustomerLoyaltyPoints(
+            customer_id=self.customer_id,
+            points=points,
+            reason=reason,
+            type="EARNED"
+        )
+        db.session.add(point_record)
+        
+        # تحديث المستوى
+        self.update_tier()
+        
+        db.session.add(self)
+        db.session.commit()
+    
+    def use_points(self, points, reason="استرداد"):
+        """استخدام نقاط العميل"""
+        if self.available_points < points:
+            raise ValueError("نقاط غير كافية")
+        
+        self.available_points -= points
+        self.used_points += points
+        self.last_activity = datetime.utcnow()
+        
+        # إنشاء سجل النقاط
+        point_record = CustomerLoyaltyPoints(
+            customer_id=self.customer_id,
+            points=-points,
+            reason=reason,
+            type="USED"
+        )
+        db.session.add(point_record)
+        
+        db.session.add(self)
+        db.session.commit()
+    
+    def update_tier(self):
+        """تحديث مستوى الولاء"""
+        spent = float(self.total_spent)
+        
+        if spent >= 10000:
+            self.loyalty_tier = "PLATINUM"
+        elif spent >= 5000:
+            self.loyalty_tier = "GOLD"
+        elif spent >= 2000:
+            self.loyalty_tier = "SILVER"
+        else:
+            self.loyalty_tier = "BRONZE"
+    
+    @classmethod
+    def get_or_create(cls, customer_id):
+        """الحصول على أو إنشاء سجل ولاء للعميل"""
+        loyalty = cls.query.filter_by(customer_id=customer_id).first()
+        if not loyalty:
+            loyalty = cls(customer_id=customer_id)
+            db.session.add(loyalty)
+            db.session.commit()
+        return loyalty
+
+
+class CustomerLoyaltyPoints(db.Model, TimestampMixin):
+    """سجل نقاط الولاء"""
+    __tablename__ = "customer_loyalty_points"
+    
+    id = Column(Integer, primary_key=True)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False)
+    points = Column(Integer, nullable=False)  # يمكن أن يكون سالب للاستخدام
+    reason = Column(String(255), nullable=False)
+    type = Column(String(50), nullable=False)  # EARNED, USED, EXPIRED, BONUS
+    reference_id = Column(Integer, nullable=True)  # مرجع للعملية (مثل معرف الدفعة)
+    reference_type = Column(String(50), nullable=True)  # نوع المرجع (PAYMENT, PURCHASE, etc.)
+    expires_at = Column(DateTime, nullable=True)
+    
+    # العلاقات
+    customer = relationship("Customer", backref="loyalty_points")
+    
+    # فهارس
+    __table_args__ = (
+        Index("ix_loyalty_points_customer_id", "customer_id"),
+        Index("ix_loyalty_points_type", "type"),
+        Index("ix_loyalty_points_expires", "expires_at"),
+    )
+    
+    def to_dict(self):
+        """تحويل سجل النقاط إلى قاموس"""
+        return {
+            "id": self.id,
+            "customer_id": self.customer_id,
+            "points": self.points,
+            "reason": self.reason,
+            "type": self.type,
+            "reference_id": self.reference_id,
+            "reference_type": self.reference_type,
+            "expires_at": self.expires_at.isoformat() if self.expires_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }

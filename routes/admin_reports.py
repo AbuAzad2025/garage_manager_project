@@ -13,6 +13,12 @@ admin_reports_bp = Blueprint(
     template_folder="templates/admin/reports",
 )
 
+@admin_reports_bp.route("/", methods=["GET"], endpoint="index")
+@login_required
+def admin_reports_index():
+    """صفحة التقارير الإدارية الرئيسية"""
+    return render_template("admin/reports/index.html")
+
 def _mask_pan(pan: str) -> str:
     if not pan:
         return ""

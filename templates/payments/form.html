@@ -1,23 +1,146 @@
 {% extends "base.html" %}
 {% block title %}{{ payment and 'تعديل دفعة' or 'إنشاء دفعة' }}{% endblock %}
-{% block content %}
 
-<div class="container mt-4">
-  <h3 class="mb-4">
-    {% if payment %}
-      تعديل دفعة #{{ payment.id }}
-    {% else %}
-      إضافة دفعة جديدة
-    {% endif %}
-  </h3>
+{% block head_extra %}
+<style>
+/* تحسين تباين الألوان والتصميم */
+.payment-form-card {
+    border-radius: 12px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+    margin-bottom: 20px;
+    border: none;
+}
+
+.payment-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white !important;
+    padding: 20px;
+    border-radius: 12px 12px 0 0;
+}
+
+.form-label {
+    color: #343a40 !important;
+    font-weight: 600 !important;
+    margin-bottom: 8px !important;
+    font-size: 0.9rem;
+}
+
+.form-control, .form-select {
+    border: 2px solid #e0e0e0 !important;
+    border-radius: 8px !important;
+    padding: 10px 15px !important;
+    transition: all 0.3s !important;
+    color: #343a40 !important;
+    font-weight: 500 !important;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #667eea !important;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25) !important;
+}
+
+.card-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    color: white !important;
+    font-weight: 600 !important;
+    border-radius: 12px 12px 0 0 !important;
+    padding: 15px 20px !important;
+}
+
+.split-form {
+    background: #f8f9fa;
+    border: 2px solid #dee2e6 !important;
+    border-radius: 12px !important;
+    padding: 20px !important;
+    margin-bottom: 15px !important;
+}
+
+.split-form h5 {
+    color: #667eea !important;
+    font-weight: 700 !important;
+    margin-bottom: 15px !important;
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%) !important;
+    border: none !important;
+    font-weight: 600 !important;
+    padding: 12px 30px !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
+}
+
+.btn-success:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15) !important;
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%) !important;
+    border: none !important;
+    font-weight: 600 !important;
+}
+
+.btn-secondary {
+    background: linear-gradient(135deg, #bdc3c7 0%, #2c3e50 100%) !important;
+    border: none !important;
+    font-weight: 600 !important;
+}
+
+.entity-info-card {
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    border: 2px solid #2196f3;
+    border-radius: 12px;
+}
+
+.entity-info-card .card-header {
+    background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%) !important;
+}
+
+#splitSum {
+    color: #667eea !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+    <div class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <div class="col-sm-6">
+                    <h1 class="m-0">
+                        <i class="fas fa-money-bill-wave"></i>
+                        {% if payment %}
+                            تعديل دفعة #{{ payment.id }}
+                        {% else %}
+                            إنشاء دفعة جديدة
+                        {% endif %}
+                    </h1>
+                </div>
+                <div class="col-sm-6">
+                    <ol class="breadcrumb float-sm-right">
+                        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+                        <li class="breadcrumb-item"><a href="{{ url_for('payments.index') }}">الدفعات</a></li>
+                        <li class="breadcrumb-item active">{{ payment and 'تعديل' or 'إنشاء' }}</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <section class="content">
+        <div class="container-fluid">
 
   {% if entity_info %}
-  <div class="card mb-4 border-primary">
-    <div class="card-header bg-primary text-white">
-      <h5 class="mb-0">معلومات مرتبطة</h5>
+  <div class="card mb-4 entity-info-card">
+    <div class="card-header">
+      <h5 class="mb-0"><i class="fas fa-info-circle"></i> معلومات مرتبطة</h5>
     </div>
     <div class="card-body">
-      <div class="row gy-2">
+      <div class="row gy-3">
         {% if entity_info.number %}
           <div class="col-md-4"><strong>الرقم:</strong> {{ entity_info.number }}</div>
           {% if entity_info.date %}
@@ -67,8 +190,10 @@
 
     <div class="row">
       <div class="col-md-6">
-        <div class="card mb-4">
-          <div class="card-header">المعلومات الأساسية</div>
+        <div class="card mb-4 payment-form-card">
+          <div class="card-header">
+            <i class="fas fa-file-invoice-dollar"></i> المعلومات الأساسية
+          </div>
           <div class="card-body">
             {% for field in [form.entity_type, form.direction, form.status, form.payment_date, form.total_amount, form.currency, form.method, form.reference, form.receipt_number, form.notes] %}
               {% if field is not none %}
@@ -103,8 +228,10 @@
       </div>
 
       <div class="col-md-6">
-        <div class="card mb-4">
-          <div class="card-header">الجهة المرتبطة</div>
+        <div class="card mb-4 payment-form-card">
+          <div class="card-header">
+            <i class="fas fa-user-tie"></i> الجهة المرتبطة
+          </div>
           <div class="card-body" id="entityFields">
             {% include "payments/_entity_fields.html" %}
           </div>
@@ -112,10 +239,10 @@
       </div>
     </div>
 
-    <div class="card mb-4">
+    <div class="card mb-4 payment-form-card">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <span>الدفعات الجزئية</span>
-        <small class="text-muted">بحد أقصى 3 طرق دفع</small>
+        <span><i class="fas fa-layer-group"></i> الدفعات الجزئية</span>
+        <small class="badge badge-info">بحد أقصى 3 طرق دفع</small>
       </div>
       <div class="card-body">
         {% if form.splits and form.splits.errors %}
@@ -180,15 +307,280 @@
       </div>
     </div>
 
-    <div class="d-flex gap-2">
-      <button type="submit" class="btn btn-success btn-lg">حفظ الدفعة</button>
-      <a href="{{ url_for('payments.index') }}" class="btn btn-outline-secondary">إلغاء</a>
+    <div class="card payment-form-card">
+      <div class="card-body text-center">
+        <button type="submit" class="btn btn-success btn-lg">
+          <i class="fas fa-save"></i> حفظ الدفعة
+        </button>
+        <a href="{{ url_for('payments.index') }}" class="btn btn-secondary btn-lg">
+          <i class="fas fa-times"></i> إلغاء
+        </a>
+      </div>
     </div>
   </form>
+
+        </div>
+    </section>
 </div>
 {% endblock %}
 
 {% block scripts %}
   {{ super() }}
   <script src="{{ url_for('static', filename='js/payment_form.js') }}"></script>
+  
+  <script>
+    // الفلاتر الذكية للجهات
+    let searchTimeout = {};
+    
+    function searchEntities(entityType, searchTerm) {
+      if (!searchTerm || searchTerm.length < 2) {
+        hideEntityResults(entityType);
+        return;
+      }
+      
+      clearTimeout(searchTimeout[entityType]);
+      searchTimeout[entityType] = setTimeout(() => {
+        fetch(`/payments/api/entities/${entityType}?search=${encodeURIComponent(searchTerm)}`)
+          .then(response => {
+            if (response.status === 302 || response.status === 401) {
+              // المستخدم لم يسجل دخول بعد
+              hideEntityResults(entityType);
+              return;
+            }
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}`);
+            }
+            return response.json();
+          })
+          .then(data => {
+            if (data) {
+              showEntityResults(entityType, data);
+            }
+          })
+          .catch(error => {
+            console.error('خطأ في البحث:', error);
+            // إظهار رسالة خطأ للمستخدم
+            const searchField = document.querySelector(`input[name="${entityType.toLowerCase()}_search"]`);
+            if (searchField) {
+              searchField.style.borderColor = '#dc3545';
+              setTimeout(() => {
+                searchField.style.borderColor = '';
+              }, 3000);
+            }
+          });
+      }, 300);
+    }
+    
+    function showEntityResults(entityType, entities) {
+      const searchField = document.querySelector(`input[name="${entityType.toLowerCase()}_search"]`);
+      if (!searchField) return;
+      
+      // إزالة النتائج السابقة
+      hideEntityResults(entityType);
+      
+      if (entities.length === 0) {
+        return;
+      }
+      
+      // إنشاء قائمة النتائج
+      const resultsDiv = document.createElement('div');
+      resultsDiv.className = 'entity-search-results';
+      resultsDiv.id = `${entityType.toLowerCase()}_results`;
+      resultsDiv.style.cssText = `
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #ddd;
+        border-top: none;
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 1000;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      `;
+      
+      entities.forEach(entity => {
+        const item = document.createElement('div');
+        item.className = 'entity-result-item';
+        item.style.cssText = `
+          padding: 8px 12px;
+          cursor: pointer;
+          border-bottom: 1px solid #eee;
+        `;
+        item.innerHTML = `
+          <div class="fw-bold">${entity.name || entity.display}</div>
+          ${entity.phone ? `<small class="text-muted">${entity.phone}</small>` : ''}
+          ${entity.email ? `<small class="text-muted">${entity.email}</small>` : ''}
+        `;
+        
+        item.addEventListener('click', () => {
+          selectEntity(entityType, entity);
+        });
+        
+        item.addEventListener('mouseenter', () => {
+          item.style.backgroundColor = '#f8f9fa';
+        });
+        
+        item.addEventListener('mouseleave', () => {
+          item.style.backgroundColor = 'white';
+        });
+        
+        resultsDiv.appendChild(item);
+      });
+      
+      // إدراج النتائج
+      searchField.parentNode.style.position = 'relative';
+      searchField.parentNode.appendChild(resultsDiv);
+    }
+    
+    function hideEntityResults(entityType) {
+      const resultsDiv = document.getElementById(`${entityType.toLowerCase()}_results`);
+      if (resultsDiv) {
+        resultsDiv.remove();
+      }
+    }
+    
+    function selectEntity(entityType, entity) {
+      const searchField = document.querySelector(`input[name="${entityType.toLowerCase()}_search"]`);
+      const hiddenField = document.querySelector(`input[name="${entityType.toLowerCase()}_id"]`);
+      
+      if (searchField && hiddenField) {
+        searchField.value = entity.name || entity.display;
+        hiddenField.value = entity.id;
+        
+        // إخفاء النتائج
+        hideEntityResults(entityType);
+        
+        // تحديث النموذج
+        updateEntityFields();
+      }
+    }
+    
+    function updateEntityFields() {
+      const entityType = document.querySelector('select[name="entity_type"]');
+      if (!entityType) return;
+      
+      const selectedType = entityType.value;
+      const entityFieldsContainer = document.getElementById('entityFields');
+      
+      if (!selectedType) {
+        entityFieldsContainer.innerHTML = '<div class="text-muted">اختر نوع الجهة لرؤية الحقول المناسبة</div>';
+        return;
+      }
+      
+      // إظهار مؤشر التحميل
+      entityFieldsContainer.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> جاري تحميل الحقول...</div>';
+      
+      // جلب الحقول المناسبة عبر AJAX
+      fetch(`/payments/entity-fields?type=${selectedType.toLowerCase()}`)
+        .then(response => {
+          if (response.status === 302 || response.status === 401) {
+            // المستخدم لم يسجل دخول بعد
+            entityFieldsContainer.innerHTML = '<div class="alert alert-warning">يجب تسجيل الدخول أولاً</div>';
+            return;
+          }
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          return response.text();
+        })
+        .then(html => {
+          if (html) {
+            entityFieldsContainer.innerHTML = html;
+            
+            // تحديث الفلاتر الذكية للحقول الجديدة
+            updateSmartFilters(selectedType);
+          }
+        })
+        .catch(error => {
+          console.error('خطأ في تحميل الحقول:', error);
+          entityFieldsContainer.innerHTML = '<div class="alert alert-danger">خطأ في تحميل الحقول: ' + error.message + '</div>';
+        });
+    }
+    
+    function updateSmartFilters(entityType) {
+      // تحديث الفلاتر الذكية حسب نوع الجهة
+      const searchFields = document.querySelectorAll('input[name$="_search"]');
+      searchFields.forEach(field => {
+        const fieldName = field.name;
+        const expectedEntityType = fieldName.replace('_search', '').toUpperCase();
+        
+        if (expectedEntityType === entityType) {
+          // إزالة المستمعين السابقين
+          field.removeEventListener('keyup', searchEntities);
+          
+          // تفعيل البحث الذكي لهذا الحقل
+          field.addEventListener('keyup', function() {
+            searchEntities(entityType, this.value);
+          });
+        }
+      });
+    }
+    
+    // تهيئة الحقول عند تحميل الصفحة
+    document.addEventListener('DOMContentLoaded', function() {
+      // إضافة مستمع لتغيير نوع الجهة
+      const entityTypeSelect = document.querySelector('select[name="entity_type"]');
+      if (entityTypeSelect) {
+        entityTypeSelect.addEventListener('change', function() {
+          updateEntityFields();
+          // تحديث خيارات الاتجاه حسب نوع الجهة
+          updateDirectionOptions();
+        });
+        
+        // تحديث الحقول عند التحميل الأولي
+        updateEntityFields();
+      }
+      
+      // إضافة مستمع لتغيير الاتجاه
+      const directionSelect = document.querySelector('select[name="direction"]');
+      if (directionSelect) {
+        directionSelect.addEventListener('change', validateDirection);
+      }
+    });
+    
+    function updateDirectionOptions() {
+      const entityType = document.querySelector('select[name="entity_type"]').value;
+      const directionSelect = document.querySelector('select[name="direction"]');
+      
+      if (!directionSelect) return;
+      
+      // إزالة الخيارات الحالية
+      directionSelect.innerHTML = '';
+      
+      if (entityType === 'EXPENSE') {
+        // المصاريف دائماً صادرة
+        directionSelect.innerHTML = '<option value="OUT">صادر (مننا)</option>';
+        directionSelect.value = 'OUT';
+      } else {
+        // جميع الجهات الأخرى تدعم كلا الاتجاهين
+        directionSelect.innerHTML = `
+          <option value="IN">وارد (إلينا)</option>
+          <option value="OUT">صادر (مننا)</option>
+        `;
+      }
+    }
+    
+    function validateDirection() {
+      const entityType = document.querySelector('select[name="entity_type"]').value;
+      const direction = document.querySelector('select[name="direction"]').value;
+      
+      if (entityType === 'EXPENSE' && direction !== 'OUT') {
+        alert('المصاريف يجب أن تكون صادرة فقط');
+        document.querySelector('select[name="direction"]').value = 'OUT';
+      }
+    }
+    
+    // إخفاء النتائج عند النقر خارجها
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.entity-search-results') && !e.target.closest('input[name$="_search"]')) {
+        const allResults = document.querySelectorAll('.entity-search-results');
+        allResults.forEach(result => result.remove());
+      }
+    });
+  </script>
+  
+  <!-- تحميل ملف JavaScript للدفعات -->
+  <script src="{{ url_for('static', filename='js/payments.js') }}"></script>
 {% endblock %}

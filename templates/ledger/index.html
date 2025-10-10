@@ -1,0 +1,1075 @@
+{% extends 'base.html' %}
+
+{% block title %}دفتر الأستاذ العام{% endblock %}
+
+{% block head_extra %}
+<style>
+/* تحسين تباين الألوان */
+.ledger-card {
+    border-radius: 12px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+    margin-bottom: 20px;
+    border: none;
+}
+
+.ledger-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white !important;
+    padding: 15px 20px;
+    border-radius: 12px 12px 0 0;
+    font-weight: 600;
+}
+
+.stat-card {
+    border-radius: 12px;
+    padding: 20px;
+    color: white;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: all 0.3s;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+.stat-card h3 {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.stat-card p {
+    font-size: 0.9rem;
+    margin: 0;
+    opacity: 0.9;
+}
+
+.stat-icon {
+    font-size: 3rem;
+    opacity: 0.3;
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.table thead th {
+    background-color: #343a40 !important;
+    color: white !important;
+    font-weight: 600 !important;
+    border-color: #454d55 !important;
+    text-align: center !important;
+}
+
+.table tbody td {
+    color: #343a40 !important;
+    font-weight: 500 !important;
+    vertical-align: middle !important;
+}
+
+.debit-cell {
+    background-color: #fff5f5 !important;
+    color: #dc3545 !important;
+    font-weight: bold !important;
+}
+
+.credit-cell {
+    background-color: #f1f9f4 !important;
+    color: #28a745 !important;
+    font-weight: bold !important;
+}
+
+.balance-cell {
+    background-color: #e3f2fd !important;
+    color: #2196f3 !important;
+    font-weight: bold !important;
+    font-size: 1.1rem !important;
+}
+
+.form-label {
+    color: #343a40 !important;
+    font-weight: 600 !important;
+}
+
+.form-control, .form-select {
+    border: 2px solid #e0e0e0 !important;
+    border-radius: 8px !important;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #667eea !important;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25) !important;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+    <div class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <div class="col-sm-6">
+                    <h1 class="m-0"><i class="fas fa-book"></i> دفتر الأستاذ العام</h1>
+                </div>
+                <div class="col-sm-6">
+                    <ol class="breadcrumb float-sm-right">
+                        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+                        <li class="breadcrumb-item active">دفتر الأستاذ</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <section class="content">
+        <div class="container-fluid">
+            <!-- إحصائيات سريعة -->
+            <div class="row">
+                <div class="col-lg-3 col-md-6">
+                    <div class="stat-card position-relative" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <i class="fas fa-shopping-cart stat-icon"></i>
+                        <h3 id="total-sales">0.00 ₪</h3>
+                        <p>إجمالي المبيعات</p>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <div class="stat-card position-relative" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                        <i class="fas fa-tools stat-icon"></i>
+                        <h3 id="total-services">0.00 ₪</h3>
+                        <p>إجمالي الخدمات (الصيانة)</p>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <div class="stat-card position-relative" style="background: linear-gradient(135deg, #ff9966 0%, #ff5e62 100%);">
+                        <i class="fas fa-boxes stat-icon"></i>
+                        <h3 id="total-cogs">0.00 ₪</h3>
+                        <p>تكلفة البضاعة المباعة</p>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <div class="stat-card position-relative" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);">
+                        <i class="fas fa-receipt stat-icon"></i>
+                        <h3 id="total-expenses">0.00 ₪</h3>
+                        <p>إجمالي النفقات</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- صف ثاني للإحصائيات -->
+            <div class="row mt-3">
+                <div class="col-lg-4 col-md-6">
+                    <div class="stat-card position-relative" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);">
+                        <i class="fas fa-chart-line stat-icon"></i>
+                        <h3 id="gross-profit">0.00 ₪</h3>
+                        <p>إجمالي الربح</p>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6">
+                    <div class="stat-card position-relative" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                        <i class="fas fa-hand-holding-usd stat-icon"></i>
+                        <h3 id="net-profit">0.00 ₪</h3>
+                        <p>صافي الربح</p>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6">
+                    <div class="stat-card position-relative" style="background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);">
+                        <i class="fas fa-percentage stat-icon"></i>
+                        <h3 id="profit-margin">0.00%</h3>
+                        <p>هامش الربح</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- تحذيرات المنتجات بدون تكلفة -->
+            <div class="row mt-3" id="cost-warnings" style="display: none;">
+                <div class="col-12">
+                    <div class="alert alert-warning">
+                        <h5><i class="fas fa-exclamation-triangle"></i> تنبيهات التكلفة</h5>
+                        <div id="estimated-products-alert" style="display: none;">
+                            <strong>⚠️ منتجات تم تقدير تكلفتها (70% من سعر البيع):</strong>
+                            <span id="estimated-count" class="badge badge-warning">0</span>
+                            <button class="btn btn-sm btn-warning ml-2" onclick="showEstimatedProducts()">
+                                <i class="fas fa-eye"></i> عرض التفاصيل
+                            </button>
+                        </div>
+                        <div id="no-cost-products-alert" style="display: none;" class="mt-2">
+                            <strong>❌ منتجات بدون تكلفة (تم تجاهلها):</strong>
+                            <span id="no-cost-count" class="badge badge-danger">0</span>
+                            <button class="btn btn-sm btn-danger ml-2" onclick="showNoCostProducts()">
+                                <i class="fas fa-eye"></i> عرض التفاصيل
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- فلاتر البحث -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card ledger-card">
+                        <div class="card-header ledger-header">
+                            <h4 class="mb-0">
+                                <i class="fas fa-filter"></i>
+                                فلاتر البحث المتقدمة
+                            </h4>
+                        </div>
+                        <div class="card-body">
+                            <form id="filter-form">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="form-group">
+                                            <label>من تاريخ:</label>
+                                            <input type="date" class="form-control" id="from-date" name="from_date">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-group">
+                                            <label>إلى تاريخ:</label>
+                                            <input type="date" class="form-control" id="to-date" name="to_date">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-group">
+                                            <label>نوع العملية:</label>
+                                            <select class="form-control" id="transaction-type" name="transaction_type">
+                                                <option value="">جميع العمليات</option>
+                                                <option value="sale">مبيعات</option>
+                                                <option value="purchase">مشتريات</option>
+                                                <option value="expense">نفقات</option>
+                                                <option value="payment">دفعات</option>
+                                                <option value="maintenance">صيانة</option>
+                                                <option value="service">خدمات</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-group">
+                                            <label>&nbsp;</label>
+                                            <div>
+                                                <button type="submit" class="btn btn-primary">
+                                                    <i class="fas fa-search"></i> بحث
+                                                </button>
+                                                <button type="button" class="btn btn-secondary" onclick="resetFilters()">
+                                                    <i class="fas fa-undo"></i> إعادة تعيين
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- المساعد الذكي -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card ledger-card">
+                        <div class="card-header ledger-header">
+                            <h4 class="mb-0">
+                                <i class="fas fa-robot"></i>
+                                المساعد المحاسبي الذكي
+                            </h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="input-group mb-3">
+                                <input type="text" class="form-control form-control-lg" id="smart-query" 
+                                       placeholder="اسأل أي سؤال محاسبي... مثال: من أين جاء رقم المبيعات؟ كم مستحق للموردين؟ ما هو رصيد العميل أحمد؟">
+                                <button class="btn btn-primary btn-lg" type="button" onclick="askSmartAssistant()">
+                                    <i class="fas fa-search"></i> اسأل
+                                </button>
+                            </div>
+                            <div id="smart-answer" class="alert alert-info" style="display: none;">
+                                <div class="d-flex align-items-start">
+                                    <i class="fas fa-robot fa-2x mr-3"></i>
+                                    <div id="answer-content"></div>
+                                </div>
+                            </div>
+                            <div id="smart-loading" class="text-center" style="display: none;">
+                                <i class="fas fa-spinner fa-spin fa-2x"></i>
+                                <p class="mt-2">جاري التحليل...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- دفتر الأستاذ -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card ledger-card">
+                        <div class="card-header ledger-header d-flex justify-content-between align-items-center">
+                            <h4 class="mb-0">
+                                <i class="fas fa-book-open"></i>
+                                سجل القيود المحاسبية
+                            </h4>
+                            <div>
+                                <button class="btn btn-success btn-sm" onclick="exportLedger()">
+                                    <i class="fas fa-file-excel"></i> تصدير Excel
+                                </button>
+                                <button class="btn btn-info btn-sm" onclick="printLedger()">
+                                    <i class="fas fa-print"></i> طباعة
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover" id="ledger-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 100px;">التاريخ</th>
+                                            <th style="width: 120px;">رقم القيد</th>
+                                            <th style="width: 150px;">نوع العملية</th>
+                                            <th>البيان</th>
+                                            <th style="width: 130px;" class="text-end">المدين (منه)</th>
+                                            <th style="width: 130px;" class="text-end">الدائن (له)</th>
+                                            <th style="width: 130px;" class="text-end">الرصيد</th>
+                                            <th style="width: 100px;">الإجراءات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td colspan="8" class="text-center text-muted py-4">
+                                                <i class="fas fa-spinner fa-spin"></i> جاري التحميل...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                    <tfoot class="bg-light">
+                                        <tr>
+                                            <td colspan="4" class="text-end"><strong>الإجماليات:</strong></td>
+                                            <td class="text-end debit-cell" id="total-debit">0.00</td>
+                                            <td class="text-end credit-cell" id="total-credit">0.00</td>
+                                            <td class="text-end balance-cell" id="final-balance">0.00</td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ملخص الحسابات -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card ledger-card">
+                        <div class="card-header ledger-header">
+                            <h4 class="mb-0">
+                                <i class="fas fa-chart-pie"></i>
+                                ميزان المراجعة (Trial Balance)
+                            </h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>الحساب</th>
+                                            <th class="text-end">المدين</th>
+                                            <th class="text-end">الدائن</th>
+                                            <th class="text-end">الرصيد</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="accounts-summary">
+                                        <tr>
+                                            <td colspan="4" class="text-center text-muted">
+                                                <i class="fas fa-spinner fa-spin"></i> جاري التحميل...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                    <tfoot class="bg-light">
+                                        <tr>
+                                            <td><strong>الإجماليات:</strong></td>
+                                            <td class="text-end debit-cell" id="accounts-total-debit">0.00</td>
+                                            <td class="text-end credit-cell" id="accounts-total-credit">0.00</td>
+                                            <td class="text-end balance-cell" id="accounts-net-balance">0.00</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card ledger-card">
+                        <div class="card-header ledger-header">
+                            <h4 class="mb-0">
+                                <i class="fas fa-users"></i>
+                                ملخص الذمم (Accounts Receivable/Payable)
+                            </h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>الجهة</th>
+                                            <th class="text-end">لنا (مدين)</th>
+                                            <th class="text-end">علينا (دائن)</th>
+                                            <th class="text-end">الرصيد</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="receivables-summary">
+                                        <tr>
+                                            <td colspan="4" class="text-center text-muted">
+                                                <i class="fas fa-spinner fa-spin"></i> جاري التحميل...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                    <tfoot class="bg-light">
+                                        <tr>
+                                            <td><strong>الإجماليات:</strong></td>
+                                            <td class="text-end debit-cell" id="receivables-total-debit">0.00</td>
+                                            <td class="text-end credit-cell" id="receivables-total-credit">0.00</td>
+                                            <td class="text-end balance-cell" id="receivables-net">0.00</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- SweetAlert2 Library -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    // تعيين التاريخ الحالي كافتراضي - لكن نترك الحقول فارغة لعرض كل البيانات
+    const today = new Date().toISOString().split('T')[0];
+    const firstDayOfYear = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
+    
+    // تعيين من بداية السنة إلى اليوم
+    $('#from-date').val(firstDayOfYear);
+    $('#to-date').val(today);
+    
+    // تحميل البيانات
+    loadLedgerData();
+    loadAccountsSummary();
+    loadReceivablesSummary();
+    
+    // معالج البحث
+    $('#filter-form').on('submit', function(e) {
+        e.preventDefault();
+        loadLedgerData();
+        loadAccountsSummary();
+        loadReceivablesSummary();
+    });
+});
+
+function loadLedgerData() {
+    const formData = $('#filter-form').serialize();
+    console.log('Loading ledger data with:', formData);
+    
+    $.ajax({
+        url: '{{ url_for("ledger.get_ledger_data") }}',
+        method: 'GET',
+        data: formData,
+        success: function(response) {
+            console.log('Ledger data received:', response);
+            updateLedgerTable(response.data);
+            updateStatistics(response.statistics);
+        },
+        error: function(xhr, status, error) {
+            console.error('Error loading ledger data:', xhr, status, error);
+            showAlert('خطأ في تحميل البيانات', 'error');
+        }
+    });
+}
+
+function updateLedgerTable(data) {
+    console.log('Updating ledger table with', data.length, 'entries');
+    const tbody = $('#ledger-table tbody');
+    tbody.empty();
+    
+    if (!data || data.length === 0) {
+        tbody.append('<tr><td colspan="8" class="text-center text-muted py-4"><i class="fas fa-info-circle"></i> لا توجد قيود محاسبية في الفترة المحددة</td></tr>');
+        return;
+    }
+    
+    let totalDebit = 0;
+    let totalCredit = 0;
+    
+    data.forEach(function(entry) {
+        totalDebit += parseFloat(entry.debit || 0);
+        totalCredit += parseFloat(entry.credit || 0);
+        
+        const debitClass = entry.debit > 0 ? 'debit-cell' : '';
+        const creditClass = entry.credit > 0 ? 'credit-cell' : '';
+        const balanceClass = 'balance-cell';
+        
+        const row = `
+            <tr>
+                <td class="text-center">${entry.date}</td>
+                <td class="text-center"><strong>${entry.transaction_number}</strong></td>
+                <td class="text-center"><span class="badge badge-${getTransactionBadgeClass(entry.type)}">${entry.type_ar}</span></td>
+                <td>${entry.description}</td>
+                <td class="text-end ${debitClass}">${entry.debit > 0 ? formatCurrency(entry.debit) : '—'}</td>
+                <td class="text-end ${creditClass}">${entry.credit > 0 ? formatCurrency(entry.credit) : '—'}</td>
+                <td class="text-end ${balanceClass}">${formatCurrency(entry.balance)}</td>
+                <td class="text-center">
+                    <button class="btn btn-sm btn-info" onclick="viewTransaction('${entry.type}', ${entry.id})" title="عرض التفاصيل">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+        tbody.append(row);
+    });
+    
+    // تحديث الإجماليات
+    $('#total-debit').text(formatCurrency(totalDebit));
+    $('#total-credit').text(formatCurrency(totalCredit));
+    $('#final-balance').text(formatCurrency(totalDebit - totalCredit));
+}
+
+function updateStatistics(stats) {
+    // الإيرادات
+    $('#total-sales').text(formatCurrency(stats.total_sales) + ' ₪');
+    $('#total-services').text(formatCurrency(stats.total_services || 0) + ' ₪');
+    
+    // التكاليف
+    $('#total-cogs').text(formatCurrency(stats.total_cogs || 0) + ' ₪');
+    $('#total-expenses').text(formatCurrency(stats.total_expenses) + ' ₪');
+    
+    // الأرباح
+    const grossProfit = stats.total_gross_profit || 0;
+    const netProfit = stats.net_profit || 0;
+    const profitMargin = stats.profit_margin || 0;
+    
+    $('#gross-profit').text(formatCurrency(Math.abs(grossProfit)) + ' ₪');
+    $('#net-profit').text(formatCurrency(Math.abs(netProfit)) + ' ₪');
+    $('#profit-margin').text(profitMargin.toFixed(2) + '%');
+    
+    // تغيير اللون حسب الربح/الخسارة
+    const netProfitCard = $('#net-profit').closest('.stat-card');
+    const grossProfitCard = $('#gross-profit').closest('.stat-card');
+    
+    if (netProfit < 0) {
+        netProfitCard.css('background', 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)');
+        netProfitCard.find('p').text('صافي الخسارة');
+    } else {
+        netProfitCard.css('background', 'linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%)');
+        netProfitCard.find('p').text('صافي الربح');
+    }
+    
+    if (grossProfit < 0) {
+        grossProfitCard.css('background', 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)');
+        grossProfitCard.find('p').text('إجمالي الخسارة');
+    } else {
+        grossProfitCard.css('background', 'linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%)');
+        grossProfitCard.find('p').text('إجمالي الربح');
+    }
+    
+    // تنبيه إذا كان هامش الربح منخفض
+    const marginCard = $('#profit-margin').closest('.stat-card');
+    if (profitMargin < 10) {
+        marginCard.css('background', 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)');
+    } else if (profitMargin < 20) {
+        marginCard.css('background', 'linear-gradient(135deg, #ffd89b 0%, #19547b 100%)');
+    } else {
+        marginCard.css('background', 'linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%)');
+    }
+    
+    // عرض تحذيرات المنتجات بدون تكلفة
+    const estimatedCount = stats.estimated_products_count || 0;
+    const noCostCount = stats.products_without_cost_count || 0;
+    
+    if (estimatedCount > 0 || noCostCount > 0) {
+        $('#cost-warnings').show();
+        
+        if (estimatedCount > 0) {
+            $('#estimated-products-alert').show();
+            $('#estimated-count').text(estimatedCount);
+            // حفظ البيانات لعرضها لاحقاً
+            window.estimatedProducts = stats.estimated_products || [];
+        } else {
+            $('#estimated-products-alert').hide();
+        }
+        
+        if (noCostCount > 0) {
+            $('#no-cost-products-alert').show();
+            $('#no-cost-count').text(noCostCount);
+            window.productsWithoutCost = stats.products_without_cost || [];
+        } else {
+            $('#no-cost-products-alert').hide();
+        }
+    } else {
+        $('#cost-warnings').hide();
+    }
+}
+
+// دالة لعرض المنتجات المقدرة
+function showEstimatedProducts() {
+    if (!window.estimatedProducts || window.estimatedProducts.length === 0) return;
+    
+    let html = '<div class="alert alert-warning">';
+    html += '<strong>⚠️ تنبيه:</strong> هذه المنتجات تم تقدير تكلفتها بـ 70% من سعر البيع. يمكنك تحديث التكلفة الفعلية الآن.';
+    html += '</div>';
+    html += '<div class="table-responsive"><table class="table table-sm table-bordered" id="estimated-products-table">';
+    html += '<thead><tr><th>المنتج</th><th>الكمية</th><th>سعر البيع</th><th>التكلفة المقدرة</th><th>التكلفة الفعلية</th><th>إجراء</th></tr></thead><tbody>';
+    
+    window.estimatedProducts.forEach(p => {
+        html += `<tr data-product-id="${p.id}">
+            <td>${p.name}</td>
+            <td>${p.qty_sold}</td>
+            <td>${formatCurrency(p.selling_price)} ₪</td>
+            <td class="text-warning">${formatCurrency(p.estimated_cost)} ₪</td>
+            <td>
+                <input type="number" step="0.01" min="0" 
+                       class="form-control form-control-sm cost-input" 
+                       data-product-id="${p.id}"
+                       placeholder="أدخل التكلفة"
+                       value="${p.actual_cost || ''}"
+                       style="width: 120px;">
+            </td>
+            <td>
+                <button class="btn btn-sm btn-success save-cost-btn" 
+                        data-product-id="${p.id}"
+                        onclick="saveSingleCost(${p.id})">
+                    <i class="fas fa-save"></i> حفظ
+                </button>
+            </td>
+        </tr>`;
+    });
+    
+    html += '</tbody></table></div>';
+    
+    Swal.fire({
+        title: '⚠️ منتجات مقدرة - تحديث التكلفة',
+        html: html,
+        icon: 'warning',
+        width: '900px',
+        showCancelButton: true,
+        showConfirmButton: true,
+        confirmButtonText: '<i class="fas fa-save"></i> حفظ الكل',
+        cancelButtonText: 'إغلاق',
+        confirmButtonColor: '#28a745',
+        preConfirm: () => {
+            return saveAllCosts('estimated');
+        }
+    }).then((result) => {
+        if (result.isConfirmed && result.value) {
+            Swal.fire('تم الحفظ!', 'تم تحديث التكاليف بنجاح', 'success');
+            loadLedgerData(); // إعادة تحميل البيانات
+        }
+    });
+}
+
+// دالة لعرض المنتجات بدون تكلفة
+function showNoCostProducts() {
+    if (!window.productsWithoutCost || window.productsWithoutCost.length === 0) return;
+    
+    let html = '<div class="alert alert-danger">';
+    html += '<strong>❌ تحذير:</strong> هذه المنتجات ليس لها تكلفة محددة وتم تجاهلها من حساب الأرباح! يرجى إدخال التكلفة الآن.';
+    html += '</div>';
+    html += '<div class="table-responsive"><table class="table table-sm table-bordered" id="no-cost-products-table">';
+    html += '<thead><tr><th>المنتج</th><th>الكمية المباعة</th><th>سعر البيع</th><th>التكلفة</th><th>إجراء</th></tr></thead><tbody>';
+    
+    window.productsWithoutCost.forEach(p => {
+        html += `<tr data-product-id="${p.id}">
+            <td>${p.name}</td>
+            <td>${p.qty_sold}</td>
+            <td>${formatCurrency(p.selling_price || 0)} ₪</td>
+            <td>
+                <input type="number" step="0.01" min="0" 
+                       class="form-control form-control-sm cost-input" 
+                       data-product-id="${p.id}"
+                       placeholder="أدخل التكلفة"
+                       style="width: 120px;">
+            </td>
+            <td>
+                <button class="btn btn-sm btn-success save-cost-btn" 
+                        data-product-id="${p.id}"
+                        onclick="saveSingleCost(${p.id})">
+                    <i class="fas fa-save"></i> حفظ
+                </button>
+            </td>
+        </tr>`;
+    });
+    
+    html += '</tbody></table></div>';
+    
+    Swal.fire({
+        title: '❌ منتجات بدون تكلفة - إضافة التكلفة',
+        html: html,
+        icon: 'error',
+        width: '900px',
+        showCancelButton: true,
+        showConfirmButton: true,
+        confirmButtonText: '<i class="fas fa-save"></i> حفظ الكل',
+        cancelButtonText: 'إغلاق',
+        confirmButtonColor: '#28a745',
+        preConfirm: () => {
+            return saveAllCosts('no-cost');
+        }
+    }).then((result) => {
+        if (result.isConfirmed && result.value) {
+            Swal.fire('تم الحفظ!', 'تم تحديث التكاليف بنجاح', 'success');
+            loadLedgerData(); // إعادة تحميل البيانات
+        }
+    });
+}
+
+// دالة لحفظ تكلفة منتج واحد
+function saveSingleCost(productId) {
+    const inputField = $(`.cost-input[data-product-id="${productId}"]`);
+    const cost = parseFloat(inputField.val());
+    
+    if (!cost || cost <= 0) {
+        Swal.fire('خطأ', 'يرجى إدخال تكلفة صحيحة', 'error');
+        return;
+    }
+    
+    $.ajax({
+        url: '{{ url_for("parts_bp.update_part_cost") }}',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            product_id: productId,
+            cost: cost
+        }),
+        success: function(response) {
+            if (response.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'تم الحفظ!',
+                    text: 'تم تحديث التكلفة بنجاح',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+                inputField.closest('tr').fadeOut(500, function() {
+                    $(this).remove();
+                });
+                loadLedgerData(); // إعادة تحميل البيانات
+            } else {
+                Swal.fire('خطأ', response.message || 'فشل في حفظ التكلفة', 'error');
+            }
+        },
+        error: function(xhr) {
+            console.error('Error saving cost:', xhr);
+            Swal.fire('خطأ', 'حدث خطأ أثناء حفظ التكلفة', 'error');
+        }
+    });
+}
+
+// دالة لحفظ جميع التكاليف
+function saveAllCosts(type) {
+    const costs = [];
+    let hasError = false;
+    
+    $('.cost-input').each(function() {
+        const productId = $(this).data('product-id');
+        const cost = parseFloat($(this).val());
+        
+        if (cost && cost > 0) {
+            costs.push({
+                product_id: productId,
+                cost: cost
+            });
+        }
+    });
+    
+    if (costs.length === 0) {
+        Swal.showValidationMessage('لم تقم بإدخال أي تكاليف');
+        return false;
+    }
+    
+    return $.ajax({
+        url: '{{ url_for("parts_bp.update_multiple_costs") }}',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ costs: costs }),
+        success: function(response) {
+            return response;
+        },
+        error: function(xhr) {
+            console.error('Error saving costs:', xhr);
+            Swal.showValidationMessage('حدث خطأ أثناء حفظ التكاليف');
+            return false;
+        }
+    });
+}
+
+function loadAccountsSummary() {
+    const formData = $('#filter-form').serialize();
+    console.log('Loading accounts summary with:', formData);
+    
+    $.ajax({
+        url: '{{ url_for("ledger.get_accounts_summary") }}',
+        method: 'GET',
+        data: formData,
+        success: function(response) {
+            console.log('Accounts summary received:', response);
+            updateAccountsSummary(response);
+        },
+        error: function(xhr, status, error) {
+            console.error('Error loading accounts summary:', xhr, status, error);
+            $('#accounts-summary').html('<tr><td colspan="4" class="text-center text-danger">خطأ في تحميل البيانات</td></tr>');
+        }
+    });
+}
+
+function loadReceivablesSummary() {
+    const formData = $('#filter-form').serialize();
+    console.log('Loading receivables summary with:', formData);
+    
+    $.ajax({
+        url: '{{ url_for("ledger.get_receivables_summary") }}',
+        method: 'GET',
+        data: formData,
+        success: function(response) {
+            console.log('Receivables summary received:', response);
+            updateReceivablesSummary(response);
+        },
+        error: function(xhr, status, error) {
+            console.error('Error loading receivables summary:', xhr, status, error);
+            $('#receivables-summary').html('<tr><td colspan="4" class="text-center text-danger">خطأ في تحميل البيانات</td></tr>');
+        }
+    });
+}
+
+function updateAccountsSummary(data) {
+    console.log('Updating accounts summary with', data ? data.length : 0, 'accounts');
+    const tbody = $('#accounts-summary');
+    tbody.empty();
+    
+    if (!data || data.length === 0) {
+        tbody.append('<tr><td colspan="4" class="text-center text-muted">لا توجد بيانات</td></tr>');
+        return;
+    }
+    
+    let totalDebit = 0;
+    let totalCredit = 0;
+    
+    data.forEach(function(account) {
+        const debit = parseFloat(account.debit_balance || 0);
+        const credit = parseFloat(account.credit_balance || 0);
+        const balance = debit - credit;
+        
+        totalDebit += debit;
+        totalCredit += credit;
+        
+        const row = `
+            <tr>
+                <td><strong>${account.name}</strong></td>
+                <td class="text-end ${debit > 0 ? 'debit-cell' : ''}">${debit > 0 ? formatCurrency(debit) : '—'}</td>
+                <td class="text-end ${credit > 0 ? 'credit-cell' : ''}">${credit > 0 ? formatCurrency(credit) : '—'}</td>
+                <td class="text-end balance-cell">${formatCurrency(balance)}</td>
+            </tr>
+        `;
+        tbody.append(row);
+    });
+    
+    $('#accounts-total-debit').text(formatCurrency(totalDebit));
+    $('#accounts-total-credit').text(formatCurrency(totalCredit));
+    $('#accounts-net-balance').text(formatCurrency(totalDebit - totalCredit));
+}
+
+function updateReceivablesSummary(data) {
+    const tbody = $('#receivables-summary');
+    tbody.empty();
+    
+    if (!data || data.length === 0) {
+        tbody.append('<tr><td colspan="4" class="text-center text-muted">لا توجد بيانات</td></tr>');
+        return;
+    }
+    
+    let totalDebit = 0;
+    let totalCredit = 0;
+    
+    data.forEach(function(entity) {
+        const debit = parseFloat(entity.debit || 0);
+        const credit = parseFloat(entity.credit || 0);
+        const balance = debit - credit;
+        
+        totalDebit += debit;
+        totalCredit += credit;
+        
+        const entityIcon = getEntityIcon(entity.type);
+        
+        const row = `
+            <tr>
+                <td>${entityIcon} <strong>${entity.name}</strong> <small class="text-muted">(${entity.type_ar})</small></td>
+                <td class="text-end ${debit > 0 ? 'debit-cell' : ''}">${debit > 0 ? formatCurrency(debit) : '—'}</td>
+                <td class="text-end ${credit > 0 ? 'credit-cell' : ''}">${credit > 0 ? formatCurrency(credit) : '—'}</td>
+                <td class="text-end balance-cell">${formatCurrency(balance)}</td>
+            </tr>
+        `;
+        tbody.append(row);
+    });
+    
+    $('#receivables-total-debit').text(formatCurrency(totalDebit));
+    $('#receivables-total-credit').text(formatCurrency(totalCredit));
+    $('#receivables-net').text(formatCurrency(totalDebit - totalCredit));
+}
+
+function getEntityIcon(type) {
+    const icons = {
+        'customer': '<i class="fas fa-user text-primary"></i>',
+        'supplier': '<i class="fas fa-truck text-info"></i>',
+        'partner': '<i class="fas fa-handshake text-success"></i>',
+        'vendor': '<i class="fas fa-store text-warning"></i>'
+    };
+    return icons[type] || '<i class="fas fa-circle text-secondary"></i>';
+}
+
+function getTransactionBadgeClass(type) {
+    const classes = {
+        'sale': 'success',
+        'purchase': 'info',
+        'expense': 'warning',
+        'payment': 'primary',
+        'maintenance': 'danger',
+        'service': 'secondary'
+    };
+    return classes[type] || 'secondary';
+}
+
+function formatCurrency(amount) {
+    const num = parseFloat(amount || 0);
+    return num.toLocaleString('ar-IL', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+
+function resetFilters() {
+    $('#filter-form')[0].reset();
+    const today = new Date().toISOString().split('T')[0];
+    const firstDayOfYear = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
+    $('#from-date').val(firstDayOfYear);
+    $('#to-date').val(today);
+    loadLedgerData();
+    loadAccountsSummary();
+    loadReceivablesSummary();
+}
+
+function exportLedger() {
+    const formData = $('#filter-form').serialize();
+    window.open('{{ url_for("ledger.export_ledger") }}?' + formData, '_blank');
+}
+
+function printLedger() {
+    window.print();
+}
+
+function viewTransaction(type, id) {
+    // توجيه لصفحة التفاصيل حسب نوع العملية
+    let url = '';
+    
+    switch(type) {
+        case 'sale':
+            url = '{{ url_for("sales_bp.sale_detail", id=0) }}'.replace('0', id);
+            break;
+        case 'purchase':
+        case 'expense':
+            url = '{{ url_for("expenses_bp.detail", exp_id=0) }}'.replace('0', id);
+            break;
+        case 'payment':
+            url = '/payments/' + id;
+            break;
+        case 'service':
+        case 'maintenance':
+            url = '/service/requests/' + id;
+            break;
+        default:
+            showAlert('لا يمكن عرض تفاصيل هذه العملية', 'error');
+            return;
+    }
+    
+    if (url) {
+        window.open(url, '_blank');
+    }
+}
+
+function showAlert(message, type) {
+    const alertClass = type === 'error' ? 'alert-danger' : 'alert-success';
+    const alert = `
+        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="close" data-dismiss="alert">
+                <span>&times;</span>
+            </button>
+        </div>
+    `;
+    $('.content').prepend(alert);
+    setTimeout(() => $('.alert').fadeOut(), 3000);
+}
+
+// المساعد الذكي
+function askSmartAssistant() {
+    const query = $('#smart-query').val().trim();
+    
+    if (!query) {
+        showAlert('الرجاء إدخال سؤال', 'error');
+        return;
+    }
+    
+    $('#smart-loading').show();
+    $('#smart-answer').hide();
+    
+    $.ajax({
+        url: '{{ url_for("ai_assistant.ask_question") }}',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            query: query,
+            from_date: $('#from-date').val(),
+            to_date: $('#to-date').val()
+        }),
+        headers: {
+            'X-CSRFToken': $('meta[name="csrf-token"]').attr('content')
+        },
+        beforeSend: function(xhr) {
+            xhr.setRequestHeader('X-CSRF-Token', $('meta[name="csrf-token"]').attr('content'));
+        },
+        success: function(response) {
+            $('#smart-loading').hide();
+            
+            if (response.success) {
+                displaySmartAnswer(response.answer, response.details);
+            } else {
+                showAlert(response.error || 'حدث خطأ', 'error');
+            }
+        },
+        error: function() {
+            $('#smart-loading').hide();
+            showAlert('خطأ في الاتصال بالمساعد الذكي', 'error');
+        }
+    });
+}
+
+function displaySmartAnswer(answer, details) {
+    let html = `<h5>${answer}</h5>`;
+    
+    if (details && details.length > 0) {
+        html += '<hr><div class="mt-3"><strong>التفاصيل:</strong><ul class="mt-2">';
+        details.forEach(function(detail) {
+            html += `<li>${detail}</li>`;
+        });
+        html += '</ul></div>';
+    }
+    
+    $('#answer-content').html(html);
+    $('#smart-answer').show();
+}
+
+// Enter key support
+$('#smart-query').on('keypress', function(e) {
+    if (e.which === 13) {
+        askSmartAssistant();
+    }
+});
+</script>
+{% endblock %}

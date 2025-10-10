@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+
+{% block page_title %}تقارير العملات{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('currencies.list') }}">إدارة العملات</a></li>
+<li class="breadcrumb-item active">التقارير</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- إحصائيات عامة -->
+    <div class="col-12 mb-4">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4 class="mb-0">{{ total_rates }}</h4>
+                                <p class="mb-0">إجمالي أسعار الصرف</p>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-exchange-alt fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4 class="mb-0">{{ active_rates }}</h4>
+                                <p class="mb-0">أسعار نشطة</p>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-check-circle fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4 class="mb-0">{{ inactive_rates }}</h4>
+                                <p class="mb-0">أسعار غير نشطة</p>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-pause-circle fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4 class="mb-0">{{ used_currencies|length }}</h4>
+                                <p class="mb-0">عملات مستخدمة</p>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-coins fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- تقرير العملاء -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-users me-2"></i>
+                    أرصدة العملاء بالشيكل
+                </h3>
+            </div>
+            <div class="card-body">
+                {% if customer_report and not customer_report.error %}
+                <div class="text-center mb-3">
+                    <h4 class="text-primary">{{ customer_report.formatted_total }}</h4>
+                    <p class="text-muted">إجمالي {{ customer_report.total_customers }} عميل</p>
+                </div>
+                
+                {% if customer_report.customers %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>العميل</th>
+                                <th class="text-end">الرصيد</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for customer in customer_report.customers[:5] %}
+                            <tr>
+                                <td>{{ customer.customer_name }}</td>
+                                <td class="text-end">{{ customer.formatted_balance }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if customer_report.customers|length > 5 %}
+                <p class="text-muted small">و {{ customer_report.customers|length - 5 }} عميل آخر</p>
+                {% endif %}
+                {% endif %}
+                {% else %}
+                <div class="text-center text-muted">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                    <p>خطأ في تحميل تقرير العملاء</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- تقرير الموردين -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-truck me-2"></i>
+                    أرصدة الموردين بالشيكل
+                </h3>
+            </div>
+            <div class="card-body">
+                {% if supplier_report and not supplier_report.error %}
+                <div class="text-center mb-3">
+                    <h4 class="text-primary">{{ supplier_report.formatted_total }}</h4>
+                    <p class="text-muted">إجمالي {{ supplier_report.total_suppliers }} مورد</p>
+                </div>
+                
+                {% if supplier_report.suppliers %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>المورد</th>
+                                <th class="text-end">الرصيد</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for supplier in supplier_report.suppliers[:5] %}
+                            <tr>
+                                <td>{{ supplier.supplier_name }}</td>
+                                <td class="text-end">{{ supplier.formatted_balance }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if supplier_report.suppliers|length > 5 %}
+                <p class="text-muted small">و {{ supplier_report.suppliers|length - 5 }} مورد آخر</p>
+                {% endif %}
+                {% endif %}
+                {% else %}
+                <div class="text-center text-muted">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                    <p>خطأ في تحميل تقرير الموردين</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- تقرير الشركاء -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-handshake me-2"></i>
+                    أرصدة الشركاء بالشيكل
+                </h3>
+            </div>
+            <div class="card-body">
+                {% if partner_report and not partner_report.error %}
+                <div class="text-center mb-3">
+                    <h4 class="text-primary">{{ partner_report.formatted_total }}</h4>
+                    <p class="text-muted">إجمالي {{ partner_report.total_partners }} شريك</p>
+                </div>
+                
+                {% if partner_report.partners %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>الشريك</th>
+                                <th class="text-end">الرصيد</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for partner in partner_report.partners[:5] %}
+                            <tr>
+                                <td>{{ partner.partner_name }}</td>
+                                <td class="text-end">{{ partner.formatted_balance }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if partner_report.partners|length > 5 %}
+                <p class="text-muted small">و {{ partner_report.partners|length - 5 }} شريك آخر</p>
+                {% endif %}
+                {% endif %}
+                {% else %}
+                <div class="text-center text-muted">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                    <p>خطأ في تحميل تقرير الشركاء</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- العملات المستخدمة -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-chart-pie me-2"></i>
+                    العملات المستخدمة
+                </h3>
+            </div>
+            <div class="card-body">
+                {% if used_currencies %}
+                <div class="row">
+                    {% for currency in used_currencies %}
+                    <div class="col-md-3 mb-3">
+                        <div class="card border-primary">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">{{ currency.base_code }}</h5>
+                                <p class="card-text">{{ currency.count }} سعر صرف</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center text-muted">
+                    <i class="fas fa-coins fa-3x mb-3"></i>
+                    <h5>لا توجد عملات مستخدمة</h5>
+                    <p>ابدأ بإضافة أسعار الصرف للعملات المختلفة</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

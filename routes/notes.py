@@ -147,6 +147,10 @@ def create_note():
         entity_id=eid,
         is_pinned=form.is_pinned.data,
         priority=form.priority.data,
+        target_type=form.target_type.data,
+        target_ids=form.target_ids.data,
+        notification_type=form.notification_type.data,
+        notification_date=form.notification_date.data,
         created_at=datetime.utcnow()
     )
     db.session.add(note)

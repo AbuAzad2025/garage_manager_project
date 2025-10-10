@@ -16,7 +16,7 @@ from utils import (
     super_only,
 )
 
-permissions_bp = Blueprint("permissions", __name__, template_folder="templates/permissions")
+permissions_bp = Blueprint("permissions", __name__, url_prefix="/permissions", template_folder="templates/permissions")
 
 _RESERVED_CODES = frozenset({
     "backup_database",

@@ -10,13 +10,13 @@ from sqlalchemy import func, or_, select, text as sa_text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from extensions import db
-from utils import clear_role_permission_cache, clear_users_cache_by_role
+from utils import clear_role_permission_cache, clear_users_cache_by_role, get_entity_balance_in_ils, validate_currency_consistency
 from models import (
     Account, AuditLog, Customer, ExchangeTransaction, Expense, ExpenseType, GLBatch, GLEntry, GL_ACCOUNTS,
     Invoice, Note, OnlineCart, OnlineCartItem, OnlinePayment, OnlinePreOrder, OnlinePreOrderItem,
     PartnerSettlement, Payment, PaymentDirection, PaymentEntityType, PaymentMethod, PaymentStatus, Permission,
     PreOrder, Product, Role, ServicePart, ServiceRequest, ServiceStatus, ServiceTask,
-    Shipment, ShipmentItem, StockAdjustment, StockAdjustmentItem, StockLevel,
+    Shipment, ShipmentItem, StockAdjustment, StockAdjustmentItem, StockLevel, Supplier,
     SupplierSettlement, Transfer, TransferDirection, Warehouse, _gl_upsert_batch_and_entries,
     build_partner_settlement_draft, build_supplier_settlement_draft, User,
 )
@@ -29,7 +29,7 @@ RESERVED_CODES = frozenset({
     "view_parts","view_preorders","add_preorder","edit_preorder","delete_preorder",
     "add_customer","add_supplier","add_partner","place_online_order",
     "view_shop","browse_products","manage_shop","access_api","manage_api",
-    "view_notes","manage_notes","view_barcode","manage_barcode",
+    "view_notes","manage_notes","view_barcode","manage_barcode","manage_currencies",
 })
 
 PERM_ALIASES = {
@@ -44,11 +44,24 @@ PERM_ALIASES = {
     "delete_preorder":"حذف طلب مسبق","add_customer":"إضافة عميل","add_supplier":"إضافة مورد","add_partner":"إضافة شريك",
     "place_online_order":"طلب أونلاين","view_shop":"عرض المتجر","browse_products":"تصفح المنتجات","manage_shop":"إدارة المتجر",
     "access_api":"الوصول إلى API","manage_api":"إدارة API","view_notes":"عرض الملاحظات","manage_notes":"إدارة الملاحظات",
-    "view_barcode":"عرض الباركود","manage_barcode":"إدارة الباركود",
+    "view_barcode":"عرض الباركود","manage_barcode":"إدارة الباركود","manage_currencies":"إدارة العملات",
 }
 
+
+def _parse_dt(val: str | None, end: bool = False):
+    """تحويل التاريخ من نص إلى datetime"""
+    if not val:
+        return None
+    try:
+        dt = datetime.fromisoformat(val.strip())
+        if end:
+            dt = dt.replace(hour=23, minute=59, second=59)
+        return dt
+    except Exception:
+        return None
+
 ROLE_PERMISSIONS = {
-    "admin":{"backup_database","manage_permissions","manage_roles","manage_users","manage_customers","manage_service","manage_reports","view_reports","manage_vendors","manage_shipments","manage_warehouses","view_warehouses","manage_exchange","manage_payments","manage_expenses","view_inventory","warehouse_transfer","view_parts","add_customer","add_supplier","add_partner","manage_sales","access_api","manage_api","view_notes","manage_notes","view_barcode","manage_barcode"},
+    "admin":{"backup_database","manage_permissions","manage_roles","manage_users","manage_customers","manage_service","manage_reports","view_reports","manage_vendors","manage_shipments","manage_warehouses","view_warehouses","manage_exchange","manage_payments","manage_expenses","view_inventory","warehouse_transfer","view_parts","add_customer","add_supplier","add_partner","manage_sales","access_api","manage_api","view_notes","manage_notes","view_barcode","manage_barcode","manage_currencies"},
     "staff":{"manage_customers","manage_service","view_parts","view_warehouses","view_inventory","view_notes"},
     "registered_customer":{"place_online_order","view_preorders","view_parts","view_shop","browse_products"},
     "mechanic":{"manage_service","view_warehouses","view_inventory","view_parts"},
@@ -184,6 +197,35 @@ def _begin():
     try: db.session.rollback()
     except Exception: pass
     return db.session.begin()
+
+@click.command("create-superadmin")
+@click.option("--username", required=True)
+@click.option("--password", required=True)
+@click.option("--email", default=None)
+@with_appcontext
+def create_superadmin(username, password, email):
+    s = db.session
+    if not email:
+        email = f"{username}@local"
+    r = Role.query.filter_by(name="super_admin").one_or_none()
+    if not r:
+        r = Role(name="super_admin")
+        s.add(r)
+        s.flush()
+    u = User.query.filter((User.username==username)|(User.email==email)).one_or_none()
+    if not u:
+        u = User(username=username, email=email)
+        u.set_password(password)
+        u.role = r
+        s.add(u)
+        s.flush()
+    else:
+        u.username = username
+        u.email = email
+        u.role = r
+        u.set_password(password)
+    s.commit()
+    click.echo(f"✅ super_admin '{username}' created or updated.")
 
 @click.command("seed-roles")
 @click.option("--force", is_flag=True)
@@ -1420,6 +1462,308 @@ def audit_tail(limit):
     out=[{"id":r.id,"time":r.created_at.isoformat() if r.created_at else None,"model":r.model_name,"record_id":r.record_id,"action":r.action,"user_id":r.user_id,"customer_id":r.customer_id,"ip":r.ip_address} for r in rows]
     click.echo(json.dumps(out, ensure_ascii=False))
 
+@click.command("currency-balance")
+@click.option("--entity-type", type=str, required=True, help="نوع الكيان (CUSTOMER, SUPPLIER, PARTNER)")
+@click.option("--entity-id", type=int, required=True, help="معرف الكيان")
+@with_appcontext
+def currency_balance(entity_type, entity_id):
+    """حساب رصيد الكيان بالشيكل"""
+    try:
+        balance = get_entity_balance_in_ils(entity_type.upper(), entity_id)
+        click.echo(f"الرصيد بالشيكل: {balance:,.2f} شيكل")
+    except Exception as e:
+        click.echo(f"خطأ: {e}")
+
+@click.command("currency-validate")
+@click.option("--entity-type", type=str, required=True, help="نوع الكيان (CUSTOMER, SUPPLIER, PARTNER)")
+@click.option("--entity-id", type=int, required=True, help="معرف الكيان")
+@with_appcontext
+def currency_validate(entity_type, entity_id):
+    """التحقق من اتساق العملات"""
+    try:
+        result = validate_currency_consistency(entity_type.upper(), entity_id)
+        if result['is_consistent']:
+            click.echo("✅ الحسابات متسقة")
+        else:
+            click.echo("❌ الحسابات غير متسقة")
+            click.echo(f"الرصيد الجديد: {result['new_balance']:,.2f}")
+            click.echo(f"الرصيد القديم: {result['old_balance']:,.2f}")
+            click.echo(f"الفرق: {result['difference']:,.2f}")
+    except Exception as e:
+        click.echo(f"خطأ: {e}")
+
+@click.command("currency-report")
+@click.option("--entity-type", type=str, required=True, help="نوع الكيان (CUSTOMER, SUPPLIER, PARTNER)")
+@with_appcontext
+def currency_report(entity_type):
+    """تقرير الأرصدة بالشيكل"""
+    try:
+        from reports import customer_balance_report_ils, supplier_balance_report_ils, partner_balance_report_ils
+        
+        if entity_type.upper() == "CUSTOMER":
+            report = customer_balance_report_ils()
+        elif entity_type.upper() == "SUPPLIER":
+            report = supplier_balance_report_ils()
+        elif entity_type.upper() == "PARTNER":
+            report = partner_balance_report_ils()
+        else:
+            click.echo("نوع الكيان غير مدعوم")
+            return
+        
+        if 'error' in report:
+            click.echo(f"خطأ: {report['error']}")
+            return
+        
+        click.echo(f"إجمالي الأرصدة: {report['formatted_total']}")
+        
+        # تحديد نوع الكيان والبيانات المناسبة
+        if entity_type.upper() == 'CUSTOMER':
+            count_key = 'total_customers'
+            entities_key = 'customers'
+            name_key = 'customer_name'
+        elif entity_type.upper() == 'SUPPLIER':
+            count_key = 'total_suppliers'
+            entities_key = 'suppliers'
+            name_key = 'supplier_name'
+        else:  # PARTNER
+            count_key = 'total_partners'
+            entities_key = 'partners'
+            name_key = 'partner_name'
+        
+        click.echo(f"عدد الكيانات: {report[count_key]}")
+        
+        # عرض تفاصيل أول 10 كيانات
+        entities = report[entities_key]
+        for entity in entities[:10]:
+            name = entity[name_key]
+            balance = entity['formatted_balance']
+            click.echo(f"- {name}: {balance}")
+        
+        if len(entities) > 10:
+            click.echo(f"... و {len(entities) - 10} كيان آخر")
+            
+    except Exception as e:
+        click.echo(f"خطأ: {e}")
+
+@click.command("currency-health")
+@with_appcontext
+def currency_health():
+    """فحص صحة نظام العملات مع السيرفرات العالمية"""
+    try:
+        from models import Currency, ExchangeRate, fx_rate, convert_amount, get_fx_rate_with_fallback
+        from datetime import datetime
+        
+        click.echo("=== فحص صحة نظام العملات ===")
+        click.echo()
+        
+        # فحص العملات النشطة
+        active_currencies = Currency.query.filter_by(is_active=True).count()
+        click.echo(f"✅ العملات النشطة: {active_currencies}")
+        
+        # فحص أسعار الصرف
+        total_rates = ExchangeRate.query.filter_by(is_active=True).count()
+        click.echo(f"✅ أسعار الصرف: {total_rates}")
+        
+        # فحص سعر صرف تجريبي مع معلومات المصدر
+        try:
+            rate_info = get_fx_rate_with_fallback("USD", "ILS")
+            if rate_info['success']:
+                source_text = "محلي" if rate_info['source'] == "local" else "عالمي"
+                click.echo(f"✅ سعر USD/ILS: {rate_info['rate']} (مصدر: {source_text})")
+            else:
+                click.echo(f"❌ خطأ في سعر USD/ILS: {rate_info.get('error', 'غير معروف')}")
+        except Exception as e:
+            click.echo(f"❌ خطأ في سعر USD/ILS: {e}")
+        
+        # فحص تحويل تجريبي
+        try:
+            converted = convert_amount(100, "USD", "ILS")
+            click.echo(f"✅ تحويل 100 USD إلى ILS: {converted}")
+        except Exception as e:
+            click.echo(f"❌ خطأ في التحويل: {e}")
+        
+        click.echo()
+        click.echo("🎉 فحص النظام مكتمل!")
+        
+    except Exception as e:
+        click.echo(f"خطأ: {e}")
+
+@click.command("currency-update")
+@with_appcontext
+def currency_update():
+    """تحديث أسعار الصرف من السيرفرات العالمية"""
+    try:
+        from models import auto_update_missing_rates
+        
+        click.echo("=== تحديث أسعار الصرف ===")
+        click.echo()
+        
+        result = auto_update_missing_rates()
+        
+        if result['success']:
+            click.echo(f"✅ {result['message']}")
+            click.echo(f"📊 تم تحديث {result['updated_rates']} سعر صرف")
+        else:
+            click.echo(f"❌ {result['message']}")
+            if 'error' in result:
+                click.echo(f"🔍 تفاصيل الخطأ: {result['error']}")
+        
+    except Exception as e:
+        click.echo(f"خطأ: {e}")
+
+@click.command("currency-test")
+@click.option("--base", type=str, default="USD", help="العملة الأساسية")
+@click.option("--quote", type=str, default="ILS", help="العملة المقابلة")
+@with_appcontext
+def currency_test(base, quote):
+    """اختبار سعر الصرف مع معلومات المصدر"""
+    try:
+        from models import get_fx_rate_with_fallback, convert_amount
+        
+        click.echo(f"=== اختبار سعر الصرف {base}/{quote} ===")
+        click.echo()
+        
+        # اختبار الحصول على السعر
+        rate_info = get_fx_rate_with_fallback(base, quote)
+        
+        if rate_info['success']:
+            source_text = "محلي (مدخل من الادمن)" if rate_info['source'] == "local" else "عالمي (من السيرفرات)"
+            click.echo(f"✅ السعر: {rate_info['rate']}")
+            click.echo(f"📡 المصدر: {source_text}")
+            click.echo(f"⏰ الوقت: {rate_info['timestamp']}")
+            
+            # اختبار التحويل
+            try:
+                converted = convert_amount(100, base, quote)
+                click.echo(f"💰 تحويل 100 {base} = {converted} {quote}")
+            except Exception as e:
+                click.echo(f"❌ خطأ في التحويل: {e}")
+        else:
+            click.echo(f"❌ فشل في الحصول على السعر: {rate_info.get('error', 'غير معروف')}")
+        
+    except Exception as e:
+        click.echo(f"خطأ: {e}")
+        
+        # التحقق من الموردين
+        suppliers = db.session.query(Supplier).all()
+        click.echo(f"عدد الموردين: {len(suppliers)}")
+        
+        click.echo("✅ نظام العملات يعمل بشكل طبيعي")
+        
+    except Exception as e:
+        click.echo(f"❌ خطأ في النظام: {e}")
+
+
+@click.command('create-superadmin', help="إنشاء مستخدم Super Admin")
+@with_appcontext
+def create_superadmin():
+    """إنشاء مستخدم Super Admin بصلاحيات كاملة"""
+    from werkzeug.security import generate_password_hash
+    
+    email = click.prompt("البريد الإلكتروني", type=str)
+    username = click.prompt("اسم المستخدم", type=str)
+    password = click.prompt("كلمة المرور", type=str, hide_input=True)
+    password_confirm = click.prompt("تأكيد كلمة المرور", type=str, hide_input=True)
+    
+    if password != password_confirm:
+        click.echo(click.style("كلمة المرور غير متطابقة", fg="red"))
+        return
+    
+    # التحقق من وجود المستخدم
+    if User.query.filter_by(email=email).first():
+        click.echo(click.style(f"المستخدم {email} موجود بالفعل", fg="yellow"))
+        return
+    
+    # البحث عن دور Super Admin أو إنشاؤه
+    super_role = Role.query.filter_by(slug="super_admin").first()
+    if not super_role:
+        super_role = Role(
+            name="Super Admin",
+            slug="super_admin",
+            description="صلاحيات كاملة للنظام"
+        )
+        db.session.add(super_role)
+        db.session.flush()
+    
+    # إنشاء المستخدم
+    user = User(
+        email=email,
+        username=username,
+        password_hash=generate_password_hash(password),
+        role_id=super_role.id,
+        is_active=True,
+        email_confirmed=True
+    )
+    
+    try:
+        db.session.add(user)
+        db.session.commit()
+        click.echo(click.style(f"✅ تم إنشاء مستخدم Super Admin: {email}", fg="green"))
+    except Exception as e:
+        db.session.rollback()
+        click.echo(click.style(f"❌ خطأ: {str(e)}", fg="red"))
+
+
+@click.command('optimize-db', help="تحسين أداء قاعدة البيانات")
+@with_appcontext
+def optimize_db():
+    """تحسين أداء قاعدة البيانات بإنشاء الفهارس وتحليل الجداول"""
+    try:
+        from sqlalchemy import text
+        
+        # قائمة الفهارس الموصى بها
+        recommended_indexes = [
+            "CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)",
+            "CREATE INDEX IF NOT EXISTS idx_users_role_id ON users(role_id)",
+            "CREATE INDEX IF NOT EXISTS idx_products_sku ON products(sku)",
+            "CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode)",
+            "CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(sale_date)",
+            "CREATE INDEX IF NOT EXISTS idx_sales_customer ON sales(customer_id)",
+            "CREATE INDEX IF NOT EXISTS idx_payments_date ON payments(payment_date)",
+            "CREATE INDEX IF NOT EXISTS idx_payments_entity ON payments(entity_type, entity_id)",
+            "CREATE INDEX IF NOT EXISTS idx_service_customer ON service_requests(customer_id)",
+            "CREATE INDEX IF NOT EXISTS idx_service_status ON service_requests(status)",
+        ]
+        
+        created = 0
+        for idx_sql in recommended_indexes:
+            try:
+                db.session.execute(text(idx_sql))
+                created += 1
+            except Exception:
+                pass
+        
+        db.session.commit()
+        
+        # تحليل قاعدة البيانات
+        try:
+            db.session.execute(text("ANALYZE"))
+            db.session.commit()
+        except Exception:
+            pass
+        
+        click.echo(click.style(f"✅ اكتمل تحسين قاعدة البيانات: تم إنشاء {created} فهرس", fg="green"))
+    except Exception as e:
+        click.echo(click.style(f"❌ خطأ: {str(e)}", fg="red"))
+
+
 def register_cli(app) -> None:
-    commands=[seed_roles, sync_permissions, list_permissions, list_roles, role_add_perms, create_role, export_rbac, create_user, user_set_password, user_activate, user_assign_role, list_users, list_customers, seed_expense_types, expense_type_cmd, seed_palestine_cmd, seed_all, clear_rbac_caches, wh_create, wh_list, wh_stock, product_create, product_find, product_stock, product_set_price, stock_transfer, stock_exchange, stock_reserve, stock_unreserve, shipment_create, shipment_status, supplier_settlement_draft, supplier_settlement_confirm, partner_settlement_draft, partner_settlement_confirm, payment_create, payment_list, invoice_list, invoice_update_status, preorder_create, sr_create, sr_add_part, sr_add_task, sr_recalc, sr_set_status, sr_show, cart_create, cart_add_item, order_from_cart, order_set_status, order_add_item, onlinepay_create, onlinepay_decrypt_card, expense_create, expense_pay, stock_adjustment_create, stock_adjustment_add_item, stock_adjustment_finalize, gl_seed_accounts, gl_list_batches, gl_list_entries, note_add, note_list, audit_tail]
+    commands=[
+        seed_roles, sync_permissions, list_permissions, list_roles, role_add_perms, create_role, export_rbac,
+        create_user, user_set_password, user_activate, user_assign_role, list_users, list_customers,
+        seed_expense_types, expense_type_cmd, seed_palestine_cmd, seed_all, clear_rbac_caches,
+        wh_create, wh_list, wh_stock, product_create, product_find, product_stock, product_set_price,
+        stock_transfer, stock_exchange, stock_reserve, stock_unreserve, shipment_create, shipment_status,
+        supplier_settlement_draft, supplier_settlement_confirm, partner_settlement_draft, partner_settlement_confirm,
+        payment_create, payment_list, invoice_list, invoice_update_status, preorder_create,
+        sr_create, sr_add_part, sr_add_task, sr_recalc, sr_set_status, sr_show,
+        cart_create, cart_add_item, order_from_cart, order_set_status, order_add_item,
+        onlinepay_create, onlinepay_decrypt_card, expense_create, expense_pay,
+        stock_adjustment_create, stock_adjustment_add_item, stock_adjustment_finalize,
+        gl_seed_accounts, gl_list_batches, gl_list_entries,
+        note_add, note_list, audit_tail,
+        currency_balance, currency_validate, currency_report, currency_health, currency_update, currency_test,
+        create_superadmin,
+        optimize_db
+    ]
     for cmd in commands: app.cli.add_command(cmd)

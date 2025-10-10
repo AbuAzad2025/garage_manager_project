@@ -12,6 +12,13 @@ import json
 
 supplier_settlements_bp = Blueprint("supplier_settlements_bp", __name__, url_prefix="/suppliers")
 
+@supplier_settlements_bp.route("/settlements", methods=["GET"], endpoint="list")
+@login_required
+@permission_required("manage_vendors")
+def settlements_list():
+    """قائمة تسويات الموردين"""
+    return render_template("supplier_settlements/list.html")
+
 def _get_supplier_or_404(sid: int) -> Supplier:
     obj = db.session.get(Supplier, sid)
     if not obj:
@@ -96,6 +103,8 @@ def preview(supplier_id):
             "source_id": l.source_id,
             "description": l.description,
             "product_id": l.product_id,
+            "product_name": getattr(l, 'product_name', None),
+            "product_sku": getattr(l, 'product_sku', None),
             "quantity": _q2(l.quantity) if l.quantity is not None else None,
             "unit_price": _q2(l.unit_price) if l.unit_price is not None else None,
             "gross_amount": _q2(l.gross_amount),
@@ -201,3 +210,359 @@ def show(settlement_id):
     if not ss:
         abort(404)
     return render_template("vendors/suppliers/settlement_preview.html", ss=ss)
+
+
+# ===== نظام التسوية الذكي للموردين =====
+
+@supplier_settlements_bp.route("/<int:supplier_id>/settlement", methods=["GET"], endpoint="supplier_settlement")
+@login_required
+@permission_required("manage_vendors")
+def supplier_settlement(supplier_id):
+    """التسوية الذكية للمورد"""
+    supplier = _get_supplier_or_404(supplier_id)
+    
+    # الحصول على الفترة الزمنية
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+    
+    if date_from:
+        date_from = _parse_iso_to_datetime(date_from, end=False)
+    else:
+        date_from = datetime(2024, 1, 1)
+    
+    if date_to:
+        date_to = _parse_iso_to_datetime(date_to, end=True)
+    else:
+        date_to = datetime.utcnow()
+    
+    # حساب الرصيد الذكي
+    balance_data = _calculate_smart_supplier_balance(supplier_id, date_from, date_to)
+    
+    return render_template(
+        "vendors/suppliers/smart_settlement.html",
+        supplier=supplier,
+        balance_data=balance_data,
+        date_from=date_from,
+        date_to=date_to
+    )
+
+
+def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, date_to: datetime):
+    """حساب الرصيد الذكي للمورد مع التفاصيل المتقدمة"""
+    try:
+        from models import Expense, Sale, ExchangeTransaction, Payment, Product
+        from sqlalchemy import func, desc
+        
+        supplier = db.session.get(Supplier, supplier_id)
+        if not supplier:
+            return {"success": False, "error": "المورد غير موجود"}
+        
+        # 1. الوارد من المورد (المشتريات + القطع المعطاة له)
+        incoming = _calculate_supplier_incoming(supplier_id, date_from, date_to)
+        
+        # 2. الصادر للمورد (المبيعات + القطع المأخوذة منه)
+        outgoing = _calculate_supplier_outgoing(supplier_id, date_from, date_to)
+        
+        # 3. الدفعات
+        payments_to_supplier = _calculate_payments_to_supplier(supplier_id, date_from, date_to)
+        payments_from_supplier = _calculate_payments_from_supplier(supplier_id, date_from, date_to)
+        
+        # 4. حساب الرصيد النهائي
+        total_incoming = incoming["total"] + payments_from_supplier
+        total_outgoing = outgoing["total"] + payments_to_supplier
+        
+        balance = total_incoming - total_outgoing
+        
+        # 5. التحقق من القطع غير المسعرة
+        unpriced_items = _check_unpriced_items_for_supplier(supplier_id, date_from, date_to)
+        
+        # 6. آخر تسوية
+        last_settlement = _get_last_supplier_settlement(supplier_id)
+        
+        # 7. تفاصيل العمليات
+        operations_details = _get_supplier_operations_details(supplier_id, date_from, date_to)
+        
+        return {
+            "success": True,
+            "supplier": {
+                "id": supplier.id,
+                "name": supplier.name,
+                "currency": supplier.currency
+            },
+            "period": {
+                "from": date_from.isoformat(),
+                "to": date_to.isoformat()
+            },
+            "incoming": {
+                "purchases": incoming["purchases"],
+                "products_given": incoming["products_given"],
+                "payments_received": payments_from_supplier,
+                "total": total_incoming
+            },
+            "outgoing": {
+                "sales": outgoing["sales"],
+                "products_taken": outgoing["products_taken"],
+                "payments_made": payments_to_supplier,
+                "total": total_outgoing
+            },
+            "balance": {
+                "amount": balance,
+                "direction": "للمورد" if balance > 0 else "على المورد" if balance < 0 else "متوازن",
+                "currency": supplier.currency
+            },
+            "recommendation": _get_settlement_recommendation(balance, supplier.currency),
+            "unpriced_items": unpriced_items,
+            "last_settlement": last_settlement,
+            "operations_details": operations_details
+        }
+        
+    except Exception as e:
+        return {"success": False, "error": f"خطأ في حساب رصيد المورد: {str(e)}"}
+
+
+def _calculate_supplier_incoming(supplier_id: int, date_from: datetime, date_to: datetime):
+    """حساب الوارد من المورد"""
+    from models import Expense, ExchangeTransaction
+    from sqlalchemy import func
+    
+    # المشتريات (النفقات من نوع مشتريات)
+    purchases = db.session.query(func.sum(Expense.amount)).filter(
+        Expense.payee_type == "SUPPLIER",
+        Expense.payee_entity_id == supplier_id,
+        Expense.date >= date_from,
+        Expense.date <= date_to
+    ).scalar() or 0
+    
+    # القطع المعطاة للمورد (ExchangeTransaction مع اتجاه OUT)
+    products_given = db.session.query(func.sum(ExchangeTransaction.quantity * ExchangeTransaction.unit_cost)).filter(
+        ExchangeTransaction.supplier_id == supplier_id,
+        ExchangeTransaction.direction == "OUT",
+        ExchangeTransaction.created_at >= date_from,
+        ExchangeTransaction.created_at <= date_to
+    ).scalar() or 0
+    
+    return {
+        "purchases": float(purchases),
+        "products_given": float(products_given),
+        "total": float(purchases + products_given)
+    }
+
+
+def _calculate_supplier_outgoing(supplier_id: int, date_from: datetime, date_to: datetime):
+    """حساب الصادر للمورد"""
+    from models import Sale, ExchangeTransaction
+    from sqlalchemy import func
+    
+    # المبيعات للمورد (إذا كان عميل أيضاً)
+    sales = db.session.query(func.sum(Sale.total_amount)).filter(
+        Sale.customer_id == supplier_id,  # إذا كان المورد عميل أيضاً
+        Sale.sale_date >= date_from,
+        Sale.sale_date <= date_to
+    ).scalar() or 0
+    
+    # القطع المأخوذة من المورد (ExchangeTransaction مع اتجاه IN)
+    products_taken = db.session.query(func.sum(ExchangeTransaction.quantity * ExchangeTransaction.unit_cost)).filter(
+        ExchangeTransaction.supplier_id == supplier_id,
+        ExchangeTransaction.direction == "IN",
+        ExchangeTransaction.created_at >= date_from,
+        ExchangeTransaction.created_at <= date_to
+    ).scalar() or 0
+    
+    return {
+        "sales": float(sales),
+        "products_taken": float(products_taken),
+        "total": float(sales + products_taken)
+    }
+
+
+def _calculate_payments_to_supplier(supplier_id: int, date_from: datetime, date_to: datetime):
+    """حساب الدفعات المدفوعة للمورد"""
+    from models import Payment
+    from sqlalchemy import func
+    
+    amount = db.session.query(func.sum(Payment.total_amount)).filter(
+        Payment.supplier_id == supplier_id,
+        Payment.direction == "OUTGOING",
+        Payment.status == "COMPLETED",
+        Payment.payment_date >= date_from,
+        Payment.payment_date <= date_to
+    ).scalar() or 0
+    return float(amount)
+
+
+def _calculate_payments_from_supplier(supplier_id: int, date_from: datetime, date_to: datetime):
+    """حساب الدفعات المستلمة من المورد"""
+    from models import Payment
+    from sqlalchemy import func
+    
+    amount = db.session.query(func.sum(Payment.total_amount)).filter(
+        Payment.supplier_id == supplier_id,
+        Payment.direction == "INCOMING",
+        Payment.status == "COMPLETED",
+        Payment.payment_date >= date_from,
+        Payment.payment_date <= date_to
+    ).scalar() or 0
+    return float(amount)
+
+
+def _check_unpriced_items_for_supplier(supplier_id: int, date_from: datetime, date_to: datetime):
+    """التحقق من القطع غير المسعرة للمورد"""
+    from models import ExchangeTransaction, Product
+    from sqlalchemy import func, or_
+    
+    # البحث عن القطع التي لا تحتوي على سعر
+    unpriced_transactions = db.session.query(ExchangeTransaction).join(Product).filter(
+        ExchangeTransaction.supplier_id == supplier_id,
+        ExchangeTransaction.created_at >= date_from,
+        ExchangeTransaction.created_at <= date_to,
+        or_(
+            ExchangeTransaction.unit_cost.is_(None),
+            ExchangeTransaction.unit_cost == 0,
+            Product.purchase_price.is_(None),
+            Product.purchase_price == 0
+        )
+    ).all()
+    
+    unpriced_items = []
+    for transaction in unpriced_transactions:
+        unpriced_items.append({
+            "transaction_id": transaction.id,
+            "product_name": transaction.product.name if transaction.product else "غير محدد",
+            "product_id": transaction.product_id,
+            "quantity": transaction.quantity,
+            "direction": transaction.direction,
+            "date": transaction.created_at.isoformat() if transaction.created_at else None,
+            "suggested_price": float(transaction.product.purchase_price) if transaction.product and transaction.product.purchase_price else 0
+        })
+    
+    return {
+        "count": len(unpriced_items),
+        "items": unpriced_items,
+        "total_estimated_value": sum(item["quantity"] * item["suggested_price"] for item in unpriced_items)
+    }
+
+
+def _get_last_supplier_settlement(supplier_id: int):
+    """الحصول على آخر تسوية للمورد"""
+    from models import SupplierSettlement
+    from sqlalchemy import desc
+    
+    last_settlement = db.session.query(SupplierSettlement).filter(
+        SupplierSettlement.supplier_id == supplier_id
+    ).order_by(desc(SupplierSettlement.created_at)).first()
+    
+    if not last_settlement:
+        return None
+    
+    return {
+        "id": last_settlement.id,
+        "code": last_settlement.code,
+        "date": last_settlement.created_at.isoformat() if last_settlement.created_at else None,
+        "status": last_settlement.status,
+        "total_due": float(last_settlement.total_due) if last_settlement.total_due else 0,
+        "currency": last_settlement.currency
+    }
+
+
+def _get_supplier_operations_details(supplier_id: int, date_from: datetime, date_to: datetime):
+    """الحصول على تفاصيل العمليات للمورد"""
+    from models import ExchangeTransaction, Payment, Expense, Sale
+    from sqlalchemy import func, desc
+    
+    # العمليات الأخيرة
+    recent_transactions = db.session.query(ExchangeTransaction).filter(
+        ExchangeTransaction.supplier_id == supplier_id,
+        ExchangeTransaction.created_at >= date_from,
+        ExchangeTransaction.created_at <= date_to
+    ).order_by(desc(ExchangeTransaction.created_at)).limit(10).all()
+    
+    # الدفعات الأخيرة
+    recent_payments = db.session.query(Payment).filter(
+        Payment.supplier_id == supplier_id,
+        Payment.payment_date >= date_from,
+        Payment.payment_date <= date_to
+    ).order_by(desc(Payment.payment_date)).limit(10).all()
+    
+    # النفقات الأخيرة
+    recent_expenses = db.session.query(Expense).filter(
+        Expense.payee_type == "SUPPLIER",
+        Expense.payee_entity_id == supplier_id,
+        Expense.date >= date_from,
+        Expense.date <= date_to
+    ).order_by(desc(Expense.date)).limit(10).all()
+    
+    # المبيعات الأخيرة (إذا كان المورد عميلاً أيضاً)
+    recent_sales = db.session.query(Sale).filter(
+        Sale.customer_id == supplier_id,
+        Sale.sale_date >= date_from,
+        Sale.sale_date <= date_to
+    ).order_by(desc(Sale.sale_date)).limit(10).all()
+    
+    return {
+        "recent_transactions": [
+            {
+                "id": t.id,
+                "product_name": t.product.name if t.product else "غير محدد",
+                "quantity": t.quantity,
+                "unit_cost": float(t.unit_cost) if t.unit_cost else 0,
+                "direction": t.direction,
+                "date": t.created_at.isoformat() if t.created_at else None,
+                "total_value": float(t.quantity * t.unit_cost) if t.unit_cost else 0
+            } for t in recent_transactions
+        ],
+        "recent_payments": [
+            {
+                "id": p.id,
+                "amount": float(p.total_amount),
+                "direction": p.direction,
+                "method": p.method,
+                "date": p.payment_date.isoformat() if p.payment_date else None,
+                "status": p.status
+            } for p in recent_payments
+        ],
+        "recent_expenses": [
+            {
+                "id": e.id,
+                "amount": float(e.amount),
+                "description": e.description,
+                "date": e.date.isoformat() if e.date else None,
+                "payee_name": e.payee_name
+            } for e in recent_expenses
+        ],
+        "recent_sales": [
+            {
+                "id": s.id,
+                "amount": float(s.total_amount),
+                "sale_number": s.sale_number,
+                "date": s.sale_date.isoformat() if s.sale_date else None,
+                "status": s.status
+            } for s in recent_sales
+        ]
+    }
+
+
+def _get_settlement_recommendation(balance: float, currency: str):
+    """اقتراح التسوية مع التحقق من القطع غير المسعرة"""
+    if abs(balance) < 0.01:  # متوازن
+        return {
+            "action": "متوازن",
+            "message": "لا توجد تسوية مطلوبة",
+            "amount": 0,
+            "warnings": []
+        }
+    elif balance > 0:  # الباقي له
+        return {
+            "action": "دفع",
+            "message": f"يجب دفع {abs(balance):.2f} {currency} للمورد",
+            "amount": abs(balance),
+            "direction": "OUTGOING",
+            "warnings": []
+        }
+    else:  # الباقي عليه
+        return {
+            "action": "قبض",
+            "message": f"يجب قبض {abs(balance):.2f} {currency} من المورد",
+            "amount": abs(balance),
+            "direction": "INCOMING",
+            "warnings": []
+        }

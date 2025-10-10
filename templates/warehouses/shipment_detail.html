@@ -14,10 +14,41 @@
     </form>
 
     {% set st = (shipment.status or '').upper() %}
+    
+    {% if st not in ['IN_TRANSIT', 'ARRIVED', 'DELIVERED', 'CANCELLED'] %}
+    <form method="POST" action="{{ url_for('shipments_bp.mark_in_transit', id=shipment.id) }}" class="d-inline m-0 p-0">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-info">وضع في الطريق</button>
+    </form>
+    {% endif %}
+
+    {% if st == 'IN_TRANSIT' %}
+    <form method="POST" action="{{ url_for('shipments_bp.mark_in_customs', id=shipment.id) }}" class="d-inline m-0 p-0">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-primary">وضع في الجمارك</button>
+    </form>
+    {% endif %}
+
+    {% if st == 'IN_CUSTOMS' %}
     <form method="POST" action="{{ url_for('shipments_bp.mark_arrived', id=shipment.id) }}" class="d-inline m-0 p-0">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" class="btn btn-success" {% if st in ['ARRIVED','CANCELLED'] %}disabled{% endif %}>اعتماد الوصول</button>
+      <button type="submit" class="btn btn-success" onclick="return confirm('تأكيد وصول الشحنة وتحديث المخزون؟')">اعتماد الوصول</button>
     </form>
+    {% endif %}
+
+    {% if st == 'ARRIVED' %}
+    <form method="POST" action="{{ url_for('shipments_bp.mark_delivered', id=shipment.id) }}" class="d-inline m-0 p-0">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-success" onclick="return confirm('تأكيد تسليم الشحنة؟')">تسليم</button>
+    </form>
+    {% endif %}
+
+    {% if st not in ['CANCELLED', 'RETURNED'] %}
+    <form method="POST" action="{{ url_for('shipments_bp.mark_returned', id=shipment.id) }}" class="d-inline m-0 p-0">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-warning">إرجاع</button>
+    </form>
+    {% endif %}
 
     <form method="POST" action="{{ url_for('shipments_bp.cancel_shipment', id=shipment.id) }}" class="d-inline m-0 p-0">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -73,6 +104,63 @@
       <dd class="col-sm-9">
         {{ shipment.actual_arrival and shipment.actual_arrival.strftime('%Y-%m-%d %H:%M') or '-' }}
       </dd>
+
+      <dt class="col-sm-3">تاريخ التسليم</dt>
+      <dd class="col-sm-9">
+        {{ shipment.delivered_date and shipment.delivered_date.strftime('%Y-%m-%d %H:%M') or '-' }}
+      </dd>
+
+      <dt class="col-sm-3">الوزن</dt>
+      <dd class="col-sm-9">{{ shipment.weight or '-' }} كيلو</dd>
+
+      <dt class="col-sm-3">الأبعاد</dt>
+      <dd class="col-sm-9">{{ shipment.dimensions or '-' }}</dd>
+
+      <dt class="col-sm-3">عدد الطرود</dt>
+      <dd class="col-sm-9">{{ shipment.package_count or 1 }}</dd>
+
+      <dt class="col-sm-3">الأولوية</dt>
+      <dd class="col-sm-9">
+        <span class="badge 
+          {% if shipment.priority == 'URGENT' %}bg-danger
+          {% elif shipment.priority == 'HIGH' %}bg-warning
+          {% elif shipment.priority == 'LOW' %}bg-success
+          {% else %}bg-info{% endif %}">
+          {{ shipment.priority or 'NORMAL' }}
+        </span>
+      </dd>
+
+      <dt class="col-sm-3">طريقة التسليم</dt>
+      <dd class="col-sm-9">{{ shipment.delivery_method or '-' }}</dd>
+
+      <dt class="col-sm-3">تعليمات التسليم</dt>
+      <dd class="col-sm-9">{{ shipment.delivery_instructions or '-' }}</dd>
+
+      <dt class="col-sm-3">رقم البيان الجمركي</dt>
+      <dd class="col-sm-9">{{ shipment.customs_declaration or '-' }}</dd>
+
+      <dt class="col-sm-3">تاريخ التخليص الجمركي</dt>
+      <dd class="col-sm-9">
+        {{ shipment.customs_cleared_date and shipment.customs_cleared_date.strftime('%Y-%m-%d %H:%M') or '-' }}
+      </dd>
+
+      <dt class="col-sm-3">محاولات التسليم</dt>
+      <dd class="col-sm-9">
+        <span class="badge bg-info">{{ shipment.delivery_attempts or 0 }}</span>
+        {% if shipment.delivery_attempts and shipment.delivery_attempts > 0 %}
+        <button class="btn btn-sm btn-outline-primary ms-2" onclick="updateDeliveryAttempt({{ shipment.id }})">
+          <i class="fas fa-plus"></i> إضافة محاولة
+        </button>
+        {% endif %}
+      </dd>
+
+      <dt class="col-sm-3">آخر محاولة تسليم</dt>
+      <dd class="col-sm-9">
+        {{ shipment.last_delivery_attempt and shipment.last_delivery_attempt.strftime('%Y-%m-%d %H:%M') or '-' }}
+      </dd>
+
+      <dt class="col-sm-3">سبب الإرجاع</dt>
+      <dd class="col-sm-9">{{ shipment.return_reason or '-' }}</dd>
 
       <dt class="col-sm-3">قيمة البضائع</dt>
       <dd class="col-sm-9">{{ format_currency(shipment.value_before or 0) }}</dd>
@@ -182,4 +270,32 @@
     </div>
   </div>
 </div>
+
+<script>
+function updateDeliveryAttempt(shipmentId) {
+    const notes = prompt('أدخل ملاحظات محاولة التسليم (اختياري):');
+    if (notes === null) return; // User cancelled
+    
+    fetch(`/shipments/${shipmentId}/update-delivery-attempt`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('meta[name=csrf-token]').content
+        },
+        body: JSON.stringify({ notes: notes })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.ok) {
+            location.reload();
+        } else {
+            alert('خطأ: ' + (data.error || 'حدث خطأ غير متوقع'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('خطأ في الاتصال');
+    });
+}
+</script>
 {% endblock %}

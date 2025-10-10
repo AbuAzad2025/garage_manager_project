@@ -47,6 +47,196 @@ def _parse_date_like(d):
 def _allowed_columns(model) -> set[str]:
     return {c.name for c in model.__table__.columns}
 
+
+def customer_balance_report_ils(customer_ids: list = None) -> Dict:
+    """تقرير أرصدة العملاء بالشيكل"""
+    try:
+        from utils import get_entity_balance_in_ils, format_currency_in_ils
+        
+        if customer_ids is None:
+            customers = db.session.query(Customer).all()
+            customer_ids = [c.id for c in customers]
+        
+        report_data = []
+        total_balance_ils = Decimal("0.00")
+        
+        for customer_id in customer_ids:
+            customer = db.session.get(Customer, customer_id)
+            if not customer:
+                continue
+            
+            balance_ils = get_entity_balance_in_ils("CUSTOMER", customer_id)
+            
+            report_data.append({
+                'customer_id': customer_id,
+                'customer_name': customer.name,
+                'customer_currency': customer.currency,
+                'balance_ils': balance_ils,
+                'formatted_balance': format_currency_in_ils(balance_ils),
+                'credit_limit': customer.credit_limit,
+                'credit_status': customer.credit_status
+            })
+            
+            total_balance_ils += balance_ils
+        
+        return {
+            'report_type': 'customer_balance_report_ils',
+            'base_currency': 'ILS',
+            'total_customers': len(customer_ids),
+            'total_balance_ils': total_balance_ils,
+            'formatted_total': format_currency_in_ils(total_balance_ils),
+            'customers': report_data,
+            'generated_at': datetime.utcnow()
+        }
+    except Exception as e:
+        return {
+            'error': str(e),
+            'generated_at': datetime.utcnow()
+        }
+
+
+def supplier_balance_report_ils(supplier_ids: list = None) -> Dict:
+    """تقرير أرصدة الموردين بالشيكل"""
+    try:
+        from utils import get_entity_balance_in_ils, format_currency_in_ils
+        
+        if supplier_ids is None:
+            suppliers = db.session.query(Supplier).all()
+            supplier_ids = [s.id for s in suppliers]
+        
+        report_data = []
+        total_balance_ils = Decimal("0.00")
+        
+        for supplier_id in supplier_ids:
+            supplier = db.session.get(Supplier, supplier_id)
+            if not supplier:
+                continue
+            
+            balance_ils = get_entity_balance_in_ils("SUPPLIER", supplier_id)
+            
+            report_data.append({
+                'supplier_id': supplier_id,
+                'supplier_name': supplier.name,
+                'supplier_currency': supplier.currency,
+                'balance_ils': balance_ils,
+                'formatted_balance': format_currency_in_ils(balance_ils),
+                'is_local': supplier.is_local
+            })
+            
+            total_balance_ils += balance_ils
+        
+        return {
+            'report_type': 'supplier_balance_report_ils',
+            'base_currency': 'ILS',
+            'total_suppliers': len(supplier_ids),
+            'total_balance_ils': total_balance_ils,
+            'formatted_total': format_currency_in_ils(total_balance_ils),
+            'suppliers': report_data,
+            'generated_at': datetime.utcnow()
+        }
+    except Exception as e:
+        return {
+            'error': str(e),
+            'generated_at': datetime.utcnow()
+        }
+
+
+def payment_summary_report_ils(start_date: date = None, end_date: date = None) -> Dict:
+    """تقرير ملخص المدفوعات بالشيكل"""
+    try:
+        from utils import format_currency_in_ils
+        from models import convert_amount
+        
+        if start_date is None:
+            start_date = date.today().replace(day=1)
+        if end_date is None:
+            end_date = date.today()
+        
+        # الحصول على المدفوعات في الفترة
+        payments = db.session.query(Payment).filter(
+            and_(
+                Payment.status == PaymentStatus.COMPLETED.value,
+                cast(Payment.payment_date, Date).between(start_date, end_date)
+            )
+        ).all()
+        
+        total_incoming_ils = Decimal("0.00")
+        total_outgoing_ils = Decimal("0.00")
+        currency_breakdown = {}
+        
+        for payment in payments:
+            amount = Decimal(str(payment.total_amount or 0))
+            currency = payment.currency or "ILS"
+            direction = payment.direction
+            
+            # تحويل للشيكل
+            if currency == "ILS":
+                amount_ils = amount
+            else:
+                try:
+                    amount_ils = convert_amount(amount, currency, "ILS", payment.payment_date)
+                except Exception as e:
+                    # تسجيل الخطأ وتجاهل المبلغ من التحليل
+                    try:
+                        from flask import current_app
+                        current_app.logger.error(f"❌ خطأ في تحويل العملة في تقرير الدفعات للدفعة #{payment.id}: {str(e)}")
+                    except:
+                        pass
+                    continue
+            
+            # إضافة للتحليل
+            if direction == PaymentDirection.IN.value:
+                total_incoming_ils += amount_ils
+            else:
+                total_outgoing_ils += amount_ils
+            
+            # تفصيل العملة
+            if currency not in currency_breakdown:
+                currency_breakdown[currency] = {
+                    'total_incoming': Decimal("0.00"),
+                    'total_outgoing': Decimal("0.00"),
+                    'net_balance': Decimal("0.00"),
+                    'converted_to_ils': Decimal("0.00")
+                }
+            
+            if direction == PaymentDirection.IN.value:
+                currency_breakdown[currency]['total_incoming'] += amount
+            else:
+                currency_breakdown[currency]['total_outgoing'] += amount
+            
+            currency_breakdown[currency]['net_balance'] = (
+                currency_breakdown[currency]['total_incoming'] - 
+                currency_breakdown[currency]['total_outgoing']
+            )
+            currency_breakdown[currency]['converted_to_ils'] += amount_ils
+        
+        net_balance_ils = total_incoming_ils - total_outgoing_ils
+        
+        return {
+            'report_type': 'payment_summary_report_ils',
+            'base_currency': 'ILS',
+            'period': {
+                'start_date': start_date,
+                'end_date': end_date
+            },
+            'totals': {
+                'total_incoming_ils': total_incoming_ils,
+                'total_outgoing_ils': total_outgoing_ils,
+                'net_balance_ils': net_balance_ils,
+                'formatted_incoming': format_currency_in_ils(total_incoming_ils),
+                'formatted_outgoing': format_currency_in_ils(total_outgoing_ils),
+                'formatted_net': format_currency_in_ils(net_balance_ils)
+            },
+            'currency_breakdown': currency_breakdown,
+            'total_payments': len(payments),
+            'generated_at': datetime.utcnow()
+        }
+    except Exception as e:
+        return {
+            'error': str(e),
+            'generated_at': datetime.utcnow()
+        }
+
 def advanced_report(
     model,
     joins=None,
@@ -112,6 +302,103 @@ def advanced_report(
                 val = q.with_entities(agg_func(fld)).scalar()
                 summary[f"{func_name}_{f}"] = float(val or 0)
     return {"data": data, "summary": summary}
+
+def sales_report_ils(start_date: date | None, end_date: date | None, tz_name: str = "Asia/Hebron") -> dict:
+    """تقرير المبيعات مع تحويل العملات للشيكل"""
+    try:
+        from utils import format_currency_in_ils
+        from models import convert_amount
+        
+        TZ = ZoneInfo(tz_name)
+        sd = _parse_date_like(start_date)
+        ed = _parse_date_like(end_date)
+        if sd and ed and ed < sd:
+            sd, ed = ed, sd
+        
+        # الحصول على المبيعات في الفترة
+        filters = []
+        if sd:
+            start_dt_local = datetime.combine(sd, _t.min).replace(tzinfo=TZ)
+            filters.append(Sale.sale_date >= start_dt_local.replace(tzinfo=None))
+        if ed:
+            try:
+                ed_plus1 = ed + timedelta(days=1)
+                end_dt_local = datetime.combine(ed_plus1, _t.min).replace(tzinfo=TZ)
+            except OverflowError:
+                end_dt_local = datetime.combine(ed, _t.max).replace(tzinfo=TZ)
+            filters.append(Sale.sale_date < end_dt_local.replace(tzinfo=None))
+        
+        allowed_statuses = (SaleStatus.CONFIRMED.value,)
+        excluded_statuses = (SaleStatus.CANCELLED.value, SaleStatus.REFUNDED.value)
+        
+        sales = db.session.query(Sale).filter(*filters).filter(
+            Sale.status.in_(allowed_statuses)
+        ).filter(~Sale.status.in_(excluded_statuses)).all()
+        
+        total_revenue_ils = Decimal("0.00")
+        currency_breakdown = {}
+        daily_revenue = {}
+        
+        for sale in sales:
+            amount = Decimal(str(sale.total_amount or 0))
+            currency = sale.currency or "ILS"
+            sale_date = sale.sale_date.date()
+            
+            # تحويل للشيكل
+            if currency == "ILS":
+                amount_ils = amount
+            else:
+                try:
+                    amount_ils = convert_amount(amount, currency, "ILS", sale.sale_date)
+                except Exception as e:
+                    # تسجيل الخطأ وتجاهل المبلغ من التحليل
+                    try:
+                        from flask import current_app
+                        current_app.logger.error(f"❌ خطأ في تحويل العملة في تقرير المبيعات للبيع #{sale.id}: {str(e)}")
+                    except:
+                        pass
+                    continue
+            
+            total_revenue_ils += amount_ils
+            
+            # تجميع حسب العملة
+            if currency not in currency_breakdown:
+                currency_breakdown[currency] = {
+                    'total_original': Decimal("0.00"),
+                    'total_ils': Decimal("0.00"),
+                    'count': 0
+                }
+            currency_breakdown[currency]['total_original'] += amount
+            currency_breakdown[currency]['total_ils'] += amount_ils
+            currency_breakdown[currency]['count'] += 1
+            
+            # تجميع يومي
+            date_key = sale_date.isoformat()
+            if date_key not in daily_revenue:
+                daily_revenue[date_key] = Decimal("0.00")
+            daily_revenue[date_key] += amount_ils
+        
+        return {
+            'report_type': 'sales_report_ils',
+            'base_currency': 'ILS',
+            'period': {
+                'start_date': sd,
+                'end_date': ed
+            },
+            'totals': {
+                'total_revenue_ils': total_revenue_ils,
+                'formatted_total': format_currency_in_ils(total_revenue_ils),
+                'total_sales': len(sales)
+            },
+            'currency_breakdown': currency_breakdown,
+            'daily_revenue': daily_revenue,
+            'generated_at': datetime.utcnow()
+        }
+    except Exception as e:
+        return {
+            'error': str(e),
+            'generated_at': datetime.utcnow()
+        }
 
 def sales_report(start_date: date | None, end_date: date | None, tz_name: str = "Asia/Hebron") -> dict:
     TZ = ZoneInfo(tz_name)
@@ -203,7 +490,7 @@ def payment_summary_report(start_date, end_date):
     ref_date = Payment.payment_date
     base_filters = [
         Payment.status == PaymentStatus.COMPLETED.value,
-        Payment.direction == PaymentDirection.INCOMING.value,
+        Payment.direction == PaymentDirection.IN.value,
         cast(ref_date, Date).between(sd, ed),
     ]
     split_rows = (
@@ -307,7 +594,7 @@ def ar_aging_report(start_date=None, end_date=None):
             func.coalesce(func.sum(Payment.total_amount), 0).label("paid"),
         )
         .filter(Payment.status == PaymentStatus.COMPLETED.value)
-        .filter(Payment.direction == PaymentDirection.INCOMING.value)
+        .filter(Payment.direction == PaymentDirection.IN.value)
         .filter(cast(Payment.payment_date, Date) <= as_of)
         .group_by(Payment.invoice_id)
         .subquery()
@@ -382,7 +669,7 @@ def ap_aging_report(start_date=None, end_date=None):
             func.coalesce(func.sum(Payment.total_amount), 0).label("paid"),
         )
         .filter(Payment.status == PaymentStatus.COMPLETED.value)
-        .filter(Payment.direction == PaymentDirection.OUTGOING.value)
+        .filter(Payment.direction == PaymentDirection.OUT.value)
         .filter(cast(Payment.payment_date, Date) <= as_of)
         .group_by(Payment.invoice_id)
         .subquery()
@@ -562,3 +849,51 @@ def top_products_report(
             "group_by_warehouse": bool(group_by_warehouse and can_group_by_wh),
         },
     }
+
+
+def partner_balance_report_ils(partner_ids: list = None) -> Dict:
+    """تقرير أرصدة الشركاء بالشيكل"""
+    try:
+        from utils import get_entity_balance_in_ils, format_currency_in_ils
+        from models import Partner
+
+        if partner_ids is None:
+            partners = db.session.query(Partner).all()
+            partner_ids = [p.id for p in partners]
+
+        report_data = []
+        total_balance_ils = Decimal("0.00")
+
+        for partner_id in partner_ids:
+            partner = db.session.get(Partner, partner_id)
+            if not partner:
+                continue
+
+            balance_ils = get_entity_balance_in_ils("PARTNER", partner_id)
+
+            report_data.append({
+                'partner_id': partner_id,
+                'partner_name': partner.name,
+                'partner_currency': partner.currency,
+                'balance_ils': balance_ils,
+                'formatted_balance': format_currency_in_ils(balance_ils),
+                'share_percentage': partner.share_percentage,
+                'contact_info': partner.contact_info
+            })
+
+            total_balance_ils += balance_ils
+
+        return {
+            'report_type': 'partner_balance_report_ils',
+            'base_currency': 'ILS',
+            'total_partners': len(partner_ids),
+            'total_balance_ils': total_balance_ils,
+            'formatted_total': format_currency_in_ils(total_balance_ils),
+            'partners': report_data,
+            'generated_at': datetime.utcnow()
+        }
+    except Exception as e:
+        return {
+            'error': str(e),
+            'generated_at': datetime.utcnow()
+        }

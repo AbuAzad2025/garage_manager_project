@@ -1,92 +1,280 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
 {% block title %}تسوية مورد {{ ss.supplier.name }} ({{ ss.code }}){% endblock %}
 
+{% block head_extra %}
+<style>
+.settlement-detail-card {
+    border-radius: 12px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.settlement-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white !important;
+    padding: 20px;
+    border-radius: 12px 12px 0 0;
+}
+
+.summary-box {
+    background: #f8f9fa;
+    border-left: 4px solid #667eea;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+}
+
+.summary-label {
+    font-size: 0.85rem;
+    color: #6c757d;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.summary-value {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #343a40;
+}
+
+.status-badge {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container" dir="rtl">
-  <h3>تسوية مورد: {{ ss.supplier.name }} <small class="text-muted">({{ ss.code }})</small></h3>
-
-  <div class="mb-2 text-muted">
-    الفترة: {{ ss.from_date.strftime("%Y-%m-%d") }} → {{ ss.to_date.strftime("%Y-%m-%d") }}
-    |
-    {% set s = (getattr(ss.status, 'value', ss.status) or '') %}
-    {% set badge = 'bg-secondary' %}
-    {% if s == 'DRAFT' %}{% set badge = 'bg-warning text-dark' %}{% elif s == 'CONFIRMED' %}{% set badge = 'bg-success' %}{% endif %}
-    الحالة:
-    <span class="badge {{ badge }}">{{ s }}</span>
-  </div>
-
-  <div class="table-responsive">
-    <table class="table table-sm table-striped align-middle">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>المصدر</th>
-          <th>الوصف</th>
-          <th>المنتج</th>
-          <th class="text-end">الكمية</th>
-          <th class="text-end">سعر</th>
-          <th class="text-end">القيمة</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for l in ss.lines %}
-        <tr>
-          <td>{{ loop.index }}</td>
-          <td>{{ l.source_type }}#{{ l.source_id }}</td>
-          <td>{{ l.description or "—" }}</td>
-          <td>{{ l.product.name if l.product else l.product_id }}</td>
-          <td class="text-end">{{ l.quantity is not none and ("%.3f"|format(l.quantity)) or "—" }}</td>
-          <td class="text-end">{{ l.unit_price is not none and ("%.2f"|format(l.unit_price)) or "—" }}</td>
-          <td class="text-end fw-bold">{{ "%.2f"|format(l.gross_amount or 0) }}</td>
-        </tr>
-        {% else %}
-        <tr><td colspan="7" class="text-center text-muted">لا توجد سطور.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
-  <div class="row g-3">
-    <div class="col-md-4">
-      <div class="card"><div class="card-body">
-        <div class="small text-muted">الإجمالي</div>
-        <div class="fs-5">{{ (ss.total_gross or 0)|format_currency }} {{ ss.currency }}</div>
-      </div></div>
+<div class="content-wrapper">
+    <div class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <div class="col-sm-6">
+                    <h1 class="m-0"><i class="fas fa-file-invoice-dollar"></i> تسوية مورد</h1>
+                </div>
+                <div class="col-sm-6">
+                    <ol class="breadcrumb float-sm-right">
+                        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+                        <li class="breadcrumb-item"><a href="{{ url_for('vendors.suppliers_list') }}">الموردين</a></li>
+                        <li class="breadcrumb-item active">التسوية</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="col-md-4">
-      <div class="card"><div class="card-body">
-        <div class="small text-muted">المدفوع</div>
-        <div class="fs-5">{{ (ss.total_paid or 0)|format_currency }} {{ ss.currency }}</div>
-      </div></div>
-    </div>
-    <div class="col-md-4">
-      <div class="card"><div class="card-body">
-        <div class="small text-muted">المتبقّي</div>
-        <div class="fs-5">{{ (ss.remaining or 0)|format_currency }} {{ ss.currency }}</div>
-      </div></div>
-    </div>
-  </div>
 
-  {% set status_val = getattr(ss.status, 'value', ss.status) %}
-  {% if status_val == "DRAFT" %}
-  <form method="post" action="{{ url_for('supplier_settlements_bp.confirm', settlement_id=ss.id) }}" class="mt-3 d-flex gap-2">
-    {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
-    <button class="btn btn-primary"><i class="fas fa-check me-1"></i> تأكيد التسوية</button>
-    <a
-      href="{{ url_for(
-              'payments.create_payment',
-              entity_type='SUPPLIER',
-              entity_id=ss.supplier.id,
-              direction=('OUT' if (ss.remaining or 0) > 0 else 'IN'),
-              total_amount=('%.2f'|format((ss.remaining or 0)|abs)),
-              currency=ss.currency,
-              reference='SupplierSettle:' ~ ss.code,
-              notes='تسوية مورد ' ~ ss.supplier.name ~ ' ' ~ ss.from_date.strftime("%Y-%m-%d") ~ ' - ' ~ ss.to_date.strftime("%Y-%m-%d") ~ ' (' ~ ss.code ~ ')'
-           ) }}"
-      class="btn btn-success">
-      <i class="fas fa-coins me-1"></i> إنشاء دفعة
-    </a>
-  </form>
-  {% endif %}
+    <section class="content">
+        <div class="container-fluid">
+            
+            <!-- معلومات التسوية -->
+            <div class="card settlement-detail-card">
+                <div class="settlement-header">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h3 class="mb-2"><i class="fas fa-truck"></i> {{ ss.supplier.name }}</h3>
+                            <p class="mb-0">
+                                <i class="fas fa-barcode"></i> رقم التسوية: <strong>{{ ss.code }}</strong>
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            {% set s = (getattr(ss.status, 'value', ss.status) or '') %}
+                            <span class="status-badge {% if s == 'DRAFT' %}bg-warning text-dark{% elif s == 'CONFIRMED' %}bg-success{% else %}bg-secondary{% endif %}">
+                                {{ s }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-calendar-alt"></i> <strong>الفترة:</strong> 
+                        {{ ss.from_date.strftime("%Y-%m-%d") }} → {{ ss.to_date.strftime("%Y-%m-%d") }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- الملخص المالي -->
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="summary-box">
+                        <div class="summary-label">الإجمالي</div>
+                        <div class="summary-value text-primary">{{ (ss.total_gross or 0)|format_currency }}</div>
+                        <small class="text-muted">{{ ss.currency }}</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="summary-box" style="border-left-color: #28a745;">
+                        <div class="summary-label">المدفوع</div>
+                        <div class="summary-value text-success">{{ (ss.total_paid or 0)|format_currency }}</div>
+                        <small class="text-muted">{{ ss.currency }}</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="summary-box" style="border-left-color: #dc3545;">
+                        <div class="summary-label">المتبقّي</div>
+                        <div class="summary-value text-danger">{{ (ss.remaining or 0)|format_currency }}</div>
+                        <small class="text-muted">{{ ss.currency }}</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- تفاصيل السطور -->
+            <div class="card settlement-detail-card">
+                <div class="card-header bg-gradient-primary text-white">
+                    <h4 class="mb-0"><i class="fas fa-list-ul"></i> تفاصيل السطور ({{ ss.lines|length }})</h4>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th style="width: 40px;">#</th>
+                                    <th>المصدر</th>
+                                    <th>الوصف</th>
+                                    <th>المنتج</th>
+                                    <th>SKU</th>
+                                    <th class="text-end">الكمية</th>
+                                    <th class="text-end">السعر</th>
+                                    <th class="text-end">القيمة</th>
+                                    <th>ملاحظات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for l in ss.lines %}
+                                <tr>
+                                    <td class="text-center"><strong>{{ loop.index }}</strong></td>
+                                    <td><span class="badge badge-info">{{ l.source_type }}#{{ l.source_id }}</span></td>
+                                    <td>{{ l.description or "—" }}</td>
+                                    <td><strong>{{ l.product.name if l.product else l.product_id }}</strong></td>
+                                    <td><code>{{ l.product.sku if l.product and l.product.sku else "—" }}</code></td>
+                                    <td class="text-end"><strong>{{ l.quantity is not none and ("%.3f"|format(l.quantity)) or "—" }}</strong></td>
+                                    <td class="text-end">{{ l.unit_price is not none and ("%.2f"|format(l.unit_price)) or "—" }}</td>
+                                    <td class="text-end"><strong class="text-primary">{{ "%.2f"|format(l.gross_amount or 0) }}</strong></td>
+                                    <td><small>{{ l.notes or "—" }}</small></td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="9" class="text-center text-muted">لا توجد سطور.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="bg-light">
+                                <tr>
+                                    <td colspan="7" class="text-end"><strong>الإجمالي:</strong></td>
+                                    <td class="text-end"><strong class="text-primary">{{ "%.2f"|format(ss.total_gross or 0) }}</strong></td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- تفاصيل المنتجات -->
+            <div class="card settlement-detail-card">
+                <div class="card-header bg-gradient-info text-white">
+                    <h4 class="mb-0"><i class="fas fa-boxes"></i> ملخص المنتجات</h4>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>المنتج</th>
+                                    <th>SKU</th>
+                                    <th class="text-end">إجمالي الكمية</th>
+                                    <th class="text-end">متوسط السعر</th>
+                                    <th class="text-end">إجمالي القيمة</th>
+                                    <th>المصادر</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% set products_summary = {} %}
+                                {% for l in ss.lines %}
+                                    {% set product_key = l.product.name if l.product else l.product_id|string %}
+                                    {% if product_key not in products_summary %}
+                                        {% set _ = products_summary.update({product_key: {
+                                            'name': l.product.name if l.product else 'غير محدد',
+                                            'sku': l.product.sku if l.product and l.product.sku else '—',
+                                            'quantity': 0,
+                                            'gross_amount': 0,
+                                            'sources': []
+                                        }}) %}
+                                    {% endif %}
+                                    {% set _ = products_summary[product_key].update({
+                                        'quantity': products_summary[product_key]['quantity'] + (l.quantity or 0),
+                                        'gross_amount': products_summary[product_key]['gross_amount'] + (l.gross_amount or 0)
+                                    }) %}
+                                    {% set source = l.source_type ~ '#' ~ l.source_id %}
+                                    {% if source not in products_summary[product_key]['sources'] %}
+                                        {% set _ = products_summary[product_key]['sources'].append(source) %}
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% for product_name, data in products_summary.items() %}
+                                <tr>
+                                    <td><strong>{{ data.name }}</strong></td>
+                                    <td><code>{{ data.sku }}</code></td>
+                                    <td class="text-end"><strong>{{ "%.3f"|format(data.quantity) }}</strong></td>
+                                    <td class="text-end">{{ "%.2f"|format(data.gross_amount / data.quantity if data.quantity > 0 else 0) }}</td>
+                                    <td class="text-end"><strong class="text-primary">{{ "%.2f"|format(data.gross_amount) }}</strong></td>
+                                    <td>
+                                        {% for source in data.sources %}
+                                            <span class="badge badge-info">{{ source }}</span>
+                                        {% endfor %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="bg-light">
+                                <tr>
+                                    <td colspan="4" class="text-end"><strong>الإجمالي:</strong></td>
+                                    <td class="text-end"><strong class="text-primary">{{ "%.2f"|format(ss.total_gross or 0) }}</strong></td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- أزرار الإجراءات -->
+            {% set status_val = getattr(ss.status, 'value', ss.status) %}
+            {% if status_val == "DRAFT" %}
+            <div class="card settlement-detail-card">
+                <div class="card-body text-center">
+                    <form method="post" action="{{ url_for('supplier_settlements_bp.confirm', settlement_id=ss.id) }}" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn btn-primary btn-lg">
+                            <i class="fas fa-check"></i> تأكيد التسوية
+                        </button>
+                    </form>
+                    
+                    <a href="{{ url_for('payments.create_payment',
+                                      entity_type='SUPPLIER',
+                                      entity_id=ss.supplier.id,
+                                      direction=('OUT' if (ss.remaining or 0) > 0 else 'IN'),
+                                      total_amount=('%.2f'|format((ss.remaining or 0)|abs)),
+                                      currency=ss.currency,
+                                      reference='SupplierSettle:' ~ ss.code,
+                                      notes='تسوية مورد ' ~ ss.supplier.name ~ ' ' ~ ss.from_date.strftime("%Y-%m-%d") ~ ' - ' ~ ss.to_date.strftime("%Y-%m-%d") ~ ' (' ~ ss.code ~ ')') }}"
+                       class="btn btn-success btn-lg">
+                        <i class="fas fa-coins"></i> إنشاء دفعة
+                    </a>
+                    
+                    <a href="{{ url_for('vendors.suppliers_list') }}" class="btn btn-secondary btn-lg">
+                        <i class="fas fa-arrow-right"></i> العودة
+                    </a>
+                </div>
+            </div>
+            {% else %}
+            <div class="text-center">
+                <a href="{{ url_for('vendors.suppliers_list') }}" class="btn btn-secondary btn-lg">
+                    <i class="fas fa-arrow-right"></i> العودة للموردين
+                </a>
+            </div>
+            {% endif %}
+
+        </div>
+    </section>
 </div>
 {% endblock %}

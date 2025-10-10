@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block title %}التقارير الإدارية{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+    <div class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <div class="col-sm-6">
+                    <h1 class="m-0">التقارير الإدارية</h1>
+                </div>
+                <div class="col-sm-6">
+                    <ol class="breadcrumb float-sm-right">
+                        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+                        <li class="breadcrumb-item active">التقارير الإدارية</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <section class="content">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <i class="fas fa-chart-bar"></i>
+                                التقارير الإدارية
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <h5><i class="fas fa-info-circle"></i> معلومات التقارير</h5>
+                                <p>هذه الصفحة تحتوي على التقارير الإدارية للنظام.</p>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="card card-primary">
+                                        <div class="card-header">
+                                            <h3 class="card-title">تقارير المبيعات</h3>
+                                        </div>
+                                        <div class="card-body">
+                                            <p>تقارير مفصلة عن المبيعات والأرباح</p>
+                                            <a href="{{ url_for('reports_bp.universal') }}" class="btn btn-primary">عرض التقارير</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card card-success">
+                                        <div class="card-header">
+                                            <h3 class="card-title">تقارير المخزون</h3>
+                                        </div>
+                                        <div class="card-body">
+                                            <p>تقارير عن حالة المخزون والحركة</p>
+                                            <a href="{{ url_for('reports_bp.universal') }}?type=inventory" class="btn btn-success">عرض التقارير</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card card-warning">
+                                        <div class="card-header">
+                                            <h3 class="card-title">تقارير العملاء</h3>
+                                        </div>
+                                        <div class="card-body">
+                                            <p>تقارير عن العملاء والمعاملات</p>
+                                            <a href="{{ url_for('reports_bp.universal') }}?type=customers" class="btn btn-warning">عرض التقارير</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- تقارير إضافية -->
+                            <div class="row mt-4">
+                                <div class="col-md-4">
+                                    <div class="card card-info">
+                                        <div class="card-header">
+                                            <h3 class="card-title">تقارير المالية</h3>
+                                        </div>
+                                        <div class="card-body">
+                                            <p>تقارير عن الأرباح والخسائر</p>
+                                            <a href="{{ url_for('reports_bp.universal') }}?type=financial" class="btn btn-info">عرض التقارير</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card card-danger">
+                                        <div class="card-header">
+                                            <h3 class="card-title">تقارير الصيانة</h3>
+                                        </div>
+                                        <div class="card-body">
+                                            <p>تقارير عن عمليات الصيانة</p>
+                                            <a href="{{ url_for('reports_bp.universal') }}?type=maintenance" class="btn btn-danger">عرض التقارير</a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card card-secondary">
+                                        <div class="card-header">
+                                            <h3 class="card-title">تقارير شاملة</h3>
+                                        </div>
+                                        <div class="card-body">
+                                            <p>تقارير شاملة لجميع العمليات</p>
+                                            <a href="{{ url_for('reports_bp.universal') }}?type=all" class="btn btn-secondary">عرض التقارير</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

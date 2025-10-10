@@ -1,7 +1,7 @@
 {% set etype = (form.entity_type.data or request.args.get('type') or request.args.get('entity_type') or '') | lower %}
 
 {% if etype == 'customer' %}
-  <div class="mb-3">
+  <div class="mb-3 entity-field-container" data-entity-type="customer">
     {% if form.customer_search is defined %}
       {{ form.customer_search.label(class="form-label") }}
       <div class="input-group">
@@ -15,7 +15,7 @@
   </div>
 
 {% elif etype == 'supplier' %}
-  <div class="mb-3">
+  <div class="mb-3 entity-field-container" data-entity-type="supplier">
     {% if form.supplier_search is defined %}
       {{ form.supplier_search.label(class="form-label") }}
       <div class="input-group">
@@ -29,7 +29,7 @@
   </div>
 
 {% elif etype == 'partner' %}
-  <div class="mb-3">
+  <div class="mb-3 entity-field-container" data-entity-type="partner">
     {% if form.partner_search is defined %}
       {{ form.partner_search.label(class="form-label") }}
       <div class="input-group">
@@ -43,7 +43,7 @@
   </div>
 
 {% elif etype == 'sale' %}
-  <div class="mb-3">
+  <div class="mb-3 entity-field-container" data-entity-type="sale">
     {% if form.sale_search is defined %}
       {{ form.sale_search.label(class="form-label") }}
       {{ form.sale_search(class="form-control", autocomplete="off") }}
@@ -63,7 +63,7 @@
   </div>
 
 {% elif etype == 'service' %}
-  <div class="mb-3">
+  <div class="mb-3 entity-field-container" data-entity-type="service">
     {% if form.service_search is defined %}
       {{ form.service_search.label(class="form-label") }}
       {{ form.service_search(class="form-control", autocomplete="off") }}
@@ -81,7 +81,7 @@
   </div>
 
 {% elif etype == 'shipment' %}
-  <div class="mb-3">
+  <div class="mb-3 entity-field-container" data-entity-type="shipment">
     {% if form.shipment_search is defined %}
       {{ form.shipment_search.label(class="form-label") }}
       {{ form.shipment_search(class="form-control", autocomplete="off") }}
@@ -99,7 +99,7 @@
   </div>
 
 {% elif etype == 'expense' %}
-  <div class="mb-3">
+  <div class="mb-3 entity-field-container" data-entity-type="expense">
     {% if form.expense_search is defined %}
       {{ form.expense_search.label(class="form-label") }}
       {{ form.expense_search(class="form-control", autocomplete="off") }}
@@ -118,7 +118,7 @@
   </div>
 
 {% elif etype == 'loan' %}
-  <div class="mb-3">
+  <div class="mb-3 entity-field-container" data-entity-type="loan">
     {% if form.loan_settlement_search is defined %}
       {{ form.loan_settlement_search.label(class="form-label") }}
       {{ form.loan_settlement_search(class="form-control", autocomplete="off") }}
@@ -136,7 +136,7 @@
   </div>
 
 {% elif etype == 'preorder' %}
-  <div class="mb-3">
+  <div class="mb-3 entity-field-container" data-entity-type="preorder">
     {% if form.preorder_search is defined %}
       {{ form.preorder_search.label(class="form-label") }}
       {{ form.preorder_search(class="form-control", autocomplete="off") }}
@@ -154,7 +154,7 @@
   </div>
 
 {% elif etype == 'invoice' %}
-  <div class="mb-3">
+  <div class="mb-3 entity-field-container" data-entity-type="invoice">
     {% if form.invoice_search is defined %}
       {{ form.invoice_search.label(class="form-label") }}
       {{ form.invoice_search(class="form-control", autocomplete="off") }}

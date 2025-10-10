@@ -24,7 +24,7 @@
   function formatValue(v, opts = {}) {
     const n = Number(v);
     if (!isFinite(n)) return String(v);
-    const { currency, unit, digits = 2, locale } = opts;
+    const { currency, unit, digits = 2, locale = 'ar-SA' } = opts;
     try {
       if (currency) return new Intl.NumberFormat(locale, { style: 'currency', currency, maximumFractionDigits: digits }).format(n);
       const str = new Intl.NumberFormat(locale, { maximumFractionDigits: digits }).format(n);
@@ -32,6 +32,121 @@
     } catch {
       const str = n.toFixed(Math.max(0, Math.min(6, digits)));
       return unit ? `${str} ${unit}` : str;
+    }
+  }
+
+  // تحسينات الرسوم البيانية التفاعلية
+  function createInteractiveChart(canvas, config) {
+    const chart = new Chart(canvas, {
+      ...config,
+      options: {
+        ...config.options,
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          intersect: false,
+          mode: 'index'
+        },
+        plugins: {
+          ...config.options?.plugins,
+          legend: {
+            ...config.options?.plugins?.legend,
+            position: 'top',
+            labels: {
+              usePointStyle: true,
+              padding: 20,
+              font: {
+                family: 'Cairo, sans-serif',
+                size: 12
+              }
+            }
+          },
+          tooltip: {
+            ...config.options?.plugins?.tooltip,
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            titleColor: '#fff',
+            bodyColor: '#fff',
+            borderColor: '#fff',
+            borderWidth: 1,
+            cornerRadius: 6,
+            displayColors: true,
+            callbacks: {
+              ...config.options?.plugins?.tooltip?.callbacks,
+              label: function(context) {
+                const label = context.dataset.label || '';
+                const value = context.parsed.y || context.parsed;
+                return `${label}: ${formatValue(value, { currency: 'ILS' })}`;
+              }
+            }
+          }
+        },
+        scales: {
+          ...config.options?.scales,
+          x: {
+            ...config.options?.scales?.x,
+            grid: {
+              display: true,
+              color: 'rgba(0, 0, 0, 0.1)'
+            },
+            ticks: {
+              font: {
+                family: 'Cairo, sans-serif',
+                size: 11
+              }
+            }
+          },
+          y: {
+            ...config.options?.scales?.y,
+            grid: {
+              display: true,
+              color: 'rgba(0, 0, 0, 0.1)'
+            },
+            ticks: {
+              font: {
+                family: 'Cairo, sans-serif',
+                size: 11
+              },
+              callback: function(value) {
+                return formatValue(value, { currency: 'ILS' });
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // إضافة تفاعل النقر
+    canvas.onclick = function(event) {
+      const points = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
+      if (points.length) {
+        const point = points[0];
+        const data = chart.data.datasets[point.datasetIndex].data[point.index];
+        console.log('نقطة محددة:', data);
+        
+        // يمكن إضافة مزيد من التفاعل هنا
+        showDataDetails(data, point.datasetIndex, point.index);
+      }
+    };
+
+    return chart;
+  }
+
+  function showDataDetails(data, datasetIndex, dataIndex) {
+    // عرض تفاصيل البيانات في نافذة منبثقة أو قسم منفصل
+    const detailsContainer = document.getElementById('chart-details');
+    if (detailsContainer) {
+      detailsContainer.innerHTML = `
+        <div class="card">
+          <div class="card-header">
+            <h5 class="card-title">تفاصيل البيانات</h5>
+          </div>
+          <div class="card-body">
+            <p><strong>القيمة:</strong> ${formatValue(data, { currency: 'ILS' })}</p>
+            <p><strong>المجموعة:</strong> ${datasetIndex + 1}</p>
+            <p><strong>الفهرس:</strong> ${dataIndex + 1}</p>
+          </div>
+        </div>
+      `;
     }
   }
 

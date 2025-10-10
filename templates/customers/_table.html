@@ -25,8 +25,8 @@
         <td>{{ customer.phone or '-' }}</td>
         <td>{{ customer.email or '-' }}</td>
         <td>{{ customer.category or '-' }}</td>
-        <td class="fw-bold {% if customer.balance > 0 %}text-danger{% else %}text-success{% endif %}">
-          {{ customer.balance|format_currency }}
+        <td class="fw-bold {% if customer.balance_in_ils > 0 %}text-danger{% else %}text-success{% endif %}">
+          {{ customer.balance_in_ils|format_currency }} ₪
         </td>
         <td>{{ customer.is_active|yes_no }}</td>
         <td>{{ customer.created_at|format_date }}</td>
@@ -39,13 +39,20 @@
             <button type="button" class="btn btn-danger delete-btn"
                     data-id="{{ customer.id }}"
                     data-delete-url="{{ url_for('customers_bp.delete_customer', id=customer.id) }}"
-                    title="حذف">
+                    title="حذف عادي">
               <i class="fas fa-trash"></i>
             </button>
+            <a href="{{ url_for('hard_delete_bp.delete_customer', customer_id=customer.id) }}"
+               class="btn btn-outline-danger" title="حذف قوي"
+               onclick="return confirm('حذف قوي - سيتم حذف جميع البيانات المرتبطة!')">
+              <i class="fas fa-bomb"></i>
+            </a>
             <a href="{{ url_for('payments.create_payment', entity_type='customer', entity_id=customer.id) }}"
                class="btn btn-success" title="دفع جديد"><i class="fas fa-coins"></i></a>
             <a href="{{ url_for('customers_bp.account_statement', customer_id=customer.id) }}"
                class="btn btn-outline-primary" title="كشف حساب"><i class="fas fa-file-invoice"></i></a>
+            <a href="{{ url_for('reports_bp.customer_detail_report', customer_id=customer.id) }}"
+               class="btn btn-outline-info" title="كشف مفصل"><i class="fas fa-chart-line"></i></a>
             <a href="{{ url_for('customers_bp.customer_whatsapp', customer_id=customer.id) }}"
                class="btn btn-success" title="واتساب"><i class="fab fa-whatsapp"></i></a>
             <a href="{{ url_for('customers_bp.export_customer_vcf', customer_id=customer.id) }}"

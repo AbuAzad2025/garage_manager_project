@@ -16,12 +16,19 @@
     $(document).on("shown.bs.modal", e => initAll(e.target || document));
 
     initAll(document);
+    
+    // Enhanced performance optimizations
+    initPerformanceOptimizations();
+    
+    // Initialize real-time notifications
+    initNotifications();
   });
 
   function initAll(root) {
     initDataTables(root);
     initDatepickers(root);
     initSelect2Basic(root);
+    initPerformanceOptimizations(root);
     initAjaxSelects(root);
     initConfirmForms(root);
     initBtnLoading(root);
@@ -168,5 +175,202 @@
         }, 10000);
       });
     });
+  }
+
+  // Enhanced performance optimizations
+  function initPerformanceOptimizations(root) {
+    // Lazy loading for images
+    if ('IntersectionObserver' in window) {
+      const imageObserver = new IntersectionObserver((entries, observer) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const img = entry.target;
+            img.src = img.dataset.src;
+            img.classList.remove('lazy');
+            imageObserver.unobserve(img);
+          }
+        });
+      });
+
+      $(root).find('img[data-src]').each(function() {
+        imageObserver.observe(this);
+      });
+    }
+
+    // Debounced search
+    let searchTimeout;
+    $(root).find('[data-search]').on('input', function() {
+      clearTimeout(searchTimeout);
+      const $this = $(this);
+      searchTimeout = setTimeout(() => {
+        performSearch($this.val(), $this.data('search'));
+      }, 300);
+    });
+
+    // Auto-save forms
+    $(root).find('[data-autosave]').on('input change', debounce(function() {
+      saveFormData($(this).closest('form'));
+    }, 1000));
+
+    // Enhanced notifications
+    initNotifications();
+  }
+
+  function performSearch(query, target) {
+    if (query.length < 2) return;
+    
+    const $container = $(`[data-search-target="${target}"]`);
+    $container.html('<div class="text-center"><div class="spinner-border"></div></div>');
+    
+    $.get(`/api/search/${target}`, { q: query })
+      .done(data => {
+        $container.html(data.html || 'لا توجد نتائج');
+      })
+      .fail(() => {
+        $container.html('<div class="alert alert-danger">خطأ في البحث</div>');
+      });
+  }
+
+  function saveFormData($form) {
+    const formData = $form.serialize();
+    localStorage.setItem(`form_${$form.attr('id')}`, formData);
+    showNotification('تم حفظ البيانات تلقائياً', 'success');
+  }
+
+  function initNotifications() {
+    if (!$('#notification-container').length) {
+      $('body').append('<div id="notification-container" class="position-fixed" style="top: 20px; right: 20px; z-index: 9999;"></div>');
+    }
+  }
+
+  function showNotification(message, type = 'info') {
+    const $container = $('#notification-container');
+    const $notification = $(`
+      <div class="alert alert-${type} alert-dismissible fade show" style="min-width: 300px;">
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    `);
+    
+    $container.append($notification);
+    
+    setTimeout(() => {
+      $notification.alert('close');
+    }, 3000);
+  }
+
+  function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  }
+
+  // نظام الإشعارات الفورية
+  function initNotifications() {
+    if (typeof io === 'undefined') {
+      console.warn('Socket.IO not loaded, notifications disabled');
+      return;
+    }
+
+    const socket = io();
+    
+    // إشعارات المستخدم
+    socket.on('notification', function(data) {
+      showNotification(data.title, data.message, data.type);
+    });
+    
+    // إشعارات عامة
+    socket.on('broadcast_notification', function(data) {
+      showNotification(data.title, data.message, data.type);
+    });
+    
+    // تنبيهات النظام
+    socket.on('system_alert', function(data) {
+      showSystemAlert(data.message, data.severity);
+    });
+    
+    // اتصال المستخدم بالغرفة
+    socket.emit('join_user_room');
+  }
+
+  function showNotification(title, message, type = 'info') {
+    const alertClass = {
+      'success': 'alert-success',
+      'error': 'alert-danger',
+      'warning': 'alert-warning',
+      'info': 'alert-info'
+    }[type] || 'alert-info';
+    
+    const icon = {
+      'success': 'fas fa-check-circle',
+      'error': 'fas fa-exclamation-circle',
+      'warning': 'fas fa-exclamation-triangle',
+      'info': 'fas fa-info-circle'
+    }[type] || 'fas fa-info-circle';
+    
+    const $notification = $(`
+      <div class="alert ${alertClass} alert-dismissible fade show notification-toast" role="alert">
+        <i class="${icon} me-2"></i>
+        <strong>${title}</strong><br>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    `);
+    
+    // إضافة للصفحة
+    let $container = $('#notification-container');
+    if ($container.length === 0) {
+      $container = $('<div id="notification-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999; max-width: 350px;"></div>');
+      $('body').append($container);
+    }
+    
+    $container.append($notification);
+    
+    // إزالة تلقائية
+    setTimeout(() => {
+      $notification.alert('close');
+    }, 5000);
+  }
+
+  function showSystemAlert(message, severity = 'warning') {
+    const alertClass = {
+      'critical': 'alert-danger',
+      'warning': 'alert-warning',
+      'info': 'alert-info'
+    }[severity] || 'alert-warning';
+    
+    const icon = {
+      'critical': 'fas fa-exclamation-triangle',
+      'warning': 'fas fa-exclamation-triangle',
+      'info': 'fas fa-info-circle'
+    }[severity] || 'fas fa-exclamation-triangle';
+    
+    const $alert = $(`
+      <div class="alert ${alertClass} alert-dismissible fade show system-alert" role="alert">
+        <i class="${icon} me-2"></i>
+        <strong>تنبيه النظام:</strong> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    `);
+    
+    // إضافة للصفحة
+    let $container = $('#system-alert-container');
+    if ($container.length === 0) {
+      $container = $('<div id="system-alert-container" style="position: fixed; top: 20px; left: 20px; z-index: 9999; max-width: 400px;"></div>');
+      $('body').append($container);
+    }
+    
+    $container.append($alert);
+    
+    // إزالة تلقائية
+    setTimeout(() => {
+      $alert.alert('close');
+    }, 10000);
   }
 })(jQuery);

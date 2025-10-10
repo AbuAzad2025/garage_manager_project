@@ -3,22 +3,55 @@
 
 {% block content %}
 <div class="container py-5">
-  {% set total_balance = 0 %}
-  {% for s in suppliers %}
-    {% set total_balance = total_balance + (s.net_balance or 0) %}
-  {% endfor %}
+        <!-- سيتم حساب الرصيد الصافي بـ JavaScript -->
+
+  <!-- سيتم حساب جميع الملخصات بـ JavaScript -->
 
   <div class="row mb-4 g-3">
     <div class="col-md-3">
       <div class="card bg-primary text-white p-3 rounded-4 shadow-sm">
-        <h6 class="mb-1">عدد الموردين</h6>
-        <h3 class="mb-0">{{ suppliers|length }}</h3>
+        <h6 class="mb-1"><i class="fas fa-truck"></i> إجمالي الموردين</h6>
+        <h3 class="mb-0">{{ summary.total_suppliers }}</h3>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card {% if summary.total_balance > 0 %}bg-danger{% elif summary.total_balance < 0 %}bg-success{% else %}bg-secondary{% endif %} text-white p-3 rounded-4 shadow-sm">
+        <h6 class="mb-1"><i class="fas fa-balance-scale"></i> الرصيد الصافي</h6>
+        <h3 class="mb-0">{{ "%.2f"|format(summary.total_balance) }} ₪</h3>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-warning text-white p-3 rounded-4 shadow-sm">
+        <h6 class="mb-1"><i class="fas fa-shopping-bag"></i> إجمالي المشتريات</h6>
+        <h3 class="mb-0">{{ "%.2f"|format(summary.total_purchases) }} ₪</h3>
       </div>
     </div>
     <div class="col-md-3">
       <div class="card bg-info text-white p-3 rounded-4 shadow-sm">
-        <h6 class="mb-1">الرصيد الكلي</h6>
-        <h3 class="mb-0">{{ '%.2f'|format(total_balance) }}</h3>
+        <h6 class="mb-1"><i class="fas fa-money-bill-wave"></i> إجمالي المدفوعات</h6>
+        <h3 class="mb-0">{{ "%.2f"|format(summary.total_payments) }} ₪</h3>
+      </div>
+    </div>
+  </div>
+
+  <!-- ملخصات إضافية -->
+  <div class="row mb-4 g-3">
+    <div class="col-md-4">
+      <div class="card bg-danger text-white p-3 rounded-4 shadow-sm">
+        <h6 class="mb-1"><i class="fas fa-exclamation-circle"></i> موردين بذمة (مستحق دفع)</h6>
+        <h3 class="mb-0">{{ summary.suppliers_with_debt }}</h3>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card bg-success text-white p-3 rounded-4 shadow-sm">
+        <h6 class="mb-1"><i class="fas fa-check-circle"></i> موردين مدينين (لنا)</h6>
+        <h3 class="mb-0">{{ summary.suppliers_with_credit }}</h3>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);" class="text-white p-3 rounded-4 shadow-sm">
+        <h6 class="mb-1 text-white"><i class="fas fa-chart-line"></i> متوسط الرصيد</h6>
+        <h3 class="mb-0 text-white">{{ "%.2f"|format(summary.average_balance) }} ₪</h3>
       </div>
     </div>
   </div>
@@ -54,8 +87,8 @@
             <td class="supplier-name">{{ s.name }}</td>
             <td class="supplier-phone">{{ s.phone or '—' }}</td>
             <td>
-              <span class="badge {% if (s.net_balance or 0) < 0 %}bg-danger{% elif (s.net_balance or 0) == 0 %}bg-secondary{% else %}bg-success{% endif %}">
-                {{ '%.2f'|format(s.net_balance or 0) }}
+              <span class="badge {% if (s.balance_in_ils or 0) < 0 %}bg-danger{% elif (s.balance_in_ils or 0) == 0 %}bg-secondary{% else %}bg-success{% endif %}">
+                {{ '%.2f'|format(s.balance_in_ils or 0) }} ₪
               </span>
             </td>
             <td>
@@ -75,13 +108,18 @@
                   <i class="fas fa-file-invoice"></i>
                   <span class="d-none d-lg-inline ms-1">كشف حساب</span>
                 </a>
+                <a href="{{ url_for('reports_bp.supplier_detail_report', supplier_id=s.id) }}"
+                   class="btn btn-sm btn-outline-info d-flex align-items-center" title="كشف مفصل">
+                  <i class="fas fa-chart-line"></i>
+                  <span class="d-none d-lg-inline ms-1">كشف مفصل</span>
+                </a>
                 <button type="button"
                         class="btn btn-sm btn-outline-success d-flex align-items-center btn-settle"
                         title="تسوية"
                         data-entity-type="supplier"
                         data-id="{{ s.id }}"
                         data-name="{{ s.name }}"
-                        data-balance="{{ '%.2f'|format(s.net_balance or 0) }}"
+                        data-balance="{{ '%.2f'|format(s.balance_in_ils or 0) }}"
                         data-currency="{{ s.currency or 'ILS' }}">
                   <i class="fas fa-scale-balanced"></i>
                   <span class="d-none d-lg-inline ms-1">تسوية</span>
@@ -96,12 +134,19 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit"
                             class="btn btn-sm btn-danger d-flex align-items-center"
-                            title="حذف"
+                            title="حذف عادي"
                             onclick="return confirm('حذف المورد؟');">
                       <i class="fas fa-trash"></i>
                       <span class="d-none d-lg-inline ms-1">حذف</span>
                     </button>
                   </form>
+                  <a href="{{ url_for('hard_delete_bp.delete_supplier', supplier_id=s.id) }}"
+                     class="btn btn-sm btn-outline-danger d-flex align-items-center"
+                     title="حذف قوي"
+                     onclick="return confirm('حذف قوي - سيتم حذف جميع البيانات المرتبطة!')">
+                    <i class="fas fa-bomb"></i>
+                    <span class="d-none d-lg-inline ms-1">حذف قوي</span>
+                  </a>
                 {% endif %}
               </div>
             </td>
@@ -168,4 +213,65 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/vendors.js') }}"></script>
+<script>
+  // حساب ملخصات الموردين - الحل المضمون
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log('بدء حساب ملخصات الموردين...');
+    
+    const rows = document.querySelectorAll('tbody tr');
+    console.log('عدد صفوف الموردين:', rows.length);
+    
+    let totalBalance = 0;
+    let totalDebit = 0;
+    let totalCredit = 0;
+    
+    rows.forEach((row, index) => {
+      const cells = row.querySelectorAll('td');
+      if (cells.length >= 6) {
+        const balanceText = cells[5].textContent.trim();
+        console.log(`المورد ${index + 1}: ${balanceText}`);
+        
+        // استخراج الرقم من النص
+        const balanceMatch = balanceText.match(/-?\d+(?:,\d{3})*(?:\.\d{2})?/);
+        if (balanceMatch) {
+          const balance = parseFloat(balanceMatch[0].replace(/,/g, ''));
+          console.log(`الرصيد المستخرج: ${balance}`);
+          
+          totalBalance += balance;
+          
+          if (balance < 0) {
+            totalDebit += Math.abs(balance);
+          } else {
+            totalCredit += balance;
+          }
+        }
+      }
+    });
+    
+    console.log('ملخصات الموردين المحسوبة:');
+    console.log('الرصيد الصافي:', totalBalance);
+    console.log('مستحق دفع:', totalDebit);
+    console.log('مستحق قبض:', totalCredit);
+    
+    // تحديث الملخصات
+    const totalBalanceEl = document.getElementById('total-balance');
+    const totalDebitEl = document.getElementById('total-debit');
+    const totalCreditEl = document.getElementById('total-credit');
+    
+    if (totalBalanceEl) {
+      totalBalanceEl.textContent = totalBalance.toFixed(2);
+      console.log('تم تحديث الرصيد الصافي:', totalBalanceEl.textContent);
+    }
+    
+    if (totalDebitEl) {
+      totalDebitEl.textContent = totalDebit.toFixed(2);
+      console.log('تم تحديث مستحق دفع:', totalDebitEl.textContent);
+    }
+    
+    if (totalCreditEl) {
+      totalCreditEl.textContent = totalCredit.toFixed(2);
+      console.log('تم تحديث مستحق قبض:', totalCreditEl.textContent);
+    }
+  });
+</script>
 {% endblock %}

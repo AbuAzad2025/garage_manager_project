@@ -170,3 +170,90 @@ def parts_delete(id):
             return jsonify({"ok": False, "error": "db_error", "detail": str(e)}), 500
         flash(f"فشل الحذف: {e}", "danger")
     return redirect(url_for("parts_bp.parts_list"))
+
+
+@parts_bp.post("/update-cost")
+@login_required
+@permission_required("manage_inventory")
+def update_part_cost():
+    """تحديث تكلفة منتج واحد"""
+    try:
+        data = request.get_json()
+        product_id = data.get('product_id')
+        cost = data.get('cost')
+        
+        if not product_id or cost is None:
+            return jsonify({"success": False, "message": "البيانات غير مكتملة"}), 400
+        
+        product = db.session.get(Product, product_id)
+        if not product:
+            return jsonify({"success": False, "message": "المنتج غير موجود"}), 404
+        
+        # تحديث التكلفة
+        product.purchase_price = _to_decimal(cost)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "تم تحديث التكلفة بنجاح",
+            "product_id": product_id,
+            "cost": float(product.purchase_price)
+        })
+    
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": f"خطأ في قاعدة البيانات: {str(e)}"}), 500
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": f"خطأ: {str(e)}"}), 500
+
+
+@parts_bp.post("/update-multiple-costs")
+@login_required
+@permission_required("manage_inventory")
+def update_multiple_costs():
+    """تحديث تكاليف عدة منتجات دفعة واحدة"""
+    try:
+        data = request.get_json()
+        costs = data.get('costs', [])
+        
+        if not costs:
+            return jsonify({"success": False, "message": "لا توجد بيانات للتحديث"}), 400
+        
+        updated_count = 0
+        errors = []
+        
+        for item in costs:
+            product_id = item.get('product_id')
+            cost = item.get('cost')
+            
+            if not product_id or cost is None:
+                continue
+            
+            product = db.session.get(Product, product_id)
+            if not product:
+                errors.append(f"المنتج #{product_id} غير موجود")
+                continue
+            
+            product.purchase_price = _to_decimal(cost)
+            updated_count += 1
+        
+        db.session.commit()
+        
+        response_data = {
+            "success": True,
+            "message": f"تم تحديث {updated_count} منتج بنجاح",
+            "updated_count": updated_count
+        }
+        
+        if errors:
+            response_data["errors"] = errors
+        
+        return jsonify(response_data)
+    
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": f"خطأ في قاعدة البيانات: {str(e)}"}), 500
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": f"خطأ: {str(e)}"}), 500

@@ -51,7 +51,11 @@
 
   <hr class="hr-soft">
 
-  <a href="{{ url_for('shop.catalog') }}" class="btn btn-secondary shop-btn fw-bold">تصفح المتجر بدون تسجيل</a>
+  <div class="auth-buttons">
+    <a href="{{ url_for('shop.catalog') }}" class="btn btn-secondary shop-btn fw-bold mb-2">
+      <i class="fas fa-store"></i> تصفح المتجر بدون تسجيل
+    </a>
+  </div>
 {% endblock %}
 
 {% block scripts %}

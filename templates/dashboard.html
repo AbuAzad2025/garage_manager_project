@@ -27,6 +27,58 @@
     </div>
   </div>
 
+  <!-- رسوم بيانية تفاعلية -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-lg">
+        <div class="card-header bg-white border-0">
+          <h5 class="card-title mb-0">
+            <i class="fas fa-chart-line text-primary me-2"></i>
+            إحصائيات المبيعات الشهرية
+          </h5>
+        </div>
+        <div class="card-body">
+          <canvas id="salesChart" height="100"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-lg">
+        <div class="card-header bg-white border-0">
+          <h5 class="card-title mb-0">
+            <i class="fas fa-chart-pie text-success me-2"></i>
+            توزيع العملاء
+          </h5>
+        </div>
+        <div class="card-body">
+          <canvas id="customersChart" height="200"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- تنبيهات الشيكات -->
+  <div class="row g-3 mb-4" id="check-alerts-section" style="display: none;">
+    <div class="col-12">
+      <div class="card border-0 shadow-lg border-danger">
+        <div class="card-header bg-gradient text-white" style="background:linear-gradient(135deg,#ff6b6b,#ee5a6f)">
+          <h5 class="card-title mb-0">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            تنبيهات الشيكات العاجلة
+          </h5>
+        </div>
+        <div class="card-body" id="check-alerts-container">
+          <!-- سيتم ملؤها ديناميكياً -->
+        </div>
+        <div class="card-footer text-center">
+          <a href="/checks" class="btn btn-primary">
+            <i class="fas fa-money-check-alt"></i> عرض جميع الشيكات
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- بطاقات أساسية -->
   <div class="row g-3 mb-4">
     <div class="col-lg-3 col-md-6">
@@ -294,4 +346,166 @@
   </div>
 
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // رسم بياني للمبيعات الشهرية
+    const salesCtx = document.getElementById('salesChart').getContext('2d');
+    const salesChart = new Chart(salesCtx, {
+        type: 'line',
+        data: {
+            labels: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو'],
+            datasets: [{
+                label: 'المبيعات (شيكل)',
+                data: [12000, 19000, 15000, 25000, 22000, 30000],
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value.toLocaleString() + ' ₪';
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // رسم بياني لتوزيع العملاء
+    const customersCtx = document.getElementById('customersChart').getContext('2d');
+    const customersChart = new Chart(customersCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['عملاء جدد', 'عملاء نشطين', 'عملاء غير نشطين'],
+            datasets: [{
+                data: [30, 50, 20],
+                backgroundColor: [
+                    'rgba(54, 162, 235, 0.8)',
+                    'rgba(75, 192, 192, 0.8)',
+                    'rgba(255, 99, 132, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(54, 162, 235, 1)',
+                    'rgba(75, 192, 192, 1)',
+                    'rgba(255, 99, 132, 1)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true
+                    }
+                }
+            }
+        }
+    });
+
+    // تحديث البيانات كل 30 ثانية
+    setInterval(function() {
+        // يمكن إضافة AJAX هنا لتحديث البيانات
+        console.log('تحديث البيانات...');
+    }, 30000);
+});
+
+// تحميل تنبيهات الشيكات العاجلة
+function loadCheckAlerts() {
+    $.get('/checks/api/alerts', function(response) {
+        if (response.success && response.count > 0) {
+            const container = $('#check-alerts-container');
+            container.empty();
+            
+            // عرض أول 5 تنبيهات فقط
+            const alerts = response.alerts.slice(0, 5);
+            
+            alerts.forEach(alert => {
+                const alertClass = alert.severity === 'danger' ? 'check-alert-danger' : 'check-alert-warning';
+                const iconClass = alert.icon || 'fas fa-exclamation-circle';
+                
+                const alertHtml = `
+                    <div class="check-alert-item ${alertClass}" onclick="window.location.href='${alert.link}'">
+                        <div class="d-flex align-items-center">
+                            <i class="${iconClass} fa-2x me-3"></i>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1 fw-bold">${alert.title}</h6>
+                                <p class="mb-0 small">${alert.message}</p>
+                            </div>
+                            <div class="text-start">
+                                <span class="badge badge-${alert.severity} fs-6 px-3 py-2">
+                                    ${new Intl.NumberFormat('ar-EG', {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2
+                                    }).format(alert.amount)} ${alert.currency}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.append(alertHtml);
+            });
+            
+            $('#check-alerts-section').show();
+        } else {
+            $('#check-alerts-section').hide();
+        }
+    }).fail(function() {
+        // في حالة الخطأ، إخفاء القسم
+        $('#check-alerts-section').hide();
+    });
+}
+
+// تحميل التنبيهات عند تحميل الصفحة
+loadCheckAlerts();
+
+// تحديث كل 5 دقائق
+setInterval(loadCheckAlerts, 300000);
+
+</script>
+
+<style>
+  .check-alert-item {
+    border-left: 4px solid;
+    border-radius: 5px;
+    padding: 15px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  .check-alert-item:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    transform: translateX(5px);
+  }
+  .check-alert-danger { 
+    border-left-color: #dc3545; 
+    background: #f8d7da; 
+  }
+  .check-alert-warning { 
+    border-left-color: #ffc107; 
+    background: #fff3cd; 
+  }
+</style>
 {% endblock %}

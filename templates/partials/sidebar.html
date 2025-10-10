@@ -88,6 +88,7 @@
         </li>
         {% endif %}
 
+
         {% if has_perm('manage_payments') or shop_is_super_admin %}
         <li class="nav-item">
           <a href="{{ url_for('payments.index') }}" class="nav-link {% if request.blueprint == 'payments' %}active{% endif %}">
@@ -96,10 +97,23 @@
         </li>
         {% endif %}
 
+        {% if has_perm('view_payments') or has_perm('manage_payments') or shop_is_super_admin %}
+        <li class="nav-item">
+          <a href="{{ url_for('checks.index') }}" class="nav-link {% if request.blueprint == 'checks' %}active{% endif %}">
+            <i class="nav-icon fas fa-money-check"></i><p>الشيكات</p>
+          </a>
+        </li>
+        {% endif %}
+
         {% if has_perm('view_reports') or has_perm('manage_reports') or shop_is_super_admin %}
         <li class="nav-item">
           <a href="{{ url_for('reports_bp.universal') }}" class="nav-link {% if request.blueprint == 'reports_bp' %}active{% endif %}">
             <i class="nav-icon fas fa-chart-line"></i><p>التقارير</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_for('admin_reports.index') }}" class="nav-link {% if request.blueprint == 'admin_reports' %}active{% endif %}">
+            <i class="nav-icon fas fa-chart-bar"></i><p>التقارير الإدارية</p>
           </a>
         </li>
         {% endif %}
@@ -112,6 +126,22 @@
         </li>
         {% endif %}
 
+        {% if has_perm('manage_currencies') or shop_is_super_admin %}
+        <li class="nav-item">
+          <a href="{{ url_for('currencies.list') }}" class="nav-link {% if request.blueprint == 'currencies' %}active{% endif %}">
+            <i class="nav-icon fas fa-coins"></i><p>إدارة العملات</p>
+          </a>
+        </li>
+        {% endif %}
+
+        {% if has_perm('manage_system') or shop_is_super_admin %}
+        <li class="nav-item">
+          <a href="{{ url_for('hard_delete_bp.deletion_logs') }}" class="nav-link {% if request.blueprint == 'hard_delete_bp' %}active{% endif %}">
+            <i class="nav-icon fas fa-history"></i><p>سجل الحذف القوي</p>
+          </a>
+        </li>
+        {% endif %}
+
         {% if has_perm('manage_users') or shop_is_super_admin %}
         <li class="nav-item">
           <a href="{{ url_for('users_bp.list_users') }}" class="nav-link {% if request.blueprint == 'users_bp' %}active{% endif %}">
@@ -119,6 +149,23 @@
           </a>
         </li>
         {% endif %}
+
+
+
+        {% if has_perm('manage_ledger') or shop_is_super_admin %}
+        <li class="nav-item">
+          <a href="{{ url_for('ledger.index') }}" class="nav-link {% if request.blueprint == 'ledger' %}active{% endif %}">
+            <i class="nav-icon fas fa-book"></i><p>الدفتر</p>
+          </a>
+        </li>
+        {% endif %}
+
+
+
+
+
+
+
 
         {% if shop_is_super_admin %}
         <li class="nav-item">
@@ -135,6 +182,7 @@
           </a>
         </li>
         {% endif %}
+
 
         {% if has_perm('restore_database') or shop_is_super_admin %}
         <li class="nav-item">

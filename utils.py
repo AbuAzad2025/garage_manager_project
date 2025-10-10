@@ -17,6 +17,7 @@ from flask_login import current_user, login_required
 from flask_mail import Message
 from sqlalchemy import case, func, select, or_
 from sqlalchemy.orm.attributes import set_committed_value
+from extensions import cache
 
 try:
     import qrcode
@@ -286,6 +287,104 @@ def format_currency(value: Any) -> str:
         return f"{float(_q2(value)):,.2f} ₪"
     except Exception:
         return "0.00 ₪"
+
+
+def format_currency_in_ils(value: Any) -> str:
+    """تنسيق العملة بالشيكل"""
+    try:
+        return f"{float(_q2(value)):,.2f} شيكل"
+    except Exception:
+        return "0.00 شيكل"
+
+
+def get_entity_balance_in_ils(entity_type: str, entity_id: int) -> Decimal:
+    """حساب رصيد الكيان بالشيكل"""
+    try:
+        from models import Customer, Supplier, Partner, Payment, PaymentDirection, PaymentStatus
+        from decimal import Decimal
+        
+        # حساب المدفوعات بالشيكل
+        payments = db.session.query(Payment).filter(
+            Payment.status == PaymentStatus.COMPLETED.value
+        )
+        
+        if entity_type.upper() == "CUSTOMER":
+            payments = payments.filter(Payment.customer_id == entity_id)
+        elif entity_type.upper() == "SUPPLIER":
+            payments = payments.filter(Payment.supplier_id == entity_id)
+        elif entity_type.upper() == "PARTNER":
+            payments = payments.filter(Payment.partner_id == entity_id)
+        else:
+            return Decimal("0.00")
+        
+        payments = payments.all()
+        
+        total_balance_ils = Decimal("0.00")
+        for payment in payments:
+            amount = Decimal(str(payment.total_amount or 0))
+            currency = payment.currency or "ILS"
+            direction = payment.direction
+            
+            # تحويل للشيكل
+            if currency == "ILS":
+                converted_amount = amount
+            else:
+                try:
+                    from models import convert_amount
+                    converted_amount = convert_amount(amount, currency, "ILS", payment.payment_date)
+                except Exception:
+                    converted_amount = amount
+            
+            # تطبيق اتجاه الدفع
+            if direction == PaymentDirection.INCOMING.value:
+                total_balance_ils += converted_amount
+            else:
+                total_balance_ils -= converted_amount
+        
+        return total_balance_ils
+    except Exception:
+        return Decimal("0.00")
+
+
+def validate_currency_consistency(entity_type: str, entity_id: int) -> dict:
+    """التحقق من اتساق العملات"""
+    try:
+        # حساب الرصيد بالطريقة الجديدة
+        new_balance = get_entity_balance_in_ils(entity_type, entity_id)
+        
+        # حساب الرصيد بالطريقة القديمة
+        old_balance = Decimal("0.00")
+        if entity_type.upper() == "CUSTOMER":
+            customer = db.session.get(Customer, entity_id)
+            if customer:
+                old_balance = Decimal(str(customer.balance or 0))
+        elif entity_type.upper() == "SUPPLIER":
+            supplier = db.session.get(Supplier, entity_id)
+            if supplier:
+                old_balance = Decimal(str(supplier.balance or 0))
+        elif entity_type.upper() == "PARTNER":
+            partner = db.session.get(Partner, entity_id)
+            if partner:
+                old_balance = Decimal(str(partner.balance or 0))
+        
+        # مقارنة النتائج
+        difference = abs(new_balance - old_balance)
+        tolerance = Decimal("0.01")  # فرق أقل من قرش
+        
+        return {
+            'is_consistent': difference <= tolerance,
+            'new_balance': new_balance,
+            'old_balance': old_balance,
+            'difference': difference,
+            'tolerance': tolerance,
+            'validation_date': datetime.utcnow()
+        }
+    except Exception as e:
+        return {
+            'is_consistent': False,
+            'error': str(e),
+            'validation_date': datetime.utcnow()
+        }
 
 
 def format_percent(value: Any) -> str:
@@ -587,6 +686,183 @@ def _expand_perms(*names) -> set:
             key = str(n).lower()
             expanded |= _PERMISSION_ALIASES.get(key, {key})
     return expanded
+
+# وظائف التخزين المؤقت المحسّنة
+def cache_key(prefix, *args):
+    """إنشاء مفتاح تخزين مؤقت"""
+    return f"{prefix}:{':'.join(str(arg) for arg in args)}"
+
+@cache.memoize(timeout=300)  # 5 دقائق
+def get_cached_currencies():
+    """الحصول على العملات من التخزين المؤقت"""
+    from models import Currency
+    return Currency.query.filter_by(is_active=True).all()
+
+@cache.memoize(timeout=600)  # 10 دقائق
+def get_cached_exchange_rates():
+    """الحصول على أسعار الصرف من التخزين المؤقت"""
+    from models import ExchangeRate
+    return ExchangeRate.query.filter_by(is_active=True).all()
+
+@cache.memoize(timeout=180)  # 3 دقائق
+def get_cached_customer_balance(customer_id):
+    """الحصول على رصيد العميل من التخزين المؤقت"""
+    from models import Customer
+    customer = Customer.query.get(customer_id)
+    if customer:
+        return float(customer.balance_in_ils)
+    return 0.0
+
+@cache.memoize(timeout=300)  # 5 دقائق
+def get_cached_dashboard_stats():
+    """الحصول على إحصائيات لوحة التحكم من التخزين المؤقت"""
+    from models import Customer, Sale, Payment, ServiceRequest
+    
+    stats = {
+        'total_customers': Customer.query.count(),
+        'total_sales': Sale.query.count(),
+        'total_payments': Payment.query.count(),
+        'total_services': ServiceRequest.query.count(),
+    }
+    
+    return stats
+
+@cache.memoize(timeout=600)  # 10 دقائق
+def get_cached_sales_summary():
+    """إحصائيات المبيعات المحسنة"""
+    from models import Sale, SaleLine, db
+    from sqlalchemy import func
+    
+    # إجمالي المبيعات
+    total_sales = db.session.query(func.sum(Sale.total_amount)).scalar() or 0
+    
+    # عدد المبيعات
+    sales_count = Sale.query.count()
+    
+    # متوسط قيمة البيع
+    avg_sale = total_sales / sales_count if sales_count > 0 else 0
+    
+    # أفضل المنتجات مبيعاً
+    top_products = db.session.query(
+        SaleLine.product_id,
+        func.sum(SaleLine.quantity).label('total_quantity'),
+        func.sum(SaleLine.total_price).label('total_revenue')
+    ).group_by(SaleLine.product_id).order_by(
+        func.sum(SaleLine.quantity).desc()
+    ).limit(5).all()
+    
+    return {
+        'total_sales': float(total_sales),
+        'sales_count': sales_count,
+        'avg_sale': float(avg_sale),
+        'top_products': [
+            {
+                'product_id': p.product_id,
+                'quantity': p.total_quantity,
+                'revenue': float(p.total_revenue)
+            } for p in top_products
+        ]
+    }
+
+@cache.memoize(timeout=1800)  # 30 دقيقة
+def get_cached_inventory_status():
+    """حالة المخزون المحسنة"""
+    from models import Product, StockLevel, Warehouse
+    
+    # المنتجات منخفضة المخزون
+    low_stock_products = db.session.query(Product).join(StockLevel).filter(
+        StockLevel.quantity <= Product.min_stock_level
+    ).limit(10).all()
+    
+    # إجمالي قيمة المخزون
+    total_inventory_value = db.session.query(
+        func.sum(StockLevel.quantity * Product.cost_price)
+    ).join(Product).scalar() or 0
+    
+    return {
+        'low_stock_count': len(low_stock_products),
+        'low_stock_products': [
+            {
+                'id': p.id,
+                'name': p.name,
+                'current_stock': p.current_stock,
+                'min_stock': p.min_stock_level
+            } for p in low_stock_products
+        ],
+        'total_inventory_value': float(total_inventory_value)
+    }
+
+def clear_cache_pattern(pattern):
+    """مسح التخزين المؤقت بنمط معين"""
+    try:
+        cache.delete_memoized(pattern)
+    except Exception as e:
+        print(f"خطأ في مسح التخزين المؤقت: {e}")
+
+def optimize_database_queries():
+    """تحسين استعلامات قاعدة البيانات"""
+    from sqlalchemy import event
+    from sqlalchemy.engine import Engine
+    import time
+    
+    @event.listens_for(Engine, "before_cursor_execute")
+    def receive_before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+        context._query_start_time = time.time()
+    
+    @event.listens_for(Engine, "after_cursor_execute")
+    def receive_after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+        total = time.time() - context._query_start_time
+        if total > 0.1:  # استعلامات بطيئة
+            print(f"استعلام بطيء ({total:.2f}s): {statement[:100]}...")
+
+def get_performance_metrics():
+    """الحصول على مقاييس الأداء"""
+    from models import db
+    from sqlalchemy import text
+    
+    try:
+        # حجم قاعدة البيانات
+        db_size = db.session.execute(text("SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()")).scalar()
+        
+        # عدد الجداول
+        table_count = db.session.execute(text("SELECT COUNT(*) FROM sqlite_master WHERE type='table'")).scalar()
+        
+        # إحصائيات الفهرس
+        index_count = db.session.execute(text("SELECT COUNT(*) FROM sqlite_master WHERE type='index'")).scalar()
+        
+        return {
+            'database_size_mb': round(db_size / (1024 * 1024), 2),
+            'table_count': table_count,
+            'index_count': index_count,
+            'cache_hit_ratio': getattr(cache, 'hit_ratio', 0)
+        }
+    except Exception as e:
+        return {'error': str(e)}
+
+def optimize_system():
+    """تحسين النظام العام"""
+    try:
+        # تحسين قاعدة البيانات
+        from models import db
+        db.session.execute(text("VACUUM"))
+        db.session.execute(text("ANALYZE"))
+        
+        # مسح التخزين المؤقت القديم
+        cache.clear()
+        
+        return True
+    except Exception as e:
+        print(f"خطأ في تحسين النظام: {e}")
+        return False
+    except Exception:
+        pass
+
+def clear_all_cache():
+    """مسح جميع التخزين المؤقت"""
+    try:
+        cache.clear()
+    except Exception:
+        pass
 
 
 def _iter_rel(rel):
@@ -968,8 +1244,8 @@ def prepare_payment_form_choices(form, *, compat_post: bool = False, arabic_labe
 
     if hasattr(form, "currency"):
         form.currency.choices = (
-            [("ILS", "شيكل"), ("USD", "دولار"), ("EUR", "يورو"), ("JOD", "دينار")]
-            if arabic_labels else [("ILS", "ILS"), ("USD", "USD"), ("EUR", "EUR"), ("JOD", "JOD")]
+            [("ILS", "شيكل إسرائيلي"), ("USD", "دولار أمريكي"), ("EUR", "يورو"), ("JOD", "دينار أردني"), ("AED", "درهم إماراتي"), ("SAR", "ريال سعودي"), ("EGP", "جنيه مصري"), ("GBP", "جنيه إسترليني")]
+            if arabic_labels else [("ILS", "ILS"), ("USD", "USD"), ("EUR", "EUR"), ("JOD", "JOD"), ("AED", "AED"), ("SAR", "SAR"), ("EGP", "EGP"), ("GBP", "GBP")]
         )
     if hasattr(form, "method"):
         form.method.choices = _enum_choices(PaymentMethod, arabic_labels)

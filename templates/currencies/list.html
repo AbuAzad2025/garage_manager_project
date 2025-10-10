@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block page_title %}إدارة العملات{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+<li class="breadcrumb-item active">إدارة العملات</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-coins me-2"></i>
+                    العملات المتاحة
+                </h3>
+                <div class="card-tools">
+                    <a href="{{ url_for('currencies.new_currency') }}" class="btn btn-success btn-sm">
+                        <i class="fas fa-plus me-1"></i>
+                        إضافة عملة جديدة
+                    </a>
+                    <a href="{{ url_for('currencies.exchange_rates') }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-exchange-alt me-1"></i>
+                        أسعار الصرف
+                    </a>
+                    <a href="{{ url_for('currencies.reports') }}" class="btn btn-info btn-sm">
+                        <i class="fas fa-chart-bar me-1"></i>
+                        التقارير
+                    </a>
+                    <a href="{{ url_for('currencies.settings') }}" class="btn btn-warning btn-sm">
+                        <i class="fas fa-cog me-1"></i>
+                        إعدادات الأسعار
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if currencies.items %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-bordered table-striped">
+                        <thead class="table-primary">
+                            <tr>
+                                <th>#</th>
+                                <th>رمز العملة</th>
+                                <th>اسم العملة</th>
+                                <th>الرمز</th>
+                                <th>عدد الخانات العشرية</th>
+                                <th>الحالة</th>
+                                <th>العمليات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for currency in currencies.items %}
+                            <tr>
+                                <td>{{ loop.index + (currencies.page - 1) * currencies.per_page }}</td>
+                                <td class="fw-bold">{{ currency.code }}</td>
+                                <td>{{ currency.name }}</td>
+                                <td>{{ currency.symbol }}</td>
+                                <td>{{ currency.decimals }}</td>
+                                <td>
+                                    {% if currency.is_active %}
+                                    <span class="badge bg-success">نشط</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">غير نشط</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('currencies.exchange_rates', currency=currency.code) }}" 
+                                           class="btn btn-outline-info" title="أسعار الصرف">
+                                            <i class="fas fa-exchange-alt"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                {% if currencies.pages > 1 %}
+                <nav aria-label="Page navigation">
+                    <ul class="pagination justify-content-center">
+                        {% if currencies.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('currencies.list', page=currencies.prev_num) }}">السابق</a>
+                        </li>
+                        {% endif %}
+                        
+                        {% for page_num in currencies.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != currencies.page %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('currencies.list', page=page_num) }}">{{ page_num }}</a>
+                                </li>
+                                {% else %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ page_num }}</span>
+                                </li>
+                                {% endif %}
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if currencies.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('currencies.list', page=currencies.next_num) }}">التالي</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+                
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-coins fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">لا توجد عملات متاحة</h5>
+                    <p class="text-muted">سيتم إضافة العملات تلقائياً عند الحاجة</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

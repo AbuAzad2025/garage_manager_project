@@ -86,6 +86,10 @@
       <div class="card-body">
         <form id="product-form" method="POST" novalidate>
           {{ form.hidden_tag() }}
+          
+          <!-- حقول الصور المخفية -->
+          {{ form.image(style="display: none;") }}
+          {{ form.online_image(style="display: none;") }}
 
           <div class="mb-3">
             <label for="{{ form.name.id }}" class="form-label">اسم المنتج</label>
@@ -133,6 +137,28 @@
           </div>
 
           {% if has_any('manage_shop','manage_inventory') %}
+        <div class="mb-3">
+          <label class="form-label d-block">صورة المنتج الرئيسية</label>
+          <div class="d-flex align-items-center gap-3">
+            {% if product and product.image %}
+              {% set main_img_src = product.image if product.image.startswith('http') or product.image.startswith('/') else url_for('static', filename=product.image) %}
+              <img id="main-thumb" class="online-thumb" src="{{ main_img_src }}" alt="preview"
+                   onerror="this.onerror=null;this.src='{{ url_for('static', filename='products/default.png') }}'">
+            {% else %}
+              <img id="main-thumb" class="online-thumb" src="{{ url_for('static', filename='products/default.png') }}" alt="preview">
+            {% endif %}
+            <div class="d-grid gap-2 flex-grow-1">
+              <input id="main-file" type="file" accept="image/*" style="display: none;">
+              <button id="btn-upload-main" type="button" class="btn btn-primary btn-lg">
+                <i class="fas fa-cloud-upload-alt me-2"></i> رفع صورة المنتج
+              </button>
+              <div class="small text-muted" id="main-image-url" dir="ltr" style="max-width:260px;word-break:break-all;">
+                {{ product.image or 'لم يتم رفع صورة بعد' }}
+              </div>
+            </div>
+          </div>
+        </div>
+
           <div class="d-grid">
             <button type="submit" class="btn btn-primary py-2">
               <i class="fas fa-save me-1"></i> حفظ
@@ -159,9 +185,9 @@
     <div class="card mt-3" id="online-panel"
          data-pid="{{ product.id }}"
          data-list-url="{{ url_for('warehouse_bp.list') }}?type=ONLINE&format=json"
-         data-products-url-template="{{ url_for('warehouse_bp.products', id=0) }}?format=json"
+         data-products-url-template="/warehouses/PLACEHOLDER/products?format=json"
          data-upload-url="{{ url_for('warehouse_bp.api_upload_product_image') }}"
-         data-update-inline-url-template="{{ url_for('warehouse_bp.update_product_inline', warehouse_id=0, product_id=0) }}">
+         data-update-inline-url-template="/warehouses/PLACEHOLDER1/products/PLACEHOLDER2/update">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h2 class="h5 mb-0"><i class="fas fa-globe me-2"></i> إدارة الأونلاين</h2>
@@ -189,13 +215,13 @@
             <div class="d-flex align-items-center gap-3">
               <img id="online-thumb" class="online-thumb" src="{{ _img_src }}" alt="preview"
                    onerror="this.onerror=null;this.src='{{ url_for('static', filename='products/default.png') }}'">
-              <div class="d-grid gap-2">
-                <input id="online-file" type="file" accept=".jpg,.jpeg,.png,.webp,.bmp" class="form-control">
-                <button id="btn-upload-online" type="button" class="btn btn-outline-primary btn-sm">
-                  <i class="fas fa-upload me-1"></i> رفع الصورة
+              <div class="d-grid gap-2 flex-grow-1">
+                <input id="online-file" type="file" accept="image/*" style="display: none;">
+                <button id="btn-upload-online" type="button" class="btn btn-info btn-lg">
+                  <i class="fas fa-cloud-upload-alt me-2"></i> رفع صورة الأونلاين
                 </button>
                 <div class="small text-muted" id="online-image-url" dir="ltr" style="max-width:260px;word-break:break-all;">
-                  {{ product.online_image or '' }}
+                  {{ product.online_image or 'لم يتم رفع صورة بعد' }}
                 </div>
               </div>
             </div>
@@ -257,5 +283,4 @@
 
 {% block scripts %}
 {{ super() }}
-<script src="{{ url_for('static', filename='js/shop.js') }}"></script>
 {% endblock %}

@@ -128,11 +128,11 @@
                 <button type="button" class="btn btn-action btn-edit edit-online-price" data-id="{{ p.id }}" title="تعديل سعر الأونلاين">
                   <i class="fas fa-globe-dollar"></i>
                 </button>
-                <button type="button" class="btn btn-action btn-edit edit-image" data-id="{{ p.id }}" title="تغيير الصورة الأساسية">
-                  <i class="fas fa-image"></i>
+                <button type="button" class="btn btn-action btn-edit edit-image" data-id="{{ p.id }}" title="رفع صورة أساسية جديدة">
+                  <i class="fas fa-cloud-upload-alt"></i>
                 </button>
-                <button type="button" class="btn btn-action btn-edit edit-online-image" data-id="{{ p.id }}" title="تغيير صورة الأونلاين">
-                  <i class="fas fa-globe"></i>
+                <button type="button" class="btn btn-action btn-edit edit-online-image" data-id="{{ p.id }}" title="رفع صورة أونلاين جديدة">
+                  <i class="fas fa-globe-americas"></i>
                 </button>
                 <a href="{{ url_for('shop.admin_product_edit', pid=p.id) }}" class="btn btn-action btn-edit" title="تعديل كامل">
                   <i class="fas fa-edit"></i>
@@ -280,34 +280,71 @@
       const isOnline = !!btnEditOnlineImg;
       const tr = e.target.closest('tr');
       const imgTag = tr ? tr.querySelector('img') : null;
-      const cur = imgTag ? imgTag.getAttribute('src') : '';
-      const msg = isOnline
-        ? 'أدخل رابط صورة الأونلاين (مثال: /static/uploads/products/x.webp أو https://...)'
-        : 'أدخل رابط الصورة الأساسية (مثال: /static/uploads/products/x.webp أو https://...)';
-
-      const val = prompt(msg, cur);
-      if (val === null) return;
-
-      try {
-        const payload = isOnline ? { online_image: (val || '').trim() } : { image: (val || '').trim() };
-        const {ok, data} = await postJSON(`{{ url_for('shop.admin_product_update_fields', pid=0) }}`.replace('0', id), payload);
-        if (ok) {
-          if (imgTag) {
-            const v = isOnline ? data.online_image : data.image;
-            if (v) {
-              if (v.startsWith('http') || v.startsWith('/')) {
-                imgTag.src = v;
-              } else {
-                imgTag.src = `{{ url_for('static', filename='') }}` + v;
+      
+      // إنشاء input file مخفي
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = 'image/*';
+      fileInput.style.display = 'none';
+      
+      fileInput.addEventListener('change', async function() {
+        if (!this.files.length) return;
+        
+        const file = this.files[0];
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('subdir', 'products');
+        formData.append('max_side', '1200');
+        formData.append('quality', '82');
+        
+        try {
+          // رفع الصورة
+          const uploadRes = await fetch('/warehouses/api/upload_product_image', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken },
+            body: formData
+          });
+          
+          const uploadData = await uploadRes.json();
+          
+          if (uploadRes.ok && uploadData.ok) {
+            const imageUrl = uploadData.url || uploadData.thumb_url;
+            
+            // حفظ URL في قاعدة البيانات
+            const payload = isOnline ? { online_image: imageUrl } : { image: imageUrl };
+            console.log('Sending payload:', payload);
+            console.log('Product ID:', id);
+            const {ok, data} = await postJSON(`{{ url_for('shop.admin_product_update_fields', pid=0) }}`.replace('0', id), payload);
+            console.log('Response:', {ok, data});
+            
+            if (ok) {
+              // تحديث الصورة في الجدول
+              if (imgTag && imageUrl) {
+                if (imageUrl.startsWith('http') || imageUrl.startsWith('/')) {
+                  imgTag.src = imageUrl;
+                } else {
+                  imgTag.src = `{{ url_for('static', filename='') }}` + imageUrl;
+                }
               }
+              alert(`✅ تم رفع ${isOnline ? 'صورة الأونلاين' : 'الصورة الأساسية'} بنجاح!`);
+            } else {
+              alert(data.message || 'تعذر حفظ الصورة في قاعدة البيانات');
             }
+          } else {
+            alert(uploadData.error || 'فشل رفع الصورة');
           }
-        } else {
-          alert(data.message || 'تعذر تحديث الصورة');
+        } catch (err) {
+          alert('خطأ في الاتصال');
         }
-      } catch (err) {
-        alert('خطأ في الاتصال');
-      }
+        
+        // إزالة input من DOM
+        document.body.removeChild(fileInput);
+      });
+      
+      // إضافة input إلى DOM وتشغيله
+      document.body.appendChild(fileInput);
+      fileInput.click();
+      
       return;
     }
   });

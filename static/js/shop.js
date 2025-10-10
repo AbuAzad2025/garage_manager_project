@@ -373,7 +373,7 @@
         if (!onlineWid) return;
         setStatus('جاري تحميل بيانات الأونلاين...', true);
         try {
-          const res = await fetch(prodTpl.replace(/0$/, String(onlineWid)), { headers: { 'X-CSRFToken': csrf() } });
+          const res = await fetch(prodTpl.replace('PLACEHOLDER', String(onlineWid)), { headers: { 'X-CSRFToken': csrf() } });
           const js = await res.json();
           const data = (js?.data || []).find(p => Number(p.id) === pid);
           if (data) {
@@ -402,7 +402,45 @@
           const url = js.url || js.thumb_url;
           if (thumbEl && url) thumbEl.src = js.thumb_url || url;
           if (imgUrlEl) imgUrlEl.textContent = url;
-          setStatus('تم رفع الصورة.');
+          
+          // تحديث قيمة الحقل في النموذج
+          const onlineImageField = document.querySelector('input[name="online_image"]');
+          if (onlineImageField) {
+            onlineImageField.value = url;
+            console.log('تم تحديث حقل صورة الأونلاين:', url);
+            // إضافة تأثير بصري
+            onlineImageField.style.backgroundColor = '#d4edda';
+            setTimeout(() => {
+              onlineImageField.style.backgroundColor = '';
+            }, 2000);
+          } else {
+            console.log('لم يتم العثور على حقل صورة الأونلاين');
+          }
+          
+          // حفظ صورة الأونلاين فوراً في قاعدة البيانات
+          try {
+            const saveResponse = await fetch('/shop/admin/products/' + window.location.pathname.match(/\/(\d+)\/edit/)[1] + '/update_fields', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrf()
+              },
+              body: JSON.stringify({
+                online_image: url
+              })
+            });
+            
+            if (saveResponse.ok) {
+              console.log('✅ تم حفظ صورة الأونلاين في قاعدة البيانات');
+              setStatus('✅ تم رفع وحفظ صورة الأونلاين بنجاح!');
+            } else {
+              console.log('⚠️ تم رفع صورة الأونلاين لكن فشل الحفظ في قاعدة البيانات');
+              setStatus('✅ تم رفع صورة الأونلاين! ⚠️ تأكد من الضغط على "حفظ" لحفظ التغييرات.');
+            }
+          } catch (saveError) {
+            console.log('⚠️ خطأ في حفظ صورة الأونلاين:', saveError);
+            setStatus('✅ تم رفع صورة الأونلاين! ⚠️ تأكد من الضغط على "حفظ" لحفظ التغييرات.');
+          }
         } catch {
           setStatus('تعذر رفع الصورة');
         }
@@ -429,7 +467,7 @@
 
         setStatus('جارٍ الحفظ...', true);
         try {
-          const url = updTpl.replace('/0/', `/${onlineWid}/`).replace(/0$/, String(pid));
+          const url = updTpl.replace('PLACEHOLDER1', String(onlineWid)).replace('PLACEHOLDER2', String(pid));
           const res = await fetch(url, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
@@ -448,7 +486,10 @@
         }
       };
 
-      if (btnUpload) btnUpload.addEventListener('click', uploadOnlineImage);
+      if (fileEl) fileEl.addEventListener('change', uploadOnlineImage);
+      if (btnUpload) btnUpload.addEventListener('click', function() {
+        fileEl.click();
+      });
       if (btnSave) btnSave.addEventListener('click', saveOnline);
       (async () => { const ok = await findOnlineWarehouse(); if (ok) await loadOnlineData(); })();
     }
@@ -549,6 +590,89 @@
     wireCheckoutForm();
     wireAdminProductForm();
     wireCartInteractions();
+    
+    // دعم رفع الصورة الرئيسية للمنتج
+    const mainFileEl = document.getElementById('main-file');
+    const mainThumbEl = document.getElementById('main-thumb');
+    const mainImgUrlEl = document.getElementById('main-image-url');
+    const btnUploadMain = document.getElementById('btn-upload-main');
+
+    if (mainFileEl && btnUploadMain) {
+      mainFileEl.addEventListener('change', async function() {
+        if (!this.files.length) return;
+        
+        const fd = new FormData();
+        fd.append('file', this.files[0]);
+        fd.append('subdir', 'products');
+        fd.append('max_side', '1200');
+        fd.append('quality', '82');
+        
+        try {
+          const r = await fetch('/warehouses/api/upload_product_image', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrf() },
+            body: fd
+          });
+          const js = await r.json();
+          
+          if (r.ok && js.ok) {
+            const url = js.url || js.thumb_url;
+            if (mainThumbEl && url) mainThumbEl.src = js.thumb_url || url;
+            if (mainImgUrlEl) mainImgUrlEl.textContent = url;
+            
+            // تحديث قيمة الحقل في النموذج
+            const imageField = document.querySelector('input[name="image"]');
+            if (imageField) {
+              imageField.value = url;
+              console.log('تم تحديث حقل الصورة الرئيسية:', url);
+              // إضافة تأثير بصري
+              imageField.style.backgroundColor = '#d4edda';
+              setTimeout(() => {
+                imageField.style.backgroundColor = '';
+              }, 2000);
+            } else {
+              console.log('لم يتم العثور على حقل الصورة الرئيسية');
+            }
+            
+            // حفظ الصورة فوراً في قاعدة البيانات
+            try {
+              const saveResponse = await fetch('/shop/admin/products/' + window.location.pathname.match(/\/(\d+)\/edit/)[1] + '/update_fields', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-CSRFToken': csrf()
+                },
+                body: JSON.stringify({
+                  image: url
+                })
+              });
+              
+              if (saveResponse.ok) {
+                console.log('✅ تم حفظ الصورة في قاعدة البيانات');
+                alert('✅ تم رفع وحفظ صورة المنتج بنجاح!');
+              } else {
+                console.log('⚠️ تم رفع الصورة لكن فشل الحفظ في قاعدة البيانات');
+                alert('✅ تم رفع الصورة! ⚠️ تأكد من الضغط على "حفظ" لحفظ التغييرات.');
+              }
+            } catch (saveError) {
+              console.log('⚠️ خطأ في حفظ الصورة:', saveError);
+              alert('✅ تم رفع الصورة! ⚠️ تأكد من الضغط على "حفظ" لحفظ التغييرات.');
+            }
+            
+            this.value = '';
+          } else {
+            alert(js.error || 'فشل الرفع');
+          }
+        } catch (error) {
+          alert('تعذر رفع الصورة');
+        }
+      });
+
+      btnUploadMain.addEventListener('click', function() {
+        mainFileEl.click();
+      });
+    }
+    
     document.querySelectorAll('.alert').forEach(el => {
       setTimeout(() => {
         try { new bootstrap.Alert(el).close(); } catch { }

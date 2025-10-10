@@ -364,11 +364,94 @@ def list_sales():
     sales = pag.items
     for s in sales:
         _format_sale(s)
+    
+    # حساب الملخصات الحقيقية
+    from models import fx_rate
+    
+    # جلب جميع المبيعات (بدون pagination) لحساب الملخصات
+    all_sales_query = Sale.query
+    if st and st != "ALL":
+        all_sales_query = all_sales_query.filter(Sale.status == st)
+    if cust:
+        all_sales_query = all_sales_query.join(Customer).filter(
+            or_(Customer.name.ilike(f"%{cust}%"), Customer.phone.ilike(f"%{cust}%"))
+        )
+    try:
+        if df:
+            all_sales_query = all_sales_query.filter(Sale.sale_date >= datetime.fromisoformat(df))
+        if dt:
+            all_sales_query = all_sales_query.filter(Sale.sale_date <= datetime.fromisoformat(dt))
+    except:
+        pass
+    
+    all_sales = all_sales_query.all()
+    
+    # حساب الإحصائيات
+    total_sales = 0.0
+    total_paid = 0.0
+    total_pending = 0.0
+    sales_by_status = {}
+    
+    for sale in all_sales:
+        # تحويل للشيقل
+        amount = float(sale.total_amount or 0)
+        if sale.currency and sale.currency != 'ILS':
+            try:
+                rate = fx_rate(sale.currency, 'ILS', sale.sale_date, raise_on_missing=False)
+                if rate > 0:
+                    amount = float(amount * float(rate))
+                else:
+                    current_app.logger.warning(f"⚠️ سعر صرف مفقود: {sale.currency}/ILS للبيع #{sale.id} - استخدام المبلغ الأصلي")
+            except Exception as e:
+                current_app.logger.error(f"❌ خطأ في تحويل العملة للبيع #{sale.id}: {str(e)}")
+        
+        total_sales += amount
+        
+        # حساب المدفوع
+        payments = Payment.query.filter(
+            Payment.customer_id == sale.customer_id,
+            Payment.direction == 'incoming'
+        ).all()
+        
+        paid_for_sale = sum(
+            float(p.total_amount or 0) * float(p.fx_rate_used or 1.0) if p.fx_rate_used
+            else float(p.total_amount or 0)
+            for p in payments
+        )
+        
+        # تصنيف حسب الحالة
+        status = sale.status if hasattr(sale, 'status') else 'DRAFT'
+        if status not in sales_by_status:
+            sales_by_status[status] = {'count': 0, 'amount': 0}
+        sales_by_status[status]['count'] += 1
+        sales_by_status[status]['amount'] += amount
+    
+    # حساب المدفوع الإجمالي من جميع الدفعات الواردة
+    all_incoming_payments = Payment.query.filter(Payment.direction == 'incoming').all()
+    total_paid = sum(
+        float(p.total_amount or 0) * float(p.fx_rate_used or 1.0) if p.fx_rate_used
+        else float(p.total_amount or 0)
+        for p in all_incoming_payments
+    )
+    
+    total_pending = total_sales - total_paid
+    average_sale = total_sales / len(all_sales) if len(all_sales) > 0 else 0
+    
+    summary = {
+        'total_sales': total_sales,
+        'total_paid': total_paid,
+        'total_pending': total_pending,
+        'average_sale': average_sale,
+        'sales_count': len(all_sales),
+        'sales_by_status': sales_by_status
+    }
+    
     return render_template("sales/list.html", sales=sales, pagination=pag,
                            warehouses=Warehouse.query.order_by(Warehouse.name).all(),
                            customers=Customer.query.order_by(Customer.name).limit(100).all(),
                            sellers=User.query.filter_by(is_active=True).order_by(User.username).all(),
-                           status_map=STATUS_MAP)
+                           status_map=STATUS_MAP,
+                           summary=summary)
 
 def _resolve_unit_price(product_id: int, warehouse_id: Optional[int]) -> float:
     prod = db.session.get(Product, product_id)

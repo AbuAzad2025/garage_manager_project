@@ -41,6 +41,48 @@
     </div>
 
     <div class="card-body bg-light">
+      <!-- الملخصات -->
+      {% if summary %}
+      <div class="row mb-4">
+        <div class="col-md-3">
+          <div class="card text-white bg-primary">
+            <div class="card-body">
+              <h5 class="card-title">📊 إجمالي المبيعات</h5>
+              <h3>{{ "{:,.2f}".format(summary.total_sales) }} ₪</h3>
+              <small>{{ summary.sales_count }} فاتورة</small>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card text-white bg-success">
+            <div class="card-body">
+              <h5 class="card-title">💰 المدفوع</h5>
+              <h3>{{ "{:,.2f}".format(summary.total_paid) }} ₪</h3>
+              <small>{{ "{:.1f}".format((summary.total_paid / summary.total_sales * 100) if summary.total_sales > 0 else 0) }}%</small>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card text-white bg-warning">
+            <div class="card-body">
+              <h5 class="card-title">⏳ المستحق</h5>
+              <h3>{{ "{:,.2f}".format(summary.total_pending) }} ₪</h3>
+              <small>{{ "{:.1f}".format((summary.total_pending / summary.total_sales * 100) if summary.total_sales > 0 else 0) }}%</small>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card text-white bg-info">
+            <div class="card-body">
+              <h5 class="card-title">📈 متوسط الفاتورة</h5>
+              <h3>{{ "{:,.2f}".format(summary.average_sale) }} ₪</h3>
+              <small>لكل فاتورة</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+      
       <!-- فلاتر -->
       <form id="filterForm" class="form-row mb-4" method="get" action="{{ url_for('sales_bp.list_sales') }}">
         <div class="form-group col-md-3">
@@ -104,6 +146,19 @@
                   <a href="{{ url_for('sales_bp.edit_sale', id=sale.id) }}" class="btn btn-sm btn-outline-warning" title="تعديل"><i class="fas fa-edit"></i></a>
                   <a href="{{ url_for('sales_bp.generate_invoice', id=sale.id) }}" class="btn btn-sm btn-outline-info" title="طباعة"><i class="fas fa-print"></i></a>
                   <a href="{{ url_for('payments.create_payment', entity_type='SALE', entity_id=sale.id) }}" class="btn btn-sm btn-success" title="إضافة دفعة"><i class="fas fa-money-bill-wave"></i></a>
+                  {% if current_user.has_permission('manage_sales') %}
+                    <form method="post" action="{{ url_for('sales_bp.delete_sale', id=sale.id) }}" class="d-inline">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="btn btn-sm btn-danger" title="حذف عادي" onclick="return confirm('حذف الفاتورة؟');">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </form>
+                    <a href="{{ url_for('hard_delete_bp.delete_sale', sale_id=sale.id) }}"
+                       class="btn btn-sm btn-outline-danger" title="حذف قوي"
+                       onclick="return confirm('حذف قوي - سيتم حذف جميع البيانات المرتبطة!')">
+                      <i class="fas fa-bomb"></i>
+                    </a>
+                  {% endif %}
                 </div>
               </td>
             </tr>

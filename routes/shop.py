@@ -412,22 +412,31 @@ def _apply_online_scope(q):
 @shop_bp.route("/", endpoint="catalog")
 def catalog():
     qparam = (request.args.get("query") or "").strip()
-    if not is_super_admin(current_user):
-        pre = db.session.query(Product).filter(Product.is_active.is_(True))
-        if hasattr(Product, "is_published"):
-            try:
-                pre = pre.filter(Product.is_published.is_(True))
-            except Exception:
-                pass
-        if qparam:
-            like = f"%{qparam}%"
-            pre = pre.filter((Product.name.ilike(like)) | (Product.sku.ilike(like)) | (Product.part_number.ilike(like)))
-        pre_ids = [pid for (pid,) in pre.with_entities(Product.id).all()]
-        _ensure_online_stocklevels_for_products(pre_ids)
-    if is_super_admin(current_user):
-        q = db.session.query(Product)
+    
+    # Allow visitors to see products without login
+    if current_user.is_authenticated:
+        if not is_super_admin(current_user):
+            pre = db.session.query(Product).filter(Product.is_active.is_(True))
+            if hasattr(Product, "is_published"):
+                try:
+                    pre = pre.filter(Product.is_published.is_(True))
+                except Exception:
+                    pass
+            if qparam:
+                like = f"%{qparam}%"
+                pre = pre.filter((Product.name.ilike(like)) | (Product.sku.ilike(like)) | (Product.part_number.ilike(like)))
+            pre_ids = [pid for (pid,) in pre.with_entities(Product.id).all()]
+            _ensure_online_stocklevels_for_products(pre_ids)
+        
+        if is_super_admin(current_user):
+            q = db.session.query(Product)
+        else:
+            q = _apply_online_scope(db.session.query(Product))
     else:
-        q = _apply_online_scope(db.session.query(Product))
+        # For non-authenticated users, show all active products
+        q = db.session.query(Product).filter(Product.is_active.is_(True))
+        # Don't filter by is_published for visitors - show all active products
+    
     if qparam:
         like = f"%{qparam}%"
         q = q.filter((Product.name.ilike(like)) | (Product.sku.ilike(like)) | (Product.part_number.ilike(like)))
@@ -445,13 +454,44 @@ def catalog():
             }
             for p in products
         ])
+    # Create availability map - for non-authenticated users, show stock_quantity
+    if current_user.is_authenticated:
+        avail_map = {p.id: available_qty(p.id) for p in products}
+    else:
+        avail_map = {p.id: getattr(p, 'stock_quantity', 0) for p in products}
+    
     return render_template(
         "shop/catalog.html",
         products=products,
         form=FlaskForm(),
-        avail_map={p.id: available_qty(p.id) for p in products},
-        is_super_admin=is_super_admin(current_user),
+        avail_map=avail_map,
+        is_super_admin=is_super_admin(current_user) if current_user.is_authenticated else False,
     )
+
+@shop_bp.route("/product/<int:product_id>", endpoint="product_detail")
+def product_detail(product_id):
+    """Display detailed product information with AI features."""
+    product = _get_or_404(Product, product_id)
+    
+    if not product.is_active:
+        abort(404)
+    
+    # Get related products (AI recommendations)
+    related_products = db.session.query(Product).filter(
+        Product.id != product_id,
+        Product.is_active == True,
+        Product.category_id == product.category_id
+    ).limit(4).all()
+    
+    # Get category information
+    category = None
+    if product.category_id:
+        category = db.session.query(ProductCategory).get(product.category_id)
+    
+    return render_template("shop/product_detail.html", 
+                         product=product,
+                         related_products=related_products,
+                         category=category)
 
 @shop_bp.route("/products", endpoint="products")
 def products():
@@ -991,7 +1031,27 @@ def admin_product_edit(pid):
             old_sku = (product.sku or "").strip() if product.sku else None
             old_barcode = (product.barcode or "").strip() if product.barcode else None
             old_serial = (product.serial_no or "").strip() if product.serial_no else None
+            
+            # حفظ الصور من الحقول المخفية قبل apply_to
+            new_image = request.form.get("image", "").strip()
+            new_online_image = request.form.get("online_image", "").strip()
+            print(f"DEBUG: new_image from form = {repr(new_image)}")
+            print(f"DEBUG: new_online_image from form = {repr(new_online_image)}")
+            
             form.apply_to(product)
+            
+            # تحديث الصور بعد apply_to (لأن apply_to قد يعيد كتابتها)
+            if new_image:
+                # تنظيف المسار
+                if new_image.startswith("/static/"):
+                    new_image = new_image[len("/static/"):]
+                product.image = new_image
+            if new_online_image:
+                # تنظيف المسار
+                if new_online_image.startswith("/static/"):
+                    new_online_image = new_online_image[len("/static/"):]
+                product.online_image = new_online_image
+            
             new_sku = (product.sku or "").strip() if product.sku else None
             new_barcode = (product.barcode or "").strip() if product.barcode else None
             new_serial = (product.serial_no or "").strip() if product.serial_no else None
@@ -1046,23 +1106,28 @@ def admin_product_update_fields(pid):
     payload = request.get_json(silent=True) or {}
 
     def _clean_img(v):
+        print(f"DEBUG: _clean_img input: {repr(v)}")
         if v is None:
             return None
         s = str(v).strip()
         if not s:
             return None
         if s.startswith("http://") or s.startswith("https://"):
-            return s
-        if s.startswith("/static/"):
-            s = s[len("/static/"):]
+            result = s
+        elif s.startswith("/static/"):
+            result = s[len("/static/"):]
         elif s.startswith("/"):
-            return s
-        s = s.lstrip("./")
-        if s.startswith("static/"):
-            s = s[len("static/"):]
-        if not s.startswith("products/"):
-            s = "products/" + s
-        return s
+            result = s
+        else:
+            s = s.lstrip("./")
+            if s.startswith("static/"):
+                s = s[len("static/"):]
+            # لا نضيف "products/" إذا كان المسار يحتوي على "uploads/products/"
+            if not s.startswith("products/") and not s.startswith("uploads/"):
+                s = "products/" + s
+            result = s
+        print(f"DEBUG: _clean_img output: {repr(result)}")
+        return result
 
     new_name = (payload.get("name") or "").strip() if "name" in payload else None
     new_price = _as_decimal(payload.get("price")) if "price" in payload else None

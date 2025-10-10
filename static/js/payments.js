@@ -1,5 +1,22 @@
-document.addEventListener('DOMContentLoaded', function () {
+// وظائف البحث الذكي - محسنة للأداء
+let smartSearchInitialized = false;
+
+function initializeSmartSearchOnce() {
+  if (!smartSearchInitialized) {
+    smartSearchInitialized = true;
+    setTimeout(function() {
+      initSmartSearch();
+    }, 100);
+  }
+}
+
+// استدعاء واحد فقط عند تحميل الصفحة
+document.addEventListener('DOMContentLoaded', function() {
   'use strict';
+  
+  // البحث الذكي عن الجهات المرتبطة
+  initializeSmartSearchOnce();
+  
   const filterSelectors = ['#filterEntity', '#filterStatus', '#filterDirection', '#filterMethod', '#startDate', '#endDate', '#filterCurrency'];
   const ENTITY_ENUM = { customer:'CUSTOMER', supplier:'SUPPLIER', partner:'PARTNER', sale:'SALE', service:'SERVICE', expense:'EXPENSE', loan:'LOAN', preorder:'PREORDER', shipment:'SHIPMENT' };
   const AR_STATUS = { COMPLETED:'مكتملة', PENDING:'قيد الانتظار', FAILED:'فاشلة', REFUNDED:'مُرجعة' };
@@ -97,6 +114,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const raw = currentFilters(page);
     const params = new URLSearchParams();
     Object.entries(raw).forEach(function ([k, v]) { if (v) params.append(k, v); });
+    params.append('format', 'json'); // إضافة format=json لإرجاع JSON
     if (_abortCtrl) _abortCtrl.abort();
     _abortCtrl = new AbortController();
     setLoading(true);
@@ -139,23 +157,72 @@ document.addEventListener('DOMContentLoaded', function () {
     const n = parseFloat(s);
     return isNaN(n) ? 0 : n;
   }
-  function fmtAmount(v) { return toNumber(v).toFixed(2); }
+  function fmtAmount(v) { 
+    const num = toNumber(v);
+    return num.toLocaleString('ar-EG', { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    });
+  }
   function deriveEntityLabel(p) {
     if (p.entity_display) return p.entity_display;
-    const map = [
-      ['customer_id', 'عميل'],
-      ['supplier_id', 'مورد'],
-      ['partner_id', 'شريك'],
-      ['sale_id', 'بيع'],
-      ['invoice_id', 'فاتورة'],
-      ['service_id', 'صيانة'],
-      ['shipment_id', 'شحنة'],
-      ['expense_id', 'مصروف'],
-      ['preorder_id', 'حجز'],
-      ['loan_settlement_id', 'تسوية']
-    ];
-    for (const [key, label] of map) if (p[key]) return label + ' #' + p[key];
-    return p.entity_type || '';
+    
+    // إنشاء تسمية ذكية مع تفاصيل
+    let label = '';
+    let icon = '';
+    let badgeClass = 'badge-secondary';
+    
+    if (p.customer_id) {
+      icon = '<i class="fas fa-user text-primary"></i>';
+      label = 'عميل #' + p.customer_id;
+      badgeClass = 'badge-primary';
+    } else if (p.supplier_id) {
+      icon = '<i class="fas fa-truck text-info"></i>';
+      label = 'مورد #' + p.supplier_id;
+      badgeClass = 'badge-info';
+    } else if (p.partner_id) {
+      icon = '<i class="fas fa-handshake text-success"></i>';
+      label = 'شريك #' + p.partner_id;
+      badgeClass = 'badge-success';
+    } else if (p.sale_id) {
+      icon = '<i class="fas fa-shopping-cart text-warning"></i>';
+      label = 'فاتورة مبيعات #' + p.sale_id;
+      badgeClass = 'badge-warning';
+    } else if (p.service_id) {
+      icon = '<i class="fas fa-wrench text-danger"></i>';
+      label = 'صيانة مركبة #' + p.service_id;
+      badgeClass = 'badge-danger';
+    } else if (p.expense_id) {
+      icon = '<i class="fas fa-receipt text-secondary"></i>';
+      label = 'مصروف #' + p.expense_id;
+      badgeClass = 'badge-secondary';
+    } else if (p.shipment_id) {
+      icon = '<i class="fas fa-shipping-fast text-primary"></i>';
+      label = 'شحنة #' + p.shipment_id;
+      badgeClass = 'badge-primary';
+    } else if (p.preorder_id) {
+      icon = '<i class="fas fa-calendar-check text-info"></i>';
+      label = 'طلب مسبق #' + p.preorder_id;
+      badgeClass = 'badge-info';
+    } else if (p.loan_settlement_id) {
+      icon = '<i class="fas fa-balance-scale text-warning"></i>';
+      label = 'تسوية قرض #' + p.loan_settlement_id;
+      badgeClass = 'badge-warning';
+    } else if (p.invoice_id) {
+      icon = '<i class="fas fa-file-invoice text-success"></i>';
+      label = 'فاتورة #' + p.invoice_id;
+      badgeClass = 'badge-success';
+    } else {
+      return p.entity_type || '';
+    }
+    
+    // إضافة المرجع إذا كان موجوداً
+    let details = '';
+    if (p.reference) {
+      details = '<br><small class="text-muted">' + p.reference + '</small>';
+    }
+    
+    return icon + ' <span class="badge ' + badgeClass + '">' + label + '</span>' + details;
   }
   function renderPaymentsTable(list) {
     _lastList = list.slice();
@@ -168,32 +235,58 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
     let pageSum = 0;
+    let pageSumILS = 0; // مجموع الصفحة بالشيكل
     list.forEach(function (p) {
       const splitsHtml = (p.splits || []).map(function (s) {
         return '<span class="badge bg-secondary me-1">' + String((s.method || '')).toUpperCase() + ': ' + fmtAmount(s.amount) + ' ' + (p.currency || '') + '</span>';
       }).join(' ');
       const dateOnly = (p.payment_date || '').split('T')[0] || '';
       pageSum += toNumber(p.total_amount);
+      
+      // حساب المبلغ بالشيكل للمجموع
+      let amountInILSForSum = p.total_amount;
+      if (p.currency && p.currency !== 'ILS') {
+        const rates = { 'USD': 3.31, 'EUR': 3.88, 'AED': 0.9, 'JOD': 4.67 };
+        amountInILSForSum = (parseFloat(p.total_amount) * (rates[p.currency] || 1)).toFixed(2);
+      }
+      pageSumILS += parseFloat(amountInILSForSum);
       const actions =
         '<div class="btn-group btn-group-sm" role="group">' +
           '<a href="/payments/' + p.id + '" class="btn btn-info">عرض</a>' +
-          '<button type="button" class="btn btn-danger btn-del" data-id="' + p.id + '">حذف</button>' +
+          '<button type="button" class="btn btn-danger btn-del" data-id="' + p.id + '">حذف عادي</button>' +
+          '<a href="/hard-delete/payment/' + p.id + '" class="btn btn-outline-danger" title="حذف قوي" onclick="return confirm(\'حذف قوي - سيتم حذف جميع البيانات المرتبطة!\')">حذف قوي</a>' +
         '</div>';
       const tr = document.createElement('tr');
+      // حساب المبلغ بالشيكل
+      let amountInILS = p.total_amount;
+      if (p.currency && p.currency !== 'ILS') {
+        // استخدام سعر الصرف الافتراضي للعرض (يمكن تحسينه لاحقاً)
+        const rates = { 'USD': 3.31, 'EUR': 3.88, 'AED': 0.9, 'JOD': 4.67 };
+        amountInILS = (parseFloat(p.total_amount) * (rates[p.currency] || 1)).toFixed(2);
+      }
+      
+      // إنشاء عمود التفاصيل المحسّن
+      const entityDetails = deriveEntityLabel(p);
+      let notesHtml = '';
+      if (p.notes && p.notes.trim()) {
+        notesHtml = '<div class="mt-1"><small class="text-muted"><i class="fas fa-sticky-note"></i> ' + p.notes.substring(0, 80) + (p.notes.length > 80 ? '...' : '') + '</small></div>';
+      }
+      
       tr.innerHTML =
-        '<td>' + p.id + '</td>' +
+        '<td class="text-center"><strong>' + p.id + '</strong></td>' +
         '<td>' + dateOnly + '</td>' +
-        '<td>' + fmtAmount(p.total_amount) + '</td>' +
-        '<td>' + (p.currency || '') + '</td>' +
-        '<td>' + (splitsHtml || (p.method || '')) + '</td>' +
-        '<td>' + badgeForDirection(p.direction) + '</td>' +
-        '<td>' + badgeForStatus(p.status) + '</td>' +
-        '<td>' + deriveEntityLabel(p) + '</td>' +
+        '<td class="text-end"><strong>' + fmtAmount(p.total_amount) + '</strong></td>' +
+        '<td class="text-center"><span class="badge badge-secondary">' + (p.currency || '') + '</span></td>' +
+        '<td class="text-end"><strong class="text-primary">' + fmtAmount(amountInILS) + ' ₪</strong></td>' +
+        '<td>' + (splitsHtml || '<span class="badge badge-info">' + (p.method || '') + '</span>') + '</td>' +
+        '<td class="text-center">' + badgeForDirection(p.direction) + '</td>' +
+        '<td class="text-center">' + badgeForStatus(p.status) + '</td>' +
+        '<td>' + entityDetails + notesHtml + '</td>' +
         '<td>' + actions + '</td>';
       tbody.appendChild(tr);
     });
     const t = document.createElement('tr');
-    t.innerHTML = '<td></td><td class="text-end fw-bold">إجمالي الصفحة</td><td class="fw-bold">' + fmtAmount(pageSum) + '</td><td colspan="6"></td>';
+    t.innerHTML = '<td></td><td class="text-end fw-bold">إجمالي الصفحة</td><td class="fw-bold">' + fmtAmount(pageSum) + '</td><td></td><td class="fw-bold text-primary">' + fmtAmount(pageSumILS) + ' ₪</td><td colspan="5"></td>';
     tbody.appendChild(t);
   }
   document.addEventListener('click', async function (e) {
@@ -303,4 +396,187 @@ document.addEventListener('DOMContentLoaded', function () {
   updateUrlQuery();
   loadPayments();
   window.addEventListener('popstate', function () { syncFiltersFromUrl(); loadPayments(1); });
+  
 });
+
+// وظائف البحث الذكي - محسنة للأداء
+function initSmartSearch() {
+  // البحث عن جميع حقول البحث في الحقول الديناميكية
+  const searchInputs = document.querySelectorAll('input[placeholder*="اكتب"], input[placeholder*="البحث"]');
+  
+  searchInputs.forEach(input => {
+    // تحديد نوع الجهة من الـ placeholder أو الـ name
+    let entityType = 'customer'; // افتراضي
+    
+    if (input.placeholder.includes('مورد') || input.placeholder.includes('تاجر')) {
+      entityType = 'supplier';
+    } else if (input.placeholder.includes('شريك')) {
+      entityType = 'partner';
+    } else if (input.placeholder.includes('عميل')) {
+      entityType = 'customer';
+    }
+    
+    if (!entityType) return;
+    
+    // تجنب إضافة event listeners متعددة
+    if (input.hasAttribute('data-smart-search-initialized')) return;
+    input.setAttribute('data-smart-search-initialized', 'true');
+    
+    let searchTimeout;
+    let currentResults = [];
+    let selectedIndex = -1;
+    
+    // إنشاء قائمة النتائج مرة واحدة فقط
+    let resultsList = input.parentNode.querySelector('.smart-search-results');
+    if (!resultsList) {
+      resultsList = document.createElement('div');
+      resultsList.className = 'smart-search-results position-absolute w-100 bg-white border shadow-lg rounded';
+      resultsList.style.display = 'none';
+      resultsList.style.zIndex = '1000';
+      resultsList.style.maxHeight = '300px';
+      resultsList.style.overflowY = 'auto';
+      
+      input.parentNode.style.position = 'relative';
+      input.parentNode.appendChild(resultsList);
+    }
+    
+    // وظيفة البحث
+    function performSearch(query) {
+      if (query.length < 1) {
+        hideResults();
+        return;
+      }
+      
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        fetch(`/payments/search-entities?type=${entityType}&q=${encodeURIComponent(query)}`)
+          .then(response => response.json())
+          .then(data => {
+            currentResults = data;
+            selectedIndex = -1;
+            showResults(data);
+          })
+          .catch(error => {
+            console.error('خطأ في البحث:', error);
+            hideResults();
+          });
+      }, 300);
+    }
+    
+    // عرض النتائج
+    function showResults(results) {
+      if (results.length === 0) {
+        hideResults();
+        return;
+      }
+      
+      resultsList.innerHTML = results.map((result, index) => `
+        <div class="smart-search-item p-2 border-bottom cursor-pointer" data-index="${index}">
+          <div class="fw-bold">${result.display}</div>
+          ${result.phone ? `<small class="text-muted">${result.phone}</small>` : ''}
+        </div>
+      `).join('');
+      
+      resultsList.style.display = 'block';
+      
+      // إضافة مستمعي الأحداث
+      resultsList.querySelectorAll('.smart-search-item').forEach((item, index) => {
+        item.addEventListener('click', () => selectResult(index));
+        item.addEventListener('mouseenter', () => highlightItem(index));
+      });
+    }
+    
+    // إخفاء النتائج
+    function hideResults() {
+      resultsList.style.display = 'none';
+      currentResults = [];
+      selectedIndex = -1;
+    }
+    
+    // تحديد نتيجة
+    function selectResult(index) {
+      if (index >= 0 && index < currentResults.length) {
+        const result = currentResults[index];
+        input.value = result.display;
+        
+        // تعيين معرف الجهة
+        const entityIdField = input.parentNode.querySelector('input[type="hidden"]');
+        if (entityIdField) {
+          entityIdField.value = result.id;
+        }
+        
+        hideResults();
+      }
+    }
+    
+    // تمييز عنصر
+    function highlightItem(index) {
+      resultsList.querySelectorAll('.smart-search-item').forEach((item, i) => {
+        item.classList.toggle('bg-light', i === index);
+      });
+      selectedIndex = index;
+    }
+    
+    // مستمعي الأحداث
+    input.addEventListener('input', (e) => {
+      performSearch(e.target.value);
+    });
+    
+    input.addEventListener('focus', (e) => {
+      if (currentResults.length > 0) {
+        showResults(currentResults);
+      }
+    });
+    
+    input.addEventListener('blur', (e) => {
+      // تأخير إخفاء النتائج للسماح بالنقر
+      setTimeout(() => hideResults(), 200);
+    });
+    
+    // التنقل بلوحة المفاتيح
+    input.addEventListener('keydown', (e) => {
+      if (resultsList.style.display === 'none') return;
+      
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          selectedIndex = Math.min(selectedIndex + 1, currentResults.length - 1);
+          highlightItem(selectedIndex);
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          selectedIndex = Math.max(selectedIndex - 1, -1);
+          if (selectedIndex >= 0) {
+            highlightItem(selectedIndex);
+          } else {
+            resultsList.querySelectorAll('.smart-search-item').forEach(item => {
+              item.classList.remove('bg-light');
+            });
+          }
+          break;
+        case 'Enter':
+          e.preventDefault();
+          if (selectedIndex >= 0) {
+            selectResult(selectedIndex);
+          }
+          break;
+        case 'Escape':
+          e.preventDefault();
+          hideResults();
+          break;
+      }
+    });
+  });
+}
+
+// إعادة تشغيل البحث عند تغيير نوع الجهة فقط
+document.addEventListener('change', function(e) {
+  if (e.target && e.target.name === 'entity_type') {
+    smartSearchInitialized = false; // إعادة تعيين للسماح بإعادة التشغيل
+    setTimeout(function() {
+      initializeSmartSearchOnce();
+    }, 200);
+  }
+});
+
+// تم نقل استدعاء البحث الذكي إلى initializeSmartSearchOnce() في بداية الملف

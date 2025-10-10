@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% block title %}تأكيد حذف الدفعة - {{ payment.payment_number or payment.id }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="card-title mb-0">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        تأكيد حذف الدفعة نهائياً
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger">
+                        <h5><i class="fas fa-warning"></i> تحذير خطير!</h5>
+                        <p>أنت على وشك حذف الدفعة <strong>{{ payment.payment_number or payment.id }}</strong> نهائياً من النظام.</p>
+                        <p><strong>هذا الإجراء لا يمكن التراجع عنه!</strong></p>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>معلومات الدفعة:</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>رقم الدفعة:</strong> {{ payment.payment_number or payment.id }}</li>
+                                <li><strong>المبلغ الإجمالي:</strong> {{ payment.total_amount or 0 }} {{ payment.currency or 'ILS' }}</li>
+                                <li><strong>طريقة الدفع:</strong> {{ payment.method or 'غير محدد' }}</li>
+                                <li><strong>الحالة:</strong> {{ payment.status or 'غير محدد' }}</li>
+                                <li><strong>الاتجاه:</strong> {{ payment.direction or 'غير محدد' }}</li>
+                                <li><strong>تاريخ الدفعة:</strong> {{ payment.payment_date.strftime('%Y-%m-%d %H:%M') if payment.payment_date else 'غير محدد' }}</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>معلومات إضافية:</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>نوع الكيان:</strong> {{ payment.entity_type or 'غير محدد' }}</li>
+                                <li><strong>معرف الكيان:</strong> {{ payment.entity_id or 'غير محدد' }}</li>
+                                <li><strong>المرجع:</strong> {{ payment.reference or 'غير محدد' }}</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <form method="POST" class="mt-4">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        
+                        <div class="form-group">
+                            <label for="reason" class="form-label">
+                                <strong>سبب الحذف <span class="text-danger">*</span></strong>
+                            </label>
+                            <textarea 
+                                name="reason" 
+                                id="reason" 
+                                class="form-control" 
+                                rows="3" 
+                                placeholder="أدخل سبب حذف الدفعة نهائياً..." 
+                                required
+                            ></textarea>
+                            <small class="form-text text-muted">
+                                هذا السبب سيتم حفظه في سجل الحذف للمراجعة المستقبلية.
+                            </small>
+                        </div>
+
+                        <div class="form-group mt-4">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="confirm" required>
+                                <label class="form-check-label" for="confirm">
+                                    <strong>أؤكد أنني أريد حذف هذه الدفعة نهائياً</strong>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-group mt-4">
+                            <button type="submit" class="btn btn-danger btn-lg" id="deleteBtn" disabled>
+                                <i class="fas fa-trash"></i>
+                                حذف الدفعة نهائياً
+                            </button>
+                            <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary btn-lg ms-2">
+                                <i class="fas fa-times"></i>
+                                إلغاء
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('confirm').addEventListener('change', function() {
+    document.getElementById('deleteBtn').disabled = !this.checked;
+});
+
+document.getElementById('deleteBtn').addEventListener('click', function(e) {
+    if (!confirm('هل أنت متأكد من حذف هذه الدفعة نهائياً؟ لا يمكن التراجع عن هذا الإجراء!')) {
+        e.preventDefault();
+    }
+});
+</script>
+{% endblock %}

@@ -107,10 +107,14 @@ from validators import Unique
 from barcodes import validate_barcode
 
 CURRENCY_CHOICES = [
-    ("ILS", "شيكل"),
-    ("USD", "دولار"),
+    ("ILS", "شيكل إسرائيلي"),
+    ("USD", "دولار أمريكي"),
     ("EUR", "يورو"),
-    ("JOD", "دينار"),
+    ("JOD", "دينار أردني"),
+    ("AED", "درهم إماراتي"),
+    ("SAR", "ريال سعودي"),
+    ("EGP", "جنيه مصري"),
+    ("GBP", "جنيه إسترليني"),
 ]
 
 SERVICE_PRIORITY_CHOICES = [
@@ -194,7 +198,21 @@ def only_digits(s):
 
 def enum_choices(enum_cls, labels_map=None, include_blank=True, blank="— اختر —"):
     labels_map = labels_map or {}
-    data = [(m.value, labels_map.get(m.value, m.value)) for m in enum_cls]
+    try:
+        # التحقق من أن enum_cls هو enum class
+        if hasattr(enum_cls, '__members__'):
+            data = [(m.value, labels_map.get(m.value, m.value)) for m in enum_cls]
+        else:
+            # إذا كان string أو list، استخدمه مباشرة
+            if isinstance(enum_cls, str):
+                data = [(enum_cls, labels_map.get(enum_cls, enum_cls))]
+            elif isinstance(enum_cls, (list, tuple)):
+                data = [(str(item), labels_map.get(str(item), str(item))) for item in enum_cls]
+            else:
+                data = []
+    except Exception as e:
+        print(f"خطأ في enum_choices: {e}")
+        data = []
     return ([("", blank)] + data) if include_blank else data
 
 def currency_choices(include_blank=True, blank="— اختر —"):
@@ -238,7 +256,28 @@ class EnumSelectField(SelectField):
     def __init__(self, enum_cls, *args, labels_map=None, include_blank=True, blank="— اختر —", **kwargs):
         self._enum_cls = enum_cls
         kwargs.setdefault("coerce", str)
-        kwargs["choices"] = enum_choices(enum_cls, labels_map=labels_map, include_blank=include_blank, blank=blank)
+        
+        # استخدام label property من الـ enum إذا كان متوفراً
+        if hasattr(enum_cls, '__members__'):
+            try:
+                # محاولة استخدام label property
+                choices = []
+                if include_blank:
+                    choices.append(("", blank))
+                
+                for member in enum_cls:
+                    if hasattr(member, 'label'):
+                        choices.append((member.value, member.label))
+                    else:
+                        choices.append((member.value, member.value))
+                
+                kwargs["choices"] = choices
+            except:
+                # في حالة الفشل، استخدم الطريقة العادية
+                kwargs["choices"] = enum_choices(enum_cls, labels_map=labels_map, include_blank=include_blank, blank=blank)
+        else:
+            kwargs["choices"] = enum_choices(enum_cls, labels_map=labels_map, include_blank=include_blank, blank=blank)
+        
         kwargs.setdefault("validate_choice", True)
         super().__init__(*args, **kwargs)
     def pre_validate(self, form):
@@ -550,7 +589,11 @@ class TransferForm(FlaskForm):
     source_id = AjaxSelectField("المخزن المصدر", endpoint="api.search_warehouses", get_label="name", validators=[DataRequired()])
     destination_id = AjaxSelectField("المخزن الوجهة", endpoint="api.search_warehouses", get_label="name", validators=[DataRequired()])
     quantity = IntegerField("الكمية", validators=[DataRequired(), NumberRange(min=1)])
-    direction = EnumSelectField(TransferDirection, validators=[DataRequired()])
+    direction = EnumSelectField(TransferDirection, validators=[DataRequired()],
+                               labels_map={
+                                   "IN": "وارد",
+                                   "OUT": "صادر"
+                               })
     transfer_date = UnifiedDateTimeField("تاريخ التحويل", format="%Y-%m-%d %H:%M", formats=["%Y-%m-%d %H:%M", "%Y-%m-%dT%H:%M"], validators=[Optional()])
     notes = TextAreaField("ملاحظات", validators=[Optional(), Length(max=2000)])
     submit = SubmitField("حفظ")
@@ -1044,8 +1087,17 @@ class SupplierSettlementForm(FlaskForm):
     from_date = UnifiedDateTimeField("من تاريخ", format="%Y-%m-%d %H:%M", formats=["%Y-%m-%d %H:%M","%Y-%m-%dT%H:%M"], default=datetime.utcnow, validators=[DataRequired()], render_kw={"type":"datetime-local","step":"60"})
     to_date = UnifiedDateTimeField("إلى تاريخ", format="%Y-%m-%d %H:%M", formats=["%Y-%m-%d %H:%M","%Y-%m-%dT%H:%M"], default=datetime.utcnow, validators=[DataRequired()], render_kw={"type":"datetime-local","step":"60"})
     currency = CurrencySelectField("العملة", validators=[DataRequired()])
-    status = EnumSelectField(SupplierSettlementStatus, "الحالة", default=SupplierSettlementStatus.DRAFT.value, validators=[DataRequired()])
-    mode = EnumSelectField(SupplierSettlementMode, "الوضع", default=SupplierSettlementMode.ON_RECEIPT.value, validators=[DataRequired()])
+    status = EnumSelectField(SupplierSettlementStatus, "الحالة", default=SupplierSettlementStatus.DRAFT.value, validators=[DataRequired()],
+                            labels_map={
+                                "DRAFT": "مسودة",
+                                "CONFIRMED": "مؤكد",
+                                "CANCELLED": "ملغي"
+                            })
+    mode = EnumSelectField(SupplierSettlementMode, "الوضع", default=SupplierSettlementMode.ON_RECEIPT.value, validators=[DataRequired()],
+                           labels_map={
+                               "ON_RECEIPT": "عند الاستلام",
+                               "ON_DELIVERY": "عند التسليم"
+                           })
     notes = TextAreaField("ملاحظات", validators=[Optional(), Length(max=500)])
     total_gross = MoneyField("الإجمالي", validators=[Optional(), NumberRange(min=0)], render_kw={"readonly": True, "tabindex": "-1"})
     total_due = MoneyField("المستحق", validators=[Optional(), NumberRange(min=0)], render_kw={"readonly": True, "tabindex": "-1"})
@@ -1226,7 +1278,12 @@ class PartnerSettlementForm(FlaskForm):
     from_date = UnifiedDateTimeField("من تاريخ", format="%Y-%m-%d %H:%M", formats=["%Y-%m-%d %H:%M", "%Y-%m-%dT%H:%M"], default=datetime.utcnow, validators=[DataRequired()], render_kw={"type": "datetime-local", "step": "60"})
     to_date = UnifiedDateTimeField("إلى تاريخ", format="%Y-%m-%d %H:%M", formats=["%Y-%m-%d %H:%M", "%Y-%m-%dT%H:%M"], default=datetime.utcnow, validators=[DataRequired()], render_kw={"type": "datetime-local", "step": "60"})
     currency = CurrencySelectField("العملة", validators=[DataRequired()])
-    status = EnumSelectField(PartnerSettlementStatus, "الحالة", default=PartnerSettlementStatus.DRAFT.value, validators=[DataRequired()])
+    status = EnumSelectField(PartnerSettlementStatus, "الحالة", default=PartnerSettlementStatus.DRAFT.value, validators=[DataRequired()],
+                             labels_map={
+                                 "DRAFT": "مسودة",
+                                 "CONFIRMED": "مؤكد",
+                                 "CANCELLED": "ملغي"
+                             })
     notes = TextAreaField("ملاحظات", validators=[Optional(), Length(max=500)])
     lines = FieldList(FormField(PartnerSettlementLineForm), min_entries=1)
     submit = SubmitField("حفظ التسوية")
@@ -1286,8 +1343,17 @@ class SplitEntryForm(PaymentDetailsMixin, FlaskForm):
     class Meta:
         csrf = False
 
-    method = EnumSelectField(PaymentMethod, validators=[Optional()], default='', include_blank=True, blank='— اختر —')
-    amount = MoneyField(validators=[Optional(), NumberRange(min=0)], default=Decimal('0.00'))
+    method = SelectField('طريقة الدفع', 
+                         choices=[
+                             ("", "— اختر —"),
+                             ("cash", "نقدًا"),
+                             ("card", "بطاقة"),
+                             ("bank", "تحويل بنكي"),
+                             ("cheque", "شيك"),
+                             ("online", "أونلاين")
+                         ],
+                         validators=[Optional()], default='')
+    amount = MoneyField('المبلغ', validators=[Optional(), NumberRange(min=0)], default=Decimal('0.00'))
     check_number   = StringField(validators=[Optional(), Length(max=100)])
     check_bank     = StringField(validators=[Optional(), Length(max=100)])
     check_due_date = DateField(format='%Y-%m-%d', validators=[Optional()])
@@ -1350,6 +1416,7 @@ class PaymentForm(PaymentDetailsMixin, FlaskForm):
     idempotency_key = HiddenField(validators=[Optional()])
 
     payment_number = StringField(
+        'رقم الدفعة',
         validators=[
             Optional(), Length(max=50),
             Unique(lambda: Payment, 'payment_number', message='رقم الدفعة مستخدم بالفعل.',
@@ -1365,61 +1432,97 @@ class PaymentForm(PaymentDetailsMixin, FlaskForm):
         render_kw={'type': 'datetime-local', 'step': '60'}
     )
 
-    subtotal     = MoneyField(validators=[Optional(), NumberRange(min=0)])
-    tax_rate     = PercentField(validators=[Optional()])
-    tax_amount   = MoneyField(validators=[Optional(), NumberRange(min=0)])
-    total_amount = MoneyField(validators=[DataRequired(), NumberRange(min=0.01)])
+    subtotal     = MoneyField('المجموع الفرعي', validators=[Optional(), NumberRange(min=0)])
+    tax_rate     = PercentField('نسبة الضريبة', validators=[Optional()])
+    tax_amount   = MoneyField('مبلغ الضريبة', validators=[Optional(), NumberRange(min=0)])
+    total_amount = MoneyField('المبلغ الإجمالي', validators=[DataRequired(), NumberRange(min=0.01)])
 
     currency = CurrencySelectField('العملة', validators=[DataRequired()])
 
-    method      = EnumSelectField(PaymentMethod, validators=[Optional()], include_blank=True, blank='— اختر —')
-    status      = EnumSelectField(PaymentStatus, validators=[DataRequired()])
-    direction   = EnumSelectField(PaymentDirection, validators=[DataRequired()])
-    entity_type = EnumSelectField(PaymentEntityType, validators=[DataRequired()])
+    method      = SelectField('طريقة الدفع', 
+                             choices=[
+                                 ("", "— اختر —"),
+                                 ("cash", "نقدًا"),
+                                 ("card", "بطاقة"),
+                                 ("bank", "تحويل بنكي"),
+                                 ("cheque", "شيك"),
+                                 ("online", "أونلاين")
+                             ],
+                             validators=[Optional()])
+    status      = SelectField('حالة الدفع', 
+                             choices=[
+                                 ("PENDING", "قيد الانتظار"),
+                                 ("COMPLETED", "مكتمل"),
+                                 ("FAILED", "فشل"),
+                                 ("REFUNDED", "مسترجع"),
+                                 ("CANCELLED", "ملغي")
+                             ],
+                             validators=[DataRequired()])
+    direction   = SelectField('اتجاه الدفع', 
+                             choices=[
+                                 ("IN", "وارد"),
+                                 ("OUT", "صادر")
+                             ],
+                             validators=[DataRequired()])
+    entity_type = SelectField('نوع الجهة', 
+                             choices=[
+                                 ("CUSTOMER", "عميل"),
+                                 ("SUPPLIER", "مورد/تاجر"),
+                                 ("PARTNER", "شريك"),
+                                 ("SHIPMENT", "شحنة"),
+                                 ("EXPENSE", "مصروف"),
+                                 ("LOAN", "تسوية قرض"),
+                                 ("SALE", "بيع"),
+                                 ("INVOICE", "فاتورة"),
+                                 ("PREORDER", "طلب مسبق"),
+                                 ("SERVICE", "طلب صيانة")
+                             ],
+                             validators=[DataRequired()])
 
     entity_id = HiddenField(validators=[Optional()])
 
-    customer_search = StringField(validators=[Optional(), Length(max=100)]); customer_id = HiddenField()
-    supplier_search = StringField(validators=[Optional(), Length(max=100)]); supplier_id = HiddenField()
-    partner_search  = StringField(validators=[Optional(), Length(max=100)]); partner_id  = HiddenField()
-    shipment_search = StringField(validators=[Optional(), Length(max=100)]); shipment_id = HiddenField()
-    expense_search  = StringField(validators=[Optional(), Length(max=100)]); expense_id  = HiddenField()
-    loan_settlement_search = StringField(validators=[Optional(), Length(max=100)]); loan_settlement_id = HiddenField()
-    sale_search     = StringField(validators=[Optional(), Length(max=100)]); sale_id     = HiddenField()
-    invoice_search  = StringField(validators=[Optional(), Length(max=100)]); invoice_id  = HiddenField()
-    preorder_search = StringField(validators=[Optional(), Length(max=100)]); preorder_id = HiddenField()
-    service_search  = StringField(validators=[Optional(), Length(max=100)]); service_id  = HiddenField()
+    customer_search = StringField('البحث عن العميل', validators=[Optional(), Length(max=100)], render_kw={"placeholder": "ابحث بالاسم أو الهاتف...", "onkeyup": "searchEntities('CUSTOMER', this.value)"}); customer_id = HiddenField()
+    supplier_search = StringField('البحث عن المورد', validators=[Optional(), Length(max=100)], render_kw={"placeholder": "ابحث بالاسم أو البريد...", "onkeyup": "searchEntities('SUPPLIER', this.value)"}); supplier_id = HiddenField()
+    partner_search  = StringField('البحث عن الشريك', validators=[Optional(), Length(max=100)], render_kw={"placeholder": "ابحث بالاسم أو البريد...", "onkeyup": "searchEntities('PARTNER', this.value)"}); partner_id  = HiddenField()
+    shipment_search = StringField('البحث عن الشحنة', validators=[Optional(), Length(max=100)], render_kw={"placeholder": "ابحث برقم الشحنة...", "onkeyup": "searchEntities('SHIPMENT', this.value)"}); shipment_id = HiddenField()
+    expense_search  = StringField('البحث عن المصروف', validators=[Optional(), Length(max=100)], render_kw={"placeholder": "ابحث بالوصف...", "onkeyup": "searchEntities('EXPENSE', this.value)"}); expense_id  = HiddenField()
+    loan_settlement_search = StringField('البحث عن التسوية', validators=[Optional(), Length(max=100)], render_kw={"placeholder": "ابحث برقم التسوية...", "onkeyup": "searchEntities('LOAN', this.value)"}); loan_settlement_id = HiddenField()
+    sale_search     = StringField('البحث عن البيع', validators=[Optional(), Length(max=100)], render_kw={"placeholder": "ابحث برقم البيع أو اسم العميل...", "onkeyup": "searchEntities('SALE', this.value)"}); sale_id     = HiddenField()
+    invoice_search  = StringField('البحث عن الفاتورة', validators=[Optional(), Length(max=100)], render_kw={"placeholder": "ابحث برقم الفاتورة أو اسم العميل...", "onkeyup": "searchEntities('INVOICE', this.value)"}); invoice_id  = HiddenField()
+    preorder_search = StringField('البحث عن الطلب المسبق', validators=[Optional(), Length(max=100)], render_kw={"placeholder": "ابحث برقم الطلب أو اسم العميل...", "onkeyup": "searchEntities('PREORDER', this.value)"}); preorder_id = HiddenField()
+    service_search  = StringField('البحث عن طلب الصيانة', validators=[Optional(), Length(max=100)], render_kw={"placeholder": "ابحث برقم الطلب أو اسم العميل...", "onkeyup": "searchEntities('SERVICE', this.value)"}); service_id  = HiddenField()
 
     receipt_number = StringField(
+        'رقم الإيصال',
         validators=[
             Optional(), Length(max=50),
             Unique(lambda: Payment, 'receipt_number', message='رقم الإيصال مستخدم بالفعل.',
                    case_insensitive=True, normalizer=lambda v: (v or '').strip().upper())
         ]
     )
-    reference = StringField(validators=[Optional(), Length(max=100)])
+    reference = StringField('المرجع', validators=[Optional(), Length(max=100)])
 
-    check_number   = StringField(validators=[Optional(), Length(max=100)])
-    check_bank     = StringField(validators=[Optional(), Length(max=100)])
-    check_due_date = DateField(format='%Y-%m-%d', validators=[Optional()])
+    check_number   = StringField('رقم الشيك', validators=[Optional(), Length(max=100)])
+    check_bank     = StringField('بنك الشيك', validators=[Optional(), Length(max=100)])
+    check_due_date = DateField('تاريخ استحقاق الشيك', format='%Y-%m-%d', validators=[Optional()])
 
-    card_number = StringField(validators=[Optional(), Length(max=100)])
-    card_holder = StringField(validators=[Optional(), Length(max=100)])
-    card_expiry = StringField(validators=[Optional(), Length(max=10)])
-    card_cvv    = StringField(validators=[Optional(), Length(min=3, max=4)])
+    card_number = StringField('رقم البطاقة', validators=[Optional(), Length(max=100)])
+    card_holder = StringField('اسم حامل البطاقة', validators=[Optional(), Length(max=100)])
+    card_expiry = StringField('تاريخ انتهاء البطاقة', validators=[Optional(), Length(max=10)])
+    card_cvv    = StringField('رمز الأمان', validators=[Optional(), Length(min=3, max=4)])
 
     request_token = HiddenField(validators=[Optional()])
 
-    bank_transfer_ref = StringField(validators=[Optional(), Length(max=100)])
+    bank_transfer_ref = StringField('مرجع التحويل البنكي', validators=[Optional(), Length(max=100)])
 
-    online_gateway = StringField(validators=[Optional(), Length(max=100)])
-    online_ref     = StringField(validators=[Optional(), Length(max=100)])
+    online_gateway = StringField('بوابة الدفع الإلكتروني', validators=[Optional(), Length(max=100)])
+    online_ref     = StringField('مرجع العملية الإلكترونية', validators=[Optional(), Length(max=100)])
 
     created_by = HiddenField()
 
     splits = FieldList(FormField(SplitEntryForm), min_entries=1, max_entries=3)
 
-    notes = TextAreaField(validators=[Optional(), Length(max=500)])
+    notes = TextAreaField('ملاحظات', validators=[Optional(), Length(max=500)])
     submit = SubmitField('💾 حفظ الدفعة')
 
     _entity_field_map = {
@@ -1544,6 +1647,17 @@ class PaymentForm(PaymentDetailsMixin, FlaskForm):
         if not fn:
             self.entity_type.errors.append('❌ نوع الكيان غير معروف.')
             return False
+        
+        # التحقق من اتجاه الدفع
+        direction = (self.direction.data or '').upper()
+        if direction not in {'IN', 'OUT'}:
+            self.direction.errors.append('❌ يجب اختيار اتجاه الدفع.')
+            return False
+        
+        # المصاريف دائماً صادرة
+        if et == 'EXPENSE' and direction != 'OUT':
+            self.direction.errors.append('❌ المصاريف يجب أن تكون صادرة فقط.')
+            return False
 
         raw_id  = ids.get(fn)
         rid_str = '' if raw_id is None else (raw_id.strip() if isinstance(raw_id, str) else str(raw_id))
@@ -1650,7 +1764,13 @@ class PreOrderForm(FlaskForm):
     reference = StrippedStringField('مرجع الحجز', validators=[Optional(), Length(max=50)])
     preorder_date   = UnifiedDateTimeField('تاريخ الحجز', format='%Y-%m-%d %H:%M', validators=[Optional()], render_kw={'autocomplete': 'off', 'dir': 'ltr'})
     expected_date   = UnifiedDateTimeField('تاريخ التسليم المتوقع', format='%Y-%m-%d %H:%M', validators=[Optional()], render_kw={'autocomplete': 'off', 'dir': 'ltr'})
-    status = EnumSelectField(PreOrderStatus, 'الحالة', default=PreOrderStatus.PENDING.value, validators=[DataRequired()])
+    status = EnumSelectField(PreOrderStatus, 'الحالة', default=PreOrderStatus.PENDING.value, validators=[DataRequired()],
+                             labels_map={
+                                 "PENDING": "معلق",
+                                 "CONFIRMED": "مؤكد",
+                                 "CANCELLED": "ملغي",
+                                 "COMPLETED": "مكتمل"
+                             })
 
     customer_id  = AjaxSelectField('العميل',   endpoint='api.search_customers', get_label='name', validators=[DataRequired()])
     product_id   = AjaxSelectField('القطعة',    endpoint='api.search_products',  get_label='name', validators=[DataRequired()])
@@ -1662,7 +1782,14 @@ class PreOrderForm(FlaskForm):
     prepaid_amount = MoneyField('المدفوع مسبقاً', validators=[Optional(), NumberRange(min=0)])
     tax_rate       = PercentField('ضريبة %', validators=[Optional()])
 
-    payment_method = EnumSelectField(PaymentMethod, 'طريقة الدفع', default=PaymentMethod.CASH.value, validators=[Optional()], include_blank=True, blank='— اختر —')
+    payment_method = EnumSelectField(PaymentMethod, 'طريقة الدفع', default=PaymentMethod.CASH.value, validators=[Optional()], include_blank=True, blank='— اختر —',
+                                     labels_map={
+                                         "cash": "نقدًا",
+                                         "card": "بطاقة",
+                                         "bank": "تحويل بنكي",
+                                         "cheque": "شيك",
+                                         "online": "أونلاين"
+                                     })
 
     notes  = TextAreaField('ملاحظات', validators=[Optional(), Length(max=2000)])
     submit = SubmitField('تأكيد الحجز')
@@ -1924,6 +2051,28 @@ class ShipmentForm(FlaskForm):
     carrier         = StrippedStringField('شركة النقل', validators=[Optional(), Length(max=100)])
     tracking_number = StrippedStringField('رقم التتبع', validators=[Optional(), Length(max=100)])
     notes           = TextAreaField('ملاحظات', validators=[Optional(), Length(max=2000)])
+
+    # حقول إضافية للشحنات
+    weight = DecimalField('الوزن (كيلو)', validators=[Optional(), NumberRange(min=0)], render_kw={'step': '0.001'})
+    dimensions = StrippedStringField('الأبعاد', validators=[Optional(), Length(max=100)])
+    package_count = IntegerField('عدد الطرود', validators=[Optional(), NumberRange(min=1)], default=1)
+    priority = SelectField('الأولوية', choices=[
+        ('LOW', 'منخفضة'),
+        ('NORMAL', 'عادية'),
+        ('HIGH', 'عالية'),
+        ('URGENT', 'عاجلة'),
+    ], default='NORMAL')
+    delivery_method = SelectField('طريقة التسليم', choices=[
+        ('STANDARD', 'عادي'),
+        ('EXPRESS', 'سريع'),
+        ('OVERNIGHT', 'ليلي'),
+        ('SAME_DAY', 'نفس اليوم'),
+        ('PICKUP', 'استلام'),
+    ], default='STANDARD')
+    delivery_instructions = TextAreaField('تعليمات التسليم', validators=[Optional(), Length(max=1000)])
+    customs_declaration = StrippedStringField('رقم البيان الجمركي', validators=[Optional(), Length(max=100)])
+    customs_cleared_date = UnifiedDateTimeField('تاريخ التخليص الجمركي', format='%Y-%m-%d %H:%M', formats=['%Y-%m-%d %H:%M','%Y-%m-%dT%H:%M'], validators=[Optional()], render_kw={'type':'datetime-local','step':'60'})
+    return_reason = TextAreaField('سبب الإرجاع', validators=[Optional(), Length(max=500)])
 
     currency = CurrencySelectField('العملة', validators=[DataRequired()])
     sale_id  = QuerySelectField('البيع المرتبط', query_factory=lambda: Sale.query.order_by(Sale.sale_number).all(), allow_blank=True, get_label='sale_number')
@@ -3629,6 +3778,31 @@ class NoteForm(FlaskForm):
     entity_id   = StrippedStringField('معرّف الكيان', validators=[Optional(), Length(max=50)])
     is_pinned   = BooleanField('مثبّتة', default=False)
     priority    = SelectField('الorلوية', choices=[('LOW', 'منخفضة'), ('MEDIUM', 'متوسطة'), ('HIGH', 'عالية'), ('URGENT', 'عاجلة')], default='MEDIUM', validators=[DataRequired()])
+    
+    # حقول جديدة للمستهدفين والإشعارات
+    target_type = SelectField('نوع المستهدفين', choices=[
+        ('', '-- اختر --'),
+        ('CUSTOMERS', 'عملاء'),
+        ('SUPPLIERS', 'موردين'),
+        ('PARTNERS', 'شركاء'),
+        ('USERS', 'موظفين'),
+        ('ALL', 'الكل')
+    ], validators=[Optional()], default='')
+    
+    target_ids = StringField('معرفات المستهدفين', validators=[Optional()], 
+                           render_kw={'placeholder': 'أدخل معرفات مفصولة بفاصلة (مثل: 1,2,3)'})
+    
+    notification_type = SelectField('نوع الإشعار', choices=[
+        ('', '-- اختر --'),
+        ('SYSTEM', 'داخل النظام'),
+        ('WHATSAPP', 'واتساب'),
+        ('EMAIL', 'إيميل'),
+        ('ALL', 'كل الأنواع')
+    ], validators=[Optional()], default='')
+    
+    notification_date = UnifiedDateTimeField('تاريخ الإشعار', validators=[Optional()], 
+                                           render_kw={'type': 'datetime-local'})
+    
     submit      = SubmitField('حفظ')
 
     def validate(self, extra_validators=None):
@@ -4040,3 +4214,41 @@ class GLEntryForm(FlaskForm):
         ge.currency = (self.currency.data or '').upper()
         ge.reference = (self.reference.data or '').strip() or None
         return ge
+
+
+class ExchangeRateForm(FlaskForm):
+    """نموذج إدارة أسعار الصرف"""
+    id = HiddenField()
+    base_code = SelectField('العملة الأساسية', validators=[DataRequired()], choices=[])
+    quote_code = SelectField('العملة المقابلة', validators=[DataRequired()], choices=[])
+    rate = DecimalField('سعر الصرف', validators=[DataRequired(), NumberRange(min=0.00000001)], 
+                       places=8, render_kw={"step": "0.00000001"})
+    valid_from = DateField('تاريخ السريان', validators=[Optional()], 
+                           default=datetime.utcnow().date())
+    source = StringField('المصدر', validators=[Optional(), Length(max=50)], 
+                        render_kw={"placeholder": "مثال: البنك المركزي الفلسطيني"})
+    is_active = BooleanField('نشط', default=True)
+    submit = SubmitField('حفظ')
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # تحديث خيارات العملات من قاعدة البيانات
+        try:
+            from models import Currency
+            currencies = Currency.query.filter_by(is_active=True).order_by(Currency.code).all()
+            currency_choices = [(c.code, f"{c.code} - {c.name}") for c in currencies]
+            self.base_code.choices = currency_choices
+            self.quote_code.choices = currency_choices
+        except Exception:
+            pass
+    
+    def validate(self, extra_validators=None):
+        if not super().validate(extra_validators):
+            return False
+        
+        # التحقق من أن العملة الأساسية والمقابلة مختلفتان
+        if self.base_code.data == self.quote_code.data:
+            self.base_code.errors.append('العملة الأساسية والمقابلة يجب أن تكونا مختلفتين')
+            return False
+        
+        return True

@@ -50,14 +50,14 @@
       <button class="btn btn-outline-secondary" id="btnToggleCompact">عرض مضغوط</button>
       <div class="ms-auto d-flex gap-2">
         <form method="post" id="saveForm">
-          {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="token" value="{{ token }}">
           <input type="hidden" name="action" value="save">
           <input type="hidden" name="rows_json" id="rows_json_save">
           <button type="button" class="btn btn-secondary" id="btnSave">حفظ التعديلات</button>
         </form>
         <form method="post" action="{{ url_for('warehouse_bp.import_commit', id=warehouse.id) }}" id="commitForm">
-          {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="token" value="{{ token }}">
           <input type="hidden" name="rows_json" id="rows_json_commit">
           <input type="hidden" name="mode" value="append">

@@ -245,12 +245,9 @@
                 <i class="fas fa-print"></i> إيصال
               </a>
               {% if current_user.has_permission('manage_service') %}
-              <form method="post" action="{{ url_for('service.delete_request', rid=s.id) }}" class="d-inline-block ms-1">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-danger btn-sm btn-delete">
-                  <i class="fas fa-trash-alt"></i> حذف
-                </button>
-              </form>
+              <a href="{{ url_for('hard_delete.hard_delete_service', service_id=s.id) }}" class="btn btn-danger btn-sm" title="حذف قوي">
+                <i class="fas fa-trash-alt"></i> حذف قوي
+              </a>
               {% endif %}
             </td>
           </tr>

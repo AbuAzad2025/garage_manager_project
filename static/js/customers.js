@@ -141,9 +141,9 @@
   }
 
   const customersTable = qs("#customersTable");
-  if (customersTable && window.jQuery && $.fn && $.fn.DataTable) {
+  if (customersTable && window.jQuery && window.jQuery.fn && window.jQuery.fn.DataTable) {
     const lastCol = (customersTable.tHead && customersTable.tHead.rows[0]) ? customersTable.tHead.rows[0].cells.length - 1 : 8;
-    $(customersTable).DataTable({
+    window.jQuery(customersTable).DataTable({
       language: { url: "/static/datatables/Arabic.json" },
       paging: false,
       searching: false,
@@ -218,7 +218,7 @@
         form.dispatchEvent(new CustomEvent("customer:created", { detail: { id, text }, bubbles: true }));
         const m = form.closest(".modal");
         if (m) {
-          if (window.jQuery && typeof $(m).modal === "function") $(m).modal("hide");
+          if (window.jQuery && typeof window.jQuery(m).modal === "function") window.jQuery(m).modal("hide");
           else if (window.bootstrap) (bootstrap.Modal.getInstance(m) || new bootstrap.Modal(m)).hide();
           else m.classList.remove("show");
         }
@@ -253,11 +253,11 @@
     } else {
       sel.value = String(payload.id);
     }
-    if (window.jQuery) $(sel).trigger("change");
+    if (window.jQuery) window.jQuery(sel).trigger("change");
   });
 
-  if (window.jQuery && $.fn && $.fn.select2) {
-    const $sel = $("#customer_id");
+  if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
+    const $sel = window.jQuery("#customer_id");
     if ($sel.length) $sel.select2({ width: "100%", tags: false, createTag: () => null });
   }
 

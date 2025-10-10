@@ -2,7 +2,7 @@ import csv
 import io
 from datetime import datetime, date as _date
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
-from flask import Blueprint, flash, redirect, render_template, abort, request, url_for, Response
+from flask import Blueprint, flash, redirect, render_template, abort, request, url_for, Response, current_app
 from flask_login import login_required
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
@@ -284,6 +284,76 @@ def delete_type(type_id):
 def index():
     query, filt = _base_query_with_filters()
     expenses = query.all()
+    
+    # حساب الملخصات الحقيقية مع تحويل العملات
+    from models import fx_rate
+    
+    total_expenses = 0.0
+    total_paid = 0.0
+    total_balance = 0.0
+    expenses_by_type = {}
+    expenses_by_currency = {}
+    
+    for expense in expenses:
+        # تحويل للشيقل
+        amount = float(expense.amount or 0)
+        if expense.currency and expense.currency != 'ILS':
+            try:
+                rate = fx_rate(expense.currency, 'ILS', expense.date, raise_on_missing=False)
+                if rate > 0:
+                    amount = float(amount * float(rate))
+                else:
+                    current_app.logger.warning(f"⚠️ سعر صرف مفقود: {expense.currency}/ILS للمصروف #{expense.id} - استخدام المبلغ الأصلي")
+            except Exception as e:
+                current_app.logger.error(f"❌ خطأ في تحويل العملة للمصروف #{expense.id}: {str(e)}")
+        
+        total_expenses += amount
+        
+        # حساب المدفوع والرصيد
+        paid = float(expense.total_paid or 0)
+        if expense.currency and expense.currency != 'ILS':
+            try:
+                rate = fx_rate(expense.currency, 'ILS', expense.date, raise_on_missing=False)
+                if rate > 0:
+                    paid = float(paid * float(rate))
+                else:
+                    current_app.logger.warning(f"⚠️ سعر صرف مفقود لحساب المدفوع للمصروف #{expense.id}")
+            except Exception as e:
+                current_app.logger.error(f"❌ خطأ في تحويل العملة للمدفوع للمصروف #{expense.id}: {str(e)}")
+        
+        total_paid += paid
+        balance = amount - paid
+        total_balance += balance
+        
+        # تصنيف حسب النوع
+        expense_type = expense.type.name if expense.type else 'غير مصنف'
+        if expense_type not in expenses_by_type:
+            expenses_by_type[expense_type] = {'count': 0, 'amount': 0}
+        expenses_by_type[expense_type]['count'] += 1
+        expenses_by_type[expense_type]['amount'] += amount
+        
+        # تصنيف حسب العملة
+        currency = expense.currency or 'ILS'
+        if currency not in expenses_by_currency:
+            expenses_by_currency[currency] = {'count': 0, 'amount': 0, 'amount_ils': 0}
+        expenses_by_currency[currency]['count'] += 1
+        expenses_by_currency[currency]['amount'] += float(expense.amount or 0)
+        expenses_by_currency[currency]['amount_ils'] += amount
+    
+    # ترتيب حسب الأكبر
+    expenses_by_type_sorted = sorted(expenses_by_type.items(), key=lambda x: x[1]['amount'], reverse=True)
+    
+    summary = {
+        'total_expenses': total_expenses,
+        'total_paid': total_paid,
+        'total_balance': total_balance,
+        'expenses_count': len(expenses),
+        'average_expense': total_expenses / len(expenses) if len(expenses) > 0 else 0,
+        'expenses_by_type': expenses_by_type_sorted,
+        'expenses_by_currency': expenses_by_currency,
+        'payment_percentage': (total_paid / total_expenses * 100) if total_expenses > 0 else 0
+    }
+    
     return render_template(
         "expenses/expenses_list.html",
         expenses=expenses,
@@ -296,6 +366,7 @@ def index():
         utility_account_id=filt["utility_account_id"],
         stock_adjustment_id=filt["stock_adjustment_id"],
         payee_type=filt["payee_type"],
+        summary=summary,
     )
 
 @expenses_bp.route("/<int:exp_id>", methods=["GET"], endpoint="detail")
@@ -474,10 +545,14 @@ def export_csv():
 def quick_add():
     form = QuickExpenseForm()
     form.currency.choices = [
-        ('ILS', 'شيكل'),
-        ('USD', 'دولار'),
+        ('ILS', 'شيكل إسرائيلي'),
+        ('USD', 'دولار أمريكي'),
         ('EUR', 'يورو'),
-        ('JOD', 'دينار')
+        ('JOD', 'دينار أردني'),
+        ('AED', 'درهم إماراتي'),
+        ('SAR', 'ريال سعودي'),
+        ('EGP', 'جنيه مصري'),
+        ('GBP', 'جنيه إسترليني')
     ]
     form.payment_method.choices = [
         ('cash', 'نقدي'),

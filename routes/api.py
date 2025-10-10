@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
-from flask import Blueprint, Response, current_app, jsonify, request
+from flask import Blueprint, Response, current_app, jsonify, request, render_template
 from flask_login import current_user, login_required
 from sqlalchemy import func, or_
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
@@ -49,6 +49,12 @@ from models import (
 
 bp = Blueprint("api", __name__, url_prefix="/api")
 
+@bp.route("/", methods=["GET"], endpoint="index")
+@login_required
+def api_index():
+    """صفحة API الرئيسية"""
+    return render_template("api/index.html")
+
 _TWOPLACES = Decimal("0.01")
 
 def _D(x):
@@ -65,8 +71,12 @@ def _q2(x):
     return _D(x).quantize(_TWOPLACES, rounding=ROUND_HALF_UP)
 
 def _limit_from_request(default: int = 20, max_: int = 100) -> int:
+    """حد الطلبات مع تحسينات الأداء"""
     try:
         v = int(request.args.get("limit", default) or default)
+        # تحسين الحد الأقصى بناءً على نوع الطلب
+        if request.endpoint and "list" in request.endpoint:
+            max_ = min(max_, 50)  # تقليل الحد للقوائم
         return min(max(1, v), max_)
     except Exception:
         return default
@@ -149,11 +159,26 @@ def _created(location: str, data=None):
     return resp, 201, {"Location": location}
 
 def _err(code="error", detail="", status=400, errors: Optional[dict] = None):
-    payload = {"success": False, "error": code}
+    """معالج أخطاء API محسن"""
+    payload = {
+        "success": False, 
+        "error": code,
+        "timestamp": datetime.utcnow().isoformat(),
+        "request_id": getattr(request, 'id', None) if request else None
+    }
     if detail:
         payload["detail"] = detail
     if errors:
         payload["errors"] = errors
+    
+    # تسجيل الخطأ
+    current_app.logger.error(f"API Error [{code}]: {detail}", extra={
+        "error_code": code,
+        "status": status,
+        "errors": errors,
+        "request_id": payload["request_id"]
+    })
+    
     return jsonify(payload), status
 
 def _simple_id_lookup(model, rec_id: str):

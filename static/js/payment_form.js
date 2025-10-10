@@ -302,3 +302,168 @@ document.addEventListener('DOMContentLoaded', function () {
   loadPayments();
   window.addEventListener('popstate', function () { syncFiltersFromUrl(); loadPayments(1); });
 });
+
+// وظائف البحث الذكي - محسنة للأداء
+function initSmartSearch() {
+  // البحث عن جميع حقول البحث في الحقول الديناميكية
+  const searchInputs = document.querySelectorAll('input[placeholder*="اكتب"], input[placeholder*="البحث"]');
+
+  searchInputs.forEach(input => {
+    // تحديد نوع الجهة من الـ placeholder أو الـ name
+    let entityType = 'customer'; // افتراضي
+
+    if (input.placeholder.includes('مورد') || input.placeholder.includes('تاجر')) {
+      entityType = 'supplier';
+    } else if (input.placeholder.includes('شريك')) {
+      entityType = 'partner';
+    } else if (input.placeholder.includes('عميل')) {
+      entityType = 'customer';
+    }
+
+    if (!entityType) return;
+
+    // تجنب إضافة event listeners متعددة
+    if (input.hasAttribute('data-smart-search-initialized')) return;
+    input.setAttribute('data-smart-search-initialized', 'true');
+
+    let searchTimeout;
+    let currentResults = [];
+    let selectedIndex = -1;
+
+    // إنشاء قائمة النتائج مرة واحدة فقط
+    let resultsList = input.parentNode.querySelector('.smart-search-results');
+    if (!resultsList) {
+      resultsList = document.createElement('div');
+      resultsList.className = 'smart-search-results position-absolute w-100 bg-white border shadow-lg rounded';
+      resultsList.style.display = 'none';
+      resultsList.style.zIndex = '1000';
+      resultsList.style.maxHeight = '300px';
+      resultsList.style.overflowY = 'auto';
+
+      input.parentNode.style.position = 'relative';
+      input.parentNode.appendChild(resultsList);
+    }
+
+    // وظيفة البحث
+    function performSearch(query) {
+      // تم تغيير الشرط للسماح بالبحث بحرف واحد
+      if (query.length < 1) { // Changed from 2 to 1
+        hideResults();
+        return;
+      }
+
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        fetch(`/payments/search-entities?type=${entityType}&q=${encodeURIComponent(query)}`)
+          .then(response => response.json())
+          .then(data => {
+            currentResults = data;
+            selectedIndex = -1;
+            showResults(data);
+          })
+          .catch(error => {
+            console.error('خطأ في البحث:', error);
+            hideResults();
+          });
+      }, 300);
+    }
+
+    // عرض النتائج
+    function showResults(results) {
+      if (results.length === 0) {
+        hideResults();
+        return;
+      }
+      resultsList.innerHTML = '';
+      results.forEach((item, index) => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = `smart-search-item p-2 border-bottom ${index === selectedIndex ? 'bg-light' : ''}`;
+        itemDiv.innerHTML = `<span class="fw-bold">${item.name}</span> <small class="text-muted">(${item.id})</small>`;
+        itemDiv.addEventListener('click', () => selectItem(item));
+        resultsList.appendChild(itemDiv);
+      });
+      resultsList.style.display = 'block';
+    }
+
+    // إخفاء النتائج
+    function hideResults() {
+      resultsList.innerHTML = '';
+      resultsList.style.display = 'none';
+    }
+
+    // تمييز العنصر المحدد
+    function highlightSelectedItem() {
+      resultsList.querySelectorAll('.smart-search-item').forEach((itemDiv, index) => {
+        if (index === selectedIndex) {
+          itemDiv.classList.add('bg-light');
+          itemDiv.scrollIntoView({ block: 'nearest' });
+        } else {
+          itemDiv.classList.remove('bg-light');
+        }
+      });
+    }
+
+    // اختيار عنصر من القائمة
+    function selectItem(item) {
+      input.value = item.name;
+      const hiddenInput = input.closest('[data-entity-type]').querySelector('input[type="hidden"]');
+      if (hiddenInput) {
+        hiddenInput.value = item.id;
+      }
+      hideResults();
+    }
+
+    // Event Listeners
+    input.addEventListener('input', function() {
+      performSearch(this.value.trim());
+    });
+
+    input.addEventListener('keydown', function(e) {
+      if (resultsList.style.display === 'block' && currentResults.length > 0) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          selectedIndex = (selectedIndex + 1) % currentResults.length;
+          highlightSelectedItem();
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          selectedIndex = (selectedIndex - 1 + currentResults.length) % currentResults.length;
+          highlightSelectedItem();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (selectedIndex !== -1) {
+            selectItem(currentResults[selectedIndex]);
+          }
+        }
+      }
+    });
+
+    input.addEventListener('focus', function() {
+      if (currentResults.length > 0 && resultsList.innerHTML !== '') {
+        resultsList.style.display = 'block';
+      }
+    });
+
+    input.addEventListener('blur', function() {
+      setTimeout(() => {
+        if (!resultsList.contains(document.activeElement)) {
+          hideResults();
+        }
+      }, 100);
+    });
+  });
+}
+
+// استدعاء البحث الذكي تلقائياً عند تحميل الصفحة
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(initSmartSearch, 500);
+  });
+} else {
+  // DOM already loaded
+  setTimeout(initSmartSearch, 100);
+}
+
+// استدعاء إضافي عند تحميل الصفحة بالكامل
+window.addEventListener('load', function() {
+  setTimeout(initSmartSearch, 200);
+});

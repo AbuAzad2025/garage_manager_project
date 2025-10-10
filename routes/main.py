@@ -56,6 +56,7 @@ def favicon():
     return send_from_directory(current_app.static_folder, "favicon.ico", mimetype="image/vnd.microsoft.icon")
 
 
+
 @main_bp.route("/", methods=["GET"], endpoint="dashboard")
 @login_required
 def dashboard():
@@ -97,58 +98,101 @@ def dashboard():
         revenue_labels = srep.get("daily_labels", [])
         revenue_values = srep.get("daily_values", [])
         week_revenue = float(srep.get("total_revenue", 0) or 0)
-        today_revenue = float(
-            db.session.query(func.coalesce(func.sum(Sale.total_amount), 0))
-            .filter(
-                Sale.status == "CONFIRMED",
-                Sale.sale_date >= day_start_dt,
-                Sale.sale_date < day_end_dt,
-            )
-            .scalar() or 0
-        )
+        # حساب إيرادات اليوم مع تحويل العملات للشيكل
+        today_sales = Sale.query.filter(
+            Sale.status == "CONFIRMED",
+            Sale.sale_date >= day_start_dt,
+            Sale.sale_date < day_end_dt,
+        ).all()
+        
+        today_revenue = 0.0
+        for sale in today_sales:
+            try:
+                from models import fx_rate
+                amount = float(sale.total_amount or 0)
+                if sale.currency and sale.currency != 'ILS':
+                    rate = fx_rate(sale.currency, 'ILS', sale.sale_date, raise_on_missing=False)
+                    if rate > 0:
+                        amount = float(amount * rate)
+                today_revenue += amount
+            except Exception as e:
+                print(f"Error converting sale {sale.id}: {str(e)}")
+                today_revenue += float(sale.total_amount or 0)
 
-    today_incoming = float(
-        db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
-        .filter(
-            Payment.payment_date >= day_start_dt,
-            Payment.payment_date < day_end_dt,
-            Payment.direction == PaymentDirection.INCOMING.value,
-            Payment.status == PaymentStatus.COMPLETED.value,
-        )
-        .scalar() or 0
-    )
-    today_outgoing = float(
-        db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
-        .filter(
-            Payment.payment_date >= day_start_dt,
-            Payment.payment_date < day_end_dt,
-            Payment.direction == PaymentDirection.OUTGOING.value,
-            Payment.status == PaymentStatus.COMPLETED.value,
-        )
-        .scalar() or 0
-    )
+    # حساب الدفعات مع تحويل العملات للشيكل
+    today_incoming = 0.0
+    today_outgoing = 0.0
+    week_incoming = 0.0
+    week_outgoing = 0.0
+    
+    # الدفعات اليومية
+    today_payments = Payment.query.filter(
+        Payment.payment_date >= day_start_dt,
+        Payment.payment_date < day_end_dt,
+        Payment.status == PaymentStatus.COMPLETED.value,
+    ).all()
+    
+    for payment in today_payments:
+        try:
+            from models import fx_rate
+            from decimal import Decimal
+            amount = float(payment.total_amount or 0)
+            
+            # استخدام fx_rate_used إذا كان موجوداً
+            if payment.fx_rate_used:
+                fx_rate_value = float(payment.fx_rate_used) if isinstance(payment.fx_rate_used, Decimal) else payment.fx_rate_used
+                amount *= float(fx_rate_value)
+            elif payment.currency and payment.currency != 'ILS':
+                rate = fx_rate(payment.currency, 'ILS', payment.payment_date, raise_on_missing=False)
+                if rate > 0:
+                    amount = float(amount * float(rate))
+            
+            if payment.direction == PaymentDirection.IN.value:
+                today_incoming += amount
+            else:
+                today_outgoing += amount
+        except Exception as e:
+            print(f"Error converting payment {payment.id}: {str(e)}")
+            if payment.direction == PaymentDirection.IN.value:
+                today_incoming += float(payment.total_amount or 0)
+            else:
+                today_outgoing += float(payment.total_amount or 0)
+    
     today_net = today_incoming - today_outgoing
-
-    week_incoming = float(
-        db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
-        .filter(
-            Payment.payment_date >= week_start_dt,
-            Payment.payment_date < week_end_dt,
-            Payment.direction == PaymentDirection.INCOMING.value,
-            Payment.status == PaymentStatus.COMPLETED.value,
-        )
-        .scalar() or 0
-    )
-    week_outgoing = float(
-        db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
-        .filter(
-            Payment.payment_date >= week_start_dt,
-            Payment.payment_date < week_end_dt,
-            Payment.direction == PaymentDirection.OUTGOING.value,
-            Payment.status == PaymentStatus.COMPLETED.value,
-        )
-        .scalar() or 0
-    )
+    
+    # الدفعات الأسبوعية
+    week_payments = Payment.query.filter(
+        Payment.payment_date >= week_start_dt,
+        Payment.payment_date < week_end_dt,
+        Payment.status == PaymentStatus.COMPLETED.value,
+    ).all()
+    
+    for payment in week_payments:
+        try:
+            from models import fx_rate
+            from decimal import Decimal
+            amount = float(payment.total_amount or 0)
+            
+            # استخدام fx_rate_used إذا كان موجوداً
+            if payment.fx_rate_used:
+                fx_rate_value = float(payment.fx_rate_used) if isinstance(payment.fx_rate_used, Decimal) else payment.fx_rate_used
+                amount *= float(fx_rate_value)
+            elif payment.currency and payment.currency != 'ILS':
+                rate = fx_rate(payment.currency, 'ILS', payment.payment_date, raise_on_missing=False)
+                if rate > 0:
+                    amount = float(amount * float(rate))
+            
+            if payment.direction == PaymentDirection.IN.value:
+                week_incoming += amount
+            else:
+                week_outgoing += amount
+        except Exception as e:
+            print(f"Error converting payment {payment.id}: {str(e)}")
+            if payment.direction == PaymentDirection.IN.value:
+                week_incoming += float(payment.total_amount or 0)
+            else:
+                week_outgoing += float(payment.total_amount or 0)
+    
     week_net = week_incoming - week_outgoing
 
     pay_rows = (
@@ -157,7 +201,7 @@ def dashboard():
             func.coalesce(
                 func.sum(
                     case(
-                        (Payment.direction == PaymentDirection.INCOMING.value, Payment.total_amount),
+                        (Payment.direction == PaymentDirection.IN.value, Payment.total_amount),
                         else_=0,
                     )
                 ),
@@ -166,7 +210,7 @@ def dashboard():
             func.coalesce(
                 func.sum(
                     case(
-                        (Payment.direction == PaymentDirection.OUTGOING.value, Payment.total_amount),
+                        (Payment.direction == PaymentDirection.OUT.value, Payment.total_amount),
                         else_=0,
                     )
                 ),

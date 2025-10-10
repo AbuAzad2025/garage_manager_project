@@ -50,9 +50,7 @@
     </div>
     <div class="card-body">
       <form id="report-form" method="post" action="{{ url_for('reports_bp.dynamic_report') }}" class="row g-3">
-        {% if csrf_token is defined %}
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        {% endif %}
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
 ```
     <div class="col-md-3">

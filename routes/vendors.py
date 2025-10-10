@@ -21,6 +21,11 @@ from models import (
     SupplierLoanSettlement,
     Warehouse,
     WarehouseType,
+    Expense,
+    Sale,
+    SaleLine,
+    ServicePart,
+    ServiceRequest,
 )
 
 class CSRFProtectForm(FlaskForm):
@@ -66,12 +71,95 @@ def suppliers_list():
         term = f"%{s}%"
         q = q.filter(or_(Supplier.name.ilike(term), Supplier.phone.ilike(term), Supplier.identity_number.ilike(term)))
     suppliers = q.order_by(Supplier.name).all()
+    
+    # حساب الملخصات الإجمالية لجميع الموردين
+    total_balance = 0.0
+    total_purchases = 0.0
+    total_payments = 0.0
+    suppliers_with_debt = 0
+    suppliers_with_credit = 0
+    
+    for supplier in suppliers:
+        try:
+            from models import fx_rate
+            
+            # حساب المشتريات (النفقات من المورد) - تحويل للشيقل
+            expenses = Expense.query.filter(
+                Expense.payee_type == 'SUPPLIER',
+                Expense.payee_entity_id == supplier.id
+            ).all()
+            purchases_total = 0.0
+            for e in expenses:
+                amount = float(e.amount or 0)
+                if e.currency and e.currency != 'ILS':
+                    try:
+                        rate = fx_rate(e.currency, 'ILS', e.date, raise_on_missing=False)
+                        if rate > 0:
+                            amount = float(amount * float(rate))
+                        else:
+                            print(f"⚠️ WARNING: سعر صرف مفقود لـ {e.currency}/ILS في المصروف #{e.id}")
+                    except ValueError as ve:
+                        print(f"⚠️ ERROR: {str(ve)} - Expense #{e.id}")
+                    except Exception as ex:
+                        print(f"⚠️ ERROR: خطأ في تحويل العملة للمصروف #{e.id}: {str(ex)}")
+                purchases_total += amount
+            
+            # حساب الدفعات للمورد - استخدام fx_rate_used
+            payments = Payment.query.filter(
+                Payment.supplier_id == supplier.id,
+                Payment.direction == 'outgoing'
+            ).all()
+            payments_total = 0.0
+            for p in payments:
+                amount = float(p.total_amount or 0)
+                if p.fx_rate_used:
+                    amount *= float(p.fx_rate_used)
+                elif p.currency and p.currency != 'ILS':
+                    try:
+                        rate = fx_rate(p.currency, 'ILS', p.payment_date, raise_on_missing=False)
+                        if rate > 0:
+                            amount = float(amount * float(rate))
+                        else:
+                            print(f"⚠️ WARNING: سعر صرف مفقود لـ {p.currency}/ILS في الدفعة #{p.id}")
+                    except ValueError as ve:
+                        print(f"⚠️ ERROR: {str(ve)} - Payment #{p.id}")
+                    except Exception as ex:
+                        print(f"⚠️ ERROR: خطأ في تحويل العملة للدفعة #{p.id}: {str(ex)}")
+                payments_total += amount
+            
+            # الرصيد = المشتريات - المدفوعات (موجب يعني مستحق للمورد)
+            balance = purchases_total - payments_total
+            
+            total_purchases += float(purchases_total)
+            total_payments += float(payments_total)
+            total_balance += balance
+            
+            if balance > 0:
+                suppliers_with_debt += 1  # مستحق دفع للمورد
+            elif balance < 0:
+                suppliers_with_credit += 1  # المورد مدين لنا
+                
+        except Exception as e:
+            print(f"Error calculating supplier {supplier.id} balance: {str(e)}")
+            pass
+    
+    summary = {
+        'total_suppliers': len(suppliers),
+        'total_balance': total_balance,
+        'total_purchases': total_purchases,
+        'total_payments': total_payments,
+        'suppliers_with_debt': suppliers_with_debt,
+        'suppliers_with_credit': suppliers_with_credit,
+        'average_balance': total_balance / len(suppliers) if suppliers else 0
+    }
+    
     return render_template(
         "vendors/suppliers/list.html",
         suppliers=suppliers,
         search=s,
         form=form,
         pay_url=url_for("payments.create_payment"),
+        summary=summary,
     )
 
 @vendors_bp.route("/suppliers/new", methods=["GET", "POST"], endpoint="suppliers_create")
@@ -354,6 +442,16 @@ def partners_list():
         term = f"%{s}%"
         q = q.filter(or_(Partner.name.ilike(term), Partner.phone_number.ilike(term), Partner.identity_number.ilike(term)))
     partners = q.order_by(Partner.name).all()
+    
+    # حساب الأرصدة للشركاء
+    for partner in partners:
+        try:
+            # balance_in_ils هو property، لا يمكن تعيينه مباشرة
+            # سنستخدمه مباشرة في القالب
+            pass
+        except:
+            pass
+    
     return render_template(
         "vendors/partners/list.html",
         partners=partners,
@@ -509,3 +607,360 @@ def partners_delete(id):
             return jsonify({"success": False, "error": "delete_failed", "detail": str(e)}), 400
         flash(f"❌ خطأ أثناء حذف الشريك: {e}", "danger")
         return redirect(url_for("vendors_bp.partners_list"))
+
+
+# ===== نظام التسوية الذكي =====
+
+@vendors_bp.route("/suppliers/<int:supplier_id>/smart-settlement", methods=["GET"], endpoint="supplier_smart_settlement")
+@login_required
+@permission_required("manage_vendors")
+def supplier_smart_settlement(supplier_id):
+    """التسوية الذكية للمورد"""
+    supplier = _get_or_404(Supplier, supplier_id)
+    
+    # الحصول على الفترة الزمنية
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+    
+    if date_from:
+        date_from = datetime.fromisoformat(date_from)
+    else:
+        date_from = datetime(2024, 1, 1)
+    
+    if date_to:
+        date_to = datetime.fromisoformat(date_to)
+    else:
+        date_to = datetime.utcnow()
+    
+    # حساب الرصيد الذكي
+    balance_data = _calculate_smart_supplier_balance(supplier_id, date_from, date_to)
+    
+    return render_template(
+        "vendors/smart_settlement.html",
+        entity=supplier,
+        entity_type="supplier",
+        balance_data=balance_data,
+        date_from=date_from,
+        date_to=date_to
+    )
+
+
+@vendors_bp.route("/partners/<int:partner_id>/smart-settlement", methods=["GET"], endpoint="partner_smart_settlement")
+@login_required
+@permission_required("manage_vendors")
+def partner_smart_settlement(partner_id):
+    """التسوية الذكية للشريك"""
+    partner = _get_or_404(Partner, partner_id)
+    
+    # الحصول على الفترة الزمنية
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+    
+    if date_from:
+        date_from = datetime.fromisoformat(date_from)
+    else:
+        date_from = datetime(2024, 1, 1)
+    
+    if date_to:
+        date_to = datetime.fromisoformat(date_to)
+    else:
+        date_to = datetime.utcnow()
+    
+    # حساب الرصيد الذكي
+    balance_data = _calculate_smart_partner_balance(partner_id, date_from, date_to)
+    
+    return render_template(
+        "vendors/smart_settlement.html",
+        entity=partner,
+        entity_type="partner",
+        balance_data=balance_data,
+        date_from=date_from,
+        date_to=date_to
+    )
+
+
+def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, date_to: datetime):
+    """حساب الرصيد الذكي للمورد"""
+    try:
+        supplier = db.session.get(Supplier, supplier_id)
+        if not supplier:
+            return {"success": False, "error": "المورد غير موجود"}
+        
+        # 1. الوارد من المورد (المشتريات + القطع المعطاة له)
+        incoming = _calculate_supplier_incoming(supplier_id, date_from, date_to)
+        
+        # 2. الصادر للمورد (المبيعات + القطع المأخوذة منه)
+        outgoing = _calculate_supplier_outgoing(supplier_id, date_from, date_to)
+        
+        # 3. الدفعات
+        payments_to_supplier = _calculate_payments_to_supplier(supplier_id, date_from, date_to)
+        payments_from_supplier = _calculate_payments_from_supplier(supplier_id, date_from, date_to)
+        
+        # 4. حساب الرصيد النهائي
+        total_incoming = incoming["total"] + payments_from_supplier
+        total_outgoing = outgoing["total"] + payments_to_supplier
+        
+        balance = total_incoming - total_outgoing
+        
+        return {
+            "success": True,
+            "supplier": {
+                "id": supplier.id,
+                "name": supplier.name,
+                "currency": supplier.currency
+            },
+            "period": {
+                "from": date_from.isoformat(),
+                "to": date_to.isoformat()
+            },
+            "incoming": {
+                "purchases": incoming["purchases"],
+                "products_given": incoming["products_given"],
+                "payments_received": payments_from_supplier,
+                "total": total_incoming
+            },
+            "outgoing": {
+                "sales": outgoing["sales"],
+                "products_taken": outgoing["products_taken"],
+                "payments_made": payments_to_supplier,
+                "total": total_outgoing
+            },
+            "balance": {
+                "amount": balance,
+                "direction": "للمورد" if balance > 0 else "على المورد" if balance < 0 else "متوازن",
+                "currency": supplier.currency
+            },
+            "recommendation": _get_settlement_recommendation(balance, supplier.currency)
+        }
+        
+    except Exception as e:
+        return {"success": False, "error": f"خطأ في حساب رصيد المورد: {str(e)}"}
+
+
+def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_to: datetime):
+    """حساب الرصيد الذكي للشريك"""
+    try:
+        partner = db.session.get(Partner, partner_id)
+        if not partner:
+            return {"success": False, "error": "الشريك غير موجود"}
+        
+        # 1. الوارد من الشريك
+        incoming = _calculate_partner_incoming(partner_id, date_from, date_to)
+        
+        # 2. الصادر للشريك
+        outgoing = _calculate_partner_outgoing(partner_id, date_from, date_to)
+        
+        # 3. الدفعات
+        payments_to_partner = _calculate_payments_to_partner(partner_id, date_from, date_to)
+        payments_from_partner = _calculate_payments_from_partner(partner_id, date_from, date_to)
+        
+        # 4. حساب الرصيد النهائي
+        total_incoming = incoming["total"] + payments_from_partner
+        total_outgoing = outgoing["total"] + payments_to_partner
+        
+        balance = total_incoming - total_outgoing
+        
+        return {
+            "success": True,
+            "partner": {
+                "id": partner.id,
+                "name": partner.name,
+                "currency": partner.currency
+            },
+            "period": {
+                "from": date_from.isoformat(),
+                "to": date_to.isoformat()
+            },
+            "incoming": {
+                "sales_share": incoming["sales_share"],
+                "products_given": incoming["products_given"],
+                "payments_received": payments_from_partner,
+                "total": total_incoming
+            },
+            "outgoing": {
+                "purchases_share": outgoing["purchases_share"],
+                "products_taken": outgoing["products_taken"],
+                "payments_made": payments_to_partner,
+                "total": total_outgoing
+            },
+            "balance": {
+                "amount": balance,
+                "direction": "للشريك" if balance > 0 else "على الشريك" if balance < 0 else "متوازن",
+                "currency": partner.currency
+            },
+            "recommendation": _get_settlement_recommendation(balance, partner.currency)
+        }
+        
+    except Exception as e:
+        return {"success": False, "error": f"خطأ في حساب رصيد الشريك: {str(e)}"}
+
+
+def _calculate_supplier_incoming(supplier_id: int, date_from: datetime, date_to: datetime):
+    """حساب الوارد من المورد"""
+    # المشتريات (النفقات من نوع مشتريات)
+    purchases = db.session.query(func.sum(Expense.amount)).filter(
+        Expense.payee_type == "SUPPLIER",
+        Expense.payee_entity_id == supplier_id,
+        Expense.date >= date_from,
+        Expense.date <= date_to
+    ).scalar() or 0
+    
+    # القطع المعطاة للمورد (ExchangeTransaction مع اتجاه OUT)
+    products_given = db.session.query(func.sum(ExchangeTransaction.quantity * ExchangeTransaction.unit_cost)).filter(
+        ExchangeTransaction.supplier_id == supplier_id,
+        ExchangeTransaction.direction == "OUT",
+        ExchangeTransaction.created_at >= date_from,
+        ExchangeTransaction.created_at <= date_to
+    ).scalar() or 0
+    
+    return {
+        "purchases": float(purchases),
+        "products_given": float(products_given),
+        "total": float(purchases + products_given)
+    }
+
+
+def _calculate_supplier_outgoing(supplier_id: int, date_from: datetime, date_to: datetime):
+    """حساب الصادر للمورد"""
+    # المبيعات للمورد (إذا كان عميل أيضاً)
+    sales = db.session.query(func.sum(Sale.total_amount)).filter(
+        Sale.customer_id == supplier_id,  # إذا كان المورد عميل أيضاً
+        Sale.sale_date >= date_from,
+        Sale.sale_date <= date_to
+    ).scalar() or 0
+    
+    # القطع المأخوذة من المورد (ExchangeTransaction مع اتجاه IN)
+    products_taken = db.session.query(func.sum(ExchangeTransaction.quantity * ExchangeTransaction.unit_cost)).filter(
+        ExchangeTransaction.supplier_id == supplier_id,
+        ExchangeTransaction.direction == "IN",
+        ExchangeTransaction.created_at >= date_from,
+        ExchangeTransaction.created_at <= date_to
+    ).scalar() or 0
+    
+    return {
+        "sales": float(sales),
+        "products_taken": float(products_taken),
+        "total": float(sales + products_taken)
+    }
+
+
+def _calculate_partner_incoming(partner_id: int, date_from: datetime, date_to: datetime):
+    """حساب الوارد من الشريك"""
+    # حصة الشريك من المبيعات (من خلال ServicePart)
+    sales_share = db.session.query(func.sum(ServicePart.quantity * ServicePart.unit_price)).join(
+        ServiceRequest, ServiceRequest.id == ServicePart.service_id
+    ).filter(
+        ServicePart.partner_id == partner_id,
+        ServiceRequest.received_at >= date_from,
+        ServiceRequest.received_at <= date_to
+    ).scalar() or 0
+    
+    # القطع المعطاة للشريك
+    products_given = db.session.query(func.sum(ExchangeTransaction.quantity * ExchangeTransaction.unit_cost)).filter(
+        ExchangeTransaction.partner_id == partner_id,
+        ExchangeTransaction.direction == "OUT",
+        ExchangeTransaction.created_at >= date_from,
+        ExchangeTransaction.created_at <= date_to
+    ).scalar() or 0
+    
+    return {
+        "sales_share": float(sales_share),
+        "products_given": float(products_given),
+        "total": float(sales_share + products_given)
+    }
+
+
+def _calculate_partner_outgoing(partner_id: int, date_from: datetime, date_to: datetime):
+    """حساب الصادر للشريك"""
+    # حصة الشريك من المشتريات
+    purchases_share = db.session.query(func.sum(Expense.amount)).filter(
+        Expense.partner_id == partner_id,
+        Expense.date >= date_from,
+        Expense.date <= date_to
+    ).scalar() or 0
+    
+    # القطع المأخوذة من الشريك
+    products_taken = db.session.query(func.sum(ExchangeTransaction.quantity * ExchangeTransaction.unit_cost)).filter(
+        ExchangeTransaction.partner_id == partner_id,
+        ExchangeTransaction.direction == "IN",
+        ExchangeTransaction.created_at >= date_from,
+        ExchangeTransaction.created_at <= date_to
+    ).scalar() or 0
+    
+    return {
+        "purchases_share": float(purchases_share),
+        "products_taken": float(products_taken),
+        "total": float(purchases_share + products_taken)
+    }
+
+
+def _calculate_payments_to_supplier(supplier_id: int, date_from: datetime, date_to: datetime):
+    """حساب الدفعات المدفوعة للمورد"""
+    amount = db.session.query(func.sum(Payment.total_amount)).filter(
+        Payment.supplier_id == supplier_id,
+        Payment.direction == "OUTGOING",
+        Payment.status == "COMPLETED",
+        Payment.payment_date >= date_from,
+        Payment.payment_date <= date_to
+    ).scalar() or 0
+    return float(amount)
+
+
+def _calculate_payments_from_supplier(supplier_id: int, date_from: datetime, date_to: datetime):
+    """حساب الدفعات المستلمة من المورد"""
+    amount = db.session.query(func.sum(Payment.total_amount)).filter(
+        Payment.supplier_id == supplier_id,
+        Payment.direction == "INCOMING",
+        Payment.status == "COMPLETED",
+        Payment.payment_date >= date_from,
+        Payment.payment_date <= date_to
+    ).scalar() or 0
+    return float(amount)
+
+
+def _calculate_payments_to_partner(partner_id: int, date_from: datetime, date_to: datetime):
+    """حساب الدفعات المدفوعة للشريك"""
+    amount = db.session.query(func.sum(Payment.total_amount)).filter(
+        Payment.partner_id == partner_id,
+        Payment.direction == "OUTGOING",
+        Payment.status == "COMPLETED",
+        Payment.payment_date >= date_from,
+        Payment.payment_date <= date_to
+    ).scalar() or 0
+    return float(amount)
+
+
+def _calculate_payments_from_partner(partner_id: int, date_from: datetime, date_to: datetime):
+    """حساب الدفعات المستلمة من الشريك"""
+    amount = db.session.query(func.sum(Payment.total_amount)).filter(
+        Payment.partner_id == partner_id,
+        Payment.direction == "INCOMING",
+        Payment.status == "COMPLETED",
+        Payment.payment_date >= date_from,
+        Payment.payment_date <= date_to
+    ).scalar() or 0
+    return float(amount)
+
+
+def _get_settlement_recommendation(balance: float, currency: str):
+    """اقتراح التسوية"""
+    if abs(balance) < 0.01:  # متوازن
+        return {
+            "action": "متوازن",
+            "message": "لا توجد تسوية مطلوبة",
+            "amount": 0
+        }
+    elif balance > 0:  # الباقي له
+        return {
+            "action": "دفع",
+            "message": f"يجب دفع {abs(balance):.2f} {currency} للمورد/الشريك",
+            "amount": abs(balance),
+            "direction": "OUTGOING"
+        }
+    else:  # الباقي عليه
+        return {
+            "action": "قبض",
+            "message": f"يجب قبض {abs(balance):.2f} {currency} من المورد/الشريك",
+            "amount": abs(balance),
+            "direction": "INCOMING"
+        }

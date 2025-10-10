@@ -50,6 +50,15 @@ from routes.barcode import bp_barcode
 from routes.partner_settlements import partner_settlements_bp
 from routes.supplier_settlements import supplier_settlements_bp
 from routes.ledger_blueprint import ledger_bp
+from routes.ledger_ai_assistant import ai_assistant_bp
+from routes.barcode_scanner import barcode_scanner_bp
+from routes.currencies import currencies_bp
+from routes.hard_delete import hard_delete_bp
+from routes.user_guide import user_guide_bp
+from routes.other_systems import other_systems_bp
+from routes.pricing import pricing_bp
+from routes.checks import checks_bp
+from routes.health import health_bp
 
 
 class MyAnonymousUser(AnonymousUserMixin):
@@ -105,6 +114,8 @@ def create_app(config_object=Config) -> Flask:
     app.config.from_object(config_object)
     app.config.setdefault("JSON_AS_ASCII", False)
     app.config.setdefault("NUMBER_DECIMALS", 2)
+    app.config["TEMPLATES_AUTO_RELOAD"] = True
+    app.jinja_env.auto_reload = True
 
     ensure_runtime_dirs(config_object)
     assert_production_sanity(config_object)
@@ -135,8 +146,14 @@ def create_app(config_object=Config) -> Flask:
         elif uri.startswith(("mysql", "mysql+pymysql", "mysql+mysqldb")):
             connect_args.setdefault("connect_timeout", int(os.getenv("DB_CONNECT_TIMEOUT", "10")))
 
+    setup_logging(app)
+    setup_sentry(app)
+
     init_extensions(app)
     utils_init_app(app)
+    
+    # استثناء CSRF للمساعد الذكي
+    csrf.exempt(ledger_bp)
 
     @event.listens_for(db.session.__class__, "before_attach")
     def _dedupe_entities(session, instance):
@@ -153,9 +170,6 @@ def create_app(config_object=Config) -> Flask:
     except Exception:
         pass
 
-    setup_logging(app)
-    setup_sentry(app)
-
     os.environ.setdefault("PERMISSIONS_DEBUG", "0")
     logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
     logging.getLogger("sqlalchemy.orm").setLevel(logging.WARNING)
@@ -169,14 +183,12 @@ def create_app(config_object=Config) -> Flask:
 
     if app.config.get("SERVER_NAME"):
         from urllib.parse import urlparse
-
         def _relative_url_for(self, endpoint, **values):
             rv = Flask.url_for(self, endpoint, **values)
             if not values.get("_external"):
                 parsed = urlparse(rv)
                 rv = parsed.path + ("?" + parsed.query if parsed.query else "")
             return rv
-
         app.url_for = _relative_url_for.__get__(app, Flask)
 
     extra_template_paths = [
@@ -308,6 +320,10 @@ def create_app(config_object=Config) -> Flask:
     app.jinja_env.filters["format_date"] = format_date
     app.jinja_env.filters["format_datetime"] = format_datetime
     app.jinja_env.filters["two_dec"] = _two_dec
+
+    from utils import format_currency_in_ils, get_entity_balance_in_ils
+    app.jinja_env.filters["format_currency_in_ils"] = format_currency_in_ils
+    app.jinja_env.globals["get_entity_balance_in_ils"] = get_entity_balance_in_ils
     app.jinja_env.globals["url_for_any"] = url_for_any
     app.jinja_env.globals["now"] = datetime.utcnow
 
@@ -350,7 +366,12 @@ def create_app(config_object=Config) -> Flask:
     attach_acl(notes_bp, read_perm="view_notes", write_perm="manage_notes")
     attach_acl(bp_barcode, read_perm="view_parts", write_perm=None)
     attach_acl(ledger_bp, read_perm="manage_ledger", write_perm="manage_ledger")
-
+    attach_acl(currencies_bp, read_perm="manage_currencies", write_perm="manage_currencies")
+    attach_acl(barcode_scanner_bp, read_perm="scan_barcode", write_perm=None)
+    attach_acl(hard_delete_bp, read_perm="manage_system", write_perm="manage_system")
+    attach_acl(checks_bp, read_perm="view_payments", write_perm="manage_payments")
+    attach_acl(health_bp, read_perm=None, write_perm=None)  # عام للجميع
+    
     BLUEPRINTS = [
         auth_bp,
         main_bp,
@@ -375,6 +396,15 @@ def create_app(config_object=Config) -> Flask:
         supplier_settlements_bp,
         api_bp,
         ledger_bp,
+        currencies_bp,
+        hard_delete_bp,
+        barcode_scanner_bp,
+        ai_assistant_bp,
+        user_guide_bp,
+        other_systems_bp,
+        pricing_bp,
+        checks_bp,
+        health_bp,
     ]
     for bp in BLUEPRINTS:
         app.register_blueprint(bp)
@@ -508,3 +538,10 @@ def create_app(config_object=Config) -> Flask:
     init_seed_commands(app)
 
     return app
+
+
+if __name__ == '__main__':
+    app = create_app()
+    app.run(debug=True, host='0.0.0.0', port=5000)
+else:
+    app = create_app()

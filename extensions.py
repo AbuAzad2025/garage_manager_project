@@ -1,4 +1,3 @@
-# extensions.py
 from __future__ import annotations
 
 import json
@@ -19,6 +18,7 @@ from flask_migrate import Migrate
 from flask_socketio import SocketIO
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import CSRFProtect
+from flask_caching import Cache
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 
@@ -156,6 +156,50 @@ mail = Mail()
 csrf = CSRFProtect()
 socketio = SocketIO(cors_allowed_origins="*", logger=False, engineio_logger=False)
 
+# نظام الإشعارات الفورية
+def send_notification(user_id: int, notification_type: str, title: str, message: str, data: dict = None):
+    """إرسال إشعار فوري للمستخدم"""
+    try:
+        notification = {
+            "type": notification_type,
+            "title": title,
+            "message": message,
+            "timestamp": datetime.utcnow().isoformat(),
+            "data": data or {}
+        }
+        socketio.emit('notification', notification, room=f'user_{user_id}')
+    except Exception as e:
+        logging.getLogger(__name__).error(f"Failed to send notification: {e}")
+
+def send_broadcast_notification(notification_type: str, title: str, message: str, data: dict = None):
+    """إرسال إشعار عام لجميع المستخدمين"""
+    try:
+        notification = {
+            "type": notification_type,
+            "title": title,
+            "message": message,
+            "timestamp": datetime.utcnow().isoformat(),
+            "data": data or {}
+        }
+        socketio.emit('broadcast_notification', notification)
+    except Exception as e:
+        logging.getLogger(__name__).error(f"Failed to send broadcast notification: {e}")
+
+def send_system_alert(alert_type: str, message: str, severity: str = "warning"):
+    """إرسال تنبيه نظام"""
+    try:
+        alert = {
+            "type": "system_alert",
+            "alert_type": alert_type,
+            "message": message,
+            "severity": severity,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        socketio.emit('system_alert', alert)
+    except Exception as e:
+        logging.getLogger(__name__).error(f"Failed to send system alert: {e}")
+cache = Cache()
+
 
 def _rate_limit_key():
     try:
@@ -186,59 +230,137 @@ def _sqlite_pragmas_on_connect(dbapi_connection, connection_record):
 
 
 def perform_backup_db(app):
-    uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
-    if not uri.startswith("sqlite:///"):
-        return
-    db_path = uri.replace("sqlite:///", "")
-    if not os.path.exists(db_path):
-        return
-    backup_dir = app.config.get("BACKUP_DB_DIR")
-    os.makedirs(backup_dir, exist_ok=True)
-    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    backup_path = os.path.join(backup_dir, f"backup_{ts}.db")
-    src = sqlite3.connect(db_path)
-    dst = sqlite3.connect(backup_path)
+    """نسخ احتياطي محسن لقاعدة البيانات"""
     try:
-        src.backup(dst)
-    finally:
-        src.close()
-        dst.close()
-    keep_last = app.config.get("BACKUP_KEEP_LAST", 5)
-    backups = sorted(glob.glob(os.path.join(backup_dir, "backup_*.db")))
-    if len(backups) > keep_last:
-        for old in backups[:-keep_last]:
-            try:
-                os.remove(old)
-            except Exception:
-                pass
+        uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+        if not uri.startswith("sqlite:///"):
+            app.logger.warning("Backup skipped: Database is not SQLite")
+            return
+        
+        db_path = uri.replace("sqlite:///", "")
+        if not os.path.exists(db_path):
+            app.logger.error(f"Database file not found: {db_path}")
+            return
+        
+        backup_dir = app.config.get("BACKUP_DB_DIR")
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        # إضافة معلومات إضافية للنسخة الاحتياطية
+        ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        backup_path = os.path.join(backup_dir, f"backup_{ts}.db")
+        
+        # نسخ احتياطي مع التحقق من التكامل
+        src = sqlite3.connect(db_path)
+        dst = sqlite3.connect(backup_path)
+        
+        try:
+            # نسخ احتياطي مع التحقق
+            src.backup(dst)
+            
+            # التحقق من صحة النسخة الاحتياطية
+            dst.execute("PRAGMA integrity_check")
+            result = dst.execute("PRAGMA integrity_check").fetchone()
+            if result[0] != "ok":
+                app.logger.error(f"Backup integrity check failed: {result[0]}")
+                dst.close()
+                os.remove(backup_path)
+                return
+            
+            # إضافة معلومات النسخة الاحتياطية
+            backup_info = {
+                "timestamp": ts,
+                "original_size": os.path.getsize(db_path),
+                "backup_size": os.path.getsize(backup_path),
+                "version": app.config.get("APP_VERSION", "unknown")
+            }
+            
+            # حفظ معلومات النسخة الاحتياطية
+            info_path = os.path.join(backup_dir, f"backup_{ts}.info")
+            with open(info_path, "w") as f:
+                import json
+                json.dump(backup_info, f, indent=2)
+            
+            app.logger.info(f"Database backup completed: {backup_path}")
+            
+        except Exception as e:
+            app.logger.error(f"Backup failed: {e}")
+            if os.path.exists(backup_path):
+                os.remove(backup_path)
+        finally:
+            src.close()
+            dst.close()
+        
+        # تنظيف النسخ القديمة
+        keep_last = app.config.get("BACKUP_KEEP_LAST", 5)
+        backups = sorted(glob.glob(os.path.join(backup_dir, "backup_*.db")))
+        if len(backups) > keep_last:
+            for old in backups[:-keep_last]:
+                try:
+                    os.remove(old)
+                    # حذف ملف المعلومات أيضاً
+                    info_file = old.replace(".db", ".info")
+                    if os.path.exists(info_file):
+                        os.remove(info_file)
+                except Exception as e:
+                    app.logger.warning(f"Failed to remove old backup {old}: {e}")
+                    
+    except Exception as e:
+        app.logger.error(f"Backup process failed: {e}")
 
 
 def perform_backup_sql(app):
-    uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
-    if not uri.startswith("sqlite:///"):
-        return
-    db_path = uri.replace("sqlite:///", "")
-    if not os.path.exists(db_path):
-        return
-    backup_dir = app.config.get("BACKUP_SQL_DIR")
-    os.makedirs(backup_dir, exist_ok=True)
-    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    backup_path = os.path.join(backup_dir, f"backup_{ts}.sql")
-    conn = sqlite3.connect(db_path)
+    """نسخ احتياطي SQL محسن"""
     try:
-        with open(backup_path, "w", encoding="utf-8") as f:
-            for line in conn.iterdump():
-                f.write(f"{line}\n")
-    finally:
-        conn.close()
-    keep_last = app.config.get("BACKUP_KEEP_LAST", 5)
-    backups = sorted(glob.glob(os.path.join(backup_dir, "backup_*.sql")))
-    if len(backups) > keep_last:
-        for old in backups[:-keep_last]:
-            try:
-                os.remove(old)
-            except Exception:
-                pass
+        uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+        if not uri.startswith("sqlite:///"):
+            app.logger.warning("SQL backup skipped: Database is not SQLite")
+            return
+        
+        db_path = uri.replace("sqlite:///", "")
+        if not os.path.exists(db_path):
+            app.logger.error(f"Database file not found: {db_path}")
+            return
+        
+        backup_dir = app.config.get("BACKUP_SQL_DIR")
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        backup_path = os.path.join(backup_dir, f"backup_{ts}.sql")
+        
+        conn = sqlite3.connect(db_path)
+        try:
+            with open(backup_path, "w", encoding="utf-8") as f:
+                # إضافة معلومات النسخة الاحتياطية
+                f.write(f"-- Database Backup\n")
+                f.write(f"-- Timestamp: {ts}\n")
+                f.write(f"-- Version: {app.config.get('APP_VERSION', 'unknown')}\n")
+                f.write(f"-- Original Size: {os.path.getsize(db_path)} bytes\n\n")
+                
+                # نسخ البيانات
+                for line in conn.iterdump():
+                    f.write(f"{line}\n")
+            
+            app.logger.info(f"SQL backup completed: {backup_path}")
+            
+        except Exception as e:
+            app.logger.error(f"SQL backup failed: {e}")
+            if os.path.exists(backup_path):
+                os.remove(backup_path)
+        finally:
+            conn.close()
+        
+        # تنظيف النسخ القديمة
+        keep_last = app.config.get("BACKUP_KEEP_LAST", 5)
+        backups = sorted(glob.glob(os.path.join(backup_dir, "backup_*.sql")))
+        if len(backups) > keep_last:
+            for old in backups[:-keep_last]:
+                try:
+                    os.remove(old)
+                except Exception as e:
+                    app.logger.warning(f"Failed to remove old SQL backup {old}: {e}")
+                    
+    except Exception as e:
+        app.logger.error(f"SQL backup process failed: {e}")
 
 
 def register_fonts(app=None):
@@ -258,6 +380,24 @@ def register_fonts(app=None):
                 pdfmetrics.registerFont(TTFont(name, path))
     except Exception as e:
         logging.error("Font registration failed: %s", e)
+
+
+def _safe_start_scheduler(app):
+    skip_cmds = ("db", "seed", "shell", "migrate", "upgrade", "downgrade", "init")
+    if any(cmd in sys.argv for cmd in skip_cmds):
+        app.logger.info("Scheduler skipped: CLI context.")
+        return
+    if os.environ.get("DISABLE_SCHEDULER"):
+        app.logger.info("Scheduler disabled by environment variable.")
+        return
+    try:
+        if not scheduler.running:
+            scheduler.start()
+            app.logger.info("APScheduler started.")
+        else:
+            app.logger.info("APScheduler already running; skip start.")
+    except Exception as e:
+        app.logger.warning(f"Scheduler start skipped: {e}")
 
 
 def init_extensions(app):
@@ -288,6 +428,7 @@ def init_extensions(app):
     app.config.setdefault("RATELIMIT_EXEMPT_SUPER", True)
 
     limiter.init_app(app)
+    cache.init_app(app)
 
     default_limit = app.config.get("RATELIMIT_DEFAULT")
     if default_limit:
@@ -312,20 +453,23 @@ def init_extensions(app):
                 return False
             return False
 
-    scheduler.add_job(
-        lambda: perform_backup_db(app),
-        "interval",
-        seconds=app.config.get("BACKUP_DB_INTERVAL").total_seconds(),
-        id="db_backup",
-        replace_existing=True,
-    )
-    scheduler.add_job(
-        lambda: perform_backup_sql(app),
-        "interval",
-        seconds=app.config.get("BACKUP_SQL_INTERVAL").total_seconds(),
-        id="sql_backup",
-        replace_existing=True,
-    )
-    scheduler.start()
+    try:
+        scheduler.add_job(
+            lambda: perform_backup_db(app),
+            "interval",
+            seconds=app.config.get("BACKUP_DB_INTERVAL").total_seconds(),
+            id="db_backup",
+            replace_existing=True,
+        )
+        scheduler.add_job(
+            lambda: perform_backup_sql(app),
+            "interval",
+            seconds=app.config.get("BACKUP_SQL_INTERVAL").total_seconds(),
+            id="sql_backup",
+            replace_existing=True,
+        )
+    except Exception as e:
+        app.logger.warning(f"Scheduler job registration failed: {e}")
 
+    _safe_start_scheduler(app)
     register_fonts(app)
