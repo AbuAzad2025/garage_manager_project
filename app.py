@@ -362,7 +362,7 @@ def create_app(config_object=Config) -> Flask:
     app.jinja_env.filters["format_currency_in_ils"] = format_currency_in_ils
     app.jinja_env.globals["get_entity_balance_in_ils"] = get_entity_balance_in_ils
     app.jinja_env.globals["url_for_any"] = url_for_any
-    app.jinja_env.globals["now"] = datetime.utcnow
+    app.jinja_env.globals["now"] = lambda: datetime.now(timezone.utc)
 
     attach_acl(
         shop_bp,
