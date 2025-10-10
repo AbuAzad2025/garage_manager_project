@@ -5,6 +5,8 @@
 {% block content %}
 <div class="container-fluid">
   
+  {% include 'security/_navigation.html' %}
+  
   <div class="card">
     <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
       <h5 class="mb-0">{{ log_type|upper }}.log</h5>

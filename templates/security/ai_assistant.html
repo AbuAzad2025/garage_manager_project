@@ -5,6 +5,23 @@
 {% block content %}
 <div class="container-fluid">
   
+  {% include 'security/_navigation.html' %}
+  
+  <!-- تنبيه حالة المفاتيح -->
+  <div class="alert alert-info mb-3">
+    <div class="row align-items-center">
+      <div class="col-md-8">
+        <i class="fas fa-info-circle"></i> <strong>المساعد الذكي متصل بـ Groq API (Llama 3.3 70B)</strong>
+        <br><small>تأكد من تفعيل مفتاح في <a href="{{ url_for('security.ai_config') }}" class="alert-link">إدارة المفاتيح</a></small>
+      </div>
+      <div class="col-md-4 text-end">
+        <a href="{{ url_for('security.ai_config') }}" class="btn btn-sm btn-outline-primary">
+          <i class="fas fa-key"></i> إدارة المفاتيح
+        </a>
+      </div>
+    </div>
+  </div>
+  
   <div class="row g-3">
     <div class="col-lg-8">
       <div class="card">
@@ -75,6 +92,9 @@
 </div>
 
 <script>
+// CSRF Token
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
 document.getElementById('chatForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const input = document.getElementById('chatInput');
@@ -83,23 +103,61 @@ document.getElementById('chatForm').addEventListener('submit', async (e) => {
   
   // عرض رسالة المستخدم
   const chatMessages = document.getElementById('chatMessages');
-  chatMessages.innerHTML += `<div class="alert alert-secondary"><strong>أنت:</strong> ${message}</div>`;
+  chatMessages.innerHTML += `
+    <div class="alert alert-secondary mb-2">
+      <strong><i class="fas fa-user"></i> أنت:</strong> ${message}
+    </div>`;
   input.value = '';
+  
+  // عرض مؤشر التحميل
+  const loadingId = 'loading-' + Date.now();
+  chatMessages.innerHTML += `
+    <div class="alert alert-info mb-2" id="${loadingId}">
+      <i class="fas fa-spinner fa-spin"></i> <strong>AI يفكر...</strong>
+    </div>`;
+  chatMessages.scrollTop = chatMessages.scrollHeight;
   
   // إرسال للـ AI
   try {
     const response = await fetch('{{ url_for("security.ai_chat") }}', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
+      },
+      credentials: 'same-origin',
       body: JSON.stringify({message})
     });
+    
+    // حذف مؤشر التحميل
+    document.getElementById(loadingId)?.remove();
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
     const data = await response.json();
     
     // عرض رد AI
-    chatMessages.innerHTML += `<div class="alert alert-primary"><strong>AI:</strong> ${data.response}</div>`;
+    chatMessages.innerHTML += `
+      <div class="alert alert-success mb-2">
+        <strong><i class="fas fa-robot"></i> AI:</strong> ${data.response}
+      </div>`;
     chatMessages.scrollTop = chatMessages.scrollHeight;
+    
   } catch (err) {
-    chatMessages.innerHTML += `<div class="alert alert-danger">خطأ في الاتصال بـ AI</div>`;
+    // حذف مؤشر التحميل
+    document.getElementById(loadingId)?.remove();
+    
+    chatMessages.innerHTML += `
+      <div class="alert alert-danger mb-2">
+        <strong><i class="fas fa-exclamation-triangle"></i> خطأ:</strong> 
+        ${err.message || 'خطأ في الاتصال بـ AI'}
+        <br><small>تأكد من تفعيل مفتاح في <a href="{{ url_for('security.ai_config') }}" class="alert-link">إدارة المفاتيح</a></small>
+      </div>`;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    
+    console.error('AI Error:', err);
   }
 });
 </script>

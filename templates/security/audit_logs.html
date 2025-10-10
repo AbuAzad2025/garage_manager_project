@@ -3,6 +3,8 @@
 {% block page_title %}📜 سجل التدقيق الأمني{% endblock %}
 {% block content %}
 <div class="container-fluid">
+  {% include 'security/_navigation.html' %}
+  
   <div class="card"><div class="card-body">
     <table class="table table-sm table-striped">
       <thead><tr><th>التاريخ</th><th>النوع</th><th>الإجراء</th><th>المستخدم</th><th>IP</th></tr></thead>

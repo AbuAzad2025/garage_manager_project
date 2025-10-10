@@ -5,6 +5,8 @@
 {% block content %}
 <div class="container-fluid">
   
+  {% include 'security/_navigation.html' %}
+  
   <div class="alert alert-warning border-0 shadow-sm">
     <i class="fas fa-exclamation-triangle"></i> <strong>تحذير:</strong> تعديل مباشر على جدول <code>{{ table_name }}</code> - كن حذراً!
   </div>

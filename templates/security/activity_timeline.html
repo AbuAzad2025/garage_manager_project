@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+{% block title %}Activity Timeline{% endblock %}
+{% block page_title %}⏱️ Activity Timeline - سجل النشاط{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  {% include 'security/_navigation.html' %}
+  
+  <!-- إحصائيات -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="small-box bg-info">
+        <div class="inner">
+          <h3>{{ stats.total }}</h3>
+          <p>إجمالي الأحداث</p>
+        </div>
+        <div class="icon"><i class="fas fa-history"></i></div>
+      </div>
+    </div>
+    
+    <div class="col-md-4">
+      <div class="small-box bg-success">
+        <div class="inner">
+          <h3>{{ stats.users }}</h3>
+          <p>مستخدمين نشطين</p>
+        </div>
+        <div class="icon"><i class="fas fa-users"></i></div>
+      </div>
+    </div>
+    
+    <div class="col-md-4">
+      <div class="small-box bg-warning">
+        <div class="inner">
+          <h3>{{ stats.actions }}</h3>
+          <p>أنواع الإجراءات</p>
+        </div>
+        <div class="icon"><i class="fas fa-tasks"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- الفلترة -->
+  <div class="card mb-3">
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0"><i class="fas fa-filter"></i> تصفية</h5>
+    </div>
+    <div class="card-body">
+      <form method="GET">
+        <div class="row">
+          <div class="col-md-4">
+            <label class="form-label">المدة الزمنية</label>
+            <select name="hours" class="form-select">
+              <option value="1" {% if hours == 1 %}selected{% endif %}>آخر ساعة</option>
+              <option value="6" {% if hours == 6 %}selected{% endif %}>آخر 6 ساعات</option>
+              <option value="24" {% if hours == 24 %}selected{% endif %}>آخر 24 ساعة</option>
+              <option value="168" {% if hours == 168 %}selected{% endif %}>آخر أسبوع</option>
+            </select>
+          </div>
+          
+          <div class="col-md-4">
+            <label class="form-label">المستخدم</label>
+            <select name="user" class="form-select">
+              <option value="">الكل</option>
+              {% for user in users %}
+              <option value="{{ user.id }}" {% if user_filter == user.id %}selected{% endif %}>{{ user.username }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          
+          <div class="col-md-4">
+            <label class="form-label">نوع الإجراء</label>
+            <input type="text" name="action" class="form-control" value="{{ action_filter or '' }}" placeholder="مثال: login">
+          </div>
+        </div>
+        
+        <button type="submit" class="btn btn-primary mt-3">
+          <i class="fas fa-search"></i> تصفية
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Timeline -->
+  <div class="card">
+    <div class="card-header bg-dark text-white">
+      <h5 class="mb-0">Timeline ({{ activities|length }} حدث)</h5>
+    </div>
+    <div class="card-body">
+      <div class="timeline" style="max-height: 600px; overflow-y: auto;">
+        {% for activity in activities %}
+        <div class="time-label">
+          <span class="bg-primary">{{ activity.created_at.strftime('%Y-%m-%d %H:%M:%S') if activity.created_at else 'N/A' }}</span>
+        </div>
+        <div>
+          <i class="fas fa-{{ _get_action_icon(activity.action) }} bg-{{ _get_action_color(activity.action) }}"></i>
+          <div class="timeline-item">
+            <span class="time"><i class="fas fa-clock"></i> {{ activity.created_at.strftime('%H:%M') if activity.created_at else 'N/A' }}</span>
+            <h3 class="timeline-header">
+              <strong>{{ activity.action }}</strong>
+              {% if activity.user_id %}
+              <small>by User #{{ activity.user_id }}</small>
+              {% endif %}
+            </h3>
+            <div class="timeline-body">
+              {{ activity.note or 'No details' }}
+              {% if activity.ip_address %}
+              <br><small class="text-muted">IP: {{ activity.ip_address }}</small>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+        
+        <div>
+          <i class="fas fa-clock bg-gray"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{% macro _get_action_icon(action) %}
+{% if 'login' in action %}user
+{% elif 'create' in action %}plus
+{% elif 'update' in action %}edit
+{% elif 'delete' in action %}trash
+{% elif 'block' in action %}ban
+{% else %}circle
+{% endif %}
+{% endmacro %}
+
+{% macro _get_action_color(action) %}
+{% if 'failed' in action or 'block' in action %}danger
+{% elif 'success' in action or 'create' in action %}success
+{% elif 'update' in action %}warning
+{% elif 'delete' in action %}danger
+{% else %}info
+{% endif %}
+{% endmacro %}
+{% endblock %}
+

@@ -616,29 +616,41 @@ def create_app(config_object=Config) -> Flask:
     # Middleware لوضع الصيانة
     @app.before_request
     def check_maintenance_mode():
-        """فحص وضع الصيانة"""
-        # السماح بالوصول للـ static files
+        """فحص وضع الصيانة - المنطق المحسّن"""
+        # السماح بالوصول للـ static files دائماً
         if request.path.startswith('/static/'):
             return None
         
-        # السماح للمالك بالوصول
-        if current_user.is_authenticated:
-            try:
-                if is_super() and current_user.id == 1:
-                    return None
-            except:
-                pass
+        # السماح لكل صفحات المصادقة (login, logout, register, etc)
+        if request.path.startswith('/auth/'):
+            return None
         
-        # فحص وضع الصيانة
+        # إذا المستخدم غير مسجل دخول - السماح له للوصول لصفحة الدخول
+        if not current_user.is_authenticated:
+            return None
+        
+        # المستخدم مسجل دخول - فحص وضع الصيانة
         try:
             from models import SystemSettings
             setting = SystemSettings.query.filter_by(key='maintenance_mode').first()
-            if setting and setting.value.lower() in ['true', '1', 'yes']:
-                return render_template('maintenance.html'), 503
+            if not setting or setting.value.lower() not in ['true', '1', 'yes']:
+                # وضع الصيانة غير مفعل - السماح للجميع
+                return None
+        except:
+            return None
+        
+        # وضع الصيانة مفعّل - فحص صلاحيات المستخدم
+        try:
+            # السماح للمالك (Owner) والسوبر أدمن
+            if (current_user.id == 1 or 
+                current_user.username.lower() in ['azad', 'owner', 'admin'] or
+                is_super()):
+                return None
         except:
             pass
         
-        return None
+        # مستخدم عادي ووضع الصيانة مفعّل - عرض صفحة الصيانة
+        return render_template('maintenance.html'), 503
 
     from cli import register_cli
     register_cli(app)

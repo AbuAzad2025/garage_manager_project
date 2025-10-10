@@ -5,6 +5,8 @@
 {% block content %}
 <div class="container-fluid">
   
+  {% include 'security/_navigation.html' %}
+  
   <div class="alert alert-danger border-0 shadow-sm">
     <i class="fas fa-exclamation-triangle"></i>
     <strong>تحذير:</strong> هذه الوحدة سرية ومتاحة فقط لـ Super Admin. جميع الإجراءات يتم تسجيلها.
@@ -141,6 +143,19 @@
           <p class="text-muted small">عرض جميع الأنشطة</p>
           <a href="{{ url_for('security.audit_logs') }}" class="btn btn-info btn-sm">
             <i class="fas fa-file-alt"></i> عرض السجل
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-gradient-success">
+        <div class="card-body text-center text-white">
+          <i class="fas fa-robot fa-3x mb-3"></i>
+          <h5 class="text-white">تكوين AI</h5>
+          <p class="small">إدارة مفاتيح الذكاء الاصطناعي</p>
+          <a href="{{ url_for('security.ai_config') }}" class="btn btn-light btn-sm">
+            <i class="fas fa-key"></i> إدارة المفاتيح
           </a>
         </div>
       </div>

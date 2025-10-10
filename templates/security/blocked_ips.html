@@ -5,6 +5,8 @@
 {% block content %}
 <div class="container-fluid">
   
+  {% include 'security/_navigation.html' %}
+  
   <a href="{{ url_for('security.block_ip') }}" class="btn btn-danger mb-3">
     <i class="fas fa-ban"></i> حظر IP جديد
   </a>
