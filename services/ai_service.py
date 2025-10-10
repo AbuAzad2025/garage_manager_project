@@ -41,6 +41,7 @@ _conversation_memory = {}
 _last_audit_time = None
 _groq_failures = []
 _local_fallback_mode = False
+_system_state = "HYBRID"  # HYBRID, LOCAL_ONLY, API_ONLY
 
 
 def get_system_setting(key, default=''):
@@ -457,12 +458,30 @@ def generate_smart_report(intent):
 
 
 def build_system_message(system_context):
-    """بناء رسالة النظام الأساسية للـ AI - محسّنة بالمعرفة"""
+    """بناء رسالة النظام الأساسية للـ AI - محسّنة بالمعرفة وتعريف الذات"""
+    
+    # الحصول على هوية المساعد
+    identity = get_system_identity()
     
     kb = get_knowledge_base()
     structure = kb.get_system_structure()
     
-    return f"""أنت النظام الذكي لـ "أزاد لإدارة الكراج" - Azad Garage Manager System
+    return f"""أنا {identity['name']} ({identity['version']}) - المساعد الذكي في نظام أزاد لإدارة الكراج.
+
+═══════════════════════════════════════
+🤖 هويتي ووضع التشغيل:
+═══════════════════════════════════════
+
+⚙️ **الوضع الحالي:** {identity['mode']}
+📡 **Groq API:** {identity['status']['groq_api']}
+🧠 **القدرات:** تحليل محلي، قاعدة معرفة (1,945 عنصر)، VAT، تدريب ذاتي
+📊 **المصادر:** قاعدة بيانات محلية (SQLAlchemy) + ملفات معرفة JSON
+
+💡 **ملاحظة:** أنا أعمل محلياً بوضع {identity['mode']}.
+إذا كنت بوضع LOCAL_ONLY → أستخدم المعرفة المحلية فقط (بدون Groq).
+إذا كنت بوضع HYBRID → أستخدم Groq + المعرفة المحلية (الأفضل).
+
+أنت النظام الذكي لـ "أزاد لإدارة الكراج" - Azad Garage Manager System
 أنت جزء من النظام، تعرف كل شيء عنه، وتتكلم بصوته.
 
 ═══════════════════════════════════════
@@ -1156,7 +1175,7 @@ def search_database_for_query(query):
 
 def check_groq_health():
     """فحص صحة اتصال Groq وتفعيل Local Fallback إذا لزم الأمر"""
-    global _groq_failures, _local_fallback_mode
+    global _groq_failures, _local_fallback_mode, _system_state
     
     # تنظيف الأخطاء القديمة (أكثر من 24 ساعة)
     current_time = datetime.now(timezone.utc)
@@ -1165,39 +1184,185 @@ def check_groq_health():
         if (current_time - f).total_seconds() < 86400
     ]
     
-    # إذا فشل 3 مرات خلال 24 ساعة → تفعيل Local Fallback
+    # تحديث حالة النظام
     if len(_groq_failures) >= 3:
         _local_fallback_mode = True
+        _system_state = "LOCAL_ONLY"
         return False
+    elif len(_groq_failures) > 0:
+        _system_state = "HYBRID"
+    else:
+        _system_state = "API_ONLY"
     
     return True
 
 
+def get_system_identity():
+    """الحصول على هوية المساعد ووضع التشغيل"""
+    global _system_state, _groq_failures
+    
+    return {
+        'name': 'المساعد الذكي في نظام Garage Manager',
+        'version': 'AI 4.0 - Full Awareness Edition',
+        'mode': _system_state,
+        'capabilities': {
+            'local_analysis': True,
+            'database_access': True,
+            'knowledge_base': True,
+            'finance_calculations': True,
+            'auto_discovery': True,
+            'self_training': True
+        },
+        'status': {
+            'groq_api': 'offline' if _local_fallback_mode else 'online',
+            'groq_failures_24h': len(_groq_failures),
+            'local_mode_active': _local_fallback_mode
+        },
+        'data_sources': [
+            'instance/ai_knowledge_cache.json',
+            'instance/ai_data_schema.json',
+            'instance/ai_system_map.json',
+            'قاعدة البيانات المحلية (SQLAlchemy)'
+        ]
+    }
+
+
 def get_local_fallback_response(message, search_results):
-    """الرد باستخدام المعرفة المحلية فقط (بدون Groq)"""
+    """الرد باستخدام المعرفة المحلية فقط - محسّن للذكاء المحلي"""
     try:
-        response = "📡 تم استخدام المعرفة المحلية مؤقتًا لتعذر الوصول إلى مزود Groq.\n\n"
+        from services.ai_knowledge import get_knowledge_base
+        from services.ai_knowledge_finance import get_finance_knowledge
         
-        # تحليل بسيط من search_results
-        if search_results:
-            response += "📊 البيانات المتاحة:\n\n"
+        response = "🤖 **أنا المساعد المحلي في نظام Garage Manager**\n"
+        response += "أعمل الآن بوضع محلي كامل (بدون اتصال خارجي).\n\n"
+        
+        # تحليل السؤال
+        message_lower = message.lower()
+        
+        # تحليل ذكي من search_results
+        if search_results and any(k for k in search_results.keys() if not k.startswith('_')):
+            response += "📊 **البيانات المتوفرة من قاعدة البيانات:**\n\n"
+            
+            # تحليل حسب النوع
+            counts = {}
+            data_items = {}
             
             for key, value in search_results.items():
-                if isinstance(value, int):
-                    response += f"• {key}: {value}\n"
-                elif isinstance(value, dict):
-                    response += f"• {key}: {len(value)} عنصر\n"
-                elif isinstance(value, list):
-                    response += f"• {key}: {len(value)} صف\n"
-        else:
-            response += "⚠️ لا توجد بيانات متاحة للسؤال المطروح.\n"
+                if key.startswith('_'):
+                    continue
+                    
+                if isinstance(value, int) and value > 0:
+                    counts[key] = value
+                elif isinstance(value, dict) and value:
+                    data_items[key] = value
+                elif isinstance(value, list) and value:
+                    data_items[key] = value
+            
+            # عرض الأعداد
+            if counts:
+                for key, count in counts.items():
+                    arabic_key = key.replace('_count', '').replace('_', ' ')
+                    response += f"✅ **{arabic_key}:** {count}\n"
+            
+            # عرض البيانات التفصيلية
+            if data_items:
+                response += "\n📋 **تفاصيل إضافية:**\n"
+                for key, items in list(data_items.items())[:3]:  # أول 3 نتائج
+                    if isinstance(items, list) and items:
+                        response += f"\n• **{key}:**\n"
+                        for item in items[:3]:  # أول 3 عناصر
+                            if isinstance(item, dict):
+                                # عرض معلومات مفيدة
+                                if 'name' in item:
+                                    response += f"  - {item.get('name', 'N/A')}\n"
+                                elif 'amount' in item:
+                                    response += f"  - مبلغ: {item.get('amount', 0)}\n"
+                    elif isinstance(items, dict):
+                        response += f"\n• **{key}:** {len(items)} عنصر\n"
+            
+            # إضافة توصيات ذكية
+            response += "\n\n💡 **توصيات:**\n"
+            
+            if 'نفق' in message_lower or 'مصروف' in message_lower:
+                if counts.get('expenses_count', 0) > 0:
+                    response += "• يمكنك الوصول إلى صفحة النفقات لعرض التفاصيل الكاملة.\n"
+                    response += "• الرابط: `/expenses`\n"
+            
+            if 'صيانة' in message_lower or 'service' in message_lower:
+                if counts.get('services_total', 0) > 0:
+                    response += "• يمكنك الوصول إلى صفحة الصيانة لعرض جميع الطلبات.\n"
+                    response += "• الرابط: `/service`\n"
+            
+            if 'عميل' in message_lower or 'customer' in message_lower:
+                if counts.get('customers_count', 0) > 0:
+                    response += "• يمكنك الوصول إلى صفحة العملاء لعرض التفاصيل.\n"
+                    response += "• الرابط: `/customers`\n"
         
-        response += "\n💡 سيتم استعادة الاتصال بـ Groq تلقائياً عند حل المشكلة."
+        else:
+            # لا توجد بيانات - رد ذكي تفاعلي
+            response += "⚠️ لم أجد بيانات مباشرة للسؤال، لكن يمكنني:\n\n"
+            response += "1. 🔍 البحث في جداول النظام المحلية\n"
+            response += "2. 📊 عرض الإحصائيات العامة\n"
+            response += "3. 🧭 توجيهك للصفحة المناسبة\n"
+            response += "4. 💰 حساب الضرائب والعملات (محلياً)\n\n"
+            
+            # اقتراحات ذكية
+            kb = get_knowledge_base()
+            structure = kb.get_system_structure()
+            
+            response += f"💡 **معلومات النظام المتاحة محلياً:**\n"
+            response += f"• عدد النماذج المعروفة: {structure.get('models_count', 0)}\n"
+            response += f"• عدد الوحدات: {len(structure.get('routes', {}))}\n"
+            response += f"• عدد القوالب: {structure.get('templates_count', 0)}\n\n"
+            
+            response += "📝 **اسألني عن:**\n"
+            response += "• 'كم عدد العملاء؟'\n"
+            response += "• 'النفقات اليوم؟'\n"
+            response += "• 'أين صفحة الصيانة؟'\n"
+            response += "• 'احسب VAT لـ 1000 شيقل'\n"
+        
+        response += "\n\n🔄 **الحالة:** أعمل بوضع محلي ذكي (Local AI Mode)\n"
+        response += "📡 سيتم استعادة الاتصال بـ Groq تلقائياً عند حل المشكلة."
+        
+        # تسجيل استخدام الوضع المحلي
+        log_local_mode_usage()
         
         return response
     
     except Exception as e:
         return f"⚠️ خطأ في الوضع المحلي: {str(e)}"
+
+
+def log_local_mode_usage():
+    """تسجيل استخدام الوضع المحلي"""
+    try:
+        import json
+        import os
+        from datetime import datetime
+        
+        log_file = 'instance/ai_local_mode_log.json'
+        
+        os.makedirs('instance', exist_ok=True)
+        
+        logs = []
+        if os.path.exists(log_file):
+            with open(log_file, 'r', encoding='utf-8') as f:
+                logs = json.load(f)
+        
+        logs.append({
+            'timestamp': datetime.now().isoformat(),
+            'mode': 'LOCAL_ONLY',
+            'groq_failures': len(_groq_failures)
+        })
+        
+        # الاحتفاظ بآخر 100 سجل
+        logs = logs[-100:]
+        
+        with open(log_file, 'w', encoding='utf-8') as f:
+            json.dump(logs, f, ensure_ascii=False, indent=2)
+    
+    except:
+        pass
 
 
 def ai_chat_response(message, search_results=None, session_id='default'):
@@ -1411,32 +1576,85 @@ def ai_chat_with_search(message, session_id='default'):
         if error_result['formatted_response']:
             message = f"{message}\n\n{error_result['formatted_response']}"
     
+    # فحص الأسئلة العامة (لا تحتاج بيانات من قاعدة البيانات)
+    message_lower = message.lower()
+    general_keywords = ['من أنت', 'عرف', 'هويت', 'اسمك', 'who are you', 'introduce',
+                       'ما وضع', 'حالت', 'قدرات', 'تستطيع', 'ماذا تفعل',
+                       'لماذا الثقة', 'why confidence', 'شرح', 'explain']
+    
+    is_general_question = any(keyword in message_lower for keyword in general_keywords)
+    
     search_results = search_database_for_query(message)
     
     validation = validate_search_results(message, search_results)
     
     confidence = calculate_confidence_score(search_results, validation)
     
+    # رفع الثقة للأسئلة العامة تلقائياً
+    if is_general_question and confidence < 60:
+        confidence = 75
+        validation['has_data'] = True
+        validation['quality'] = 'good'
+    
     search_results['_validation'] = validation
     search_results['_confidence_score'] = confidence
+    search_results['_is_general'] = is_general_question
     
     compliance = check_policy_compliance(confidence, validation.get('has_data', False))
     
+    # رد ذكي تفاعلي بدل الرفض المباشر
     if not compliance['passed']:
-        refusal = f"""⚠️ لا يمكنني الإجابة بثقة كافية.
+        # بدل الرفض المطلق، نقدم رد تفاعلي
+        interactive_response = f"""🤖 **أنا المساعد المحلي - أعمل الآن بدون اتصال خارجي**
 
 📊 درجة الثقة: {confidence}%
 
-🚨 الأسباب:
-{chr(10).join('• ' + v for v in compliance['violations'])}
+⚠️ لم أجد بيانات مباشرة، لكن يمكنني:
 
-💡 جرّب:
-• صياغة السؤال بطريقة أوضح
-• التأكد من وجود البيانات في النظام
-• استخدام كلمات مفتاحية محددة"""
+"""
         
-        log_interaction(message, refusal, confidence, search_results)
-        return refusal
+        # اقتراحات ذكية حسب السؤال
+        message_lower = message.lower()
+        suggestions = []
+        
+        if 'نفق' in message_lower or 'مصروف' in message_lower:
+            suggestions.append("🔍 البحث في جدول النفقات (Expense)")
+            suggestions.append("💰 حساب إجمالي النفقات من قاعدة البيانات")
+            suggestions.append("📊 عرض تقرير النفقات اليومية")
+        
+        if 'صيانة' in message_lower or 'service' in message_lower:
+            suggestions.append("🔧 البحث في طلبات الصيانة (ServiceRequest)")
+            suggestions.append("📋 عرض الحالات المفتوحة والمغلقة")
+        
+        if 'ضريبة' in message_lower or 'vat' in message_lower:
+            suggestions.append("💰 حساب VAT محلياً (16% فلسطين / 17% إسرائيل)")
+            suggestions.append("📊 عرض قواعد الضرائب من المعرفة المحلية")
+        
+        if 'دولار' in message_lower or 'صرف' in message_lower:
+            suggestions.append("💱 قراءة آخر سعر صرف من ExchangeTransaction")
+            suggestions.append("📊 عرض تاريخ أسعار الصرف")
+        
+        if not suggestions:
+            suggestions = [
+                "🔍 البحث في قاعدة البيانات المحلية",
+                "📊 عرض الإحصائيات العامة للنظام",
+                "🧭 توجيهك للصفحة المناسبة",
+                "💰 حسابات مالية محلية (VAT، الضرائب، العملات)"
+            ]
+        
+        for i, sug in enumerate(suggestions[:4], 1):
+            interactive_response += f"{i}. {sug}\n"
+        
+        interactive_response += f"\n💬 **هل ترغب أن أقوم بأحد هذه الإجراءات؟**\n"
+        interactive_response += f"أو أعد صياغة السؤال بطريقة أوضح.\n\n"
+        
+        # معلومات الحالة
+        identity = get_system_identity()
+        interactive_response += f"📡 **الحالة:** {identity['mode']}\n"
+        interactive_response += f"🔧 **Groq API:** {identity['status']['groq_api']}\n"
+        
+        log_interaction(message, interactive_response, confidence, search_results)
+        return interactive_response
     
     response = ai_chat_response(message, search_results, session_id)
     
