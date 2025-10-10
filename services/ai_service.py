@@ -1561,9 +1561,128 @@ def handle_navigation_request(message):
         return f"⚠️ خطأ في البحث عن الصفحة: {str(e)}"
 
 
+def local_intelligent_response(message):
+    """رد محلي ذكي - بدون Groq - يعتمد على القواعد والبحث المباشر"""
+    from services.ai_knowledge import get_local_faq_responses, get_local_quick_rules
+    from models import Customer, ServiceRequest, Expense, Product, Supplier, Invoice, Payment
+    
+    message_lower = message.lower()
+    
+    # 1. فحص FAQ أولاً
+    faq = get_local_faq_responses()
+    for key, response in faq.items():
+        if key in message_lower:
+            return f"💡 **رد محلي فوري:**\n\n{response}"
+    
+    # 2. فحص القواعد السريعة
+    quick_rules = get_local_quick_rules()
+    for rule_key, rule in quick_rules.items():
+        for pattern in rule['patterns']:
+            if pattern in message_lower:
+                try:
+                    # تنفيذ الاستعلام
+                    if 'Customer' in rule['query']:
+                        count = Customer.query.count()
+                    elif 'ServiceRequest' in rule['query']:
+                        count = ServiceRequest.query.count()
+                    elif 'Expense' in rule['query']:
+                        count = Expense.query.count()
+                    elif 'Product' in rule['query']:
+                        count = Product.query.count()
+                    elif 'Supplier' in rule['query']:
+                        count = Supplier.query.count()
+                    
+                    return f"💡 **رد محلي فوري:**\n\n{rule['response_template'].format(count=count)}"
+                except:
+                    pass
+    
+    # 3. حسابات مالية محلية
+    if 'احسب' in message_lower or 'calculate' in message_lower:
+        if 'vat' in message_lower or 'ضريبة' in message_lower:
+            # استخراج الرقم
+            import re
+            numbers = re.findall(r'\d+', message)
+            if numbers:
+                amount = float(numbers[0])
+                country = 'israel' if 'إسرائيل' in message_lower or 'israel' in message_lower else 'palestine'
+                
+                from services.ai_knowledge_finance import calculate_vat
+                vat_result = calculate_vat(amount, country)
+                
+                return f"""💰 **حساب VAT محلي:**
+
+المبلغ الأساسي: {amount:.2f}₪
+الدولة: {'فلسطين' if country == 'palestine' else 'إسرائيل'}
+نسبة VAT: {vat_result['rate']}%
+قيمة VAT: {vat_result['vat_amount']:.2f}₪
+الإجمالي: {vat_result['total_with_vat']:.2f}₪
+
+✅ حساب محلي دقيق 100%"""
+    
+    # 4. معلومات عن الوحدات
+    modules_info = {
+        'صيانة': {'route': '/service', 'desc': 'إدارة طلبات الصيانة والإصلاح'},
+        'عملاء': {'route': '/customers', 'desc': 'إدارة بيانات العملاء'},
+        'نفقات': {'route': '/expenses', 'desc': 'تسجيل ومتابعة المصاريف'},
+        'مبيعات': {'route': '/sales', 'desc': 'إدارة المبيعات والفواتير'},
+        'متجر': {'route': '/shop', 'desc': 'المتجر الإلكتروني'},
+        'مخازن': {'route': '/warehouses', 'desc': 'إدارة المستودعات'},
+        'موردين': {'route': '/vendors', 'desc': 'إدارة الموردين'},
+        'دفتر': {'route': '/ledger', 'desc': 'دفتر الأستاذ العام'},
+        'تقارير': {'route': '/reports', 'desc': 'التقارير المالية والإدارية'},
+    }
+    
+    for module, info in modules_info.items():
+        if module in message_lower or f'وين {module}' in message_lower or f'أين {module}' in message_lower:
+            return f"""📍 **معلومات الوحدة:**
+
+📛 **الاسم:** {module}
+📝 **الوصف:** {info['desc']}
+🔗 **الرابط:** {info['route']}
+
+✅ يمكنك الوصول مباشرة من القائمة الجانبية."""
+    
+    # 5. إحصائيات شاملة
+    if 'إحصائيات' in message_lower or 'تقرير' in message_lower or 'ملخص' in message_lower:
+        try:
+            stats = {
+                'customers': Customer.query.count(),
+                'services': ServiceRequest.query.count(),
+                'expenses': Expense.query.count(),
+                'products': Product.query.count(),
+                'suppliers': Supplier.query.count(),
+                'invoices': Invoice.query.count(),
+                'payments': Payment.query.count(),
+            }
+            
+            response = """📊 **إحصائيات النظام الشاملة:**
+
+👥 العملاء: {customers}
+🔧 طلبات الصيانة: {services}
+💸 النفقات: {expenses}
+📦 المنتجات: {products}
+🏭 الموردين: {suppliers}
+📄 الفواتير: {invoices}
+💳 المدفوعات: {payments}
+
+✅ بيانات محلية دقيقة 100%"""
+            
+            return response.format(**stats)
+        except Exception as e:
+            pass
+    
+    # لا يوجد رد محلي مباشر
+    return None
+
+
 def ai_chat_with_search(message, session_id='default'):
     """رد AI محسّن مع Validation و Self-Review"""
     global _last_audit_time
+    
+    # محاولة رد محلي ذكي أولاً
+    local_response = local_intelligent_response(message)
+    if local_response:
+        return local_response
     
     intent = analyze_question_intent(message)
     
