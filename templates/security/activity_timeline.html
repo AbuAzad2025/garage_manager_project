@@ -93,7 +93,7 @@
           <span class="bg-primary">{{ activity.created_at.strftime('%Y-%m-%d %H:%M:%S') if activity.created_at else 'N/A' }}</span>
         </div>
         <div>
-          <i class="fas fa-{{ _get_action_icon(activity.action) }} bg-{{ _get_action_color(activity.action) }}"></i>
+            <i class="fas fa-circle bg-info"></i>
           <div class="timeline-item">
             <span class="time"><i class="fas fa-clock"></i> {{ activity.created_at.strftime('%H:%M') if activity.created_at else 'N/A' }}</span>
             <h3 class="timeline-header">

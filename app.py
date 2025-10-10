@@ -155,6 +155,42 @@ def create_app(config_object=Config) -> Flask:
     
     # استثناء CSRF للمساعد الذكي
     csrf.exempt(ledger_bp)
+    
+    # استثناء CSRF لـ API endpoints فقط في security
+    from routes.security import security_bp
+    csrf.exempt(security_bp)
+    
+    # تسجيل دوال template globals لوحدة الأمان
+    @app.template_global()
+    def _get_action_icon(action):
+        if not action:
+            return 'info-circle'
+        mapping = {
+            'login': 'sign-in-alt', 'logout': 'sign-out-alt',
+            'create': 'plus', 'update': 'edit', 'delete': 'trash',
+            'view': 'eye', 'export': 'download', 'import': 'upload',
+            'blocked': 'ban', 'security': 'shield-alt'
+        }
+        action_lower = str(action).lower()
+        for key, icon in mapping.items():
+            if key in action_lower:
+                return icon
+        return 'circle'
+    
+    @app.template_global()
+    def _get_action_color(action):
+        if not action:
+            return 'secondary'
+        mapping = {
+            'login': 'success', 'logout': 'secondary',
+            'create': 'primary', 'update': 'info', 'delete': 'danger',
+            'blocked': 'danger', 'failed': 'danger', 'security': 'warning'
+        }
+        action_lower = str(action).lower()
+        for key, color in mapping.items():
+            if key in action_lower:
+                return color
+        return 'secondary'
 
     @event.listens_for(db.session.__class__, "before_attach")
     def _dedupe_entities(session, instance):

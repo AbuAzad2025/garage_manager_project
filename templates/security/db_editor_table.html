@@ -52,17 +52,17 @@
             <tr>
               {% for col in columns %}
               <td>
-                <small class="editable-cell" data-row-id="{{ row.id }}" data-column="{{ col }}">
+                <small class="editable-cell" data-row-id="{{ row['id'] }}" data-column="{{ col }}">
                   {{ row[col] }}
                 </small>
               </td>
               {% endfor %}
               <td>
                 <div class="btn-group btn-group-sm">
-                  <button class="btn btn-warning" onclick="editRow({{ row.id }}, {{ row|tojson }})">
+                  <button class="btn btn-warning" onclick="editRow({{ row['id'] }}, {{ row|tojson }})">
                     <i class="fas fa-edit"></i>
                   </button>
-                  <form method="POST" action="{{ url_for('security.db_delete_row', table_name=table_name, row_id=row.id) }}" style="display:inline;" onsubmit="return confirm('هل تريد الحذف؟');">
+                  <form method="POST" action="{{ url_for('security.db_delete_row', table_name=table_name, row_id=row['id']) }}" style="display:inline;" onsubmit="return confirm('هل تريد الحذف؟');">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-danger">
                       <i class="fas fa-trash"></i>
@@ -253,7 +253,7 @@ function editRow(rowId, rowData) {
   div{{ loop.index }}.className = 'mb-3';
   div{{ loop.index }}.innerHTML = `
     <label class="form-label">{{ col }}</label>
-    <input type="text" name="{{ col }}" class="form-control" value="${rowData['{{ col }}'] || ''}" ${{'{{ col }}' === 'id' ? 'readonly' : ''}}>
+    <input type="text" name="{{ col }}" class="form-control" value="${rowData['{{ col }}'] || ''}" ${'{{ col }}' === 'id' ? 'readonly' : ''}>
   `;
   body.appendChild(div{{ loop.index }});
   {% endfor %}

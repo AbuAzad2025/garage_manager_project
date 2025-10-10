@@ -256,23 +256,42 @@ def use_real_ai(query, financial_context, db_schema, code_structure):
 @login_required
 @permission_required("manage_ledger")
 def ask_question():
-    """نقطة الوصول الرئيسية للمساعد الذكي"""
+    """نقطة الوصول الرئيسية للمساعد الذكي - توجيه للمساعد الشامل"""
     try:
+        # استيراد خدمة AI المركزية
+        from services.ai_service import ai_chat_with_search, search_database_for_query
+        
         data = request.get_json()
         query = data.get('query', '').strip()
         from_date_str = data.get('from_date')
         to_date_str = data.get('to_date')
         
-        from_date = datetime.strptime(from_date_str, '%Y-%m-%d') if from_date_str else None
-        to_date = datetime.strptime(to_date_str, '%Y-%m-%d').replace(hour=23, minute=59, second=59) if to_date_str else None
+        # إضافة معلومات التاريخ للسؤال إذا كانت موجودة
+        if from_date_str or to_date_str:
+            date_context = f"\n(الفترة: من {from_date_str or 'البداية'} إلى {to_date_str or 'اليوم'})"
+            query += date_context
         
-        # تحليل السؤال وإعطاء الإجابة
-        answer, details = analyze_query(query, from_date, to_date)
+        # استخدام خدمة AI المركزية
+        answer = ai_chat_with_search(query)
+        
+        # الحصول على نتائج البحث للتفاصيل
+        search_results = search_database_for_query(query)
+        
+        # تحويل الإجابة لصيغة متوافقة مع الدفتر
+        details = []
+        if search_results:
+            for key, value in search_results.items():
+                if key.startswith('found_'):
+                    details.append(f"✅ تم العثور على بيانات في: {key}")
+                elif isinstance(value, dict):
+                    details.append(f"📊 {key}: {len(value)} عنصر")
+                elif isinstance(value, list):
+                    details.append(f"📋 {key}: {len(value)} صف")
         
         return jsonify({
             "success": True,
             "answer": answer,
-            "details": details
+            "details": details if details else ["تم الإجابة بنجاح من المساعد الشامل"]
         })
         
     except Exception as e:

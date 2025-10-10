@@ -12,7 +12,62 @@ from utils import is_super
 from functools import wraps
 import json
 
+from services.ai_service import (
+    ai_chat_with_search,
+    search_database_for_query,
+    gather_system_context,
+    build_system_message,
+    get_system_setting
+)
+
 security_bp = Blueprint('security', __name__, url_prefix='/security')
+
+
+@security_bp.app_template_global()
+def _get_action_icon(action):
+    """أيقونة للنشاط - Template Global"""
+    if not action:
+        return 'info-circle'
+    mapping = {
+        'login': 'sign-in-alt',
+        'logout': 'sign-out-alt',
+        'create': 'plus',
+        'update': 'edit',
+        'delete': 'trash',
+        'view': 'eye',
+        'export': 'download',
+        'import': 'upload',
+        'blocked': 'ban',
+        'security': 'shield-alt'
+    }
+    action_lower = str(action).lower()
+    for key, icon in mapping.items():
+        if key in action_lower:
+            return icon
+    return 'circle'
+
+
+@security_bp.app_template_global()
+def _get_action_color(action):
+    """لون للنشاط - Template Global"""
+    if not action:
+        return 'secondary'
+    mapping = {
+        'login': 'success',
+        'logout': 'secondary',
+        'create': 'primary',
+        'update': 'info',
+        'delete': 'danger',
+        'blocked': 'danger',
+        'failed': 'danger',
+        'security': 'warning'
+    }
+    action_lower = str(action).lower()
+    for key, color in mapping.items():
+        if key in action_lower:
+            return color
+    return 'secondary'
+
 
 # SECURITY: Owner only decorator (أول Super Admin فقط - المالك)
 def owner_only(f):
@@ -192,9 +247,9 @@ def failed_logins():
 # ═══════════════════════════════════════════════════════════════
 
 @security_bp.route('/ai-assistant', methods=['GET', 'POST'])
-@owner_only
+@login_required
 def ai_assistant():
-    """مساعد أمان ذكي بالذكاء الاصطناعي"""
+    """المساعد الذكي الشامل - متاح لجميع المستخدمين"""
     if request.method == 'POST':
         query = request.form.get('query', '').strip()
         analysis = _ai_security_analysis(query)
@@ -396,17 +451,16 @@ def ai_config():
 
 
 @security_bp.route('/api/ai-chat', methods=['POST'])
-@owner_only
+@login_required
 def ai_chat():
-    """API للمحادثة مع AI - متقدم مع بحث في البيانات"""
+    """API للمحادثة مع AI - متاح لجميع المستخدمين"""
+    from services.ai_service import ai_chat_with_search
+    
     data = request.get_json()
     message = data.get('message', '')
     
-    # البحث في البيانات إذا كان السؤال يتطلب ذلك
-    search_results = _search_database_for_query(message)
-    
-    # إرسال السؤال مع نتائج البحث للـ AI
-    response = _ai_chat_response_with_search(message, search_results)
+    # استخدام خدمة AI المركزية
+    response = ai_chat_with_search(message)
     
     return jsonify({
         'response': response,
@@ -1629,1101 +1683,57 @@ def _analyze_time_patterns():
     return {'suspicious_hours': [2, 3, 4], 'normal_hours': [9, 10, 11, 14, 15]}
 
 
-def _search_database_for_query(query):
-    """البحث الشامل غير المحدود في كل قاعدة البيانات"""
-    results = {}
-    query_lower = query.lower()
-    
-    try:
-        # استيراد جميع الموديلات
-        from models import (
-            Customer, Supplier, Product, ServiceRequest, Invoice, Payment,
-            Expense, ExpenseType, Warehouse, StockLevel, Note, Shipment,
-            Role, Permission, PartnerSettlement, SupplierSettlement,
-            Account, PreOrder, OnlineCart, ExchangeTransaction, Partner,
-            ServicePart, ServiceTask
-        )
-        
-        # البحث عن اسم محدد في السؤال (أولوية)
-        words = [w for w in query.split() if len(w) > 2]
-        found_name = None
-        
-        for word in words:
-            if word not in ['عن', 'من', 'في', 'على', 'إلى', 'هل', 'ما', 'كم', 'عميل', 'صيانة', 'منتج', 'فاتورة', 'خدمة', 'مورد']:
-                # بحث في العملاء
-                try:
-                    customer = Customer.query.filter(Customer.name.like(f'%{word}%')).first()
-                    if customer:
-                        # جمع كل معلومات العميل
-                        results['found_customer'] = {
-                            'id': customer.id,
-                            'name': customer.name,
-                            'phone': customer.phone or 'غير محدد',
-                            'email': customer.email or 'غير محدد',
-                            'address': getattr(customer, 'address', 'غير محدد'),
-                            'balance': getattr(customer, 'balance', 0),
-                            'is_active': customer.is_active,
-                            'created_at': customer.created_at.strftime('%Y-%m-%d') if customer.created_at else 'N/A'
-                        }
-                        
-                        # خدمات العميل
-                        try:
-                            customer_services = ServiceRequest.query.filter_by(customer_id=customer.id).all()
-                            results['customer_services'] = [{
-                                'id': s.id,
-                                'status': s.status,
-                                'vehicle': getattr(s, 'vehicle_info', 'N/A'),
-                                'date': s.created_at.strftime('%Y-%m-%d') if s.created_at else 'N/A'
-                            } for s in customer_services[:10]]
-                        except:
-                            pass
-                        
-                        # فواتير العميل
-                        try:
-                            customer_invoices = Invoice.query.filter_by(customer_id=customer.id).all()
-                            results['customer_invoices'] = [{
-                                'id': i.id,
-                                'total': getattr(i, 'total', 0),
-                                'date': i.issue_date.strftime('%Y-%m-%d') if i.issue_date else 'N/A'
-                            } for i in customer_invoices[:10]]
-                        except:
-                            pass
-                        
-                        found_name = word
-                        break
-                except:
-                    pass
-                
-                # بحث في الموردين
-                if not found_name:
-                    try:
-                        supplier = Supplier.query.filter(Supplier.name.like(f'%{word}%')).first()
-                        if supplier:
-                            results['found_supplier'] = {
-                                'id': supplier.id,
-                                'name': supplier.name,
-                                'phone': getattr(supplier, 'phone', 'غير محدد'),
-                                'email': getattr(supplier, 'email', 'غير محدد'),
-                                'balance': getattr(supplier, 'balance', 0)
-                            }
-                            found_name = word
-                            break
-                    except:
-                        pass
-        
-        # البحث العام في كل الوحدات
-        
-        # 1. العملاء
-        try:
-            if 'عميل' in query or 'زبون' in query or 'customer' in query_lower:
-                customers = Customer.query.order_by(Customer.created_at.desc()).limit(15).all()
-                if customers:
-                    results['all_customers'] = [{
-                        'id': c.id,
-                        'name': c.name,
-                        'phone': c.phone,
-                        'balance': getattr(c, 'balance', 0),
-                        'is_active': c.is_active
-                    } for c in customers]
-        except:
-            pass
-        
-        # 2. الصيانة
-        try:
-            if 'صيانة' in query or 'خدمة' in query or 'service' in query_lower or 'طلب' in query:
-                services = ServiceRequest.query.order_by(ServiceRequest.created_at.desc()).limit(15).all()
-                if services:
-                    results['all_services'] = [{
-                        'id': s.id,
-                        'customer_name': s.customer.name if hasattr(s, 'customer') and s.customer else 'N/A',
-                        'vehicle': getattr(s, 'vehicle_info', 'N/A'),
-                        'status': s.status,
-                        'priority': getattr(s, 'priority', 'N/A'),
-                        'date': s.created_at.strftime('%Y-%m-%d') if s.created_at else 'N/A'
-                    } for s in services]
-        except:
-            pass
-        
-        # 3. المنتجات والمخزون
-        try:
-            if 'منتج' in query or 'product' in query_lower or 'مخزون' in query or 'قطع' in query:
-                products = Product.query.limit(20).all()
-                if products:
-                    results['all_products'] = [{
-                        'id': p.id,
-                        'name': p.name,
-                        'quantity': getattr(p, 'quantity', 0),
-                        'price': getattr(p, 'selling_price', 0),
-                        'category': getattr(p, 'category', 'N/A')
-                    } for p in products]
-        except:
-            pass
-        
-        # 4. الفواتير والمبيعات
-        try:
-            if 'فاتورة' in query or 'مبيع' in query or 'invoice' in query_lower or 'sale' in query_lower:
-                invoices = Invoice.query.order_by(Invoice.issue_date.desc()).limit(15).all()
-                if invoices:
-                    results['all_invoices'] = [{
-                        'id': i.id,
-                        'customer_name': i.customer.name if hasattr(i, 'customer') and i.customer else 'N/A',
-                        'total': getattr(i, 'total', 0),
-                        'paid': getattr(i, 'paid', 0),
-                        'date': i.issue_date.strftime('%Y-%m-%d') if i.issue_date else 'N/A'
-                    } for i in invoices]
-        except:
-            pass
-        
-        # 5. المدفوعات
-        try:
-            if 'دفع' in query or 'payment' in query_lower or 'مدفوع' in query:
-                payments = Payment.query.order_by(Payment.payment_date.desc()).limit(15).all()
-                if payments:
-                    results['all_payments'] = [{
-                        'id': p.id,
-                        'amount': p.amount,
-                        'method': p.method,
-                        'status': getattr(p, 'status', 'N/A'),
-                        'date': p.payment_date.strftime('%Y-%m-%d') if p.payment_date else 'N/A'
-                    } for p in payments]
-        except:
-            pass
-        
-        # 6. المصاريف
-        try:
-            if 'مصروف' in query or 'expense' in query_lower or 'نفقة' in query:
-                expenses = Expense.query.order_by(Expense.expense_date.desc()).limit(15).all()
-                if expenses:
-                    results['expenses'] = [{
-                        'id': e.id,
-                        'description': getattr(e, 'description', 'N/A'),
-                        'amount': e.amount,
-                        'date': e.expense_date.strftime('%Y-%m-%d') if e.expense_date else 'N/A'
-                    } for e in expenses]
-        except:
-            pass
-        
-        # 7. الموردين
-        try:
-            if 'مورد' in query or 'vendor' in query_lower or 'supplier' in query_lower:
-                suppliers = Supplier.query.limit(15).all()
-                if suppliers:
-                    results['all_suppliers'] = [{
-                        'id': s.id,
-                        'name': s.name,
-                        'phone': getattr(s, 'phone', 'N/A'),
-                        'balance': getattr(s, 'balance', 0)
-                    } for s in suppliers]
-        except:
-            pass
-        
-        # 8. المستودعات والمخازن (تحليل متقدم)
-        try:
-            if 'مستودع' in query or 'warehouse' in query_lower or 'مخزن' in query or 'اونلاين' in query or 'شركاء' in query or 'تجار' in query or 'ملكنا' in query or 'ملكيتي' in query:
-                warehouses = Warehouse.query.all()
-                if warehouses:
-                    warehouse_details = []
-                    
-                    for w in warehouses:
-                        # حساب القطع في المخزن
-                        stock_levels = StockLevel.query.filter_by(warehouse_id=w.id).all()
-                        total_items = sum(sl.quantity for sl in stock_levels)
-                        
-                        # تفاصيل المخزن
-                        wh_info = {
-                            'id': w.id,
-                            'name': w.name,
-                            'type': str(w.warehouse_type),
-                            'type_label': w.warehouse_type.label if hasattr(w.warehouse_type, 'label') else str(w.warehouse_type),
-                            'location': getattr(w, 'location', 'N/A'),
-                            'total_items': total_items,
-                            'items_count': len(stock_levels),
-                            'capacity': getattr(w, 'capacity', 'N/A'),
-                            'occupancy': getattr(w, 'current_occupancy', 0)
-                        }
-                        
-                        # القطع في المخزن (أول 10)
-                        items = []
-                        for sl in stock_levels[:10]:
-                            product = Product.query.filter_by(id=sl.product_id).first()
-                            if product:
-                                items.append({
-                                    'name': product.name,
-                                    'quantity': sl.quantity,
-                                    'reserved': getattr(sl, 'reserved_quantity', 0)
-                                })
-                        
-                        wh_info['items'] = items
-                        warehouse_details.append(wh_info)
-                    
-                    results['warehouses_detailed'] = warehouse_details
-                    
-                    # تجميع حسب النوع
-                    online_warehouses = [w for w in warehouse_details if 'ONLINE' in w['type']]
-                    partner_warehouses = [w for w in warehouse_details if 'PARTNER' in w['type']]
-                    inventory_warehouses = [w for w in warehouse_details if 'INVENTORY' in w['type']]
-                    exchange_warehouses = [w for w in warehouse_details if 'EXCHANGE' in w['type']]
-                    
-                    results['warehouse_summary'] = {
-                        'total': len(warehouses),
-                        'online': online_warehouses,
-                        'partners': partner_warehouses,
-                        'our_inventory': inventory_warehouses,
-                        'exchange_traders': exchange_warehouses
-                    }
-        except Exception as e:
-            results['warehouse_error'] = str(e)
-            pass
-        
-        # 9. الشحنات
-        try:
-            if 'شحنة' in query or 'shipment' in query_lower:
-                shipments = Shipment.query.order_by(Shipment.arrival_date.desc()).limit(10).all()
-                if shipments:
-                    results['shipments'] = [{
-                        'id': s.id,
-                        'vendor': s.vendor.name if hasattr(s, 'vendor') and s.vendor else 'N/A',
-                        'status': getattr(s, 'status', 'N/A'),
-                        'date': s.arrival_date.strftime('%Y-%m-%d') if s.arrival_date else 'N/A'
-                    } for s in shipments]
-        except:
-            pass
-        
-        # 10. الملاحظات
-        try:
-            if 'ملاحظة' in query or 'note' in query_lower:
-                notes = Note.query.order_by(Note.created_at.desc()).limit(10).all()
-                if notes:
-                    results['notes'] = [{
-                        'id': n.id,
-                        'title': n.title,
-                        'content': n.content[:100] if n.content else 'N/A',
-                        'date': n.created_at.strftime('%Y-%m-%d') if n.created_at else 'N/A'
-                    } for n in notes]
-        except:
-            pass
-        
-        # 11. المستخدمين
-        try:
-            if 'مستخدم' in query or 'user' in query_lower or 'موظف' in query:
-                users = User.query.limit(15).all()
-                if users:
-                    results['all_users'] = [{
-                        'id': u.id,
-                        'username': u.username,
-                        'email': u.email,
-                        'role': u.role.name if u.role else 'N/A',
-                        'is_active': u.is_active
-                    } for u in users]
-        except:
-            pass
-        
-        # 12. الأدوار والصلاحيات
-        try:
-            if 'دور' in query or 'role' in query_lower or 'صلاحية' in query or 'permission' in query_lower:
-                roles = Role.query.all()
-                if roles:
-                    results['roles'] = [{
-                        'id': r.id,
-                        'name': r.name,
-                        'permissions_count': len(r.permissions) if hasattr(r, 'permissions') else 0
-                    } for r in roles]
-        except:
-            pass
-        
-        # 13. البحث الذكي SQL (استعلامات مخصصة)
-        try:
-            # إذا كان السؤال يحتوي على رقم محدد
-            import re
-            numbers = re.findall(r'\d+', query)
-            if numbers:
-                # البحث برقم ID
-                num = int(numbers[0])
-                
-                # بحث في الخدمات برقم
-                try:
-                    service = ServiceRequest.query.get(num)
-                    if service:
-                        results['found_service'] = {
-                            'id': service.id,
-                            'customer': service.customer.name if service.customer else 'N/A',
-                            'vehicle': getattr(service, 'vehicle_info', 'N/A'),
-                            'status': service.status,
-                            'diagnosis': getattr(service, 'diagnosis', 'N/A'),
-                            'total_cost': getattr(service, 'total_cost', 0)
-                        }
-                except:
-                    pass
-                
-                # بحث في الفواتير برقم
-                try:
-                    invoice = Invoice.query.get(num)
-                    if invoice:
-                        results['found_invoice'] = {
-                            'id': invoice.id,
-                            'customer': invoice.customer.name if invoice.customer else 'N/A',
-                            'total': getattr(invoice, 'total', 0),
-                            'paid': getattr(invoice, 'paid', 0),
-                            'status': getattr(invoice, 'status', 'N/A')
-                        }
-                except:
-                    pass
-        
-        except:
-            pass
-        
-        # 14. استعلام SQL مباشر للبيانات الإحصائية
-        try:
-            # إجمالي الإيرادات
-            if 'إيراد' in query or 'دخل' in query or 'revenue' in query_lower:
-                total_revenue = db.session.execute(text("SELECT SUM(total) FROM invoice")).scalar() or 0
-                results['total_revenue'] = float(total_revenue)
-            
-            # إجمالي المصاريف
-            if 'مصروف' in query or 'expense' in query_lower:
-                total_expenses = db.session.execute(text("SELECT SUM(amount) FROM expense")).scalar() or 0
-                results['total_expenses_sum'] = float(total_expenses)
-            
-            # صافي الربح
-            if 'ربح' in query or 'profit' in query_lower:
-                revenue = db.session.execute(text("SELECT SUM(total) FROM invoice")).scalar() or 0
-                expenses = db.session.execute(text("SELECT SUM(amount) FROM expense")).scalar() or 0
-                results['profit'] = float(revenue) - float(expenses)
-        
-        except:
-            pass
-        
-        # 15. تحليل اليوم (Today Analysis)
-        try:
-            if 'اليوم' in query or 'today' in query_lower:
-                today = datetime.now(timezone.utc).date()
-                
-                # حركات الصيانة اليوم
-                today_services = ServiceRequest.query.filter(
-                    func.date(ServiceRequest.created_at) == today
-                ).all()
-                
-                if today_services:
-                    results['today_services'] = [{
-                        'id': s.id,
-                        'customer': s.customer.name if s.customer else 'N/A',
-                        'vehicle': getattr(s, 'vehicle_info', 'N/A'),
-                        'status': s.status,
-                        'diagnosis': getattr(s, 'diagnosis', 'N/A')[:100]
-                    } for s in today_services]
-                    
-                    # قطع الصيانة المستخدمة اليوم
-                    today_parts = []
-                    for service in today_services:
-                        parts = ServicePart.query.filter_by(service_id=service.id).all()
-                        for part in parts:
-                            product = Product.query.filter_by(id=part.part_id).first()
-                            if product:
-                                today_parts.append({
-                                    'service_id': service.id,
-                                    'part_name': product.name,
-                                    'quantity': part.quantity,
-                                    'price': float(part.unit_price)
-                                })
-                    
-                    results['today_parts_used'] = today_parts
-                    results['today_parts_count'] = len(today_parts)
-                
-                # حالة الدفع (الفواتير غير المدفوعة)
-                unpaid_invoices = Invoice.query.filter(
-                    Invoice.paid < Invoice.total
-                ).all()
-                
-                paid_invoices = Invoice.query.filter(
-                    Invoice.paid >= Invoice.total
-                ).all()
-                
-                total_debt = sum(float(i.total - i.paid) for i in unpaid_invoices if hasattr(i, 'paid'))
-                
-                results['payment_status'] = {
-                    'paid_count': len(paid_invoices),
-                    'unpaid_count': len(unpaid_invoices),
-                    'total_debt': total_debt
-                }
-        except Exception as e:
-            results['today_error'] = str(e)
-            pass
-        
-        # 16. تحليل الأعطال الشائعة
-        try:
-            if 'عطل' in query or 'أعطال' in query or 'مشكلة' in query or 'مشاكل' in query:
-                # جمع جميع التشخيصات
-                all_services = ServiceRequest.query.filter(
-                    ServiceRequest.diagnosis.isnot(None)
-                ).all()
-                
-                diagnoses = [s.diagnosis for s in all_services if s.diagnosis]
-                
-                # تحليل بسيط للأعطال الشائعة
-                if diagnoses:
-                    from collections import Counter
-                    # تحليل الكلمات الشائعة
-                    all_words = []
-                    for d in diagnoses:
-                        words = d.split()
-                        all_words.extend([w for w in words if len(w) > 3])
-                    
-                    common = Counter(all_words).most_common(10)
-                    
-                    results['common_issues'] = {
-                        'total_diagnosed': len(diagnoses),
-                        'common_words': [{'word': w, 'count': c} for w, c in common]
-                    }
-        except:
-            pass
-        
-    except Exception as e:
-        results['error'] = str(e)
-    
-    return results
 
 
-def _ai_chat_response_with_search(message, search_results):
-    """رد AI مع نتائج البحث في قاعدة البيانات"""
-    # الحصول على المفتاح النشط
-    keys_json = _get_system_setting('AI_API_KEYS', '[]')
-    try:
-        keys = json.loads(keys_json)
-        active_key = next((k for k in keys if k.get('is_active')), None)
-        
-        if not active_key:
-            return '⚠️ لا يوجد مفتاح AI نشط. يرجى تفعيل مفتاح من <a href="/security/ai-config">إدارة المفاتيح</a>'
-        
-        # جمع بيانات النظام الشاملة
-        system_context = _gather_system_context()
-        
-        # إضافة نتائج البحث للسياق
-        search_context = ""
-        if search_results:
-            search_context = "\n\n═══════════════════════════════════════\n🔍 نتائج البحث في قاعدة البيانات:\n═══════════════════════════════════════\n"
-            
-            if 'found_customer' in search_results:
-                c = search_results['found_customer']
-                search_context += f"\n👤 العميل المطلوب:\n"
-                search_context += f"- الاسم: {c['name']}\n"
-                search_context += f"- الهاتف: {c['phone']}\n"
-                search_context += f"- البريد: {c['email']}\n"
-                search_context += f"- العنوان: {c['address']}\n"
-                search_context += f"- الرصيد: {c['balance']} ₪\n"
-                search_context += f"- الحالة: {'نشط' if c['is_active'] else 'غير نشط'}\n"
-                search_context += f"- تاريخ التسجيل: {c['created_at']}\n"
-            
-            if 'customer_services' in search_results:
-                search_context += f"\n🔧 خدمات العميل ({len(search_results['customer_services'])} خدمة):\n"
-                for s in search_results['customer_services']:
-                    search_context += f"- خدمة {s['id']} | {s['vehicle']} | {s['status']} | {s['date']}\n"
-            
-            if 'customer_invoices' in search_results:
-                search_context += f"\n💰 فواتير العميل ({len(search_results['customer_invoices'])} فاتورة):\n"
-                for i in search_results['customer_invoices']:
-                    search_context += f"- فاتورة {i['id']} | {i['total']} ₪ | {i['date']}\n"
-            
-            if 'found_supplier' in search_results:
-                s = search_results['found_supplier']
-                search_context += f"\n🏭 المورد المطلوب:\n"
-                search_context += f"- الاسم: {s['name']}\n"
-                search_context += f"- الهاتف: {s['phone']}\n"
-                search_context += f"- البريد: {s['email']}\n"
-                search_context += f"- الرصيد: {s['balance']} ₪\n"
-            
-            if 'found_service' in search_results:
-                s = search_results['found_service']
-                search_context += f"\n🔧 الخدمة المطلوبة:\n"
-                search_context += f"- رقم: {s['id']}\n"
-                search_context += f"- العميل: {s['customer']}\n"
-                search_context += f"- المركبة: {s['vehicle']}\n"
-                search_context += f"- الحالة: {s['status']}\n"
-                search_context += f"- التشخيص: {s['diagnosis']}\n"
-                search_context += f"- التكلفة: {s['total_cost']} ₪\n"
-            
-            if 'found_invoice' in search_results:
-                i = search_results['found_invoice']
-                search_context += f"\n💰 الفاتورة المطلوبة:\n"
-                search_context += f"- رقم: {i['id']}\n"
-                search_context += f"- العميل: {i['customer']}\n"
-                search_context += f"- المجموع: {i['total']} ₪\n"
-                search_context += f"- المدفوع: {i['paid']} ₪\n"
-                search_context += f"- الحالة: {i['status']}\n"
-            
-            if 'customers' in search_results:
-                search_context += f"\n👥 العملاء ({len(search_results['customers'])} عميل):\n"
-                for c in search_results['customers'][:5]:
-                    search_context += f"- {c['name']} | {c['phone']}\n"
-            
-            if 'services' in search_results:
-                search_context += f"\n🔧 طلبات الصيانة ({len(search_results['services'])} طلب):\n"
-                for s in search_results['services'][:5]:
-                    search_context += f"- رقم {s['id']} | {s['customer_name']} | {s['status']}\n"
-            
-            if 'products' in search_results:
-                search_context += f"\n📦 المنتجات ({len(search_results['products'])} منتج):\n"
-                for p in search_results['products'][:5]:
-                    search_context += f"- {p['name']} | الكمية: {p['quantity']}\n"
-            
-            if 'invoices' in search_results:
-                search_context += f"\n💰 الفواتير ({len(search_results['invoices'])} فاتورة):\n"
-                for i in search_results['invoices'][:5]:
-                    search_context += f"- فاتورة {i['id']} | {i['customer_name']} | {i['total']} ₪\n"
-            
-            if 'payments' in search_results:
-                search_context += f"\n💳 المدفوعات ({len(search_results['payments'])} دفعة):\n"
-                for p in search_results['payments'][:5]:
-                    search_context += f"- {p['amount']} ₪ | {p['method']} | {p['date']}\n"
-            
-            # عرض تفاصيل المخازن
-            if 'warehouse_summary' in search_results:
-                ws = search_results['warehouse_summary']
-                search_context += f"\n🏪 ملخص المخازن:\n"
-                search_context += f"- إجمالي المخازن: {ws['total']}\n"
-                
-                if ws['online']:
-                    search_context += f"\n📱 مخزن الأونلاين ({len(ws['online'])} مخزن):\n"
-                    for w in ws['online']:
-                        search_context += f"  • {w['name']}: {w['total_items']} قطعة ({w['items_count']} نوع)\n"
-                        for item in w['items'][:5]:
-                            search_context += f"    - {item['name']}: {item['quantity']} قطعة\n"
-                
-                if ws['our_inventory']:
-                    search_context += f"\n🏭 ملكيتنا/ملكنا ({len(ws['our_inventory'])} مخزن):\n"
-                    for w in ws['our_inventory']:
-                        search_context += f"  • {w['name']}: {w['total_items']} قطعة\n"
-                        for item in w['items'][:5]:
-                            search_context += f"    - {item['name']}: {item['quantity']} قطعة\n"
-                
-                if ws['partners']:
-                    search_context += f"\n👔 مخازن الشركاء ({len(ws['partners'])} مخزن):\n"
-                    for w in ws['partners']:
-                        search_context += f"  • {w['name']}: {w['total_items']} قطعة\n"
-                        for item in w['items'][:5]:
-                            search_context += f"    - {item['name']}: {item['quantity']} قطعة\n"
-                
-                if ws['exchange_traders']:
-                    search_context += f"\n🔄 التبادل/التجار المحليين ({len(ws['exchange_traders'])} مخزن):\n"
-                    for w in ws['exchange_traders']:
-                        search_context += f"  • {w['name']}: {w['total_items']} قطعة\n"
-                        for item in w['items'][:5]:
-                            search_context += f"    - {item['name']}: {item['quantity']} قطعة\n"
-            
-            # إجماليات مالية
-            if 'total_revenue' in search_results:
-                search_context += f"\n💰 إجمالي الإيرادات: {search_results['total_revenue']:.2f} ₪\n"
-            
-            if 'total_expenses_sum' in search_results:
-                search_context += f"💸 إجمالي المصاريف: {search_results['total_expenses_sum']:.2f} ₪\n"
-            
-            if 'profit' in search_results:
-                search_context += f"📈 صافي الربح: {search_results['profit']:.2f} ₪\n"
-        
-        # استخدام Groq API
-        try:
-            import requests
-            
-            api_key = active_key.get('key')
-            provider = active_key.get('provider', 'groq')
-            
-            if 'groq' in provider.lower():
-                url = "https://api.groq.com/openai/v1/chat/completions"
-                headers = {
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                }
-                
-                # السياق الكامل مع نتائج البحث
-                system_msg = _build_system_message(system_context) + search_context
-                
-                data = {
-                    "model": "llama-3.3-70b-versatile",
-                    "messages": [
-                        {"role": "system", "content": system_msg},
-                        {"role": "user", "content": message}
-                    ],
-                    "temperature": 0.7,
-                    "max_tokens": 1500
-                }
-                
-                response = requests.post(url, headers=headers, json=data, timeout=30)
-                
-                if response.status_code == 200:
-                    result = response.json()
-                    return result['choices'][0]['message']['content']
-                else:
-                    return f'❌ خطأ في الاتصال: {response.status_code}'
-            
-            else:
-                return '⚠️ هذا المزود غير مدعوم حالياً. استخدم Groq.'
-        
-        except requests.exceptions.Timeout:
-            return '⏱️ انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى.'
-        except requests.exceptions.RequestException as e:
-            return f'❌ خطأ في الاتصال: {str(e)}'
-        except Exception as e:
-            return f'❌ خطأ: {str(e)}'
-    
-    except Exception as e:
-        return f'⚠️ خطأ في قراءة المفاتيح: {str(e)}'
+def _kill_all_user_sessions():
+    """إنهاء جميع جلسات المستخدمين"""
+    # تحديث last_seen لجميع المستخدمين
+    User.query.update({'last_seen': datetime.now(timezone.utc) - timedelta(days=30)})
+    db.session.commit()
 
 
-def _build_system_message(system_context):
-    """بناء رسالة النظام الأساسية"""
-    return f"""أنت النظام الذكي لـ "أزاد لإدارة الكراج" - Azad Garage Manager System
-أنت جزء من النظام، تعرف كل شيء عنه، وتتكلم بصوته.
+def _get_active_users():
+    """الحصول على المستخدمين النشطين"""
+    threshold = datetime.now(timezone.utc) - timedelta(minutes=5)
+    return User.query.filter(User.last_seen >= threshold).all()
 
-═══════════════════════════════════════
-🏢 هوية النظام:
-═══════════════════════════════════════
-- الاسم: نظام أزاد لإدارة الكراج
-- النسخة: v4.0.0 Enterprise Edition
-- الشركة: أزاد للأنظمة الذكية - Azad Smart Systems
-- التطوير: المهندس أزاد | سوريا - دمشق
-- التخصص: نظام متكامل لإدارة كراجات السيارات والصيانة
-
-═══════════════════════════════════════
-📦 الوحدات الرئيسية (23 وحدة):
-═══════════════════════════════════════
-1. 🔐 المصادقة - تسجيل الدخول والأمان
-2. 🏠 لوحة التحكم - Dashboard
-3. 👥 إدارة المستخدمين - الصلاحيات والأدوار
-4. 🔧 الصيانة - إدارة طلبات الصيانة والإصلاح
-5. 👤 العملاء - إدارة بيانات العملاء والحسابات
-6. 💰 المبيعات - إدارة المبيعات والفواتير
-7. 🛒 المتجر الإلكتروني - واجهة تسوق للعملاء
-8. 📦 المخزون - إدارة المنتجات وقطع الغيار
-9. 🏭 الموردين - إدارة الموردين والمشتريات
-10. 🚚 الشحنات - تتبع الشحنات الواردة
-11. 🏪 المستودعات - إدارة المخازن والنقل بينها
-12. 💳 المدفوعات - نظام دفع متكامل
-13. 💸 المصاريف - تسجيل المصاريف والنفقات
-14. 📊 التقارير - تقارير شاملة (مالية، مخزون، أداء)
-15. 📋 الملاحظات - نظام ملاحظات ذكي
-16. 📱 الباركود - مسح وطباعة الباركود
-17. 💱 العملات - إدارة أسعار الصرف
-18. 🔗 API - واجهة برمجية للتكامل
-19. 👔 الشركاء - تسويات الشركاء
-20. 📝 دفتر الأستاذ - المحاسبة
-21. 🛡️ وحدة الأمان - تحكم شامل (Owner فقط)
-22. 🔄 النسخ الاحتياطي - نسخ تلقائية للبيانات
-23. 🗑️ الحذف الصعب - نظام حذف آمن
-
-═══════════════════════════════════════
-👥 الأدوار والصلاحيات:
-═══════════════════════════════════════
-1. Super Admin - كل شيء
-2. Admin - كل شيء عدا المتجر والامان
-3. Mechanic - الصيانة فقط
-4. Staff - المبيعات والمحاسبة
-5. Customer - المتجر وحسابه الشخصي
-
-═══════════════════════════════════════
-📊 إحصائيات النظام الحالية (أرقام حقيقية):
-═══════════════════════════════════════
-👥 المستخدمين:
-- الإجمالي: {system_context['total_users']}
-- النشطين: {system_context['active_users']}
-
-🔧 الصيانة:
-- طلبات الصيانة: {system_context['total_services']}
-- معلقة: {system_context['pending_services']}
-- مكتملة: {system_context['completed_services']}
-
-💰 المبيعات:
-- إجمالي الفواتير: {system_context['total_sales']}
-- مبيعات اليوم: {system_context['sales_today']}
-
-📦 المخزون:
-- إجمالي المنتجات: {system_context['total_products']}
-- متوفر في المخزون: {system_context['products_in_stock']}
-
-👤 العملاء:
-- الإجمالي: {system_context['total_customers']}
-- النشطين: {system_context['active_customers']}
-
-🏭 الموردين: {system_context['total_vendors']}
-
-💳 المدفوعات:
-- الإجمالي: {system_context['total_payments']}
-- اليوم: {system_context['payments_today']}
-
-💸 المصاريف: {system_context['total_expenses']}
-🏪 المستودعات: {system_context['total_warehouses']}
-📋 الملاحظات: {system_context['total_notes']}
-🚚 الشحنات: {system_context['total_shipments']}
-
-🔒 الأمان:
-- محاولات دخول فاشلة (24h): {system_context['failed_logins']}
-- IPs محظورة: {system_context['blocked_ips']}
-- دول محظورة: {system_context['blocked_countries']}
-- أنشطة مشبوهة (24h): {system_context['suspicious_activities']}
-
-📝 سجلات النشاط:
-- إجمالي السجلات: {system_context['total_audit_logs']}
-- الإجراءات الأخيرة: {system_context['recent_actions']}
-
-💾 قاعدة البيانات: {system_context['db_size']} | الحالة: {system_context['db_health']}
-⚡ الأداء: CPU {system_context['cpu_usage']}% | ذاكرة {system_context['memory_usage']}%
-
-═══════════════════════════════════════
-🎯 دورك:
-═══════════════════════════════════════
-- أجب بالعربية الاحترافية
-- استخدم البيانات الحقيقية أعلاه و نتائج البحث
-- إذا سُئلت عن عميل/خدمة/منتج محدد، استخدم نتائج البحث
-- قدم تحليلات دقيقة ومفيدة
-- اشرح الميزات بوضوح
-- قدم توصيات عملية
-- تكلم كأنك النظام نفسه: "أنا نظام أزاد..."
-- استخدم الإيموجي بشكل مناسب
-- كن مختصراً ومفيداً
-- إذا لم تجد المعلومة المطلوبة، اذكر ذلك بوضوح
-
-أنت النظام! تكلم بثقة واحترافية."""
-
-
-def _ai_chat_response(message):
-    """رد AI ذكي - متصل بـ Groq API مع وصول شامل للنظام"""
-    # الحصول على المفتاح النشط
-    keys_json = _get_system_setting('AI_API_KEYS', '[]')
-    try:
-        keys = json.loads(keys_json)
-        active_key = next((k for k in keys if k.get('is_active')), None)
-        
-        if not active_key:
-            return '⚠️ لا يوجد مفتاح AI نشط. يرجى تفعيل مفتاح من <a href="/security/ai-config">إدارة المفاتيح</a>'
-        
-        # جمع بيانات النظام الشاملة
-        system_context = _gather_system_context()
-        
-        # استخدام Groq API
-        try:
-            import requests
-            
-            api_key = active_key.get('key')
-            provider = active_key.get('provider', 'groq')
-            
-            if 'groq' in provider.lower():
-                # Groq API
-                url = "https://api.groq.com/openai/v1/chat/completions"
-                headers = {
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                }
-                
-                # سياق شامل للمساعد - التدريب الكامل
-                system_msg = f"""أنت النظام الذكي لـ "أزاد لإدارة الكراج" - Azad Garage Manager System
-أنت جزء من النظام، تعرف كل شيء عنه، وتتكلم بصوته.
-
-═══════════════════════════════════════
-🏢 هوية النظام:
-═══════════════════════════════════════
-- الاسم: نظام أزاد لإدارة الكراج
-- النسخة: v4.0.0 Enterprise Edition
-- الشركة: أزاد للأنظمة الذكية - Azad Smart Systems
-- التطوير: المهندس أزاد | سوريا - دمشق
-- التخصص: نظام متكامل لإدارة كراجات السيارات والصيانة
-
-═══════════════════════════════════════
-📦 الوحدات الرئيسية (23 وحدة):
-═══════════════════════════════════════
-1. 🔐 المصادقة - تسجيل الدخول والأمان
-2. 🏠 لوحة التحكم - Dashboard
-3. 👥 إدارة المستخدمين - الصلاحيات والأدوار
-4. 🔧 الصيانة - إدارة طلبات الصيانة والإصلاح
-5. 👤 العملاء - إدارة بيانات العملاء والحسابات
-6. 💰 المبيعات - إدارة المبيعات والفواتير
-7. 🛒 المتجر الإلكتروني - واجهة تسوق للعملاء
-8. 📦 المخزون - إدارة المنتجات وقطع الغيار
-9. 🏭 الموردين - إدارة الموردين والمشتريات
-10. 🚚 الشحنات - تتبع الشحنات الواردة
-11. 🏪 المستودعات - إدارة المخازن والنقل بينها
-12. 💳 المدفوعات - نظام دفع متكامل
-13. 💸 المصاريف - تسجيل المصاريف والنفقات
-14. 📊 التقارير - تقارير شاملة (مالية، مخزون، أداء)
-15. 📋 الملاحظات - نظام ملاحظات ذكي
-16. 📱 الباركود - مسح وطباعة الباركود
-17. 💱 العملات - إدارة أسعار الصرف
-18. 🔗 API - واجهة برمجية للتكامل
-19. 👔 الشركاء - تسويات الشركاء
-20. 📝 دفتر الأستاذ - المحاسبة
-21. 🛡️ وحدة الأمان - تحكم شامل (Owner فقط)
-22. 🔄 النسخ الاحتياطي - نسخ تلقائية للبيانات
-23. 🗑️ الحذف الصعب - نظام حذف آمن
-
-═══════════════════════════════════════
-👥 الأدوار والصلاحيات:
-═══════════════════════════════════════
-1. Super Admin - كل شيء
-2. Admin - كل شيء عدا المتجر والامان
-3. Mechanic - الصيانة فقط
-4. Staff - المبيعات والمحاسبة
-5. Customer - المتجر وحسابه الشخصي
-
-═══════════════════════════════════════
-📊 إحصائيات النظام الحالية (أرقام حقيقية):
-═══════════════════════════════════════
-👥 المستخدمين:
-- الإجمالي: {system_context['total_users']}
-- النشطين: {system_context['active_users']}
-
-🔧 الصيانة:
-- طلبات الصيانة: {system_context['total_services']}
-- معلقة: {system_context['pending_services']}
-- مكتملة: {system_context['completed_services']}
-
-💰 المبيعات:
-- إجمالي الفواتير: {system_context['total_sales']}
-- مبيعات اليوم: {system_context['sales_today']}
-
-📦 المخزون:
-- إجمالي المنتجات: {system_context['total_products']}
-- متوفر في المخزون: {system_context['products_in_stock']}
-
-👤 العملاء:
-- الإجمالي: {system_context['total_customers']}
-- النشطين: {system_context['active_customers']}
-
-🏭 الموردين: {system_context['total_vendors']}
-
-💳 المدفوعات:
-- الإجمالي: {system_context['total_payments']}
-- اليوم: {system_context['payments_today']}
-
-💸 المصاريف: {system_context['total_expenses']}
-🏪 المستودعات: {system_context['total_warehouses']}
-📋 الملاحظات: {system_context['total_notes']}
-🚚 الشحنات: {system_context['total_shipments']}
-
-🔒 الأمان:
-- محاولات دخول فاشلة (24h): {system_context['failed_logins']}
-- IPs محظورة: {system_context['blocked_ips']}
-- دول محظورة: {system_context['blocked_countries']}
-- أنشطة مشبوهة (24h): {system_context['suspicious_activities']}
-
-📝 سجلات النشاط:
-- إجمالي السجلات: {system_context['total_audit_logs']}
-- الإجراءات الأخيرة: {system_context['recent_actions']}
-
-💾 قاعدة البيانات: {system_context['db_size']} | الحالة: {system_context['db_health']}
-⚡ الأداء: CPU {system_context['cpu_usage']}% | ذاكرة {system_context['memory_usage']}%
-
-═══════════════════════════════════════
-🎯 دورك:
-═══════════════════════════════════════
-- أجب بالعربية الاحترافية
-- استخدم البيانات الحقيقية أعلاه
-- قدم تحليلات دقيقة ومفيدة
-- اشرح الميزات بوضوح
-- قدم توصيات عملية
-- تكلم كأنك النظام نفسه: "أنا نظام أزاد..."
-- استخدم الإيموجي بشكل مناسب
-- كن مختصراً ومفيداً
-
-═══════════════════════════════════════
-💡 أمثلة على الأسئلة المتوقعة:
-═══════════════════════════════════════
-- "ما هي حالة النظام؟" → قدم تقرير شامل
-- "كم عدد الخدمات؟" → استخدم الرقم الحقيقي
-- "هل يوجد تهديدات؟" → حلل بيانات الأمان
-- "كيف أضيف عميل؟" → اشرح الخطوات
-- "ما هو دور Mechanic؟" → اشرح الصلاحيات
-
-أنت النظام! تكلم بثقة واحترافية."""
-                
-                data = {
-                    "model": "llama-3.3-70b-versatile",
-                    "messages": [
-                        {"role": "system", "content": system_msg},
-                        {"role": "user", "content": message}
-                    ],
-                    "temperature": 0.7,
-                    "max_tokens": 1000
-                }
-                
-                response = requests.post(url, headers=headers, json=data, timeout=30)
-                
-                if response.status_code == 200:
-                    result = response.json()
-                    return result['choices'][0]['message']['content']
-                else:
-                    return f'❌ خطأ في الاتصال: {response.status_code}'
-            
-            else:
-                return '⚠️ هذا المزود غير مدعوم حالياً. استخدم Groq.'
-        
-        except requests.exceptions.Timeout:
-            return '⏱️ انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى.'
-        except requests.exceptions.RequestException as e:
-            return f'❌ خطأ في الاتصال: {str(e)}'
-        except Exception as e:
-            return f'❌ خطأ: {str(e)}'
-    
-    except Exception as e:
-        return f'⚠️ خطأ في قراءة المفاتيح: {str(e)}'
-
-
-def _gather_system_context():
-    """جمع بيانات النظام الشاملة - أرقام حقيقية 100%"""
-    import psutil
-    
-    context = {}
-    
-    try:
-        # استيراد جميع الموديلات
-        from models import (
-            Customer, Supplier, Product, ServiceRequest, 
-            Invoice, Payment, Expense, Warehouse, StockLevel,
-            Note, Shipment, Role, Permission
-        )
-        
-        # المستخدمين
-        context['total_users'] = User.query.count()
-        context['active_users'] = User.query.filter_by(is_active=True).count()
-        
-        # الخدمات (استخدام ServiceRequest مباشرة)
-        try:
-            context['total_services'] = ServiceRequest.query.count()
-            context['pending_services'] = ServiceRequest.query.filter_by(status='pending').count()
-            context['completed_services'] = ServiceRequest.query.filter_by(status='completed').count()
-        except:
-            context['total_services'] = 0
-            context['pending_services'] = 0
-            context['completed_services'] = 0
-        
-        # المبيعات (استخدام Invoice مباشرة)
-        try:
-            context['total_sales'] = Invoice.query.count()
-            context['sales_today'] = Invoice.query.filter(
-                func.date(Invoice.issue_date) == func.date(datetime.now(timezone.utc))
-            ).count()
-        except:
-            context['total_sales'] = 0
-            context['sales_today'] = 0
-        
-        # المنتجات
-        try:
-            context['total_products'] = Product.query.count()
-            context['products_in_stock'] = Product.query.filter(Product.quantity > 0).count()
-        except:
-            context['total_products'] = 0
-            context['products_in_stock'] = 0
-        
-        # العملاء
-        try:
-            context['total_customers'] = Customer.query.count()
-            context['active_customers'] = Customer.query.filter_by(is_active=True).count()
-        except:
-            context['total_customers'] = 0
-            context['active_customers'] = 0
-        
-        # الموردين
-        try:
-            context['total_vendors'] = Supplier.query.count()
-        except:
-            context['total_vendors'] = 0
-        
-        # المدفوعات
-        try:
-            context['total_payments'] = Payment.query.count()
-            context['payments_today'] = Payment.query.filter(
-                func.date(Payment.payment_date) == func.date(datetime.now(timezone.utc))
-            ).count()
-        except:
-            context['total_payments'] = 0
-            context['payments_today'] = 0
-        
-        # المصاريف
-        try:
-            context['total_expenses'] = Expense.query.count()
-        except:
-            context['total_expenses'] = 0
-        
-        # المستودعات
-        try:
-            context['total_warehouses'] = Warehouse.query.count()
-        except:
-            context['total_warehouses'] = 0
-        
-        # الملاحظات
-        try:
-            context['total_notes'] = Note.query.count()
-        except:
-            context['total_notes'] = 0
-        
-        # الشحنات
-        try:
-            context['total_shipments'] = Shipment.query.count()
-        except:
-            context['total_shipments'] = 0
-        
-        # الأمان
-        context['failed_logins'] = _get_failed_logins_count(24)
-        context['blocked_ips'] = _get_blocked_ips_count()
-        context['blocked_countries'] = _get_blocked_countries_count()
-        context['suspicious_activities'] = _get_suspicious_activities_count(24)
-        
-        # قاعدة البيانات
-        context['db_size'] = _get_db_size()
-        context['db_health'] = _get_system_health()
-        
-        # الأداء
-        context['cpu_usage'] = round(psutil.cpu_percent(interval=0.1), 1)
-        context['memory_usage'] = round(psutil.virtual_memory().percent, 1)
-        
-        # إضافي: سجلات النشاط
-        try:
-            context['total_audit_logs'] = AuditLog.query.count()
-            context['recent_actions'] = AuditLog.query.order_by(AuditLog.created_at.desc()).limit(5).count()
-        except:
-            context['total_audit_logs'] = 0
-            context['recent_actions'] = 0
-        
-        return context
-        
-    except Exception as e:
-        # في حالة الخطأ، إرجاع بيانات أساسية فقط
-        return {
-            'total_users': User.query.count() if User else 0,
-            'active_users': User.query.filter_by(is_active=True).count() if User else 0,
-            'total_services': 0,
-            'pending_services': 0,
-            'completed_services': 0,
-            'total_sales': 0,
-            'sales_today': 0,
-            'total_products': 0,
-            'products_in_stock': 0,
-            'total_customers': 0,
-            'active_customers': 0,
-            'total_vendors': 0,
-            'total_payments': 0,
-            'payments_today': 0,
-            'total_expenses': 0,
-            'total_warehouses': 0,
-            'total_notes': 0,
-            'total_shipments': 0,
-            'failed_logins': 0,
-            'blocked_ips': 0,
-            'blocked_countries': 0,
-            'suspicious_activities': 0,
-            'db_size': 'N/A',
-            'db_health': 'غير معروف',
-            'cpu_usage': 0,
-            'memory_usage': 0,
-            'total_audit_logs': 0,
-            'recent_actions': 0,
-        }
-
-
-# ═══════════════════════════════════════════════════════════════
-# Ultimate Control Helper Functions
-# ═══════════════════════════════════════════════════════════════
 
 def _get_users_online():
     """عدد المستخدمين المتصلين"""
     threshold = datetime.now(timezone.utc) - timedelta(minutes=5)
     return User.query.filter(User.last_seen >= threshold).count()
+
+
+def _get_system_setting(key, default=None):
+    """توجيه لدالة get_system_setting من ai_service"""
+    return get_system_setting(key, default)
+
+
+def _get_recent_actions(limit=50):
+    """آخر الإجراءات"""
+    return AuditLog.query.order_by(AuditLog.created_at.desc()).limit(limit).all()
+
+
+def _get_live_metrics():
+    """مقاييس حية"""
+    import psutil
+    return {
+        'cpu': psutil.cpu_percent(interval=1),
+        'memory': psutil.virtual_memory().percent,
+        'disk': psutil.disk_usage('/').percent,
+    }
+
+
+def _set_system_setting(key, value):
+    """حفظ إعداد نظام"""
+    from models import SystemSettings
+    setting = SystemSettings.query.filter_by(key=key).first()
+    if setting:
+        setting.value = str(value)
+    else:
+        setting = SystemSettings(key=key, value=str(value))
+        db.session.add(setting)
+    db.session.commit()
 
 
 def _get_db_size():
@@ -2758,21 +1768,6 @@ def _get_online_users_detailed():
     return User.query.filter(User.last_seen >= threshold).all()
 
 
-def _get_recent_actions(limit=50):
-    """آخر الإجراءات"""
-    return AuditLog.query.order_by(AuditLog.created_at.desc()).limit(limit).all()
-
-
-def _get_live_metrics():
-    """مقاييس حية"""
-    import psutil
-    return {
-        'cpu': psutil.cpu_percent(interval=1),
-        'memory': psutil.virtual_memory().percent,
-        'disk': psutil.disk_usage('/').percent,
-    }
-
-
 def _set_system_setting(key, value):
     """حفظ إعداد نظام"""
     from models import SystemSettings
@@ -2785,25 +1780,6 @@ def _set_system_setting(key, value):
     db.session.commit()
 
 
-def _get_system_setting(key, default=None):
-    """قراءة إعداد نظام"""
-    from models import SystemSettings
-    setting = SystemSettings.query.filter_by(key=key).first()
-    if setting:
-        value = setting.value.lower()
-        if value in ['true', '1', 'yes']:
-            return True
-        elif value in ['false', '0', 'no']:
-            return False
-        return setting.value
-    return default
-
-
-def _kill_all_user_sessions():
-    """إنهاء جميع جلسات المستخدمين"""
-    # تحديث last_seen لجميع المستخدمين
-    User.query.update({'last_seen': datetime.now(timezone.utc) - timedelta(days=30)})
-    db.session.commit()
 
 
 def _get_available_backups():
