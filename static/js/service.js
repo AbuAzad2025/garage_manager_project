@@ -1,24 +1,106 @@
+/**
+ * وحدة الصيانة المحسّنة - JavaScript
+ * Enhanced Service Module - JavaScript
+ */
 (function () {
   'use strict';
 
-  function toNum(v) { var n = parseFloat(v); return isNaN(n) ? 0 : n; }
-  function round2(v) { return (Math.round((toNum(v) + Number.EPSILON) * 100) / 100).toFixed(2); }
+  // ========== دوال مساعدة محسّنة ==========
+  function toNum(v) {
+    var n = parseFloat(v);
+    return isNaN(n) ? 0 : n;
+  }
 
+  function round2(v) {
+    return (Math.round((toNum(v) + Number.EPSILON) * 100) / 100).toFixed(2);
+  }
+
+  // Loading State محسّن
+  function showLoading($el) {
+    $el.addClass('loading').prop('disabled', true);
+  }
+
+  function hideLoading($el) {
+    $el.removeClass('loading').prop('disabled', false);
+  }
+
+  // ========== إعداد الجدول بدون DataTable ==========
   function dtSafeInit() {
-    var $table = $('#servicesTable');
-    if (!$table.length) return;
-    try {
-      $table.DataTable({ language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/ar.json' }, pageLength: 25, order: [] });
-    } catch (e) {}
-    $('#selectAll').on('change', function () { $('.row-select').prop('checked', this.checked); });
-    $('#bulkDelete').on('click', function () {
-      var ids = $('.row-select:checked').map(function () { return this.value; }).get();
-      if (!ids.length) return Swal.fire('تنبيه', 'لم يتم تحديد أي طلب', 'warning');
-      Swal.fire({ icon: 'warning', title: 'تأكيد الحذف الجماعي', text: 'سيتم حذف ' + ids.length + ' طلب (غير قابل للتراجع)', showCancelButton: true, confirmButtonText: 'نعم، احذف' })
-      .then(function (res) { if (!res.isConfirmed) return; Swal.fire('تم', 'هذه واجهة فقط، أضف راوت الحذف الجماعي لاحقًا.', 'success'); });
+    // DataTable معطّل تماماً - نستخدم Pagination server-side
+    // هذا أسرع وأكثر كفاءة مع البيانات الكبيرة
+    
+    // Select All محسّن
+    $('#selectAll').on('change', function () {
+      $('.row-select').prop('checked', this.checked);
+      updateBulkActionsState();
     });
-    $('#exportCsv').on('click', function () { window.location.assign('/service/export/csv'); });
-    $('#exportPdf').on('click', function () { window.location.assign('/service/export/pdf'); });
+
+    $('.row-select').on('change', updateBulkActionsState);
+
+    // Bulk Actions
+    $('#bulkDelete').on('click', handleBulkDelete);
+    $('#exportCsv').on('click', function () {
+      var $btn = $(this);
+      showLoading($btn);
+      setTimeout(function () {
+        window.location.assign('/service/export/csv');
+        hideLoading($btn);
+      }, 500);
+    });
+    
+    // إضافة Hover effects للصفوف
+    $('#servicesTable tbody tr').hover(
+      function() {
+        $(this).addClass('table-active');
+      },
+      function() {
+        $(this).removeClass('table-active');
+      }
+    );
+  }
+
+  function updateBulkActionsState() {
+    var count = $('.row-select:checked').length;
+    $('#bulkDelete, #bulkArchive').prop('disabled', count === 0);
+    if (count > 0) {
+      $('#bulkDelete').html('<i class="fas fa-trash"></i> حذف (' + count + ')');
+    } else {
+      $('#bulkDelete').html('<i class="fas fa-trash"></i> حذف جماعي');
+    }
+  }
+
+  function handleBulkDelete() {
+    var ids = $('.row-select:checked').map(function () {
+      return this.value;
+    }).get();
+
+    if (!ids.length) {
+      return Swal.fire({
+        icon: 'warning',
+        title: 'تنبيه',
+        text: 'لم يتم تحديد أي طلب',
+        confirmButtonText: 'حسناً'
+      });
+    }
+
+    Swal.fire({
+      icon: 'warning',
+      title: 'تأكيد الحذف الجماعي',
+      text: 'سيتم حذف ' + ids.length + ' طلب (غير قابل للتراجع)',
+      showCancelButton: true,
+      confirmButtonText: 'نعم، احذف',
+      cancelButtonText: 'إلغاء',
+      confirmButtonColor: '#dc3545'
+    }).then(function (res) {
+      if (!res.isConfirmed) return;
+      // TODO: إضافة route الحذف الجماعي
+      Swal.fire({
+        icon: 'info',
+        title: 'قيد التطوير',
+        text: 'هذه الميزة قيد التطوير',
+        confirmButtonText: 'حسناً'
+      });
+    });
   }
 
   function smartPost(url) {
@@ -232,11 +314,122 @@
     $(document).on('click', '.remove-task', function () { $(this).closest('.task-line').remove(); });
   }
 
+  // ========== تحسينات UX إضافية ==========
+  
+  // Smooth Scroll للعناصر
+  function initSmoothScroll() {
+    $('a[href^="#"]').on('click', function(e) {
+      var target = $(this.getAttribute('href'));
+      if (target.length) {
+        e.preventDefault();
+        $('html, body').stop().animate({
+          scrollTop: target.offset().top - 100
+        }, 600, 'swing');
+      }
+    });
+  }
+
+  // Tooltips محسّن
+  function initTooltips() {
+    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+      var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"], [title]'));
+      tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+      });
+    }
+  }
+
+  // Auto-save form drafts (localStorage)
+  function initFormAutoSave() {
+    var $forms = $('form[data-autosave]');
+    $forms.each(function() {
+      var $form = $(this);
+      var formId = $form.data('autosave') || 'service_form';
+      
+      // استعادة من localStorage
+      var saved = localStorage.getItem(formId);
+      if (saved) {
+        try {
+          var data = JSON.parse(saved);
+          Object.keys(data).forEach(function(key) {
+            var $field = $form.find('[name="' + key + '"]');
+            if ($field.length) {
+              $field.val(data[key]);
+            }
+          });
+        } catch (e) {
+          console.warn('Failed to restore form data:', e);
+        }
+      }
+      
+      // حفظ تلقائي
+      $form.on('input change', 'input, textarea, select', debounce(function() {
+        var data = {};
+        $form.find('input, textarea, select').each(function() {
+          var $field = $(this);
+          var name = $field.attr('name');
+          if (name) {
+            data[name] = $field.val();
+          }
+        });
+        localStorage.setItem(formId, JSON.stringify(data));
+      }, 1000));
+      
+      // حذف عند Submit
+      $form.on('submit', function() {
+        localStorage.removeItem(formId);
+      });
+    });
+  }
+
+  // Debounce helper
+  function debounce(func, wait) {
+    var timeout;
+    return function() {
+      var context = this, args = arguments;
+      clearTimeout(timeout);
+      timeout = setTimeout(function() {
+        func.apply(context, args);
+      }, wait);
+    };
+  }
+
+  // ========== التهيئة الرئيسية ==========
   $(document).ready(function () {
     dtSafeInit();
     bindCommonActions();
     bootSelect2Auto();
     bindServicePartForm();
     bindDynamicRows();
+    initSmoothScroll();
+    initTooltips();
+    initFormAutoSave();
+    
+    // Fade in animation
+    $('.card, .small-box').css('opacity', 0).animate({ opacity: 1 }, 600);
   });
+
+  // Performance: تنظيف الموارد عند الخروج
+  $(window).on('beforeunload', function() {
+    // تنظيف localStorage القديمة
+    try {
+      var keys = Object.keys(localStorage);
+      var oneWeekAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+      keys.forEach(function(key) {
+        if (key.startsWith('service_form_')) {
+          try {
+            var data = JSON.parse(localStorage.getItem(key));
+            if (data.timestamp && data.timestamp < oneWeekAgo) {
+              localStorage.removeItem(key);
+            }
+          } catch (e) {
+            // Ignore
+          }
+        }
+      });
+    } catch (e) {
+      // Ignore
+    }
+  });
+  
 })();

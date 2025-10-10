@@ -1,16 +1,59 @@
-import io, json, csv
-from datetime import datetime, timedelta
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, abort, Response, send_file, current_app
+"""
+وحدة الصيانة المحسّنة
+Enhanced Service Management Module
+"""
+import io
+import json
+import csv
+from datetime import datetime, timedelta, timezone
+from decimal import Decimal
+
+from flask import (
+    Blueprint, render_template, request, redirect, url_for,
+    flash, jsonify, abort, Response, send_file, current_app
+)
 from flask_login import login_required, current_user, login_user
 from sqlalchemy import func, or_, desc, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
-from extensions import db
-from models import ServiceRequest, ServicePart, ServiceTask, Customer, Product, Warehouse, AuditLog, User, EquipmentType, StockLevel, Partner, Permission, Role, ServiceStatus, _service_consumes_stock, ServicePriority
-from forms import ServiceRequestForm, CustomerForm, ServiceTaskForm, ServiceDiagnosisForm, ServicePartForm
+
+from extensions import db, cache
+from models import (
+    ServiceRequest, ServicePart, ServiceTask, Customer, Product,
+    Warehouse, AuditLog, User, EquipmentType, StockLevel, Partner,
+    Permission, Role, ServiceStatus, _service_consumes_stock, ServicePriority
+)
+from forms import (
+    ServiceRequestForm, CustomerForm, ServiceTaskForm,
+    ServiceDiagnosisForm, ServicePartForm
+)
 from utils import permission_required, send_whatsapp_message, _get_id, _apply_stock_delta
 
 service_bp = Blueprint('service', __name__, url_prefix='/service')
+
+# ثوابت النظام
+STATUS_LABELS = {
+    "PENDING": "معلق",
+    "DIAGNOSIS": "تشخيص",
+    "IN_PROGRESS": "قيد التنفيذ",
+    "COMPLETED": "مكتمل",
+    "CANCELLED": "ملغي",
+    "ON_HOLD": "مؤجل"
+}
+
+PRIORITY_LABELS = {
+    "LOW": "منخفضة",
+    "MEDIUM": "متوسطة",
+    "HIGH": "عالية",
+    "URGENT": "عاجلة"
+}
+
+PRIORITY_COLORS = {
+    "LOW": "info",
+    "MEDIUM": "warning",
+    "HIGH": "danger",
+    "URGENT": "dark"
+}
 
 def _get_or_404(model, ident, options=None):
     q = db.session.query(model)
@@ -144,32 +187,114 @@ def _build_list_query():
     return query
 
 @service_bp.route('/', methods=['GET'])
+@service_bp.route('/list', methods=['GET'])
 @login_required
 @permission_required('manage_service')
 def list_requests():
-    status_filter=request.args.getlist('status'); priority_filter=request.args.getlist('priority'); customer_filter=request.args.get('customer',''); mechanic_filter=request.args.get('mechanic',''); vrn_filter=request.args.get('vrn',''); date_filter=request.args.get('date','')
-    query=ServiceRequest.query.options(joinedload(ServiceRequest.customer))
-    sts=_status_list(status_filter)
-    if sts: query=query.filter(ServiceRequest.status.in_(sts))
-    pris=_priority_list(priority_filter)
-    if pris: query=query.filter(ServiceRequest.priority.in_(pris))
-    if customer_filter: query=query.join(Customer).filter(or_(Customer.name.ilike(f'%{customer_filter}%'),Customer.phone.ilike(f'%{customer_filter}%')))
-    if mechanic_filter: query=query.join(User, ServiceRequest.mechanic_id==User.id).filter(User.username.ilike(f'%{mechanic_filter}%'))
-    if vrn_filter: query=query.filter(ServiceRequest.vehicle_vrn.ilike(f'%{vrn_filter}%'))
+    """قائمة طلبات الصيانة مع فلترة وPagination محسّنة"""
+    
+    # الفلاتر
+    status_filter = request.args.getlist('status')
+    priority_filter = request.args.getlist('priority')
+    customer_filter = request.args.get('customer', '')
+    mechanic_filter = request.args.get('mechanic', '')
+    vrn_filter = request.args.get('vrn', '')
+    date_filter = request.args.get('date', '')
+    
+    # Pagination
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    per_page = min(per_page, 100)  # حد أقصى
+    
+    # بناء الاستعلام مع joinedload محسّن
+    query = ServiceRequest.query.options(
+        joinedload(ServiceRequest.customer),
+        joinedload(ServiceRequest.mechanic)
+    )
+    
+    # تطبيق الفلاتر
+    sts = _status_list(status_filter)
+    if sts:
+        query = query.filter(ServiceRequest.status.in_(sts))
+    
+    pris = _priority_list(priority_filter)
+    if pris:
+        query = query.filter(ServiceRequest.priority.in_(pris))
+    
+    if customer_filter:
+        query = query.join(Customer).filter(
+            or_(
+                Customer.name.ilike(f'%{customer_filter}%'),
+                Customer.phone.ilike(f'%{customer_filter}%')
+            )
+        )
+    
+    if mechanic_filter:
+        query = query.join(User, ServiceRequest.mechanic_id == User.id).filter(
+            User.username.ilike(f'%{mechanic_filter}%')
+        )
+    
+    if vrn_filter:
+        query = query.filter(ServiceRequest.vehicle_vrn.ilike(f'%{vrn_filter}%'))
+    
     if date_filter:
-        today=datetime.today(); col=_col('received_at')
-        if date_filter=='today': query=query.filter(func.date(col)==today.date())
-        elif date_filter=='week':
-            start_week=today-timedelta(days=today.weekday()); query=query.filter(col>=start_week)
-        elif date_filter=='month':
-            start_month=today.replace(day=1); query=query.filter(col>=start_month)
-    sort_by=request.args.get('sort','request_date'); sort_order=request.args.get('order','desc'); field=_col(sort_by)
-    query=query.order_by(field.asc() if sort_order=='asc' else field.desc())
-    requests=query.all()
-    stats={'pending':ServiceRequest.query.filter_by(status=ServiceStatus.PENDING).count(),'in_progress':ServiceRequest.query.filter_by(status=ServiceStatus.IN_PROGRESS).count(),'completed':ServiceRequest.query.filter_by(status=ServiceStatus.COMPLETED).count(),'high_priority':ServiceRequest.query.filter_by(priority=ServicePriority.HIGH).count()}
-    mechanics=User.query.filter_by(is_active=True).all()
-    filter_values={'status':status_filter,'priority':priority_filter,'customer':customer_filter,'mechanic':mechanic_filter,'vrn':vrn_filter,'date':date_filter,'sort':sort_by,'order':sort_order}
-    return render_template('service/list.html', requests=requests, status_labels=STATUS_LABELS, priority_colors=PRIORITY_COLORS, stats=stats, mechanics=mechanics, filter_values=filter_values)
+        today = datetime.today()
+        col = _col('received_at')
+        if date_filter == 'today':
+            query = query.filter(func.date(col) == today.date())
+        elif date_filter == 'week':
+            start_week = today - timedelta(days=today.weekday())
+            query = query.filter(col >= start_week)
+        elif date_filter == 'month':
+            start_month = today.replace(day=1)
+            query = query.filter(col >= start_month)
+    
+    # الترتيب
+    sort_by = request.args.get('sort', 'request_date')
+    sort_order = request.args.get('order', 'desc')
+    field = _col(sort_by)
+    query = query.order_by(field.asc() if sort_order == 'asc' else field.desc())
+    
+    # Pagination
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    
+    # الإحصائيات (مع Cache)
+    cache_key = 'service_stats'
+    stats = cache.get(cache_key)
+    if stats is None:
+        stats = {
+            'pending': ServiceRequest.query.filter_by(status=ServiceStatus.PENDING).count(),
+            'in_progress': ServiceRequest.query.filter_by(status=ServiceStatus.IN_PROGRESS).count(),
+            'completed': ServiceRequest.query.filter_by(status=ServiceStatus.COMPLETED).count(),
+            'high_priority': ServiceRequest.query.filter_by(priority=ServicePriority.HIGH).count()
+        }
+        cache.set(cache_key, stats, timeout=300)  # 5 دقائق
+    
+    # الميكانيكيين النشطين
+    mechanics = User.query.filter_by(is_active=True).order_by(User.username).all()
+    
+    filter_values = {
+        'status': status_filter,
+        'priority': priority_filter,
+        'customer': customer_filter,
+        'mechanic': mechanic_filter,
+        'vrn': vrn_filter,
+        'date': date_filter,
+        'sort': sort_by,
+        'order': sort_order
+    }
+    
+    return render_template(
+        'service/list.html',
+        requests=pagination.items,
+        pagination=pagination,
+        status_labels=STATUS_LABELS,
+        priority_labels=PRIORITY_LABELS,
+        priority_colors=PRIORITY_COLORS,
+        stats=stats,
+        mechanics=mechanics,
+        filter_values=filter_values
+    )
 
 @service_bp.route('/export/csv', methods=['GET'])
 @login_required
