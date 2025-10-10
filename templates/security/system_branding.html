@@ -20,8 +20,9 @@
         <div class="row">
           <div class="col-md-6">
             <div class="mb-3">
-              <label class="form-label">اسم النظام</label>
-              <input type="text" name="system_name" class="form-control" value="{{ branding.system_name }}" placeholder="Garage Manager">
+              <label class="form-label"><strong>اسم النظام</strong></label>
+              <input type="text" name="system_name" class="form-control" value="{{ branding.system_name }}" placeholder="Garage Manager" minlength="3" maxlength="50">
+              <small class="text-muted">سيظهر في Sidebar والعنوان</small>
             </div>
           </div>
           
@@ -34,17 +35,23 @@
           
           <div class="col-md-6">
             <div class="mb-3">
-              <label class="form-label">اللون الأساسي</label>
+              <label class="form-label"><strong>اللون الأساسي</strong></label>
               <input type="color" name="primary_color" class="form-control" value="{{ branding.primary_color }}" style="height:50px;">
+              <small class="text-muted">سيطبق على Navbar، الأزرار، والروابط</small>
             </div>
           </div>
           
           <div class="col-md-6">
             <div class="mb-3">
-              <label class="form-label">الشعار (Logo)</label>
-              <input type="file" name="logo" class="form-control" accept="image/*">
+              <label class="form-label"><strong>الشعار (Logo)</strong></label>
+              <input type="file" name="logo" class="form-control" accept="image/png,image/jpg,image/jpeg,image/webp,image/gif">
               {% if branding.custom_logo %}
-              <small class="text-muted">الحالي: {{ branding.custom_logo }}</small>
+              <div class="mt-2">
+                <img src="{{ url_for('static', filename=branding.custom_logo.replace('static/', '')) }}" alt="Current Logo" style="max-width:100px; border:2px solid #ddd; border-radius:8px;">
+                <br><small class="text-muted">الحالي: {{ branding.custom_logo }}</small>
+              </div>
+              {% else %}
+              <small class="text-muted">سيظهر في Sidebar</small>
               {% endif %}
             </div>
           </div>

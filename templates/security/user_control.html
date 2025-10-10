@@ -42,7 +42,7 @@
               <td>
                 <div class="btn-group btn-group-sm">
                   <!-- تسجيل دخول كهذا المستخدم -->
-                  <form method="POST" action="{{ url_for('security.impersonate_user', user_id=user.id) }}" style="display:inline;">
+                  <form method="POST" action="{{ url_for('security.impersonate_user', user_id=user.id) }}" style="display:inline;" onsubmit="return confirm('🕵️ سجل دخول كـ {{ user.username }}؟');">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-warning" title="تسجيل الدخول كـ {{ user.username }}">
                       <i class="fas fa-user-secret"></i>

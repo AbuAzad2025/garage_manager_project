@@ -5,6 +5,10 @@
 {% block content %}
 <div class="container-fluid">
   
+  <div class="alert alert-warning border-0 shadow-sm">
+    <i class="fas fa-exclamation-triangle"></i> <strong>تحذير:</strong> تعديل مباشر على جدول <code>{{ table_name }}</code> - كن حذراً!
+  </div>
+  
   <div class="mb-3">
     <a href="{{ url_for('security.db_editor') }}" class="btn btn-secondary">
       <i class="fas fa-arrow-left"></i> رجوع

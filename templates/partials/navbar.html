@@ -1,4 +1,4 @@
-<nav class="main-header navbar navbar-expand navbar-primary navbar-dark" dir="rtl">
+<nav class="main-header navbar navbar-expand navbar-primary navbar-dark" dir="rtl" {% if system_settings.primary_color %}style="background-color: {{ system_settings.primary_color }} !important;"{% endif %}>
   <!-- الساعة والتاريخ في بداية الشريط -->
   <div class="navbar-brand mr-auto d-flex align-items-center">
     <span class="badge badge-warning mr-3">
@@ -54,7 +54,7 @@
         <span class="font-weight-bold">{{ current_user.username }}</span>
         <i class="fas fa-chevron-down ml-2"></i>
       </a>
-      <div class="dropdown-menu dropdown-menu-right" style="min-width: 280px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+      <div class="dropdown-menu dropdown-menu-right" style="min-width: 280px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); background-color: #ffffff;">
         <!-- معلومات المستخدم في الأعلى -->
         <div class="dropdown-header bg-light text-center py-3">
           <div class="user-info">
@@ -65,52 +65,52 @@
                 {{ current_user.avatar_or_initials }}
               </div>
             {% endif %}
-            <h6 class="mb-0 font-weight-bold">{{ current_user.username }}</h6>
-            <small class="text-muted">{{ current_user.role.name if current_user.role else 'مستخدم' }}</small>
+            <h6 class="mb-0 font-weight-bold" style="color: #212529;">{{ current_user.username }}</h6>
+            <small style="color: #6c757d;">{{ current_user.role.name if current_user.role else 'مستخدم' }}</small>
           </div>
         </div>
         
         <div class="dropdown-divider"></div>
         
         <!-- روابط الملف الشخصي -->
-        <a href="{{ url_for('users_bp.profile') }}" class="dropdown-item py-2">
-          <i class="fas fa-user-cog mr-3 text-primary"></i> الملف الشخصي
+        <a href="{{ url_for('users_bp.profile') }}" class="dropdown-item py-2" style="color: #000000; font-weight: 700; font-size: 15px;">
+          <i class="fas fa-user-cog mr-3" style="color: #0056b3; font-size: 16px;"></i> <strong>الملف الشخصي</strong>
         </a>
         
-        <a href="#" class="dropdown-item py-2">
-          <i class="fas fa-edit mr-3 text-success"></i> تعديل الملف الشخصي
+        <a href="#" class="dropdown-item py-2" style="color: #000000; font-weight: 700; font-size: 15px;">
+          <i class="fas fa-edit mr-3" style="color: #28a745; font-size: 16px;"></i> <strong>تعديل الملف الشخصي</strong>
         </a>
 
-        <a href="#" class="dropdown-item py-2">
-          <i class="fas fa-key mr-3 text-warning"></i> تغيير كلمة المرور
+        <a href="#" class="dropdown-item py-2" style="color: #000000; font-weight: 700; font-size: 15px;">
+          <i class="fas fa-key mr-3" style="color: #ffc107; font-size: 16px;"></i> <strong>تغيير كلمة المرور</strong>
         </a>
 
         {% if has_perm('manage_users') or shop_is_super_admin %}
         <div class="dropdown-divider"></div>
-        <h6 class="dropdown-header text-primary">
-          <i class="fas fa-users mr-2"></i> إدارة المستخدمين
+        <h6 class="dropdown-header" style="color: #0056b3; font-weight: 800; font-size: 15px; background-color: #e7f3ff; padding: 8px; border-radius: 5px;">
+          <i class="fas fa-users mr-2"></i> <strong>إدارة المستخدمين</strong>
         </h6>
-        <a href="{{ url_for('users_bp.create_user') }}" class="dropdown-item py-2">
-          <i class="fas fa-user-plus mr-3 text-info"></i> إضافة مستخدم
+        <a href="{{ url_for('users_bp.create_user') }}" class="dropdown-item py-2" style="color: #000000; font-weight: 700; font-size: 15px;">
+          <i class="fas fa-user-plus mr-3" style="color: #17a2b8; font-size: 16px;"></i> <strong>إضافة مستخدم</strong>
         </a>
-        <a href="{{ url_for('users_bp.list_users') if url_for('users_bp.list_users') else '#' }}" class="dropdown-item py-2">
-          <i class="fas fa-list mr-3 text-info"></i> قائمة المستخدمين
+        <a href="{{ url_for('users_bp.list_users') if url_for('users_bp.list_users') else '#' }}" class="dropdown-item py-2" style="color: #000000; font-weight: 700; font-size: 15px;">
+          <i class="fas fa-list mr-3" style="color: #17a2b8; font-size: 16px;"></i> <strong>قائمة المستخدمين</strong>
         </a>
         {% endif %}
 
         {% if shop_is_super_admin or has_perm('backup_database') or has_perm('restore_database') %}
         <div class="dropdown-divider"></div>
-        <h6 class="dropdown-header text-warning">
-          <i class="fas fa-database mr-2"></i> النسخ الاحتياطي
+        <h6 class="dropdown-header" style="color: #e67e22; font-weight: 800; font-size: 15px; background-color: #fff3cd; padding: 8px; border-radius: 5px;">
+          <i class="fas fa-database mr-2"></i> <strong>النسخ الاحتياطي</strong>
         </h6>
         {% if shop_is_super_admin or has_perm('backup_database') %}
-        <a href="{{ url_for('main.backup_db') }}" class="dropdown-item py-2">
-          <i class="fas fa-download mr-3 text-success"></i> نسخ احتياطي
+        <a href="{{ url_for('main.backup_db') }}" class="dropdown-item py-2" style="color: #000000; font-weight: 700; font-size: 15px;">
+          <i class="fas fa-download mr-3" style="color: #28a745; font-size: 16px;"></i> <strong>نسخ احتياطي</strong>
         </a>
         {% endif %}
         {% if shop_is_super_admin or has_perm('restore_database') %}
-        <a href="{{ url_for('main.restore_db') }}" class="dropdown-item py-2">
-          <i class="fas fa-upload mr-3 text-warning"></i> استعادة نسخة
+        <a href="{{ url_for('main.restore_db') }}" class="dropdown-item py-2" style="color: #000000; font-weight: 700; font-size: 15px;">
+          <i class="fas fa-upload mr-3" style="color: #ffc107; font-size: 16px;"></i> <strong>استعادة نسخة</strong>
         </a>
         {% endif %}
         {% endif %}
@@ -121,8 +121,8 @@
         <div class="px-3 py-2">
           <form action="{{ url_for('auth.logout') }}" method="post">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <button type="submit" class="btn btn-sm btn-outline-danger btn-block">
-              <i class="fas fa-sign-out-alt mr-2"></i> تسجيل خروج
+            <button type="submit" class="btn btn-danger btn-block" style="font-weight: 700; font-size: 15px; padding: 10px; border-radius: 8px;">
+              <i class="fas fa-sign-out-alt mr-2"></i> <strong>تسجيل خروج</strong>
             </button>
           </form>
         </div>
@@ -170,15 +170,47 @@
   }
 }
 
+.dropdown-menu {
+  background-color: #ffffff !important;
+  border: 2px solid #dee2e6 !important;
+}
+
 .dropdown-item {
   transition: all 0.2s ease;
   border-radius: 5px;
   margin: 2px 8px;
+  color: #000000 !important;
+  font-weight: 700 !important;
+  font-size: 15px !important;
+  background-color: #f8f9fa !important;
+  border: 1px solid #e9ecef;
 }
 
 .dropdown-item:hover {
-  background-color: #f8f9fa;
+  background-color: #007bff !important;
   transform: translateX(5px);
+  color: #ffffff !important;
+  border-color: #0056b3 !important;
+}
+
+.dropdown-item:hover i {
+  color: #ffffff !important;
+}
+
+.dropdown-item:active, .dropdown-item:focus {
+  background-color: #0056b3 !important;
+  color: #ffffff !important;
+}
+
+.dropdown-header {
+  font-weight: 800 !important;
+  font-size: 15px !important;
+  color: #000000 !important;
+  margin: 5px 8px !important;
+}
+
+.dropdown-menu .text-muted {
+  color: #495057 !important;
 }
 
 /* تحسين أيقونة الدور */

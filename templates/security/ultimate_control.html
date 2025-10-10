@@ -6,12 +6,19 @@
 <div class="container-fluid">
   
   {% if session.get('impersonating') %}
-  <div class="alert alert-warning border-0 shadow-sm">
-    <strong>⚠️ تحذير:</strong> أنت الآن تتصفح كمستخدم آخر!
-    <form method="POST" action="{{ url_for('security.stop_impersonate') }}" style="display:inline;">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" class="btn btn-sm btn-danger">العودة لحسابك</button>
-    </form>
+  <div class="alert alert-warning border-0 shadow-sm animate__animated animate__pulse">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <strong>🕵️ تحذير:</strong> أنت الآن تتصفح كمستخدم آخر!
+        <br><small>الحساب الأصلي: <strong>{{ session.get('original_username', 'Owner') }}</strong></small>
+      </div>
+      <form method="POST" action="{{ url_for('security.stop_impersonate') }}" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-sm btn-danger">
+          <i class="fas fa-undo"></i> العودة لحسابك
+        </button>
+      </form>
+    </div>
   </div>
   {% endif %}
 

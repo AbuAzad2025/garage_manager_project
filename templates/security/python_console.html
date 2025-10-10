@@ -5,8 +5,18 @@
 {% block content %}
 <div class="container-fluid">
   
-  <div class="alert alert-danger">
-    <i class="fas fa-skull-crossbones"></i> <strong>خطر:</strong> تنفيذ Python مباشر! صلاحيات كاملة!
+  <div class="alert alert-danger border-0 shadow-sm">
+    <div class="d-flex align-items-center">
+      <div class="flex-grow-1">
+        <h5 class="mb-0"><i class="fas fa-skull-crossbones"></i> <strong>خطر شديد!</strong></h5>
+        <p class="mb-0 mt-2">تنفيذ Python مباشر - صلاحيات كاملة! يمكن الوصول لكل شيء.</p>
+      </div>
+      <span class="badge badge-danger" style="font-size:16px;">DANGEROUS</span>
+    </div>
+  </div>
+  
+  <div class="alert alert-success">
+    <strong>💡 متاح لك:</strong> <code>db</code>, <code>User</code>, <code>AuditLog</code>, <code>current_user</code>, <code>datetime</code>
   </div>
 
   <div class="card">

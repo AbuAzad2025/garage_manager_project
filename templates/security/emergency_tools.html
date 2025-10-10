@@ -17,7 +17,7 @@
         </div>
         <div class="card-body">
           <p>تفعيل وضع الصيانة سيمنع جميع المستخدمين من الوصول للنظام.</p>
-          <form method="POST" action="{{ url_for('security.toggle_maintenance_mode') }}">
+          <form method="POST" action="{{ url_for('security.toggle_maintenance_mode') }}" onsubmit="return confirm('⚠️ هل تريد تبديل وضع الصيانة؟ سيؤثر على جميع المستخدمين!');">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-warning">
               <i class="fas fa-power-off"></i> تبديل وضع الصيانة

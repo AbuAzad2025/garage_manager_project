@@ -1,0 +1,17 @@
+<!-- معلومات الشركة الديناميكية من الإعدادات -->
+<div class="company-info">
+  <h4>{{ system_settings.company_name or 'اسم الشركة' }}</h4>
+  {% if system_settings.COMPANY_ADDRESS %}
+  <p><i class="fas fa-map-marker-alt"></i> {{ system_settings.COMPANY_ADDRESS }}</p>
+  {% endif %}
+  {% if system_settings.COMPANY_PHONE %}
+  <p><i class="fas fa-phone"></i> {{ system_settings.COMPANY_PHONE }}</p>
+  {% endif %}
+  {% if system_settings.COMPANY_EMAIL %}
+  <p><i class="fas fa-envelope"></i> {{ system_settings.COMPANY_EMAIL }}</p>
+  {% endif %}
+  {% if system_settings.TAX_NUMBER %}
+  <p><i class="fas fa-file-invoice"></i> الرقم الضريبي: {{ system_settings.TAX_NUMBER }}</p>
+  {% endif %}
+</div>
+

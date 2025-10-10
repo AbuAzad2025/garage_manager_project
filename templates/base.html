@@ -2,16 +2,21 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8">
-  <title>{% block title %}نظام إدارة الكراج - شركة ازاد للأنظمة الذكية{% endblock %}</title>
+  <title>{% block title %}{{ system_settings.system_name or 'نظام إدارة الكراج' }} - {{ system_settings.company_name or 'شركة ازاد للأنظمة الذكية' }}{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="نظام إدارة الكراج المتكامل - شركة ازاد للأنظمة الذكية">
-  <meta name="keywords" content="نظام إدارة الكراج، إدارة المركبات، صيانة السيارات، شركة ازاد">
-  <meta name="author" content="شركة ازاد للأنظمة الذكية">
+  <meta name="description" content="{{ system_settings.system_name or 'نظام إدارة الكراج المتكامل' }} - {{ system_settings.company_name or 'شركة ازاد للأنظمة الذكية' }}">
+  <meta name="keywords" content="نظام إدارة الكراج، إدارة المركبات، صيانة السيارات، {{ system_settings.company_name or 'شركة ازاد' }}">
+  <meta name="author" content="{{ system_settings.company_name or 'شركة ازاد للأنظمة الذكية' }}">
   <meta name="csrf-token" content="{{ csrf_token() }}">
   
   <!-- Favicon -->
+  {% if system_settings.custom_favicon %}
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename=system_settings.custom_favicon.replace('static/', '')) }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename=system_settings.custom_favicon.replace('static/', '')) }}">
+  {% else %}
   <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  {% endif %}
   
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -29,6 +34,40 @@
   
   <!-- Custom CSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  
+  <!-- Dynamic System Colors from Security Settings -->
+  {% if system_settings.primary_color %}
+  <style>
+    :root {
+      --primary-color: {{ system_settings.primary_color }};
+    }
+    
+    /* Apply primary color dynamically */
+    .btn-primary, .badge-primary, .bg-primary,
+    .alert-primary, .text-primary, .border-primary {
+      background-color: {{ system_settings.primary_color }} !important;
+      border-color: {{ system_settings.primary_color }} !important;
+    }
+    
+    .btn-primary:hover, .btn-primary:focus {
+      background-color: {{ system_settings.primary_color }}dd !important;
+      border-color: {{ system_settings.primary_color }}dd !important;
+    }
+    
+    a, .nav-link.active, .sidebar .nav-link.active {
+      color: {{ system_settings.primary_color }} !important;
+    }
+    
+    .content-header {
+      background: linear-gradient(135deg, {{ system_settings.primary_color }} 0%, {{ system_settings.primary_color }}cc 100%) !important;
+    }
+    
+    .main-sidebar {
+      background-color: {{ system_settings.primary_color }}22 !important;
+    }
+  </style>
+  {% endif %}
+  
   {% block styles %}{% endblock %}
   {% block head_extra %}{% endblock %}
   

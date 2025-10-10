@@ -5,8 +5,18 @@
 {% block content %}
 <div class="container-fluid">
   
-  <div class="alert alert-danger">
-    <i class="fas fa-skull-crossbones"></i> <strong>خطر:</strong> تنفيذ SQL مباشر! كن حذراً جداً!
+  <div class="alert alert-danger border-0 shadow-sm">
+    <div class="d-flex align-items-center">
+      <div class="flex-grow-1">
+        <h5 class="mb-0"><i class="fas fa-skull-crossbones"></i> <strong>خطر شديد!</strong></h5>
+        <p class="mb-0 mt-2">تنفيذ SQL مباشر - يمكن أن يدمر قاعدة البيانات! استخدم بحذر شديد.</p>
+      </div>
+      <span class="badge badge-danger" style="font-size:16px;">DANGEROUS</span>
+    </div>
+  </div>
+  
+  <div class="alert alert-info">
+    <strong>💡 نصيحة:</strong> استخدم <code>SELECT</code> للقراءة فقط. تجنب <code>DROP</code> و <code>DELETE</code> بدون WHERE.
   </div>
 
   <div class="card">

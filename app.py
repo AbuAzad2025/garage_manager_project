@@ -576,6 +576,70 @@ def create_app(config_object=Config) -> Flask:
         if missing:
             app.logger.error("Missing endpoints at startup: %s", ", ".join(missing))
 
+    # Context Processor لإعدادات النظام الديناميكية
+    @app.context_processor
+    def inject_system_settings():
+        """حقن إعدادات النظام في جميع القوالب"""
+        try:
+            from models import SystemSettings
+            def _get_setting(key, default=None):
+                try:
+                    setting = SystemSettings.query.filter_by(key=key).first()
+                    if setting:
+                        value = setting.value.lower() if setting.value else ''
+                        if value in ['true', '1', 'yes']:
+                            return True
+                        elif value in ['false', '0', 'no']:
+                            return False
+                        return setting.value
+                    return default
+                except:
+                    return default
+            
+            settings = {
+                'system_name': _get_setting('system_name', 'Garage Manager'),
+                'company_name': _get_setting('COMPANY_NAME', 'Azad Garage'),
+                'custom_logo': _get_setting('custom_logo', ''),
+                'custom_favicon': _get_setting('custom_favicon', ''),
+                'primary_color': _get_setting('primary_color', '#007bff'),
+                'COMPANY_ADDRESS': _get_setting('COMPANY_ADDRESS', ''),
+                'COMPANY_PHONE': _get_setting('COMPANY_PHONE', ''),
+                'COMPANY_EMAIL': _get_setting('COMPANY_EMAIL', ''),
+                'TAX_NUMBER': _get_setting('TAX_NUMBER', ''),
+                'CURRENCY_SYMBOL': _get_setting('CURRENCY_SYMBOL', '$'),
+                'TIMEZONE': _get_setting('TIMEZONE', 'UTC'),
+            }
+            return dict(system_settings=settings)
+        except:
+            return dict(system_settings={})
+    
+    # Middleware لوضع الصيانة
+    @app.before_request
+    def check_maintenance_mode():
+        """فحص وضع الصيانة"""
+        # السماح بالوصول للـ static files
+        if request.path.startswith('/static/'):
+            return None
+        
+        # السماح للمالك بالوصول
+        if current_user.is_authenticated:
+            try:
+                if is_super() and current_user.id == 1:
+                    return None
+            except:
+                pass
+        
+        # فحص وضع الصيانة
+        try:
+            from models import SystemSettings
+            setting = SystemSettings.query.filter_by(key='maintenance_mode').first()
+            if setting and setting.value.lower() in ['true', '1', 'yes']:
+                return render_template('maintenance.html'), 503
+        except:
+            pass
+        
+        return None
+
     from cli import register_cli
     register_cli(app)
 

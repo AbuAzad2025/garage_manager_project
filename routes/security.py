@@ -332,14 +332,35 @@ def impersonate_user(user_id):
     
     target_user = User.query.get_or_404(user_id)
     
+    # منع التسجيل كنفس المستخدم
+    if target_user.id == current_user.id:
+        flash('⚠️ أنت بالفعل هذا المستخدم!', 'warning')
+        return redirect(url_for('security.user_control'))
+    
     # حفظ المستخدم الأصلي
     session['original_user_id'] = current_user.id
+    session['original_username'] = current_user.username
     session['impersonating'] = True
+    
+    # تسجيل في AuditLog
+    try:
+        log = AuditLog(
+            user_id=current_user.id,
+            action='security.impersonate_user',
+            table_name='user',
+            record_id=target_user.id,
+            note=f'Owner impersonated as: {target_user.username}',
+            ip_address=request.remote_addr
+        )
+        db.session.add(log)
+        db.session.commit()
+    except:
+        pass
     
     logout_user()
     login_user(target_user)
     
-    flash(f'تم تسجيل الدخول كـ {target_user.username}', 'warning')
+    flash(f'🕵️ تم تسجيل الدخول كـ {target_user.username}', 'warning')
     return redirect(url_for('main.dashboard'))
 
 
@@ -592,41 +613,88 @@ def system_branding():
     """تخصيص العلامة التجارية (الشعار، الاسم، الألوان)"""
     if request.method == 'POST':
         from werkzeug.utils import secure_filename
+        import os
+        
+        updated = []
         
         # اسم النظام
-        system_name = request.form.get('system_name', '')
-        if system_name:
+        system_name = request.form.get('system_name', '').strip()
+        if system_name and len(system_name) >= 3:
             _set_system_setting('system_name', system_name)
+            updated.append('اسم النظام')
+        elif system_name and len(system_name) < 3:
+            flash('⚠️ اسم النظام يجب أن يكون 3 أحرف على الأقل', 'warning')
         
         # وصف النظام
-        system_description = request.form.get('system_description', '')
+        system_description = request.form.get('system_description', '').strip()
         if system_description:
             _set_system_setting('system_description', system_description)
+            updated.append('وصف النظام')
         
         # اللون الأساسي
-        primary_color = request.form.get('primary_color', '')
+        primary_color = request.form.get('primary_color', '').strip()
         if primary_color:
-            _set_system_setting('primary_color', primary_color)
+            # التحقق من صيغة اللون
+            import re
+            if re.match(r'^#[0-9A-Fa-f]{6}$', primary_color):
+                _set_system_setting('primary_color', primary_color)
+                updated.append('اللون الأساسي')
+            else:
+                flash('⚠️ صيغة اللون غير صحيحة (مثال: #007bff)', 'warning')
         
         # الشعار
         if 'logo' in request.files:
             logo_file = request.files['logo']
             if logo_file and logo_file.filename:
-                filename = secure_filename(logo_file.filename)
-                logo_path = f'static/img/custom_logo_{filename}'
-                logo_file.save(logo_path)
-                _set_system_setting('custom_logo', logo_path)
+                # التحقق من نوع الملف
+                allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+                file_ext = logo_file.filename.rsplit('.', 1)[1].lower() if '.' in logo_file.filename else ''
+                
+                if file_ext in allowed_extensions:
+                    filename = secure_filename(logo_file.filename)
+                    os.makedirs('static/img', exist_ok=True)
+                    logo_path = f'static/img/custom_logo_{filename}'
+                    logo_file.save(logo_path)
+                    _set_system_setting('custom_logo', logo_path)
+                    updated.append('الشعار')
+                else:
+                    flash('⚠️ نوع ملف الشعار غير مدعوم (استخدم: png, jpg, jpeg, gif, webp)', 'warning')
         
         # الأيقونة
         if 'favicon' in request.files:
             favicon_file = request.files['favicon']
             if favicon_file and favicon_file.filename:
-                filename = secure_filename(favicon_file.filename)
-                favicon_path = f'static/favicon_custom_{filename}'
-                favicon_file.save(favicon_path)
-                _set_system_setting('custom_favicon', favicon_path)
+                allowed_extensions = {'png', 'ico'}
+                file_ext = favicon_file.filename.rsplit('.', 1)[1].lower() if '.' in favicon_file.filename else ''
+                
+                if file_ext in allowed_extensions:
+                    filename = secure_filename(favicon_file.filename)
+                    favicon_path = f'static/favicon_custom_{filename}'
+                    favicon_file.save(favicon_path)
+                    _set_system_setting('custom_favicon', favicon_path)
+                    updated.append('الأيقونة')
+                else:
+                    flash('⚠️ نوع ملف الأيقونة غير مدعوم (استخدم: png, ico)', 'warning')
         
-        flash('تم تحديث العلامة التجارية', 'success')
+        if updated:
+            flash(f'✅ تم تحديث: {", ".join(updated)} بنجاح!', 'success')
+            
+            # تسجيل في AuditLog
+            try:
+                log = AuditLog(
+                    user_id=current_user.id,
+                    action='security.update_branding',
+                    table_name='system_settings',
+                    note=f'Updated: {", ".join(updated)}',
+                    ip_address=request.remote_addr
+                )
+                db.session.add(log)
+                db.session.commit()
+            except:
+                pass
+        else:
+            flash('ℹ️ لم يتم تحديث أي شيء', 'info')
+        
         return redirect(url_for('security.system_branding'))
     
     # قراءة الإعدادات الحالية

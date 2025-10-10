@@ -1,9 +1,14 @@
 <!-- templates/_sidebar.html -->
 <aside class="main-sidebar sidebar-dark-primary elevation-4" dir="rtl">
   <a href="{{ url_for('main.dashboard') }}" class="brand-link text-center">
+    {% if system_settings.custom_logo %}
+    <img src="{{ url_for('static', filename=system_settings.custom_logo.replace('static/', '')) }}" alt="Logo"
+         class="brand-image img-circle elevation-3" style="opacity:.9; max-height:45px;">
+    {% else %}
     <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Garage Logo"
          class="brand-image img-circle elevation-3" style="opacity:.9; max-height:45px;">
-    <span class="brand-text font-weight-light d-block">نظام إدارة الكراج</span>
+    {% endif %}
+    <span class="brand-text font-weight-light d-block">{{ system_settings.system_name or 'نظام إدارة الكراج' }}</span>
   </a>
 
   <div class="sidebar">
