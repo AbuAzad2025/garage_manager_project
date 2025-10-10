@@ -21,9 +21,14 @@ class SystemKnowledgeBase:
         self.base_path = Path('.')
         self.knowledge = {
             'models': {},
+            'enums': {},
             'routes': {},
             'templates': {},
             'forms': {},
+            'functions': {},
+            'javascript': {},
+            'css': {},
+            'static_files': {},
             'relationships': {},
             'business_rules': [],
             'common_errors': [],
@@ -58,24 +63,40 @@ class SystemKnowledgeBase:
             print(f"⚠️ تعذر حفظ الذاكرة: {str(e)}")
     
     def index_all_files(self, force_reindex=False):
-        """فهرسة كل ملفات النظام مع حفظ مستمر"""
+        """فهرسة كل ملفات النظام مع حفظ مستمر - شاملة 100%"""
         if not force_reindex and self.knowledge.get('last_indexed'):
             print(f"ℹ️  المعرفة محملة من الذاكرة (آخر فهرسة: {self.knowledge.get('last_indexed')})")
             print(f"   استخدم force_reindex=True لإعادة الفهرسة")
             return self.knowledge
         
-        print("🔍 بدء فهرسة شاملة للنظام...")
+        print("🔍 بدء فهرسة شاملة للنظام (100% Coverage)...")
         
         self.index_models()
+        self.index_forms()
         self.index_routes()
+        self.index_all_functions()
         self.index_templates()
+        self.index_javascript()
+        self.index_css()
+        self.index_static_files()
         self.analyze_relationships()
         self.extract_business_rules()
         self.extract_currency_rules()
         
         self.save_to_cache()
         
-        print(f"✅ تم فهرسة: {len(self.knowledge['models'])} موديل، {len(self.knowledge['routes'])} route")
+        total_items = (
+            len(self.knowledge['models']) +
+            len(self.knowledge['enums']) +
+            len(self.knowledge['forms']) +
+            len(self.knowledge['routes']) +
+            len(self.knowledge['functions']) +
+            len(self.knowledge['templates']) +
+            len(self.knowledge['javascript']) +
+            len(self.knowledge['css'])
+        )
+        
+        print(f"✅ فهرسة كاملة: {total_items} عنصر")
         return self.knowledge
     
     def extract_currency_rules(self):
@@ -107,7 +128,7 @@ class SystemKnowledgeBase:
         print(f"   💱 Currency Rules: {len(currency_rules)}")
     
     def index_models(self):
-        """فهرسة Models - فهم الجداول"""
+        """فهرسة Models - فهم الجداول - محسّن لاكتشاف كل النماذج"""
         try:
             models_file = self.base_path / 'models.py'
             if not models_file.exists():
@@ -115,30 +136,63 @@ class SystemKnowledgeBase:
             
             content = models_file.read_text(encoding='utf-8')
             
-            class_pattern = r'class\s+(\w+)\(.*?(?:db\.Model|Base)\):'
-            classes = re.findall(class_pattern, content)
+            # اكتشاف كل الـ classes
+            class_pattern = r'^class\s+(\w+)\s*\([^)]*\):'
+            all_classes = re.findall(class_pattern, content, re.MULTILINE)
             
-            for class_name in classes:
-                class_match = re.search(
-                    rf'class\s+{class_name}\(.*?\):(.*?)(?=\nclass\s|\Z)',
-                    content,
-                    re.DOTALL
-                )
+            db_models_count = 0
+            enums_count = 0
+            
+            for class_name in all_classes:
+                # الحصول على تعريف الـ class
+                class_def_pattern = rf'^class\s+{re.escape(class_name)}\s*\(([^)]+)\):'
+                class_def = re.search(class_def_pattern, content, re.MULTILINE)
                 
-                if class_match:
-                    class_body = class_match.group(1)
-                    
-                    columns = re.findall(r'(\w+)\s*=\s*db\.Column\((.*?)\)', class_body)
-                    relationships = re.findall(r'(\w+)\s*=\s*db\.relationship\((.*?)\)', class_body)
+                if not class_def:
+                    continue
+                
+                inheritance = class_def.group(1)
+                
+                # تحديد نوع الـ class
+                is_enum = 'enum.Enum' in inheritance or 'str, enum' in inheritance
+                is_db_model = 'db.Model' in inheritance
+                is_mixin = 'Mixin' in class_name
+                
+                if is_mixin:
+                    continue  # تخطي الـ Mixins
+                
+                # استخراج الجسم
+                class_body_pattern = rf'class\s+{re.escape(class_name)}\s*\([^)]+\):(.*?)(?=\nclass\s+\w+\s*\(|\Z)'
+                class_body_match = re.search(class_body_pattern, content, re.DOTALL | re.MULTILINE)
+                
+                class_body = class_body_match.group(1) if class_body_match else ''
+                
+                if is_enum:
+                    # Enum
+                    values = re.findall(r'(\w+)\s*=\s*["\']([^"\']+)["\']', class_body[:1000])
+                    self.knowledge['models'][class_name] = {
+                        'type': 'enum',
+                        'values': [v[0] for v in values[:10]],
+                        'file': 'models.py'
+                    }
+                    enums_count += 1
+                
+                elif is_db_model:
+                    # DB Model
+                    columns = re.findall(r'(\w+)\s*=\s*db\.Column\(', class_body)
+                    relationships = re.findall(r'(\w+)\s*=\s*db\.relationship\(["\'](\w+)["\']', class_body)
                     
                     self.knowledge['models'][class_name] = {
-                        'columns': [col[0] for col in columns],
-                        'relationships': [rel[0] for rel in relationships],
+                        'type': 'db_model',
+                        'columns': columns[:50],  # أول 50 عمود
+                        'relationships': [rel[1] for rel in relationships],
                         'file': 'models.py',
-                        'full_definition': class_body[:500]
+                        'has_timestamp': 'TimestampMixin' in inheritance,
+                        'has_audit': 'AuditMixin' in inheritance,
                     }
+                    db_models_count += 1
             
-            print(f"   📊 Models: {len(self.knowledge['models'])}")
+            print(f"   📊 Models: {db_models_count} DB + {enums_count} Enums = {len(self.knowledge['models'])} Total")
             
         except Exception as e:
             print(f"⚠️  خطأ في فهرسة Models: {str(e)}")

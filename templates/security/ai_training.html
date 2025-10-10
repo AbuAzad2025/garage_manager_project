@@ -148,22 +148,32 @@
                 </tr>
               </thead>
               <tbody>
-                        {% for log in training_logs|reverse %}
+                {% for log in training_logs|reverse %}
+                  {% if log is mapping %}
                 <tr>
                   <td>{{ loop.index }}</td>
                   <td>
-                    {% if log['event'] == 'manual_reindex' %}
+                    {% if log.get('event') == 'manual_reindex' %}
                       <span class="badge bg-success">إعادة فهرسة</span>
-                    {% elif log['event'] == 'clear_cache' %}
+                    {% elif log.get('event') == 'clear_cache' %}
                       <span class="badge bg-danger">حذف ذاكرة</span>
+                    {% elif log.get('event') == 'comprehensive_training' %}
+                      <span class="badge bg-primary">تدريب شامل</span>
                     {% else %}
-                      {{ log['event'] }}
+                      {{ log.get('event', 'N/A') }}
                     {% endif %}
                   </td>
-                  <td>User ID: {{ log['user_id'] }}</td>
-                <td>{{ log.get('timestamp', 'N/A')[:10] if log.get('timestamp') else 'N/A' }}</td>
-                <td>{{ log.get('timestamp', 'N/A')[11:19] if log.get('timestamp') else 'N/A' }}</td>
+                  <td>User ID: {{ log.get('user_id', 'N/A') }}</td>
+                  <td>
+                    {% set ts = log.get('timestamp', '') %}
+                    {{ ts[:10] if ts else 'N/A' }}
+                  </td>
+                  <td>
+                    {% set ts = log.get('timestamp', '') %}
+                    {{ ts[11:19] if ts and ts|length > 19 else 'N/A' }}
+                  </td>
                 </tr>
+                  {% endif %}
                 {% endfor %}
               </tbody>
             </table>

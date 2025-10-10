@@ -527,7 +527,10 @@ def ai_training():
                          structure=structure,
                          system_stats=system_stats,
                          training_report=training_report,
-                         training_logs=training_logs)
+                         training_logs=training_logs,
+                         cache_exists=cache_exists,
+                         last_indexed=last_indexed,
+                         index_count=index_count)
 
 
 def _log_training_event(event_type, user_id, details=None):
