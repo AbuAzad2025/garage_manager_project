@@ -1343,7 +1343,360 @@ user.last_login = datetime.now(timezone.utc)  # ✅ timezone-aware
 
 ---
 
+---
+
+## 🎭 جدول الأدوار والصلاحيات (Roles & Permissions Matrix)
+
+### 📅 **التاريخ:** October 10, 2025
+### 📍 **المصدر:** `cli.py`, `routes/roles.py`, `routes/permissions.py`, `acl.py`
+
+---
+
+### 📊 **ملخص:**
+- **عدد الأدوار:** 4 (admin, staff, mechanic, registered_customer)
+- **عدد الصلاحيات:** 39 صلاحية
+- **Super Admin:** صلاحيات كاملة (bypass جميع الفحوصات)
+
+---
+
+### 🎭 **الأدوار (Roles):**
+
+#### 1️⃣ **Super Admin** (مدير عام)
+- **الصلاحيات:** جميع الصلاحيات ✅ (bypass كل الفحوصات)
+- **الوصف:** صلاحيات كاملة على كل النظام
+- **عدد المستخدمين:** 2
+- **ملاحظة:** يتم فحصه عبر `is_super()` - لا يحتاج permissions
+
+#### 2️⃣ **Admin** (مدير)
+- **الصلاحيات:** 28 صلاحية
+- **الوصف:** صلاحيات إدارية شاملة
+- **الصلاحيات التفصيلية:**
+  - ✅ `backup_database` - نسخ احتياطي
+  - ✅ `manage_permissions` - إدارة الصلاحيات
+  - ✅ `manage_roles` - إدارة الأدوار
+  - ✅ `manage_users` - إدارة المستخدمين
+  - ✅ `manage_customers` - إدارة العملاء
+  - ✅ `manage_service` - إدارة الصيانة
+  - ✅ `manage_reports` - إدارة التقارير
+  - ✅ `view_reports` - عرض التقارير
+  - ✅ `manage_vendors` - إدارة الموردين
+  - ✅ `manage_shipments` - إدارة الشحن
+  - ✅ `manage_warehouses` - إدارة المستودعات
+  - ✅ `view_warehouses` - عرض المستودعات
+  - ✅ `manage_exchange` - إدارة التحويلات
+  - ✅ `manage_payments` - إدارة المدفوعات
+  - ✅ `manage_expenses` - إدارة المصاريف
+  - ✅ `view_inventory` - عرض الجرد
+  - ✅ `warehouse_transfer` - تحويل مخزني
+  - ✅ `view_parts` - عرض القطع
+  - ✅ `add_customer` - إضافة عميل
+  - ✅ `add_supplier` - إضافة مورد
+  - ✅ `add_partner` - إضافة شريك
+  - ✅ `manage_sales` - إدارة المبيعات
+  - ✅ `access_api` - الوصول إلى API
+  - ✅ `manage_api` - إدارة API
+  - ✅ `view_notes` - عرض الملاحظات
+  - ✅ `manage_notes` - إدارة الملاحظات
+  - ✅ `view_barcode` - عرض الباركود
+  - ✅ `manage_barcode` - إدارة الباركود
+  - ✅ `manage_currencies` - إدارة العملات
+
+#### 3️⃣ **Staff** (موظف)
+- **الصلاحيات:** 6 صلاحيات
+- **الوصف:** صلاحيات أساسية للعمليات اليومية
+- **الصلاحيات التفصيلية:**
+  - ✅ `manage_customers` - إدارة العملاء
+  - ✅ `manage_service` - إدارة الصيانة
+  - ✅ `view_parts` - عرض القطع
+  - ✅ `view_warehouses` - عرض المستودعات
+  - ✅ `view_inventory` - عرض الجرد
+  - ✅ `view_notes` - عرض الملاحظات
+
+#### 4️⃣ **Mechanic** (ميكانيكي)
+- **الصلاحيات:** 4 صلاحيات
+- **الوصف:** صلاحيات تنفيذ أعمال الصيانة
+- **الصلاحيات التفصيلية:**
+  - ✅ `manage_service` - إدارة الصيانة
+  - ✅ `view_warehouses` - عرض المستودعات
+  - ✅ `view_inventory` - عرض الجرد
+  - ✅ `view_parts` - عرض القطع
+
+#### 5️⃣ **Registered Customer** (عميل مسجل)
+- **الصلاحيات:** 5 صلاحيات
+- **الوصف:** صلاحيات العميل في المتجر الإلكتروني
+- **الصلاحيات التفصيلية:**
+  - ✅ `place_online_order` - طلب أونلاين
+  - ✅ `view_preorders` - عرض الطلبات المسبقة
+  - ✅ `view_parts` - عرض القطع
+  - ✅ `view_shop` - عرض المتجر
+  - ✅ `browse_products` - تصفح المنتجات
+
+---
+
+### 📋 **جميع الصلاحيات (39 صلاحية):**
+
+| # | الكود | الاسم العربي | الوحدة |
+|---|-------|---------------|---------|
+| 1 | `backup_database` | نسخ احتياطي | System |
+| 2 | `restore_database` | استعادة نسخة | System |
+| 3 | `manage_permissions` | إدارة الصلاحيات | System |
+| 4 | `manage_roles` | إدارة الأدوار | System |
+| 5 | `manage_users` | إدارة المستخدمين | Users |
+| 6 | `manage_customers` | إدارة العملاء | Customers |
+| 7 | `add_customer` | إضافة عميل | Customers |
+| 8 | `manage_sales` | إدارة المبيعات | Sales |
+| 9 | `manage_service` | إدارة الصيانة | Service |
+| 10 | `manage_reports` | إدارة التقارير | Reports |
+| 11 | `view_reports` | عرض التقارير | Reports |
+| 12 | `manage_vendors` | إدارة الموردين | Vendors |
+| 13 | `add_supplier` | إضافة مورد | Vendors |
+| 14 | `add_partner` | إضافة شريك | Vendors |
+| 15 | `manage_shipments` | إدارة الشحن | Warehouses |
+| 16 | `manage_warehouses` | إدارة المستودعات | Warehouses |
+| 17 | `view_warehouses` | عرض المستودعات | Warehouses |
+| 18 | `manage_exchange` | إدارة التحويلات | Warehouses |
+| 19 | `warehouse_transfer` | تحويل مخزني | Warehouses |
+| 20 | `view_inventory` | عرض الجرد | Warehouses |
+| 21 | `manage_inventory` | إدارة الجرد | Warehouses |
+| 22 | `manage_payments` | إدارة المدفوعات | Payments |
+| 23 | `manage_expenses` | إدارة المصاريف | Expenses |
+| 24 | `view_parts` | عرض القطع | Parts |
+| 25 | `view_preorders` | عرض الطلبات المسبقة | Shop |
+| 26 | `add_preorder` | إضافة طلب مسبق | Shop |
+| 27 | `edit_preorder` | تعديل طلب مسبق | Shop |
+| 28 | `delete_preorder` | حذف طلب مسبق | Shop |
+| 29 | `place_online_order` | طلب أونلاين | Shop |
+| 30 | `view_shop` | عرض المتجر | Shop |
+| 31 | `browse_products` | تصفح المنتجات | Shop |
+| 32 | `manage_shop` | إدارة المتجر | Shop |
+| 33 | `access_api` | الوصول إلى API | API |
+| 34 | `manage_api` | إدارة API | API |
+| 35 | `view_notes` | عرض الملاحظات | Notes |
+| 36 | `manage_notes` | إدارة الملاحظات | Notes |
+| 37 | `view_barcode` | عرض الباركود | Barcode |
+| 38 | `manage_barcode` | إدارة الباركود | Barcode |
+| 39 | `manage_currencies` | إدارة العملات | Currencies |
+
+---
+
+### 🔐 **مصفوفة التحكم (Access Control Matrix):**
+
+| الصلاحية | Super Admin | Admin | Staff | Mechanic | Customer |
+|----------|:-----------:|:-----:|:-----:|:--------:|:--------:|
+| **System** | | | | | |
+| backup_database | ✅ | ✅ | ❌ | ❌ | ❌ |
+| manage_permissions | ✅ | ✅ | ❌ | ❌ | ❌ |
+| manage_roles | ✅ | ✅ | ❌ | ❌ | ❌ |
+| **Users** | | | | | |
+| manage_users | ✅ | ✅ | ❌ | ❌ | ❌ |
+| **Customers** | | | | | |
+| manage_customers | ✅ | ✅ | ✅ | ❌ | ❌ |
+| add_customer | ✅ | ✅ | ❌ | ❌ | ❌ |
+| **Service** | | | | | |
+| manage_service | ✅ | ✅ | ✅ | ✅ | ❌ |
+| **Sales** | | | | | |
+| manage_sales | ✅ | ✅ | ❌ | ❌ | ❌ |
+| **Warehouses** | | | | | |
+| manage_warehouses | ✅ | ✅ | ❌ | ❌ | ❌ |
+| view_warehouses | ✅ | ✅ | ✅ | ✅ | ❌ |
+| view_inventory | ✅ | ✅ | ✅ | ✅ | ❌ |
+| view_parts | ✅ | ✅ | ✅ | ✅ | ✅ |
+| warehouse_transfer | ✅ | ✅ | ❌ | ❌ | ❌ |
+| **Payments & Expenses** | | | | | |
+| manage_payments | ✅ | ✅ | ❌ | ❌ | ❌ |
+| manage_expenses | ✅ | ✅ | ❌ | ❌ | ❌ |
+| **Vendors** | | | | | |
+| manage_vendors | ✅ | ✅ | ❌ | ❌ | ❌ |
+| add_supplier | ✅ | ✅ | ❌ | ❌ | ❌ |
+| add_partner | ✅ | ✅ | ❌ | ❌ | ❌ |
+| **Reports** | | | | | |
+| view_reports | ✅ | ✅ | ❌ | ❌ | ❌ |
+| manage_reports | ✅ | ✅ | ❌ | ❌ | ❌ |
+| **Shop** | | | | | |
+| view_shop | ✅ | ✅ | ❌ | ❌ | ✅ |
+| browse_products | ✅ | ✅ | ❌ | ❌ | ✅ |
+| place_online_order | ✅ | ✅ | ❌ | ❌ | ✅ |
+| view_preorders | ✅ | ✅ | ❌ | ❌ | ✅ |
+| manage_shop | ✅ | ✅ | ❌ | ❌ | ❌ |
+| **API** | | | | | |
+| access_api | ✅ | ✅ | ❌ | ❌ | ❌ |
+| manage_api | ✅ | ✅ | ❌ | ❌ | ❌ |
+| **Notes** | | | | | |
+| view_notes | ✅ | ✅ | ✅ | ❌ | ❌ |
+| manage_notes | ✅ | ✅ | ❌ | ❌ | ❌ |
+| **Barcode** | | | | | |
+| view_barcode | ✅ | ✅ | ❌ | ❌ | ❌ |
+| manage_barcode | ✅ | ✅ | ❌ | ❌ | ❌ |
+| **Currencies** | | | | | |
+| manage_currencies | ✅ | ✅ | ❌ | ❌ | ❌ |
+
+---
+
+### 📝 **تفاصيل كل دور:**
+
+#### 🎭 **Super Admin:**
+```
+الصلاحيات: جميع الصلاحيات (*)
+الآلية: is_super() - bypass جميع permission checks
+الاستخدام: للمالك أو المطور الرئيسي
+```
+
+#### 🎭 **Admin:**
+```
+الصلاحيات: 28 صلاحية
+الوحدات المسموحة:
+  ✅ System (backup, permissions, roles, users)
+  ✅ Customers (manage, add)
+  ✅ Service (manage)
+  ✅ Sales (manage)
+  ✅ Warehouses (manage, view, transfer, inventory)
+  ✅ Vendors (manage, add supplier, add partner)
+  ✅ Payments & Expenses (manage)
+  ✅ Reports (manage, view)
+  ✅ Shop (manage)
+  ✅ API (access, manage)
+  ✅ Notes, Barcode, Currencies (manage)
+```
+
+#### 🎭 **Staff:**
+```
+الصلاحيات: 6 صلاحيات
+الوحدات المسموحة:
+  ✅ Customers (manage)
+  ✅ Service (manage)
+  ✅ Warehouses (view, inventory)
+  ✅ Parts (view)
+  ✅ Notes (view)
+  
+الوحدات الممنوعة:
+  ❌ Users, Roles, Permissions
+  ❌ Sales
+  ❌ Payments & Expenses
+  ❌ Vendors
+  ❌ Reports
+  ❌ API
+```
+
+#### 🎭 **Mechanic:**
+```
+الصلاحيات: 4 صلاحيات
+الوحدات المسموحة:
+  ✅ Service (manage) - فقط أعمال الصيانة
+  ✅ Warehouses (view)
+  ✅ Inventory (view)
+  ✅ Parts (view)
+  
+الوحدات الممنوعة:
+  ❌ كل شيء آخر (Customers, Sales, Payments, etc.)
+```
+
+#### 🎭 **Registered Customer:**
+```
+الصلاحيات: 5 صلاحيات
+الوحدات المسموحة:
+  ✅ Shop (view, browse, order)
+  ✅ Preorders (view)
+  ✅ Parts (view)
+  
+الوحدات الممنوعة:
+  ❌ كل شيء آخر (Admin panels, Service, etc.)
+  
+ملاحظة: يتم تقييد Customer تلقائياً في app.py:
+  - restrict_customer_from_admin()
+  - يسمح فقط بـ: /shop, /static, /auth/logout
+```
+
+---
+
+### 🛡️ **آليات الحماية:**
+
+#### 1. **ACL (Access Control List)** - `acl.py`:
+- `attach_acl(bp, read_perm, write_perm)` - حماية Blueprint
+- `require_perm(perm)` - decorator لحماية endpoint
+- Super Admin: bypass جميع الفحوصات
+
+#### 2. **Permission Decorator** - `utils.py`:
+- `@permission_required('permission_name')`
+- فحص تلقائي قبل تنفيذ الوظيفة
+
+#### 3. **Route-Level Protection** - كل route:
+- `@login_required` - يجب تسجيل الدخول
+- `@permission_required('perm')` - يجب وجود الصلاحية
+
+#### 4. **Customer Restriction** - `app.py`:
+- `restrict_customer_from_admin()` - منع Customer من الوصول للوحات الإدارة
+- يُسمح فقط: `/shop`, `/static`, `/auth/logout`
+
+---
+
+### 🎯 **توصيات لضبط الصلاحيات:**
+
+#### ✅ **الوضع الحالي جيد:**
+1. Super Admin لديه صلاحيات كاملة ✅
+2. Admin لديه صلاحيات إدارية شاملة ✅
+3. Staff محدود بالعمليات اليومية ✅
+4. Mechanic محدود بالصيانة فقط ✅
+5. Customer محدود بالمتجر فقط ✅
+
+#### 💡 **اقتراحات للتحسين:**
+
+1. **إضافة دور "Manager":**
+   - صلاحيات بين Admin و Staff
+   - يمكنه: manage_service, manage_customers, manage_sales, view_reports
+   - لا يمكنه: manage_users, manage_roles, manage_permissions
+
+2. **إضافة دور "Accountant":**
+   - صلاحيات مالية فقط
+   - يمكنه: manage_payments, manage_expenses, view_reports
+   - لا يمكنه: manage_service, manage_warehouses
+
+3. **إضافة دور "Warehouse Keeper":**
+   - صلاحيات مخزنية فقط
+   - يمكنه: manage_warehouses, manage_inventory, view_parts
+   - لا يمكنه: manage_sales, manage_payments
+
+---
+
+### 📊 **إحصائيات:**
+
+| الدور | الصلاحيات | المستخدمين | الحالة |
+|-------|-----------|------------|---------|
+| Super Admin | * (All) | 2 | ✅ نشط |
+| Admin | 28 | 0 | ⚠️ يحتاج seed |
+| Staff | 6 | 0 | ⚠️ يحتاج seed |
+| Mechanic | 4 | 0 | ⚠️ يحتاج seed |
+| Registered Customer | 5 | 0 | ⚠️ يحتاج seed |
+
+---
+
+### 🔧 **أوامر CLI للإدارة:**
+
+```bash
+# عرض الأدوار
+flask list-roles
+
+# عرض الصلاحيات
+flask list-permissions
+
+# إنشاء دور
+flask create-role --name "اسم_الدور"
+
+# إضافة صلاحيات لدور
+flask role-add-perms --role admin --perms manage_users,manage_service
+
+# تصدير الأدوار والصلاحيات
+flask export-rbac
+
+# مزامنة الصلاحيات
+flask sync-permissions
+
+# تهيئة الأدوار (يحتاج ALLOW_SEED_ROLES=1)
+flask seed-roles --force
+```
+
+---
+
 **تاريخ التحديث:** October 10, 2025  
 **الإصدار:** 2.5.0 (Last Seen Fixed + Enterprise Security)  
-**الحالة:** ✅ **محكم 100%**، **آخر ظهور دقيق**، **جاهز للإنتاج**
+**الحالة:** ✅ **محكم 100%**، **آخر ظهور دقيق**، **Roles & Permissions موثقة**، **جاهز للإنتاج**
 

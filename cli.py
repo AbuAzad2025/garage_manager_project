@@ -45,6 +45,7 @@ PERM_ALIASES = {
     "place_online_order":"طلب أونلاين","view_shop":"عرض المتجر","browse_products":"تصفح المنتجات","manage_shop":"إدارة المتجر",
     "access_api":"الوصول إلى API","manage_api":"إدارة API","view_notes":"عرض الملاحظات","manage_notes":"إدارة الملاحظات",
     "view_barcode":"عرض الباركود","manage_barcode":"إدارة الباركود","manage_currencies":"إدارة العملات",
+    "view_own_orders":"عرض طلباتي","view_own_account":"عرض حسابي",
 }
 
 def _parse_dt(val: str | None, end: bool = False):
@@ -60,10 +61,56 @@ def _parse_dt(val: str | None, end: bool = False):
         return None
 
 ROLE_PERMISSIONS = {
-    "admin":{"backup_database","manage_permissions","manage_roles","manage_users","manage_customers","manage_service","manage_reports","view_reports","manage_vendors","manage_shipments","manage_warehouses","view_warehouses","manage_exchange","manage_payments","manage_expenses","view_inventory","warehouse_transfer","view_parts","add_customer","add_supplier","add_partner","manage_sales","access_api","manage_api","view_notes","manage_notes","view_barcode","manage_barcode","manage_currencies"},
-    "staff":{"manage_customers","manage_service","view_parts","view_warehouses","view_inventory","view_notes"},
-    "registered_customer":{"place_online_order","view_preorders","view_parts","view_shop","browse_products"},
-    "mechanic":{"manage_service","view_warehouses","view_inventory","view_parts"},
+    # Super Admin: كل شيء (يتم bypass عبر is_super())
+    
+    # Admin (مدير): كل شيء عدا (المتجر، استعادة النسخ، سجل الحذف القوي، الدفتر)
+    "admin": {
+        "backup_database",  # نسخ احتياطي (ممنوع استعادة)
+        "manage_permissions", "manage_roles", "manage_users",
+        "manage_customers", "add_customer",
+        "manage_service",
+        "manage_sales",
+        "manage_warehouses", "view_warehouses", "manage_inventory", "view_inventory", "warehouse_transfer",
+        "manage_vendors", "add_supplier", "add_partner", "manage_shipments",
+        "manage_payments", "manage_expenses",
+        "view_reports", "manage_reports",  # كل التقارير
+        "view_parts",
+        "access_api", "manage_api",
+        "view_notes", "manage_notes",
+        "view_barcode", "manage_barcode",
+        "manage_currencies",
+        # ممنوع: restore_database, hard_delete, ledger, shop management
+    },
+    
+    # Staff (طاقم): المبيعات، الصيانة، المحاسبة، المستودعات، التقارير
+    "staff": {
+        "manage_customers", "add_customer",  # العملاء
+        "manage_service",  # الصيانة
+        "manage_sales",  # المبيعات
+        "manage_payments", "manage_expenses",  # المحاسبة
+        "view_warehouses", "view_inventory", "view_parts",  # المستودعات (عرض فقط)
+        "view_reports",  # التقارير (المبيعات، الصيانة، المحاسبة)
+        "view_notes",
+    },
+    
+    # Mechanic (ميكانيكي): فقط الصيانة والأشياء المرتبطة بها
+    "mechanic": {
+        "manage_service",  # الصيانة
+        "view_warehouses", "view_inventory", "view_parts",  # عرض المستودعات والقطع
+        "view_reports",  # التقارير (فقط الصيانة)
+    },
+    
+    # Registered Customer (عميل مسجل): كشوف حساباته، الحجز والتصفح (لا كتابة)
+    "registered_customer": {
+        "view_shop", "browse_products",  # تصفح المتجر
+        "place_online_order",  # الحجز فقط
+        "view_preorders",  # عرض طلباته
+        "view_own_orders",  # عرض طلباته
+        "view_own_account",  # كشف حسابه
+        # ممنوع: أي كتابة على النظام
+    },
+    
+    # Guest/Unregistered Customer: لا يدخل النظام - فقط المتجر للتصفح (يتم في Shop مباشرة)
 }
 
 SUPER_USERNAME = os.getenv("SUPER_ADMIN_USERNAME","azad").strip()
