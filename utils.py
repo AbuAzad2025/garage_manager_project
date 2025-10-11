@@ -262,8 +262,11 @@ def _to_e164(msisdn: str) -> Optional[str]:
 
 
 def send_whatsapp_message(to_number: str, body: str) -> Tuple[bool, str]:
-    from twilio.base.exceptions import TwilioRestException
-    from twilio.rest import Client
+    try:
+        from twilio.base.exceptions import TwilioRestException
+        from twilio.rest import Client
+    except ImportError:
+        return (False, "مكتبة Twilio غير مثبتة. قم بتثبيتها: pip install twilio")
 
     sid = current_app.config.get("TWILIO_ACCOUNT_SID")
     token = current_app.config.get("TWILIO_AUTH_TOKEN")

@@ -665,8 +665,25 @@ def supplier_smart_settlement(supplier_id):
     # حساب الرصيد الذكي
     balance_data = _calculate_smart_supplier_balance(supplier_id, date_from, date_to)
     
+    # إنشاء object بسيط للتوافق مع القالب
+    from types import SimpleNamespace
+    ss = SimpleNamespace(
+        supplier=supplier,
+        from_date=date_from,
+        to_date=date_to,
+        currency=supplier.currency,
+        total_gross=balance_data.get("incoming", {}).get("total", 0) if isinstance(balance_data, dict) else 0,
+        total_due=balance_data.get("balance", {}).get("amount", 0) if isinstance(balance_data, dict) else 0,
+        status="DRAFT",
+        code=f"SS-SMART-{supplier_id}-{date_from.strftime('%Y%m%d')}",
+        lines=[]
+    )
+    
+    # استخدام settlement_preview بدلاً من smart_settlement (غير موجود)
     return render_template(
-        "vendors/smart_settlement.html",
+        "vendors/suppliers/settlement_preview.html",
+        supplier=supplier,
+        ss=ss,  # object بدلاً من dict
         entity=supplier,
         entity_type="supplier",
         balance_data=balance_data,
@@ -699,8 +716,25 @@ def partner_smart_settlement(partner_id):
     # حساب الرصيد الذكي
     balance_data = _calculate_smart_partner_balance(partner_id, date_from, date_to)
     
+    # إنشاء object بسيط للتوافق مع القالب
+    from types import SimpleNamespace
+    ps = SimpleNamespace(
+        partner=partner,
+        from_date=date_from,
+        to_date=date_to,
+        currency=partner.currency,
+        total_gross=balance_data.get("incoming", {}).get("total", 0) if isinstance(balance_data, dict) else 0,
+        total_due=balance_data.get("balance", {}).get("amount", 0) if isinstance(balance_data, dict) else 0,
+        status="DRAFT",
+        code=f"PS-SMART-{partner_id}-{date_from.strftime('%Y%m%d')}",
+        lines=[]
+    )
+    
+    # استخدام settlement_preview بدلاً من smart_settlement (غير موجود)
     return render_template(
-        "vendors/smart_settlement.html",
+        "vendors/partners/settlement_preview.html",
+        partner=partner,
+        ps=ps,  # object بدلاً من dict
         entity=partner,
         entity_type="partner",
         balance_data=balance_data,

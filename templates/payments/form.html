@@ -521,23 +521,40 @@
     // دالة تحديث حقول الجهة حسب النوع المختار
     function updateEntityFields() {
       const entityTypeSelect = document.querySelector('select[name="entity_type"]');
-      if (!entityTypeSelect) return;
+      if (!entityTypeSelect) {
+        console.log('⚠️ لم يتم العثور على حقل entity_type');
+        return;
+      }
       
       const selectedType = entityTypeSelect.value.toLowerCase();
-      const entityFieldsContainer = document.getElementById('entityFields');
+      console.log('✅ نوع الجهة المختار:', selectedType);
       
-      if (!entityFieldsContainer) return;
+      const entityFieldsContainer = document.getElementById('entityFields');
+      if (!entityFieldsContainer) {
+        console.log('⚠️ لم يتم العثور على entityFields container');
+        return;
+      }
       
       // إخفاء جميع الحقول أولاً
       const allContainers = entityFieldsContainer.querySelectorAll('.entity-field-container');
+      console.log('📦 عدد الحاويات الموجودة:', allContainers.length);
+      
       allContainers.forEach(container => {
         container.style.display = 'none';
+        console.log('🔒 إخفاء حاوية:', container.getAttribute('data-entity-type'));
       });
       
       // إظهار الحقول المناسبة
       const targetContainer = entityFieldsContainer.querySelector(`[data-entity-type="${selectedType}"]`);
       if (targetContainer) {
         targetContainer.style.display = 'block';
+        console.log('✅ إظهار حاوية:', selectedType);
+      } else {
+        console.log('⚠️ لم يتم العثور على حاوية لنوع:', selectedType);
+        
+        // محاولة البحث بدون toLowerCase
+        const allTypes = Array.from(allContainers).map(c => c.getAttribute('data-entity-type'));
+        console.log('📋 الأنواع المتاحة:', allTypes);
       }
       
       // إعادة تهيئة البحث الذكي للحقول الجديدة

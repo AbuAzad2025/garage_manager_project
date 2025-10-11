@@ -191,9 +191,9 @@
                 <tr>
                   <th width="40%">مورد:</th>
                   <td>
-                    <a href="{{ url_for('vendors.detail', supplier_id=check.supplier.id) }}" class="btn btn-sm btn-warning">
-                      <i class="fas fa-external-link-alt"></i> {{ check.supplier.name }}
-                    </a>
+                    <span class="badge badge-warning">
+                      <i class="fas fa-building"></i> {{ check.supplier.name }}
+                    </span>
                   </td>
                 </tr>
                 {% elif check.partner %}

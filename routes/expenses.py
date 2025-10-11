@@ -405,6 +405,45 @@ def add():
         db.session.add(exp)
         try:
             db.session.commit()
+            
+            # إنشاء سجل Check تلقائياً إذا كانت طريقة الدفع شيك
+            try:
+                from models import Check
+                from flask_login import current_user
+                
+                if exp.payment_method and exp.payment_method.lower() in ['check', 'cheque']:
+                    if exp.check_number and exp.check_bank:
+                        # إنشاء سجل الشيك
+                        check = Check(
+                            check_number=exp.check_number,
+                            check_bank=exp.check_bank,
+                            check_date=exp.date or datetime.utcnow(),
+                            check_due_date=exp.check_due_date or exp.date or datetime.utcnow(),
+                            amount=exp.amount,
+                            currency=exp.currency or 'ILS',
+                            direction='OUT',  # المصروفات دائماً صادرة
+                            status='PENDING',  # حالة افتراضية
+                            # ربط بالموظف/المورد/الشريك إن وجد
+                            supplier_id=getattr(exp, 'supplier_id', None),
+                            partner_id=getattr(exp, 'partner_id', None),
+                            # معلومات الربط
+                            reference_number=f"EXP-{exp.id}",
+                            notes=f"شيك من مصروف رقم {exp.id} - {exp.description[:50] if exp.description else 'مصروف'}",
+                            # معلومات المستفيد
+                            payee_name=exp.payee_name or exp.paid_to or exp.beneficiary_name,
+                            # معلومات المستخدم
+                            created_by_id=current_user.id if current_user.is_authenticated else None
+                        )
+                        db.session.add(check)
+                        db.session.commit()
+                        current_app.logger.info(f"✅ تم إنشاء سجل شيك رقم {check.check_number} من مصروف رقم {exp.id}")
+            except Exception as e:
+                # في حالة فشل إنشاء الشيك، لا نُفشل المصروف
+                current_app.logger.warning(f"⚠️ فشل إنشاء سجل شيك من مصروف {exp.id}: {str(e)}")
+                db.session.rollback()
+                # إعادة commit للمصروف فقط
+                db.session.commit()
+            
             flash("✅ تمت إضافة المصروف", "success")
             return redirect(url_for("expenses_bp.list_expenses"))
         except SQLAlchemyError as err:

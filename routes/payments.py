@@ -940,6 +940,47 @@ def create_payment():
                         except Exception:
                             pass
                 db.session.commit()
+                
+                # إنشاء سجل Check تلقائياً إذا كانت إحدى طرق الدفع شيك
+                try:
+                    from models import Check
+                    for split in payment.splits:
+                        method_str = str(split.method).upper()
+                        if 'CHECK' in method_str or 'CHEQUE' in method_str:
+                            details = split.details or {}
+                            if details.get('check_number') and details.get('check_bank'):
+                                # تحديد اتجاه الشيك بناءً على اتجاه الدفعة
+                                check_direction = payment.direction
+                                
+                                # إنشاء سجل الشيك
+                                check = Check(
+                                    check_number=details.get('check_number'),
+                                    check_bank=details.get('check_bank'),
+                                    check_date=payment.payment_date or datetime.utcnow(),
+                                    check_due_date=details.get('check_due_date') or payment.payment_date or datetime.utcnow(),
+                                    amount=split.amount,
+                                    currency=payment.currency or 'ILS',
+                                    direction=check_direction,
+                                    status='PENDING',  # حالة افتراضية
+                                    # ربط بالجهات
+                                    customer_id=payment.customer_id,
+                                    supplier_id=payment.supplier_id,
+                                    partner_id=payment.partner_id,
+                                    # معلومات الربط
+                                    reference_number=f"PMT-{payment.id}",
+                                    notes=f"شيك من دفعة رقم {payment.payment_number or payment.id}",
+                                    # معلومات المستخدم
+                                    created_by_id=payment.created_by
+                                )
+                                db.session.add(check)
+                                current_app.logger.info(f"✅ تم إنشاء سجل شيك رقم {check.check_number} من دفعة رقم {payment.id}")
+                    
+                    db.session.commit()
+                except Exception as e:
+                    # في حالة فشل إنشاء الشيك، لا نُفشل الدفعة
+                    current_app.logger.warning(f"⚠️ فشل إنشاء سجل شيك من دفعة {payment.id}: {str(e)}")
+                    db.session.rollback()
+                    
             except SQLAlchemyError:
                 db.session.rollback()
             log_audit("Payment", payment.id, "CREATE")
