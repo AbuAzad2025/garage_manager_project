@@ -1,3 +1,7 @@
+# config.py - Application Configuration
+# Location: /garage_manager/config.py
+# Description: Configuration settings and environment variables
+
 import os
 import logging
 from base64 import urlsafe_b64decode

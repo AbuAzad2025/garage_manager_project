@@ -1,3 +1,7 @@
+# models.py - Database Models and Schema
+# Location: /garage_manager/models.py
+# Description: SQLAlchemy database models for the garage management system
+
 from __future__ import annotations
 import enum
 import re, hashlib

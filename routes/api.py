@@ -1,3 +1,7 @@
+# api.py - API Routes
+# Location: /garage_manager/routes/api.py
+# Description: RESTful API endpoints and data services
+
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple

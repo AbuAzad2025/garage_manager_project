@@ -1,4 +1,7 @@
-# routes/main.py
+# main.py - Main Routes
+# Location: /garage_manager/routes/main.py
+# Description: Main application routes and dashboard
+
 from __future__ import annotations
 import os
 import sqlite3

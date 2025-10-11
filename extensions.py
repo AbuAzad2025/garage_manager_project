@@ -16,6 +16,10 @@ from flask_login import LoginManager
 from flask_mail import Mail
 from flask_migrate import Migrate
 from flask_socketio import SocketIO
+# extensions.py - Flask Extensions
+# Location: /garage_manager/extensions.py
+# Description: Flask extensions initialization and configuration
+
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import CSRFProtect
 from flask_caching import Cache

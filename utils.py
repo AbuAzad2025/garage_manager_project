@@ -1,3 +1,7 @@
+# utils.py - Utility Functions
+# Location: /garage_manager/utils.py
+# Description: Common utility functions and helpers
+
 from __future__ import annotations
 
 import base64

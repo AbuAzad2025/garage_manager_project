@@ -1,3 +1,7 @@
+# notifications.py - Notifications Module
+# Location: /garage_manager/notifications.py
+# Description: Notification system and messaging functionality
+
 """
 نظام الإشعارات المتقدم
 Advanced Notifications System

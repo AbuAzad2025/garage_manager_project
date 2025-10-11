@@ -1,3 +1,7 @@
+# cli.py - Command Line Interface
+# Location: /garage_manager/cli.py
+# Description: Command line tools and utilities
+
 from __future__ import annotations
 
 import json, os, re, uuid

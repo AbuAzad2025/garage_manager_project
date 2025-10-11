@@ -1,3 +1,7 @@
+# create_user.py - User Creation Utility
+# Location: /garage_manager/create_user.py
+# Description: Utility script for creating new users
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from app import create_app

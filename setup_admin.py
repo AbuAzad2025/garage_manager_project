@@ -1,3 +1,7 @@
+# setup_admin.py - Admin Setup Utility
+# Location: /garage_manager/setup_admin.py
+# Description: Initial admin user and permissions setup
+
 from typing import List
 from sqlalchemy.exc import SQLAlchemyError
 from app import create_app

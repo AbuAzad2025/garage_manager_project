@@ -1,3 +1,7 @@
+# auth.py - Authentication Routes
+# Location: /garage_manager/routes/auth.py
+# Description: User authentication and authorization routes
+
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from urllib.parse import urlparse, urljoin

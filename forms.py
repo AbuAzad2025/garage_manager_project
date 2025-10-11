@@ -6,6 +6,10 @@ from datetime import date, datetime
 from decimal import Decimal, ROUND_HALF_UP
 import pytz
 from flask import current_app
+# forms.py - WTForms Definitions
+# Location: /garage_manager/forms.py
+# Description: Form definitions using WTForms for data validation
+
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileField
 from werkzeug.security import generate_password_hash, check_password_hash

@@ -1,4 +1,7 @@
-# barcodes.py
+# barcodes.py - Barcode Generation and Processing
+# Location: /garage_manager/barcodes.py
+# Description: Barcode generation, validation, and processing utilities
+
 import re
 import io
 import base64
@@ -74,10 +77,8 @@ def generate_qr_code(data: str, size: int = 200, border: int = 4) -> Optional[st
         
         img = qr.make_image(fill_color="black", back_color="white")
         
-        # تغيير الحجم
         img = img.resize((size, size), Image.Resampling.LANCZOS)
         
-        # تحويل إلى base64
         buffer = io.BytesIO()
         img.save(buffer, format='PNG')
         img_str = base64.b64encode(buffer.getvalue()).decode()
@@ -92,7 +93,6 @@ def generate_barcode_image(code: str, width: int = 300, height: int = 100) -> Op
         return None
     
     try:
-        # استخدام QR Code كبديل للباركود العادي
         qr = qrcode.QRCode(
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -104,10 +104,8 @@ def generate_barcode_image(code: str, width: int = 300, height: int = 100) -> Op
         
         img = qr.make_image(fill_color="black", back_color="white")
         
-        # تغيير الحجم
         img = img.resize((width, height), Image.Resampling.LANCZOS)
         
-        # تحويل إلى base64
         buffer = io.BytesIO()
         img.save(buffer, format='PNG')
         img_str = base64.b64encode(buffer.getvalue()).decode()
@@ -198,7 +196,6 @@ def print_label(product_name: str, barcode: str, price: float = None,
     """طباعة تسمية المنتج"""
     label_html = create_printable_label(product_name, barcode, price, currency)
     
-    # إضافة JavaScript للطباعة
     print_script = """
     <script>
         window.onload = function() {

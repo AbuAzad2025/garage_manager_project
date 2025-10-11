@@ -1,3 +1,7 @@
+# validators.py - Custom Validators
+# Location: /garage_manager/validators.py
+# Description: Custom validation functions for forms
+
 from wtforms.validators import ValidationError
 from sqlalchemy import func
 
@@ -5,7 +9,7 @@ class Unique:
     def __init__(
         self, model, field, message=None, case_insensitive=False, normalizer=None, pk_name="id"
     ):
-        self.model = model              # class أو callable بيرجع class
+        self.model = model              
         self.field = field
         self.message = message or "Value already exists."
         self.case_insensitive = case_insensitive

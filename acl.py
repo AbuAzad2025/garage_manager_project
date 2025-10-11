@@ -1,3 +1,7 @@
+# acl.py - Access Control Lists
+# Location: /garage_manager/acl.py
+# Description: Access control and permission management
+
 from functools import wraps
 from flask import request, abort
 from flask_login import login_required, current_user

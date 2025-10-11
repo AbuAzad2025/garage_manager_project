@@ -1,3 +1,7 @@
+# reports.py - Reports Module
+# Location: /garage_manager/reports.py
+# Description: Report generation and analytics functionality
+
 from __future__ import annotations
 from collections import defaultdict
 from datetime import date, datetime, timedelta, time as _t

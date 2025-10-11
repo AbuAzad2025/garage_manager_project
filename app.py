@@ -1,3 +1,7 @@
+# app.py - Main Application Entry Point
+# Location: /garage_manager/app.py
+# Description: Flask application factory and main configuration
+
 import os
 import uuid
 import logging
@@ -153,14 +157,11 @@ def create_app(config_object=Config) -> Flask:
     init_extensions(app)
     utils_init_app(app)
     
-    # استثناء CSRF للمساعد الذكي
     csrf.exempt(ledger_bp)
     
-    # استثناء CSRF لـ API endpoints فقط في security
     from routes.security import security_bp
     csrf.exempt(security_bp)
     
-    # تسجيل دوال template globals لوحدة الأمان
     @app.template_global()
     def _get_action_icon(action):
         if not action:
@@ -446,7 +447,6 @@ def create_app(config_object=Config) -> Flask:
     for bp in BLUEPRINTS:
         app.register_blueprint(bp)
 
-    # SECURITY: CORS محمي
     CORS(
         app,
         resources={
@@ -460,16 +460,12 @@ def create_app(config_object=Config) -> Flask:
         },
     )
     
-    # SECURITY: Security Headers لحماية ضد XSS, Clickjacking, MIME Sniffing
     @app.after_request
     def security_headers(response):
         # حماية من XSS
         response.headers['X-Content-Type-Options'] = 'nosniff'
-        # حماية من Clickjacking
         response.headers['X-Frame-Options'] = 'SAMEORIGIN'
-        # حماية من XSS في المتصفحات القديمة
         response.headers['X-XSS-Protection'] = '1; mode=block'
-        # Content Security Policy - حماية قوية من XSS
         if not app.config.get('DEBUG'):
             response.headers['Content-Security-Policy'] = (
                 "default-src 'self'; "
@@ -479,19 +475,14 @@ def create_app(config_object=Config) -> Flask:
                 "img-src 'self' data: https:; "
                 "connect-src 'self';"
             )
-        # HSTS - إجبار HTTPS (فقط في الإنتاج)
         if app.config.get('SESSION_COOKIE_SECURE'):
             response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
-        # منع تسريب المعلومات عبر Referrer
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
-        # حماية من Feature Policy
         response.headers['Permissions-Policy'] = 'geolocation=(), microphone=(), camera=()'
         
-        # SECURITY: إخفاء معلومات الخادم
         response.headers.pop('Server', None)
         response.headers.pop('X-Powered-By', None)
         
-        # SECURITY: Cache Control للصفحات الحساسة
         if request.path.startswith('/auth/') or request.path.startswith('/api/'):
             response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, private'
             response.headers['Pragma'] = 'no-cache'
@@ -612,7 +603,6 @@ def create_app(config_object=Config) -> Flask:
         if missing:
             app.logger.error("Missing endpoints at startup: %s", ", ".join(missing))
 
-    # Context Processor لإعدادات النظام الديناميكية
     @app.context_processor
     def inject_system_settings():
         """حقن إعدادات النظام في جميع القوالب"""
@@ -649,35 +639,27 @@ def create_app(config_object=Config) -> Flask:
         except:
             return dict(system_settings={})
     
-    # Middleware لوضع الصيانة
     @app.before_request
     def check_maintenance_mode():
         """فحص وضع الصيانة - المنطق المحسّن"""
-        # السماح بالوصول للـ static files دائماً
         if request.path.startswith('/static/'):
             return None
         
-        # السماح لكل صفحات المصادقة (login, logout, register, etc)
         if request.path.startswith('/auth/'):
             return None
         
-        # إذا المستخدم غير مسجل دخول - السماح له للوصول لصفحة الدخول
         if not current_user.is_authenticated:
             return None
         
-        # المستخدم مسجل دخول - فحص وضع الصيانة
         try:
             from models import SystemSettings
             setting = SystemSettings.query.filter_by(key='maintenance_mode').first()
             if not setting or setting.value.lower() not in ['true', '1', 'yes']:
-                # وضع الصيانة غير مفعل - السماح للجميع
                 return None
         except:
             return None
         
-        # وضع الصيانة مفعّل - فحص صلاحيات المستخدم
         try:
-            # السماح للمالك (Owner) والسوبر أدمن
             if (current_user.id == 1 or 
                 current_user.username.lower() in ['azad', 'owner', 'admin'] or
                 is_super()):
@@ -685,14 +667,11 @@ def create_app(config_object=Config) -> Flask:
         except:
             pass
         
-        # مستخدم عادي ووضع الصيانة مفعّل - عرض صفحة الصيانة
         return render_template('maintenance.html'), 503
 
     from cli import register_cli
     register_cli(app)
 
-    from seed_palestine import init_app as init_seed_commands
-    init_seed_commands(app)
 
     return app
 
