@@ -1,3 +1,7 @@
+# expenses.py - Expenses Management Routes
+# Location: /garage_manager/routes/expenses.py
+# Description: Expense tracking and management routes
+
 import csv
 import io
 from datetime import datetime, date as _date

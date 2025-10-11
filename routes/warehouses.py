@@ -1,3 +1,7 @@
+# warehouses.py - Warehouse Management Routes
+# Location: /garage_manager/routes/warehouses.py
+# Description: Warehouse and inventory management routes
+
 import csv
 import io
 import json

@@ -1,4 +1,8 @@
-﻿from __future__ import annotations
+﻿# payments.py - Payments Management Routes
+# Location: /garage_manager/routes/payments.py
+# Description: Payment processing and management routes
+
+from __future__ import annotations
 
 import re
 import uuid

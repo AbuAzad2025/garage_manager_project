@@ -1,3 +1,7 @@
+# shop.py - Online Shop Routes
+# Location: /garage_manager/routes/shop.py
+# Description: Online shop and e-commerce functionality routes
+
 from datetime import datetime
 import uuid, json
 from functools import wraps
