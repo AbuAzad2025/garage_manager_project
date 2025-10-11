@@ -1,3 +1,7 @@
+# service.py - Service Management Routes
+# Location: /garage_manager/routes/service.py
+# Description: Service and maintenance management routes
+
 """
 وحدة الصيانة المحسّنة
 Enhanced Service Management Module

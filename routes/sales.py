@@ -1,3 +1,7 @@
+# sales.py - Sales Management Routes
+# Location: /garage_manager/routes/sales.py
+# Description: Sales operations and invoice management routes
+
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 import json

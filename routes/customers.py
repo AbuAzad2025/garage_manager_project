@@ -1,3 +1,7 @@
+# customers.py - Customer Management Routes
+# Location: /garage_manager/routes/customers.py
+# Description: Customer management and operations routes
+
 import csv
 import io
 import json

@@ -1,3 +1,7 @@
+# security.py - Security Routes
+# Location: /garage_manager/routes/security.py
+# Description: Security management and system administration routes
+
 """
 وحدة الأمان المتقدمة - Super Admin فقط
 CONFIDENTIAL - لا يصل إليها إلا Super Admin

@@ -1,3 +1,7 @@
+# users.py - User Management Routes
+# Location: /garage_manager/routes/users.py
+# Description: User management and profile routes
+
 import json
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for, abort, current_app
 from flask_login import current_user, login_required
