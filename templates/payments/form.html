@@ -518,6 +518,37 @@
       });
     }
     
+    // دالة تحديث حقول الجهة حسب النوع المختار
+    function updateEntityFields() {
+      const entityTypeSelect = document.querySelector('select[name="entity_type"]');
+      if (!entityTypeSelect) return;
+      
+      const selectedType = entityTypeSelect.value.toLowerCase();
+      const entityFieldsContainer = document.getElementById('entityFields');
+      
+      if (!entityFieldsContainer) return;
+      
+      // إخفاء جميع الحقول أولاً
+      const allContainers = entityFieldsContainer.querySelectorAll('.entity-field-container');
+      allContainers.forEach(container => {
+        container.style.display = 'none';
+      });
+      
+      // إظهار الحقول المناسبة
+      const targetContainer = entityFieldsContainer.querySelector(`[data-entity-type="${selectedType}"]`);
+      if (targetContainer) {
+        targetContainer.style.display = 'block';
+      }
+      
+      // إعادة تهيئة البحث الذكي للحقول الجديدة
+      setTimeout(function() {
+        if (typeof initSmartSearch === 'function') {
+          smartSearchInitialized = false;
+          initSmartSearch();
+        }
+      }, 100);
+    }
+    
     // تهيئة الحقول عند تحميل الصفحة
     document.addEventListener('DOMContentLoaded', function() {
       // إضافة مستمع لتغيير نوع الجهة
@@ -530,7 +561,9 @@
         });
         
         // تحديث الحقول عند التحميل الأولي
-        updateEntityFields();
+        setTimeout(function() {
+          updateEntityFields();
+        }, 100);
       }
       
       // إضافة مستمع لتغيير الاتجاه
@@ -538,7 +571,103 @@
       if (directionSelect) {
         directionSelect.addEventListener('change', validateDirection);
       }
+      
+      // تهيئة حقول طرق الدفع الديناميكية
+      initPaymentMethodFields();
+      
+      // مراقبة زر إضافة دفعة جزئية
+      const addSplitBtn = document.getElementById('addSplit');
+      if (addSplitBtn) {
+        addSplitBtn.addEventListener('click', function() {
+          setTimeout(function() {
+            initPaymentMethodFields();
+          }, 100);
+        });
+      }
+      
+      // مراقبة أزرار حذف الدفعة الجزئية
+      const splitsContainer = document.getElementById('splitsContainer');
+      if (splitsContainer) {
+        splitsContainer.addEventListener('click', function(e) {
+          if (e.target.classList.contains('remove-split')) {
+            setTimeout(function() {
+              initPaymentMethodFields();
+            }, 100);
+          }
+        });
+      }
     });
+    
+    // دالة لإظهار/إخفاء حقول طرق الدفع حسب الطريقة المختارة
+    function initPaymentMethodFields() {
+      // البحث عن جميع حقول طرق الدفع في الدفعات الجزئية
+      const splitMethodSelects = document.querySelectorAll('.split-method');
+      
+      splitMethodSelects.forEach(select => {
+        // إزالة مستمع الحدث القديم إن وجد
+        const newSelect = select.cloneNode(true);
+        select.parentNode.replaceChild(newSelect, select);
+        
+        updateMethodFields(newSelect);
+        
+        newSelect.addEventListener('change', function() {
+          updateMethodFields(this);
+        });
+      });
+    }
+    
+    function updateMethodFields(methodSelect) {
+      const splitForm = methodSelect.closest('.split-form');
+      if (!splitForm) return;
+      
+      const detailsContainer = splitForm.querySelector('.split-details');
+      if (!detailsContainer) return;
+      
+      const selectedMethod = methodSelect.value.toUpperCase();
+      
+      // إخفاء جميع الحقول أولاً
+      const allDetailFields = detailsContainer.querySelectorAll('[data-field]');
+      allDetailFields.forEach(field => {
+        field.style.display = 'none';
+      });
+      
+      // إظهار detailsContainer فقط إذا كانت الطريقة تحتاج تفاصيل
+      const methodsWithDetails = ['CHECK', 'CHEQUE', 'BANK', 'BANK_TRANSFER', 'CARD', 'ONLINE'];
+      const needsDetails = methodsWithDetails.some(m => selectedMethod.includes(m));
+      
+      if (needsDetails) {
+        detailsContainer.style.display = 'block';
+        
+        // إظهار الحقول المناسبة حسب الطريقة
+        if (selectedMethod.includes('CHECK') || selectedMethod.includes('CHEQUE')) {
+          // حقول الشيك
+          showField(detailsContainer, 'check_number');
+          showField(detailsContainer, 'check_bank');
+          showField(detailsContainer, 'check_due_date');
+        } else if (selectedMethod.includes('BANK')) {
+          // حقول التحويل البنكي
+          showField(detailsContainer, 'bank_transfer_ref');
+        } else if (selectedMethod.includes('CARD')) {
+          // حقول البطاقة
+          showField(detailsContainer, 'card_number');
+          showField(detailsContainer, 'card_holder');
+          showField(detailsContainer, 'card_expiry');
+        } else if (selectedMethod.includes('ONLINE')) {
+          // حقول الدفع الإلكتروني
+          showField(detailsContainer, 'online_gateway');
+          showField(detailsContainer, 'online_ref');
+        }
+      } else {
+        detailsContainer.style.display = 'none';
+      }
+    }
+    
+    function showField(container, fieldName) {
+      const field = container.querySelector(`[data-field="${fieldName}"]`);
+      if (field) {
+        field.style.display = 'block';
+      }
+    }
     
     function updateDirectionOptions() {
       const entityType = document.querySelector('select[name="entity_type"]').value;

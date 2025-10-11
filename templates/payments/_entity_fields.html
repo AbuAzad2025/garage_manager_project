@@ -1,7 +1,8 @@
 {% set etype = (form.entity_type.data or request.args.get('type') or request.args.get('entity_type') or '') | lower %}
 
-{% if etype == 'customer' %}
-  <div class="mb-3 entity-field-container" data-entity-type="customer">
+<!-- حاويات لجميع أنواع الجهات - سيتم إظهار/إخفاء بواسطة JavaScript -->
+<div class="mb-3 entity-field-container" data-entity-type="customer" style="display: {% if etype == 'customer' %}block{% else %}none{% endif %};">
+  <div class="mb-3">
     {% if form.customer_search is defined %}
       {{ form.customer_search.label(class="form-label") }}
       <div class="input-group">
