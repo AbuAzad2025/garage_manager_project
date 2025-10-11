@@ -10,6 +10,7 @@
 [![License: Commercial](https://img.shields.io/badge/License-Commercial-red.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Flask](https://img.shields.io/badge/flask-3.1.2-green.svg)](https://flask.palletsprojects.com/)
+[![Security](https://img.shields.io/badge/Security-Advanced-brightgreen.svg)](SECURITY.md)
 [![Made in Palestine](https://img.shields.io/badge/Made%20in-Palestine%20🇵🇸-success.svg)](https://palestine.ps)
 
 **طُوِّر بعناية فائقة في فلسطين 🇵🇸 | Crafted with Excellence in Palestine**
@@ -30,6 +31,8 @@
 - [الدعم والمساهمة](#-الدعم-والمساهمة--support)
 - [الأمان والحماية](#-الأمان-والحماية--security)
 - [معلومات الشركة](#-معلومات-الشركة--company-info)
+
+> 💝 **[اضغط هنا لدعم المشروع ومعرفة طرق المساهمة](SUPPORT.md)**
 
 ---
 
@@ -621,7 +624,9 @@ curl http://localhost:5000/health/metrics
 3. سنرد خلال 48 ساعة
 4. سنصلح الثغرة ونشكرك في سجل الشكر
 
-**مكافآت الأمان:** نقدم مكافآت للمكتشفين المسؤولين عن الثغرات الأمنية الخطيرة.
+**مكافآت الأمان:** نقدم مكافآت للمكتشفين المسؤولين عن الثغرات الأمنية الخطيرة ($50 - $2,000).
+
+**📖 اقرأ سياسة الأمان الكاملة:** **[SECURITY.md](SECURITY.md)**
 
 ---
 
@@ -840,7 +845,8 @@ Ramallah, Palestine
 
 **المساهمون / Contributors:**
 - شكراً لكل من ساهم في تطوير هذا النظام
-- [قائمة المساهمين الكاملة](CONTRIBUTORS.md)
+- 💝 **[قائمة المساهمين الكاملة](CONTRIBUTORS.md)**
+- 🌟 **[كن أحد المساهمين](SUPPORT.md)**
 
 ---
 
