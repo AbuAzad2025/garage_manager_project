@@ -1,3 +1,7 @@
+# ai_data_awareness.py - AI Data Awareness System
+# Location: /garage_manager/services/ai_data_awareness.py
+# Description: AI data and structural awareness system
+
 """
 🧠 AI Data & Structural Awareness System
 نظام الوعي البنيوي الذاتي للمساعد الذكي
