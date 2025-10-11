@@ -1,3 +1,7 @@
+# ledger_ai_assistant.py - AI Accounting Assistant Routes
+# Location: /garage_manager/routes/ledger_ai_assistant.py
+# Description: AI-powered accounting assistant and financial analysis routes
+
 """
 المساعد الذكي للمحاسبة - AI Accounting Assistant
 يحلل البيانات المالية ويكتشف المشاكل ويجيب على الأسئلة
