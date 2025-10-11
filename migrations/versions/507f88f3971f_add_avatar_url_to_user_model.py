@@ -1,3 +1,7 @@
+# 507f88f3971f_add_avatar_url_to_user_model.py - Database Migration
+# Location: /garage_manager/migrations/versions/507f88f3971f_add_avatar_url_to_user_model.py
+# Description: Add avatar URL to user model migration
+
 """Add avatar_url to User model
 
 Revision ID: 507f88f3971f

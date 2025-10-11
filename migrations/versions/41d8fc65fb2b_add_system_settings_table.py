@@ -1,3 +1,7 @@
+# 41d8fc65fb2b_add_system_settings_table.py - Database Migration
+# Location: /garage_manager/migrations/versions/41d8fc65fb2b_add_system_settings_table.py
+# Description: Add system settings table migration
+
 """add system settings table
 
 Revision ID: 41d8fc65fb2b

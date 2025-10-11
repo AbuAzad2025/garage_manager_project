@@ -1,3 +1,7 @@
+# 882fd1716dcf_add_hard_delete_system_with_deletionlog_.py - Database Migration
+# Location: /garage_manager/migrations/versions/882fd1716dcf_add_hard_delete_system_with_deletionlog_.py
+# Description: Add hard delete system with deletion log migration
+
 """Add hard delete system with DeletionLog model
 
 Revision ID: 882fd1716dcf

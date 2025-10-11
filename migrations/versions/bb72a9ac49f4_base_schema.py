@@ -1,3 +1,7 @@
+# bb72a9ac49f4_base_schema.py - Database Migration
+# Location: /garage_manager/migrations/versions/bb72a9ac49f4_base_schema.py
+# Description: Base database schema migration
+
 """base schema
 
 Revision ID: bb72a9ac49f4
