@@ -1,3 +1,7 @@
+# ai_knowledge.py - AI Knowledge Base
+# Location: /garage_manager/services/ai_knowledge.py
+# Description: AI knowledge base and system indexing
+
 """
 AI Knowledge Base - قاعدة المعرفة الشاملة للنظام
 فهرسة وتحليل كل ملفات النظام لبناء ذاكرة معرفية مستمرة

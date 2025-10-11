@@ -1,3 +1,7 @@
+# ai_service.py - AI Service Module
+# Location: /garage_manager/services/ai_service.py
+# Description: AI assistant service and intelligent system logic
+
 """
 AI Service - خدمة المساعد الذكي الشامل
 المنطق الكامل للمساعد الذكي بعيداً عن Routes
