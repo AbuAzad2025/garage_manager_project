@@ -681,11 +681,50 @@ def account_statement(customer_id):
     entries = []
 
     invoices = Invoice.query.filter_by(customer_id=customer_id).order_by(Invoice.invoice_date, Invoice.id).all()
+    # دالة مساعدة لتوليد البيان
+    def generate_statement(entry_type, obj):
+        """توليد نص البيان حسب نوع العملية"""
+        if entry_type == "INVOICE":
+            notes = getattr(obj, 'notes', '') or ''
+            items_count = len(getattr(obj, 'items', []))
+            return f"فاتورة بيع - {items_count} صنف - {notes[:50]}" if notes else f"فاتورة بيع - {items_count} صنف"
+        
+        elif entry_type == "SALE":
+            notes = getattr(obj, 'notes', '') or ''
+            items = getattr(obj, 'lines', [])
+            if items and len(items) > 0:
+                first_item = items[0]
+                product_name = getattr(getattr(first_item, 'product', None), 'name', 'منتج')
+                if len(items) > 1:
+                    return f"بيع {product_name} و {len(items)-1} منتج آخر"
+                return f"بيع {product_name}"
+            return f"عملية بيع - {notes[:50]}" if notes else "عملية بيع"
+        
+        elif entry_type == "SERVICE":
+            vehicle = getattr(obj, 'vehicle_model', '') or ''
+            plate = getattr(obj, 'vehicle_plate', '') or ''
+            desc = getattr(obj, 'description', '') or ''
+            if vehicle or plate:
+                return f"صيانة {vehicle} {plate} - {desc[:30]}" if desc else f"صيانة {vehicle} {plate}"
+            return f"خدمة صيانة - {desc[:50]}" if desc else "خدمة صيانة"
+        
+        elif entry_type == "PREORDER":
+            product = getattr(obj, 'product', None)
+            product_name = getattr(product, 'name', '') if product else ''
+            qty = getattr(obj, 'quantity', 0)
+            notes = getattr(obj, 'notes', '') or ''
+            if product_name:
+                return f"حجز مسبق: {product_name} (كمية: {qty})"
+            return f"حجز مسبق - {notes[:50]}" if notes else "حجز مسبق"
+        
+        return ""
+    
     for inv in invoices:
         entries.append({
             "date": inv.invoice_date or inv.created_at,
             "type": "INVOICE",
             "ref": inv.invoice_number or f"INV-{inv.id}",
+            "statement": generate_statement("INVOICE", inv),
             "debit": D(inv.total_amount or 0),
             "credit": D(0),
         })
@@ -696,6 +735,7 @@ def account_statement(customer_id):
             "date": getattr(s, "sale_date", None) or getattr(s, "created_at", None),
             "type": "SALE",
             "ref": getattr(s, "sale_number", None) or f"SALE-{s.id}",
+            "statement": generate_statement("SALE", s),
             "debit": D(s.total_amount or 0),
             "credit": D(0),
         })
@@ -706,6 +746,7 @@ def account_statement(customer_id):
             "date": getattr(srv, "completed_at", None) or getattr(srv, "created_at", None),
             "type": "SERVICE",
             "ref": getattr(srv, "service_number", None) or f"SRV-{srv.id}",
+            "statement": generate_statement("SERVICE", srv),
             "debit": D(service_grand_total(srv)),
             "credit": D(0),
         })
@@ -716,6 +757,7 @@ def account_statement(customer_id):
             "date": pre.created_at,
             "type": "PREORDER",
             "ref": getattr(pre, "order_number", None) or f"PRE-{pre.id}",
+            "statement": generate_statement("PREORDER", pre),
             "debit": D(pre.total_amount or 0),
             "credit": D(0),
         })
@@ -736,10 +778,27 @@ def account_statement(customer_id):
 
     all_payments.sort(key=lambda x: (getattr(x, "payment_date", None) or getattr(x, "created_at", None) or datetime.min, x.id))
     for p in all_payments:
+        # توليد البيان للدفعة
+        payment_method = getattr(p, 'payment_method', 'نقداً')
+        notes = getattr(p, 'notes', '') or ''
+        
+        # معرفة مصدر الدفعة
+        payment_statement = f"سداد {payment_method}"
+        if getattr(p, 'sale_id', None):
+            payment_statement += f" - بيع رقم {getattr(p.sale, 'sale_number', p.sale_id) if hasattr(p, 'sale') else p.sale_id}"
+        elif getattr(p, 'invoice_id', None):
+            payment_statement += f" - فاتورة رقم {getattr(p.invoice, 'invoice_number', p.invoice_id) if hasattr(p, 'invoice') else p.invoice_id}"
+        elif getattr(p, 'service_id', None):
+            payment_statement += f" - صيانة رقم {getattr(p.service, 'service_number', p.service_id) if hasattr(p, 'service') else p.service_id}"
+        
+        if notes:
+            payment_statement += f" - {notes[:30]}"
+        
         entries.append({
             "date": getattr(p, "payment_date", None) or getattr(p, "created_at", None),
             "type": "PAYMENT",
             "ref": getattr(p, "payment_number", None) or getattr(p, "receipt_number", None) or f"PMT-{p.id}",
+            "statement": payment_statement,
             "debit": D(0),
             "credit": D(p.total_amount or 0),
         })

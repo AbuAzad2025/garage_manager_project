@@ -16,7 +16,7 @@ import inspect as pyinspect
 from models import (
     Customer, Supplier, Partner, Product, Warehouse, StockLevel, Expense,
     OnlinePreOrder, OnlinePayment, OnlineCart, Sale, SaleStatus, ServiceRequest, InvoiceStatus, Invoice, Payment,
-    Shipment, PaymentDirection, PaymentStatus, PaymentSplit
+    Shipment, PaymentDirection, PaymentStatus, PaymentSplit, PreOrder, ServicePart, ServiceTask
 )
 reports_bp = Blueprint('reports_bp', __name__, url_prefix='/reports')
 
@@ -1019,12 +1019,12 @@ def partner_detail_report(partner_id):
     payments = payments_query.order_by(Payment.payment_date.desc()).all()
 
     # جميع المبيعات التي شارك فيها الشريك (من خلال PreOrder)
-    preorders_query = OnlinePreOrder.query.filter(OnlinePreOrder.partner_id == partner_id)
+    preorders_query = PreOrder.query.filter(PreOrder.partner_id == partner_id)
     if start_date:
-        preorders_query = preorders_query.filter(OnlinePreOrder.created_at >= start_date)
+        preorders_query = preorders_query.filter(PreOrder.created_at >= start_date)
     if end_date:
-        preorders_query = preorders_query.filter(OnlinePreOrder.created_at <= end_date)
-    preorders = preorders_query.order_by(OnlinePreOrder.created_at.desc()).all()
+        preorders_query = preorders_query.filter(PreOrder.created_at <= end_date)
+    preorders = preorders_query.order_by(PreOrder.created_at.desc()).all()
 
     # جميع قطع الغيار في طلبات الصيانة التي شارك فيها الشريك
     service_parts_query = ServicePart.query.filter(ServicePart.partner_id == partner_id)

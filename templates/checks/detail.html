@@ -1,0 +1,357 @@
+{% extends 'base.html' %}
+
+{% block title %}تفاصيل الشيك رقم {{ check.check_number }}{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+  <div class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2">
+        <div class="col-sm-6">
+          <h1 class="m-0">
+            <i class="fas fa-money-check-alt"></i>
+            تفاصيل الشيك رقم {{ check.check_number }}
+          </h1>
+        </div>
+        <div class="col-sm-6">
+          <ol class="breadcrumb float-sm-right">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('checks.index') }}">الشيكات</a></li>
+            <li class="breadcrumb-item active">تفاصيل</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <section class="content">
+    <div class="container-fluid">
+      <!-- أزرار الإجراءات -->
+      <div class="row mb-3">
+        <div class="col-12">
+          <a href="{{ url_for('checks.index') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-right"></i> العودة للقائمة
+          </a>
+          <a href="{{ url_for('checks.edit_check', check_id=check.id) }}" class="btn btn-primary">
+            <i class="fas fa-edit"></i> تعديل
+          </a>
+          <form method="POST" action="{{ url_for('checks.delete_check', check_id=check.id) }}" style="display: inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-danger" onclick="return confirm('هل أنت متأكد من حذف هذا الشيك؟')">
+              <i class="fas fa-trash"></i> حذف
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <div class="row">
+        <!-- معلومات الشيك الأساسية -->
+        <div class="col-md-6">
+          <div class="card card-primary">
+            <div class="card-header">
+              <h3 class="card-title"><i class="fas fa-info-circle"></i> معلومات الشيك</h3>
+            </div>
+            <div class="card-body">
+              <table class="table table-borderless">
+                <tr>
+                  <th width="40%">رقم الشيك:</th>
+                  <td><strong>{{ check.check_number }}</strong></td>
+                </tr>
+                <tr>
+                  <th>البنك:</th>
+                  <td><i class="fas fa-university text-primary"></i> {{ check.check_bank }}</td>
+                </tr>
+                <tr>
+                  <th>المبلغ:</th>
+                  <td><strong class="text-success">{{ "%0.2f"|format(check.amount) }} {{ check.currency }}</strong></td>
+                </tr>
+                <tr>
+                  <th>تاريخ الشيك:</th>
+                  <td>{{ check.check_date.strftime('%d/%m/%Y') }}</td>
+                </tr>
+                <tr>
+                  <th>تاريخ الاستحقاق:</th>
+                  <td>
+                    {{ check.check_due_date.strftime('%d/%m/%Y') }}
+                    {% if check.is_overdue %}
+                      <span class="badge badge-danger">متأخر {{ -check.days_until_due }} يوم</span>
+                    {% elif check.is_due_soon %}
+                      <span class="badge badge-warning">يستحق خلال {{ check.days_until_due }} يوم</span>
+                    {% else %}
+                      <span class="badge badge-info">يستحق بعد {{ check.days_until_due }} يوم</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                <tr>
+                  <th>نوع الشيك:</th>
+                  <td>
+                    {% if check.direction == 'IN' %}
+                      <span class="badge badge-success"><i class="fas fa-arrow-down"></i> شيك وارد</span>
+                    {% else %}
+                      <span class="badge badge-danger"><i class="fas fa-arrow-up"></i> شيك صادر</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                <tr>
+                  <th>الحالة:</th>
+                  <td>
+                    <span class="badge badge-{{ CHECK_STATUS[check.status]['color'] }} badge-lg">
+                      <i class="fas {{ CHECK_STATUS[check.status]['icon'] }}"></i>
+                      {{ CHECK_STATUS[check.status]['ar'] }}
+                    </span>
+                  </td>
+                </tr>
+                {% if check.reference_number %}
+                <tr>
+                  <th>الرقم المرجعي:</th>
+                  <td><code>{{ check.reference_number }}</code></td>
+                </tr>
+                {% endif %}
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- معلومات الأطراف -->
+        <div class="col-md-6">
+          <div class="card card-info">
+            <div class="card-header">
+              <h3 class="card-title"><i class="fas fa-users"></i> معلومات الأطراف</h3>
+            </div>
+            <div class="card-body">
+              <!-- معلومات الساحب -->
+              {% if check.drawer_name %}
+              <h5 class="text-info"><i class="fas fa-user-edit"></i> الساحب</h5>
+              <table class="table table-sm table-borderless">
+                <tr>
+                  <th width="40%">الاسم:</th>
+                  <td>{{ check.drawer_name }}</td>
+                </tr>
+                {% if check.drawer_phone %}
+                <tr>
+                  <th>الهاتف:</th>
+                  <td><i class="fas fa-phone text-success"></i> {{ check.drawer_phone }}</td>
+                </tr>
+                {% endif %}
+                {% if check.drawer_id_number %}
+                <tr>
+                  <th>رقم الهوية:</th>
+                  <td>{{ check.drawer_id_number }}</td>
+                </tr>
+                {% endif %}
+                {% if check.drawer_address %}
+                <tr>
+                  <th>العنوان:</th>
+                  <td>{{ check.drawer_address }}</td>
+                </tr>
+                {% endif %}
+              </table>
+              {% endif %}
+
+              <hr>
+
+              <!-- معلومات المستفيد -->
+              {% if check.payee_name %}
+              <h5 class="text-success"><i class="fas fa-user-check"></i> المستفيد</h5>
+              <table class="table table-sm table-borderless">
+                <tr>
+                  <th width="40%">الاسم:</th>
+                  <td>{{ check.payee_name }}</td>
+                </tr>
+                {% if check.payee_phone %}
+                <tr>
+                  <th>الهاتف:</th>
+                  <td><i class="fas fa-phone text-success"></i> {{ check.payee_phone }}</td>
+                </tr>
+                {% endif %}
+                {% if check.payee_account %}
+                <tr>
+                  <th>رقم الحساب:</th>
+                  <td><code>{{ check.payee_account }}</code></td>
+                </tr>
+                {% endif %}
+              </table>
+              {% endif %}
+
+              <!-- الجهة المرتبطة -->
+              {% if check.customer or check.supplier or check.partner %}
+              <hr>
+              <h5 class="text-warning"><i class="fas fa-link"></i> الجهة المرتبطة</h5>
+              <table class="table table-sm table-borderless">
+                {% if check.customer %}
+                <tr>
+                  <th width="40%">عميل:</th>
+                  <td>
+                    <a href="{{ url_for('customers.detail', customer_id=check.customer.id) }}" class="btn btn-sm btn-primary">
+                      <i class="fas fa-external-link-alt"></i> {{ check.customer.name }}
+                    </a>
+                  </td>
+                </tr>
+                {% elif check.supplier %}
+                <tr>
+                  <th width="40%">مورد:</th>
+                  <td>
+                    <a href="{{ url_for('vendors.detail', supplier_id=check.supplier.id) }}" class="btn btn-sm btn-warning">
+                      <i class="fas fa-external-link-alt"></i> {{ check.supplier.name }}
+                    </a>
+                  </td>
+                </tr>
+                {% elif check.partner %}
+                <tr>
+                  <th width="40%">شريك:</th>
+                  <td>
+                    <a href="#" class="btn btn-sm btn-info">
+                      <i class="fas fa-external-link-alt"></i> {{ check.partner.name }}
+                    </a>
+                  </td>
+                </tr>
+                {% endif %}
+              </table>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- الملاحظات -->
+      {% if check.notes or check.internal_notes %}
+      <div class="row">
+        <div class="col-12">
+          <div class="card card-secondary">
+            <div class="card-header">
+              <h3 class="card-title"><i class="fas fa-sticky-note"></i> الملاحظات</h3>
+            </div>
+            <div class="card-body">
+              {% if check.notes %}
+              <div class="alert alert-info">
+                <h5><i class="fas fa-comment"></i> ملاحظات عامة:</h5>
+                <p class="mb-0" style="white-space: pre-line;">{{ check.notes }}</p>
+              </div>
+              {% endif %}
+              
+              {% if check.internal_notes %}
+              <div class="alert alert-warning">
+                <h5><i class="fas fa-lock"></i> ملاحظات داخلية:</h5>
+                <p class="mb-0" style="white-space: pre-line;">{{ check.internal_notes }}</p>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- سجل التغييرات -->
+      <div class="row">
+        <div class="col-12">
+          <div class="card card-success">
+            <div class="card-header">
+              <h3 class="card-title"><i class="fas fa-history"></i> سجل التغييرات</h3>
+            </div>
+            <div class="card-body">
+              {% if status_history and status_history|length > 0 %}
+              <div class="timeline">
+                {% for change in status_history %}
+                <div class="timeline-item">
+                  <i class="fas fa-history bg-blue"></i>
+                  <div class="timeline-content">
+                    <span class="time"><i class="fas fa-clock"></i> {{ change.timestamp }}</span>
+                    <h3 class="timeline-header">
+                      تغيير الحالة: 
+                      <span class="badge badge-secondary">{{ change.old_status }}</span>
+                      <i class="fas fa-arrow-left"></i>
+                      <span class="badge badge-primary">{{ change.new_status }}</span>
+                    </h3>
+                    <div class="timeline-body">
+                      {% if change.reason %}
+                      <p><strong>السبب:</strong> {{ change.reason }}</p>
+                      {% endif %}
+                      {% if change.user %}
+                      <p><strong>المستخدم:</strong> {{ change.user }}</p>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+              {% else %}
+              <p class="text-muted text-center">
+                <i class="fas fa-info-circle"></i>
+                لا يوجد سجل تغييرات حتى الآن
+              </p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- معلومات التدقيق -->
+      <div class="row">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-body">
+              <h5><i class="fas fa-user-shield"></i> معلومات التدقيق</h5>
+              <table class="table table-sm">
+                <tr>
+                  <th width="40%">أنشئ بواسطة:</th>
+                  <td>{{ check.created_by.username if check.created_by else 'غير محدد' }}</td>
+                </tr>
+                <tr>
+                  <th>تاريخ الإنشاء:</th>
+                  <td>{{ check.created_at.strftime('%Y-%m-%d %H:%M') if check.created_at else 'غير محدد' }}</td>
+                </tr>
+                {% if check.updated_at %}
+                <tr>
+                  <th>آخر تحديث:</th>
+                  <td>{{ check.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                </tr>
+                {% endif %}
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<style>
+.timeline {
+  position: relative;
+  padding: 20px 0;
+}
+.timeline-item {
+  position: relative;
+  padding: 15px 0 15px 60px;
+  margin-bottom: 20px;
+  border-right: 3px solid #007bff;
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 15px;
+}
+.timeline-item i {
+  position: absolute;
+  right: -15px;
+  top: 15px;
+  width: 30px;
+  height: 30px;
+  background: #007bff;
+  color: white;
+  border-radius: 50%;
+  text-align: center;
+  line-height: 30px;
+}
+.timeline-content {
+  margin-right: 20px;
+}
+.time {
+  font-size: 12px;
+  color: #6c757d;
+}
+.badge-lg {
+  font-size: 1.1em;
+  padding: 8px 12px;
+}
+</style>
+{% endblock %}
+

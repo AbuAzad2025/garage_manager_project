@@ -151,6 +151,18 @@
                 </div>
             </div>
 
+            <!-- أزرار الإجراءات السريعة -->
+            <div class="row mb-3">
+                <div class="col-12 text-center">
+                    <a href="{{ url_for('checks.add_check') }}" class="btn btn-success btn-lg">
+                        <i class="fas fa-plus-circle"></i> إضافة شيك يدوي جديد
+                    </a>
+                    <a href="{{ url_for('checks.reports') }}" class="btn btn-info btn-lg">
+                        <i class="fas fa-chart-bar"></i> التقارير والإحصائيات
+                    </a>
+                </div>
+            </div>
+
             <!-- الفلاتر -->
             <div class="row">
                 <div class="col-12">
@@ -168,6 +180,17 @@
                                 <div class="row">
                                     <div class="col-md-3">
                                         <div class="form-group">
+                                            <label>المصدر</label>
+                                            <select name="source" class="form-control" id="source-filter">
+                                                <option value="all">الكل</option>
+                                                <option value="manual">شيكات يدوية</option>
+                                                <option value="payment">من الدفعات</option>
+                                                <option value="expense">من المصروفات</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="form-group">
                                             <label>الاتجاه</label>
                                             <select name="direction" class="form-control" id="direction-filter">
                                                 <option value="all">الكل</option>
@@ -176,7 +199,7 @@
                                             </select>
                                         </div>
                                     </div>
-                                    <div class="col-md-3">
+                                    <div class="col-md-2">
                                         <div class="form-group">
                                             <label>الحالة</label>
                                             <select name="status" class="form-control" id="status-filter">
@@ -187,7 +210,7 @@
                                             </select>
                                         </div>
                                     </div>
-                                    <div class="col-md-3">
+                                    <div class="col-md-2">
                                         <div class="form-group">
                                             <label>من تاريخ</label>
                                             <input type="date" name="from_date" class="form-control" id="from-date-filter">
@@ -224,15 +247,16 @@
                             <h3 class="card-title"><i class="fas fa-list"></i> قائمة الشيكات</h3>
                         </div>
                         <div class="card-body table-responsive">
-                            <table id="checks-table" class="table table-bordered table-hover">
-                                <thead>
+                            <table id="checks-table" class="table table-bordered table-hover table-striped">
+                                <thead class="thead-dark">
                                     <tr>
                                         <th>#</th>
                                         <th>رقم الشيك</th>
                                         <th>البنك</th>
                                         <th>المبلغ</th>
-                                        <th>تاريخ الاستحقاق</th>
-                                        <th>الجهة</th>
+                                        <th>الاستحقاق</th>
+                                        <th><i class="fas fa-user"></i> الجهة</th>
+                                        <th><i class="fas fa-tag"></i> النوع</th>
                                         <th>الاتجاه</th>
                                         <th>الحالة</th>
                                         <th>المصدر</th>
@@ -325,7 +349,7 @@ function loadChecks() {
             tbody.empty();
             
             if (response.checks.length === 0) {
-                tbody.append('<tr><td colspan="10" class="text-center">لا توجد شيكات</td></tr>');
+                tbody.append('<tr><td colspan="11" class="text-center">لا توجد شيكات</td></tr>');
                 return;
             }
             
@@ -336,9 +360,18 @@ function loadChecks() {
                 
                 const statusBadge = `<span class="badge badge-${check.badge_color}">${check.status_ar}</span>`;
                 
-                const entityLink = check.entity_link 
-                    ? `<a href="${check.entity_link}" target="_blank">${check.entity_name}</a>`
-                    : check.entity_name;
+                const sourceBadge = `<span class="badge badge-${check.source_badge || 'secondary'}">${check.source}</span>`;
+                
+                // عرض الجهة مع الرابط ونوع الجهة
+                const entityDisplay = check.entity_link 
+                    ? `<a href="${check.entity_link}" target="_blank" class="btn btn-sm btn-outline-primary">
+                         <i class="fas fa-external-link-alt"></i> ${check.entity_name}
+                       </a>`
+                    : check.entity_name || 'غير محدد';
+                
+                const entityTypeDisplay = check.entity_type 
+                    ? `<span class="badge badge-secondary">${check.entity_type}</span>`
+                    : '<span class="badge badge-light">-</span>';
                 
                 // أزرار الحالة (فقط للشيكات المعلقة/المتأخرة)
                 let actionButtons = `
@@ -382,17 +415,28 @@ function loadChecks() {
                     </button>
                 `;
                 
+                // تحديد لون الصف حسب الحالة
+                let rowClass = '';
+                if (check.status === 'OVERDUE') rowClass = 'table-danger';
+                else if (check.status === 'due_soon') rowClass = 'table-warning';
+                else if (check.status === 'CASHED') rowClass = 'table-success';
+                
                 const row = `
-                    <tr class="${check.status === 'OVERDUE' ? 'table-danger' : ''}">
+                    <tr class="${rowClass}">
                         <td>${index + 1}</td>
                         <td><strong>${check.check_number}</strong></td>
-                        <td>${check.check_bank}</td>
-                        <td><strong>${formatCurrency(check.amount)} ${check.currency}</strong></td>
-                        <td>${check.due_date_formatted}</td>
-                        <td>${entityLink}</td>
+                        <td><i class="fas fa-university"></i> ${check.check_bank}</td>
+                        <td class="text-success"><strong>${formatCurrency(check.amount)} ${check.currency}</strong></td>
+                        <td>
+                            ${check.due_date_formatted}
+                            ${check.days_until_due < 0 ? '<br><small class="text-danger">متأخر ' + Math.abs(check.days_until_due) + ' يوم</small>' : ''}
+                            ${check.days_until_due >= 0 && check.days_until_due <= 7 ? '<br><small class="text-warning">بعد ' + check.days_until_due + ' يوم</small>' : ''}
+                        </td>
+                        <td>${entityDisplay}</td>
+                        <td>${entityTypeDisplay}</td>
                         <td>${directionBadge}</td>
                         <td>${statusBadge}</td>
-                        <td><span class="badge badge-info">${check.source}</span></td>
+                        <td>${sourceBadge}</td>
                         <td class="text-nowrap">${actionButtons}</td>
                     </tr>
                 `;
@@ -404,7 +448,9 @@ function loadChecks() {
 
 // عرض تفاصيل الشيك
 function viewCheckDetails(id, type) {
-    if (type === 'payment') {
+    if (type === 'manual') {
+        window.location.href = '/checks/detail/' + id;
+    } else if (type === 'payment') {
         window.location.href = '/payments/' + id;
     } else if (type === 'expense') {
         window.location.href = '/expenses/' + id;

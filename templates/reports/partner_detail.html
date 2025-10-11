@@ -10,7 +10,7 @@
             كشف مفصل للشريك: {{ partner.name }}
         </h2>
         <div class="btn-group">
-            <a href="{{ url_for('reports_bp.partners') }}" class="btn btn-outline-secondary">
+            <a href="{{ url_for('reports_bp.partners_report') }}" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-right me-1"></i>
                 العودة للقائمة
             </a>
@@ -123,7 +123,7 @@
                         <tr>
                             <th>رقم الدفعة</th>
                             <th>التاريخ</th>
-                            <th>طريقة الدفع</th>
+                            <th>البيان</th>
                             <th>المبلغ</th>
                             <th>الحالة</th>
                             <th>ملاحظات</th>
@@ -134,7 +134,7 @@
                         <tr>
                             <td>{{ payment.id }}</td>
                             <td>{{ payment.payment_date.strftime('%Y-%m-%d') if payment.payment_date else 'غير محدد' }}</td>
-                            <td>{{ payment.method or 'غير محدد' }}</td>
+                            <td>سداد {{ payment.method or 'نقداً' }} للشريك</td>
                             <td>{{ payment.total_amount|format_currency }}</td>
                             <td>
                                 <span class="badge bg-{% if payment.status == 'COMPLETED' %}success{% elif payment.status == 'PENDING' %}warning{% else %}danger{% endif %}">
@@ -167,8 +167,7 @@
                         <tr>
                             <th>رقم الطلب</th>
                             <th>التاريخ</th>
-                            <th>العميل</th>
-                            <th>المنتج</th>
+                            <th>البيان</th>
                             <th>الكمية</th>
                             <th>المبلغ</th>
                             <th>الحالة</th>
@@ -179,8 +178,7 @@
                         <tr>
                             <td>{{ preorder.id }}</td>
                             <td>{{ preorder.created_at.strftime('%Y-%m-%d') if preorder.created_at else 'غير محدد' }}</td>
-                            <td>{{ preorder.customer.name if preorder.customer else 'غير محدد' }}</td>
-                            <td>{{ preorder.product.name if preorder.product else 'غير محدد' }}</td>
+                            <td>حصة شريك في حجز: {{ preorder.product.name if preorder.product else 'منتج' }} - عميل: {{ preorder.customer.name if preorder.customer else 'غير محدد' }}</td>
                             <td>{{ preorder.quantity }}</td>
                             <td>{{ preorder.total_amount|format_currency }}</td>
                             <td>

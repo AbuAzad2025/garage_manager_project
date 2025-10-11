@@ -1,0 +1,233 @@
+
+
+# ==========================================
+# الشيكات المستقلة (Independent Checks)
+# ==========================================
+
+@checks_bp.route("/new", methods=["GET", "POST"])
+@login_required
+@permission_required("manage_payments")
+def add_check():
+    """إضافة شيك يدوي جديد"""
+    if request.method == "POST":
+        try:
+            check_number = request.form.get("check_number")
+            check_bank = request.form.get("check_bank")
+            check_date_str = request.form.get("check_date")
+            check_due_date_str = request.form.get("check_due_date")
+            amount = Decimal(request.form.get("amount", 0))
+            currency = request.form.get("currency", "ILS")
+            direction = request.form.get("direction")
+            
+            drawer_name = request.form.get("drawer_name")
+            drawer_phone = request.form.get("drawer_phone")
+            drawer_id_number = request.form.get("drawer_id_number")
+            drawer_address = request.form.get("drawer_address")
+            payee_name = request.form.get("payee_name")
+            payee_phone = request.form.get("payee_phone")
+            payee_account = request.form.get("payee_account")
+            
+            notes = request.form.get("notes")
+            internal_notes = request.form.get("internal_notes")
+            reference_number = request.form.get("reference_number")
+            
+            customer_id = request.form.get("customer_id") or None
+            supplier_id = request.form.get("supplier_id") or None
+            partner_id = request.form.get("partner_id") or None
+            
+            if not check_number or not check_bank or not amount or not direction:
+                flash("يرجى ملء جميع الحقول المطلوبة", "danger")
+                return redirect(url_for("checks.add_check"))
+            
+            check_date = datetime.strptime(check_date_str, "%Y-%m-%d") if check_date_str else datetime.utcnow()
+            check_due_date = datetime.strptime(check_due_date_str, "%Y-%m-%d") if check_due_date_str else datetime.utcnow()
+            
+            new_check = Check(
+                check_number=check_number,
+                check_bank=check_bank,
+                check_date=check_date,
+                check_due_date=check_due_date,
+                amount=amount,
+                currency=currency,
+                direction=direction,
+                status=CheckStatus.PENDING.value,
+                drawer_name=drawer_name,
+                drawer_phone=drawer_phone,
+                drawer_id_number=drawer_id_number,
+                drawer_address=drawer_address,
+                payee_name=payee_name,
+                payee_phone=payee_phone,
+                payee_account=payee_account,
+                notes=notes,
+                internal_notes=internal_notes,
+                reference_number=reference_number,
+                customer_id=int(customer_id) if customer_id else None,
+                supplier_id=int(supplier_id) if supplier_id else None,
+                partner_id=int(partner_id) if partner_id else None,
+                created_by_id=current_user.id
+            )
+            
+            db.session.add(new_check)
+            db.session.commit()
+            
+            flash(f"تم إضافة الشيك رقم {check_number} بنجاح", "success")
+            return redirect(url_for("checks.index"))
+        
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error adding check: {str(e)}")
+            flash(f"حدث خطأ أثناء إضافة الشيك: {str(e)}", "danger")
+            return redirect(url_for("checks.add_check"))
+    
+    customers = Customer.query.filter_by(deleted=False).order_by(Customer.name).all()
+    suppliers = Supplier.query.filter_by(deleted=False).order_by(Supplier.name).all()
+    partners = Partner.query.filter_by(deleted=False).order_by(Partner.name).all()
+    
+    return render_template("checks/form.html",
+                         customers=customers,
+                         suppliers=suppliers,
+                         partners=partners,
+                         check=None,
+                         currencies=["ILS", "USD", "EUR", "JOD"])
+
+
+@checks_bp.route("/edit/<int:check_id>", methods=["GET", "POST"])
+@login_required
+@permission_required("manage_payments")
+def edit_check(check_id):
+    """تعديل شيك"""
+    check = Check.query.get_or_404(check_id)
+    
+    if request.method == "POST":
+        try:
+            check.check_number = request.form.get("check_number")
+            check.check_bank = request.form.get("check_bank")
+            check.check_date = datetime.strptime(request.form.get("check_date"), "%Y-%m-%d")
+            check.check_due_date = datetime.strptime(request.form.get("check_due_date"), "%Y-%m-%d")
+            check.amount = Decimal(request.form.get("amount", 0))
+            check.currency = request.form.get("currency", "ILS")
+            check.direction = request.form.get("direction")
+            
+            check.drawer_name = request.form.get("drawer_name")
+            check.drawer_phone = request.form.get("drawer_phone")
+            check.drawer_id_number = request.form.get("drawer_id_number")
+            check.drawer_address = request.form.get("drawer_address")
+            check.payee_name = request.form.get("payee_name")
+            check.payee_phone = request.form.get("payee_phone")
+            check.payee_account = request.form.get("payee_account")
+            
+            check.notes = request.form.get("notes")
+            check.internal_notes = request.form.get("internal_notes")
+            check.reference_number = request.form.get("reference_number")
+            
+            customer_id = request.form.get("customer_id")
+            supplier_id = request.form.get("supplier_id")
+            partner_id = request.form.get("partner_id")
+            
+            check.customer_id = int(customer_id) if customer_id else None
+            check.supplier_id = int(supplier_id) if supplier_id else None
+            check.partner_id = int(partner_id) if partner_id else None
+            
+            db.session.commit()
+            
+            flash(f"تم تعديل الشيك رقم {check.check_number} بنجاح", "success")
+            return redirect(url_for("checks.check_detail", check_id=check.id))
+        
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error updating check: {str(e)}")
+            flash(f"حدث خطأ أثناء تعديل الشيك: {str(e)}", "danger")
+    
+    customers = Customer.query.filter_by(deleted=False).order_by(Customer.name).all()
+    suppliers = Supplier.query.filter_by(deleted=False).order_by(Supplier.name).all()
+    partners = Partner.query.filter_by(deleted=False).order_by(Partner.name).all()
+    
+    return render_template("checks/form.html",
+                         check=check,
+                         customers=customers,
+                         suppliers=suppliers,
+                         partners=partners,
+                         currencies=["ILS", "USD", "EUR", "JOD"])
+
+
+@checks_bp.route("/detail/<int:check_id>")
+@login_required
+@permission_required("view_payments")
+def check_detail(check_id):
+    """عرض تفاصيل شيك"""
+    check = Check.query.get_or_404(check_id)
+    status_history = check.get_status_history()
+    
+    return render_template("checks/detail.html",
+                         check=check,
+                         status_history=status_history,
+                         CHECK_STATUS=CHECK_STATUS)
+
+
+@checks_bp.route("/delete/<int:check_id>", methods=["POST"])
+@login_required
+@permission_required("manage_payments")
+def delete_check(check_id):
+    """حذف شيك"""
+    try:
+        check = Check.query.get_or_404(check_id)
+        check_number = check.check_number
+        
+        db.session.delete(check)
+        db.session.commit()
+        
+        flash(f"تم حذف الشيك رقم {check_number} بنجاح", "success")
+        return redirect(url_for("checks.index"))
+    
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error deleting check: {str(e)}")
+        flash(f"حدث خطأ أثناء حذف الشيك: {str(e)}", "danger")
+        return redirect(url_for("checks.index"))
+
+
+@checks_bp.route("/reports")
+@login_required
+@permission_required("view_payments")
+def reports():
+    """صفحة التقارير"""
+    today = datetime.utcnow().date()
+    
+    independent_checks = Check.query.all()
+    
+    stats_by_status = db.session.query(
+        Check.status,
+        func.count(Check.id).label("count"),
+        func.sum(Check.amount).label("total_amount")
+    ).group_by(Check.status).all()
+    
+    stats_by_direction = db.session.query(
+        Check.direction,
+        func.count(Check.id).label("count"),
+        func.sum(Check.amount).label("total_amount")
+    ).group_by(Check.direction).all()
+    
+    overdue_checks = Check.query.filter(
+        and_(
+            Check.status == CheckStatus.PENDING.value,
+            Check.check_due_date < datetime.utcnow()
+        )
+    ).all()
+    
+    due_soon_checks = Check.query.filter(
+        and_(
+            Check.status == CheckStatus.PENDING.value,
+            Check.check_due_date >= datetime.utcnow(),
+            Check.check_due_date <= datetime.utcnow() + timedelta(days=7)
+        )
+    ).all()
+    
+    return render_template("checks/reports.html",
+                         independent_checks=independent_checks,
+                         stats_by_status=stats_by_status,
+                         stats_by_direction=stats_by_direction,
+                         overdue_checks=overdue_checks,
+                         due_soon_checks=due_soon_checks,
+                         CheckStatus=CheckStatus,
+                         PaymentDirection=PaymentDirection)
+

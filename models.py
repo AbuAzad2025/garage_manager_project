@@ -7598,3 +7598,195 @@ class CustomerLoyaltyPoints(db.Model, TimestampMixin):
             "expires_at": self.expires_at.isoformat() if self.expires_at else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+# ==========================================
+# نموذج الشيكات المستقلة (Independent Checks)
+# ==========================================
+
+class CheckStatus(str, enum.Enum):
+    """حالات الشيك"""
+    PENDING = "PENDING"
+    CASHED = "CASHED"
+    RETURNED = "RETURNED"
+    BOUNCED = "BOUNCED"
+    RESUBMITTED = "RESUBMITTED"
+    CANCELLED = "CANCELLED"
+    OVERDUE = "OVERDUE"
+    
+    @property
+    def label(self):
+        return {
+            "PENDING": "معلق",
+            "CASHED": "تم الصرف",
+            "RETURNED": "مرتجع",
+            "BOUNCED": "مرفوض",
+            "RESUBMITTED": "أعيد للبنك",
+            "CANCELLED": "ملغي",
+            "OVERDUE": "متأخر"
+        }[self.value]
+
+
+class Check(db.Model, TimestampMixin, AuditMixin):
+    """
+    نموذج الشيكات المستقلة - للشيكات التي لا ترتبط بمدفوعات أو مصروفات
+    يمكن إضافتها يدوياً من قبل المستخدم
+    """
+    __tablename__ = "checks"
+    
+    id = Column(Integer, primary_key=True)
+    
+    # معلومات الشيك الأساسية
+    check_number = Column(String(100), nullable=False, index=True)
+    check_bank = Column(String(200), nullable=False)
+    check_date = Column(DateTime, default=datetime.utcnow, nullable=False)
+    check_due_date = Column(DateTime, nullable=False, index=True)
+    
+    # المبلغ والعملة
+    amount = Column(Numeric(12, 2), nullable=False)
+    currency = Column(String(10), default="ILS", nullable=False)
+    
+    # الاتجاه والحالة
+    direction = Column(sa_str_enum(PaymentDirection, name="check_direction"), 
+                      default=PaymentDirection.IN.value, nullable=False, index=True)
+    status = Column(sa_str_enum(CheckStatus, name="check_status"), 
+                   default=CheckStatus.PENDING.value, nullable=False, index=True)
+    
+    # معلومات الساحب (من يصدر الشيك)
+    drawer_name = Column(String(200))  # اسم الساحب
+    drawer_phone = Column(String(20))  # هاتف الساحب
+    drawer_id_number = Column(String(50))  # رقم هوية الساحب
+    drawer_address = Column(Text)  # عنوان الساحب
+    
+    # معلومات المستفيد (من يستلم الشيك)
+    payee_name = Column(String(200))  # اسم المستفيد
+    payee_phone = Column(String(20))  # هاتف المستفيد
+    payee_account = Column(String(50))  # رقم حساب المستفيد
+    
+    # معلومات إضافية
+    notes = Column(Text)  # ملاحظات عامة
+    internal_notes = Column(Text)  # ملاحظات داخلية (لا تظهر للعميل)
+    reference_number = Column(String(100))  # رقم مرجعي
+    
+    # تاريخ التغييرات (JSON)
+    status_history = Column(Text)  # JSON array of status changes
+    
+    # الربط بعميل أو مورد (اختياري)
+    customer_id = Column(Integer, ForeignKey("customers.id", ondelete="SET NULL"), index=True)
+    supplier_id = Column(Integer, ForeignKey("suppliers.id", ondelete="SET NULL"), index=True)
+    partner_id = Column(Integer, ForeignKey("partners.id", ondelete="SET NULL"), index=True)
+    
+    # من أنشأ الشيك
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    
+    # العلاقات
+    customer = relationship("Customer", backref="independent_checks")
+    supplier = relationship("Supplier", backref="independent_checks")
+    partner = relationship("Partner", backref="independent_checks")
+    created_by = relationship("User", backref="checks_created")
+    
+    __table_args__ = (
+        CheckConstraint("amount > 0", name="ck_check_amount_positive"),
+        Index("ix_checks_status_due_date", "status", "check_due_date"),
+        Index("ix_checks_direction_status", "direction", "status"),
+    )
+    
+    def __repr__(self):
+        return f"<Check {self.check_number} - {self.check_bank} - {self.amount} {self.currency}>"
+    
+    @hybrid_property
+    def is_overdue(self):
+        """هل الشيك متأخر"""
+        if self.status in [CheckStatus.CASHED.value, CheckStatus.CANCELLED.value]:
+            return False
+        return self.check_due_date < datetime.utcnow()
+    
+    @hybrid_property
+    def days_until_due(self):
+        """عدد الأيام حتى الاستحقاق"""
+        if isinstance(self.check_due_date, datetime):
+            due_date = self.check_due_date.date()
+        else:
+            due_date = self.check_due_date
+        today = datetime.utcnow().date()
+        return (due_date - today).days
+    
+    @hybrid_property
+    def is_due_soon(self):
+        """هل الشيك قريب من الاستحقاق (خلال 7 أيام)"""
+        return 0 <= self.days_until_due <= 7
+    
+    def add_status_change(self, new_status, reason=None, user=None):
+        """إضافة تغيير حالة إلى السجل"""
+        import json
+        
+        # تحميل السجل الحالي
+        history = []
+        if self.status_history:
+            try:
+                history = json.loads(self.status_history)
+            except:
+                history = []
+        
+        # إضافة التغيير الجديد
+        change = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "old_status": self.status,
+            "new_status": new_status,
+            "reason": reason,
+            "user": user.username if user else None
+        }
+        history.append(change)
+        
+        # حفظ السجل
+        self.status_history = json.dumps(history, ensure_ascii=False)
+        self.status = new_status
+    
+    def get_status_history(self):
+        """الحصول على سجل التغييرات"""
+        import json
+        if not self.status_history:
+            return []
+        try:
+            return json.loads(self.status_history)
+        except:
+            return []
+    
+    def get_entity_name(self):
+        """الحصول على اسم الجهة المرتبطة"""
+        if self.customer:
+            return self.customer.name
+        elif self.supplier:
+            return self.supplier.name
+        elif self.partner:
+            return self.partner.name
+        elif self.direction == PaymentDirection.IN.value:
+            return self.drawer_name or "غير محدد"
+        else:
+            return self.payee_name or "غير محدد"
+    
+    def to_dict(self):
+        """تحويل إلى قاموس"""
+        return {
+            "id": self.id,
+            "check_number": self.check_number,
+            "check_bank": self.check_bank,
+            "check_date": self.check_date.isoformat() if self.check_date else None,
+            "check_due_date": self.check_due_date.isoformat() if self.check_due_date else None,
+            "amount": float(self.amount),
+            "currency": self.currency,
+            "direction": self.direction,
+            "status": self.status,
+            "drawer_name": self.drawer_name,
+            "drawer_phone": self.drawer_phone,
+            "payee_name": self.payee_name,
+            "payee_phone": self.payee_phone,
+            "notes": self.notes,
+            "reference_number": self.reference_number,
+            "entity_name": self.get_entity_name(),
+            "is_overdue": self.is_overdue,
+            "days_until_due": self.days_until_due,
+            "is_due_soon": self.is_due_soon,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None
+        }

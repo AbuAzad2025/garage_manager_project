@@ -565,6 +565,177 @@ def seed_comprehensive_data():
         print(f"- المبيعات: {M.Sale.query.count()}")
         print(f"- المدفوعات: {M.Payment.query.count()}")
         print(f"- طلبات الصيانة: {M.ServiceRequest.query.count()}")
+        
+        # إضافة شيكات تجريبية
+        print("\n🏦 إنشاء شيكات تجريبية...")
+        
+        # التأكد من وجود عملاء وموردين
+        customers_list = M.Customer.query.filter_by(deleted=False).limit(5).all()
+        suppliers_list = M.Supplier.query.filter_by(deleted=False).limit(5).all()
+        
+        # الشيكات اليدوية
+        checks_data = [
+            {
+                'check_number': '100001',
+                'check_bank': 'بنك فلسطين',
+                'check_date': datetime.utcnow() - timedelta(days=10),
+                'check_due_date': datetime.utcnow() + timedelta(days=30),
+                'amount': q('5000.00'),
+                'currency': 'ILS',
+                'direction': M.PaymentDirection.IN.value,
+                'status': M.CheckStatus.PENDING.value,
+                'drawer_name': 'محمد أحمد عبد الله',
+                'drawer_phone': '0599123456',
+                'drawer_id_number': '123456789',
+                'payee_name': 'شركة أزاد للأنظمة الذكية',
+                'payee_phone': '0562150193',
+                'notes': 'شيك دفعة أولى لصيانة السيارة',
+                'reference_number': 'REF-001',
+                'customer_id': customers_list[0].id if customers_list else None,
+                'created_by_id': 1
+            },
+            {
+                'check_number': '100002',
+                'check_bank': 'بنك القدس',
+                'check_date': datetime.utcnow() - timedelta(days=60),
+                'check_due_date': datetime.utcnow() - timedelta(days=10),
+                'amount': q('3500.00'),
+                'currency': 'ILS',
+                'direction': M.PaymentDirection.OUT.value,
+                'status': M.CheckStatus.PENDING.value,
+                'drawer_name': 'شركة أزاد',
+                'payee_name': 'شركة الأمل لقطع الغيار',
+                'payee_phone': '0599654321',
+                'payee_account': 'ACC-2024-001',
+                'notes': 'دفعة لمورد قطع غيار',
+                'internal_notes': 'يجب المتابعة - الشيك متأخر',
+                'reference_number': 'REF-002',
+                'supplier_id': suppliers_list[0].id if suppliers_list else None,
+                'created_by_id': 1
+            },
+            {
+                'check_number': '100003',
+                'check_bank': 'بنك الوطني',
+                'check_date': datetime.utcnow() - timedelta(days=90),
+                'check_due_date': datetime.utcnow() - timedelta(days=60),
+                'amount': q('8500.00'),
+                'currency': 'ILS',
+                'direction': M.PaymentDirection.IN.value,
+                'status': M.CheckStatus.CASHED.value,
+                'drawer_name': 'علي حسن محمود',
+                'drawer_phone': '0599777888',
+                'payee_name': 'شركة أزاد',
+                'notes': 'شيك دفعة كاملة - تم الصرف',
+                'status_history': '[{"timestamp": "' + datetime.utcnow().isoformat() + '", "old_status": "PENDING", "new_status": "CASHED", "reason": "تم صرف الشيك بنجاح", "user": "admin"}]',
+                'customer_id': customers_list[1].id if len(customers_list) > 1 else None,
+                'created_by_id': 1
+            },
+            {
+                'check_number': '100004',
+                'check_bank': 'بنك الاستثمار الفلسطيني',
+                'check_date': datetime.utcnow() - timedelta(days=30),
+                'check_due_date': datetime.utcnow() + timedelta(days=5),
+                'amount': q('2500.00'),
+                'currency': 'USD',
+                'direction': M.PaymentDirection.IN.value,
+                'status': M.CheckStatus.PENDING.value,
+                'drawer_name': 'خالد فارس',
+                'drawer_phone': '0599111222',
+                'drawer_id_number': '987654321',
+                'payee_name': 'شركة أزاد',
+                'notes': 'شيك يستحق قريباً (خلال 5 أيام)',
+                'reference_number': 'REF-004',
+                'customer_id': customers_list[2].id if len(customers_list) > 2 else None,
+                'created_by_id': 1
+            },
+            {
+                'check_number': '100005',
+                'check_bank': 'بنك القاهرة عمان',
+                'check_date': datetime.utcnow() - timedelta(days=45),
+                'check_due_date': datetime.utcnow() - timedelta(days=30),
+                'amount': q('4200.00'),
+                'currency': 'JOD',
+                'direction': M.PaymentDirection.OUT.value,
+                'status': M.CheckStatus.RETURNED.value,
+                'drawer_name': 'شركة أزاد',
+                'payee_name': 'مؤسسة النور التجارية',
+                'payee_phone': '0599888999',
+                'notes': 'شيك مرتجع - سيتم إعادة تقديمه',
+                'internal_notes': 'تم التواصل مع الجهة - سيتم التسوية قريباً',
+                'status_history': '[{"timestamp": "' + (datetime.utcnow() - timedelta(days=5)).isoformat() + '", "old_status": "PENDING", "new_status": "RETURNED", "reason": "رصيد غير كافي", "user": "admin"}]',
+                'supplier_id': suppliers_list[1].id if len(suppliers_list) > 1 else None,
+                'created_by_id': 1
+            },
+            {
+                'check_number': '100006',
+                'check_bank': 'بنك الأردن',
+                'check_date': datetime.utcnow(),
+                'check_due_date': datetime.utcnow() + timedelta(days=60),
+                'amount': q('15000.00'),
+                'currency': 'ILS',
+                'direction': M.PaymentDirection.IN.value,
+                'status': M.CheckStatus.PENDING.value,
+                'drawer_name': 'شركة الفجر للتجارة',
+                'drawer_phone': '0599333444',
+                'drawer_id_number': '456789123',
+                'drawer_address': 'رام الله - شارع الماصيون',
+                'payee_name': 'شركة أزاد',
+                'notes': 'شيك دفعة كبيرة - يستحق بعد شهرين',
+                'reference_number': 'REF-006',
+                'customer_id': customers_list[3].id if len(customers_list) > 3 else None,
+                'created_by_id': 1
+            },
+            {
+                'check_number': '100007',
+                'check_bank': 'بنك فلسطين - فرع البيرة',
+                'check_date': datetime.utcnow() - timedelta(days=20),
+                'check_due_date': datetime.utcnow() + timedelta(days=15),
+                'amount': q('1800.00'),
+                'currency': 'ILS',
+                'direction': M.PaymentDirection.OUT.value,
+                'status': M.CheckStatus.PENDING.value,
+                'drawer_name': 'شركة أزاد',
+                'payee_name': 'مكتب المحاماة القانوني',
+                'payee_phone': '0599555666',
+                'payee_account': 'ACC-2024-100',
+                'notes': 'رسوم قانونية - يستحق خلال 15 يوم',
+                'internal_notes': 'خدمات استشارية قانونية',
+                'created_by_id': 1
+            },
+            {
+                'check_number': '100008',
+                'check_bank': 'بنك القدس - فرع رام الله',
+                'check_date': datetime.utcnow() - timedelta(days=100),
+                'check_due_date': datetime.utcnow() - timedelta(days=50),
+                'amount': q('6700.00'),
+                'currency': 'ILS',
+                'direction': M.PaymentDirection.IN.value,
+                'status': M.CheckStatus.BOUNCED.value,
+                'drawer_name': 'ياسر محمد علي',
+                'drawer_phone': '0599222333',
+                'drawer_id_number': '789456123',
+                'payee_name': 'شركة أزاد',
+                'notes': 'شيك مرفوض - حساب مغلق',
+                'internal_notes': 'تم التواصل مع العميل - لم يستجب',
+                'status_history': '[{"timestamp": "' + (datetime.utcnow() - timedelta(days=50)).isoformat() + '", "old_status": "PENDING", "new_status": "BOUNCED", "reason": "حساب مغلق", "user": "admin"}]',
+                'customer_id': customers_list[4].id if len(customers_list) > 4 else None,
+                'created_by_id': 1
+            }
+        ]
+        
+        for check_data in checks_data:
+            try:
+                existing = M.Check.query.filter_by(check_number=check_data['check_number']).first()
+                if not existing:
+                    check = M.Check(**check_data)
+                    db.session.add(check)
+                    print(f"  ✅ تم إضافة الشيك: {check_data['check_number']} - {check_data['check_bank']}")
+            except Exception as e:
+                print(f"  ⚠️ خطأ في إضافة الشيك {check_data['check_number']}: {str(e)}")
+        
+        db.session.commit()
+        print(f"✅ تم إضافة {M.Check.query.count()} شيكاً يدوياً")
+        print(f"- الشيكات: {M.Check.query.count()}")
 
 if __name__ == "__main__":
     seed_comprehensive_data()

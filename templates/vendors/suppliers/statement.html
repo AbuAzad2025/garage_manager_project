@@ -152,12 +152,13 @@
         <table class="table table-bordered table-sm table-striped align-middle">
           <thead class="table-light">
             <tr>
-              <th style="width: 140px">التاريخ</th>
-              <th style="width: 160px">النوع</th>
-              <th>المرجع</th>
-              <th class="text-end" style="width: 140px">مدين</th>
-              <th class="text-end" style="width: 140px">دائن</th>
-              <th class="text-end" style="width: 160px">الرصيد</th>
+              <th style="width: 110px">التاريخ</th>
+              <th style="width: 110px">النوع</th>
+              <th style="width: 120px">المرجع</th>
+              <th>البيان</th>
+              <th class="text-end" style="width: 120px">مدين</th>
+              <th class="text-end" style="width: 120px">دائن</th>
+              <th class="text-end" style="width: 120px">الرصيد</th>
             </tr>
           </thead>
           <tbody>
@@ -169,6 +170,7 @@
                 <span class="badge {{ type_badges.get(t, 'bg-secondary') }}">{{ type_labels.get(t, t) }}</span>
               </td>
               <td class="text-truncate" title="{{ e.ref }}">{{ e.ref }}</td>
+              <td class="text-truncate" title="{{ e.statement }}">{{ e.statement or '-' }}</td>
               <td class="text-end">{{ e.debit|format_currency }}</td>
               <td class="text-end">{{ e.credit|format_currency }}</td>
               <td class="text-end fw-bold {% if e.balance > 0 %}text-danger{% elif e.balance < 0 %}text-success{% endif %}">
@@ -177,13 +179,13 @@
             </tr>
             {% else %}
             <tr>
-              <td colspan="6" class="text-center text-muted">لا توجد حركات.</td>
+              <td colspan="7" class="text-center text-muted">لا توجد حركات.</td>
             </tr>
             {% endfor %}
           </tbody>
           <tfoot class="table-light">
             <tr>
-              <th colspan="3" class="text-end">الإجمالي</th>
+              <th colspan="4" class="text-end">الإجمالي</th>
               <th class="text-end">{{ total_debit|format_currency }}</th>
               <th class="text-end">{{ total_credit|format_currency }}</th>
               <th class="text-end {% if balance > 0 %}text-danger{% elif balance < 0 %}text-success{% endif %}">

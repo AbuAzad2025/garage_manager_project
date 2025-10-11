@@ -319,17 +319,20 @@ def suppliers_statement(supplier_id: int):
         # المدين = قيمة التوريد (يزيد ما ندين به للمورد)
         # الدائن = قيمة المرتجع/التسويات (تُخفّض ما ندين به)
         if dirv in {"IN", "PURCHASE", "CONSIGN_IN"}:
-            entries.append({"date": d, "type": "PURCHASE", "ref": f"توريد قطع #{tx.id}", "debit": amount, "credit": Decimal("0.00")})
+            statement = f"توريد {prod_name} - كمية: {qty}"
+            entries.append({"date": d, "type": "PURCHASE", "ref": f"توريد قطع #{tx.id}", "statement": statement, "debit": amount, "credit": Decimal("0.00")})
             total_debit += amount
             row["qty_in"] += qty
             row["val_in"] += amount
         elif dirv in {"OUT", "RETURN", "CONSIGN_OUT"}:
-            entries.append({"date": d, "type": "RETURN", "ref": f"مرتجع قطع #{tx.id}", "debit": Decimal("0.00"), "credit": amount})
+            statement = f"مرتجع {prod_name} - كمية: {qty}"
+            entries.append({"date": d, "type": "RETURN", "ref": f"مرتجع قطع #{tx.id}", "statement": statement, "debit": Decimal("0.00"), "credit": amount})
             total_credit += amount
             row["qty_out"] += qty
             row["val_out"] += amount
         elif dirv in {"SETTLEMENT", "ADJUST"}:
-            entries.append({"date": d, "type": "SETTLEMENT", "ref": f"تسوية مخزون #{tx.id}", "debit": Decimal("0.00"), "credit": amount})
+            statement = f"تسوية مخزون {prod_name} - كمية: {qty}"
+            entries.append({"date": d, "type": "SETTLEMENT", "ref": f"تسوية مخزون #{tx.id}", "statement": statement, "debit": Decimal("0.00"), "credit": amount})
             total_credit += amount
 
     # الدفعات الخارجة للمورد (OUTGOING) — تُسجّل دائن لأنها تُخفّض ما ندين به
@@ -350,7 +353,13 @@ def suppliers_statement(supplier_id: int):
         d = pmt.payment_date
         amt = q2(pmt.total_amount)
         ref = pmt.reference or f"دفعة #{pmt.id}"
-        entries.append({"date": d, "type": "PAYMENT", "ref": ref, "debit": Decimal("0.00"), "credit": amt})
+        # توليد البيان للدفعة
+        payment_method = getattr(pmt, 'payment_method', 'نقداً')
+        notes = getattr(pmt, 'notes', '') or ''
+        statement = f"سداد {payment_method} للمورد"
+        if notes:
+            statement += f" - {notes[:30]}"
+        entries.append({"date": d, "type": "PAYMENT", "ref": ref, "statement": statement, "debit": Decimal("0.00"), "credit": amt})
         total_credit += amt
 
     # تسويات القروض مع المورد — دائن أيضًا (تُخفّض الالتزام)
@@ -368,7 +377,14 @@ def suppliers_statement(supplier_id: int):
         d = s.settlement_date
         amt = q2(s.settled_price)
         ref = f"تسوية قرض #{s.loan_id or s.id}"
-        entries.append({"date": d, "type": "SETTLEMENT", "ref": ref, "debit": Decimal("0.00"), "credit": amt})
+        # توليد البيان للتسوية
+        loan = getattr(s, "loan", None)
+        statement = "تسوية قرض مع المورد"
+        if loan:
+            product = getattr(loan, "product", None)
+            if product:
+                statement = f"تسوية قرض - {product.name}"
+        entries.append({"date": d, "type": "SETTLEMENT", "ref": ref, "statement": statement, "debit": Decimal("0.00"), "credit": amt})
         total_credit += amt
         pid = getattr(getattr(s, "loan", None), "product_id", None)
         if pid in per_product:
