@@ -1685,40 +1685,148 @@ def _get_all_blocked_countries():
 def _get_cleanable_tables():
     """الجداول القابلة للتنظيف"""
     return [
-        {'name': 'audit_logs', 'display': 'سجلات التدقيق', 'danger': 'low'},
-        {'name': 'service_requests', 'display': 'طلبات الصيانة', 'danger': 'high'},
-        {'name': 'sales', 'display': 'المبيعات', 'danger': 'high'},
-        {'name': 'payments', 'display': 'المدفوعات', 'danger': 'high'},
-        {'name': 'expenses', 'display': 'المصاريف', 'danger': 'medium'},
-        {'name': 'stock_levels', 'display': 'مستويات المخزون', 'danger': 'high'},
-        {'name': 'online_carts', 'display': 'سلات التسوق', 'danger': 'low'},
-        {'name': 'notifications', 'display': 'الإشعارات', 'danger': 'low'},
+        # المستخدمين والحسابات (خطر عالي!)
+        {'name': 'users_except_first_super', 'display': '👤 المستخدمين (ما عدا أول Super Admin)', 'danger': 'high'},
+        {'name': 'roles', 'display': '🎭 الأدوار', 'danger': 'high'},
+        {'name': 'user_roles', 'display': '🔗 ربط المستخدمين بالأدوار', 'danger': 'high'},
+        
+        # سجلات وملاحظات ولوجات
+        {'name': 'audit_logs', 'display': '📋 سجلات التدقيق (Audit)', 'danger': 'low'},
+        {'name': 'deletion_logs', 'display': '🗑️ سجل الحذف', 'danger': 'low'},
+        {'name': 'notes', 'display': '📝 الملاحظات', 'danger': 'medium'},
+        {'name': 'notifications', 'display': '🔔 الإشعارات', 'danger': 'low'},
+        {'name': 'activity_logs', 'display': '📊 سجلات النشاطات', 'danger': 'low'},
+        {'name': 'error_logs', 'display': '⚠️ سجلات الأخطاء', 'danger': 'low'},
+        
+        # التسوق الإلكتروني
+        {'name': 'online_carts', 'display': '🛒 سلات التسوق', 'danger': 'low'},
+        {'name': 'online_payments', 'display': '💳 المدفوعات الإلكترونية', 'danger': 'medium'},
+        
+        # العمليات المالية
+        {'name': 'payments', 'display': '💰 المدفوعات', 'danger': 'high'},
+        {'name': 'payment_splits', 'display': '💸 تقسيمات الدفع', 'danger': 'high'},
+        {'name': 'expenses', 'display': '📤 المصاريف', 'danger': 'high'},
+        {'name': 'checks', 'display': '📝 الشيكات', 'danger': 'high'},
+        
+        # المبيعات والصيانة
+        {'name': 'sales', 'display': '🛍️ المبيعات', 'danger': 'high'},
+        {'name': 'sale_lines', 'display': '📦 بنود المبيعات', 'danger': 'high'},
+        {'name': 'service_requests', 'display': '🔧 طلبات الصيانة', 'danger': 'high'},
+        {'name': 'service_parts', 'display': '⚙️ قطع الصيانة', 'danger': 'high'},
+        {'name': 'service_tasks', 'display': '✔️ مهام الصيانة', 'danger': 'medium'},
+        
+        # المخزون والتبادلات
+        {'name': 'stock_levels', 'display': '📊 مستويات المخزون', 'danger': 'high'},
+        {'name': 'exchange_transactions', 'display': '🔄 معاملات التبادل', 'danger': 'high'},
+        {'name': 'stock_adjustments', 'display': '📈 تعديلات المخزون', 'danger': 'medium'},
+        
+        # الحجوزات
+        {'name': 'preorders', 'display': '📅 الحجوزات المسبقة', 'danger': 'medium'},
+        {'name': 'online_preorders', 'display': '🌐 الحجوزات الإلكترونية', 'danger': 'medium'},
+        
+        # الشحنات والتسويات
+        {'name': 'shipments', 'display': '🚚 الشحنات', 'danger': 'high'},
+        {'name': 'shipment_items', 'display': '📦 بنود الشحنات', 'danger': 'high'},
+        {'name': 'supplier_settlements', 'display': '💼 تسويات الموردين', 'danger': 'high'},
+        
+        # الجهات (خطر عالي جداً!)
+        {'name': 'customers', 'display': '👥 العملاء', 'danger': 'high'},
+        {'name': 'suppliers', 'display': '🏭 الموردين', 'danger': 'high'},
+        {'name': 'partners', 'display': '🤝 الشركاء', 'danger': 'high'},
+        
+        # المخازن والمنتجات
+        {'name': 'warehouses', 'display': '🏪 المخازن', 'danger': 'high'},
+        {'name': 'products', 'display': '📦 المنتجات', 'danger': 'high'},
+        {'name': 'product_categories', 'display': '🏷️ فئات المنتجات', 'danger': 'medium'},
+        
+        # القروض
+        {'name': 'product_supplier_loans', 'display': '💳 قروض الموردين', 'danger': 'medium'},
+        {'name': 'supplier_loan_settlements', 'display': '💵 تسويات القروض', 'danger': 'medium'},
+        
+        # الفواتير
+        {'name': 'invoices', 'display': '📄 الفواتير', 'danger': 'high'},
+        {'name': 'invoice_lines', 'display': '📋 بنود الفواتير', 'danger': 'high'},
+        
+        # العلاقات والارتباطات
+        {'name': 'product_partners', 'display': '🔗 ربط المنتجات بالشركاء', 'danger': 'high'},
+        {'name': 'shipment_partners', 'display': '🚢 ربط الشحنات بالشركاء', 'danger': 'high'},
+        
+        # الإعدادات والمرافق
+        {'name': 'utility_accounts', 'display': '⚡ حسابات المرافق', 'danger': 'medium'},
+        {'name': 'expense_types', 'display': '📂 أنواع المصاريف', 'danger': 'medium'},
+        {'name': 'equipment_types', 'display': '🚗 أنواع المركبات', 'danger': 'medium'},
+        
+        # العمليات المحاسبية
+        {'name': 'gl_batches', 'display': '📚 دفعات القيود المحاسبية', 'danger': 'high'},
+        {'name': 'gl_entries', 'display': '📖 القيود المحاسبية', 'danger': 'high'},
+        
+        # أخرى
+        {'name': 'files', 'display': '📁 الملفات المرفقة', 'danger': 'medium'},
+        {'name': 'images', 'display': '🖼️ الصور', 'danger': 'medium'},
     ]
 
 def _cleanup_tables(tables):
     """تنظيف الجداول المحددة"""
     cleaned = 0
+    errors = []
     
     for table in tables:
         try:
-            db.session.execute(text(f"DELETE FROM {table}"))
-            db.session.commit()
-            cleaned += 1
+            # معالجة خاصة للمستخدمين - حذف الكل (حتى الأدمنز) ما عدا أول Super Admin
+            if table == 'users_except_first_super':
+                from models import User
+                # البحث عن أول Super Admin (الأقدم)
+                first_super = User.query.filter_by(is_super_admin=True).order_by(User.id.asc()).first()
+                
+                if first_super:
+                    first_super_id = first_super.id
+                    # حذف جميع المستخدمين (بما فيهم الأدمنز الآخرين) ما عدا أول Super Admin
+                    deleted_count = db.session.execute(
+                        text("DELETE FROM users WHERE id != :super_id"), 
+                        {'super_id': first_super_id}
+                    ).rowcount
+                    db.session.commit()
+                    print(f"[INFO] Deleted {deleted_count} users, kept first Super Admin (ID: {first_super_id})")
+                    cleaned += 1
+                else:
+                    # إذا لم يوجد Super Admin، لا نحذف شيء للحماية
+                    errors.append(f"تخطي {table}: لا يوجد Super Admin!")
+                    continue
+            else:
+                # تنظيف عادي للجداول الأخرى
+                try:
+                    deleted_count = db.session.execute(text(f"DELETE FROM {table}")).rowcount
+                    db.session.commit()
+                    print(f"[INFO] Cleaned table '{table}': {deleted_count} rows deleted")
+                    cleaned += 1
+                except Exception as delete_error:
+                    # قد لا يكون الجدول موجوداً
+                    db.session.rollback()
+                    print(f"[WARNING] Table '{table}' not found or error: {str(delete_error)}")
+                    continue
             
-            # تسجيل في Audit
-            db.session.add(AuditLog(
-                model_name='Security',
-                action='TABLE_CLEANED',
-                user_id=current_user.id,
-                old_data=json.dumps({'table': table}, ensure_ascii=False),
-                ip_address=request.remote_addr
-            ))
-            db.session.commit()
+            # تسجيل في Audit (إذا لم يتم حذف audit_logs نفسه)
+            if table != 'audit_logs':
+                try:
+                    db.session.add(AuditLog(
+                        model_name='Security',
+                        action='TABLE_CLEANED',
+                        user_id=current_user.id,
+                        old_data=json.dumps({'table': table}, ensure_ascii=False),
+                        ip_address=request.remote_addr
+                    ))
+                    db.session.commit()
+                except:
+                    pass  # إذا تم حذف audit_logs، نتجاوز
+                    
         except Exception as e:
             db.session.rollback()
+            error_msg = f"Failed to clean table {table}: {str(e)}"
+            print(f"[ERROR] {error_msg}")
+            errors.append(error_msg)
             continue
     
-    return {'cleaned': cleaned, 'total': len(tables)}
+    return {'cleaned': cleaned, 'total': len(tables), 'errors': errors}
 
 def _parse_duration(duration):
     """تحويل المدة إلى ثواني"""
