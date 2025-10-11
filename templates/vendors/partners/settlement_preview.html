@@ -477,16 +477,45 @@
             </div>
 
             {% else %}
-            <!-- خطأ في حساب التسوية أو تسوية عادية -->
+            <!-- خطأ في حساب التسوية -->
+            {% if balance_data and balance_data.error_type == 'missing_fx_rate' %}
+            <!-- خطأ: سعر صرف مفقود -->
+            <div class="alert alert-warning" style="border-left: 4px solid #ffc107;">
+                <h4><i class="fas fa-exclamation-triangle"></i> {{ balance_data.error }}</h4>
+                <div style="white-space: pre-line; margin: 15px 0;">{{ balance_data.message }}</div>
+                <hr>
+                <div class="d-flex gap-2">
+                    <a href="{{ balance_data.help_url or '/settings' }}" class="btn btn-warning">
+                        <i class="fas fa-cog"></i> إعدادات العملات
+                    </a>
+                    <a href="{{ url_for('vendors_bp.partners_list') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-right"></i> العودة
+                    </a>
+                </div>
+            </div>
+            {% elif balance_data and balance_data.error %}
+            <!-- خطأ عام -->
+            <div class="alert alert-danger">
+                <h4><i class="fas fa-exclamation-circle"></i> خطأ في حساب التسوية</h4>
+                <p>{{ balance_data.error }}</p>
+            </div>
+            <div class="text-center">
+                <a href="{{ url_for('vendors_bp.partners_list') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-right"></i> العودة للشركاء
+                </a>
+            </div>
+            {% else %}
+            <!-- تسوية عادية -->
             <div class="alert alert-info">
                 <h4><i class="fas fa-info-circle"></i> تسوية عادية</h4>
                 <p>استخدم التسوية الذكية من قائمة الشركاء للحصول على تقرير شامل</p>
             </div>
             <div class="text-center">
-                <a href="{{ url_for('vendor_bp.partners_list') }}" class="btn btn-secondary">
+                <a href="{{ url_for('vendors_bp.partners_list') }}" class="btn btn-secondary">
                     <i class="fas fa-arrow-right"></i> العودة للشركاء
                 </a>
             </div>
+            {% endif %}
             {% endif %}
 
         </div>

@@ -99,23 +99,11 @@
     <section class="content">
         <div class="container-fluid">
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <div class="btn-group">
-      <a id="btnAddPayment"
-         href="{% if supplier %}{{ url_for('payments.create_payment', entity_type='SUPPLIER', entity_id=supplier.id) }}{% else %}{{ url_for('payments.create_payment') }}{% endif %}"
-         class="btn btn-success">
-        <i class="fas fa-plus"></i> إضافة سند دفع
-      </a>
-      <button type="button"
-              class="btn btn-outline-primary btn-settle"
-              data-entity-type="supplier"
-              data-id="{{ supplier.id if supplier else '' }}"
-              data-name="{{ supplier.name if supplier else '' }}"
-              data-balance="{{ '%.0f'|format(supplier.net_balance) if supplier else '0' }}"
-              data-currency="{{ supplier.currency if supplier else 'ILS' }}"
-              {% if not supplier %}disabled{% endif %}>
-        <i class="fas fa-scale-balanced"></i> تسوية
-      </button>
-    </div>
+    <a id="btnAddPayment"
+       href="{% if supplier %}{{ url_for('payments.create_payment', entity_type='SUPPLIER', entity_id=supplier.id) }}{% else %}{{ url_for('payments.create_payment') }}{% endif %}"
+       class="btn btn-success btn-lg">
+      <i class="fas fa-plus-circle"></i> إنشاء سند دفع جديد
+    </a>
   </div>
   {% if total_paid is not none %}
     <div class="alert alert-info">إجمالي المدفوع: {{ '%.0f'|format(total_paid) }}</div>
@@ -245,7 +233,7 @@
 
 <input type="hidden" id="csrf_token" value="{{ csrf_token() }}">
 <div id="vendors-config" data-pay-url="{{ url_for('payments.create_payment') }}"></div>
-{% include 'vendors/_settlement_modal.html' %}
+<!-- تم إزالة modal التسوية - نستخدم التسوية الذكية من قوائم الموردين/الشركاء -->
 {% endblock %}
 {% block scripts %}
   <script src="{{ url_for('static', filename='js/payments.js') }}"></script>

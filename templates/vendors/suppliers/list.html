@@ -106,33 +106,36 @@
             </td>
             <td>
               <div class="d-flex flex-wrap gap-2">
-                <a href="{{ url_for('payments.create_payment', entity_type='SUPPLIER', entity_id=s.id) }}"
-                   class="btn btn-sm btn-primary d-flex align-items-center" title="دفع">
-                  <i class="fas fa-coins"></i>
-                  <span class="d-none d-lg-inline ms-1">دفع</span>
-                </a>
-                <a href="{{ url_for('payments.index') }}?entity_type=SUPPLIER&entity_id={{ s.id }}"
-                   class="btn btn-sm btn-warning d-flex align-items-center" title="دفعات">
-                  <i class="fas fa-file-invoice-dollar"></i>
-                  <span class="d-none d-lg-inline ms-1">دفعات</span>
-                </a>
-                <a href="{{ url_for('vendors_bp.suppliers_statement', supplier_id=s.id) }}"
-                   class="btn btn-sm btn-outline-primary d-flex align-items-center" title="كشف حساب">
-                  <i class="fas fa-file-invoice"></i>
-                  <span class="d-none d-lg-inline ms-1">كشف حساب</span>
-                </a>
-                <a href="{{ url_for('reports_bp.supplier_detail_report', supplier_id=s.id) }}"
-                   class="btn btn-sm btn-outline-info d-flex align-items-center" title="كشف مفصل">
-                  <i class="fas fa-chart-line"></i>
-                  <span class="d-none d-lg-inline ms-1">كشف مفصل</span>
-                </a>
+                <!-- ترتيب احترافي للأزرار حسب الأهمية -->
+                
+                <!-- 1. التسوية الذكية (الأهم - أخضر) -->
                 <a href="{{ url_for('supplier_settlements_bp.supplier_settlement', supplier_id=s.id) }}"
                    class="btn btn-sm btn-success d-flex align-items-center"
                    title="التسوية الذكية الشاملة - قطع، مبيعات، صيانة، دفعات">
                   <i class="fas fa-calculator"></i>
                   <span class="d-none d-lg-inline ms-1">تسوية ذكية</span>
                 </a>
-                <!-- تم إخفاء التسوية السريعة - نستخدم التسوية الذكية الشاملة بدلاً منها -->
+                
+                <!-- 2. إنشاء دفعة (أزرق) -->
+                <a href="{{ url_for('payments.create_payment', entity_type='SUPPLIER', entity_id=s.id) }}"
+                   class="btn btn-sm btn-primary d-flex align-items-center" title="إنشاء دفعة جديدة">
+                  <i class="fas fa-coins"></i>
+                  <span class="d-none d-lg-inline ms-1">دفع</span>
+                </a>
+                
+                <!-- 3. كشف حساب (برتقالي) -->
+                <a href="{{ url_for('vendors_bp.suppliers_statement', supplier_id=s.id) }}"
+                   class="btn btn-sm btn-warning d-flex align-items-center" title="كشف حساب مبسط">
+                  <i class="fas fa-file-invoice"></i>
+                  <span class="d-none d-lg-inline ms-1">كشف حساب</span>
+                </a>
+                
+                <!-- 4. تقرير مفصل (سماوي) -->
+                <a href="{{ url_for('reports_bp.supplier_detail_report', supplier_id=s.id) }}"
+                   class="btn btn-sm btn-info d-flex align-items-center" title="تقرير تفصيلي شامل">
+                  <i class="fas fa-chart-line"></i>
+                  <span class="d-none d-lg-inline ms-1">تقرير مفصل</span>
+                </a>
                 {% if current_user.has_permission('manage_vendors') %}
                   <a href="{{ url_for('vendors_bp.suppliers_edit', id=s.id) }}"
                      class="btn btn-sm btn-outline-secondary d-flex align-items-center" title="تعديل">

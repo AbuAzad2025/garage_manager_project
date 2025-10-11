@@ -169,9 +169,10 @@
 
             <!-- التسوية الذكية: تحذير القطع غير المسعّرة -->
             {% if balance_data and balance_data.has_warnings and balance_data.unpriced_items|length > 0 %}
-            <div class="alert alert-warning no-print">
-                <h5><i class="fas fa-exclamation-triangle"></i> تنبيه: يوجد {{ balance_data.unpriced_items|length }} قطعة غير مسعّرة</h5>
-                <p>يرجى تسعير القطع التالية لضمان دقة الحساب:</p>
+            <div class="alert alert-danger no-print" style="border-left: 5px solid #dc3545;">
+                <h4><i class="fas fa-exclamation-triangle"></i> ⚠️ تحذير: يوجد {{ balance_data.unpriced_items|length }} قطعة غير مسعّرة</h4>
+                <p class="mb-3"><strong>لا يمكن إتمام التسوية قبل تسعير جميع القطع!</strong></p>
+                <p>يرجى إدخال أسعار القطع التالية ثم الضغط على "حفظ" لكل قطعة:</p>
                 <div class="table-responsive">
                     <table class="table table-sm table-bordered bg-white">
                         <thead>
@@ -645,7 +646,17 @@
                     
                     {% if balance_data and balance_data.success %}
                     <!-- التسوية الذكية: زر دفع/قبض ديناميكي -->
-                    {% if balance_data.balance.amount|abs > 0.01 %}
+                    {% if balance_data.has_warnings and balance_data.unpriced_items|length > 0 %}
+                    <!-- يوجد قطع غير مسعّرة - نعطل زر الدفع/القبض -->
+                    <button class="btn btn-danger btn-lg" disabled title="يجب تسعير جميع القطع قبل إتمام التسوية">
+                        <i class="fas fa-exclamation-triangle"></i> 
+                        يجب تسعير {{ balance_data.unpriced_items|length }} قطعة أولاً
+                    </button>
+                    <div class="alert alert-danger mt-3 mb-0">
+                        <i class="fas fa-info-circle"></i> <strong>تنبيه:</strong> لا يمكن إنشاء دفعة قبل تسعير جميع القطع. يرجى استخدام الجدول أعلاه لإدخال الأسعار.
+                    </div>
+                    {% elif balance_data.balance.amount|abs > 0.01 %}
+                    <!-- لا توجد قطع غير مسعّرة - الزر نشط -->
                     <a href="{{ url_for('payments.create_payment',
                                       entity_type='SUPPLIER',
                                       entity_id=ss.supplier.id,
@@ -724,6 +735,24 @@
   });
   
   // تحديث أسعار القطع غير المسعّرة (للتسوية الذكية)
+  let unpricedCount = {{ balance_data.unpriced_items|length if balance_data and balance_data.unpriced_items else 0 }};
+  
+  function updateUnpricedCounter() {
+    // تحديث عداد القطع غير المسعّرة في الصفحة
+    const counterElements = document.querySelectorAll('.unpriced-counter');
+    counterElements.forEach(el => {
+      el.textContent = unpricedCount;
+    });
+    
+    // إذا لم يتبقى قطع غير مسعّرة، إعادة تحميل الصفحة
+    if (unpricedCount === 0) {
+      setTimeout(() => {
+        alert('✓ تم تسعير جميع القطع بنجاح! سيتم تحديث التسوية الآن...');
+        location.reload();
+      }, 500);
+    }
+  }
+  
   document.querySelectorAll('.update-price-btn').forEach(btn => {
     btn.addEventListener('click', async function() {
       const txId = this.dataset.txId;
@@ -731,18 +760,27 @@
       const newPrice = parseFloat(input.value);
       
       if (isNaN(newPrice) || newPrice < 0) {
-        alert('يرجى إدخال سعر صحيح');
+        alert('❌ يرجى إدخال سعر صحيح (رقم >= 0)');
+        input.focus();
         return;
       }
       
+      if (newPrice === 0) {
+        if (!confirm('⚠️ السعر المدخل هو صفر. هل أنت متأكد؟')) {
+          return;
+        }
+      }
+      
       // تأكيد من المستخدم
-      if (!confirm(`هل أنت متأكد من تحديث السعر إلى ${newPrice.toFixed(2)} ₪؟`)) {
+      if (!confirm(`✓ تأكيد التسعير\n\nالسعر الجديد: ${newPrice.toFixed(2)} ₪\n\nهل أنت متأكد؟`)) {
         return;
       }
       
       // تعطيل الزر أثناء المعالجة
+      const originalHTML = this.innerHTML;
       this.disabled = true;
       this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الحفظ...';
+      input.disabled = true;
       
       try {
         const response = await fetch(`{{ url_for('supplier_settlements_bp.update_exchange_transaction_price', tx_id=0) }}`.replace('/0/', `/${txId}/`), {
@@ -757,20 +795,45 @@
         const result = await response.json();
         
         if (result.success) {
-          alert('✓ تم تحديث السعر بنجاح');
-          location.reload();  // إعادة تحميل الصفحة لإظهار التغييرات
+          // نجح الحفظ - إخفاء السطر وتحديث العداد
+          const row = this.closest('tr');
+          row.style.backgroundColor = '#d4edda';
+          row.style.transition = 'all 0.5s ease';
+          
+          setTimeout(() => {
+            row.style.opacity = '0';
+            setTimeout(() => {
+              row.remove();
+              unpricedCount--;
+              updateUnpricedCounter();
+            }, 300);
+          }, 800);
+          
         } else {
-          alert('خطأ: ' + result.error);
+          alert('❌ خطأ: ' + result.error);
           this.disabled = false;
-          this.innerHTML = '<i class="fas fa-check"></i> حفظ';
+          this.innerHTML = originalHTML;
+          input.disabled = false;
         }
       } catch (error) {
-        alert('حدث خطأ في الاتصال بالخادم');
+        alert('❌ حدث خطأ في الاتصال بالخادم');
         console.error(error);
         this.disabled = false;
-        this.innerHTML = '<i class="fas fa-check"></i> حفظ';
+        this.innerHTML = originalHTML;
+        input.disabled = false;
       }
     });
+    
+    // السماح بالضغط على Enter لحفظ السعر
+    const input = document.querySelector(`input.form-control[data-tx-id="${btn.dataset.txId}"]`);
+    if (input) {
+      input.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          btn.click();
+        }
+      });
+    }
   });
 })();
 </script>

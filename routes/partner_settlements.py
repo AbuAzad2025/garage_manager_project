@@ -326,6 +326,17 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
             "currency_note": "⚠️ تنبيه: تم توحيد جميع العملات إلى الشيكل (ILS) باستخدام أسعار الصرف المسجلة"
         }
         
+    except ValueError as e:
+        # خطأ في تحويل العملة - سعر الصرف غير متوفر
+        if "fx.rate_unavailable" in str(e) or "rate_unavailable" in str(e):
+            return {
+                "success": False,
+                "error": "سعر الصرف غير متوفر",
+                "error_type": "missing_fx_rate",
+                "message": "⚠️ تنبيه: لا يمكن إتمام التسوية لعدم توفر سعر صرف لإحدى العملات.\n\nيرجى:\n1. إدخال سعر الصرف يدوياً من [إعدادات العملات]\n2. أو تفعيل الاتصال بالسيرفرات العالمية\n3. ثم إعادة المحاولة",
+                "help_url": "/settings/currencies"
+            }
+        return {"success": False, "error": f"خطأ في الحساب: {str(e)}"}
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -569,8 +580,41 @@ def _get_settlement_recommendation(balance: float, currency: str):
 # Helper Functions for Comprehensive Smart Partner Settlement
 # ═══════════════════════════════════════════════════════════════════════
 
+def _check_required_fx_rates(currencies: list) -> dict:
+    """
+    التحقق من توفر أسعار الصرف المطلوبة
+    يرجع قائمة بالعملات المفقودة إن وجدت
+    """
+    from models import fx_rate
+    
+    missing_rates = []
+    available_rates = {}
+    
+    for currency in set(currencies):
+        if currency == "ILS":
+            continue
+        
+        try:
+            rate = fx_rate(currency, "ILS", None, raise_on_missing=False)
+            if rate <= 0:
+                missing_rates.append(currency)
+            else:
+                available_rates[currency] = float(rate)
+        except:
+            missing_rates.append(currency)
+    
+    return {
+        "has_missing": len(missing_rates) > 0,
+        "missing_currencies": missing_rates,
+        "available_rates": available_rates
+    }
+
+
 def _convert_to_ils(amount: Decimal | float, from_currency: str, at: datetime = None) -> Decimal:
-    """تحويل أي مبلغ إلى الشيكل (ILS)"""
+    """
+    تحويل أي مبلغ إلى الشيكل (ILS)
+    الأولوية: 1- السعر اليدوي المحلي 2- سعر السيرفر 3- خطأ (إدخال يدوي مطلوب)
+    """
     from models import convert_amount, money
     
     if not amount or amount == 0:
@@ -581,19 +625,17 @@ def _convert_to_ils(amount: Decimal | float, from_currency: str, at: datetime = 
     if from_currency == "ILS":
         return _q2(amount)
     
-    try:
-        converted = convert_amount(
-            amount=amount,
-            from_code=from_currency,
-            to_code="ILS",
-            at=at or datetime.utcnow()
-        )
-        return Decimal(str(converted)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        print(f"⚠️ تحذير: فشل تحويل {amount} من {from_currency} إلى ILS: {e}")
-        return Decimal(str(amount)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    # التحويل - يستخدم fx_rate داخلياً:
+    # 1. يبحث في قاعدة البيانات المحلية (السعر اليدوي)
+    # 2. إن لم يجد، يحاول السيرفرات العالمية
+    # 3. إن فشل كلاهما، يرفع ValueError
+    converted = convert_amount(
+        amount=amount,
+        from_code=from_currency,
+        to_code="ILS",
+        at=at or datetime.utcnow()
+    )
+    return Decimal(str(converted)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def _get_partner_inventory(partner_id: int, date_from: datetime, date_to: datetime):
