@@ -537,6 +537,9 @@ def seed_sales(customers, partners, products, warehouses):
     partner_whs = [wh for wh in warehouses if wh.warehouse_type == WarehouseType.PARTNER.value]
     main_whs = [wh for wh in warehouses if wh.warehouse_type == WarehouseType.MAIN.value]
     
+    seller = db.session.query(User).filter_by(username='test_admin').first()
+    seller_id = seller.id if seller else 1
+    
     sales = []
     base_date = datetime.utcnow()
     
@@ -556,6 +559,7 @@ def seed_sales(customers, partners, products, warehouses):
         sale = Sale(
             sale_number=f"SALE-{i+1:05d}",
             customer_id=customer.id,
+            seller_id=seller_id,
             sale_date=sale_date,
             currency=currency,
             status=SaleStatus.CONFIRMED.value,
@@ -569,7 +573,7 @@ def seed_sales(customers, partners, products, warehouses):
         for _ in range(num_lines):
             product = random.choice(products)
             quantity = random.randint(1, 5)
-            unit_price = product.sale_price or Decimal('100')
+            unit_price = product.selling_price or product.price or Decimal('100')
             line_total = Decimal(str(quantity)) * unit_price
             
             line = SaleLine(
@@ -578,8 +582,7 @@ def seed_sales(customers, partners, products, warehouses):
                 warehouse_id=wh.id,
                 quantity=quantity,
                 unit_price=unit_price,
-                share_percentage=partner.share_percentage,
-                notes="[TEST] سطر بيع من مستودع شراكة"
+                note="[TEST] سطر بيع من شراكة"
             )
             db.session.add(line)
         
@@ -597,6 +600,7 @@ def seed_sales(customers, partners, products, warehouses):
         sale = Sale(
             sale_number=f"SALE-M-{i+1:05d}",
             customer_id=customer.id,
+            seller_id=seller_id,
             sale_date=sale_date,
             currency="ILS",
             status=SaleStatus.CONFIRMED.value,
@@ -609,7 +613,7 @@ def seed_sales(customers, partners, products, warehouses):
         for _ in range(num_lines):
             product = random.choice(products)
             quantity = random.randint(1, 4)
-            unit_price = product.sale_price or Decimal('100')
+            unit_price = product.selling_price or product.price or Decimal('100')
             line_total = Decimal(str(quantity)) * unit_price
             
             line = SaleLine(
@@ -618,7 +622,7 @@ def seed_sales(customers, partners, products, warehouses):
                 warehouse_id=wh.id,
                 quantity=quantity,
                 unit_price=unit_price,
-                notes="[TEST] سطر بيع عادي"
+                note="[TEST] سطر بيع عادي"
             )
             db.session.add(line)
         
@@ -632,6 +636,9 @@ def seed_sales(customers, partners, products, warehouses):
 def seed_sales_to_suppliers(suppliers):
     """إضافة مبيعات للموردين (اشتروا منا)"""
     print("\n🛒 إضافة مبيعات للموردين...")
+    
+    seller = db.session.query(User).filter_by(username='test_admin').first()
+    seller_id = seller.id if seller else 1
     
     sales = []
     payments = []
@@ -647,9 +654,13 @@ def seed_sales_to_suppliers(suppliers):
             
             amount = Decimal(str(random.randint(300, 1500)))
             
+            # استخدام أول عميل كعميل افتراضي للموردين
+            first_customer = db.session.query(Customer).first()
+            
             sale = Sale(
                 sale_number=f"SALE-TO-SUP-{len(sales)+1:04d}",
-                customer_id=None,
+                customer_id=first_customer.id,
+                seller_id=seller_id,
                 sale_date=sale_date,
                 currency=supplier.currency,
                 status=SaleStatus.DRAFT.value,
@@ -659,10 +670,9 @@ def seed_sales_to_suppliers(suppliers):
             db.session.flush()
             sales.append(sale)
             
-            # دفعة مرتبطة
+            # دفعة مرتبطة بالمورد (وليس بالبيع)
             payment = Payment(
                 supplier_id=supplier.id,
-                sale_id=sale.id,
                 direction=PaymentDirection.IN.value,
                 method=random.choice([PaymentMethod.CASH.value, PaymentMethod.BANK.value]),
                 status=PaymentStatus.COMPLETED.value,
@@ -670,7 +680,7 @@ def seed_sales_to_suppliers(suppliers):
                 currency=supplier.currency,
                 payment_date=sale_date,
                 reference=f"SUP-SALE-PAY-{len(payments)+1}",
-                notes=f"[TEST] دفعة بيع من المورد {supplier.name}"
+                notes=f"[TEST] دفعة من المورد {supplier.name} مقابل بيع {sale.sale_number}"
             )
             db.session.add(payment)
             payments.append(payment)
