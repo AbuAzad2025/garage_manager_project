@@ -31,10 +31,7 @@
       <strong>📋 قائمة جميع التسويات:</strong> انقر على زر <span class="badge bg-warning text-dark"><i class="fas fa-file-invoice-dollar"></i> قائمة التسويات</span> في الأعلى
     </p>
     <p class="mb-0">
-      <strong>🧮 تسوية ذكية لشريك:</strong> انقر على زر <span class="badge bg-success"><i class="fas fa-calculator"></i> تسوية ذكية</span> في سطر الشريك
-    </p>
-    <p class="mb-0">
-      <strong>⚡ تسوية سريعة:</strong> انقر على زر <span class="badge bg-outline-success"><i class="fas fa-scale-balanced"></i> تسوية سريعة</span> لتسوية الرصيد فوراً
+      <strong>🧮 تسوية ذكية لشريك:</strong> انقر على زر <span class="badge bg-success"><i class="fas fa-calculator"></i> تسوية ذكية</span> في سطر الشريك - تشمل جرد القطع، المبيعات، نصيب الشريك، والدفعات
     </p>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
   </div>
@@ -130,19 +127,10 @@
               </a>
               <a href="{{ url_for('partner_settlements_bp.partner_settlement', partner_id=p.id) }}"
                  class="btn btn-sm btn-success"
-                 title="التسوية الذكية للشريك">
+                 title="التسوية الذكية الشاملة - جرد، مبيعات، نصيب، دفعات">
                 <i class="fas fa-calculator"></i> تسوية ذكية
               </a>
-              <button type="button"
-                      class="btn btn-sm btn-outline-success btn-settle"
-                      data-entity-type="partner"
-                      data-id="{{ p.id }}"
-                      data-name="{{ p.name }}"
-                      data-balance="{{ '%.2f'|format(p.balance_in_ils or 0) }}"
-                      data-currency="{{ p.currency or 'ILS' }}"
-                      title="تسوية سريعة للرصيد">
-                <i class="fas fa-scale-balanced"></i> تسوية سريعة
-              </button>
+              <!-- تم إخفاء التسوية السريعة - نستخدم التسوية الذكية الشاملة بدلاً منها -->
               {% if current_user.has_permission('manage_vendors') %}
                 <a href="{{ url_for('vendors_bp.partners_edit', id=p.id) }}"
                    class="btn btn-sm btn-secondary">

@@ -1,20 +1,77 @@
 {% extends "base.html" %}
-{% block title %}تسوية شريك {{ ps.partner.name }} ({{ ps.code }}){% endblock %}
+{% block title %}{% if balance_data and balance_data.success %}التسوية الذكية{% else %}تسوية شريك{% endif %} - {{ partner.name }}{% endblock %}
 
 {% block head_extra %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/statement-print.css') }}">
 <style>
 .settlement-detail-card {
     border-radius: 12px;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    box-shadow: 0 3px 15px rgba(0,0,0,0.1);
     margin-bottom: 20px;
+    overflow: hidden;
 }
 
 .settlement-header {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white !important;
+    padding: 25px;
+}
+
+.balance-summary {
+    background: #f8f9fa;
+    border-radius: 10px;
     padding: 20px;
-    border-radius: 12px 12px 0 0;
+    margin-bottom: 20px;
+}
+
+.balance-box {
+    background: white;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    text-align: center;
+}
+
+.balance-box.share {
+    border-left: 4px solid #28a745;
+}
+
+.balance-box.paid {
+    border-left: 4px solid #dc3545;
+}
+
+.balance-box.final {
+    border-left: 4px solid #007bff;
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+}
+
+.balance-label {
+    font-size: 0.9rem;
+    color: #6c757d;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.balance-amount {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.detail-section {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 15px;
+}
+
+.currency-note {
+    background: #e3f2fd;
+    border-left: 4px solid #2196F3;
+    padding: 10px 15px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    color: #0d47a1;
 }
 
 .summary-box {
@@ -37,27 +94,6 @@
     font-weight: bold;
     color: #343a40;
 }
-
-.line-item {
-    background: white;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    padding: 12px;
-    margin-bottom: 8px;
-    transition: all 0.2s;
-}
-
-.line-item:hover {
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    transform: translateX(-3px);
-}
-
-.status-badge {
-    padding: 8px 16px;
-    border-radius: 20px;
-    font-weight: 600;
-    font-size: 0.9rem;
-}
 </style>
 {% endblock %}
 
@@ -77,7 +113,7 @@
     </div>
   </div>
   <div class="statement-type">
-    <h2>تسوية شريك</h2>
+    <h2>{% if balance_data and balance_data.success %}التسوية الذكية - شريك{% else %}تسوية شريك{% endif %}</h2>
     <div class="statement-date">📅 {{ now()|format_datetime }}</div>
     <div class="user-info">👤 {{ current_user.username if current_user.is_authenticated else 'النظام' }}</div>
   </div>
@@ -96,11 +132,14 @@
 </div>
 
 <div class="content-wrapper">
-    <div class="content-header">
+    <div class="content-header no-print">
         <div class="container-fluid">
             <div class="row mb-2">
                 <div class="col-sm-6">
-                    <h1 class="m-0"><i class="fas fa-file-invoice-dollar"></i> تسوية شريك</h1>
+                    <h1 class="m-0">
+                        <i class="fas fa-{% if balance_data and balance_data.success %}calculator{% else %}file-invoice-dollar{% endif %}"></i> 
+                        {% if balance_data and balance_data.success %}التسوية الذكية{% else %}تسوية شريك{% endif %}
+                    </h1>
                 </div>
                 <div class="col-sm-6">
                     <ol class="breadcrumb float-sm-right">
@@ -110,241 +149,341 @@
                     </ol>
                 </div>
             </div>
+            
+            <!-- اختيار الفترة الزمنية للتسوية الذكية -->
+            {% if balance_data and balance_data.success %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <form method="GET" action="{{ url_for('partner_settlements_bp.partner_settlement', partner_id=partner.id) }}" class="row g-3 align-items-end">
+                        <div class="col-md-4">
+                            <label for="date_from" class="form-label"><i class="fas fa-calendar-alt"></i> من تاريخ</label>
+                            <input type="date" class="form-control" id="date_from" name="date_from" 
+                                   value="{{ date_from.strftime('%Y-%m-%d') if date_from else '' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="date_to" class="form-label"><i class="fas fa-calendar-alt"></i> إلى تاريخ</label>
+                            <input type="date" class="form-control" id="date_to" name="date_to" 
+                                   value="{{ date_to.strftime('%Y-%m-%d') if date_to else '' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-sync-alt"></i> تحديث التسوية
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="document.getElementById('date_from').value='2024-01-01'; document.getElementById('date_to').value='';">
+                                <i class="fas fa-undo"></i> إعادة تعيين
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 
     <section class="content">
         <div class="container-fluid">
+
+            {% if balance_data and balance_data.success %}
             
-            <!-- معلومات التسوية -->
+            <!-- معلومات الشريك -->
             <div class="card settlement-detail-card">
                 <div class="settlement-header">
                     <div class="row align-items-center">
                         <div class="col-md-8">
-                            <h3 class="mb-2"><i class="fas fa-user-tie"></i> {{ ps.partner.name }}</h3>
+                            <h3 class="mb-2"><i class="fas fa-handshake"></i> {{ partner.name }}</h3>
+                            <p class="mb-1">
+                                <i class="fas fa-calendar-alt"></i> <strong>الفترة:</strong> 
+                                {{ date_from.strftime("%Y-%m-%d") }} → {{ date_to.strftime("%Y-%m-%d") }}
+                            </p>
                             <p class="mb-0">
-                                <i class="fas fa-barcode"></i> رقم التسوية: <strong>{{ ps.code }}</strong>
+                                <small>نسبة الشراكة: {{ balance_data.partner.share_percentage }}% | العملة الأصلية: {{ balance_data.partner.currency }}</small>
                             </p>
                         </div>
                         <div class="col-md-4 text-end">
-                            <span class="status-badge {% if ps.status == 'DRAFT' %}bg-warning text-dark{% elif ps.status == 'CONFIRMED' %}bg-success{% else %}bg-secondary{% endif %}">
-                                {{ ps.status }}
+                            <span class="badge bg-warning text-dark" style="font-size: 1rem; padding: 10px 20px;">
+                                <i class="fas fa-magic"></i> ذكية
                             </span>
                         </div>
                     </div>
                 </div>
-                <div class="card-body">
-                    <div class="alert alert-info">
-                        <i class="fas fa-calendar-alt"></i> <strong>الفترة:</strong> 
-                        {{ ps.from_date.strftime("%Y-%m-%d") }} → {{ ps.to_date.strftime("%Y-%m-%d") }}
-                    </div>
-                </div>
             </div>
+
+            <!-- تنبيه العملات -->
+            {% if balance_data.currency_note %}
+            <div class="currency-note mb-3">
+                <i class="fas fa-exchange-alt"></i> {{ balance_data.currency_note }}
+            </div>
+            {% endif %}
 
             <!-- الملخص المالي -->
+            <div class="balance-summary">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <div class="balance-box share">
+                            <div class="balance-label">نصيب الشريك (المبيعات)</div>
+                            <div class="balance-amount text-success">
+                                {{ "%.2f"|format(balance_data.balance.total_share) }}
+                            </div>
+                            <small class="text-muted">₪ شيقل</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="balance-box paid">
+                            <div class="balance-label">المدفوع + المصروفات</div>
+                            <div class="balance-amount text-danger">
+                                {{ "%.2f"|format(balance_data.balance.total_paid) }}
+                            </div>
+                            <small class="text-muted">₪ شيقل</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="balance-box final">
+                            <div class="balance-label">الرصيد النهائي</div>
+                            <div class="balance-amount {% if balance_data.balance.remaining > 0 %}text-success{% elif balance_data.balance.remaining < 0 %}text-danger{% else %}text-secondary{% endif %}">
+                                {{ "%.2f"|format(balance_data.balance.remaining|abs) }}
+                            </div>
+                            <small class="text-muted">₪ {{ balance_data.balance.direction }}</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- جرد القطع -->
             <div class="row">
-                <div class="col-md-3">
-                    <div class="summary-box">
-                        <div class="summary-label">إجمالي الأساس</div>
-                        <div class="summary-value text-primary">{{ "%.2f"|format(ps.total_gross or 0) }}</div>
-                        <small class="text-muted">{{ ps.currency }}</small>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="summary-box" style="border-left-color: #28a745;">
-                        <div class="summary-label">حصة الشريك</div>
-                        <div class="summary-value text-success">{{ "%.2f"|format(ps.total_share or 0) }}</div>
-                        <small class="text-muted">{{ ps.currency }}</small>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="summary-box" style="border-left-color: #ffc107;">
-                        <div class="summary-label">التكاليف</div>
-                        <div class="summary-value text-warning">{{ "%.2f"|format(ps.total_costs or 0) }}</div>
-                        <small class="text-muted">{{ ps.currency }}</small>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="summary-box" style="border-left-color: #dc3545;">
-                        <div class="summary-label">الصافي المستحق</div>
-                        <div class="summary-value text-danger">{{ "%.2f"|format(ps.total_due or 0) }}</div>
-                        <small class="text-muted">مدفوع: {{ "%.2f"|format(ps.total_paid or 0) }} | متبقّي: {{ "%.2f"|format(ps.remaining or 0) }}</small>
-                    </div>
-                </div>
-            </div>
-
-            <!-- تفاصيل السطور -->
-            <div class="card settlement-detail-card">
-                <div class="card-header bg-gradient-primary text-white">
-                    <h4 class="mb-0"><i class="fas fa-list-ul"></i> تفاصيل السطور ({{ ps.lines|length }})</h4>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-hover">
-                            <thead class="thead-dark">
-                                <tr>
-                                    <th style="width: 40px;">#</th>
-                                    <th>المصدر</th>
-                                    <th>الوصف</th>
-                                    <th>المنتج</th>
-                                    <th>SKU</th>
-                                    <th>المخزن</th>
-                                    <th class="text-end">الكمية</th>
-                                    <th class="text-end">السعر</th>
-                                    <th class="text-end">الإجمالي</th>
-                                    <th class="text-end">% الشريك</th>
-                                    <th class="text-end">حصة الشريك</th>
-                                    <th>ملاحظات</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for l in ps.lines %}
-                                <tr>
-                                    <td class="text-center"><strong>{{ loop.index }}</strong></td>
-                                    <td><span class="badge badge-info">{{ l.source_type }}#{{ l.source_id }}</span></td>
-                                    <td>{{ l.description or "—" }}</td>
-                                    <td><strong>{{ l.product.name if l.product else l.product_id }}</strong></td>
-                                    <td><code>{{ l.product.sku if l.product and l.product.sku else "—" }}</code></td>
-                                    <td>{{ l.warehouse.name if l.warehouse else l.warehouse_id }}</td>
-                                    <td class="text-end"><strong>{{ "%.3f"|format(l.quantity or 0) if l.quantity is not none else "—" }}</strong></td>
-                                    <td class="text-end">{{ "%.2f"|format(l.unit_price or 0) if l.unit_price is not none else "—" }}</td>
-                                    <td class="text-end"><strong class="text-primary">{{ "%.2f"|format(l.gross_amount or 0) }}</strong></td>
-                                    <td class="text-end"><span class="badge badge-success">{{ "%.2f"|format(l.share_percent or 0) }}%</span></td>
-                                    <td class="text-end"><strong class="text-success">{{ "%.2f"|format(l.share_amount or 0) }}</strong></td>
-                                    <td><small>{{ l.notes or "—" }}</small></td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                            <tfoot class="bg-light">
-                                <tr>
-                                    <td colspan="8" class="text-end"><strong>الإجماليات:</strong></td>
-                                    <td class="text-end"><strong class="text-primary">{{ "%.2f"|format(ps.total_gross or 0) }}</strong></td>
-                                    <td></td>
-                                    <td class="text-end"><strong class="text-success">{{ "%.2f"|format(ps.total_share or 0) }}</strong></td>
-                                    <td></td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- تفاصيل المنتجات والنسب -->
-            <div class="card settlement-detail-card">
-                <div class="card-header bg-gradient-info text-white">
-                    <h4 class="mb-0"><i class="fas fa-boxes"></i> تفاصيل المنتجات والنسب</h4>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-hover">
-                            <thead class="thead-dark">
-                                <tr>
-                                    <th>المنتج</th>
-                                    <th>SKU</th>
-                                    <th class="text-end">إجمالي الكمية</th>
-                                    <th class="text-end">إجمالي القيمة</th>
-                                    <th class="text-end">نسبة الشريك</th>
-                                    <th class="text-end">حصة الشريك</th>
-                                    <th>المخازن</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% set products_summary = {} %}
-                                {% for l in ps.lines %}
-                                    {% set product_key = l.product.name if l.product else l.product_id|string %}
-                                    {% if product_key not in products_summary %}
-                                        {% set _ = products_summary.update({product_key: {
-                                            'name': l.product.name if l.product else 'غير محدد',
-                                            'sku': l.product.sku if l.product and l.product.sku else '—',
-                                            'quantity': 0,
-                                            'gross_amount': 0,
-                                            'share_amount': 0,
-                                            'share_percent': l.share_percent or 0,
-                                            'warehouses': []
-                                        }}) %}
-                                    {% endif %}
-                                    {% set _ = products_summary[product_key].update({
-                                        'quantity': products_summary[product_key]['quantity'] + (l.quantity or 0),
-                                        'gross_amount': products_summary[product_key]['gross_amount'] + (l.gross_amount or 0),
-                                        'share_amount': products_summary[product_key]['share_amount'] + (l.share_amount or 0)
-                                    }) %}
-                                    {% if l.warehouse and l.warehouse.name not in products_summary[product_key]['warehouses'] %}
-                                        {% set _ = products_summary[product_key]['warehouses'].append(l.warehouse.name) %}
-                                    {% endif %}
-                                {% endfor %}
-                                
-                                {% for product_name, data in products_summary.items() %}
-                                <tr>
-                                    <td><strong>{{ data.name }}</strong></td>
-                                    <td><code>{{ data.sku }}</code></td>
-                                    <td class="text-end"><strong>{{ "%.3f"|format(data.quantity) }}</strong></td>
-                                    <td class="text-end"><strong class="text-primary">{{ "%.2f"|format(data.gross_amount) }}</strong></td>
-                                    <td class="text-end"><span class="badge badge-success">{{ "%.2f"|format(data.share_percent) }}%</span></td>
-                                    <td class="text-end"><strong class="text-success">{{ "%.2f"|format(data.share_amount) }}</strong></td>
-                                    <td>
-                                        {% for warehouse in data.warehouses %}
-                                            <span class="badge badge-secondary">{{ warehouse }}</span>
+                <!-- القطع المباعة -->
+                {% if balance_data.inventory.sold_items|length > 0 %}
+                <div class="col-md-6">
+                    <div class="card settlement-detail-card">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-shopping-cart"></i> القطع المباعة 
+                                <span class="badge bg-light text-dark">{{ balance_data.inventory.total_sold_count }}</span>
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>المنتج</th>
+                                            <th>SKU</th>
+                                            <th class="text-end">الكمية</th>
+                                            <th class="text-end">النسبة</th>
+                                            <th class="text-end">نصيب الشريك</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in balance_data.inventory.sold_items %}
+                                        <tr>
+                                            <td>{{ item.product_name }}</td>
+                                            <td><code>{{ item.sku or '—' }}</code></td>
+                                            <td class="text-end">{{ item.quantity }}</td>
+                                            <td class="text-end">{{ "%.1f"|format(item.share_percentage) }}%</td>
+                                            <td class="text-end"><strong>{{ "%.2f"|format(item.partner_share) }}</strong></td>
+                                        </tr>
                                         {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- القطع المتبقية -->
+                {% if balance_data.inventory.remaining_items|length > 0 %}
+                <div class="col-md-6">
+                    <div class="card settlement-detail-card">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-boxes"></i> القطع المتبقية 
+                                <span class="badge bg-light text-dark">{{ balance_data.inventory.total_remaining_count }}</span>
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>المنتج</th>
+                                            <th>SKU</th>
+                                            <th class="text-end">الكمية</th>
+                                            <th class="text-end">سعر البيع</th>
+                                            <th class="text-end">القيمة</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in balance_data.inventory.remaining_items %}
+                                        <tr>
+                                            <td>{{ item.product_name }}</td>
+                                            <td><code>{{ item.sku or '—' }}</code></td>
+                                            <td class="text-end">{{ item.quantity }}</td>
+                                            <td class="text-end">{{ "%.2f"|format(item.sale_price) }}</td>
+                                            <td class="text-end"><strong>{{ "%.2f"|format(item.total_value) }}</strong></td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- تفاصيل نصيب الشريك من المبيعات -->
+            {% if balance_data.sales_share.items|length > 0 %}
+            <div class="card settlement-detail-card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line"></i> تفاصيل نصيب الشريك من المبيعات 
+                        <span class="badge bg-light text-dark">{{ balance_data.sales_share.count }}</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>رقم البيع</th>
+                                    <th>التاريخ</th>
+                                    <th>المنتج</th>
+                                    <th class="text-end">الكمية</th>
+                                    <th class="text-end">إجمالي السطر</th>
+                                    <th class="text-end">النسبة</th>
+                                    <th class="text-end">نصيب الشريك (₪)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in balance_data.sales_share.items %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+                                    <td>#{{ item.sale_number }}</td>
+                                    <td><small>{{ item.sale_date.strftime("%Y-%m-%d") if item.sale_date else '—' }}</small></td>
+                                    <td>{{ item.product_name }}</td>
+                                    <td class="text-end">{{ item.quantity }}</td>
+                                    <td class="text-end">
+                                        {{ "%.2f"|format(item.line_total) }}
+                                        {% if item.currency != 'ILS' %}
+                                        <br><small class="text-muted">({{ item.currency }})</small>
+                                        {% endif %}
                                     </td>
+                                    <td class="text-end">{{ "%.1f"|format(item.share_percentage) }}%</td>
+                                    <td class="text-end"><strong class="text-success">{{ "%.2f"|format(item.partner_share_ils) }}</strong></td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
-                            <tfoot class="bg-light">
+                            <tfoot class="table-light">
                                 <tr>
-                                    <td colspan="3" class="text-end"><strong>الإجماليات:</strong></td>
-                                    <td class="text-end"><strong class="text-primary">{{ "%.2f"|format(ps.total_gross or 0) }}</strong></td>
-                                    <td></td>
-                                    <td class="text-end"><strong class="text-success">{{ "%.2f"|format(ps.total_share or 0) }}</strong></td>
-                                    <td></td>
+                                    <td colspan="7" class="text-end"><strong>الإجمالي:</strong></td>
+                                    <td class="text-end"><strong class="text-success">{{ "%.2f"|format(balance_data.sales_share.total_share_ils) }}</strong></td>
                                 </tr>
                             </tfoot>
                         </table>
                     </div>
                 </div>
             </div>
+            {% endif %}
+
+            <!-- الدفعات والمصروفات -->
+            <div class="row">
+                {% if balance_data.payments_made > 0 %}
+                <div class="col-md-6">
+                    <div class="alert alert-danger">
+                        <strong><i class="fas fa-money-bill-wave"></i> الدفعات المدفوعة للشريك:</strong> 
+                        {{ "%.2f"|format(balance_data.payments_made) }} ₪
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if balance_data.expenses_deducted > 0 %}
+                <div class="col-md-6">
+                    <div class="alert alert-warning">
+                        <strong><i class="fas fa-receipt"></i> المصروفات المخصومة:</strong> 
+                        {{ "%.2f"|format(balance_data.expenses_deducted) }} ₪
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- التسويات السابقة -->
+            {% if balance_data.previous_settlements|length > 0 %}
+            <div class="card settlement-detail-card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history"></i> التسويات السابقة
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>الرمز</th>
+                                    <th>الفترة</th>
+                                    <th>الحالة</th>
+                                    <th class="text-end">المبلغ</th>
+                                    <th>التاريخ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for settlement in balance_data.previous_settlements %}
+                                <tr>
+                                    <td><code>{{ settlement.code }}</code></td>
+                                    <td><small>{{ settlement.from_date.strftime("%Y-%m-%d") if settlement.from_date else '—' }} → {{ settlement.to_date.strftime("%Y-%m-%d") if settlement.to_date else '—' }}</small></td>
+                                    <td><span class="badge bg-info">{{ settlement.status }}</span></td>
+                                    <td class="text-end">{{ "%.2f"|format(settlement.total_due) }}</td>
+                                    <td><small>{{ settlement.date.strftime("%Y-%m-%d %H:%M") if settlement.date else '—' }}</small></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
 
             <!-- أزرار الإجراءات -->
-            {% if ps.status == "DRAFT" %}
-            <div class="card settlement-detail-card">
+            <div class="card settlement-detail-card no-print">
                 <div class="card-body text-center">
                     <button type="button" class="btn btn-outline-primary btn-lg" id="btn-print">
                         <i class="fas fa-print"></i> طباعة التسوية
                     </button>
                     
-                    {% if ps.id %}
-                    <!-- زر التأكيد متاح فقط للتسويات المحفوظة -->
-                    <form method="post" action="{{ url_for('partner_settlements_bp.confirm', settlement_id=ps.id) }}" class="d-inline">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button class="btn btn-primary btn-lg">
-                            <i class="fas fa-check"></i> تأكيد التسوية
-                        </button>
-                    </form>
-                    {% else %}
-                    <!-- تسوية ذكية (غير محفوظة) - لا يوجد زر تأكيد -->
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle"></i> هذه تسوية ذكية تلقائية. يمكنك إنشاء دفعة مباشرة.
-                    </div>
-                    {% endif %}
-                    
+                    {% if balance_data.balance.remaining|abs > 0.01 %}
                     <a href="{{ url_for('payments.create_payment',
-                                       entity_type='PARTNER',
-                                       entity_id=ps.partner.id,
-                                       direction=('OUT' if (ps.total_due or 0) > 0 else 'IN'),
-                                       total_amount=('%.2f'|format(ps.total_due|default(0)|abs)),
-                                       currency=ps.currency,
-                                       reference='PartnerSettle:' ~ ps.code) }}"
-                       class="btn btn-success btn-lg">
-                        <i class="fas fa-coins"></i> إنشاء دفعة
+                                      entity_type='PARTNER',
+                                      entity_id=partner.id,
+                                      direction=balance_data.balance.payment_direction,
+                                      total_amount=('%.2f'|format(balance_data.balance.remaining|abs)),
+                                      currency='ILS',
+                                      reference='SmartSettle-' ~ partner.id ~ '-' ~ date_from.strftime('%Y%m%d'),
+                                      notes='تسوية ذكية - ' ~ partner.name ~ ' - ' ~ date_from.strftime('%Y-%m-%d') ~ ' إلى ' ~ date_to.strftime('%Y-%m-%d')) }}"
+                       class="btn btn-{% if balance_data.balance.payment_direction == 'OUT' %}success{% else %}warning{% endif %} btn-lg">
+                        <i class="fas fa-{% if balance_data.balance.payment_direction == 'OUT' %}money-check-alt{% else %}hand-holding-usd{% endif %}"></i> 
+                        {{ balance_data.balance.direction }}
                     </a>
+                    {% else %}
+                    <button class="btn btn-secondary btn-lg" disabled>
+                        <i class="fas fa-balance-scale"></i> الحساب متوازن
+                    </button>
+                    {% endif %}
                     
                     <a href="{{ url_for('vendors_bp.partners_list') }}" class="btn btn-secondary btn-lg">
                         <i class="fas fa-arrow-right"></i> العودة
                     </a>
                 </div>
             </div>
+
             {% else %}
+            <!-- خطأ في حساب التسوية أو تسوية عادية -->
+            <div class="alert alert-info">
+                <h4><i class="fas fa-info-circle"></i> تسوية عادية</h4>
+                <p>استخدم التسوية الذكية من قائمة الشركاء للحصول على تقرير شامل</p>
+            </div>
             <div class="text-center">
-                <a href="{{ url_for('vendors_bp.partners_list') }}" class="btn btn-secondary btn-lg">
+                <a href="{{ url_for('vendor_bp.partners_list') }}" class="btn btn-secondary">
                     <i class="fas fa-arrow-right"></i> العودة للشركاء
                 </a>
             </div>
@@ -358,8 +497,21 @@
 {% block scripts %}
 {{ super() }}
 <script>
+(function() {
+  'use strict';
+  
+  // زر الطباعة
   document.getElementById('btn-print')?.addEventListener('click', function () {
     window.print();
   });
+  
+  // Ctrl+P للطباعة
+  document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+      e.preventDefault();
+      window.print();
+    }
+  });
+})();
 </script>
 {% endblock %}
