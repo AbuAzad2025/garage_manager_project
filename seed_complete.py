@@ -141,30 +141,34 @@ def seed_suppliers():
     print("\n🏢 إضافة موردين...")
     
     suppliers_data = [
-        {"name": "شركة الأجزاء الذهبية", "phone": "0599111222", "email": "golden@parts.ps", "currency": "ILS", 
-         "address": "رام الله - البيرة", "contact_person": "أحمد محمود", "notes": "[TEST] مورد محلي رئيسي"},
+        {"name": "شركة الأجزاء الذهبية TEST", "phone": "0599111222", "email": "golden-test@parts.ps", "currency": "ILS", 
+         "address": "رام الله - البيرة", "contact": "أحمد محمود", "notes": "[TEST] مورد محلي رئيسي"},
         
-        {"name": "مورد القطع الأمريكية", "phone": "0597222333", "email": "usa@parts.com", "currency": "USD", 
-         "address": "نيويورك - الولايات المتحدة", "contact_person": "John Smith", "notes": "[TEST] مورد أمريكي"},
+        {"name": "مورد القطع الأمريكية TEST", "phone": "0597222333", "email": "usa-test@parts.com", "currency": "USD", 
+         "address": "نيويورك - الولايات المتحدة", "contact": "John Smith", "notes": "[TEST] مورد أمريكي"},
         
-        {"name": "المورد الأوروبي للزيوت", "phone": "0598333444", "email": "euro@oils.de", "currency": "EUR", 
-         "address": "برلين - ألمانيا", "contact_person": "Hans Mueller", "notes": "[TEST] مورد ألماني"},
+        {"name": "المورد الأوروبي للزيوت TEST", "phone": "0598333444", "email": "euro-test@oils.de", "currency": "EUR", 
+         "address": "برلين - ألمانيا", "contact": "Hans Mueller", "notes": "[TEST] مورد ألماني"},
         
-        {"name": "مورد الإطارات الأردني", "phone": "0596444555", "email": "jordan@tires.jo", "currency": "JOD", 
-         "address": "عمان - الأردن", "contact_person": "خالد العمري", "notes": "[TEST] مورد أردني"},
+        {"name": "مورد الإطارات الأردني TEST", "phone": "0596444555", "email": "jordan-test@tires.jo", "currency": "JOD", 
+         "address": "عمان - الأردن", "contact": "خالد العمري", "notes": "[TEST] مورد أردني"},
         
-        {"name": "مورد القطع الإماراتي", "phone": "0595555666", "email": "uae@parts.ae", "currency": "AED", 
-         "address": "دبي - الإمارات", "contact_person": "سالم المزروعي", "notes": "[TEST] مورد إماراتي"},
+        {"name": "مورد القطع الإماراتي TEST", "phone": "0595555666", "email": "uae-test@parts.ae", "currency": "AED", 
+         "address": "دبي - الإمارات", "contact": "سالم المزروعي", "notes": "[TEST] مورد إماراتي"},
     ]
     
     suppliers = []
     for data in suppliers_data:
-        supplier = Supplier(**data, balance=Decimal('0'))
-        db.session.add(supplier)
-        suppliers.append(supplier)
+        existing = db.session.query(Supplier).filter_by(email=data["email"]).first()
+        if existing:
+            suppliers.append(existing)
+        else:
+            supplier = Supplier(**data, balance=Decimal('0'))
+            db.session.add(supplier)
+            suppliers.append(supplier)
     
     db.session.commit()
-    print(f"✅ تم إضافة {len(suppliers)} موردين بعملات مختلفة")
+    print(f"✅ تم إضافة/تحديث {len(suppliers)} موردين بعملات مختلفة")
     return suppliers
 
 
@@ -173,16 +177,16 @@ def seed_partners():
     print("\n🤝 إضافة شركاء...")
     
     partners_data = [
-        {"name": "شريك محمد أحمد الأول", "phone": "0591111222", "email": "mohammad@partner.ps", 
+        {"name": "شريك محمد أحمد الأول", "phone_number": "0591111222", "email": "mohammad@partner.ps", 
          "share_percentage": Decimal('30'), "currency": "ILS", "notes": "[TEST] شريك رئيسي 30%"},
         
-        {"name": "شريك خالد سعيد", "phone": "0592222333", "email": "khaled@partner.ps", 
+        {"name": "شريك خالد سعيد", "phone_number": "0592222333", "email": "khaled@partner.ps", 
          "share_percentage": Decimal('25'), "currency": "ILS", "notes": "[TEST] شريك 25%"},
         
-        {"name": "شريك سامر يوسف", "phone": "0593333444", "email": "samer@partner.ps", 
+        {"name": "شريك سامر يوسف", "phone_number": "0593333444", "email": "samer@partner.ps", 
          "share_percentage": Decimal('20'), "currency": "USD", "notes": "[TEST] شريك بالدولار 20%"},
         
-        {"name": "شريك عمر حسن", "phone": "0594444555", "email": "omar@partner.ps", 
+        {"name": "شريك عمر حسن", "phone_number": "0594444555", "email": "omar@partner.ps", 
          "share_percentage": Decimal('15'), "currency": "ILS", "notes": "[TEST] شريك 15%"},
     ]
     

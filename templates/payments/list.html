@@ -233,7 +233,6 @@
 
 <input type="hidden" id="csrf_token" value="{{ csrf_token() }}">
 <div id="vendors-config" data-pay-url="{{ url_for('payments.create_payment') }}"></div>
-<!-- تم إزالة modal التسوية - نستخدم التسوية الذكية من قوائم الموردين/الشركاء -->
 {% endblock %}
 {% block scripts %}
   <script src="{{ url_for('static', filename='js/payments.js') }}"></script>
