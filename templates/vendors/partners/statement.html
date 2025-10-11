@@ -1,0 +1,328 @@
+{% extends 'base.html' %}
+{% block title %}كشف حساب الشريك{% endblock %}
+
+{% block head_extra %}
+<style>
+/* تحسين تباين الألوان */
+.statement-card {
+    border-radius: 12px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+}
+
+.statement-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white !important;
+    padding: 20px;
+    border-radius: 12px 12px 0 0;
+}
+
+.stat-box {
+    border-left: 4px solid #667eea;
+    transition: all 0.3s;
+}
+
+.stat-box:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+}
+
+.table thead th {
+    background-color: #343a40 !important;
+    color: white !important;
+    font-weight: 600 !important;
+    border-color: #454d55 !important;
+}
+
+.table tbody td {
+    color: #343a40 !important;
+    font-weight: 500 !important;
+}
+
+.balance-positive {
+    color: #dc3545 !important;
+    font-weight: bold !important;
+}
+
+.balance-negative {
+    color: #28a745 !important;
+    font-weight: bold !important;
+}
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb bg-white px-3 py-2 rounded mb-4">
+    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('vendors_bp.partners_list') }}">الشركاء</a></li>
+    <li class="breadcrumb-item active">كشف حساب {{ partner.name }}</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <a class="btn btn-outline-secondary" href="{{ url_for('vendors_bp.partners_list') }}">
+      <i class="fas fa-arrow-right ms-1"></i> رجوع
+    </a>
+
+    <button
+      type="button"
+      class="btn btn-outline-success btn-settle"
+      data-entity-type="PARTNER"
+      data-id="{{ partner.id }}"
+      data-name="{{ partner.name }}"
+      data-balance="{{ balance|float }}"
+      data-currency="{{ partner.currency or 'ILS' }}">
+      <i class="fas fa-scale-balanced ms-1"></i> تسوية الرصيد
+    </button>
+
+    <button type="button" class="btn btn-outline-primary" id="btn-print">
+      <i class="fas fa-print ms-1"></i> طباعة
+    </button>
+  </div>
+
+  <div class="row g-3 mb-4">
+    {% set stats = [
+      ('إجمالي مدين (مستحق للشريك)', total_debit, 'text-danger', 'fa-arrow-up'),
+      ('إجمالي دائن (دفعات للشريك)', total_credit, 'text-success', 'fa-arrow-down'),
+      ('الرصيد', balance, balance > 0 and 'text-danger' or balance < 0 and 'text-success' or '', 'fa-balance-scale')
+    ] %}
+    {% for label, value, color_class, icon in stats %}
+    <div class="col-12 col-md-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="text-muted small">{{ label }}</div>
+              <div class="fs-5 fw-bold {{ color_class }}">{{ value|format_currency }}</div>
+            </div>
+            <i class="fas {{ icon }} fs-4 {{ color_class or 'text-secondary' }}"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% set type_labels = {
+    'PAYMENT_OUT': 'سداد للشريك',
+    'PAYMENT_IN': 'قبض من الشريك',
+    'SHARE': 'حصة شريك',
+    'SETTLEMENT': 'تسوية'
+  } %}
+  {% set type_badges = {
+    'PAYMENT_OUT': 'bg-danger',
+    'PAYMENT_IN': 'bg-success',
+    'SHARE': 'bg-primary',
+    'SETTLEMENT': 'bg-info'
+  } %}
+
+  <div class="card shadow-sm rounded">
+    <div class="card-header bg-primary text-white">
+      <h5 class="card-title m-0">
+        <i class="fas fa-file-invoice ms-2"></i> كشف حساب: {{ partner.name }}
+      </h5>
+      {% if date_from or date_to %}
+      <div class="small mt-1">
+        الفترة:
+        {{ date_from and date_from.strftime("%Y-%m-%d") or "—" }} →
+        {{ date_to and date_to.strftime("%Y-%m-%d") or "—" }}
+      </div>
+      {% endif %}
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-bordered table-sm table-striped align-middle">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 110px">التاريخ</th>
+              <th style="width: 110px">النوع</th>
+              <th style="width: 120px">المرجع</th>
+              <th>البيان</th>
+              <th class="text-end" style="width: 120px">مدين</th>
+              <th class="text-end" style="width: 120px">دائن</th>
+              <th class="text-end" style="width: 120px">الرصيد</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in ledger_entries %}
+            <tr>
+              <td>{{ e.date|format_date }}</td>
+              <td>
+                {% set t = e.type or '' %}
+                <span class="badge {{ type_badges.get(t, 'bg-secondary') }}">{{ type_labels.get(t, t) }}</span>
+              </td>
+              <td class="text-truncate" title="{{ e.ref }}">{{ e.ref }}</td>
+              <td class="text-truncate" title="{{ e.statement }}">{{ e.statement or '-' }}</td>
+              <td class="text-end">{{ e.debit|format_currency }}</td>
+              <td class="text-end">{{ e.credit|format_currency }}</td>
+              <td class="text-end fw-bold {% if e.balance > 0 %}text-danger{% elif e.balance < 0 %}text-success{% endif %}">
+                {{ e.balance|format_currency }}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="7" class="text-center text-muted">لا توجد حركات.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot class="table-light">
+            <tr>
+              <th colspan="4" class="text-end">الإجمالي</th>
+              <th class="text-end">{{ total_debit|format_currency }}</th>
+              <th class="text-end">{{ total_credit|format_currency }}</th>
+              <th class="text-end {% if balance > 0 %}text-danger{% elif balance < 0 %}text-success{% endif %}">
+                {{ balance|format_currency }}
+              </th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- معلومات إضافية عن الشريك -->
+  <div class="row mt-4">
+    <div class="col-md-6">
+      <div class="card shadow-sm">
+        <div class="card-header bg-info text-white">
+          <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>معلومات الشريك</h5>
+        </div>
+        <div class="card-body">
+          <table class="table table-sm">
+            <tr>
+              <th style="width: 40%">اسم الشريك:</th>
+              <td>{{ partner.name }}</td>
+            </tr>
+            <tr>
+              <th>نسبة الحصة:</th>
+              <td><strong class="text-primary">{{ partner.share_percentage or 0 }}%</strong></td>
+            </tr>
+            <tr>
+              <th>رقم الهاتف:</th>
+              <td>{{ partner.phone_number or '-' }}</td>
+            </tr>
+            <tr>
+              <th>البريد الإلكتروني:</th>
+              <td>{{ partner.email or '-' }}</td>
+            </tr>
+            <tr>
+              <th>العنوان:</th>
+              <td>{{ partner.address or '-' }}</td>
+            </tr>
+            <tr>
+              <th>رقم الهوية:</th>
+              <td>{{ partner.identity_number or '-' }}</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-6">
+      <div class="card shadow-sm">
+        <div class="card-header bg-secondary text-white">
+          <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>ملخص الحساب</h5>
+        </div>
+        <div class="card-body">
+          <table class="table table-sm">
+            <tr>
+              <th style="width: 50%">إجمالي المستحقات:</th>
+              <td class="text-end text-danger fw-bold">{{ total_debit|format_currency }}</td>
+            </tr>
+            <tr>
+              <th>إجمالي المدفوعات:</th>
+              <td class="text-end text-success fw-bold">{{ total_credit|format_currency }}</td>
+            </tr>
+            <tr class="table-active">
+              <th>الرصيد الصافي:</th>
+              <td class="text-end fw-bold {% if balance > 0 %}text-danger{% elif balance < 0 %}text-success{% endif %}">
+                {{ balance|format_currency }}
+              </td>
+            </tr>
+            <tr>
+              <th>العملة:</th>
+              <td class="text-end">{{ partner.currency or 'ILS' }}</td>
+            </tr>
+          </table>
+          <div class="alert {% if balance > 0 %}alert-danger{% elif balance < 0 %}alert-success{% else %}alert-info{% endif %} mt-3 mb-0">
+            <i class="fas fa-info-circle me-2"></i>
+            {% if balance > 0 %}
+              <strong>مطلوب سداد {{ balance|format_currency }} للشريك</strong>
+            {% elif balance < 0 %}
+              <strong>لك {{ (balance * -1)|format_currency }} عند الشريك</strong>
+            {% else %}
+              <strong>الحساب متوازن</strong>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="vendors-config" data-pay-url="{{ url_for('payments.create_payment') }}"></div>
+
+<div class="modal fade" id="settlementModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4">
+      <div class="modal-header bg-light">
+        <h5 class="modal-title"><i class="fas fa-scale-balanced me-2"></i> تسوية رصيد</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2 text-muted small">الجهة: <span id="stlName"></span></div>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>الرصيد الحالي:</div>
+          <div id="stlBalance" class="fw-bold"></div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">المبلغ للتسوية</label>
+          <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control" id="stlAmount">
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-md-6">
+            <label class="form-label">الاتجاه</label>
+            <div id="stlDirectionBadge"></div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">العملة</label>
+            <input type="text" class="form-control" id="stlCurrency" readonly>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">طريقة الدفع</label>
+          <select id="stlMethod" class="form-select">
+            <option value="cash">نقداً</option>
+            <option value="bank">تحويل بنكي</option>
+            <option value="cheque">شيك</option>
+            <option value="card">بطاقة</option>
+            <option value="online">إلكتروني</option>
+          </select>
+        </div>
+        <input type="hidden" id="stlEntityType">
+        <input type="hidden" id="stlEntityId">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" id="stlPrint"><i class="fas fa-print me-1"></i> طباعة</button>
+        <button type="button" class="btn btn-success" id="stlConfirm"><i class="fas fa-check me-1"></i> إنشاء سند</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/vendors.js') }}"></script>
+<script>
+  document.getElementById('btn-print')?.addEventListener('click', function () {
+    window.print();
+  });
+</script>
+{% endblock %}
+

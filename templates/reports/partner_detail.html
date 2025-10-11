@@ -211,9 +211,8 @@
                         <tr>
                             <th>رقم الطلب</th>
                             <th>التاريخ</th>
-                            <th>المنتج</th>
+                            <th>البيان</th>
                             <th>الكمية</th>
-                            <th>سعر الوحدة</th>
                             <th>المجموع</th>
                             <th>نسبة المشاركة</th>
                         </tr>
@@ -223,11 +222,10 @@
                         <tr>
                             <td>{{ sp.service_id }}</td>
                             <td>{{ sp.created_at.strftime('%Y-%m-%d') if sp.created_at else 'غير محدد' }}</td>
-                            <td>{{ sp.part.name if sp.part else 'غير محدد' }}</td>
+                            <td>حصة شريك في قطعة: {{ sp.part.name if sp.part else 'غير محدد' }} - صيانة رقم {{ sp.service_id }}</td>
                             <td>{{ sp.quantity }}</td>
-                            <td>{{ sp.unit_price|format_currency }}</td>
                             <td>{{ (sp.quantity * sp.unit_price)|format_currency }}</td>
-                            <td>{{ sp.share_percentage or 0 }}%</td>
+                            <td><span class="badge bg-primary">{{ sp.share_percentage or 0 }}%</span></td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -253,8 +251,7 @@
                         <tr>
                             <th>رقم المصروف</th>
                             <th>التاريخ</th>
-                            <th>النوع</th>
-                            <th>الموظف</th>
+                            <th>البيان</th>
                             <th>المبلغ</th>
                             <th>الوصف</th>
                         </tr>
@@ -264,10 +261,9 @@
                         <tr>
                             <td>{{ expense.id }}</td>
                             <td>{{ expense.date.strftime('%Y-%m-%d') if expense.date else 'غير محدد' }}</td>
-                            <td>{{ expense.type_id or 'غير محدد' }}</td>
-                            <td>{{ expense.employee_id or 'غير محدد' }}</td>
+                            <td>مصروف شريك: {{ expense.category or 'عام' }} - {{ expense.description[:50] if expense.description else 'بدون وصف' }}</td>
                             <td>{{ expense.amount|format_currency }}</td>
-                            <td>{{ expense.desc or '-' }}</td>
+                            <td>{{ expense.description or '-' }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>

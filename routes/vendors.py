@@ -315,6 +315,9 @@ def suppliers_statement(supplier_id: int):
 
         d = getattr(tx, "created_at", None)
         dirv = (getattr(tx, "direction", "") or "").upper()
+        
+        # اسم المنتج للبيان
+        prod_name = getattr(p, 'name', 'منتج') if p else 'منتج'
 
         # المدين = قيمة التوريد (يزيد ما ندين به للمورد)
         # الدائن = قيمة المرتجع/التسويات (تُخفّض ما ندين به)
@@ -513,13 +516,24 @@ def partners_statement(partner_id: int):
         amt = q2(p.total_amount or 0)
         ref = p.reference or f"سند #{p.id}"
         dirv = getattr(p, "direction", None)
+        
+        # توليد البيان للدفعة
+        payment_method = getattr(p, 'payment_method', 'نقداً')
+        notes = getattr(p, 'notes', '') or ''
+        
         # OUTGOING => مدين (خارج منا للشريك)
         # INCOMING => دائن (وارد منا من الشريك)
         if dirv == PaymentDirection.OUTGOING.value:
-            entries.append({"date": d, "type": "PAYMENT_OUT", "ref": ref, "debit": amt, "credit": Decimal("0.00")})
+            statement = f"سداد {payment_method} للشريك"
+            if notes:
+                statement += f" - {notes[:30]}"
+            entries.append({"date": d, "type": "PAYMENT_OUT", "ref": ref, "statement": statement, "debit": amt, "credit": Decimal("0.00")})
             total_debit += amt
         else:
-            entries.append({"date": d, "type": "PAYMENT_IN", "ref": ref, "debit": Decimal("0.00"), "credit": amt})
+            statement = f"قبض {payment_method} من الشريك"
+            if notes:
+                statement += f" - {notes[:30]}"
+            entries.append({"date": d, "type": "PAYMENT_IN", "ref": ref, "statement": statement, "debit": Decimal("0.00"), "credit": amt})
             total_credit += amt
 
     entries.sort(key=lambda e: (e["date"] or datetime.min, e["type"], e["ref"]))
