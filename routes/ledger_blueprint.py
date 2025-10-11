@@ -1,3 +1,7 @@
+# ledger_blueprint.py - Ledger Routes
+# Location: /garage_manager/routes/ledger_blueprint.py
+# Description: Accounting ledger and financial management routes
+
 from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify, render_template
 from flask_login import login_required

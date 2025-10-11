@@ -1,3 +1,7 @@
+# permissions.py - Permissions Management Routes
+# Location: /garage_manager/routes/permissions.py
+# Description: User permissions and access control routes
+
 # -*- coding: utf-8 -*-
 from flask import Blueprint, flash, redirect, render_template, url_for, abort, request
 from flask_login import login_required, current_user

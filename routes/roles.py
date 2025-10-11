@@ -1,4 +1,7 @@
-# routes/roles.py
+# roles.py - Roles Management Routes
+# Location: /garage_manager/routes/roles.py
+# Description: User roles and permissions management routes
+
 from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
 from flask_login import login_required, current_user
 from sqlalchemy.exc import IntegrityError

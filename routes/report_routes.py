@@ -1,3 +1,7 @@
+# report_routes.py - Reports Routes
+# Location: /garage_manager/routes/report_routes.py
+# Description: Report generation and analytics routes
+
 from __future__ import annotations
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional
