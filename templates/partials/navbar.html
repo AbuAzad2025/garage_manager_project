@@ -1,13 +1,38 @@
 <nav class="main-header navbar navbar-expand navbar-primary navbar-dark" dir="rtl" {% if system_settings.primary_color %}style="background-color: {{ system_settings.primary_color }} !important;"{% endif %}>
-  <!-- الساعة والتاريخ في بداية الشريط -->
-  <div class="navbar-brand mr-auto d-flex align-items-center">
-    <span class="badge badge-warning mr-3">
+  <!-- الساعة والتاريخ وأسعار الصرف في بداية الشريط -->
+  <div class="navbar-brand mr-auto d-flex align-items-center flex-wrap">
+    <!-- الساعة -->
+    <span class="badge badge-warning mr-2" style="padding: 8px 12px;">
       <i class="fas fa-clock mr-1"></i>
       <span id="current-time" style="font-size: 14px; font-weight: bold; color: #000;">--:--:--</span>
     </span>
-    <span class="badge badge-info">
+    
+    <!-- التاريخ الميلادي -->
+    <span class="badge badge-info mr-2" style="padding: 8px 12px;">
       <i class="fas fa-calendar mr-1"></i>
-      <span id="current-date" style="font-size: 14px; font-weight: bold; color: #fff;">--/--/----</span>
+      <span id="current-date-gregorian" style="font-size: 13px; font-weight: bold; color: #fff;">--/--/----</span>
+    </span>
+    
+    <!-- التاريخ الهجري -->
+    <span class="badge badge-secondary mr-2" style="padding: 8px 12px; background: linear-gradient(135deg, #4a148c 0%, #6a1b9a 100%) !important;">
+      <i class="fas fa-moon mr-1"></i>
+      <span id="current-date-hijri" style="font-size: 13px; font-weight: bold; color: #fff;">-- --- ----</span>
+    </span>
+    
+    <!-- سعر الدولار -->
+    <span class="badge badge-success mr-2" style="padding: 8px 12px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important; border: none;">
+      <i class="fas fa-dollar-sign mr-1"></i>
+      <span style="font-size: 13px; font-weight: bold;">$</span>
+      <span id="usd-rate" style="font-size: 14px; font-weight: bold; color: #fff;">--</span>
+      <span style="font-size: 11px; opacity: 0.9;">₪</span>
+    </span>
+    
+    <!-- سعر الدينار -->
+    <span class="badge mr-2" style="padding: 8px 12px; background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%) !important; border: none;">
+      <i class="fas fa-coins mr-1"></i>
+      <span style="font-size: 13px; font-weight: bold;">JOD</span>
+      <span id="jod-rate" style="font-size: 14px; font-weight: bold; color: #fff;">--</span>
+      <span style="font-size: 11px; opacity: 0.9;">₪</span>
     </span>
   </div>
 
@@ -233,59 +258,96 @@
 function updateDateTime() {
     const now = new Date();
     
-    // تنسيق الوقت
-    const timeOptions = {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-    };
-    const timeString = now.toLocaleTimeString('ar-SA', timeOptions);
+    // تنسيق الوقت (بأرقام إنجليزية)
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const timeString = `${hours}:${minutes}:${seconds}`;
     
-    // تنسيق التاريخ
-    const dateOptions = {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        weekday: 'long'
-    };
-    const dateString = now.toLocaleDateString('ar-SA', dateOptions);
+    // تنسيق التاريخ الميلادي (بأرقام إنجليزية)
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const gregorianDate = `${year}/${month}/${day}`;
+    
+    // تنسيق التاريخ الهجري (بأرقام إنجليزية)
+    try {
+        const hijriDate = new Intl.DateTimeFormat('en-u-ca-islamic', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        }).format(now);
+        
+        // استبدال الأرقام العربية بإنجليزية إن وجدت
+        const hijriEnglish = hijriDate.replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+        
+        document.getElementById('current-date-hijri').textContent = hijriEnglish;
+    } catch (e) {
+        // في حالة عدم دعم التقويم الهجري
+        document.getElementById('current-date-hijri').textContent = 'Hijri N/A';
+    }
     
     // تحديث العناصر
     const timeElement = document.getElementById('current-time');
-    const dateElement = document.getElementById('current-date');
-    
-    console.log('Time element:', timeElement);
-    console.log('Date element:', dateElement);
-    console.log('Time string:', timeString);
-    console.log('Date string:', dateString);
+    const gregorianElement = document.getElementById('current-date-gregorian');
     
     if (timeElement) {
         timeElement.textContent = timeString;
-        timeElement.style.color = '#ffffff';
-        timeElement.style.fontSize = '14px';
-        timeElement.style.fontWeight = 'bold';
     }
-    if (dateElement) {
-        dateElement.textContent = dateString;
-        dateElement.style.color = '#ffffff';
-        dateElement.style.fontSize = '14px';
-        dateElement.style.fontWeight = 'bold';
+    if (gregorianElement) {
+        gregorianElement.textContent = gregorianDate;
+    }
+}
+
+// جلب أسعار الصرف
+async function updateExchangeRates() {
+    try {
+        // جلب أسعار الصرف من API أو من قاعدة البيانات
+        const response = await fetch('/api/exchange-rates?base=ILS');
+        if (response.ok) {
+            const data = await response.json();
+            
+            // تحديث سعر الدولار (كم شيقل يساوي دولار واحد)
+            const usdElement = document.getElementById('usd-rate');
+            if (usdElement && data.USD) {
+                usdElement.textContent = parseFloat(data.USD).toFixed(2);
+            }
+            
+            // تحديث سعر الدينار (كم شيقل يساوي دينار واحد)
+            const jodElement = document.getElementById('jod-rate');
+            if (jodElement && data.JOD) {
+                jodElement.textContent = parseFloat(data.JOD).toFixed(2);
+            }
+        } else {
+            // في حالة الفشل، استخدام قيم افتراضية
+            document.getElementById('usd-rate').textContent = '3.65';
+            document.getElementById('jod-rate').textContent = '5.15';
+        }
+    } catch (error) {
+        console.log('Using default exchange rates');
+        // قيم افتراضية تقريبية
+        document.getElementById('usd-rate').textContent = '3.65';
+        document.getElementById('jod-rate').textContent = '5.15';
     }
 }
 
 // انتظار تحميل DOM
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, starting clock...');
+    console.log('DOM loaded, starting clock and exchange rates...');
+    
+    // تحديث الوقت والتاريخ
     updateDateTime();
     setInterval(updateDateTime, 1000);
+    
+    // تحديث أسعار الصرف
+    updateExchangeRates();
+    // تحديث أسعار الصرف كل 5 دقائق
+    setInterval(updateExchangeRates, 5 * 60 * 1000);
 });
 
 // تحديث فوري أيضاً
 updateDateTime();
-
-// تحديث كل ثانية
-setInterval(updateDateTime, 1000);
+updateExchangeRates();
 
 // تحسينات إضافية للنافبار
 document.addEventListener('DOMContentLoaded', function() {

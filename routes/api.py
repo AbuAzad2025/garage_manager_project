@@ -55,6 +55,37 @@ def api_index():
     """صفحة API الرئيسية"""
     return render_template("api/index.html")
 
+@bp.route("/exchange-rates", methods=["GET"], endpoint="get_exchange_rates")
+def get_current_exchange_rates():
+    """جلب أسعار الصرف الحالية - متاح للجميع لعرضها في navbar"""
+    try:
+        from models import get_fx_rate_with_fallback
+        
+        # جلب سعر الدولار مقابل الشيقل
+        usd_to_ils = get_fx_rate_with_fallback('USD', 'ILS')
+        
+        # جلب سعر الدينار مقابل الشيقل
+        jod_to_ils = get_fx_rate_with_fallback('JOD', 'ILS')
+        
+        return jsonify({
+            'success': True,
+            'USD': usd_to_ils.get('rate', 3.65),
+            'JOD': jod_to_ils.get('rate', 5.15),
+            'usd_source': usd_to_ils.get('source', 'default'),
+            'jod_source': jod_to_ils.get('source', 'default'),
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    except Exception as e:
+        # في حالة الخطأ، إرجاع قيم افتراضية
+        return jsonify({
+            'success': False,
+            'USD': 3.65,
+            'JOD': 5.15,
+            'usd_source': 'default',
+            'jod_source': 'default',
+            'error': str(e)
+        })
+
 _TWOPLACES = Decimal("0.01")
 
 def _D(x):
