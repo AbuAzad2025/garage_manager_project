@@ -1,3 +1,7 @@
+# env.py - Alembic Environment Configuration
+# Location: /garage_manager/migrations/env.py
+# Description: Alembic migration environment setup
+
 import logging
 from logging.config import fileConfig
 

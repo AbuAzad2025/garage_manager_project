@@ -1,3 +1,7 @@
+# hard_delete_service.py - Hard Delete Service
+# Location: /garage_manager/services/hard_delete_service.py
+# Description: Hard delete operations and restoration service
+
 """
 خدمة الحذف القوي مع العمليات العكسية والاستعادة
 """

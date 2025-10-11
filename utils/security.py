@@ -1,3 +1,7 @@
+# security.py - Security Utilities
+# Location: /garage_manager/utils/security.py
+# Description: Security utilities and input validation
+
 """
 وحدة الأمان الشاملة - التحقق من المدخلات والحماية المتقدمة
 """

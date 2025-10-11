@@ -1,3 +1,7 @@
+# admin_reports.py - Admin Reports Routes
+# Location: /garage_manager/routes/admin_reports.py
+# Description: Administrative reports and analytics routes
+
 from datetime import datetime, date as _date, time as _time, timedelta
 from flask import Blueprint, render_template, request, abort, jsonify, current_app
 from flask_login import login_required, current_user
