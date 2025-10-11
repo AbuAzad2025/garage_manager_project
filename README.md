@@ -768,6 +768,8 @@ garage_manager/
 - 📱 PWA (Progressive Web App)
 - 🔊 واجهة صوتية (Voice UI)
 
+**📝 [اقرأ سجل التغييرات الكامل](CHANGELOG.md)**
+
 ---
 
 ## 🏢 معلومات الشركة | Company Information
