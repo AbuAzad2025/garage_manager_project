@@ -103,12 +103,17 @@
             </div>
 
             <div class="row g-3 mt-3">
-              <div class="col-md-6">
+              <div class="col-md-4">
                 {{ form.balance.label(class="form-label") }}
                 {{ form.balance(class="form-control") }}
                 {% for err in form.balance.errors %}<small class="text-danger">{{ err }}</small>{% endfor %}
               </div>
-              <div class="col-md-6">
+              <div class="col-md-4">
+                {{ form.currency.label(class="form-label") }}
+                {{ form.currency(class="form-control") }}
+                {% for err in form.currency.errors %}<small class="text-danger">{{ err }}</small>{% endfor %}
+              </div>
+              <div class="col-md-4">
                 {{ form.payment_terms.label(class="form-label") }}
                 {{ form.payment_terms(class="form-control") }}
                 {% for err in form.payment_terms.errors %}<small class="text-danger">{{ err }}</small>{% endfor %}

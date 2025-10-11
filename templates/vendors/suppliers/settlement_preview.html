@@ -79,7 +79,7 @@
                             </p>
                         </div>
                         <div class="col-md-4 text-end">
-                            {% set s = (getattr(ss.status, 'value', ss.status) or '') %}
+                            {% set s = (ss.status.value if ss.status and ss.status.value is defined else ss.status) or 'DRAFT' %}
                             <span class="status-badge {% if s == 'DRAFT' %}bg-warning text-dark{% elif s == 'CONFIRMED' %}bg-success{% else %}bg-secondary{% endif %}">
                                 {{ s }}
                             </span>
@@ -238,7 +238,7 @@
             </div>
 
             <!-- أزرار الإجراءات -->
-            {% set status_val = getattr(ss.status, 'value', ss.status) %}
+            {% set status_val = (ss.status.value if ss.status and ss.status.value is defined else ss.status) or 'DRAFT' %}
             {% if status_val == "DRAFT" %}
             <div class="card settlement-detail-card">
                 <div class="card-body text-center">

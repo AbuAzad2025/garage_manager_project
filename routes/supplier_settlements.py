@@ -238,9 +238,28 @@ def supplier_settlement(supplier_id):
     # حساب الرصيد الذكي
     balance_data = _calculate_smart_supplier_balance(supplier_id, date_from, date_to)
     
-    return render_template(
-        "vendors/suppliers/smart_settlement.html",
+    # إنشاء object بسيط للتوافق مع القالب
+    from types import SimpleNamespace
+    ss = SimpleNamespace(
+        id=None,  # لا يوجد id لأنها تسوية ذكية (غير محفوظة)
         supplier=supplier,
+        from_date=date_from,
+        to_date=date_to,
+        currency=supplier.currency,
+        total_gross=balance_data.get("incoming", {}).get("total", 0) if isinstance(balance_data, dict) else 0,
+        total_due=balance_data.get("balance", {}).get("amount", 0) if isinstance(balance_data, dict) else 0,
+        remaining=balance_data.get("balance", {}).get("amount", 0) if isinstance(balance_data, dict) else 0,
+        status="DRAFT",
+        code=f"SS-SMART-{supplier_id}-{date_from.strftime('%Y%m%d')}",
+        lines=[],
+        created_at=date_from,
+        updated_at=datetime.utcnow()
+    )
+    
+    return render_template(
+        "vendors/suppliers/settlement_preview.html",
+        supplier=supplier,
+        ss=ss,
         balance_data=balance_data,
         date_from=date_from,
         date_to=date_to

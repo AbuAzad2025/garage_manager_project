@@ -955,16 +955,15 @@ def supplier_detail_report(supplier_id):
         payments_query = payments_query.filter(Payment.payment_date <= end_date)
     payments = payments_query.order_by(Payment.payment_date.desc()).all()
 
-    # جميع الشحنات
-    shipments_query = Shipment.query.filter(Shipment.supplier_id == supplier_id)
-    if start_date:
-        shipments_query = shipments_query.filter(Shipment.shipment_date >= start_date)
-    if end_date:
-        shipments_query = shipments_query.filter(Shipment.shipment_date <= end_date)
-    shipments = shipments_query.order_by(Shipment.shipment_date.desc()).all()
+    # الشحنات - في هذا النظام الشحنات مرتبطة بالشركاء فقط وليس بالموردين
+    shipments = []
 
     # جميع المصاريف المتعلقة بالمورد
-    expenses_query = Expense.query.filter(Expense.supplier_id == supplier_id)
+    # Expense يستخدم payee_type و payee_entity_id بدلاً من supplier_id مباشرة
+    expenses_query = Expense.query.filter(
+        Expense.payee_type == 'SUPPLIER',
+        Expense.payee_entity_id == supplier_id
+    )
     if start_date:
         expenses_query = expenses_query.filter(Expense.date >= start_date)
     if end_date:

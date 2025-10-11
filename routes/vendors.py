@@ -182,6 +182,13 @@ def suppliers_create():
             if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.args.get("modal") == "1":
                 return jsonify({"success": False, "errors": {"__all__": [str(e)]}}), 400
             flash(f"❌ خطأ أثناء إضافة المورد: {e}", "danger")
+    else:
+        # إظهار أخطاء الـ validation
+        if request.method == "POST":
+            print(f"[WARNING] Supplier Form validation errors: {form.errors}")
+            for field, errors in form.errors.items():
+                for error in errors:
+                    flash(f"خطأ في {field}: {error}", "danger")
     if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.args.get("modal") == "1":
         html = render_template("vendors/suppliers/form.html", form=form, supplier=None)
         return jsonify({"success": True, "html": html})
@@ -344,7 +351,7 @@ def suppliers_statement(supplier_id: int):
         .filter(
             Payment.supplier_id == supplier.id,
             Payment.status == PaymentStatus.COMPLETED.value,
-            Payment.direction == PaymentDirection.OUTGOING.value,
+            Payment.direction == PaymentDirection.OUT.value,
         )
     )
     if df:
@@ -521,9 +528,9 @@ def partners_statement(partner_id: int):
         payment_method = getattr(p, 'payment_method', 'نقداً')
         notes = getattr(p, 'notes', '') or ''
         
-        # OUTGOING => مدين (خارج منا للشريك)
-        # INCOMING => دائن (وارد منا من الشريك)
-        if dirv == PaymentDirection.OUTGOING.value:
+        # OUT => مدين (خارج منا للشريك)
+        # IN => دائن (وارد منا من الشريك)
+        if dirv == PaymentDirection.OUT.value:
             statement = f"سداد {payment_method} للشريك"
             if notes:
                 statement += f" - {notes[:30]}"
@@ -577,6 +584,13 @@ def partners_create():
             if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.args.get("modal") == "1":
                 return jsonify({"success": False, "errors": {"__all__": [str(e)]}}), 400
             flash(f"❌ خطأ أثناء إضافة الشريك: {e}", "danger")
+    else:
+        # إظهار أخطاء الـ validation
+        if request.method == "POST":
+            print(f"[WARNING] Partner Form validation errors: {form.errors}")
+            for field, errors in form.errors.items():
+                for error in errors:
+                    flash(f"خطأ في {field}: {error}", "danger")
     if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.args.get("modal") == "1":
         html = render_template("vendors/partners/form.html", form=form, partner=None)
         return jsonify({"success": True, "html": html})
@@ -968,7 +982,7 @@ def _calculate_payments_to_supplier(supplier_id: int, date_from: datetime, date_
     """حساب الدفعات المدفوعة للمورد"""
     amount = db.session.query(func.sum(Payment.total_amount)).filter(
         Payment.supplier_id == supplier_id,
-        Payment.direction == "OUTGOING",
+        Payment.direction == "OUT",
         Payment.status == "COMPLETED",
         Payment.payment_date >= date_from,
         Payment.payment_date <= date_to
@@ -992,7 +1006,7 @@ def _calculate_payments_to_partner(partner_id: int, date_from: datetime, date_to
     """حساب الدفعات المدفوعة للشريك"""
     amount = db.session.query(func.sum(Payment.total_amount)).filter(
         Payment.partner_id == partner_id,
-        Payment.direction == "OUTGOING",
+        Payment.direction == "OUT",
         Payment.status == "COMPLETED",
         Payment.payment_date >= date_from,
         Payment.payment_date <= date_to

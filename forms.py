@@ -880,7 +880,7 @@ class SupplierForm(FlaskForm):
     notes = TextAreaField('ملاحظات', validators=[Optional(), Length(max=1000)])
     balance = MoneyField('الرصيد الافتتاحي', validators=[Optional(), NumberRange(min=0)])
     payment_terms = StrippedStringField('شروط الدفع', validators=[Optional(), Length(max=50)])
-    currency = CurrencySelectField('العملة', validators=[DataRequired()])
+    currency = CurrencySelectField('العملة', validators=[Optional()])
     submit = SubmitField('حفظ المورد')
 
     def validate_phone(self, field):
