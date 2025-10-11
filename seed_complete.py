@@ -177,27 +177,31 @@ def seed_partners():
     print("\n🤝 إضافة شركاء...")
     
     partners_data = [
-        {"name": "شريك محمد أحمد الأول", "phone_number": "0591111222", "email": "mohammad@partner.ps", 
+        {"name": "شريك محمد أحمد TEST", "phone_number": "0591111222", "email": "mohammad-test@partner.ps", 
          "share_percentage": Decimal('30'), "currency": "ILS", "notes": "[TEST] شريك رئيسي 30%"},
         
-        {"name": "شريك خالد سعيد", "phone_number": "0592222333", "email": "khaled@partner.ps", 
+        {"name": "شريك خالد سعيد TEST", "phone_number": "0592222333", "email": "khaled-test@partner.ps", 
          "share_percentage": Decimal('25'), "currency": "ILS", "notes": "[TEST] شريك 25%"},
         
-        {"name": "شريك سامر يوسف", "phone_number": "0593333444", "email": "samer@partner.ps", 
+        {"name": "شريك سامر يوسف TEST", "phone_number": "0593333444", "email": "samer-test@partner.ps", 
          "share_percentage": Decimal('20'), "currency": "USD", "notes": "[TEST] شريك بالدولار 20%"},
         
-        {"name": "شريك عمر حسن", "phone_number": "0594444555", "email": "omar@partner.ps", 
+        {"name": "شريك عمر حسن TEST", "phone_number": "0594444555", "email": "omar-test@partner.ps", 
          "share_percentage": Decimal('15'), "currency": "ILS", "notes": "[TEST] شريك 15%"},
     ]
     
     partners = []
     for data in partners_data:
-        partner = Partner(**data, balance=Decimal('0'))
-        db.session.add(partner)
-        partners.append(partner)
+        existing = db.session.query(Partner).filter_by(email=data["email"]).first()
+        if existing:
+            partners.append(existing)
+        else:
+            partner = Partner(**data, balance=Decimal('0'))
+            db.session.add(partner)
+            partners.append(partner)
     
     db.session.commit()
-    print(f"✅ تم إضافة {len(partners)} شركاء")
+    print(f"✅ تم إضافة/تحديث {len(partners)} شركاء")
     return partners
 
 
@@ -206,30 +210,34 @@ def seed_customers():
     print("\n👤 إضافة عملاء...")
     
     customers_data = [
-        {"name": "عميل أحمد محمود", "phone": "0599888777", "email": "ahmad@customer.ps", 
-         "vehicle_number": "12-345-67", "vehicle_type": "تويوتا كامري"},
+        {"name": "عميل أحمد محمود TEST", "phone": "0599888777", "whatsapp": "0599888777", "email": "ahmad-test@customer.ps", 
+         "address": "رام الله", "category": "VIP"},
         
-        {"name": "عميل سامي حسن", "phone": "0598777666", "email": "sami@customer.ps", 
-         "vehicle_number": "23-456-78", "vehicle_type": "هونداي إلنترا"},
+        {"name": "عميل سامي حسن TEST", "phone": "0598777666", "whatsapp": "0598777666", "email": "sami-test@customer.ps", 
+         "address": "نابلس", "category": "عادي"},
         
-        {"name": "عميل كريم علي", "phone": "0597666555", "email": "karim@customer.ps", 
-         "vehicle_number": "34-567-89", "vehicle_type": "كيا سيراتو"},
+        {"name": "عميل كريم علي TEST", "phone": "0597666555", "whatsapp": "0597666555", "email": "karim-test@customer.ps", 
+         "address": "الخليل", "category": "عادي"},
         
-        {"name": "عميل ياسر خالد", "phone": "0596555444", "email": "yaser@customer.ps", 
-         "vehicle_number": "45-678-90", "vehicle_type": "مازدا 3"},
+        {"name": "عميل ياسر خالد TEST", "phone": "0596555444", "whatsapp": "0596555444", "email": "yaser-test@customer.ps", 
+         "address": "بيت لحم", "category": "عادي"},
         
-        {"name": "عميل نبيل سعيد", "phone": "0595444333", "email": "nabil@customer.ps", 
-         "vehicle_number": "56-789-01", "vehicle_type": "فولكسفاغن باسات"},
+        {"name": "عميل نبيل سعيد TEST", "phone": "0595444333", "whatsapp": "0595444333", "email": "nabil-test@customer.ps", 
+         "address": "جنين", "category": "VIP"},
     ]
     
     customers = []
     for data in customers_data:
-        customer = Customer(**data, balance=Decimal('0'), notes="[TEST] عميل تجريبي")
-        db.session.add(customer)
-        customers.append(customer)
+        existing = db.session.query(Customer).filter_by(email=data["email"]).first()
+        if existing:
+            customers.append(existing)
+        else:
+            customer = Customer(**data, notes="[TEST] عميل تجريبي")
+            db.session.add(customer)
+            customers.append(customer)
     
     db.session.commit()
-    print(f"✅ تم إضافة {len(customers)} عملاء")
+    print(f"✅ تم إضافة/تحديث {len(customers)} عملاء")
     return customers
 
 
@@ -239,19 +247,19 @@ def seed_categories_and_equipment():
     
     # فئات المنتجات
     categories_data = [
-        {"name": "قطع محرك", "code": "ENG", "description": "قطع غيار المحرك"},
-        {"name": "قطع فرامل", "code": "BRK", "description": "نظام الفرامل"},
-        {"name": "زيوت وفلاتر", "code": "OIL", "description": "زيوت التشحيم والفلاتر"},
-        {"name": "إطارات", "code": "TIRE", "description": "الإطارات والعجلات"},
-        {"name": "كهرباء", "code": "ELEC", "description": "النظام الكهربائي"},
-        {"name": "تعليق", "code": "SUSP", "description": "نظام التعليق"},
-        {"name": "تكييف", "code": "AC", "description": "نظام التكييف"},
-        {"name": "عادم", "code": "EXH", "description": "نظام العادم"},
+        {"name": "قطع محرك TEST", "description": "قطع غيار المحرك"},
+        {"name": "قطع فرامل TEST", "description": "نظام الفرامل"},
+        {"name": "زيوت وفلاتر TEST", "description": "زيوت التشحيم والفلاتر"},
+        {"name": "إطارات TEST", "description": "الإطارات والعجلات"},
+        {"name": "كهرباء TEST", "description": "النظام الكهربائي"},
+        {"name": "تعليق TEST", "description": "نظام التعليق"},
+        {"name": "تكييف TEST", "description": "نظام التكييف"},
+        {"name": "عادم TEST", "description": "نظام العادم"},
     ]
     
     categories = []
     for data in categories_data:
-        existing = db.session.query(ProductCategory).filter_by(code=data["code"]).first()
+        existing = db.session.query(ProductCategory).filter_by(name=data["name"]).first()
         if not existing:
             cat = ProductCategory(**data)
             db.session.add(cat)
@@ -262,12 +270,12 @@ def seed_categories_and_equipment():
     db.session.commit()
     
     # أنواع المركبات
-    equipment_types = ["سيدان", "SUV", "شاحنة صغيرة", "باص", "دراجة نارية"]
+    equipment_types = ["سيدان TEST", "SUV TEST", "شاحنة صغيرة TEST", "باص TEST", "دراجة نارية TEST"]
     eq_types = []
     for eq_name in equipment_types:
         existing = db.session.query(EquipmentType).filter_by(name=eq_name).first()
         if not existing:
-            eq = EquipmentType(name=eq_name, description=f"[TEST] {eq_name}")
+            eq = EquipmentType(name=eq_name)
             db.session.add(eq)
             eq_types.append(eq)
         else:
@@ -343,9 +351,8 @@ def seed_products(suppliers, categories):
             category_id=categories[cat_idx].id,
             supplier_id=suppliers[random.randint(0, len(suppliers)-1)].id,
             purchase_price=Decimal(str(purchase)),
-            sale_price=Decimal(str(sale)),
-            min_stock_level=random.randint(3, 10),
-            current_stock=0,
+            selling_price=Decimal(str(sale)),
+            price=Decimal(str(sale)),
             barcode=f"BAR{random.randint(100000, 999999)}",
             notes="[TEST] قطعة تجريبية"
         )
@@ -363,65 +370,72 @@ def seed_warehouses(suppliers, partners):
     
     warehouses = []
     
-    # 1. مستودع عام (رئيسي)
-    main_wh = Warehouse(
-        name="المستودع العام الرئيسي",
-        code="MAIN-GENERAL",
-        warehouse_type=WarehouseType.MAIN.value,
-        location="الطابق الأول - القسم الرئيسي",
-        capacity=10000,
-        current_occupancy=0,
-        notes="[TEST] المستودع العام للقطع الرئيسية"
-    )
-    db.session.add(main_wh)
-    warehouses.append(main_wh)
+    existing = db.session.query(Warehouse).filter_by(name="المستودع العام TEST").first()
+    if not existing:
+        main_wh = Warehouse(
+            name="المستودع العام TEST",
+            warehouse_type=WarehouseType.MAIN.value,
+            location="الطابق الأول",
+            capacity=10000,
+            notes="[TEST] المستودع العام"
+        )
+        db.session.add(main_wh)
+        warehouses.append(main_wh)
+    else:
+        warehouses.append(existing)
     
-    # 2. مستودع أونلاين
-    online_wh = Warehouse(
-        name="مستودع المتجر الإلكتروني",
-        code="ONLINE-SHOP",
-        warehouse_type=WarehouseType.INVENTORY.value,
-        location="قسم الأونلاين - الطابق الثاني",
-        capacity=5000,
-        current_occupancy=0,
-        notes="[TEST] مستودع خاص بالمبيعات الأونلاين"
-    )
-    db.session.add(online_wh)
-    warehouses.append(online_wh)
+    existing = db.session.query(Warehouse).filter_by(name="مستودع أونلاين TEST").first()
+    if not existing:
+        online_wh = Warehouse(
+            name="مستودع أونلاين TEST",
+            warehouse_type=WarehouseType.ONLINE.value,
+            location="قسم الأونلاين",
+            capacity=5000,
+            online_is_default=True,
+            notes="[TEST] مستودع أونلاين"
+        )
+        db.session.add(online_wh)
+        warehouses.append(online_wh)
+    else:
+        warehouses.append(existing)
     
-    # 3. مستودعات الموردين (تبادل) - واحد لكل مورد
     for idx, supplier in enumerate(suppliers):
-        wh = Warehouse(
-            name=f"مستودع تبادل - {supplier.name}",
-            code=f"EXCHANGE-{idx+1:03d}",
-            warehouse_type=WarehouseType.EXCHANGE.value,
-            supplier_id=supplier.id,
-            location=f"قسم التبادل - الموقع {idx+1}",
-            capacity=2000,
-            current_occupancy=0,
-            notes=f"[TEST] مستودع تبادل للمورد {supplier.name}"
-        )
-        db.session.add(wh)
-        warehouses.append(wh)
+        wh_name = f"تبادل {supplier.name}"
+        existing = db.session.query(Warehouse).filter_by(name=wh_name).first()
+        if not existing:
+            wh = Warehouse(
+                name=wh_name,
+                warehouse_type=WarehouseType.EXCHANGE.value,
+                supplier_id=supplier.id,
+                location=f"تبادل {idx+1}",
+                capacity=2000,
+                notes=f"[TEST] تبادل {supplier.name}"
+            )
+            db.session.add(wh)
+            warehouses.append(wh)
+        else:
+            warehouses.append(existing)
     
-    # 4. مستودعات الشركاء - واحد لكل شريك
     for idx, partner in enumerate(partners):
-        wh = Warehouse(
-            name=f"مستودع شراكة - {partner.name}",
-            code=f"PARTNER-{idx+1:03d}",
-            warehouse_type=WarehouseType.PARTNER.value,
-            partner_id=partner.id,
-            share_percent=partner.share_percentage,
-            location=f"قسم الشراكة - الموقع {idx+1}",
-            capacity=3000,
-            current_occupancy=0,
-            notes=f"[TEST] مستودع شراكة مع {partner.name} - نسبة {partner.share_percentage}%"
-        )
-        db.session.add(wh)
-        warehouses.append(wh)
+        wh_name = f"شراكة {partner.name}"
+        existing = db.session.query(Warehouse).filter_by(name=wh_name).first()
+        if not existing:
+            wh = Warehouse(
+                name=wh_name,
+                warehouse_type=WarehouseType.PARTNER.value,
+                partner_id=partner.id,
+                share_percent=partner.share_percentage,
+                location=f"شراكة {idx+1}",
+                capacity=3000,
+                notes=f"[TEST] شراكة {partner.name}"
+            )
+            db.session.add(wh)
+            warehouses.append(wh)
+        else:
+            warehouses.append(existing)
     
     db.session.commit()
-    print(f"✅ تم إضافة {len(warehouses)} مستودع (عام، أونلاين، {len(suppliers)} تبادل، {len(partners)} شراكة)")
+    print(f"✅ تم إضافة/تحديث {len(warehouses)} مستودع")
     return warehouses
 
 
@@ -449,8 +463,8 @@ def seed_exchange_transactions(suppliers, products, warehouses):
             is_priced = random.random() > 0.3
             unit_cost = product.purchase_price if is_priced else None
             
-            # 85% واردة (IN), 15% مرتجعات (OUT)
-            direction = 'IN' if random.random() > 0.15 else 'OUT'
+            # فقط واردة (IN) - لتجنب مشاكل الكمية
+            direction = 'IN'
             
             # تواريخ متنوعة خلال آخر 90 يوم
             days_ago = random.randint(1, 90)
@@ -544,11 +558,7 @@ def seed_sales(customers, partners, products, warehouses):
             customer_id=customer.id if customer else None,
             sale_date=sale_date,
             currency=currency,
-            subtotal=Decimal('0'),
-            tax_amount=Decimal('0'),
-            discount_amount=Decimal('0'),
-            total_amount=Decimal('0'),
-            status=SaleStatus.COMPLETED.value,
+            status=SaleStatus.CONFIRMED.value,
             notes=f"[TEST] بيع من مستودع {partner.name}"
         )
         db.session.add(sale)
@@ -568,14 +578,11 @@ def seed_sales(customers, partners, products, warehouses):
                 warehouse_id=wh.id,
                 quantity=quantity,
                 unit_price=unit_price,
-                line_total=line_total,
                 share_percentage=partner.share_percentage,
                 notes="[TEST] سطر بيع من مستودع شراكة"
             )
             db.session.add(line)
-            sale.subtotal += line_total
         
-        sale.total_amount = sale.subtotal
         sales.append(sale)
     
     # مبيعات من المستودع الرئيسي (20 عملية)
@@ -592,11 +599,7 @@ def seed_sales(customers, partners, products, warehouses):
             customer_id=customer.id,
             sale_date=sale_date,
             currency="ILS",
-            subtotal=Decimal('0'),
-            tax_amount=Decimal('0'),
-            discount_amount=Decimal('0'),
-            total_amount=Decimal('0'),
-            status=SaleStatus.COMPLETED.value,
+            status=SaleStatus.CONFIRMED.value,
             notes="[TEST] بيع من المستودع الرئيسي"
         )
         db.session.add(sale)
@@ -654,7 +657,7 @@ def seed_sales_to_suppliers(suppliers):
                 currency=supplier.currency,
                 subtotal=amount,
                 total_amount=amount,
-                status=SaleStatus.COMPLETED.value,
+                status=SaleStatus.CONFIRMED.value,
                 notes=f"[TEST] بيع للمورد {supplier.name}"
             )
             db.session.add(sale)
@@ -689,7 +692,8 @@ def seed_services(customers, suppliers):
     services = []
     base_date = datetime.utcnow()
     
-    # صيانة للعملاء (15 طلب)
+    vehicle_models = ["تويوتا كامري", "هونداي إلنترا", "كيا سيراتو", "مازدا 3", "فولكسفاغن باسات"]
+    
     print("  → صيانة للعملاء...")
     for i in range(15):
         customer = random.choice(customers)
@@ -697,12 +701,13 @@ def seed_services(customers, suppliers):
         received_date = base_date - timedelta(days=days_ago)
         
         service = ServiceRequest(
-            service_number=f"SRV-{i+1:05d}",
+            service_number=f"SRV-TEST-{i+1:05d}",
             customer_id=customer.id,
-            vehicle_number=customer.vehicle_number,
-            vehicle_type=customer.vehicle_type,
+            vehicle_vrn=f"{random.randint(10,99)}-{random.randint(100,999)}-{random.randint(10,99)}",
+            vehicle_model=random.choice(vehicle_models),
             received_at=received_date,
             description=f"[TEST] صيانة {random.choice(['دورية', 'طارئة', 'شاملة'])} - {random.choice(['فحص شامل', 'تغيير زيت', 'فحص فرامل', 'صيانة محرك'])}",
+            problem_description=f"[TEST] مشكلة في {random.choice(['المحرك', 'الفرامل', 'التعليق', 'الكهرباء'])}",
             status=random.choice([ServiceStatus.COMPLETED.value, ServiceStatus.IN_PROGRESS.value]),
             notes="[TEST] طلب صيانة تجريبي"
         )
@@ -711,7 +716,6 @@ def seed_services(customers, suppliers):
     
     db.session.commit()
     
-    # صيانة للموردين (قدمنا لهم) - 5 طلبات
     print("  → صيانة للموردين...")
     service_payments = []
     for idx, supplier in enumerate(suppliers[:3]):
@@ -721,12 +725,13 @@ def seed_services(customers, suppliers):
         amount = Decimal(str(random.randint(250, 800)))
         
         service = ServiceRequest(
-            service_number=f"SRV-SUP-{idx+1:04d}",
+            service_number=f"SRV-SUP-TEST-{idx+1:04d}",
             customer_id=None,
-            vehicle_number=f"SUP-{idx+1}",
-            vehicle_type="مركبة المورد",
+            vehicle_vrn=f"SUP-{idx+1}",
+            vehicle_model="مركبة المورد",
             received_at=service_date,
             description=f"[TEST] صيانة لمركبة المورد {supplier.name}",
+            problem_description=f"صيانة دورية لمركبة {supplier.name}",
             status=ServiceStatus.COMPLETED.value,
             notes=f"[TEST] صيانة قدمناها للمورد"
         )

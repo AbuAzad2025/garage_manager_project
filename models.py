@@ -3230,8 +3230,7 @@ def _apply_stock_delta(connection, product_id: int, warehouse_id: int, delta_qty
     else:
         res = connection.execute(sa_text("UPDATE stock_levels SET quantity = quantity + :q WHERE id = :id AND quantity + :q >= 0 AND quantity + :q >= reserved_quantity"), {"id": sid, "q": qv})
         if getattr(res, "rowcount", None) != 1:
-            from exceptions import InsufficientStockError
-            raise InsufficientStockError(f"الكمية غير كافية للمنتج {product_id} في المستودع {warehouse_id}")
+            raise ValueError(f"الكمية غير كافية للمنتج {product_id} في المستودع {warehouse_id}")
     qty = connection.execute(sa_text("SELECT quantity FROM stock_levels WHERE id = :id"), {"id": sid}).scalar_one()
     return int(qty)
 
@@ -3241,8 +3240,7 @@ def _apply_reservation_delta(connection, product_id: int, warehouse_id: int, del
     if qv > 0:
         res = connection.execute(sa_text("UPDATE stock_levels SET reserved_quantity = reserved_quantity + :q WHERE id = :id AND (quantity - reserved_quantity) >= :q"), {"id": sid, "q": qv})
         if getattr(res, "rowcount", 0) != 1:
-            from exceptions import InsufficientStockError
-            raise InsufficientStockError("الكمية المتاحة غير كافية للحجز")
+            raise ValueError("الكمية المتاحة غير كافية للحجز")
     else:
         connection.execute(sa_text("UPDATE stock_levels SET reserved_quantity = CASE WHEN reserved_quantity + :q < 0 THEN 0 ELSE reserved_quantity + :q END WHERE id = :id"), {"id": sid, "q": qv})
 
