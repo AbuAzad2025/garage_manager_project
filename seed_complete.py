@@ -545,7 +545,7 @@ def seed_sales(customers, partners, products, warehouses):
     for i in range(30):
         wh = random.choice(partner_whs)
         partner = wh.partner
-        customer = random.choice(customers) if random.random() > 0.2 else None
+        customer = random.choice(customers)
         
         days_ago = random.randint(1, 60)
         sale_date = base_date - timedelta(days=days_ago)
@@ -555,7 +555,7 @@ def seed_sales(customers, partners, products, warehouses):
         
         sale = Sale(
             sale_number=f"SALE-{i+1:05d}",
-            customer_id=customer.id if customer else None,
+            customer_id=customer.id,
             sale_date=sale_date,
             currency=currency,
             status=SaleStatus.CONFIRMED.value,
@@ -618,13 +618,10 @@ def seed_sales(customers, partners, products, warehouses):
                 warehouse_id=wh.id,
                 quantity=quantity,
                 unit_price=unit_price,
-                line_total=line_total,
                 notes="[TEST] سطر بيع عادي"
             )
             db.session.add(line)
-            sale.subtotal += line_total
         
-        sale.total_amount = sale.subtotal
         sales.append(sale)
     
     db.session.commit()
@@ -655,9 +652,7 @@ def seed_sales_to_suppliers(suppliers):
                 customer_id=None,
                 sale_date=sale_date,
                 currency=supplier.currency,
-                subtotal=amount,
-                total_amount=amount,
-                status=SaleStatus.CONFIRMED.value,
+                status=SaleStatus.DRAFT.value,
                 notes=f"[TEST] بيع للمورد {supplier.name}"
             )
             db.session.add(sale)
