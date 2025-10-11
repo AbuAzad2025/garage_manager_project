@@ -11,10 +11,7 @@
       <strong>📋 قائمة جميع التسويات:</strong> انقر على زر <span class="badge bg-warning text-dark"><i class="fas fa-file-invoice-dollar"></i> قائمة التسويات</span> في الأعلى
     </p>
     <p class="mb-0">
-      <strong>🧮 تسوية ذكية لمورد:</strong> انقر على زر <span class="badge bg-success"><i class="fas fa-calculator"></i> تسوية ذكية</span> في سطر المورد
-    </p>
-    <p class="mb-0">
-      <strong>⚡ تسوية سريعة:</strong> انقر على زر <span class="badge bg-outline-success"><i class="fas fa-scale-balanced"></i> تسوية سريعة</span> لتسوية الرصيد فوراً
+      <strong>🧮 تسوية ذكية لمورد:</strong> انقر على زر <span class="badge bg-success"><i class="fas fa-calculator"></i> تسوية ذكية</span> في سطر المورد - تشمل جميع المعاملات (قطع، مبيعات، صيانة، دفعات)
     </p>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
   </div>
@@ -131,21 +128,11 @@
                 </a>
                 <a href="{{ url_for('supplier_settlements_bp.supplier_settlement', supplier_id=s.id) }}"
                    class="btn btn-sm btn-success d-flex align-items-center"
-                   title="التسوية الذكية للمورد">
+                   title="التسوية الذكية الشاملة - قطع، مبيعات، صيانة، دفعات">
                   <i class="fas fa-calculator"></i>
                   <span class="d-none d-lg-inline ms-1">تسوية ذكية</span>
                 </a>
-                <button type="button"
-                        class="btn btn-sm btn-outline-success d-flex align-items-center btn-settle"
-                        title="تسوية سريعة للرصيد"
-                        data-entity-type="supplier"
-                        data-id="{{ s.id }}"
-                        data-name="{{ s.name }}"
-                        data-balance="{{ '%.2f'|format(s.balance_in_ils or 0) }}"
-                        data-currency="{{ s.currency or 'ILS' }}">
-                  <i class="fas fa-scale-balanced"></i>
-                  <span class="d-none d-lg-inline ms-1">تسوية سريعة</span>
-                </button>
+                <!-- تم إخفاء التسوية السريعة - نستخدم التسوية الذكية الشاملة بدلاً منها -->
                 {% if current_user.has_permission('manage_vendors') %}
                   <a href="{{ url_for('vendors_bp.suppliers_edit', id=s.id) }}"
                      class="btn btn-sm btn-outline-secondary d-flex align-items-center" title="تعديل">

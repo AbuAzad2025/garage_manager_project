@@ -81,23 +81,40 @@ def _overlap_exists(supplier_id: int, dfrom: datetime, dto: datetime) -> bool:
         and_(SupplierSettlement.from_date <= dto, SupplierSettlement.to_date >= dfrom)
     ).first() is not None
 
+# ═══════════════════════════════════════════════════════════════════════
+# التسويات العادية (معطلة - نستخدم التسوية الذكية فقط)
+# ═══════════════════════════════════════════════════════════════════════
+
+# @supplier_settlements_bp.route("/<int:supplier_id>/settlements/preview", methods=["GET"])
+# @login_required
+# @permission_required("manage_vendors")
+# def preview(supplier_id):
+#     """معطل - استخدم التسوية الذكية بدلاً منه"""
+#     return jsonify({"success": False, "error": "التسويات العادية معطلة. استخدم التسوية الذكية"}), 400
+
 @supplier_settlements_bp.route("/<int:supplier_id>/settlements/preview", methods=["GET"])
 @login_required
 @permission_required("manage_vendors")
 def preview(supplier_id):
-    supplier = _get_supplier_or_404(supplier_id)
-    dfrom, dto, err = _extract_range_from_request()
-    if err:
-        return jsonify({"success": False, "error": err}), 400
-    draft = build_supplier_settlement_draft(supplier.id, dfrom, dto, currency=supplier.currency)
-    lines = getattr(draft, "lines", []) or []
-    data = {
-        "success": True,
-        "supplier": {"id": supplier.id, "name": supplier.name, "currency": supplier.currency},
-        "from": dfrom.isoformat(),
-        "to": dto.isoformat(),
-        "code": draft.code,
-        "totals": {
+    """إعادة توجيه للتسوية الذكية"""
+    from flask import redirect
+    return redirect(url_for('supplier_settlements_bp.supplier_settlement', supplier_id=supplier_id))
+
+# الكود القديم (محفوظ للمرجع فقط):
+# def preview_OLD(supplier_id):
+#     supplier = _get_supplier_or_404(supplier_id)
+#     dfrom, dto, err = _extract_range_from_request()
+#     if err:
+#         return jsonify({"success": False, "error": err}), 400
+#     draft = build_supplier_settlement_draft(supplier.id, dfrom, dto, currency=supplier.currency)
+#     lines = getattr(draft, "lines", []) or []
+#     data = {
+#         "success": True,
+#         "supplier": {"id": supplier.id, "name": supplier.name, "currency": supplier.currency},
+#         "from": dfrom.isoformat(),
+#         "to": dto.isoformat(),
+#         "code": draft.code,
+#         "totals": {
             "gross": _q2(draft.total_gross),
             "due": _q2(draft.total_due),
         },
@@ -215,6 +232,51 @@ def show(settlement_id):
     return render_template("vendors/suppliers/settlement_preview.html", ss=ss)
 
 
+@supplier_settlements_bp.route("/exchange-transaction/<int:tx_id>/update-price", methods=["POST"])
+@login_required
+@permission_required("manage_vendors")
+def update_exchange_transaction_price(tx_id):
+    """تحديث سعر قطعة في مستودع التبادل - API"""
+    from models import ExchangeTransaction
+    
+    tx = db.session.get(ExchangeTransaction, tx_id)
+    if not tx:
+        return jsonify({"success": False, "error": "المعاملة غير موجودة"}), 404
+    
+    data = request.get_json() or {}
+    new_price = data.get("unit_cost")
+    
+    if new_price is None:
+        return jsonify({"success": False, "error": "السعر مطلوب"}), 400
+    
+    try:
+        new_price = Decimal(str(new_price))
+        if new_price < 0:
+            return jsonify({"success": False, "error": "السعر يجب أن يكون >= 0"}), 400
+    except (ValueError, InvalidOperation):
+        return jsonify({"success": False, "error": "سعر غير صالح"}), 400
+    
+    try:
+        tx.unit_cost = new_price
+        tx.is_priced = True
+        db.session.commit()
+        
+        # حساب القيمة الجديدة
+        total_value = float(_q2(tx.quantity * new_price))
+        
+        return jsonify({
+            "success": True,
+            "message": "تم تحديث السعر بنجاح",
+            "transaction_id": tx.id,
+            "new_price": float(new_price),
+            "quantity": tx.quantity,
+            "total_value": total_value
+        })
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 # ===== نظام التسوية الذكي للموردين =====
 
 @supplier_settlements_bp.route("/<int:supplier_id>/settlement", methods=["GET"], endpoint="supplier_settlement")
@@ -270,75 +332,122 @@ def supplier_settlement(supplier_id):
 
 
 def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, date_to: datetime):
-    """حساب الرصيد الذكي للمورد مع التفاصيل المتقدمة"""
+    """
+    حساب الرصيد الذكي الشامل للمورد
+    يشمل: القطع، المبيعات، الصيانة، الديون، الدفعات، المرتجعات
+    """
     try:
-        from models import Expense, Sale, ExchangeTransaction, Payment, Product
-        from sqlalchemy import func, desc
+        from models import (
+            Expense, Sale, SaleLine, ExchangeTransaction, Payment, Product,
+            ServiceRequest, ServicePart, Warehouse, WarehouseType, StockLevel
+        )
+        from sqlalchemy import func, desc, or_
         
         supplier = db.session.get(Supplier, supplier_id)
         if not supplier:
             return {"success": False, "error": "المورد غير موجود"}
         
-        # 1. الوارد من المورد (المشتريات + القطع المعطاة له)
-        incoming = _calculate_supplier_incoming(supplier_id, date_from, date_to)
+        # ═══════════════════════════════════════════════════════════
+        # المدين (Debit - له علينا - نحن ندين له)
+        # ═══════════════════════════════════════════════════════════
         
-        # 2. الصادر للمورد (المبيعات + القطع المأخوذة منه)
-        outgoing = _calculate_supplier_outgoing(supplier_id, date_from, date_to)
+        # 1. القطع من مستودع التبادل (IN direction)
+        exchange_items = _get_supplier_exchange_items(supplier_id, date_from, date_to)
         
-        # 3. الدفعات
-        payments_to_supplier = _calculate_payments_to_supplier(supplier_id, date_from, date_to)
-        payments_from_supplier = _calculate_payments_from_supplier(supplier_id, date_from, date_to)
+        # 2. ديون قديمة (إن وجدت - من Expense أو مصادر أخرى)
+        old_debts = _get_supplier_old_debts(supplier_id, date_from)
         
-        # 4. حساب الرصيد النهائي
-        total_incoming = incoming["total"] + payments_from_supplier
-        total_outgoing = outgoing["total"] + payments_to_supplier
+        total_debit = exchange_items["total_value"] + old_debts
         
-        balance = total_incoming - total_outgoing
+        # ═══════════════════════════════════════════════════════════
+        # الدائن (Credit - علينا له - المورد أخذ أو ندين له)
+        # ═══════════════════════════════════════════════════════════
         
-        # 5. التحقق من القطع غير المسعرة
-        unpriced_items = _check_unpriced_items_for_supplier(supplier_id, date_from, date_to)
+        # 3. المبيعات للمورد (اشترى منا) - من Payment المرتبطة بـ sale_id
+        sales_to_supplier = _get_sales_to_supplier(supplier_id, date_from, date_to)
         
-        # 6. آخر تسوية
+        # 4. الصيانة للمورد (قدمنا له خدمة) - من Payment المرتبطة بـ service_id
+        services_to_supplier = _get_services_to_supplier(supplier_id, date_from, date_to)
+        
+        # 5. الدفعات النقدية للمورد (OUT direction)
+        cash_payments = _get_cash_payments_to_supplier(supplier_id, date_from, date_to)
+        
+        # 6. المرتجعات (قطع رجعناها له - OUT direction في Exchange)
+        returns = _get_returns_to_supplier(supplier_id, date_from, date_to)
+        
+        total_credit = (sales_to_supplier["total"] + 
+                       services_to_supplier["total"] + 
+                       cash_payments + 
+                       returns["total_value"])
+        
+        # ═══════════════════════════════════════════════════════════
+        # الحساب النهائي
+        # ═══════════════════════════════════════════════════════════
+        
+        balance = total_debit - total_credit
+        
+        # ═══════════════════════════════════════════════════════════
+        # معلومات إضافية
+        # ═══════════════════════════════════════════════════════════
+        
+        # القطع غير المسعّرة
+        unpriced_items = exchange_items["unpriced_items"]
+        
+        # آخر تسوية
         last_settlement = _get_last_supplier_settlement(supplier_id)
         
-        # 7. تفاصيل العمليات
-        operations_details = _get_supplier_operations_details(supplier_id, date_from, date_to)
+        # التسويات السابقة
+        previous_settlements = _get_previous_supplier_settlements(supplier_id, date_from)
+        
+        # قيمة العهدة (Consignment) المتبقية
+        consignment_value = _get_supplier_consignment_value(supplier_id)
         
         return {
             "success": True,
             "supplier": {
                 "id": supplier.id,
                 "name": supplier.name,
-                "currency": supplier.currency
+                "currency": supplier.currency,
+                "original_currency": supplier.currency
             },
             "period": {
                 "from": date_from.isoformat(),
                 "to": date_to.isoformat()
             },
-            "incoming": {
-                "purchases": incoming["purchases"],
-                "products_given": incoming["products_given"],
-                "payments_received": payments_from_supplier,
-                "total": total_incoming
+            # المدين (له علينا)
+            "debit": {
+                "exchange_items": exchange_items,  # القطع مع تفاصيلها
+                "old_debts": old_debts,
+                "total": total_debit
             },
-            "outgoing": {
-                "sales": outgoing["sales"],
-                "products_taken": outgoing["products_taken"],
-                "payments_made": payments_to_supplier,
-                "total": total_outgoing
+            # الدائن (علينا له)
+            "credit": {
+                "sales": sales_to_supplier,  # المبيعات مع التفاصيل
+                "services": services_to_supplier,  # الصيانة مع التفاصيل
+                "cash_payments": cash_payments,  # الدفعات النقدية
+                "returns": returns,  # المرتجعات
+                "total": total_credit
             },
+            # الرصيد (بالشيكل)
             "balance": {
                 "amount": balance,
-                "direction": "للمورد" if balance > 0 else "على المورد" if balance < 0 else "متوازن",
-                "currency": supplier.currency
+                "direction": "دفع للمورد" if balance > 0 else "قبض من المورد" if balance < 0 else "متوازن",
+                "payment_direction": "OUT" if balance > 0 else "IN",
+                "currency": "ILS",  # كل الحسابات موحدة بالشيكل
+                "note": "جميع المبالغ محولة إلى الشيكل (ILS) حسب أسعار الصرف"
             },
-            "recommendation": _get_settlement_recommendation(balance, supplier.currency),
+            # معلومات إضافية
             "unpriced_items": unpriced_items,
             "last_settlement": last_settlement,
-            "operations_details": operations_details
+            "previous_settlements": previous_settlements,
+            "consignment_value": consignment_value,
+            "has_warnings": len(unpriced_items) > 0,
+            "currency_note": "⚠️ تنبيه: تم توحيد جميع العملات إلى الشيكل (ILS) باستخدام أسعار الصرف المسجلة"
         }
         
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return {"success": False, "error": f"خطأ في حساب رصيد المورد: {str(e)}"}
 
 
@@ -577,7 +686,7 @@ def _get_settlement_recommendation(balance: float, currency: str):
             "action": "دفع",
             "message": f"يجب دفع {abs(balance):.2f} {currency} للمورد",
             "amount": abs(balance),
-            "direction": "OUTGOING",
+            "direction": "OUT",
             "warnings": []
         }
     else:  # الباقي عليه
@@ -585,6 +694,355 @@ def _get_settlement_recommendation(balance: float, currency: str):
             "action": "قبض",
             "message": f"يجب قبض {abs(balance):.2f} {currency} من المورد",
             "amount": abs(balance),
-            "direction": "INCOMING",
+            "direction": "IN",
             "warnings": []
         }
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# دوال مساعدة للتسوية الذكية الشاملة
+# Helper Functions for Comprehensive Smart Settlement
+# ═══════════════════════════════════════════════════════════════════════
+
+def _convert_to_ils(amount: Decimal | float, from_currency: str, at: datetime = None) -> Decimal:
+    """
+    تحويل أي مبلغ إلى الشيكل (ILS)
+    إذا كانت العملة بالفعل ILS، يرجع نفس المبلغ
+    """
+    from models import convert_amount, money
+    
+    if not amount or amount == 0:
+        return Decimal('0.00')
+    
+    # تنظيف اسم العملة
+    from_currency = (from_currency or "ILS").strip().upper()
+    
+    # إذا كانت بالفعل ILS، لا حاجة للتحويل
+    if from_currency == "ILS":
+        return _q2(amount)
+    
+    # محاولة التحويل
+    try:
+        converted = convert_amount(
+            amount=amount,
+            from_code=from_currency,
+            to_code="ILS",
+            at=at or datetime.utcnow()
+        )
+        return _q2(converted)
+    except Exception as e:
+        # في حال فشل التحويل، نحذر المستخدم
+        import traceback
+        traceback.print_exc()
+        # نرجع القيمة كما هي مع إشارة للمشكلة
+        print(f"⚠️ تحذير: فشل تحويل {amount} من {from_currency} إلى ILS: {e}")
+        return _q2(amount)
+
+
+def _get_supplier_exchange_items(supplier_id: int, date_from: datetime, date_to: datetime):
+    """جلب القطع من مستودع التبادل مع التفاصيل"""
+    from models import ExchangeTransaction, Warehouse, WarehouseType, Product
+    
+    # جلب مستودعات التبادل للمورد
+    exchange_warehouses = db.session.query(Warehouse.id).filter(
+        Warehouse.supplier_id == supplier_id,
+        Warehouse.warehouse_type == WarehouseType.EXCHANGE.value
+    ).all()
+    
+    warehouse_ids = [w[0] for w in exchange_warehouses]
+    
+    if not warehouse_ids:
+        return {"items": [], "unpriced_items": [], "total_value": 0, "priced_count": 0, "unpriced_count": 0}
+    
+    # جلب المعاملات IN (قطع أخذناها من المورد)
+    transactions = db.session.query(ExchangeTransaction).options(
+        joinedload(ExchangeTransaction.product)
+    ).filter(
+        ExchangeTransaction.warehouse_id.in_(warehouse_ids),
+        ExchangeTransaction.direction.in_(['IN', 'PURCHASE', 'CONSIGN_IN']),
+        ExchangeTransaction.created_at >= date_from,
+        ExchangeTransaction.created_at <= date_to
+    ).all()
+    
+    items = []
+    unpriced_items = []
+    total_value = Decimal('0.00')
+    
+    for tx in transactions:
+        prod = tx.product
+        qty = tx.quantity or 0
+        unit_cost = tx.unit_cost
+        
+        # محاولة الحصول على السعر
+        if not unit_cost or unit_cost == 0:
+            if prod and prod.purchase_price:
+                unit_cost = prod.purchase_price
+                fallback_used = True
+            else:
+                # قطعة غير مسعّرة
+                unpriced_items.append({
+                    "id": tx.id,
+                    "product_id": tx.product_id,
+                    "product_name": prod.name if prod else "غير محدد",
+                    "product_sku": prod.sku if prod else None,
+                    "quantity": qty,
+                    "date": tx.created_at,
+                    "suggested_price": 0
+                })
+                unit_cost = Decimal('0')
+                fallback_used = False
+        else:
+            fallback_used = False
+        
+        value = _q2(qty * unit_cost)
+        total_value += value
+        
+        items.append({
+            "id": tx.id,
+            "product_id": tx.product_id,
+            "product_name": prod.name if prod else "غير محدد",
+            "product_sku": prod.sku if prod else None,
+            "quantity": qty,
+            "unit_cost": float(unit_cost),
+            "total_value": float(value),
+            "date": tx.created_at,
+            "is_priced": unit_cost > 0,
+            "fallback_used": fallback_used
+        })
+    
+    return {
+        "items": items,
+        "unpriced_items": unpriced_items,
+        "total_value": float(total_value),
+        "priced_count": len([i for i in items if i["is_priced"]]),
+        "unpriced_count": len(unpriced_items)
+    }
+
+
+def _get_supplier_old_debts(supplier_id: int, before_date: datetime):
+    """جلب الديون القديمة للمورد (قبل الفترة)"""
+    # يمكن إضافة منطق للديون القديمة إذا كانت مسجلة في مكان ما
+    # حالياً نرجع 0
+    return 0
+
+
+def _get_sales_to_supplier(supplier_id: int, date_from: datetime, date_to: datetime):
+    """جلب المبيعات للمورد (اشترى منا) - مع تحويل العملات إلى ILS"""
+    from models import Payment, Sale
+    
+    # البحث عن الدفعات المرتبطة بمبيعات والمورد
+    payments = db.session.query(Payment).options(
+        joinedload(Payment.sale)
+    ).filter(
+        Payment.supplier_id == supplier_id,
+        Payment.sale_id.isnot(None),
+        Payment.payment_date >= date_from,
+        Payment.payment_date <= date_to
+    ).all()
+    
+    sales_list = []
+    total_ils = Decimal('0.00')
+    
+    for payment in payments:
+        sale = payment.sale
+        if sale:
+            amount_original = payment.total_amount or 0
+            currency = payment.currency or "ILS"
+            payment_date = payment.payment_date or datetime.utcnow()
+            
+            # تحويل إلى ILS
+            amount_ils = _convert_to_ils(amount_original, currency, payment_date)
+            total_ils += amount_ils
+            
+            sales_list.append({
+                "id": sale.id,
+                "sale_number": sale.sale_number,
+                "date": sale.sale_date,
+                "amount_original": float(amount_original),
+                "currency": currency,
+                "amount_ils": float(amount_ils),
+                "payment_id": payment.id,
+                "notes": payment.notes or ""
+            })
+    
+    return {
+        "items": sales_list,
+        "count": len(sales_list),
+        "total": float(total_ils)  # الإجمالي بالشيكل
+    }
+
+
+def _get_services_to_supplier(supplier_id: int, date_from: datetime, date_to: datetime):
+    """جلب الصيانة المقدمة للمورد - مع تحويل العملات إلى ILS"""
+    from models import Payment, ServiceRequest
+    
+    # البحث عن الدفعات المرتبطة بطلبات صيانة والمورد
+    payments = db.session.query(Payment).options(
+        joinedload(Payment.service)
+    ).filter(
+        Payment.supplier_id == supplier_id,
+        Payment.service_id.isnot(None),
+        Payment.payment_date >= date_from,
+        Payment.payment_date <= date_to
+    ).all()
+    
+    services_list = []
+    total_ils = Decimal('0.00')
+    
+    for payment in payments:
+        service = payment.service
+        if service:
+            amount_original = payment.total_amount or 0
+            currency = payment.currency or "ILS"
+            payment_date = payment.payment_date or datetime.utcnow()
+            
+            # تحويل إلى ILS
+            amount_ils = _convert_to_ils(amount_original, currency, payment_date)
+            total_ils += amount_ils
+            
+            services_list.append({
+                "id": service.id,
+                "service_number": service.service_number,
+                "date": service.received_at or service.created_at,
+                "amount_original": float(amount_original),
+                "currency": currency,
+                "amount_ils": float(amount_ils),
+                "payment_id": payment.id,
+                "notes": payment.notes or service.description or ""
+            })
+    
+    return {
+        "items": services_list,
+        "count": len(services_list),
+        "total": float(total_ils)  # الإجمالي بالشيكل
+    }
+
+
+def _get_cash_payments_to_supplier(supplier_id: int, date_from: datetime, date_to: datetime):
+    """جلب الدفعات النقدية المباشرة للمورد (بدون مبيعات أو صيانة) - مع تحويل العملات"""
+    from models import Payment
+    
+    # الدفعات OUT المباشرة للمورد (بدون sale_id أو service_id)
+    payments = db.session.query(Payment).filter(
+        Payment.supplier_id == supplier_id,
+        Payment.direction == PaymentDirection.OUT.value,
+        Payment.status == PaymentStatus.COMPLETED.value,
+        Payment.sale_id.is_(None),
+        Payment.service_id.is_(None),
+        Payment.payment_date >= date_from,
+        Payment.payment_date <= date_to
+    ).all()
+    
+    total_ils = Decimal('0.00')
+    for payment in payments:
+        amount_original = payment.total_amount or 0
+        currency = payment.currency or "ILS"
+        payment_date = payment.payment_date or datetime.utcnow()
+        
+        # تحويل إلى ILS
+        amount_ils = _convert_to_ils(amount_original, currency, payment_date)
+        total_ils += amount_ils
+    
+    return float(total_ils)
+
+
+def _get_returns_to_supplier(supplier_id: int, date_from: datetime, date_to: datetime):
+    """جلب المرتجعات للمورد (قطع رجعناها له)"""
+    from models import ExchangeTransaction, Warehouse, WarehouseType
+    
+    # جلب مستودعات التبادل للمورد
+    exchange_warehouses = db.session.query(Warehouse.id).filter(
+        Warehouse.supplier_id == supplier_id,
+        Warehouse.warehouse_type == WarehouseType.EXCHANGE.value
+    ).all()
+    
+    warehouse_ids = [w[0] for w in exchange_warehouses]
+    
+    if not warehouse_ids:
+        return {"items": [], "total_value": 0, "count": 0}
+    
+    # جلب المعاملات OUT (قطع رجعناها للمورد)
+    transactions = db.session.query(ExchangeTransaction).options(
+        joinedload(ExchangeTransaction.product)
+    ).filter(
+        ExchangeTransaction.warehouse_id.in_(warehouse_ids),
+        ExchangeTransaction.direction.in_(['OUT', 'RETURN', 'CONSIGN_OUT']),
+        ExchangeTransaction.created_at >= date_from,
+        ExchangeTransaction.created_at <= date_to
+    ).all()
+    
+    items = []
+    total_value = Decimal('0.00')
+    
+    for tx in transactions:
+        prod = tx.product
+        qty = tx.quantity or 0
+        unit_cost = tx.unit_cost or (prod.purchase_price if prod else 0) or 0
+        value = _q2(qty * unit_cost)
+        total_value += value
+        
+        items.append({
+            "id": tx.id,
+            "product_name": prod.name if prod else "غير محدد",
+            "quantity": qty,
+            "unit_cost": float(unit_cost),
+            "total_value": float(value),
+            "date": tx.created_at
+        })
+    
+    return {
+        "items": items,
+        "count": len(items),
+        "total_value": float(total_value)
+    }
+
+
+def _get_previous_supplier_settlements(supplier_id: int, before_date: datetime):
+    """جلب التسويات السابقة للمورد"""
+    from models import SupplierSettlement
+    from sqlalchemy import desc
+    
+    settlements = db.session.query(SupplierSettlement).filter(
+        SupplierSettlement.supplier_id == supplier_id,
+        SupplierSettlement.created_at < before_date
+    ).order_by(desc(SupplierSettlement.created_at)).limit(5).all()
+    
+    return [{
+        "id": s.id,
+        "code": s.code,
+        "date": s.created_at,
+        "status": s.status,
+        "total_due": float(s.total_due or 0),
+        "currency": s.currency,
+        "from_date": s.from_date,
+        "to_date": s.to_date
+    } for s in settlements]
+
+
+def _get_supplier_consignment_value(supplier_id: int):
+    """حساب قيمة العهدة المتبقية في المخزون"""
+    from models import Warehouse, WarehouseType, StockLevel, Product
+    from sqlalchemy import func
+    
+    # جلب مستودعات التبادل للمورد
+    exchange_warehouses = db.session.query(Warehouse.id).filter(
+        Warehouse.supplier_id == supplier_id,
+        Warehouse.warehouse_type == WarehouseType.EXCHANGE.value
+    ).all()
+    
+    warehouse_ids = [w[0] for w in exchange_warehouses]
+    
+    if not warehouse_ids:
+        return 0
+    
+    # حساب القيمة الإجمالية للعهدة
+    rows = db.session.query(
+        func.sum(StockLevel.quantity * Product.purchase_price)
+    ).join(
+        Product, Product.id == StockLevel.product_id
+    ).filter(
+        StockLevel.warehouse_id.in_(warehouse_ids),
+        StockLevel.quantity > 0
+    ).scalar() or 0
+    
+    return float(rows)
