@@ -1,4 +1,7 @@
-# routes/health.py
+# health.py - Health Check Routes
+# Location: /garage_manager/routes/health.py
+# Description: System health monitoring and status routes
+
 """
 نظام مراقبة الصحة المحسن
 Enhanced Health Check System

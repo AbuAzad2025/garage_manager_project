@@ -1,4 +1,7 @@
-# File: supplier_settlements.py
+# supplier_settlements.py - Supplier Settlements Routes
+# Location: /garage_manager/routes/supplier_settlements.py
+# Description: Supplier settlements and financial agreements routes
+
 from datetime import datetime, date as _date, time as _time
 from decimal import Decimal, ROUND_HALF_UP
 from flask import Blueprint, request, jsonify, render_template, url_for, abort
