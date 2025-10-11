@@ -106,17 +106,12 @@
             </td>
             <td>
               <div class="d-flex flex-wrap gap-2">
-                <!-- ترتيب احترافي للأزرار حسب الأهمية -->
-                
-                <!-- 1. التسوية الذكية (الأهم - أخضر) -->
                 <a href="{{ url_for('supplier_settlements_bp.supplier_settlement', supplier_id=s.id) }}"
                    class="btn btn-sm btn-success d-flex align-items-center"
                    title="التسوية الذكية الشاملة - قطع، مبيعات، صيانة، دفعات">
                   <i class="fas fa-calculator"></i>
                   <span class="d-none d-lg-inline ms-1">تسوية ذكية</span>
                 </a>
-                
-                <!-- 2. إنشاء دفعة (أزرق) -->
                 <a href="{{ url_for('payments.create_payment', entity_type='SUPPLIER', entity_id=s.id) }}"
                    class="btn btn-sm btn-primary d-flex align-items-center" title="إنشاء دفعة جديدة">
                   <i class="fas fa-coins"></i>

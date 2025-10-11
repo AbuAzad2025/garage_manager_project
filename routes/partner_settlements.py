@@ -81,19 +81,12 @@ def _overlap_exists(partner_id: int, dfrom: datetime, dto: datetime) -> bool:
         and_(PartnerSettlement.from_date <= dto, PartnerSettlement.to_date >= dfrom)
     ).first() is not None
 
-# ═══════════════════════════════════════════════════════════════════════
-# التسويات العادية (معطلة - نستخدم التسوية الذكية فقط)
-# ═══════════════════════════════════════════════════════════════════════
-
 @partner_settlements_bp.route("/<int:partner_id>/settlements/preview", methods=["GET"])
 @login_required
 @permission_required("manage_vendors")
 def preview(partner_id):
-    """إعادة توجيه للتسوية الذكية"""
     from flask import redirect
     return redirect(url_for('partner_settlements_bp.partner_settlement', partner_id=partner_id))
-
-# الكود القديم معطّل - تم الانتقال للتسوية الذكية الشاملة
 
 @partner_settlements_bp.route("/<int:partner_id>/settlements/create", methods=["POST"])
 @login_required

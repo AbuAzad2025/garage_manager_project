@@ -81,56 +81,12 @@ def _overlap_exists(supplier_id: int, dfrom: datetime, dto: datetime) -> bool:
         and_(SupplierSettlement.from_date <= dto, SupplierSettlement.to_date >= dfrom)
     ).first() is not None
 
-# ═══════════════════════════════════════════════════════════════════════
-# التسويات العادية (معطلة - نستخدم التسوية الذكية فقط)
-# ═══════════════════════════════════════════════════════════════════════
-
-# @supplier_settlements_bp.route("/<int:supplier_id>/settlements/preview", methods=["GET"])
-# @login_required
-# @permission_required("manage_vendors")
-# def preview(supplier_id):
-#     """معطل - استخدم التسوية الذكية بدلاً منه"""
-#     return jsonify({"success": False, "error": "التسويات العادية معطلة. استخدم التسوية الذكية"}), 400
-
 @supplier_settlements_bp.route("/<int:supplier_id>/settlements/preview", methods=["GET"])
 @login_required
 @permission_required("manage_vendors")
 def preview(supplier_id):
-    """إعادة توجيه للتسوية الذكية"""
     from flask import redirect
     return redirect(url_for('supplier_settlements_bp.supplier_settlement', supplier_id=supplier_id))
-
-# الكود القديم (محفوظ للمرجع فقط):
-# def preview_OLD(supplier_id):
-#     supplier = _get_supplier_or_404(supplier_id)
-#     dfrom, dto, err = _extract_range_from_request()
-#     if err:
-#         return jsonify({"success": False, "error": err}), 400
-#     draft = build_supplier_settlement_draft(supplier.id, dfrom, dto, currency=supplier.currency)
-#     lines = getattr(draft, "lines", []) or []
-#     data = {
-#         "success": True,
-#         "supplier": {"id": supplier.id, "name": supplier.name, "currency": supplier.currency},
-#         "from": dfrom.isoformat(),
-#         "to": dto.isoformat(),
-#         "code": draft.code,
-#         "totals": {
-            "gross": _q2(draft.total_gross),
-            "due": _q2(draft.total_due),
-        },
-        "lines": [{
-            "source_type": l.source_type,
-            "source_id": l.source_id,
-            "description": l.description,
-            "product_id": l.product_id,
-            "product_name": getattr(l, 'product_name', None),
-            "product_sku": getattr(l, 'product_sku', None),
-            "quantity": _q2(l.quantity) if l.quantity is not None else None,
-            "unit_price": _q2(l.unit_price) if l.unit_price is not None else None,
-            "gross_amount": _q2(l.gross_amount),
-        } for l in lines],
-    }
-    return jsonify(data)
 
 @supplier_settlements_bp.route("/<int:supplier_id>/settlements/create", methods=["POST"])
 @login_required
