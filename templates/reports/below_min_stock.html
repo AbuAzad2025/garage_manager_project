@@ -11,9 +11,12 @@
 {% block report_content %}
 <div class="container-fluid" dir="rtl">
 
-  <!-- العنوان -->
-  <div class="mb-3">
-    <h4 class="fw-bold"><i class="fas fa-box-open"></i> {{ FIELD_LABELS.get("below_min_stock", "المواد تحت الحد الأدنى") }}</h4>
+  <!-- العنوان وزر الطباعة -->
+  <div class="mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <h4 class="fw-bold m-0"><i class="fas fa-box-open"></i> {{ FIELD_LABELS.get("below_min_stock", "المواد تحت الحد الأدنى") }}</h4>
+    <button type="button" class="btn btn-outline-primary btn-sm" id="btn-print">
+      <i class="fas fa-print"></i> طباعة
+    </button>
   </div>
 
   <!-- بطاقات ملخص -->

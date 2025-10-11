@@ -19,7 +19,7 @@
     <img src="{{ url_for('static', filename='img/azad_logo.png') }}" alt="Logo">
   </div>
   <div class="company-info">
-    <div class="company-name">{{ system_settings.company_name or 'Azad Garage' }}</div>
+    <div class="company-name">{{ system_settings.system_name or system_settings.company_name or 'كراج أزاد' }}</div>
     <div class="company-details">
       {% if system_settings.COMPANY_ADDRESS %}📍 {{ system_settings.COMPANY_ADDRESS }}{% endif %}
       {% if system_settings.COMPANY_PHONE %} | 📞 {{ system_settings.COMPANY_PHONE }}{% endif %}
@@ -28,14 +28,19 @@
   </div>
   <div class="report-type">
     <h2>{{ self.page_title() }}</h2>
-    <div class="report-date">{{ now()|format_date }}</div>
+    <div class="report-date">📅 {{ now()|format_datetime }}</div>
+    <div class="user-info" style="font-size: 7pt; margin-top: 1mm;">👤 {{ current_user.username if current_user.is_authenticated else 'النظام' }}</div>
   </div>
 </div>
 
 <!-- تذييل الصفحة للطباعة فقط -->
 <div class="print-footer-report">
   <div class="footer-line">
-    <strong>{{ system_settings.company_name or 'Azad Garage' }}</strong> | نظام إدارة الكراج
+    <strong>{{ system_settings.system_name or system_settings.company_name or 'كراج أزاد' }}</strong>
+  </div>
+  <div class="footer-line print-time" style="font-size: 7pt; color: #999;">
+    طُبع بواسطة: {{ current_user.username if current_user.is_authenticated else 'النظام' }} | 
+    {{ now()|format_datetime }}
   </div>
 </div>
 

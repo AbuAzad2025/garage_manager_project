@@ -12,12 +12,17 @@
 
   <div class="mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
     <h4 class="fw-bold m-0"><i class="fas fa-user-friends"></i> {{ FIELD_LABELS.get("customers", "العملاء") }}</h4>
-    <form class="d-flex gap-2" method="get" action="{{ url_for('reports_bp.customers_report') }}">
-      <input type="date" name="start" class="form-control form-control-sm" value="{{ start or '' }}">
-      <input type="date" name="end"   class="form-control form-control-sm" value="{{ end or '' }}">
-      <button class="btn btn-primary btn-sm"><i class="fas fa-sync-alt"></i> تحديث</button>
-      <a class="btn btn-outline-dark btn-sm" href="{{ url_for('reports_bp.customers_report') }}"><i class="fas fa-times"></i></a>
-    </form>
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-outline-primary btn-sm" id="btn-print">
+        <i class="fas fa-print"></i> طباعة
+      </button>
+      <form class="d-flex gap-2" method="get" action="{{ url_for('reports_bp.customers_report') }}">
+        <input type="date" name="start" class="form-control form-control-sm" value="{{ start or '' }}">
+        <input type="date" name="end"   class="form-control form-control-sm" value="{{ end or '' }}">
+        <button class="btn btn-primary btn-sm"><i class="fas fa-sync-alt"></i> تحديث</button>
+        <a class="btn btn-outline-dark btn-sm" href="{{ url_for('reports_bp.customers_report') }}"><i class="fas fa-times"></i></a>
+      </form>
+    </div>
   </div>
 
   {% set _n = data|length %}
@@ -156,6 +161,11 @@
     if (cell) cell.innerHTML = medal(idx + 1);
   });
 })();
+
+// زر الطباعة
+document.getElementById('btn-print')?.addEventListener('click', function () {
+  window.print();
+});
 </script>
 {% endif %}
 {% endblock %}

@@ -10,10 +10,14 @@
 {% block report_content %}
 <div class="container-fluid" dir="rtl">
 
-  <!-- العنوان -->
+  <!-- العنوان وأزرار -->
   <div class="mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
     <h4 class="fw-bold m-0"><i class="fas fa-industry"></i> {{ FIELD_LABELS.get("ap_aging", "أعمار الذمم (الموردون)") }}</h4>
-    <form class="row g-2 align-items-end" method="get">
+    <div class="d-flex gap-2 align-items-end">
+      <button type="button" class="btn btn-outline-primary btn-sm" id="btn-print">
+        <i class="fas fa-print"></i> طباعة
+      </button>
+      <form class="row g-2 align-items-end" method="get">
       <div class="col-auto">
         <label class="form-label">{{ FIELD_LABELS.get("start_date", "من تاريخ") }}</label>
         <input type="date" name="start" value="{{ start or '' }}" class="form-control form-control-sm">
@@ -38,7 +42,8 @@
           <i class="fas fa-print"></i> طباعة
         </button>
       </div>
-    </form>
+      </form>
+    </div>
   </div>
 
   <!-- تاريخ التقرير -->

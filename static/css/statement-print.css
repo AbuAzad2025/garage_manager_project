@@ -15,8 +15,13 @@
   
   /* ═══ إعدادات الصفحة الأساسية ═══ */
   @page {
-    size: A4 portrait;
-    margin: 15mm 10mm 20mm 10mm;
+    size: A4;
+    margin: 12mm 10mm 18mm 10mm;
+  }
+  
+  /* دعم الطباعة العرضية */
+  @page :first {
+    margin-top: 15mm;
   }
   
   /* ═══ إعدادات Body ═══ */
@@ -96,52 +101,59 @@
   }
   
   .print-header-info .company-logo img {
-    max-height: 50px !important;
+    max-height: 45px !important;
     width: auto !important;
   }
   
   .print-header-info .company-info {
     display: table-cell !important;
-    width: 55% !important;
+    width: 50% !important;
     vertical-align: middle !important;
-    padding: 0 5mm !important;
+    padding: 0 4mm !important;
   }
   
   .print-header-info .company-name {
-    font-size: 14pt !important;
+    font-size: 13pt !important;
     font-weight: bold !important;
     color: #0d6efd !important;
     margin-bottom: 1mm !important;
   }
   
   .print-header-info .company-details {
-    font-size: 9pt !important;
+    font-size: 8pt !important;
     color: #666 !important;
-    line-height: 1.4 !important;
+    line-height: 1.3 !important;
   }
   
   .print-header-info .statement-type {
     display: table-cell !important;
-    width: 25% !important;
+    width: 30% !important;
     vertical-align: middle !important;
     text-align: center !important;
     background: #0d6efd !important;
     color: white !important;
-    padding: 3mm !important;
-    border-radius: 3mm !important;
+    padding: 2mm !important;
+    border-radius: 2mm !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
   
   .print-header-info .statement-type h2 {
     margin: 0 !important;
-    font-size: 13pt !important;
+    font-size: 12pt !important;
     font-weight: bold !important;
   }
   
   .print-header-info .statement-date {
-    font-size: 8pt !important;
+    font-size: 7pt !important;
     margin-top: 1mm !important;
+  }
+  
+  .print-header-info .user-info {
+    font-size: 7pt !important;
+    color: white !important;
+    margin-top: 1mm !important;
+    opacity: 0.9 !important;
   }
   
   /* ═══ تذييل الصفحة المطبوعة ═══ */
@@ -163,11 +175,17 @@
   
   .print-footer-info .footer-line {
     display: block !important;
-    margin-bottom: 1mm !important;
+    margin-bottom: 0.5mm !important;
+    line-height: 1.3 !important;
   }
   
   .print-footer-info .page-number:after {
-    content: counter(page) " من " counter(pages) !important;
+    content: counter(page) !important;
+  }
+  
+  .print-footer-info .print-time {
+    color: #999 !important;
+    font-size: 7pt !important;
   }
   
   /* ═══ البطاقات والمحتوى ═══ */

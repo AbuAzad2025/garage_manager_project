@@ -16,7 +16,15 @@
   /* ═══ إعدادات الصفحة الأساسية ═══ */
   @page {
     size: A4 landscape;
-    margin: 12mm 10mm 18mm 10mm;
+    margin: 10mm 8mm 15mm 8mm;
+  }
+  
+  /* للطباعة الطولية - يمكن استخدامها حسب الحاجة */
+  @media print and (orientation: portrait) {
+    @page {
+      size: A4 portrait;
+      margin: 12mm 10mm 15mm 10mm;
+    }
   }
   
   /* ═══ إعدادات Body ═══ */
@@ -143,6 +151,13 @@
   .print-header-report .report-date {
     font-size: 7pt !important;
     margin-top: 1mm !important;
+  }
+  
+  .print-header-report .user-info {
+    font-size: 7pt !important;
+    color: white !important;
+    margin-top: 1mm !important;
+    opacity: 0.9 !important;
   }
   
   /* ═══ تذييل الصفحة المطبوعة ═══ */

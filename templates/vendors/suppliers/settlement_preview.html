@@ -54,28 +54,30 @@
     <img src="{{ url_for('static', filename='img/azad_logo.png') }}" alt="Logo">
   </div>
   <div class="company-info">
-    <div class="company-name">{{ system_settings.company_name or 'Azad Garage' }}</div>
+    <div class="company-name">{{ system_settings.system_name or system_settings.company_name or 'كراج أزاد' }}</div>
     <div class="company-details">
-      {% if system_settings.COMPANY_ADDRESS %}📍 {{ system_settings.COMPANY_ADDRESS }}<br>{% endif %}
-      {% if system_settings.COMPANY_PHONE %}📞 {{ system_settings.COMPANY_PHONE }}{% endif %}
-      {% if system_settings.COMPANY_EMAIL %} | 📧 {{ system_settings.COMPANY_EMAIL }}{% endif %}
-      {% if system_settings.TAX_NUMBER %}<br>ضريبة: {{ system_settings.TAX_NUMBER }}{% endif %}
+      {% if system_settings.COMPANY_ADDRESS %}📍 {{ system_settings.COMPANY_ADDRESS }}{% endif %}
+      {% if system_settings.COMPANY_PHONE %} | 📞 {{ system_settings.COMPANY_PHONE }}{% endif %}<br>
+      {% if system_settings.COMPANY_EMAIL %}📧 {{ system_settings.COMPANY_EMAIL }}{% endif %}
+      {% if system_settings.TAX_NUMBER %} | رقم ضريبي: {{ system_settings.TAX_NUMBER }}{% endif %}
     </div>
   </div>
   <div class="statement-type">
     <h2>تسوية مورد</h2>
-    <div class="statement-date">{{ now()|format_date }}</div>
+    <div class="statement-date">📅 {{ now()|format_datetime }}</div>
+    <div class="user-info">👤 {{ current_user.username if current_user.is_authenticated else 'النظام' }}</div>
   </div>
 </div>
 
 <!-- تذييل الصفحة للطباعة فقط -->
 <div class="print-footer-info">
   <div class="footer-line">
-    <strong>{{ system_settings.company_name or 'Azad Garage' }}</strong> | 
-    صفحة <span class="page-number"></span>
+    <strong>{{ system_settings.system_name or system_settings.company_name or 'كراج أزاد' }}</strong>
   </div>
-  <div class="footer-line" style="font-size: 7pt;">
-    طُبع بتاريخ: {{ now()|format_datetime }} | نظام إدارة الكراج - Garage Manager System
+  <div class="footer-line print-time">
+    طُبع بواسطة: {{ current_user.username if current_user.is_authenticated else 'النظام' }} | 
+    {{ now()|format_datetime }} | 
+    صفحة <span class="page-number"></span>
   </div>
 </div>
 
