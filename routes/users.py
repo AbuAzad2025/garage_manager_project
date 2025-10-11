@@ -33,6 +33,63 @@ def _is_super_admin_user(user: User) -> bool:
 def profile():
     return render_template("users/profile.html", user=current_user)
 
+@users_bp.route("/edit-profile", methods=["GET", "POST"], endpoint="edit_profile")
+@login_required
+def edit_profile():
+    """تعديل الملف الشخصي للمستخدم الحالي"""
+    from flask_wtf import FlaskForm
+    from wtforms import StringField, SubmitField
+    from wtforms.validators import DataRequired, Email, Length, Optional
+    
+    class EditProfileForm(FlaskForm):
+        username = StringField('اسم المستخدم', validators=[DataRequired(), Length(min=3, max=50)])
+        email = StringField('البريد الإلكتروني', validators=[DataRequired(), Email()])
+        submit = SubmitField('حفظ التعديلات')
+    
+    form = EditProfileForm(obj=current_user)
+    
+    if form.validate_on_submit():
+        try:
+            current_user.username = form.username.data
+            current_user.email = form.email.data
+            db.session.commit()
+            flash("✅ تم تحديث الملف الشخصي بنجاح", "success")
+            return redirect(url_for("users_bp.profile"))
+        except IntegrityError:
+            db.session.rollback()
+            flash("❌ اسم المستخدم أو البريد مستخدم بالفعل", "danger")
+    
+    return render_template("users/edit_profile.html", form=form)
+
+@users_bp.route("/change-password", methods=["GET", "POST"], endpoint="change_password")
+@login_required
+def change_password():
+    """تغيير كلمة المرور للمستخدم الحالي"""
+    from flask_wtf import FlaskForm
+    from wtforms import PasswordField, SubmitField
+    from wtforms.validators import DataRequired, Length, EqualTo
+    
+    class ChangePasswordForm(FlaskForm):
+        current_password = PasswordField('كلمة المرور الحالية', validators=[DataRequired()])
+        new_password = PasswordField('كلمة المرور الجديدة', validators=[DataRequired(), Length(min=6)])
+        confirm_password = PasswordField('تأكيد كلمة المرور', validators=[DataRequired(), EqualTo('new_password', message='كلمات المرور غير متطابقة')])
+        submit = SubmitField('تغيير كلمة المرور')
+    
+    form = ChangePasswordForm()
+    
+    if form.validate_on_submit():
+        # التحقق من كلمة المرور الحالية
+        if not current_user.check_password(form.current_password.data):
+            flash("❌ كلمة المرور الحالية غير صحيحة", "danger")
+        else:
+            # تحديث كلمة المرور
+            current_user.set_password(form.new_password.data)
+            db.session.commit()
+            flash("✅ تم تغيير كلمة المرور بنجاح", "success")
+            return redirect(url_for("users_bp.profile"))
+    
+    return render_template("users/change_password.html", form=form)
+
 @users_bp.route("/", methods=["GET"], endpoint="list_users")
 @login_required
 @permission_required("manage_users")

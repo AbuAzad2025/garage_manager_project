@@ -42,27 +42,47 @@
           <thead class="table-dark sticky-top">
             <tr>
               {% for col in columns %}
-              <th>{{ col }}</th>
+              <th>
+                <div class="d-flex justify-content-between align-items-center">
+                  <span>{{ col }}</span>
+                  {% if col not in ['id', 'created_at', 'updated_at'] %}
+                  <button type="button" class="btn btn-danger btn-sm" 
+                          onclick="deleteColumn('{{ col }}')" 
+                          title="حذف العمود"
+                          style="padding: 2px 6px; font-size: 10px;">
+                    <i class="fas fa-times"></i>
+                  </button>
+                  {% endif %}
+                </div>
+              </th>
               {% endfor %}
-              <th>إجراءات</th>
+              <th>إجراءات الصف</th>
             </tr>
           </thead>
           <tbody>
             {% for row in data %}
             <tr>
               {% for col in columns %}
-              <td>
-                <small class="editable-cell" data-row-id="{{ row['id'] }}" data-column="{{ col }}">
-                  {{ row[col] }}
-                </small>
+              <td class="editable-td{% if col != 'id' %} can-edit{% endif %}" 
+                  data-row-id="{{ row.get('id', '') or row.get('code', '') or row.get('name', '') }}" 
+                  data-column="{{ col }}"
+                  data-value="{{ row[col] }}"
+                  ondblclick="makeEditable(this)"
+                  title="{% if col != 'id' %}انقر مرتين للتعديل{% endif %}"
+                  style="{% if col != 'id' %}cursor: pointer; {% endif %}position: relative;">
+                <small>{{ row[col] }}</small>
+                {% if col != 'id' %}
+                <i class="fas fa-edit text-muted" style="font-size: 10px; opacity: 0.3; position: absolute; top: 2px; left: 2px;"></i>
+                {% endif %}
               </td>
               {% endfor %}
               <td>
                 <div class="btn-group btn-group-sm">
-                  <button class="btn btn-warning" onclick="editRow({{ row['id'] }}, {{ row|tojson }})">
+                  {% set row_key = row.get('id', '') or row.get('code', '') or row.get('name', '') %}
+                  <button class="btn btn-warning" onclick="editRow('{{ row_key }}', {{ row|tojson }})">
                     <i class="fas fa-edit"></i>
                   </button>
-                  <form method="POST" action="{{ url_for('security.db_delete_row', table_name=table_name, row_id=row['id']) }}" style="display:inline;" onsubmit="return confirm('هل تريد الحذف؟');">
+                  <form method="POST" action="{{ url_for('security.db_delete_row', table_name=table_name, row_id=row_key) }}" style="display:inline;" onsubmit="return confirm('هل تريد الحذف؟');">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-danger">
                       <i class="fas fa-trash"></i>
@@ -241,6 +261,113 @@
 </div>
 
 <script>
+// تعديل مباشر بالنقر المزدوج على الخلية
+function makeEditable(cell) {
+  const rowId = cell.dataset.rowId;
+  const column = cell.dataset.column;
+  const currentValue = cell.dataset.value || cell.textContent.trim();
+  
+  console.log('Double click detected:', {rowId, column, currentValue});
+  
+  if (column === 'id') {
+    console.log('Cannot edit ID column');
+    return;
+  }
+  
+  if (!rowId) {
+    console.log('No row identifier found, trying alternative approach...');
+    // محاولة استخدام القيمة نفسها كمفتاح
+    const alternativeId = currentValue;
+    cell.dataset.rowId = alternativeId;
+  }
+  
+  console.log('Making cell editable...');
+  
+  // حفظ القيمة الأصلية
+  cell.dataset.originalValue = currentValue;
+  
+  // إنشاء input
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = currentValue;
+  input.className = 'form-control form-control-sm';
+  input.style.width = '100%';
+  
+  // مسح محتوى الخلية
+  cell.innerHTML = '';
+  cell.appendChild(input);
+  input.focus();
+  input.select();
+  
+  // عند الضغط على Enter أو فقدان التركيز
+  const saveEdit = async () => {
+    const newValue = input.value;
+    
+    if (newValue === cell.dataset.originalValue) {
+      // لا تغيير - استعادة النص
+      restoreCell(cell, currentValue);
+      return;
+    }
+    
+    // إرسال التحديث للسيرفر
+    try {
+      const response = await fetch(`/security/db-editor/update-cell/{{ table_name }}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+          row_id: rowId,
+          column: column,
+          value: newValue
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        // نجح التحديث
+        cell.dataset.value = newValue;
+        restoreCell(cell, newValue);
+        cell.style.backgroundColor = '#d4edda';
+        setTimeout(() => {
+          cell.style.backgroundColor = '';
+        }, 1000);
+      } else {
+        // فشل التحديث
+        alert('خطأ: ' + (result.error || 'فشل التحديث'));
+        restoreCell(cell, currentValue);
+      }
+    } catch (error) {
+      console.error('Error updating cell:', error);
+      alert('خطأ في الاتصال بالخادم');
+      restoreCell(cell, currentValue);
+    }
+  };
+  
+  input.addEventListener('blur', saveEdit);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveEdit();
+    } else if (e.key === 'Escape') {
+      restoreCell(cell, currentValue);
+    }
+  });
+}
+
+function restoreCell(cell, value) {
+  const column = cell.dataset.column;
+  const rowId = cell.dataset.rowId;
+  
+  cell.innerHTML = `<small>${value}</small>`;
+  if (column !== 'id' && rowId) {
+    cell.innerHTML += `<i class="fas fa-edit text-muted" style="font-size: 10px; opacity: 0.3; position: absolute; top: 2px; left: 2px;"></i>`;
+  }
+}
+
+// تعديل عبر Modal (الطريقة القديمة)
 function editRow(rowId, rowData) {
   const form = document.getElementById('editRowForm');
   form.action = `/security/db-editor/edit-row/{{ table_name }}/${rowId}`;
@@ -260,6 +387,42 @@ function editRow(rowId, rowData) {
   
   new bootstrap.Modal(document.getElementById('editRowModal')).show();
 }
+
+// حذف عمود كامل
+function deleteColumn(columnName) {
+  if (confirm(`⚠️ تحذير!\n\nهل تريد حقاً حذف العمود "${columnName}" بالكامل؟\n\nسيتم حذف جميع البيانات في هذا العمود ولا يمكن التراجع!\n\nاضغط OK للمتابعة أو Cancel للإلغاء.`)) {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/security/db-editor/delete-column/{{ table_name }}`;
+    
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = 'csrf_token';
+    csrfInput.value = '{{ csrf_token() }}';
+    
+    const columnInput = document.createElement('input');
+    columnInput.type = 'hidden';
+    columnInput.name = 'column_name';
+    columnInput.value = columnName;
+    
+    form.appendChild(csrfInput);
+    form.appendChild(columnInput);
+    document.body.appendChild(form);
+    form.submit();
+  }
+}
+
+// تلميح للمستخدم
+document.addEventListener('DOMContentLoaded', function() {
+  const editableCells = document.querySelectorAll('.editable-td[ondblclick]');
+  if (editableCells.length > 0) {
+    console.log(`✅ ${editableCells.length} خلية قابلة للتعديل. انقر مرتين على أي خلية للتعديل!`);
+  }
+  
+  // إضافة تلميح للأعمدة
+  console.log('💡 انقر على الزر الأحمر (X) في header أي عمود لحذفه');
+  console.log('💡 انقر على زر الحذف الأحمر في الصف لحذف الصف كاملاً');
+});
 </script>
 {% endblock %}
 

@@ -1452,6 +1452,48 @@ def db_add_column(table_name):
     return redirect(url_for('security.db_editor_table', table_name=table_name))
 
 
+@security_bp.route('/db-editor/update-cell/<table_name>', methods=['POST'])
+@owner_only
+def db_update_cell(table_name):
+    """تحديث خلية واحدة مباشرة - للتعديل السريع"""
+    try:
+        data = request.get_json()
+        row_id = data.get('row_id')
+        column = data.get('column')
+        value = data.get('value')
+        
+        if not all([row_id, column]):
+            return jsonify({'success': False, 'error': 'معلومات ناقصة'}), 400
+        
+        # تحديد المفتاح الأساسي للجدول
+        primary_key = 'id'  # افتراضياً
+        
+        # فحص إذا كان الجدول له عمود id
+        table_info = db.session.execute(text(f"PRAGMA table_info({table_name})")).fetchall()
+        has_id_column = any(col[1] == 'id' for col in table_info)
+        
+        if not has_id_column:
+            # إذا لم يكن هناك عمود id، نستخدم أول عمود كمفتاح أساسي
+            primary_key = table_info[0][1] if table_info else 'code'
+        
+        # تحديث الخلية
+        if primary_key == 'id':
+            sql = text(f"UPDATE {table_name} SET {column} = :value WHERE id = :row_id")
+        else:
+            sql = text(f"UPDATE {table_name} SET {column} = :value WHERE {primary_key} = :row_id")
+        
+        result = db.session.execute(sql, {'value': value, 'row_id': row_id})
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'تم تحديث {column} بنجاح',
+            'rows_affected': result.rowcount
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @security_bp.route('/db-editor/edit-row/<table_name>/<int:row_id>', methods=['POST'])
 @owner_only
 def db_edit_row(table_name, row_id):
@@ -1478,18 +1520,61 @@ def db_edit_row(table_name, row_id):
     return redirect(url_for('security.db_editor_table', table_name=table_name))
 
 
-@security_bp.route('/db-editor/delete-row/<table_name>/<int:row_id>', methods=['POST'])
+@security_bp.route('/db-editor/delete-row/<table_name>/<row_id>', methods=['POST'])
 @owner_only
 def db_delete_row(table_name, row_id):
     """حذف صف من الجدول"""
     try:
-        sql = f"DELETE FROM {table_name} WHERE id = {row_id}"
-        db.session.execute(text(sql))
+        # تحديد المفتاح الأساسي للجدول
+        primary_key = 'id'  # افتراضياً
+        
+        # فحص إذا كان الجدول له عمود id
+        table_info = db.session.execute(text(f"PRAGMA table_info({table_name})")).fetchall()
+        has_id_column = any(col[1] == 'id' for col in table_info)
+        
+        if not has_id_column:
+            # إذا لم يكن هناك عمود id، نستخدم أول عمود كمفتاح أساسي
+            primary_key = table_info[0][1] if table_info else 'code'
+        
+        # حذف الصف
+        if primary_key == 'id':
+            sql = text(f"DELETE FROM {table_name} WHERE id = :row_id")
+        else:
+            sql = text(f"DELETE FROM {table_name} WHERE {primary_key} = :row_id")
+        
+        result = db.session.execute(sql, {'row_id': row_id})
         db.session.commit()
-        flash('تم الحذف بنجاح', 'success')
+        flash(f'✅ تم حذف الصف #{row_id} بنجاح', 'success')
     except Exception as e:
         db.session.rollback()
-        flash(f'خطأ: {str(e)}', 'danger')
+        flash(f'❌ خطأ في الحذف: {str(e)}', 'danger')
+    
+    return redirect(url_for('security.db_editor_table', table_name=table_name))
+
+@security_bp.route('/db-editor/delete-column/<table_name>', methods=['POST'])
+@owner_only
+def db_delete_column(table_name):
+    """حذف عمود كامل من الجدول"""
+    column_name = request.form.get('column_name', '').strip()
+    
+    if not column_name:
+        flash('❌ اسم العمود مطلوب', 'danger')
+        return redirect(url_for('security.db_editor_table', table_name=table_name))
+    
+    # حماية من حذف الأعمدة الحرجة
+    protected_columns = ['id', 'created_at', 'updated_at']
+    if column_name.lower() in protected_columns:
+        flash(f'❌ لا يمكن حذف العمود {column_name} (محمي)', 'danger')
+        return redirect(url_for('security.db_editor_table', table_name=table_name))
+    
+    try:
+        sql = f"ALTER TABLE {table_name} DROP COLUMN {column_name}"
+        db.session.execute(text(sql))
+        db.session.commit()
+        flash(f'✅ تم حذف العمود {column_name} بنجاح', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'❌ خطأ في حذف العمود: {str(e)}', 'danger')
     
     return redirect(url_for('security.db_editor_table', table_name=table_name))
 
