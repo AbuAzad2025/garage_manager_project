@@ -229,6 +229,7 @@ def partner_settlement(partner_id):
     # إنشاء object بسيط للتوافق مع القالب
     from types import SimpleNamespace
     ps = SimpleNamespace(
+        id=None,  # لا يوجد id لأنها تسوية ذكية (غير محفوظة)
         partner=partner,
         from_date=date_from,
         to_date=date_to,
@@ -237,7 +238,9 @@ def partner_settlement(partner_id):
         total_due=balance_data.get("balance", {}).get("amount", 0),
         status="DRAFT",
         code=f"PS-SMART-{partner_id}-{date_from.strftime('%Y%m%d')}",
-        lines=[]
+        lines=[],
+        created_at=date_from,
+        updated_at=datetime.utcnow()
     )
     
     return render_template(

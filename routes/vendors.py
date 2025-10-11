@@ -668,6 +668,7 @@ def supplier_smart_settlement(supplier_id):
     # إنشاء object بسيط للتوافق مع القالب
     from types import SimpleNamespace
     ss = SimpleNamespace(
+        id=None,  # لا يوجد id لأنها تسوية ذكية (غير محفوظة)
         supplier=supplier,
         from_date=date_from,
         to_date=date_to,
@@ -676,7 +677,9 @@ def supplier_smart_settlement(supplier_id):
         total_due=balance_data.get("balance", {}).get("amount", 0) if isinstance(balance_data, dict) else 0,
         status="DRAFT",
         code=f"SS-SMART-{supplier_id}-{date_from.strftime('%Y%m%d')}",
-        lines=[]
+        lines=[],
+        created_at=date_from,
+        updated_at=datetime.utcnow()
     )
     
     # استخدام settlement_preview بدلاً من smart_settlement (غير موجود)
@@ -719,6 +722,7 @@ def partner_smart_settlement(partner_id):
     # إنشاء object بسيط للتوافق مع القالب
     from types import SimpleNamespace
     ps = SimpleNamespace(
+        id=None,  # لا يوجد id لأنها تسوية ذكية (غير محفوظة)
         partner=partner,
         from_date=date_from,
         to_date=date_to,
@@ -727,7 +731,9 @@ def partner_smart_settlement(partner_id):
         total_due=balance_data.get("balance", {}).get("amount", 0) if isinstance(balance_data, dict) else 0,
         status="DRAFT",
         code=f"PS-SMART-{partner_id}-{date_from.strftime('%Y%m%d')}",
-        lines=[]
+        lines=[],
+        created_at=date_from,
+        updated_at=datetime.utcnow()
     )
     
     # استخدام settlement_preview بدلاً من smart_settlement (غير موجود)

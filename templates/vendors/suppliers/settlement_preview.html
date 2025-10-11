@@ -242,12 +242,20 @@
             {% if status_val == "DRAFT" %}
             <div class="card settlement-detail-card">
                 <div class="card-body text-center">
+                    {% if ss.id %}
+                    <!-- زر التأكيد متاح فقط للتسويات المحفوظة -->
                     <form method="post" action="{{ url_for('supplier_settlements_bp.confirm', settlement_id=ss.id) }}" class="d-inline">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button class="btn btn-primary btn-lg">
                             <i class="fas fa-check"></i> تأكيد التسوية
                         </button>
                     </form>
+                    {% else %}
+                    <!-- تسوية ذكية (غير محفوظة) - لا يوجد زر تأكيد -->
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> هذه تسوية ذكية تلقائية. يمكنك إنشاء دفعة مباشرة.
+                    </div>
+                    {% endif %}
                     
                     <a href="{{ url_for('payments.create_payment',
                                       entity_type='SUPPLIER',

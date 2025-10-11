@@ -164,9 +164,9 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for i, l in enumerate(ps.lines, start=1) %}
+                                {% for l in ps.lines %}
                                 <tr>
-                                    <td class="text-center"><strong>{{ i }}</strong></td>
+                                    <td class="text-center"><strong>{{ loop.index }}</strong></td>
                                     <td><span class="badge badge-info">{{ l.source_type }}#{{ l.source_id }}</span></td>
                                     <td>{{ l.description or "—" }}</td>
                                     <td><strong>{{ l.product.name if l.product else l.product_id }}</strong></td>
@@ -273,12 +273,20 @@
             {% if ps.status == "DRAFT" %}
             <div class="card settlement-detail-card">
                 <div class="card-body text-center">
+                    {% if ps.id %}
+                    <!-- زر التأكيد متاح فقط للتسويات المحفوظة -->
                     <form method="post" action="{{ url_for('partner_settlements_bp.confirm', settlement_id=ps.id) }}" class="d-inline">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button class="btn btn-primary btn-lg">
                             <i class="fas fa-check"></i> تأكيد التسوية
                         </button>
                     </form>
+                    {% else %}
+                    <!-- تسوية ذكية (غير محفوظة) - لا يوجد زر تأكيد -->
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> هذه تسوية ذكية تلقائية. يمكنك إنشاء دفعة مباشرة.
+                    </div>
+                    {% endif %}
                     
                     <a href="{{ url_for('payments.create_payment',
                                        entity_type='PARTNER',
