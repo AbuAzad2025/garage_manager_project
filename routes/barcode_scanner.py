@@ -1,3 +1,7 @@
+# barcode_scanner.py - Barcode Scanner Routes
+# Location: /garage_manager/routes/barcode_scanner.py
+# Description: Barcode scanning and bulk operations routes
+
 """
 نظام الباركود المتكامل
 Advanced Barcode System

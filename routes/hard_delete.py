@@ -1,3 +1,7 @@
+# hard_delete.py - Hard Delete Routes
+# Location: /garage_manager/routes/hard_delete.py
+# Description: Hard delete operations and data cleanup routes
+
 """
 Routes للحذف القوي مع التأكيد والاستعادة
 """

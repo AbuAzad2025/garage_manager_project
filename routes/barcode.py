@@ -1,3 +1,7 @@
+# barcode.py - Barcode Routes
+# Location: /garage_manager/routes/barcode.py
+# Description: Barcode generation and processing routes
+
 from flask import Blueprint, request, jsonify
 from flask_login import login_required
 from extensions import db, limiter
