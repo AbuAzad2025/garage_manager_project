@@ -1,3 +1,7 @@
+# checks.py - Checks Management Routes
+# Location: /garage_manager/routes/checks.py
+# Description: Check management and processing routes
+
 # -*- coding: utf-8 -*-
 """
 نظام إدارة الشيكات الصادرة والواردة

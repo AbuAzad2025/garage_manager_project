@@ -1,3 +1,7 @@
+# notes.py - Notes Management Routes
+# Location: /garage_manager/routes/notes.py
+# Description: Notes and comments management routes
+
 # -*- coding: utf-8 -*-
 from datetime import datetime
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for, abort

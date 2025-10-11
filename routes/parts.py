@@ -1,3 +1,7 @@
+# parts.py - Parts Management Routes
+# Location: /garage_manager/routes/parts.py
+# Description: Parts and components management routes
+
 from decimal import Decimal, InvalidOperation
 from flask import Blueprint, request, jsonify, redirect, url_for, flash
 from flask_login import login_required

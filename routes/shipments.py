@@ -1,3 +1,7 @@
+# shipments.py - Shipments Management Routes
+# Location: /garage_manager/routes/shipments.py
+# Description: Shipment and delivery management routes
+
 from datetime import datetime, date, timedelta
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 

@@ -1,3 +1,7 @@
+# vendors.py - Vendors Management Routes
+# Location: /garage_manager/routes/vendors.py
+# Description: Vendor and supplier management routes
+
 from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from flask import abort, Blueprint, flash, jsonify, redirect, render_template, request, url_for

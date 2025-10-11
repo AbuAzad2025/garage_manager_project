@@ -1,3 +1,7 @@
+# currencies.py - Currency Management Routes
+# Location: /garage_manager/routes/currencies.py
+# Description: Currency and exchange rate management routes
+
 from __future__ import annotations
 
 from datetime import datetime
