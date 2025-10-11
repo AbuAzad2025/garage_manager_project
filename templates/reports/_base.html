@@ -140,4 +140,50 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/reports-print.css') }}">
 {% endblock %}
 
-{% block scripts %}{% endblock %}
+{% block scripts %}
+<script>
+// سكريبت عام للطباعة في جميع التقارير
+(function() {
+  'use strict';
+  
+  // زر الطباعة الرئيسي
+  const printBtn = document.getElementById('btn-print');
+  if (printBtn) {
+    printBtn.addEventListener('click', function() {
+      window.print();
+    });
+  }
+  
+  // دعم Ctrl+P
+  document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+      e.preventDefault();
+      window.print();
+    }
+  });
+  
+  // تحسين DataTable للطباعة إذا كانت موجودة
+  if (typeof $ !== 'undefined' && $.fn.DataTable) {
+    $(document).ready(function() {
+      const tables = $('table[id^="report"]');
+      if (tables.length > 0) {
+        tables.DataTable({
+          pageLength: 50,
+          language: {
+            url: "{{ url_for('static', filename='datatables/Arabic.json') }}"
+          },
+          dom: 'Bfrtip',
+          buttons: [
+            {
+              extend: 'print',
+              text: '<i class="fas fa-print"></i> طباعة',
+              className: 'btn btn-sm btn-outline-secondary d-none'
+            }
+          ]
+        });
+      }
+    });
+  }
+})();
+</script>
+{% endblock %}
