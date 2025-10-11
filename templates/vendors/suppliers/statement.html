@@ -2,8 +2,9 @@
 {% block title %}كشف حساب المورد{% endblock %}
 
 {% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/statement-print.css') }}">
 <style>
-/* تحسين تباين الألوان */
+/* تحسين تباين الألوان - للشاشة فقط */
 .statement-card {
     border-radius: 12px;
     box-shadow: 0 3px 10px rgba(0,0,0,0.1);
@@ -61,6 +62,37 @@
 {% endblock %}
 
 {% block content %}
+<!-- رأس الصفحة للطباعة فقط -->
+<div class="print-header-info">
+  <div class="company-logo">
+    <img src="{{ url_for('static', filename='img/azad_logo.png') }}" alt="Logo">
+  </div>
+  <div class="company-info">
+    <div class="company-name">{{ system_settings.company_name or 'Azad Garage' }}</div>
+    <div class="company-details">
+      {% if system_settings.COMPANY_ADDRESS %}📍 {{ system_settings.COMPANY_ADDRESS }}<br>{% endif %}
+      {% if system_settings.COMPANY_PHONE %}📞 {{ system_settings.COMPANY_PHONE }}{% endif %}
+      {% if system_settings.COMPANY_EMAIL %} | 📧 {{ system_settings.COMPANY_EMAIL }}{% endif %}
+      {% if system_settings.TAX_NUMBER %}<br>ضريبة: {{ system_settings.TAX_NUMBER }}{% endif %}
+    </div>
+  </div>
+  <div class="statement-type">
+    <h2>كشف حساب مورد</h2>
+    <div class="statement-date">{{ now()|format_date }}</div>
+  </div>
+</div>
+
+<!-- تذييل الصفحة للطباعة فقط -->
+<div class="print-footer-info">
+  <div class="footer-line">
+    <strong>{{ system_settings.company_name or 'Azad Garage' }}</strong> | 
+    صفحة <span class="page-number"></span>
+  </div>
+  <div class="footer-line" style="font-size: 7pt;">
+    طُبع بتاريخ: {{ now()|format_datetime }} | نظام إدارة الكراج - Garage Manager System
+  </div>
+</div>
+
 <div class="content-wrapper">
 
   <div class="d-flex flex-wrap gap-2 mb-3">
@@ -313,4 +345,9 @@
 {% block scripts %}
 {{ super() }}
 <script src="{{ url_for('static', filename='js/vendors.js') }}"></script>
+<script>
+  document.getElementById('btn-print')?.addEventListener('click', function () {
+    window.print();
+  });
+</script>
 {% endblock %}

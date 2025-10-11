@@ -2,6 +2,7 @@
 {% block title %}تسوية مورد {{ ss.supplier.name }} ({{ ss.code }}){% endblock %}
 
 {% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/statement-print.css') }}">
 <style>
 .settlement-detail-card {
     border-radius: 12px;
@@ -47,6 +48,37 @@
 {% endblock %}
 
 {% block content %}
+<!-- رأس الصفحة للطباعة فقط -->
+<div class="print-header-info">
+  <div class="company-logo">
+    <img src="{{ url_for('static', filename='img/azad_logo.png') }}" alt="Logo">
+  </div>
+  <div class="company-info">
+    <div class="company-name">{{ system_settings.company_name or 'Azad Garage' }}</div>
+    <div class="company-details">
+      {% if system_settings.COMPANY_ADDRESS %}📍 {{ system_settings.COMPANY_ADDRESS }}<br>{% endif %}
+      {% if system_settings.COMPANY_PHONE %}📞 {{ system_settings.COMPANY_PHONE }}{% endif %}
+      {% if system_settings.COMPANY_EMAIL %} | 📧 {{ system_settings.COMPANY_EMAIL }}{% endif %}
+      {% if system_settings.TAX_NUMBER %}<br>ضريبة: {{ system_settings.TAX_NUMBER }}{% endif %}
+    </div>
+  </div>
+  <div class="statement-type">
+    <h2>تسوية مورد</h2>
+    <div class="statement-date">{{ now()|format_date }}</div>
+  </div>
+</div>
+
+<!-- تذييل الصفحة للطباعة فقط -->
+<div class="print-footer-info">
+  <div class="footer-line">
+    <strong>{{ system_settings.company_name or 'Azad Garage' }}</strong> | 
+    صفحة <span class="page-number"></span>
+  </div>
+  <div class="footer-line" style="font-size: 7pt;">
+    طُبع بتاريخ: {{ now()|format_datetime }} | نظام إدارة الكراج - Garage Manager System
+  </div>
+</div>
+
 <div class="content-wrapper">
     <div class="content-header">
         <div class="container-fluid">
@@ -242,6 +274,10 @@
             {% if status_val == "DRAFT" %}
             <div class="card settlement-detail-card">
                 <div class="card-body text-center">
+                    <button type="button" class="btn btn-outline-primary btn-lg" id="btn-print">
+                        <i class="fas fa-print"></i> طباعة التسوية
+                    </button>
+                    
                     {% if ss.id %}
                     <!-- زر التأكيد متاح فقط للتسويات المحفوظة -->
                     <form method="post" action="{{ url_for('supplier_settlements_bp.confirm', settlement_id=ss.id) }}" class="d-inline">
@@ -285,4 +321,13 @@
         </div>
     </section>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  document.getElementById('btn-print')?.addEventListener('click', function () {
+    window.print();
+  });
+</script>
 {% endblock %}

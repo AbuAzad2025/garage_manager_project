@@ -13,6 +13,32 @@
 {%- endmacro %}
 
 {% block content %}
+<!-- رأس الصفحة للطباعة فقط -->
+<div class="print-header-report">
+  <div class="company-logo">
+    <img src="{{ url_for('static', filename='img/azad_logo.png') }}" alt="Logo">
+  </div>
+  <div class="company-info">
+    <div class="company-name">{{ system_settings.company_name or 'Azad Garage' }}</div>
+    <div class="company-details">
+      {% if system_settings.COMPANY_ADDRESS %}📍 {{ system_settings.COMPANY_ADDRESS }}{% endif %}
+      {% if system_settings.COMPANY_PHONE %} | 📞 {{ system_settings.COMPANY_PHONE }}{% endif %}
+      {% if system_settings.COMPANY_EMAIL %} | 📧 {{ system_settings.COMPANY_EMAIL }}{% endif %}
+    </div>
+  </div>
+  <div class="report-type">
+    <h2>{{ self.page_title() }}</h2>
+    <div class="report-date">{{ now()|format_date }}</div>
+  </div>
+</div>
+
+<!-- تذييل الصفحة للطباعة فقط -->
+<div class="print-footer-report">
+  <div class="footer-line">
+    <strong>{{ system_settings.company_name or 'Azad Garage' }}</strong> | نظام إدارة الكراج
+  </div>
+</div>
+
 <div class="container-fluid" dir="rtl">
   <div class="card mb-3 shadow-sm">
     <div class="card-body p-2">
@@ -106,6 +132,7 @@
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/reporting.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reports-print.css') }}">
 {% endblock %}
 
 {% block scripts %}{% endblock %}
