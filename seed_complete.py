@@ -117,20 +117,22 @@ def seed_currencies():
     ]
     
     for rate_data in exchange_rates:
-        existing = db.session.query(ExchangeRate).filter_by(
-            base_code=rate_data["base"],
-            quote_code=rate_data["quote"]
-        ).first()
+        # حذف الأسعار القديمة لنفس الزوج من البذور (TEST)
+        db.session.query(ExchangeRate).filter(
+            ExchangeRate.base_code == rate_data["base"],
+            ExchangeRate.quote_code == rate_data["quote"],
+            ExchangeRate.source.like('%TEST%')
+        ).delete(synchronize_session=False)
         
-        if not existing:
-            rate = ExchangeRate(
-                base_code=rate_data["base"],
-                quote_code=rate_data["quote"],
-                rate=rate_data["rate"],
-                valid_from=datetime.utcnow(),
-                is_manual=True
-            )
-            db.session.add(rate)
+        # إضافة السعر الجديد
+        rate = ExchangeRate(
+            base_code=rate_data["base"],
+            quote_code=rate_data["quote"],
+            rate=rate_data["rate"],
+            valid_from=datetime.utcnow(),
+            source="Manual TEST"
+        )
+        db.session.add(rate)
     
     db.session.commit()
     print(f"✅ تم إضافة {len(currencies_data)} عملات و {len(exchange_rates)} سعر صرف")

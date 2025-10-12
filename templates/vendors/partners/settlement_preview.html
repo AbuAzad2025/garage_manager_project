@@ -251,7 +251,7 @@
             <!-- جرد القطع -->
             <div class="row">
                 <!-- القطع المباعة -->
-                {% if balance_data.inventory.sold_items|length > 0 %}
+                {% if balance_data.inventory['sold_items']|length > 0 %}
                 <div class="col-md-6">
                     <div class="card settlement-detail-card">
                         <div class="card-header bg-success text-white">
@@ -273,7 +273,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% for item in balance_data.inventory.sold_items %}
+                                        {% for item in balance_data.inventory['sold_items'] %}
                                         <tr>
                                             <td>{{ item.product_name }}</td>
                                             <td><code>{{ item.sku or '—' }}</code></td>
@@ -291,7 +291,7 @@
                 {% endif %}
 
                 <!-- القطع المتبقية -->
-                {% if balance_data.inventory.remaining_items|length > 0 %}
+                {% if balance_data.inventory['remaining_items']|length > 0 %}
                 <div class="col-md-6">
                     <div class="card settlement-detail-card">
                         <div class="card-header bg-info text-white">
@@ -313,7 +313,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% for item in balance_data.inventory.remaining_items %}
+                                        {% for item in balance_data.inventory['remaining_items'] %}
                                         <tr>
                                             <td>{{ item.product_name }}</td>
                                             <td><code>{{ item.sku or '—' }}</code></td>
@@ -332,7 +332,7 @@
             </div>
 
             <!-- تفاصيل نصيب الشريك من المبيعات -->
-            {% if balance_data.sales_share.items|length > 0 %}
+            {% if balance_data.sales_share['items']|length > 0 %}
             <div class="card settlement-detail-card">
                 <div class="card-header bg-primary text-white">
                     <h5 class="mb-0">
@@ -356,7 +356,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for item in balance_data.sales_share.items %}
+                                {% for item in balance_data.sales_share['items'] %}
                                 <tr>
                                     <td>{{ loop.index }}</td>
                                     <td>#{{ item.sale_number }}</td>

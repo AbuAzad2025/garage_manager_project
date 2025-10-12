@@ -62,6 +62,10 @@ def _extract_range_from_request():
 def _q2(v) -> float:
     return float(Decimal(str(v or 0)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
+def _d2(v) -> Decimal:
+    """تحويل إلى Decimal بدقة منزلتين"""
+    return Decimal(str(v or 0)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
 def _due_direction(v: Decimal):
     if v > 0:
         return PaymentDirection.OUTGOING.value
@@ -268,11 +272,11 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
         # الحساب النهائي
         # ═══════════════════════════════════════════════════════════
         
-        # نصيب الشريك من المبيعات
-        total_share = sales_share["total_share_ils"]
+        # نصيب الشريك من المبيعات (تحويل كل شيء إلى Decimal)
+        total_share = Decimal(str(sales_share["total_share_ils"] or 0))
         
         # ما تم دفعه + المصروفات المخصومة
-        total_paid = payments_made + expenses_deducted
+        total_paid = Decimal(str(payments_made or 0)) + Decimal(str(expenses_deducted or 0))
         
         # المتبقي للشريك
         balance = total_share - total_paid
@@ -306,9 +310,9 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
             "expenses_deducted": expenses_deducted,
             # الرصيد النهائي
             "balance": {
-                "total_share": total_share,
-                "total_paid": total_paid,
-                "remaining": balance,
+                "total_share": float(total_share),
+                "total_paid": float(total_paid),
+                "remaining": float(balance),
                 "direction": "دفع للشريك" if balance > 0 else "قبض من الشريك" if balance < 0 else "متوازن",
                 "payment_direction": "OUT" if balance > 0 else "IN",
                 "currency": "ILS",
@@ -616,7 +620,7 @@ def _convert_to_ils(amount: Decimal | float, from_currency: str, at: datetime = 
     from_currency = (from_currency or "ILS").strip().upper()
     
     if from_currency == "ILS":
-        return _q2(amount)
+        return _d2(amount)
     
     # التحويل - يستخدم fx_rate داخلياً:
     # 1. يبحث في قاعدة البيانات المحلية (السعر اليدوي)
@@ -663,7 +667,7 @@ def _get_partner_inventory(partner_id: int, date_from: datetime, date_to: dateti
         Product.id.label("product_id"),
         Product.name.label("product_name"),
         Product.sku,
-        Product.sale_price,
+        Product.selling_price,
         func.sum(StockLevel.quantity).label("quantity")
     ).join(
         Product, Product.id == StockLevel.product_id
@@ -671,7 +675,7 @@ def _get_partner_inventory(partner_id: int, date_from: datetime, date_to: dateti
         StockLevel.warehouse_id.in_(warehouse_ids),
         StockLevel.quantity > 0
     ).group_by(
-        Product.id, Product.name, Product.sku, Product.sale_price
+        Product.id, Product.name, Product.sku, Product.selling_price
     ).all()
     
     remaining_items = []
@@ -681,8 +685,8 @@ def _get_partner_inventory(partner_id: int, date_from: datetime, date_to: dateti
             "product_name": item.product_name,
             "sku": item.sku,
             "quantity": int(item.quantity or 0),
-            "sale_price": float(item.sale_price or 0),
-            "total_value": float((item.quantity or 0) * (item.sale_price or 0))
+            "sale_price": float(item.selling_price or item.price or 0),
+            "total_value": float((item.quantity or 0) * (item.selling_price or item.price or 0))
         })
     
     # القطع المباعة خلال الفترة (من مستودعات الشريك)
@@ -691,24 +695,26 @@ def _get_partner_inventory(partner_id: int, date_from: datetime, date_to: dateti
         Product.name.label("product_name"),
         Product.sku,
         SaleLine.unit_price,
-        SaleLine.share_percentage,
+        Warehouse.share_percent,
         func.sum(SaleLine.quantity).label("total_quantity"),
-        func.sum(SaleLine.line_total).label("total_sales")
+        func.sum(SaleLine.quantity * SaleLine.unit_price).label("total_sales")
     ).join(
         Sale, Sale.id == SaleLine.sale_id
     ).join(
         Product, Product.id == SaleLine.product_id
+    ).join(
+        Warehouse, Warehouse.id == SaleLine.warehouse_id
     ).filter(
         SaleLine.warehouse_id.in_(warehouse_ids),
         Sale.sale_date >= date_from,
         Sale.sale_date <= date_to
     ).group_by(
-        Product.id, Product.name, Product.sku, SaleLine.unit_price, SaleLine.share_percentage
+        Product.id, Product.name, Product.sku, SaleLine.unit_price, Warehouse.share_percent
     ).all()
     
     sold_items = []
     for item in sold_items_query:
-        share_pct = float(item.share_percentage or 0)
+        share_pct = float(item.share_percent or 0)
         total_sales = float(item.total_sales or 0)
         partner_share = total_sales * (share_pct / 100.0)
         
@@ -749,9 +755,11 @@ def _get_partner_sales_share(partner_id: int, date_from: datetime, date_to: date
     
     # جلب المبيعات مع التفاصيل
     sales_query = db.session.query(
-        Sale, SaleLine
+        Sale, SaleLine, Warehouse.share_percent
     ).join(
         SaleLine, SaleLine.sale_id == Sale.id
+    ).join(
+        Warehouse, Warehouse.id == SaleLine.warehouse_id
     ).filter(
         SaleLine.warehouse_id.in_(warehouse_ids),
         Sale.sale_date >= date_from,
@@ -761,17 +769,17 @@ def _get_partner_sales_share(partner_id: int, date_from: datetime, date_to: date
     items = []
     total_share_ils = Decimal('0.00')
     
-    for sale, line in sales_query:
-        share_pct = float(line.share_percentage or 0)
-        line_total = line.line_total or 0
+    for sale, line, share_percent in sales_query:
+        share_pct = Decimal(str(share_percent or 0))
+        line_total = Decimal(str(line.line_total or 0))
         currency = sale.currency or "ILS"
         
         # نصيب الشريك من هذا السطر
-        partner_share = Decimal(str(line_total)) * Decimal(str(share_pct / 100.0))
+        partner_share = line_total * (share_pct / Decimal('100.0'))
         
         # تحويل إلى ILS
         partner_share_ils = _convert_to_ils(partner_share, currency, sale.sale_date)
-        total_share_ils += partner_share_ils
+        total_share_ils = total_share_ils + partner_share_ils
         
         items.append({
             "sale_id": sale.id,
@@ -790,7 +798,7 @@ def _get_partner_sales_share(partner_id: int, date_from: datetime, date_to: date
     return {
         "items": items,
         "count": len(items),
-        "total_share": float(sum(item["partner_share_original"] for item in items)),
+        "total_share": float(sum(Decimal(str(item["partner_share_original"])) for item in items)),
         "total_share_ils": float(total_share_ils)
     }
 
@@ -809,12 +817,12 @@ def _get_payments_to_partner(partner_id: int, date_from: datetime, date_to: date
     
     total_ils = Decimal('0.00')
     for payment in payments:
-        amount = payment.total_amount or 0
+        amount = Decimal(str(payment.total_amount or 0))
         currency = payment.currency or "ILS"
         payment_date = payment.payment_date or datetime.utcnow()
         
         amount_ils = _convert_to_ils(amount, currency, payment_date)
-        total_ils += amount_ils
+        total_ils = total_ils + amount_ils
     
     return float(total_ils)
 
@@ -832,12 +840,12 @@ def _get_partner_expenses(partner_id: int, date_from: datetime, date_to: datetim
     
     total_ils = Decimal('0.00')
     for expense in expenses:
-        amount = expense.amount or 0
+        amount = Decimal(str(expense.amount or 0))
         currency = expense.currency or "ILS"
         expense_date = expense.date or datetime.utcnow()
         
         amount_ils = _convert_to_ils(amount, currency, expense_date)
-        total_ils += amount_ils
+        total_ils = total_ils + amount_ils
     
     return float(total_ils)
 

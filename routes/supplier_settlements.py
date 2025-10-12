@@ -7,10 +7,11 @@ from decimal import Decimal, ROUND_HALF_UP
 from flask import Blueprint, request, jsonify, render_template, url_for, abort
 from flask_login import login_required
 from sqlalchemy import and_
+from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import SQLAlchemyError
 from extensions import db
 from utils import permission_required
-from models import Supplier, PaymentDirection, PaymentMethod, SupplierSettlement, SupplierSettlementStatus, build_supplier_settlement_draft, AuditLog
+from models import Supplier, PaymentDirection, PaymentMethod, PaymentStatus, SupplierSettlement, SupplierSettlementStatus, build_supplier_settlement_draft, AuditLog
 import json
 
 supplier_settlements_bp = Blueprint("supplier_settlements_bp", __name__, url_prefix="/suppliers")
@@ -61,6 +62,10 @@ def _extract_range_from_request():
 
 def _q2(v) -> float:
     return float(Decimal(str(v or 0)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+
+def _d2(v) -> Decimal:
+    """تحويل إلى Decimal بدقة منزلتين"""
+    return Decimal(str(v or 0)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 def _due_direction(v: Decimal):
     if v > 0:
@@ -313,7 +318,7 @@ def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, dat
         # 2. ديون قديمة (إن وجدت - من Expense أو مصادر أخرى)
         old_debts = _get_supplier_old_debts(supplier_id, date_from)
         
-        total_debit = exchange_items["total_value"] + old_debts
+        total_debit = Decimal(str(exchange_items["total_value"])) + Decimal(str(old_debts))
         
         # ═══════════════════════════════════════════════════════════
         # الدائن (Credit - علينا له - المورد أخذ أو ندين له)
@@ -331,10 +336,10 @@ def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, dat
         # 6. المرتجعات (قطع رجعناها له - OUT direction في Exchange)
         returns = _get_returns_to_supplier(supplier_id, date_from, date_to)
         
-        total_credit = (sales_to_supplier["total"] + 
-                       services_to_supplier["total"] + 
-                       cash_payments + 
-                       returns["total_value"])
+        total_credit = (Decimal(str(sales_to_supplier["total"])) + 
+                       Decimal(str(services_to_supplier["total"])) + 
+                       Decimal(str(cash_payments)) + 
+                       Decimal(str(returns["total_value"])))
         
         # ═══════════════════════════════════════════════════════════
         # الحساب النهائي
@@ -373,8 +378,8 @@ def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, dat
             # المدين (له علينا)
             "debit": {
                 "exchange_items": exchange_items,  # القطع مع تفاصيلها
-                "old_debts": old_debts,
-                "total": total_debit
+                "old_debts": float(old_debts),
+                "total": float(total_debit)
             },
             # الدائن (علينا له)
             "credit": {
@@ -382,11 +387,11 @@ def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, dat
                 "services": services_to_supplier,  # الصيانة مع التفاصيل
                 "cash_payments": cash_payments,  # الدفعات النقدية
                 "returns": returns,  # المرتجعات
-                "total": total_credit
+                "total": float(total_credit)
             },
             # الرصيد (بالشيكل)
             "balance": {
-                "amount": balance,
+                "amount": float(balance),
                 "direction": "دفع للمورد" if balance > 0 else "قبض من المورد" if balance < 0 else "متوازن",
                 "payment_direction": "OUT" if balance > 0 else "IN",
                 "currency": "ILS",  # كل الحسابات موحدة بالشيكل
@@ -716,7 +721,7 @@ def _convert_to_ils(amount: Decimal | float, from_currency: str, at: datetime = 
     
     # إذا كانت بالفعل ILS، لا حاجة للتحويل
     if from_currency == "ILS":
-        return _q2(amount)
+        return _d2(amount)
     
     # التحويل - يستخدم fx_rate داخلياً:
     # 1. يبحث في قاعدة البيانات المحلية (السعر اليدوي)
@@ -762,13 +767,13 @@ def _get_supplier_exchange_items(supplier_id: int, date_from: datetime, date_to:
     
     for tx in transactions:
         prod = tx.product
-        qty = tx.quantity or 0
-        unit_cost = tx.unit_cost
+        qty = Decimal(str(tx.quantity or 0))
+        unit_cost = Decimal(str(tx.unit_cost or 0))
         
         # محاولة الحصول على السعر
-        if not unit_cost or unit_cost == 0:
+        if unit_cost == 0:
             if prod and prod.purchase_price:
-                unit_cost = prod.purchase_price
+                unit_cost = Decimal(str(prod.purchase_price))
                 fallback_used = True
             else:
                 # قطعة غير مسعّرة
@@ -777,7 +782,7 @@ def _get_supplier_exchange_items(supplier_id: int, date_from: datetime, date_to:
                     "product_id": tx.product_id,
                     "product_name": prod.name if prod else "غير محدد",
                     "product_sku": prod.sku if prod else None,
-                    "quantity": qty,
+                    "quantity": int(qty),
                     "date": tx.created_at,
                     "suggested_price": 0
                 })
@@ -786,8 +791,8 @@ def _get_supplier_exchange_items(supplier_id: int, date_from: datetime, date_to:
         else:
             fallback_used = False
         
-        value = _q2(qty * unit_cost)
-        total_value += value
+        value = qty * unit_cost
+        total_value = total_value + value
         
         items.append({
             "id": tx.id,
@@ -838,13 +843,13 @@ def _get_sales_to_supplier(supplier_id: int, date_from: datetime, date_to: datet
     for payment in payments:
         sale = payment.sale
         if sale:
-            amount_original = payment.total_amount or 0
+            amount_original = Decimal(str(payment.total_amount or 0))
             currency = payment.currency or "ILS"
             payment_date = payment.payment_date or datetime.utcnow()
             
             # تحويل إلى ILS
             amount_ils = _convert_to_ils(amount_original, currency, payment_date)
-            total_ils += amount_ils
+            total_ils = total_ils + amount_ils
             
             sales_list.append({
                 "id": sale.id,
@@ -884,13 +889,13 @@ def _get_services_to_supplier(supplier_id: int, date_from: datetime, date_to: da
     for payment in payments:
         service = payment.service
         if service:
-            amount_original = payment.total_amount or 0
+            amount_original = Decimal(str(payment.total_amount or 0))
             currency = payment.currency or "ILS"
             payment_date = payment.payment_date or datetime.utcnow()
             
             # تحويل إلى ILS
             amount_ils = _convert_to_ils(amount_original, currency, payment_date)
-            total_ils += amount_ils
+            total_ils = total_ils + amount_ils
             
             services_list.append({
                 "id": service.id,
@@ -927,13 +932,13 @@ def _get_cash_payments_to_supplier(supplier_id: int, date_from: datetime, date_t
     
     total_ils = Decimal('0.00')
     for payment in payments:
-        amount_original = payment.total_amount or 0
+        amount_original = Decimal(str(payment.total_amount or 0))
         currency = payment.currency or "ILS"
         payment_date = payment.payment_date or datetime.utcnow()
         
         # تحويل إلى ILS
         amount_ils = _convert_to_ils(amount_original, currency, payment_date)
-        total_ils += amount_ils
+        total_ils = total_ils + amount_ils
     
     return float(total_ils)
 
@@ -968,15 +973,17 @@ def _get_returns_to_supplier(supplier_id: int, date_from: datetime, date_to: dat
     
     for tx in transactions:
         prod = tx.product
-        qty = tx.quantity or 0
-        unit_cost = tx.unit_cost or (prod.purchase_price if prod else 0) or 0
-        value = _q2(qty * unit_cost)
-        total_value += value
+        qty = Decimal(str(tx.quantity or 0))
+        unit_cost = Decimal(str(tx.unit_cost or 0))
+        if unit_cost == 0 and prod and prod.purchase_price:
+            unit_cost = Decimal(str(prod.purchase_price))
+        value = qty * unit_cost
+        total_value = total_value + value
         
         items.append({
             "id": tx.id,
             "product_name": prod.name if prod else "غير محدد",
-            "quantity": qty,
+            "quantity": int(qty),
             "unit_cost": float(unit_cost),
             "total_value": float(value),
             "date": tx.created_at
