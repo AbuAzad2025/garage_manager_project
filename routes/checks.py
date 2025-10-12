@@ -27,6 +27,27 @@ import uuid
 checks_bp = Blueprint('checks', __name__, url_prefix='/checks')
 
 
+def ensure_check_accounts():
+    """التأكد من وجود حسابات الشيكات في دفتر الأستاذ"""
+    try:
+        required_accounts = [
+            ('1150_CHEQUES_RECEIVABLE', 'شيكات تحت التحصيل', 'ASSET'),
+            ('2150_CHEQUES_PAYABLE', 'شيكات تحت الدفع', 'LIABILITY'),
+        ]
+        
+        for code, name, acc_type in required_accounts:
+            existing = Account.query.filter_by(code=code).first()
+            if not existing:
+                new_account = Account(code=code, name=name, type=acc_type, is_active=True)
+                db.session.add(new_account)
+                current_app.logger.info(f"✅ تم إنشاء حساب: {code} - {name}")
+        
+        db.session.commit()
+    except Exception as e:
+        current_app.logger.error(f"❌ خطأ في إنشاء حسابات الشيكات: {str(e)}")
+        db.session.rollback()
+
+
 def create_gl_entry_for_check(check_id, check_type, amount, currency, direction, 
                                new_status, old_status=None, entity_name='', notes=''):
     """
@@ -58,6 +79,9 @@ def create_gl_entry_for_check(check_id, check_type, amount, currency, direction,
        - دائن: الموردين (خصم - زيادة)
     """
     try:
+        # التأكد من وجود الحسابات
+        ensure_check_accounts()
+        
         # تحديد نوع القيد بناءً على الحالة والاتجاه
         is_incoming = (direction == 'IN')
         amount_decimal = Decimal(str(amount))
