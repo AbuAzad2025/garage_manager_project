@@ -1137,7 +1137,7 @@ def update_check_status(check_id):
                 # جلب الدفعة الجزئية
                 split = PaymentSplit.query.get_or_404(actual_id)
                 check = split.payment
-                else:
+            else:
                 check = Payment.query.get_or_404(actual_id)
             
             # إضافة ملاحظة مفصلة بدون تغيير حالة Payment
