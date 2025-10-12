@@ -488,13 +488,13 @@ def get_checks():
                     is_incoming = payment.direction == PaymentDirection.IN.value
                     
                 # ⭐ ربط ذكي بالجهة من الدفعة الأصلية
-                    entity_name = ''
-                    entity_link = ''
-                    entity_type = ''
+                entity_name = ''
+                entity_link = ''
+                entity_type = ''
                 drawer_name = ''
                 payee_name = ''
                 
-                    if payment.customer:
+                if payment.customer:
                         entity_name = payment.customer.name
                         entity_link = f'/customers/{payment.customer.id}'
                         entity_type = 'عميل'
