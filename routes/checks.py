@@ -1626,6 +1626,7 @@ def reports():
     stats_by_status = {}
     for check in all_checks:
         status = check.get('status', 'UNKNOWN')
+        original_status = status  # للـ logging
         
         # فحص الملاحظات لاكتشاف الحالة الفعلية
         notes = (check.get('notes', '') or '').lower()
@@ -1639,11 +1640,16 @@ def reports():
             status = 'RESUBMITTED'
         elif 'حالة الشيك: مؤرشف' in notes:
             status = 'ARCHIVED'
+        elif 'حالة الشيك: مرفوض' in notes:
+            status = 'BOUNCED'
         
         if status not in stats_by_status:
             stats_by_status[status] = {'status': status, 'count': 0, 'total_amount': 0}
         stats_by_status[status]['count'] += 1
         stats_by_status[status]['total_amount'] += float(check.get('amount', 0))
+    
+    current_app.logger.info(f"📊 إحصائيات الحالات: {stats_by_status}")
+    current_app.logger.info(f"📊 عدد الحالات المختلفة: {len(stats_by_status)}")
     
     # تحويل إلى list
     stats_by_status = list(stats_by_status.values())
