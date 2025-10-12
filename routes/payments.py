@@ -577,20 +577,47 @@ def create_payment():
             field_name = form._entity_field_map[et]
             if eid and str(eid).isdigit() and hasattr(form, field_name):
                 getattr(form, field_name).data = int(eid)
+                # ملء entity_id أيضاً
+                form.entity_id.data = str(eid)
             if et == "CUSTOMER" and eid:
                 c = db.session.get(Customer, int(eid))
                 if c:
-                    entity_info = {"type": "customer", "name": c.name, "balance": int(q0(getattr(c, "balance", 0) or 0)), "currency": getattr(c, "currency", "ILS")}
+                    balance = int(q0(getattr(c, "balance", 0) or 0))
+                    entity_info = {"type": "customer", "name": c.name, "balance": balance, "currency": getattr(c, "currency", "ILS")}
+                    # ملء المبلغ تلقائياً إذا كان هناك رصيد
+                    if pre_amount is None and balance > 0:
+                        pre_amount = balance
                     if not preset_currency:
                         form.currency.data = getattr(c, "currency", "ILS")
+                    # ملء اسم العميل في search field
+                    if hasattr(form, 'customer_search'):
+                        form.customer_search.data = c.name
             elif et == "SUPPLIER" and eid:
                 s = db.session.get(Supplier, int(eid))
-                if s and not preset_currency:
-                    form.currency.data = getattr(s, "currency", "ILS")
+                if s:
+                    balance = int(q0(getattr(s, "balance", 0) or 0))
+                    entity_info = {"type": "supplier", "name": s.name, "balance": balance, "currency": getattr(s, "currency", "ILS")}
+                    # ملء المبلغ تلقائياً إذا كان هناك رصيد
+                    if pre_amount is None and balance > 0:
+                        pre_amount = balance
+                    if not preset_currency:
+                        form.currency.data = getattr(s, "currency", "ILS")
+                    # ملء اسم المورد في search field
+                    if hasattr(form, 'supplier_search'):
+                        form.supplier_search.data = s.name
             elif et == "PARTNER" and eid:
                 p = db.session.get(Partner, int(eid))
-                if p and not preset_currency:
-                    form.currency.data = getattr(p, "currency", "ILS")
+                if p:
+                    balance = int(q0(getattr(p, "balance", 0) or 0))
+                    entity_info = {"type": "partner", "name": p.name, "balance": balance, "currency": getattr(p, "currency", "ILS")}
+                    # ملء المبلغ تلقائياً إذا كان هناك رصيد
+                    if pre_amount is None and balance > 0:
+                        pre_amount = balance
+                    if not preset_currency:
+                        form.currency.data = getattr(p, "currency", "ILS")
+                    # ملء اسم الشريك في search field
+                    if hasattr(form, 'partner_search'):
+                        form.partner_search.data = p.name
             elif et == "SALE" and eid:
                 rec = db.session.get(Sale, int(eid))
                 if rec:

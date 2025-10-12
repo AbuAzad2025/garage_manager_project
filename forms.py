@@ -3558,24 +3558,185 @@ class WarehouseForm(FlaskForm):
     current_occupancy = IntegerField('المشغول حاليًا', validators=[Optional(), NumberRange(min=0)])
     online_slug = StrippedStringField('معرّف الorنلاين', validators=[Optional(), Length(max=150)])
     online_is_default = BooleanField('المستودع الافتراضي للorنلاين', default=False)
-    notes = TextAreaField('ملاحظات', validators=[Optional(), Length(max=1000)])
-    is_active = BooleanField('نشط', default=True)
-    submit = SubmitField('حفظ المستودع')
 
-    def validate(self, extra_validators=None):
-        if not super().validate(extra_validators=extra_validators): return False
-        cap, occ = self.capacity.data, self.current_occupancy.data
-        if cap is not None and occ is not None and occ > cap:
-            self.current_occupancy.errors.append('المشغول حاليًا لا يمكن أن يتجاوز السعة القصوى.')
-            return False
-        wt = (self.warehouse_type.data or '').strip().upper()
-        self.warehouse_type.data = wt
-        if wt == 'ONLINE':
-            self.partner_id.data = None
-            self.supplier_id.data = None
-            if self.online_slug.data:
-                self.online_slug.data = _slugify(self.online_slug.data)
-            slug = (self.online_slug.data or '').strip()
+
+# ========================================
+# نموذج الشيكات - Check Form
+# ========================================
+
+class CheckForm(FlaskForm):
+    """
+    نموذج إضافة/تعديل شيك يدوي
+    مطابق لـ Check Model في models.py
+    """
+    
+    # معلومات الشيك الأساسية
+    check_number = StrippedStringField(
+        'رقم الشيك *',
+        validators=[DataRequired(message='رقم الشيك مطلوب'), Length(max=100)],
+        render_kw={'placeholder': 'مثال: 123456'}
+    )
+    
+    check_bank = StrippedStringField(
+        'البنك *',
+        validators=[DataRequired(message='اسم البنك مطلوب'), Length(max=200)],
+        render_kw={'placeholder': 'مثال: بنك فلسطين'}
+    )
+    
+    check_date = DateField(
+        'تاريخ الشيك *',
+        validators=[DataRequired(message='تاريخ الشيك مطلوب')],
+        format='%Y-%m-%d',
+        default=datetime.utcnow
+    )
+    
+    check_due_date = DateField(
+        'تاريخ الاستحقاق *',
+        validators=[DataRequired(message='تاريخ الاستحقاق مطلوب')],
+        format='%Y-%m-%d'
+    )
+    
+    # المبلغ والعملة
+    amount = DecimalField(
+        'المبلغ *',
+        validators=[
+            DataRequired(message='المبلغ مطلوب'),
+            NumberRange(min=0.01, message='المبلغ يجب أن يكون أكبر من صفر')
+        ],
+        places=2,
+        render_kw={'placeholder': '0.00', 'step': '0.01'}
+    )
+    
+    currency = SelectField(
+        'العملة *',
+        choices=[
+            ('ILS', 'شيكل (₪)'),
+            ('USD', 'دولار ($)'),
+            ('EUR', 'يورو (€)'),
+            ('JOD', 'دينار (JD)')
+        ],
+        validators=[DataRequired()],
+        default='ILS'
+    )
+    
+    # الاتجاه والحالة
+    direction = SelectField(
+        'الاتجاه *',
+        choices=[
+            ('IN', 'وارد ⬅️ (نستلم)'),
+            ('OUT', 'صادر ➡️ (ندفع)')
+        ],
+        validators=[DataRequired(message='الاتجاه مطلوب')],
+        default='IN'
+    )
+    
+    status = SelectField(
+        'الحالة',
+        choices=[
+            ('PENDING', 'معلق ⏳'),
+            ('CASHED', 'تم الصرف ✅'),
+            ('RETURNED', 'مرتجع 🔄'),
+            ('BOUNCED', 'مرفوض ❌'),
+            ('RESUBMITTED', 'أعيد للبنك 🔁'),
+            ('CANCELLED', 'ملغي ⛔')
+        ],
+        default='PENDING'
+    )
+    
+    # معلومات الساحب (من يصدر الشيك)
+    drawer_name = StrippedStringField(
+        'اسم الساحب',
+        validators=[Optional(), Length(max=200)],
+        render_kw={'placeholder': 'اسم من يصدر الشيك'}
+    )
+    
+    drawer_phone = StrippedStringField(
+        'هاتف الساحب',
+        validators=[Optional(), Length(max=20)],
+        render_kw={'placeholder': '0599888777'}
+    )
+    
+    drawer_id_number = StrippedStringField(
+        'رقم هوية الساحب',
+        validators=[Optional(), Length(max=50)],
+        render_kw={'placeholder': 'رقم الهوية'}
+    )
+    
+    drawer_address = TextAreaField(
+        'عنوان الساحب',
+        validators=[Optional()],
+        render_kw={'rows': 2, 'placeholder': 'العنوان الكامل'}
+    )
+    
+    # معلومات المستفيد (من يستلم الشيك)
+    payee_name = StrippedStringField(
+        'اسم المستفيد',
+        validators=[Optional(), Length(max=200)],
+        render_kw={'placeholder': 'اسم من يستلم الشيك'}
+    )
+    
+    payee_phone = StrippedStringField(
+        'هاتف المستفيد',
+        validators=[Optional(), Length(max=20)],
+        render_kw={'placeholder': '0599888777'}
+    )
+    
+    payee_account = StrippedStringField(
+        'رقم حساب المستفيد',
+        validators=[Optional(), Length(max=50)],
+        render_kw={'placeholder': 'رقم الحساب البنكي'}
+    )
+    
+    # الربط بعميل أو مورد
+    customer_id = IntegerField(
+        'العميل',
+        validators=[Optional()],
+        render_kw={'class': 'form-control'}
+    )
+    
+    supplier_id = IntegerField(
+        'المورد',
+        validators=[Optional()],
+        render_kw={'class': 'form-control'}
+    )
+    
+    partner_id = IntegerField(
+        'الشريك',
+        validators=[Optional()],
+        render_kw={'class': 'form-control'}
+    )
+    
+    # معلومات إضافية
+    notes = TextAreaField(
+        'ملاحظات',
+        validators=[Optional()],
+        render_kw={'rows': 3, 'placeholder': 'ملاحظات عامة عن الشيك'}
+    )
+    
+    internal_notes = TextAreaField(
+        'ملاحظات داخلية',
+        validators=[Optional()],
+        render_kw={'rows': 2, 'placeholder': 'ملاحظات خاصة (لا تظهر للعميل)'}
+    )
+    
+    reference_number = StrippedStringField(
+        'رقم مرجعي',
+        validators=[Optional(), Length(max=100)],
+        render_kw={'placeholder': 'رقم مرجعي أو كود خاص'}
+    )
+    
+    submit = SubmitField('حفظ الشيك')
+    
+    def validate_check_due_date(self, field):
+        """التحقق من أن تاريخ الاستحقاق بعد تاريخ الشيك"""
+        if self.check_date.data and field.data:
+            if field.data < self.check_date.data:
+                raise ValidationError('تاريخ الاستحقاق يجب أن يكون بعد تاريخ الشيك')
+    
+    def validate_amount(self, field):
+        """التحقق من صحة المبلغ"""
+        if field.data and field.data <= 0:
+            raise ValidationError('المبلغ يجب أن يكون أكبر من صفر')
             cur_id = to_int(self.id.data) if self.id.data else None
             if slug:
                 try:

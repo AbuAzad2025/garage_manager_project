@@ -282,12 +282,20 @@
             ] %}
 
             <div class="split-details mt-3" style="display:none;">
+              <div class="alert alert-info mb-2" style="display:none;" data-cheque-info>
+                <i class="fas fa-money-check-alt"></i> <strong>معلومات الشيك:</strong> يرجى ملء جميع البيانات بدقة
+              </div>
               <div class="row gy-2">
                 {% for fname in _detail_fields %}
                   {% set field = split|attr(fname) %}
                   {% if field is not none %}
                   <div class="col-md-4" data-field="{{ fname }}">
-                    {{ field.label(class="form-label") }}
+                    <label class="form-label">
+                      {% if fname == 'check_number' %}<i class="fas fa-hashtag text-primary"></i>{% endif %}
+                      {% if fname == 'check_bank' %}<i class="fas fa-university text-info"></i>{% endif %}
+                      {% if fname == 'check_due_date' %}<i class="fas fa-calendar-alt text-warning"></i>{% endif %}
+                      {{ field.label.text }}
+                    </label>
                     {% if fname == 'check_due_date' %}
                       {{ field(type="date", class="form-control") }}
                     {% else %}
@@ -649,11 +657,13 @@
       
       const selectedMethod = methodSelect.value.toUpperCase();
       
-      // إخفاء جميع الحقول أولاً
+      // إخفاء جميع الحقول والتنبيهات أولاً
       const allDetailFields = detailsContainer.querySelectorAll('[data-field]');
       allDetailFields.forEach(field => {
         field.style.display = 'none';
       });
+      const chequeInfo = detailsContainer.querySelector('[data-cheque-info]');
+      if (chequeInfo) chequeInfo.style.display = 'none';
       
       // إظهار detailsContainer فقط إذا كانت الطريقة تحتاج تفاصيل
       const methodsWithDetails = ['CHECK', 'CHEQUE', 'BANK', 'BANK_TRANSFER', 'CARD', 'ONLINE'];
@@ -665,6 +675,8 @@
         // إظهار الحقول المناسبة حسب الطريقة
         if (selectedMethod.includes('CHECK') || selectedMethod.includes('CHEQUE')) {
           // حقول الشيك
+          const chequeInfo = detailsContainer.querySelector('[data-cheque-info]');
+          if (chequeInfo) chequeInfo.style.display = 'block';
           showField(detailsContainer, 'check_number');
           showField(detailsContainer, 'check_bank');
           showField(detailsContainer, 'check_due_date');

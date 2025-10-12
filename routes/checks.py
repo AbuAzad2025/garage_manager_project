@@ -79,63 +79,62 @@ def get_checks():
             ).filter(
                 PaymentSplit.method == PaymentMethod.CHEQUE.value
             )
-        
-        # فلتر حسب الاتجاه
-        if direction == 'in':
-            payment_checks = payment_checks.filter(Payment.direction == PaymentDirection.IN.value)
-            payment_with_splits = payment_with_splits.filter(Payment.direction == PaymentDirection.IN.value)
-        elif direction == 'out':
-            payment_checks = payment_checks.filter(Payment.direction == PaymentDirection.OUT.value)
-            payment_with_splits = payment_with_splits.filter(Payment.direction == PaymentDirection.OUT.value)
-        
-        # فلتر حسب الحالة
-        today = datetime.utcnow().date()
-        if status == 'pending':
-            payment_checks = payment_checks.filter(Payment.status == PaymentStatus.PENDING.value)
-            payment_with_splits = payment_with_splits.filter(Payment.status == PaymentStatus.PENDING.value)
-        elif status == 'completed':
-            payment_checks = payment_checks.filter(Payment.status == PaymentStatus.COMPLETED.value)
-            payment_with_splits = payment_with_splits.filter(Payment.status == PaymentStatus.COMPLETED.value)
-        elif status == 'overdue':
-            payment_checks = payment_checks.filter(
-                and_(
-                    Payment.status == PaymentStatus.PENDING.value,
-                    Payment.check_due_date < datetime.utcnow()
-                )
-            )
-            payment_with_splits = payment_with_splits.filter(
-                and_(
-                    Payment.status == PaymentStatus.PENDING.value,
-                    Payment.check_due_date < datetime.utcnow()
-                )
-            )
-        
-        # فلتر حسب التاريخ
-        if from_date:
-            try:
-                from_dt = datetime.strptime(from_date, '%Y-%m-%d')
-                payment_checks = payment_checks.filter(Payment.check_due_date >= from_dt)
-                payment_with_splits = payment_with_splits.filter(Payment.check_due_date >= from_dt)
-            except:
-                pass
-        
-        if to_date:
-            try:
-                to_dt = datetime.strptime(to_date, '%Y-%m-%d')
-                payment_checks = payment_checks.filter(Payment.check_due_date <= to_dt)
-                payment_with_splits = payment_with_splits.filter(Payment.check_due_date <= to_dt)
-            except:
-                pass
-        
-        # معالجة شيكات Payment العادية (method = cheque)
-        for payment in payment_checks.all():
-            if not payment.check_due_date:
-                continue
             
-            due_date = payment.check_due_date.date() if isinstance(payment.check_due_date, datetime) else payment.check_due_date
-            days_until_due = (due_date - today).days
+            # فلتر حسب الاتجاه
+            if direction == 'in':
+                payment_checks = payment_checks.filter(Payment.direction == PaymentDirection.IN.value)
+                payment_with_splits = payment_with_splits.filter(Payment.direction == PaymentDirection.IN.value)
+            elif direction == 'out':
+                payment_checks = payment_checks.filter(Payment.direction == PaymentDirection.OUT.value)
+                payment_with_splits = payment_with_splits.filter(Payment.direction == PaymentDirection.OUT.value)
             
-            # تحديد الحالة
+            # فلتر حسب الحالة
+            if status == 'pending':
+                payment_checks = payment_checks.filter(Payment.status == PaymentStatus.PENDING.value)
+                payment_with_splits = payment_with_splits.filter(Payment.status == PaymentStatus.PENDING.value)
+            elif status == 'completed':
+                payment_checks = payment_checks.filter(Payment.status == PaymentStatus.COMPLETED.value)
+                payment_with_splits = payment_with_splits.filter(Payment.status == PaymentStatus.COMPLETED.value)
+            elif status == 'overdue':
+                payment_checks = payment_checks.filter(
+                    and_(
+                        Payment.status == PaymentStatus.PENDING.value,
+                        Payment.check_due_date < datetime.utcnow()
+                    )
+                )
+                payment_with_splits = payment_with_splits.filter(
+                    and_(
+                        Payment.status == PaymentStatus.PENDING.value,
+                        Payment.check_due_date < datetime.utcnow()
+                    )
+                )
+            
+            # فلتر حسب التاريخ
+            if from_date:
+                try:
+                    from_dt = datetime.strptime(from_date, '%Y-%m-%d')
+                    payment_checks = payment_checks.filter(Payment.check_due_date >= from_dt)
+                    payment_with_splits = payment_with_splits.filter(Payment.check_due_date >= from_dt)
+                except:
+                    pass
+            
+            if to_date:
+                try:
+                    to_dt = datetime.strptime(to_date, '%Y-%m-%d')
+                    payment_checks = payment_checks.filter(Payment.check_due_date <= to_dt)
+                    payment_with_splits = payment_with_splits.filter(Payment.check_due_date <= to_dt)
+                except:
+                    pass
+            
+            # معالجة شيكات Payment العادية (method = cheque)
+            for payment in payment_checks.all():
+                if not payment.check_due_date:
+                    continue
+                
+                due_date = payment.check_due_date.date() if isinstance(payment.check_due_date, datetime) else payment.check_due_date
+                days_until_due = (due_date - today).days
+                
+                # تحديد الحالة
                 if payment.status == PaymentStatus.COMPLETED.value:
                     check_status = 'CASHED'
                     status_ar = 'تم الصرف'
@@ -196,7 +195,7 @@ def get_checks():
                     'check_bank': payment.check_bank or '',
                     'check_due_date': due_date.strftime('%Y-%m-%d'),
                     'due_date_formatted': due_date.strftime('%d/%m/%Y'),
-                    'amount': float(payment.amount or 0),
+                    'amount': float(payment.total_amount or 0),
                     'currency': payment.currency or 'ILS',
                     'direction': 'وارد' if is_incoming else 'صادر',
                     'direction_en': 'in' if is_incoming else 'out',
@@ -209,7 +208,7 @@ def get_checks():
                     'entity_type': entity_type,
                     'entity_link': entity_link,
                     'notes': payment.notes or '',
-                    'created_at': payment.created_at.strftime('%Y-%m-%d') if payment.created_at else '',
+                    'created_at': payment.payment_date.strftime('%Y-%m-%d') if payment.payment_date else '',
                     'receipt_number': payment.receipt_number or ''
                 })
             
@@ -317,7 +316,7 @@ def get_checks():
                         'entity_type': entity_type,
                         'entity_link': entity_link,
                         'notes': payment.notes or '',
-                        'created_at': payment.created_at.strftime('%Y-%m-%d') if payment.created_at else '',
+                        'created_at': payment.payment_date.strftime('%Y-%m-%d') if payment.payment_date else '',
                         'receipt_number': payment.payment_number or ''
                     })
         
@@ -326,20 +325,20 @@ def get_checks():
             expense_checks = Expense.query.filter(
                 Expense.payment_method == 'cheque'
             )
-        
-        if from_date:
-            try:
-                from_dt = datetime.strptime(from_date, '%Y-%m-%d')
-                expense_checks = expense_checks.filter(Expense.check_due_date >= from_dt)
-            except:
-                pass
-        
-        if to_date:
-            try:
-                to_dt = datetime.strptime(to_date, '%Y-%m-%d')
-                expense_checks = expense_checks.filter(Expense.check_due_date <= to_dt)
-            except:
-                pass
+            
+            if from_date:
+                try:
+                    from_dt = datetime.strptime(from_date, '%Y-%m-%d')
+                    expense_checks = expense_checks.filter(Expense.check_due_date >= from_dt)
+                except:
+                    pass
+            
+            if to_date:
+                try:
+                    to_dt = datetime.strptime(to_date, '%Y-%m-%d')
+                    expense_checks = expense_checks.filter(Expense.check_due_date <= to_dt)
+                except:
+                    pass
             
             # معالجة شيكات Expense
             for expense in expense_checks.all():
@@ -405,7 +404,7 @@ def get_checks():
                     'entity_link': '',
                     'notes': expense.description or '',
                     'created_at': expense.date.strftime('%Y-%m-%d') if expense.date else '',
-                    'receipt_number': expense.reference or ''
+                    'receipt_number': expense.tax_invoice_number or ''
                 })
         
         # 3. جلب الشيكات اليدوية (Independent Checks)
@@ -870,7 +869,7 @@ def get_alerts():
                 'icon': 'fas fa-exclamation-circle',
                 'title': f'شيك {direction_ar} متأخر',
                 'message': f'شيك رقم {check.check_number} من {entity_name} متأخر {days_overdue} يوم',
-                'amount': float(check.amount or 0),
+                'amount': float(check.total_amount or 0),
                 'currency': check.currency,
                 'check_number': check.check_number,
                 'due_date': check.check_due_date.strftime('%Y-%m-%d'),
@@ -905,7 +904,7 @@ def get_alerts():
                 'icon': 'fas fa-clock',
                 'title': f'شيك {direction_ar} قريب الاستحقاق',
                 'message': f'شيك رقم {check.check_number} من {entity_name} يستحق خلال {days_until} يوم',
-                'amount': float(check.amount or 0),
+                'amount': float(check.total_amount or 0),
                 'currency': check.currency,
                 'check_number': check.check_number,
                 'due_date': check.check_due_date.strftime('%Y-%m-%d'),

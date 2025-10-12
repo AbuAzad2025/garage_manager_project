@@ -788,17 +788,26 @@ def seed_payments(suppliers, partners, customers):
         days_ago = random.randint(5, 85)
         pay_date = base_date - timedelta(days=days_ago)
         
-        payment = Payment(
-            supplier_id=supplier.id,
-            direction=PaymentDirection.OUT.value,
-            method=random.choice([PaymentMethod.CASH.value, PaymentMethod.BANK.value, PaymentMethod.CHEQUE.value]),
-            status=PaymentStatus.COMPLETED.value,
-            total_amount=Decimal(str(random.randint(500, 3000))),
-            currency=supplier.currency,
-            payment_date=pay_date,
-            reference=f"PAY-SUP-{i+1:04d}",
-            notes="[TEST] دفعة نقدية مباشرة للمورد"
-        )
+        method = random.choice([PaymentMethod.CASH.value, PaymentMethod.BANK.value, PaymentMethod.CHEQUE.value])
+        payment_data = {
+            'supplier_id': supplier.id,
+            'direction': PaymentDirection.OUT.value,
+            'method': method,
+            'status': PaymentStatus.COMPLETED.value,
+            'total_amount': Decimal(str(random.randint(500, 3000))),
+            'currency': supplier.currency,
+            'payment_date': pay_date,
+            'reference': f"PAY-SUP-{i+1:04d}",
+            'notes': "[TEST] دفعة للمورد"
+        }
+        
+        # إضافة معلومات الشيك إذا كانت الطريقة شيك
+        if method == PaymentMethod.CHEQUE.value:
+            payment_data['check_number'] = f"CHK-SUP-{i+1:04d}"
+            payment_data['check_bank'] = random.choice(['بنك فلسطين', 'بنك القدس', 'بنك الأردن'])
+            payment_data['check_due_date'] = pay_date + timedelta(days=random.randint(15, 60))
+        
+        payment = Payment(**payment_data)
         db.session.add(payment)
         payments.append(payment)
     
@@ -809,17 +818,25 @@ def seed_payments(suppliers, partners, customers):
         days_ago = random.randint(5, 75)
         pay_date = base_date - timedelta(days=days_ago)
         
-        payment = Payment(
-            partner_id=partner.id,
-            direction=PaymentDirection.OUT.value,
-            method=random.choice([PaymentMethod.CASH.value, PaymentMethod.BANK.value]),
-            status=PaymentStatus.COMPLETED.value,
-            total_amount=Decimal(str(random.randint(400, 2500))),
-            currency=partner.currency,
-            payment_date=pay_date,
-            reference=f"PAY-PART-{i+1:04d}",
-            notes="[TEST] دفعة نقدية مباشرة للشريك"
-        )
+        method = random.choice([PaymentMethod.CASH.value, PaymentMethod.BANK.value, PaymentMethod.CHEQUE.value])
+        payment_data = {
+            'partner_id': partner.id,
+            'direction': PaymentDirection.OUT.value,
+            'method': method,
+            'status': PaymentStatus.COMPLETED.value,
+            'total_amount': Decimal(str(random.randint(400, 2500))),
+            'currency': partner.currency,
+            'payment_date': pay_date,
+            'reference': f"PAY-PART-{i+1:04d}",
+            'notes': "[TEST] دفعة للشريك"
+        }
+        
+        if method == PaymentMethod.CHEQUE.value:
+            payment_data['check_number'] = f"CHK-PART-{i+1:04d}"
+            payment_data['check_bank'] = random.choice(['بنك فلسطين', 'بنك القدس', 'بنك الأردن'])
+            payment_data['check_due_date'] = pay_date + timedelta(days=random.randint(15, 60))
+        
+        payment = Payment(**payment_data)
         db.session.add(payment)
         payments.append(payment)
     
@@ -830,17 +847,25 @@ def seed_payments(suppliers, partners, customers):
         days_ago = random.randint(5, 70)
         pay_date = base_date - timedelta(days=days_ago)
         
-        payment = Payment(
-            supplier_id=supplier.id,
-            direction=PaymentDirection.IN.value,
-            method=random.choice([PaymentMethod.CASH.value, PaymentMethod.BANK.value]),
-            status=PaymentStatus.COMPLETED.value,
-            total_amount=Decimal(str(random.randint(300, 2000))),
-            currency=supplier.currency,
-            payment_date=pay_date,
-            reference=f"PAY-SUP-IN-{i+1:04d}",
-            notes="[TEST] دفعة وارد من المورد (مديونية)"
-        )
+        method = random.choice([PaymentMethod.CASH.value, PaymentMethod.BANK.value, PaymentMethod.CHEQUE.value])
+        payment_data = {
+            'supplier_id': supplier.id,
+            'direction': PaymentDirection.IN.value,
+            'method': method,
+            'status': PaymentStatus.COMPLETED.value,
+            'total_amount': Decimal(str(random.randint(300, 2000))),
+            'currency': supplier.currency,
+            'payment_date': pay_date,
+            'reference': f"PAY-SUP-IN-{i+1:04d}",
+            'notes': "[TEST] دفعة وارد من المورد"
+        }
+        
+        if method == PaymentMethod.CHEQUE.value:
+            payment_data['check_number'] = f"CHK-SUP-IN-{i+1:04d}"
+            payment_data['check_bank'] = random.choice(['بنك فلسطين', 'بنك القدس', 'بنك الأردن'])
+            payment_data['check_due_date'] = pay_date + timedelta(days=random.randint(15, 60))
+        
+        payment = Payment(**payment_data)
         db.session.add(payment)
         payments.append(payment)
     
@@ -851,17 +876,25 @@ def seed_payments(suppliers, partners, customers):
         days_ago = random.randint(5, 65)
         pay_date = base_date - timedelta(days=days_ago)
         
-        payment = Payment(
-            partner_id=partner.id,
-            direction=PaymentDirection.IN.value,
-            method=random.choice([PaymentMethod.CASH.value, PaymentMethod.BANK.value]),
-            status=PaymentStatus.COMPLETED.value,
-            total_amount=Decimal(str(random.randint(250, 1800))),
-            currency=partner.currency,
-            payment_date=pay_date,
-            reference=f"PAY-PART-IN-{i+1:04d}",
-            notes="[TEST] دفعة وارد من الشريك (مديونية)"
-        )
+        method = random.choice([PaymentMethod.CASH.value, PaymentMethod.BANK.value, PaymentMethod.CHEQUE.value])
+        payment_data = {
+            'partner_id': partner.id,
+            'direction': PaymentDirection.IN.value,
+            'method': method,
+            'status': PaymentStatus.COMPLETED.value,
+            'total_amount': Decimal(str(random.randint(250, 1800))),
+            'currency': partner.currency,
+            'payment_date': pay_date,
+            'reference': f"PAY-PART-IN-{i+1:04d}",
+            'notes': "[TEST] دفعة وارد من الشريك"
+        }
+        
+        if method == PaymentMethod.CHEQUE.value:
+            payment_data['check_number'] = f"CHK-PART-IN-{i+1:04d}"
+            payment_data['check_bank'] = random.choice(['بنك فلسطين', 'بنك القدس', 'بنك الأردن'])
+            payment_data['check_due_date'] = pay_date + timedelta(days=random.randint(15, 60))
+        
+        payment = Payment(**payment_data)
         db.session.add(payment)
         payments.append(payment)
     
@@ -872,17 +905,25 @@ def seed_payments(suppliers, partners, customers):
         days_ago = random.randint(1, 60)
         pay_date = base_date - timedelta(days=days_ago)
         
-        payment = Payment(
-            customer_id=customer.id,
-            direction=PaymentDirection.IN.value,
-            method=random.choice([PaymentMethod.CASH.value, PaymentMethod.CARD.value, PaymentMethod.BANK.value]),
-            status=PaymentStatus.COMPLETED.value,
-            total_amount=Decimal(str(random.randint(200, 1500))),
-            currency="ILS",
-            payment_date=pay_date,
-            reference=f"PAY-CUST-{i+1:04d}",
-            notes="[TEST] دفعة من عميل"
-        )
+        method = random.choice([PaymentMethod.CASH.value, PaymentMethod.CARD.value, PaymentMethod.BANK.value, PaymentMethod.CHEQUE.value])
+        payment_data = {
+            'customer_id': customer.id,
+            'direction': PaymentDirection.IN.value,
+            'method': method,
+            'status': PaymentStatus.COMPLETED.value,
+            'total_amount': Decimal(str(random.randint(200, 1500))),
+            'currency': "ILS",
+            'payment_date': pay_date,
+            'reference': f"PAY-CUST-{i+1:04d}",
+            'notes': "[TEST] دفعة من عميل"
+        }
+        
+        if method == PaymentMethod.CHEQUE.value:
+            payment_data['check_number'] = f"CHK-CUST-{i+1:04d}"
+            payment_data['check_bank'] = random.choice(['بنك فلسطين', 'بنك القدس', 'بنك الأردن'])
+            payment_data['check_due_date'] = pay_date + timedelta(days=random.randint(15, 60))
+        
+        payment = Payment(**payment_data)
         db.session.add(payment)
         payments.append(payment)
     
