@@ -297,15 +297,18 @@
                 {% if balance_data.inventory['remaining_items']|length > 0 %}
                 <div class="col-md-6">
                     <div class="card settlement-detail-card">
-                        <div class="card-header bg-info text-white">
+                        <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
                             <h5 class="mb-0">
                                 <i class="fas fa-boxes"></i> القطع المتبقية 
                                 <span class="badge bg-light text-dark">{{ balance_data.inventory.total_remaining_count }}</span>
                             </h5>
+                            <button class="btn btn-sm btn-light no-print" onclick="printTable('remainingItemsTable', 'القطع المتبقية في مستودع الشريك')">
+                                <i class="fas fa-print"></i>
+                            </button>
                         </div>
                         <div class="card-body">
                             <div class="table-responsive">
-                                <table class="table table-sm table-hover">
+                                <table class="table table-sm table-hover" id="remainingItemsTable">
                                     <thead>
                                         <tr>
                                             <th>المنتج</th>
@@ -337,15 +340,24 @@
             <!-- تفاصيل نصيب الشريك من المبيعات -->
             {% if balance_data.sales_share['items']|length > 0 %}
             <div class="card settlement-detail-card">
-                <div class="card-header bg-primary text-white">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
                         <i class="fas fa-chart-line"></i> تفاصيل نصيب الشريك من المبيعات 
                         <span class="badge bg-light text-dark">{{ balance_data.sales_share.count }}</span>
                     </h5>
+                    <button class="btn btn-sm btn-light no-print" onclick="printTable('salesShareTable', 'تفاصيل نصيب الشريك من المبيعات')">
+                        <i class="fas fa-print"></i> طباعة
+                    </button>
                 </div>
                 <div class="card-body">
+                    {% if balance_data.sales_share.count > 10 %}
+                    <div class="alert alert-info mb-3 no-print">
+                        <i class="fas fa-info-circle"></i> 
+                        يعرض الجدول <strong>{{ balance_data.sales_share.count }}</strong> عملية بيع. استخدم البحث والترتيب أدناه للتصفح.
+                    </div>
+                    {% endif %}
                     <div class="table-responsive">
-                        <table class="table table-sm table-bordered">
+                        <table class="table table-sm table-bordered table-hover" id="salesShareTable">
                             <thead class="table-light">
                                 <tr>
                                     <th>#</th>
@@ -546,17 +558,51 @@
   });
   
   // DataTables للجداول الطويلة
-  {% if balance_data and balance_data.get('success') and balance_data.get('inventory') and balance_data.inventory.get('sold_items') and balance_data.inventory['sold_items']|length > 10 %}
-  $('#soldItemsTable').DataTable({
+  {% if balance_data and balance_data.get('success') and balance_data.get('inventory') %}
+    {% if balance_data.inventory.get('sold_items') and balance_data.inventory['sold_items']|length > 10 %}
+    $('#soldItemsTable').DataTable({
+      language: {
+        url: '{{ url_for("static", filename="datatables/Arabic.json") }}'
+      },
+      pageLength: 15,
+      order: [[0, 'asc']],
+      dom: 'frtip',
+      searching: true,
+      paging: true,
+      info: true
+    });
+    {% endif %}
+    
+    {% if balance_data.inventory.get('remaining_items') and balance_data.inventory['remaining_items']|length > 10 %}
+    $('#remainingItemsTable').DataTable({
+      language: {
+        url: '{{ url_for("static", filename="datatables/Arabic.json") }}'
+      },
+      pageLength: 15,
+      order: [[4, 'desc']],  // ترتيب حسب القيمة
+      dom: 'frtip',
+      searching: true,
+      paging: true,
+      info: true
+    });
+    {% endif %}
+  {% endif %}
+  
+  // جدول تفاصيل نصيب الشريك من المبيعات
+  {% if balance_data and balance_data.get('success') and balance_data.get('sales_share') and balance_data.sales_share.get('items') and balance_data.sales_share['items']|length > 10 %}
+  $('#salesShareTable').DataTable({
     language: {
       url: '{{ url_for("static", filename="datatables/Arabic.json") }}'
     },
-    pageLength: 15,
-    order: [[0, 'asc']],
+    pageLength: 20,
+    order: [[7, 'desc']],  // ترتيب حسب نصيب الشريك (الأكبر أولاً)
     dom: 'frtip',
     searching: true,
     paging: true,
-    info: true
+    info: true,
+    columnDefs: [
+      { targets: [4, 5, 6, 7], className: 'text-end' }
+    ]
   });
   {% endif %}
   
