@@ -27,6 +27,18 @@
     display: block !important;
     visibility: visible !important;
 }
+
+/* 🔥 Force visible charts */
+.card-body {
+    display: block !important;
+    visibility: visible !important;
+}
+
+canvas {
+    display: block !important;
+    visibility: visible !important;
+    min-height: 250px !important;
+}
 </style>
 {% endblock %}
 
@@ -56,8 +68,8 @@
         <div class="col-lg-3 col-6">
           <div class="small-box bg-info">
             <div class="inner">
-              <h3>{{ independent_checks|length }}</h3>
-              <p>إجمالي الشيكات اليدوية</p>
+              <h3>{{ all_checks|length }}</h3>
+              <p>إجمالي الشيكات (جميع المصادر)</p>
             </div>
             <div class="icon">
               <i class="fas fa-money-check-alt"></i>
@@ -92,9 +104,9 @@
         <div class="col-lg-3 col-6">
           <div class="small-box bg-success">
             <div class="inner">
-              {% set cashed_count = independent_checks|selectattr('status', 'equalto', 'CASHED')|list|length %}
+              {% set cashed_count = all_checks|selectattr('status', 'equalto', 'CASHED')|list|length %}
               <h3>{{ cashed_count }}</h3>
-              <p>تم صرفها</p>
+              <p>تم صرفها (جميع المصادر)</p>
             </div>
             <div class="icon">
               <i class="fas fa-check-circle"></i>
@@ -291,8 +303,11 @@
 </div>
 
 <script>
-// 🔥 فرض إظهار جميع الجداول
+// 🔥 فرض إظهار جميع العناصر ورسم الـ Charts
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('🔥 تحميل صفحة التقارير...');
+    
+    // فرض إظهار الجداول
     document.querySelectorAll('.table-responsive').forEach(function(el) {
         el.style.setProperty('display', 'block', 'important');
         el.style.setProperty('visibility', 'visible', 'important');
@@ -303,59 +318,86 @@ document.addEventListener('DOMContentLoaded', function() {
         el.style.setProperty('visibility', 'visible', 'important');
     });
     
-    console.log('✅ تم فرض إظهار جميع الجداول في التقارير');
-});
-
-// رسم بياني للحالات
-const statusCtx = document.getElementById('statusChart').getContext('2d');
-const statusChart = new Chart(statusCtx, {
-    type: 'doughnut',
-    data: {
-        labels: [{% for stat in stats_by_status %}'{{ stat.status }}'{% if not loop.last %},{% endif %}{% endfor %}],
-        datasets: [{
-            data: [{% for stat in stats_by_status %}{{ stat.count if stat.count is defined else stat.get('count', 0) }}{% if not loop.last %},{% endif %}{% endfor %}],
-            backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545', '#17a2b8', '#6c757d', '#e83e8c']
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                position: 'bottom'
-            },
-            title: {
-                display: true,
-                text: 'إجمالي: {{ all_checks|length }} شيك'
-            }
+    // فرض إظهار الـ Cards والـ Canvas
+    document.querySelectorAll('.card-body').forEach(function(el) {
+        el.style.setProperty('display', 'block', 'important');
+        el.style.setProperty('visibility', 'visible', 'important');
+    });
+    
+    document.querySelectorAll('canvas').forEach(function(el) {
+        el.style.setProperty('display', 'block', 'important');
+        el.style.setProperty('visibility', 'visible', 'important');
+    });
+    
+    console.log('✅ تم فرض إظهار جميع العناصر في التقارير');
+    
+    // رسم بياني للحالات
+    setTimeout(function() {
+        const statusCanvas = document.getElementById('statusChart');
+        if (statusCanvas) {
+            console.log('📊 رسم بياني الحالات...');
+            const statusCtx = statusCanvas.getContext('2d');
+            const statusChart = new Chart(statusCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: [{% for stat in stats_by_status %}'{{ stat.status }}'{% if not loop.last %},{% endif %}{% endfor %}],
+                    datasets: [{
+                        data: [{% for stat in stats_by_status %}{{ stat.count if stat.count is defined else stat.get('count', 0) }}{% if not loop.last %},{% endif %}{% endfor %}],
+                        backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545', '#17a2b8', '#6c757d', '#e83e8c']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        title: {
+                            display: true,
+                            text: 'إجمالي: {{ all_checks|length }} شيك'
+                        }
+                    }
+                }
+            });
+            console.log('✅ تم رسم بياني الحالات');
+        } else {
+            console.error('❌ لم يتم العثور على statusChart canvas');
         }
-    }
-});
-
-// رسم بياني للاتجاه
-const directionCtx = document.getElementById('directionChart').getContext('2d');
-const directionChart = new Chart(directionCtx, {
-    type: 'pie',
-    data: {
-        labels: [{% for stat in stats_by_direction %}'{{ "وارد" if (stat.direction if stat.direction is defined else stat.get("direction")) == "IN" else "صادر" }}'{% if not loop.last %},{% endif %}{% endfor %}],
-        datasets: [{
-            data: [{% for stat in stats_by_direction %}{{ stat.count if stat.count is defined else stat.get('count', 0) }}{% if not loop.last %},{% endif %}{% endfor %}],
-            backgroundColor: ['#28a745', '#dc3545']
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                position: 'bottom'
-            },
-            title: {
-                display: true,
-                text: 'إجمالي: {{ all_checks|length }} شيك'
-            }
+        
+        // رسم بياني للاتجاه
+        const directionCanvas = document.getElementById('directionChart');
+        if (directionCanvas) {
+            console.log('📊 رسم بياني الاتجاه...');
+            const directionCtx = directionCanvas.getContext('2d');
+            const directionChart = new Chart(directionCtx, {
+                type: 'pie',
+                data: {
+                    labels: [{% for stat in stats_by_direction %}'{{ "وارد" if (stat.direction if stat.direction is defined else stat.get("direction")) == "IN" else "صادر" }}'{% if not loop.last %},{% endif %}{% endfor %}],
+                    datasets: [{
+                        data: [{% for stat in stats_by_direction %}{{ stat.count if stat.count is defined else stat.get('count', 0) }}{% if not loop.last %},{% endif %}{% endfor %}],
+                        backgroundColor: ['#28a745', '#dc3545']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        title: {
+                            display: true,
+                            text: 'إجمالي: {{ all_checks|length }} شيك'
+                        }
+                    }
+                }
+            });
+            console.log('✅ تم رسم بياني الاتجاه');
+        } else {
+            console.error('❌ لم يتم العثور على directionChart canvas');
         }
-    }
+    }, 500);
 });
 </script>
 {% endblock %}
