@@ -53,15 +53,36 @@
                     
                     checks.forEach(function(check) {
                         const status = (check.status || '').toUpperCase();
-                        if (status === 'PENDING' || status === 'DUE_SOON' || status === 'RESUBMITTED') {
+                        
+                        // فحص الملاحظات لاكتشاف التغييرات
+                        const notes = (check.notes || '').toLowerCase();
+                        let actualStatus = status;
+                        
+                        // إذا كان في الملاحظات حالة جديدة، استخدمها
+                        if (notes.includes('حالة الشيك: مسحوب') || notes.includes('حالة الشيك: تم الصرف')) {
+                            actualStatus = 'CASHED';
+                        } else if (notes.includes('حالة الشيك: مرتجع')) {
+                            actualStatus = 'RETURNED';
+                        } else if (notes.includes('حالة الشيك: ملغي')) {
+                            actualStatus = 'CANCELLED';
+                        } else if (notes.includes('حالة الشيك: أعيد للبنك') || notes.includes('حالة الشيك: معلق')) {
+                            actualStatus = 'PENDING';
+                        } else if (notes.includes('حالة الشيك: مؤرشف')) {
+                            actualStatus = 'ARCHIVED';
+                        }
+                        
+                        if (actualStatus === 'PENDING' || actualStatus === 'DUE_SOON' || actualStatus === 'RESUBMITTED') {
                             categorized.pending.push(check);
-                        } else if (status === 'OVERDUE') {
+                        } else if (actualStatus === 'OVERDUE') {
                             categorized.overdue.push(check);
-                        } else if (status === 'CASHED') {
+                        } else if (actualStatus === 'CASHED') {
                             categorized.cashed.push(check);
-                        } else if (status === 'RETURNED' || status === 'BOUNCED') {
+                        } else if (actualStatus === 'RETURNED' || actualStatus === 'BOUNCED') {
                             categorized.returned.push(check);
-                        } else if (status === 'ARCHIVED') {
+                        } else if (actualStatus === 'CANCELLED') {
+                            // الملغاة تذهب للأرشيف
+                            categorized.archived.push(check);
+                        } else if (actualStatus === 'ARCHIVED') {
                             categorized.archived.push(check);
                         }
                     });

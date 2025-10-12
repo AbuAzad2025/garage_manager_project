@@ -446,9 +446,12 @@ def get_checks():
                 })
             
             # معالجة الدفعات الجزئية (PaymentSplit)
+            # ⚠️ PaymentSplit.method هو enum، نستخدم == PaymentMethod.CHEQUE مباشرة
             payment_splits = PaymentSplit.query.filter(
-                PaymentSplit.method == PaymentMethod.CHEQUE.value
+                PaymentSplit.method == PaymentMethod.CHEQUE
             ).all()
+            
+            current_app.logger.info(f"📊 PaymentSplits (CHEQUE): {len(payment_splits)}")
             
             for split in payment_splits:
                 payment = split.payment
