@@ -33,6 +33,9 @@
             url: '/checks/api/checks',
             method: 'GET',
             dataType: 'json',
+            xhrFields: {
+                withCredentials: true
+            },
             success: function(response) {
                 console.log('%c✅ تم استلام الرد!', 'color: green; font-weight: bold;');
                 console.log('Response:', response);
@@ -386,6 +389,9 @@
                     url: '/checks/api/update-status/' + checkId,
                     method: 'POST',
                     contentType: 'application/json',
+                    xhrFields: {
+                        withCredentials: true
+                    },
                     data: JSON.stringify({
                         status: 'CASHED',
                         notes: 'تم السحب'
@@ -506,6 +512,9 @@
                     url: '/checks/api/update-status/' + checkId,
                     method: 'POST',
                     contentType: 'application/json',
+                    xhrFields: {
+                        withCredentials: true
+                    },
                     data: JSON.stringify({
                         status: newStatus,
                         notes: message
