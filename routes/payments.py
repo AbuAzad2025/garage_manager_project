@@ -891,10 +891,9 @@ def create_payment():
                 msg = str(ie).lower()
                 fixed = False
                 if "payments.payment_number" in msg or "unique constraint failed: payments.payment_number" in msg:
-                    base_dt = payment.payment_date or datetime.utcnow()
-                    prefix = base_dt.strftime("PMT%Y%m%d")
-                    cnt = db.session.execute(sa_text("SELECT COUNT(*) FROM payments WHERE payment_number LIKE :pfx"), {"pfx": f"{prefix}-%"}).scalar() or 0
-                    payment.payment_number = f"{prefix}-{cnt+1:04d}"
+                    # إعادة توليد رقم الدفع باستخدام _ensure_payment_number
+                    payment.payment_number = None  # إعادة تعيين
+                    _ensure_payment_number(payment)
                     fixed = True
                 if "payments.method" in msg or "may not be null" in msg:
                     if parsed_splits:
@@ -1318,8 +1317,37 @@ def _ensure_payment_number(pmt: Payment) -> None:
         return
     base_dt = getattr(pmt, "payment_date", None) or datetime.utcnow()
     prefix = base_dt.strftime("PMT%Y%m%d")
-    cnt = db.session.execute(sa_text("SELECT COUNT(*) FROM payments WHERE payment_number LIKE :pfx"), {"pfx": f"{prefix}-%"}).scalar() or 0
-    pmt.payment_number = f"{prefix}-{cnt+1:04d}"
+    
+    # استخدام MAX بدلاً من COUNT لتجنب التكرار
+    result = db.session.execute(
+        sa_text("SELECT payment_number FROM payments WHERE payment_number LIKE :pfx ORDER BY payment_number DESC LIMIT 1"), 
+        {"pfx": f"{prefix}-%"}
+    ).scalar()
+    
+    if result:
+        try:
+            last_num = int(result.split('-')[-1])
+            next_num = last_num + 1
+        except (ValueError, IndexError):
+            next_num = 1
+    else:
+        next_num = 1
+    
+    # محاولة إيجاد رقم فريد
+    for attempt in range(100):
+        candidate = f"{prefix}-{next_num:04d}"
+        exists = db.session.execute(
+            sa_text("SELECT 1 FROM payments WHERE payment_number = :num LIMIT 1"),
+            {"num": candidate}
+        ).scalar()
+        if not exists:
+            pmt.payment_number = candidate
+            return
+        next_num += 1
+    
+    # fallback: استخدام timestamp
+    import time
+    pmt.payment_number = f"{prefix}-{int(time.time() * 1000) % 10000:04d}"
 
 def _sum_splits_decimal(splits=None, parsed_splits=None) -> Decimal:
     seq = parsed_splits if parsed_splits is not None else splits

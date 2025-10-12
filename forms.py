@@ -1699,10 +1699,12 @@ class PaymentForm(PaymentDetailsMixin, FlaskForm):
         vdir = (self.direction.data or '').upper()
         try:
             from models import is_direction_allowed, PaymentEntityType, PaymentDirection
-            if not is_direction_allowed(PaymentEntityType(et), PaymentDirection(vdir)):
+            # تمرير vdir كـ string، وليس PaymentDirection
+            if not is_direction_allowed(PaymentEntityType(et), vdir):
                 self.direction.errors.append('❌ الاتجاه غير مسموح لهذا الكيان.')
                 return False
-        except Exception:
+        except Exception as e:
+            current_app.logger.error(f"Direction validation error: {e}")
             self.direction.errors.append('❌ اتجاه غير صالح.')
             return False
 

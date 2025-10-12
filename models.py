@@ -775,12 +775,23 @@ ALLOWED_PAYMENT_DIRECTIONS: dict[PaymentEntityType, set[str]] = {
 
 def is_direction_allowed(entity_type: PaymentEntityType | str, direction: PaymentDirection | str) -> bool:
     try:
-        et = PaymentEntityType(str(entity_type))
+        # إذا كان entity_type هو بالفعل PaymentEntityType، نستخدمه مباشرة
+        if isinstance(entity_type, PaymentEntityType):
+            et = entity_type
+        else:
+            # إذا كان string، نحوله
+            et = PaymentEntityType(str(entity_type))
     except Exception:
         return False
     try:
-        d = PaymentDirection(str(direction)).value
+        # إذا كان direction هو بالفعل PaymentDirection، نحصل على value
+        if isinstance(direction, PaymentDirection):
+            d = direction.value
+        else:
+            # نحاول التحويل
+            d = PaymentDirection(str(direction)).value
     except Exception:
+        # إذا فشل، نستخدم الـ string مباشرة
         d = str(direction).upper()
     allowed = ALLOWED_PAYMENT_DIRECTIONS.get(et, set())
     return d in allowed
@@ -4558,8 +4569,38 @@ class PaymentSplit(db.Model):
 
 def _next_payment_number(connection) -> str:
     prefix = datetime.utcnow().strftime("PMT%Y%m%d")
-    count = connection.execute(sa_text("SELECT COUNT(*) FROM payments WHERE payment_number LIKE :pfx"), {"pfx": f"{prefix}-%"}).scalar() or 0
-    return f"{prefix}-{count + 1:04d}"
+    # استخدام MAX بدلاً من COUNT لتجنب التكرار
+    result = connection.execute(
+        sa_text("SELECT payment_number FROM payments WHERE payment_number LIKE :pfx ORDER BY payment_number DESC LIMIT 1"), 
+        {"pfx": f"{prefix}-%"}
+    ).scalar()
+    
+    if result:
+        # استخراج الرقم الأخير وزيادته
+        try:
+            last_num = int(result.split('-')[-1])
+            next_num = last_num + 1
+        except (ValueError, IndexError):
+            next_num = 1
+    else:
+        next_num = 1
+    
+    # محاولة إنشاء رقم فريد، وفي حالة الفشل نحاول حتى نجد رقم متاح
+    max_attempts = 100
+    for attempt in range(max_attempts):
+        candidate = f"{prefix}-{next_num:04d}"
+        # التحقق من عدم وجود الرقم
+        exists = connection.execute(
+            sa_text("SELECT 1 FROM payments WHERE payment_number = :num LIMIT 1"),
+            {"num": candidate}
+        ).scalar()
+        if not exists:
+            return candidate
+        next_num += 1
+    
+    # في حالة الفشل، استخدم timestamp
+    import time
+    return f"{prefix}-{int(time.time() * 1000) % 10000:04d}"
 
 
 @event.listens_for(Payment, "before_insert")

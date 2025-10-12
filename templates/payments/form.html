@@ -444,10 +444,16 @@
     function selectEntity(entityType, entity) {
       const searchField = document.querySelector(`input[name="${entityType.toLowerCase()}_search"]`);
       const hiddenField = document.querySelector(`input[name="${entityType.toLowerCase()}_id"]`);
+      const entityIdField = document.querySelector(`input[name="entity_id"]`);
       
       if (searchField && hiddenField) {
         searchField.value = entity.name || entity.display;
         hiddenField.value = entity.id;
+        
+        // تحديث entity_id أيضاً
+        if (entityIdField) {
+          entityIdField.value = entity.id;
+        }
         
         // إخفاء النتائج
         hideEntityResults(entityType);
@@ -577,10 +583,11 @@
           updateDirectionOptions();
         });
         
-        // تحديث الحقول عند التحميل الأولي
-        setTimeout(function() {
-          updateEntityFields();
-        }, 100);
+      // تحديث الحقول عند التحميل الأولي
+      setTimeout(function() {
+        updateEntityFields();
+        updateDirectionOptions(); // تحديث خيارات الاتجاه أيضاً
+      }, 100);
       }
       
       // إضافة مستمع لتغيير الاتجاه
