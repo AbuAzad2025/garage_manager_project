@@ -557,7 +557,6 @@ def seed_sales(customers, partners, products, warehouses):
         currency = random.choice(["ILS", "USD", "EUR", "JOD"])
         
         sale = Sale(
-            sale_number=f"SALE-{i+1:05d}",
             customer_id=customer.id,
             seller_id=seller_id,
             sale_date=sale_date,
@@ -598,7 +597,6 @@ def seed_sales(customers, partners, products, warehouses):
         sale_date = base_date - timedelta(days=days_ago)
         
         sale = Sale(
-            sale_number=f"SALE-M-{i+1:05d}",
             customer_id=customer.id,
             seller_id=seller_id,
             sale_date=sale_date,
@@ -658,7 +656,6 @@ def seed_sales_to_suppliers(suppliers):
             first_customer = db.session.query(Customer).first()
             
             sale = Sale(
-                sale_number=f"SALE-TO-SUP-{len(sales)+1:04d}",
                 customer_id=first_customer.id,
                 seller_id=seller_id,
                 sale_date=sale_date,
@@ -694,6 +691,10 @@ def seed_services(customers, suppliers):
     """إضافة طلبات صيانة"""
     print("\n🔧 إضافة طلبات صيانة...")
     
+    # حذف الصيانات التجريبية القديمة
+    db.session.query(ServiceRequest).filter(ServiceRequest.notes.like('%[TEST]%')).delete(synchronize_session=False)
+    db.session.commit()
+    
     services = []
     base_date = datetime.utcnow()
     
@@ -706,7 +707,6 @@ def seed_services(customers, suppliers):
         received_date = base_date - timedelta(days=days_ago)
         
         service = ServiceRequest(
-            service_number=f"SRV-TEST-{i+1:05d}",
             customer_id=customer.id,
             vehicle_vrn=f"{random.randint(10,99)}-{random.randint(100,999)}-{random.randint(10,99)}",
             vehicle_model=random.choice(vehicle_models),
@@ -730,7 +730,6 @@ def seed_services(customers, suppliers):
         amount = Decimal(str(random.randint(250, 800)))
         
         service = ServiceRequest(
-            service_number=f"SRV-SUP-TEST-{idx+1:04d}",
             customer_id=None,
             vehicle_vrn=f"SUP-{idx+1}",
             vehicle_model="مركبة المورد",
@@ -1117,10 +1116,10 @@ def display_summary():
 
 def run_all_seeds():
     """تشغيل جميع البذور"""
-    print("\n" + "🌱"*40)
+    print("\n" + "="*80)
     print("بدء إضافة البذور الشاملة الكاملة للنظام")
     print("Starting Complete Comprehensive System Seeds")
-    print("🌱"*40 + "\n")
+    print("="*80 + "\n")
     
     with app.app_context():
         try:
