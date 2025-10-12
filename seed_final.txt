@@ -1,0 +1,175 @@
+
+(process:13932): GLib-GIO-WARNING **: 10:32:23.769: Unexpectedly, UWP app `Microsoft.OutlookForWindows_1.2023.1114.100_x64__8wekyb3d8bbwe' (AUMId `Microsoft.OutlookForWindows_8wekyb3d8bbwe!Microsoft.OutlookforWindows') supports 1 extensions but has no verbs
+
+(process:13932): GLib-GIO-WARNING **: 10:32:23.825: Unexpectedly, UWP app `DuckDuckGo.DesktopBrowser_0.84.0.0_x64__ya2fgkz3nks94' (AUMId `DuckDuckGo.DesktopBrowser_ya2fgkz3nks94!App') supports 3 extensions but has no verbs
+
+(process:13932): GLib-GIO-WARNING **: 10:32:24.496: Unexpectedly, UWP app `Clipchamp.Clipchamp_4.4.10320.0_x64__yxz26nhyzhsrt' (AUMId `Clipchamp.Clipchamp_yxz26nhyzhsrt!App') supports 41 extensions but has no verbs
+
+(process:13932): GLib-GIO-WARNING **: 10:32:24.680: Unexpectedly, UWP app `Microsoft.ScreenSketch_11.2508.28.0_x64__8wekyb3d8bbwe' (AUMId `Microsoft.ScreenSketch_8wekyb3d8bbwe!App') supports 29 extensions but has no verbs
+WARNING:root:CONFIG WARNING: sqlite in production
+[2025-10-12 10:32:24] INFO - app: Sentry disabled (no DSN configured).
+[2025-10-12 10:32:24] INFO - apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[2025-10-12 10:32:24] INFO - apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[2025-10-12 10:32:24] INFO - apscheduler.scheduler: Added job "init_extensions.<locals>.<lambda>" to job store "default"
+[2025-10-12 10:32:24] INFO - apscheduler.scheduler: Added job "init_extensions.<locals>.<lambda>" to job store "default"
+[2025-10-12 10:32:24] INFO - apscheduler.scheduler: Scheduler started
+[2025-10-12 10:32:24] INFO - app: APScheduler started.
+
+≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ
+┘å╪╕╪º┘à ╪Ñ╪»╪º╪▒╪⌐ ╪º┘ä┘â╪▒╪º╪¼ - ╪º┘ä╪¿╪░┘ê╪▒ ╪º┘ä╪┤╪º┘à┘ä╪⌐
+Garage Manager - Complete Seeds
+≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ≡ƒÜÇ
+
+≡ƒöº ╪¬┘ç┘è╪ª╪⌐ ┘é╪º╪╣╪»╪⌐ ╪º┘ä╪¿┘è╪º┘å╪º╪¬...
+Γ£à ╪¬┘à ╪¬┘ç┘è╪ª╪⌐ ┘é╪º╪╣╪»╪⌐ ╪º┘ä╪¿┘è╪º┘å╪º╪¬
+
+================================================================================
+╪¿╪»╪í ╪Ñ╪╢╪º┘ü╪⌐ ╪º┘ä╪¿╪░┘ê╪▒ ╪º┘ä╪┤╪º┘à┘ä╪⌐ ╪º┘ä┘â╪º┘à┘ä╪⌐ ┘ä┘ä┘å╪╕╪º┘à
+Starting Complete Comprehensive System Seeds
+================================================================================
+
+
+≡ƒæÑ ╪Ñ╪╢╪º┘ü╪⌐ ┘à╪│╪¬╪«╪»┘à┘è┘å...
+Γä╣∩╕Å  ╪º┘ä┘à╪│╪¬╪«╪»┘à test_admin ┘à┘ê╪¼┘ê╪» ┘à╪│╪¿┘é╪º┘ï
+
+≡ƒÆ▒ ╪Ñ╪╢╪º┘ü╪⌐ ╪º┘ä╪╣┘à┘ä╪º╪¬ ┘ê╪ú╪│╪╣╪º╪▒ ╪º┘ä╪╡╪▒┘ü...
+Γ£à ╪¬┘à ╪Ñ╪╢╪º┘ü╪⌐ 5 ╪╣┘à┘ä╪º╪¬ ┘ê 4 ╪│╪╣╪▒ ╪╡╪▒┘ü
+
+≡ƒÅó ╪Ñ╪╢╪º┘ü╪⌐ ┘à┘ê╪▒╪»┘è┘å...
+Γ£à ╪¬┘à ╪Ñ╪╢╪º┘ü╪⌐/╪¬╪¡╪»┘è╪½ 5 ┘à┘ê╪▒╪»┘è┘å ╪¿╪╣┘à┘ä╪º╪¬ ┘à╪«╪¬┘ä┘ü╪⌐
+
+≡ƒñ¥ ╪Ñ╪╢╪º┘ü╪⌐ ╪┤╪▒┘â╪º╪í...
+Γ£à ╪¬┘à ╪Ñ╪╢╪º┘ü╪⌐/╪¬╪¡╪»┘è╪½ 4 ╪┤╪▒┘â╪º╪í
+
+≡ƒæñ ╪Ñ╪╢╪º┘ü╪⌐ ╪╣┘à┘ä╪º╪í...
+Γ£à ╪¬┘à ╪Ñ╪╢╪º┘ü╪⌐/╪¬╪¡╪»┘è╪½ 5 ╪╣┘à┘ä╪º╪í
+
+≡ƒôü ╪Ñ╪╢╪º┘ü╪⌐ ┘ü╪ª╪º╪¬ ╪º┘ä┘à┘å╪¬╪¼╪º╪¬...
+Γ£à ╪¬┘à ╪Ñ╪╢╪º┘ü╪⌐ 8 ┘ü╪ª╪º╪¬ ┘ê 5 ┘å┘ê╪╣ ┘à╪▒┘â╪¿╪⌐
+
+≡ƒöº ╪Ñ╪╢╪º┘ü╪⌐ ┘é╪╖╪╣ ╪║┘è╪º╪▒...
+Γ£à ╪¬┘à ╪Ñ╪╢╪º┘ü╪⌐ 36 ┘é╪╖╪╣╪⌐ ╪║┘è╪º╪▒
+
+≡ƒÅ¡ ╪Ñ╪╢╪º┘ü╪⌐ ╪º┘ä┘à╪│╪¬┘ê╪»╪╣╪º╪¬ ╪º┘ä╪ú╪▒╪¿╪╣╪⌐...
+Γ£à ╪¬┘à ╪Ñ╪╢╪º┘ü╪⌐/╪¬╪¡╪»┘è╪½ 11 ┘à╪│╪¬┘ê╪»╪╣
+
+≡ƒôª ╪Ñ╪╢╪º┘ü╪⌐ ┘à╪╣╪º┘à┘ä╪º╪¬ ╪º┘ä╪¬╪¿╪º╪»┘ä...
+D:\karaj\garage_manager_project\garage_manager\seed_complete.py:449: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  base_date = datetime.utcnow()
+  ΓåÆ ┘à╪│╪¬┘ê╪»╪╣ ╪¬╪¿╪º╪»┘ä ╪┤╪▒┘â╪⌐ ╪º┘ä╪ú╪¼╪▓╪º╪í ╪º┘ä╪░┘ç╪¿┘è╪⌐ TEST...
+  ΓåÆ ┘à╪│╪¬┘ê╪»╪╣ ╪¬╪¿╪º╪»┘ä ┘à┘ê╪▒╪» ╪º┘ä┘é╪╖╪╣ ╪º┘ä╪ú┘à╪▒┘è┘â┘è╪⌐ TEST...
+  ΓåÆ ┘à╪│╪¬┘ê╪»╪╣ ╪¬╪¿╪º╪»┘ä ╪º┘ä┘à┘ê╪▒╪» ╪º┘ä╪ú┘ê╪▒┘ê╪¿┘è ┘ä┘ä╪▓┘è┘ê╪¬ TEST...
+  ΓåÆ ┘à╪│╪¬┘ê╪»╪╣ ╪¬╪¿╪º╪»┘ä ┘à┘ê╪▒╪» ╪º┘ä╪Ñ╪╖╪º╪▒╪º╪¬ ╪º┘ä╪ú╪▒╪»┘å┘è TEST...
+  ΓåÆ ┘à╪│╪¬┘ê╪»╪╣ ╪¬╪¿╪º╪»┘ä ┘à┘ê╪▒╪» ╪º┘ä┘é╪╖╪╣ ╪º┘ä╪Ñ┘à╪º╪▒╪º╪¬┘è TEST...
+Γ£à ╪¬┘à ╪Ñ╪╢╪º┘ü╪⌐ 100 ┘à╪╣╪º┘à┘ä╪⌐ ╪¬╪¿╪º╪»┘ä
+
+≡ƒôè ╪Ñ╪╢╪º┘ü╪⌐ ┘à╪«╪▓┘ê┘å ╪º┘ä╪┤╪▒┘â╪º╪í...
+  ΓåÆ ┘à╪│╪¬┘ê╪»╪╣ ╪┤╪▒╪º┘â╪⌐ ╪┤╪▒┘è┘â ┘à╪¡┘à╪» ╪ú╪¡┘à╪» TEST...
+  ΓåÆ ┘à╪│╪¬┘ê╪»╪╣ ╪┤╪▒╪º┘â╪⌐ ╪┤╪▒┘è┘â ╪«╪º┘ä╪» ╪│╪╣┘è╪» TEST...
+  ΓåÆ ┘à╪│╪¬┘ê╪»╪╣ ╪┤╪▒╪º┘â╪⌐ ╪┤╪▒┘è┘â ╪│╪º┘à╪▒ ┘è┘ê╪│┘ü TEST...
+  ΓåÆ ┘à╪│╪¬┘ê╪»╪╣ ╪┤╪▒╪º┘â╪⌐ ╪┤╪▒┘è┘â ╪╣┘à╪▒ ╪¡╪│┘å TEST...
+Γ£à ╪¬┘à ╪Ñ╪╢╪º┘ü╪⌐ 84 ╪╡┘å┘ü ┘à╪«╪▓┘ê┘å ┘ä┘ä╪┤╪▒┘â╪º╪í
+
+≡ƒÆ░ ╪Ñ╪╢╪º┘ü╪⌐ ┘à╪¿┘è╪╣╪º╪¬...
+D:\karaj\garage_manager_project\garage_manager\seed_complete.py:544: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  base_date = datetime.utcnow()
+  ΓåÆ ┘à╪¿┘è╪╣╪º╪¬ ┘à┘å ┘à╪│╪¬┘ê╪»╪╣╪º╪¬ ╪º┘ä╪┤╪▒┘â╪º╪í...
+D:\karaj\garage_manager_project\garage_manager\models.py:741: SAWarning: Identity map already had an identity for (<class 'models.SaleLine'>, (1642,), None), replacing it with newly flushed object.   Are there load operations occurring inside of an event handler within the flush? (This warning originated from the Session 'autoflush' process, which was invoked automatically in response to a user-initiated operation. Consider using ``no_autoflush`` context manager if this warning happened while initializing objects.)
+  rows = db.session.query(Currency.code).filter(Currency.is_active.is_(True)).all()
+D:\karaj\garage_manager_project\garage_manager\models.py:741: SAWarning: Identity map already had an identity for (<class 'models.SaleLine'>, (1641,), None), replacing it with newly flushed object.   Are there load operations occurring inside of an event handler within the flush? (This warning originated from the Session 'autoflush' process, which was invoked automatically in response to a user-initiated operation. Consider using ``no_autoflush`` context manager if this warning happened while initializing objects.)
+  rows = db.session.query(Currency.code).filter(Currency.is_active.is_(True)).all()
+D:\karaj\garage_manager_project\garage_manager\models.py:741: SAWarning: Identity map already had an identity for (<class 'models.SaleLine'>, (1645,), None), replacing it with newly flushed object.   Are there load operations occurring inside of an event handler within the flush? (This warning originated from the Session 'autoflush' process, which was invoked automatically in response to a user-initiated operation. Consider using ``no_autoflush`` context manager if this warning happened while initializing objects.)
+  rows = db.session.query(Currency.code).filter(Currency.is_active.is_(True)).all()
+D:\karaj\garage_manager_project\garage_manager\models.py:741: SAWarning: Identity map already had an identity for (<class 'models.SaleLine'>, (1643,), None), replacing it with newly flushed object.   Are there load operations occurring inside of an event handler within the flush? (This warning originated from the Session 'autoflush' process, which was invoked automatically in response to a user-initiated operation. Consider using ``no_autoflush`` context manager if this warning happened while initializing objects.)
+  rows = db.session.query(Currency.code).filter(Currency.is_active.is_(True)).all()
+D:\karaj\garage_manager_project\garage_manager\models.py:741: SAWarning: Identity map already had an identity for (<class 'models.SaleLine'>, (1644,), None), replacing it with newly flushed object.   Are there load operations occurring inside of an event handler within the flush? (This warning originated from the Session 'autoflush' process, which was invoked automatically in response to a user-initiated operation. Consider using ``no_autoflush`` context manager if this warning happened while initializing objects.)
+  rows = db.session.query(Currency.code).filter(Currency.is_active.is_(True)).all()
+  ΓåÆ ┘à╪¿┘è╪╣╪º╪¬ ┘à┘å ╪º┘ä┘à╪│╪¬┘ê╪»╪╣ ╪º┘ä╪▒╪ª┘è╪│┘è...
+D:\karaj\garage_manager_project\garage_manager\models.py:741: SAWarning: Identity map already had an identity for (<class 'models.SaleLine'>, (1646,), None), replacing it with newly flushed object.   Are there load operations occurring inside of an event handler within the flush? (This warning originated from the Session 'autoflush' process, which was invoked automatically in response to a user-initiated operation. Consider using ``no_autoflush`` context manager if this warning happened while initializing objects.)
+  rows = db.session.query(Currency.code).filter(Currency.is_active.is_(True)).all()
+D:\karaj\garage_manager_project\garage_manager\models.py:741: SAWarning: Identity map already had an identity for (<class 'models.SaleLine'>, (1647,), None), replacing it with newly flushed object.   Are there load operations occurring inside of an event handler within the flush? (This warning originated from the Session 'autoflush' process, which was invoked automatically in response to a user-initiated operation. Consider using ``no_autoflush`` context manager if this warning happened while initializing objects.)
+  rows = db.session.query(Currency.code).filter(Currency.is_active.is_(True)).all()
+D:\karaj\garage_manager_project\garage_manager\models.py:741: SAWarning: Identity map already had an identity for (<class 'models.SaleLine'>, (1648,), None), replacing it with newly flushed object.   Are there load operations occurring inside of an event handler within the flush? (This warning originated from the Session 'autoflush' process, which was invoked automatically in response to a user-initiated operation. Consider using ``no_autoflush`` context manager if this warning happened while initializing objects.)
+  rows = db.session.query(Currency.code).filter(Currency.is_active.is_(True)).all()
+D:\karaj\garage_manager_project\garage_manager\models.py:741: SAWarning: Identity map already had an identity for (<class 'models.SaleLine'>, (1649,), None), replacing it with newly flushed object.   Are there load operations occurring inside of an event handler within the flush? (This warning originated from the Session 'autoflush' process, which was invoked automatically in response to a user-initiated operation. Consider using ``no_autoflush`` context manager if this warning happened while initializing objects.)
+  rows = db.session.query(Currency.code).filter(Currency.is_active.is_(True)).all()
+D:\karaj\garage_manager_project\garage_manager\models.py:741: SAWarning: Identity map already had an identity for (<class 'models.SaleLine'>, (1650,), None), replacing it with newly flushed object.   Are there load operations occurring inside of an event handler within the flush? (This warning originated from the Session 'autoflush' process, which was invoked automatically in response to a user-initiated operation. Consider using ``no_autoflush`` context manager if this warning happened while initializing objects.)
+  rows = db.session.query(Currency.code).filter(Currency.is_active.is_(True)).all()
+D:\karaj\garage_manager_project\garage_manager\models.py:741: SAWarning: Identity map already had an identity for (<class 'models.SaleLine'>, (1651,), None), replacing it with newly flushed object.   Are there load operations occurring inside of an event handler within the flush? (This warning originated from the Session 'autoflush' process, which was invoked automatically in response to a user-initiated operation. Consider using ``no_autoflush`` context manager if this warning happened while initializing objects.)
+  rows = db.session.query(Currency.code).filter(Currency.is_active.is_(True)).all()
+D:\karaj\garage_manager_project\garage_manager\models.py:741: SAWarning: Identity map already had an identity for (<class 'models.SaleLine'>, (1652,), None), replacing it with newly flushed object.   Are there load operations occurring inside of an event handler within the flush? (This warning originated from the Session 'autoflush' process, which was invoked automatically in response to a user-initiated operation. Consider using ``no_autoflush`` context manager if this warning happened while initializing objects.)
+  rows = db.session.query(Currency.code).filter(Currency.is_active.is_(True)).all()
+D:\karaj\garage_manager_project\garage_manager\models.py:741: SAWarning: Identity map already had an identity for (<class 'models.SaleLine'>, (1653,), None), replacing it with newly flushed object.   Are there load operations occurring inside of an event handler within the flush? (This warning originated from the Session 'autoflush' process, which was invoked automatically in response to a user-initiated operation. Consider using ``no_autoflush`` context manager if this warning happened while initializing objects.)
+  rows = db.session.query(Currency.code).filter(Currency.is_active.is_(True)).all()
+D:\karaj\garage_manager_project\garage_manager\seed_complete.py:629: SAWarning: Identity map already had an identity for (<class 'models.SaleLine'>, (1654,), None), replacing it with newly flushed object.   Are there load operations occurring inside of an event handler within the flush?
+  db.session.commit()
+D:\karaj\garage_manager_project\garage_manager\seed_complete.py:629: SAWarning: Identity map already had an identity for (<class 'models.SaleLine'>, (1655,), None), replacing it with newly flushed object.   Are there load operations occurring inside of an event handler within the flush?
+  db.session.commit()
+D:\karaj\garage_manager_project\garage_manager\seed_complete.py:629: SAWarning: Identity map already had an identity for (<class 'models.SaleLine'>, (1658,), None), replacing it with newly flushed object.   Are there load operations occurring inside of an event handler within the flush?
+  db.session.commit()
+D:\karaj\garage_manager_project\garage_manager\seed_complete.py:629: SAWarning: Identity map already had an identity for (<class 'models.SaleLine'>, (1656,), None), replacing it with newly flushed object.   Are there load operations occurring inside of an event handler within the flush?
+  db.session.commit()
+D:\karaj\garage_manager_project\garage_manager\seed_complete.py:629: SAWarning: Identity map already had an identity for (<class 'models.SaleLine'>, (1657,), None), replacing it with newly flushed object.   Are there load operations occurring inside of an event handler within the flush?
+  db.session.commit()
+Γ£à ╪¬┘à ╪Ñ╪╢╪º┘ü╪⌐ 4 ╪╣┘à┘ä┘è╪⌐ ╪¿┘è╪╣ (30 ┘à┘å ╪┤╪▒┘â╪º╪í + 20 ╪╣╪º╪»┘è╪⌐)
+
+≡ƒ¢Æ ╪Ñ╪╢╪º┘ü╪⌐ ┘à╪¿┘è╪╣╪º╪¬ ┘ä┘ä┘à┘ê╪▒╪»┘è┘å...
+D:\karaj\garage_manager_project\garage_manager\seed_complete.py:643: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  base_date = datetime.utcnow()
+Γ£à ╪¬┘à ╪Ñ╪╢╪º┘ü╪⌐ 10 ┘à╪¿┘è╪╣╪º╪¬ ┘ä┘ä┘à┘ê╪▒╪»┘è┘å ┘à╪╣ 10 ╪»┘ü╪╣╪⌐
+
+≡ƒöº ╪Ñ╪╢╪º┘ü╪⌐ ╪╖┘ä╪¿╪º╪¬ ╪╡┘è╪º┘å╪⌐...
+D:\karaj\garage_manager_project\garage_manager\seed_complete.py:698: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  base_date = datetime.utcnow()
+  ΓåÆ ╪╡┘è╪º┘å╪⌐ ┘ä┘ä╪╣┘à┘ä╪º╪í...
+  ΓåÆ ╪╡┘è╪º┘å╪⌐ ┘ä┘ä┘à┘ê╪▒╪»┘è┘å...
+ΓÜá∩╕Å ╪¬╪«╪╖┘è ╪º┘ä╪╡┘è╪º┘å╪⌐ ╪¿╪│╪¿╪¿: (sqlite3.IntegrityError) CHECK constraint failed: ck_payment_one_target
+[SQL: INSERT INTO payments (
+
+≡ƒÆ│ ╪Ñ╪╢╪º┘ü╪⌐ ╪»┘ü╪╣╪º╪¬ ┘å┘é╪»┘è╪⌐ ┘à╪¿╪º╪┤╪▒╪⌐...
+  ΓåÆ ╪»┘ü╪╣╪º╪¬ ┘ä┘ä┘à┘ê╪▒╪»┘è┘å...
+D:\karaj\garage_manager_project\garage_manager\seed_complete.py:780: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  base_date = datetime.utcnow()
+  ΓåÆ ╪»┘ü╪╣╪º╪¬ ┘ä┘ä╪┤╪▒┘â╪º╪í...
+  ΓåÆ ╪»┘ü╪╣╪º╪¬ ┘à┘å ╪º┘ä┘à┘ê╪▒╪»┘è┘å (┘ê╪º╪▒╪»)...
+  ΓåÆ ╪»┘ü╪╣╪º╪¬ ┘à┘å ╪º┘ä╪┤╪▒┘â╪º╪í (┘ê╪º╪▒╪»)...
+  ΓåÆ ╪»┘ü╪╣╪º╪¬ ┘à┘å ╪º┘ä╪╣┘à┘ä╪º╪í...
+  ΓåÆ ╪»┘ü╪╣╪º╪¬ ┘ä┘ä╪╣┘à┘ä╪º╪í (┘à╪▒╪¬╪¼╪╣╪º╪¬)...
+Γ£à ╪¬┘à ╪Ñ╪╢╪º┘ü╪⌐ 12 ╪»┘ü╪╣╪⌐ (10 ┘ä┘ä┘à┘ê╪▒╪»┘è┘å ╪╡╪º╪»╪▒ + 6 ┘à┘å ┘à┘ê╪▒╪»┘è┘å ┘ê╪º╪▒╪» + 8 ┘ä┘ä╪┤╪▒┘â╪º╪í ╪╡╪º╪»╪▒ + 5 ┘à┘å ╪┤╪▒┘â╪º╪í ┘ê╪º╪▒╪» + 15 ┘à┘å ╪╣┘à┘ä╪º╪í + 4 ┘ä┘ä╪╣┘à┘ä╪º╪í)
+
+≡ƒô£ ╪Ñ╪╢╪º┘ü╪⌐ ╪»┘ü╪╣╪º╪¬ ╪¿╪┤┘è┘â╪º╪¬...
+D:\karaj\garage_manager_project\garage_manager\seed_complete.py:918: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  base_date = datetime.utcnow()
+Γ£à ╪¬┘à ╪Ñ╪╢╪º┘ü╪⌐ 8 ╪»┘ü╪╣╪⌐ ╪¿╪┤┘è┘â
+
+≡ƒô¥ ╪Ñ╪╢╪º┘ü╪⌐ ┘à╪╡╪▒┘ê┘ü╪º╪¬...
+D:\karaj\garage_manager_project\garage_manager\seed_complete.py:971: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  base_date = datetime.utcnow()
+  ΓåÆ ┘à╪╡╪▒┘ê┘ü╪º╪¬ ╪╣╪º┘à╪⌐...
+
+Γ¥î ╪«╪╖╪ú ╪ú╪½┘å╪º╪í ╪Ñ╪╢╪º┘ü╪⌐ ╪º┘ä╪¿╪░┘ê╪▒: 'category' is an invalid keyword argument for Expense
+Traceback (most recent call last):
+  File "D:\karaj\garage_manager_project\garage_manager\seed_complete.py", line 1176, in run_all_seeds
+    expenses = seed_expenses(suppliers, partners)
+  File "D:\karaj\garage_manager_project\garage_manager\seed_complete.py", line 981, in seed_expenses
+    expense = Expense(
+        description=f"[TEST] {random.choice(expense_categories)} - {random.choice(['╪┤┘ç╪▒┘è', '╪╖╪º╪▒╪ª', '╪»┘ê╪▒┘è'])}",
+    ...<6 lines>...
+        notes="[TEST] ┘à╪╡╪▒┘ê┘ü ╪¬╪¼╪▒┘è╪¿┘è ╪╣╪º┘à"
+    )
+  File "<string>", line 4, in __init__
+  File "D:\karaj\garage_manager_project\garage_manager\.venv\Lib\site-packages\sqlalchemy\orm\state.py", line 571, in _initialize_instance
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "D:\karaj\garage_manager_project\garage_manager\.venv\Lib\site-packages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "D:\karaj\garage_manager_project\garage_manager\.venv\Lib\site-packages\sqlalchemy\orm\state.py", line 569, in _initialize_instance
+    manager.original_init(*mixed[1:], **kwargs)
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\karaj\garage_manager_project\garage_manager\.venv\Lib\site-packages\sqlalchemy\orm\decl_base.py", line 2179, in _declarative_constructor
+    raise TypeError(
+        "%r is an invalid keyword argument for %s" % (k, cls_.__name__)
+    )
+TypeError: 'category' is an invalid keyword argument for Expense
+
+Γ¥î ┘ü╪┤┘ä╪¬ ╪º┘ä╪╣┘à┘ä┘è╪⌐!

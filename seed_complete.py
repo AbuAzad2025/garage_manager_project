@@ -700,7 +700,7 @@ def seed_services(customers, suppliers):
         vehicle_models = ["تويوتا كامري", "هونداي إلنترا", "كيا سيراتو", "مازدا 3", "فولكسفاغن باسات"]
         
         print("  → صيانة للعملاء...")
-        for i in range(2):
+        for i in range(1):  # صيانة واحدة فقط
             customer = random.choice(customers)
             days_ago = random.randint(1, 90)
             received_date = base_date - timedelta(days=days_ago)
@@ -727,7 +727,7 @@ def seed_services(customers, suppliers):
             print("⚠️ لا يوجد عملاء، تخطي صيانة الموردين")
             return services, service_payments
             
-        for idx, supplier in enumerate(suppliers[:3]):
+        for idx, supplier in enumerate(suppliers[:1]):  # مورد واحد فقط
             days_ago = random.randint(10, 70)
             service_date = base_date - timedelta(days=days_ago)
             
@@ -972,9 +972,9 @@ def seed_expenses(suppliers, partners):
     
     expense_categories = ["رواتب", "إيجار", "كهرباء", "ماء", "صيانة", "وقود", "متنوعة"]
     
-    # مصروفات عامة (15 مصروف)
+    # مصروفات عامة (2 مصروف فقط)
     print("  → مصروفات عامة...")
-    for i in range(15):
+    for i in range(2):
         days_ago = random.randint(1, 90)
         expense_date = base_date - timedelta(days=days_ago)
         
