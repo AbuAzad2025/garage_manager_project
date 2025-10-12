@@ -15,7 +15,7 @@ try:
     from extensions import limiter
 except ImportError:
     limiter = None
-from models import Payment, Expense, PaymentMethod, PaymentStatus, PaymentDirection, Check, CheckStatus, Customer, Supplier, Partner
+from models import Payment, PaymentSplit, Expense, PaymentMethod, PaymentStatus, PaymentDirection, Check, CheckStatus, Customer, Supplier, Partner
 from utils import permission_required
 from decimal import Decimal
 import json
