@@ -495,9 +495,9 @@ def get_checks():
                 payee_name = ''
                 
                 if payment.customer:
-                        entity_name = payment.customer.name
-                        entity_link = f'/customers/{payment.customer.id}'
-                        entity_type = 'عميل'
+                    entity_name = payment.customer.name
+                    entity_link = f'/customers/{payment.customer.id}'
+                    entity_type = 'عميل'
                     # إذا وارد: العميل هو الساحب، نحن المستفيد
                     if is_incoming:
                         drawer_name = payment.customer.name
@@ -506,10 +506,10 @@ def get_checks():
                         drawer_name = 'شركتنا'
                         payee_name = payment.customer.name
                         
-                    elif payment.supplier:
-                        entity_name = payment.supplier.name
-                        entity_link = f'/vendors/{payment.supplier.id}'
-                        entity_type = 'مورد'
+                elif payment.supplier:
+                    entity_name = payment.supplier.name
+                    entity_link = f'/vendors/{payment.supplier.id}'
+                    entity_type = 'مورد'
                     # إذا صادر: نحن الساحب، المورد المستفيد
                     if is_incoming:
                         drawer_name = payment.supplier.name
@@ -518,10 +518,10 @@ def get_checks():
                         drawer_name = 'شركتنا'
                         payee_name = payment.supplier.name
                         
-                    elif payment.partner:
-                        entity_name = payment.partner.name
-                        entity_link = f'/partners/{payment.partner.id}'
-                        entity_type = 'شريك'
+                elif payment.partner:
+                    entity_name = payment.partner.name
+                    entity_link = f'/partners/{payment.partner.id}'
+                    entity_type = 'شريك'
                     if is_incoming:
                         drawer_name = payment.partner.name
                         payee_name = 'شركتنا'
@@ -1038,11 +1038,11 @@ def update_check_status(check_id):
             if new_status == 'CASHED':
                 # فقط إذا كانت الحالة الحالية PENDING
                 if check.status == PaymentStatus.PENDING:
-                check.status = PaymentStatus.COMPLETED
+                    check.status = PaymentStatus.COMPLETED
             elif new_status == 'CANCELLED':
                 # فقط إذا كانت الحالة الحالية PENDING
                 if check.status == PaymentStatus.PENDING:
-                check.status = PaymentStatus.CANCELLED
+                    check.status = PaymentStatus.CANCELLED
             
             # إنشاء قيد محاسبي في دفتر الأستاذ
             try:
