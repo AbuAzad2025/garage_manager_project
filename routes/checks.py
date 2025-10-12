@@ -1050,11 +1050,11 @@ def update_check_status(check_id):
             if new_status == 'CASHED':
                 # فقط إذا كانت الحالة الحالية PENDING
                 if check.status == PaymentStatus.PENDING:
-                check.status = PaymentStatus.COMPLETED
+                    check.status = PaymentStatus.COMPLETED
             elif new_status == 'CANCELLED':
                 # فقط إذا كانت الحالة الحالية PENDING
                 if check.status == PaymentStatus.PENDING:
-                check.status = PaymentStatus.CANCELLED
+                    check.status = PaymentStatus.CANCELLED
             
             # إنشاء قيد محاسبي في دفتر الأستاذ
             try:
