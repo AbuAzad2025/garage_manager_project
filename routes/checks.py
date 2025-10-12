@@ -15,12 +15,201 @@ try:
     from extensions import limiter
 except ImportError:
     limiter = None
-from models import Payment, PaymentSplit, Expense, PaymentMethod, PaymentStatus, PaymentDirection, Check, CheckStatus, Customer, Supplier, Partner
+from models import (
+    Payment, PaymentSplit, Expense, PaymentMethod, PaymentStatus, PaymentDirection, 
+    Check, CheckStatus, Customer, Supplier, Partner, GLBatch, GLEntry, Account
+)
 from utils import permission_required
 from decimal import Decimal
 import json
+import uuid
 
 checks_bp = Blueprint('checks', __name__, url_prefix='/checks')
+
+
+def create_gl_entry_for_check(check_id, check_type, amount, currency, direction, 
+                               new_status, old_status=None, entity_name='', notes=''):
+    """
+    إنشاء قيد محاسبي عند تغيير حالة الشيك
+    
+    القيود المحاسبية:
+    1. عند استلام شيك من عميل (INCOMING):
+       - مدين: شيكات تحت التحصيل (أصل)
+       - دائن: العملاء (أصل - تخفيض)
+       
+    2. عند صرف شيك وارد (CASHED - INCOMING):
+       - مدين: البنك (أصل - زيادة)
+       - دائن: شيكات تحت التحصيل (أصل - تخفيض)
+       
+    3. عند إرجاع شيك وارد (RETURNED - INCOMING):
+       - مدين: العملاء (أصل - زيادة)
+       - دائن: شيكات تحت التحصيل (أصل - تخفيض)
+       
+    4. عند إعطاء شيك لمورد (OUTGOING):
+       - مدين: الموردين (خصم - تخفيض)
+       - دائن: شيكات تحت الدفع (خصم - زيادة)
+       
+    5. عند صرف شيك صادر (CASHED - OUTGOING):
+       - مدين: شيكات تحت الدفع (خصم - تخفيض)
+       - دائن: البنك (أصل - تخفيض)
+       
+    6. عند إرجاع شيك صادر (RETURNED - OUTGOING):
+       - مدين: شيكات تحت الدفع (خصم - تخفيض)
+       - دائن: الموردين (خصم - زيادة)
+    """
+    try:
+        # تحديد نوع القيد بناءً على الحالة والاتجاه
+        is_incoming = (direction == 'IN')
+        amount_decimal = Decimal(str(amount))
+        
+        # إنشاء GLBatch
+        batch_code = f"CHK-{check_type.upper()}-{check_id}-{uuid.uuid4().hex[:8].upper()}"
+        batch = GLBatch(
+            code=batch_code,
+            source_type=f'check_{check_type}',
+            source_id=check_id,
+            currency=currency or 'ILS',
+            status='POSTED',
+            notes=f"قيد شيك: {entity_name} - {notes}"
+        )
+        db.session.add(batch)
+        db.session.flush()
+        
+        entries = []
+        
+        # القيود حسب الحالة الجديدة
+        if new_status == 'CASHED':
+            if is_incoming:
+                # شيك وارد تم صرفه
+                # مدين: البنك | دائن: شيكات تحت التحصيل
+                entries.append(GLEntry(
+                    batch_id=batch.id,
+                    account=GL_ACCOUNTS_CHECKS['BANK'],
+                    debit=amount_decimal,
+                    credit=0,
+                    currency=currency or 'ILS',
+                    ref=f"صرف شيك وارد من {entity_name}"
+                ))
+                entries.append(GLEntry(
+                    batch_id=batch.id,
+                    account=GL_ACCOUNTS_CHECKS['CHEQUES_RECEIVABLE'],
+                    debit=0,
+                    credit=amount_decimal,
+                    currency=currency or 'ILS',
+                    ref=f"صرف شيك وارد من {entity_name}"
+                ))
+            else:
+                # شيك صادر تم صرفه
+                # مدين: شيكات تحت الدفع | دائن: البنك
+                entries.append(GLEntry(
+                    batch_id=batch.id,
+                    account=GL_ACCOUNTS_CHECKS['CHEQUES_PAYABLE'],
+                    debit=amount_decimal,
+                    credit=0,
+                    currency=currency or 'ILS',
+                    ref=f"صرف شيك صادر إلى {entity_name}"
+                ))
+                entries.append(GLEntry(
+                    batch_id=batch.id,
+                    account=GL_ACCOUNTS_CHECKS['BANK'],
+                    debit=0,
+                    credit=amount_decimal,
+                    currency=currency or 'ILS',
+                    ref=f"صرف شيك صادر إلى {entity_name}"
+                ))
+                
+        elif new_status == 'RETURNED' or new_status == 'BOUNCED':
+            if is_incoming:
+                # شيك وارد تم إرجاعه
+                # مدين: العملاء | دائن: شيكات تحت التحصيل
+                entries.append(GLEntry(
+                    batch_id=batch.id,
+                    account=GL_ACCOUNTS_CHECKS['AR'],
+                    debit=amount_decimal,
+                    credit=0,
+                    currency=currency or 'ILS',
+                    ref=f"إرجاع شيك من {entity_name}"
+                ))
+                entries.append(GLEntry(
+                    batch_id=batch.id,
+                    account=GL_ACCOUNTS_CHECKS['CHEQUES_RECEIVABLE'],
+                    debit=0,
+                    credit=amount_decimal,
+                    currency=currency or 'ILS',
+                    ref=f"إرجاع شيك من {entity_name}"
+                ))
+            else:
+                # شيك صادر تم إرجاعه
+                # مدين: شيكات تحت الدفع | دائن: الموردين
+                entries.append(GLEntry(
+                    batch_id=batch.id,
+                    account=GL_ACCOUNTS_CHECKS['CHEQUES_PAYABLE'],
+                    debit=amount_decimal,
+                    credit=0,
+                    currency=currency or 'ILS',
+                    ref=f"إرجاع شيك إلى {entity_name}"
+                ))
+                entries.append(GLEntry(
+                    batch_id=batch.id,
+                    account=GL_ACCOUNTS_CHECKS['AP'],
+                    debit=0,
+                    credit=amount_decimal,
+                    currency=currency or 'ILS',
+                    ref=f"إرجاع شيك إلى {entity_name}"
+                ))
+                
+        elif new_status == 'CANCELLED':
+            if is_incoming:
+                # إلغاء شيك وارد
+                # عكس القيد الأصلي
+                entries.append(GLEntry(
+                    batch_id=batch.id,
+                    account=GL_ACCOUNTS_CHECKS['AR'],
+                    debit=amount_decimal,
+                    credit=0,
+                    currency=currency or 'ILS',
+                    ref=f"إلغاء شيك من {entity_name}"
+                ))
+                entries.append(GLEntry(
+                    batch_id=batch.id,
+                    account=GL_ACCOUNTS_CHECKS['CHEQUES_RECEIVABLE'],
+                    debit=0,
+                    credit=amount_decimal,
+                    currency=currency or 'ILS',
+                    ref=f"إلغاء شيك من {entity_name}"
+                ))
+            else:
+                # إلغاء شيك صادر
+                entries.append(GLEntry(
+                    batch_id=batch.id,
+                    account=GL_ACCOUNTS_CHECKS['CHEQUES_PAYABLE'],
+                    debit=amount_decimal,
+                    credit=0,
+                    currency=currency or 'ILS',
+                    ref=f"إلغاء شيك إلى {entity_name}"
+                ))
+                entries.append(GLEntry(
+                    batch_id=batch.id,
+                    account=GL_ACCOUNTS_CHECKS['AP'],
+                    debit=0,
+                    credit=amount_decimal,
+                    currency=currency or 'ILS',
+                    ref=f"إلغاء شيك إلى {entity_name}"
+                ))
+        
+        # إضافة القيود
+        for entry in entries:
+            db.session.add(entry)
+        
+        db.session.flush()
+        
+        current_app.logger.info(f"✅ تم إنشاء قيد محاسبي للشيك {check_id} - Batch: {batch_code}")
+        return batch
+        
+    except Exception as e:
+        current_app.logger.error(f"❌ خطأ في إنشاء القيد المحاسبي للشيك {check_id}: {str(e)}")
+        db.session.rollback()
+        return None
 
 # حالات الشيك المخصصة
 CHECK_STATUS = {
@@ -32,6 +221,16 @@ CHECK_STATUS = {
     'CANCELLED': {'ar': 'ملغي', 'color': 'secondary', 'icon': 'fa-times-circle'},
     'ARCHIVED': {'ar': 'مؤرشف', 'color': 'dark', 'icon': 'fa-archive'},
     'OVERDUE': {'ar': 'متأخر', 'color': 'danger', 'icon': 'fa-exclamation-triangle'},
+}
+
+# حسابات دفتر الأستاذ للشيكات
+GL_ACCOUNTS_CHECKS = {
+    'CHEQUES_RECEIVABLE': '1150_CHEQUES_RECEIVABLE',  # شيكات تحت التحصيل (أصول)
+    'CHEQUES_PAYABLE': '2150_CHEQUES_PAYABLE',        # شيكات تحت الدفع (خصوم)
+    'BANK': '1010_BANK',                               # البنك
+    'CASH': '1000_CASH',                               # الصندوق
+    'AR': '1100_AR',                                   # العملاء (Accounts Receivable)
+    'AP': '2000_AP',                                   # الموردين (Accounts Payable)
 }
 
 # دورة حياة الشيك (Life Cycle)
@@ -844,6 +1043,29 @@ def update_check_status(check_id):
                 # فقط إذا كانت الحالة الحالية PENDING
                 if check.status == PaymentStatus.PENDING:
                     check.status = PaymentStatus.CANCELLED
+            
+            # إنشاء قيد محاسبي في دفتر الأستاذ
+            try:
+                entity_name = ''
+                if check.customer:
+                    entity_name = check.customer.name
+                elif check.supplier:
+                    entity_name = check.supplier.name
+                elif check.partner:
+                    entity_name = check.partner.name
+                
+                create_gl_entry_for_check(
+                    check_id=actual_id,
+                    check_type=check_type,
+                    amount=float(check.total_amount or 0),
+                    currency=check.currency or 'ILS',
+                    direction='IN' if check.direction == PaymentDirection.IN else 'OUT',
+                    new_status=new_status,
+                    entity_name=entity_name,
+                    notes=notes or ''
+                )
+            except Exception as e:
+                current_app.logger.error(f"❌ خطأ في إنشاء القيد المحاسبي: {str(e)}")
             
         elif check_type == 'expense':
             check = Expense.query.get_or_404(actual_id)
