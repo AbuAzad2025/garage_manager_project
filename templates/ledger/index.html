@@ -531,6 +531,65 @@ function updateLedgerTable(data) {
     $('#total-debit').text(formatCurrency(totalDebit));
     $('#total-credit').text(formatCurrency(totalCredit));
     $('#final-balance').text(formatCurrency(totalDebit - totalCredit));
+    
+    // تهيئة DataTables للجداول الطويلة
+    if (data.length > 15) {
+        // تدمير DataTable القديم إذا كان موجوداً
+        if ($.fn.DataTable.isDataTable('#ledger-table')) {
+            $('#ledger-table').DataTable().destroy();
+        }
+        
+        // إنشاء DataTable جديد
+        $('#ledger-table').DataTable({
+            language: {
+                url: '{{ url_for("static", filename="datatables/Arabic.json") }}'
+            },
+            pageLength: 25,
+            order: [[0, 'desc']],  // ترتيب حسب التاريخ (الأحدث أولاً)
+            dom: 'Bfrtip',
+            buttons: [
+                {
+                    extend: 'excel',
+                    text: '<i class="fas fa-file-excel"></i> Excel',
+                    className: 'btn btn-sm btn-success'
+                },
+                {
+                    extend: 'pdf',
+                    text: '<i class="fas fa-file-pdf"></i> PDF',
+                    className: 'btn btn-sm btn-danger'
+                },
+                {
+                    extend: 'print',
+                    text: '<i class="fas fa-print"></i> طباعة',
+                    className: 'btn btn-sm btn-info'
+                }
+            ],
+            searching: true,
+            paging: true,
+            info: true,
+            responsive: true,
+            columnDefs: [
+                { targets: [4, 5, 6], className: 'text-end' },
+                { targets: [0, 1, 2, 7], className: 'text-center' }
+            ],
+            footerCallback: function(row, data, start, end, display) {
+                // تحديث الإجماليات في footer
+                const api = this.api();
+                
+                // حساب الإجماليات للصفحة المعروضة
+                let pageDebit = 0;
+                let pageCredit = 0;
+                
+                api.column(4, { page: 'current' }).data().each(function(value) {
+                    pageDebit += parseFloat(value) || 0;
+                });
+                
+                api.column(5, { page: 'current' }).data().each(function(value) {
+                    pageCredit += parseFloat(value) || 0;
+                });
+            }
+        });
+    }
 }
 
 function updateStatistics(stats) {
