@@ -691,7 +691,12 @@ def seed_services(customers, suppliers):
     """إضافة طلبات صيانة"""
     print("\n🔧 إضافة طلبات صيانة...")
     
-    # حذف الصيانات التجريبية القديمة
+    # حذف الصيانات التجريبية القديمة (حذف الدفعات أولاً)
+    test_services = db.session.query(ServiceRequest).filter(ServiceRequest.notes.like('%[TEST]%')).all()
+    for srv in test_services:
+        # حذف الدفعات المرتبطة
+        db.session.query(Payment).filter(Payment.service_id == srv.id).delete(synchronize_session=False)
+    # ثم حذف الصيانات
     db.session.query(ServiceRequest).filter(ServiceRequest.notes.like('%[TEST]%')).delete(synchronize_session=False)
     db.session.commit()
     
@@ -723,6 +728,12 @@ def seed_services(customers, suppliers):
     
     print("  → صيانة للموردين...")
     service_payments = []
+    # استخدام أول عميل كممثل للموردين (ServiceRequest يتطلب customer_id)
+    first_customer = customers[0] if customers else None
+    if not first_customer:
+        print("⚠️ لا يوجد عملاء، تخطي صيانة الموردين")
+        return services, service_payments
+        
     for idx, supplier in enumerate(suppliers[:3]):
         days_ago = random.randint(10, 70)
         service_date = base_date - timedelta(days=days_ago)
@@ -730,14 +741,14 @@ def seed_services(customers, suppliers):
         amount = Decimal(str(random.randint(250, 800)))
         
         service = ServiceRequest(
-            customer_id=None,
+            customer_id=first_customer.id,  # ServiceRequest يتطلب customer_id
             vehicle_vrn=f"SUP-{idx+1}",
             vehicle_model="مركبة المورد",
             received_at=service_date,
             description=f"[TEST] صيانة لمركبة المورد {supplier.name}",
             problem_description=f"صيانة دورية لمركبة {supplier.name}",
             status=ServiceStatus.COMPLETED.value,
-            notes=f"[TEST] صيانة قدمناها للمورد"
+            notes=f"[TEST] صيانة قدمناها للمورد {supplier.name}"
         )
         db.session.add(service)
         db.session.flush()
