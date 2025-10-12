@@ -794,13 +794,13 @@ def update_check_status(check_id):
                 'message': 'بيانات ناقصة'
             }), 400
         
-                # التحقق من الحالة المسموحة
-                allowed_statuses = ['CASHED', 'RETURNED', 'BOUNCED', 'CANCELLED', 'RESUBMITTED', 'ARCHIVED', 'PENDING']
-                if new_status not in allowed_statuses:
-                    return jsonify({
-                        'success': False,
-                        'message': 'حالة غير صالحة'
-                    }), 400
+        # التحقق من الحالة المسموحة
+        allowed_statuses = ['CASHED', 'RETURNED', 'BOUNCED', 'CANCELLED', 'RESUBMITTED', 'ARCHIVED', 'PENDING']
+        if new_status not in allowed_statuses:
+            return jsonify({
+                'success': False,
+                'message': 'حالة غير صالحة'
+            }), 400
         
         if check_type == 'payment' or check_type == 'split':
             if check_type == 'split':
@@ -810,20 +810,9 @@ def update_check_status(check_id):
             else:
                 check = Payment.query.get_or_404(actual_id)
             
-            # تحديث الحالة
-            if new_status == 'CASHED':
-                check.status = PaymentStatus.COMPLETED
-            elif new_status == 'CANCELLED':
-                check.status = PaymentStatus.CANCELLED
-            elif new_status in ['RETURNED', 'BOUNCED', 'RESUBMITTED']:
-                if new_status == 'RESUBMITTED':
-                    check.status = PaymentStatus.PENDING  # إعادته لحالة الانتظار
-                else:
-                    check.status = PaymentStatus.FAILED
-            
-            # إضافة ملاحظة مفصلة
+            # إضافة ملاحظة مفصلة بدون تغيير حالة Payment
+            # حالة Payment تبقى كما هي، ونسجل فقط حالة الشيك في الملاحظات
             timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-            status_note = f"\n[{timestamp}] 🔄 تغيير الحالة إلى: {CHECK_STATUS[new_status]['ar']}"
             
             # إضافة أيقونة حسب الحالة
             status_icons = {
@@ -831,17 +820,30 @@ def update_check_status(check_id):
                 'RETURNED': '🔄',
                 'BOUNCED': '❌',
                 'RESUBMITTED': '🔁',
-                'CANCELLED': '⛔'
+                'CANCELLED': '⛔',
+                'ARCHIVED': '📦',
+                'PENDING': '⏳'
             }
-            if new_status in status_icons:
-                status_note = status_note.replace('🔄', status_icons[new_status])
+            icon = status_icons.get(new_status, '🔄')
+            
+            status_note = f"\n[{timestamp}] {icon} حالة الشيك: {CHECK_STATUS[new_status]['ar']}"
             
             if notes:
-                status_note += f"\n   💬 ملاحظة: {notes}"
+                status_note += f"\n   💬 {notes}"
             if current_user:
-                status_note += f"\n   👤 المستخدم: {current_user.username}"
+                status_note += f"\n   👤 {current_user.username}"
             
             check.notes = (check.notes or '') + status_note
+            
+            # تحديث حالة Payment فقط للحالات المهمة
+            if new_status == 'CASHED':
+                # فقط إذا كانت الحالة الحالية PENDING
+                if check.status == PaymentStatus.PENDING:
+                    check.status = PaymentStatus.COMPLETED
+            elif new_status == 'CANCELLED':
+                # فقط إذا كانت الحالة الحالية PENDING
+                if check.status == PaymentStatus.PENDING:
+                    check.status = PaymentStatus.CANCELLED
             
         elif check_type == 'expense':
             check = Expense.query.get_or_404(actual_id)
