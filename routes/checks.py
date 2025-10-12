@@ -11,6 +11,10 @@ from flask_login import current_user, login_required
 from datetime import datetime, timedelta
 from sqlalchemy import and_, or_, desc, func
 from extensions import db
+try:
+    from extensions import limiter
+except ImportError:
+    limiter = None
 from models import Payment, Expense, PaymentMethod, PaymentStatus, PaymentDirection, Check, CheckStatus, Customer, Supplier, Partner
 from utils import permission_required
 from decimal import Decimal
@@ -49,7 +53,7 @@ def index():
 
 
 @checks_bp.route('/api/checks')
-@permission_required('view_payments')
+@login_required
 def get_checks():
     """
     API لجلب الشيكات من جميع المصادر مع الفلاتر
@@ -212,113 +216,144 @@ def get_checks():
                     'receipt_number': payment.receipt_number or ''
                 })
             
-            # معالجة الدفعات الجزئية التي تحتوي على شيكات
-            from models import PaymentSplit
-            for payment in payment_with_splits.all():
-                # جلب جميع splits بطريقة شيك
-                cheque_splits = [s for s in payment.splits if str(s.method).upper() in ['CHEQUE', 'CHECK']]
+            # معالجة الدفعات الجزئية (PaymentSplit)
+            payment_splits = PaymentSplit.query.filter(
+                PaymentSplit.method == PaymentMethod.CHEQUE.value
+            ).all()
+            
+            for split in payment_splits:
+                payment = split.payment
+                if not payment:
+                    continue
                 
-                for split in cheque_splits:
-                    # استخراج معلومات الشيك من details
-                    details = split.details or {}
-                    check_number = details.get('check_number', '')
-                    check_bank = details.get('check_bank', '')
-                    check_due_date_str = details.get('check_due_date', '')
-                    
-                    if not check_due_date_str:
-                        continue
-                    
-                    try:
-                        if isinstance(check_due_date_str, str):
-                            check_due_date = datetime.fromisoformat(check_due_date_str).date()
-                        elif isinstance(check_due_date_str, datetime):
-                            check_due_date = check_due_date_str.date()
-                        else:
-                            check_due_date = check_due_date_str
-                    except:
-                        continue
-                    
-                    days_until_due = (check_due_date - today).days
-                    
-                    # تحديد الحالة
-                    if payment.status == PaymentStatus.COMPLETED.value:
-                        check_status = 'CASHED'
-                        status_ar = 'تم الصرف'
-                        badge_color = 'success'
-                    elif payment.status == PaymentStatus.FAILED.value:
-                        notes_lower = (payment.notes or '').lower()
-                        if 'مرتجع' in notes_lower or 'returned' in notes_lower:
-                            check_status = 'RETURNED'
-                            status_ar = 'مرتجع'
-                            badge_color = 'warning'
-                        else:
-                            check_status = 'BOUNCED'
-                            status_ar = 'مرفوض'
-                            badge_color = 'danger'
-                    elif payment.status == PaymentStatus.CANCELLED.value:
-                        check_status = 'CANCELLED'
-                        status_ar = 'ملغي'
-                        badge_color = 'secondary'
-                    elif days_until_due < 0:
-                        check_status = 'OVERDUE'
-                        status_ar = 'متأخر'
-                        badge_color = 'danger'
-                    elif days_until_due <= 7:
-                        check_status = 'due_soon'
-                        status_ar = 'قريب الاستحقاق'
+                # استخراج معلومات الشيك من details
+                details = split.details or {}
+                check_number = details.get('check_number', '')
+                check_bank = details.get('check_bank', '')
+                check_due_date_str = details.get('check_due_date', '')
+                
+                if not check_due_date_str:
+                    continue
+                
+                try:
+                    if isinstance(check_due_date_str, str):
+                        check_due_date = datetime.fromisoformat(check_due_date_str).date()
+                    elif isinstance(check_due_date_str, datetime):
+                        check_due_date = check_due_date_str.date()
+                    else:
+                        check_due_date = check_due_date_str
+                except:
+                    continue
+                
+                days_until_due = (check_due_date - today).days
+                
+                # تحديد الحالة
+                if payment.status == PaymentStatus.COMPLETED.value:
+                    check_status = 'CASHED'
+                    status_ar = 'تم الصرف'
+                    badge_color = 'success'
+                elif payment.status == PaymentStatus.FAILED.value:
+                    notes_lower = (payment.notes or '').lower()
+                    if 'مرتجع' in notes_lower or 'returned' in notes_lower:
+                        check_status = 'RETURNED'
+                        status_ar = 'مرتجع'
                         badge_color = 'warning'
                     else:
-                        check_status = 'PENDING'
-                        status_ar = 'معلق'
-                        badge_color = 'info'
-                    
-                    # تحديد نوع الشيك
-                    is_incoming = payment.direction == PaymentDirection.IN.value
-                    
-                    # تحديد اسم الجهة والرابط
-                    entity_name = ''
-                    entity_link = ''
-                    entity_type = ''
-                    if payment.customer:
-                        entity_name = payment.customer.name
-                        entity_link = f'/customers/{payment.customer.id}'
-                        entity_type = 'عميل'
-                    elif payment.supplier:
-                        entity_name = payment.supplier.name
-                        entity_link = f'/vendors/{payment.supplier.id}'
-                        entity_type = 'مورد'
-                    elif payment.partner:
-                        entity_name = payment.partner.name
-                        entity_link = f'/partners/{payment.partner.id}'
-                        entity_type = 'شريك'
-                    
-                    checks.append({
-                        'id': f"split-{split.id}",
-                        'payment_id': payment.id,
-                        'split_id': split.id,
-                        'type': 'payment_split',
-                        'source': 'دفعة جزئية',
-                        'source_badge': 'info',
-                        'check_number': check_number,
-                        'check_bank': check_bank,
-                        'check_due_date': check_due_date.strftime('%Y-%m-%d'),
-                        'due_date_formatted': check_due_date.strftime('%d/%m/%Y'),
-                        'amount': float(split.amount or 0),
-                        'currency': payment.currency or 'ILS',
-                        'direction': 'وارد' if is_incoming else 'صادر',
-                        'direction_en': 'in' if is_incoming else 'out',
-                        'is_incoming': is_incoming,
-                        'status': check_status,
-                        'status_ar': status_ar,
-                        'badge_color': badge_color,
-                        'days_until_due': days_until_due,
-                        'entity_name': entity_name,
-                        'entity_type': entity_type,
-                        'entity_link': entity_link,
-                        'notes': payment.notes or '',
-                        'created_at': payment.payment_date.strftime('%Y-%m-%d') if payment.payment_date else '',
-                        'receipt_number': payment.payment_number or ''
-                    })
+                        check_status = 'BOUNCED'
+                        status_ar = 'مرفوض'
+                        badge_color = 'danger'
+                elif payment.status == PaymentStatus.CANCELLED.value:
+                    check_status = 'CANCELLED'
+                    status_ar = 'ملغي'
+                    badge_color = 'secondary'
+                elif days_until_due < 0:
+                    check_status = 'OVERDUE'
+                    status_ar = 'متأخر'
+                    badge_color = 'danger'
+                elif days_until_due <= 7:
+                    check_status = 'due_soon'
+                    status_ar = 'قريب الاستحقاق'
+                    badge_color = 'warning'
+                else:
+                    check_status = 'PENDING'
+                    status_ar = 'معلق'
+                    badge_color = 'info'
+                
+                # تحديد نوع الشيك
+                is_incoming = payment.direction == PaymentDirection.IN.value
+                
+                # ⭐ ربط ذكي بالجهة من الدفعة الأصلية
+                entity_name = ''
+                entity_link = ''
+                entity_type = ''
+                drawer_name = ''
+                payee_name = ''
+                
+                if payment.customer:
+                    entity_name = payment.customer.name
+                    entity_link = f'/customers/{payment.customer.id}'
+                    entity_type = 'عميل'
+                    # إذا وارد: العميل هو الساحب، نحن المستفيد
+                    if is_incoming:
+                        drawer_name = payment.customer.name
+                        payee_name = 'شركتنا'
+                    else:
+                        drawer_name = 'شركتنا'
+                        payee_name = payment.customer.name
+                        
+                elif payment.supplier:
+                    entity_name = payment.supplier.name
+                    entity_link = f'/vendors/{payment.supplier.id}'
+                    entity_type = 'مورد'
+                    # إذا صادر: نحن الساحب، المورد المستفيد
+                    if is_incoming:
+                        drawer_name = payment.supplier.name
+                        payee_name = 'شركتنا'
+                    else:
+                        drawer_name = 'شركتنا'
+                        payee_name = payment.supplier.name
+                        
+                elif payment.partner:
+                    entity_name = payment.partner.name
+                    entity_link = f'/partners/{payment.partner.id}'
+                    entity_type = 'شريك'
+                    if is_incoming:
+                        drawer_name = payment.partner.name
+                        payee_name = 'شركتنا'
+                    else:
+                        drawer_name = 'شركتنا'
+                        payee_name = payment.partner.name
+                
+                checks.append({
+                    'id': f"split-{split.id}",
+                    'payment_id': payment.id,
+                    'split_id': split.id,
+                    'type': 'payment_split',
+                    'source': 'دفعة جزئية',
+                    'source_badge': 'info',
+                    'check_number': check_number,
+                    'check_bank': check_bank,
+                    'check_due_date': check_due_date.strftime('%Y-%m-%d'),
+                    'due_date_formatted': check_due_date.strftime('%d/%m/%Y'),
+                    'amount': float(split.amount or 0),
+                    'currency': payment.currency or 'ILS',
+                    'direction': 'وارد' if is_incoming else 'صادر',
+                    'direction_en': 'in' if is_incoming else 'out',
+                    'is_incoming': is_incoming,
+                    'status': check_status,
+                    'status_ar': status_ar,
+                    'badge_color': badge_color,
+                    'days_until_due': days_until_due,
+                    'entity_name': entity_name,
+                    'entity_type': entity_type,
+                    'entity_link': entity_link,
+                    'drawer_name': drawer_name,
+                    'payee_name': payee_name,
+                    'notes': payment.notes or '',
+                    'created_at': payment.payment_date.strftime('%Y-%m-%d') if payment.payment_date else '',
+                    'receipt_number': payment.payment_number or '',
+                    'reference': payment.reference or ''
+                })
         
         # 2. جلب الشيكات من Expense
         if not source_filter or source_filter in ['all', 'expense']:
@@ -522,7 +557,7 @@ def get_checks():
 
 
 @checks_bp.route('/api/statistics')
-@permission_required('view_payments')
+@login_required
 def get_statistics():
     """
     API للحصول على إحصائيات الشيكات
@@ -533,7 +568,7 @@ def get_statistics():
         month_ahead = today + timedelta(days=30)
         
         # 1. الشيكات الواردة
-        incoming_total = db.session.query(db.func.sum(Payment.amount)).filter(
+        incoming_total = db.session.query(db.func.sum(Payment.total_amount)).filter(
             and_(
                 Payment.method == PaymentMethod.CHEQUE.value,
                 Payment.direction == PaymentDirection.IN.value,
@@ -560,7 +595,7 @@ def get_statistics():
         ).scalar() or 0
         
         # 2. الشيكات الصادرة (من Payment)
-        outgoing_total = db.session.query(db.func.sum(Payment.amount)).filter(
+        outgoing_total = db.session.query(db.func.sum(Payment.total_amount)).filter(
             and_(
                 Payment.method == PaymentMethod.CHEQUE.value,
                 Payment.direction == PaymentDirection.OUT.value,
@@ -831,7 +866,7 @@ def update_check_status(check_id):
 
 
 @checks_bp.route('/api/alerts')
-@permission_required('view_payments')
+@login_required
 def get_alerts():
     """
     API للحصول على التنبيهات
@@ -1122,46 +1157,56 @@ def delete_check(check_id):
 
 @checks_bp.route("/reports")
 @login_required
-@permission_required("view_payments")
 def reports():
-    """صفحة التقارير"""
+    """صفحة التقارير - من جميع المصادر"""
     today = datetime.utcnow().date()
     
+    # جلب جميع الشيكات من API (جميع المصادر)
+    all_checks_response = get_checks()
+    all_checks_data = all_checks_response.get_json()
+    all_checks = all_checks_data.get('checks', []) if all_checks_data.get('success') else []
+    
+    # الشيكات اليدوية فقط
     independent_checks = Check.query.all()
     
-    stats_by_status = db.session.query(
-        Check.status,
-        func.count(Check.id).label("count"),
-        func.sum(Check.amount).label("total_amount")
-    ).group_by(Check.status).all()
+    # إحصائيات حسب الحالة (من جميع المصادر)
+    stats_by_status = {}
+    for check in all_checks:
+        status = check.get('status', 'UNKNOWN')
+        if status not in stats_by_status:
+            stats_by_status[status] = {'status': status, 'count': 0, 'total_amount': 0}
+        stats_by_status[status]['count'] += 1
+        stats_by_status[status]['total_amount'] += float(check.get('amount', 0))
     
-    stats_by_direction = db.session.query(
-        Check.direction,
-        func.count(Check.id).label("count"),
-        func.sum(Check.amount).label("total_amount")
-    ).group_by(Check.direction).all()
+    # تحويل إلى list
+    stats_by_status = list(stats_by_status.values())
     
-    overdue_checks = Check.query.filter(
-        and_(
-            Check.status == CheckStatus.PENDING.value,
-            Check.check_due_date < datetime.utcnow()
-        )
-    ).all()
+    # إحصائيات حسب الاتجاه (من جميع المصادر)
+    stats_by_direction = {'IN': {'direction': 'IN', 'count': 0, 'total_amount': 0},
+                          'OUT': {'direction': 'OUT', 'count': 0, 'total_amount': 0}}
     
-    due_soon_checks = Check.query.filter(
-        and_(
-            Check.status == CheckStatus.PENDING.value,
-            Check.check_due_date >= datetime.utcnow(),
-            Check.check_due_date <= datetime.utcnow() + timedelta(days=7)
-        )
-    ).all()
+    for check in all_checks:
+        direction = 'IN' if check.get('is_incoming') else 'OUT'
+        stats_by_direction[direction]['count'] += 1
+        stats_by_direction[direction]['total_amount'] += float(check.get('amount', 0))
+    
+    # تحويل إلى list
+    stats_by_direction = list(stats_by_direction.values())
+    
+    # الشيكات المتأخرة (من جميع المصادر)
+    overdue_checks = [c for c in all_checks if c.get('status', '').upper() == 'OVERDUE']
+    
+    # الشيكات المستحقة قريباً (من جميع المصادر)
+    due_soon_checks = [c for c in all_checks if c.get('status', '').upper() == 'DUE_SOON']
     
     return render_template("checks/reports.html",
                          independent_checks=independent_checks,
+                         all_checks=all_checks,
                          stats_by_status=stats_by_status,
                          stats_by_direction=stats_by_direction,
                          overdue_checks=overdue_checks,
                          due_soon_checks=due_soon_checks,
                          CheckStatus=CheckStatus,
-                         PaymentDirection=PaymentDirection)
+                         PaymentDirection=PaymentDirection,
+                         CHECK_STATUS=CHECK_STATUS)
 

@@ -2,6 +2,28 @@
 
 {% block title %}تفاصيل الشيك رقم {{ check.check_number }}{% endblock %}
 
+{% block extra_css %}
+<style>
+/* 🔥 Force visible tables - Critical Fix */
+.table { 
+    display: table !important;
+    visibility: visible !important;
+}
+
+.table tbody { 
+    display: table-row-group !important; 
+}
+
+.table tr { 
+    display: table-row !important; 
+}
+
+.table td, .table th { 
+    display: table-cell !important; 
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="content-wrapper">
   <div class="content-header">
