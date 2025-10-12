@@ -1137,7 +1137,7 @@ def update_check_status(check_id):
                 # جلب الدفعة الجزئية
                 split = PaymentSplit.query.get_or_404(actual_id)
                 check = split.payment
-            else:
+                else:
                 check = Payment.query.get_or_404(actual_id)
             
             # إضافة ملاحظة مفصلة بدون تغيير حالة Payment
@@ -1616,10 +1616,24 @@ def reports():
     # الشيكات اليدوية فقط
     independent_checks = Check.query.all()
     
-    # إحصائيات حسب الحالة (من جميع المصادر)
+    # إحصائيات حسب الحالة (من جميع المصادر) - بما فيها الحالات من الملاحظات
     stats_by_status = {}
     for check in all_checks:
         status = check.get('status', 'UNKNOWN')
+        
+        # فحص الملاحظات لاكتشاف الحالة الفعلية
+        notes = (check.get('notes', '') or '').lower()
+        if 'حالة الشيك: مسحوب' in notes or 'حالة الشيك: تم الصرف' in notes:
+            status = 'CASHED'
+        elif 'حالة الشيك: مرتجع' in notes:
+            status = 'RETURNED'
+        elif 'حالة الشيك: ملغي' in notes:
+            status = 'CANCELLED'
+        elif 'حالة الشيك: أعيد للبنك' in notes:
+            status = 'RESUBMITTED'
+        elif 'حالة الشيك: مؤرشف' in notes:
+            status = 'ARCHIVED'
+        
         if status not in stats_by_status:
             stats_by_status[status] = {'status': status, 'count': 0, 'total_amount': 0}
         stats_by_status[status]['count'] += 1
@@ -1641,10 +1655,26 @@ def reports():
     stats_by_direction = list(stats_by_direction.values())
     
     # الشيكات المتأخرة (من جميع المصادر)
-    overdue_checks = [c for c in all_checks if c.get('status', '').upper() == 'OVERDUE']
+    overdue_checks = []
+    due_soon_checks = []
     
-    # الشيكات المستحقة قريباً (من جميع المصادر)
-    due_soon_checks = [c for c in all_checks if c.get('status', '').upper() == 'DUE_SOON']
+    for c in all_checks:
+        notes = (c.get('notes', '') or '').lower()
+        actual_status = c.get('status', '').upper()
+        
+        # فحص الحالة الفعلية
+        if 'حالة الشيك: مسحوب' in notes:
+            continue  # مسحوب - تخطي
+        elif 'حالة الشيك: ملغي' in notes or 'حالة الشيك: مؤرشف' in notes:
+            continue  # ملغي/مؤرشف - تخطي
+        elif 'حالة الشيك: مرتجع' in notes:
+            continue  # مرتجع - تخطي
+        
+        # الآن نفحص إذا كان متأخر أو قريب
+        if actual_status == 'OVERDUE':
+            overdue_checks.append(c)
+        elif actual_status == 'DUE_SOON':
+            due_soon_checks.append(c)
     
     return render_template("checks/reports.html",
                          independent_checks=independent_checks,
