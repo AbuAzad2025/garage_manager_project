@@ -371,6 +371,8 @@ def get_checks():
         checks = []
         today = datetime.utcnow().date()
         
+        current_app.logger.info(f"🔍 get_checks API - بدء الجلب من جميع المصادر...")
+        
         # 1. جلب الشيكات من Payment (إذا لم يتم فلترتها)
         if not source_filter or source_filter in ['all', 'payment']:
             payment_checks = Payment.query.filter(
@@ -521,6 +523,8 @@ def get_checks():
                     'receipt_number': payment.receipt_number or '',
                     'reference': payment.receipt_number or ''
                 })
+            
+            current_app.logger.info(f"📊 Payments بدون splits: {len(checks)} شيك حتى الآن")
             
             # معالجة الدفعات الجزئية (PaymentSplit)
             # ⚠️ PaymentSplit.method هو enum، نستخدم == PaymentMethod.CHEQUE مباشرة
@@ -1612,6 +1616,8 @@ def reports():
     all_checks_response = get_checks()
     all_checks_data = all_checks_response.get_json()
     all_checks = all_checks_data.get('checks', []) if all_checks_data.get('success') else []
+    
+    current_app.logger.info(f"📊 التقارير - عدد الشيكات: {len(all_checks)}")
     
     # الشيكات اليدوية فقط
     independent_checks = Check.query.all()
