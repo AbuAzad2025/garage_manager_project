@@ -126,17 +126,16 @@ def get_checks():
                 payment_with_splits = payment_with_splits.filter(Payment.check_due_date <= to_dt)
             except:
                 pass
+        
+        # معالجة شيكات Payment العادية (method = cheque)
+        for payment in payment_checks.all():
+            if not payment.check_due_date:
+                continue
             
+            due_date = payment.check_due_date.date() if isinstance(payment.check_due_date, datetime) else payment.check_due_date
+            days_until_due = (due_date - today).days
             
-            # معالجة شيكات Payment العادية (method = cheque)
-            for payment in payment_checks.all():
-                if not payment.check_due_date:
-                    continue
-                
-                due_date = payment.check_due_date.date() if isinstance(payment.check_due_date, datetime) else payment.check_due_date
-                days_until_due = (due_date - today).days
-                
-                # تحديد الحالة
+            # تحديد الحالة
                 if payment.status == PaymentStatus.COMPLETED.value:
                     check_status = 'CASHED'
                     status_ar = 'تم الصرف'
