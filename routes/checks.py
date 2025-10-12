@@ -67,10 +67,10 @@ def create_gl_entry_for_check(check_id, check_type, amount, currency, direction,
         batch = GLBatch(
             code=batch_code,
             source_type=f'check_{check_type}',
-            source_id=check_id,
+            source_id=int(check_id) if str(check_id).replace('-', '').isdigit() else check_id,
             currency=currency or 'ILS',
-            status='POSTED'
-            # ملاحظة: GLBatch ليس له حقل notes، سنضع الملاحظة في GLEntry.ref
+            status='POSTED',
+            memo=f"قيد شيك: {entity_name} - {notes}"
         )
         db.session.add(batch)
         db.session.flush()
@@ -488,16 +488,16 @@ def get_checks():
                     is_incoming = payment.direction == PaymentDirection.IN.value
                     
                 # ⭐ ربط ذكي بالجهة من الدفعة الأصلية
-                entity_name = ''
-                entity_link = ''
-                entity_type = ''
+                    entity_name = ''
+                    entity_link = ''
+                    entity_type = ''
                 drawer_name = ''
                 payee_name = ''
                 
-                if payment.customer:
-                    entity_name = payment.customer.name
-                    entity_link = f'/customers/{payment.customer.id}'
-                    entity_type = 'عميل'
+                    if payment.customer:
+                        entity_name = payment.customer.name
+                        entity_link = f'/customers/{payment.customer.id}'
+                        entity_type = 'عميل'
                     # إذا وارد: العميل هو الساحب، نحن المستفيد
                     if is_incoming:
                         drawer_name = payment.customer.name
@@ -506,10 +506,10 @@ def get_checks():
                         drawer_name = 'شركتنا'
                         payee_name = payment.customer.name
                         
-                elif payment.supplier:
-                    entity_name = payment.supplier.name
-                    entity_link = f'/vendors/{payment.supplier.id}'
-                    entity_type = 'مورد'
+                    elif payment.supplier:
+                        entity_name = payment.supplier.name
+                        entity_link = f'/vendors/{payment.supplier.id}'
+                        entity_type = 'مورد'
                     # إذا صادر: نحن الساحب، المورد المستفيد
                     if is_incoming:
                         drawer_name = payment.supplier.name
@@ -518,10 +518,10 @@ def get_checks():
                         drawer_name = 'شركتنا'
                         payee_name = payment.supplier.name
                         
-                elif payment.partner:
-                    entity_name = payment.partner.name
-                    entity_link = f'/partners/{payment.partner.id}'
-                    entity_type = 'شريك'
+                    elif payment.partner:
+                        entity_name = payment.partner.name
+                        entity_link = f'/partners/{payment.partner.id}'
+                        entity_type = 'شريك'
                     if is_incoming:
                         drawer_name = payment.partner.name
                         payee_name = 'شركتنا'
@@ -973,19 +973,31 @@ def update_check_status(check_id):
         check_type = 'check'  # default
         actual_id = check_id
         
+        current_app.logger.info(f"🔍 تحليل check_id: {check_id}")
+        
         if isinstance(check_id, str):
             if check_id.startswith('split-'):
                 check_type = 'split'
                 actual_id = int(check_id.replace('split-', ''))
+                current_app.logger.info(f"✅ تم التعرف: PaymentSplit ID={actual_id}")
             elif check_id.startswith('expense-'):
                 check_type = 'expense'
                 actual_id = int(check_id.replace('expense-', ''))
+                current_app.logger.info(f"✅ تم التعرف: Expense ID={actual_id}")
             elif check_id.isdigit():
-                check_type = 'payment'
+                # رقم فقط = شيك يدوي
+                check_type = 'check'
                 actual_id = int(check_id)
+                current_app.logger.info(f"✅ تم التعرف: Check (Manual) ID={actual_id}")
+            else:
+                # غير معروف
+                current_app.logger.warning(f"⚠️  check_id غير معروف: {check_id}")
+                check_type = 'check'
+                actual_id = int(check_id) if check_id.isdigit() else check_id
         else:
-            check_type = 'payment'
+            check_type = 'check'
             actual_id = int(check_id)
+            current_app.logger.info(f"✅ تم التعرف: Check (Manual) ID={actual_id}")
         
         if not new_status:
             return jsonify({
@@ -1038,11 +1050,11 @@ def update_check_status(check_id):
             if new_status == 'CASHED':
                 # فقط إذا كانت الحالة الحالية PENDING
                 if check.status == PaymentStatus.PENDING:
-                    check.status = PaymentStatus.COMPLETED
+                check.status = PaymentStatus.COMPLETED
             elif new_status == 'CANCELLED':
                 # فقط إذا كانت الحالة الحالية PENDING
                 if check.status == PaymentStatus.PENDING:
-                    check.status = PaymentStatus.CANCELLED
+                check.status = PaymentStatus.CANCELLED
             
             # إنشاء قيد محاسبي في دفتر الأستاذ
             try:
