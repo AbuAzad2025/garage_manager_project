@@ -543,9 +543,9 @@ def seed_sales(customers, partners, products, warehouses):
     sales = []
     base_date = datetime.utcnow()
     
-    # مبيعات من مستودعات الشركاء (30 عملية)
+    # مبيعات من مستودعات الشركاء (2 عمليات)
     print("  → مبيعات من مستودعات الشركاء...")
-    for i in range(30):
+    for i in range(2):
         wh = random.choice(partner_whs)
         partner = wh.partner
         customer = random.choice(customers)
@@ -587,9 +587,9 @@ def seed_sales(customers, partners, products, warehouses):
         
         sales.append(sale)
     
-    # مبيعات من المستودع الرئيسي (20 عملية)
+    # مبيعات من المستودع الرئيسي (2 عمليات)
     print("  → مبيعات من المستودع الرئيسي...")
-    for i in range(20):
+    for i in range(2):
         wh = random.choice(main_whs)
         customer = random.choice(customers)
         
@@ -691,87 +691,84 @@ def seed_services(customers, suppliers):
     """إضافة طلبات صيانة"""
     print("\n🔧 إضافة طلبات صيانة...")
     
-    # حذف الصيانات التجريبية القديمة (حذف الدفعات أولاً)
-    test_services = db.session.query(ServiceRequest).filter(ServiceRequest.notes.like('%[TEST]%')).all()
-    for srv in test_services:
-        # حذف الدفعات المرتبطة
-        db.session.query(Payment).filter(Payment.service_id == srv.id).delete(synchronize_session=False)
-    # ثم حذف الصيانات
-    db.session.query(ServiceRequest).filter(ServiceRequest.notes.like('%[TEST]%')).delete(synchronize_session=False)
-    db.session.commit()
-    
     services = []
-    base_date = datetime.utcnow()
-    
-    vehicle_models = ["تويوتا كامري", "هونداي إلنترا", "كيا سيراتو", "مازدا 3", "فولكسفاغن باسات"]
-    
-    print("  → صيانة للعملاء...")
-    for i in range(15):
-        customer = random.choice(customers)
-        days_ago = random.randint(1, 90)
-        received_date = base_date - timedelta(days=days_ago)
-        
-        service = ServiceRequest(
-            customer_id=customer.id,
-            vehicle_vrn=f"{random.randint(10,99)}-{random.randint(100,999)}-{random.randint(10,99)}",
-            vehicle_model=random.choice(vehicle_models),
-            received_at=received_date,
-            description=f"[TEST] صيانة {random.choice(['دورية', 'طارئة', 'شاملة'])} - {random.choice(['فحص شامل', 'تغيير زيت', 'فحص فرامل', 'صيانة محرك'])}",
-            problem_description=f"[TEST] مشكلة في {random.choice(['المحرك', 'الفرامل', 'التعليق', 'الكهرباء'])}",
-            status=random.choice([ServiceStatus.COMPLETED.value, ServiceStatus.IN_PROGRESS.value]),
-            notes="[TEST] طلب صيانة تجريبي"
-        )
-        db.session.add(service)
-        services.append(service)
-    
-    db.session.commit()
-    
-    print("  → صيانة للموردين...")
     service_payments = []
-    # استخدام أول عميل كممثل للموردين (ServiceRequest يتطلب customer_id)
-    first_customer = customers[0] if customers else None
-    if not first_customer:
-        print("⚠️ لا يوجد عملاء، تخطي صيانة الموردين")
-        return services, service_payments
-        
-    for idx, supplier in enumerate(suppliers[:3]):
-        days_ago = random.randint(10, 70)
-        service_date = base_date - timedelta(days=days_ago)
-        
-        amount = Decimal(str(random.randint(250, 800)))
-        
-        service = ServiceRequest(
-            customer_id=first_customer.id,  # ServiceRequest يتطلب customer_id
-            vehicle_vrn=f"SUP-{idx+1}",
-            vehicle_model="مركبة المورد",
-            received_at=service_date,
-            description=f"[TEST] صيانة لمركبة المورد {supplier.name}",
-            problem_description=f"صيانة دورية لمركبة {supplier.name}",
-            status=ServiceStatus.COMPLETED.value,
-            notes=f"[TEST] صيانة قدمناها للمورد {supplier.name}"
-        )
-        db.session.add(service)
-        db.session.flush()
-        services.append(service)
-        
-        # دفعة مرتبطة
-        payment = Payment(
-            supplier_id=supplier.id,
-            service_id=service.id,
-            direction=PaymentDirection.IN.value,
-            method=PaymentMethod.CASH.value,
-            status=PaymentStatus.COMPLETED.value,
-            total_amount=amount,
-            currency=supplier.currency,
-            payment_date=service_date,
-            reference=f"SRV-SUP-PAY-{idx+1}",
-            notes=f"[TEST] دفعة صيانة من المورد {supplier.name}"
-        )
-        db.session.add(payment)
-        service_payments.append(payment)
     
-    db.session.commit()
-    print(f"✅ تم إضافة {len(services)} طلب صيانة ({len(service_payments)} للموردين)")
+    try:
+        base_date = datetime.utcnow()
+        
+        vehicle_models = ["تويوتا كامري", "هونداي إلنترا", "كيا سيراتو", "مازدا 3", "فولكسفاغن باسات"]
+        
+        print("  → صيانة للعملاء...")
+        for i in range(2):
+            customer = random.choice(customers)
+            days_ago = random.randint(1, 90)
+            received_date = base_date - timedelta(days=days_ago)
+            
+            service = ServiceRequest(
+                customer_id=customer.id,
+                vehicle_vrn=f"{random.randint(10,99)}-{random.randint(100,999)}-{random.randint(10,99)}",
+                vehicle_model=random.choice(vehicle_models),
+                received_at=received_date,
+                description=f"[TEST] صيانة {random.choice(['دورية', 'طارئة', 'شاملة'])} - {random.choice(['فحص شامل', 'تغيير زيت', 'فحص فرامل', 'صيانة محرك'])}",
+                problem_description=f"[TEST] مشكلة في {random.choice(['المحرك', 'الفرامل', 'التعليق', 'الكهرباء'])}",
+                status=random.choice([ServiceStatus.COMPLETED.value, ServiceStatus.IN_PROGRESS.value]),
+                notes="[TEST] طلب صيانة تجريبي"
+            )
+            db.session.add(service)
+            services.append(service)
+        
+        db.session.commit()
+        
+        print("  → صيانة للموردين...")
+        # استخدام أول عميل كممثل للموردين (ServiceRequest يتطلب customer_id)
+        first_customer = customers[0] if customers else None
+        if not first_customer:
+            print("⚠️ لا يوجد عملاء، تخطي صيانة الموردين")
+            return services, service_payments
+            
+        for idx, supplier in enumerate(suppliers[:3]):
+            days_ago = random.randint(10, 70)
+            service_date = base_date - timedelta(days=days_ago)
+            
+            amount = Decimal(str(random.randint(250, 800)))
+            
+            service = ServiceRequest(
+                customer_id=first_customer.id,  # ServiceRequest يتطلب customer_id
+                vehicle_vrn=f"SUP-{idx+1}",
+                vehicle_model="مركبة المورد",
+                received_at=service_date,
+                description=f"[TEST] صيانة لمركبة المورد {supplier.name}",
+                problem_description=f"صيانة دورية لمركبة {supplier.name}",
+                status=ServiceStatus.COMPLETED.value,
+                notes=f"[TEST] صيانة قدمناها للمورد {supplier.name}"
+            )
+            db.session.add(service)
+            db.session.flush()
+            services.append(service)
+            
+            # دفعة مرتبطة
+            payment = Payment(
+                supplier_id=supplier.id,
+                service_id=service.id,
+                direction=PaymentDirection.IN.value,
+                method=PaymentMethod.CASH.value,
+                status=PaymentStatus.COMPLETED.value,
+                total_amount=amount,
+                currency=supplier.currency,
+                payment_date=service_date,
+                reference=f"SRV-SUP-PAY-{idx+1}",
+                notes=f"[TEST] دفعة صيانة من المورد {supplier.name}"
+            )
+            db.session.add(payment)
+            service_payments.append(payment)
+    
+        db.session.commit()
+        print(f"✅ تم إضافة {len(services)} طلب صيانة ({len(service_payments)} للموردين)")
+    except Exception as e:
+        print(f"⚠️ تخطي الصيانة بسبب: {str(e)[:100]}")
+        db.session.rollback()
+    
     return services, service_payments
 
 
@@ -782,9 +779,9 @@ def seed_payments(suppliers, partners, customers):
     payments = []
     base_date = datetime.utcnow()
     
-    # دفعات للموردين (OUT) - 10 دفعات
+    # دفعات للموردين (OUT) - 2 دفعات
     print("  → دفعات للموردين...")
-    for i in range(10):
+    for i in range(2):
         supplier = random.choice(suppliers)
         days_ago = random.randint(5, 85)
         pay_date = base_date - timedelta(days=days_ago)
@@ -803,9 +800,9 @@ def seed_payments(suppliers, partners, customers):
         db.session.add(payment)
         payments.append(payment)
     
-    # دفعات للشركاء (OUT) - 8 دفعات
+    # دفعات للشركاء (OUT) - 2 دفعات
     print("  → دفعات للشركاء...")
-    for i in range(8):
+    for i in range(2):
         partner = random.choice(partners)
         days_ago = random.randint(5, 75)
         pay_date = base_date - timedelta(days=days_ago)
@@ -824,9 +821,9 @@ def seed_payments(suppliers, partners, customers):
         db.session.add(payment)
         payments.append(payment)
     
-    # دفعات من الموردين (IN) - 6 دفعات (حالات مديونية المورد لنا)
+    # دفعات من الموردين (IN) - 2 دفعات (حالات مديونية المورد لنا)
     print("  → دفعات من الموردين (وارد)...")
-    for i in range(6):
+    for i in range(2):
         supplier = random.choice(suppliers)
         days_ago = random.randint(5, 70)
         pay_date = base_date - timedelta(days=days_ago)
@@ -845,9 +842,9 @@ def seed_payments(suppliers, partners, customers):
         db.session.add(payment)
         payments.append(payment)
     
-    # دفعات من الشركاء (IN) - 5 دفعات (حالات مديونية الشريك لنا)
+    # دفعات من الشركاء (IN) - 2 دفعات (حالات مديونية الشريك لنا)
     print("  → دفعات من الشركاء (وارد)...")
-    for i in range(5):
+    for i in range(2):
         partner = random.choice(partners)
         days_ago = random.randint(5, 65)
         pay_date = base_date - timedelta(days=days_ago)
@@ -866,9 +863,9 @@ def seed_payments(suppliers, partners, customers):
         db.session.add(payment)
         payments.append(payment)
     
-    # دفعات من العملاء (IN) - 15 دفعة
+    # دفعات من العملاء (IN) - 2 دفعة
     print("  → دفعات من العملاء...")
-    for i in range(15):
+    for i in range(2):
         customer = random.choice(customers)
         days_ago = random.randint(1, 60)
         pay_date = base_date - timedelta(days=days_ago)
@@ -887,9 +884,9 @@ def seed_payments(suppliers, partners, customers):
         db.session.add(payment)
         payments.append(payment)
     
-    # دفعات للعملاء (OUT) - 4 دفعات (مرتجعات أو رد أموال)
+    # دفعات للعملاء (OUT) - 2 دفعات (مرتجعات أو رد أموال)
     print("  → دفعات للعملاء (مرتجعات)...")
-    for i in range(4):
+    for i in range(2):
         customer = random.choice(customers)
         days_ago = random.randint(2, 50)
         pay_date = base_date - timedelta(days=days_ago)
