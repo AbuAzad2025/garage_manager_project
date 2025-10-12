@@ -270,6 +270,12 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" data-toggle="pill" href="#tab-cancelled" role="tab">
+                                <i class="fas fa-times-circle"></i> ملغاة/تالفة
+                                <span class="badge badge-secondary" id="badge-cancelled">0</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" data-toggle="pill" href="#tab-archived" role="tab">
                                 <i class="fas fa-archive"></i> مؤرشفة
                                 <span class="badge badge-dark" id="badge-archived">0</span>
@@ -359,6 +365,29 @@
                         <div class="tab-pane fade" id="tab-returned" role="tabpanel">
                                 <table class="table table-hover checks-table" id="table-returned">
                                     <thead>
+                                        <tr>
+                                        <th>#</th>
+                                        <th>رقم الشيك</th>
+                                        <th>المبلغ</th>
+                                        <th>البنك</th>
+                                        <th>الجهة</th>
+                                        <th>تاريخ الاستحقاق</th>
+                                        <th>الاتجاه</th>
+                                        <th>الحالة</th>
+                                        <th>المصدر</th>
+                                        <th>إجراءات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr><td colspan="10" class="text-center">جاري التحميل...</td></tr>
+                                    </tbody>
+                                </table>
+                        </div>
+
+                        <!-- Tab: ملغاة/تالفة -->
+                        <div class="tab-pane fade" id="tab-cancelled" role="tabpanel">
+                                <table class="table table-hover checks-table" id="table-cancelled">
+                                    <thead class="bg-secondary">
                                         <tr>
                                         <th>#</th>
                                         <th>رقم الشيك</th>

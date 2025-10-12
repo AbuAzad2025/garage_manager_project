@@ -27,6 +27,66 @@ import uuid
 checks_bp = Blueprint('checks', __name__, url_prefix='/checks')
 
 
+# إضافة event listeners لربط حذف الشيكات بالقيود المحاسبية
+from sqlalchemy import event
+
+@event.listens_for(Check, 'before_delete')
+def _check_before_delete(mapper, connection, target):
+    """حذف القيود المحاسبية المرتبطة بالشيك عند حذفه"""
+    try:
+        # حذف جميع GLBatch المرتبطة بهذا الشيك
+        connection.execute(
+            GLBatch.__table__.delete().where(
+                (GLBatch.source_type == 'check_check') & 
+                (GLBatch.source_id == target.id)
+            )
+        )
+    except Exception as e:
+        print(f"❌ خطأ في حذف القيود المحاسبية للشيك {target.id}: {str(e)}")
+
+
+@event.listens_for(Payment, 'before_delete')
+def _payment_check_before_delete(mapper, connection, target):
+    """حذف القيود المحاسبية المرتبطة بالدفعة عند حذفها"""
+    try:
+        # إذا كانت دفعة شيك، احذف القيود
+        if target.method == PaymentMethod.CHEQUE:
+            connection.execute(
+                GLBatch.__table__.delete().where(
+                    (GLBatch.source_type == 'check_payment') & 
+                    (GLBatch.source_id == target.id)
+                )
+            )
+    except Exception as e:
+        print(f"❌ خطأ في حذف القيود المحاسبية للدفعة {target.id}: {str(e)}")
+
+
+@event.listens_for(GLBatch, 'before_delete')
+def _glbatch_before_delete(mapper, connection, target):
+    """عند حذف قيد محاسبي مرتبط بشيك، إلغاء الشيك تلقائياً"""
+    try:
+        source_type = target.source_type
+        source_id = target.source_id
+        
+        if source_type == 'check_check':
+            # إضافة ملاحظة إلغاء للشيك اليدوي
+            connection.execute(
+                Check.__table__.update().where(Check.id == source_id).values(
+                    status='CANCELLED',
+                    notes=Check.notes + '\n⚠️ تم إلغاء الشيك بسبب حذف القيد المحاسبي'
+                )
+            )
+        elif source_type == 'check_payment':
+            # إضافة ملاحظة إلغاء للدفعة
+            connection.execute(
+                Payment.__table__.update().where(Payment.id == source_id).values(
+                    notes=Payment.notes + '\n⚠️ تم إلغاء الشيك بسبب حذف القيد المحاسبي'
+                )
+            )
+    except Exception as e:
+        print(f"❌ خطأ في إلغاء الشيك عند حذف القيد: {str(e)}")
+
+
 def ensure_check_accounts():
     """التأكد من وجود جميع حسابات دفتر الأستاذ المطلوبة"""
     try:
@@ -200,16 +260,16 @@ def create_gl_entry_for_check(check_id, check_type, amount, currency, direction,
                 ))
                 
         elif new_status == 'CANCELLED':
+            # إلغاء/إتلاف الشيك → عكس القيد الأصلي تماماً
             if is_incoming:
-                # إلغاء شيك وارد
-                # عكس القيد الأصلي
+                # إلغاء شيك وارد → إرجاع الدين للعميل
                 entries.append(GLEntry(
                     batch_id=batch.id,
                     account=GL_ACCOUNTS_CHECKS['AR'],
                     debit=amount_decimal,
                     credit=0,
                     currency=currency or 'ILS',
-                    ref=f"إلغاء شيك من {entity_name}"
+                    ref=f"⛔ إلغاء/إتلاف شيك وارد من {entity_name}"
                 ))
                 entries.append(GLEntry(
                     batch_id=batch.id,
@@ -217,17 +277,17 @@ def create_gl_entry_for_check(check_id, check_type, amount, currency, direction,
                     debit=0,
                     credit=amount_decimal,
                     currency=currency or 'ILS',
-                    ref=f"إلغاء شيك من {entity_name}"
+                    ref=f"⛔ إلغاء/إتلاف شيك وارد من {entity_name}"
                 ))
             else:
-                # إلغاء شيك صادر
+                # إلغاء شيك صادر → إرجاع الدين للمورد
                 entries.append(GLEntry(
                     batch_id=batch.id,
                     account=GL_ACCOUNTS_CHECKS['CHEQUES_PAYABLE'],
                     debit=amount_decimal,
                     credit=0,
                     currency=currency or 'ILS',
-                    ref=f"إلغاء شيك إلى {entity_name}"
+                    ref=f"⛔ إلغاء/إتلاف شيك صادر إلى {entity_name}"
                 ))
                 entries.append(GLEntry(
                     batch_id=batch.id,
@@ -235,7 +295,7 @@ def create_gl_entry_for_check(check_id, check_type, amount, currency, direction,
                     debit=0,
                     credit=amount_decimal,
                     currency=currency or 'ILS',
-                    ref=f"إلغاء شيك إلى {entity_name}"
+                    ref=f"⛔ إلغاء/إتلاف شيك صادر إلى {entity_name}"
                 ))
         
         # إضافة القيود
