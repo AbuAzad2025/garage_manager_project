@@ -28,11 +28,28 @@ checks_bp = Blueprint('checks', __name__, url_prefix='/checks')
 
 
 def ensure_check_accounts():
-    """التأكد من وجود حسابات الشيكات في دفتر الأستاذ"""
+    """التأكد من وجود جميع حسابات دفتر الأستاذ المطلوبة"""
     try:
         required_accounts = [
+            # حسابات الأصول
+            ('1000_CASH', 'الصندوق', 'ASSET'),
+            ('1010_BANK', 'البنك', 'ASSET'),
+            ('1020_CARD_CLEARING', 'بطاقات الائتمان', 'ASSET'),
+            ('1100_AR', 'العملاء (ذمم مدينة)', 'ASSET'),
             ('1150_CHEQUES_RECEIVABLE', 'شيكات تحت التحصيل', 'ASSET'),
+            ('1205_INV_EXCHANGE', 'المخزون - تبادل', 'ASSET'),
+            
+            # حسابات الخصوم
+            ('2000_AP', 'الموردين (ذمم دائنة)', 'LIABILITY'),
+            ('2100_VAT_PAYABLE', 'ضريبة القيمة المضافة', 'LIABILITY'),
             ('2150_CHEQUES_PAYABLE', 'شيكات تحت الدفع', 'LIABILITY'),
+            
+            # حسابات الإيرادات
+            ('4000_SALES', 'المبيعات', 'REVENUE'),
+            
+            # حسابات المصروفات
+            ('5000_EXPENSES', 'المصروفات العامة', 'EXPENSE'),
+            ('5105_COGS_EXCHANGE', 'تكلفة البضاعة المباعة', 'EXPENSE'),
         ]
         
         for code, name, acc_type in required_accounts:
@@ -44,7 +61,7 @@ def ensure_check_accounts():
         
         db.session.commit()
     except Exception as e:
-        current_app.logger.error(f"❌ خطأ في إنشاء حسابات الشيكات: {str(e)}")
+        current_app.logger.error(f"❌ خطأ في إنشاء حسابات دفتر الأستاذ: {str(e)}")
         db.session.rollback()
 
 
