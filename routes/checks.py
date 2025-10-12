@@ -1125,13 +1125,46 @@ def update_check_status(check_id):
             manual_check.status = new_status
             
             timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-            status_note = f"\n[{timestamp}] 🔄 تغيير الحالة إلى: {CHECK_STATUS[new_status]['ar']}"
+            status_icons = {
+                'CASHED': '✅',
+                'RETURNED': '🔄',
+                'BOUNCED': '❌',
+                'RESUBMITTED': '🔁',
+                'CANCELLED': '⛔',
+                'ARCHIVED': '📦',
+                'PENDING': '⏳'
+            }
+            icon = status_icons.get(new_status, '🔄')
+            
+            status_note = f"\n[{timestamp}] {icon} حالة الشيك: {CHECK_STATUS[new_status]['ar']}"
             if notes:
-                status_note += f"\n   💬 ملاحظة: {notes}"
+                status_note += f"\n   💬 {notes}"
             if current_user:
-                status_note += f"\n   👤 المستخدم: {current_user.username}"
+                status_note += f"\n   👤 {current_user.username}"
             
             manual_check.notes = (manual_check.notes or '') + status_note
+            
+            # إنشاء قيد محاسبي للشيكات اليدوية أيضاً
+            try:
+                entity_name = ''
+                if manual_check.drawer_name:
+                    entity_name = manual_check.drawer_name
+                elif manual_check.payee_name:
+                    entity_name = manual_check.payee_name
+                
+                create_gl_entry_for_check(
+                    check_id=actual_id,
+                    check_type='check',
+                    amount=float(manual_check.amount or 0),
+                    currency=manual_check.currency or 'ILS',
+                    direction='IN' if manual_check.direction.value == 'IN' else 'OUT',
+                    new_status=new_status,
+                    entity_name=entity_name,
+                    notes=notes or ''
+                )
+            except Exception as e:
+                current_app.logger.error(f"❌ خطأ في إنشاء القيد المحاسبي للشيك اليدوي: {str(e)}")
+            
             db.session.commit()
             
             return jsonify({
@@ -1139,39 +1172,7 @@ def update_check_status(check_id):
                 'message': 'تم تحديث حالة الشيك بنجاح'
             })
         
-        else:
-            check = Expense.query.get_or_404(actual_id)
-            
-            # تحديث الحالة (Expense ليس لديه status field مثل Payment)
-            timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-            
-            # إضافة أيقونة حسب الحالة
-            status_icons = {
-                'CASHED': '✅',
-                'RETURNED': '🔄',
-                'BOUNCED': '❌',
-                'RESUBMITTED': '🔁',
-                'CANCELLED': '⛔'
-            }
-            icon = status_icons.get(new_status, '🔄')
-            
-            status_note = f"\n[{timestamp}] {icon} تغيير الحالة إلى: {CHECK_STATUS[new_status]['ar']}"
-            if notes:
-                status_note += f"\n   💬 ملاحظة: {notes}"
-            if current_user:
-                status_note += f"\n   👤 المستخدم: {current_user.username}"
-            
-            check.notes = (check.notes or '') + status_note
-            
-            # إذا تم الصرف، نضع is_paid = True
-            if new_status == 'CASHED':
-                if hasattr(check, 'is_paid'):
-                    check.is_paid = True
-            # إذا أعيد للبنك، نتأكد أنه غير مدفوع
-            elif new_status == 'RESUBMITTED':
-                if hasattr(check, 'is_paid'):
-                    check.is_paid = False
-        
+        # حفظ التغييرات
         db.session.commit()
         
         return jsonify({
