@@ -47,23 +47,22 @@
                         overdue: [],
                         cashed: [],
                         returned: [],
-                        bounced: []
+                        bounced: [],
+                        archived: []
                     };
                     
                     checks.forEach(function(check) {
                         const status = (check.status || '').toUpperCase();
-                        if (status === 'PENDING' || status === 'DUE_SOON') {
+                        if (status === 'PENDING' || status === 'DUE_SOON' || status === 'RESUBMITTED') {
                             categorized.pending.push(check);
                         } else if (status === 'OVERDUE') {
                             categorized.overdue.push(check);
                         } else if (status === 'CASHED') {
                             categorized.cashed.push(check);
-                        } else if (status === 'RETURNED') {
+                        } else if (status === 'RETURNED' || status === 'BOUNCED') {
                             categorized.returned.push(check);
-                        } else if (status === 'BOUNCED') {
-                            categorized.bounced.push(check);
-                        } else if (status === 'RESUBMITTED') {
-                            categorized.pending.push(check);
+                        } else if (status === 'ARCHIVED') {
+                            categorized.archived.push(check);
                         }
                     });
                     
@@ -72,7 +71,7 @@
                         overdue: categorized.overdue.length,
                         cashed: categorized.cashed.length,
                         returned: categorized.returned.length,
-                        bounced: categorized.bounced.length
+                        archived: categorized.archived.length
                     });
                     
                     // تحديث العدادات
@@ -80,7 +79,7 @@
                     $('#badge-overdue').text(categorized.overdue.length);
                     $('#badge-cashed').text(categorized.cashed.length);
                     $('#badge-returned').text(categorized.returned.length);
-                    $('#badge-bounced').text(categorized.bounced.length);
+                    $('#badge-archived').text(categorized.archived.length);
                     $('#badge-all').text(checks.length);
                     
                     // ملء الجداول
@@ -90,7 +89,7 @@
                     fillTable('overdue', categorized.overdue);
                     fillTable('cashed', categorized.cashed);
                     fillTable('returned', categorized.returned);
-                    fillTable('bounced', categorized.bounced);
+                    fillTable('archived', categorized.archived);
                     fillTable('all', checks);
                     
                     // 🔥 فرض إظهار .tab-content والجداول (الحل النهائي!)
@@ -156,6 +155,32 @@
             else if ((check.status || '').toUpperCase() === 'CASHED') rowClass = 'row-cashed';
             else if ((check.status || '').toUpperCase() === 'PENDING') rowClass = 'row-pending';
             
+            // بناء الأزرار حسب حالة الشيك
+            let actionButtons = '<button class="btn btn-sm btn-info" onclick="viewCheckDetails(\'' + (check.id || '') + '\')" title="عرض"><i class="fas fa-eye"></i></button> ';
+            
+            const status = (check.status || '').toUpperCase();
+            
+            // أزرار حسب الحالة
+            if (status === 'PENDING' || status === 'OVERDUE' || status === 'DUE_SOON' || status === 'RESUBMITTED') {
+                // شيكات معلقة: سحب | إرجاع | إلغاء
+                actionButtons += '<button class="btn btn-sm btn-success" onclick="markAsCashed(\'' + (check.id || '') + '\')" title="سحب"><i class="fas fa-check"></i></button> ';
+                actionButtons += '<button class="btn btn-sm btn-warning" onclick="markAsReturned(\'' + (check.id || '') + '\')" title="إرجاع"><i class="fas fa-undo"></i></button> ';
+                actionButtons += '<button class="btn btn-sm btn-secondary" onclick="markAsCancelled(\'' + (check.id || '') + '\')" title="إلغاء"><i class="fas fa-ban"></i></button>';
+            } else if (status === 'RETURNED' || status === 'BOUNCED') {
+                // شيكات مرتجعة: إعادة للبنك | أرشفة
+                actionButtons += '<button class="btn btn-sm btn-primary" onclick="resubmitCheck(\'' + (check.id || '') + '\')" title="إعادة للبنك"><i class="fas fa-sync"></i></button> ';
+                actionButtons += '<button class="btn btn-sm btn-dark" onclick="archiveCheck(\'' + (check.id || '') + '\')" title="أرشفة"><i class="fas fa-archive"></i></button>';
+            } else if (status === 'CASHED') {
+                // شيكات مسحوبة: أرشفة فقط
+                actionButtons += '<button class="btn btn-sm btn-dark" onclick="archiveCheck(\'' + (check.id || '') + '\')" title="أرشفة"><i class="fas fa-archive"></i></button>';
+            } else if (status === 'CANCELLED') {
+                // شيكات ملغاة: أرشفة فقط
+                actionButtons += '<button class="btn btn-sm btn-dark" onclick="archiveCheck(\'' + (check.id || '') + '\')" title="أرشفة"><i class="fas fa-archive"></i></button>';
+            } else if (status === 'ARCHIVED') {
+                // شيكات مؤرشفة: استعادة فقط
+                actionButtons += '<button class="btn btn-sm btn-success" onclick="restoreCheck(\'' + (check.id || '') + '\')" title="استعادة"><i class="fas fa-redo"></i></button>';
+            }
+            
             allRows += '<tr class="' + rowClass + '">' +
                 '<td>' + (index + 1) + '</td>' +
                 '<td><strong>' + (check.check_number || '-') + '</strong></td>' +
@@ -166,11 +191,7 @@
                 '<td>' + (check.is_incoming ? '<span class="badge badge-success"><i class="fas fa-arrow-down"></i> وارد</span>' : '<span class="badge badge-danger"><i class="fas fa-arrow-up"></i> صادر</span>') + '</td>' +
                 '<td><span class="badge badge-' + (check.badge_color || 'info') + '">' + (check.status_ar || check.status || '-') + '</span></td>' +
                 '<td><span class="badge badge-secondary">' + (check.source || '-') + '</span></td>' +
-                '<td>' +
-                    '<button class="btn btn-sm btn-info" onclick="viewCheckDetails(\'' + (check.id || '') + '\')" title="عرض"><i class="fas fa-eye"></i></button> ' +
-                    '<button class="btn btn-sm btn-success" onclick="markAsCashed(\'' + (check.id || '') + '\')" title="سحب"><i class="fas fa-check"></i></button> ' +
-                    '<button class="btn btn-sm btn-warning" onclick="markAsReturned(\'' + (check.id || '') + '\')" title="إرجاع"><i class="fas fa-undo"></i></button>' +
-                '</td>' +
+                '<td>' + actionButtons + '</td>' +
                 '</tr>';
         });
         
@@ -361,13 +382,52 @@
     // تحديث حالة الشيك إلى مرتجع
     window.markAsReturned = function(checkId) {
         console.log('↩️ تحديث الشيك إلى مرتجع:', checkId);
+        updateCheckStatus(checkId, 'RETURNED', 'تم إرجاع الشيك من البنك');
+    };
+    
+    // تحديث حالة الشيك إلى ملغي
+    window.markAsCancelled = function(checkId) {
+        console.log('⛔ تحديث الشيك إلى ملغي:', checkId);
+        updateCheckStatus(checkId, 'CANCELLED', 'تم إلغاء الشيك');
+    };
+    
+    // إعادة تقديم الشيك للبنك (للشيكات المرتجعة)
+    window.resubmitCheck = function(checkId) {
+        console.log('🔁 إعادة تقديم الشيك للبنك:', checkId);
+        updateCheckStatus(checkId, 'RESUBMITTED', 'تم إعادة تقديم الشيك للبنك');
+    };
+    
+    // أرشفة الشيك
+    window.archiveCheck = function(checkId) {
+        console.log('📦 أرشفة الشيك:', checkId);
+        updateCheckStatus(checkId, 'ARCHIVED', 'تم أرشفة الشيك');
+    };
+    
+    // استعادة الشيك من الأرشيف
+    window.restoreCheck = function(checkId) {
+        console.log('♻️ استعادة الشيك:', checkId);
+        updateCheckStatus(checkId, 'PENDING', 'تم استعادة الشيك من الأرشيف');
+    };
+    
+    // دالة مشتركة لتحديث حالة الشيك
+    function updateCheckStatus(checkId, newStatus, message) {
+        const statusInfo = {
+            'CASHED': {title: 'تأكيد السحب', text: 'هل تريد تحديث حالة الشيك إلى "مسحوب"؟', icon: 'question', confirmText: 'نعم، سحب', successText: 'تم تحديث الشيك إلى "مسحوب"'},
+            'RETURNED': {title: 'تأكيد الإرجاع', text: 'هل تم إرجاع الشيك من البنك؟', icon: 'warning', confirmText: 'نعم، مرتجع', successText: 'تم تحديث الشيك إلى "مرتجع"'},
+            'CANCELLED': {title: 'تأكيد الإلغاء', text: 'هل تريد إلغاء هذا الشيك؟', icon: 'warning', confirmText: 'نعم، إلغاء', successText: 'تم إلغاء الشيك'},
+            'RESUBMITTED': {title: 'إعادة للبنك', text: 'هل تريد إعادة تقديم الشيك للبنك؟', icon: 'info', confirmText: 'نعم، إعادة تقديم', successText: 'تم إعادة الشيك للبنك'},
+            'ARCHIVED': {title: 'أرشفة', text: 'هل تريد أرشفة هذا الشيك؟', icon: 'info', confirmText: 'نعم، أرشفة', successText: 'تم أرشفة الشيك'},
+            'PENDING': {title: 'استعادة', text: 'هل تريد استعادة الشيك من الأرشيف؟', icon: 'info', confirmText: 'نعم، استعادة', successText: 'تم استعادة الشيك'}
+        };
+        
+        const info = statusInfo[newStatus] || {title: 'تحديث', text: 'هل تريد تحديث الحالة؟', icon: 'question', confirmText: 'نعم', successText: 'تم التحديث'};
         
         Swal.fire({
-            title: 'تأكيد الإرجاع',
-            text: 'هل تريد تحديث حالة الشيك إلى "مرتجع"؟',
-            icon: 'warning',
+            title: info.title,
+            text: info.text,
+            icon: info.icon,
             showCancelButton: true,
-            confirmButtonText: 'نعم، مرتجع',
+            confirmButtonText: info.confirmText,
             cancelButtonText: 'إلغاء',
             showLoaderOnConfirm: true,
             preConfirm: () => {
@@ -376,8 +436,8 @@
                     method: 'POST',
                     contentType: 'application/json',
                     data: JSON.stringify({
-                        status: 'RETURNED',
-                        notes: 'تم الإرجاع'
+                        status: newStatus,
+                        notes: message
                     })
                 }).then(response => {
                     if (!response.success) {
@@ -385,7 +445,7 @@
                     }
                     return response;
                 }).catch(error => {
-                    Swal.showValidationMessage('خطأ: ' + error.message);
+                    Swal.showValidationMessage('خطأ: ' + (error.responseJSON?.message || error.message || 'حدث خطأ'));
                 });
             },
             allowOutsideClick: () => !Swal.isLoading()
@@ -393,15 +453,15 @@
             if (result.isConfirmed) {
                 Swal.fire({
                     title: 'تم!',
-                    text: 'تم تحديث حالة الشيك إلى "مرتجع"',
+                    text: info.successText,
                     icon: 'success',
                     timer: 2000
                 });
                 // إعادة تحميل البيانات
-                loadAndCategorizeChecks();
+                setTimeout(() => loadAndCategorizeChecks(), 500);
             }
         });
-    };
+    }
     
     // عند تحميل الصفحة
     $(document).ready(function() {

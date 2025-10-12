@@ -30,6 +30,7 @@ CHECK_STATUS = {
     'BOUNCED': {'ar': 'مرفوض', 'color': 'danger', 'icon': 'fa-ban'},
     'RESUBMITTED': {'ar': 'أعيد للبنك', 'color': 'primary', 'icon': 'fa-recycle'},
     'CANCELLED': {'ar': 'ملغي', 'color': 'secondary', 'icon': 'fa-times-circle'},
+    'ARCHIVED': {'ar': 'مؤرشف', 'color': 'dark', 'icon': 'fa-archive'},
     'OVERDUE': {'ar': 'متأخر', 'color': 'danger', 'icon': 'fa-exclamation-triangle'},
 }
 
@@ -793,12 +794,13 @@ def update_check_status(check_id):
                 'message': 'بيانات ناقصة'
             }), 400
         
-        # التحقق من الحالة المسموحة
-        if new_status not in CHECK_STATUS:
-            return jsonify({
-                'success': False,
-                'message': 'حالة غير صالحة'
-            }), 400
+                # التحقق من الحالة المسموحة
+                allowed_statuses = ['CASHED', 'RETURNED', 'BOUNCED', 'CANCELLED', 'RESUBMITTED', 'ARCHIVED', 'PENDING']
+                if new_status not in allowed_statuses:
+                    return jsonify({
+                        'success': False,
+                        'message': 'حالة غير صالحة'
+                    }), 400
         
         if check_type == 'payment' or check_type == 'split':
             if check_type == 'split':
