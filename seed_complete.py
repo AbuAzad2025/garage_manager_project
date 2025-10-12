@@ -814,6 +814,48 @@ def seed_payments(suppliers, partners, customers):
         db.session.add(payment)
         payments.append(payment)
     
+    # دفعات من الموردين (IN) - 6 دفعات (حالات مديونية المورد لنا)
+    print("  → دفعات من الموردين (وارد)...")
+    for i in range(6):
+        supplier = random.choice(suppliers)
+        days_ago = random.randint(5, 70)
+        pay_date = base_date - timedelta(days=days_ago)
+        
+        payment = Payment(
+            supplier_id=supplier.id,
+            direction=PaymentDirection.IN.value,
+            method=random.choice([PaymentMethod.CASH.value, PaymentMethod.BANK.value]),
+            status=PaymentStatus.COMPLETED.value,
+            total_amount=Decimal(str(random.randint(300, 2000))),
+            currency=supplier.currency,
+            payment_date=pay_date,
+            reference=f"PAY-SUP-IN-{i+1:04d}",
+            notes="[TEST] دفعة وارد من المورد (مديونية)"
+        )
+        db.session.add(payment)
+        payments.append(payment)
+    
+    # دفعات من الشركاء (IN) - 5 دفعات (حالات مديونية الشريك لنا)
+    print("  → دفعات من الشركاء (وارد)...")
+    for i in range(5):
+        partner = random.choice(partners)
+        days_ago = random.randint(5, 65)
+        pay_date = base_date - timedelta(days=days_ago)
+        
+        payment = Payment(
+            partner_id=partner.id,
+            direction=PaymentDirection.IN.value,
+            method=random.choice([PaymentMethod.CASH.value, PaymentMethod.BANK.value]),
+            status=PaymentStatus.COMPLETED.value,
+            total_amount=Decimal(str(random.randint(250, 1800))),
+            currency=partner.currency,
+            payment_date=pay_date,
+            reference=f"PAY-PART-IN-{i+1:04d}",
+            notes="[TEST] دفعة وارد من الشريك (مديونية)"
+        )
+        db.session.add(payment)
+        payments.append(payment)
+    
     # دفعات من العملاء (IN) - 15 دفعة
     print("  → دفعات من العملاء...")
     for i in range(15):
@@ -835,8 +877,29 @@ def seed_payments(suppliers, partners, customers):
         db.session.add(payment)
         payments.append(payment)
     
+    # دفعات للعملاء (OUT) - 4 دفعات (مرتجعات أو رد أموال)
+    print("  → دفعات للعملاء (مرتجعات)...")
+    for i in range(4):
+        customer = random.choice(customers)
+        days_ago = random.randint(2, 50)
+        pay_date = base_date - timedelta(days=days_ago)
+        
+        payment = Payment(
+            customer_id=customer.id,
+            direction=PaymentDirection.OUT.value,
+            method=random.choice([PaymentMethod.CASH.value, PaymentMethod.BANK.value]),
+            status=PaymentStatus.COMPLETED.value,
+            total_amount=Decimal(str(random.randint(100, 800))),
+            currency="ILS",
+            payment_date=pay_date,
+            reference=f"REFUND-CUST-{i+1:04d}",
+            notes="[TEST] رد مبلغ للعميل (مرتجع)"
+        )
+        db.session.add(payment)
+        payments.append(payment)
+    
     db.session.commit()
-    print(f"✅ تم إضافة {len(payments)} دفعة (10 للموردين + 8 للشركاء + 15 من عملاء)")
+    print(f"✅ تم إضافة {len(payments)} دفعة (10 للموردين صادر + 6 من موردين وارد + 8 للشركاء صادر + 5 من شركاء وارد + 15 من عملاء + 4 للعملاء)")
     return payments
 
 
