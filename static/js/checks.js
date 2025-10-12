@@ -169,7 +169,7 @@
                 '<td>' +
                     '<button class="btn btn-sm btn-info" onclick="viewCheckDetails(\'' + (check.id || '') + '\')" title="عرض"><i class="fas fa-eye"></i></button> ' +
                     '<button class="btn btn-sm btn-success" onclick="markAsCashed(\'' + (check.id || '') + '\')" title="سحب"><i class="fas fa-check"></i></button> ' +
-                    '<button class="btn btn-sm btn-warning" title="تعديل"><i class="fas fa-edit"></i></button>' +
+                    '<button class="btn btn-sm btn-warning" onclick="markAsReturned(\'' + (check.id || '') + '\')" title="إرجاع"><i class="fas fa-undo"></i></button>' +
                 '</td>' +
                 '</tr>';
         });
@@ -234,23 +234,172 @@
     // عرض تفاصيل الشيك
     window.viewCheckDetails = function(checkId) {
         console.log('👁️ عرض تفاصيل الشيك:', checkId);
-        Swal.fire({
-            title: 'تفاصيل الشيك',
-            text: 'جاري تحميل التفاصيل...',
-            icon: 'info'
+        
+        // استدعاء API للحصول على التفاصيل
+        $.get('/checks/api/checks', function(response) {
+            if (response.success && response.checks) {
+                const check = response.checks.find(c => c.id == checkId || c.id == 'split-' + checkId || c.id == 'expense-' + checkId);
+                
+                if (check) {
+                    // بناء HTML للتفاصيل الكاملة
+                    let detailsHtml = `
+                        <div class="text-right" dir="rtl" style="max-height: 600px; overflow-y: auto;">
+                            <h5 class="text-primary mb-3"><i class="fas fa-money-check-alt"></i> معلومات الشيك الأساسية</h5>
+                            <table class="table table-bordered table-sm">
+                                <tr><th width="40%">رقم الشيك:</th><td><strong>${check.check_number || '-'}</strong></td></tr>
+                                <tr><th>البنك:</th><td><i class="fas fa-university text-primary"></i> ${check.check_bank || '-'}</td></tr>
+                                <tr><th>المبلغ:</th><td><strong class="text-success" style="font-size: 1.2em;">${formatCurrency(check.amount || 0)} ₪</strong></td></tr>
+                                ${check.currency && check.currency != 'ILS' ? '<tr><th>العملة:</th><td>' + check.currency + '</td></tr>' : ''}
+                                <tr><th>تاريخ الاستحقاق:</th><td>${check.due_date_formatted || check.check_due_date || '-'}</td></tr>
+                                ${check.days_until_due ? '<tr><th>الأيام المتبقية:</th><td><span class="badge badge-' + (check.days_until_due < 0 ? 'danger' : check.days_until_due <= 7 ? 'warning' : 'info') + '">' + check.days_until_due + ' يوم</span></td></tr>' : ''}
+                            </table>
+                            
+                            <h5 class="text-info mb-3 mt-4"><i class="fas fa-users"></i> الأطراف</h5>
+                            <table class="table table-bordered table-sm">
+                                <tr><th width="40%">الجهة:</th><td><strong>${check.entity_name || '-'}</strong> <span class="badge badge-secondary">${check.entity_type || '-'}</span></td></tr>
+                                <tr><th>نوع الجهة:</th><td>${check.entity_type || '-'}</td></tr>
+                                ${check.drawer_name ? '<tr><th>الساحب:</th><td>' + check.drawer_name + '</td></tr>' : ''}
+                                ${check.payee_name ? '<tr><th>المستفيد:</th><td>' + check.payee_name + '</td></tr>' : ''}
+                                <tr><th>الاتجاه:</th><td>${check.is_incoming ? '<span class="badge badge-success"><i class="fas fa-arrow-down"></i> شيك وارد (نستلمه)</span>' : '<span class="badge badge-danger"><i class="fas fa-arrow-up"></i> شيك صادر (ندفعه)</span>'}</td></tr>
+                            </table>
+                            
+                            <h5 class="text-warning mb-3 mt-4"><i class="fas fa-info-circle"></i> الحالة والمصدر</h5>
+                            <table class="table table-bordered table-sm">
+                                <tr><th width="40%">الحالة:</th><td><span class="badge badge-${check.badge_color || 'info'}" style="font-size: 1.1em;">${check.status_ar || check.status || '-'}</span></td></tr>
+                                <tr><th>المصدر:</th><td><span class="badge badge-primary">${check.source || '-'}</span></td></tr>
+                                ${check.source_badge ? '<tr><th>نوع المصدر:</th><td><span class="badge badge-' + check.source_badge + '">' + check.source + '</span></td></tr>' : ''}
+                                ${check.receipt_number ? '<tr><th>رقم الإيصال:</th><td><code>' + check.receipt_number + '</code></td></tr>' : ''}
+                                ${check.reference ? '<tr><th>الرقم المرجعي:</th><td><code>' + check.reference + '</code></td></tr>' : ''}
+                            </table>
+                            
+                            ${check.description || check.purpose || check.reason ? `
+                            <h5 class="text-success mb-3 mt-4"><i class="fas fa-file-alt"></i> السبب/البيان</h5>
+                            <div class="alert alert-info text-right">
+                                <strong>${check.description || check.purpose || check.reason || '-'}</strong>
+                            </div>
+                            ` : ''}
+                            
+                            ${check.notes ? `
+                            <h5 class="text-secondary mb-3 mt-4"><i class="fas fa-sticky-note"></i> ملاحظات</h5>
+                            <div class="alert alert-warning text-right" style="white-space: pre-line; max-height: 150px; overflow-y: auto;">
+                                ${check.notes}
+                            </div>
+                            ` : ''}
+                            
+                            ${check.created_at ? `
+                            <h5 class="text-muted mb-3 mt-4"><i class="fas fa-history"></i> معلومات التدقيق</h5>
+                            <table class="table table-bordered table-sm">
+                                <tr><th width="40%">تاريخ الإنشاء:</th><td>${check.created_at || '-'}</td></tr>
+                                ${check.created_by ? '<tr><th>أنشئ بواسطة:</th><td>' + check.created_by + '</td></tr>' : ''}
+                            </table>
+                            ` : ''}
+                        </div>
+                    `;
+                    
+                    Swal.fire({
+                        title: '<i class="fas fa-money-check-alt text-primary"></i> تفاصيل الشيك الكاملة',
+                        html: detailsHtml,
+                        width: 800,
+                        showCloseButton: true,
+                        confirmButtonText: '<i class="fas fa-times"></i> إغلاق',
+                        customClass: {
+                            popup: 'swal-rtl'
+                        }
+                    });
+                } else {
+                    Swal.fire('خطأ', 'لم يتم العثور على الشيك', 'error');
+                }
+            }
         });
     };
     
     // تحديث حالة الشيك إلى مسحوب
     window.markAsCashed = function(checkId) {
         console.log('💰 تحديث الشيك إلى مسحوب:', checkId);
+        
         Swal.fire({
             title: 'تأكيد السحب',
             text: 'هل تريد تحديث حالة الشيك إلى "مسحوب"؟',
             icon: 'question',
             showCancelButton: true,
-            confirmButtonText: 'نعم',
-            cancelButtonText: 'لا'
+            confirmButtonText: 'نعم، سحب',
+            cancelButtonText: 'إلغاء',
+            showLoaderOnConfirm: true,
+            preConfirm: () => {
+                return $.ajax({
+                    url: '/checks/api/update-status/' + checkId,
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        status: 'CASHED',
+                        notes: 'تم السحب'
+                    })
+                }).then(response => {
+                    if (!response.success) {
+                        throw new Error(response.message || 'فشل التحديث');
+                    }
+                    return response;
+                }).catch(error => {
+                    Swal.showValidationMessage('خطأ: ' + error.message);
+                });
+            },
+            allowOutsideClick: () => !Swal.isLoading()
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'تم!',
+                    text: 'تم تحديث حالة الشيك إلى "مسحوب"',
+                    icon: 'success',
+                    timer: 2000
+                });
+                // إعادة تحميل البيانات
+                loadAndCategorizeChecks();
+            }
+        });
+    };
+    
+    // تحديث حالة الشيك إلى مرتجع
+    window.markAsReturned = function(checkId) {
+        console.log('↩️ تحديث الشيك إلى مرتجع:', checkId);
+        
+        Swal.fire({
+            title: 'تأكيد الإرجاع',
+            text: 'هل تريد تحديث حالة الشيك إلى "مرتجع"؟',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'نعم، مرتجع',
+            cancelButtonText: 'إلغاء',
+            showLoaderOnConfirm: true,
+            preConfirm: () => {
+                return $.ajax({
+                    url: '/checks/api/update-status/' + checkId,
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        status: 'RETURNED',
+                        notes: 'تم الإرجاع'
+                    })
+                }).then(response => {
+                    if (!response.success) {
+                        throw new Error(response.message || 'فشل التحديث');
+                    }
+                    return response;
+                }).catch(error => {
+                    Swal.showValidationMessage('خطأ: ' + error.message);
+                });
+            },
+            allowOutsideClick: () => !Swal.isLoading()
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'تم!',
+                    text: 'تم تحديث حالة الشيك إلى "مرتجع"',
+                    icon: 'success',
+                    timer: 2000
+                });
+                // إعادة تحميل البيانات
+                loadAndCategorizeChecks();
+            }
         });
     };
     

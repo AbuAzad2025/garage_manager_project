@@ -211,9 +211,14 @@ def get_checks():
                     'entity_name': entity_name,
                     'entity_type': entity_type,
                     'entity_link': entity_link,
+                    'drawer_name': entity_name if not is_incoming else 'شركتنا',
+                    'payee_name': 'شركتنا' if not is_incoming else entity_name,
+                    'description': f"دفعة {'من' if is_incoming else 'إلى'} {entity_name}" + (f" ({entity_type})" if entity_type else ''),
+                    'purpose': 'دفعة مالية',
                     'notes': payment.notes or '',
-                    'created_at': payment.payment_date.strftime('%Y-%m-%d') if payment.payment_date else '',
-                    'receipt_number': payment.receipt_number or ''
+                    'created_at': payment.payment_date.strftime('%Y-%m-%d %H:%M') if payment.payment_date else '',
+                    'receipt_number': payment.receipt_number or '',
+                    'reference': payment.receipt_number or ''
                 })
             
             # معالجة الدفعات الجزئية (PaymentSplit)
@@ -752,32 +757,56 @@ def get_current_check_status(check, check_type):
         return 'PENDING'
 
 
-@checks_bp.route('/api/update-status/<int:check_id>', methods=['POST'])
-@permission_required('manage_payments')
+@checks_bp.route('/api/update-status/<check_id>', methods=['POST'])
+@login_required
 def update_check_status(check_id):
     """
-    تحديث حالة الشيك
+    تحديث حالة الشيك (من جميع المصادر)
     """
     try:
-        check_type = request.form.get('type')  # 'payment' or 'expense'
-        new_status = request.form.get('status')  # CASHED, RETURNED, BOUNCED, CANCELLED, RESUBMITTED
-        notes = request.form.get('notes', '')
+        # الحصول على البيانات من JSON
+        data = request.get_json() or {}
+        new_status = data.get('status')  # CASHED, RETURNED, BOUNCED, CANCELLED, RESUBMITTED
+        notes = data.get('notes', '')
         
-        if not check_type or not new_status:
+        # تحديد نوع الشيك من الـ ID
+        check_type = 'check'  # default
+        actual_id = check_id
+        
+        if isinstance(check_id, str):
+            if check_id.startswith('split-'):
+                check_type = 'split'
+                actual_id = int(check_id.replace('split-', ''))
+            elif check_id.startswith('expense-'):
+                check_type = 'expense'
+                actual_id = int(check_id.replace('expense-', ''))
+            elif check_id.isdigit():
+                check_type = 'payment'
+                actual_id = int(check_id)
+        else:
+            check_type = 'payment'
+            actual_id = int(check_id)
+        
+        if not new_status:
             return jsonify({
                 'success': False,
-                'error': 'بيانات ناقصة'
+                'message': 'بيانات ناقصة'
             }), 400
         
         # التحقق من الحالة المسموحة
         if new_status not in CHECK_STATUS:
             return jsonify({
                 'success': False,
-                'error': 'حالة غير صالحة'
+                'message': 'حالة غير صالحة'
             }), 400
         
-        if check_type == 'payment':
-            check = Payment.query.get_or_404(check_id)
+        if check_type == 'payment' or check_type == 'split':
+            if check_type == 'split':
+                # جلب الدفعة الجزئية
+                split = PaymentSplit.query.get_or_404(actual_id)
+                check = split.payment
+            else:
+                check = Payment.query.get_or_404(actual_id)
             
             # تحديث الحالة
             if new_status == 'CASHED':
@@ -813,7 +842,30 @@ def update_check_status(check_id):
             check.notes = (check.notes or '') + status_note
             
         elif check_type == 'expense':
-            check = Expense.query.get_or_404(check_id)
+            check = Expense.query.get_or_404(actual_id)
+        
+        elif check_type == 'check':
+            # شيك يدوي من جدول Check
+            manual_check = Check.query.get_or_404(actual_id)
+            manual_check.status = new_status
+            
+            timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+            status_note = f"\n[{timestamp}] 🔄 تغيير الحالة إلى: {CHECK_STATUS[new_status]['ar']}"
+            if notes:
+                status_note += f"\n   💬 ملاحظة: {notes}"
+            if current_user:
+                status_note += f"\n   👤 المستخدم: {current_user.username}"
+            
+            manual_check.notes = (manual_check.notes or '') + status_note
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': 'تم تحديث حالة الشيك بنجاح'
+            })
+        
+        else:
+            check = Expense.query.get_or_404(actual_id)
             
             # تحديث الحالة (Expense ليس لديه status field مثل Payment)
             timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
