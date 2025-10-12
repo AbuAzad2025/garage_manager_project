@@ -985,19 +985,34 @@ def update_check_status(check_id):
                 actual_id = int(check_id.replace('expense-', ''))
                 current_app.logger.info(f"✅ تم التعرف: Expense ID={actual_id}")
             elif check_id.isdigit():
-                # رقم فقط = شيك يدوي
-                check_type = 'check'
+                # رقم فقط - نحتاج لفحص نوعه
                 actual_id = int(check_id)
-                current_app.logger.info(f"✅ تم التعرف: Check (Manual) ID={actual_id}")
+                # نفحص في جميع الجداول
+                if Check.query.get(actual_id):
+                    check_type = 'check'
+                    current_app.logger.info(f"✅ تم التعرف: Check (Manual) ID={actual_id}")
+                elif Payment.query.get(actual_id):
+                    check_type = 'payment'
+                    current_app.logger.info(f"✅ تم التعرف: Payment ID={actual_id}")
+                else:
+                    # افتراض أنه شيك يدوي
+                    check_type = 'check'
+                    current_app.logger.warning(f"⚠️  افتراض Check ID={actual_id}")
             else:
                 # غير معروف
                 current_app.logger.warning(f"⚠️  check_id غير معروف: {check_id}")
                 check_type = 'check'
                 actual_id = int(check_id) if check_id.isdigit() else check_id
         else:
-            check_type = 'check'
             actual_id = int(check_id)
-            current_app.logger.info(f"✅ تم التعرف: Check (Manual) ID={actual_id}")
+            # نفحص النوع
+            if Check.query.get(actual_id):
+                check_type = 'check'
+            elif Payment.query.get(actual_id):
+                check_type = 'payment'
+            else:
+                check_type = 'check'
+            current_app.logger.info(f"✅ تم التعرف: {check_type.upper()} ID={actual_id}")
         
         if not new_status:
             return jsonify({
