@@ -733,7 +733,7 @@ def _convert_to_ils(amount: Decimal | float, from_currency: str, at: datetime = 
         to_code="ILS",
         at=at or datetime.utcnow()
     )
-    return _q2(converted)
+    return _d2(converted)
 
 
 def _get_supplier_exchange_items(supplier_id: int, date_from: datetime, date_to: datetime):

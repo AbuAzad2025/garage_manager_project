@@ -132,8 +132,14 @@
       </h5>
     </div>
     <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-2 no-print">
+        <h5 class="mb-0">سجل الحركات</h5>
+        <button class="btn btn-sm btn-primary" onclick="printStatementTable()">
+          <i class="fas fa-print"></i> طباعة الجدول
+        </button>
+      </div>
       <div class="table-responsive">
-        <table class="table table-bordered table-sm table-striped align-middle">
+        <table class="table table-bordered table-sm table-striped align-middle" id="statementTable">
           <thead class="table-light">
             <tr>
               <th style="width: 110px">التاريخ</th>
@@ -190,5 +196,46 @@
   document.getElementById('btn-print')?.addEventListener('click', function () {
     window.print();
   });
+  
+  // DataTables إذا كان الجدول كبير
+  {% if ledger_entries|length > 10 %}
+  $('#statementTable').DataTable({
+    language: {
+      url: '{{ url_for("static", filename="datatables/Arabic.json") }}'
+    },
+    pageLength: 25,
+    order: [[0, 'desc']],
+    dom: 'frtip',
+    searching: true,
+    paging: true,
+    info: true
+  });
+  {% endif %}
+  
+  // دالة طباعة الجدول
+  window.printStatementTable = function() {
+    const table = document.getElementById('statementTable');
+    if (!table) return;
+    
+    const printWindow = window.open('', '', 'height=600,width=800');
+    printWindow.document.write('<html><head><title>كشف حساب - {{ customer.name }}</title>');
+    printWindow.document.write('<style>');
+    printWindow.document.write('body { font-family: Arial, sans-serif; direction: rtl; }');
+    printWindow.document.write('table { width: 100%; border-collapse: collapse; margin: 20px 0; }');
+    printWindow.document.write('th, td { border: 1px solid #ddd; padding: 8px; text-align: right; }');
+    printWindow.document.write('th { background-color: #f8f9fa; font-weight: bold; }');
+    printWindow.document.write('.text-end { text-align: left; }');
+    printWindow.document.write('h2 { text-align: center; color: #333; margin-bottom: 20px; }');
+    printWindow.document.write('tfoot { background-color: #f8f9fa; font-weight: bold; }');
+    printWindow.document.write('</style></head><body>');
+    printWindow.document.write('<h2>كشف حساب - {{ customer.name }}</h2>');
+    printWindow.document.write('<p style="text-align: center;">من {{ from_date }} إلى {{ to_date }}</p>');
+    printWindow.document.write(table.outerHTML);
+    printWindow.document.write('<p style="text-align: center; font-size: 12px; color: #666; margin-top: 30px;">');
+    printWindow.document.write('طُبع بتاريخ: ' + new Date().toLocaleString('ar-EG') + '</p>');
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    printWindow.print();
+  }
 </script>
 {% endblock %}

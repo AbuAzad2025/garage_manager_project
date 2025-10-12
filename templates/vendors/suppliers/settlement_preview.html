@@ -273,17 +273,20 @@
             <!-- التسوية الذكية: تفاصيل شاملة -->
             
             <!-- القطع الواردة -->
-            {% if balance_data.debit.exchange_items.items|length > 0 %}
+            {% if balance_data.debit.exchange_items['items']|length > 0 %}
             <div class="card settlement-detail-card">
-                <div class="card-header bg-danger text-white">
+                <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
                     <h4 class="mb-0">
                         <i class="fas fa-boxes"></i> القطع الواردة من المورد 
-                        <span class="badge bg-light text-dark">{{ balance_data.debit.exchange_items.items|length }}</span>
+                        <span class="badge bg-light text-dark">{{ balance_data.debit.exchange_items['items']|length }}</span>
                     </h4>
+                    <button class="btn btn-sm btn-light no-print" onclick="printTable('exchangeItemsTable', 'القطع الواردة من المورد')">
+                        <i class="fas fa-print"></i> طباعة
+                    </button>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-hover table-bordered table-sm">
+                        <table class="table table-hover table-bordered table-sm" id="exchangeItemsTable">
                             <thead class="table-light">
                                 <tr>
                                     <th>#</th>
@@ -296,7 +299,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for item in balance_data.debit.exchange_items.items %}
+                                {% for item in balance_data.debit.exchange_items['items'] %}
                                 <tr {% if not item.is_priced %}class="table-warning"{% endif %}>
                                     <td>{{ loop.index }}</td>
                                     <td>
@@ -334,7 +337,7 @@
 
             <!-- المبيعات والصيانة -->
             <div class="row">
-                {% if balance_data.credit.sales.items|length > 0 %}
+                {% if balance_data.credit.sales['items']|length > 0 %}
                 <div class="col-md-6">
                     <div class="card settlement-detail-card">
                         <div class="card-header bg-success text-white">
@@ -354,7 +357,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% for item in balance_data.credit.sales.items %}
+                                        {% for item in balance_data.credit.sales['items'] %}
                                         <tr>
                                             <td>#{{ item.sale_number }}</td>
                                             <td><small>{{ item.date.strftime("%Y-%m-%d") if item.date else '—' }}</small></td>
@@ -380,7 +383,7 @@
                 </div>
                 {% endif %}
 
-                {% if balance_data.credit.services.items|length > 0 %}
+                {% if balance_data.credit.services['items']|length > 0 %}
                 <div class="col-md-6">
                     <div class="card settlement-detail-card">
                         <div class="card-header bg-info text-white">
@@ -400,7 +403,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% for item in balance_data.credit.services.items %}
+                                        {% for item in balance_data.credit.services['items'] %}
                                         <tr>
                                             <td>#{{ item.service_number }}</td>
                                             <td><small>{{ item.date.strftime("%Y-%m-%d") if item.date else '—' }}</small></td>
@@ -436,7 +439,7 @@
             {% endif %}
 
             <!-- المرتجعات -->
-            {% if balance_data.credit.returns.items|length > 0 %}
+            {% if balance_data.credit.returns['items']|length > 0 %}
             <div class="card settlement-detail-card">
                 <div class="card-header bg-warning text-dark">
                     <h5 class="mb-0">
@@ -456,7 +459,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for item in balance_data.credit.returns.items %}
+                                {% for item in balance_data.credit.returns['items'] %}
                                 <tr>
                                     <td>{{ item.product_name }}</td>
                                     <td class="text-end">{{ item.quantity }}</td>
@@ -480,38 +483,79 @@
 
             <!-- التسويات السابقة -->
             {% if balance_data.previous_settlements|length > 0 %}
-            <div class="card settlement-detail-card">
+            <div class="card settlement-detail-card border-secondary">
                 <div class="card-header bg-secondary text-white">
                     <h5 class="mb-0">
-                        <i class="fas fa-history"></i> التسويات السابقة
+                        <i class="fas fa-history"></i> سجل التسويات السابقة
+                        <span class="badge bg-light text-dark">{{ balance_data.previous_settlements|length }}</span>
                     </h5>
+                    <small class="text-white-50">عرض التسويات المكتملة للمورد قبل هذه الفترة</small>
                 </div>
                 <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>الرمز</th>
-                                    <th>الفترة</th>
-                                    <th>الحالة</th>
-                                    <th class="text-end">المبلغ</th>
-                                    <th>التاريخ</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for settlement in balance_data.previous_settlements %}
-                                <tr>
-                                    <td><code>{{ settlement.code }}</code></td>
-                                    <td><small>{{ settlement.from_date.strftime("%Y-%m-%d") if settlement.from_date else '—' }} → {{ settlement.to_date.strftime("%Y-%m-%d") if settlement.to_date else '—' }}</small></td>
-                                    <td><span class="badge bg-info">{{ settlement.status }}</span></td>
-                                    <td class="text-end">{{ "%.2f"|format(settlement.total_due) }}</td>
-                                    <td><small>{{ settlement.date.strftime("%Y-%m-%d %H:%M") if settlement.date else '—' }}</small></td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                    <div class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>ملاحظة:</strong> التسويات أدناه تمت في فترات سابقة وتم احتساب مبالغها في حينه. 
+                        التسوية الحالية تحسب فقط المعاملات من <strong>{{ ss.from_date.strftime("%Y-%m-%d") }}</strong> إلى <strong>{{ ss.to_date.strftime("%Y-%m-%d") }}</strong>.
+                    </div>
+                    
+                    <div class="accordion" id="previousSettlementsAccordion">
+                        {% for settlement in balance_data.previous_settlements %}
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="heading-{{ settlement.id }}">
+                                <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" 
+                                        data-bs-toggle="collapse" data-bs-target="#collapse-{{ settlement.id }}">
+                                    <div class="d-flex justify-content-between align-items-center w-100 me-3">
+                                        <div>
+                                            <strong><i class="fas fa-file-invoice"></i> {{ settlement.code }}</strong>
+                                            <br>
+                                            <small class="text-muted">
+                                                {{ settlement.from_date.strftime("%Y-%m-%d") if settlement.from_date else '—' }} → 
+                                                {{ settlement.to_date.strftime("%Y-%m-%d") if settlement.to_date else '—' }}
+                                            </small>
+                                        </div>
+                                        <div class="text-end">
+                                            <span class="badge bg-{{ 'success' if settlement.status == 'CONFIRMED' else 'warning' }}">
+                                                {{ settlement.status }}
+                                            </span>
+                                            <br>
+                                            <strong class="text-primary">{{ "%.2f"|format(settlement.total_due) }} ₪</strong>
+                                        </div>
+                                    </div>
+                                </button>
+                            </h2>
+                            <div id="collapse-{{ settlement.id }}" 
+                                 class="accordion-collapse collapse {% if loop.first %}show{% endif %}" 
+                                 data-bs-parent="#previousSettlementsAccordion">
+                                <div class="accordion-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p><strong>📅 التاريخ:</strong> {{ settlement.date.strftime("%Y-%m-%d %H:%M") if settlement.date else '—' }}</p>
+                                            <p><strong>💰 المبلغ المستحق:</strong> <span class="text-primary">{{ "%.2f"|format(settlement.total_due) }} ₪</span></p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>📊 الحالة:</strong> <span class="badge bg-info">{{ settlement.status }}</span></p>
+                                            {% if settlement.notes %}
+                                            <p><strong>📝 ملاحظات:</strong> {{ settlement.notes }}</p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="alert alert-light mt-2 mb-0">
+                                        <small>
+                                            <i class="fas fa-info-circle"></i> 
+                                            هذه التسوية تغطي الفترة من {{ settlement.from_date.strftime("%d/%m/%Y") }} إلى {{ settlement.to_date.strftime("%d/%m/%Y") }}
+                                            ولا تشمل معاملات التسوية الحالية.
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
                     </div>
                 </div>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> لا توجد تسويات سابقة لهذا المورد.
             </div>
             {% endif %}
 
@@ -733,6 +777,52 @@
       window.print();
     }
   });
+  
+  // DataTables للجداول الطويلة
+  {% if balance_data and balance_data.get('success') and balance_data.get('debit') and balance_data.debit.exchange_items.get('items') and balance_data.debit.exchange_items['items']|length > 10 %}
+  $('#exchangeItemsTable').DataTable({
+    language: {
+      url: '{{ url_for("static", filename="datatables/Arabic.json") }}'
+    },
+    pageLength: 25,
+    order: [[6, 'desc']],  // ترتيب حسب التاريخ
+    dom: 'frtip',
+    searching: true,
+    paging: true,
+    info: true
+  });
+  {% endif %}
+  
+  // دالة طباعة جدول محدد
+  window.printTable = function(tableId, title) {
+    const table = document.getElementById(tableId);
+    if (!table) return;
+    
+    const printWindow = window.open('', '', 'height=600,width=800');
+    printWindow.document.write('<html><head><title>' + title + '</title>');
+    printWindow.document.write('<style>');
+    printWindow.document.write('body { font-family: Arial, sans-serif; direction: rtl; }');
+    printWindow.document.write('table { width: 100%; border-collapse: collapse; margin: 20px 0; }');
+    printWindow.document.write('th, td { border: 1px solid #ddd; padding: 8px; text-align: right; }');
+    printWindow.document.write('th { background-color: #f8f9fa; font-weight: bold; }');
+    printWindow.document.write('.text-end { text-align: left; }');
+    printWindow.document.write('h2 { text-align: center; color: #333; margin-bottom: 20px; }');
+    printWindow.document.write('.print-header { text-align: center; margin-bottom: 20px; }');
+    printWindow.document.write('.print-footer { text-align: center; margin-top: 20px; font-size: 12px; color: #666; }');
+    printWindow.document.write('@media print { .no-print { display: none; } }');
+    printWindow.document.write('</style></head><body>');
+    printWindow.document.write('<div class="print-header">');
+    printWindow.document.write('<h2>' + title + '</h2>');
+    printWindow.document.write('<p>{{ supplier.name }} | {{ ss.from_date.strftime("%Y-%m-%d") }} - {{ ss.to_date.strftime("%Y-%m-%d") }}</p>');
+    printWindow.document.write('</div>');
+    printWindow.document.write(table.outerHTML);
+    printWindow.document.write('<div class="print-footer">');
+    printWindow.document.write('<p>طُبع بتاريخ: ' + new Date().toLocaleString('ar-EG') + '</p>');
+    printWindow.document.write('</div>');
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    printWindow.print();
+  }
   
   // تحديث أسعار القطع غير المسعّرة (للتسوية الذكية)
   let unpricedCount = {{ balance_data.unpriced_items|length if balance_data and balance_data.unpriced_items else 0 }};
