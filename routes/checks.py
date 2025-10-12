@@ -69,8 +69,8 @@ def create_gl_entry_for_check(check_id, check_type, amount, currency, direction,
             source_type=f'check_{check_type}',
             source_id=check_id,
             currency=currency or 'ILS',
-            status='POSTED',
-            notes=f"قيد شيك: {entity_name} - {notes}"
+            status='POSTED'
+            # ملاحظة: GLBatch ليس له حقل notes، سنضع الملاحظة في GLEntry.ref
         )
         db.session.add(batch)
         db.session.flush()
