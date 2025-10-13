@@ -134,10 +134,12 @@
 
         {# زر تسليم المنتج المحجوز - يحول الحجز لمبيعة #}
         {% if current_user.has_permission('create_sale') and prepaid > 0 %}
-        <a class="btn btn-success"
-           href="{{ url_for('sales.create_sale', preorder_id=preorder.id) }}">
-          <i class="fas fa-truck me-1"></i> تسليم المنتج المحجوز
-        </a>
+        <form method="post" action="{{ url_for('warehouse_bp.preorder_convert_to_sale', preorder_id=preorder.id) }}" class="d-inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-success" onclick="return confirm('تحويل الحجز إلى مبيعة؟\n\nسيتم:\n• إنشاء فاتورة مبيع\n• المبلغ المتبقي: {{ \"%.2f\"|format(balance) }} {{ currency }}\n• شحن الكمية من المستودع');">
+            <i class="fas fa-truck me-1"></i> تسليم المنتج المحجوز
+          </button>
+        </form>
         {% endif %}
 
         {# زر إلغاء الحجز #}

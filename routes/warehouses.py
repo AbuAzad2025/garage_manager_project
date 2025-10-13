@@ -2668,10 +2668,112 @@ def preorder_detail(preorder_id):
     return render_template("parts/preorder_detail.html", preorder=preorder)
 
 
+@warehouse_bp.route("/preorders/<int:preorder_id>/convert-to-sale", methods=["POST"], endpoint="preorder_convert_to_sale")
+@login_required
+@permission_required("create_sale")
+def preorder_convert_to_sale(preorder_id):
+    """تحويل الحجز المسبق إلى مبيعة وتوجيه للدفع"""
+    from models import Sale, SaleLine, SaleStatus
+    
+    preorder = _get_or_404(PreOrder, preorder_id)
+    
+    if preorder.status in ("CANCELLED", "FULFILLED"):
+        flash("لا يمكن تحويل حجز ملغي أو منفذ مسبقاً!", "danger")
+        return redirect(url_for("warehouse_bp.preorder_detail", preorder_id=preorder_id))
+    
+    try:
+        # حساب المبالغ
+        qty = int(preorder.quantity or 0)
+        unit_price = float(preorder.product.price or 0) if preorder.product else 0
+        tax_rate = float(preorder.tax_rate or 0)
+        prepaid = float(preorder.prepaid_amount or 0)
+        
+        subtotal = qty * unit_price
+        total_with_tax = subtotal * (1 + tax_rate / 100)
+        balance_due = max(0, total_with_tax - prepaid)
+        
+        # إنشاء المبيعة
+        sale = Sale(
+            customer_id=preorder.customer_id,
+            seller_id=current_user.id,
+            sale_date=datetime.utcnow(),
+            preorder_id=preorder.id,
+            status=SaleStatus.CONFIRMED.value,
+            currency=preorder.currency or "ILS",
+            tax_rate=tax_rate,
+            total_amount=total_with_tax,
+            total_paid=prepaid,  # العربون المدفوع مسبقاً
+            balance_due=balance_due,
+            notes=f"تحويل من حجز مسبق {preorder.reference or preorder.id}"
+        )
+        db.session.add(sale)
+        db.session.flush()
+        
+        # إنشاء بند المبيعة
+        sale_line = SaleLine(
+            sale_id=sale.id,
+            product_id=preorder.product_id,
+            warehouse_id=preorder.warehouse_id,
+            quantity=qty,
+            unit_price=unit_price,
+            tax_rate=tax_rate,
+            discount_rate=0
+        )
+        db.session.add(sale_line)
+        
+        # تحديث StockLevel
+        sl = StockLevel.query.filter_by(
+            product_id=preorder.product_id, 
+            warehouse_id=preorder.warehouse_id
+        ).with_for_update(nowait=False).first()
+        
+        if not sl:
+            flash("لا يوجد مخزون لهذا المنتج في المستودع!", "danger")
+            db.session.rollback()
+            return redirect(url_for("warehouse_bp.preorder_detail", preorder_id=preorder_id))
+        
+        # تقليل reserved_quantity
+        sl.reserved_quantity = max(int(sl.reserved_quantity or 0) - qty, 0)
+        
+        # تقليل quantity (شحن البضاعة)
+        available = int(sl.quantity or 0)
+        if available < qty:
+            flash(f"الكمية المتاحة ({available}) غير كافية! المطلوب: {qty}", "danger")
+            db.session.rollback()
+            return redirect(url_for("warehouse_bp.preorder_detail", preorder_id=preorder_id))
+        
+        sl.quantity = available - qty
+        
+        # تحديث حالة الحجز
+        preorder.status = "FULFILLED"
+        
+        db.session.commit()
+        
+        flash(f"✅ تم تحويل الحجز إلى مبيعة #{sale.id}!", "success")
+        
+        # التوجيه للدفع الموحد إذا كان هناك رصيد متبقي
+        if balance_due > 0:
+            return redirect(url_for('payments.create_payment',
+                                  entity_type='SALE',
+                                  entity_id=sale.id,
+                                  amount=balance_due,
+                                  currency=sale.currency,
+                                  reference=f'دفع مبيعة {sale.sale_number or sale.id}',
+                                  customer_id=sale.customer_id))
+        else:
+            return redirect(url_for('sales_bp.sale_detail', id=sale.id))
+            
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        flash(f"خطأ في إنشاء المبيعة: {str(e)}", "danger")
+        return redirect(url_for("warehouse_bp.preorder_detail", preorder_id=preorder_id))
+
+
 @warehouse_bp.route("/preorders/<int:preorder_id>/fulfill", methods=["POST"], endpoint="preorder_fulfill")
 @login_required
 @permission_required("edit_preorder")
 def preorder_fulfill(preorder_id):
+    """تنفيذ الحجز القديم - سيتم إزالته لاحقاً"""
     preorder = _get_or_404(PreOrder, preorder_id)
     if preorder.status != "FULFILLED":
         try:
