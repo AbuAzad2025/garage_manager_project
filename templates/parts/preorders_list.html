@@ -70,19 +70,19 @@
               {% set total = (p.total_amount or 0)|float %}
               {% set balance = total - prepaid %}
               
-              {# زر دفع عربون/متبقي #}
-              {% if current_user.has_permission('create_payment') %}
+              {# زر دفع عربون - للعربون فقط #}
+              {% if current_user.has_permission('create_payment') and prepaid == 0 %}
               <a href="{{ url_for('payments.create_payment', 
                                  entity_type='PREORDER', 
                                  entity_id=p.id, 
-                                 amount=total if prepaid == 0 else balance,
+                                 amount=total,
                                  currency=p.currency or 'ILS',
-                                 reference='دفع حجز ' ~ (p.reference or ('PR-' ~ p.id)),
+                                 reference='عربون حجز ' ~ (p.reference or ('PR-' ~ p.id)),
                                  customer_id=p.customer_id if p.customer_id else None,
                                  supplier_id=p.supplier_id if p.supplier_id else None,
                                  partner_id=p.partner_id if p.partner_id else None) }}" 
                  class="btn btn-sm btn-primary" 
-                 title="{% if prepaid > 0 %}دفع المتبقي{% else %}دفع عربون{% endif %}">
+                 title="دفع عربون ({{ '%.2f'|format(total) }})">
                 <i class="fas fa-money-bill-wave"></i>
               </a>
               {% endif %}
