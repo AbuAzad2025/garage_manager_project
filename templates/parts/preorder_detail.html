@@ -108,15 +108,39 @@
     </div>
     {% endif %}
 
-    <div class="mt-3 d-flex gap-2">
+    <div class="mt-3 d-flex gap-2 flex-wrap">
       {% if preorder.status not in ('CANCELLED', 'FULFILLED') %}
-        {% if current_user.has_permission('edit_preorder') %}
-        <form method="post" action="{{ url_for('warehouse_bp.preorder_fulfill', preorder_id=preorder.id) }}" class="d-inline">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="btn btn-success"><i class="fas fa-check me-1"></i> تنفيذ</button>
-        </form>
+        
+        {# زر دفع عربون - يظهر دائماً للحجوزات النشطة #}
+        {% if current_user.has_permission('create_payment') %}
+        <a class="btn btn-primary"
+           href="{{ url_for('payments.create_payment', 
+                           entity_type='PREORDER', 
+                           entity_id=preorder.id, 
+                           amount=total_with_tax if balance == total_with_tax else balance,
+                           currency=currency,
+                           reference='دفع حجز مسبق ' ~ (preorder.reference or ('PR-' ~ preorder.id)),
+                           customer_id=preorder.customer_id if preorder.customer_id else None,
+                           supplier_id=preorder.supplier_id if preorder.supplier_id else None,
+                           partner_id=preorder.partner_id if preorder.partner_id else None) }}">
+          <i class="fas fa-money-bill-wave me-1"></i> 
+          {% if prepaid > 0 %}
+            دفع المتبقي ({{ '%.2f'|format(balance) }} {{ currency }})
+          {% else %}
+            دفع عربون
+          {% endif %}
+        </a>
         {% endif %}
 
+        {# زر تسليم المنتج المحجوز - يحول الحجز لمبيعة #}
+        {% if current_user.has_permission('create_sale') and prepaid > 0 %}
+        <a class="btn btn-success"
+           href="{{ url_for('sales.create_sale', preorder_id=preorder.id) }}">
+          <i class="fas fa-truck me-1"></i> تسليم المنتج المحجوز
+        </a>
+        {% endif %}
+
+        {# زر إلغاء الحجز #}
         {% if current_user.has_permission('delete_preorder') %}
         <form method="post" action="{{ url_for('warehouse_bp.preorder_cancel', preorder_id=preorder.id) }}" class="d-inline" onsubmit="return confirm('إلغاء الحجز؟');">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -124,20 +148,6 @@
         </form>
         {% endif %}
 
-        {% if balance > 0 and current_user.has_permission('create_payment') %}
-        <a class="btn btn-primary"
-           href="{{ url_for('payments.create_payment', 
-                           entity_type='PREORDER', 
-                           entity_id=preorder.id, 
-                           amount=balance,
-                           currency=currency,
-                           reference='دفع حجز مسبق ' ~ (preorder.reference or ('PR-' ~ preorder.id)),
-                           customer_id=preorder.customer_id if preorder.customer_id else None,
-                           supplier_id=preorder.supplier_id if preorder.supplier_id else None,
-                           partner_id=preorder.partner_id if preorder.partner_id else None) }}">
-          <i class="fas fa-money-bill-wave me-1"></i> دفع المتبقي ({{ '%.2f'|format(balance) }} {{ currency }})
-        </a>
-        {% endif %}
       {% endif %}
       <a class="btn btn-secondary" href="{{ url_for('warehouse_bp.preorders_list') }}"><i class="fas fa-arrow-right me-1"></i> رجوع</a>
     </div>
