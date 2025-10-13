@@ -502,7 +502,30 @@ def delete_task(tid):
 @login_required
 @permission_required('manage_service')
 def add_payment(rid):
-    return redirect(url_for('payments.create_payment', entity_type='SERVICE', entity_id=rid))
+    """إعادة توجيه لإنشاء دفعة للصيانة مع البيانات الكاملة"""
+    service = _get_or_404(ServiceRequest, rid)
+    
+    # حساب المبلغ المستحق
+    try:
+        balance = float(getattr(service, 'balance_due', None) or getattr(service, 'total_amount', 0) or 0)
+    except Exception:
+        balance = 0.0
+    
+    # جلب العملة
+    currency = getattr(service, 'currency', 'ILS') or 'ILS'
+    
+    # تجهيز المرجع والملاحظات
+    customer_name = service.customer.name if service.customer else 'عميل'
+    service_number = service.service_number or f'#{service.id}'
+    
+    return redirect(url_for('payments.create_payment', 
+                          entity_type='SERVICE', 
+                          entity_id=rid,
+                          amount=balance if balance > 0 else None,
+                          currency=currency,
+                          reference=f'دفع صيانة من {customer_name} - {service_number}',
+                          notes=f'دفع طلب صيانة: {service_number} - العميل: {customer_name} - المركبة: {service.vehicle_model or "غير محدد"}',
+                          customer_id=service.customer_id if service.customer_id else None))
 
 @service_bp.route('/<int:rid>/invoice', methods=['GET','POST'])
 @login_required
