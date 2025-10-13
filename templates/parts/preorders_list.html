@@ -92,7 +92,7 @@
               <form method="post" 
                     action="{{ url_for('warehouse_bp.preorder_convert_to_sale', preorder_id=p.id) }}" 
                     class="d-inline"
-                    onsubmit="return confirm('تحويل الحجز إلى مبيعة؟\n\nسيتم:\n• إنشاء فاتورة مبيع\n• المبلغ المتبقي: {{ \"%.2f\"|format(balance) }}\n• شحن الكمية من المستودع');">
+                    onsubmit="return confirm('تحويل الحجز إلى مبيعة؟ سيتم إنشاء فاتورة مبيع والمبلغ المتبقي: {{ \"%.2f\"|format(balance) }} وشحن الكمية من المستودع');">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button class="btn btn-sm btn-success" title="تسليم المنتج المحجوز">
                   <i class="fas fa-truck"></i>
