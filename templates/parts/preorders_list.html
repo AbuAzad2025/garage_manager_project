@@ -57,23 +57,63 @@
         </td>
         <td>{{ p.created_at.strftime('%Y-%m-%d %H:%M') if p.created_at else '' }}</td>
         <td>
-          <a href="{{ url_for('warehouse_bp.preorder_detail', preorder_id=p.id) }}" class="btn btn-sm btn-info">
-            <i class="fas fa-eye"></i>
-          </a>
-          {% if p.status not in ('CANCELLED','FULFILLED') %}
-            {% if current_user.has_permission('edit_preorder') %}
-            <form method="post" action="{{ url_for('warehouse_bp.preorder_fulfill', preorder_id=p.id) }}" class="d-inline">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="btn btn-sm btn-success"><i class="fas fa-check"></i></button>
-            </form>
+          <div class="btn-group" role="group">
+            {# زر عرض التفاصيل #}
+            <a href="{{ url_for('warehouse_bp.preorder_detail', preorder_id=p.id) }}" 
+               class="btn btn-sm btn-info" 
+               title="عرض التفاصيل">
+              <i class="fas fa-eye"></i>
+            </a>
+            
+            {% if p.status not in ('CANCELLED','FULFILLED') %}
+              {% set prepaid = (p.prepaid_amount or 0)|float %}
+              {% set total = (p.total_amount or 0)|float %}
+              {% set balance = total - prepaid %}
+              
+              {# زر دفع عربون/متبقي #}
+              {% if current_user.has_permission('create_payment') %}
+              <a href="{{ url_for('payments.create_payment', 
+                                 entity_type='PREORDER', 
+                                 entity_id=p.id, 
+                                 amount=total if prepaid == 0 else balance,
+                                 currency=p.currency or 'ILS',
+                                 reference='دفع حجز ' ~ (p.reference or ('PR-' ~ p.id)),
+                                 customer_id=p.customer_id if p.customer_id else None,
+                                 supplier_id=p.supplier_id if p.supplier_id else None,
+                                 partner_id=p.partner_id if p.partner_id else None) }}" 
+                 class="btn btn-sm btn-primary" 
+                 title="{% if prepaid > 0 %}دفع المتبقي{% else %}دفع عربون{% endif %}">
+                <i class="fas fa-money-bill-wave"></i>
+              </a>
+              {% endif %}
+              
+              {# زر تسليم المنتج - يظهر فقط بعد دفع عربون #}
+              {% if current_user.has_permission('create_sale') and prepaid > 0 %}
+              <form method="post" 
+                    action="{{ url_for('warehouse_bp.preorder_convert_to_sale', preorder_id=p.id) }}" 
+                    class="d-inline"
+                    onsubmit="return confirm('تحويل الحجز إلى مبيعة؟\n\nسيتم:\n• إنشاء فاتورة مبيع\n• المبلغ المتبقي: {{ \"%.2f\"|format(balance) }}\n• شحن الكمية من المستودع');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-sm btn-success" title="تسليم المنتج المحجوز">
+                  <i class="fas fa-truck"></i>
+                </button>
+              </form>
+              {% endif %}
+              
+              {# زر إلغاء #}
+              {% if current_user.has_permission('delete_preorder') %}
+              <form method="post" 
+                    action="{{ url_for('warehouse_bp.preorder_cancel', preorder_id=p.id) }}" 
+                    class="d-inline" 
+                    onsubmit="return confirm('إلغاء الحجز؟');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-sm btn-danger" title="إلغاء الحجز">
+                  <i class="fas fa-times"></i>
+                </button>
+              </form>
+              {% endif %}
             {% endif %}
-            {% if current_user.has_permission('delete_preorder') %}
-            <form method="post" action="{{ url_for('warehouse_bp.preorder_cancel', preorder_id=p.id) }}" class="d-inline" onsubmit="return confirm('إلغاء الحجز؟');">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="btn btn-sm btn-danger"><i class="fas fa-times"></i></button>
-            </form>
-            {% endif %}
-          {% endif %}
+          </div>
         </td>
       </tr>
       {% endfor %}
