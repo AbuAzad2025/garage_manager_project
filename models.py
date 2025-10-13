@@ -3584,7 +3584,7 @@ class PreOrder(db.Model, TimestampMixin, AuditMixin):
         self.cancelled_at = datetime.utcnow(); self.cancelled_by = by_user_id; self.cancel_reason = (reason or None); self.status = PreOrderStatus.CANCELLED.value
     def __repr__(self): return f"<PreOrder {self.reference or self.id}>"
 
-_ALLOWED_PREORDER_TRANSITIONS = {"PENDING":{"CONFIRMED","CANCELLED"},"CONFIRMED":{"FULFILLED","CANCELLED"},"FULFILLED":set(),"CANCELLED":set()}
+_ALLOWED_PREORDER_TRANSITIONS = {"PENDING":{"CONFIRMED","CANCELLED","FULFILLED"},"CONFIRMED":{"FULFILLED","CANCELLED"},"FULFILLED":set(),"CANCELLED":set()}
 
 @event.listens_for(PreOrder, 'before_insert')
 def _preorder_before_insert(mapper, connection, target):
