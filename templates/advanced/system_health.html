@@ -5,6 +5,8 @@
 {% block content %}
 <div class="container-fluid">
   
+  {% include 'advanced/_navigation.html' %}
+  
   <div class="row mb-4">
     <div class="col-md-12">
       <div class="card border-0 shadow-sm">
@@ -59,6 +61,59 @@
       </div>
     </div>
     {% endfor %}
+  </div>
+
+  <div class="row g-3 mt-4">
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <i class="fas fa-shield-alt fa-3x text-primary mb-3"></i>
+          <h6>إصلاح الصلاحيات</h6>
+          <p class="small text-muted">إنشاء المجلدات المطلوبة وإصلاح الصلاحيات</p>
+          <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="fix_permissions">
+            <button type="submit" class="btn btn-primary w-100">
+              <i class="fas fa-wrench"></i> إصلاح
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <i class="fas fa-broom fa-3x text-warning mb-3"></i>
+          <h6>تنظيف الكاش</h6>
+          <p class="small text-muted">حذف ملفات الكاش المؤقتة</p>
+          <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="clear_cache">
+            <button type="submit" class="btn btn-warning w-100">
+              <i class="fas fa-trash-alt"></i> تنظيف
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <i class="fas fa-database fa-3x text-success mb-3"></i>
+          <h6>تحسين قاعدة البيانات</h6>
+          <p class="small text-muted">تحسين وضغط قاعدة البيانات (VACUUM)</p>
+          <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="optimize_db">
+            <button type="submit" class="btn btn-success w-100">
+              <i class="fas fa-cogs"></i> تحسين
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
   </div>
 
 </div>

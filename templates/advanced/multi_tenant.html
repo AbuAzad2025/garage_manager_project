@@ -1,18 +1,81 @@
 {% extends 'base.html' %}
-{% block title %}Multi-Tenant{% endblock %}
-{% block page_title %}🏢 Multi-Tenant - نسخ متعددة{% endblock %}
+{% block title %}Multi-Tenant المتقدم{% endblock %}
+{% block page_title %}🏢 Multi-Tenant - إدارة نسخ متعددة متقدمة{% endblock %}
+
+{% block head_extra %}
+{{ super() }}
+<style>
+.tenant-card {
+  transition: all 0.3s ease;
+  border-left: 5px solid transparent;
+}
+.tenant-card.active {
+  border-left-color: #28a745;
+  background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%);
+}
+.tenant-card.inactive {
+  border-left-color: #dc3545;
+  opacity: 0.7;
+}
+.module-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  margin: 0.1rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+}
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
   
-  <div class="alert alert-success border-0 shadow-sm">
-    <i class="fas fa-building"></i> <strong>Multi-Tenant:</strong> إدارة نسخ متعددة من النظام لعملاء مختلفين
+  {% include 'advanced/_navigation.html' %}
+  
+  <div class="alert border-0 shadow-lg" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+    <h5><i class="fas fa-building"></i> <strong>Multi-Tenant المتقدم</strong></h5>
+    <p class="mb-0">إدارة نسخ متعددة من النظام لعملاء مختلفين - كل عميل بقاعدة بيانات ووحدات مستقلة</p>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm bg-primary text-white">
+        <div class="card-body text-center">
+          <h2 class="mb-0">{{ stats.total_tenants }}</h2>
+          <p class="mb-0">إجمالي Tenants</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm bg-success text-white">
+        <div class="card-body text-center">
+          <h2 class="mb-0">{{ stats.active_tenants }}</h2>
+          <p class="mb-0">مفعّل</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm bg-danger text-white">
+        <div class="card-body text-center">
+          <h2 class="mb-0">{{ stats.inactive_tenants }}</h2>
+          <p class="mb-0">معطّل</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm bg-info text-white">
+        <div class="card-body text-center">
+          <h2 class="mb-0">{{ stats.total_users_limit }}</h2>
+          <p class="mb-0">حد المستخدمين</p>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="row">
     <div class="col-md-4">
-      <div class="card border-0 shadow-sm">
-        <div class="card-header bg-gradient-success text-white">
+      <div class="card border-0 shadow-lg">
+        <div class="card-header" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
           <h5 class="mb-0"><i class="fas fa-plus"></i> إضافة Tenant جديد</h5>
         </div>
         <div class="card-body">
@@ -21,18 +84,67 @@
             <input type="hidden" name="action" value="create_tenant">
             
             <div class="mb-3">
-              <label class="form-label fw-bold">اسم العميل/الفرع</label>
+              <label class="form-label fw-bold">
+                <i class="fas fa-tag"></i> اسم العميل/الفرع
+              </label>
               <input type="text" name="tenant_name" class="form-control" 
                      placeholder="مثال: branch_ramallah" required>
+              <small class="text-muted">بدون مسافات - استخدم _ أو -</small>
             </div>
             
             <div class="mb-3">
-              <label class="form-label fw-bold">قاعدة البيانات</label>
+              <label class="form-label fw-bold">
+                <i class="fas fa-database"></i> قاعدة البيانات
+              </label>
               <input type="text" name="tenant_db" class="form-control" 
-                     placeholder="ramallah.db" required>
+                     placeholder="sqlite:///instance/tenants/ramallah.db" required>
+              <small class="text-muted">سيتم إنشاؤها تلقائياً إذا كانت SQLite</small>
             </div>
             
-            <button type="submit" class="btn btn-success w-100">
+            <div class="mb-3">
+              <label class="form-label fw-bold">
+                <i class="fas fa-globe"></i> النطاق (Domain)
+              </label>
+              <input type="text" name="tenant_domain" class="form-control" 
+                     placeholder="ramallah.azad.ps">
+              <small class="text-muted">اختياري - للوصول المباشر</small>
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label fw-bold">
+                <i class="fas fa-image"></i> الشعار (Logo URL)
+              </label>
+              <input type="text" name="tenant_logo" class="form-control" 
+                     placeholder="/static/img/tenant_logo.png">
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label fw-bold">
+                <i class="fas fa-users"></i> الحد الأقصى للمستخدمين
+              </label>
+              <input type="number" name="tenant_max_users" class="form-control" 
+                     value="10" min="1" max="1000">
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label fw-bold">
+                <i class="fas fa-th"></i> الوحدات المفعّلة
+              </label>
+              <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
+                {% for module in available_modules %}
+                <div class="form-check">
+                  <input type="checkbox" name="tenant_modules" value="{{ module.key }}" 
+                         class="form-check-input" id="new_module_{{ module.key }}" checked>
+                  <label class="form-check-label" for="new_module_{{ module.key }}">
+                    <i class="fas fa-{{ module.icon }}"></i> {{ module.name }}
+                  </label>
+                </div>
+                {% endfor %}
+              </div>
+              <small class="text-muted">اختر الوحدات المتاحة لهذا Tenant</small>
+            </div>
+            
+            <button type="submit" class="btn btn-lg w-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
               <i class="fas fa-plus"></i> إنشاء Tenant
             </button>
           </form>
@@ -46,50 +158,191 @@
           <h5 class="mb-0"><i class="fas fa-list"></i> Tenants المسجلة ({{ tenants|length }})</h5>
         </div>
         <div class="card-body">
-          <div class="table-responsive">
-            <table class="table table-hover">
-              <thead class="table-light">
-                <tr>
-                  <th>الاسم</th>
-                  <th>قاعدة البيانات</th>
-                  <th>الحالة</th>
-                  <th>الإجراءات</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for tenant in tenants %}
-                <tr>
-                  <td><strong>{{ tenant.name }}</strong></td>
-                  <td><code>{{ tenant.db }}</code></td>
-                  <td>
-                    {% if tenant.active %}
-                      <span class="badge bg-success">مفعل</span>
+          {% for tenant in tenants %}
+          <div class="card tenant-card mb-3 {% if tenant.active %}active{% else %}inactive{% endif %}">
+            <div class="card-body">
+              <div class="row align-items-center">
+                <div class="col-md-8">
+                  <div class="d-flex align-items-center gap-3 mb-2">
+                    {% if tenant.logo %}
+                      <img src="{{ tenant.logo }}" alt="{{ tenant.name }}" style="width: 40px; height: 40px; object-fit: contain;">
                     {% else %}
-                      <span class="badge bg-secondary">معطل</span>
+                      <i class="fas fa-building fa-2x text-primary"></i>
                     {% endif %}
-                  </td>
-                  <td>
-                    <button class="btn btn-sm btn-primary">
-                      <i class="fas fa-eye"></i> عرض
+                    <div>
+                      <h5 class="mb-0">{{ tenant.name }}</h5>
+                      <small class="text-muted">
+                        {% if tenant.domain %}
+                          <i class="fas fa-globe"></i> {{ tenant.domain }}
+                        {% else %}
+                          <i class="fas fa-database"></i> {{ tenant.db }}
+                        {% endif %}
+                      </small>
+                    </div>
+                  </div>
+                  
+                  <div class="mb-2">
+                    <strong>الوحدات المفعّلة:</strong><br>
+                    {% if tenant.modules %}
+                      {% for mod_key in tenant.modules %}
+                        {% for module in available_modules %}
+                          {% if module.key == mod_key %}
+                            <span class="module-badge bg-primary text-white">
+                              <i class="fas fa-{{ module.icon }}"></i> {{ module.name }}
+                            </span>
+                          {% endif %}
+                        {% endfor %}
+                      {% endfor %}
+                    {% else %}
+                      <span class="text-muted">جميع الوحدات</span>
+                    {% endif %}
+                  </div>
+                  
+                  <div class="small text-muted">
+                    <i class="fas fa-users"></i> حد المستخدمين: {{ tenant.max_users }}
+                    {% if tenant.created_at %}
+                      | <i class="fas fa-calendar"></i> {{ tenant.created_at[:10] }}
+                    {% endif %}
+                  </div>
+                </div>
+                
+                <div class="col-md-4 text-end">
+                  <div class="mb-2">
+                    {% if tenant.active %}
+                      <span class="badge bg-success">مفعّل</span>
+                    {% else %}
+                      <span class="badge bg-danger">معطّل</span>
+                    {% endif %}
+                  </div>
+                  
+                  <div class="btn-group-vertical w-100" role="group">
+                    <button type="button" class="btn btn-sm btn-primary" 
+                            onclick="editTenant('{{ tenant.name }}', '{{ tenant.domain }}', '{{ tenant.logo }}', '{{ tenant.max_users }}', {{ tenant.modules|tojson }})">
+                      <i class="fas fa-edit"></i> تعديل
                     </button>
-                    <button class="btn btn-sm btn-warning">
-                      <i class="fas fa-toggle-on"></i> تبديل
+                    
+                    <form method="POST" style="display:inline;">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <input type="hidden" name="action" value="toggle_tenant">
+                      <input type="hidden" name="tenant_name" value="{{ tenant.name }}">
+                      <button type="submit" class="btn btn-sm btn-warning w-100">
+                        <i class="fas fa-toggle-on"></i> تبديل الحالة
+                      </button>
+                    </form>
+                    
+                    <button type="button" class="btn btn-sm btn-danger" 
+                            onclick="deleteTenant('{{ tenant.name }}')">
+                      <i class="fas fa-trash"></i> حذف
                     </button>
-                  </td>
-                </tr>
-                {% else %}
-                <tr>
-                  <td colspan="4" class="text-center text-muted">لا توجد Tenants</td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
+          {% else %}
+          <div class="alert alert-info text-center">
+            <i class="fas fa-info-circle"></i> لا توجد Tenants - قم بإنشاء أول Tenant الآن!
+          </div>
+          {% endfor %}
         </div>
       </div>
     </div>
   </div>
 
 </div>
-{% endblock %}
 
+<!-- Modal للتعديل -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header" style="background: linear-gradient(135deg, #4776E6 0%, #8E54E9 100%); color: white;">
+        <h5 class="modal-title"><i class="fas fa-edit"></i> تعديل Tenant</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="update_tenant">
+        <input type="hidden" name="tenant_name" id="edit_tenant_name">
+        
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-bold">النطاق (Domain)</label>
+            <input type="text" name="tenant_domain" id="edit_tenant_domain" class="form-control">
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label fw-bold">الشعار (Logo URL)</label>
+            <input type="text" name="tenant_logo" id="edit_tenant_logo" class="form-control">
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label fw-bold">الحد الأقصى للمستخدمين</label>
+            <input type="number" name="tenant_max_users" id="edit_tenant_max_users" class="form-control" min="1" max="1000">
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label fw-bold">الوحدات المفعّلة</label>
+            <div class="border rounded p-2" style="max-height: 300px; overflow-y: auto;">
+              {% for module in available_modules %}
+              <div class="form-check">
+                <input type="checkbox" name="tenant_modules" value="{{ module.key }}" 
+                       class="form-check-input edit-module-checkbox" id="edit_module_{{ module.key }}">
+                <label class="form-check-label" for="edit_module_{{ module.key }}">
+                  <i class="fas fa-{{ module.icon }}"></i> {{ module.name }}
+                </label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i> حفظ التعديلات
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function editTenant(name, domain, logo, maxUsers, modules) {
+  document.getElementById('edit_tenant_name').value = name;
+  document.getElementById('edit_tenant_domain').value = domain || '';
+  document.getElementById('edit_tenant_logo').value = logo || '';
+  document.getElementById('edit_tenant_max_users').value = maxUsers || '10';
+  
+  // إلغاء تحديد جميع الوحدات أولاً
+  document.querySelectorAll('.edit-module-checkbox').forEach(cb => cb.checked = false);
+  
+  // تحديد الوحدات المفعّلة
+  if (modules && modules.length > 0) {
+    modules.forEach(modKey => {
+      const checkbox = document.getElementById('edit_module_' + modKey);
+      if (checkbox) checkbox.checked = true;
+    });
+  } else {
+    // إذا لم تكن هناك وحدات محددة، حدد الكل
+    document.querySelectorAll('.edit-module-checkbox').forEach(cb => cb.checked = true);
+  }
+  
+  new bootstrap.Modal(document.getElementById('editModal')).show();
+}
+
+function deleteTenant(name) {
+  if (confirm(`⚠️ هل أنت متأكد من حذف Tenant: ${name}؟\n\nسيتم حذف جميع الإعدادات المرتبطة!\n\nملاحظة: قاعدة البيانات لن تُحذف - يجب حذفها يدوياً إذا أردت.`)) {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.innerHTML = `
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="delete_tenant">
+      <input type="hidden" name="tenant_name" value="${name}">
+    `;
+    document.body.appendChild(form);
+    form.submit();
+  }
+}
+</script>
+{% endblock %}
