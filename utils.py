@@ -349,7 +349,7 @@ def get_entity_balance_in_ils(entity_type: str, entity_id: int) -> Decimal:
                     converted_amount = amount
             
             # تطبيق اتجاه الدفع
-            if direction == PaymentDirection.INCOMING.value:
+            if direction == PaymentDirection.IN.value:
                 total_balance_ils += converted_amount
             else:
                 total_balance_ils -= converted_amount

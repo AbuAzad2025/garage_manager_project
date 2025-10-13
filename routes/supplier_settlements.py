@@ -69,8 +69,8 @@ def _d2(v) -> Decimal:
 
 def _due_direction(v: Decimal):
     if v > 0:
-        return PaymentDirection.OUTGOING.value
-    return PaymentDirection.INCOMING.value
+        return PaymentDirection.OUT.value
+    return PaymentDirection.IN.value
 
 def _currency_mismatch(lines, currency: str) -> bool:
     for l in lines or []:

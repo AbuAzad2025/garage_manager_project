@@ -858,7 +858,7 @@ def checkout():
                         Payment(
                             entity_type=PaymentEntityType.CUSTOMER.value,
                             customer_id=g.online_customer.id,
-                            direction=PaymentDirection.INCOMING.value,
+                            direction=PaymentDirection.IN.value,
                             status=PaymentStatus.COMPLETED.value,
                             method="card",
                             total_amount=prepaid,

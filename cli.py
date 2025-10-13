@@ -981,7 +981,7 @@ def partner_settlement_confirm(settlement_id: int):
 
 def _method_enum(v: str): return getattr(PaymentMethod, v.upper()).value if v else PaymentMethod.CASH.value
 def _status_enum(v: str): return getattr(PaymentStatus, v.upper()).value if v else PaymentStatus.PENDING.value
-def _direction_enum(v: str): return getattr(PaymentDirection, v.upper()).value if v else PaymentDirection.INCOMING.value
+def _direction_enum(v: str): return getattr(PaymentDirection, v.upper()).value if v else PaymentDirection.IN.value
 def _entity_enum(v: str): return getattr(PaymentEntityType, v.upper()).value if v else PaymentEntityType.CUSTOMER.value
 
 @click.command("payment-create")
@@ -1111,7 +1111,7 @@ def preorder_create(product_id, warehouse_id, quantity, customer_id, supplier_id
                         total_amount=_Q2(prepaid),
                         method=getattr(PaymentMethod, method.upper()).value,
                         status=PaymentStatus.COMPLETED.value,
-                        direction=PaymentDirection.INCOMING.value,
+                        direction=PaymentDirection.IN.value,
                         entity_type=etype,
                         preorder_id=po.id,
                         currency="ILS",
@@ -1393,7 +1393,7 @@ def expense_pay(expense_id, amount, method, currency):
     ex=db.session.get(Expense, expense_id)
     if not ex: raise click.ClickException("Expense not found")
     amt=_Q2(amount)
-    p=Payment(direction=PaymentDirection.OUTGOING.value, entity_type=PaymentEntityType.EXPENSE.value, expense_id=ex.id, total_amount=amt, currency=(currency or "ILS").upper(), method=method.lower(), status=PaymentStatus.COMPLETED.value, reference=f"EXP-{ex.id}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}")
+    p=Payment(direction=PaymentDirection.OUT.value, entity_type=PaymentEntityType.EXPENSE.value, expense_id=ex.id, total_amount=amt, currency=(currency or "ILS").upper(), method=method.lower(), status=PaymentStatus.COMPLETED.value, reference=f"EXP-{ex.id}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}")
     try:
         with _begin(): db.session.add(p)
         click.echo(f"OK: expense paid. payment_id={p.id} balance={ex.balance:.2f} is_paid={ex.is_paid}")
