@@ -111,30 +111,12 @@
     <div class="mt-3 d-flex gap-2 flex-wrap">
       {% if preorder.status not in ('CANCELLED', 'FULFILLED') %}
         
-        {# زر دفع عربون - يظهر دائماً للحجوزات النشطة #}
-        {% if current_user.has_permission('create_payment') %}
-        <a class="btn btn-primary"
-           href="{{ url_for('payments.create_payment', 
-                           entity_type='PREORDER', 
-                           entity_id=preorder.id, 
-                           amount=balance if prepaid > 0 else total_with_tax,
-                           currency=currency,
-                           reference=('عربون حجز من ' if prepaid == 0 else 'دفع إضافي حجز من ') ~ entity_name ~ ' - ' ~ (preorder.reference or ('PR-' ~ preorder.id)),
-                           notes='حجز مسبق: ' ~ (preorder.product.name if preorder.product else 'منتج') ~ ' - العميل: ' ~ entity_name,
-                           customer_id=preorder.customer_id if preorder.customer_id else None,
-                           supplier_id=preorder.supplier_id if preorder.supplier_id else None,
-                           partner_id=preorder.partner_id if preorder.partner_id else None) }}">
-          <i class="fas fa-money-bill-wave me-1"></i> 
-          {% if prepaid > 0 %}دفع إضافي ({{ '%.2f'|format(balance) }} {{ currency }}){% else %}دفع عربون ({{ '%.2f'|format(total_with_tax) }} {{ currency }}){% endif %}
-        </a>
-        {% endif %}
-
-        {# زر تسليم المنتج المحجوز - يحول الحجز لمبيعة #}
+        {# زر تسليم المنتج المحجوز - يظهر فقط بعد دفع العربون #}
         {% if current_user.has_permission('create_sale') and prepaid > 0 %}
         <form method="post" action="{{ url_for('warehouse_bp.preorder_convert_to_sale', preorder_id=preorder.id) }}" class="d-inline">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn btn-success" onclick="return confirm('تحويل الحجز إلى مبيعة وشحن البضاعة؟');" title="تسليم المنتج - المبلغ المتبقي: {{ '%.2f'|format(balance) }} {{ currency }}">
-            <i class="fas fa-truck me-1"></i> تسليم المنتج المحجوز
+            <i class="fas fa-truck me-1"></i> تسليم المنتج (المتبقي: {{ '%.2f'|format(balance) }} {{ currency }})
           </button>
         </form>
         {% endif %}

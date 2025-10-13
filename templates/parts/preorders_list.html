@@ -74,24 +74,6 @@
               {% set total = (p.total_amount or 0)|float %}
               {% set balance = total - prepaid %}
               
-              {# زر دفع عربون - يظهر دائماً #}
-              {% if current_user.has_permission('create_payment') %}
-              <a href="{{ url_for('payments.create_payment', 
-                                 entity_type='PREORDER', 
-                                 entity_id=p.id, 
-                                 amount=balance if prepaid > 0 else total,
-                                 currency=p.currency or 'ILS',
-                                 reference=('عربون حجز من ' if prepaid == 0 else 'دفع إضافي حجز من ') ~ entity_name ~ ' - ' ~ (p.reference or ('PR-' ~ p.id)),
-                                 notes='حجز مسبق: ' ~ (p.product.name if p.product else 'منتج') ~ ' - ' ~ entity_type ~ ': ' ~ entity_name,
-                                 customer_id=p.customer_id if p.customer_id else None,
-                                 supplier_id=p.supplier_id if p.supplier_id else None,
-                                 partner_id=p.partner_id if p.partner_id else None) }}" 
-                 class="btn btn-sm btn-primary" 
-                 title="{% if prepaid > 0 %}دفع إضافي ({{ '%.2f'|format(balance) }}){% else %}دفع عربون ({{ '%.2f'|format(total) }}){% endif %}">
-                <i class="fas fa-money-bill-wave"></i>
-              </a>
-              {% endif %}
-              
               {# زر تسليم المنتج - يظهر فقط بعد دفع عربون #}
               {% if current_user.has_permission('create_sale') and prepaid > 0 %}
               <form method="post" 
@@ -100,7 +82,7 @@
                     onsubmit="return confirm('تحويل الحجز إلى مبيعة وشحن البضاعة؟');">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button class="btn btn-sm btn-success" title="تسليم المنتج المحجوز - المبلغ المتبقي: {{ '%.2f'|format(balance) }}">
-                  <i class="fas fa-truck"></i>
+                  <i class="fas fa-truck"></i> تسليم
                 </button>
               </form>
               {% endif %}
