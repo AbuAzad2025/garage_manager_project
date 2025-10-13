@@ -119,12 +119,13 @@
                            entity_id=preorder.id, 
                            amount=balance if prepaid > 0 else total_with_tax,
                            currency=currency,
-                           reference=('عربون حجز ' if prepaid == 0 else 'دفع إضافي حجز ') ~ (preorder.reference or ('PR-' ~ preorder.id)),
+                           reference=('عربون حجز من ' if prepaid == 0 else 'دفع إضافي حجز من ') ~ entity_name ~ ' - ' ~ (preorder.reference or ('PR-' ~ preorder.id)),
+                           notes='حجز مسبق: ' ~ (preorder.product.name if preorder.product else 'منتج') ~ ' - العميل: ' ~ entity_name,
                            customer_id=preorder.customer_id if preorder.customer_id else None,
                            supplier_id=preorder.supplier_id if preorder.supplier_id else None,
                            partner_id=preorder.partner_id if preorder.partner_id else None) }}">
           <i class="fas fa-money-bill-wave me-1"></i> 
-          {% if prepaid > 0 %}دفع إضافي{% else %}دفع عربون{% endif %}
+          {% if prepaid > 0 %}دفع إضافي ({{ '%.2f'|format(balance) }} {{ currency }}){% else %}دفع عربون ({{ '%.2f'|format(total_with_tax) }} {{ currency }}){% endif %}
         </a>
         {% endif %}
 

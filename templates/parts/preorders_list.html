@@ -30,17 +30,21 @@
     </thead>
     <tbody>
       {% for p in preorders %}
-      {% set entity_name = p.customer and ('عميل: ' ~ p.customer.name)
-                         or p.supplier and ('مورد: ' ~ p.supplier.name)
-                         or p.partner and ('شريك: ' ~ p.partner.name)
+      {% set entity_name = p.customer and p.customer.name
+                         or p.supplier and p.supplier.name
+                         or p.partner and p.partner.name
                          or 'غير محدد' %}
+      {% set entity_type = p.customer and 'عميل'
+                         or p.supplier and 'مورد'
+                         or p.partner and 'شريك'
+                         or '' %}
       <tr>
         <td>
           <a href="{{ url_for('warehouse_bp.preorder_detail', preorder_id=p.id) }}">
             {{ p.reference or 'PR-' ~ p.id }}
           </a>
         </td>
-        <td>{{ entity_name }}</td>
+        <td>{{ entity_type }}: {{ entity_name }}</td>
         <td>{{ p.product.name if p.product else '—' }}</td>
         <td>{{ p.warehouse.name if p.warehouse else '—' }}</td>
         <td>{{ p.quantity or 0 }}</td>
@@ -77,12 +81,13 @@
                                  entity_id=p.id, 
                                  amount=balance if prepaid > 0 else total,
                                  currency=p.currency or 'ILS',
-                                 reference=('عربون حجز ' if prepaid == 0 else 'دفع إضافي حجز ') ~ (p.reference or ('PR-' ~ p.id)),
+                                 reference=('عربون حجز من ' if prepaid == 0 else 'دفع إضافي حجز من ') ~ entity_name ~ ' - ' ~ (p.reference or ('PR-' ~ p.id)),
+                                 notes='حجز مسبق: ' ~ (p.product.name if p.product else 'منتج') ~ ' - ' ~ entity_type ~ ': ' ~ entity_name,
                                  customer_id=p.customer_id if p.customer_id else None,
                                  supplier_id=p.supplier_id if p.supplier_id else None,
                                  partner_id=p.partner_id if p.partner_id else None) }}" 
                  class="btn btn-sm btn-primary" 
-                 title="{% if prepaid > 0 %}دفع إضافي{% else %}دفع عربون{% endif %}">
+                 title="{% if prepaid > 0 %}دفع إضافي ({{ '%.2f'|format(balance) }}){% else %}دفع عربون ({{ '%.2f'|format(total) }}){% endif %}">
                 <i class="fas fa-money-bill-wave"></i>
               </a>
               {% endif %}
