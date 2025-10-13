@@ -2575,11 +2575,21 @@ def preorder_create():
             db.session.flush()
         sl.reserved_quantity = int(sl.reserved_quantity or 0) + int(qty)
 
+
         try:
             db.session.commit()
         except IntegrityError as e:
             db.session.rollback()
+            # إعادة حجز الكمية بعد rollback
+            sl = StockLevel.query.filter_by(product_id=product_id, warehouse_id=warehouse_id).first()
+            if not sl:
+                sl = StockLevel(product_id=product_id, warehouse_id=warehouse_id, quantity=0, reserved_quantity=0)
+                db.session.add(sl)
+                db.session.flush()
+            sl.reserved_quantity = int(sl.reserved_quantity or 0) + int(qty)
+            
             if "preorders.reference" in str(e).lower() and not user_ref:
+                # المرجع التلقائي مكرر، نولد مرجع جديد
                 preorder.reference = _gen_ref()
                 db.session.add(preorder)
                 try:
@@ -2589,7 +2599,7 @@ def preorder_create():
                     flash(f"تعذر حفظ الحجز: {getattr(ee, 'orig', ee)}", "danger")
                     return render_template("parts/preorder_form.html", form=form), 200
             else:
-                flash("مرجع الحجز مستخدم مسبقًا. غيّر المرجع أو اتركه فارغًا ليُولَّد تلقائيًا.", "danger")
+                flash("مرجع الحجز مستخدم مسبقًا. غيّر المرجع أو اتركه فارغًا ليُولَّد تلقائيًا.", "danger")
                 return render_template("parts/preorder_form.html", form=form), 200
         except SQLAlchemyError as e:
             db.session.rollback()
