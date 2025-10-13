@@ -500,12 +500,26 @@ def delete(exp_id):
 @login_required
 @permission_required("manage_expenses")
 def pay(exp_id):
+    """إعادة توجيه لإنشاء دفعة للنفقة مع البيانات الكاملة"""
     exp = _get_or_404(Expense, exp_id)
+    
+    # حساب المبلغ
     amount_src = getattr(exp, "balance", None)
     if amount_src is None:
         amount_src = getattr(exp, "amount", 0)
     amount = int(q0(amount_src))
-    reference = exp.payee_name or (exp.employee.name if exp.employee else None) or (exp.description or f"مصروف #{exp.id}")
+    
+    # تجهيز المرجع والملاحظات
+    payee = exp.payee_name or (exp.employee.name if exp.employee else None) or 'غير محدد'
+    expense_type = exp.type.name if exp.type else 'مصروف'
+    expense_ref = exp.tax_invoice_number or f'EXP-{exp.id}'
+    
+    reference = f'دفع {expense_type} لـ {payee} - {expense_ref}'
+    notes = f'دفع نفقة: {exp.description or expense_type} - المستفيد: {payee}'
+    
+    if exp.employee:
+        notes += f' - موظف: {exp.employee.name}'
+    
     return redirect(
         url_for(
             "payments.create_payment",
@@ -515,6 +529,7 @@ def pay(exp_id):
             amount=amount,
             currency=(exp.currency or "ILS").upper(),
             reference=reference,
+            notes=notes
         )
     )
 
