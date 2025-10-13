@@ -2549,6 +2549,7 @@ def preorder_create():
 
         user_ref = (form.reference.data or "").strip()
         # لا نتحقق من التكرار هنا، سنعتمد على IntegrityError لاحقاً
+        code = user_ref or _gen_ref()
 
         preorder = PreOrder(
             reference=code,
