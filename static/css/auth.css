@@ -1,10 +1,11 @@
+/* static/css/auth.css */
 :root {
   --radius-lg: 1rem;
-  --brand-600: #0066cc;
-  --brand-400: #3ba3ff;
+  --brand-600: #0056b3;
+  --brand-400: #0066cc;
   --white-92: rgba(255, 255, 255, 0.92);
-  --gradient-brand: linear-gradient(45deg, var(--brand-600), var(--brand-400));
-  --gradient-shop: linear-gradient(45deg, #43cea2, #185a9d);
+  --gradient-brand: linear-gradient(45deg, #0056b3, #0066cc);
+  --gradient-shop: linear-gradient(45deg, #155724, #28a745);
   --sidebar-width: 280px;
   --primary-color: #0056b3;
   --secondary-color: #495057;
@@ -14,6 +15,8 @@
   --danger-color: #721c24;
   --light-color: #f8f9fa;
   --dark-color: #212529;
+  --shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 1rem 2rem rgba(0, 0, 0, 0.35);
 }
 
 html, body {

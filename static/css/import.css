@@ -1,23 +1,25 @@
+/* static/css/import.css */
 .stat {
-  border: 1px solid #e5e7eb;
+  border: 1px solid #dee2e6;
   border-radius: 0.5rem;
   padding: 0.5rem 0.75rem;
-  background: #fafafa;
+  background: #f8f9fa;
   display: inline-block;
   min-width: 140px;
   text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .stat-label {
   font-size: 0.85rem;
-  color: #6b7280;
+  color: #495057;
   margin-bottom: 0.2rem;
 }
 
 .stat-value {
   font-weight: 700;
   font-size: 1.05rem;
-  color: #111827;
+  color: #212529;
 }
 
 #previewTable td,
@@ -30,23 +32,23 @@
 }
 
 .row-missing {
-  background-color: #fff5f5;
+  background-color: #f8d7da;
 }
 
 .row-warning:not(.row-missing) {
-  background-color: #fffaf0;
+  background-color: #fff3cd;
 }
 
 .row-matched {
-  outline: 2px solid rgba(59, 130, 246, 0.25);
+  outline: 2px solid rgba(0, 86, 179, 0.4);
   outline-offset: -2px;
-  background-color: #f0f9ff;
+  background-color: #cfe2ff;
 }
 
 .row-new {
-  outline: 2px solid rgba(16, 185, 129, 0.25);
+  outline: 2px solid rgba(21, 87, 36, 0.4);
   outline-offset: -2px;
-  background-color: #f0fff4;
+  background-color: #d1e7dd;
 }
 
 .compact #previewTable input.form-control,

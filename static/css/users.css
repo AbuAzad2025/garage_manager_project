@@ -1,3 +1,4 @@
+/* static/css/users.css */
 .user-role {
   display: inline-flex;
   align-items: center;
@@ -9,11 +10,11 @@
   color: #fff;
   line-height: 1.2;
   white-space: nowrap;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+  box-shadow: 0 3px 6px rgba(0,0,0,0.2);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .user-role i { font-size: 1rem; }
-.user-role:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.12); }
+.user-role:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.3); }
 
 .user-role.super_admin { background: linear-gradient(135deg, #6f42c1, #9b59b6); }
 .user-role.staff { background: linear-gradient(135deg, #0d6efd, #3d8bfd); }
@@ -34,7 +35,7 @@
 }
 .table .btn-sm:hover {
   transform: translateY(-2px);
-  box-shadow: 0 3px 6px rgba(0,0,0,0.12);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.25);
 }
 
 .role-row.super_admin { background-color: rgba(111,66,193,0.06); }

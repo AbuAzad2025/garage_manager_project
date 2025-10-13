@@ -5,8 +5,8 @@
   z-index: 1030;
   background: #fff;
   padding: 0.5rem 1rem;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.075);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
 }
 
 .mt-toolbar {

@@ -1,21 +1,20 @@
-/* ===== MODERN SHOP STYLES ===== */
+/* static/css/shop.css */
 :root {
-  /* Professional Color Palette */
-  --primary-color: #2563eb;
-  --primary-dark: #1d4ed8;
-  --primary-light: #3b82f6;
-  --secondary-color: #1e293b;
-  --secondary-light: #334155;
-  --accent-color: #f59e0b;
-  --accent-light: #fbbf24;
-  --success-color: #10b981;
-  --success-light: #34d399;
-  --warning-color: #f59e0b;
-  --warning-light: #fbbf24;
-  --danger-color: #ef4444;
-  --danger-light: #f87171;
-  --info-color: #06b6d4;
-  --info-light: #22d3ee;
+  --primary-color: #0056b3;
+  --primary-dark: #003d82;
+  --primary-light: #0066cc;
+  --secondary-color: #212529;
+  --secondary-light: #495057;
+  --accent-color: #856404;
+  --accent-light: #e0a800;
+  --success-color: #155724;
+  --success-light: #28a745;
+  --warning-color: #856404;
+  --warning-light: #ffc107;
+  --danger-color: #721c24;
+  --danger-light: #dc3545;
+  --info-color: #0c5460;
+  --info-light: #17a2b8;
   
   /* Neutral Colors */
   --dark-color: #0f172a;
@@ -40,12 +39,11 @@
   --gradient-success: linear-gradient(135deg, #10b981 0%, #34d399 100%);
   --gradient-hero: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
   
-  /* Shadows */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  --shadow-sm: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.15);
+  --shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 1rem 2rem rgba(0, 0, 0, 0.35);
+  --shadow-xl: 0 1.5rem 3rem rgba(0, 0, 0, 0.4);
   
   /* Border Radius */
   --border-radius: 0.5rem;
