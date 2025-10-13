@@ -142,6 +142,9 @@ def create_app(config_object=Config) -> Flask:
     uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
     engine_opts.setdefault("pool_pre_ping", True)
     engine_opts.setdefault("pool_recycle", 1800)
+    # ⚡ Performance: Optimize connection pooling
+    engine_opts.setdefault("pool_size", 10)
+    engine_opts.setdefault("max_overflow", 20)
     if uri.startswith("sqlite"):
         connect_args.setdefault("timeout", 30)
     else:
@@ -487,7 +490,10 @@ def create_app(config_object=Config) -> Flask:
             response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, private'
             response.headers['Pragma'] = 'no-cache'
             response.headers['Expires'] = '0'
-        
+        elif request.path.startswith('/static/'):
+            # ⚡ Performance: Cache static files for 1 year
+            response.cache_control.max_age = 31536000
+            response.cache_control.public = True
         return response
 
     

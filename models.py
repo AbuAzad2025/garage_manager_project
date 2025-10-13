@@ -1342,7 +1342,7 @@ class User(db.Model, UserMixin, TimestampMixin, AuditMixin):
     login_count = db.Column(db.Integer, nullable=False, server_default=sa_text("0"))
     avatar_url = db.Column(db.String(500))
     notes_text = db.Column(db.Text)
-    role = relationship("Role", backref="users", lazy="joined")
+    role = relationship("Role", backref="users", lazy="select")  # ⚡ Changed from 'joined' to 'select' for better performance
     extra_permissions = relationship(
         "Permission",
         secondary=user_permissions,

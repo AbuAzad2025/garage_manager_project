@@ -51,9 +51,11 @@
   </div>
 
   <div class="mb-3 d-flex flex-wrap gap-2 actions toolbar">
+    {% if service.total_amount and service.total_amount > 0 %}
     <a href="{{ url_for('service.add_payment', rid=service.id) }}" class="btn btn-primary">
-      <i class="fas fa-cash-register"></i> تسجيل دفعة
+      <i class="fas fa-cash-register"></i> تسجيل دفعة ({{ '%.2f'|format(service.total_amount) }} ₪)
     </a>
+    {% endif %}
     <form class="d-inline" method="post" action="{{ url_for('service.toggle_service', rid=service.id, action='start') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="btn btn-outline-info"><i class="fas fa-play"></i> بدء الصيانة</button>
