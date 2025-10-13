@@ -47,15 +47,17 @@
                onclick="return confirm('حذف قوي - سيتم حذف جميع البيانات المرتبطة!')">
               <i class="fas fa-bomb"></i>
             </a>
+            {% if customer.balance and customer.balance > 0 %}
             <a href="{{ url_for('payments.create_payment', 
                                entity_type='CUSTOMER', 
                                entity_id=customer.id,
-                               amount=customer.balance if customer.balance and customer.balance > 0 else None,
+                               amount=customer.balance,
                                currency=customer.currency if customer.currency else 'ILS',
                                reference='دفع من عميل: ' ~ customer.name,
                                notes='دفعة من العميل: ' ~ customer.name ~ ((' - هاتف: ' ~ customer.phone) if customer.phone else ''),
                                customer_id=customer.id) }}"
-               class="btn btn-success" title="دفع جديد"><i class="fas fa-coins"></i></a>
+               class="btn btn-success" title="دفع ({{ '%.2f'|format(customer.balance) }} ₪)"><i class="fas fa-coins"></i></a>
+            {% endif %}
             <a href="{{ url_for('customers_bp.account_statement', customer_id=customer.id) }}"
                class="btn btn-outline-primary" title="كشف حساب"><i class="fas fa-file-invoice"></i></a>
             <a href="{{ url_for('reports_bp.customer_detail_report', customer_id=customer.id) }}"

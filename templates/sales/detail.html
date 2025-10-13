@@ -119,16 +119,18 @@
           <a class="btn btn-outline-primary btn-sm ml-2" href="{{ url_for('sales_bp.sale_payments', id=sale.id) }}">
             <i class="fas fa-list mr-1"></i> السجل الخاص بهذه الفاتورة
           </a>
+          {% if sale.balance_due and sale.balance_due > 0 %}
           <a class="btn btn-success btn-sm" href="{{ url_for('payments.create_payment', 
                                                            entity_type='SALE', 
                                                            entity_id=sale.id,
-                                                           amount=sale.balance_due if sale.balance_due and sale.balance_due > 0 else None,
+                                                           amount=sale.balance_due,
                                                            currency=sale.currency if sale.currency else 'ILS',
                                                            reference='دفع مبيعة من ' ~ (sale.customer.name if sale.customer else 'عميل') ~ ' - ' ~ (sale.sale_number or sale.id),
                                                            notes='دفع مبيعة: ' ~ (sale.sale_number or sale.id) ~ ' - العميل: ' ~ (sale.customer.name if sale.customer else 'غير محدد'),
                                                            customer_id=sale.customer_id) }}">
-            <i class="fas fa-plus mr-1"></i> إضافة دفعة
+            <i class="fas fa-plus mr-1"></i> إضافة دفعة ({{ '%.2f'|format(sale.balance_due) }} ₪)
           </a>
+          {% endif %}
         </div>
       </div>
 

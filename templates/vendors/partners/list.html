@@ -119,18 +119,20 @@
                 <i class="fas fa-calculator"></i>
                 <span class="d-none d-lg-inline ms-1">تسوية ذكية</span>
               </a>
+              {% if p.balance and p.balance > 0 %}
               <a href="{{ url_for('payments.create_payment', 
                                  entity_type='PARTNER', 
                                  entity_id=p.id,
-                                 amount=p.balance if p.balance and p.balance > 0 else None,
+                                 amount=p.balance,
                                  currency=p.currency if p.currency else 'ILS',
                                  reference='دفع لشريك: ' ~ p.name,
                                  notes='دفع مستحقات الشريك: ' ~ p.name ~ ((' - هاتف: ' ~ p.phone) if p.phone else ''),
                                  partner_id=p.id) }}"
-                 class="btn btn-sm btn-primary d-flex align-items-center" title="إنشاء دفعة جديدة">
+                 class="btn btn-sm btn-primary d-flex align-items-center" title="دفع ({{ '%.2f'|format(p.balance) }} ₪)">
                 <i class="fas fa-coins"></i>
                 <span class="d-none d-lg-inline ms-1">دفع</span>
               </a>
+              {% endif %}
               <a href="{{ url_for('payments.index') }}?entity_type=PARTNER&entity_id={{ p.id }}"
                  class="btn btn-sm btn-warning d-flex align-items-center" title="كشف حساب مبسط">
                 <i class="fas fa-file-invoice-dollar"></i>

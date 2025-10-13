@@ -67,16 +67,18 @@
         <a href="{{ url_for('customers_bp.edit_customer', customer_id=customer.id) }}" class="btn btn-warning">
           <i class="fas fa-edit me-1"></i> تعديل
         </a>
+        {% if customer.balance and customer.balance > 0 %}
         <a href="{{ url_for('payments.create_payment', 
                            entity_type='CUSTOMER', 
                            entity_id=customer.id,
-                           amount=customer.balance if customer.balance and customer.balance > 0 else None,
+                           amount=customer.balance,
                            currency=customer.currency if customer.currency else 'ILS',
                            reference='دفع من عميل: ' ~ customer.name,
                            notes='دفعة من العميل: ' ~ customer.name ~ ((' - هاتف: ' ~ customer.phone) if customer.phone else ''),
                            customer_id=customer.id) }}" class="btn btn-outline-success">
-          <i class="fas fa-coins me-1"></i> دفعة جديدة
+          <i class="fas fa-coins me-1"></i> دفعة جديدة ({{ '%.2f'|format(customer.balance) }} ₪)
         </a>
+        {% endif %}
         <button class="btn btn-danger delete-btn" data-id="{{ customer.id }}">
           <i class="fas fa-trash me-1"></i> حذف
         </button>
