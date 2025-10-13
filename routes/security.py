@@ -6,7 +6,7 @@
 وحدة الأمان المتقدمة - Super Admin فقط
 CONFIDENTIAL - لا يصل إليها إلا Super Admin
 """
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import text, func
 from datetime import datetime, timedelta, timezone
@@ -15,6 +15,7 @@ from models import User, AuditLog
 from utils import is_super
 from functools import wraps
 import json
+import os
 
 from services.ai_service import (
     ai_chat_with_search,
