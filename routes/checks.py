@@ -370,6 +370,7 @@ def get_checks():
         
         checks = []
         today = datetime.utcnow().date()
+        check_ids = set()  # لتتبع الـ IDs وتجنب التكرار
         
         current_app.logger.info(f"🔍 get_checks API - بدء الجلب من جميع المصادر...")
         
@@ -492,6 +493,12 @@ def get_checks():
                     entity_name = payment.partner.name
                     entity_link = f'/partners/{payment.partner.id}'
                     entity_type = 'شريك'
+                
+                # تجنب التكرار
+                check_key = f"payment-{payment.id}"
+                if check_key in check_ids:
+                    continue
+                check_ids.add(check_key)
                 
                 checks.append({
                     'id': payment.id,
@@ -637,6 +644,12 @@ def get_checks():
                             drawer_name = 'شركتنا'
                             payee_name = payment.partner.name
                     
+                    # تجنب التكرار
+                    check_key = f"split-{split.id}"
+                    if check_key in check_ids:
+                        continue
+                    check_ids.add(check_key)
+                    
                     checks.append({
                         'id': f"split-{split.id}",
                         'payment_id': payment.id,
@@ -728,6 +741,12 @@ def get_checks():
                     check_status = 'PENDING'
                     status_ar = 'معلق'
                     badge_color = 'info'
+                
+                # تجنب التكرار
+                check_key = f"expense-{expense.id}"
+                if check_key in check_ids:
+                    continue
+                check_ids.add(check_key)
                 
                 checks.append({
                     'id': expense.id,
@@ -823,6 +842,12 @@ def get_checks():
                 else:
                     entity_name = check.payee_name or 'غير محدد'
                     entity_type = 'مستفيد'
+                
+                # تجنب التكرار
+                check_key = f"check-{check.id}"
+                if check_key in check_ids:
+                    continue
+                check_ids.add(check_key)
                 
                 checks.append({
                     'id': check.id,
