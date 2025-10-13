@@ -2548,10 +2548,7 @@ def preorder_create():
         tax = float(form.tax_rate.data or 0)
 
         user_ref = (form.reference.data or "").strip()
-        if user_ref and db.session.query(PreOrder.id).filter_by(reference=user_ref).first():
-            flash("مرجع الحجز مستخدم مسبقًا. غيّر المرجع أو اتركه فارغًا ليُولَّد تلقائيًا.", "danger")
-            return render_template("parts/preorder_form.html", form=form), 200
-        code = user_ref or _gen_ref()
+        # لا نتحقق من التكرار هنا، سنعتمد على IntegrityError لاحقاً
 
         preorder = PreOrder(
             reference=code,
