@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+{% block title %}تحليلات متقدمة{% endblock %}
+{% block page_title %}📊 تحليلات متقدمة - AI Analytics{% endblock %}
+
+{% block head_extra %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  {% include 'security/_navigation.html' %}
+
+  <div class="row g-4 mb-4">
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+          <h5 class="mb-0"><i class="fas fa-chart-line"></i> منحنى الإيرادات</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="revenueChart" height="200"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+          <h5 class="mb-0"><i class="fas fa-users"></i> أفضل العملاء</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="customersChart" height="200"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-gradient-primary text-white">
+      <h5 class="mb-0"><i class="fas fa-trophy"></i> أفضل 10 عملاء</h5>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>العميل</th>
+              <th>الإجمالي</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for customer in analytics.top_customers %}
+            <tr>
+              <td>{{ loop.index }}</td>
+              <td><strong>{{ customer.name }}</strong></td>
+              <td><span class="badge bg-success">{{ '%.2f'|format(customer.total) }} ₪</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const revData = {{ analytics.revenue_trend|tojson|safe }};
+  const custData = {{ analytics.top_customers|tojson|safe }};
+  
+  if (revData.length > 0) {
+    new Chart(document.getElementById('revenueChart'), {
+      type: 'line',
+      data: {
+        labels: revData.map(d => d.date),
+        datasets: [{
+          label: 'الإيرادات',
+          data: revData.map(d => d.amount),
+          borderColor: '#667eea',
+          backgroundColor: 'rgba(102, 126, 234, 0.1)',
+          fill: true,
+          tension: 0.4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false
+      }
+    });
+  }
+  
+  if (custData.length > 0) {
+    new Chart(document.getElementById('customersChart'), {
+      type: 'bar',
+      data: {
+        labels: custData.slice(0, 5).map(c => c.name),
+        datasets: [{
+          label: 'الإجمالي',
+          data: custData.slice(0, 5).map(c => c.total),
+          backgroundColor: [
+            'rgba(245, 87, 108, 0.8)',
+            'rgba(245, 158, 11, 0.8)',
+            'rgba(21, 87, 36, 0.8)',
+            'rgba(0, 86, 179, 0.8)',
+            'rgba(12, 84, 96, 0.8)'
+          ]
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false
+      }
+    });
+  }
+});
+</script>
+{% endblock %}
+

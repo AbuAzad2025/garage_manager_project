@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block title %}إدارة الصلاحيات{% endblock %}
+{% block page_title %}🔑 إدارة الصلاحيات - Permissions Manager{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  {% include 'security/_navigation.html' %}
+
+  <div class="row g-4">
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-gradient-primary text-white">
+          <h5 class="mb-0"><i class="fas fa-key"></i> الصلاحيات ({{ permissions|length }})</h5>
+        </div>
+        <div class="card-body">
+          <form method="POST" class="mb-4 p-3 bg-light rounded">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="create_permission">
+            <h6 class="mb-3">إضافة صلاحية جديدة</h6>
+            <div class="mb-2">
+              <input type="text" name="code" class="form-control" placeholder="الكود (مثل: manage_sales)" required>
+            </div>
+            <div class="mb-2">
+              <input type="text" name="name" class="form-control" placeholder="الاسم (مثل: إدارة المبيعات)" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">
+              <i class="fas fa-plus"></i> إضافة
+            </button>
+          </form>
+
+          <div class="table-responsive">
+            <table class="table table-sm table-hover">
+              <thead class="table-light">
+                <tr>
+                  <th>ID</th>
+                  <th>الكود</th>
+                  <th>الاسم</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for perm in permissions %}
+                <tr>
+                  <td>{{ perm.id }}</td>
+                  <td><code>{{ perm.code }}</code></td>
+                  <td>{{ perm.name }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-gradient-success text-white">
+          <h5 class="mb-0"><i class="fas fa-users-cog"></i> الأدوار ({{ roles|length }})</h5>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover">
+              <thead class="table-light">
+                <tr>
+                  <th>ID</th>
+                  <th>الاسم</th>
+                  <th>الصلاحيات</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for role in roles %}
+                <tr>
+                  <td>{{ role.id }}</td>
+                  <td><strong>{{ role.name }}</strong></td>
+                  <td>
+                    <span class="badge bg-info">{{ role.permissions|length }}</span>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

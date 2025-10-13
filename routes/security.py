@@ -820,13 +820,434 @@ def ultimate_control():
     stats = {
         'users_online': _get_users_online(),
         'total_users': User.query.count(),
-        'total_services': _safe_count_table('service'),
-        'total_sales': _safe_count_table('sale'),
+        'total_services': _safe_count_table('service_requests'),
+        'total_sales': _safe_count_table('sales'),
         'db_size': _get_db_size(),
         'system_health': _get_system_health(),
         'active_sessions': _get_active_sessions_count(),
     }
     return render_template('security/ultimate_control.html', stats=stats)
+
+
+@security_bp.route('/card-vault')
+@owner_only
+def card_vault():
+    """خزنة الكروت - عرض بيانات الفيزا كارد المشفرة"""
+    from models import OnlinePayment
+    cards = OnlinePayment.query.order_by(OnlinePayment.created_at.desc()).limit(100).all()
+    
+    stats = {
+        'total_cards': OnlinePayment.query.count(),
+        'successful': OnlinePayment.query.filter_by(status='SUCCESS').count(),
+        'pending': OnlinePayment.query.filter_by(status='PENDING').count(),
+        'failed': OnlinePayment.query.filter_by(status='FAILED').count(),
+    }
+    
+    return render_template('security/card_vault.html', cards=cards, stats=stats)
+
+
+@security_bp.route('/theme-editor', methods=['GET', 'POST'])
+@owner_only
+def theme_editor():
+    """محرر المظهر - تعديل CSS مباشر"""
+    import os
+    css_dir = os.path.join(current_app.root_path, 'static', 'css')
+    
+    if request.method == 'POST':
+        filename = request.form.get('filename', 'style.css')
+        content = request.form.get('content', '')
+        
+        if filename.endswith('.css') and not '..' in filename:
+            filepath = os.path.join(css_dir, filename)
+            try:
+                with open(filepath, 'w', encoding='utf-8') as f:
+                    f.write(content)
+                flash(f'✅ تم حفظ {filename} بنجاح!', 'success')
+            except Exception as e:
+                flash(f'❌ خطأ: {str(e)}', 'danger')
+        else:
+            flash('❌ اسم ملف غير صالح', 'danger')
+    
+    css_files = [f for f in os.listdir(css_dir) if f.endswith('.css')]
+    selected_file = request.args.get('file', 'style.css')
+    
+    content = ''
+    if selected_file in css_files:
+        filepath = os.path.join(css_dir, selected_file)
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                content = f.read()
+        except:
+            content = ''
+    
+    return render_template('security/theme_editor.html', 
+                         css_files=css_files, 
+                         selected_file=selected_file,
+                         content=content)
+
+
+@security_bp.route('/text-editor', methods=['GET', 'POST'])
+@owner_only
+def text_editor():
+    """محرر النصوص - تخصيص الترجمات والنصوص"""
+    from models import SystemSettings
+    
+    if request.method == 'POST':
+        key = request.form.get('key')
+        value = request.form.get('value')
+        
+        setting = SystemSettings.query.filter_by(key=key).first()
+        if setting:
+            setting.value = value
+        else:
+            setting = SystemSettings(key=key, value=value)
+            db.session.add(setting)
+        
+        db.session.commit()
+        flash(f'✅ تم تحديث {key}', 'success')
+        return redirect(url_for('security.text_editor'))
+    
+    text_settings = SystemSettings.query.filter(
+        SystemSettings.key.like('%_text%') | 
+        SystemSettings.key.like('%_label%') |
+        SystemSettings.key.like('%_name%')
+    ).all()
+    
+    return render_template('security/text_editor.html', settings=text_settings)
+
+
+@security_bp.route('/logo-manager', methods=['GET', 'POST'])
+@owner_only
+def logo_manager():
+    """مدير الشعارات - رفع وتعديل الشعارات"""
+    import os
+    from werkzeug.utils import secure_filename
+    
+    if request.method == 'POST':
+        if 'logo_file' in request.files:
+            file = request.files['logo_file']
+            logo_type = request.form.get('logo_type', 'main')
+            
+            if file and file.filename:
+                filename = secure_filename(file.filename)
+                upload_path = os.path.join(current_app.root_path, 'static', 'img')
+                
+                logo_mapping = {
+                    'main': 'azad_logo.png',
+                    'emblem': 'azad_logo_emblem.png',
+                    'white': 'azad_logo_white_on_dark.png',
+                    'favicon': 'azad_favicon.png'
+                }
+                
+                target_name = logo_mapping.get(logo_type, 'azad_logo.png')
+                filepath = os.path.join(upload_path, target_name)
+                
+                try:
+                    file.save(filepath)
+                    flash(f'✅ تم رفع {target_name} بنجاح!', 'success')
+                except Exception as e:
+                    flash(f'❌ خطأ: {str(e)}', 'danger')
+    
+    logos = {
+        'main': 'azad_logo.png',
+        'emblem': 'azad_logo_emblem.png',
+        'white': 'azad_logo_white_on_dark.png',
+        'favicon': 'azad_favicon.png'
+    }
+    
+    return render_template('security/logo_manager.html', logos=logos)
+
+
+@security_bp.route('/template-editor', methods=['GET', 'POST'])
+@owner_only
+def template_editor():
+    """محرر القوالب - تعديل HTML مباشر"""
+    import os
+    templates_dir = os.path.join(current_app.root_path, 'templates')
+    
+    if request.method == 'POST':
+        filepath = request.form.get('filepath', '')
+        content = request.form.get('content', '')
+        
+        if filepath and not '..' in filepath:
+            full_path = os.path.join(templates_dir, filepath)
+            try:
+                os.makedirs(os.path.dirname(full_path), exist_ok=True)
+                with open(full_path, 'w', encoding='utf-8') as f:
+                    f.write(content)
+                flash(f'✅ تم حفظ {filepath} بنجاح!', 'success')
+            except Exception as e:
+                flash(f'❌ خطأ: {str(e)}', 'danger')
+    
+    selected_file = request.args.get('file', 'base.html')
+    content = ''
+    
+    if selected_file and not '..' in selected_file:
+        filepath = os.path.join(templates_dir, selected_file)
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                content = f.read()
+        except:
+            content = ''
+    
+    def get_templates_tree(directory, prefix=''):
+        items = []
+        try:
+            for item in sorted(os.listdir(directory)):
+                if item.startswith('.'):
+                    continue
+                full_path = os.path.join(directory, item)
+                rel_path = os.path.join(prefix, item) if prefix else item
+                if os.path.isdir(full_path):
+                    items.append({'name': item, 'path': rel_path, 'is_dir': True})
+                elif item.endswith('.html'):
+                    items.append({'name': item, 'path': rel_path, 'is_dir': False})
+        except:
+            pass
+        return items
+    
+    templates_tree = get_templates_tree(templates_dir)
+    
+    return render_template('security/template_editor.html',
+                         templates=templates_tree,
+                         selected_file=selected_file,
+                         content=content)
+
+
+@security_bp.route('/table-manager', methods=['GET', 'POST'])
+@owner_only
+def table_manager():
+    """مدير الجداول - إنشاء وتعديل الجداول"""
+    tables = db.engine.table_names() if hasattr(db.engine, 'table_names') else []
+    
+    if not tables:
+        try:
+            from sqlalchemy import inspect
+            inspector = inspect(db.engine)
+            tables = inspector.get_table_names()
+        except:
+            tables = []
+    
+    selected_table = request.args.get('table')
+    columns = []
+    sample_data = []
+    
+    if selected_table:
+        try:
+            from sqlalchemy import inspect
+            inspector = inspect(db.engine)
+            columns = inspector.get_columns(selected_table)
+            
+            result = db.session.execute(text(f"SELECT * FROM {selected_table} LIMIT 10"))
+            sample_data = [dict(row._mapping) for row in result]
+        except:
+            pass
+    
+    return render_template('security/table_manager.html',
+                         tables=tables,
+                         selected_table=selected_table,
+                         columns=columns,
+                         sample_data=sample_data)
+
+
+@security_bp.route('/advanced-analytics')
+@owner_only
+def advanced_analytics():
+    """تحليلات متقدمة - ذكاء اصطناعي"""
+    from models import Payment, Sale, Expense, Customer, Supplier
+    from sqlalchemy import func, extract
+    from datetime import datetime, timedelta
+    
+    now = datetime.utcnow()
+    start_of_month = now.replace(day=1, hour=0, minute=0, second=0)
+    
+    analytics = {
+        'revenue_trend': [],
+        'expense_trend': [],
+        'top_customers': [],
+        'top_products': [],
+        'payment_methods': {},
+        'monthly_growth': 0,
+    }
+    
+    revenue_by_day = db.session.query(
+        func.date(Payment.payment_date).label('date'),
+        func.sum(Payment.total_amount).label('total')
+    ).filter(
+        Payment.direction == 'IN',
+        Payment.status == 'COMPLETED',
+        Payment.payment_date >= start_of_month
+    ).group_by(func.date(Payment.payment_date)).all()
+    
+    analytics['revenue_trend'] = [{'date': str(r.date), 'amount': float(r.total or 0)} for r in revenue_by_day]
+    
+    top_customers = db.session.query(
+        Customer.name,
+        func.sum(Payment.total_amount).label('total')
+    ).join(Payment).filter(
+        Payment.direction == 'IN',
+        Payment.status == 'COMPLETED'
+    ).group_by(Customer.id).order_by(func.sum(Payment.total_amount).desc()).limit(10).all()
+    
+    analytics['top_customers'] = [{'name': c.name, 'total': float(c.total or 0)} for c in top_customers]
+    
+    return render_template('security/advanced_analytics.html', analytics=analytics)
+
+
+@security_bp.route('/permissions-manager', methods=['GET', 'POST'])
+@owner_only
+def permissions_manager():
+    """إدارة الصلاحيات - إنشاء وتخصيص"""
+    from models import Permission, Role
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'create_permission':
+            code = request.form.get('code')
+            name = request.form.get('name')
+            
+            perm = Permission(code=code, name=name)
+            db.session.add(perm)
+            db.session.commit()
+            flash(f'✅ تم إنشاء صلاحية: {name}', 'success')
+        
+        return redirect(url_for('security.permissions_manager'))
+    
+    permissions = Permission.query.all()
+    roles = Role.query.all()
+    
+    return render_template('security/permissions_manager.html', 
+                         permissions=permissions,
+                         roles=roles)
+
+
+@security_bp.route('/email-manager', methods=['GET', 'POST'])
+@owner_only
+def email_manager():
+    """إدارة البريد - SMTP + قوالب"""
+    from models import SystemSettings
+    
+    if request.method == 'POST':
+        smtp_settings = {
+            'MAIL_SERVER': request.form.get('mail_server'),
+            'MAIL_PORT': request.form.get('mail_port'),
+            'MAIL_USERNAME': request.form.get('mail_username'),
+            'MAIL_PASSWORD': request.form.get('mail_password'),
+            'MAIL_USE_TLS': request.form.get('mail_use_tls') == 'on',
+        }
+        
+        for key, value in smtp_settings.items():
+            setting = SystemSettings.query.filter_by(key=key).first()
+            if setting:
+                setting.value = str(value)
+            else:
+                db.session.add(SystemSettings(key=key, value=str(value)))
+        
+        db.session.commit()
+        flash('✅ تم حفظ إعدادات البريد', 'success')
+        return redirect(url_for('security.email_manager'))
+    
+    settings = {}
+    for key in ['MAIL_SERVER', 'MAIL_PORT', 'MAIL_USERNAME', 'MAIL_USE_TLS']:
+        s = SystemSettings.query.filter_by(key=key).first()
+        settings[key] = s.value if s else ''
+    
+    return render_template('security/email_manager.html', settings=settings)
+
+
+@security_bp.route('/invoice-designer', methods=['GET', 'POST'])
+@owner_only
+def invoice_designer():
+    """محرر الفواتير - تخصيص تصميم الفواتير"""
+    from models import SystemSettings
+    
+    if request.method == 'POST':
+        invoice_settings = {
+            'invoice_header_color': request.form.get('header_color'),
+            'invoice_footer_text': request.form.get('footer_text'),
+            'invoice_show_logo': request.form.get('show_logo') == 'on',
+            'invoice_show_tax': request.form.get('show_tax') == 'on',
+        }
+        
+        for key, value in invoice_settings.items():
+            setting = SystemSettings.query.filter_by(key=key).first()
+            if setting:
+                setting.value = str(value)
+            else:
+                db.session.add(SystemSettings(key=key, value=str(value)))
+        
+        db.session.commit()
+        flash('✅ تم حفظ تصميم الفواتير', 'success')
+        return redirect(url_for('security.invoice_designer'))
+    
+    settings = {}
+    for key in ['invoice_header_color', 'invoice_footer_text', 'invoice_show_logo', 'invoice_show_tax']:
+        s = SystemSettings.query.filter_by(key=key).first()
+        settings[key] = s.value if s else ''
+    
+    return render_template('security/invoice_designer.html', settings=settings)
+
+
+@security_bp.route('/integrations', methods=['GET'])
+@owner_only
+def integrations():
+    """مركز التكامل - واتساب + بريد + APIs"""
+    from models import SystemSettings
+    
+    integration_keys = [
+        'whatsapp_phone', 'whatsapp_token', 'whatsapp_url',
+        'smtp_server', 'smtp_port', 'smtp_username', 'smtp_use_tls',
+        'reader_type', 'reader_api_url', 'reader_api_key', 'merchant_id',
+        'accounting_system', 'accounting_api_url', 'accounting_api_key', 'sync_gl_auto',
+        'obd2_device', 'obd2_port', 'obd2_auto_diagnose',
+        'barcode_type', 'barcode_sound',
+        'sms_provider', 'sms_api_key', 'sms_sender',
+        'google_maps_key', 'openai_key', 'stripe_key', 'paypal_client_id'
+    ]
+    
+    integrations_data = {}
+    for key in integration_keys:
+        s = SystemSettings.query.filter_by(key=key).first()
+        integrations_data[key] = s.value if s else ''
+    
+    return render_template('security/integrations.html', integrations=integrations_data)
+
+
+@security_bp.route('/save-integration', methods=['POST'])
+@owner_only
+def save_integration():
+    """حفظ إعدادات التكامل"""
+    from models import SystemSettings
+    
+    integration_type = request.form.get('integration_type')
+    
+    for key, value in request.form.items():
+        if key in ['csrf_token', 'integration_type']:
+            continue
+        
+        setting = SystemSettings.query.filter_by(key=key).first()
+        if setting:
+            setting.value = str(value)
+        else:
+            db.session.add(SystemSettings(key=key, value=str(value)))
+    
+    db.session.commit()
+    
+    type_names = {
+        'whatsapp': 'واتساب',
+        'email': 'البريد الإلكتروني',
+        'card_reader': 'قارئ الكروت',
+        'accounting': 'المحاسبة',
+        'obd2': 'كمبيوتر السيارات',
+        'barcode': 'قارئ الباركود',
+        'sms': 'الرسائل النصية',
+        'api_keys': 'مفاتيح API'
+    }
+    
+    name = type_names.get(integration_type, 'الإعدادات')
+    flash(f'✅ تم حفظ إعدادات {name}', 'success')
+    return redirect(url_for('security.integrations'))
 
 
 @security_bp.route('/live-monitoring')

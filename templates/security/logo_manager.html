@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}مدير الشعارات{% endblock %}
+{% block page_title %}🖼️ مدير الشعارات - Logo Manager{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  {% include 'security/_navigation.html' %}
+
+  <div class="row g-4">
+    {% for type, filename in logos.items() %}
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-gradient-info text-white">
+          <h5 class="mb-0">
+            <i class="fas fa-image"></i> 
+            {% if type == 'main' %}الشعار الرئيسي
+            {% elif type == 'emblem' %}الشعار المصغر
+            {% elif type == 'white' %}الشعار الأبيض
+            {% elif type == 'favicon' %}الأيقونة
+            {% endif %}
+          </h5>
+        </div>
+        <div class="card-body text-center">
+          <div class="mb-3 p-4" style="background: {% if type == 'white' %}#212529{% else %}#f8f9fa{% endif %}; border-radius: 10px;">
+            <img src="{{ url_for('static', filename='img/' ~ filename) }}?v={{ range(1000, 9999)|random }}" 
+                 alt="{{ filename }}"
+                 style="max-height: 150px; max-width: 100%;">
+          </div>
+          
+          <form method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="logo_type" value="{{ type }}">
+            <div class="mb-3">
+              <input type="file" name="logo_file" class="form-control" accept="image/*" required>
+            </div>
+            <button type="submit" class="btn btn-info">
+              <i class="fas fa-upload"></i> رفع شعار جديد
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}
+

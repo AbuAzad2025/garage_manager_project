@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}محرر القوالب{% endblock %}
+{% block page_title %}📄 محرر القوالب - HTML Live Editor{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  {% include 'security/_navigation.html' %}
+  
+  <div class="alert alert-warning border-0 shadow-sm">
+    <i class="fas fa-exclamation-triangle"></i> <strong>تحذير:</strong> التعديل الخاطئ قد يعطل الصفحات!
+  </div>
+
+  <div class="row">
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0"><i class="fas fa-folder-open"></i> القوالب</h5>
+        </div>
+        <div class="list-group list-group-flush" style="max-height: 600px; overflow-y: auto;">
+          {% for template in templates %}
+            <a href="{{ url_for('security.template_editor', file=template.path) }}" 
+               class="list-group-item list-group-item-action {% if template.path == selected_file %}active{% endif %}">
+              <i class="fas fa-{% if template.is_dir %}folder{% else %}file-code{% endif %}"></i> 
+              {{ template.name }}
+            </a>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-9">
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="filepath" value="{{ selected_file }}">
+        
+        <div class="card border-0 shadow-sm">
+          <div class="card-header bg-gradient-success text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-edit"></i> تحرير: {{ selected_file }}</h5>
+            <button type="submit" class="btn btn-light btn-sm">
+              <i class="fas fa-save"></i> حفظ
+            </button>
+          </div>
+          <div class="card-body p-0">
+            <textarea name="content" class="form-control" style="font-family: 'Courier New', monospace; font-size: 14px; border: none; min-height: 700px; direction: ltr; text-align: left;">{{ content }}</textarea>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
