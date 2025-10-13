@@ -2692,7 +2692,7 @@ def preorder_convert_to_sale(preorder_id):
         total_with_tax = subtotal * (1 + tax_rate / 100)
         balance_due = max(0, total_with_tax - prepaid)
         
-        # إنشاء المبيعة (balance_due سيُحسب تلقائياً من event listener)
+        # إنشاء المبيعة بدون total_paid أولاً
         sale = Sale(
             customer_id=preorder.customer_id,
             seller_id=current_user.id,
@@ -2701,14 +2701,11 @@ def preorder_convert_to_sale(preorder_id):
             status=SaleStatus.CONFIRMED.value,
             currency=preorder.currency or "ILS",
             tax_rate=tax_rate,
-            total_paid=prepaid,  # العربون المدفوع مسبقاً
+            total_paid=0,  # سنحدثه بعد إضافة SaleLine
             notes=f"تحويل من حجز مسبق {preorder.reference or preorder.id}"
         )
         db.session.add(sale)
         db.session.flush()
-        
-        # الآن نضيف SaleLine قبل flush آخر لحساب total_amount
-        # (سيُحسب تلقائياً من lines في event listener)
         
         # إنشاء بند المبيعة
         sale_line = SaleLine(
@@ -2721,6 +2718,10 @@ def preorder_convert_to_sale(preorder_id):
             discount_rate=0
         )
         db.session.add(sale_line)
+        db.session.flush()  # لحساب total_amount من SaleLine
+        
+        # الآن نحدث total_paid بالعربون
+        sale.total_paid = prepaid
         
         # تحديث StockLevel
         sl = StockLevel.query.filter_by(
