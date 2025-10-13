@@ -966,16 +966,9 @@ def create_payment():
                         if ls and ls.supplier_id:
                             update_entity_balance("supplier", ls.supplier_id)
                 if payment.preorder_id:
-                    po = db.session.get(PreOrder, payment.preorder_id)
-                    if po and payment.direction == PaymentDirection.IN.value and payment.status == PaymentStatus.COMPLETED.value:
-                        try:
-                            if hasattr(PreOrderStatus, "PAID"):
-                                po.status = getattr(PreOrderStatus.PAID, "value", PreOrderStatus.PAID)
-                            else:
-                                po.status = getattr(PreOrderStatus.FULFILLED, "value", PreOrderStatus.FULFILLED)
-                            db.session.add(po)
-                        except Exception:
-                            pass
+                    # لا نحدث حالة الحجز عند دفع العربون
+                    # فقط عند دفع المبيعة المرتبطة بالحجز (انظر payment.sale_id)
+                    pass
                 db.session.commit()
                 
                 # إنشاء سجل Check تلقائياً إذا كانت إحدى طرق الدفع شيك
