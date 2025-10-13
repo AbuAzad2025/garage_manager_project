@@ -2753,6 +2753,17 @@ def preorder_convert_to_sale(preorder_id):
         
         flash(f"✅ تم تحويل الحجز إلى مبيعة #{sale.id}!", "success")
         
+        # جلب اسم العميل/الجهة
+        entity_name = ''
+        if preorder.customer:
+            entity_name = f"عميل: {preorder.customer.name}"
+        elif preorder.supplier:
+            entity_name = f"مورد: {preorder.supplier.name}"
+        elif preorder.partner:
+            entity_name = f"شريك: {preorder.partner.name}"
+        
+        product_name = preorder.product.name if preorder.product else 'منتج'
+        
         # التوجيه للدفع الموحد إذا كان هناك رصيد متبقي
         if balance_due > 0:
             return redirect(url_for('payments.create_payment',
@@ -2760,7 +2771,8 @@ def preorder_convert_to_sale(preorder_id):
                                   entity_id=sale.id,
                                   amount=balance_due,
                                   currency=sale.currency,
-                                  reference=f'دفع مبيعة {sale.sale_number or sale.id}',
+                                  reference=f'دفع متبقي مبيعة من {entity_name} - {sale.sale_number or sale.id}',
+                                  notes=f'تسليم حجز مسبق: {product_name} - {entity_name} - المرجع: {preorder.reference or preorder.id}',
                                   customer_id=sale.customer_id))
         else:
             return redirect(url_for('sales_bp.sale_detail', id=sale.id))
