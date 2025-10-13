@@ -2573,6 +2573,13 @@ def preorder_create():
             sl = StockLevel(product_id=product_id, warehouse_id=warehouse_id, quantity=0, reserved_quantity=0)
             db.session.add(sl)
             db.session.flush()
+        
+        # التحقق من الكمية المتاحة
+        available = int(sl.quantity or 0) - int(sl.reserved_quantity or 0)
+        if available < qty:
+            flash(f"الكمية المتاحة ({available}) غير كافية! الكمية المطلوبة: {qty}", "danger")
+            return render_template("parts/preorder_form.html", form=form), 200
+        
         sl.reserved_quantity = int(sl.reserved_quantity or 0) + int(qty)
 
 
@@ -2586,6 +2593,13 @@ def preorder_create():
                 sl = StockLevel(product_id=product_id, warehouse_id=warehouse_id, quantity=0, reserved_quantity=0)
                 db.session.add(sl)
                 db.session.flush()
+            
+            # التحقق من الكمية المتاحة
+            available = int(sl.quantity or 0) - int(sl.reserved_quantity or 0)
+            if available < qty:
+                flash(f"الكمية المتاحة ({available}) غير كافية! الكمية المطلوبة: {qty}", "danger")
+                return render_template("parts/preorder_form.html", form=form), 200
+            
             sl.reserved_quantity = int(sl.reserved_quantity or 0) + int(qty)
             
             if "preorders.reference" in str(e).lower() and not user_ref:
