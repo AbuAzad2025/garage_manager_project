@@ -502,3 +502,404 @@ def _check_performance():
             return {'name': 'الأداء', 'status': 'error', 'message': f'{elapsed:.0f}ms بطيء'}
     except:
         return {'name': 'الأداء', 'status': 'unknown', 'message': 'غير معروف'}
+
+
+@advanced_bp.route('/system-cloner', methods=['GET', 'POST'])
+@owner_only
+def system_cloner():
+    """مولد الأنظمة المخصصة - استنساخ ذكي للمزايا المختارة"""
+    
+    available_modules = {
+        'core': {
+            'name': 'النواة الأساسية',
+            'description': 'المستخدمين + الصلاحيات + الإعدادات',
+            'required': True,
+            'files': {
+                'models': ['User', 'Role', 'Permission', 'SystemSettings'],
+                'routes': ['auth', 'main', 'users', 'roles', 'permissions'],
+                'templates': ['base.html', 'dashboard.html', 'auth/*', 'users/*'],
+                'static': ['css/style.css', 'js/app.js']
+            }
+        },
+        'customers': {
+            'name': 'إدارة العملاء',
+            'description': 'العملاء + كشوف الحساب',
+            'required': False,
+            'dependencies': ['core'],
+            'files': {
+                'models': ['Customer'],
+                'routes': ['customers'],
+                'templates': ['customers/*'],
+                'static': []
+            }
+        },
+        'sales': {
+            'name': 'المبيعات',
+            'description': 'فواتير المبيعات + الأصناف',
+            'required': False,
+            'dependencies': ['core', 'customers'],
+            'files': {
+                'models': ['Sale', 'SaleLine', 'Product'],
+                'routes': ['sales'],
+                'templates': ['sales/*'],
+                'static': ['css/sales.css']
+            }
+        },
+        'service': {
+            'name': 'الصيانة',
+            'description': 'طلبات الصيانة + القطع',
+            'required': False,
+            'dependencies': ['core', 'customers'],
+            'files': {
+                'models': ['ServiceRequest', 'ServicePart', 'ServiceTask'],
+                'routes': ['service'],
+                'templates': ['service/*'],
+                'static': ['css/service.css']
+            }
+        },
+        'warehouses': {
+            'name': 'المستودعات',
+            'description': 'المخزون + الحجوزات',
+            'required': False,
+            'dependencies': ['core'],
+            'files': {
+                'models': ['Warehouse', 'StockLevel', 'PreOrder'],
+                'routes': ['warehouses', 'parts'],
+                'templates': ['warehouses/*', 'parts/*'],
+                'static': ['css/warehouses.css']
+            }
+        },
+        'payments': {
+            'name': 'الدفعات',
+            'description': 'الدفعات + الشيكات',
+            'required': False,
+            'dependencies': ['core'],
+            'files': {
+                'models': ['Payment', 'PaymentSplit', 'Check'],
+                'routes': ['payments', 'checks'],
+                'templates': ['payments/*', 'checks/*'],
+                'static': []
+            }
+        },
+        'expenses': {
+            'name': 'النفقات',
+            'description': 'المصروفات + الموظفين',
+            'required': False,
+            'dependencies': ['core'],
+            'files': {
+                'models': ['Expense', 'ExpenseType', 'Employee'],
+                'routes': ['expenses'],
+                'templates': ['expenses/*'],
+                'static': []
+            }
+        },
+        'vendors': {
+            'name': 'الموردين والشركاء',
+            'description': 'الموردين + الشركاء + التسويات',
+            'required': False,
+            'dependencies': ['core'],
+            'files': {
+                'models': ['Supplier', 'Partner', 'SupplierSettlement', 'PartnerSettlement'],
+                'routes': ['vendors', 'supplier_settlements', 'partner_settlements'],
+                'templates': ['vendors/*'],
+                'static': []
+            }
+        },
+        'shipments': {
+            'name': 'الشحنات',
+            'description': 'الشحنات + البنود',
+            'required': False,
+            'dependencies': ['core', 'warehouses', 'vendors'],
+            'files': {
+                'models': ['Shipment', 'ShipmentItem', 'ShipmentPartner'],
+                'routes': ['shipments'],
+                'templates': ['shipments/*'],
+                'static': ['css/shipments.css']
+            }
+        },
+        'ledger': {
+            'name': 'دفتر الأستاذ',
+            'description': 'المحاسبة + القيود',
+            'required': False,
+            'dependencies': ['core'],
+            'files': {
+                'models': ['GLBatch', 'GLEntry', 'Account'],
+                'routes': ['ledger_blueprint', 'ledger_ai_assistant'],
+                'templates': ['ledger/*'],
+                'static': []
+            }
+        },
+        'shop': {
+            'name': 'المتجر الإلكتروني',
+            'description': 'المتجر + السلة + الطلبات',
+            'required': False,
+            'dependencies': ['core', 'customers', 'sales', 'warehouses'],
+            'files': {
+                'models': ['OnlineCart', 'OnlineCartItem', 'OnlinePreOrder', 'OnlinePayment'],
+                'routes': ['shop'],
+                'templates': ['shop/*'],
+                'static': ['css/shop.css']
+            }
+        },
+        'reports': {
+            'name': 'التقارير',
+            'description': 'تقارير شاملة',
+            'required': False,
+            'dependencies': ['core'],
+            'files': {
+                'models': [],
+                'routes': ['report_routes', 'admin_reports'],
+                'templates': ['reports/*', 'admin/reports/*'],
+                'static': ['css/reporting.css']
+            }
+        },
+        'currencies': {
+            'name': 'العملات',
+            'description': 'أسعار الصرف',
+            'required': False,
+            'dependencies': ['core'],
+            'files': {
+                'models': ['Currency', 'ExchangeRate'],
+                'routes': ['currencies'],
+                'templates': ['currencies/*'],
+                'static': []
+            }
+        },
+    }
+    
+    if request.method == 'POST':
+        selected_modules = request.form.getlist('modules')
+        clone_name = request.form.get('clone_name', 'custom_system')
+        
+        try:
+            result = _clone_system(selected_modules, clone_name, available_modules)
+            
+            flash(f'✅ تم إنشاء النظام المخصص: {clone_name}', 'success')
+            flash(f'📦 الملفات: {result["files_count"]} ملف', 'info')
+            flash(f'📍 الموقع: {result["output_path"]}', 'info')
+            
+            return redirect(url_for('advanced.system_cloner'))
+            
+        except Exception as e:
+            flash(f'❌ خطأ: {str(e)}', 'danger')
+            return redirect(url_for('advanced.system_cloner'))
+    
+    return render_template('advanced/system_cloner.html', modules=available_modules)
+
+
+def _clone_system(selected_modules, clone_name, available_modules):
+    """استنساخ النظام بالمزايا المختارة"""
+    
+    modules_to_clone = set(selected_modules)
+    modules_to_clone.add('core')
+    
+    for module_key in list(modules_to_clone):
+        module = available_modules.get(module_key)
+        if module and 'dependencies' in module:
+            modules_to_clone.update(module['dependencies'])
+    
+    output_dir = os.path.join(current_app.root_path, 'instance', 'clones', clone_name)
+    os.makedirs(output_dir, exist_ok=True)
+    
+    files_copied = 0
+    
+    for module_key in modules_to_clone:
+        module = available_modules.get(module_key)
+        if not module:
+            continue
+        
+        files = module.get('files', {})
+        
+        for route in files.get('routes', []):
+            src = os.path.join(current_app.root_path, 'routes', f'{route}.py')
+            if os.path.exists(src):
+                dst_dir = os.path.join(output_dir, 'routes')
+                os.makedirs(dst_dir, exist_ok=True)
+                shutil.copy2(src, os.path.join(dst_dir, f'{route}.py'))
+                files_copied += 1
+        
+        for template_pattern in files.get('templates', []):
+            if '*' in template_pattern:
+                folder = template_pattern.replace('/*', '')
+                src_dir = os.path.join(current_app.root_path, 'templates', folder)
+                if os.path.exists(src_dir):
+                    dst_dir = os.path.join(output_dir, 'templates', folder)
+                    os.makedirs(dst_dir, exist_ok=True)
+                    for file in os.listdir(src_dir):
+                        if file.endswith('.html'):
+                            shutil.copy2(
+                                os.path.join(src_dir, file),
+                                os.path.join(dst_dir, file)
+                            )
+                            files_copied += 1
+            else:
+                src = os.path.join(current_app.root_path, 'templates', template_pattern)
+                if os.path.exists(src):
+                    dst_dir = os.path.join(output_dir, 'templates')
+                    os.makedirs(dst_dir, exist_ok=True)
+                    shutil.copy2(src, os.path.join(dst_dir, os.path.basename(template_pattern)))
+                    files_copied += 1
+        
+        for static_file in files.get('static', []):
+            src = os.path.join(current_app.root_path, 'static', static_file)
+            if os.path.exists(src):
+                dst_dir = os.path.join(output_dir, 'static', os.path.dirname(static_file))
+                os.makedirs(dst_dir, exist_ok=True)
+                shutil.copy2(src, os.path.join(dst_dir, os.path.basename(static_file)))
+                files_copied += 1
+    
+    _create_custom_models_file(output_dir, modules_to_clone, available_modules)
+    _create_custom_app_file(output_dir, modules_to_clone)
+    _create_requirements_file(output_dir)
+    _create_readme_file(output_dir, clone_name, modules_to_clone, available_modules)
+    
+    files_copied += 4
+    
+    return {
+        'output_path': output_dir,
+        'files_count': files_copied,
+        'modules': list(modules_to_clone)
+    }
+
+
+def _create_custom_models_file(output_dir, selected_modules, available_modules):
+    """إنشاء ملف models.py مخصص"""
+    
+    models_content = """# models.py - Custom System Models
+# Generated by System Cloner
+
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import UserMixin
+from datetime import datetime
+from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, Numeric, ForeignKey
+from sqlalchemy.orm import relationship
+from decimal import Decimal
+
+db = SQLAlchemy()
+
+class TimestampMixin:
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class AuditMixin:
+    created_by_id = Column(Integer, ForeignKey('users.id'))
+    updated_by_id = Column(Integer, ForeignKey('users.id'))
+
+"""
+    
+    models_to_include = set()
+    for module_key in selected_modules:
+        module = available_modules.get(module_key)
+        if module and 'files' in module:
+            models_to_include.update(module['files'].get('models', []))
+    
+    models_content += f"\n# Selected Models: {', '.join(models_to_include)}\n"
+    models_content += "# Note: Extract actual model definitions from main models.py\n\n"
+    
+    with open(os.path.join(output_dir, 'models.py'), 'w', encoding='utf-8') as f:
+        f.write(models_content)
+
+
+def _create_custom_app_file(output_dir, selected_modules):
+    """إنشاء ملف app.py مخصص"""
+    
+    app_content = f"""# app.py - Custom System
+# Generated by System Cloner
+# Modules: {', '.join(selected_modules)}
+
+from flask import Flask
+from flask_login import LoginManager
+from extensions import db, migrate, csrf
+from models import User
+
+def create_app():
+    app = Flask(__name__)
+    app.config['SECRET_KEY'] = 'change-this-in-production'
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
+    
+    db.init_app(app)
+    migrate.init_app(app, db)
+    csrf.init_app(app)
+    
+    login_manager = LoginManager()
+    login_manager.init_app(app)
+    login_manager.login_view = 'auth.login'
+    
+    @login_manager.user_loader
+    def load_user(user_id):
+        return User.query.get(int(user_id))
+    
+"""
+    
+    for module in selected_modules:
+        if module != 'core':
+            app_content += f"    from routes.{module} import {module}_bp\n"
+            app_content += f"    app.register_blueprint({module}_bp)\n"
+    
+    app_content += """
+    return app
+
+if __name__ == '__main__':
+    app = create_app()
+    app.run(debug=True)
+"""
+    
+    with open(os.path.join(output_dir, 'app.py'), 'w', encoding='utf-8') as f:
+        f.write(app_content)
+
+
+def _create_requirements_file(output_dir):
+    """إنشاء requirements.txt"""
+    
+    requirements = """Flask==3.0.0
+Flask-SQLAlchemy==3.1.1
+Flask-Login==0.6.3
+Flask-Migrate==4.0.5
+Flask-WTF==1.2.1
+WTForms==3.1.1
+"""
+    
+    with open(os.path.join(output_dir, 'requirements.txt'), 'w', encoding='utf-8') as f:
+        f.write(requirements)
+
+
+def _create_readme_file(output_dir, clone_name, selected_modules, available_modules):
+    """إنشاء README.md"""
+    
+    readme = f"""# {clone_name}
+
+نظام مخصص تم إنشاؤه بواسطة System Cloner
+
+## الوحدات المضمنة:
+
+"""
+    
+    for module_key in selected_modules:
+        module = available_modules.get(module_key)
+        if module:
+            readme += f"- **{module['name']}**: {module['description']}\n"
+    
+    readme += """
+
+## التثبيت:
+
+```bash
+pip install -r requirements.txt
+flask db upgrade
+python app.py
+```
+
+## الوصول:
+
+```
+http://localhost:5000
+Username: admin
+Password: admin123
+```
+
+---
+
+تم الإنشاء: """ + datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    with open(os.path.join(output_dir, 'README.md'), 'w', encoding='utf-8') as f:
+        f.write(readme)

@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% block title %}مولد الأنظمة المخصصة{% endblock %}
+{% block page_title %}🎯 مولد الأنظمة المخصصة - System Cloner{% endblock %}
+
+{% block head_extra %}
+{{ super() }}
+<style>
+.module-card {
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: 2px solid transparent;
+}
+.module-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+}
+.module-card.selected {
+  border-color: #0056b3;
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+}
+.module-card.required {
+  border-color: #28a745;
+  opacity: 0.7;
+}
+.dependency-badge {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.4rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <div class="alert alert-success border-0 shadow-sm">
+    <i class="fas fa-magic"></i> <strong>مولد الأنظمة المخصصة:</strong> اختر المزايا التي تريدها وسيتم إنشاء نظام مصغر جاهز للتحميل!
+  </div>
+
+  <form method="POST" id="clonerForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    
+    <div class="row mb-4">
+      <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+          <div class="card-body">
+            <label class="form-label fw-bold">اسم النظام المخصص</label>
+            <input type="text" name="clone_name" class="form-control" 
+                   placeholder="مثال: system_lite" required>
+            <small class="text-muted">سيتم إنشاء مجلد بهذا الاسم</small>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card border-0 shadow-sm bg-info text-white">
+          <div class="card-body">
+            <h5 class="mb-2">الوحدات المختارة: <span id="selectedCount">1</span></h5>
+            <p class="mb-0 small">النواة الأساسية مطلوبة دائماً</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3">
+      {% for key, module in modules.items() %}
+      <div class="col-md-4">
+        <div class="card module-card h-100 {% if module.required %}required{% endif %}" 
+             onclick="toggleModule(this, '{{ key }}', {{ module.required|tojson }})">
+          <div class="card-body">
+            <div class="form-check">
+              <input type="checkbox" name="modules" value="{{ key }}" 
+                     class="form-check-input module-checkbox" 
+                     id="module_{{ key }}"
+                     {% if module.required %}checked disabled{% endif %}>
+              <label class="form-check-label w-100" for="module_{{ key }}">
+                <h6 class="mb-2">
+                  {{ module.name }}
+                  {% if module.required %}
+                    <span class="badge bg-success">مطلوب</span>
+                  {% endif %}
+                </h6>
+                <p class="text-muted small mb-2">{{ module.description }}</p>
+                
+                {% if module.dependencies %}
+                <div class="mb-2">
+                  {% for dep in module.dependencies %}
+                    <span class="badge bg-secondary dependency-badge">{{ dep }}</span>
+                  {% endfor %}
+                </div>
+                {% endif %}
+                
+                <div class="small text-muted">
+                  <i class="fas fa-database"></i> {{ module.files.models|length }} موديل
+                  <i class="fas fa-route ms-2"></i> {{ module.files.routes|length }} route
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="text-center mt-4">
+      <button type="submit" class="btn btn-lg btn-success shadow-lg" style="min-width: 300px;">
+        <i class="fas fa-magic"></i> إنشاء النظام المخصص الآن
+      </button>
+    </div>
+  </form>
+
+</div>
+
+<script>
+function toggleModule(card, key, required) {
+  if (required) return;
+  
+  const checkbox = card.querySelector('.module-checkbox');
+  checkbox.checked = !checkbox.checked;
+  
+  if (checkbox.checked) {
+    card.classList.add('selected');
+  } else {
+    card.classList.remove('selected');
+  }
+  
+  updateCount();
+}
+
+function updateCount() {
+  const count = document.querySelectorAll('.module-checkbox:checked').length;
+  document.getElementById('selectedCount').textContent = count;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.module-checkbox:checked:not([disabled])').forEach(cb => {
+    cb.closest('.module-card').classList.add('selected');
+  });
+  updateCount();
+});
+</script>
+{% endblock %}
+
