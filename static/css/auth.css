@@ -6,14 +6,14 @@
   --gradient-brand: linear-gradient(45deg, var(--brand-600), var(--brand-400));
   --gradient-shop: linear-gradient(45deg, #43cea2, #185a9d);
   --sidebar-width: 280px;
-  --primary-color: #007bff;
-  --secondary-color: #6c757d;
-  --success-color: #28a745;
-  --info-color: #17a2b8;
-  --warning-color: #ffc107;
-  --danger-color: #dc3545;
+  --primary-color: #0056b3;
+  --secondary-color: #495057;
+  --success-color: #155724;
+  --info-color: #0c5460;
+  --warning-color: #856404;
+  --danger-color: #721c24;
   --light-color: #f8f9fa;
-  --dark-color: #343a40;
+  --dark-color: #212529;
 }
 
 html, body {

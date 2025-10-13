@@ -1,15 +1,17 @@
 :root {
-  --primary: #0d6efd;
-  --success: #198754;
-  --warning: #ffc107;
-  --danger: #dc3545;
+  --primary: #0056b3;
+  --success: #155724;
+  --warning: #856404;
+  --danger: #721c24;
+  --info: #0c5460;
   --light: #f8f9fa;
   --dark: #212529;
   --border-radius: 0.5rem;
+  --shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.25);
 }
 
 .card-shadow {
-  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.25) !important;
 }
 
 .rounded-4 {

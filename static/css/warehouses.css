@@ -1,7 +1,8 @@
 :root {
-  --card-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.12);
-  --muted: #6c757d;
+  --card-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.25);
+  --muted: #495057;
   --navbar-offset: 56px;
+  --text-dark: #212529;
 }
 
 .toolbar-warehouses {
