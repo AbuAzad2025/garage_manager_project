@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}صحة النظام{% endblock %}
+{% block page_title %}💚 صحة النظام - System Health{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <div class="row mb-4">
+    <div class="col-md-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <h1 style="font-size: 4rem; font-weight: 700; 
+                     background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+                     -webkit-background-clip: text;
+                     -webkit-text-fill-color: transparent;">
+            {{ '%.0f'|format(overall) }}%
+          </h1>
+          <h5>الصحة العامة للنظام</h5>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    {% for check in checks %}
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex align-items-center gap-3">
+            <div class="p-3 rounded 
+                        {% if check.status == 'ok' %}bg-success bg-opacity-10
+                        {% elif check.status == 'warning' %}bg-warning bg-opacity-10
+                        {% elif check.status == 'error' %}bg-danger bg-opacity-10
+                        {% else %}bg-secondary bg-opacity-10{% endif %}">
+              <i class="fas 
+                        {% if check.status == 'ok' %}fa-check-circle text-success
+                        {% elif check.status == 'warning' %}fa-exclamation-triangle text-warning
+                        {% elif check.status == 'error' %}fa-times-circle text-danger
+                        {% else %}fa-question-circle text-secondary{% endif %} 
+                        fa-2x"></i>
+            </div>
+            <div class="flex-grow-1">
+              <h6 class="mb-1">{{ check.name }}</h6>
+              <p class="mb-0 text-muted small">{{ check.message }}</p>
+            </div>
+            <div>
+              {% if check.status == 'ok' %}
+                <span class="badge bg-success">OK</span>
+              {% elif check.status == 'warning' %}
+                <span class="badge bg-warning">تحذير</span>
+              {% elif check.status == 'error' %}
+                <span class="badge bg-danger">خطأ</span>
+              {% else %}
+                <span class="badge bg-secondary">غير معروف</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}
+

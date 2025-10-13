@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% block title %}إدارة التراخيص{% endblock %}
+{% block page_title %}🔐 إدارة التراخيص - Licensing{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <div class="row">
+    <div class="col-md-6 mx-auto">
+      <div class="card border-0 shadow-lg">
+        <div class="card-header" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+          <h5 class="mb-0"><i class="fas fa-key"></i> معلومات الترخيص</h5>
+        </div>
+        <div class="card-body">
+          {% if license.key %}
+          <div class="alert alert-success">
+            <i class="fas fa-check-circle"></i> <strong>مفعّل!</strong> الترخيص ساري المفعول
+          </div>
+          
+          <table class="table table-bordered">
+            <tr>
+              <th style="width: 40%;">مفتاح الترخيص</th>
+              <td><code>{{ license.key }}</code></td>
+            </tr>
+            <tr>
+              <th>العميل</th>
+              <td>{{ license.client }}</td>
+            </tr>
+            <tr>
+              <th>تاريخ الانتهاء</th>
+              <td>{{ license.expiry }}</td>
+            </tr>
+            <tr>
+              <th>الحد الأقصى للمستخدمين</th>
+              <td>{{ license.max_users }}</td>
+            </tr>
+            <tr>
+              <th>تاريخ التفعيل</th>
+              <td>{{ license.activated_at }}</td>
+            </tr>
+          </table>
+          {% else %}
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i> لم يتم تفعيل الترخيص
+          </div>
+          {% endif %}
+          
+          <hr>
+          
+          <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <div class="mb-3">
+              <label class="form-label fw-bold">مفتاح الترخيص</label>
+              <input type="text" name="license_key" class="form-control" 
+                     value="{{ license.key or '' }}"
+                     placeholder="XXXX-XXXX-XXXX-XXXX" required>
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label fw-bold">اسم العميل</label>
+              <input type="text" name="client_name" class="form-control" 
+                     value="{{ license.client or '' }}"
+                     placeholder="اسم الشركة/العميل" required>
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label fw-bold">تاريخ الانتهاء</label>
+              <input type="date" name="expiry_date" class="form-control" 
+                     value="{{ license.expiry or '' }}" required>
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label fw-bold">الحد الأقصى للمستخدمين</label>
+              <input type="number" name="max_users" class="form-control" 
+                     value="{{ license.max_users or '10' }}" required>
+            </div>
+            
+            <button type="submit" class="btn btn-lg w-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+              <i class="fas fa-check"></i> تفعيل الترخيص
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

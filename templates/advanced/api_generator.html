@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% block title %}مولد API{% endblock %}
+{% block page_title %}⚡ مولد API التلقائي - API Generator{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <div class="alert alert-info border-0 shadow-sm">
+    <i class="fas fa-magic"></i> <strong>مولد API:</strong> إنشاء REST API تلقائياً لأي جدول
+  </div>
+
+  <div class="row">
+    <div class="col-md-8 mx-auto">
+      <div class="card border-0 shadow-lg">
+        <div class="card-header" style="background: linear-gradient(135deg, #4776E6 0%, #8E54E9 100%); color: white;">
+          <h5 class="mb-0"><i class="fas fa-code"></i> إنشاء API</h5>
+        </div>
+        <div class="card-body">
+          <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <div class="mb-4">
+              <label class="form-label fw-bold">اختر الجدول</label>
+              <select name="table_name" class="form-select" required>
+                <option value="">-- اختر جدول --</option>
+                {% for table in tables %}
+                  <option value="{{ table }}">{{ table }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            
+            <div class="mb-4">
+              <label class="form-label fw-bold">Endpoints المطلوبة</label>
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="form-check mb-2">
+                    <input type="checkbox" name="endpoints" value="list" class="form-check-input" id="list" checked>
+                    <label class="form-check-label" for="list">
+                      <code>GET /api/{table}</code> - قائمة
+                    </label>
+                  </div>
+                  <div class="form-check mb-2">
+                    <input type="checkbox" name="endpoints" value="get" class="form-check-input" id="get" checked>
+                    <label class="form-check-label" for="get">
+                      <code>GET /api/{table}/{id}</code> - عرض
+                    </label>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check mb-2">
+                    <input type="checkbox" name="endpoints" value="create" class="form-check-input" id="create">
+                    <label class="form-check-label" for="create">
+                      <code>POST /api/{table}</code> - إنشاء
+                    </label>
+                  </div>
+                  <div class="form-check mb-2">
+                    <input type="checkbox" name="endpoints" value="update" class="form-check-input" id="update">
+                    <label class="form-check-label" for="update">
+                      <code>PUT /api/{table}/{id}</code> - تحديث
+                    </label>
+                  </div>
+                  <div class="form-check mb-2">
+                    <input type="checkbox" name="endpoints" value="delete" class="form-check-input" id="delete">
+                    <label class="form-check-label" for="delete">
+                      <code>DELETE /api/{table}/{id}</code> - حذف
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <button type="submit" class="btn btn-lg w-100" style="background: linear-gradient(135deg, #4776E6 0%, #8E54E9 100%); color: white;">
+              <i class="fas fa-magic"></i> إنشاء API تلقائياً
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

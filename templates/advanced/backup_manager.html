@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block title %}مدير النسخ الاحتياطية{% endblock %}
+{% block page_title %}💾 مدير النسخ الاحتياطية - Backup Manager{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <div class="row">
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-gradient-success text-white">
+          <h5 class="mb-0"><i class="fas fa-plus"></i> نسخة احتياطية جديدة</h5>
+        </div>
+        <div class="card-body">
+          <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="create_backup">
+            
+            <div class="mb-3">
+              <label class="form-label fw-bold">اسم النسخة (اختياري)</label>
+              <input type="text" name="backup_name" class="form-control" 
+                     placeholder="backup_2025_01_13">
+            </div>
+            
+            <button type="submit" class="btn btn-success w-100 btn-lg">
+              <i class="fas fa-save"></i> إنشاء نسخة احتياطية
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-8">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-gradient-primary text-white">
+          <h5 class="mb-0"><i class="fas fa-history"></i> النسخ الاحتياطية ({{ backups|length }})</h5>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead class="table-light">
+                <tr>
+                  <th>الاسم</th>
+                  <th>الحجم</th>
+                  <th>التاريخ</th>
+                  <th>الإجراءات</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for backup in backups %}
+                <tr>
+                  <td><code>{{ backup.name }}</code></td>
+                  <td><span class="badge bg-info">{{ backup.size }}</span></td>
+                  <td>{{ backup.date }}</td>
+                  <td>
+                    <button class="btn btn-sm btn-success" onclick="restoreBackup('{{ backup.name }}')">
+                      <i class="fas fa-undo"></i> استعادة
+                    </button>
+                    <button class="btn btn-sm btn-primary" onclick="downloadBackup('{{ backup.name }}')">
+                      <i class="fas fa-download"></i> تحميل
+                    </button>
+                  </td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="4" class="text-center text-muted">لا توجد نسخ احتياطية</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function restoreBackup(name) {
+  if(confirm('⚠️ هل أنت متأكد من استعادة هذه النسخة؟ سيتم استبدال البيانات الحالية!')) {
+    alert('⏳ جاري الاستعادة... (قريباً)');
+  }
+}
+
+function downloadBackup(name) {
+  window.location.href = '/advanced/download-backup/' + name;
+}
+</script>
+{% endblock %}
+
