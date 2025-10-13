@@ -2624,8 +2624,8 @@ def preorder_create():
             pay = Payment(
                 entity_type=(PaymentEntityType.PREORDER.value if hasattr(PaymentEntityType, "PREORDER") else "PREORDER"),
                 preorder_id=preorder.id,
-                direction=(PaymentDirection.INCOMING.value if hasattr(PaymentDirection, "INCOMING") else "INCOMING"),
-                status=(PaymentStatus.COMPLETED.value if hasattr(PaymentStatus, "COMPLETED") else "COMPLETED"),
+                direction=PaymentDirection.IN.value,
+                status=PaymentStatus.COMPLETED.value,
                 payment_date=datetime.utcnow(),
                 total_amount=prepaid,
                 currency="ILS",
