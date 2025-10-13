@@ -21,7 +21,14 @@
                 <span class="d-none d-md-inline ms-1">كشف حساب</span>
               </a>
 
-              <a href="{{ url_for('payments.create_payment', entity_type='SUPPLIER', entity_id=supplier.id) }}"
+              <a href="{{ url_for('payments.create_payment', 
+                                 entity_type='SUPPLIER', 
+                                 entity_id=supplier.id,
+                                 amount=supplier.balance if supplier.balance and supplier.balance > 0 else None,
+                                 currency=supplier.currency if supplier.currency else 'ILS',
+                                 reference='دفع لمورد: ' ~ supplier.name,
+                                 notes='دفع مستحقات المورد: ' ~ supplier.name,
+                                 supplier_id=supplier.id) }}"
                  class="btn btn-sm btn-light text-info d-flex align-items-center"
                  title="دفع">
                 <i class="fas fa-coins"></i>
