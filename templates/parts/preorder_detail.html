@@ -125,9 +125,17 @@
         {% endif %}
 
         {% if balance > 0 and current_user.has_permission('create_payment') %}
-        <a class="btn btn-outline-primary"
-           href="{{ url_for('payments.create_payment', entity_type='PREORDER', entity_id=preorder.id, amount=balance) }}">
-          <i class="fas fa-cash-register me-1"></i> إضافة دفعة
+        <a class="btn btn-primary"
+           href="{{ url_for('payments.create_payment', 
+                           entity_type='PREORDER', 
+                           entity_id=preorder.id, 
+                           amount=balance,
+                           currency=currency,
+                           reference='دفع حجز مسبق ' ~ (preorder.reference or ('PR-' ~ preorder.id)),
+                           customer_id=preorder.customer_id if preorder.customer_id else None,
+                           supplier_id=preorder.supplier_id if preorder.supplier_id else None,
+                           partner_id=preorder.partner_id if preorder.partner_id else None) }}">
+          <i class="fas fa-money-bill-wave me-1"></i> دفع المتبقي ({{ '%.2f'|format(balance) }} {{ currency }})
         </a>
         {% endif %}
       {% endif %}
