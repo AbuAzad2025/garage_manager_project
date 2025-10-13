@@ -2746,12 +2746,12 @@ def preorder_convert_to_sale(preorder_id):
         
         sl.quantity = available - qty
         
-        # تحديث حالة الحجز
-        preorder.status = "FULFILLED"
+        # لا نحدث حالة الحجز هنا - سيتحدث بعد الدفع الكامل
+        # preorder.status = "FULFILLED"  # سيُحدث عند اكتمال الدفع
         
         db.session.commit()
         
-        flash(f"✅ تم تحويل الحجز إلى مبيعة #{sale.id}!", "success")
+        flash(f"✅ تم إنشاء مبيعة #{sale.id} - أكمل الدفع لإتمام التسليم!", "success")
         
         # جلب اسم العميل/الجهة
         entity_name = ''

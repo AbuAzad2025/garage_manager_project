@@ -942,6 +942,13 @@ def create_payment():
                     if sale and hasattr(sale, "update_payment_status"):
                         sale.update_payment_status()
                         db.session.add(sale)
+                        
+                        # إذا كانت المبيعة من حجز مسبق ومدفوعة بالكامل، نحدث حالة الحجز
+                        if sale.preorder_id and sale.balance_due <= 0:
+                            po = db.session.get(PreOrder, sale.preorder_id)
+                            if po and po.status != "FULFILLED":
+                                po.status = PreOrderStatus.FULFILLED.value
+                                db.session.add(po)
                 if payment.invoice_id:
                     inv = db.session.get(Invoice, payment.invoice_id)
                     if inv and hasattr(inv, "update_status"):
