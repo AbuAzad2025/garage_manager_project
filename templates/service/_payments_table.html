@@ -1,41 +1,92 @@
-<div class="card mb-3 shadow-sm">
-  <div class="card-header bg-secondary text-white fw-bold">
-    <i class="fa fa-credit-card"></i> الدفعات
+<div class="card border-0 shadow-lg mb-4">
+  <div class="card-header" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+    <div class="d-flex justify-content-between align-items-center">
+      <h5 class="mb-0"><i class="fas fa-credit-card"></i> الدفعات</h5>
+      {% set payments_total = (service.payments | map(attribute='amount') | sum) or 0 %}
+      <span class="badge bg-light text-success fs-6">{{ '%.2f'|format(payments_total) }} ₪</span>
+    </div>
   </div>
   <div class="card-body p-0">
     {% if service.payments %}
-    <table class="table table-sm table-striped mb-0 align-middle">
-      <thead class="table-light">
-        <tr>
-          <th>تاريخ الدفع</th>
-          <th>المبلغ</th>
-          <th>العملة</th>
-          <th>الطريقة</th>
-          <th>الحالة</th>
-          <th>ملاحظات</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for pay in service.payments %}
-          {% set method = (pay.method.value if pay.method is not string and pay.method is not none else pay.method) or '—' %}
-          {% set status = (pay.status.value if pay.status is not string and pay.status is not none else pay.status) or '—' %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
           <tr>
-            <td>{{ pay.payment_date and pay.payment_date.strftime("%Y-%m-%d") or '—' }}</td>
-            <td>{{ '%.2f'|format(pay.amount or 0) }}</td>
-            <td>{{ pay.currency or '₪' }}</td>
-            <td>{{ method }}</td>
-            <td>
-              <span class="badge {% if status == 'COMPLETED' %}bg-success{% elif status == 'PENDING' %}bg-warning{% else %}bg-secondary{% endif %}">
-                {{ status }}
-              </span>
-            </td>
-            <td>{{ pay.notes or '—' }}</td>
+            <th><i class="fas fa-calendar"></i> تاريخ الدفع</th>
+            <th><i class="fas fa-dollar-sign"></i> المبلغ</th>
+            <th><i class="fas fa-coins"></i> العملة</th>
+            <th><i class="fas fa-credit-card"></i> الطريقة</th>
+            <th><i class="fas fa-check-circle"></i> الحالة</th>
+            <th><i class="fas fa-sticky-note"></i> ملاحظات</th>
           </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {% for pay in service.payments %}
+            {% set method = (pay.method.value if pay.method is not string and pay.method is not none else pay.method) or '—' %}
+            {% set status = (pay.status.value if pay.status is not string and pay.status is not none else pay.status) or '—' %}
+            <tr>
+              <td>
+                <strong>{{ pay.payment_date and pay.payment_date.strftime("%Y-%m-%d") or '—' }}</strong>
+                {% if pay.payment_date %}
+                <br><small class="text-muted">{{ pay.payment_date.strftime("%H:%M") }}</small>
+                {% endif %}
+              </td>
+              <td class="text-end">
+                <strong class="text-success">{{ '%.2f'|format(pay.amount or 0) }} {{ pay.currency or '₪' }}</strong>
+              </td>
+              <td class="text-center">
+                <span class="badge bg-info">{{ pay.currency or '₪' }}</span>
+              </td>
+              <td>
+                {% if method == 'CASH' %}
+                <span class="badge bg-success"><i class="fas fa-money-bill"></i> نقدي</span>
+                {% elif method == 'CARD' %}
+                <span class="badge bg-primary"><i class="fas fa-credit-card"></i> بطاقة</span>
+                {% elif method == 'BANK_TRANSFER' %}
+                <span class="badge bg-info"><i class="fas fa-university"></i> تحويل</span>
+                {% else %}
+                <span class="badge bg-secondary">{{ method }}</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if status == 'COMPLETED' %}
+                <span class="badge bg-success"><i class="fas fa-check"></i> مكتمل</span>
+                {% elif status == 'PENDING' %}
+                <span class="badge bg-warning"><i class="fas fa-clock"></i> معلق</span>
+                {% elif status == 'FAILED' %}
+                <span class="badge bg-danger"><i class="fas fa-times"></i> فشل</span>
+                {% else %}
+                <span class="badge bg-secondary">{{ status }}</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if pay.notes %}
+                <span class="text-muted">{{ pay.notes }}</span>
+                {% else %}
+                <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot class="table-light">
+          <tr>
+            <th colspan="5" class="text-end">
+              <i class="fas fa-calculator"></i> إجمالي الدفعات
+            </th>
+            <th class="text-end">
+              <strong class="text-success fs-5">{{ '%.2f'|format(payments_total) }} ₪</strong>
+            </th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
     {% else %}
-    <div class="p-3 text-center text-muted">لا توجد دفعات مسجلة لهذا الطلب</div>
+    <div class="text-center p-4">
+      <i class="fas fa-credit-card fa-3x text-muted mb-3"></i>
+      <h5 class="text-muted">لا توجد دفعات مسجلة</h5>
+      <p class="text-muted">لم يتم تسجيل أي دفعات لهذا الطلب بعد</p>
+    </div>
     {% endif %}
   </div>
 </div>

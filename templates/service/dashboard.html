@@ -18,54 +18,78 @@
     {% if key == 'COMPLETED' %}{% set s.completed = cnt %}{% endif %}
   {% endfor %}
 
-  <!-- كروت سريعة -->
+  <!-- كروت سريعة محسنة -->
   <div class="row g-3 mb-4">
     <div class="col-md-3">
-      <div class="card text-center">
-        <div class="card-body">
-          <div class="h6 text-muted mb-1">إجمالي الطلبات</div>
-          <div class="display-6">{{ s.total }}</div>
+      <div class="card border-0 shadow-lg text-center" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <div class="card-body text-white">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <i class="fas fa-tools fa-2x opacity-75"></i>
+            <span class="badge bg-light text-primary fs-6">{{ s.total }}</span>
+          </div>
+          <h5 class="fw-bold">إجمالي الطلبات</h5>
+          <p class="mb-0 opacity-75">جميع طلبات الصيانة</p>
         </div>
       </div>
     </div>
     <div class="col-md-3">
-      <div class="card text-center">
-        <div class="card-body">
-          <div class="h6 text-muted mb-1">قيد التنفيذ</div>
-          <div class="display-6">{{ s.in_progress }}</div>
+      <div class="card border-0 shadow-lg text-center" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+        <div class="card-body text-white">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <i class="fas fa-cog fa-2x opacity-75"></i>
+            <span class="badge bg-light text-danger fs-6">{{ s.in_progress }}</span>
+          </div>
+          <h5 class="fw-bold">قيد التنفيذ</h5>
+          <p class="mb-0 opacity-75">طلبات جارية</p>
         </div>
       </div>
     </div>
     <div class="col-md-3">
-      <div class="card text-center">
-        <div class="card-body">
-          <div class="h6 text-muted mb-1">مكتمل هذا الشهر</div>
-          <div class="display-6">{{ completed_this_month }}</div>
+      <div class="card border-0 shadow-lg text-center" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+        <div class="card-body text-white">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <i class="fas fa-check-circle fa-2x opacity-75"></i>
+            <span class="badge bg-light text-success fs-6">{{ completed_this_month }}</span>
+          </div>
+          <h5 class="fw-bold">مكتمل هذا الشهر</h5>
+          <p class="mb-0 opacity-75">طلبات مكتملة</p>
         </div>
       </div>
     </div>
     <div class="col-md-3">
-      <div class="card text-center">
-        <div class="card-body">
-          <div class="h6 text-muted mb-1">معلّق</div>
-          <div class="display-6">{{ s.pending }}</div>
+      <div class="card border-0 shadow-lg text-center" style="background: linear-gradient(135deg, #f12711 0%, #f5af19 100%);">
+        <div class="card-body text-white">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <i class="fas fa-clock fa-2x opacity-75"></i>
+            <span class="badge bg-light text-warning fs-6">{{ s.pending }}</span>
+          </div>
+          <h5 class="fw-bold">معلّق</h5>
+          <p class="mb-0 opacity-75">في انتظار المعالجة</p>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- رسوم بيانية -->
+  <!-- رسوم بيانية محسنة -->
   <div class="row g-3 mb-4">
     <div class="col-md-6">
-      <div class="card">
-        <div class="card-header">توزيع الحالات</div>
-        <div class="card-body"><canvas id="statusChart" height="140"></canvas></div>
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-gradient-primary text-white">
+          <h5 class="mb-0"><i class="fas fa-chart-pie"></i> توزيع الحالات</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="statusChart" height="200"></canvas>
+        </div>
       </div>
     </div>
     <div class="col-md-6">
-      <div class="card">
-        <div class="card-header">توزيع الأولويات</div>
-        <div class="card-body"><canvas id="priorityChart" height="140"></canvas></div>
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-gradient-info text-white">
+          <h5 class="mb-0"><i class="fas fa-chart-bar"></i> توزيع الأولويات</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="priorityChart" height="200"></canvas>
+        </div>
       </div>
     </div>
   </div>

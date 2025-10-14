@@ -36,18 +36,21 @@
   } %}
 
   {% if current_user.has_permission('manage_service') %}
-  <div class="card card-outline card-primary mb-3">
-    <div class="card-body d-flex flex-wrap gap-2 toolbar">
-      <a href="{{ url_for('service.create_request') }}" class="btn btn-success">
-        <i class="fas fa-plus-circle"></i> إضافة طلب صيانة جديد
-      </a>
-      <button id="bulkArchive" class="btn btn-secondary" disabled title="قادم">
-        <i class="fas fa-archive"></i> أرشفة جماعي
-      </button>
-      <div class="ms-auto d-flex flex-wrap gap-2">
-        <button id="exportCsv" class="btn btn-outline-primary">
-          <i class="fas fa-file-csv"></i> تصدير CSV
-        </button>
+  <div class="card border-0 shadow-lg mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+    <div class="card-body text-white">
+      <div class="d-flex flex-wrap gap-3 align-items-center">
+        <div class="d-flex gap-2">
+          <a href="{{ url_for('service.create_request') }}" class="btn btn-light fw-bold">
+            <i class="fas fa-plus-circle"></i> إضافة طلب صيانة جديد
+          </a>
+          <button id="bulkArchive" class="btn btn-outline-light" disabled title="قادم">
+            <i class="fas fa-archive"></i> أرشفة جماعي
+          </button>
+        </div>
+        <div class="ms-auto d-flex gap-2">
+          <button id="exportCsv" class="btn btn-outline-light">
+            <i class="fas fa-file-csv"></i> تصدير CSV
+          </button>
       </div>
     </div>
   </div>
@@ -255,6 +258,15 @@
                 <a href="{{ url_for('service.view_receipt', rid=s.id) }}" class="btn btn-outline-secondary btn-sm" target="_blank">
                   <i class="fas fa-print"></i> إيصال
                 </a>
+                {% if s.is_archived %}
+                <button type="button" class="btn btn-success btn-sm" title="استعادة" onclick="console.log('🔘 [TEMPLATE] تم النقر على زر استعادة طلب الصيانة رقم: {{ s.id }}'); restoreService({{ s.id }})">
+                  <i class="fas fa-undo"></i> استعادة
+                </button>
+                {% else %}
+                <button type="button" class="btn btn-warning btn-sm" title="أرشفة" onclick="console.log('🔘 [TEMPLATE] تم النقر على زر أرشفة طلب الصيانة رقم: {{ s.id }}'); archiveService({{ s.id }})">
+                  <i class="fas fa-archive"></i> أرشفة
+                </button>
+                {% endif %}
                 {% if current_user.has_permission('manage_service') %}
                 <a href="{{ url_for('hard_delete_bp.hard_delete_service', service_id=s.id) }}" class="btn btn-danger btn-sm" title="حذف قوي">
                   <i class="fas fa-trash-alt"></i>
@@ -317,4 +329,8 @@
   <!-- DataTables معطّل لأن لدينا Pagination server-side -->
   <!-- <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script> -->
   <script src="{{ url_for('static', filename='js/service.js') }}"></script>
+  <script>
+    // وظائف الأرشفة متوفرة الآن في archive.js
+    console.log('📋 تم تحميل صفحة طلبات الصيانة - وظائف الأرشفة متوفرة');
+  </script>
 {% endblock %}

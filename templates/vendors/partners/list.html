@@ -148,6 +148,15 @@
                    class="btn btn-sm btn-secondary">
                   <i class="fas fa-edit"></i> تعديل
                 </a>
+                {% if p.is_archived %}
+                <button type="button" class="btn btn-sm btn-success" onclick="console.log('🔘 [TEMPLATE] تم النقر على زر استعادة الشريك رقم: {{ p.id }}'); restorePartner({{ p.id }})">
+                  <i class="fas fa-undo"></i> استعادة
+                </button>
+                {% else %}
+                <button type="button" class="btn btn-sm btn-warning" onclick="console.log('🔘 [TEMPLATE] تم النقر على زر أرشفة الشريك رقم: {{ p.id }}'); archivePartner({{ p.id }})">
+                  <i class="fas fa-archive"></i> أرشفة
+                </button>
+                {% endif %}
                 <form method="post"
                       action="{{ url_for('vendors_bp.partners_delete', id=p.id) }}"
                       class="d-inline"
@@ -288,5 +297,10 @@
       console.log('تم تحديث مستحق قبض:', totalCreditEl.textContent);
     }
   });
+</script>
+
+<script>
+  // وظائف الأرشفة متوفرة الآن في archive.js
+  console.log('📋 تم تحميل صفحة الشركاء - وظائف الأرشفة متوفرة');
 </script>
 {% endblock %}

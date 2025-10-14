@@ -198,7 +198,7 @@ def _ensure_partner_warehouse(warehouse_id):
 @login_required
 @permission_required("manage_warehouses")
 def list_shipments():
-    q = db.session.query(Shipment).options(
+    q = db.session.query(Shipment).filter(Shipment.is_archived == False).options(
         joinedload(Shipment.items),
         joinedload(Shipment.partners).joinedload(ShipmentPartner.partner),
         joinedload(Shipment.destination_warehouse),

@@ -253,6 +253,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const actions =
         '<div class="btn-group btn-group-sm" role="group">' +
           '<a href="/payments/' + p.id + '" class="btn btn-info">عرض</a>' +
+          '<button type="button" class="btn btn-warning btn-archive" data-id="' + p.id + '" title="أرشفة الدفعة">أرشفة</button>' +
           '<button type="button" class="btn btn-danger btn-del" data-id="' + p.id + '">حذف عادي</button>' +
           '<a href="/hard-delete/payment/' + p.id + '" class="btn btn-outline-danger" title="حذف قوي" onclick="return confirm(\'حذف قوي - سيتم حذف جميع البيانات المرتبطة!\')">حذف قوي</a>' +
         '</div>';
@@ -289,6 +290,7 @@ document.addEventListener('DOMContentLoaded', function() {
     t.innerHTML = '<td></td><td class="text-end fw-bold">إجمالي الصفحة</td><td class="fw-bold">' + fmtAmount(pageSum) + '</td><td></td><td class="fw-bold text-primary">' + fmtAmount(pageSumILS) + ' ₪</td><td colspan="5"></td>';
     tbody.appendChild(t);
   }
+  // Event listener لحذف الدفعات
   document.addEventListener('click', async function (e) {
     const btn = e.target.closest('.btn-del');
     if (!btn) return;
@@ -310,6 +312,43 @@ document.addEventListener('DOMContentLoaded', function() {
         loadPayments();
       } else {
         alert('تعذر الحذف: ' + (j.message || 'خطأ غير معروف'));
+      }
+    } catch (err) {
+      alert('خطأ في الاتصال بالخادم.');
+    }
+  });
+
+  // Event listener لأرشفة الدفعات
+  document.addEventListener('click', async function (e) {
+    const btn = e.target.closest('.btn-archive');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    if (!id) return;
+    
+    const reason = prompt('أدخل سبب أرشفة هذه الدفعة:');
+    if (!reason) return;
+    
+    if (!confirm('هل أنت متأكد من أرشفة سند الدفع #' + id + '؟')) return;
+    
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || document.getElementById('csrf_token')?.value || '';
+    try {
+      const r = await fetch('/payments/archive/' + id, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+        },
+        body: new URLSearchParams({ 
+          csrf_token: csrf,
+          reason: reason
+        }).toString()
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok && (j.status === 'success' || j.ok)) {
+        loadPayments();
+        alert('تم أرشفة سند الدفع بنجاح');
+      } else {
+        alert('تعذر الأرشفة: ' + (j.message || 'خطأ غير معروف'));
       }
     } catch (err) {
       alert('خطأ في الاتصال بالخادم.');
@@ -580,3 +619,36 @@ document.addEventListener('change', function(e) {
 });
 
 // تم نقل استدعاء البحث الذكي إلى initializeSmartSearchOnce() في بداية الملف
+
+// معالج أحداث أرشفة الدفعات
+document.addEventListener('click', async function (e) {
+  const btn = e.target.closest('.btn-archive');
+  if (!btn) return;
+  
+  const id = btn.dataset.id;
+  if (!id) return;
+  
+  const reason = prompt('أدخل سبب أرشفة هذه الدفعة:');
+  if (!reason) return;
+  
+  try {
+    const response = await fetch(`/payments/archive/${id}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-CSRFToken': document.getElementById('csrf_token').value
+      },
+      body: `reason=${encodeURIComponent(reason)}`
+    });
+    
+    if (response.ok) {
+      alert('تم أرشفة الدفعة بنجاح');
+      loadPayments(1); // إعادة تحميل الجدول
+    } else {
+      alert('خطأ في أرشفة الدفعة');
+    }
+  } catch (error) {
+    console.error('Error archiving payment:', error);
+    alert('خطأ في أرشفة الدفعة');
+  }
+});

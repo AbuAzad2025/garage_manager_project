@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}البحث في الأرشيفات{% endblock %}
+{% block page_header %}🔍 البحث في الأرشيفات{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+  
+  <!-- نموذج البحث -->
+  <div class="card border-0 shadow-lg mb-4">
+    <div class="card-header bg-gradient-primary text-white">
+      <h5 class="mb-0"><i class="fas fa-search"></i> نموذج البحث المتقدم</h5>
+    </div>
+    <div class="card-body">
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label for="record_type" class="form-label fw-bold">نوع السجل</label>
+            <select name="record_type" id="record_type" class="form-select">
+              <option value="">جميع الأنواع</option>
+              <option value="service_requests">طلبات الصيانة</option>
+              <option value="payments">الدفعات</option>
+              <option value="sales">المبيعات</option>
+              <option value="expenses">النفقات</option>
+              <option value="checks">الشيكات</option>
+            </select>
+          </div>
+          
+          <div class="col-md-4">
+            <label for="date_from" class="form-label fw-bold">من تاريخ</label>
+            <input type="date" name="date_from" id="date_from" class="form-control">
+          </div>
+          
+          <div class="col-md-4">
+            <label for="date_to" class="form-label fw-bold">إلى تاريخ</label>
+            <input type="date" name="date_to" id="date_to" class="form-control">
+          </div>
+          
+          <div class="col-md-12">
+            <label for="search_term" class="form-label fw-bold">كلمة البحث</label>
+            <input type="text" name="search_term" id="search_term" class="form-control" placeholder="ابحث في البيانات أو أسباب الأرشفة">
+          </div>
+          
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary fw-bold">
+              <i class="fas fa-search"></i> بحث
+            </button>
+            <a href="{{ url_for('archive.search') }}" class="btn btn-outline-secondary">
+              <i class="fas fa-undo"></i> إعادة تعيين
+            </a>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- نتائج البحث -->
+  {% if archives %}
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-gradient-success text-white">
+      <h5 class="mb-0"><i class="fas fa-list"></i> نتائج البحث ({{ archives|length }} نتيجة)</h5>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>نوع السجل</th>
+              <th>معرف السجل</th>
+              <th>سبب الأرشفة</th>
+              <th>تاريخ الأرشفة</th>
+              <th>أرشفة بواسطة</th>
+              <th>الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for archive in archives %}
+            <tr>
+              <td>
+                {% if archive.record_type == 'service_requests' %}
+                <span class="badge bg-primary"><i class="fas fa-tools"></i> طلب صيانة</span>
+                {% elif archive.record_type == 'payments' %}
+                <span class="badge bg-success"><i class="fas fa-credit-card"></i> دفعة</span>
+                {% elif archive.record_type == 'sales' %}
+                <span class="badge bg-info"><i class="fas fa-shopping-cart"></i> مبيعة</span>
+                {% elif archive.record_type == 'expenses' %}
+                <span class="badge bg-warning"><i class="fas fa-receipt"></i> نفقة</span>
+                {% elif archive.record_type == 'checks' %}
+                <span class="badge bg-danger"><i class="fas fa-money-check"></i> شيك</span>
+                {% else %}
+                <span class="badge bg-secondary"><i class="fas fa-file"></i> {{ archive.record_type }}</span>
+                {% endif %}
+              </td>
+              <td>
+                <strong>#{{ archive.record_id }}</strong>
+              </td>
+              <td>
+                {% if archive.archive_reason %}
+                <span class="text-muted">{{ archive.archive_reason }}</span>
+                {% else %}
+                <span class="text-muted">بدون سبب</span>
+                {% endif %}
+              </td>
+              <td>
+                <strong>{{ archive.archived_at.strftime('%Y-%m-%d') }}</strong>
+                <br>
+                <small class="text-muted">{{ archive.archived_at.strftime('%H:%M') }}</small>
+              </td>
+              <td>
+                <span class="badge bg-light text-dark">{{ archive.user.username if archive.user else 'غير معروف' }}</span>
+              </td>
+              <td>
+                <div class="btn-group btn-group-sm">
+                  <a href="{{ url_for('archive.view_archive', archive_id=archive.id) }}" class="btn btn-outline-primary" title="عرض">
+                    <i class="fas fa-eye"></i>
+                  </a>
+                  {% if current_user.is_owner %}
+                  <a href="{{ url_for('archive.restore_archive', archive_id=archive.id) }}" class="btn btn-outline-success" title="استعادة">
+                    <i class="fas fa-undo"></i>
+                  </a>
+                  <form method="POST" action="{{ url_for('archive.delete_archive', archive_id=archive.id) }}" class="d-inline" onsubmit="return confirm('هل أنت متأكد من حذف هذا الأرشيف نهائياً؟')">
+                    <button type="submit" class="btn btn-outline-danger" title="حذف نهائي">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% elif request.method == 'POST' %}
+  <div class="alert alert-info border-0 shadow-sm">
+    <i class="fas fa-info-circle"></i>
+    <strong>لا توجد نتائج:</strong> لم يتم العثور على أرشيفات تطابق معايير البحث المحددة.
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+

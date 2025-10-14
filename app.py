@@ -65,6 +65,8 @@ from routes.checks import checks_bp
 from routes.health import health_bp
 from routes.security import security_bp
 from routes.advanced_control import advanced_bp
+from routes.archive import archive_bp
+from routes.archive_routes import archive_routes_bp
 
 
 class MyAnonymousUser(AnonymousUserMixin):
@@ -448,6 +450,8 @@ def create_app(config_object=Config) -> Flask:
         health_bp,
         security_bp,
         advanced_bp,
+        archive_bp,
+        archive_routes_bp,
     ]
     for bp in BLUEPRINTS:
         app.register_blueprint(bp)
@@ -535,6 +539,12 @@ def create_app(config_object=Config) -> Flask:
     @app.context_processor
     def inject_global_flags():
         return {"shop_is_super_admin": is_super()}
+    
+    @app.template_global()
+    def csrf_token():
+        """إرجاع CSRF token للقوالب"""
+        from flask_wtf.csrf import generate_csrf
+        return generate_csrf()
 
     @app.before_request
     def _touch_last_seen():

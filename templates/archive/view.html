@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}عرض الأرشيف{% endblock %}
+{% block page_header %}👁️ عرض الأرشيف #{{ archive.id }}{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+  
+  <!-- معلومات الأرشيف -->
+  <div class="card border-0 shadow-lg mb-4">
+    <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+      <div class="d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-archive"></i> معلومات الأرشيف</h5>
+        <span class="badge bg-light text-primary fs-6">#{{ archive.id }}</span>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6">
+          <table class="table table-borderless">
+            <tr>
+              <th>نوع السجل:</th>
+              <td>
+                {% if archive.record_type == 'service_requests' %}
+                <span class="badge bg-primary"><i class="fas fa-tools"></i> طلب صيانة</span>
+                {% elif archive.record_type == 'payments' %}
+                <span class="badge bg-success"><i class="fas fa-credit-card"></i> دفعة</span>
+                {% elif archive.record_type == 'sales' %}
+                <span class="badge bg-info"><i class="fas fa-shopping-cart"></i> مبيعة</span>
+                {% elif archive.record_type == 'expenses' %}
+                <span class="badge bg-warning"><i class="fas fa-receipt"></i> نفقة</span>
+                {% elif archive.record_type == 'checks' %}
+                <span class="badge bg-danger"><i class="fas fa-money-check"></i> شيك</span>
+                {% else %}
+                <span class="badge bg-secondary">{{ archive.record_type }}</span>
+                {% endif %}
+              </td>
+            </tr>
+            <tr>
+              <th>معرف السجل:</th>
+              <td><strong>#{{ archive.record_id }}</strong></td>
+            </tr>
+            <tr>
+              <th>اسم الجدول:</th>
+              <td><code>{{ archive.table_name }}</code></td>
+            </tr>
+            <tr>
+              <th>سبب الأرشفة:</th>
+              <td>{{ archive.archive_reason or 'بدون سبب' }}</td>
+            </tr>
+          </table>
+        </div>
+        <div class="col-md-6">
+          <table class="table table-borderless">
+            <tr>
+              <th>أرشفة بواسطة:</th>
+              <td>{{ archive.user.username if archive.user else 'غير معروف' }}</td>
+            </tr>
+            <tr>
+              <th>تاريخ الأرشفة:</th>
+              <td>{{ archive.archived_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+            </tr>
+            <tr>
+              <th>تاريخ الإنشاء الأصلي:</th>
+              <td>{{ archive.original_created_at.strftime('%Y-%m-%d %H:%M:%S') if archive.original_created_at else 'غير محدد' }}</td>
+            </tr>
+            <tr>
+              <th>تاريخ التحديث الأخير:</th>
+              <td>{{ archive.original_updated_at.strftime('%Y-%m-%d %H:%M:%S') if archive.original_updated_at else 'غير محدد' }}</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- البيانات المؤرشفة -->
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-gradient-info text-white">
+      <h5 class="mb-0"><i class="fas fa-database"></i> البيانات المؤرشفة</h5>
+    </div>
+    <div class="card-body">
+      {% if archived_data %}
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead class="table-light">
+            <tr>
+              <th>الحقل</th>
+              <th>القيمة</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for key, value in archived_data.items() %}
+            <tr>
+              <td><strong>{{ key }}</strong></td>
+              <td>
+                {% if value is none %}
+                <span class="text-muted">NULL</span>
+                {% elif value is string and value.startswith('20') and value|length == 19 %}
+                <span class="text-info">{{ value }}</span>
+                {% elif value is number %}
+                <span class="text-success">{{ value }}</span>
+                {% else %}
+                <span>{{ value }}</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center p-4">
+        <i class="fas fa-database fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">لا توجد بيانات</h5>
+        <p class="text-muted">لم يتم العثور على بيانات مؤرشفة</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- الإجراءات -->
+  <div class="row g-3 mt-4">
+    <div class="col-md-4">
+      <div class="d-grid">
+        <a href="{{ url_for('archive.index') }}" class="btn btn-outline-primary fw-bold">
+          <i class="fas fa-arrow-left"></i> العودة للأرشيفات
+        </a>
+      </div>
+    </div>
+    
+    {% if current_user.is_owner %}
+    <div class="col-md-4">
+      <div class="d-grid">
+        <a href="{{ url_for('archive.restore_archive', archive_id=archive.id) }}" class="btn btn-success fw-bold">
+          <i class="fas fa-undo"></i> استعادة السجل
+        </a>
+      </div>
+    </div>
+    
+    <div class="col-md-4">
+      <div class="d-grid">
+        <form method="POST" action="{{ url_for('archive.delete_archive', archive_id=archive.id) }}" onsubmit="return confirm('هل أنت متأكد من حذف هذا الأرشيف نهائياً؟')">
+          <button type="submit" class="btn btn-danger fw-bold w-100">
+            <i class="fas fa-trash"></i> حذف نهائي
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+

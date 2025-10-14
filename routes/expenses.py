@@ -79,7 +79,7 @@ def _int_arg(name):
 
 def _base_query_with_filters():
     q = (
-        Expense.query.options(
+        Expense.query.filter(Expense.is_archived == False).options(
             joinedload(Expense.type),
             joinedload(Expense.employee),
             joinedload(Expense.shipment),
@@ -449,7 +449,7 @@ def add():
                 db.session.commit()
             
             flash("✅ تمت إضافة المصروف", "success")
-            return redirect(url_for("expenses_bp.list_expenses"))
+            return redirect(url_for("expenses_bp.index"))
         except SQLAlchemyError as err:
             db.session.rollback()
             flash(f"❌ خطأ في إضافة المصروف: {err}", "danger")
@@ -476,7 +476,7 @@ def edit(exp_id):
         try:
             db.session.commit()
             flash("✅ تم تعديل المصروف", "success")
-            return redirect(url_for("expenses_bp.list_expenses"))
+            return redirect(url_for("expenses_bp.index"))
         except SQLAlchemyError as err:
             db.session.rollback()
             flash(f"❌ خطأ في تعديل المصروف: {err}", "danger")
@@ -494,7 +494,7 @@ def delete(exp_id):
     except SQLAlchemyError as err:
         db.session.rollback()
         flash(f"❌ خطأ في حذف المصروف: {err}", "danger")
-    return redirect(url_for("expenses_bp.list_expenses"))
+    return redirect(url_for("expenses_bp.index"))
 
 @expenses_bp.route("/<int:exp_id>/pay", methods=["GET"], endpoint="pay")
 @login_required
@@ -634,7 +634,7 @@ def quick_add():
         db.session.add(exp)
         db.session.commit()
         flash("✅ تمت إضافة المصروف السريع", "success")
-        return redirect(url_for('expenses_bp.list_expenses'))
+        return redirect(url_for('expenses_bp.index'))
     return render_template('expenses/quick_add.html', form=form)
 
 @expenses_bp.route("/print", methods=["GET"], endpoint="print_list")
@@ -657,3 +657,105 @@ def print_list():
         total_balance=total_balance,
         generated_at=datetime.utcnow(),
     )
+
+@expenses_bp.route("/archive/<int:expense_id>", methods=["POST"])
+@login_required
+@permission_required("manage_expenses")
+def archive_expense(expense_id):
+    """أرشفة نفقة"""
+    print(f"🔍 [EXPENSE ARCHIVE] بدء أرشفة النفقة رقم: {expense_id}")
+    print(f"🔍 [EXPENSE ARCHIVE] المستخدم: {current_user.username if current_user else 'غير معروف'}")
+    print(f"🔍 [EXPENSE ARCHIVE] البيانات المرسلة: {dict(request.form)}")
+    
+    try:
+        from models import Archive
+        
+        expense = Expense.query.get_or_404(expense_id)
+        print(f"✅ [EXPENSE ARCHIVE] تم العثور على النفقة: {expense.id}")
+        
+        reason = request.form.get('reason', 'أرشفة تلقائية')
+        print(f"📝 [EXPENSE ARCHIVE] سبب الأرشفة: {reason}")
+        
+        # أرشفة النفقة
+        print(f"📦 [EXPENSE ARCHIVE] بدء إنشاء الأرشيف...")
+        archive = Archive.archive_record(
+            record=expense,
+            reason=reason,
+            user_id=current_user.id
+        )
+        print(f"✅ [EXPENSE ARCHIVE] تم إنشاء الأرشيف بنجاح: {archive.id}")
+        
+        # حذف النفقة الأصلية بعد إنشاء الأرشيف
+        print(f"📝 [EXPENSE ARCHIVE] بدء تحديث حالة النفقة إلى مؤرشف...")
+        expense.is_archived = True
+        expense.archived_at = datetime.utcnow()
+        expense.archived_by = current_user.id
+        expense.archive_reason = reason
+        db.session.commit()
+        print(f"✅ [EXPENSE ARCHIVE] تم تحديث حالة النفقة إلى مؤرشف بنجاح")
+        
+        flash(f'تم أرشفة النفقة رقم {expense.id} بنجاح', 'success')
+        print(f"🎉 [EXPENSE ARCHIVE] تمت العملية بنجاح - إعادة توجيه...")
+        return redirect(url_for('expenses_bp.index'))
+        
+    except Exception as e:
+        print(f"❌ [EXPENSE ARCHIVE] خطأ في أرشفة النفقة: {str(e)}")
+        print(f"❌ [EXPENSE ARCHIVE] نوع الخطأ: {type(e).__name__}")
+        import traceback
+        print(f"❌ [EXPENSE ARCHIVE] تفاصيل الخطأ: {traceback.format_exc()}")
+        
+        db.session.rollback()
+        flash(f'خطأ في أرشفة النفقة: {str(e)}', 'error')
+        return redirect(url_for('expenses_bp.index'))
+
+@expenses_bp.route('/restore/<int:expense_id>', methods=['POST'])
+@login_required
+@permission_required('manage_expenses')
+def restore_expense(expense_id):
+    """استعادة نفقة"""
+    print(f"🔍 [EXPENSE RESTORE] بدء استعادة النفقة رقم: {expense_id}")
+    print(f"🔍 [EXPENSE RESTORE] المستخدم: {current_user.username if current_user else 'غير معروف'}")
+    
+    try:
+        expense = Expense.query.get_or_404(expense_id)
+        print(f"✅ [EXPENSE RESTORE] تم العثور على النفقة: {expense.id}")
+        
+        if not expense.is_archived:
+            flash('النفقة غير مؤرشفة', 'warning')
+            return redirect(url_for('expenses_bp.index'))
+        
+        # البحث عن الأرشيف
+        from models import Archive
+        archive = Archive.query.filter_by(
+            record_type='expenses',
+            record_id=expense_id
+        ).first()
+        
+        if archive:
+            print(f"✅ [EXPENSE RESTORE] تم العثور على الأرشيف: {archive.id}")
+            # حذف الأرشيف
+            db.session.delete(archive)
+            print(f"🗑️ [EXPENSE RESTORE] تم حذف الأرشيف")
+        
+        # استعادة النفقة
+        print(f"📝 [EXPENSE RESTORE] بدء استعادة النفقة...")
+        expense.is_archived = False
+        expense.archived_at = None
+        expense.archived_by = None
+        expense.archive_reason = None
+        db.session.commit()
+        print(f"✅ [EXPENSE RESTORE] تم استعادة النفقة بنجاح")
+        
+        flash(f'تم استعادة النفقة رقم {expense_id} بنجاح', 'success')
+        print(f"🎉 [EXPENSE RESTORE] تمت العملية بنجاح - إعادة توجيه...")
+        return redirect(url_for('expenses_bp.index'))
+        
+    except Exception as e:
+        print(f"❌ [EXPENSE RESTORE] خطأ في استعادة النفقة: {str(e)}")
+        print(f"❌ [EXPENSE RESTORE] نوع الخطأ: {type(e).__name__}")
+        import traceback
+        print(f"❌ [EXPENSE RESTORE] تفاصيل الخطأ: {traceback.format_exc()}")
+        
+        db.session.rollback()
+        flash(f'خطأ في استعادة النفقة: {str(e)}', 'error')
+        return redirect(url_for('expenses_bp.index'))

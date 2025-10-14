@@ -424,7 +424,7 @@ def index():
         filters.append(or_(Payment.payment_number.ilike(like), Payment.reference.ilike(like), Payment.notes.ilike(like)))
     if reference_like:
         filters.append(Payment.reference.ilike(f"%{reference_like}%"))
-    base_q = Payment.query.filter(*filters)
+    base_q = Payment.query.filter(Payment.is_archived == False).filter(*filters)
     pagination = base_q.order_by(Payment.payment_date.desc(), Payment.id.desc()).paginate(page=page, per_page=per_page, error_out=False)
     
     # حساب الملخصات بالشيكل
@@ -1186,7 +1186,7 @@ def view_payment(payment_id: int):
         if _wants_json():
             return jsonify(error="not_found", message="السند غير موجود"), 404
         flash("السند غير موجود", "error")
-        return redirect(url_for("payments.index"))
+        return redirect(url_for("payments_bp.index"))
     
     if _wants_json():
         return jsonify(payment=_serialize_payment(payment, full=True))
@@ -1892,3 +1892,103 @@ def shop_payment_status(payment_id):
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@payments_bp.route("/archive/<int:payment_id>", methods=["POST"])
+@login_required
+def archive_payment(payment_id):
+    """أرشفة دفعة"""
+    print(f"🔍 [PAYMENT ARCHIVE] بدء أرشفة الدفعة رقم: {payment_id}")
+    print(f"🔍 [PAYMENT ARCHIVE] المستخدم: {current_user.username if current_user else 'غير معروف'}")
+    print(f"🔍 [PAYMENT ARCHIVE] البيانات المرسلة: {dict(request.form)}")
+    
+    try:
+        from models import Archive
+        
+        payment = Payment.query.get_or_404(payment_id)
+        print(f"✅ [PAYMENT ARCHIVE] تم العثور على الدفعة: {payment.id}")
+        
+        reason = request.form.get('reason', 'أرشفة تلقائية')
+        print(f"📝 [PAYMENT ARCHIVE] سبب الأرشفة: {reason}")
+        
+        # أرشفة الدفعة
+        print(f"📦 [PAYMENT ARCHIVE] بدء إنشاء الأرشيف...")
+        archive = Archive.archive_record(
+            record=payment,
+            reason=reason,
+            user_id=current_user.id
+        )
+        print(f"✅ [PAYMENT ARCHIVE] تم إنشاء الأرشيف بنجاح: {archive.id}")
+        
+        # تحديث حالة الدفعة إلى مؤرشف
+        print(f"📝 [PAYMENT ARCHIVE] بدء تحديث حالة الدفعة إلى مؤرشف...")
+        payment.is_archived = True
+        payment.archived_at = datetime.utcnow()
+        payment.archived_by = current_user.id
+        payment.archive_reason = reason
+        db.session.commit()
+        print(f"✅ [PAYMENT ARCHIVE] تم تحديث حالة الدفعة إلى مؤرشف بنجاح")
+        
+        flash(f'تم أرشفة الدفعة رقم {payment.id} بنجاح', 'success')
+        print(f"🎉 [PAYMENT ARCHIVE] تمت العملية بنجاح - إعادة توجيه...")
+        return redirect(url_for('payments_bp.index'))
+        
+    except Exception as e:
+        print(f"❌ [PAYMENT ARCHIVE] خطأ في أرشفة الدفعة: {str(e)}")
+        print(f"❌ [PAYMENT ARCHIVE] نوع الخطأ: {type(e).__name__}")
+        import traceback
+        print(f"❌ [PAYMENT ARCHIVE] تفاصيل الخطأ: {traceback.format_exc()}")
+        
+        db.session.rollback()
+        flash(f'خطأ في أرشفة الدفعة: {str(e)}', 'error')
+        return redirect(url_for('payments_bp.index'))
+
+@payments_bp.route("/restore/<int:payment_id>", methods=["POST"])
+@login_required
+def restore_payment(payment_id):
+    """استعادة دفعة"""
+    print(f"🔍 [PAYMENT RESTORE] بدء استعادة الدفعة رقم: {payment_id}")
+    print(f"🔍 [PAYMENT RESTORE] المستخدم: {current_user.username if current_user else 'غير معروف'}")
+    
+    try:
+        payment = Payment.query.get_or_404(payment_id)
+        print(f"✅ [PAYMENT RESTORE] تم العثور على الدفعة: {payment.payment_number}")
+        
+        if not payment.is_archived:
+            flash('الدفعة غير مؤرشفة', 'warning')
+            return redirect(url_for('payments_bp.index'))
+        
+        # البحث عن الأرشيف
+        from models import Archive
+        archive = Archive.query.filter_by(
+            record_type='payments',
+            record_id=payment_id
+        ).first()
+        
+        if archive:
+            print(f"✅ [PAYMENT RESTORE] تم العثور على الأرشيف: {archive.id}")
+            # حذف الأرشيف
+            db.session.delete(archive)
+            print(f"🗑️ [PAYMENT RESTORE] تم حذف الأرشيف")
+        
+        # استعادة الدفعة
+        print(f"📝 [PAYMENT RESTORE] بدء استعادة الدفعة...")
+        payment.is_archived = False
+        payment.archived_at = None
+        payment.archived_by = None
+        payment.archive_reason = None
+        db.session.commit()
+        print(f"✅ [PAYMENT RESTORE] تم استعادة الدفعة بنجاح")
+        
+        flash(f'تم استعادة الدفعة رقم {payment_id} بنجاح', 'success')
+        print(f"🎉 [PAYMENT RESTORE] تمت العملية بنجاح - إعادة توجيه...")
+        return redirect(url_for('payments_bp.index'))
+        
+    except Exception as e:
+        print(f"❌ [PAYMENT RESTORE] خطأ في استعادة الدفعة: {str(e)}")
+        print(f"❌ [PAYMENT RESTORE] نوع الخطأ: {type(e).__name__}")
+        import traceback
+        print(f"❌ [PAYMENT RESTORE] تفاصيل الخطأ: {traceback.format_exc()}")
+        
+        db.session.rollback()
+        flash(f'خطأ في استعادة الدفعة: {str(e)}', 'error')
+        return redirect(url_for('payments_bp.index'))

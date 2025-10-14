@@ -162,12 +162,6 @@
             <p>التقارير</p>
           </a>
         </li>
-        <li class="nav-item">
-          <a href="{{ url_for('admin_reports.index') }}" class="nav-link {% if request.blueprint == 'admin_reports' %}active{% endif %}">
-            <i class="nav-icon fas fa-chart-bar"></i>
-            <p>التقارير الإدارية</p>
-          </a>
-        </li>
         {% endif %}
 
         {% if has_any('manage_customers','manage_service','manage_sales','manage_reports') or shop_is_super_admin %}
@@ -205,6 +199,24 @@
         <!-- 🔧 النظام والصيانة -->
         <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
 
+        {% if has_perm('manage_archive') or shop_is_super_admin %}
+        <li class="nav-item">
+          <a href="{{ url_for('archive.index') }}" class="nav-link {% if request.blueprint == 'archive' %}active{% endif %}">
+            <i class="nav-icon fas fa-archive"></i>
+            <p>الأرشيف</p>
+          </a>
+        </li>
+        {% endif %}
+
+        {% if has_perm('manage_archive') or shop_is_super_admin %}
+        <li class="nav-item">
+          <a href="{{ url_for('api.docs') }}" class="nav-link {% if request.blueprint == 'api' %}active{% endif %}">
+            <i class="nav-icon fas fa-code"></i>
+            <p>API Documentation</p>
+          </a>
+        </li>
+        {% endif %}
+
         {% if has_perm('backup_database') or shop_is_super_admin %}
         <li class="nav-item">
           <a href="{{ url_for('main.backup_db') }}" class="nav-link {% if request.endpoint == 'main.backup_db' %}active{% endif %}">
@@ -214,23 +226,7 @@
         </li>
         {% endif %}
 
-        {% if has_perm('restore_database') or shop_is_super_admin %}
-        <li class="nav-item">
-          <a href="{{ url_for('main.restore_db') }}" class="nav-link {% if request.endpoint == 'main.restore_db' %}active{% endif %}">
-            <i class="nav-icon fas fa-upload"></i>
-            <p>استعادة النسخ</p>
-          </a>
-        </li>
-        {% endif %}
 
-        {% if has_perm('manage_system') or shop_is_super_admin %}
-        <li class="nav-item">
-          <a href="{{ url_for('hard_delete_bp.deletion_logs') }}" class="nav-link {% if request.blueprint == 'hard_delete_bp' %}active{% endif %}">
-            <i class="nav-icon fas fa-history"></i>
-            <p>سجل الحذف</p>
-          </a>
-        </li>
-        {% endif %}
 
       </ul>
     </nav>

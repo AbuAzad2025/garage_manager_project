@@ -8,16 +8,19 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 from flask import Blueprint, Response, current_app, jsonify, request, render_template
 from flask_login import current_user, login_required
 from sqlalchemy import func, or_
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError, OperationalError
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql import exists
 from extensions import csrf, db, limiter
+import traceback
+import logging
 from utils import _get_user_permissions, _q, _query_limit, permission_required, search_model, super_only
 from barcodes import validate_barcode
 from forms import EquipmentTypeForm
 
 from models import (
+    Archive,
     Customer,
     Employee,
     EquipmentType,
@@ -51,13 +54,171 @@ from models import (
     StockAdjustment,
 )
 
-bp = Blueprint("api", __name__, url_prefix="/api")
+bp = Blueprint("api", __name__, url_prefix="/api/v1")
+
+# ===== Global Error Handlers =====
+
+@bp.errorhandler(404)
+def api_not_found(error):
+    """404 Error Handler للـ API"""
+    return jsonify({
+        'success': False,
+        'error': 'المورد غير موجود',
+        'code': 404
+    }), 404
+
+@bp.errorhandler(400)
+def api_bad_request(error):
+    """400 Error Handler للـ API"""
+    return jsonify({
+        'success': False,
+        'error': 'طلب غير صحيح',
+        'code': 400
+    }), 400
+
+@bp.errorhandler(401)
+def api_unauthorized(error):
+    """401 Error Handler للـ API"""
+    return jsonify({
+        'success': False,
+        'error': 'غير مصرح لك بالوصول',
+        'code': 401
+    }), 401
+
+@bp.errorhandler(403)
+def api_forbidden(error):
+    """403 Error Handler للـ API"""
+    return jsonify({
+        'success': False,
+        'error': 'غير مصرح لك بهذا الإجراء',
+        'code': 403
+    }), 403
+
+@bp.errorhandler(500)
+def api_internal_error(error):
+    """500 Error Handler للـ API"""
+    logging.error(f"API Internal Error: {str(error)}")
+    logging.error(traceback.format_exc())
+    
+    return jsonify({
+        'success': False,
+        'error': 'خطأ داخلي في الخادم',
+        'code': 500
+    }), 500
+
+@bp.errorhandler(SQLAlchemyError)
+def api_database_error(error):
+    """Database Error Handler للـ API"""
+    logging.error(f"API Database Error: {str(error)}")
+    logging.error(traceback.format_exc())
+    
+    db.session.rollback()
+    
+    return jsonify({
+        'success': False,
+        'error': 'خطأ في قاعدة البيانات',
+        'code': 500
+    }), 500
+
+@bp.errorhandler(IntegrityError)
+def api_integrity_error(error):
+    """Integrity Error Handler للـ API"""
+    logging.error(f"API Integrity Error: {str(error)}")
+    logging.error(traceback.format_exc())
+    
+    db.session.rollback()
+    
+    return jsonify({
+        'success': False,
+        'error': 'انتهاك قيود قاعدة البيانات',
+        'code': 400
+    }), 400
+
+@bp.errorhandler(OperationalError)
+def api_operational_error(error):
+    """Operational Error Handler للـ API"""
+    logging.error(f"API Operational Error: {str(error)}")
+    logging.error(traceback.format_exc())
+    
+    db.session.rollback()
+    
+    return jsonify({
+        'success': False,
+        'error': 'خطأ في تشغيل قاعدة البيانات',
+        'code': 500
+    }), 500
+
+def api_error_response(message, code=400, details=None):
+    """دالة مساعدة لإرجاع استجابة خطأ موحدة"""
+    response = {
+        'success': False,
+        'error': message,
+        'code': code
+    }
+    
+    if details:
+        response['details'] = details
+    
+    return jsonify(response), code
+
+def api_success_response(data=None, message=None, code=200):
+    """دالة مساعدة لإرجاع استجابة نجاح موحدة"""
+    response = {
+        'success': True,
+        'code': code
+    }
+    
+    if data is not None:
+        response['data'] = data
+    
+    if message:
+        response['message'] = message
+    
+    json_response = jsonify(response)
+    json_response.headers['X-API-Version'] = 'v1'
+    json_response.headers['X-Content-Type'] = 'application/json'
+    
+    return json_response, code
 
 @bp.route("/", methods=["GET"], endpoint="index")
 @login_required
 def api_index():
     """صفحة API الرئيسية"""
     return render_template("api/index.html")
+
+@bp.route("/docs", methods=["GET"], endpoint="docs")
+@login_required
+def api_docs():
+    """صفحة توثيق API"""
+    return render_template("api/index.html")
+
+@bp.route("/health", methods=["GET"], endpoint="health")
+def api_health():
+    """فحص صحة API"""
+    try:
+        # فحص قاعدة البيانات
+        db.session.execute("SELECT 1")
+        
+        # فحص عدد السجلات
+        total_customers = Customer.query.count()
+        total_suppliers = Supplier.query.count()
+        total_sales = Sale.query.count()
+        total_payments = Payment.query.count()
+        
+        return api_success_response({
+            'status': 'healthy',
+            'database': 'connected',
+            'timestamp': datetime.utcnow().isoformat(),
+            'stats': {
+                'customers': total_customers,
+                'suppliers': total_suppliers,
+                'sales': total_sales,
+                'payments': total_payments
+            }
+        })
+        
+    except Exception as e:
+        return api_error_response('API غير صحي', 500, {'error': str(e)})
 
 @bp.route("/exchange-rates", methods=["GET"], endpoint="get_exchange_rates")
 def get_current_exchange_rates():
@@ -2745,3 +2906,762 @@ def api_search_users():
             text = f"{text} ({email})"
         results.append({"id": u.id, "text": text})
     return jsonify({"results": results})
+
+# ===== API Endpoints للأرشفة والاستعادة =====
+
+@bp.route("/archive/list", methods=["GET"])
+@login_required
+@permission_required("manage_archive")
+@limiter.limit("100 per minute")
+def api_list_archives():
+    """قائمة الأرشيفات"""
+    logging.info(f"API Archive List - User: {current_user.username if current_user else 'Anonymous'}")
+    try:
+        page = int(request.args.get('page', 1))
+        per_page = min(int(request.args.get('per_page', 20)), 100)
+        record_type = request.args.get('record_type')
+        search = request.args.get('search')
+        
+        query = Archive.query
+        
+        if record_type:
+            query = query.filter(Archive.record_type == record_type)
+        
+        if search:
+            query = query.filter(
+                or_(
+                    Archive.archive_reason.ilike(f'%{search}%'),
+                    Archive.archived_data.ilike(f'%{search}%')
+                )
+            )
+        
+        pagination = query.order_by(Archive.archived_at.desc()).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        
+        archives = []
+        for archive in pagination.items:
+            archives.append({
+                'id': archive.id,
+                'record_type': archive.record_type,
+                'record_id': archive.record_id,
+                'table_name': archive.table_name,
+                'archive_reason': archive.archive_reason,
+                'archived_by': archive.archived_by,
+                'archived_at': archive.archived_at.isoformat() if archive.archived_at else None,
+                'user_name': archive.user.username if archive.user else None
+            })
+        
+        return jsonify({
+            'success': True,
+            'data': archives,
+            'pagination': {
+                'page': pagination.page,
+                'pages': pagination.pages,
+                'per_page': pagination.per_page,
+                'total': pagination.total,
+                'has_next': pagination.has_next,
+                'has_prev': pagination.has_prev
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route("/archive/<int:archive_id>", methods=["GET"])
+@login_required
+@permission_required("manage_archive")
+def api_get_archive(archive_id):
+    """الحصول على تفاصيل الأرشيف"""
+    try:
+        archive = Archive.query.get_or_404(archive_id)
+        
+        return jsonify({
+            'success': True,
+            'data': archive.to_dict()
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route("/archive/<int:archive_id>/restore", methods=["POST"])
+@login_required
+@super_only
+@limiter.limit("10 per minute")
+def api_restore_archive(archive_id):
+    """استعادة الأرشيف عبر API"""
+    try:
+        archive = Archive.query.get_or_404(archive_id)
+        
+        # تحديد الجدول المناسب
+        model_map = {
+            'service_requests': ServiceRequest,
+            'payments': Payment,
+            'sales': Sale,
+            'expenses': Expense,
+            'customers': Customer,
+            'suppliers': Supplier,
+            'partners': Partner
+        }
+        
+        model_class = model_map.get(archive.record_type)
+        if not model_class:
+            return jsonify({'success': False, 'error': 'نوع السجل غير مدعوم للاستعادة'}), 400
+        
+        # البحث عن السجل الأصلي
+        original_record = model_class.query.get(archive.record_id)
+        
+        if original_record:
+            # استعادة السجل
+            original_record.is_archived = False
+            original_record.archived_at = None
+            original_record.archived_by = None
+            original_record.archive_reason = None
+            
+            # حذف الأرشيف
+            db.session.delete(archive)
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'تم استعادة السجل رقم {archive.record_id} بنجاح',
+                'data': {
+                    'record_id': archive.record_id,
+                    'record_type': archive.record_type
+                }
+            })
+        else:
+            return jsonify({'success': False, 'error': 'السجل الأصلي غير موجود'}), 404
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route("/archive/<int:archive_id>", methods=["DELETE"])
+@login_required
+@super_only
+@limiter.limit("5 per minute")
+def api_delete_archive(archive_id):
+    """حذف الأرشيف نهائياً عبر API"""
+    try:
+        archive = Archive.query.get_or_404(archive_id)
+        
+        db.session.delete(archive)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'تم حذف الأرشيف نهائياً'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route("/archive/stats", methods=["GET"])
+@login_required
+@permission_required("manage_archive")
+def api_archive_stats():
+    """إحصائيات الأرشيف"""
+    try:
+        # إحصائيات سريعة
+        total_archives = Archive.query.count()
+        
+        # إحصائيات حسب النوع
+        type_stats = db.session.query(
+            Archive.record_type,
+            func.count(Archive.id).label('count')
+        ).group_by(Archive.record_type).all()
+        
+        # إحصائيات الشهر الحالي
+        current_month = datetime.now().replace(day=1)
+        monthly_archives = Archive.query.filter(
+            Archive.archived_at >= current_month
+        ).count()
+        
+        # آخر الأرشيفات
+        recent_archives = Archive.query.order_by(Archive.archived_at.desc()).limit(5).all()
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'total_archives': total_archives,
+                'monthly_archives': monthly_archives,
+                'type_stats': [{'record_type': stat.record_type, 'count': stat.count} for stat in type_stats],
+                'recent_archives': [archive.to_dict() for archive in recent_archives]
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ===== API Endpoints للأرشفة المباشرة =====
+
+@bp.route("/archive/customer/<int:customer_id>", methods=["POST"])
+@login_required
+@permission_required("manage_customers")
+def api_archive_customer(customer_id):
+    """أرشفة عميل عبر API"""
+    try:
+        customer = Customer.query.get_or_404(customer_id)
+        
+        if customer.is_archived:
+            return jsonify({'success': False, 'error': 'العميل مؤرشف بالفعل'}), 400
+        
+        reason = request.json.get('reason', 'أرشفة عبر API')
+        
+        # أرشفة العميل
+        archive = Archive.archive_record(
+            record=customer,
+            reason=reason,
+            user_id=current_user.id
+        )
+        
+        # تحديث حالة العميل
+        customer.is_archived = True
+        customer.archived_at = datetime.utcnow()
+        customer.archived_by = current_user.id
+        customer.archive_reason = reason
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم أرشفة العميل {customer.name} بنجاح',
+            'data': {
+                'customer_id': customer.id,
+                'archive_id': archive.id
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route("/archive/supplier/<int:supplier_id>", methods=["POST"])
+@login_required
+@permission_required("manage_vendors")
+def api_archive_supplier(supplier_id):
+    """أرشفة مورد عبر API"""
+    try:
+        supplier = Supplier.query.get_or_404(supplier_id)
+        
+        if supplier.is_archived:
+            return jsonify({'success': False, 'error': 'المورد مؤرشف بالفعل'}), 400
+        
+        reason = request.json.get('reason', 'أرشفة عبر API')
+        
+        # أرشفة المورد
+        archive = Archive.archive_record(
+            record=supplier,
+            reason=reason,
+            user_id=current_user.id
+        )
+        
+        # تحديث حالة المورد
+        supplier.is_archived = True
+        supplier.archived_at = datetime.utcnow()
+        supplier.archived_by = current_user.id
+        supplier.archive_reason = reason
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم أرشفة المورد {supplier.name} بنجاح',
+            'data': {
+                'supplier_id': supplier.id,
+                'archive_id': archive.id
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route("/archive/partner/<int:partner_id>", methods=["POST"])
+@login_required
+@permission_required("manage_vendors")
+def api_archive_partner(partner_id):
+    """أرشفة شريك عبر API"""
+    try:
+        partner = Partner.query.get_or_404(partner_id)
+        
+        if partner.is_archived:
+            return jsonify({'success': False, 'error': 'الشريك مؤرشف بالفعل'}), 400
+        
+        reason = request.json.get('reason', 'أرشفة عبر API')
+        
+        # أرشفة الشريك
+        archive = Archive.archive_record(
+            record=partner,
+            reason=reason,
+            user_id=current_user.id
+        )
+        
+        # تحديث حالة الشريك
+        partner.is_archived = True
+        partner.archived_at = datetime.utcnow()
+        partner.archived_by = current_user.id
+        partner.archive_reason = reason
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم أرشفة الشريك {partner.name} بنجاح',
+            'data': {
+                'partner_id': partner.id,
+                'archive_id': archive.id
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route("/archive/sale/<int:sale_id>", methods=["POST"])
+@login_required
+@permission_required("manage_sales")
+def api_archive_sale(sale_id):
+    """أرشفة مبيعة عبر API"""
+    try:
+        sale = Sale.query.get_or_404(sale_id)
+        
+        if sale.is_archived:
+            return jsonify({'success': False, 'error': 'المبيعة مؤرشفة بالفعل'}), 400
+        
+        reason = request.json.get('reason', 'أرشفة عبر API')
+        
+        # أرشفة المبيعة
+        archive = Archive.archive_record(
+            record=sale,
+            reason=reason,
+            user_id=current_user.id
+        )
+        
+        # تحديث حالة المبيعة
+        sale.is_archived = True
+        sale.archived_at = datetime.utcnow()
+        sale.archived_by = current_user.id
+        sale.archive_reason = reason
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم أرشفة المبيعة رقم {sale_id} بنجاح',
+            'data': {
+                'sale_id': sale.id,
+                'archive_id': archive.id
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route("/archive/expense/<int:expense_id>", methods=["POST"])
+@login_required
+@permission_required("manage_expenses")
+def api_archive_expense(expense_id):
+    """أرشفة نفقة عبر API"""
+    try:
+        expense = Expense.query.get_or_404(expense_id)
+        
+        if expense.is_archived:
+            return jsonify({'success': False, 'error': 'النفقة مؤرشفة بالفعل'}), 400
+        
+        reason = request.json.get('reason', 'أرشفة عبر API')
+        
+        # أرشفة النفقة
+        archive = Archive.archive_record(
+            record=expense,
+            reason=reason,
+            user_id=current_user.id
+        )
+        
+        # تحديث حالة النفقة
+        expense.is_archived = True
+        expense.archived_at = datetime.utcnow()
+        expense.archived_by = current_user.id
+        expense.archive_reason = reason
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم أرشفة النفقة رقم {expense_id} بنجاح',
+            'data': {
+                'expense_id': expense.id,
+                'archive_id': archive.id
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route("/archive/service/<int:service_id>", methods=["POST"])
+@login_required
+@permission_required("manage_service")
+def api_archive_service(service_id):
+    """أرشفة طلب صيانة عبر API"""
+    try:
+        service = ServiceRequest.query.get_or_404(service_id)
+        
+        if service.is_archived:
+            return jsonify({'success': False, 'error': 'طلب الصيانة مؤرشف بالفعل'}), 400
+        
+        reason = request.json.get('reason', 'أرشفة عبر API')
+        
+        # أرشفة طلب الصيانة
+        archive = Archive.archive_record(
+            record=service,
+            reason=reason,
+            user_id=current_user.id
+        )
+        
+        # تحديث حالة طلب الصيانة
+        service.is_archived = True
+        service.archived_at = datetime.utcnow()
+        service.archived_by = current_user.id
+        service.archive_reason = reason
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم أرشفة طلب الصيانة رقم {service_id} بنجاح',
+            'data': {
+                'service_id': service.id,
+                'archive_id': archive.id
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route("/archive/payment/<int:payment_id>", methods=["POST"])
+@login_required
+@permission_required("manage_payments")
+def api_archive_payment(payment_id):
+    """أرشفة دفعة عبر API"""
+    try:
+        payment = Payment.query.get_or_404(payment_id)
+        
+        if payment.is_archived:
+            return jsonify({'success': False, 'error': 'الدفعة مؤرشفة بالفعل'}), 400
+        
+        reason = request.json.get('reason', 'أرشفة عبر API')
+        
+        # أرشفة الدفعة
+        archive = Archive.archive_record(
+            record=payment,
+            reason=reason,
+            user_id=current_user.id
+        )
+        
+        # تحديث حالة الدفعة
+        payment.is_archived = True
+        payment.archived_at = datetime.utcnow()
+        payment.archived_by = current_user.id
+        payment.archive_reason = reason
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم أرشفة الدفعة رقم {payment_id} بنجاح',
+            'data': {
+                'payment_id': payment.id,
+                'archive_id': archive.id
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ===== API Endpoints للاستعادة المباشرة =====
+
+@bp.route("/restore/customer/<int:customer_id>", methods=["POST"])
+@login_required
+@permission_required("manage_customers")
+def api_restore_customer(customer_id):
+    """استعادة عميل عبر API"""
+    try:
+        customer = Customer.query.get_or_404(customer_id)
+        
+        if not customer.is_archived:
+            return jsonify({'success': False, 'error': 'العميل غير مؤرشف'}), 400
+        
+        # البحث عن الأرشيف
+        archive = Archive.query.filter_by(
+            record_type='customers',
+            record_id=customer_id
+        ).first()
+        
+        if archive:
+            db.session.delete(archive)
+        
+        # استعادة العميل
+        customer.is_archived = False
+        customer.archived_at = None
+        customer.archived_by = None
+        customer.archive_reason = None
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم استعادة العميل {customer.name} بنجاح',
+            'data': {
+                'customer_id': customer.id
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route("/restore/supplier/<int:supplier_id>", methods=["POST"])
+@login_required
+@permission_required("manage_vendors")
+def api_restore_supplier(supplier_id):
+    """استعادة مورد عبر API"""
+    try:
+        supplier = Supplier.query.get_or_404(supplier_id)
+        
+        if not supplier.is_archived:
+            return jsonify({'success': False, 'error': 'المورد غير مؤرشف'}), 400
+        
+        # البحث عن الأرشيف
+        archive = Archive.query.filter_by(
+            record_type='suppliers',
+            record_id=supplier_id
+        ).first()
+        
+        if archive:
+            db.session.delete(archive)
+        
+        # استعادة المورد
+        supplier.is_archived = False
+        supplier.archived_at = None
+        supplier.archived_by = None
+        supplier.archive_reason = None
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم استعادة المورد {supplier.name} بنجاح',
+            'data': {
+                'supplier_id': supplier.id
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route("/restore/partner/<int:partner_id>", methods=["POST"])
+@login_required
+@permission_required("manage_vendors")
+def api_restore_partner(partner_id):
+    """استعادة شريك عبر API"""
+    try:
+        partner = Partner.query.get_or_404(partner_id)
+        
+        if not partner.is_archived:
+            return jsonify({'success': False, 'error': 'الشريك غير مؤرشف'}), 400
+        
+        # البحث عن الأرشيف
+        archive = Archive.query.filter_by(
+            record_type='partners',
+            record_id=partner_id
+        ).first()
+        
+        if archive:
+            db.session.delete(archive)
+        
+        # استعادة الشريك
+        partner.is_archived = False
+        partner.archived_at = None
+        partner.archived_by = None
+        partner.archive_reason = None
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم استعادة الشريك {partner.name} بنجاح',
+            'data': {
+                'partner_id': partner.id
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route("/restore/sale/<int:sale_id>", methods=["POST"])
+@login_required
+@permission_required("manage_sales")
+def api_restore_sale(sale_id):
+    """استعادة مبيعة عبر API"""
+    try:
+        sale = Sale.query.get_or_404(sale_id)
+        
+        if not sale.is_archived:
+            return jsonify({'success': False, 'error': 'المبيعة غير مؤرشفة'}), 400
+        
+        # البحث عن الأرشيف
+        archive = Archive.query.filter_by(
+            record_type='sales',
+            record_id=sale_id
+        ).first()
+        
+        if archive:
+            db.session.delete(archive)
+        
+        # استعادة المبيعة
+        sale.is_archived = False
+        sale.archived_at = None
+        sale.archived_by = None
+        sale.archive_reason = None
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم استعادة المبيعة رقم {sale_id} بنجاح',
+            'data': {
+                'sale_id': sale.id
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route("/restore/expense/<int:expense_id>", methods=["POST"])
+@login_required
+@permission_required("manage_expenses")
+def api_restore_expense(expense_id):
+    """استعادة نفقة عبر API"""
+    try:
+        expense = Expense.query.get_or_404(expense_id)
+        
+        if not expense.is_archived:
+            return jsonify({'success': False, 'error': 'النفقة غير مؤرشفة'}), 400
+        
+        # البحث عن الأرشيف
+        archive = Archive.query.filter_by(
+            record_type='expenses',
+            record_id=expense_id
+        ).first()
+        
+        if archive:
+            db.session.delete(archive)
+        
+        # استعادة النفقة
+        expense.is_archived = False
+        expense.archived_at = None
+        expense.archived_by = None
+        expense.archive_reason = None
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم استعادة النفقة رقم {expense_id} بنجاح',
+            'data': {
+                'expense_id': expense.id
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route("/restore/service/<int:service_id>", methods=["POST"])
+@login_required
+@permission_required("manage_service")
+def api_restore_service(service_id):
+    """استعادة طلب صيانة عبر API"""
+    try:
+        service = ServiceRequest.query.get_or_404(service_id)
+        
+        if not service.is_archived:
+            return jsonify({'success': False, 'error': 'طلب الصيانة غير مؤرشف'}), 400
+        
+        # البحث عن الأرشيف
+        archive = Archive.query.filter_by(
+            record_type='service_requests',
+            record_id=service_id
+        ).first()
+        
+        if archive:
+            db.session.delete(archive)
+        
+        # استعادة طلب الصيانة
+        service.is_archived = False
+        service.archived_at = None
+        service.archived_by = None
+        service.archive_reason = None
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم استعادة طلب الصيانة رقم {service_id} بنجاح',
+            'data': {
+                'service_id': service.id
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp.route("/restore/payment/<int:payment_id>", methods=["POST"])
+@login_required
+@permission_required("manage_payments")
+def api_restore_payment(payment_id):
+    """استعادة دفعة عبر API"""
+    try:
+        payment = Payment.query.get_or_404(payment_id)
+        
+        if not payment.is_archived:
+            return jsonify({'success': False, 'error': 'الدفعة غير مؤرشفة'}), 400
+        
+        # البحث عن الأرشيف
+        archive = Archive.query.filter_by(
+            record_type='payments',
+            record_id=payment_id
+        ).first()
+        
+        if archive:
+            db.session.delete(archive)
+        
+        # استعادة الدفعة
+        payment.is_archived = False
+        payment.archived_at = None
+        payment.archived_by = None
+        payment.archive_reason = None
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم استعادة الدفعة رقم {payment_id} بنجاح',
+            'data': {
+                'payment_id': payment.id
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500

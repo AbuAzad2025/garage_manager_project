@@ -320,6 +320,11 @@
         <button type="submit" class="btn btn-success btn-lg">
           <i class="fas fa-save"></i> حفظ الدفعة
         </button>
+        {% if payment %}
+        <button type="button" class="btn btn-warning btn-lg" data-bs-toggle="modal" data-bs-target="#archiveModal">
+          <i class="fas fa-archive"></i> أرشفة الدفعة
+        </button>
+        {% endif %}
         <a href="{{ url_for('payments.index') }}" class="btn btn-secondary btn-lg">
           <i class="fas fa-times"></i> إلغاء
         </a>
@@ -748,4 +753,54 @@
   
   <!-- تحميل ملف JavaScript للدفعات -->
   <script src="{{ url_for('static', filename='js/payments.js') }}"></script>
+
+  <!-- Archive Modal -->
+  {% if payment %}
+  <div class="modal fade" id="archiveModal" tabindex="-1" aria-labelledby="archiveModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header bg-warning text-dark">
+          <h5 class="modal-title" id="archiveModalLabel">
+            <i class="fas fa-archive"></i> أرشفة الدفعة
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>تحذير:</strong> سيتم أرشفة هذه الدفعة وحذفها من القائمة الرئيسية. يمكن استعادتها لاحقاً من الأرشيف.
+          </div>
+          
+          <div class="mb-3">
+            <label for="archiveReason" class="form-label">سبب الأرشفة:</label>
+            <textarea class="form-control" id="archiveReason" name="reason" rows="3" placeholder="أدخل سبب أرشفة هذه الدفعة..."></textarea>
+          </div>
+          
+          <div class="card">
+            <div class="card-header bg-light">
+              <h6 class="mb-0">تفاصيل الدفعة المراد أرشفتها:</h6>
+            </div>
+            <div class="card-body">
+              <p><strong>رقم الدفعة:</strong> {{ payment.payment_number }}</p>
+              <p><strong>المبلغ:</strong> {{ payment.total_amount }} {{ payment.currency }}</p>
+              <p><strong>التاريخ:</strong> {{ payment.payment_date.strftime('%Y-%m-%d') if payment.payment_date else 'غير محدد' }}</p>
+              <p><strong>الحالة:</strong> {{ payment.status }}</p>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times"></i> إلغاء
+          </button>
+          <form method="POST" action="{{ url_for('payments.archive_payment', payment_id=payment.id) }}" style="display: inline;">
+            <input type="hidden" name="reason" id="hiddenReason">
+            <button type="submit" class="btn btn-warning" onclick="document.getElementById('hiddenReason').value = document.getElementById('archiveReason').value;">
+              <i class="fas fa-archive"></i> تأكيد الأرشفة
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 {% endblock %}

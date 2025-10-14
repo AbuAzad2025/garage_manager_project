@@ -5,7 +5,7 @@
 from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from flask import abort, Blueprint, flash, jsonify, redirect, render_template, request, url_for
-from flask_login import login_required
+from flask_login import login_required, current_user
 from flask_wtf import FlaskForm
 from sqlalchemy import func, or_
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
@@ -70,7 +70,7 @@ def _get_or_404(model, ident, options=None):
 def suppliers_list():
     form = CSRFProtectForm()
     s = (request.args.get("search") or "").strip()
-    q = Supplier.query
+    q = Supplier.query.filter(Supplier.is_archived == False)
     if s:
         term = f"%{s}%"
         q = q.filter(or_(Supplier.name.ilike(term), Supplier.phone.ilike(term), Supplier.identity_number.ilike(term)))
@@ -467,7 +467,7 @@ def suppliers_statement(supplier_id: int):
 def partners_list():
     form = CSRFProtectForm()
     s = (request.args.get("search") or "").strip()
-    q = Partner.query
+    q = Partner.query.filter(Partner.is_archived == False)
     if s:
         term = f"%{s}%"
         q = q.filter(or_(Partner.name.ilike(term), Partner.phone_number.ilike(term), Partner.identity_number.ilike(term)))
@@ -1052,3 +1052,209 @@ def _get_settlement_recommendation(balance: float, currency: str):
             "amount": abs(balance),
             "direction": "INCOMING"
         }
+
+@vendors_bp.route("/suppliers/archive/<int:supplier_id>", methods=["POST"])
+@login_required
+@permission_required("manage_vendors")
+def archive_supplier(supplier_id):
+    """أرشفة مورد"""
+    print(f"🔍 [SUPPLIER ARCHIVE] بدء أرشفة المورد رقم: {supplier_id}")
+    print(f"🔍 [SUPPLIER ARCHIVE] المستخدم: {current_user.username if current_user else 'غير معروف'}")
+    print(f"🔍 [SUPPLIER ARCHIVE] البيانات المرسلة: {dict(request.form)}")
+    
+    try:
+        from models import Archive
+        
+        supplier = Supplier.query.get_or_404(supplier_id)
+        print(f"✅ [SUPPLIER ARCHIVE] تم العثور على المورد: {supplier.name}")
+        
+        reason = request.form.get('reason', 'أرشفة تلقائية')
+        print(f"📝 [SUPPLIER ARCHIVE] سبب الأرشفة: {reason}")
+        
+        # أرشفة المورد
+        print(f"📦 [SUPPLIER ARCHIVE] بدء إنشاء الأرشيف...")
+        archive = Archive.archive_record(
+            record=supplier,
+            reason=reason,
+            user_id=current_user.id
+        )
+        print(f"✅ [SUPPLIER ARCHIVE] تم إنشاء الأرشيف بنجاح: {archive.id}")
+        
+        # تحديث حالة المورد إلى مؤرشف
+        print(f"📝 [SUPPLIER ARCHIVE] بدء تحديث حالة المورد إلى مؤرشف...")
+        from datetime import datetime
+        supplier.is_archived = True
+        supplier.archived_at = datetime.utcnow()
+        supplier.archived_by = current_user.id
+        supplier.archive_reason = reason
+        db.session.commit()
+        print(f"✅ [SUPPLIER ARCHIVE] تم تحديث حالة المورد إلى مؤرشف بنجاح")
+        
+        flash(f'تم أرشفة المورد {supplier.name} بنجاح', 'success')
+        print(f"🎉 [SUPPLIER ARCHIVE] تمت العملية بنجاح - إعادة توجيه...")
+        return redirect(url_for('vendors_bp.suppliers_list'))
+        
+    except Exception as e:
+        print(f"❌ [SUPPLIER ARCHIVE] خطأ في أرشفة المورد: {str(e)}")
+        print(f"❌ [SUPPLIER ARCHIVE] نوع الخطأ: {type(e).__name__}")
+        import traceback
+        print(f"❌ [SUPPLIER ARCHIVE] تفاصيل الخطأ: {traceback.format_exc()}")
+        
+        db.session.rollback()
+        flash(f'خطأ في أرشفة المورد: {str(e)}', 'error')
+        return redirect(url_for('vendors_bp.suppliers_list'))
+
+@vendors_bp.route("/partners/archive/<int:partner_id>", methods=["POST"])
+@login_required
+@permission_required("manage_vendors")
+def archive_partner(partner_id):
+    """أرشفة شريك"""
+    print(f"🔍 [PARTNER ARCHIVE] بدء أرشفة الشريك رقم: {partner_id}")
+    print(f"🔍 [PARTNER ARCHIVE] المستخدم: {current_user.username if current_user else 'غير معروف'}")
+    print(f"🔍 [PARTNER ARCHIVE] البيانات المرسلة: {dict(request.form)}")
+    
+    try:
+        from models import Archive
+        
+        partner = Partner.query.get_or_404(partner_id)
+        print(f"✅ [PARTNER ARCHIVE] تم العثور على الشريك: {partner.name}")
+        
+        reason = request.form.get('reason', 'أرشفة تلقائية')
+        print(f"📝 [PARTNER ARCHIVE] سبب الأرشفة: {reason}")
+        
+        # أرشفة الشريك
+        print(f"📦 [PARTNER ARCHIVE] بدء إنشاء الأرشيف...")
+        archive = Archive.archive_record(
+            record=partner,
+            reason=reason,
+            user_id=current_user.id
+        )
+        print(f"✅ [PARTNER ARCHIVE] تم إنشاء الأرشيف بنجاح: {archive.id}")
+        
+        # تحديث حالة الشريك إلى مؤرشف
+        print(f"📝 [PARTNER ARCHIVE] بدء تحديث حالة الشريك إلى مؤرشف...")
+        from datetime import datetime
+        partner.is_archived = True
+        partner.archived_at = datetime.utcnow()
+        partner.archived_by = current_user.id
+        partner.archive_reason = reason
+        db.session.commit()
+        print(f"✅ [PARTNER ARCHIVE] تم تحديث حالة الشريك إلى مؤرشف بنجاح")
+        
+        flash(f'تم أرشفة الشريك {partner.name} بنجاح', 'success')
+        print(f"🎉 [PARTNER ARCHIVE] تمت العملية بنجاح - إعادة توجيه...")
+        return redirect(url_for('vendors_bp.partners_list'))
+        
+    except Exception as e:
+        print(f"❌ [PARTNER ARCHIVE] خطأ في أرشفة الشريك: {str(e)}")
+        print(f"❌ [PARTNER ARCHIVE] نوع الخطأ: {type(e).__name__}")
+        import traceback
+        print(f"❌ [PARTNER ARCHIVE] تفاصيل الخطأ: {traceback.format_exc()}")
+        
+        db.session.rollback()
+        flash(f'خطأ في أرشفة الشريك: {str(e)}', 'error')
+        return redirect(url_for('vendors_bp.partners_list'))
+
+@vendors_bp.route("/suppliers/restore/<int:supplier_id>", methods=["POST"])
+@login_required
+@permission_required("manage_vendors")
+def restore_supplier(supplier_id):
+    """استعادة مورد"""
+    print(f"🔍 [SUPPLIER RESTORE] بدء استعادة المورد رقم: {supplier_id}")
+    print(f"🔍 [SUPPLIER RESTORE] المستخدم: {current_user.username if current_user else 'غير معروف'}")
+    
+    try:
+        supplier = Supplier.query.get_or_404(supplier_id)
+        print(f"✅ [SUPPLIER RESTORE] تم العثور على المورد: {supplier.name}")
+        
+        if not supplier.is_archived:
+            flash('المورد غير مؤرشف', 'warning')
+            return redirect(url_for('vendors_bp.suppliers_list'))
+        
+        # البحث عن الأرشيف
+        from models import Archive
+        archive = Archive.query.filter_by(
+            record_type='suppliers',
+            record_id=supplier_id
+        ).first()
+        
+        if archive:
+            print(f"✅ [SUPPLIER RESTORE] تم العثور على الأرشيف: {archive.id}")
+            # حذف الأرشيف
+            db.session.delete(archive)
+            print(f"🗑️ [SUPPLIER RESTORE] تم حذف الأرشيف")
+        
+        # استعادة المورد
+        print(f"📝 [SUPPLIER RESTORE] بدء استعادة المورد...")
+        supplier.is_archived = False
+        supplier.archived_at = None
+        supplier.archived_by = None
+        supplier.archive_reason = None
+        db.session.commit()
+        print(f"✅ [SUPPLIER RESTORE] تم استعادة المورد بنجاح")
+        
+        flash(f'تم استعادة المورد {supplier.name} بنجاح', 'success')
+        print(f"🎉 [SUPPLIER RESTORE] تمت العملية بنجاح - إعادة توجيه...")
+        return redirect(url_for('vendors_bp.suppliers_list'))
+        
+    except Exception as e:
+        print(f"❌ [SUPPLIER RESTORE] خطأ في استعادة المورد: {str(e)}")
+        print(f"❌ [SUPPLIER RESTORE] نوع الخطأ: {type(e).__name__}")
+        import traceback
+        print(f"❌ [SUPPLIER RESTORE] تفاصيل الخطأ: {traceback.format_exc()}")
+        
+        db.session.rollback()
+        flash(f'خطأ في استعادة المورد: {str(e)}', 'error')
+        return redirect(url_for('vendors_bp.suppliers_list'))
+
+@vendors_bp.route("/partners/restore/<int:partner_id>", methods=["POST"])
+@login_required
+@permission_required("manage_vendors")
+def restore_partner(partner_id):
+    """استعادة شريك"""
+    print(f"🔍 [PARTNER RESTORE] بدء استعادة الشريك رقم: {partner_id}")
+    print(f"🔍 [PARTNER RESTORE] المستخدم: {current_user.username if current_user else 'غير معروف'}")
+    
+    try:
+        partner = Partner.query.get_or_404(partner_id)
+        print(f"✅ [PARTNER RESTORE] تم العثور على الشريك: {partner.name}")
+        
+        if not partner.is_archived:
+            flash('الشريك غير مؤرشف', 'warning')
+            return redirect(url_for('vendors_bp.partners_list'))
+        
+        # البحث عن الأرشيف
+        from models import Archive
+        archive = Archive.query.filter_by(
+            record_type='partners',
+            record_id=partner_id
+        ).first()
+        
+        if archive:
+            print(f"✅ [PARTNER RESTORE] تم العثور على الأرشيف: {archive.id}")
+            # حذف الأرشيف
+            db.session.delete(archive)
+            print(f"🗑️ [PARTNER RESTORE] تم حذف الأرشيف")
+        
+        # استعادة الشريك
+        print(f"📝 [PARTNER RESTORE] بدء استعادة الشريك...")
+        partner.is_archived = False
+        partner.archived_at = None
+        partner.archived_by = None
+        partner.archive_reason = None
+        db.session.commit()
+        print(f"✅ [PARTNER RESTORE] تم استعادة الشريك بنجاح")
+        
+        flash(f'تم استعادة الشريك {partner.name} بنجاح', 'success')
+        print(f"🎉 [PARTNER RESTORE] تمت العملية بنجاح - إعادة توجيه...")
+        return redirect(url_for('vendors_bp.partners_list'))
+        
+    except Exception as e:
+        print(f"❌ [PARTNER RESTORE] خطأ في استعادة الشريك: {str(e)}")
+        print(f"❌ [PARTNER RESTORE] نوع الخطأ: {type(e).__name__}")
+        import traceback
+        print(f"❌ [PARTNER RESTORE] تفاصيل الخطأ: {traceback.format_exc()}")
+        
+        db.session.rollback()
+        flash(f'خطأ في استعادة الشريك: {str(e)}', 'error')
+        return redirect(url_for('vendors_bp.partners_list'))

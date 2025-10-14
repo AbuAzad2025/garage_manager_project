@@ -1218,11 +1218,12 @@ def integrations():
 @security_bp.route('/save-integration', methods=['POST'])
 @owner_only
 def save_integration():
-    """حفظ إعدادات التكامل"""
+    """حفظ إعدادات التكامل مع اختبار الاتصال"""
     from models import SystemSettings
     
     integration_type = request.form.get('integration_type')
     
+    # حفظ الإعدادات
     for key, value in request.form.items():
         if key in ['csrf_token', 'integration_type']:
             continue
@@ -1234,6 +1235,12 @@ def save_integration():
             db.session.add(SystemSettings(key=key, value=str(value)))
     
     db.session.commit()
+    
+    # اختبار الاتصال تلقائياً
+    test_result = _test_integration_connection(integration_type)
+    
+    # تسجيل النشاط في سجل التدقيق
+    _log_integration_activity(integration_type, 'configured', test_result['success'])
     
     type_names = {
         'whatsapp': 'واتساب',
@@ -1247,8 +1254,45 @@ def save_integration():
     }
     
     name = type_names.get(integration_type, 'الإعدادات')
-    flash(f'✅ تم حفظ إعدادات {name}', 'success')
+    
+    if test_result['success']:
+        flash(f'✅ تم حفظ إعدادات {name} - الاتصال ناجح!', 'success')
+    else:
+        flash(f'⚠️ تم حفظ إعدادات {name} - فشل الاتصال: {test_result["error"]}', 'warning')
+    
     return redirect(url_for('security.integrations'))
+
+
+@security_bp.route('/test-integration/<integration_type>', methods=['POST'])
+@owner_only
+def test_integration(integration_type):
+    """اختبار تكامل معين"""
+    result = _test_integration_connection(integration_type)
+    
+    # تسجيل النشاط
+    _log_integration_activity(integration_type, 'tested', result['success'])
+    
+    return jsonify(result)
+
+
+@security_bp.route('/send-test-message/<integration_type>', methods=['POST'])
+@owner_only
+def send_test_message(integration_type):
+    """إرسال رسالة تجريبية"""
+    result = _send_test_message(integration_type)
+    
+    # تسجيل النشاط
+    _log_integration_activity(integration_type, 'message_sent', result['success'])
+    
+    return jsonify(result)
+
+
+@security_bp.route('/integration-stats')
+@owner_only
+def integration_stats():
+    """إحصائيات التكاملات"""
+    stats = _get_integration_stats()
+    return jsonify(stats)
 
 
 @security_bp.route('/live-monitoring')
@@ -1526,19 +1570,8 @@ def export_table_csv(table_name):
 @security_bp.route('/advanced-backup', methods=['GET', 'POST'])
 @owner_only
 def advanced_backup():
-    """نسخ احتياطي متقدم"""
-    if request.method == 'POST':
-        backup_type = request.form.get('backup_type', 'full')
-        
-        if backup_type == 'full':
-            from extensions import perform_backup_db
-            result = perform_backup_db()
-            flash('تم إنشاء نسخة احتياطية كاملة', 'success')
-        
-        return redirect(url_for('security.advanced_backup'))
-    
-    backups = _get_available_backups()
-    return render_template('security/advanced_backup.html', backups=backups)
+    """نسخ احتياطي متقدم - إعادة توجيه للوحدة الجديدة"""
+    return redirect(url_for('advanced.backup_manager'))
 
 
 @security_bp.route('/performance-monitor')
@@ -1672,9 +1705,12 @@ def logs_download(log_type):
     from flask import send_file
     
     log_files = {
-        'error': 'error.log',
-        'server': 'server_error.log',
+        'error': 'logs/error.log',
+        'server': 'logs/server_error.log',
         'audit': 'instance/audit.log',
+        'access': 'logs/access.log',
+        'security': 'logs/security.log',
+        'performance': 'logs/performance.log',
     }
     
     log_path = log_files.get(log_type)
@@ -1692,9 +1728,12 @@ def logs_view(log_type):
     import os
     
     log_files = {
-        'error': 'error.log',
-        'server': 'server_error.log',
+        'error': 'logs/error.log',
+        'server': 'logs/server_error.log',
         'audit': 'instance/audit.log',
+        'access': 'logs/access.log',
+        'security': 'logs/security.log',
+        'performance': 'logs/performance.log',
     }
     
     log_path = log_files.get(log_type)
@@ -2796,9 +2835,12 @@ def _get_available_log_files():
     log_files = []
     
     files = {
-        'error': 'error.log',
-        'server': 'server_error.log',
+        'error': 'logs/error.log',
+        'server': 'logs/server_error.log',
         'audit': 'instance/audit.log',
+        'access': 'logs/access.log',
+        'security': 'logs/security.log',
+        'performance': 'logs/performance.log',
     }
     
     for log_type, log_path in files.items():
@@ -2812,6 +2854,234 @@ def _get_available_log_files():
             })
     
     return log_files
+
+
+def _test_integration_connection(integration_type):
+    """اختبار اتصال التكامل"""
+    from models import SystemSettings
+    import requests
+    import smtplib
+    from email.mime.text import MIMEText
+    
+    try:
+        if integration_type == 'whatsapp':
+            phone = SystemSettings.query.filter_by(key='whatsapp_phone').first()
+            token = SystemSettings.query.filter_by(key='whatsapp_token').first()
+            url = SystemSettings.query.filter_by(key='whatsapp_url').first()
+            
+            if not all([phone, token, url]):
+                return {'success': False, 'error': 'بيانات واتساب ناقصة'}
+            
+            # اختبار API واتساب
+            test_url = f"{url.value}/status"
+            headers = {'Authorization': f'Bearer {token.value}'}
+            response = requests.get(test_url, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                return {'success': True, 'message': 'واتساب متصل بنجاح'}
+            else:
+                return {'success': False, 'error': f'خطأ واتساب: {response.status_code}'}
+        
+        elif integration_type == 'email':
+            server = SystemSettings.query.filter_by(key='smtp_server').first()
+            port = SystemSettings.query.filter_by(key='smtp_port').first()
+            username = SystemSettings.query.filter_by(key='smtp_username').first()
+            password = SystemSettings.query.filter_by(key='smtp_password').first()
+            
+            if not all([server, port, username, password]):
+                return {'success': False, 'error': 'بيانات البريد ناقصة'}
+            
+            # اختبار SMTP
+            smtp = smtplib.SMTP(server.value, int(port.value))
+            smtp.starttls()
+            smtp.login(username.value, password.value)
+            smtp.quit()
+            
+            return {'success': True, 'message': 'البريد الإلكتروني متصل بنجاح'}
+        
+        elif integration_type == 'api_keys':
+            openai_key = SystemSettings.query.filter_by(key='openai_key').first()
+            google_maps_key = SystemSettings.query.filter_by(key='google_maps_key').first()
+            
+            if openai_key and openai_key.value:
+                # اختبار OpenAI
+                headers = {'Authorization': f'Bearer {openai_key.value}'}
+                response = requests.get('https://api.openai.com/v1/models', headers=headers, timeout=10)
+                if response.status_code != 200:
+                    return {'success': False, 'error': 'مفتاح OpenAI غير صالح'}
+            
+            if google_maps_key and google_maps_key.value:
+                # اختبار Google Maps
+                test_url = f"https://maps.googleapis.com/maps/api/geocode/json?address=test&key={google_maps_key.value}"
+                response = requests.get(test_url, timeout=10)
+                if response.status_code != 200:
+                    return {'success': False, 'error': 'مفتاح Google Maps غير صالح'}
+            
+            return {'success': True, 'message': 'مفاتيح API صحيحة'}
+        
+        else:
+            return {'success': True, 'message': 'التكامل محفوظ'}
+    
+    except requests.exceptions.RequestException as e:
+        return {'success': False, 'error': f'خطأ في الشبكة: {str(e)}'}
+    except smtplib.SMTPException as e:
+        return {'success': False, 'error': f'خطأ في البريد: {str(e)}'}
+    except Exception as e:
+        return {'success': False, 'error': f'خطأ عام: {str(e)}'}
+
+
+def _send_test_message(integration_type):
+    """إرسال رسالة تجريبية"""
+    from models import SystemSettings
+    import requests
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+    
+    try:
+        if integration_type == 'whatsapp':
+            phone = SystemSettings.query.filter_by(key='whatsapp_phone').first()
+            token = SystemSettings.query.filter_by(key='whatsapp_token').first()
+            url = SystemSettings.query.filter_by(key='whatsapp_url').first()
+            
+            if not all([phone, token, url]):
+                return {'success': False, 'error': 'بيانات واتساب ناقصة'}
+            
+            # إرسال رسالة تجريبية
+            message_data = {
+                'to': phone.value,
+                'message': '🧪 رسالة تجريبية من نظام إدارة الكراج - التكامل يعمل بنجاح! ✅'
+            }
+            
+            headers = {'Authorization': f'Bearer {token.value}', 'Content-Type': 'application/json'}
+            response = requests.post(f"{url.value}/send", json=message_data, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                return {'success': True, 'message': 'تم إرسال رسالة واتساب تجريبية'}
+            else:
+                return {'success': False, 'error': f'فشل الإرسال: {response.status_code}'}
+        
+        elif integration_type == 'email':
+            server = SystemSettings.query.filter_by(key='smtp_server').first()
+            port = SystemSettings.query.filter_by(key='smtp_port').first()
+            username = SystemSettings.query.filter_by(key='smtp_username').first()
+            password = SystemSettings.query.filter_by(key='smtp_password').first()
+            
+            if not all([server, port, username, password]):
+                return {'success': False, 'error': 'بيانات البريد ناقصة'}
+            
+            # إرسال بريد تجريبي
+            msg = MIMEMultipart()
+            msg['From'] = username.value
+            msg['To'] = username.value  # إرسال لنفسه
+            msg['Subject'] = '🧪 رسالة تجريبية - نظام إدارة الكراج'
+            
+            body = '''
+            <h2>🧪 رسالة تجريبية</h2>
+            <p>هذه رسالة تجريبية من نظام إدارة الكراج</p>
+            <p><strong>التكامل يعمل بنجاح! ✅</strong></p>
+            <p>الوقت: {}</p>
+            '''.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+            
+            msg.attach(MIMEText(body, 'html'))
+            
+            smtp = smtplib.SMTP(server.value, int(port.value))
+            smtp.starttls()
+            smtp.login(username.value, password.value)
+            smtp.send_message(msg)
+            smtp.quit()
+            
+            return {'success': True, 'message': 'تم إرسال بريد تجريبي'}
+        
+        else:
+            return {'success': False, 'error': 'نوع التكامل غير مدعوم للإرسال'}
+    
+    except Exception as e:
+        return {'success': False, 'error': f'خطأ في الإرسال: {str(e)}'}
+
+
+def _get_integration_stats():
+    """إحصائيات التكاملات الحقيقية"""
+    from models import SystemSettings
+    
+    # فحص التكوين الحقيقي
+    whatsapp_configured = bool(SystemSettings.query.filter_by(key='whatsapp_token').first())
+    email_configured = bool(SystemSettings.query.filter_by(key='smtp_server').first())
+    api_configured = bool(SystemSettings.query.filter_by(key='openai_key').first())
+    
+    # إحصائيات حقيقية من قاعدة البيانات
+    stats = {
+        'whatsapp': {
+            'configured': whatsapp_configured,
+            'last_test': _get_last_integration_activity('whatsapp'),
+            'messages_sent': _count_integration_usage('whatsapp'),
+            'status': 'active' if whatsapp_configured else 'inactive'
+        },
+        'email': {
+            'configured': email_configured,
+            'last_test': _get_last_integration_activity('email'),
+            'emails_sent': _count_integration_usage('email'),
+            'status': 'active' if email_configured else 'inactive'
+        },
+        'api_keys': {
+            'configured': api_configured,
+            'last_test': _get_last_integration_activity('api'),
+            'requests_made': _count_integration_usage('api'),
+            'status': 'active' if api_configured else 'inactive'
+        }
+    }
+    
+    return stats
+
+
+def _get_last_integration_activity(integration_type):
+    """الحصول على آخر نشاط للتكامل"""
+    try:
+        # البحث في سجل التدقيق
+        from models import AuditLog
+        last_activity = AuditLog.query.filter(
+            AuditLog.action.like(f'%{integration_type}%')
+        ).order_by(AuditLog.timestamp.desc()).first()
+        
+        if last_activity:
+            return last_activity.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        else:
+            return 'لم يتم الاستخدام بعد'
+    except:
+        return 'غير متاح'
+
+
+def _count_integration_usage(integration_type):
+    """عد استخدام التكامل"""
+    try:
+        from models import AuditLog
+        count = AuditLog.query.filter(
+            AuditLog.action.like(f'%{integration_type}%')
+        ).count()
+        return count
+    except:
+        return 0
+
+
+def _log_integration_activity(integration_type, action, success):
+    """تسجيل نشاط التكامل"""
+    try:
+        from models import AuditLog
+        from flask_login import current_user
+        
+        activity = AuditLog(
+            user_id=current_user.id,
+            action=f'{integration_type}_{action}',
+            details=f'Integration {action}: {integration_type} - Success: {success}',
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent', ''),
+            timestamp=datetime.utcnow()
+        )
+        
+        db.session.add(activity)
+        db.session.commit()
+    except Exception as e:
+        print(f"Error logging integration activity: {e}")
 
 
 def _get_recent_errors(limit=100):

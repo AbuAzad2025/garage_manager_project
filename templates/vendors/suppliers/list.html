@@ -142,6 +142,17 @@
                     <i class="fas fa-edit"></i>
                     <span class="d-none d-lg-inline ms-1">تعديل</span>
                   </a>
+                  {% if s.is_archived %}
+                  <button type="button" class="btn btn-sm btn-success d-flex align-items-center" title="استعادة" onclick="console.log('🔘 [TEMPLATE] تم النقر على زر استعادة المورد رقم: {{ s.id }}'); restoreSupplier({{ s.id }})">
+                    <i class="fas fa-undo"></i>
+                    <span class="d-none d-lg-inline ms-1">استعادة</span>
+                  </button>
+                  {% else %}
+                  <button type="button" class="btn btn-sm btn-warning d-flex align-items-center" title="أرشفة" onclick="console.log('🔘 [TEMPLATE] تم النقر على زر أرشفة المورد رقم: {{ s.id }}'); archiveSupplier({{ s.id }})">
+                    <i class="fas fa-archive"></i>
+                    <span class="d-none d-lg-inline ms-1">أرشفة</span>
+                  </button>
+                  {% endif %}
                   <form method="post" action="{{ url_for('vendors_bp.suppliers_delete', id=s.id) }}" class="d-inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit"
@@ -285,5 +296,10 @@
       console.log('تم تحديث مستحق قبض:', totalCreditEl.textContent);
     }
   });
+</script>
+
+<script>
+  // وظائف الأرشفة متوفرة الآن في archive.js
+  console.log('📋 تم تحميل صفحة الموردين - وظائف الأرشفة متوفرة');
 </script>
 {% endblock %}

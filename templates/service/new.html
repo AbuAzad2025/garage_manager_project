@@ -17,68 +17,95 @@
 
 {% block content %}
 <div class="container my-4">
-  <h2 class="mb-3">{{ edit_mode and 'تعديل' or 'إضافة' }} طلب صيانة</h2>
+  <div class="alert alert-info border-0 shadow-sm mb-4">
+    <h4 class="mb-0"><i class="fas fa-tools"></i> {{ edit_mode and 'تعديل' or 'إضافة' }} طلب صيانة</h4>
+    <p class="mb-0">أدخل تفاصيل طلب الصيانة بدقة</p>
+  </div>
 
   <form method="POST" id="serviceForm" autocomplete="off" action="{{ url_for('service.create_request') }}">
     {{ form.hidden_tag() }}
 
-    <div class="row">
-      <div class="col-md-6 mb-3">
-        {{ form.customer_id.label(class="form-label") }}
-        <div class="input-group">
-          {{ form.customer_id(class="form-select select2", id="customerSelect", data_endpoint=url_for('api.search_customers')) }}
-          <a href="{{ url_for('customers_bp.create_form', return_to=url_for('service.create_request')) }}" 
-             class="btn btn-outline-primary" title="إضافة عميل جديد" target="_blank">
-            <i class="fa fa-user-plus"></i>
-          </a>
+    <!-- معلومات العميل -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-gradient-primary text-white">
+        <h5 class="mb-0"><i class="fas fa-user"></i> معلومات العميل</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            {{ form.customer_id.label(class="form-label fw-bold") }}
+            <div class="input-group">
+              {{ form.customer_id(class="form-select select2", id="customerSelect", data_endpoint=url_for('api.search_customers')) }}
+              <a href="{{ url_for('customers_bp.create_form', return_to=url_for('service.create_request')) }}" 
+                 class="btn btn-outline-primary" title="إضافة عميل جديد" target="_blank">
+                <i class="fa fa-user-plus"></i>
+              </a>
+            </div>
+            {% for e in form.customer_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            <div class="form-text">اختر عميلًا أو أنشئ عميلًا جديدًا من زر (+).</div>
+          </div>
         </div>
-        {% for e in form.customer_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-        <div class="form-text">اختر عميلًا أو أنشئ عميلًا جديدًا من زر (+).</div>
       </div>
     </div>
 
-    <div class="row">
-      <div class="col-md-3 mb-3">
-        {{ form.vehicle_type_id.label(class="form-label") }}
-        <div class="input-group">
-          {{ form.vehicle_type_id(class="form-select select2", id="vehicleTypeSelect", data_endpoint=url_for('api.search_equipment_types'), data_placeholder="اختر نوعًا أو أضف جديدًا") }}
-          <button type="button" class="btn btn-outline-primary" id="addTypeBtn" title="إضافة نوع">
-            <i class="fa fa-plus"></i>
-          </button>
+    <!-- معلومات المركبة -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-gradient-success text-white">
+        <h5 class="mb-0"><i class="fas fa-car"></i> معلومات المركبة</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-3 mb-3">
+            {{ form.vehicle_type_id.label(class="form-label fw-bold") }}
+            <div class="input-group">
+              {{ form.vehicle_type_id(class="form-select select2", id="vehicleTypeSelect", data_endpoint=url_for('api.search_equipment_types'), data_placeholder="اختر نوعًا أو أضف جديدًا") }}
+              <button type="button" class="btn btn-outline-primary" id="addTypeBtn" title="إضافة نوع">
+                <i class="fa fa-plus"></i>
+              </button>
+            </div>
+            <div class="form-text">اكتب للبحث، وإن لم تجد النوع أضفه من زر (+).</div>
+          </div>
+          <div class="col-md-3 mb-3">
+            {{ form.vehicle_model.label(class="form-label fw-bold") }}
+            {{ form.vehicle_model(class="form-control") }}
+          </div>
+          <div class="col-md-3 mb-3">
+            {{ form.vehicle_vrn.label(class="form-label fw-bold") }}
+            {{ form.vehicle_vrn(class="form-control") }}
+          </div>
+          <div class="col-md-3 mb-3">
+            {{ form.chassis_number.label(class="form-label fw-bold") }}
+            {{ form.chassis_number(class="form-control") }}
+          </div>
         </div>
-        <div class="form-text">اكتب للبحث، وإن لم تجد النوع أضفه من زر (+).</div>
-      </div>
-      <div class="col-md-3 mb-3">
-        {{ form.vehicle_model.label(class="form-label") }}
-        {{ form.vehicle_model(class="form-control") }}
-      </div>
-      <div class="col-md-3 mb-3">
-        {{ form.vehicle_vrn.label(class="form-label") }}
-        {{ form.vehicle_vrn(class="form-control") }}
-      </div>
-      <div class="col-md-3 mb-3">
-        {{ form.chassis_number.label(class="form-label") }}
-        {{ form.chassis_number(class="form-control") }}
       </div>
     </div>
 
-    <div class="mb-3">
-      {{ form.problem_description.label(class="form-label") }}
-      {{ form.problem_description(class="form-control", rows=2) }}
-    </div>
+    <!-- تفاصيل الصيانة -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-gradient-warning text-dark">
+        <h5 class="mb-0"><i class="fas fa-wrench"></i> تفاصيل الصيانة</h5>
+      </div>
+      <div class="card-body">
+        <div class="mb-3">
+          {{ form.problem_description.label(class="form-label fw-bold") }}
+          {{ form.problem_description(class="form-control", rows=3) }}
+        </div>
 
-    <div class="row">
-      <div class="col-md-4 mb-3">
-        {{ form.priority.label(class="form-label") }}
-        {{ form.priority(class="form-select") }}
-      </div>
-      <div class="col-md-4 mb-3">
-        {{ form.estimated_duration.label(class="form-label") }}
-        {{ form.estimated_duration(class="form-control", type="number", min="0", step="1") }}
-      </div>
-      <div class="col-md-4 mb-3">
-        {{ form.status.label(class="form-label") }}
-        {{ form.status(class="form-select") }}
+        <div class="row">
+          <div class="col-md-4 mb-3">
+            {{ form.priority.label(class="form-label fw-bold") }}
+            {{ form.priority(class="form-select") }}
+          </div>
+          <div class="col-md-4 mb-3">
+            {{ form.estimated_duration.label(class="form-label fw-bold") }}
+            {{ form.estimated_duration(class="form-control", type="number", min="0", step="1") }}
+          </div>
+          <div class="col-md-4 mb-3">
+            {{ form.status.label(class="form-label fw-bold") }}
+            {{ form.status(class="form-select") }}
+          </div>
+        </div>
       </div>
     </div>
 

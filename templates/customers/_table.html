@@ -36,6 +36,15 @@
                class="btn btn-info" title="تفاصيل"><i class="fas fa-eye"></i></a>
             <a href="{{ url_for('customers_bp.edit_customer', customer_id=customer.id) }}"
                class="btn btn-warning" title="تعديل"><i class="fas fa-edit"></i></a>
+            {% if customer.is_archived %}
+            <button type="button" class="btn btn-success" title="استعادة" onclick="console.log('🔘 [TEMPLATE] تم النقر على زر استعادة العميل رقم: {{ customer.id }}'); restoreCustomer({{ customer.id }})">
+              <i class="fas fa-undo"></i>
+            </button>
+            {% else %}
+            <button type="button" class="btn btn-warning" title="أرشفة" onclick="console.log('🔘 [TEMPLATE] تم النقر على زر أرشفة العميل رقم: {{ customer.id }}'); archiveCustomer({{ customer.id }})">
+              <i class="fas fa-archive"></i>
+            </button>
+            {% endif %}
             <button type="button" class="btn btn-danger delete-btn"
                     data-id="{{ customer.id }}"
                     data-delete-url="{{ url_for('customers_bp.delete_customer', id=customer.id) }}"

@@ -1,6 +1,6 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 
-{% block title %}API{% endblock %}
+{% block title %}API Documentation{% endblock %}
 
 {% block content %}
 <div class="content-wrapper">
@@ -8,12 +8,12 @@
         <div class="container-fluid">
             <div class="row mb-2">
                 <div class="col-sm-6">
-                    <h1 class="m-0">API</h1>
+                    <h1 class="m-0">API Documentation</h1>
                 </div>
                 <div class="col-sm-6">
                     <ol class="breadcrumb float-sm-right">
                         <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
-                        <li class="breadcrumb-item active">API</li>
+                        <li class="breadcrumb-item active">API Documentation</li>
                     </ol>
                 </div>
             </div>
@@ -28,35 +28,312 @@
                         <div class="card-header">
                             <h3 class="card-title">
                                 <i class="fas fa-code"></i>
-                                واجهة برمجة التطبيقات (API)
+                                Garage Manager API Documentation
                             </h3>
                         </div>
                         <div class="card-body">
-                            <div class="alert alert-info">
-                                <h5><i class="fas fa-info-circle"></i> معلومات API</h5>
-                                <p>هذه الصفحة تحتوي على معلومات حول واجهة برمجة التطبيقات للنظام.</p>
-                            </div>
-                            
                             <div class="row">
-                                <div class="col-md-6">
-                                    <div class="card card-primary">
-                                        <div class="card-header">
-                                            <h3 class="card-title">المصادقة</h3>
-                                        </div>
-                                        <div class="card-body">
-                                            <p>استخدم API Key للمصادقة:</p>
-                                            <code>Authorization: Bearer YOUR_API_KEY</code>
-                                        </div>
+                                <div class="col-md-3">
+                                    <div class="nav flex-column nav-pills" id="v-pills-tab" role="tablist">
+                                        <a class="nav-link active" id="v-pills-overview-tab" data-toggle="pill" href="#v-pills-overview" role="tab">
+                                            <i class="fas fa-info-circle"></i> نظرة عامة
+                                        </a>
+                                        <a class="nav-link" id="v-pills-authentication-tab" data-toggle="pill" href="#v-pills-authentication" role="tab">
+                                            <i class="fas fa-key"></i> المصادقة
+                                        </a>
+                                        <a class="nav-link" id="v-pills-archive-tab" data-toggle="pill" href="#v-pills-archive" role="tab">
+                                            <i class="fas fa-archive"></i> الأرشيف
+                                        </a>
+                                        <a class="nav-link" id="v-pills-customers-tab" data-toggle="pill" href="#v-pills-customers" role="tab">
+                                            <i class="fas fa-users"></i> العملاء
+                                        </a>
+                                        <a class="nav-link" id="v-pills-sales-tab" data-toggle="pill" href="#v-pills-sales" role="tab">
+                                            <i class="fas fa-shopping-cart"></i> المبيعات
+                                        </a>
+                                        <a class="nav-link" id="v-pills-payments-tab" data-toggle="pill" href="#v-pills-payments" role="tab">
+                                            <i class="fas fa-credit-card"></i> الدفعات
+                                        </a>
+                                        <a class="nav-link" id="v-pills-errors-tab" data-toggle="pill" href="#v-pills-errors" role="tab">
+                                            <i class="fas fa-exclamation-triangle"></i> معالجة الأخطاء
+                                        </a>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="card card-success">
-                                        <div class="card-header">
-                                            <h3 class="card-title">الاستخدام</h3>
+                                <div class="col-md-9">
+                                    <div class="tab-content" id="v-pills-tabContent">
+                                        <!-- نظرة عامة -->
+                                        <div class="tab-pane fade show active" id="v-pills-overview" role="tabpanel">
+                                            <h4>نظرة عامة على API</h4>
+                                            <p>Garage Manager API يوفر واجهة برمجة تطبيقات RESTful لإدارة جميع جوانب نظام إدارة المرآب.</p>
+                                            
+                                            <h5>Base URL</h5>
+                                            <div class="alert alert-info">
+                                                <code>{{ request.url_root }}api/</code>
+                                            </div>
+                                            
+                                            <h5>Response Format</h5>
+                                            <p>جميع الاستجابات تأتي بصيغة JSON مع الهيكل التالي:</p>
+                                            <pre><code>{
+  "success": true|false,
+  "data": {...},
+  "message": "رسالة نصية",
+  "code": 200
+}</code></pre>
+                                            
+                                            <h5>HTTP Status Codes</h5>
+                                            <ul>
+                                                <li><strong>200</strong> - نجح الطلب</li>
+                                                <li><strong>201</strong> - تم الإنشاء بنجاح</li>
+                                                <li><strong>400</strong> - طلب غير صحيح</li>
+                                                <li><strong>401</strong> - غير مصرح</li>
+                                                <li><strong>403</strong> - ممنوع</li>
+                                                <li><strong>404</strong> - غير موجود</li>
+                                                <li><strong>500</strong> - خطأ داخلي</li>
+                                            </ul>
                                         </div>
+                                        
+                                        <!-- المصادقة -->
+                                        <div class="tab-pane fade" id="v-pills-authentication" role="tabpanel">
+                                            <h4>المصادقة</h4>
+                                            <p>جميع طلبات API تتطلب مصادقة. يمكنك استخدام إحدى الطرق التالية:</p>
+                                            
+                                            <h5>1. Session Authentication</h5>
+                                            <p>إذا كنت تستخدم المتصفح، يمكنك تسجيل الدخول عبر الواجهة العادية واستخدام الـ session.</p>
+                                            
+                                            <h5>2. API Token (قريباً)</h5>
+                                            <p>سيتم إضافة دعم API tokens في الإصدارات القادمة.</p>
+                                            
+                                            <h5>Headers المطلوبة</h5>
+                                            <pre><code>Content-Type: application/json
+X-CSRFToken: [CSRF Token]</code></pre>
+                                        </div>
+                                        
+                                        <!-- الأرشيف -->
+                                        <div class="tab-pane fade" id="v-pills-archive" role="tabpanel">
+                                            <h4>API الأرشيف</h4>
+                                            
+                                            <h5>قائمة الأرشيفات</h5>
+                                            <div class="card">
+                                                <div class="card-body">
+                                                    <strong>GET</strong> <code>/api/archive/list</code>
+                                                    <p>الحصول على قائمة الأرشيفات مع إمكانية التصفية والبحث.</p>
+                                                    
+                                                    <h6>Parameters:</h6>
+                                                    <ul>
+                                                        <li><code>page</code> - رقم الصفحة (افتراضي: 1)</li>
+                                                        <li><code>per_page</code> - عدد العناصر في الصفحة (افتراضي: 20)</li>
+                                                        <li><code>record_type</code> - نوع السجل (customers, suppliers, etc.)</li>
+                                                        <li><code>search</code> - نص البحث</li>
+                                                    </ul>
+                                                    
+                                                    <h6>Example Response:</h6>
+                                                    <pre><code>{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "record_type": "customers",
+      "record_id": 123,
+      "archive_reason": "تم الأرشفة",
+      "archived_at": "2024-01-01T10:00:00",
+      "user_name": "admin"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "pages": 5,
+    "total": 100,
+    "has_next": true,
+    "has_prev": false
+  }
+}</code></pre>
+                                                </div>
+                                            </div>
+                                            
+                                            <h5>أرشفة عميل</h5>
+                                            <div class="card">
+                                                <div class="card-body">
+                                                    <strong>POST</strong> <code>/api/archive/customer/{customer_id}</code>
+                                                    <p>أرشفة عميل محدد.</p>
+                                                    
+                                                    <h6>Request Body:</h6>
+                                                    <pre><code>{
+  "reason": "سبب الأرشفة"
+}</code></pre>
+                                                    
+                                                    <h6>Example Response:</h6>
+                                                    <pre><code>{
+  "success": true,
+  "message": "تم أرشفة العميل أحمد بنجاح",
+  "data": {
+    "customer_id": 123,
+    "archive_id": 456
+  }
+}</code></pre>
+                                                </div>
+                                            </div>
+                                            
+                                            <h5>استعادة عميل</h5>
+                                            <div class="card">
+                                                <div class="card-body">
+                                                    <strong>POST</strong> <code>/api/restore/customer/{customer_id}</code>
+                                                    <p>استعادة عميل مؤرشف.</p>
+                                                    
+                                                    <h6>Example Response:</h6>
+                                                    <pre><code>{
+  "success": true,
+  "message": "تم استعادة العميل أحمد بنجاح",
+  "data": {
+    "customer_id": 123
+  }
+}</code></pre>
+                                                </div>
+                                            </div>
+                                            
+                                            <h5>إحصائيات الأرشيف</h5>
+                                            <div class="card">
+                                                <div class="card-body">
+                                                    <strong>GET</strong> <code>/api/archive/stats</code>
+                                                    <p>الحصول على إحصائيات الأرشيف.</p>
+                                                    
+                                                    <h6>Example Response:</h6>
+                                                    <pre><code>{
+  "success": true,
+  "data": {
+    "total_archives": 150,
+    "monthly_archives": 25,
+    "type_stats": [
+      {"record_type": "customers", "count": 50},
+      {"record_type": "suppliers", "count": 30}
+    ],
+    "recent_archives": [...]
+  }
+}</code></pre>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- العملاء -->
+                                        <div class="tab-pane fade" id="v-pills-customers" role="tabpanel">
+                                            <h4>API العملاء</h4>
+                                            <p>جميع endpoints العملاء متاحة عبر API مع نفس الصلاحيات المطلوبة في الواجهة العادية.</p>
+                                            
+                                            <h5>قائمة العملاء</h5>
+                                            <div class="card">
+                                                <div class="card-body">
+                                                    <strong>GET</strong> <code>/api/customers</code>
+                                                    <p>الحصول على قائمة العملاء.</p>
+                                                </div>
+                                            </div>
+                                            
+                                            <h5>تفاصيل عميل</h5>
+                                            <div class="card">
+                                                <div class="card-body">
+                                                    <strong>GET</strong> <code>/api/customers/{customer_id}</code>
+                                                    <p>الحصول على تفاصيل عميل محدد.</p>
+                                                </div>
+                                            </div>
+                                            
+                                            <h5>إنشاء عميل</h5>
+                                            <div class="card">
                                         <div class="card-body">
-                                            <p>جميع الطلبات يجب أن تكون بصيغة JSON:</p>
-                                            <code>Content-Type: application/json</code>
+                                                    <strong>POST</strong> <code>/api/customers</code>
+                                                    <p>إنشاء عميل جديد.</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- المبيعات -->
+                                        <div class="tab-pane fade" id="v-pills-sales" role="tabpanel">
+                                            <h4>API المبيعات</h4>
+                                            <p>جميع endpoints المبيعات متاحة عبر API.</p>
+                                            
+                                            <h5>قائمة المبيعات</h5>
+                                            <div class="card">
+                                                <div class="card-body">
+                                                    <strong>GET</strong> <code>/api/sales</code>
+                                                    <p>الحصول على قائمة المبيعات.</p>
+                                                </div>
+                                            </div>
+                                            
+                                            <h5>تفاصيل مبيعة</h5>
+                                            <div class="card">
+                                                <div class="card-body">
+                                                    <strong>GET</strong> <code>/api/sales/{sale_id}</code>
+                                                    <p>الحصول على تفاصيل مبيعة محددة.</p>
+                                    </div>
+                                </div>
+                                        </div>
+                                        
+                                        <!-- الدفعات -->
+                                        <div class="tab-pane fade" id="v-pills-payments" role="tabpanel">
+                                            <h4>API الدفعات</h4>
+                                            <p>جميع endpoints الدفعات متاحة عبر API.</p>
+                                            
+                                            <h5>قائمة الدفعات</h5>
+                                            <div class="card">
+                                                <div class="card-body">
+                                                    <strong>GET</strong> <code>/api/payments</code>
+                                                    <p>الحصول على قائمة الدفعات.</p>
+                                                </div>
+                                            </div>
+                                            
+                                            <h5>إنشاء دفعة</h5>
+                                            <div class="card">
+                                        <div class="card-body">
+                                                    <strong>POST</strong> <code>/api/payments</code>
+                                                    <p>إنشاء دفعة جديدة.</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- معالجة الأخطاء -->
+                                        <div class="tab-pane fade" id="v-pills-errors" role="tabpanel">
+                                            <h4>معالجة الأخطاء</h4>
+                                            <p>جميع أخطاء API تأتي بصيغة JSON موحدة:</p>
+                                            
+                                            <h5>Error Response Format</h5>
+                                            <pre><code>{
+  "success": false,
+  "error": "وصف الخطأ",
+  "code": 400,
+  "details": "تفاصيل إضافية (اختيارية)"
+}</code></pre>
+                                            
+                                            <h5>Common Error Codes</h5>
+                                            <ul>
+                                                <li><strong>400</strong> - Bad Request: طلب غير صحيح</li>
+                                                <li><strong>401</strong> - Unauthorized: غير مصرح</li>
+                                                <li><strong>403</strong> - Forbidden: ممنوع</li>
+                                                <li><strong>404</strong> - Not Found: غير موجود</li>
+                                                <li><strong>500</strong> - Internal Server Error: خطأ داخلي</li>
+                                            </ul>
+                                            
+                                            <h5>Example Error Responses</h5>
+                                            
+                                            <h6>Validation Error (400)</h6>
+                                            <pre><code>{
+  "success": false,
+  "error": "بيانات غير صحيحة",
+  "code": 400,
+  "details": {
+    "name": ["هذا الحقل مطلوب"],
+    "email": ["البريد الإلكتروني غير صحيح"]
+  }
+}</code></pre>
+                                            
+                                            <h6>Not Found Error (404)</h6>
+                                            <pre><code>{
+  "success": false,
+  "error": "المورد غير موجود",
+  "code": 404
+}</code></pre>
+                                            
+                                            <h6>Database Error (500)</h6>
+                                            <pre><code>{
+  "success": false,
+  "error": "خطأ في قاعدة البيانات",
+  "code": 500
+}</code></pre>
                                         </div>
                                     </div>
                                 </div>
@@ -68,4 +345,63 @@
         </div>
     </section>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // تفعيل التبويبات
+    $('.nav-pills a').on('click', function (e) {
+        e.preventDefault();
+        $(this).tab('show');
+    });
+    
+    // نسخ الكود عند النقر
+    $('pre code').each(function() {
+        $(this).wrap('<div class="code-block"></div>');
+        $(this).parent().append('<button class="btn btn-sm btn-secondary copy-btn" onclick="copyToClipboard(this)">نسخ</button>');
+    });
+});
+
+function copyToClipboard(button) {
+    const code = $(button).siblings('code').text();
+    navigator.clipboard.writeText(code).then(function() {
+        $(button).text('تم النسخ!').removeClass('btn-secondary').addClass('btn-success');
+        setTimeout(function() {
+            $(button).text('نسخ').removeClass('btn-success').addClass('btn-secondary');
+        }, 2000);
+    });
+}
+</script>
+
+<style>
+.code-block {
+    position: relative;
+    margin: 10px 0;
+}
+
+.copy-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    z-index: 10;
+}
+
+pre {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    padding: 15px;
+    font-size: 14px;
+}
+
+.nav-pills .nav-link {
+    border-radius: 0.375rem;
+    margin-bottom: 5px;
+}
+
+.nav-pills .nav-link.active {
+    background-color: #007bff;
+}
+</style>
 {% endblock %}

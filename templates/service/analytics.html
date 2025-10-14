@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}تحليلات الصيانة{% endblock %}
+{% block page_header %}📊 تحليلات الصيانة المتقدمة{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+  
+  <!-- إحصائيات سريعة -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card border-0 shadow-lg text-center" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <div class="card-body text-white">
+          <i class="fas fa-tools fa-3x mb-3 opacity-75"></i>
+          <h4 class="fw-bold">{{ total_requests }}</h4>
+          <p class="mb-0">إجمالي الطلبات</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-lg text-center" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+        <div class="card-body text-white">
+          <i class="fas fa-check-circle fa-3x mb-3 opacity-75"></i>
+          <h4 class="fw-bold">{{ completed_this_month }}</h4>
+          <p class="mb-0">مكتمل هذا الشهر</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-lg text-center" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+        <div class="card-body text-white">
+          <i class="fas fa-clock fa-3x mb-3 opacity-75"></i>
+          <h4 class="fw-bold">{{ "%.1f"|format(avg_completion_time) }}</h4>
+          <p class="mb-0">متوسط الأيام</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-lg text-center" style="background: linear-gradient(135deg, #f12711 0%, #f5af19 100%);">
+        <div class="card-body text-white">
+          <i class="fas fa-chart-line fa-3x mb-3 opacity-75"></i>
+          <h4 class="fw-bold">{{ weekly_stats.new }}</h4>
+          <p class="mb-0">جديد هذا الأسبوع</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- إحصائيات الأسبوع -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-gradient-primary text-white">
+          <h5 class="mb-0"><i class="fas fa-plus"></i> جديد</h5>
+        </div>
+        <div class="card-body text-center">
+          <h2 class="text-primary">{{ weekly_stats.new }}</h2>
+          <p class="text-muted">طلبات جديدة</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-gradient-success text-white">
+          <h5 class="mb-0"><i class="fas fa-check"></i> مكتمل</h5>
+        </div>
+        <div class="card-body text-center">
+          <h2 class="text-success">{{ weekly_stats.completed }}</h2>
+          <p class="text-muted">طلبات مكتملة</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-gradient-warning text-white">
+          <h5 class="mb-0"><i class="fas fa-cog"></i> قيد التنفيذ</h5>
+        </div>
+        <div class="card-body text-center">
+          <h2 class="text-warning">{{ weekly_stats.in_progress }}</h2>
+          <p class="text-muted">طلبات جارية</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- أكثر المشاكل شيوعاً -->
+  <div class="row g-3">
+    <div class="col-md-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-gradient-info text-white">
+          <h5 class="mb-0"><i class="fas fa-exclamation-triangle"></i> أكثر المشاكل شيوعاً</h5>
+        </div>
+        <div class="card-body">
+          {% if common_problems %}
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead class="table-light">
+                <tr>
+                  <th>المشكلة</th>
+                  <th>عدد المرات</th>
+                  <th>النسبة</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for problem, count in common_problems %}
+                <tr>
+                  <td>{{ problem }}</td>
+                  <td><span class="badge bg-primary">{{ count }}</span></td>
+                  <td>
+                    <div class="progress" style="height: 20px;">
+                      <div class="progress-bar bg-info" style="width: {{ (count / total_requests * 100)|round(1) }}%">
+                        {{ (count / total_requests * 100)|round(1) }}%
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="alert alert-info text-center">
+            <i class="fas fa-info-circle"></i> لا توجد بيانات كافية للتحليل
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

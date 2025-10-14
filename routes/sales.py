@@ -333,6 +333,7 @@ def list_sales():
         .group_by(Sale.id).subquery()
     )
     q = (Sale.query
+         .filter(Sale.is_archived == False)
          .options(joinedload(Sale.customer), joinedload(Sale.seller))
          .outerjoin(subtotals, subtotals.c.sale_id == Sale.id)
          .outerjoin(Customer))
@@ -823,3 +824,105 @@ def generate_invoice(id: int):
         grand_total=grand_total,
         money_fmt=money_fmt,
     )
+
+@sales_bp.route("/archive/<int:sale_id>", methods=["POST"])
+@login_required
+@permission_required("manage_sales")
+def archive_sale(sale_id):
+    """أرشفة مبيعة"""
+    print(f"🔍 [SALE ARCHIVE] بدء أرشفة المبيعة رقم: {sale_id}")
+    print(f"🔍 [SALE ARCHIVE] المستخدم: {current_user.username if current_user else 'غير معروف'}")
+    print(f"🔍 [SALE ARCHIVE] البيانات المرسلة: {dict(request.form)}")
+    
+    try:
+        from models import Archive
+        
+        sale = Sale.query.get_or_404(sale_id)
+        print(f"✅ [SALE ARCHIVE] تم العثور على المبيعة: {sale.sale_number}")
+        
+        reason = request.form.get('reason', 'أرشفة تلقائية')
+        print(f"📝 [SALE ARCHIVE] سبب الأرشفة: {reason}")
+        
+        # أرشفة المبيعة
+        print(f"📦 [SALE ARCHIVE] بدء إنشاء الأرشيف...")
+        archive = Archive.archive_record(
+            record=sale,
+            reason=reason,
+            user_id=current_user.id
+        )
+        print(f"✅ [SALE ARCHIVE] تم إنشاء الأرشيف بنجاح: {archive.id}")
+        
+        # حذف المبيعة الأصلية بعد إنشاء الأرشيف
+        print(f"📝 [SALE ARCHIVE] بدء تحديث حالة المبيعة إلى مؤرشف...")
+        sale.is_archived = True
+        sale.archived_at = datetime.utcnow()
+        sale.archived_by = current_user.id
+        sale.archive_reason = reason
+        db.session.commit()
+        print(f"✅ [SALE ARCHIVE] تم تحديث حالة المبيعة إلى مؤرشف بنجاح")
+        
+        flash(f'تم أرشفة المبيعة رقم {sale_id} بنجاح', 'success')
+        print(f"🎉 [SALE ARCHIVE] تمت العملية بنجاح - إعادة توجيه...")
+        return redirect(url_for('sales_bp.list_sales'))
+        
+    except Exception as e:
+        print(f"❌ [SALE ARCHIVE] خطأ في أرشفة المبيعة: {str(e)}")
+        print(f"❌ [SALE ARCHIVE] نوع الخطأ: {type(e).__name__}")
+        import traceback
+        print(f"❌ [SALE ARCHIVE] تفاصيل الخطأ: {traceback.format_exc()}")
+        
+        db.session.rollback()
+        flash(f'خطأ في أرشفة المبيعة: {str(e)}', 'error')
+        return redirect(url_for('sales_bp.list_sales'))
+
+@sales_bp.route('/restore/<int:sale_id>', methods=['POST'])
+@login_required
+@permission_required('manage_sales')
+def restore_sale(sale_id):
+    """استعادة مبيعة"""
+    print(f"🔍 [SALE RESTORE] بدء استعادة المبيعة رقم: {sale_id}")
+    print(f"🔍 [SALE RESTORE] المستخدم: {current_user.username if current_user else 'غير معروف'}")
+    
+    try:
+        sale = Sale.query.get_or_404(sale_id)
+        print(f"✅ [SALE RESTORE] تم العثور على المبيعة: {sale.id}")
+        
+        if not sale.is_archived:
+            flash('المبيعة غير مؤرشفة', 'warning')
+            return redirect(url_for('sales_bp.list_sales'))
+        
+        # البحث عن الأرشيف
+        from models import Archive
+        archive = Archive.query.filter_by(
+            record_type='sales',
+            record_id=sale_id
+        ).first()
+        
+        if archive:
+            print(f"✅ [SALE RESTORE] تم العثور على الأرشيف: {archive.id}")
+            # حذف الأرشيف
+            db.session.delete(archive)
+            print(f"🗑️ [SALE RESTORE] تم حذف الأرشيف")
+        
+        # استعادة المبيعة
+        print(f"📝 [SALE RESTORE] بدء استعادة المبيعة...")
+        sale.is_archived = False
+        sale.archived_at = None
+        sale.archived_by = None
+        sale.archive_reason = None
+        db.session.commit()
+        print(f"✅ [SALE RESTORE] تم استعادة المبيعة بنجاح")
+        
+        flash(f'تم استعادة المبيعة رقم {sale_id} بنجاح', 'success')
+        print(f"🎉 [SALE RESTORE] تمت العملية بنجاح - إعادة توجيه...")
+        return redirect(url_for('sales_bp.list_sales'))
+        
+    except Exception as e:
+        print(f"❌ [SALE RESTORE] خطأ في استعادة المبيعة: {str(e)}")
+        print(f"❌ [SALE RESTORE] نوع الخطأ: {type(e).__name__}")
+        import traceback
+        print(f"❌ [SALE RESTORE] تفاصيل الخطأ: {traceback.format_exc()}")
+        
+        db.session.rollback()
+        flash(f'خطأ في استعادة المبيعة: {str(e)}', 'error')
+        return redirect(url_for('sales_bp.list_sales'))

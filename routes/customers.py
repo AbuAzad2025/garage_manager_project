@@ -122,8 +122,8 @@ def log_customer_action(cust, action, old_data=None, new_data=None):
 @login_required
 @permission_required("manage_customers")
 def list_customers():
-    # استخدام joinedload لتحسين الأداء
-    q = Customer.query.options(
+    # استخدام joinedload لتحسين الأداء - فلترة السجلات غير المؤرشفة
+    q = Customer.query.filter(Customer.is_archived == False).options(
         joinedload(Customer.payments),
         joinedload(Customer.sales)
     )
@@ -955,3 +955,105 @@ def export_contacts():
         else:
             return generate_excel_contacts(customers, fields)
     return render_template("customers/vcf_export.html", form=form, customers=Customer.query.order_by(Customer.name).all())
+
+@customers_bp.route("/archive/<int:customer_id>", methods=["POST"])
+@login_required
+@permission_required("manage_customers")
+def archive_customer(customer_id):
+    """أرشفة عميل"""
+    print(f"🔍 [CUSTOMER ARCHIVE] بدء أرشفة العميل رقم: {customer_id}")
+    print(f"🔍 [CUSTOMER ARCHIVE] المستخدم: {current_user.username if current_user else 'غير معروف'}")
+    print(f"🔍 [CUSTOMER ARCHIVE] البيانات المرسلة: {dict(request.form)}")
+    
+    try:
+        from models import Archive
+        
+        customer = Customer.query.get_or_404(customer_id)
+        print(f"✅ [CUSTOMER ARCHIVE] تم العثور على العميل: {customer.name}")
+        
+        reason = request.form.get('reason', 'أرشفة تلقائية')
+        print(f"📝 [CUSTOMER ARCHIVE] سبب الأرشفة: {reason}")
+        
+        # أرشفة العميل
+        print(f"📦 [CUSTOMER ARCHIVE] بدء إنشاء الأرشيف...")
+        archive = Archive.archive_record(
+            record=customer,
+            reason=reason,
+            user_id=current_user.id
+        )
+        print(f"✅ [CUSTOMER ARCHIVE] تم إنشاء الأرشيف بنجاح: {archive.id}")
+        
+        # حذف العميل الأصلي بعد إنشاء الأرشيف
+        print(f"📝 [CUSTOMER ARCHIVE] بدء تحديث حالة العميل إلى مؤرشف...")
+        customer.is_archived = True
+        customer.archived_at = datetime.utcnow()
+        customer.archived_by = current_user.id
+        customer.archive_reason = reason
+        db.session.commit()
+        print(f"✅ [CUSTOMER ARCHIVE] تم تحديث حالة العميل إلى مؤرشف بنجاح")
+        
+        flash(f'تم أرشفة العميل {customer.name} بنجاح', 'success')
+        print(f"🎉 [CUSTOMER ARCHIVE] تمت العملية بنجاح - إعادة توجيه...")
+        return redirect(url_for('customers_bp.list_customers'))
+        
+    except Exception as e:
+        print(f"❌ [CUSTOMER ARCHIVE] خطأ في أرشفة العميل: {str(e)}")
+        print(f"❌ [CUSTOMER ARCHIVE] نوع الخطأ: {type(e).__name__}")
+        import traceback
+        print(f"❌ [CUSTOMER ARCHIVE] تفاصيل الخطأ: {traceback.format_exc()}")
+        
+        db.session.rollback()
+        flash(f'خطأ في أرشفة العميل: {str(e)}', 'error')
+        return redirect(url_for('customers_bp.list_customers'))
+
+@customers_bp.route('/restore/<int:customer_id>', methods=['POST'])
+@login_required
+@permission_required('manage_customers')
+def restore_customer(customer_id):
+    """استعادة عميل"""
+    print(f"🔍 [CUSTOMER RESTORE] بدء استعادة العميل رقم: {customer_id}")
+    print(f"🔍 [CUSTOMER RESTORE] المستخدم: {current_user.username if current_user else 'غير معروف'}")
+    
+    try:
+        customer = Customer.query.get_or_404(customer_id)
+        print(f"✅ [CUSTOMER RESTORE] تم العثور على العميل: {customer.name}")
+        
+        if not customer.is_archived:
+            flash('العميل غير مؤرشف', 'warning')
+            return redirect(url_for('customers_bp.list_customers'))
+        
+        # البحث عن الأرشيف
+        from models import Archive
+        archive = Archive.query.filter_by(
+            record_type='customers',
+            record_id=customer_id
+        ).first()
+        
+        if archive:
+            print(f"✅ [CUSTOMER RESTORE] تم العثور على الأرشيف: {archive.id}")
+            # حذف الأرشيف
+            db.session.delete(archive)
+            print(f"🗑️ [CUSTOMER RESTORE] تم حذف الأرشيف")
+        
+        # استعادة العميل
+        print(f"📝 [CUSTOMER RESTORE] بدء استعادة العميل...")
+        customer.is_archived = False
+        customer.archived_at = None
+        customer.archived_by = None
+        customer.archive_reason = None
+        db.session.commit()
+        print(f"✅ [CUSTOMER RESTORE] تم استعادة العميل بنجاح")
+        
+        flash(f'تم استعادة العميل {customer.name} بنجاح', 'success')
+        print(f"🎉 [CUSTOMER RESTORE] تمت العملية بنجاح - إعادة توجيه...")
+        return redirect(url_for('customers_bp.list_customers'))
+        
+    except Exception as e:
+        print(f"❌ [CUSTOMER RESTORE] خطأ في استعادة العميل: {str(e)}")
+        print(f"❌ [CUSTOMER RESTORE] نوع الخطأ: {type(e).__name__}")
+        import traceback
+        print(f"❌ [CUSTOMER RESTORE] تفاصيل الخطأ: {traceback.format_exc()}")
+        
+        db.session.rollback()
+        flash(f'خطأ في استعادة العميل: {str(e)}', 'error')
+        return redirect(url_for('customers_bp.list_customers'))

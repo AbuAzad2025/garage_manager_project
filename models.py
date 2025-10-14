@@ -41,6 +41,84 @@ from sqlalchemy.orm import Session as _SA_Session, relationship, object_session,
 from extensions import db
 from barcodes import normalize_barcode
 
+# موديل الأرشفة الشامل
+class Archive(db.Model):
+    """نموذج الأرشفة الشامل"""
+    __tablename__ = 'archives'
+    
+    id = Column(Integer, primary_key=True)
+    record_type = Column(String(50), nullable=False, index=True)  # نوع السجل (service, payment, sale, etc.)
+    record_id = Column(Integer, nullable=False, index=True)  # معرف السجل الأصلي
+    table_name = Column(String(100), nullable=False)  # اسم الجدول الأصلي
+    
+    # البيانات المؤرشفة
+    archived_data = Column(Text, nullable=False)  # البيانات كـ JSON
+    archive_reason = Column(String(200))  # سبب الأرشفة
+    
+    # معلومات الأرشفة
+    archived_by = Column(Integer, ForeignKey('users.id'), nullable=False)
+    archived_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    # معلومات إضافية
+    original_created_at = Column(DateTime)  # تاريخ الإنشاء الأصلي
+    original_updated_at = Column(DateTime)  # تاريخ التحديث الأخير
+    
+    # علاقات
+    user = relationship('User', backref='archives')
+    
+    def __repr__(self):
+        return f'<Archive {self.record_type}:{self.record_id}>'
+    
+    def to_dict(self):
+        """تحويل الأرشيف إلى قاموس"""
+        return {
+            'id': self.id,
+            'record_type': self.record_type,
+            'record_id': self.record_id,
+            'table_name': self.table_name,
+            'archived_data': json.loads(self.archived_data) if self.archived_data else {},
+            'archive_reason': self.archive_reason,
+            'archived_by': self.archived_by,
+            'archived_at': self.archived_at.isoformat() if self.archived_at else None,
+            'original_created_at': self.original_created_at.isoformat() if self.original_created_at else None,
+            'original_updated_at': self.original_updated_at.isoformat() if self.original_updated_at else None,
+            'user_name': self.user.username if self.user else None
+        }
+    
+    @classmethod
+    def archive_record(cls, record, reason=None, user_id=None):
+        """أرشفة سجل معين"""
+        if not user_id:
+            user_id = current_user.id if current_user and current_user.is_authenticated else None
+        
+        # تحويل السجل إلى قاموس
+        record_dict = {}
+        for column in record.__table__.columns:
+            value = getattr(record, column.name)
+            if isinstance(value, datetime):
+                value = value.isoformat()
+            elif isinstance(value, Decimal):
+                value = float(value)
+            record_dict[column.name] = value
+        
+        # إنشاء الأرشيف
+        archive = cls(
+            record_type=record.__tablename__,
+            record_id=record.id,
+            table_name=record.__tablename__,
+            archived_data=json.dumps(record_dict, ensure_ascii=False, default=str),
+            archive_reason=reason,
+            archived_by=user_id,
+            original_created_at=getattr(record, 'created_at', None),
+            original_updated_at=getattr(record, 'updated_at', None)
+        )
+        
+        db.session.add(archive)
+        db.session.flush()  # للحصول على ID السجل
+        return archive
+
+# تم حذف التكرار نهائياً
+
 user_permissions = db.Table(
     "user_permissions",
     db.Column("user_id", db.Integer, db.ForeignKey("users.id"), primary_key=True),
@@ -1612,6 +1690,9 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
     is_active = Column(Boolean, default=True, nullable=False, server_default=sa_text("1"))
     is_online = Column(Boolean, default=False, nullable=False, server_default=sa_text("0"))
     is_archived = Column(Boolean, default=False, nullable=False, server_default=sa_text("0"))
+    archived_at = Column(DateTime, index=True)
+    archived_by = Column(Integer, ForeignKey("users.id"), index=True)
+    archive_reason = Column(String(200))
     credit_limit = Column(Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
     discount_rate = Column(Numeric(5, 2), default=0, nullable=False, server_default=sa_text("0"))
     currency = Column(String(10), default="ILS", nullable=False, server_default=sa_text("'ILS'"))
@@ -1623,6 +1704,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
     service_requests = relationship("ServiceRequest", back_populates="customer")
     online_carts = relationship("OnlineCart", back_populates="customer")
     online_preorders = relationship("OnlinePreOrder", back_populates="customer")
+    archived_by_user = relationship("User", foreign_keys=[archived_by])
 
     __table_args__ = (
         CheckConstraint("credit_limit >= 0", name="ck_customer_credit_limit_non_negative"),
@@ -1894,12 +1976,19 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
     balance = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
     payment_terms = db.Column(db.String(50))
     currency = db.Column(db.String(10), default="ILS", nullable=False, server_default=sa_text("'ILS'"))
+    
+    # حقول الأرشيف
+    is_archived = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    archived_at = db.Column(db.DateTime, index=True)
+    archived_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    archive_reason = db.Column(db.String(200))
 
     payments = db.relationship("Payment", back_populates="supplier")
     invoices = db.relationship("Invoice", back_populates="supplier")
     preorders = db.relationship("PreOrder", back_populates="supplier")
     warehouses = db.relationship("Warehouse", back_populates="supplier")
     loan_settlements = db.relationship("SupplierLoanSettlement", back_populates="supplier", cascade="all, delete-orphan")
+    archived_by_user = db.relationship("User", foreign_keys=[archived_by])
 
     __table_args__ = ()
 
@@ -2364,12 +2453,19 @@ class Partner(db.Model, TimestampMixin, AuditMixin):
     share_percentage = db.Column(db.Numeric(5, 2), default=0, nullable=False, server_default=sa_text("0"))
     currency = db.Column(db.String(10), default="ILS", nullable=False, server_default=sa_text("'ILS'"))
     notes = db.Column(db.Text)
+    
+    # حقول الأرشيف
+    is_archived = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    archived_at = db.Column(db.DateTime, index=True)
+    archived_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    archive_reason = db.Column(db.String(200))
 
     warehouses = db.relationship("Warehouse", back_populates="partner")
     payments = db.relationship("Payment", back_populates="partner")
     preorders = db.relationship("PreOrder", back_populates="partner")
     invoices = db.relationship("Invoice", back_populates="partner")
     shipment_partners = db.relationship("ShipmentPartner", back_populates="partner")
+    archived_by_user = db.relationship("User", foreign_keys=[archived_by])
 
     warehouse_shares = db.relationship("WarehousePartnerShare", back_populates="partner", cascade="all, delete-orphan", overlaps="shares,product_shares")
     shares = db.relationship("WarehousePartnerShare", back_populates="partner", cascade="all, delete-orphan", overlaps="warehouse_shares,product_shares")
@@ -3658,10 +3754,17 @@ class Sale(db.Model, TimestampMixin, AuditMixin):
     cancelled_at = db.Column(db.DateTime, index=True)
     cancelled_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
     cancel_reason = db.Column(db.String(200))
+    
+    # حقول الأرشيف
+    is_archived = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    archived_at = db.Column(db.DateTime, index=True)
+    archived_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    archive_reason = db.Column(db.String(200))
 
     customer = db.relationship("Customer", back_populates="sales")
     seller = db.relationship("User", back_populates="sales", foreign_keys=[seller_id])
     cancelled_by_user = db.relationship("User", back_populates="cancelled_sales", foreign_keys=[cancelled_by])
+    archived_by_user = db.relationship("User", foreign_keys=[archived_by])
     preorder = db.relationship("PreOrder", back_populates="sale")
     refund_of = db.relationship("Sale", remote_side=[id])
 
@@ -4300,7 +4403,7 @@ class Payment(db.Model):
     bank_transfer_ref = Column(String(100))
 
     created_by = Column(Integer, ForeignKey("users.id"), index=True)
-    creator = relationship("User", backref="payments_created")
+    creator = relationship("User", backref="payments_created", foreign_keys=[created_by])
 
     customer_id = Column(Integer, ForeignKey("customers.id", ondelete="CASCADE"), index=True)
     supplier_id = Column(Integer, ForeignKey("suppliers.id", ondelete="CASCADE"), index=True)
@@ -4315,6 +4418,12 @@ class Payment(db.Model):
 
     refund_of_id = Column(Integer, ForeignKey("payments.id", ondelete="SET NULL"), index=True)
     idempotency_key = Column(String(64), unique=True, index=True)
+    
+    # حقول الأرشيف
+    is_archived = Column(Boolean, default=False, nullable=False, index=True)
+    archived_at = Column(DateTime, index=True)
+    archived_by = Column(Integer, ForeignKey("users.id"), index=True)
+    archive_reason = Column(String(200))
 
     customer = relationship("Customer", back_populates="payments")
     supplier = relationship("Supplier", back_populates="payments")
@@ -4327,6 +4436,7 @@ class Payment(db.Model):
     preorder = relationship("PreOrder", back_populates="payments")
     service = relationship("ServiceRequest", back_populates="payments")
     refund_of = relationship("Payment", remote_side=[id])
+    archived_by_user = relationship("User", foreign_keys=[archived_by])
 
     splits = relationship("PaymentSplit", back_populates="payment", cascade="all,delete-orphan", passive_deletes=True, order_by="PaymentSplit.id")
 
@@ -5090,6 +5200,12 @@ class Shipment(db.Model, TimestampMixin, AuditMixin):
     delivery_attempts = db.Column(db.Integer, default=0)  # محاولات التسليم
     last_delivery_attempt = db.Column(db.DateTime)  # آخر محاولة تسليم
     return_reason = db.Column(db.Text)  # سبب الإرجاع
+    
+    # حقول الأرشيف
+    is_archived = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    archived_at = db.Column(db.DateTime, index=True)
+    archived_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    archive_reason = db.Column(db.String(200))
 
     items    = db.relationship("ShipmentItem", back_populates="shipment", cascade="all, delete-orphan", order_by="ShipmentItem.id")
     partners = db.relationship("ShipmentPartner", back_populates="shipment", cascade="all, delete-orphan", order_by="ShipmentPartner.id")
@@ -5097,6 +5213,7 @@ class Shipment(db.Model, TimestampMixin, AuditMixin):
     sale     = db.relationship("Sale", back_populates="shipments")
     destination_warehouse = db.relationship("Warehouse", back_populates="shipments_received", foreign_keys=[destination_id])
     expenses = db.relationship("Expense", back_populates="shipment", passive_deletes=True, order_by="Expense.id")
+    archived_by_user = db.relationship("User", foreign_keys=[archived_by])
 
     gl_batches = db.relationship(
         "GLBatch",
@@ -5401,10 +5518,17 @@ class ServiceRequest(db.Model, TimestampMixin, AuditMixin):
     cancelled_at = db.Column(db.DateTime, index=True)
     cancelled_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
     cancel_reason = db.Column(db.String(200))
+    
+    # حقول الأرشيف
+    is_archived = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    archived_at = db.Column(db.DateTime, index=True)
+    archived_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    archive_reason = db.Column(db.String(200))
 
     customer = db.relationship("Customer", back_populates="service_requests")
     mechanic = db.relationship("User", back_populates="mechanic_service_requests", foreign_keys=[mechanic_id])
     cancelled_by_user = db.relationship("User", back_populates="cancelled_service_requests", foreign_keys=[cancelled_by])
+    archived_by_user = db.relationship("User", foreign_keys=[archived_by])
     vehicle_type = db.relationship("EquipmentType", back_populates="service_requests")
     invoice = db.relationship("Invoice", back_populates="service", uselist=False)
 
@@ -6756,6 +6880,12 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
 
     online_gateway = db.Column(db.String(50))
     online_ref = db.Column(db.String(100))
+    
+    # حقول الأرشيف
+    is_archived = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    archived_at = db.Column(db.DateTime, index=True)
+    archived_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    archive_reason = db.Column(db.String(200))
 
     employee = relationship("Employee", back_populates="expenses")
     type = relationship("ExpenseType", back_populates="expenses")
@@ -6764,6 +6894,7 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
     shipment = relationship("Shipment", back_populates="expenses")
     utility_account = relationship("UtilityAccount", back_populates="expenses")
     stock_adjustment = relationship("StockAdjustment", back_populates="expense")
+    archived_by_user = relationship("User", foreign_keys=[archived_by])
     payments = relationship("Payment", back_populates="expense", cascade="all, delete-orphan", passive_deletes=True, order_by="Payment.id")
 
     gl_batches = relationship(
@@ -7722,11 +7853,18 @@ class Check(db.Model, TimestampMixin, AuditMixin):
     # من أنشأ الشيك
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     
+    # حقول الأرشيف
+    is_archived = Column(Boolean, default=False, nullable=False, index=True)
+    archived_at = Column(DateTime, index=True)
+    archived_by = Column(Integer, ForeignKey("users.id"), index=True)
+    archive_reason = Column(String(200))
+    
     # العلاقات
     customer = relationship("Customer", backref="independent_checks")
     supplier = relationship("Supplier", backref="independent_checks")
     partner = relationship("Partner", backref="independent_checks")
-    created_by = relationship("User", backref="checks_created")
+    created_by = relationship("User", backref="checks_created", foreign_keys=[created_by_id])
+    archived_by_user = relationship("User", foreign_keys=[archived_by])
     
     __table_args__ = (
         CheckConstraint("amount > 0", name="ck_check_amount_positive"),
@@ -7833,3 +7971,22 @@ class Check(db.Model, TimestampMixin, AuditMixin):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }
+
+# إضافة العلاقات المطلوبة لحل تحذيرات SQLAlchemy
+# هذه العلاقات مطلوبة لحل التحذيرات المتعلقة بالعلاقات المتداخلة
+
+# إضافة العلاقة في User model
+User.archived_records = relationship(
+    "Archive",
+    foreign_keys="[Archive.archived_by]",
+    back_populates="archiver",
+    overlaps="archives,user"
+)
+
+# إضافة العلاقة في Archive model
+Archive.archiver = relationship(
+    "User",
+    foreign_keys="[Archive.archived_by]",
+    back_populates="archived_records",
+    overlaps="archives,user"
+)

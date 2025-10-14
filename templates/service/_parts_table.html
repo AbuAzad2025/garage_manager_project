@@ -1,59 +1,97 @@
-<div class="card mb-3 shadow-sm">
-  <div class="card-header bg-primary text-white fw-bold">
-    <i class="fa fa-cogs"></i> قطع الغيار
+<div class="card border-0 shadow-lg mb-4">
+  <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+    <div class="d-flex justify-content-between align-items-center">
+      <h5 class="mb-0"><i class="fas fa-cogs"></i> قطع الغيار</h5>
+      <span class="badge bg-light text-primary fs-6">{{ service.parts|length if service.parts else 0 }} قطعة</span>
+    </div>
   </div>
   <div class="card-body p-0">
     {% if service.parts %}
     {% set parts_total = (service.parts | map(attribute='line_total') | sum) or 0 %}
-    <table class="table table-sm table-striped mb-0 align-middle">
-      <thead class="table-light">
-        <tr>
-          <th>المستودع</th>
-          <th>القطعة</th>
-          <th>الكمية</th>
-          <th>سعر الوحدة</th>
-          <th>الخصم %</th>
-          <th>الضريبة %</th>
-          <th>الإجمالي</th>
-          {% if current_user.has_permission('manage_service') %}
-          <th style="width:80px">إجراء</th>
-          {% endif %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for part in service.parts %}
-          {% set line = part.line_total %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
           <tr>
-            <td>{{ part.warehouse.name if part.warehouse else '—' }}</td>
-            <td>{{ part.part.name if part.part else '—' }}</td>
-            <td>{{ part.quantity or 0 }}</td>
-            <td>{{ '%.2f'|format((part.unit_price or 0)|float) }}</td>
-            <td>{{ '%.2f'|format((part.discount or 0)|float) }}</td>
-            <td>{{ '%.2f'|format((part.tax_rate or 0)|float) }}</td>
-            <td>{{ '%.2f'|format((line or 0)|float) }}</td>
+            <th><i class="fas fa-warehouse"></i> المستودع</th>
+            <th><i class="fas fa-cog"></i> القطعة</th>
+            <th><i class="fas fa-hashtag"></i> الكمية</th>
+            <th><i class="fas fa-dollar-sign"></i> سعر الوحدة</th>
+            <th><i class="fas fa-percent"></i> الخصم</th>
+            <th><i class="fas fa-receipt"></i> الضريبة</th>
+            <th><i class="fas fa-calculator"></i> الإجمالي</th>
             {% if current_user.has_permission('manage_service') %}
-            <td>
-              <form method="post" action="{{ url_for('service.delete_part', pid=part.id) }}" class="d-inline">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="btn btn-danger btn-sm btn-delete" title="حذف">
-                  <i class="fa fa-trash"></i>
-                </button>
-              </form>
-            </td>
+            <th style="width:80px"><i class="fas fa-cogs"></i> إجراء</th>
             {% endif %}
           </tr>
-        {% endfor %}
-      </tbody>
-      <tfoot class="table-light">
-        <tr>
-          <th colspan="6" class="text-end">إجمالي قطع الغيار</th>
-          <th>{{ '%.2f'|format((parts_total or 0)|float) }}</th>
-          {% if current_user.has_permission('manage_service') %}<th></th>{% endif %}
-        </tr>
-      </tfoot>
-    </table>
+        </thead>
+        <tbody>
+          {% for part in service.parts %}
+            {% set line = part.line_total %}
+            <tr>
+              <td>
+                <span class="badge bg-info">{{ part.warehouse.name if part.warehouse else '—' }}</span>
+              </td>
+              <td>
+                <strong>{{ part.part.name if part.part else '—' }}</strong>
+                {% if part.part and part.part.code %}
+                <br><small class="text-muted">كود: {{ part.part.code }}</small>
+                {% endif %}
+              </td>
+              <td>
+                <span class="badge bg-primary">{{ part.quantity or 0 }}</span>
+              </td>
+              <td class="text-end">
+                <strong>{{ '%.2f'|format((part.unit_price or 0)|float) }} ₪</strong>
+              </td>
+              <td class="text-center">
+                {% if part.discount and part.discount > 0 %}
+                <span class="badge bg-warning">{{ '%.1f'|format((part.discount or 0)|float) }}%</span>
+                {% else %}
+                <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {% if part.tax_rate and part.tax_rate > 0 %}
+                <span class="badge bg-success">{{ '%.1f'|format((part.tax_rate or 0)|float) }}%</span>
+                {% else %}
+                <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+              <td class="text-end">
+                <strong class="text-success">{{ '%.2f'|format((line or 0)|float) }} ₪</strong>
+              </td>
+              {% if current_user.has_permission('manage_service') %}
+              <td>
+                <form method="post" action="{{ url_for('service.delete_part', pid=part.id) }}" class="d-inline">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-danger btn-sm btn-delete" title="حذف القطعة">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </form>
+              </td>
+              {% endif %}
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot class="table-light">
+          <tr>
+            <th colspan="6" class="text-end">
+              <i class="fas fa-calculator"></i> إجمالي قطع الغيار
+            </th>
+            <th class="text-end">
+              <strong class="text-success fs-5">{{ '%.2f'|format((parts_total or 0)|float) }} ₪</strong>
+            </th>
+            {% if current_user.has_permission('manage_service') %}<th></th>{% endif %}
+          </tr>
+        </tfoot>
+      </table>
+    </div>
     {% else %}
-    <div class="p-3 text-center text-muted">لا توجد قطع مسجلة لهذا الطلب</div>
+    <div class="text-center p-4">
+      <i class="fas fa-cogs fa-3x text-muted mb-3"></i>
+      <h5 class="text-muted">لا توجد قطع مسجلة</h5>
+      <p class="text-muted">لم يتم إضافة أي قطع غيار لهذا الطلب بعد</p>
+    </div>
     {% endif %}
   </div>
 </div>

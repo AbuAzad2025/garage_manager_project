@@ -210,8 +210,8 @@ def list_requests():
     per_page = request.args.get('per_page', 20, type=int)
     per_page = min(per_page, 100)  # حد أقصى
     
-    # بناء الاستعلام مع joinedload محسّن
-    query = ServiceRequest.query.options(
+    # بناء الاستعلام مع joinedload محسّن - فلترة السجلات غير المؤرشفة
+    query = ServiceRequest.query.filter(ServiceRequest.is_archived == False).options(
         joinedload(ServiceRequest.customer),
         joinedload(ServiceRequest.mechanic)
     )
@@ -580,7 +580,107 @@ def search_requests():
     query=request.args.get('q','')
     if not query: return jsonify([])
     results=ServiceRequest.query.join(Customer).filter(or_(ServiceRequest.service_number.ilike(f'%{query}%'),ServiceRequest.vehicle_vrn.ilike(f'%{query}%'),Customer.name.ilike(f'%{query}%'),Customer.phone.ilike(f'%{query}%'))).limit(10).all()
+
+
+@service_bp.route('/<int:rid>/archive', methods=['POST'])
+@login_required
+@permission_required('manage_service')
+def archive_request(rid):
+    """أرشفة طلب صيانة"""
+    from models import Archive
+    
+    service = ServiceRequest.query.get_or_404(rid)
+    reason = request.form.get('reason', 'أرشفة طلب صيانة')
+    
+    try:
+        # أرشفة السجل
+        archive = Archive.archive_record(
+            record=service,
+            reason=reason,
+            user_id=current_user.id
+        )
+        
+        # حذف السجل الأصلي
+        db.session.delete(service)
+        db.session.commit()
+        
+        flash(f'تم أرشفة طلب الصيانة #{service.service_number or service.id} بنجاح', 'success')
+        return redirect(url_for('service.list_requests'))
+        
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        flash(f'خطأ في أرشفة الطلب: {str(e)}', 'error')
+        return redirect(url_for('service.view_request', rid=rid))
+
+
+@service_bp.route('/analytics')
+@login_required
+@permission_required('manage_service')
+def analytics():
+    """تحليلات الصيانة المتقدمة"""
+    from datetime import datetime, timedelta
+    
+    # إحصائيات شاملة
+    total_requests = ServiceRequest.query.count()
+    completed_this_month = ServiceRequest.query.filter(
+        ServiceRequest.status == 'COMPLETED',
+        ServiceRequest.completed_at >= datetime.now().replace(day=1)
+    ).count()
+    
+    # متوسط وقت الإنجاز
+    avg_completion_time = db.session.query(
+        func.avg(
+            func.julianday(ServiceRequest.completed_at) - 
+            func.julianday(ServiceRequest.received_at)
+        )
+    ).filter(
+        ServiceRequest.status == 'COMPLETED',
+        ServiceRequest.completed_at.isnot(None)
+    ).scalar() or 0
+    
+    # أكثر المشاكل شيوعاً
+    common_problems = db.session.query(
+        ServiceRequest.problem_description,
+        func.count(ServiceRequest.id).label('count')
+    ).filter(
+        ServiceRequest.problem_description.isnot(None),
+        ServiceRequest.problem_description != ''
+    ).group_by(ServiceRequest.problem_description).order_by(desc('count')).limit(10).all()
+    
+    # إحصائيات الأسبوع
+    week_ago = datetime.now() - timedelta(days=7)
+    weekly_stats = {
+        'new': ServiceRequest.query.filter(ServiceRequest.received_at >= week_ago).count(),
+        'completed': ServiceRequest.query.filter(
+            ServiceRequest.completed_at >= week_ago,
+            ServiceRequest.status == 'COMPLETED'
+        ).count(),
+        'in_progress': ServiceRequest.query.filter(
+            ServiceRequest.status == 'IN_PROGRESS'
+        ).count()
+    }
+    
+    return render_template('service/analytics.html', 
+                         total_requests=total_requests,
+                         completed_this_month=completed_this_month,
+                         avg_completion_time=avg_completion_time,
+                         common_problems=common_problems,
+                         weekly_stats=weekly_stats)
     return jsonify([{'id':r.id,'text':f"{r.service_number} - {r.customer.name if r.customer else getattr(r,'name','')} - {r.vehicle_vrn}",'url':url_for('service.view_request', rid=r.id)} for r in results])
+
+
+# دوال مساعدة للأرشفة
+def archive_service_request(service_id, reason=None):
+    """أرشفة طلب صيانة"""
+    from models import Archive
+    
+    service = ServiceRequest.query.get(service_id)
+    if service:
+        archive = Archive.archive_record(service, reason)
+        db.session.delete(service)
+        db.session.commit()
+        return archive
+    return None
 
 def log_service_action(service, action, old_data=None, new_data=None):
     entry=AuditLog(model_name='ServiceRequest', record_id=service.id, user_id=current_user.id if current_user and getattr(current_user,'id',None) else None, action=action, old_data=json.dumps(old_data, ensure_ascii=False) if old_data else None, new_data=json.dumps(new_data, ensure_ascii=False) if new_data else None)
@@ -625,3 +725,105 @@ def generate_service_receipt_pdf(service_request):
         if y<40*mm: c.showPage(); y=height-20*mm; c.setFont("Helvetica",9)
     subtotal=parts_total+tasks_total; y-=10*mm; c.setFont("Helvetica-Bold",11); c.drawRightString(160*mm,y,"الإجمالي الكلي:"); c.drawRightString(195*mm,y,f"{subtotal:.2f}")
     c.showPage(); c.save(); buffer.seek(0); return buffer.getvalue()
+
+@service_bp.route('/archive/<int:service_id>', methods=['POST'])
+@login_required
+@permission_required('manage_service')
+def archive_service(service_id):
+    """أرشفة طلب صيانة"""
+    print(f"🔍 [SERVICE ARCHIVE] بدء أرشفة طلب الصيانة رقم: {service_id}")
+    print(f"🔍 [SERVICE ARCHIVE] المستخدم: {current_user.username if current_user else 'غير معروف'}")
+    print(f"🔍 [SERVICE ARCHIVE] البيانات المرسلة: {dict(request.form)}")
+    
+    try:
+        from models import Archive
+        
+        service = ServiceRequest.query.get_or_404(service_id)
+        print(f"✅ [SERVICE ARCHIVE] تم العثور على طلب الصيانة: {service.service_number}")
+        
+        reason = request.form.get('reason', 'أرشفة تلقائية')
+        print(f"📝 [SERVICE ARCHIVE] سبب الأرشفة: {reason}")
+        
+        # أرشفة طلب الصيانة
+        print(f"📦 [SERVICE ARCHIVE] بدء إنشاء الأرشيف...")
+        archive = Archive.archive_record(
+            record=service,
+            reason=reason,
+            user_id=current_user.id
+        )
+        print(f"✅ [SERVICE ARCHIVE] تم إنشاء الأرشيف بنجاح: {archive.id}")
+        
+        # تحديث حالة طلب الصيانة إلى مؤرشف
+        print(f"📝 [SERVICE ARCHIVE] بدء تحديث حالة طلب الصيانة إلى مؤرشف...")
+        service.is_archived = True
+        service.archived_at = datetime.utcnow()
+        service.archived_by = current_user.id
+        service.archive_reason = reason
+        db.session.commit()
+        print(f"✅ [SERVICE ARCHIVE] تم تحديث حالة طلب الصيانة إلى مؤرشف بنجاح")
+        
+        flash(f'تم أرشفة طلب الصيانة رقم {service_id} بنجاح', 'success')
+        print(f"🎉 [SERVICE ARCHIVE] تمت العملية بنجاح - إعادة توجيه...")
+        return redirect(url_for('service.list_requests'))
+        
+    except Exception as e:
+        print(f"❌ [SERVICE ARCHIVE] خطأ في أرشفة طلب الصيانة: {str(e)}")
+        print(f"❌ [SERVICE ARCHIVE] نوع الخطأ: {type(e).__name__}")
+        import traceback
+        print(f"❌ [SERVICE ARCHIVE] تفاصيل الخطأ: {traceback.format_exc()}")
+        
+        db.session.rollback()
+        flash(f'خطأ في أرشفة طلب الصيانة: {str(e)}', 'error')
+        return redirect(url_for('service.list_requests'))
+
+@service_bp.route('/restore/<int:service_id>', methods=['POST'])
+@login_required
+@permission_required('manage_service')
+def restore_service(service_id):
+    """استعادة طلب صيانة"""
+    print(f"🔍 [SERVICE RESTORE] بدء استعادة طلب الصيانة رقم: {service_id}")
+    print(f"🔍 [SERVICE RESTORE] المستخدم: {current_user.username if current_user else 'غير معروف'}")
+    
+    try:
+        service = ServiceRequest.query.get_or_404(service_id)
+        print(f"✅ [SERVICE RESTORE] تم العثور على طلب الصيانة: {service.service_number}")
+        
+        if not service.is_archived:
+            flash('طلب الصيانة غير مؤرشف', 'warning')
+            return redirect(url_for('service.list_requests'))
+        
+        # البحث عن الأرشيف
+        from models import Archive
+        archive = Archive.query.filter_by(
+            record_type='service_requests',
+            record_id=service_id
+        ).first()
+        
+        if archive:
+            print(f"✅ [SERVICE RESTORE] تم العثور على الأرشيف: {archive.id}")
+            # حذف الأرشيف
+            db.session.delete(archive)
+            print(f"🗑️ [SERVICE RESTORE] تم حذف الأرشيف")
+        
+        # استعادة طلب الصيانة
+        print(f"📝 [SERVICE RESTORE] بدء استعادة طلب الصيانة...")
+        service.is_archived = False
+        service.archived_at = None
+        service.archived_by = None
+        service.archive_reason = None
+        db.session.commit()
+        print(f"✅ [SERVICE RESTORE] تم استعادة طلب الصيانة بنجاح")
+        
+        flash(f'تم استعادة طلب الصيانة رقم {service_id} بنجاح', 'success')
+        print(f"🎉 [SERVICE RESTORE] تمت العملية بنجاح - إعادة توجيه...")
+        return redirect(url_for('service.list_requests'))
+        
+    except Exception as e:
+        print(f"❌ [SERVICE RESTORE] خطأ في استعادة طلب الصيانة: {str(e)}")
+        print(f"❌ [SERVICE RESTORE] نوع الخطأ: {type(e).__name__}")
+        import traceback
+        print(f"❌ [SERVICE RESTORE] تفاصيل الخطأ: {traceback.format_exc()}")
+        
+        db.session.rollback()
+        flash(f'خطأ في استعادة طلب الصيانة: {str(e)}', 'error')
+        return redirect(url_for('service.list_requests'))

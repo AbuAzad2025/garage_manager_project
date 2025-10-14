@@ -22,60 +22,108 @@
     'COMPLETED':'مكتمل','CANCELLED':'ملغي','ON_HOLD':'مؤجل'
   } %}
 
-  <div class="row mb-3">
-    <div class="col-md-6">
-      <table class="table table-bordered table-sm">
-        <tr><th style="width:140px">رقم الطلب</th><td>{{ service.service_number or ('#' ~ service.id) }}</td></tr>
-        <tr><th>العميل</th><td>{{ service.customer and service.customer.name or '—' }}</td></tr>
-        <tr><th>الجوال</th><td>{{ service.customer and service.customer.phone or '—' }}</td></tr>
-        <tr><th>البريد</th><td>{{ service.customer and service.customer.email or '—' }}</td></tr>
-        <tr><th>نوع المعدة</th><td>{{ service.vehicle_type and service.vehicle_type.name or '—' }}</td></tr>
-        <tr><th>الموديل</th><td>{{ service.vehicle_model or '—' }}</td></tr>
-        <tr><th>اللوحة</th><td>{{ service.vehicle_vrn or '—' }}</td></tr>
+  <!-- معلومات الطلب -->
+  <div class="card border-0 shadow-lg mb-4">
+    <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+      <div class="d-flex justify-content-between align-items-center">
+        <h4 class="mb-0"><i class="fas fa-tools"></i> طلب الصيانة {{ service.service_number or ('#' ~ service.id) }}</h4>
         {% set st = (service.status.value if service.status is not string else service.status)|upper %}
-        <tr>
-          <th>الحالة</th>
-          <td><span class="badge badge-{{ st|lower|replace('_','') }} badge-status">{{ STATUS_LABELS.get(st, st) }}</span></td>
-        </tr>
-        <tr><th>تاريخ الاستلام</th><td>{{ service.received_at and service.received_at.strftime('%Y-%m-%d') or '—' }}</td></tr>
-        <tr><th>بدأت</th><td>{{ service.started_at and service.started_at.strftime('%Y-%m-%d %H:%M') or '—' }}</td></tr>
-        <tr><th>اكتملت</th><td>{{ service.completed_at and service.completed_at.strftime('%Y-%m-%d %H:%M') or '—' }}</td></tr>
-      </table>
+        <span class="badge bg-light text-primary fs-6">{{ STATUS_LABELS.get(st, st) }}</span>
+      </div>
     </div>
-    <div class="col-md-6">
-      <strong>وصف المشكلة:</strong>
-      <div class="border p-2 mb-2">{{ service.problem_description or '—' }}</div>
-      <strong>ملاحظات إضافية:</strong>
-      <div class="border p-2 bg-light">{{ service.description or '—' }}</div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6">
+          <div class="card border-0 bg-light">
+            <div class="card-body">
+              <h6 class="fw-bold text-primary"><i class="fas fa-user"></i> معلومات العميل</h6>
+              <table class="table table-sm table-borderless">
+                <tr><th>الاسم:</th><td>{{ service.customer and service.customer.name or '—' }}</td></tr>
+                <tr><th>الجوال:</th><td>{{ service.customer and service.customer.phone or '—' }}</td></tr>
+                <tr><th>البريد:</th><td>{{ service.customer and service.customer.email or '—' }}</td></tr>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card border-0 bg-light">
+            <div class="card-body">
+              <h6 class="fw-bold text-success"><i class="fas fa-car"></i> معلومات المركبة</h6>
+              <table class="table table-sm table-borderless">
+                <tr><th>النوع:</th><td>{{ service.vehicle_type and service.vehicle_type.name or '—' }}</td></tr>
+                <tr><th>الموديل:</th><td>{{ service.vehicle_model or '—' }}</td></tr>
+                <tr><th>اللوحة:</th><td>{{ service.vehicle_vrn or '—' }}</td></tr>
+                <tr><th>الشاسيه:</th><td>{{ service.chassis_number or '—' }}</td></tr>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="row mt-3">
+        <div class="col-md-6">
+          <div class="card border-0 bg-light">
+            <div class="card-body">
+              <h6 class="fw-bold text-warning"><i class="fas fa-calendar"></i> التواريخ</h6>
+              <table class="table table-sm table-borderless">
+                <tr><th>تاريخ الاستلام:</th><td>{{ service.received_at and service.received_at.strftime('%Y-%m-%d') or '—' }}</td></tr>
+                <tr><th>بدأت:</th><td>{{ service.started_at and service.started_at.strftime('%Y-%m-%d %H:%M') or '—' }}</td></tr>
+                <tr><th>اكتملت:</th><td>{{ service.completed_at and service.completed_at.strftime('%Y-%m-%d %H:%M') or '—' }}</td></tr>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card border-0 bg-light">
+            <div class="card-body">
+              <h6 class="fw-bold text-info"><i class="fas fa-exclamation-triangle"></i> وصف المشكلة</h6>
+              <p class="mb-2">{{ service.problem_description or '—' }}</p>
+              <h6 class="fw-bold text-secondary">ملاحظات إضافية:</h6>
+              <p class="mb-0">{{ service.description or '—' }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div class="mb-3 d-flex flex-wrap gap-2 actions toolbar">
-    {% if service.total_amount and service.total_amount > 0 %}
-    <a href="{{ url_for('service.add_payment', rid=service.id) }}" class="btn btn-primary">
-      <i class="fas fa-cash-register"></i> تسجيل دفعة ({{ '%.2f'|format(service.total_amount) }} ₪)
-    </a>
-    {% endif %}
-    <form class="d-inline" method="post" action="{{ url_for('service.toggle_service', rid=service.id, action='start') }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="btn btn-outline-info"><i class="fas fa-play"></i> بدء الصيانة</button>
-    </form>
-    <form class="d-inline" method="post" action="{{ url_for('service.toggle_service', rid=service.id, action='complete') }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="btn btn-outline-success"><i class="fas fa-check"></i> إكمال الصيانة</button>
-    </form>
-    <button id="previewReceiptBtn" data-url="{{ url_for('service.view_receipt', rid=service.id) }}" class="btn btn-info">
-      <i class="fas fa-eye"></i> معاينة الإيصال
-    </button>
-    <button id="printReceiptBtn" data-url="{{ url_for('service.view_receipt', rid=service.id) }}" class="btn btn-secondary">
-      <i class="fas fa-print"></i> طباعة مباشرة
-    </button>
-    {% if current_user.has_permission('manage_service') %}
-    <form action="{{ url_for('service.delete_request', rid=service.id) }}" method="post" class="d-inline">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button class="btn btn-danger btn-delete"><i class="fas fa-trash-alt"></i> حذف الطلب</button>
-    </form>
-    {% endif %}
+  <!-- شريط الإجراءات -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-gradient-success text-white">
+      <h5 class="mb-0"><i class="fas fa-cogs"></i> إجراءات الصيانة</h5>
+    </div>
+    <div class="card-body">
+      <div class="d-flex flex-wrap gap-2">
+        {% if service.total_amount and service.total_amount > 0 %}
+        <a href="{{ url_for('service.add_payment', rid=service.id) }}" class="btn btn-primary fw-bold">
+          <i class="fas fa-cash-register"></i> تسجيل دفعة ({{ '%.2f'|format(service.total_amount) }} ₪)
+        </a>
+        {% endif %}
+        <form class="d-inline" method="post" action="{{ url_for('service.toggle_service', rid=service.id, action='start') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-outline-info fw-bold"><i class="fas fa-play"></i> بدء الصيانة</button>
+        </form>
+        <form class="d-inline" method="post" action="{{ url_for('service.toggle_service', rid=service.id, action='complete') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-outline-success fw-bold"><i class="fas fa-check"></i> إكمال الصيانة</button>
+        </form>
+        <button id="previewReceiptBtn" data-url="{{ url_for('service.view_receipt', rid=service.id) }}" class="btn btn-info fw-bold">
+          <i class="fas fa-eye"></i> معاينة الإيصال
+        </button>
+        <button id="printReceiptBtn" data-url="{{ url_for('service.view_receipt', rid=service.id) }}" class="btn btn-secondary fw-bold">
+          <i class="fas fa-print"></i> طباعة مباشرة
+        </button>
+        {% if current_user.has_permission('manage_service') %}
+        <button class="btn btn-warning fw-bold" data-bs-toggle="modal" data-bs-target="#archiveModal">
+          <i class="fas fa-archive"></i> أرشفة الطلب
+        </button>
+        <form action="{{ url_for('service.delete_request', rid=service.id) }}" method="post" class="d-inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-danger btn-delete fw-bold"><i class="fas fa-trash-alt"></i> حذف الطلب</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
   </div>
 
   {% if current_user.has_permission('manage_service') %}
@@ -94,6 +142,51 @@
   {% endif %}
 
   <div class="mb-3">{% include 'service/_parts_table.html' %}</div>
+
+  <!-- Modal الأرشفة -->
+  <div class="modal fade" id="archiveModal" tabindex="-1" aria-labelledby="archiveModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header bg-warning text-dark">
+          <h5 class="modal-title" id="archiveModalLabel">
+            <i class="fas fa-archive"></i> أرشفة طلب الصيانة
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form method="POST" action="{{ url_for('service.archive_request', rid=service.id) }}">
+          <div class="modal-body">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <div class="alert alert-warning">
+              <i class="fas fa-exclamation-triangle"></i>
+              <strong>تحذير:</strong> سيتم أرشفة هذا الطلب وحذفه من القائمة الرئيسية. 
+              البيانات ستُحفظ بأمان في الأرشيف للمراجعة المحاسبية.
+            </div>
+            
+            <div class="mb-3">
+              <label for="archiveReason" class="form-label fw-bold">سبب الأرشفة:</label>
+              <textarea class="form-control" id="archiveReason" name="reason" rows="3" required placeholder="أدخل سبب أرشفة هذا الطلب..."></textarea>
+            </div>
+            
+            <div class="row">
+              <div class="col-md-6">
+                <strong>رقم الطلب:</strong> {{ service.service_number or ('#' ~ service.id) }}
+              </div>
+              <div class="col-md-6">
+                <strong>العميل:</strong> {{ service.customer.name if service.customer else '—' }}
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+            <button type="submit" class="btn btn-warning fw-bold">
+              <i class="fas fa-archive"></i> أرشفة الطلب
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 
   {% if current_user.has_permission('manage_service') %}
   <form method="post" action="{{ url_for('service.add_part', rid=service.id) }}" class="border rounded p-3 mb-3" id="form-add-part">

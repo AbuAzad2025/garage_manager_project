@@ -1237,3 +1237,32 @@ def refund_payment(op_id: int):
     except SQLAlchemyError as e:
         db.session.rollback()
         return _resp(f"خطأ أثناء الاسترجاع: {e}", "danger", to="shop.admin_preorders")
+
+@shop_bp.route("/archive-preorder/<int:preorder_id>", methods=["POST"])
+@login_required
+def archive_preorder(preorder_id):
+    """أرشفة حجز مسبق"""
+    try:
+        from models import Archive
+        
+        preorder = OnlinePreOrder.query.get_or_404(preorder_id)
+        reason = request.form.get('reason', 'أرشفة تلقائية')
+        
+        # أرشفة الحجز المسبق
+        archive = Archive.archive_record(
+            record=preorder,
+            reason=reason,
+            user_id=current_user.id
+        )
+        
+        # حذف الحجز المسبق الأصلي
+        db.session.delete(preorder)
+        db.session.commit()
+        
+        flash(f'تم أرشفة الحجز المسبق رقم {preorder.id} بنجاح', 'success')
+        return redirect(url_for('shop.admin_preorders'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'خطأ في أرشفة الحجز المسبق: {str(e)}', 'error')
+        return redirect(url_for('shop.admin_preorders'))

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <title>اختبار التبويبات</title>
+  <link rel="stylesheet" href="/static/adminlte/plugins/fontawesome-free/css/all.min.css">
+  <link rel="stylesheet" href="/static/adminlte/css/adminlte.min.css">
+</head>
+<body class="hold-transition sidebar-mini">
+  <div class="wrapper">
+    <div class="content-wrapper" style="margin-left: 0;">
+      <section class="content">
+        <div class="container-fluid p-4">
+          
+          <h2>اختبار التبويبات</h2>
+          
+          <ul class="nav nav-tabs" role="tablist">
+            <li class="nav-item">
+              <a class="nav-link active" data-toggle="tab" href="#tab1">التبويب 1</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" data-toggle="tab" href="#tab2">التبويب 2</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" data-toggle="tab" href="#tab3">التبويب 3</a>
+            </li>
+          </ul>
+
+          <div class="tab-content mt-3">
+            <div id="tab1" class="tab-pane fade in active show">
+              <div class="card">
+                <div class="card-body">
+                  <h4>محتوى التبويب 1</h4>
+                  <p>إذا رأيت هذا النص، فالتبويب يعمل!</p>
+                </div>
+              </div>
+            </div>
+            
+            <div id="tab2" class="tab-pane fade">
+              <div class="card">
+                <div class="card-body">
+                  <h4>محتوى التبويب 2</h4>
+                  <p>هذا التبويب الثاني</p>
+                </div>
+              </div>
+            </div>
+            
+            <div id="tab3" class="tab-pane fade">
+              <div class="card">
+                <div class="card-body">
+                  <h4>محتوى التبويب 3</h4>
+                  <p>هذا التبويب الثالث</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script src="/static/adminlte/plugins/jquery/jquery.min.js"></script>
+  <script src="/static/adminlte/plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
+  
+  <script>
+    $(document).ready(function(){
+      console.log('jQuery loaded:', typeof jQuery);
+      console.log('Bootstrap loaded:', typeof $.fn.tab);
+      
+      // تفعيل التبويبات يدوياً
+      $('a[data-toggle="tab"]').on('click', function(e) {
+        e.preventDefault();
+        console.log('Tab clicked:', $(this).attr('href'));
+        $(this).tab('show');
+      });
+      
+      // عند تغيير التبويب
+      $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+        console.log('Tab shown:', e.target.href);
+      });
+    });
+  </script>
+</body>
+</html>
+

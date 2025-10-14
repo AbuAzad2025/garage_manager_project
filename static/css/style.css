@@ -371,11 +371,12 @@ button:focus, .btn:focus {
   color:#007bff;
   border-bottom-color:#007bff;
 }
-.tab-content {
-  display:none;
+/* Tab content - Bootstrap tabs handling */
+.tab-content > .tab-pane {
+  display: none;
 }
-.tab-content.active {
-  display:block;
+.tab-content > .tab-pane.active {
+  display: block;
 }
 
 #noteForm .form-check {
