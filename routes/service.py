@@ -31,7 +31,7 @@ from forms import (
     ServiceRequestForm, CustomerForm, ServiceTaskForm,
     ServiceDiagnosisForm, ServicePartForm
 )
-from utils import permission_required, send_whatsapp_message, _get_id, _apply_stock_delta
+from utils import permission_required, send_whatsapp_message, _get_id, _apply_stock_delta, archive_record, restore_record
 
 service_bp = Blueprint('service', __name__, url_prefix='/service')
 
@@ -669,18 +669,7 @@ def analytics():
     return jsonify([{'id':r.id,'text':f"{r.service_number} - {r.customer.name if r.customer else getattr(r,'name','')} - {r.vehicle_vrn}",'url':url_for('service.view_request', rid=r.id)} for r in results])
 
 
-# دوال مساعدة للأرشفة
-def archive_service_request(service_id, reason=None):
-    """أرشفة طلب صيانة"""
-    from models import Archive
-    
-    service = ServiceRequest.query.get(service_id)
-    if service:
-        archive = Archive.archive_record(service, reason)
-        db.session.delete(service)
-        db.session.commit()
-        return archive
-    return None
+# دوال مساعدة للأرشفة - تم نقلها إلى utils/archive_utils.py
 
 def log_service_action(service, action, old_data=None, new_data=None):
     entry=AuditLog(model_name='ServiceRequest', record_id=service.id, user_id=current_user.id if current_user and getattr(current_user,'id',None) else None, action=action, old_data=json.dumps(old_data, ensure_ascii=False) if old_data else None, new_data=json.dumps(new_data, ensure_ascii=False) if new_data else None)
@@ -743,16 +732,7 @@ def archive_service(service_id):
         reason = request.form.get('reason', 'أرشفة تلقائية')
         print(f"📝 [SERVICE ARCHIVE] سبب الأرشفة: {reason}")
         
-        archive = Archive.archive_record(
-            record=service,
-            reason=reason,
-            user_id=current_user.id
-        )
-        service.is_archived = True
-        service.archived_at = datetime.utcnow()
-        service.archived_by = current_user.id
-        service.archive_reason = reason
-        db.session.commit()
+        archive_record(service, reason, current_user.id)
         flash(f'تم أرشفة طلب الصيانة رقم {service_id} بنجاح', 'success')
         return redirect(url_for('service.list_requests'))
         
@@ -788,12 +768,7 @@ def restore_service(service_id):
         ).first()
         
         if archive:
-            db.session.delete(archive)
-        service.is_archived = False
-        service.archived_at = None
-        service.archived_by = None
-        service.archive_reason = None
-        db.session.commit()
+            restore_record(archive.id)
         flash(f'تم استعادة طلب الصيانة رقم {service_id} بنجاح', 'success')
         return redirect(url_for('service.list_requests'))
         

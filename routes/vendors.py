@@ -12,7 +12,7 @@ from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import joinedload
 from extensions import db
 from forms import PartnerForm, SupplierForm
-from utils import permission_required
+from utils import permission_required, D, q2, archive_record, restore_record
 from models import (
     ExchangeTransaction,
     Partner,
@@ -37,20 +37,6 @@ class CSRFProtectForm(FlaskForm):
 
 vendors_bp = Blueprint("vendors_bp", __name__, url_prefix="/vendors")
 
-TWOPLACES = Decimal("0.01")
-
-def D(x) -> Decimal:
-    if x is None:
-        return Decimal("0")
-    if isinstance(x, Decimal):
-        return x
-    try:
-        return Decimal(str(x))
-    except (InvalidOperation, ValueError, TypeError):
-        return Decimal("0")
-
-def q2(x) -> Decimal:
-    return D(x).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
 
 def _get_or_404(model, ident, options=None):
     q = db.session.query(model)
@@ -1070,17 +1056,7 @@ def archive_supplier(supplier_id):
         reason = request.form.get('reason', 'أرشفة تلقائية')
         print(f"📝 [SUPPLIER ARCHIVE] سبب الأرشفة: {reason}")
         
-        archive = Archive.archive_record(
-            record=supplier,
-            reason=reason,
-            user_id=current_user.id
-        )
-        from datetime import datetime
-        supplier.is_archived = True
-        supplier.archived_at = datetime.utcnow()
-        supplier.archived_by = current_user.id
-        supplier.archive_reason = reason
-        db.session.commit()
+        archive_record(supplier, reason, current_user.id)
         flash(f'تم أرشفة المورد {supplier.name} بنجاح', 'success')
         return redirect(url_for('vendors_bp.suppliers_list'))
         
@@ -1112,24 +1088,7 @@ def archive_partner(partner_id):
         reason = request.form.get('reason', 'أرشفة تلقائية')
         print(f"📝 [PARTNER ARCHIVE] سبب الأرشفة: {reason}")
         
-        # أرشفة الشريك
-        print(f"📦 [PARTNER ARCHIVE] بدء إنشاء الأرشيف...")
-        archive = Archive.archive_record(
-            record=partner,
-            reason=reason,
-            user_id=current_user.id
-        )
-        print(f"✅ [PARTNER ARCHIVE] تم إنشاء الأرشيف بنجاح: {archive.id}")
-        
-        # تحديث حالة الشريك إلى مؤرشف
-        print(f"📝 [PARTNER ARCHIVE] بدء تحديث حالة الشريك إلى مؤرشف...")
-        from datetime import datetime
-        partner.is_archived = True
-        partner.archived_at = datetime.utcnow()
-        partner.archived_by = current_user.id
-        partner.archive_reason = reason
-        db.session.commit()
-        print(f"✅ [PARTNER ARCHIVE] تم تحديث حالة الشريك إلى مؤرشف بنجاح")
+        archive_record(partner, reason, current_user.id)
         
         flash(f'تم أرشفة الشريك {partner.name} بنجاح', 'success')
         print(f"🎉 [PARTNER ARCHIVE] تمت العملية بنجاح - إعادة توجيه...")
@@ -1170,18 +1129,8 @@ def restore_supplier(supplier_id):
         
         if archive:
             print(f"✅ [SUPPLIER RESTORE] تم العثور على الأرشيف: {archive.id}")
-            # حذف الأرشيف
-            db.session.delete(archive)
-            print(f"🗑️ [SUPPLIER RESTORE] تم حذف الأرشيف")
-        
-        # استعادة المورد
-        print(f"📝 [SUPPLIER RESTORE] بدء استعادة المورد...")
-        supplier.is_archived = False
-        supplier.archived_at = None
-        supplier.archived_by = None
-        supplier.archive_reason = None
-        db.session.commit()
-        print(f"✅ [SUPPLIER RESTORE] تم استعادة المورد بنجاح")
+            restore_record(archive.id)
+            print(f"✅ [SUPPLIER RESTORE] تم استعادة المورد بنجاح")
         
         flash(f'تم استعادة المورد {supplier.name} بنجاح', 'success')
         print(f"🎉 [SUPPLIER RESTORE] تمت العملية بنجاح - إعادة توجيه...")
@@ -1222,18 +1171,8 @@ def restore_partner(partner_id):
         
         if archive:
             print(f"✅ [PARTNER RESTORE] تم العثور على الأرشيف: {archive.id}")
-            # حذف الأرشيف
-            db.session.delete(archive)
-            print(f"🗑️ [PARTNER RESTORE] تم حذف الأرشيف")
-        
-        # استعادة الشريك
-        print(f"📝 [PARTNER RESTORE] بدء استعادة الشريك...")
-        partner.is_archived = False
-        partner.archived_at = None
-        partner.archived_by = None
-        partner.archive_reason = None
-        db.session.commit()
-        print(f"✅ [PARTNER RESTORE] تم استعادة الشريك بنجاح")
+            restore_record(archive.id)
+            print(f"✅ [PARTNER RESTORE] تم استعادة الشريك بنجاح")
         
         flash(f'تم استعادة الشريك {partner.name} بنجاح', 'success')
         print(f"🎉 [PARTNER RESTORE] تمت العملية بنجاح - إعادة توجيه...")

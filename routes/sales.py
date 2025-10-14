@@ -15,32 +15,10 @@ from sqlalchemy.orm import joinedload
 from extensions import db
 from models import Sale, SaleLine, Invoice, Customer, Product, AuditLog, Warehouse, User, Payment, StockLevel
 from forms import SaleForm
-from utils import permission_required
+from utils import permission_required, D, line_total_decimal, money_fmt, archive_record, restore_record
 from decimal import Decimal, ROUND_HALF_UP
 
 sales_bp = Blueprint("sales_bp", __name__, url_prefix="/sales", template_folder="templates/sales")
-
-TWOPLACES = Decimal("0.01")
-
-def D(x):
-    if x is None:
-        return Decimal("0")
-    if isinstance(x, Decimal):
-        return x
-    return Decimal(str(x))
-
-def line_total_decimal(qty, unit_price, discount_rate):
-    q = D(qty)
-    p = D(unit_price)
-    dr = D(discount_rate or 0)
-    one = Decimal("1")
-    hundred = Decimal("100")
-    total = q * p * (one - dr / hundred)
-    return total.quantize(TWOPLACES, rounding=ROUND_HALF_UP)
-
-def money_fmt(value):
-    v = value if isinstance(value, Decimal) else D(value or 0)
-    return f"{v:,.2f}"
 
 STATUS_MAP = {
     "DRAFT": ("مسودة", "bg-warning text-dark"),
@@ -842,16 +820,7 @@ def archive_sale(sale_id):
         reason = request.form.get('reason', 'أرشفة تلقائية')
         print(f"📝 [SALE ARCHIVE] سبب الأرشفة: {reason}")
         
-        archive = Archive.archive_record(
-            record=sale,
-            reason=reason,
-            user_id=current_user.id
-        )
-        sale.is_archived = True
-        sale.archived_at = datetime.utcnow()
-        sale.archived_by = current_user.id
-        sale.archive_reason = reason
-        db.session.commit()
+        archive_record(sale, reason, current_user.id)
         flash(f'تم أرشفة المبيعة رقم {sale_id} بنجاح', 'success')
         return redirect(url_for('sales_bp.list_sales'))
         
@@ -890,18 +859,8 @@ def restore_sale(sale_id):
         
         if archive:
             print(f"✅ [SALE RESTORE] تم العثور على الأرشيف: {archive.id}")
-            # حذف الأرشيف
-            db.session.delete(archive)
-            print(f"🗑️ [SALE RESTORE] تم حذف الأرشيف")
-        
-        # استعادة المبيعة
-        print(f"📝 [SALE RESTORE] بدء استعادة المبيعة...")
-        sale.is_archived = False
-        sale.archived_at = None
-        sale.archived_by = None
-        sale.archive_reason = None
-        db.session.commit()
-        print(f"✅ [SALE RESTORE] تم استعادة المبيعة بنجاح")
+            restore_record(archive.id)
+            print(f"✅ [SALE RESTORE] تم استعادة المبيعة بنجاح")
         
         flash(f'تم استعادة المبيعة رقم {sale_id} بنجاح', 'success')
         print(f"🎉 [SALE RESTORE] تمت العملية بنجاح - إعادة توجيه...")

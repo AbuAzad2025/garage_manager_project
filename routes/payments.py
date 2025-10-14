@@ -67,7 +67,10 @@ from utils import (
     q,
     Q2,
     D,
+    q0,
     is_super,
+    archive_record,
+    restore_record,
 )
 try:
     from acl import super_only
@@ -128,8 +131,6 @@ def _safe_get_payment(payment_id: int, *, all_rels: bool = False) -> Payment | N
     except Exception:
         return None
 
-def q0(x) -> Decimal:
-    return q(x, 0)
 
 def _f2(v):
     try:
@@ -1909,16 +1910,7 @@ def archive_payment(payment_id):
         reason = request.form.get('reason', 'أرشفة تلقائية')
         print(f"📝 [PAYMENT ARCHIVE] سبب الأرشفة: {reason}")
         
-        archive = Archive.archive_record(
-            record=payment,
-            reason=reason,
-            user_id=current_user.id
-        )
-        payment.is_archived = True
-        payment.archived_at = datetime.utcnow()
-        payment.archived_by = current_user.id
-        payment.archive_reason = reason
-        db.session.commit()
+        archive_record(payment, reason, current_user.id)
         flash(f'تم أرشفة الدفعة رقم {payment.id} بنجاح', 'success')
         return redirect(url_for('payments_bp.index'))
         
@@ -1956,18 +1948,8 @@ def restore_payment(payment_id):
         
         if archive:
             print(f"✅ [PAYMENT RESTORE] تم العثور على الأرشيف: {archive.id}")
-            # حذف الأرشيف
-            db.session.delete(archive)
-            print(f"🗑️ [PAYMENT RESTORE] تم حذف الأرشيف")
-        
-        # استعادة الدفعة
-        print(f"📝 [PAYMENT RESTORE] بدء استعادة الدفعة...")
-        payment.is_archived = False
-        payment.archived_at = None
-        payment.archived_by = None
-        payment.archive_reason = None
-        db.session.commit()
-        print(f"✅ [PAYMENT RESTORE] تم استعادة الدفعة بنجاح")
+            restore_record(archive.id)
+            print(f"✅ [PAYMENT RESTORE] تم استعادة الدفعة بنجاح")
         
         flash(f'تم استعادة الدفعة رقم {payment_id} بنجاح', 'success')
         print(f"🎉 [PAYMENT RESTORE] تمت العملية بنجاح - إعادة توجيه...")

@@ -15,7 +15,7 @@ from sqlalchemy import or_, and_
 from extensions import db
 from forms import EmployeeForm, ExpenseTypeForm, ExpenseForm, QuickExpenseForm
 from models import Employee, ExpenseType, Expense, Shipment, UtilityAccount, StockAdjustment
-from utils import permission_required
+from utils import permission_required, D, q0, archive_record, restore_record
 
 expenses_bp = Blueprint(
     "expenses_bp",
@@ -23,22 +23,6 @@ expenses_bp = Blueprint(
     url_prefix="/expenses",
     template_folder="templates/expenses",
 )
-
-TWOPLACES = Decimal("0.01")
-ZERO_PLACES = Decimal("1")
-
-def D(x) -> Decimal:
-    if x is None:
-        return Decimal("0")
-    if isinstance(x, Decimal):
-        return x
-    try:
-        return Decimal(str(x))
-    except (InvalidOperation, ValueError, TypeError):
-        return Decimal("0")
-
-def q0(x) -> Decimal:
-    return D(x).quantize(ZERO_PLACES, rounding=ROUND_HALF_UP)
 
 def _get_or_404(model, ident, *options):
     if options:
@@ -675,16 +659,7 @@ def archive_expense(expense_id):
         reason = request.form.get('reason', 'أرشفة تلقائية')
         print(f"📝 [EXPENSE ARCHIVE] سبب الأرشفة: {reason}")
         
-        archive = Archive.archive_record(
-            record=expense,
-            reason=reason,
-            user_id=current_user.id
-        )
-        expense.is_archived = True
-        expense.archived_at = datetime.utcnow()
-        expense.archived_by = current_user.id
-        expense.archive_reason = reason
-        db.session.commit()
+        archive_record(expense, reason, current_user.id)
         flash(f'تم أرشفة النفقة رقم {expense.id} بنجاح', 'success')
         return redirect(url_for('expenses_bp.index'))
         
@@ -723,18 +698,8 @@ def restore_expense(expense_id):
         
         if archive:
             print(f"✅ [EXPENSE RESTORE] تم العثور على الأرشيف: {archive.id}")
-            # حذف الأرشيف
-            db.session.delete(archive)
-            print(f"🗑️ [EXPENSE RESTORE] تم حذف الأرشيف")
-        
-        # استعادة النفقة
-        print(f"📝 [EXPENSE RESTORE] بدء استعادة النفقة...")
-        expense.is_archived = False
-        expense.archived_at = None
-        expense.archived_by = None
-        expense.archive_reason = None
-        db.session.commit()
-        print(f"✅ [EXPENSE RESTORE] تم استعادة النفقة بنجاح")
+            restore_record(archive.id)
+            print(f"✅ [EXPENSE RESTORE] تم استعادة النفقة بنجاح")
         
         flash(f'تم استعادة النفقة رقم {expense_id} بنجاح', 'success')
         print(f"🎉 [EXPENSE RESTORE] تمت العملية بنجاح - إعادة توجيه...")

@@ -30,20 +30,7 @@ shipments_bp = Blueprint("shipments_bp", __name__, url_prefix="/shipments")
 def _inject_utils():
     return dict(format_currency=format_currency)
 
-_TWOPLACES = Decimal("0.01")
-
-def _D(x):
-    if x is None:
-        return Decimal("0")
-    if isinstance(x, Decimal):
-        return x
-    try:
-        return Decimal(str(x))
-    except (InvalidOperation, ValueError, TypeError):
-        return Decimal("0")
-
-def _q2(x):
-    return _D(x).quantize(_TWOPLACES, rounding=ROUND_HALF_UP)
+from utils import D as _D, _q2
 
 def _norm_currency(v):
     return (v or "USD").strip().upper()

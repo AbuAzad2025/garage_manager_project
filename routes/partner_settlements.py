@@ -59,8 +59,7 @@ def _extract_range_from_request():
         return None, None, "from must be before to"
     return dfrom, dto, ""
 
-def _q2(v) -> float:
-    return float(Decimal(str(v or 0)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+from utils import _q2
 
 def _d2(v) -> Decimal:
     """تحويل إلى Decimal بدقة منزلتين"""

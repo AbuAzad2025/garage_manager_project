@@ -51,6 +51,8 @@ from utils import (
     generate_vcf,
     permission_required,
     send_whatsapp_message,
+    archive_record,
+    restore_record,
 )
 
 customers_bp = Blueprint(
@@ -246,20 +248,7 @@ def customer_detail(customer_id):
 def customer_analytics(customer_id):
     customer = db.session.get(Customer, customer_id) or abort(404)
 
-    def D(x):
-        from decimal import Decimal
-        if x is None:
-            return Decimal("0")
-        if isinstance(x, Decimal):
-            return x
-        try:
-            return Decimal(str(x))
-        except Exception:
-            return Decimal("0")
-
-    def q0(x):
-        from decimal import Decimal
-        return D(x).quantize(Decimal("1"))
+    from utils import D, q0
 
     def _f2(v):
         try:
@@ -634,21 +623,7 @@ def export_customer_vcf(customer_id):
 def account_statement(customer_id):
     c = db.session.get(Customer, customer_id) or abort(404)
 
-    TWOPLACES = Decimal("0.01")
-    ZERO_PLACES = Decimal("1")
-
-    def D(x):
-        if x is None:
-            return Decimal("0")
-        if isinstance(x, Decimal):
-            return x
-        try:
-            return Decimal(str(x))
-        except Exception:
-            return Decimal("0")
-
-    def q0(x):
-        return D(x).quantize(ZERO_PLACES)
+    from utils import D, q0
 
     def _f2(v):
         try:
@@ -973,16 +948,7 @@ def archive_customer(customer_id):
         reason = request.form.get('reason', 'أرشفة تلقائية')
         print(f"📝 [CUSTOMER ARCHIVE] سبب الأرشفة: {reason}")
         
-        archive = Archive.archive_record(
-            record=customer,
-            reason=reason,
-            user_id=current_user.id
-        )
-        customer.is_archived = True
-        customer.archived_at = datetime.utcnow()
-        customer.archived_by = current_user.id
-        customer.archive_reason = reason
-        db.session.commit()
+        archive_record(customer, reason, current_user.id)
         flash(f'تم أرشفة العميل {customer.name} بنجاح', 'success')
         return redirect(url_for('customers_bp.list_customers'))
         
@@ -1018,12 +984,7 @@ def restore_customer(customer_id):
         ).first()
         
         if archive:
-            db.session.delete(archive)
-        customer.is_archived = False
-        customer.archived_at = None
-        customer.archived_by = None
-        customer.archive_reason = None
-        db.session.commit()
+            restore_record(archive.id)
         flash(f'تم استعادة العميل {customer.name} بنجاح', 'success')
         return redirect(url_for('customers_bp.list_customers'))
         

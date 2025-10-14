@@ -241,20 +241,7 @@ def get_current_exchange_rates():
             'error': str(e)
         })
 
-_TWOPLACES = Decimal("0.01")
-
-def _D(x):
-    if x is None:
-        return Decimal("0")
-    if isinstance(x, Decimal):
-        return x
-    try:
-        return Decimal(str(x))
-    except (InvalidOperation, ValueError, TypeError):
-        return Decimal("0")
-
-def _q2(x):
-    return _D(x).quantize(_TWOPLACES, rounding=ROUND_HALF_UP)
+from utils import D as _D, _q2
 
 def _limit_from_request(default: int = 20, max_: int = 100) -> int:
     """حد الطلبات مع تحسينات الأداء"""
