@@ -2,10 +2,6 @@
 # Location: /garage_manager/services/ai_knowledge_finance.py
 # Description: AI financial and tax knowledge base
 
-"""
-AI Finance Knowledge - المعرفة المالية والضريبية والجمركية
-قواعد المحاسبة والضرائب لفلسطين وإسرائيل
-"""
 
 FINANCE_KNOWLEDGE = {
     "accounting_principles": {

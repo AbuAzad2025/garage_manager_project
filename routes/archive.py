@@ -11,8 +11,6 @@ import json
 
 from extensions import db
 from models import Archive, ServiceRequest, Payment, Sale, Customer, Product, Expense, Check, Supplier, Partner
-# from forms import ArchiveForm, ArchiveSearchForm, BulkArchiveForm, ArchiveRestoreForm
-# تم تعطيل استيراد الفورمز مؤقتاً لحل مشكلة import
 from utils import permission_required, super_only
 
 archive_bp = Blueprint('archive', __name__, url_prefix='/archive')
@@ -21,23 +19,15 @@ archive_bp = Blueprint('archive', __name__, url_prefix='/archive')
 @login_required
 @permission_required('manage_archive')
 def index():
-    """الصفحة الرئيسية للأرشيفات"""
-    # إحصائيات سريعة
     total_archives = Archive.query.count()
-    
-    # إحصائيات حسب النوع
     type_stats = db.session.query(
         Archive.record_type,
         func.count(Archive.id).label('count')
     ).group_by(Archive.record_type).all()
-    
-    # إحصائيات الشهر الحالي
     current_month = datetime.now().replace(day=1)
     monthly_archives = Archive.query.filter(
         Archive.archived_at >= current_month
     ).count()
-    
-    # آخر الأرشيفات
     recent_archives = Archive.query.order_by(desc(Archive.archived_at)).limit(10).all()
     
     return render_template('archive/index.html',

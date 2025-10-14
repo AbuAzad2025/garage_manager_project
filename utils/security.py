@@ -2,9 +2,6 @@
 # Location: /garage_manager/utils/security.py
 # Description: Security utilities and input validation
 
-"""
-وحدة الأمان الشاملة - التحقق من المدخلات والحماية المتقدمة
-"""
 import re
 import html
 import time
@@ -14,20 +11,9 @@ from urllib.parse import urlparse, urljoin
 from flask import request, current_app, jsonify
 from flask_login import current_user
 
-# قائمة المحارف الخطيرة
 DANGEROUS_CHARS = ['<', '>', '"', "'", '&', '/', '\\', ';', '|', '`', '$']
 
 def sanitize_input(text: str, allow_html: bool = False) -> str:
-    """
-    تنظيف المدخلات من المحارف الخطيرة
-    
-    Args:
-        text: النص المدخل
-        allow_html: السماح بـ HTML (افتراضياً: False)
-        
-    Returns:
-        النص المنظف
-    """
     if not text or not isinstance(text, str):
         return ""
     
@@ -42,11 +28,6 @@ def sanitize_input(text: str, allow_html: bool = False) -> str:
 
 
 def is_safe_url(target: str) -> bool:
-    """
-    التحقق من أن الرابط آمن (لا يوجه لموقع خارجي)
-    
-    Args:
-        target: الرابط المستهدف
         
     Returns:
         True إذا كان الرابط آمناً

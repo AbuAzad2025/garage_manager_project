@@ -1,9 +1,5 @@
-/**
- * وظائف الأرشفة الموحدة
- * هذا الملف يحتوي على جميع وظائف الأرشفة المستخدمة في النظام
- */
-
-// أرشفة العميل
+// archive.js - Archive Functions
+// Location: /garage_manager/static/js/archive.js
 function archiveCustomer(customerId) {
     console.log('🔍 [JS] بدء أرشفة العميل رقم:', customerId);
     console.log('🔍 [JS] نوع customerId:', typeof customerId);
@@ -46,7 +42,6 @@ function archiveCustomer(customerId) {
         document.body.appendChild(form);
         console.log('🚀 [JS] إرسال النموذج...');
         
-        // إضافة event listener لمراقبة إرسال النموذج
         form.addEventListener('submit', function(e) {
             console.log('📡 [JS] تم إرسال النموذج بنجاح');
         });
@@ -56,8 +51,6 @@ function archiveCustomer(customerId) {
         console.log('❌ [JS] تم إلغاء الأرشفة من قبل المستخدم');
     }
 }
-
-// أرشفة المبيعة
 function archiveSale(saleId) {
     console.log('🔍 [JS] بدء أرشفة المبيعة رقم:', saleId);
     console.log('🔍 [JS] نوع saleId:', typeof saleId);

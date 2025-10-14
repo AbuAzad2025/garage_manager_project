@@ -42,9 +42,7 @@ except Exception:
 
 from extensions import limiter, db, mail
 
-# Import models للحماية من circular imports
 def _get_models():
-    """Lazy import للـ models"""
     from models import Customer, Supplier, Partner
     return Customer, Supplier, Partner
 

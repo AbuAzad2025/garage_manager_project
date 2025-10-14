@@ -2,10 +2,6 @@
 # Location: /garage_manager/notifications.py
 # Description: Notification system and messaging functionality
 
-"""
-نظام الإشعارات المتقدم
-Advanced Notifications System
-"""
 
 import logging
 from datetime import datetime, timedelta
@@ -21,7 +17,6 @@ from models import TimestampMixin, AuditMixin
 
 
 class NotificationType(Enum):
-    """أنواع الإشعارات"""
     INFO = "info"
     SUCCESS = "success"
     WARNING = "warning"
@@ -34,7 +29,6 @@ class NotificationType(Enum):
 
 
 class NotificationPriority(Enum):
-    """أولوية الإشعارات"""
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -43,7 +37,6 @@ class NotificationPriority(Enum):
 
 @dataclass
 class NotificationData:
-    """بيانات الإشعار"""
     title: str
     message: str
     type: NotificationType = NotificationType.INFO

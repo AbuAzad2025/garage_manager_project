@@ -2,10 +2,6 @@
 # Location: /garage_manager/routes/health.py
 # Description: System health monitoring and status routes
 
-"""
-نظام مراقبة الصحة المحسن
-Enhanced Health Check System
-"""
 
 from __future__ import annotations
 import os
@@ -27,7 +23,6 @@ health_bp = Blueprint("health", __name__, url_prefix="/health")
 
 
 def _check_database() -> Dict[str, Any]:
-    """فحص اتصال قاعدة البيانات"""
     try:
         start = time.time()
         result = db.session.execute(text("SELECT 1")).scalar()

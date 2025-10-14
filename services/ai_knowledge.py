@@ -2,10 +2,6 @@
 # Location: /garage_manager/services/ai_knowledge.py
 # Description: AI knowledge base and system indexing
 
-"""
-AI Knowledge Base - قاعدة المعرفة الشاملة للنظام
-فهرسة وتحليل كل ملفات النظام لبناء ذاكرة معرفية مستمرة
-"""
 
 import os
 import re
@@ -19,7 +15,6 @@ TRAINING_LOG_FILE = 'instance/ai_training_log.json'
 
 
 class SystemKnowledgeBase:
-    """قاعدة المعرفة - فهم عميق لبنية النظام مع Persistent Memory"""
     
     def __init__(self):
         self.base_path = Path('.')
@@ -42,7 +37,6 @@ class SystemKnowledgeBase:
         self.load_from_cache()
     
     def load_from_cache(self):
-        """تحميل المعرفة من الذاكرة المستمرة"""
         try:
             if os.path.exists(KNOWLEDGE_CACHE_FILE):
                 with open(KNOWLEDGE_CACHE_FILE, 'r', encoding='utf-8') as f:

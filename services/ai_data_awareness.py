@@ -2,20 +2,6 @@
 # Location: /garage_manager/services/ai_data_awareness.py
 # Description: AI data and structural awareness system
 
-"""
-🧠 AI Data & Structural Awareness System
-نظام الوعي البنيوي الذاتي للمساعد الذكي
-
-المهام:
-1. اكتشاف جميع الجداول والنماذج
-2. تحليل العلاقات بين الجداول
-3. ربط الجداول بالوظائف
-4. بناء خريطة معرفية كاملة
-5. تفعيل الوعي الوظيفي
-
-Developer: Ahmed Ghannam
-Location: Ramallah, Palestine 🇵🇸
-"""
 
 import os
 import json
@@ -30,7 +16,6 @@ LEARNING_LOG_FILE = 'instance/ai_learning_log.json'
 
 
 def discover_all_models():
-    """اكتشاف جميع النماذج في النظام"""
     try:
         from models import (
             User, Customer, Supplier, Product, ServiceRequest, Invoice, Payment,

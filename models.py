@@ -41,36 +41,25 @@ from sqlalchemy.orm import Session as _SA_Session, relationship, object_session,
 from extensions import db
 from barcodes import normalize_barcode
 
-# موديل الأرشفة الشامل
 class Archive(db.Model):
-    """نموذج الأرشفة الشامل"""
     __tablename__ = 'archives'
     
     id = Column(Integer, primary_key=True)
-    record_type = Column(String(50), nullable=False, index=True)  # نوع السجل (service, payment, sale, etc.)
-    record_id = Column(Integer, nullable=False, index=True)  # معرف السجل الأصلي
-    table_name = Column(String(100), nullable=False)  # اسم الجدول الأصلي
-    
-    # البيانات المؤرشفة
-    archived_data = Column(Text, nullable=False)  # البيانات كـ JSON
-    archive_reason = Column(String(200))  # سبب الأرشفة
-    
-    # معلومات الأرشفة
+    record_type = Column(String(50), nullable=False, index=True)
+    record_id = Column(Integer, nullable=False, index=True)
+    table_name = Column(String(100), nullable=False)
+    archived_data = Column(Text, nullable=False)
+    archive_reason = Column(String(200))
     archived_by = Column(Integer, ForeignKey('users.id'), nullable=False)
     archived_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    
-    # معلومات إضافية
-    original_created_at = Column(DateTime)  # تاريخ الإنشاء الأصلي
-    original_updated_at = Column(DateTime)  # تاريخ التحديث الأخير
-    
-    # علاقات
+    original_created_at = Column(DateTime)
+    original_updated_at = Column(DateTime)
     user = relationship('User', backref='archives')
     
     def __repr__(self):
         return f'<Archive {self.record_type}:{self.record_id}>'
     
     def to_dict(self):
-        """تحويل الأرشيف إلى قاموس"""
         return {
             'id': self.id,
             'record_type': self.record_type,
@@ -87,11 +76,9 @@ class Archive(db.Model):
     
     @classmethod
     def archive_record(cls, record, reason=None, user_id=None):
-        """أرشفة سجل معين"""
         if not user_id:
             user_id = current_user.id if current_user and current_user.is_authenticated else None
         
-        # تحويل السجل إلى قاموس
         record_dict = {}
         for column in record.__table__.columns:
             value = getattr(record, column.name)
@@ -100,8 +87,6 @@ class Archive(db.Model):
             elif isinstance(value, Decimal):
                 value = float(value)
             record_dict[column.name] = value
-        
-        # إنشاء الأرشيف
         archive = cls(
             record_type=record.__tablename__,
             record_id=record.id,
@@ -114,10 +99,8 @@ class Archive(db.Model):
         )
         
         db.session.add(archive)
-        db.session.flush()  # للحصول على ID السجل
+        db.session.flush()
         return archive
-
-# تم حذف التكرار نهائياً
 
 user_permissions = db.Table(
     "user_permissions",

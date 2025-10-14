@@ -1,6 +1,5 @@
 # app.py - Main Application Entry Point
 # Location: /garage_manager/app.py
-# Description: Flask application factory and main configuration
 
 import os
 import uuid
@@ -145,7 +144,6 @@ def create_app(config_object=Config) -> Flask:
     uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
     engine_opts.setdefault("pool_pre_ping", True)
     engine_opts.setdefault("pool_recycle", 1800)
-    # ⚡ Performance: Optimize connection pooling
     engine_opts.setdefault("pool_size", 10)
     engine_opts.setdefault("max_overflow", 20)
     if uri.startswith("sqlite"):
@@ -542,7 +540,6 @@ def create_app(config_object=Config) -> Flask:
     
     @app.template_global()
     def csrf_token():
-        """إرجاع CSRF token للقوالب"""
         from flask_wtf.csrf import generate_csrf
         return generate_csrf()
 
@@ -623,7 +620,6 @@ def create_app(config_object=Config) -> Flask:
 
     @app.context_processor
     def inject_system_settings():
-        """حقن إعدادات النظام في جميع القوالب"""
         try:
             from models import SystemSettings
             def _get_setting(key, default=None):

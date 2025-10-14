@@ -2,10 +2,6 @@
 # Location: /garage_manager/routes/barcode_scanner.py
 # Description: Barcode scanning and bulk operations routes
 
-"""
-نظام الباركود المتكامل
-Advanced Barcode System
-"""
 
 import qrcode
 import io
@@ -25,7 +21,6 @@ barcode_scanner_bp = Blueprint("barcode_scanner", __name__, url_prefix="/barcode
 
 
 def generate_unique_barcode():
-    """توليد باركود فريد"""
     import random
     while True:
         # توليد باركود من 13 رقم (EAN-13 format)
@@ -37,7 +32,6 @@ def generate_unique_barcode():
 
 
 def auto_assign_barcodes():
-    """إعطاء باركود فريد لكل منتج بدون باركود"""
     try:
         products_without_barcode = Product.query.filter(
             or_(

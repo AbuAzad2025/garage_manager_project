@@ -2,8 +2,6 @@
 # Location: /garage_manager/create_user.py
 # Description: Utility script for creating new users
 
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 from app import create_app
 from models import User, Role
 from extensions import db
@@ -11,14 +9,12 @@ from extensions import db
 app = create_app()
 
 with app.app_context():
-    # إنشاء دور مدير عام
     admin_role = Role.query.filter_by(name='مدير عام').first()
     if not admin_role:
         admin_role = Role(name='مدير عام', description='مدير عام للنظام')
         db.session.add(admin_role)
         db.session.flush()
     
-    # إنشاء مستخدم ازاد
     user = User.query.filter_by(username='ازاد').first()
     if not user:
         user = User(

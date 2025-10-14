@@ -1057,7 +1057,6 @@ def _get_settlement_recommendation(balance: float, currency: str):
 @login_required
 @permission_required("manage_vendors")
 def archive_supplier(supplier_id):
-    """أرشفة مورد"""
     print(f"🔍 [SUPPLIER ARCHIVE] بدء أرشفة المورد رقم: {supplier_id}")
     print(f"🔍 [SUPPLIER ARCHIVE] المستخدم: {current_user.username if current_user else 'غير معروف'}")
     print(f"🔍 [SUPPLIER ARCHIVE] البيانات المرسلة: {dict(request.form)}")
@@ -1071,27 +1070,18 @@ def archive_supplier(supplier_id):
         reason = request.form.get('reason', 'أرشفة تلقائية')
         print(f"📝 [SUPPLIER ARCHIVE] سبب الأرشفة: {reason}")
         
-        # أرشفة المورد
-        print(f"📦 [SUPPLIER ARCHIVE] بدء إنشاء الأرشيف...")
         archive = Archive.archive_record(
             record=supplier,
             reason=reason,
             user_id=current_user.id
         )
-        print(f"✅ [SUPPLIER ARCHIVE] تم إنشاء الأرشيف بنجاح: {archive.id}")
-        
-        # تحديث حالة المورد إلى مؤرشف
-        print(f"📝 [SUPPLIER ARCHIVE] بدء تحديث حالة المورد إلى مؤرشف...")
         from datetime import datetime
         supplier.is_archived = True
         supplier.archived_at = datetime.utcnow()
         supplier.archived_by = current_user.id
         supplier.archive_reason = reason
         db.session.commit()
-        print(f"✅ [SUPPLIER ARCHIVE] تم تحديث حالة المورد إلى مؤرشف بنجاح")
-        
         flash(f'تم أرشفة المورد {supplier.name} بنجاح', 'success')
-        print(f"🎉 [SUPPLIER ARCHIVE] تمت العملية بنجاح - إعادة توجيه...")
         return redirect(url_for('vendors_bp.suppliers_list'))
         
     except Exception as e:

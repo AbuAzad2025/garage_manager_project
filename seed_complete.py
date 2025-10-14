@@ -1,9 +1,5 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-"""
-بذور شاملة كاملة لنظام إدارة الكراج
-Complete Comprehensive Seeds for Garage Management System
-"""
+# seed_complete.py - Complete Seed Data
+# Location: /garage_manager/seed_complete.py
 
 import sys
 import os
@@ -11,48 +7,25 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 import random
 
-# إضافة مسار المشروع
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app import app, db
 from models import (
-    # الموردين والشركاء
     Supplier, Partner,
-    
-    # المنتجات والفئات
     Product, ProductCategory, EquipmentType,
-    
-    # المستودعات والمخزون
     Warehouse, WarehouseType, StockLevel, ExchangeTransaction,
-    
-    # العملاء
     Customer,
-    
-    # المبيعات
     Sale, SaleLine, SaleStatus,
-    
-    # الدفعات
     Payment, PaymentStatus, PaymentDirection, PaymentMethod,
-    
-    # الصيانة
     ServiceRequest, ServicePart, ServiceStatus,
-    
-    # الشحنات
     Shipment, ShipmentStatus,
-    
-    # النفقات
     Expense,
-    
-    # العملات
     Currency, ExchangeRate,
-    
-    # المستخدمين
     User, Role,
 )
 
 
 def init_db():
-    """تهيئة قاعدة البيانات"""
     with app.app_context():
         print("🔧 تهيئة قاعدة البيانات...")
         db.create_all()

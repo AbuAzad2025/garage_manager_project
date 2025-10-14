@@ -662,7 +662,6 @@ def print_list():
 @login_required
 @permission_required("manage_expenses")
 def archive_expense(expense_id):
-    """أرشفة نفقة"""
     print(f"🔍 [EXPENSE ARCHIVE] بدء أرشفة النفقة رقم: {expense_id}")
     print(f"🔍 [EXPENSE ARCHIVE] المستخدم: {current_user.username if current_user else 'غير معروف'}")
     print(f"🔍 [EXPENSE ARCHIVE] البيانات المرسلة: {dict(request.form)}")
@@ -676,26 +675,17 @@ def archive_expense(expense_id):
         reason = request.form.get('reason', 'أرشفة تلقائية')
         print(f"📝 [EXPENSE ARCHIVE] سبب الأرشفة: {reason}")
         
-        # أرشفة النفقة
-        print(f"📦 [EXPENSE ARCHIVE] بدء إنشاء الأرشيف...")
         archive = Archive.archive_record(
             record=expense,
             reason=reason,
             user_id=current_user.id
         )
-        print(f"✅ [EXPENSE ARCHIVE] تم إنشاء الأرشيف بنجاح: {archive.id}")
-        
-        # حذف النفقة الأصلية بعد إنشاء الأرشيف
-        print(f"📝 [EXPENSE ARCHIVE] بدء تحديث حالة النفقة إلى مؤرشف...")
         expense.is_archived = True
         expense.archived_at = datetime.utcnow()
         expense.archived_by = current_user.id
         expense.archive_reason = reason
         db.session.commit()
-        print(f"✅ [EXPENSE ARCHIVE] تم تحديث حالة النفقة إلى مؤرشف بنجاح")
-        
         flash(f'تم أرشفة النفقة رقم {expense.id} بنجاح', 'success')
-        print(f"🎉 [EXPENSE ARCHIVE] تمت العملية بنجاح - إعادة توجيه...")
         return redirect(url_for('expenses_bp.index'))
         
     except Exception as e:

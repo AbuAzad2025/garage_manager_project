@@ -20,12 +20,6 @@ def compute_ean13_check_digit(code12: str) -> int:
     return (10 - (s % 10)) % 10
 
 def normalize_barcode(code: str) -> str | None:
-    """
-    - ينزع أي رموز غير رقمية
-    - 12 رقم  -> يُرجِع 13 بعد إضافة check digit
-    - 13 رقم  -> يُرجِعها كما هي
-    - غير ذلك -> None
-    """
     if not code:
         return None
     v = re.sub(r"\D+", "", str(code).strip())
@@ -44,10 +38,6 @@ def is_valid_ean13(code: str) -> bool:
     return int(v[-1]) == compute_ean13_check_digit(v[:-1])
 
 def validate_barcode(code: str) -> dict:
-    """
-    return:
-      {"valid": bool, "normalized": str|None, "suggested": str|None}
-    """
     raw = re.sub(r"\D+", "", str(code or "").strip())
     if not raw:
         return {"valid": False, "normalized": None, "suggested": None}

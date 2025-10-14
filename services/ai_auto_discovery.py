@@ -2,20 +2,6 @@
 # Location: /garage_manager/services/ai_auto_discovery.py
 # Description: AI auto-discovery and system exploration
 
-"""
-🧠 AI Auto Discovery System
-نظام الاستكشاف الذاتي الكامل للمساعد الذكي
-
-المهام:
-1. اكتشاف جميع Routes المسجلة في Flask
-2. فحص جميع Templates
-3. ربط Routes بالـ Templates
-4. بناء خريطة النظام الكاملة
-5. التحديث الديناميكي التلقائي
-
-Developer: Ahmed Ghannam
-Location: Ramallah, Palestine 🇵🇸
-"""
 
 import os
 import json
@@ -29,12 +15,10 @@ DISCOVERY_LOG_FILE = 'instance/ai_discovery_log.json'
 
 
 def discover_all_routes():
-    """اكتشاف جميع المسارات المسجلة في Flask"""
     routes = []
     
     try:
         for rule in current_app.url_map.iter_rules():
-            # استبعاد المسارات الثابتة والداخلية
             if rule.endpoint == 'static':
                 continue
                 

@@ -2,10 +2,6 @@
 # Location: /garage_manager/routes/security.py
 # Description: Security management and system administration routes
 
-"""
-وحدة الأمان المتقدمة - Super Admin فقط
-CONFIDENTIAL - لا يصل إليها إلا Super Admin
-"""
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import text, func
@@ -30,7 +26,6 @@ security_bp = Blueprint('security', __name__, url_prefix='/security')
 
 @security_bp.app_template_global()
 def _get_action_icon(action):
-    """أيقونة للنشاط - Template Global"""
     if not action:
         return 'info-circle'
     mapping = {

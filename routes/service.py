@@ -730,7 +730,6 @@ def generate_service_receipt_pdf(service_request):
 @login_required
 @permission_required('manage_service')
 def archive_service(service_id):
-    """أرشفة طلب صيانة"""
     print(f"🔍 [SERVICE ARCHIVE] بدء أرشفة طلب الصيانة رقم: {service_id}")
     print(f"🔍 [SERVICE ARCHIVE] المستخدم: {current_user.username if current_user else 'غير معروف'}")
     print(f"🔍 [SERVICE ARCHIVE] البيانات المرسلة: {dict(request.form)}")
@@ -744,26 +743,17 @@ def archive_service(service_id):
         reason = request.form.get('reason', 'أرشفة تلقائية')
         print(f"📝 [SERVICE ARCHIVE] سبب الأرشفة: {reason}")
         
-        # أرشفة طلب الصيانة
-        print(f"📦 [SERVICE ARCHIVE] بدء إنشاء الأرشيف...")
         archive = Archive.archive_record(
             record=service,
             reason=reason,
             user_id=current_user.id
         )
-        print(f"✅ [SERVICE ARCHIVE] تم إنشاء الأرشيف بنجاح: {archive.id}")
-        
-        # تحديث حالة طلب الصيانة إلى مؤرشف
-        print(f"📝 [SERVICE ARCHIVE] بدء تحديث حالة طلب الصيانة إلى مؤرشف...")
         service.is_archived = True
         service.archived_at = datetime.utcnow()
         service.archived_by = current_user.id
         service.archive_reason = reason
         db.session.commit()
-        print(f"✅ [SERVICE ARCHIVE] تم تحديث حالة طلب الصيانة إلى مؤرشف بنجاح")
-        
         flash(f'تم أرشفة طلب الصيانة رقم {service_id} بنجاح', 'success')
-        print(f"🎉 [SERVICE ARCHIVE] تمت العملية بنجاح - إعادة توجيه...")
         return redirect(url_for('service.list_requests'))
         
     except Exception as e:
@@ -780,7 +770,6 @@ def archive_service(service_id):
 @login_required
 @permission_required('manage_service')
 def restore_service(service_id):
-    """استعادة طلب صيانة"""
     print(f"🔍 [SERVICE RESTORE] بدء استعادة طلب الصيانة رقم: {service_id}")
     print(f"🔍 [SERVICE RESTORE] المستخدم: {current_user.username if current_user else 'غير معروف'}")
     
@@ -792,7 +781,6 @@ def restore_service(service_id):
             flash('طلب الصيانة غير مؤرشف', 'warning')
             return redirect(url_for('service.list_requests'))
         
-        # البحث عن الأرشيف
         from models import Archive
         archive = Archive.query.filter_by(
             record_type='service_requests',
@@ -800,22 +788,13 @@ def restore_service(service_id):
         ).first()
         
         if archive:
-            print(f"✅ [SERVICE RESTORE] تم العثور على الأرشيف: {archive.id}")
-            # حذف الأرشيف
             db.session.delete(archive)
-            print(f"🗑️ [SERVICE RESTORE] تم حذف الأرشيف")
-        
-        # استعادة طلب الصيانة
-        print(f"📝 [SERVICE RESTORE] بدء استعادة طلب الصيانة...")
         service.is_archived = False
         service.archived_at = None
         service.archived_by = None
         service.archive_reason = None
         db.session.commit()
-        print(f"✅ [SERVICE RESTORE] تم استعادة طلب الصيانة بنجاح")
-        
         flash(f'تم استعادة طلب الصيانة رقم {service_id} بنجاح', 'success')
-        print(f"🎉 [SERVICE RESTORE] تمت العملية بنجاح - إعادة توجيه...")
         return redirect(url_for('service.list_requests'))
         
     except Exception as e:

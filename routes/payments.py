@@ -1896,7 +1896,6 @@ def shop_payment_status(payment_id):
 @payments_bp.route("/archive/<int:payment_id>", methods=["POST"])
 @login_required
 def archive_payment(payment_id):
-    """أرشفة دفعة"""
     print(f"🔍 [PAYMENT ARCHIVE] بدء أرشفة الدفعة رقم: {payment_id}")
     print(f"🔍 [PAYMENT ARCHIVE] المستخدم: {current_user.username if current_user else 'غير معروف'}")
     print(f"🔍 [PAYMENT ARCHIVE] البيانات المرسلة: {dict(request.form)}")
@@ -1910,26 +1909,17 @@ def archive_payment(payment_id):
         reason = request.form.get('reason', 'أرشفة تلقائية')
         print(f"📝 [PAYMENT ARCHIVE] سبب الأرشفة: {reason}")
         
-        # أرشفة الدفعة
-        print(f"📦 [PAYMENT ARCHIVE] بدء إنشاء الأرشيف...")
         archive = Archive.archive_record(
             record=payment,
             reason=reason,
             user_id=current_user.id
         )
-        print(f"✅ [PAYMENT ARCHIVE] تم إنشاء الأرشيف بنجاح: {archive.id}")
-        
-        # تحديث حالة الدفعة إلى مؤرشف
-        print(f"📝 [PAYMENT ARCHIVE] بدء تحديث حالة الدفعة إلى مؤرشف...")
         payment.is_archived = True
         payment.archived_at = datetime.utcnow()
         payment.archived_by = current_user.id
         payment.archive_reason = reason
         db.session.commit()
-        print(f"✅ [PAYMENT ARCHIVE] تم تحديث حالة الدفعة إلى مؤرشف بنجاح")
-        
         flash(f'تم أرشفة الدفعة رقم {payment.id} بنجاح', 'success')
-        print(f"🎉 [PAYMENT ARCHIVE] تمت العملية بنجاح - إعادة توجيه...")
         return redirect(url_for('payments_bp.index'))
         
     except Exception as e:

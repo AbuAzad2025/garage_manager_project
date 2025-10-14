@@ -34,7 +34,6 @@ def owner_only(f):
 @advanced_bp.route('/db-merger', methods=['GET', 'POST'])
 @owner_only
 def db_merger():
-    """معالج قواعد البيانات - دمج ذكي"""
     if request.method == 'POST':
         if 'db_file' not in request.files:
             flash('❌ لم يتم رفع ملف', 'danger')

@@ -60,7 +60,6 @@ bp = Blueprint("api", __name__, url_prefix="/api/v1")
 
 @bp.errorhandler(404)
 def api_not_found(error):
-    """404 Error Handler للـ API"""
     return jsonify({
         'success': False,
         'error': 'المورد غير موجود',
@@ -69,7 +68,6 @@ def api_not_found(error):
 
 @bp.errorhandler(400)
 def api_bad_request(error):
-    """400 Error Handler للـ API"""
     return jsonify({
         'success': False,
         'error': 'طلب غير صحيح',
@@ -78,7 +76,6 @@ def api_bad_request(error):
 
 @bp.errorhandler(401)
 def api_unauthorized(error):
-    """401 Error Handler للـ API"""
     return jsonify({
         'success': False,
         'error': 'غير مصرح لك بالوصول',
@@ -87,7 +84,6 @@ def api_unauthorized(error):
 
 @bp.errorhandler(403)
 def api_forbidden(error):
-    """403 Error Handler للـ API"""
     return jsonify({
         'success': False,
         'error': 'غير مصرح لك بهذا الإجراء',
@@ -96,7 +92,6 @@ def api_forbidden(error):
 
 @bp.errorhandler(500)
 def api_internal_error(error):
-    """500 Error Handler للـ API"""
     logging.error(f"API Internal Error: {str(error)}")
     logging.error(traceback.format_exc())
     
@@ -108,7 +103,6 @@ def api_internal_error(error):
 
 @bp.errorhandler(SQLAlchemyError)
 def api_database_error(error):
-    """Database Error Handler للـ API"""
     logging.error(f"API Database Error: {str(error)}")
     logging.error(traceback.format_exc())
     
@@ -122,7 +116,6 @@ def api_database_error(error):
 
 @bp.errorhandler(IntegrityError)
 def api_integrity_error(error):
-    """Integrity Error Handler للـ API"""
     logging.error(f"API Integrity Error: {str(error)}")
     logging.error(traceback.format_exc())
     
@@ -136,7 +129,6 @@ def api_integrity_error(error):
 
 @bp.errorhandler(OperationalError)
 def api_operational_error(error):
-    """Operational Error Handler للـ API"""
     logging.error(f"API Operational Error: {str(error)}")
     logging.error(traceback.format_exc())
     
@@ -149,7 +141,6 @@ def api_operational_error(error):
     }), 500
 
 def api_error_response(message, code=400, details=None):
-    """دالة مساعدة لإرجاع استجابة خطأ موحدة"""
     response = {
         'success': False,
         'error': message,
@@ -162,7 +153,6 @@ def api_error_response(message, code=400, details=None):
     return jsonify(response), code
 
 def api_success_response(data=None, message=None, code=200):
-    """دالة مساعدة لإرجاع استجابة نجاح موحدة"""
     response = {
         'success': True,
         'code': code

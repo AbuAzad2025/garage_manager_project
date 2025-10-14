@@ -2,9 +2,6 @@
 # Location: /garage_manager/services/hard_delete_service.py
 # Description: Hard delete operations and restoration service
 
-"""
-خدمة الحذف القوي مع العمليات العكسية والاستعادة
-"""
 import json
 import uuid
 from datetime import datetime
@@ -26,19 +23,16 @@ from utils import format_currency
 
 
 class HardDeleteService:
-    """خدمة الحذف القوي مع العمليات العكسية"""
     
     def __init__(self):
         self.deletion_log = None
         self.rollback_data = {}
     
     def generate_confirmation_code(self) -> str:
-        """توليد كود تأكيد فريد"""
         return f"DEL_{uuid.uuid4().hex[:8].upper()}"
     
     def create_deletion_log(self, deletion_type: str, entity_id: int, entity_name: str, 
                           deleted_by: int, reason: str = None) -> DeletionLog:
-        """إنشاء سجل حذف جديد"""
         confirmation_code = self.generate_confirmation_code()
         
         self.deletion_log = DeletionLog(

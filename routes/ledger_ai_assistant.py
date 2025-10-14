@@ -2,11 +2,6 @@
 # Location: /garage_manager/routes/ledger_ai_assistant.py
 # Description: AI-powered accounting assistant and financial analysis routes
 
-"""
-المساعد الذكي للمحاسبة - AI Accounting Assistant
-يحلل البيانات المالية ويكتشف المشاكل ويجيب على الأسئلة
-يستخدم GPT-4 أو Claude لفهم طبيعي حقيقي
-"""
 
 import re
 import os
@@ -27,7 +22,6 @@ from models import (
 
 ai_assistant_bp = Blueprint("ai_assistant", __name__, url_prefix="/ledger/ai")
 
-# محاولة استيراد OpenAI
 try:
     from openai import OpenAI
     OPENAI_AVAILABLE = True
@@ -35,7 +29,6 @@ except ImportError:
     OPENAI_AVAILABLE = False
     print("⚠️ OpenAI not installed. Install with: pip install openai")
 
-# محاولة استيراد Anthropic (Claude)
 try:
     import anthropic
     ANTHROPIC_AVAILABLE = True
@@ -45,7 +38,6 @@ except ImportError:
 
 
 def get_database_schema():
-    """الحصول على بنية قاعدة البيانات"""
     from sqlalchemy import inspect
     
     inspector = inspect(db.engine)

@@ -8,7 +8,6 @@ from wtforms.validators import DataRequired, Length, Optional
 from wtforms.widgets import TextArea
 
 class ArchiveForm(FlaskForm):
-    """نموذج أرشفة السجلات"""
     reason = TextAreaField(
         'سبب الأرشفة',
         validators=[DataRequired(message='سبب الأرشفة مطلوب'), Length(max=200)],
@@ -24,7 +23,6 @@ class ArchiveForm(FlaskForm):
     )
 
 class ArchiveSearchForm(FlaskForm):
-    """نموذج البحث في الأرشيفات"""
     record_type = SelectField(
         'نوع السجل',
         choices=[

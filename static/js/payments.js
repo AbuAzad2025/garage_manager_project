@@ -1,4 +1,5 @@
-// وظائف البحث الذكي - محسنة للأداء
+// payments.js - Payment Functions
+// Location: /garage_manager/static/js/payments.js
 let smartSearchInitialized = false;
 
 function initializeSmartSearchOnce() {
@@ -10,11 +11,9 @@ function initializeSmartSearchOnce() {
   }
 }
 
-// استدعاء واحد فقط عند تحميل الصفحة
 document.addEventListener('DOMContentLoaded', function() {
   'use strict';
   
-  // البحث الذكي عن الجهات المرتبطة
   initializeSmartSearchOnce();
   
   const filterSelectors = ['#filterEntity', '#filterStatus', '#filterDirection', '#filterMethod', '#startDate', '#endDate', '#filterCurrency'];

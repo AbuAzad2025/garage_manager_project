@@ -2,10 +2,6 @@
 # Location: /garage_manager/routes/checks.py
 # Description: Check management and processing routes
 
-# -*- coding: utf-8 -*-
-"""
-نظام إدارة الشيكات الصادرة والواردة
-"""
 from flask import Blueprint, render_template, request, jsonify, current_app, flash, redirect, url_for
 from flask_login import current_user, login_required
 from datetime import datetime, timedelta
@@ -27,12 +23,10 @@ import uuid
 checks_bp = Blueprint('checks', __name__, url_prefix='/checks')
 
 
-# إضافة event listeners لربط حذف الشيكات بالقيود المحاسبية
 from sqlalchemy import event
 
 @event.listens_for(Check, 'before_delete')
 def _check_before_delete(mapper, connection, target):
-    """حذف القيود المحاسبية المرتبطة بالشيك عند حذفه"""
     try:
         # حذف جميع GLBatch المرتبطة بهذا الشيك
         connection.execute(
@@ -47,7 +41,6 @@ def _check_before_delete(mapper, connection, target):
 
 @event.listens_for(Payment, 'before_delete')
 def _payment_check_before_delete(mapper, connection, target):
-    """حذف القيود المحاسبية المرتبطة بالدفعة عند حذفها"""
     try:
         # إذا كانت دفعة شيك، احذف القيود
         if target.method == PaymentMethod.CHEQUE:

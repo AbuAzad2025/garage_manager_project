@@ -2,10 +2,6 @@
 # Location: /garage_manager/services/ai_self_review.py
 # Description: AI self-review and learning system
 
-"""
-AI Self-Review System - نظام المراجعة الذاتية
-المساعد يراجع نفسه ويتعلم من أخطائه
-"""
 
 import json
 import os
@@ -19,7 +15,6 @@ TRAINING_POLICY = 'instance/ai_training_policy.json'
 
 
 def log_interaction(question, answer, confidence, search_results):
-    """تسجيل كل تفاعل مع المساعد"""
     try:
         os.makedirs('instance', exist_ok=True)
         
@@ -47,7 +42,6 @@ def log_interaction(question, answer, confidence, search_results):
 
 
 def analyze_recent_interactions(count=100):
-    """تحليل آخر N تفاعل - اكتشاف نقاط الضعف"""
     try:
         if not os.path.exists(INTERACTIONS_LOG):
             return {

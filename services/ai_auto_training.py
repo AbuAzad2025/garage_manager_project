@@ -2,16 +2,6 @@
 # Location: /garage_manager/services/ai_auto_training.py
 # Description: AI automatic training and learning system
 
-"""
-🤖 AI Auto Training System
-نظام التدريب الصامت التلقائي
-
-يقوم بتدريب المساعد الذكي تلقائياً كل 48 ساعة
-أو عند اكتشاف تعديلات على الملفات
-
-Developer: Ahmed Ghannam
-Location: Ramallah, Palestine 🇵🇸
-"""
 
 import os
 import json
@@ -23,7 +13,6 @@ AUTO_TRAINING_LOG = 'instance/ai_auto_training.json'
 
 
 def should_auto_train():
-    """فحص إذا كان التدريب التلقائي مطلوب"""
     try:
         if not os.path.exists(AUTO_TRAINING_LOG):
             return True  # أول تدريب

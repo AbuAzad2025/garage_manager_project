@@ -2,9 +2,6 @@
 # Location: /garage_manager/routes/hard_delete.py
 # Description: Hard delete operations and data cleanup routes
 
-"""
-Routes للحذف القوي مع التأكيد والاستعادة
-"""
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from flask_wtf.csrf import generate_csrf
@@ -22,7 +19,6 @@ hard_delete_bp = Blueprint("hard_delete_bp", __name__, url_prefix="/hard-delete"
 @login_required
 @permission_required("manage_customers")
 def delete_customer(customer_id):
-    """حذف قوي للعميل مع التأكيد"""
     if request.method == "GET":
         # عرض صفحة التأكيد
         from models import Customer
