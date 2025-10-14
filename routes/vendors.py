@@ -459,14 +459,83 @@ def partners_list():
         q = q.filter(or_(Partner.name.ilike(term), Partner.phone_number.ilike(term), Partner.identity_number.ilike(term)))
     partners = q.order_by(Partner.name).all()
     
-    # حساب الأرصدة للشركاء
+    # حساب الملخصات الإجمالية لجميع الشركاء
+    total_balance = 0.0
+    total_sales = 0.0
+    total_payments = 0.0
+    partners_with_debt = 0
+    partners_with_credit = 0
+    
     for partner in partners:
         try:
-            # balance_in_ils هو property، لا يمكن تعيينه مباشرة
-            # سنستخدمه مباشرة في القالب
+            from models import fx_rate
+            
+            # حساب المبيعات للشريك - تحويل للشيقل
+            sales = Sale.query.filter(Sale.partner_id == partner.id).all()
+            sales_total = 0.0
+            for s in sales:
+                amount = float(s.total_amount or 0)
+                if s.currency and s.currency != 'ILS':
+                    try:
+                        rate = fx_rate(s.currency, 'ILS', s.sale_date, raise_on_missing=False)
+                        if rate > 0:
+                            amount = float(amount * float(rate))
+                        else:
+                            print(f"⚠️ WARNING: سعر صرف مفقود لـ {s.currency}/ILS في المبيعة #{s.id}")
+                    except ValueError as ve:
+                        print(f"⚠️ ERROR: {str(ve)} - Sale #{s.id}")
+                    except Exception as ex:
+                        print(f"⚠️ ERROR: خطأ في تحويل العملة للمبيعة #{s.id}: {str(ex)}")
+                sales_total += amount
+            
+            # حساب الدفعات للشريك - استخدام fx_rate_used
+            payments = Payment.query.filter(
+                Payment.partner_id == partner.id,
+                Payment.direction == 'incoming'
+            ).all()
+            payments_total = 0.0
+            for p in payments:
+                amount = float(p.total_amount or 0)
+                if p.fx_rate_used:
+                    amount *= float(p.fx_rate_used)
+                elif p.currency and p.currency != 'ILS':
+                    try:
+                        rate = fx_rate(p.currency, 'ILS', p.payment_date, raise_on_missing=False)
+                        if rate > 0:
+                            amount = float(amount * float(rate))
+                        else:
+                            print(f"⚠️ WARNING: سعر صرف مفقود لـ {p.currency}/ILS في الدفعة #{p.id}")
+                    except ValueError as ve:
+                        print(f"⚠️ ERROR: {str(ve)} - Payment #{p.id}")
+                    except Exception as ex:
+                        print(f"⚠️ ERROR: خطأ في تحويل العملة للدفعة #{p.id}: {str(ex)}")
+                payments_total += amount
+            
+            # الرصيد = المبيعات - المدفوعات (موجب يعني مستحق للشريك)
+            balance = sales_total - payments_total
+            
+            total_sales += float(sales_total)
+            total_payments += float(payments_total)
+            total_balance += balance
+            
+            if balance > 0:
+                partners_with_debt += 1  # مستحق دفع للشريك
+            elif balance < 0:
+                partners_with_credit += 1  # الشريك مدين لنا
+                
+        except Exception as e:
+            print(f"Error calculating partner {partner.id} balance: {str(e)}")
             pass
-        except:
-            pass
+    
+    summary = {
+        'total_partners': len(partners),
+        'total_balance': total_balance,
+        'total_sales': total_sales,
+        'total_payments': total_payments,
+        'partners_with_debt': partners_with_debt,
+        'partners_with_credit': partners_with_credit,
+        'average_balance': total_balance / len(partners) if partners else 0
+    }
     
     return render_template(
         "vendors/partners/list.html",
@@ -474,6 +543,7 @@ def partners_list():
         search=s,
         form=form,
         pay_url=url_for("payments.create_payment"),
+        summary=summary,
     )
 
 @vendors_bp.get("/partners/<int:partner_id>/statement", endpoint="partners_statement")

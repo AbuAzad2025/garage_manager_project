@@ -148,8 +148,8 @@ def list_customers():
     args = request.args.to_dict(flat=True)
     args.pop("page", None)
     
-    # حساب الملخصات الإجمالية لجميع العملاء
-    all_customers = Customer.query.all()
+    # حساب الملخصات الإجمالية لجميع العملاء غير المؤرشفين
+    all_customers = Customer.query.filter(Customer.is_archived == False).all()
     
     total_balance = 0.0
     total_sales = 0.0

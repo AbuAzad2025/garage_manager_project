@@ -409,13 +409,27 @@ def list_sales():
         sales_by_status[status]['count'] += 1
         sales_by_status[status]['amount'] += amount
     
-    # حساب المدفوع الإجمالي من جميع الدفعات الواردة
-    all_incoming_payments = Payment.query.filter(Payment.direction == 'incoming').all()
-    total_paid = sum(
-        float(p.total_amount or 0) * float(p.fx_rate_used or 1.0) if p.fx_rate_used
-        else float(p.total_amount or 0)
-        for p in all_incoming_payments
-    )
+    # حساب المدفوع الإجمالي من الدفعات المرتبطة بالمبيعات
+    total_paid = 0.0
+    for sale in all_sales:
+        # جلب الدفعات المرتبطة بهذا البيع
+        sale_payments = Payment.query.filter(
+            Payment.sale_id == sale.id,
+            Payment.direction == 'incoming'
+        ).all()
+        
+        for payment in sale_payments:
+            amount = float(payment.total_amount or 0)
+            if payment.fx_rate_used:
+                amount *= float(payment.fx_rate_used)
+            elif payment.currency and payment.currency != 'ILS':
+                try:
+                    rate = fx_rate(payment.currency, 'ILS', payment.payment_date, raise_on_missing=False)
+                    if rate > 0:
+                        amount *= float(rate)
+                except Exception as e:
+                    current_app.logger.error(f"❌ خطأ في تحويل عملة الدفعة #{payment.id}: {str(e)}")
+            total_paid += amount
     
     total_pending = total_sales - total_paid
     average_sale = total_sales / len(all_sales) if len(all_sales) > 0 else 0

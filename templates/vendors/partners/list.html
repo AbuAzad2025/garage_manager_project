@@ -43,18 +43,18 @@
       </div>
     </div>
     <div class="col-md-3">
-      <div class="card bg-info text-white p-3 mb-3 rounded-4 shadow-sm">
-        <h6 class="mb-1">الرصيد الصافي</h6><h3 class="mb-0"><span id="total-balance">0.00</span> ₪</h3>
+      <div class="card {% if summary.total_balance > 0 %}bg-danger{% elif summary.total_balance < 0 %}bg-success{% else %}bg-secondary{% endif %} text-white p-3 mb-3 rounded-4 shadow-sm">
+        <h6 class="mb-1">الرصيد الصافي</h6><h3 class="mb-0">{{ "%.2f"|format(summary.total_balance) }} ₪</h3>
       </div>
     </div>
     <div class="col-md-3">
-      <div class="card bg-danger text-white p-3 mb-3 rounded-4 shadow-sm">
-        <h6 class="mb-1">مستحق سحب</h6><h3 class="mb-0"><span id="total-debit">0.00</span> ₪</h3>
+      <div class="card bg-warning text-white p-3 mb-3 rounded-4 shadow-sm">
+        <h6 class="mb-1">مستحق دفع للشركاء</h6><h3 class="mb-0">{{ summary.partners_with_debt }}</h3>
       </div>
     </div>
     <div class="col-md-3">
       <div class="card bg-success text-white p-3 mb-3 rounded-4 shadow-sm">
-        <h6 class="mb-1">مستحق قبض</h6><h3 class="mb-0"><span id="total-credit">0.00</span> ₪</h3>
+        <h6 class="mb-1">شركاء مدينين لنا</h6><h3 class="mb-0">{{ summary.partners_with_credit }}</h3>
       </div>
     </div>
   </div>
@@ -64,13 +64,13 @@
     <div class="col-md-6">
       <div class="card bg-warning text-white p-3 mb-3 rounded-4 shadow-sm">
         <h6 class="mb-1">إجمالي المبيعات</h6>
-        <h3 class="mb-0"><span id="total-sales">0.00</span> ₪</h3>
+        <h3 class="mb-0">{{ "%.2f"|format(summary.total_sales) }} ₪</h3>
       </div>
     </div>
     <div class="col-md-6">
       <div class="card bg-secondary text-white p-3 mb-3 rounded-4 shadow-sm">
         <h6 class="mb-1">إجمالي المدفوعات</h6>
-        <h3 class="mb-0"><span id="total-payments">0.00</span> ₪</h3>
+        <h3 class="mb-0">{{ "%.2f"|format(summary.total_payments) }} ₪</h3>
       </div>
     </div>
   </div>

@@ -428,8 +428,8 @@ def index():
     base_q = Payment.query.filter(Payment.is_archived == False).filter(*filters)
     pagination = base_q.order_by(Payment.payment_date.desc(), Payment.id.desc()).paginate(page=page, per_page=per_page, error_out=False)
     
-    # حساب الملخصات بالشيكل
-    payments_for_summary = Payment.query.filter(*filters).all()
+    # حساب الملخصات بالشيكل - فلترة الدفعات غير المؤرشفة
+    payments_for_summary = Payment.query.filter(Payment.is_archived == False).filter(*filters).all()
     total_incoming_ils = 0.0
     total_outgoing_ils = 0.0
     grand_total_ils = 0.0
@@ -459,7 +459,7 @@ def index():
             func.coalesce(func.sum(case((and_(Payment.direction == PaymentDirection.IN.value, Payment.status == PaymentStatus.COMPLETED.value), Payment.total_amount), else_=0)), 0).label("total_incoming"),
             func.coalesce(func.sum(case((and_(Payment.direction == PaymentDirection.OUT.value, Payment.status == PaymentStatus.COMPLETED.value), Payment.total_amount), else_=0)), 0).label("total_outgoing"),
             func.coalesce(func.sum(Payment.total_amount), 0).label("grand_total")
-        ).filter(*filters).one()
+        ).filter(Payment.is_archived == False).filter(*filters).one()
         total_incoming_d = q0(D(totals_row.total_incoming or 0))
         total_outgoing_d = q0(D(totals_row.total_outgoing or 0))
         net_total_d = q0(total_incoming_d - total_outgoing_d)
@@ -499,7 +499,7 @@ def index():
         func.coalesce(func.sum(case((and_(Payment.direction == PaymentDirection.IN.value, Payment.status == PaymentStatus.COMPLETED.value), Payment.total_amount), else_=0)), 0).label("total_incoming"),
         func.coalesce(func.sum(case((and_(Payment.direction == PaymentDirection.OUT.value, Payment.status == PaymentStatus.COMPLETED.value), Payment.total_amount), else_=0)), 0).label("total_outgoing"),
         func.coalesce(func.sum(Payment.total_amount), 0).label("grand_total")
-    ).filter(*filters).group_by(Payment.currency).all()
+    ).filter(Payment.is_archived == False).filter(*filters).group_by(Payment.currency).all()
     totals_by_currency = {}
     for r in rows:
         ti = q0(D(r.total_incoming or 0))
