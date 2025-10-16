@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>502 · بوابة سيئة</title>
+<style>
+  :root{--bg:#0f172a;--card:#111827;--muted:#94a3b8;--fg:#e5e7eb;--accent:#22c55e;--danger:#ef4444}
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:radial-gradient(1200px 600px at 80% -10%,#1f2937 0,transparent 60%),linear-gradient(180deg,#0b1220 0,#0b1220 40%,#0a0f1c 100%),var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Noto Sans",Tahoma,Arial}
+  .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:32px}
+  .card{width:100%;max-width:720px;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);border-radius:20px;backdrop-filter:blur(6px);padding:32px 28px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+  .code{font-size:56px;line-height:1;margin:0;color:var(--danger);letter-spacing:2px;font-weight:800}
+  .title{margin:.35rem 0 0;font-size:28px;font-weight:700}
+  .desc{margin:14px 0 22px;color:var(--muted);line-height:1.8}
+  .hint{font-size:13px;color:#9ca3af;margin:10px 0 26px}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .btn{appearance:none;border:0;border-radius:12px;padding:12px 16px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:10px;cursor:pointer;transition:transform .08s ease,opacity .2s ease;user-select:none}
+  .btn:active{transform:translateY(1px)}
+  .btn-primary{background:var(--accent);color:#052e16}
+  .btn-ghost{background:transparent;color:var(--fg);border:1px solid rgba(255,255,255,.12)}
+  .mono{font-family:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",Menlo,monospace}
+  .footer{margin-top:22px;font-size:12px;color:#7c8799}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <main class="card" role="main" aria-labelledby="err-title">
+    <div class="code" aria-hidden="true">502</div>
+    <h1 id="err-title" class="title">بوابة سيئة</h1>
+    <p class="desc">الخادم تلقى استجابة غير صالحة من خادم upstream. قد يكون الخادم مشغولاً أو قيد الصيانة.</p>
+    <p class="hint mono">يرجى المحاولة لاحقاً أو التواصل مع الدعم الفني.</p>
+    <div class="row">
+      <button class="btn btn-primary" type="button" onclick="location.reload()">إعادة المحاولة</button>
+      <a class="btn btn-ghost" href="{{ url_for('main.dashboard') }}">اللوحة الرئيسية</a>
+      <a class="btn btn-ghost" href="/" rel="home">الصفحة الرئيسية</a>
+    </div>
+    <div class="footer">
+      <strong>للدعم:</strong> 0562150193 | ahmed@azad-systems.com
+    </div>
+  </main>
+</div>
+</body>
+</html>
+

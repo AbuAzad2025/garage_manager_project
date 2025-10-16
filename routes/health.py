@@ -1,6 +1,3 @@
-# health.py - Health Check Routes
-# Location: /garage_manager/routes/health.py
-# Description: System health monitoring and status routes
 
 
 from __future__ import annotations

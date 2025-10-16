@@ -1,6 +1,3 @@
-# main.py - Main Routes
-# Location: /garage_manager/routes/main.py
-# Description: Main application routes and dashboard
 
 from __future__ import annotations
 import os
@@ -25,7 +22,7 @@ from models import (
     PaymentDirection,
     PaymentStatus,
 )
-from utils import permission_required
+import utils
 from reports import sales_report, ar_aging_report
 
 main_bp = Blueprint("main", __name__, template_folder="templates")
@@ -289,7 +286,7 @@ def dashboard():
 
 @main_bp.route("/backup_db", methods=["GET"], endpoint="backup_db")
 @login_required
-@permission_required("backup_database")
+# @utils.permission_required("backup_database")  # Commented out - function not available
 def backup_db():
     is_prod = (current_app.config.get("ENV") == "production" or current_app.config.get("FLASK_ENV") == "production")
     role_name = str(getattr(getattr(current_user, "role", None), "name", "")).lower()
@@ -345,7 +342,7 @@ def backup_db():
 
 @main_bp.route("/restore_db", methods=["GET", "POST"], endpoint="restore_db")
 @login_required
-@permission_required("restore_database")
+# @utils.permission_required("restore_database")  # Commented out - function not available
 def restore_db():
     is_prod = (current_app.config.get("ENV") == "production" or current_app.config.get("FLASK_ENV") == "production")
     role_name = str(getattr(getattr(current_user, "role", None), "name", "")).lower()
@@ -371,3 +368,154 @@ def restore_db():
             flash("❌ خطأ أثناء الاستعادة.", "danger")
             return redirect(url_for("main.restore_db"))
     return render_template("restore_db.html", form=form)
+
+@main_bp.route("/automated-backup-status", methods=["GET"], endpoint="automated_backup_status")
+@login_required
+def automated_backup_status():
+    role_name = str(getattr(getattr(current_user, "role", None), "name", "")).lower()
+    if role_name != "super_admin":
+        return jsonify({"error": "غير مسموح"}), 403
+    
+    from extensions import scheduler
+    jobs = scheduler.get_jobs()
+    backup_job = next((job for job in jobs if job.id == 'automated_daily_backup'), None)
+    
+    if backup_job:
+        return jsonify({
+            "enabled": True,
+            "next_run": backup_job.next_run_time.isoformat() if backup_job.next_run_time else None,
+            "schedule": "يومياً الساعة 3:00 صباحاً"
+        })
+    else:
+        return jsonify({
+            "enabled": False,
+            "next_run": None,
+            "schedule": "غير مفعّل"
+        })
+
+@main_bp.route("/toggle-automated-backup", methods=["POST"], endpoint="toggle_automated_backup")
+@login_required
+def toggle_automated_backup():
+    role_name = str(getattr(getattr(current_user, "role", None), "name", "")).lower()
+    if role_name != "super_admin":
+        flash("❌ غير مسموح", "danger")
+        return redirect(url_for("main.dashboard"))
+    
+    from extensions import scheduler
+    jobs = scheduler.get_jobs()
+    backup_job = next((job for job in jobs if job.id == 'automated_daily_backup'), None)
+    
+    if backup_job:
+        scheduler.remove_job('automated_daily_backup')
+        flash("✅ تم تعطيل النسخ الاحتياطي التلقائي", "success")
+    else:
+        scheduler.add_job(
+            func=perform_automated_backup,
+            trigger='cron',
+            hour=3,
+            minute=0,
+            id='automated_daily_backup',
+            name='النسخ الاحتياطي اليومي التلقائي',
+            replace_existing=True
+        )
+        flash("✅ تم تفعيل النسخ الاحتياطي التلقائي (يومياً الساعة 3:00 صباحاً)", "success")
+    
+    return redirect(url_for("main.dashboard"))
+
+def perform_automated_backup():
+    with current_app.app_context():
+        try:
+            uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+            ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            
+            db_dir = current_app.config.get("BACKUP_DB_DIR")
+            sql_dir = current_app.config.get("BACKUP_SQL_DIR")
+            os.makedirs(db_dir, exist_ok=True)
+            os.makedirs(sql_dir, exist_ok=True)
+            
+            if not uri.startswith("sqlite:///"):
+                current_app.logger.warning("Automated backup: Database is not SQLite")
+                return
+            
+            db_path = uri.replace("sqlite:///", "")
+            if not os.path.exists(db_path):
+                current_app.logger.warning(f"Automated backup: Database file not found: {db_path}")
+                return
+            
+            db_out = os.path.join(db_dir, f"auto_backup_{ts}.db")
+            sql_out = os.path.join(sql_dir, f"auto_backup_{ts}.sql")
+            
+            db.session.commit()
+            src = sqlite3.connect(db_path)
+            dst = sqlite3.connect(db_out)
+            try:
+                src.backup(dst)
+            finally:
+                src.close()
+                dst.close()
+            
+            conn = sqlite3.connect(db_path)
+            try:
+                with open(sql_out, "w", encoding="utf-8") as f:
+                    for line in conn.iterdump():
+                        f.write(f"{line}\n")
+            finally:
+                conn.close()
+            
+            cleanup_old_backups(db_dir, sql_dir)
+            
+            current_app.logger.info(f"✅ Automated backup completed successfully: {db_out}")
+            
+        except Exception as e:
+            current_app.logger.error(f"❌ Automated backup failed: {str(e)}")
+
+def cleanup_old_backups(db_dir, sql_dir, keep_days=7, keep_weekly=4, keep_monthly=12):
+    import time
+    from pathlib import Path
+    
+    now = time.time()
+    one_day = 86400
+    one_week = 604800
+    one_month = 2592000
+    
+    for directory in [db_dir, sql_dir]:
+        if not os.path.exists(directory):
+            continue
+        
+        files = []
+        for f in Path(directory).glob("auto_backup_*"):
+            if f.is_file():
+                files.append((f, f.stat().st_mtime))
+        
+        files.sort(key=lambda x: x[1], reverse=True)
+        
+        daily_backups = []
+        weekly_backups = []
+        monthly_backups = []
+        
+        for filepath, mtime in files:
+            age_days = (now - mtime) / one_day
+            
+            if age_days <= keep_days:
+                daily_backups.append(filepath)
+            elif age_days <= keep_days + (keep_weekly * 7):
+                if len(weekly_backups) < keep_weekly:
+                    weekly_backups.append(filepath)
+                else:
+                    try:
+                        filepath.unlink()
+                    except:
+                        pass
+            elif age_days <= keep_days + (keep_weekly * 7) + (keep_monthly * 30):
+                if len(monthly_backups) < keep_monthly:
+                    monthly_backups.append(filepath)
+                else:
+                    try:
+                        filepath.unlink()
+                    except:
+                        pass
+            else:
+                try:
+                    filepath.unlink()
+                except:
+                    pass

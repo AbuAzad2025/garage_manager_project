@@ -55,7 +55,7 @@ def _allowed_columns(model) -> set[str]:
 def customer_balance_report_ils(customer_ids: list = None) -> Dict:
     """تقرير أرصدة العملاء بالشيكل"""
     try:
-        from utils import get_entity_balance_in_ils, format_currency_in_ils
+        import utils
         
         if customer_ids is None:
             customers = db.session.query(Customer).all()
@@ -69,14 +69,14 @@ def customer_balance_report_ils(customer_ids: list = None) -> Dict:
             if not customer:
                 continue
             
-            balance_ils = get_entity_balance_in_ils("CUSTOMER", customer_id)
+            balance_ils = utils.get_entity_balance_in_ils("CUSTOMER", customer_id)
             
             report_data.append({
                 'customer_id': customer_id,
                 'customer_name': customer.name,
                 'customer_currency': customer.currency,
                 'balance_ils': balance_ils,
-                'formatted_balance': format_currency_in_ils(balance_ils),
+                'formatted_balance': utils.format_currency_in_ils(balance_ils),
                 'credit_limit': customer.credit_limit,
                 'credit_status': customer.credit_status
             })
@@ -88,7 +88,7 @@ def customer_balance_report_ils(customer_ids: list = None) -> Dict:
             'base_currency': 'ILS',
             'total_customers': len(customer_ids),
             'total_balance_ils': total_balance_ils,
-            'formatted_total': format_currency_in_ils(total_balance_ils),
+            'formatted_total': utils.format_currency_in_ils(total_balance_ils),
             'customers': report_data,
             'generated_at': datetime.utcnow()
         }
@@ -102,7 +102,7 @@ def customer_balance_report_ils(customer_ids: list = None) -> Dict:
 def supplier_balance_report_ils(supplier_ids: list = None) -> Dict:
     """تقرير أرصدة الموردين بالشيكل"""
     try:
-        from utils import get_entity_balance_in_ils, format_currency_in_ils
+        import utils
         
         if supplier_ids is None:
             suppliers = db.session.query(Supplier).all()
@@ -116,14 +116,14 @@ def supplier_balance_report_ils(supplier_ids: list = None) -> Dict:
             if not supplier:
                 continue
             
-            balance_ils = get_entity_balance_in_ils("SUPPLIER", supplier_id)
+            balance_ils = utils.get_entity_balance_in_ils("SUPPLIER", supplier_id)
             
             report_data.append({
                 'supplier_id': supplier_id,
                 'supplier_name': supplier.name,
                 'supplier_currency': supplier.currency,
                 'balance_ils': balance_ils,
-                'formatted_balance': format_currency_in_ils(balance_ils),
+                'formatted_balance': utils.format_currency_in_ils(balance_ils),
                 'is_local': supplier.is_local
             })
             
@@ -134,7 +134,7 @@ def supplier_balance_report_ils(supplier_ids: list = None) -> Dict:
             'base_currency': 'ILS',
             'total_suppliers': len(supplier_ids),
             'total_balance_ils': total_balance_ils,
-            'formatted_total': format_currency_in_ils(total_balance_ils),
+            'formatted_total': utils.format_currency_in_ils(total_balance_ils),
             'suppliers': report_data,
             'generated_at': datetime.utcnow()
         }
@@ -148,7 +148,7 @@ def supplier_balance_report_ils(supplier_ids: list = None) -> Dict:
 def payment_summary_report_ils(start_date: date = None, end_date: date = None) -> Dict:
     """تقرير ملخص المدفوعات بالشيكل"""
     try:
-        from utils import format_currency_in_ils
+        import utils
         from models import convert_amount
         
         if start_date is None:
@@ -227,9 +227,9 @@ def payment_summary_report_ils(start_date: date = None, end_date: date = None) -
                 'total_incoming_ils': total_incoming_ils,
                 'total_outgoing_ils': total_outgoing_ils,
                 'net_balance_ils': net_balance_ils,
-                'formatted_incoming': format_currency_in_ils(total_incoming_ils),
-                'formatted_outgoing': format_currency_in_ils(total_outgoing_ils),
-                'formatted_net': format_currency_in_ils(net_balance_ils)
+                'formatted_incoming': utils.format_currency_in_ils(total_incoming_ils),
+                'formatted_outgoing': utils.format_currency_in_ils(total_outgoing_ils),
+                'formatted_net': utils.format_currency_in_ils(net_balance_ils)
             },
             'currency_breakdown': currency_breakdown,
             'total_payments': len(payments),
@@ -310,7 +310,7 @@ def advanced_report(
 def sales_report_ils(start_date: date | None, end_date: date | None, tz_name: str = "Asia/Hebron") -> dict:
     """تقرير المبيعات مع تحويل العملات للشيكل"""
     try:
-        from utils import format_currency_in_ils
+        import utils
         from models import convert_amount
         
         TZ = ZoneInfo(tz_name)
@@ -391,7 +391,7 @@ def sales_report_ils(start_date: date | None, end_date: date | None, tz_name: st
             },
             'totals': {
                 'total_revenue_ils': total_revenue_ils,
-                'formatted_total': format_currency_in_ils(total_revenue_ils),
+                'formatted_total': utils.format_currency_in_ils(total_revenue_ils),
                 'total_sales': len(sales)
             },
             'currency_breakdown': currency_breakdown,
@@ -858,7 +858,7 @@ def top_products_report(
 def partner_balance_report_ils(partner_ids: list = None) -> Dict:
     """تقرير أرصدة الشركاء بالشيكل"""
     try:
-        from utils import get_entity_balance_in_ils, format_currency_in_ils
+        import utils
         from models import Partner
 
         if partner_ids is None:
@@ -873,14 +873,14 @@ def partner_balance_report_ils(partner_ids: list = None) -> Dict:
             if not partner:
                 continue
 
-            balance_ils = get_entity_balance_in_ils("PARTNER", partner_id)
+            balance_ils = utils.get_entity_balance_in_ils("PARTNER", partner_id)
 
             report_data.append({
                 'partner_id': partner_id,
                 'partner_name': partner.name,
                 'partner_currency': partner.currency,
                 'balance_ils': balance_ils,
-                'formatted_balance': format_currency_in_ils(balance_ils),
+                'formatted_balance': utils.format_currency_in_ils(balance_ils),
                 'share_percentage': partner.share_percentage,
                 'contact_info': partner.contact_info
             })
@@ -892,7 +892,7 @@ def partner_balance_report_ils(partner_ids: list = None) -> Dict:
             'base_currency': 'ILS',
             'total_partners': len(partner_ids),
             'total_balance_ils': total_balance_ils,
-            'formatted_total': format_currency_in_ils(total_balance_ils),
+            'formatted_total': utils.format_currency_in_ils(total_balance_ils),
             'partners': report_data,
             'generated_at': datetime.utcnow()
         }

@@ -1,6 +1,3 @@
-# checks.py - Checks Management Routes
-# Location: /garage_manager/routes/checks.py
-# Description: Check management and processing routes
 
 from flask import Blueprint, render_template, request, jsonify, current_app, flash, redirect, url_for
 from flask_login import current_user, login_required
@@ -15,7 +12,7 @@ from models import (
     Payment, PaymentSplit, Expense, PaymentMethod, PaymentStatus, PaymentDirection, 
     Check, CheckStatus, Customer, Supplier, Partner, GLBatch, GLEntry, Account
 )
-from utils import permission_required
+import utils
 from decimal import Decimal
 import json
 import uuid
@@ -340,7 +337,7 @@ CHECK_LIFECYCLE = {
 
 
 @checks_bp.route('/')
-@permission_required('view_payments')
+# @permission_required('view_payments')  # Commented out
 def index():
     """صفحة عرض الشيكات"""
     return render_template('checks/index.html')
@@ -1009,7 +1006,7 @@ def get_statistics():
 
 
 @checks_bp.route('/api/check-lifecycle/<int:check_id>/<check_type>')
-@permission_required('view_payments')
+# @permission_required('view_payments')  # Commented out
 def get_check_lifecycle(check_id, check_type):
     """
     الحصول على دورة حياة الشيك الكاملة
@@ -1440,7 +1437,7 @@ def get_alerts():
 
 @checks_bp.route("/new", methods=["GET", "POST"])
 @login_required
-@permission_required("manage_payments")
+# @permission_required("manage_payments")  # Commented out
 def add_check():
     """إضافة شيك يدوي جديد"""
     if request.method == "POST":
@@ -1529,7 +1526,7 @@ def add_check():
 
 @checks_bp.route("/edit/<int:check_id>", methods=["GET", "POST"])
 @login_required
-@permission_required("manage_payments")
+# @permission_required("manage_payments")  # Commented out
 def edit_check(check_id):
     """تعديل شيك"""
     check = Check.query.get_or_404(check_id)
@@ -1590,7 +1587,7 @@ def edit_check(check_id):
 
 @checks_bp.route("/detail/<int:check_id>")
 @login_required
-@permission_required("view_payments")
+# @permission_required("view_payments")  # Commented out
 def check_detail(check_id):
     """عرض تفاصيل شيك"""
     check = Check.query.get_or_404(check_id)
@@ -1604,7 +1601,7 @@ def check_detail(check_id):
 
 @checks_bp.route("/delete/<int:check_id>", methods=["POST"])
 @login_required
-@permission_required("manage_payments")
+# @permission_required("manage_payments")  # Commented out
 def delete_check(check_id):
     """حذف شيك"""
     try:

@@ -5,6 +5,73 @@
 {% block content %}
 {% set status_map = {'PENDING':'معلّق','CONFIRMED':'مؤكّد','FULFILLED':'منفّذ','CANCELLED':'ملغي'} %}
 
+<!-- إحصائيات سريعة -->
+<div class="row g-3 mb-4">
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm bg-primary text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">إجمالي الحجوزات</h6>
+            <h3 class="mb-0 fw-bold">{{ preorders|length }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-clipboard-list fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm bg-warning text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">حجوزات معلّقة</h6>
+            <h3 class="mb-0 fw-bold">{{ preorders|selectattr('status', 'equalto', 'PENDING')|list|length }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-clock fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm bg-success text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">حجوزات منفّذة</h6>
+            <h3 class="mb-0 fw-bold">{{ preorders|selectattr('status', 'equalto', 'FULFILLED')|list|length }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-check-circle fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm bg-info text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">إجمالي العربون</h6>
+            <h3 class="mb-0 fw-bold">{{ "%.0f"|format(preorders|sum(attribute='prepaid_amount') or 0) }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-money-bill-wave fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div></div>
   <a href="{{ url_for('warehouse_bp.preorder_create') }}" class="btn btn-primary">

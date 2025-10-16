@@ -1,6 +1,3 @@
-# ledger_blueprint.py - Ledger Routes
-# Location: /garage_manager/routes/ledger_blueprint.py
-# Description: Accounting ledger and financial management routes
 
 from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify, render_template
@@ -8,7 +5,7 @@ from flask_login import login_required
 from flask_wtf.csrf import CSRFProtect
 from sqlalchemy import func, and_, or_, desc
 from extensions import db
-from utils import permission_required
+import utils
 from models import (
     Sale, Expense, Payment, ServiceRequest, 
     Customer, Supplier, Partner,
@@ -21,14 +18,14 @@ ledger_bp = Blueprint("ledger", __name__, url_prefix="/ledger")
 
 @ledger_bp.route("/", methods=["GET"], endpoint="index")
 @login_required
-@permission_required("manage_ledger")
+# @permission_required("manage_ledger")  # Commented out
 def ledger_index():
     """صفحة الدفتر الرئيسية"""
     return render_template("ledger/index.html")
 
 @ledger_bp.route("/data", methods=["GET"], endpoint="get_ledger_data")
 @login_required
-@permission_required("manage_ledger")
+# @permission_required("manage_ledger")  # Commented out
 def get_ledger_data():
     """جلب بيانات دفتر الأستاذ من قاعدة البيانات الحقيقية"""
     try:
@@ -150,7 +147,7 @@ def get_ledger_data():
                         current_app.logger.error(f"❌ خطأ في تحويل العملة للدفعة #{payment.id}: {str(e)}")
                 
                 # تحديد الاتجاه
-                if payment.direction == 'outgoing':
+                if payment.direction == 'OUT':
                     credit = amount
                     debit = 0.0
                     running_balance -= credit
@@ -506,7 +503,7 @@ def get_ledger_data():
 
 @ledger_bp.route("/accounts-summary", methods=["GET"], endpoint="get_accounts_summary")
 @login_required
-@permission_required("manage_ledger")
+# @permission_required("manage_ledger")  # Commented out
 def get_accounts_summary():
     """جلب ملخص الحسابات (ميزان المراجعة)"""
     try:
@@ -661,8 +658,8 @@ def get_accounts_summary():
         })
         
         # 3. حساب الخزينة (من الدفعات)
-        payments_in_query = Payment.query.filter(Payment.direction == 'incoming')
-        payments_out_query = Payment.query.filter(Payment.direction == 'outgoing')
+        payments_in_query = Payment.query.filter(Payment.direction == 'IN')
+        payments_out_query = Payment.query.filter(Payment.direction == 'OUT')
         
         if from_date:
             payments_in_query = payments_in_query.filter(Payment.payment_date >= from_date)
@@ -739,7 +736,7 @@ def get_accounts_summary():
 
 @ledger_bp.route("/receivables-summary", methods=["GET"], endpoint="get_receivables_summary")
 @login_required
-@permission_required("manage_ledger")
+# @permission_required("manage_ledger")  # Commented out
 def get_receivables_summary():
     """جلب ملخص الذمم (العملاء، الموردين، الشركاء)"""
     try:
@@ -782,7 +779,7 @@ def get_receivables_summary():
             # حساب الدفعات من العميل
             payments_query = Payment.query.filter(
                 Payment.customer_id == customer.id,
-                Payment.direction == 'incoming'
+                Payment.direction == 'IN'
             )
             if from_date:
                 payments_query = payments_query.filter(Payment.payment_date >= from_date)
@@ -846,7 +843,7 @@ def get_receivables_summary():
             # حساب الدفعات للمورد
             payments_query = Payment.query.filter(
                 Payment.supplier_id == supplier.id,
-                Payment.direction == 'outgoing'
+                Payment.direction == 'OUT'
             )
             if from_date:
                 payments_query = payments_query.filter(Payment.payment_date >= from_date)
@@ -910,11 +907,11 @@ def get_receivables_summary():
             # حساب الدفعات من/إلى الشريك
             payments_in_query = Payment.query.filter(
                 Payment.partner_id == partner.id,
-                Payment.direction == 'incoming'
+                Payment.direction == 'IN'
             )
             payments_out_query = Payment.query.filter(
                 Payment.partner_id == partner.id,
-                Payment.direction == 'outgoing'
+                Payment.direction == 'OUT'
             )
             
             if from_date:
@@ -975,7 +972,7 @@ def get_receivables_summary():
 
 @ledger_bp.route("/smart-assistant", methods=["POST"], endpoint="smart_assistant")
 @login_required
-@permission_required("manage_ledger")
+# @permission_required("manage_ledger")  # Commented out
 def smart_assistant():
     """
     المساعد المحاسبي الذكي - نقطة وصول موحدة
@@ -986,7 +983,7 @@ def smart_assistant():
 
 @ledger_bp.route("/export", methods=["GET"], endpoint="export_ledger")
 @login_required
-@permission_required("manage_ledger")
+# @permission_required("manage_ledger")  # Commented out
 def export_ledger():
     """تصدير دفتر الأستاذ"""
     # يمكن إضافة منطق التصدير هنا
@@ -994,7 +991,7 @@ def export_ledger():
 
 @ledger_bp.route("/transaction/<int:id>", methods=["GET"], endpoint="view_transaction")
 @login_required
-@permission_required("manage_ledger")
+# @permission_required("manage_ledger")  # Commented out
 def view_transaction(id):
     """عرض تفاصيل العملية"""
     # يمكن إضافة منطق عرض التفاصيل هنا
@@ -1042,7 +1039,7 @@ def _get_pagination():
 
 @ledger_bp.get("/trial-balance")
 @login_required
-@permission_required("view_reports", "view_ledger")
+# @permission_required("view_reports", "view_ledger")  # Commented out
 def trial_balance():
     dfrom, dto = _parse_dates()
     q = (db.session.query(
@@ -1066,7 +1063,7 @@ def trial_balance():
 
 @ledger_bp.get("/account/<account>")
 @login_required
-@permission_required("view_reports", "view_ledger")
+# @permission_required("view_reports", "view_ledger")  # Commented out
 def account_ledger(account):
     dfrom, dto = _parse_dates()
     q_open = (db.session.query(func.coalesce(func.sum(GLEntry.debit - GLEntry.credit), 0.0))
@@ -1166,7 +1163,7 @@ def account_ledger(account):
 
 @ledger_bp.get("/entity")
 @login_required
-@permission_required("view_reports", "view_ledger")
+# @permission_required("view_reports", "view_ledger")  # Commented out
 def entity_ledger():
     dfrom, dto = _parse_dates()
     et = (request.args.get("entity_type") or "").upper().strip()

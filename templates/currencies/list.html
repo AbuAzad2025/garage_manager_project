@@ -37,6 +37,47 @@
             </div>
             <div class="card-body">
                 {% if currencies.items %}
+                
+                <!-- إحصائيات سريعة -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                            <div class="card-body text-white text-center">
+                                <i class="fas fa-coins fa-2x mb-2 opacity-75"></i>
+                                <h3 class="mb-1">{{ currencies.total }}</h3>
+                                <p class="mb-0 small">إجمالي العملات</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);">
+                            <div class="card-body text-white text-center">
+                                <i class="fas fa-check-circle fa-2x mb-2 opacity-75"></i>
+                                <h3 class="mb-1">{{ currencies.items|selectattr('is_active', 'equalto', true)|list|length }}</h3>
+                                <p class="mb-0 small">عملات نشطة</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                            <div class="card-body text-white text-center">
+                                <i class="fas fa-exchange-alt fa-2x mb-2 opacity-75"></i>
+                                <h3 class="mb-1">ILS</h3>
+                                <p class="mb-0 small">العملة الأساسية</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                            <div class="card-body text-white text-center">
+                                <i class="fas fa-globe fa-2x mb-2 opacity-75"></i>
+                                <h3 class="mb-1">عالمي</h3>
+                                <p class="mb-0 small">تحديث تلقائي</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="table-responsive">
                     <table class="table table-hover table-bordered table-striped">
                         <thead class="table-primary">

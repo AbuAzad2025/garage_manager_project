@@ -1,6 +1,3 @@
-# ai_knowledge.py - AI Knowledge Base
-# Location: /garage_manager/services/ai_knowledge.py
-# Description: AI knowledge base and system indexing
 
 
 import os

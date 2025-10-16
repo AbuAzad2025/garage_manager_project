@@ -1,6 +1,3 @@
-# pricing.py - Pricing Routes
-# Location: /garage_manager/routes/pricing.py
-# Description: Pricing management and calculation routes
 
 from flask import Blueprint, render_template
 

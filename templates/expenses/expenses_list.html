@@ -35,7 +35,7 @@
       <h2 class="mb-0"><i class="fas fa-receipt me-2"></i> كل المصاريف</h2>
       {% if current_user.has_permission('manage_expenses') %}
       <div class="d-flex gap-2 flex-wrap">
-        <a href="{{ url_for('expenses_bp.create_expense') }}" class="btn btn-success"><i class="fas fa-plus"></i> إضافة مصروف</a>
+        <a href="{{ url_for('expenses_bp.create_expense') }}" class="btn btn-action-add"><i class="fas fa-plus"></i> إضافة مصروف</a>
         <a href="{{ url_for('expenses_bp.quick_add') }}" class="btn btn-warning"><i class="fas fa-bolt"></i> مصروف سريع</a>
         <a href="{{ url_for('expenses_bp.types_list') }}" class="btn btn-outline-secondary"><i class="fas fa-tags"></i> أنواع المصاريف</a>
         <a href="{{ url_for('expenses_bp.employees_list') }}" class="btn btn-outline-secondary"><i class="fas fa-users"></i> الموظفون</a>
@@ -46,40 +46,60 @@
     <div class="card-body">
       <!-- الملخصات المالية -->
       {% if summary %}
-      <div class="row mb-4">
-        <div class="col-md-3">
-          <div class="card text-white bg-danger">
+      <div class="row mb-4 g-3">
+        <div class="col-lg-3 col-md-6">
+          <div class="card border-0 shadow-sm text-white bg-danger h-100">
             <div class="card-body">
-              <h5 class="card-title">💰 إجمالي النفقات</h5>
-              <h3>{{ "{:,.2f}".format(summary.total_expenses) }} ₪</h3>
-              <small>{{ summary.expenses_count }} مصروف</small>
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <h6 class="text-white-50 mb-1">💰 إجمالي النفقات</h6>
+                  <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(summary.total_expenses) }} ₪</h3>
+                  <small class="opacity-75">{{ summary.expenses_count }} مصروف</small>
+                </div>
+                <i class="fas fa-receipt fa-2x opacity-50"></i>
+              </div>
             </div>
           </div>
         </div>
-        <div class="col-md-3">
-          <div class="card text-white bg-success">
+        <div class="col-lg-3 col-md-6">
+          <div class="card border-0 shadow-sm text-white bg-success h-100">
             <div class="card-body">
-              <h5 class="card-title">✅ المدفوع</h5>
-              <h3>{{ "{:,.2f}".format(summary.total_paid) }} ₪</h3>
-              <small>{{ "{:.1f}".format(summary.payment_percentage) }}% مدفوع</small>
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <h6 class="text-white-50 mb-1">✅ المدفوع</h6>
+                  <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(summary.total_paid) }} ₪</h3>
+                  <small class="opacity-75">{{ "{:.1f}".format(summary.payment_percentage) }}% مدفوع</small>
+                </div>
+                <i class="fas fa-check-circle fa-2x opacity-50"></i>
+              </div>
             </div>
           </div>
         </div>
-        <div class="col-md-3">
-          <div class="card text-white bg-warning">
+        <div class="col-lg-3 col-md-6">
+          <div class="card border-0 shadow-sm text-white bg-warning h-100">
             <div class="card-body">
-              <h5 class="card-title">⏳ غير المدفوع</h5>
-              <h3>{{ "{:,.2f}".format(summary.total_balance) }} ₪</h3>
-              <small>{{ "{:.1f}".format(100 - summary.payment_percentage) }}% متبقي للدفع</small>
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <h6 class="text-white-50 mb-1">⏳ غير المدفوع</h6>
+                  <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(summary.total_balance) }} ₪</h3>
+                  <small class="opacity-75">{{ "{:.1f}".format(100 - summary.payment_percentage) }}% متبقي</small>
+                </div>
+                <i class="fas fa-clock fa-2x opacity-50"></i>
+              </div>
             </div>
           </div>
         </div>
-        <div class="col-md-3">
-          <div class="card text-white bg-info">
+        <div class="col-lg-3 col-md-6">
+          <div class="card border-0 shadow-sm text-white bg-info h-100">
             <div class="card-body">
-              <h5 class="card-title">📊 متوسط المصروف</h5>
-              <h3>{{ "{:,.2f}".format(summary.average_expense) }} ₪</h3>
-              <small>لكل مصروف</small>
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <h6 class="text-white-50 mb-1">📊 متوسط المصروف</h6>
+                  <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(summary.average_expense) }} ₪</h3>
+                  <small class="opacity-75">لكل مصروف</small>
+                </div>
+                <i class="fas fa-chart-line fa-2x opacity-50"></i>
+              </div>
             </div>
           </div>
         </div>
@@ -213,11 +233,11 @@
                 {% if current_user.has_permission('manage_expenses') %}
                   <a href="{{ url_for('expenses_bp.edit', exp_id=e.id) }}" class="btn btn-sm btn-warning" title="تعديل"><i class="fas fa-edit"></i></a>
                   {% if e.is_archived %}
-                  <button type="button" class="btn btn-sm btn-success" title="استعادة" onclick="console.log('🔘 [TEMPLATE] تم النقر على زر استعادة النفقة رقم: {{ e.id }}'); restoreExpense({{ e.id }})">
+                  <button type="button" class="btn btn-action-restore btn-action-sm" title="استعادة" onclick="console.log('🔘 [TEMPLATE] تم النقر على زر استعادة النفقة رقم: {{ e.id }}'); restoreExpense({{ e.id }})">
                     <i class="fas fa-undo"></i>
                   </button>
                   {% else %}
-                  <button type="button" class="btn btn-sm btn-warning" title="أرشفة" onclick="console.log('🔘 [TEMPLATE] تم النقر على زر أرشفة النفقة رقم: {{ e.id }}'); archiveExpense({{ e.id }})">
+                  <button type="button" class="btn btn-action-archive btn-action-sm" title="أرشفة" onclick="console.log('🔘 [TEMPLATE] تم النقر على زر أرشفة النفقة رقم: {{ e.id }}'); archiveExpense({{ e.id }})">
                     <i class="fas fa-archive"></i>
                   </button>
                   {% endif %}

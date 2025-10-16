@@ -14,6 +14,63 @@
 
 {% block content %}
 <div class="content-wrapper">
+  
+  <!-- بطاقات سريعة -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm text-white h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">الرصيد الحالي</h6>
+              <h3 class="mb-0 fw-bold">{{ customer.balance|format_currency }}</h3>
+            </div>
+            <i class="fas fa-wallet fa-2x opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm bg-info text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">عدد الفواتير</h6>
+              <h3 class="mb-0 fw-bold">{{ (customer.invoices|default([], true))|length }}</h3>
+            </div>
+            <i class="fas fa-file-invoice fa-2x opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm bg-success text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">عدد الدفعات</h6>
+              <h3 class="mb-0 fw-bold">{{ (customer.payments|default([], true))|length }}</h3>
+            </div>
+            <i class="fas fa-money-bill-wave fa-2x opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm bg-warning text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">حد الائتمان</h6>
+              <h3 class="mb-0 fw-bold">{{ customer.credit_limit|format_currency }}</h3>
+            </div>
+            <i class="fas fa-credit-card fa-2x opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
   <div class="card shadow-sm rounded">
     <div class="card-header bg-primary text-white">
       <h3 class="card-title"><i class="fas fa-user me-2"></i> تفاصيل العميل: {{ customer.name }}</h3>

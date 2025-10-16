@@ -32,7 +32,7 @@
     {% if st == 'IN_CUSTOMS' %}
     <form method="POST" action="{{ url_for('shipments_bp.mark_arrived', id=shipment.id) }}" class="d-inline m-0 p-0">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" class="btn btn-success" onclick="return confirm('تأكيد وصول الشحنة وتحديث المخزون؟')">اعتماد الوصول</button>
+      <button type="submit" class="btn btn-action-add" onclick="return confirm('تأكيد وصول الشحنة وتحديث المخزون؟')">اعتماد الوصول</button>
     </form>
     {% endif %}
 

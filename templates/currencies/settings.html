@@ -42,6 +42,7 @@
                             </div>
                             <div class="col-md-4 text-right">
                                 <form method="POST" action="{{ url_for('currencies.toggle_online') }}" style="display: inline;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="btn btn-{{ 'success' if online_fx_enabled else 'secondary' }} btn-lg">
                                         <i class="fas fa-{{ 'toggle-on' if online_fx_enabled else 'toggle-off' }}"></i>
                                         {{ 'مفعل' if online_fx_enabled else 'معطل' }}
@@ -62,6 +63,7 @@
                             </div>
                             <div class="col-md-4">
                                 <form method="POST" action="{{ url_for('currencies.update_interval') }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <div class="input-group">
                                         <input type="number" name="interval" class="form-control" 
                                                value="{{ fx_update_interval }}" min="300" max="86400">

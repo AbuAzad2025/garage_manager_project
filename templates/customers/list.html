@@ -71,10 +71,12 @@
 
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="h4 m-0 text-dark"><i class="fas fa-users ml-2"></i> قائمة العملاء</h2>
-    <div class="btn-group" role="group" aria-label="إجراءات">
-      <a href="{{ url_for('customers_bp.create_form') }}" class="btn btn-success"><i class="fas fa-user-plus"></i> إضافة عميل</a>
+    <div class="btn-group-actions-end">
+      <a href="{{ url_for('customers_bp.create_form') }}" class="btn btn-action-add">
+        <i class="fas fa-user-plus"></i> إضافة عميل
+      </a>
       <div class="btn-group" role="group">
-        <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <button type="button" class="btn btn-action-export dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
           <i class="fas fa-download"></i> تصدير
         </button>
         <div class="dropdown-menu">
@@ -88,62 +90,82 @@
   </div>
 
   <!-- ملخصات العملاء -->
-  <div class="row mb-4">
-    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
-      <div class="card bg-primary text-white shadow-sm">
-        <div class="card-body text-center">
-          <h6 class="card-title"><i class="fas fa-users"></i> إجمالي العملاء</h6>
-          <h3 class="mb-0">{{ summary.total_customers }}</h3>
+  <div class="row mb-4 g-3">
+    <div class="col-lg-2 col-md-4 col-sm-6">
+      <div class="card border-0 shadow-sm bg-primary text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">إجمالي العملاء</h6>
+              <h3 class="mb-0 fw-bold">{{ summary.total_customers }}</h3>
+            </div>
+            <i class="fas fa-users fa-2x opacity-50"></i>
+          </div>
         </div>
       </div>
     </div>
-    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
-      <div class="card {% if summary.total_balance > 0 %}bg-success{% elif summary.total_balance < 0 %}bg-danger{% else %}bg-secondary{% endif %} text-white shadow-sm">
-        <div class="card-body text-center">
-          <h6 class="card-title"><i class="fas fa-balance-scale"></i> الرصيد الصافي</h6>
-          <h3 class="mb-0">{{ "%.2f"|format(summary.total_balance) }} ₪</h3>
+    <div class="col-lg-2 col-md-4 col-sm-6">
+      <div class="card border-0 shadow-sm {% if summary.total_balance > 0 %}bg-success{% elif summary.total_balance < 0 %}bg-danger{% else %}bg-secondary{% endif %} text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">الرصيد الصافي</h6>
+              <h3 class="mb-0 fw-bold">{{ "%.2f"|format(summary.total_balance) }} ₪</h3>
+            </div>
+            <i class="fas fa-balance-scale fa-2x opacity-50"></i>
+          </div>
         </div>
       </div>
     </div>
-    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
-      <div class="card bg-warning text-white shadow-sm">
-        <div class="card-body text-center">
-          <h6 class="card-title"><i class="fas fa-shopping-cart"></i> إجمالي المبيعات</h6>
-          <h3 class="mb-0">{{ "%.2f"|format(summary.total_sales) }} ₪</h3>
+    <div class="col-lg-2 col-md-4 col-sm-6">
+      <div class="card border-0 shadow-sm bg-warning text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">إجمالي المبيعات</h6>
+              <h3 class="mb-0 fw-bold">{{ "%.2f"|format(summary.total_sales) }} ₪</h3>
+            </div>
+            <i class="fas fa-shopping-cart fa-2x opacity-50"></i>
+          </div>
         </div>
       </div>
     </div>
-    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
-      <div class="card bg-info text-white shadow-sm">
-        <div class="card-body text-center">
-          <h6 class="card-title"><i class="fas fa-money-bill-wave"></i> إجمالي المدفوعات</h6>
-          <h3 class="mb-0">{{ "%.2f"|format(summary.total_payments) }} ₪</h3>
+    <div class="col-lg-2 col-md-4 col-sm-6">
+      <div class="card border-0 shadow-sm bg-info text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">إجمالي المدفوعات</h6>
+              <h3 class="mb-0 fw-bold">{{ "%.2f"|format(summary.total_payments) }} ₪</h3>
+            </div>
+            <i class="fas fa-money-bill-wave fa-2x opacity-50"></i>
+          </div>
         </div>
       </div>
     </div>
-    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
-      <div class="card bg-danger text-white shadow-sm">
-        <div class="card-body text-center">
-          <h6 class="card-title"><i class="fas fa-exclamation-triangle"></i> عملاء بذمة</h6>
-          <h3 class="mb-0">{{ summary.customers_with_debt }}</h3>
+    <div class="col-lg-2 col-md-4 col-sm-6">
+      <div class="card border-0 shadow-sm bg-danger text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">عملاء بذمة</h6>
+              <h3 class="mb-0 fw-bold">{{ summary.customers_with_debt }}</h3>
+            </div>
+            <i class="fas fa-exclamation-triangle fa-2x opacity-50"></i>
+          </div>
         </div>
       </div>
     </div>
-    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
-      <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);" class="text-white shadow-sm">
-        <div class="card-body text-center text-white">
-          <h6 class="card-title"><i class="fas fa-chart-line"></i> متوسط الرصيد</h6>
-          <h3 class="mb-0">{{ "%.2f"|format(summary.average_balance) }} ₪</h3>
-        </div>
-      </div>
-    </div>
-    <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
-      <div class="card bg-secondary text-white">
-        <div class="card-body text-center">
-          <h6 class="card-title">إجمالي المدفوعات</h6>
-          <h3 class="mb-0">
-            <span id="total-payments">0.00</span> ₪
-          </h3>
+    <div class="col-lg-2 col-md-4 col-sm-6">
+      <div class="card border-0 shadow-sm text-white h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">متوسط الرصيد</h6>
+              <h3 class="mb-0 fw-bold">{{ "%.2f"|format(summary.average_balance) }} ₪</h3>
+            </div>
+            <i class="fas fa-chart-line fa-2x opacity-50"></i>
+          </div>
         </div>
       </div>
     </div>

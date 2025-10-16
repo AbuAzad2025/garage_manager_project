@@ -23,6 +23,9 @@
       <a href="{{ url_for('main.restore_db') }}" class="btn btn-sm text-dark fw-bold shadow-sm px-3" style="background:linear-gradient(45deg,#f7971e,#ffd200)">
         <i class="fas fa-upload me-1"></i> استعادة النسخ
       </a>
+      <button type="button" class="btn btn-sm text-white fw-bold shadow-sm px-3" style="background:linear-gradient(45deg,#11998e,#38ef7d)" onclick="toggleAutomatedBackup()">
+        <i class="fas fa-clock me-1"></i> <span id="backup-toggle-text">نسخ تلقائي</span>
+      </button>
       {% endif %}
     </div>
   </div>
@@ -508,4 +511,50 @@ setInterval(loadCheckAlerts, 300000);
     background: #fff3cd; 
   }
 </style>
+
+<script>
+function checkBackupStatus() {
+  fetch('{{ url_for("main.automated_backup_status") }}')
+    .then(r => r.json())
+    .then(data => {
+      const btn = document.getElementById('backup-toggle-text');
+      if (data.enabled) {
+        btn.textContent = 'إيقاف التلقائي';
+        btn.parentElement.classList.add('btn-success');
+        btn.parentElement.classList.remove('btn-secondary');
+      } else {
+        btn.textContent = 'تفعيل التلقائي';
+        btn.parentElement.classList.add('btn-secondary');
+        btn.parentElement.classList.remove('btn-success');
+      }
+    })
+    .catch(err => console.error('Error checking backup status:', err));
+}
+
+function toggleAutomatedBackup() {
+  if (confirm('هل تريد تغيير حالة النسخ الاحتياطي التلقائي؟')) {
+    fetch('{{ url_for("main.toggle_automated_backup") }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token() }}'
+      }
+    })
+    .then(r => {
+      if (r.ok) {
+        location.reload();
+      }
+    })
+    .catch(err => {
+      alert('حدث خطأ: ' + err);
+    });
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  if (document.getElementById('backup-toggle-text')) {
+    checkBackupStatus();
+  }
+});
+</script>
 {% endblock %}

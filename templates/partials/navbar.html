@@ -303,7 +303,7 @@ function updateDateTime() {
 async function updateExchangeRates() {
     try {
         // جلب أسعار الصرف من API أو من قاعدة البيانات
-        const response = await fetch('/api/exchange-rates?base=ILS');
+        const response = await fetch('/api/v1/exchange-rates?base=ILS');
         if (response.ok) {
             const data = await response.json();
             

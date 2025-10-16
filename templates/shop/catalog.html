@@ -71,6 +71,77 @@
   </div>
 </div>
 
+<!-- Quick Statistics -->
+<section class="py-4 bg-light">
+  <div class="container">
+    <div class="row g-3">
+      <div class="col-lg-3 col-md-6">
+        <div class="card border-0 shadow-sm bg-primary text-white">
+          <div class="card-body">
+            <div class="d-flex justify-content-between">
+              <div>
+                <h6 class="card-title text-white-50 mb-1">إجمالي المنتجات</h6>
+                <h3 class="mb-0 fw-bold">{{ products|length }}</h3>
+              </div>
+              <div class="align-self-center">
+                <i class="fas fa-boxes fa-2x opacity-75"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-3 col-md-6">
+        <div class="card border-0 shadow-sm bg-success text-white">
+          <div class="card-body">
+            <div class="d-flex justify-content-between">
+              <div>
+                <h6 class="card-title text-white-50 mb-1">منتجات متوفرة</h6>
+                <h3 class="mb-0 fw-bold">{{ products|selectattr('is_active')|list|length }}</h3>
+              </div>
+              <div class="align-self-center">
+                <i class="fas fa-check-circle fa-2x opacity-75"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-3 col-md-6">
+        <div class="card border-0 shadow-sm bg-info text-white">
+          <div class="card-body">
+            <div class="d-flex justify-content-between">
+              <div>
+                <h6 class="card-title text-white-50 mb-1">عروض خاصة</h6>
+                <h3 class="mb-0 fw-bold">{{ products|selectattr('online_price')|list|length }}</h3>
+              </div>
+              <div class="align-self-center">
+                <i class="fas fa-tags fa-2x opacity-75"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-3 col-md-6">
+        <div class="card border-0 shadow-sm text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+          <div class="card-body">
+            <div class="d-flex justify-content-between">
+              <div>
+                <h6 class="card-title text-white-50 mb-1">توصيل سريع</h6>
+                <h3 class="mb-0 fw-bold">24 ساعة</h3>
+              </div>
+              <div class="align-self-center">
+                <i class="fas fa-shipping-fast fa-2x opacity-75"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- Products Section -->
 <section id="products" class="py-5">
   <div class="container">

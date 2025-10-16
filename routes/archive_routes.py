@@ -1,6 +1,3 @@
-# archive_routes.py - Additional Archive Routes
-# Location: /garage_manager/routes/archive_routes.py
-# Description: Additional archive routes for shipments and checks
 
 from flask import Blueprint, request, redirect, url_for, flash
 from flask_login import login_required, current_user
@@ -12,9 +9,6 @@ archive_routes_bp = Blueprint('archive_routes', __name__)
 @archive_routes_bp.route("/shipments/archive/<int:shipment_id>", methods=["POST"])
 @login_required
 def archive_shipment(shipment_id):
-    print(f"🔍 [SHIPMENT ARCHIVE] بدء أرشفة الشحنة رقم: {shipment_id}")
-    print(f"🔍 [SHIPMENT ARCHIVE] المستخدم: {current_user.username if current_user else 'غير معروف'}")
-    print(f"🔍 [SHIPMENT ARCHIVE] البيانات المرسلة: {dict(request.form)}")
     
     try:
         shipment = Shipment.query.get_or_404(shipment_id)
@@ -50,9 +44,6 @@ def archive_shipment(shipment_id):
 @archive_routes_bp.route("/checks/archive/<int:check_id>", methods=["POST"])
 @login_required
 def archive_check(check_id):
-    print(f"🔍 [CHECK ARCHIVE] بدء أرشفة الشيك رقم: {check_id}")
-    print(f"🔍 [CHECK ARCHIVE] المستخدم: {current_user.username if current_user else 'غير معروف'}")
-    print(f"🔍 [CHECK ARCHIVE] البيانات المرسلة: {dict(request.form)}")
     
     try:
         check = Check.query.get_or_404(check_id)
@@ -73,7 +64,7 @@ def archive_check(check_id):
         check.archive_reason = reason
         db.session.commit()
         flash(f'تم أرشفة الشيك رقم {check.id} بنجاح', 'success')
-        return redirect(url_for('checks_bp.index'))
+        return redirect(url_for('checks.index'))
         
     except Exception as e:
         print(f"❌ [CHECK ARCHIVE] خطأ في أرشفة الشيك: {str(e)}")
@@ -83,4 +74,4 @@ def archive_check(check_id):
         
         db.session.rollback()
         flash(f'خطأ في أرشفة الشيك: {str(e)}', 'error')
-        return redirect(url_for('checks_bp.index'))
+        return redirect(url_for('checks.index'))

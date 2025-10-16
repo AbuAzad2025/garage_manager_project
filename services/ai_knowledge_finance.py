@@ -1,6 +1,3 @@
-# ai_knowledge_finance.py - AI Finance Knowledge
-# Location: /garage_manager/services/ai_knowledge_finance.py
-# Description: AI financial and tax knowledge base
 
 
 FINANCE_KNOWLEDGE = {

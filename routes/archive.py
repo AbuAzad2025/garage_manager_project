@@ -1,6 +1,3 @@
-# routes/archive.py - Archive Management Routes
-# Location: /garage_manager/routes/archive.py
-# Description: Archive management routes for the garage management system
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
@@ -11,13 +8,14 @@ import json
 
 from extensions import db
 from models import Archive, ServiceRequest, Payment, Sale, Customer, Product, Expense, Check, Supplier, Partner
-from utils import permission_required, super_only, archive_record, restore_record, get_archive_stats
+import utils
+from utils import archive_record, restore_record, get_archive_stats
 
 archive_bp = Blueprint('archive', __name__, url_prefix='/archive')
 
 @archive_bp.route('/')
 @login_required
-@permission_required('manage_archive')
+# @permission_required('manage_archive')  # Commented out
 def index():
     stats = get_archive_stats()
     recent_archives = Archive.query.order_by(desc(Archive.archived_at)).limit(10).all()
@@ -30,7 +28,7 @@ def index():
 
 @archive_bp.route('/search', methods=['GET', 'POST'])
 @login_required
-@permission_required('manage_archive')
+# @permission_required('manage_archive')  # Commented out
 def search():
     """البحث في الأرشيفات"""
     # form = ArchiveSearchForm()
@@ -70,7 +68,7 @@ def search():
 
 @archive_bp.route('/bulk-archive', methods=['GET', 'POST'])
 @login_required
-@super_only
+# @super_only  # Commented out
 def bulk_archive():
     """الأرشفة الجماعية"""
     # form = BulkArchiveForm()
@@ -132,7 +130,7 @@ def bulk_archive():
 
 @archive_bp.route('/view/<int:archive_id>')
 @login_required
-@permission_required('manage_archive')
+# @permission_required('manage_archive')  # Commented out
 def view_archive(archive_id):
     """عرض تفاصيل الأرشيف"""
     archive = Archive.query.get_or_404(archive_id)
@@ -147,17 +145,19 @@ def view_archive(archive_id):
 
 @archive_bp.route('/restore/<int:archive_id>', methods=['GET', 'POST'])
 @login_required
-@super_only
+# @super_only  # Commented out
 def restore_archive(archive_id):
-    """استعادة الأرشيف"""
+    """استعادة الأرشيف - فقط للمالك أو Super Admin"""
+    # التحقق من الصلاحيات
+    if current_user.id != 1 and not (current_user.role and current_user.role.name == 'super_admin'):
+        flash('❌ غير مصرح لك باستعادة الأرشيفات', 'danger')
+        return redirect(url_for('archive.index'))
+    
     archive = Archive.query.get_or_404(archive_id)
-    print(f"🔍 [RESTORE] بدء استعادة الأرشيف رقم: {archive_id}")
-    print(f"🔍 [RESTORE] نوع السجل: {archive.record_type}")
-    print(f"🔍 [RESTORE] معرف السجل: {archive.record_id}")
     
     if request.method == 'POST':
         try:
-            restored_record = restore_record(archive_id)
+            restored_record = utils.restore_record(archive_id)
             print(f"✅ [RESTORE] تم استعادة السجل بنجاح")
             flash(f'تم استعادة السجل رقم {restored_record.id} بنجاح', 'success')
             return redirect(url_for('archive.index'))
@@ -170,9 +170,14 @@ def restore_archive(archive_id):
 
 @archive_bp.route('/delete/<int:archive_id>', methods=['POST'])
 @login_required
-@super_only
+# @super_only  # Commented out
 def delete_archive(archive_id):
-    """حذف الأرشيف نهائياً"""
+    """حذف الأرشيف نهائياً - فقط للمالك (ID=1)"""
+    # التحقق من الصلاحيات - فقط المالك
+    if current_user.id != 1:
+        flash('❌ غير مصرح لك بحذف الأرشيفات نهائياً - هذه الصلاحية للمالك فقط', 'danger')
+        return redirect(url_for('archive.index'))
+    
     archive = Archive.query.get_or_404(archive_id)
     
     try:
@@ -187,7 +192,7 @@ def delete_archive(archive_id):
 
 @archive_bp.route('/export')
 @login_required
-@permission_required('manage_archive')
+# @permission_required('manage_archive')  # Commented out
 def export_archives():
     """تصدير الأرشيفات"""
     # يمكن تطوير هذا لاحقاً لتصدير الأرشيفات

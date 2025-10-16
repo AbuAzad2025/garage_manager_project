@@ -8,6 +8,70 @@
 
 {% block content %}
 <div class="container-fluid mt-4">
+  
+  <!-- بطاقات تحذيرية -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-danger text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">تحذير عالي</h6>
+              <h3 class="mb-0 fw-bold"><i class="fas fa-exclamation-triangle"></i></h3>
+              <small class="opacity-75">عملية حساسة</small>
+            </div>
+            <i class="fas fa-shield-alt fa-2x opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-warning text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">صلاحية مطلوبة</h6>
+              <h3 class="mb-0 fw-bold">Super Admin</h3>
+              <small class="opacity-75">فقط</small>
+            </div>
+            <i class="fas fa-user-shield fa-2x opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-info text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">أنواع الملفات</h6>
+              <h3 class="mb-0 fw-bold">.db, .sqlite</h3>
+              <small class="opacity-75">المدعومة</small>
+            </div>
+            <i class="fas fa-file-archive fa-2x opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-secondary text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">نسخة احتياطية</h6>
+              <h3 class="mb-0 fw-bold">مطلوبة</h3>
+              <small class="opacity-75">قبل الاستعادة</small>
+            </div>
+            <i class="fas fa-database fa-2x opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
   <div class="card shadow-lg border-0">
     <div class="card-header bg-danger text-white d-flex align-items-center">
       <i class="fas fa-database me-2"></i>

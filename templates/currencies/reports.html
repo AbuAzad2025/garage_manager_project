@@ -14,61 +14,53 @@
     <div class="col-12 mb-4">
         <div class="row">
             <div class="col-md-3">
-                <div class="card bg-primary text-white">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between">
+                <div class="card border-0 shadow-lg" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <div class="card-body text-white">
+                        <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <h4 class="mb-0">{{ total_rates }}</h4>
-                                <p class="mb-0">إجمالي أسعار الصرف</p>
+                                <h3 class="mb-0 fw-bold">{{ total_rates }}</h3>
+                                <p class="mb-0 opacity-75">إجمالي أسعار الصرف</p>
                             </div>
-                            <div class="align-self-center">
-                                <i class="fas fa-exchange-alt fa-2x"></i>
-                            </div>
+                            <i class="fas fa-exchange-alt fa-3x opacity-25"></i>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card bg-success text-white">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between">
+                <div class="card border-0 shadow-lg" style="background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);">
+                    <div class="card-body text-white">
+                        <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <h4 class="mb-0">{{ active_rates }}</h4>
-                                <p class="mb-0">أسعار نشطة</p>
+                                <h3 class="mb-0 fw-bold">{{ active_rates }}</h3>
+                                <p class="mb-0 opacity-75">أسعار نشطة</p>
                             </div>
-                            <div class="align-self-center">
-                                <i class="fas fa-check-circle fa-2x"></i>
-                            </div>
+                            <i class="fas fa-check-circle fa-3x opacity-25"></i>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card bg-warning text-white">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between">
+                <div class="card border-0 shadow-lg" style="background: linear-gradient(135deg, #ffd89b 0%, #19547b 100%);">
+                    <div class="card-body text-white">
+                        <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <h4 class="mb-0">{{ inactive_rates }}</h4>
-                                <p class="mb-0">أسعار غير نشطة</p>
+                                <h3 class="mb-0 fw-bold">{{ inactive_rates }}</h3>
+                                <p class="mb-0 opacity-75">أسعار غير نشطة</p>
                             </div>
-                            <div class="align-self-center">
-                                <i class="fas fa-pause-circle fa-2x"></i>
-                            </div>
+                            <i class="fas fa-pause-circle fa-3x opacity-25"></i>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="col-md-3">
-                <div class="card bg-info text-white">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between">
+                <div class="card border-0 shadow-lg" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                    <div class="card-body text-white">
+                        <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <h4 class="mb-0">{{ used_currencies|length }}</h4>
-                                <p class="mb-0">عملات مستخدمة</p>
+                                <h3 class="mb-0 fw-bold">{{ used_currencies|length }}</h3>
+                                <p class="mb-0 opacity-75">عملات مستخدمة</p>
                             </div>
-                            <div class="align-self-center">
-                                <i class="fas fa-coins fa-2x"></i>
-                            </div>
+                            <i class="fas fa-coins fa-3x opacity-25"></i>
                         </div>
                     </div>
                 </div>

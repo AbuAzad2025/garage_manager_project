@@ -1,6 +1,3 @@
-# other_systems.py - Other Systems Routes
-# Location: /garage_manager/routes/other_systems.py
-# Description: Integration with external systems routes
 
 from flask import Blueprint, render_template
 

@@ -7,6 +7,69 @@
   
   {% include 'advanced/_navigation.html' %}
   
+  <!-- بطاقات إحصائية سريعة -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm text-white h-100" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">الصحة العامة</h6>
+              <h3 class="mb-0 fw-bold">{{ '%.0f'|format(overall) }}%</h3>
+              <small class="opacity-75">حالة النظام</small>
+            </div>
+            <i class="fas fa-heart fa-2x opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-success text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">فحوصات سليمة</h6>
+              <h3 class="mb-0 fw-bold">{{ checks|selectattr('status', 'equalto', 'ok')|list|length }}</h3>
+              <small class="opacity-75">من {{ checks|length }} فحص</small>
+            </div>
+            <i class="fas fa-check-circle fa-2x opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-warning text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">تحذيرات</h6>
+              <h3 class="mb-0 fw-bold">{{ checks|selectattr('status', 'equalto', 'warning')|list|length }}</h3>
+              <small class="opacity-75">تحتاج انتباه</small>
+            </div>
+            <i class="fas fa-exclamation-triangle fa-2x opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-danger text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">أخطاء</h6>
+              <h3 class="mb-0 fw-bold">{{ checks|selectattr('status', 'equalto', 'error')|list|length }}</h3>
+              <small class="opacity-75">تحتاج إصلاح</small>
+            </div>
+            <i class="fas fa-times-circle fa-2x opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
   <div class="row mb-4">
     <div class="col-md-12">
       <div class="card border-0 shadow-sm">

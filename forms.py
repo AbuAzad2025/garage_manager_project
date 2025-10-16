@@ -6,10 +6,6 @@ from datetime import date, datetime
 from decimal import Decimal, ROUND_HALF_UP
 import pytz
 from flask import current_app
-# forms.py - WTForms Definitions
-# Location: /garage_manager/forms.py
-# Description: Form definitions using WTForms for data validation
-
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileField
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -101,12 +97,8 @@ from models import (
     Currency as CurrencyModel,
 )
 
-from utils import (
-    luhn_check,
-    is_valid_expiry_mm_yy,
-    prepare_payment_form_choices,
-    D,
-)
+import utils
+from utils import D  # Import D from utils package
 from validators import Unique
 from barcodes import validate_barcode
 
@@ -311,11 +303,11 @@ class IdempotencyMixin:
 class PaymentDetailsMixin:
     def _validate_card_payload(self, number, holder, expiry):
         num_raw = re.sub(r"\D+", "", number or "")
-        if not (num_raw and num_raw.isdigit() and luhn_check(num_raw)):
+        if not (num_raw and num_raw.isdigit() and utils.luhn_check(num_raw)):
             raise ValidationError("❌ رقم البطاقة غير صالح")
         if not (holder or "").strip():
             raise ValidationError("❌ أدخل اسم حامل البطاقة")
-        if not is_valid_expiry_mm_yy((expiry or "").strip()):
+        if not utils.is_valid_expiry_mm_yy((expiry or "").strip()):
             raise ValidationError("❌ تاريخ الانتهاء غير صالح (MM/YY)")
         return num_raw[-4:]
     def _validate_cheque(self, number, bank, due_date, op_date=None):
@@ -1544,7 +1536,7 @@ class PaymentForm(PaymentDetailsMixin, FlaskForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        prepare_payment_form_choices(self)
+        utils.prepare_payment_form_choices(self)
 
         if not self.splits.entries:
             self.splits.append_entry()
@@ -2045,7 +2037,15 @@ class ShipmentForm(FlaskForm):
 
     destination_id = QuerySelectField('مخزن الوجهة', query_factory=lambda: Warehouse.query.order_by(Warehouse.name).all(), allow_blank=False, get_label='name')
 
-    status = SelectField('الحالة', choices=[], default='DRAFT', validators=[DataRequired()], coerce=str, validate_choice=False)
+    status = SelectField('الحالة', choices=[
+        ('DRAFT', 'مسودة'),
+        ('IN_TRANSIT', 'في الطريق'),
+        ('IN_CUSTOMS', 'في الجمارك'),
+        ('ARRIVED', 'وصلت'),
+        ('DELIVERED', 'تم التسليم'),
+        ('CANCELLED', 'ملغاة'),
+        ('RETURNED', 'مرتجعة')
+    ], default='DRAFT', validators=[DataRequired()], coerce=str)
 
     value_before  = MoneyField('قيمة البضائع قبل المصاريف', validators=[Optional(), NumberRange(min=0)], render_kw={'readonly': True})
     shipping_cost = MoneyField('تكلفة الشحن', validators=[Optional(), NumberRange(min=0)])
@@ -2846,7 +2846,7 @@ class OnlinePaymentForm(FlaskForm):
 
     def validate_card_expiry(self, field):
         v = (field.data or "").strip()
-        if v and not is_valid_expiry_mm_yy(v):
+        if v and not utils.is_valid_expiry_mm_yy(v):
             raise ValidationError("صيغة خاطئة or تاريخ منتهي. استخدم MM/YY.")
 
     def validate(self, extra_validators=None):
@@ -3558,6 +3558,9 @@ class WarehouseForm(FlaskForm):
     current_occupancy = IntegerField('المشغول حاليًا', validators=[Optional(), NumberRange(min=0)])
     online_slug = StrippedStringField('معرّف الorنلاين', validators=[Optional(), Length(max=150)])
     online_is_default = BooleanField('المستودع الافتراضي للorنلاين', default=False)
+    is_active = BooleanField('نشط', default=True)
+    notes = TextAreaField('ملاحظات', validators=[Optional(), Length(max=2000)])
+    submit = SubmitField('حفظ')
 
 
 # ========================================

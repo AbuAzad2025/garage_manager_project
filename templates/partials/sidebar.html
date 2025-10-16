@@ -208,14 +208,6 @@
         </li>
         {% endif %}
 
-        {% if has_perm('manage_archive') or shop_is_super_admin %}
-        <li class="nav-item">
-          <a href="{{ url_for('api.docs') }}" class="nav-link {% if request.blueprint == 'api' %}active{% endif %}">
-            <i class="nav-icon fas fa-code"></i>
-            <p>API Documentation</p>
-          </a>
-        </li>
-        {% endif %}
 
         {% if has_perm('backup_database') or shop_is_super_admin %}
         <li class="nav-item">

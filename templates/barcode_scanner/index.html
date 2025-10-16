@@ -396,7 +396,7 @@ $(document).ready(function() {
     
     function loadWarehouses() {
         // تحميل المستودعات من API
-        fetch('/api/warehouses')
+        fetch('/api/v1/warehouses')
             .then(response => response.json())
             .then(data => {
                 const select = $('#warehouse-select');

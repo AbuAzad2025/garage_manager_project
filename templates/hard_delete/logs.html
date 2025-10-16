@@ -3,6 +3,74 @@
 
 {% block content %}
 <div class="container-fluid">
+    
+    <!-- إحصائيات سريعة -->
+    <div class="row g-3 mb-4">
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title text-white-50 mb-1">إجمالي العمليات</h6>
+                            <h3 class="mb-0 fw-bold">{{ pagination.total if pagination else 0 }}</h3>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-trash fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title text-white-50 mb-1">عمليات مكتملة</h6>
+                            <h3 class="mb-0 fw-bold">{{ pagination.items|selectattr('status', 'equalto', 'COMPLETED')|list|length if pagination and pagination.items else 0 }}</h3>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-check-circle fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title text-white-50 mb-1">قيد الانتظار</h6>
+                            <h3 class="mb-0 fw-bold">{{ pagination.items|selectattr('status', 'equalto', 'PENDING')|list|length if pagination and pagination.items else 0 }}</h3>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-clock fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title text-white-50 mb-1">عمليات مستعادة</h6>
+                            <h3 class="mb-0 fw-bold">{{ pagination.items|selectattr('status', 'equalto', 'RESTORED')|list|length if pagination and pagination.items else 0 }}</h3>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-undo fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <div class="row">
         <div class="col-12">
             <div class="card">

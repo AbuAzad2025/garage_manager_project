@@ -1,6 +1,3 @@
-# hard_delete_service.py - Hard Delete Service
-# Location: /garage_manager/services/hard_delete_service.py
-# Description: Hard delete operations and restoration service
 
 import json
 import uuid
@@ -17,9 +14,9 @@ from extensions import db
 from models import (
     Customer, Supplier, Partner, Payment, 
     StockLevel, Product, Warehouse, DeletionLog, DeletionType, DeletionStatus,
-    User, GLBatch
+    User, GLBatch, Sale, SaleLine, Shipment, ShipmentItem
 )
-from utils import format_currency
+import utils
 
 
 class HardDeleteService:
@@ -367,9 +364,29 @@ class HardDeleteService:
             "updated_at": customer.updated_at.isoformat() if customer.updated_at else None
         }
         
-        # المبيعات المرتبطة (إذا كانت موجودة)
+        # المبيعات المرتبطة
+        sales = db.session.query(Sale).filter_by(customer_id=customer_id).all()
         sales_data = []
-        # TODO: إضافة نماذج المبيعات عند توفرها
+        for sale in sales:
+            sale_lines = []
+            for line in sale.lines:
+                sale_lines.append({
+                    "id": line.id,
+                    "product_id": line.product_id,
+                    "product_name": line.product.name if line.product else None,
+                    "quantity": float(line.quantity or 0),
+                    "unit_price": float(line.unit_price or 0),
+                    "total_price": float(line.total_price or 0)
+                })
+            sales_data.append({
+                "id": sale.id,
+                "sale_number": sale.sale_number,
+                "sale_date": sale.sale_date.isoformat() if sale.sale_date else None,
+                "total_amount": float(sale.total_amount or 0),
+                "total_paid": float(sale.total_paid or 0),
+                "status": sale.status,
+                "lines": sale_lines
+            })
         
         # الدفعات المرتبطة
         payments = db.session.query(Payment).filter_by(customer_id=customer_id).all()
@@ -450,8 +467,27 @@ class HardDeleteService:
             "balance_reversals": []
         }
         
-        # 1. إرجاع المخزون من المبيعات (إذا كانت موجودة)
-        # TODO: إضافة منطق إرجاع المخزون من المبيعات عند توفر نماذج المبيعات
+        # 1. إرجاع المخزون من المبيعات
+        sales = db.session.query(Sale).filter_by(customer_id=customer_id).all()
+        for sale in sales:
+            for line in sale.lines:
+                if line.product_id and line.warehouse_id and line.quantity:
+                    # إرجاع الكمية المباعة إلى المخزون
+                    stock_level = db.session.query(StockLevel).filter_by(
+                        product_id=line.product_id,
+                        warehouse_id=line.warehouse_id
+                    ).first()
+                    
+                    if stock_level:
+                        old_quantity = stock_level.on_hand_quantity
+                        stock_level.on_hand_quantity += line.quantity
+                        reversals["stock_reversals"].append({
+                            "product_id": line.product_id,
+                            "warehouse_id": line.warehouse_id,
+                            "quantity_restored": float(line.quantity),
+                            "old_quantity": float(old_quantity),
+                            "new_quantity": float(stock_level.on_hand_quantity)
+                        })
         
         # 2. حذف السجلات المحاسبية
         payments = db.session.query(Payment).filter_by(customer_id=customer_id).all()
@@ -480,8 +516,27 @@ class HardDeleteService:
             "balance_reversals": []
         }
         
-        # 1. إرجاع المخزون (إذا كانت موجودة)
-        # TODO: إضافة منطق إرجاع المخزون من المبيعات عند توفر نماذج المبيعات
+        # 1. إرجاع المخزون من المبيعات
+        sale = db.session.query(Sale).filter_by(id=sale_id).first()
+        if sale:
+            for line in sale.lines:
+                if line.product_id and line.warehouse_id and line.quantity:
+                    # إرجاع الكمية المباعة إلى المخزون
+                    stock_level = db.session.query(StockLevel).filter_by(
+                        product_id=line.product_id,
+                        warehouse_id=line.warehouse_id
+                    ).first()
+                    
+                    if stock_level:
+                        old_quantity = stock_level.on_hand_quantity
+                        stock_level.on_hand_quantity += line.quantity
+                        reversals["stock_reversals"].append({
+                            "product_id": line.product_id,
+                            "warehouse_id": line.warehouse_id,
+                            "quantity_restored": float(line.quantity),
+                            "old_quantity": float(old_quantity),
+                            "new_quantity": float(stock_level.on_hand_quantity)
+                        })
         
         # 2. حذف السجلات المحاسبية
         gl_batches = db.session.query(GLBatch).filter_by(
@@ -698,9 +753,29 @@ class HardDeleteService:
             "updated_at": supplier.updated_at.isoformat() if supplier.updated_at else None
         }
         
-        # المشتريات المرتبطة (إذا كانت موجودة)
+        # الشحنات المرتبطة (المشتريات من الموردين)
+        shipments = db.session.query(Shipment).filter_by(supplier_id=supplier_id).all()
         purchases_data = []
-        # TODO: إضافة نماذج المشتريات عند توفرها
+        for shipment in shipments:
+            shipment_items = []
+            for item in shipment.items:
+                shipment_items.append({
+                    "id": item.id,
+                    "product_id": item.product_id,
+                    "product_name": item.product.name if item.product else None,
+                    "quantity_ordered": float(item.quantity_ordered or 0),
+                    "quantity_received": float(item.quantity_received or 0),
+                    "unit_cost": float(item.unit_cost or 0),
+                    "total_cost": float(item.total_cost or 0)
+                })
+            purchases_data.append({
+                "id": shipment.id,
+                "shipment_number": shipment.shipment_number,
+                "shipment_date": shipment.shipment_date.isoformat() if shipment.shipment_date else None,
+                "total_value": float(shipment.total_value or 0),
+                "status": shipment.status,
+                "items": shipment_items
+            })
         
         # الدفعات المرتبطة
         payments = db.session.query(Payment).filter_by(supplier_id=supplier_id).all()
@@ -739,9 +814,29 @@ class HardDeleteService:
             "updated_at": partner.updated_at.isoformat() if partner.updated_at else None
         }
         
-        # المبيعات المرتبطة (إذا كانت موجودة)
+        # المبيعات المرتبطة
+        sales = db.session.query(Sale).filter_by(customer_id=partner_id).all()
         sales_data = []
-        # TODO: إضافة نماذج المبيعات عند توفرها
+        for sale in sales:
+            sale_lines = []
+            for line in sale.lines:
+                sale_lines.append({
+                    "id": line.id,
+                    "product_id": line.product_id,
+                    "product_name": line.product.name if line.product else None,
+                    "quantity": float(line.quantity or 0),
+                    "unit_price": float(line.unit_price or 0),
+                    "total_price": float(line.total_price or 0)
+                })
+            sales_data.append({
+                "id": sale.id,
+                "sale_number": sale.sale_number,
+                "sale_date": sale.sale_date.isoformat() if sale.sale_date else None,
+                "total_amount": float(sale.total_amount or 0),
+                "total_paid": float(sale.total_paid or 0),
+                "status": sale.status,
+                "lines": sale_lines
+            })
         
         # الدفعات المرتبطة
         payments = db.session.query(Payment).filter_by(partner_id=partner_id).all()
@@ -771,8 +866,27 @@ class HardDeleteService:
             "balance_reversals": []
         }
         
-        # 1. إرجاع المخزون من المشتريات (إذا كانت موجودة)
-        # TODO: إضافة منطق إرجاع المخزون من المشتريات عند توفر نماذج المشتريات
+        # 1. إرجاع المخزون من الشحنات (المشتريات)
+        shipments = db.session.query(Shipment).filter_by(supplier_id=supplier_id).all()
+        for shipment in shipments:
+            for item in shipment.items:
+                if item.product_id and item.warehouse_id and item.quantity_received:
+                    # سحب الكمية المستلمة من المخزون
+                    stock_level = db.session.query(StockLevel).filter_by(
+                        product_id=item.product_id,
+                        warehouse_id=item.warehouse_id
+                    ).first()
+                    
+                    if stock_level:
+                        old_quantity = stock_level.on_hand_quantity
+                        stock_level.on_hand_quantity -= item.quantity_received
+                        reversals["stock_reversals"].append({
+                            "product_id": item.product_id,
+                            "warehouse_id": item.warehouse_id,
+                            "quantity_removed": float(item.quantity_received),
+                            "old_quantity": float(old_quantity),
+                            "new_quantity": float(stock_level.on_hand_quantity)
+                        })
         
         # 2. حذف السجلات المحاسبية
         gl_batches = db.session.query(GLBatch).filter(
@@ -798,8 +912,27 @@ class HardDeleteService:
             "balance_reversals": []
         }
         
-        # 1. إرجاع المخزون من المبيعات (إذا كانت موجودة)
-        # TODO: إضافة منطق إرجاع المخزون من المبيعات عند توفر نماذج المبيعات
+        # 1. إرجاع المخزون من المبيعات
+        sales = db.session.query(Sale).filter_by(customer_id=partner_id).all()
+        for sale in sales:
+            for line in sale.lines:
+                if line.product_id and line.warehouse_id and line.quantity:
+                    # إرجاع الكمية المباعة إلى المخزون
+                    stock_level = db.session.query(StockLevel).filter_by(
+                        product_id=line.product_id,
+                        warehouse_id=line.warehouse_id
+                    ).first()
+                    
+                    if stock_level:
+                        old_quantity = stock_level.on_hand_quantity
+                        stock_level.on_hand_quantity += line.quantity
+                        reversals["stock_reversals"].append({
+                            "product_id": line.product_id,
+                            "warehouse_id": line.warehouse_id,
+                            "quantity_restored": float(line.quantity),
+                            "old_quantity": float(old_quantity),
+                            "new_quantity": float(stock_level.on_hand_quantity)
+                        })
         
         # 2. حذف السجلات المحاسبية
         payments = db.session.query(Payment).filter_by(partner_id=partner_id).all()
@@ -999,8 +1132,39 @@ class HardDeleteService:
             )
             db.session.add(customer)
             
-            # استعادة المبيعات (إذا كانت موجودة)
-            # TODO: إضافة نماذج المبيعات عند توفرها
+            # استعادة المبيعات
+            related_entities = deletion_log.related_entities or {}
+            sales_data = related_entities.get("sales", [])
+            for sale_dict in sales_data:
+                sale = Sale(
+                    id=sale_dict["id"],
+                    sale_number=sale_dict["sale_number"],
+                    sale_date=datetime.fromisoformat(sale_dict["sale_date"]) if sale_dict.get("sale_date") else None,
+                    customer_id=customer_data["id"],
+                    total_amount=sale_dict.get("total_amount", 0),
+                    total_paid=sale_dict.get("total_paid", 0),
+                    status=sale_dict.get("status", "DRAFT")
+                )
+                db.session.add(sale)
+                
+                # استعادة سطور المبيعات وسحب الكمية من المخزون مرة أخرى
+                for line_dict in sale_dict.get("lines", []):
+                    sale_line = SaleLine(
+                        id=line_dict["id"],
+                        sale_id=sale_dict["id"],
+                        product_id=line_dict["product_id"],
+                        quantity=line_dict["quantity"],
+                        unit_price=line_dict["unit_price"]
+                    )
+                    db.session.add(sale_line)
+                    
+                    # سحب الكمية من المخزون (عكس الإرجاع الذي حدث عند الحذف)
+                    if line_dict.get("product_id") and line_dict.get("quantity"):
+                        stock_level = db.session.query(StockLevel).filter_by(
+                            product_id=line_dict["product_id"]
+                        ).first()
+                        if stock_level:
+                            stock_level.on_hand_quantity -= line_dict["quantity"]
             
             return {"success": True}
             
@@ -1014,8 +1178,41 @@ class HardDeleteService:
             if not sale_data:
                 return {"success": False, "error": "بيانات البيع غير متوفرة"}
             
-            # TODO: إضافة نماذج المبيعات عند توفرها
-            return {"success": False, "error": "نماذج المبيعات غير متوفرة حالياً"}
+            # إنشاء البيع
+            sale = Sale(
+                id=sale_data["id"],
+                sale_number=sale_data["sale_number"],
+                sale_date=datetime.fromisoformat(sale_data["sale_date"]) if sale_data.get("sale_date") else None,
+                customer_id=sale_data.get("customer_id"),
+                total_amount=sale_data.get("total_amount", 0),
+                total_paid=sale_data.get("total_paid", 0),
+                status=sale_data.get("status", "DRAFT")
+            )
+            db.session.add(sale)
+            
+            # استعادة سطور المبيعات
+            related_entities = deletion_log.related_entities or {}
+            lines_data = related_entities.get("lines", [])
+            for line_dict in lines_data:
+                sale_line = SaleLine(
+                    id=line_dict["id"],
+                    sale_id=sale_data["id"],
+                    product_id=line_dict["product_id"],
+                    quantity=line_dict["quantity"],
+                    unit_price=line_dict["unit_price"]
+                )
+                db.session.add(sale_line)
+                
+                # سحب الكمية من المخزون (عكس الإرجاع الذي حدث عند الحذف)
+                if line_dict.get("product_id") and line_dict.get("warehouse_id") and line_dict.get("quantity"):
+                    stock_level = db.session.query(StockLevel).filter_by(
+                        product_id=line_dict["product_id"],
+                        warehouse_id=line_dict["warehouse_id"]
+                    ).first()
+                    if stock_level:
+                        stock_level.on_hand_quantity -= line_dict["quantity"]
+            
+            return {"success": True}
             
         except Exception as e:
             return {"success": False, "error": f"فشل في استعادة البيع: {str(e)}"}

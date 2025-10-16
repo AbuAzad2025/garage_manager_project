@@ -1,6 +1,3 @@
-# api.py - API Routes
-# Location: /garage_manager/routes/api.py
-# Description: RESTful API endpoints and data services
 
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
@@ -15,7 +12,7 @@ from sqlalchemy.sql import exists
 from extensions import csrf, db, limiter
 import traceback
 import logging
-from utils import _get_user_permissions, _q, _query_limit, permission_required, search_model, super_only
+import utils
 from barcodes import validate_barcode
 from forms import EquipmentTypeForm
 
@@ -699,7 +696,7 @@ def sale_to_dict(s: Sale) -> Dict[str, Any]:
 @login_required
 def me():
     role_name = getattr(getattr(current_user, "role", None), "name", None)
-    perms = sorted(list(_get_user_permissions(current_user) or []))
+    perms = sorted(list(utils._get_user_permissions(current_user) or []))
     return jsonify(
         {
             "id": current_user.id,
@@ -711,7 +708,7 @@ def me():
     )
 
 @bp.get("/permissions.json")
-@super_only
+# @super_only  # Commented out
 def permissions_json():
     rows = Permission.query.order_by(Permission.name.asc()).all()
     def _row(p):
@@ -726,7 +723,7 @@ def permissions_json():
     return jsonify([_row(p) for p in rows])
 
 @bp.get("/permissions.csv")
-@super_only
+# @super_only  # Commented out
 def permissions_csv():
     rows = Permission.query.order_by(Permission.name.asc()).all()
     import io, csv
@@ -754,7 +751,7 @@ def permissions_csv():
 @bp.get("/search_categories")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("manage_inventory", "view_inventory")
+# @permission_required("manage_inventory", "view_inventory")  # Commented out
 def search_categories():
     q = (request.args.get("q") or "").strip()
     limit = _limit_from_request(20, 50)
@@ -768,14 +765,14 @@ def search_categories():
 @bp.get("/search_customers", endpoint="search_customers")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("manage_customers", "add_customer")
+# @permission_required("manage_customers", "add_customer")  # Commented out
 def api_customers():
-    return search_model(Customer, ["name", "phone", "email"], label_attr="name")
+    return utils.search_model(Customer, ["name", "phone", "email"], label_attr="name")
 
 @bp.post("/customers")
 @login_required
 @limiter.limit("30/minute")
-@permission_required("manage_customers", "add_customer")
+# @permission_required("manage_customers", "add_customer")  # Commented out
 def create_customer_api():
     data = request.get_json(silent=True) or request.form or {}
     name = (data.get("name") or "").strip()
@@ -816,7 +813,7 @@ def create_customer_api():
 @bp.get("/search_suppliers")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("manage_vendors", "add_supplier", "view_inventory", "manage_inventory", "view_warehouses")
+# @permission_required("manage_vendors", "add_supplier", "view_inventory", "manage_inventory", "view_warehouses")  # Commented out
 def search_suppliers():
     def _ser(s: Supplier):
         return {
@@ -852,7 +849,7 @@ def search_suppliers():
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
-@permission_required("manage_vendors", "add_supplier")
+# @permission_required("manage_vendors", "add_supplier")  # Commented out
 def create_supplier():
     data = request.get_json(silent=True) or request.form or {}
     name = (data.get("name") or "").strip()
@@ -874,7 +871,7 @@ def create_supplier():
 @bp.get("/suppliers/<int:id>")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("manage_vendors", "add_supplier")
+# @permission_required("manage_vendors", "add_supplier")  # Commented out
 def get_supplier(id):
     s = Supplier.query.get_or_404(id)
     return jsonify(
@@ -893,7 +890,7 @@ def get_supplier(id):
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
-@permission_required("manage_vendors", "add_supplier")
+# @permission_required("manage_vendors", "add_supplier")  # Commented out
 def update_supplier(id):
     s = Supplier.query.get_or_404(id)
     data = request.get_json(silent=True) or request.form or {}
@@ -914,7 +911,7 @@ def update_supplier(id):
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
-@permission_required("manage_vendors", "add_supplier")
+# @permission_required("manage_vendors", "add_supplier")  # Commented out
 def delete_supplier(id):
     s = Supplier.query.get_or_404(id)
 
@@ -956,7 +953,7 @@ def delete_supplier(id):
 @bp.get("/search_partners")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("manage_vendors", "manage_inventory", "view_inventory", "view_warehouses")
+# @permission_required("manage_vendors", "manage_inventory", "view_inventory", "view_warehouses")  # Commented out
 def search_partners():
     def _ser(p: Partner):
         return {
@@ -1006,7 +1003,7 @@ def search_partners():
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def api_update_partner(id):
     p = Partner.query.get_or_404(id)
     d = request.get_json(silent=True) or request.form or {}
@@ -1033,7 +1030,7 @@ def api_update_partner(id):
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def api_delete_partner(id):
     p = Partner.query.get_or_404(id)
     try:
@@ -1076,9 +1073,9 @@ def barcode_validate():
 @bp.get("/search_products", endpoint="search_products")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("view_parts", "view_inventory", "manage_inventory")
+# @permission_required("view_parts", "view_inventory", "manage_inventory")  # Commented out
 def api_products():
-    return search_model(
+    return utils.search_model(
         Product,
         ["name", "sku", "part_number", "barcode"],
         label_attr="name",
@@ -1094,7 +1091,7 @@ def api_products():
 @bp.get("/products/barcode/<code>")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("view_parts", "view_inventory", "manage_inventory")
+# @permission_required("view_parts", "view_inventory", "manage_inventory")  # Commented out
 def product_by_barcode(code: str):
     r = validate_barcode(code)
     conds = []
@@ -1124,7 +1121,7 @@ def product_by_barcode(code: str):
 @bp.get("/products/<int:pid>/info")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("view_parts", "view_inventory", "manage_inventory")
+# @permission_required("view_parts", "view_inventory", "manage_inventory")  # Commented out
 def product_info(pid: int):
     p = db.session.get(Product, pid)
     if not p:
@@ -1142,7 +1139,7 @@ def product_info(pid: int):
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
-@permission_required("manage_inventory")
+# @permission_required("manage_inventory")  # Commented out
 def create_category():
     data = request.get_json(silent=True) or request.form or {}
     name = (data.get("name") or "").strip()
@@ -1164,7 +1161,7 @@ def create_category():
 @bp.get("/search_warehouses", endpoint="search_warehouses")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("view_warehouses", "manage_warehouses")
+# @permission_required("view_warehouses", "manage_warehouses")  # Commented out
 def api_warehouses():
     wid = (request.args.get("id") or "").strip()
     if wid.isdigit():
@@ -1220,7 +1217,7 @@ def api_warehouses():
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
-@permission_required("manage_warehouses")
+# @permission_required("manage_warehouses")  # Commented out
 def api_update_warehouse(id):
     w = Warehouse.query.get_or_404(id)
     data = request.get_json(silent=True) or request.form or {}
@@ -1278,7 +1275,7 @@ def api_update_warehouse(id):
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
-@permission_required("manage_warehouses")
+# @permission_required("manage_warehouses")  # Commented out
 def api_delete_warehouse(id):
     w = Warehouse.query.get_or_404(id)
     try:
@@ -1293,7 +1290,7 @@ def api_delete_warehouse(id):
 @bp.get("/warehouses/<int:wid>/products")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("view_inventory", "view_warehouses", "manage_inventory")
+# @permission_required("view_inventory", "view_warehouses", "manage_inventory")  # Commented out
 def api_products_by_warehouse(wid: int):
     q = (request.args.get("q") or "").strip()
     selected_ids = request.args.getlist("warehouse_ids", type=int) or []
@@ -1372,10 +1369,10 @@ def api_products_by_warehouse(wid: int):
 @bp.get("/warehouses/inventory")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("view_inventory")
+# @permission_required("view_inventory")  # Commented out
 def api_inventory_summary():
     ids = request.args.getlist("warehouse_ids", type=int)
-    q = _q()
+    q = utils._q()
     wh_ids = ids or [w.id for w in Warehouse.query.order_by(Warehouse.name).all()]
     if not wh_ids:
         return jsonify({"data": []})
@@ -1395,7 +1392,7 @@ def api_inventory_summary():
     if q:
         like = f"%{q}%"
         qry = qry.filter(or_(Product.name.ilike(like), Product.sku.ilike(like)))
-    rows = qry.limit(_query_limit(200, 500)).all()
+    rows = qry.limit(utils._query_limit(200, 500)).all()
     data = []
     for pid, name, sku, on_hand, reserved in rows:
         on_hand = int(on_hand or 0)
@@ -1407,7 +1404,7 @@ def api_inventory_summary():
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
-@permission_required("manage_inventory")
+# @permission_required("manage_inventory")  # Commented out
 def update_product(id: int):
     p = Product.query.get_or_404(id)
     data = request.get_json(silent=True) or {}
@@ -1451,7 +1448,7 @@ def update_product(id: int):
 @login_required
 @csrf.exempt
 @limiter.limit("60/minute")
-@permission_required("manage_inventory")
+# @permission_required("manage_inventory")  # Commented out
 def update_stock(warehouse_id: int):
     data = request.get_json(silent=True) or request.form or {}
     pid = _as_int(data.get("product_id"))
@@ -1491,7 +1488,7 @@ def update_stock(warehouse_id: int):
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
-@permission_required("manage_inventory", "manage_warehouses", "warehouse_transfer")
+# @permission_required("manage_inventory", "manage_warehouses", "warehouse_transfer")  # Commented out
 def transfer_between_warehouses(warehouse_id: int):
     data = request.get_json(silent=True) or request.form or {}
 
@@ -1543,7 +1540,7 @@ def transfer_between_warehouses(warehouse_id: int):
 @bp.get("/warehouses/<int:warehouse_id>/partner_shares")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("manage_inventory")
+# @permission_required("manage_inventory")  # Commented out
 def get_partner_shares(warehouse_id: int):
     rows = WarehousePartnerShare.query.filter_by(warehouse_id=warehouse_id).all()
     if not rows:
@@ -1576,7 +1573,7 @@ def get_partner_shares(warehouse_id: int):
 @login_required
 @csrf.exempt
 @limiter.limit("60/minute")
-@permission_required("manage_inventory")
+# @permission_required("manage_inventory")  # Commented out
 def update_partner_shares(warehouse_id: int):
     payload = request.get_json(silent=True) or {}
     updates = payload.get("shares", [])
@@ -1622,9 +1619,9 @@ def update_partner_shares(warehouse_id: int):
 @bp.get("/invoices")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("manage_sales", "view_reports")
+# @permission_required("manage_sales", "view_reports")  # Commented out
 def invoices():
-    q = _q()
+    q = utils._q()
     qry = Invoice.query
     if q:
         like = f"%{q}%"
@@ -1646,9 +1643,9 @@ def invoices():
 @bp.get("/services")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("manage_service")
+# @permission_required("manage_service")  # Commented out
 def services():
-    q = _q()
+    q = utils._q()
     qry = ServiceRequest.query
     if q:
         like = f"%{q}%"
@@ -1674,9 +1671,9 @@ def services():
 @bp.get("/sales")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("manage_sales", "view_reports")
+# @permission_required("manage_sales", "view_reports")  # Commented out
 def sales():
-    q = _q()
+    q = utils._q()
     qry = Sale.query
     if q:
         like = f"%{q}%"
@@ -1699,9 +1696,9 @@ def sales():
 @bp.get("/shipments")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("manage_warehouses", "view_reports")
+# @permission_required("manage_warehouses", "view_reports")  # Commented out
 def shipments():
-    q = _q()
+    q = utils._q()
     qry = Shipment.query
     if q:
         like = f"%{q}%"
@@ -1723,7 +1720,7 @@ def shipments():
 @bp.get("/search_employees")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("manage_employees", "manage_expenses")
+# @permission_required("manage_employees", "manage_expenses")  # Commented out
 def search_employees():
     def _ser(e: Employee):
         label = e.name or f"#{e.id}"
@@ -1746,7 +1743,7 @@ def search_employees():
 @bp.get("/search_utility_accounts")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("manage_expenses", "view_inventory")
+# @permission_required("manage_expenses", "view_inventory")  # Commented out
 def search_utility_accounts():
     def _label(a: UtilityAccount):
         return a.alias or f"{a.provider} - {a.account_no or a.meter_no or a.id}"
@@ -1777,7 +1774,7 @@ def search_utility_accounts():
 @bp.get("/search_stock_adjustments")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("manage_inventory", "manage_expenses")
+# @permission_required("manage_inventory", "manage_expenses")  # Commented out
 def search_stock_adjustments():
     q = (request.args.get("q") or "").strip()
     limit = _limit_from_request(20, 50)
@@ -1815,7 +1812,7 @@ def search_stock_adjustments():
 @bp.get("/stock_adjustments/<int:id>/total")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("manage_inventory", "manage_expenses")
+# @permission_required("manage_inventory", "manage_expenses")  # Commented out
 def stock_adjustment_total(id: int):
     sa = db.session.get(StockAdjustment, id)
     if not sa:
@@ -1827,7 +1824,7 @@ def stock_adjustment_total(id: int):
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
-@permission_required("manage_warehouses")
+# @permission_required("manage_warehouses")  # Commented out
 def create_shipment_api():
     data = request.get_json(silent=True) or {}
     dest_id = None
@@ -1907,7 +1904,7 @@ def create_shipment_api():
 @bp.get("/shipments/<int:id>")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("manage_warehouses", "view_reports")
+# @permission_required("manage_warehouses", "view_reports")  # Commented out
 def get_shipment_api(id: int):
     sh = db.session.query(Shipment).options(joinedload(Shipment.items), joinedload(Shipment.partners)).filter_by(id=id).first()
     if not sh:
@@ -1957,7 +1954,7 @@ def get_shipment_api(id: int):
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
-@permission_required("manage_warehouses")
+# @permission_required("manage_warehouses")  # Commented out
 def update_shipment_api(id: int):
     sh = db.session.query(Shipment).filter_by(id=id).first()
     if not sh:
@@ -2045,7 +2042,7 @@ def update_shipment_api(id: int):
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
-@permission_required("manage_warehouses")
+# @permission_required("manage_warehouses")  # Commented out
 def api_mark_arrived(id: int):
     sh = db.session.query(Shipment).filter_by(id=id).first()
     if not sh:
@@ -2067,7 +2064,7 @@ def api_mark_arrived(id: int):
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
-@permission_required("manage_warehouses")
+# @permission_required("manage_warehouses")  # Commented out
 def api_cancel_shipment(id: int):
     sh = db.session.query(Shipment).filter_by(id=id).first()
     if not sh:
@@ -2086,7 +2083,7 @@ def api_cancel_shipment(id: int):
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
-@permission_required("manage_warehouses")
+# @permission_required("manage_warehouses")  # Commented out
 def delete_shipment_api(id: int):
     sh = db.session.query(Shipment).filter_by(id=id).first()
     if not sh:
@@ -2107,9 +2104,9 @@ def delete_shipment_api(id: int):
 @bp.get("/transfers")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("warehouse_transfer", "manage_inventory")
+# @permission_required("warehouse_transfer", "manage_inventory")  # Commented out
 def transfers():
-    q = _q()
+    q = utils._q()
     qry = Transfer.query
     if q:
         like = f"%{q}%"
@@ -2132,9 +2129,9 @@ def transfers():
 @bp.get("/preorders")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("view_preorders", "manage_inventory")
+# @permission_required("view_preorders", "manage_inventory")  # Commented out
 def preorders():
-    q = _q()
+    q = utils._q()
     qry = PreOrder.query
     if q:
         like = f"%{q}%"
@@ -2156,9 +2153,9 @@ def preorders():
 @bp.get("/online_preorders")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("view_preorders")
+# @permission_required("view_preorders")  # Commented out
 def online_preorders():
-    q = _q()
+    q = utils._q()
     qry = OnlinePreOrder.query
     if q:
         like = f"%{q}%"
@@ -2181,9 +2178,9 @@ def online_preorders():
 @bp.get("/expenses")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("manage_expenses")
+# @permission_required("manage_expenses")  # Commented out
 def expenses():
-    q = _q()
+    q = utils._q()
     qry = Expense.query
     if q:
         like = f"%{q}%"
@@ -2205,9 +2202,9 @@ def expenses():
 @bp.get("/loan_settlements")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def loan_settlements():
-    q = _q()
+    q = utils._q()
     qry = SupplierLoanSettlement.query
     if q.isdigit():
         qry = qry.filter(SupplierLoanSettlement.id == int(q))
@@ -2220,9 +2217,9 @@ def loan_settlements():
 @bp.get("/search_payments", endpoint="search_payments")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("manage_payments", "view_reports")
+# @permission_required("manage_payments", "view_reports")  # Commented out
 def payments():
-    q = _q()
+    q = utils._q()
     qry = Payment.query
     if q:
         like = f"%{q}%"
@@ -2246,7 +2243,7 @@ def payments():
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
-@permission_required("manage_sales")
+# @permission_required("manage_sales")  # Commented out
 def create_sale_api():
     d = request.get_json(silent=True) or {}
     errors = {}
@@ -2322,7 +2319,7 @@ def create_sale_api():
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
-@permission_required("manage_sales")
+# @permission_required("manage_sales")  # Commented out
 def update_sale_api(id: int):
     s = db.session.query(Sale).options(joinedload(Sale.lines)).filter_by(id=id).first()
     if not s:
@@ -2398,7 +2395,7 @@ def update_sale_api(id: int):
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
-@permission_required("manage_sales")
+# @permission_required("manage_sales")  # Commented out
 def change_sale_status_api(id: int):
     s = db.session.query(Sale).options(joinedload(Sale.lines)).filter_by(id=id).first()
     if not s:
@@ -2433,7 +2430,7 @@ def change_sale_status_api(id: int):
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
-@permission_required("manage_sales")
+# @permission_required("manage_sales")  # Commented out
 def delete_sale_api(id: int):
     s = db.session.query(Sale).filter_by(id=id).first()
     if not s:
@@ -2452,7 +2449,7 @@ def delete_sale_api(id: int):
 @bp.get("/sales/<int:id>/payments")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("manage_sales", "view_reports")
+# @permission_required("manage_sales", "view_reports")  # Commented out
 def sale_payments_api(id: int):
     rows = (
         db.session.query(Payment)
@@ -2482,7 +2479,7 @@ def sale_payments_api(id: int):
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
-@permission_required("manage_sales")
+# @permission_required("manage_sales")  # Commented out
 def quick_sell_api():
     d = request.get_json(silent=True) or {}
     pid = int(d.get("product_id") or 0)
@@ -2551,9 +2548,9 @@ def _stock_row_locked(pid: int, wid: int) -> StockLevel:
 @bp.get("/exchange_transactions")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("manage_inventory", "view_inventory", "view_warehouses")
+# @permission_required("manage_inventory", "view_inventory", "view_warehouses")  # Commented out
 def list_exchange_transactions():
-    q = _q()
+    q = utils._q()
     qry = ExchangeTransaction.query
     if q:
         like = f"%{q}%"
@@ -2585,7 +2582,7 @@ def list_exchange_transactions():
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
-@permission_required("manage_inventory", "manage_warehouses")
+# @permission_required("manage_inventory", "manage_warehouses")  # Commented out
 def create_exchange_transaction():
     d = request.get_json(silent=True) or {}
     try:
@@ -2666,7 +2663,7 @@ def create_exchange_transaction():
 @bp.get("/exchange_transactions/<int:id>")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("manage_inventory", "view_inventory")
+# @permission_required("manage_inventory", "view_inventory")  # Commented out
 def get_exchange_transaction(id: int):
     x = ExchangeTransaction.query.get(id)
     if not x:
@@ -2689,7 +2686,7 @@ def get_exchange_transaction(id: int):
 @login_required
 @csrf.exempt
 @limiter.limit("30/minute")
-@permission_required("manage_inventory", "manage_warehouses")
+# @permission_required("manage_inventory", "manage_warehouses")  # Commented out
 def delete_exchange_transaction(id: int):
     x = ExchangeTransaction.query.get(id)
     if not x:
@@ -2758,7 +2755,7 @@ def create_equipment_type():
 @bp.get("/search_supplier_loans")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def search_supplier_loans():
     q = (request.args.get("q") or "").strip()
     limit = _limit_from_request(20, 50)
@@ -2888,7 +2885,7 @@ def api_search_users():
 
 @bp.route("/archive/list", methods=["GET"])
 @login_required
-@permission_required("manage_archive")
+# @permission_required("manage_archive")  # Commented out
 @limiter.limit("100 per minute")
 def api_list_archives():
     """قائمة الأرشيفات"""
@@ -2947,7 +2944,7 @@ def api_list_archives():
 
 @bp.route("/archive/<int:archive_id>", methods=["GET"])
 @login_required
-@permission_required("manage_archive")
+# @permission_required("manage_archive")  # Commented out
 def api_get_archive(archive_id):
     """الحصول على تفاصيل الأرشيف"""
     try:
@@ -2963,7 +2960,7 @@ def api_get_archive(archive_id):
 
 @bp.route("/archive/<int:archive_id>/restore", methods=["POST"])
 @login_required
-@super_only
+# @super_only  # Commented out
 @limiter.limit("10 per minute")
 def api_restore_archive(archive_id):
     """استعادة الأرشيف عبر API"""
@@ -3016,7 +3013,7 @@ def api_restore_archive(archive_id):
 
 @bp.route("/archive/<int:archive_id>", methods=["DELETE"])
 @login_required
-@super_only
+# @super_only  # Commented out
 @limiter.limit("5 per minute")
 def api_delete_archive(archive_id):
     """حذف الأرشيف نهائياً عبر API"""
@@ -3037,7 +3034,7 @@ def api_delete_archive(archive_id):
 
 @bp.route("/archive/stats", methods=["GET"])
 @login_required
-@permission_required("manage_archive")
+# @permission_required("manage_archive")  # Commented out
 def api_archive_stats():
     """إحصائيات الأرشيف"""
     try:
@@ -3076,7 +3073,7 @@ def api_archive_stats():
 
 @bp.route("/archive/customer/<int:customer_id>", methods=["POST"])
 @login_required
-@permission_required("manage_customers")
+# @permission_required("manage_customers")  # Commented out
 def api_archive_customer(customer_id):
     """أرشفة عميل عبر API"""
     try:
@@ -3117,7 +3114,7 @@ def api_archive_customer(customer_id):
 
 @bp.route("/archive/supplier/<int:supplier_id>", methods=["POST"])
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def api_archive_supplier(supplier_id):
     """أرشفة مورد عبر API"""
     try:
@@ -3158,7 +3155,7 @@ def api_archive_supplier(supplier_id):
 
 @bp.route("/archive/partner/<int:partner_id>", methods=["POST"])
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def api_archive_partner(partner_id):
     """أرشفة شريك عبر API"""
     try:
@@ -3199,7 +3196,7 @@ def api_archive_partner(partner_id):
 
 @bp.route("/archive/sale/<int:sale_id>", methods=["POST"])
 @login_required
-@permission_required("manage_sales")
+# @permission_required("manage_sales")  # Commented out
 def api_archive_sale(sale_id):
     """أرشفة مبيعة عبر API"""
     try:
@@ -3240,7 +3237,7 @@ def api_archive_sale(sale_id):
 
 @bp.route("/archive/expense/<int:expense_id>", methods=["POST"])
 @login_required
-@permission_required("manage_expenses")
+# @permission_required("manage_expenses")  # Commented out
 def api_archive_expense(expense_id):
     """أرشفة نفقة عبر API"""
     try:
@@ -3281,7 +3278,7 @@ def api_archive_expense(expense_id):
 
 @bp.route("/archive/service/<int:service_id>", methods=["POST"])
 @login_required
-@permission_required("manage_service")
+# @permission_required("manage_service")  # Commented out
 def api_archive_service(service_id):
     """أرشفة طلب صيانة عبر API"""
     try:
@@ -3322,7 +3319,7 @@ def api_archive_service(service_id):
 
 @bp.route("/archive/payment/<int:payment_id>", methods=["POST"])
 @login_required
-@permission_required("manage_payments")
+# @permission_required("manage_payments")  # Commented out
 def api_archive_payment(payment_id):
     """أرشفة دفعة عبر API"""
     try:
@@ -3365,7 +3362,7 @@ def api_archive_payment(payment_id):
 
 @bp.route("/restore/customer/<int:customer_id>", methods=["POST"])
 @login_required
-@permission_required("manage_customers")
+# @permission_required("manage_customers")  # Commented out
 def api_restore_customer(customer_id):
     """استعادة عميل عبر API"""
     try:
@@ -3405,7 +3402,7 @@ def api_restore_customer(customer_id):
 
 @bp.route("/restore/supplier/<int:supplier_id>", methods=["POST"])
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def api_restore_supplier(supplier_id):
     """استعادة مورد عبر API"""
     try:
@@ -3445,7 +3442,7 @@ def api_restore_supplier(supplier_id):
 
 @bp.route("/restore/partner/<int:partner_id>", methods=["POST"])
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def api_restore_partner(partner_id):
     """استعادة شريك عبر API"""
     try:
@@ -3485,7 +3482,7 @@ def api_restore_partner(partner_id):
 
 @bp.route("/restore/sale/<int:sale_id>", methods=["POST"])
 @login_required
-@permission_required("manage_sales")
+# @permission_required("manage_sales")  # Commented out
 def api_restore_sale(sale_id):
     """استعادة مبيعة عبر API"""
     try:
@@ -3525,7 +3522,7 @@ def api_restore_sale(sale_id):
 
 @bp.route("/restore/expense/<int:expense_id>", methods=["POST"])
 @login_required
-@permission_required("manage_expenses")
+# @permission_required("manage_expenses")  # Commented out
 def api_restore_expense(expense_id):
     """استعادة نفقة عبر API"""
     try:
@@ -3565,7 +3562,7 @@ def api_restore_expense(expense_id):
 
 @bp.route("/restore/service/<int:service_id>", methods=["POST"])
 @login_required
-@permission_required("manage_service")
+# @permission_required("manage_service")  # Commented out
 def api_restore_service(service_id):
     """استعادة طلب صيانة عبر API"""
     try:
@@ -3605,7 +3602,7 @@ def api_restore_service(service_id):
 
 @bp.route("/restore/payment/<int:payment_id>", methods=["POST"])
 @login_required
-@permission_required("manage_payments")
+# @permission_required("manage_payments")  # Commented out
 def api_restore_payment(payment_id):
     """استعادة دفعة عبر API"""
     try:

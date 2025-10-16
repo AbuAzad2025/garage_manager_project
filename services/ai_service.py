@@ -1,6 +1,3 @@
-# ai_service.py - AI Service Module
-# Location: /garage_manager/services/ai_service.py
-# Description: AI assistant service and intelligent system logic
 
 
 import json
@@ -39,8 +36,8 @@ from services.ai_data_awareness import (
 _conversation_memory = {}
 _last_audit_time = None
 _groq_failures = []
-_local_fallback_mode = False
-_system_state = "HYBRID"  # HYBRID, LOCAL_ONLY, API_ONLY
+_local_fallback_mode = True  # محلي بشكل افتراضي
+_system_state = "LOCAL_ONLY"  # LOCAL_ONLY (افتراضي), HYBRID, API_ONLY
 
 
 def get_system_setting(key, default=''):

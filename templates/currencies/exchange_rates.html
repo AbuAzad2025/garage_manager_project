@@ -135,6 +135,7 @@
                                         </a>
                                         <form method="POST" action="{{ url_for('currencies.toggle_exchange_rate', rate_id=rate.id) }}" 
                                               style="display: inline;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="btn btn-outline-{% if rate.is_active %}warning{% else %}success{% endif %}" 
                                                     title="{% if rate.is_active %}إلغاء تفعيل{% else %}تفعيل{% endif %}"
                                                     onclick="return confirm('هل أنت متأكد؟')">
@@ -143,6 +144,7 @@
                                         </form>
                                         <form method="POST" action="{{ url_for('currencies.delete_exchange_rate', rate_id=rate.id) }}" 
                                               style="display: inline;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="btn btn-outline-danger" title="حذف"
                                                     onclick="return confirm('هل أنت متأكد من الحذف؟')">
                                                 <i class="fas fa-trash"></i>

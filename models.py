@@ -1,7 +1,3 @@
-# models.py - Database Models and Schema
-# Location: /garage_manager/models.py
-# Description: SQLAlchemy database models for the garage management system
-
 from __future__ import annotations
 import enum
 import re, hashlib
@@ -5156,7 +5152,7 @@ class Shipment(db.Model, TimestampMixin, AuditMixin):
     origin = db.Column(db.String(100))
     destination = db.Column(db.String(100))
     destination_id = db.Column(db.Integer, db.ForeignKey("warehouses.id", ondelete="SET NULL"), index=True)
-    status = db.Column(db.String(20), default="DRAFT", nullable=False, index=True)
+    status = db.Column(db.String(20), default="DRAFT", nullable=False, index=True, server_default=sa_text("'DRAFT'"))
 
     value_before = db.Column(db.Numeric(12, 2))
     shipping_cost = db.Column(db.Numeric(12, 2))
@@ -5293,14 +5289,44 @@ def _allocate_landed_costs(shp: "Shipment"):
 @event.listens_for(Shipment, "before_insert")
 def _shipment_before_insert(mapper, connection, target: "Shipment"):
     if not getattr(target, "shipment_number", None) and not getattr(target, "number", None):
-        prefix = datetime.utcnow().strftime("SHP%Y%m%d")
+        import hashlib
+        
+        # نظام تسلسل ذكي عصري عالمي مثل FedEx/DHL/UPS
+        # التنسيق: AZD-YYYYMMDD-XXXX-CCC
+        # AZD = رمز الشركة (Azad)
+        # YYYYMMDD = التاريخ
+        # XXXX = رقم تسلسلي يومي (hexadecimal)
+        # CCC = checksum للتحقق
+        
+        now = datetime.utcnow()
+        date_part = now.strftime("%Y%m%d")
+        
+        # حساب العدد اليومي
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         count = connection.execute(
-            sa_text("SELECT COUNT(*) FROM shipments WHERE shipment_number LIKE :pfx OR number LIKE :pfx"),
-            {"pfx": f"{prefix}-%"},
+            sa_text("SELECT COUNT(*) FROM shipments WHERE shipment_date >= :start"),
+            {"start": today_start},
         ).scalar() or 0
-        seq = f"{prefix}-{count + 1:04d}"
-        target.shipment_number = seq
-        target.number = seq
+        
+        # رقم تسلسلي hexadecimal (أكثر احترافية وأقصر)
+        seq_hex = format(count + 1, '04X')  # 0001, 0002, ..., FFFF
+        
+        # بناء الرقم الأساسي
+        base_number = f"AZD-{date_part}-{seq_hex}"
+        
+        # حساب checksum (آخر 3 أحرف من hash)
+        hash_value = hashlib.md5(base_number.encode()).hexdigest()[:3].upper()
+        
+        # الرقم النهائي
+        tracking_number = f"{base_number}-{hash_value}"
+        
+        target.shipment_number = tracking_number
+        target.number = tracking_number
+        
+        # إذا لم يكن هناك tracking_number، نستخدم نفس الرقم
+        if not getattr(target, "tracking_number", None):
+            target.tracking_number = tracking_number
+            
     elif getattr(target, "shipment_number", None) and not getattr(target, "number", None):
         target.number = target.shipment_number
     elif getattr(target, "number", None) and not getattr(target, "shipment_number", None):

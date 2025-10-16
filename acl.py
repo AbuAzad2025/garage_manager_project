@@ -5,7 +5,7 @@
 from functools import wraps
 from flask import request, abort
 from flask_login import login_required, current_user
-from utils import is_super
+import utils
 from extensions import login_manager
 
 def attach_acl(
@@ -43,7 +43,7 @@ def attach_acl(
                 abort(401)
             return login_manager.unauthorized()
 
-        if is_super():
+        if utils.is_super():
             return
 
         if is_read:
@@ -62,7 +62,7 @@ def require_perm(perm: str):
         @wraps(f)
         @login_required
         def _w(*a, **kw):
-            if is_super() or current_user.has_permission(perm):
+            if utils.is_super() or current_user.has_permission(perm):
                 return f(*a, **kw)
             abort(403)
         return _w

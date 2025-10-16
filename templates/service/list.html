@@ -57,41 +57,69 @@
   {% endif %}
 
   {% if stats %}
-  <div class="row">
-    <div class="col-sm-6 col-md-3">
-      <div class="small-box bg-info">
-        <div class="inner">
-          <h3>{{ stats.pending }}</h3>
-          <p>طلبات معلّقة</p>
+  <!-- إحصائيات سريعة محسّنة -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-info text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <div>
+              <h6 class="card-title text-white-50 mb-1">طلبات معلّقة</h6>
+              <h3 class="mb-0 fw-bold">{{ stats.pending }}</h3>
+            </div>
+            <div class="align-self-center">
+              <i class="fas fa-clock fa-2x opacity-75"></i>
+            </div>
+          </div>
         </div>
-        <div class="icon"><i class="fas fa-clock"></i></div>
       </div>
     </div>
-    <div class="col-sm-6 col-md-3">
-      <div class="small-box bg-warning">
-        <div class="inner">
-          <h3>{{ stats.high_priority }}</h3>
-          <p>أولوية عالية</p>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-warning text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <div>
+              <h6 class="card-title text-white-50 mb-1">أولوية عالية</h6>
+              <h3 class="mb-0 fw-bold">{{ stats.high_priority }}</h3>
+            </div>
+            <div class="align-self-center">
+              <i class="fas fa-bolt fa-2x opacity-75"></i>
+            </div>
+          </div>
         </div>
-        <div class="icon"><i class="fas fa-bolt"></i></div>
       </div>
     </div>
-    <div class="col-sm-6 col-md-3">
-      <div class="small-box bg-primary">
-        <div class="inner">
-          <h3>{{ stats.in_progress }}</h3>
-          <p>قيد التنفيذ</p>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-primary text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <div>
+              <h6 class="card-title text-white-50 mb-1">قيد التنفيذ</h6>
+              <h3 class="mb-0 fw-bold">{{ stats.in_progress }}</h3>
+            </div>
+            <div class="align-self-center">
+              <i class="fas fa-tools fa-2x opacity-75"></i>
+            </div>
+          </div>
         </div>
-        <div class="icon"><i class="fas fa-tools"></i></div>
       </div>
     </div>
-    <div class="col-sm-6 col-md-3">
-      <div class="small-box bg-success">
-        <div class="inner">
-          <h3>{{ stats.completed }}</h3>
-          <p>مكتملة</p>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-success text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <div>
+              <h6 class="card-title text-white-50 mb-1">مكتملة</h6>
+              <h3 class="mb-0 fw-bold">{{ stats.completed }}</h3>
+            </div>
+            <div class="align-self-center">
+              <i class="fas fa-check-circle fa-2x opacity-75"></i>
+            </div>
+          </div>
         </div>
-        <div class="icon"><i class="fas fa-check-circle"></i></div>
       </div>
     </div>
   </div>

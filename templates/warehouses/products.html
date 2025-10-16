@@ -110,7 +110,7 @@
 
 function productsURL(){
   var aw = document.getElementById('products-table').dataset.activeWarehouseId;
-  return '/api/warehouses/' + aw + '/products'; // الصحيح
+  return '/api/v1/warehouses/' + aw + '/products';
 }
 
       function renderRow(p){

@@ -16,12 +16,17 @@ from flask_login import LoginManager
 from flask_mail import Mail
 from flask_migrate import Migrate
 from flask_socketio import SocketIO
-# extensions.py - Flask Extensions
-# Location: /garage_manager/extensions.py
-
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import CSRFProtect
 from flask_caching import Cache
+try:
+    from flask_compress import Compress
+except ImportError:
+    class Compress:
+        def __init__(self, *args, **kwargs):
+            pass
+        def init_app(self, app):
+            pass
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 
@@ -157,6 +162,7 @@ migrate = Migrate()
 login_manager = LoginManager()
 mail = Mail()
 csrf = CSRFProtect()
+compress = Compress()
 socketio = SocketIO(cors_allowed_origins="*", logger=False, engineio_logger=False)
 
 # نظام الإشعارات الفورية
@@ -227,13 +233,18 @@ def _sqlite_pragmas_on_connect(dbapi_connection, connection_record):
             cur.execute("PRAGMA journal_mode=WAL")
             cur.execute("PRAGMA synchronous=NORMAL")
             cur.execute("PRAGMA foreign_keys=ON")
+            cur.execute("PRAGMA cache_size=-64000")
+            cur.execute("PRAGMA temp_store=MEMORY")
+            cur.execute("PRAGMA mmap_size=268435456")
+            cur.execute("PRAGMA page_size=4096")
+            cur.execute("PRAGMA auto_vacuum=INCREMENTAL")
             cur.close()
     except Exception:
         pass
 
 
 def perform_backup_db(app):
-    """نسخ احتياطي محسن لقاعدة البيانات"""
+    """Database backup utility"""
     try:
         uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
         if not uri.startswith("sqlite:///"):
@@ -413,6 +424,14 @@ def init_extensions(app):
 
     csrf.init_app(app)
     mail.init_app(app)
+    
+    compress.init_app(app)
+    app.config.setdefault('COMPRESS_MIMETYPES', [
+        'text/html', 'text/css', 'text/xml', 'text/javascript',
+        'application/json', 'application/javascript'
+    ])
+    app.config.setdefault('COMPRESS_LEVEL', 6)
+    app.config.setdefault('COMPRESS_MIN_SIZE', 500)
 
     socketio.init_app(
         app,

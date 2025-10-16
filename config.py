@@ -1,7 +1,3 @@
-# config.py - Application Configuration
-# Location: /garage_manager/config.py
-# Description: Configuration settings and environment variables
-
 import os
 import logging
 from base64 import urlsafe_b64decode
@@ -81,11 +77,21 @@ class Config:
     SQLALCHEMY_DATABASE_URI = _db_uri
 
     SQLALCHEMY_TRACK_MODIFICATIONS = _bool(os.environ.get("SQLALCHEMY_TRACK_MODIFICATIONS"), False)
+    
+    _is_sqlite = _db_uri.startswith("sqlite:")
+    
     SQLALCHEMY_ENGINE_OPTIONS = {
-        "connect_args": {"timeout": 30},
+        "connect_args": {
+            "timeout": 30,
+            "check_same_thread": False if _is_sqlite else True,
+        },
         "pool_pre_ping": True,
         "pool_recycle": 1800,
+        "pool_size": _int("SQLALCHEMY_POOL_SIZE", 10),
+        "max_overflow": _int("SQLALCHEMY_MAX_OVERFLOW", 20),
+        "pool_timeout": _int("SQLALCHEMY_POOL_TIMEOUT", 30),
     }
+    
     SQLALCHEMY_ECHO = False
 
     JSON_AS_ASCII = False

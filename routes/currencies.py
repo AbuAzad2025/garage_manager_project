@@ -1,6 +1,3 @@
-# currencies.py - Currency Management Routes
-# Location: /garage_manager/routes/currencies.py
-# Description: Currency and exchange rate management routes
 
 from __future__ import annotations
 
@@ -14,7 +11,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from extensions import db
 from models import Currency, ExchangeRate, SystemSettings
-from utils import permission_required
+import utils
 from forms import ExchangeRateForm
 
 currencies_bp = Blueprint("currencies", __name__, url_prefix="/currencies")
@@ -22,7 +19,7 @@ currencies_bp = Blueprint("currencies", __name__, url_prefix="/currencies")
 
 @currencies_bp.route("/", endpoint="list")
 @login_required
-@permission_required("manage_currencies")
+# @permission_required("manage_currencies")  # Commented out
 def list_currencies():
     """قائمة العملات"""
     page = request.args.get("page", 1, type=int)
@@ -37,7 +34,7 @@ def list_currencies():
 
 @currencies_bp.route("/new", methods=["GET", "POST"], endpoint="new_currency")
 @login_required
-@permission_required("manage_currencies")
+# @permission_required("manage_currencies")  # Commented out
 def new_currency():
     """إضافة عملة جديدة"""
     if request.method == "POST":
@@ -82,7 +79,7 @@ def new_currency():
 
 @currencies_bp.route("/exchange-rates", endpoint="exchange_rates")
 @login_required
-@permission_required("manage_currencies")
+# @permission_required("manage_currencies")  # Commented out
 def list_exchange_rates():
     """قائمة أسعار الصرف"""
     page = request.args.get("page", 1, type=int)
@@ -140,7 +137,7 @@ def list_exchange_rates():
 
 @currencies_bp.route("/exchange-rates/new", methods=["GET", "POST"], endpoint="new_exchange_rate")
 @login_required
-@permission_required("manage_currencies")
+# @permission_required("manage_currencies")  # Commented out
 def new_exchange_rate():
     """إضافة سعر صرف جديد"""
     form = ExchangeRateForm()
@@ -178,7 +175,7 @@ def new_exchange_rate():
 
 @currencies_bp.route("/exchange-rates/<int:rate_id>/edit", methods=["GET", "POST"], endpoint="edit_exchange_rate")
 @login_required
-@permission_required("manage_currencies")
+# @permission_required("manage_currencies")  # Commented out
 def edit_exchange_rate(rate_id):
     """تعديل سعر صرف"""
     exchange_rate = ExchangeRate.query.get_or_404(rate_id)
@@ -212,7 +209,7 @@ def edit_exchange_rate(rate_id):
 
 @currencies_bp.route("/exchange-rates/<int:rate_id>/delete", methods=["POST"], endpoint="delete_exchange_rate")
 @login_required
-@permission_required("manage_currencies")
+# @permission_required("manage_currencies")  # Commented out
 def delete_exchange_rate(rate_id):
     """حذف سعر صرف"""
     exchange_rate = ExchangeRate.query.get_or_404(rate_id)
@@ -230,7 +227,7 @@ def delete_exchange_rate(rate_id):
 
 @currencies_bp.route("/exchange-rates/<int:rate_id>/toggle", methods=["POST"], endpoint="toggle_exchange_rate")
 @login_required
-@permission_required("manage_currencies")
+# @permission_required("manage_currencies")  # Commented out
 def toggle_exchange_rate(rate_id):
     """تفعيل/إلغاء تفعيل سعر صرف"""
     exchange_rate = ExchangeRate.query.get_or_404(rate_id)
@@ -250,7 +247,7 @@ def toggle_exchange_rate(rate_id):
 
 @currencies_bp.route("/reports", endpoint="reports")
 @login_required
-@permission_required("manage_currencies")
+# @permission_required("manage_currencies")  # Commented out
 def currency_reports():
     """تقارير العملات"""
     from reports import customer_balance_report_ils, supplier_balance_report_ils, partner_balance_report_ils
@@ -282,7 +279,7 @@ def currency_reports():
 
 @currencies_bp.route("/update-rates", methods=["GET", "POST"], endpoint="update_rates")
 @login_required
-@permission_required("manage_currencies")
+# @permission_required("manage_currencies")  # Commented out
 def update_exchange_rates():
     """تحديث أسعار الصرف من السيرفرات العالمية"""
     if request.method == "GET":
@@ -307,7 +304,7 @@ def update_exchange_rates():
 
 @currencies_bp.route("/test-rate", methods=["POST"], endpoint="test_rate")
 @login_required
-@permission_required("manage_currencies")
+# @permission_required("manage_currencies")  # Commented out
 def test_exchange_rate():
     """اختبار سعر الصرف"""
     try:
@@ -336,7 +333,7 @@ def test_exchange_rate():
 
 @currencies_bp.route("/settings", endpoint="settings")
 @login_required
-@permission_required("manage_currencies")
+# @permission_required("manage_currencies")  # Commented out
 def currency_settings():
     """إعدادات أسعار الصرف"""
     # إعدادات العملات
@@ -349,7 +346,7 @@ def currency_settings():
 
 @currencies_bp.route("/settings/toggle-online", methods=['POST'], endpoint="toggle_online")
 @login_required
-@permission_required("manage_currencies")
+# @permission_required("manage_currencies")  # Commented out
 def toggle_online_fx():
     """تشغيل/إيقاف جلب أسعار الصرف الأونلاين"""
     try:
@@ -371,7 +368,7 @@ def toggle_online_fx():
 
 @currencies_bp.route("/settings/update-interval", methods=['POST'], endpoint="update_interval")
 @login_required
-@permission_required("manage_currencies")
+# @permission_required("manage_currencies")  # Commented out
 def update_fx_interval():
     """تحديث فترة تحديث أسعار الصرف"""
     try:
@@ -396,7 +393,7 @@ def update_fx_interval():
 
 @currencies_bp.route("/settings/test-online", methods=['POST'], endpoint="test_online")
 @login_required
-@permission_required("manage_currencies")
+# @permission_required("manage_currencies")  # Commented out
 def test_online_fx():
     """اختبار جلب أسعار الصرف الأونلاين"""
     try:

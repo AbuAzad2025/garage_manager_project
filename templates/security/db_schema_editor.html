@@ -1,67 +1,35 @@
 {% extends 'base.html' %}
-{% block title %}هيكل {{ table_name }}{% endblock %}
-{% block page_title %}🏗️ هيكل جدول: {{ table_name }}{% endblock %}
+{% block title %}محرر Schema قاعدة البيانات{% endblock %}
+{% block page_title %}🗄️ محرر Schema قاعدة البيانات{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
   
   {% include 'security/_navigation.html' %}
   
-  <div class="mb-3">
-    <a href="{{ url_for('security.db_editor_table', table_name=table_name) }}" class="btn btn-secondary">
-      <i class="fas fa-arrow-left"></i> رجوع للبيانات
-    </a>
+  <div class="alert alert-danger">
+    <i class="fas fa-exclamation-triangle"></i>
+    <strong>تحذير:</strong> تعديل Schema قاعدة البيانات قد يؤدي لفقدان البيانات! تأكد من عمل نسخة احتياطية أولاً.
   </div>
 
   <div class="card">
-    <div class="card-header bg-dark text-white">
-      <h5 class="mb-0">تفاصيل الأعمدة</h5>
+    <div class="card-header">
+      <h3 class="card-title">Schema Viewer & Editor</h3>
     </div>
     <div class="card-body">
-      <div class="table-responsive">
-        <table class="table table-bordered">
-          <thead class="table-dark">
-            <tr>
-              <th>ID</th>
-              <th>اسم العمود</th>
-              <th>النوع</th>
-              <th>NOT NULL</th>
-              <th>القيمة الافتراضية</th>
-              <th>Primary Key</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for col in table_info %}
-            <tr>
-              <td>{{ col.cid }}</td>
-              <td><strong>{{ col.name }}</strong></td>
-              <td><span class="badge bg-primary">{{ col.type }}</span></td>
-              <td>
-                {% if col.notnull %}
-                <span class="badge bg-danger">نعم</span>
-                {% else %}
-                <span class="badge bg-success">لا</span>
-                {% endif %}
-              </td>
-              <td><code>{{ col.default or 'NULL' }}</code></td>
-              <td>
-                {% if col.pk %}
-                <span class="badge bg-warning">نعم</span>
-                {% else %}
-                <span class="badge bg-secondary">لا</span>
-                {% endif %}
-              </td>
-            </tr>
+      <p class="text-muted">هذه الصفحة قيد التطوير...</p>
+      
+      <div class="row">
+        <div class="col-md-12">
+          <h5>الجداول المتاحة:</h5>
+          <ul>
+            {% for table in tables %}
+            <li>{{ table }}</li>
             {% endfor %}
-          </tbody>
-        </table>
+          </ul>
+        </div>
       </div>
     </div>
-  </div>
-
-  <div class="alert alert-info mt-3">
-    <i class="fas fa-info-circle"></i> <strong>ملاحظة:</strong> 
-    في SQLite، لا يمكن حذف أو تعديل أعمدة موجودة مباشرةً. يمكنك فقط إضافة أعمدة جديدة.
   </div>
 
 </div>

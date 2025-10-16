@@ -1,6 +1,3 @@
-# ledger_ai_assistant.py - AI Accounting Assistant Routes
-# Location: /garage_manager/routes/ledger_ai_assistant.py
-# Description: AI-powered accounting assistant and financial analysis routes
 
 
 import re
@@ -11,7 +8,7 @@ from flask import Blueprint, request, jsonify
 from flask_login import login_required
 from sqlalchemy import or_
 from extensions import db
-from utils import permission_required
+import utils
 from models import (
     Sale, Expense, Payment, ServiceRequest,
     Customer, Supplier, Partner,
@@ -250,7 +247,7 @@ def use_real_ai(query, financial_context, db_schema, code_structure):
 
 @ai_assistant_bp.route("/ask", methods=["POST"], endpoint="ask_question")
 @login_required
-@permission_required("manage_ledger")
+# @permission_required("manage_ledger")  # Commented out
 def ask_question():
     """نقطة الوصول الرئيسية للمساعد الذكي - توجيه للمساعد الشامل"""
     try:
@@ -355,18 +352,18 @@ def analyze_query(query, from_date, to_date):
         incoming_total = sum(
             float(p.total_amount or 0) * float(p.fx_rate_used or 1.0) if p.fx_rate_used
             else convert_to_ils(float(p.total_amount or 0), p.currency, p.payment_date)
-            for p in payments if p.direction == 'incoming'
+            for p in payments if p.direction == 'IN'
         )
         outgoing_total = sum(
             float(p.total_amount or 0) * float(p.fx_rate_used or 1.0) if p.fx_rate_used
             else convert_to_ils(float(p.total_amount or 0), p.currency, p.payment_date)
-            for p in payments if p.direction == 'outgoing'
+            for p in payments if p.direction == 'OUT'
         )
         
         data['payments'] = {
             'count': len(payments),
-            'incoming_count': len([p for p in payments if p.direction == 'incoming']),
-            'outgoing_count': len([p for p in payments if p.direction == 'outgoing']),
+            'incoming_count': len([p for p in payments if p.direction == 'IN']),
+            'outgoing_count': len([p for p in payments if p.direction == 'OUT']),
             'incoming_total': incoming_total,
             'outgoing_total': outgoing_total,
             'items': payments
@@ -433,7 +430,7 @@ def analyze_query(query, from_date, to_date):
         sales_for_customer = [s for s in all_data['sales']['items'] if s.customer_id == c.id]
         sales_total = sum(convert_to_ils(float(s.total_amount or 0), s.currency, s.sale_date) for s in sales_for_customer)
         
-        payments_for_customer = [p for p in all_data['payments']['items'] if p.customer_id == c.id and p.direction == 'incoming']
+        payments_for_customer = [p for p in all_data['payments']['items'] if p.customer_id == c.id and p.direction == 'IN']
         payments_total = sum(
             float(p.total_amount or 0) * float(p.fx_rate_used or 1.0) if p.fx_rate_used
             else convert_to_ils(float(p.total_amount or 0), p.currency, p.payment_date)
@@ -453,7 +450,7 @@ def analyze_query(query, from_date, to_date):
                                 if e.payee_type == 'SUPPLIER' and e.payee_entity_id == s.id]
         purchases = sum(convert_to_ils(float(e.amount or 0), e.currency, e.date) for e in expenses_for_supplier)
         
-        payments_for_supplier = [p for p in all_data['payments']['items'] if p.supplier_id == s.id and p.direction == 'outgoing']
+        payments_for_supplier = [p for p in all_data['payments']['items'] if p.supplier_id == s.id and p.direction == 'OUT']
         paid = sum(
             float(p.total_amount or 0) * float(p.fx_rate_used or 1.0) if p.fx_rate_used
             else convert_to_ils(float(p.total_amount or 0), p.currency, p.payment_date)

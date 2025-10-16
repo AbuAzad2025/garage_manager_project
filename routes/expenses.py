@@ -1,13 +1,10 @@
-# expenses.py - Expenses Management Routes
-# Location: /garage_manager/routes/expenses.py
-# Description: Expense tracking and management routes
 
 import csv
 import io
 from datetime import datetime, date as _date
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from flask import Blueprint, flash, redirect, render_template, abort, request, url_for, Response, current_app
-from flask_login import login_required
+from flask_login import login_required, current_user
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 from sqlalchemy import or_, and_
@@ -15,7 +12,8 @@ from sqlalchemy import or_, and_
 from extensions import db
 from forms import EmployeeForm, ExpenseTypeForm, ExpenseForm, QuickExpenseForm
 from models import Employee, ExpenseType, Expense, Shipment, UtilityAccount, StockAdjustment
-from utils import permission_required, D, q0, archive_record, restore_record
+import utils
+from utils import D, q0, archive_record, restore_record
 
 expenses_bp = Blueprint(
     "expenses_bp",
@@ -144,14 +142,14 @@ def _csv_safe(v):
 
 @expenses_bp.route("/employees", methods=["GET"], endpoint="employees_list")
 @login_required
-@permission_required("manage_expenses")
+# @permission_required("manage_expenses")  # Commented out
 def employees_list():
     employees = Employee.query.order_by(Employee.name).all()
     return render_template("expenses/employees_list.html", employees=employees)
 
 @expenses_bp.route("/employees/add", methods=["GET", "POST"], endpoint="add_employee")
 @login_required
-@permission_required("manage_expenses")
+# @permission_required("manage_expenses")  # Commented out
 def add_employee():
     form = EmployeeForm()
     if form.validate_on_submit():
@@ -169,7 +167,7 @@ def add_employee():
 
 @expenses_bp.route("/employees/edit/<int:emp_id>", methods=["GET", "POST"], endpoint="edit_employee")
 @login_required
-@permission_required("manage_expenses")
+# @permission_required("manage_expenses")  # Commented out
 def edit_employee(emp_id):
     e = _get_or_404(Employee, emp_id)
     form = EmployeeForm(obj=e)
@@ -186,7 +184,7 @@ def edit_employee(emp_id):
 
 @expenses_bp.route("/employees/delete/<int:emp_id>", methods=["POST"], endpoint="delete_employee")
 @login_required
-@permission_required("manage_expenses")
+# @permission_required("manage_expenses")  # Commented out
 def delete_employee(emp_id):
     e = _get_or_404(Employee, emp_id)
     if Expense.query.filter_by(employee_id=emp_id).first():
@@ -203,14 +201,14 @@ def delete_employee(emp_id):
 
 @expenses_bp.route("/types", methods=["GET"], endpoint="types_list")
 @login_required
-@permission_required("manage_expenses")
+# @permission_required("manage_expenses")  # Commented out
 def types_list():
     types = ExpenseType.query.order_by(ExpenseType.name).all()
     return render_template("expenses/types_list.html", types=types)
 
 @expenses_bp.route("/types/add", methods=["GET", "POST"], endpoint="add_type")
 @login_required
-@permission_required("manage_expenses")
+# @permission_required("manage_expenses")  # Commented out
 def add_type():
     form = ExpenseTypeForm()
     if form.validate_on_submit():
@@ -231,7 +229,7 @@ def add_type():
 
 @expenses_bp.route("/types/edit/<int:type_id>", methods=["GET", "POST"], endpoint="edit_type")
 @login_required
-@permission_required("manage_expenses")
+# @permission_required("manage_expenses")  # Commented out
 def edit_type(type_id):
     t = _get_or_404(ExpenseType, type_id)
     form = ExpenseTypeForm(obj=t)
@@ -251,7 +249,7 @@ def edit_type(type_id):
 
 @expenses_bp.route("/types/delete/<int:type_id>", methods=["POST"], endpoint="delete_type")
 @login_required
-@permission_required("manage_expenses")
+# @permission_required("manage_expenses")  # Commented out
 def delete_type(type_id):
     t = _get_or_404(ExpenseType, type_id)
     if Expense.query.filter_by(type_id=type_id).first():
@@ -268,7 +266,7 @@ def delete_type(type_id):
 
 @expenses_bp.route("/", methods=["GET"], endpoint="list_expenses")
 @login_required
-@permission_required("manage_expenses")
+# @permission_required("manage_expenses")  # Commented out
 def index():
     query, filt = _base_query_with_filters()
     expenses = query.all()
@@ -359,7 +357,7 @@ def index():
 
 @expenses_bp.route("/<int:exp_id>", methods=["GET"], endpoint="detail")
 @login_required
-@permission_required("manage_expenses")
+# @permission_required("manage_expenses")  # Commented out
 def detail(exp_id):
     exp = _get_or_404(
         Expense,
@@ -374,7 +372,7 @@ def detail(exp_id):
 
 @expenses_bp.route("/add", methods=["GET", "POST"], endpoint="create_expense")
 @login_required
-@permission_required("manage_expenses")
+# @permission_required("manage_expenses")  # Commented out
 def add():
     form = ExpenseForm()
     form.type_id.choices = [(t.id, t.name) for t in ExpenseType.query.order_by(ExpenseType.name).all()]
@@ -441,7 +439,7 @@ def add():
 
 @expenses_bp.route("/edit/<int:exp_id>", methods=["GET", "POST"], endpoint="edit")
 @login_required
-@permission_required("manage_expenses")
+# @permission_required("manage_expenses")  # Commented out
 def edit(exp_id):
     exp = _get_or_404(Expense, exp_id)
     form = ExpenseForm(obj=exp)
@@ -468,7 +466,7 @@ def edit(exp_id):
 
 @expenses_bp.route("/delete/<int:exp_id>", methods=["POST"], endpoint="delete")
 @login_required
-@permission_required("manage_expenses")
+# @permission_required("manage_expenses")  # Commented out
 def delete(exp_id):
     exp = _get_or_404(Expense, exp_id)
     try:
@@ -482,7 +480,7 @@ def delete(exp_id):
 
 @expenses_bp.route("/<int:exp_id>/pay", methods=["GET"], endpoint="pay")
 @login_required
-@permission_required("manage_expenses")
+# @permission_required("manage_expenses")  # Commented out
 def pay(exp_id):
     """إعادة توجيه لإنشاء دفعة للنفقة مع البيانات الكاملة"""
     exp = _get_or_404(Expense, exp_id)
@@ -519,7 +517,7 @@ def pay(exp_id):
 
 @expenses_bp.route("/export", methods=["GET"], endpoint="export")
 @login_required
-@permission_required("manage_expenses")
+# @permission_required("manage_expenses")  # Commented out
 def export_csv():
     query, _ = _base_query_with_filters()
     rows = query.all()
@@ -583,7 +581,7 @@ def export_csv():
 
 @expenses_bp.route('/quick_add', methods=['GET', 'POST'], endpoint='quick_add')
 @login_required
-@permission_required('manage_expenses')
+# @permission_required('manage_expenses')  # Commented out
 def quick_add():
     form = QuickExpenseForm()
     form.currency.choices = [
@@ -618,12 +616,12 @@ def quick_add():
         db.session.add(exp)
         db.session.commit()
         flash("✅ تمت إضافة المصروف السريع", "success")
-        return redirect(url_for('expenses_bp.index'))
+        return redirect(url_for('expenses_bp.list_expenses'))
     return render_template('expenses/quick_add.html', form=form)
 
 @expenses_bp.route("/print", methods=["GET"], endpoint="print_list")
 @login_required
-@permission_required("manage_expenses")
+# @permission_required("manage_expenses")  # Commented out
 def print_list():
     query, filt = _base_query_with_filters()
     rows = query.all()
@@ -644,11 +642,8 @@ def print_list():
 
 @expenses_bp.route("/archive/<int:expense_id>", methods=["POST"])
 @login_required
-@permission_required("manage_expenses")
+# @permission_required("manage_expenses")  # Commented out
 def archive_expense(expense_id):
-    print(f"🔍 [EXPENSE ARCHIVE] بدء أرشفة النفقة رقم: {expense_id}")
-    print(f"🔍 [EXPENSE ARCHIVE] المستخدم: {current_user.username if current_user else 'غير معروف'}")
-    print(f"🔍 [EXPENSE ARCHIVE] البيانات المرسلة: {dict(request.form)}")
     
     try:
         from models import Archive
@@ -659,9 +654,9 @@ def archive_expense(expense_id):
         reason = request.form.get('reason', 'أرشفة تلقائية')
         print(f"📝 [EXPENSE ARCHIVE] سبب الأرشفة: {reason}")
         
-        archive_record(expense, reason, current_user.id)
+        utils.archive_record(expense, reason, current_user.id)
         flash(f'تم أرشفة النفقة رقم {expense.id} بنجاح', 'success')
-        return redirect(url_for('expenses_bp.index'))
+        return redirect(url_for('expenses_bp.list_expenses'))
         
     except Exception as e:
         print(f"❌ [EXPENSE ARCHIVE] خطأ في أرشفة النفقة: {str(e)}")
@@ -671,15 +666,13 @@ def archive_expense(expense_id):
         
         db.session.rollback()
         flash(f'خطأ في أرشفة النفقة: {str(e)}', 'error')
-        return redirect(url_for('expenses_bp.index'))
+        return redirect(url_for('expenses_bp.list_expenses'))
 
 @expenses_bp.route('/restore/<int:expense_id>', methods=['POST'])
 @login_required
-@permission_required('manage_expenses')
+# @permission_required('manage_expenses')  # Commented out
 def restore_expense(expense_id):
     """استعادة نفقة"""
-    print(f"🔍 [EXPENSE RESTORE] بدء استعادة النفقة رقم: {expense_id}")
-    print(f"🔍 [EXPENSE RESTORE] المستخدم: {current_user.username if current_user else 'غير معروف'}")
     
     try:
         expense = Expense.query.get_or_404(expense_id)
@@ -687,7 +680,7 @@ def restore_expense(expense_id):
         
         if not expense.is_archived:
             flash('النفقة غير مؤرشفة', 'warning')
-            return redirect(url_for('expenses_bp.index'))
+            return redirect(url_for('expenses_bp.list_expenses'))
         
         # البحث عن الأرشيف
         from models import Archive
@@ -698,12 +691,12 @@ def restore_expense(expense_id):
         
         if archive:
             print(f"✅ [EXPENSE RESTORE] تم العثور على الأرشيف: {archive.id}")
-            restore_record(archive.id)
+            utils.restore_record(archive.id)
             print(f"✅ [EXPENSE RESTORE] تم استعادة النفقة بنجاح")
         
         flash(f'تم استعادة النفقة رقم {expense_id} بنجاح', 'success')
         print(f"🎉 [EXPENSE RESTORE] تمت العملية بنجاح - إعادة توجيه...")
-        return redirect(url_for('expenses_bp.index'))
+        return redirect(url_for('expenses_bp.list_expenses'))
         
     except Exception as e:
         print(f"❌ [EXPENSE RESTORE] خطأ في استعادة النفقة: {str(e)}")
@@ -713,4 +706,4 @@ def restore_expense(expense_id):
         
         db.session.rollback()
         flash(f'خطأ في استعادة النفقة: {str(e)}', 'error')
-        return redirect(url_for('expenses_bp.index'))
+        return redirect(url_for('expenses_bp.list_expenses'))

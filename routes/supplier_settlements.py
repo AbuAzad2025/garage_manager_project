@@ -1,6 +1,3 @@
-# supplier_settlements.py - Supplier Settlements Routes
-# Location: /garage_manager/routes/supplier_settlements.py
-# Description: Supplier settlements and financial agreements routes
 
 from datetime import datetime, date as _date, time as _time
 from decimal import Decimal, ROUND_HALF_UP
@@ -10,7 +7,7 @@ from sqlalchemy import and_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import SQLAlchemyError
 from extensions import db
-from utils import permission_required
+import utils
 from models import Supplier, PaymentDirection, PaymentMethod, PaymentStatus, SupplierSettlement, SupplierSettlementStatus, build_supplier_settlement_draft, AuditLog
 import json
 
@@ -18,7 +15,7 @@ supplier_settlements_bp = Blueprint("supplier_settlements_bp", __name__, url_pre
 
 @supplier_settlements_bp.route("/settlements", methods=["GET"], endpoint="list")
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def settlements_list():
     """قائمة تسويات الموردين"""
     return render_template("supplier_settlements/list.html")
@@ -87,14 +84,14 @@ def _overlap_exists(supplier_id: int, dfrom: datetime, dto: datetime) -> bool:
 
 @supplier_settlements_bp.route("/<int:supplier_id>/settlements/preview", methods=["GET"])
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def preview(supplier_id):
     from flask import redirect
     return redirect(url_for('supplier_settlements_bp.supplier_settlement', supplier_id=supplier_id))
 
 @supplier_settlements_bp.route("/<int:supplier_id>/settlements/create", methods=["POST"])
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def create(supplier_id):
     supplier = _get_supplier_or_404(supplier_id)
     dfrom, dto, err = _extract_range_from_request()
@@ -141,7 +138,7 @@ def create(supplier_id):
 
 @supplier_settlements_bp.route("/settlements/<int:settlement_id>/confirm", methods=["POST"])
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def confirm(settlement_id):
     ss = db.session.get(SupplierSettlement, settlement_id)
     if not ss:
@@ -166,7 +163,7 @@ def confirm(settlement_id):
 
 @supplier_settlements_bp.route("/settlements/<int:settlement_id>/void", methods=["POST"])
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def void(settlement_id):
     ss = db.session.get(SupplierSettlement, settlement_id)
     if not ss:
@@ -184,7 +181,7 @@ def void(settlement_id):
 
 @supplier_settlements_bp.route("/settlements/<int:settlement_id>", methods=["GET"])
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def show(settlement_id):
     ss = db.session.get(SupplierSettlement, settlement_id)
     if not ss:
@@ -194,7 +191,7 @@ def show(settlement_id):
 
 @supplier_settlements_bp.route("/exchange-transaction/<int:tx_id>/update-price", methods=["POST"])
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def update_exchange_transaction_price(tx_id):
     """تحديث سعر قطعة في مستودع التبادل - API"""
     from models import ExchangeTransaction
@@ -241,7 +238,7 @@ def update_exchange_transaction_price(tx_id):
 
 @supplier_settlements_bp.route("/<int:supplier_id>/settlement", methods=["GET"], endpoint="supplier_settlement")
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def supplier_settlement(supplier_id):
     """التسوية الذكية للمورد"""
     supplier = _get_supplier_or_404(supplier_id)

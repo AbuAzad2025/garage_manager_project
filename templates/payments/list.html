@@ -54,40 +54,60 @@
             
             <!-- الملخصات المالية -->
             {% if total_incoming is defined and total_outgoing is defined %}
-            <div class="row mb-3">
-                <div class="col-md-3">
-                    <div class="card text-white bg-success">
+            <div class="row mb-3 g-3">
+                <div class="col-lg-3 col-md-6">
+                    <div class="card border-0 shadow-sm text-white bg-success h-100">
                         <div class="card-body">
-                            <h5 class="card-title">💰 دفعات واردة</h5>
-                            <h3>{{ "{:,.2f}".format(total_incoming) }} ₪</h3>
-                            <small>من العملاء</small>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="text-white-50 mb-1">💰 دفعات واردة</h6>
+                                    <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(total_incoming) }} ₪</h3>
+                                    <small class="opacity-75">من العملاء</small>
+                                </div>
+                                <i class="fas fa-arrow-down fa-2x opacity-50"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card text-white bg-danger">
+                <div class="col-lg-3 col-md-6">
+                    <div class="card border-0 shadow-sm text-white bg-danger h-100">
                         <div class="card-body">
-                            <h5 class="card-title">💸 دفعات صادرة</h5>
-                            <h3>{{ "{:,.2f}".format(total_outgoing) }} ₪</h3>
-                            <small>للموردين والشركاء</small>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="text-white-50 mb-1">💸 دفعات صادرة</h6>
+                                    <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(total_outgoing) }} ₪</h3>
+                                    <small class="opacity-75">للموردين والشركاء</small>
+                                </div>
+                                <i class="fas fa-arrow-up fa-2x opacity-50"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card text-white {% if net_total >= 0 %}bg-primary{% else %}bg-warning{% endif %}">
+                <div class="col-lg-3 col-md-6">
+                    <div class="card border-0 shadow-sm text-white {% if net_total >= 0 %}bg-primary{% else %}bg-warning{% endif %} h-100">
                         <div class="card-body">
-                            <h5 class="card-title">📊 صافي التدفق</h5>
-                            <h3>{{ "{:,.2f}".format(net_total) }} ₪</h3>
-                            <small>واردة - صادرة</small>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="text-white-50 mb-1">📊 صافي التدفق</h6>
+                                    <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(net_total) }} ₪</h3>
+                                    <small class="opacity-75">واردة - صادرة</small>
+                                </div>
+                                <i class="fas fa-balance-scale fa-2x opacity-50"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card text-white bg-info">
+                <div class="col-lg-3 col-md-6">
+                    <div class="card border-0 shadow-sm text-white bg-info h-100">
                         <div class="card-body">
-                            <h5 class="card-title">💳 الإجمالي</h5>
-                            <h3>{{ "{:,.2f}".format(grand_total) }} ₪</h3>
-                            <small>جميع الدفعات</small>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="text-white-50 mb-1">💳 إجمالي الدفعات</h6>
+                                    <h3 class="mb-0 fw-bold">{{ payments|length if payments else 0 }}</h3>
+                                    <small class="opacity-75">دفعة</small>
+                                </div>
+                                <i class="fas fa-list fa-2x opacity-50"></i>
+                            </div>
                         </div>
                     </div>
                 </div>

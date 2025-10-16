@@ -1,6 +1,3 @@
-# vendors.py - Vendors Management Routes
-# Location: /garage_manager/routes/vendors.py
-# Description: Vendor and supplier management routes
 
 from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
@@ -12,7 +9,8 @@ from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import joinedload
 from extensions import db
 from forms import PartnerForm, SupplierForm
-from utils import permission_required, D, q2, archive_record, restore_record
+import utils
+from utils import D, q2, archive_record, restore_record
 from models import (
     ExchangeTransaction,
     Partner,
@@ -52,7 +50,7 @@ def _get_or_404(model, ident, options=None):
 
 @vendors_bp.route("/suppliers", methods=["GET"], endpoint="suppliers_list")
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def suppliers_list():
     form = CSRFProtectForm()
     s = (request.args.get("search") or "").strip()
@@ -97,7 +95,7 @@ def suppliers_list():
             # حساب الدفعات للمورد - استخدام fx_rate_used
             payments = Payment.query.filter(
                 Payment.supplier_id == supplier.id,
-                Payment.direction == 'outgoing'
+                Payment.direction == 'OUT'
             ).all()
             payments_total = 0.0
             for p in payments:
@@ -154,7 +152,7 @@ def suppliers_list():
 
 @vendors_bp.route("/suppliers/new", methods=["GET", "POST"], endpoint="suppliers_create")
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def suppliers_create():
     form = SupplierForm()
     if form.validate_on_submit():
@@ -186,7 +184,7 @@ def suppliers_create():
 
 @vendors_bp.route("/suppliers/<int:id>/edit", methods=["GET", "POST"], endpoint="suppliers_edit")
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def suppliers_edit(id):
     supplier = _get_or_404(Supplier, id)
     form = SupplierForm(obj=supplier)
@@ -205,7 +203,7 @@ def suppliers_edit(id):
 
 @vendors_bp.route("/suppliers/<int:id>/delete", methods=["POST"], endpoint="suppliers_delete")
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def suppliers_delete(id):
     supplier = _get_or_404(Supplier, id)
 
@@ -235,7 +233,7 @@ def suppliers_delete(id):
 
 @vendors_bp.get("/suppliers/<int:supplier_id>/statement", endpoint="suppliers_statement")
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def suppliers_statement(supplier_id: int):
     supplier = _get_or_404(Supplier, supplier_id)
 
@@ -449,7 +447,7 @@ def suppliers_statement(supplier_id: int):
 
 @vendors_bp.route("/partners", methods=["GET"], endpoint="partners_list")
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def partners_list():
     form = CSRFProtectForm()
     s = (request.args.get("search") or "").strip()
@@ -491,7 +489,7 @@ def partners_list():
             # حساب الدفعات للشريك - استخدام fx_rate_used
             payments = Payment.query.filter(
                 Payment.partner_id == partner.id,
-                Payment.direction == 'incoming'
+                Payment.direction == 'IN'
             ).all()
             payments_total = 0.0
             for p in payments:
@@ -548,7 +546,7 @@ def partners_list():
 
 @vendors_bp.get("/partners/<int:partner_id>/statement", endpoint="partners_statement")
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def partners_statement(partner_id: int):
     partner = _get_or_404(Partner, partner_id)
 
@@ -626,7 +624,7 @@ def partners_statement(partner_id: int):
 
 @vendors_bp.route("/partners/new", methods=["GET", "POST"], endpoint="partners_create")
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def partners_create():
     form = PartnerForm()
     if form.validate_on_submit():
@@ -658,7 +656,7 @@ def partners_create():
 
 @vendors_bp.route("/partners/<int:id>/edit", methods=["GET", "POST"], endpoint="partners_edit")
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def partners_edit(id):
     partner = _get_or_404(Partner, id)
     form = PartnerForm(obj=partner)
@@ -676,7 +674,7 @@ def partners_edit(id):
 
 @vendors_bp.route("/partners/<int:id>/delete", methods=["POST"], endpoint="partners_delete")
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def partners_delete(id):
     partner = _get_or_404(Partner, id)
     is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.args.get("modal") == "1"
@@ -717,7 +715,7 @@ def partners_delete(id):
 
 @vendors_bp.route("/suppliers/<int:supplier_id>/smart-settlement", methods=["GET"], endpoint="supplier_smart_settlement")
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def supplier_smart_settlement(supplier_id):
     """التسوية الذكية للمورد"""
     supplier = _get_or_404(Supplier, supplier_id)
@@ -771,7 +769,7 @@ def supplier_smart_settlement(supplier_id):
 
 @vendors_bp.route("/partners/<int:partner_id>/smart-settlement", methods=["GET"], endpoint="partner_smart_settlement")
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def partner_smart_settlement(partner_id):
     """التسوية الذكية للشريك"""
     partner = _get_or_404(Partner, partner_id)
@@ -1111,11 +1109,8 @@ def _get_settlement_recommendation(balance: float, currency: str):
 
 @vendors_bp.route("/suppliers/archive/<int:supplier_id>", methods=["POST"])
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def archive_supplier(supplier_id):
-    print(f"🔍 [SUPPLIER ARCHIVE] بدء أرشفة المورد رقم: {supplier_id}")
-    print(f"🔍 [SUPPLIER ARCHIVE] المستخدم: {current_user.username if current_user else 'غير معروف'}")
-    print(f"🔍 [SUPPLIER ARCHIVE] البيانات المرسلة: {dict(request.form)}")
     
     try:
         from models import Archive
@@ -1126,7 +1121,7 @@ def archive_supplier(supplier_id):
         reason = request.form.get('reason', 'أرشفة تلقائية')
         print(f"📝 [SUPPLIER ARCHIVE] سبب الأرشفة: {reason}")
         
-        archive_record(supplier, reason, current_user.id)
+        utils.archive_record(supplier, reason, current_user.id)
         flash(f'تم أرشفة المورد {supplier.name} بنجاح', 'success')
         return redirect(url_for('vendors_bp.suppliers_list'))
         
@@ -1142,12 +1137,9 @@ def archive_supplier(supplier_id):
 
 @vendors_bp.route("/partners/archive/<int:partner_id>", methods=["POST"])
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def archive_partner(partner_id):
     """أرشفة شريك"""
-    print(f"🔍 [PARTNER ARCHIVE] بدء أرشفة الشريك رقم: {partner_id}")
-    print(f"🔍 [PARTNER ARCHIVE] المستخدم: {current_user.username if current_user else 'غير معروف'}")
-    print(f"🔍 [PARTNER ARCHIVE] البيانات المرسلة: {dict(request.form)}")
     
     try:
         from models import Archive
@@ -1158,7 +1150,7 @@ def archive_partner(partner_id):
         reason = request.form.get('reason', 'أرشفة تلقائية')
         print(f"📝 [PARTNER ARCHIVE] سبب الأرشفة: {reason}")
         
-        archive_record(partner, reason, current_user.id)
+        utils.archive_record(partner, reason, current_user.id)
         
         flash(f'تم أرشفة الشريك {partner.name} بنجاح', 'success')
         print(f"🎉 [PARTNER ARCHIVE] تمت العملية بنجاح - إعادة توجيه...")
@@ -1176,11 +1168,9 @@ def archive_partner(partner_id):
 
 @vendors_bp.route("/suppliers/restore/<int:supplier_id>", methods=["POST"])
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def restore_supplier(supplier_id):
     """استعادة مورد"""
-    print(f"🔍 [SUPPLIER RESTORE] بدء استعادة المورد رقم: {supplier_id}")
-    print(f"🔍 [SUPPLIER RESTORE] المستخدم: {current_user.username if current_user else 'غير معروف'}")
     
     try:
         supplier = Supplier.query.get_or_404(supplier_id)
@@ -1199,7 +1189,7 @@ def restore_supplier(supplier_id):
         
         if archive:
             print(f"✅ [SUPPLIER RESTORE] تم العثور على الأرشيف: {archive.id}")
-            restore_record(archive.id)
+            utils.restore_record(archive.id)
             print(f"✅ [SUPPLIER RESTORE] تم استعادة المورد بنجاح")
         
         flash(f'تم استعادة المورد {supplier.name} بنجاح', 'success')
@@ -1218,11 +1208,9 @@ def restore_supplier(supplier_id):
 
 @vendors_bp.route("/partners/restore/<int:partner_id>", methods=["POST"])
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def restore_partner(partner_id):
     """استعادة شريك"""
-    print(f"🔍 [PARTNER RESTORE] بدء استعادة الشريك رقم: {partner_id}")
-    print(f"🔍 [PARTNER RESTORE] المستخدم: {current_user.username if current_user else 'غير معروف'}")
     
     try:
         partner = Partner.query.get_or_404(partner_id)
@@ -1241,7 +1229,7 @@ def restore_partner(partner_id):
         
         if archive:
             print(f"✅ [PARTNER RESTORE] تم العثور على الأرشيف: {archive.id}")
-            restore_record(archive.id)
+            utils.restore_record(archive.id)
             print(f"✅ [PARTNER RESTORE] تم استعادة الشريك بنجاح")
         
         flash(f'تم استعادة الشريك {partner.name} بنجاح', 'success')

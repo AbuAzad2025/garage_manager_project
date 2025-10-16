@@ -19,6 +19,75 @@
 </div>
 
 {% if preorders %}
+<!-- إحصائيات سريعة -->
+<div class="row mb-4 g-3">
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm bg-primary text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">إجمالي الطلبات</h6>
+            <h3 class="mb-0 fw-bold">{{ preorders|length }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-clipboard-list fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm bg-success text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">طلبات مكتملة</h6>
+            <h3 class="mb-0 fw-bold">{{ preorders|selectattr('status', 'equalto', 'FULFILLED')|list|length }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-check-circle fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm bg-warning text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">قيد الانتظار</h6>
+            <h3 class="mb-0 fw-bold">{{ preorders|selectattr('status', 'equalto', 'PENDING')|list|length }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-clock fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm bg-info text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">إجمالي المبالغ</h6>
+            <h3 class="mb-0 fw-bold">{{ "%.2f"|format(preorders|sum(attribute='total_amount') if preorders else 0) }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-dollar-sign fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if preorders %}
 <div class="card shadow-sm">
   <div class="card-body">
 

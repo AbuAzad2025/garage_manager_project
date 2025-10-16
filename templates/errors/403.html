@@ -31,12 +31,24 @@
     <h1 id="err-title" class="title">غير مسموح بالوصول</h1>
     <p class="desc">ليس لديك صلاحية للوصول إلى هذه الصفحة.</p>
     <p class="hint mono">المسار: {{ path }}</p>
+    
+    <div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:12px;padding:16px;margin:16px 0;">
+      <strong>🔒 الصلاحيات المطلوبة:</strong>
+      <ul style="margin:8px 0 0;padding-right:20px;color:#9ca3af;">
+        <li>هذه الصفحة متاحة فقط للمستخدمين المصرح لهم</li>
+        <li>قد تحتاج إلى دور إداري أو صلاحيات خاصة</li>
+        <li>تواصل مع المالك أو مدير النظام</li>
+      </ul>
+    </div>
+    
     <div class="row">
       <a class="btn btn-primary" href="{{ url_for('main.dashboard') }}">الانتقال إلى اللوحة</a>
       <a class="btn btn-ghost" href="/" rel="home">الصفحة الرئيسية</a>
       <button class="btn btn-ghost" type="button" onclick="history.back()">عودة للخلف</button>
     </div>
-    <div class="footer">إذا كنت تتوقع رؤية هذه الصفحة، تواصل مع مدير النظام لمنح الصلاحية المناسبة.</div>
+    <div class="footer">
+      <strong>للدعم:</strong> واتساب 0562150193 | البريد: ahmed@azad-systems.com | رام الله 🇵🇸
+    </div>
   </main>
 </div>
 </body>

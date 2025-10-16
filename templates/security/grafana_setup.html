@@ -1,0 +1,485 @@
+{% extends "base.html" %}
+
+{% block title %}إعداد Grafana + Prometheus{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include 'security/_navigation.html' %}
+
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card shadow">
+        <div class="card-header bg-gradient text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+          <h4 class="mb-0">
+            <i class="fas fa-chart-line"></i> إعداد Grafana + Prometheus
+            <span class="badge bg-light text-dark float-end">Professional Monitoring</span>
+          </h4>
+        </div>
+        <div class="card-body">
+          
+          <!-- حالة النظام -->
+          <div class="row mb-4">
+            <div class="col-md-4">
+              <div class="card border-success shadow-sm">
+                <div class="card-body text-center">
+                  <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                  <h5>Flask Metrics</h5>
+                  <p class="text-success mb-2"><strong>✅ جاهز</strong></p>
+                  <a href="{{ url_for('security.prometheus_metrics') }}" class="btn btn-success btn-sm" target="_blank">
+                    <i class="fas fa-external-link-alt"></i> عرض Metrics
+                  </a>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="card border-warning shadow-sm">
+                <div class="card-body text-center">
+                  <i class="fas fa-database fa-3x text-warning mb-3"></i>
+                  <h5>Prometheus</h5>
+                  <p class="text-warning mb-2" id="prometheus-status"><strong>⏳ جاري التحقق...</strong></p>
+                  <button class="btn btn-warning btn-sm" onclick="checkPrometheus()">
+                    <i class="fas fa-sync"></i> تحقق
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="card border-info shadow-sm">
+                <div class="card-body text-center">
+                  <i class="fas fa-chart-area fa-3x text-info mb-3"></i>
+                  <h5>Grafana</h5>
+                  <p class="text-info mb-2" id="grafana-status"><strong>⏳ جاري التحقق...</strong></p>
+                  <button class="btn btn-info btn-sm" onclick="checkGrafana()">
+                    <i class="fas fa-sync"></i> تحقق
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- خطوات التثبيت -->
+          <div class="accordion" id="installAccordion">
+            
+            <!-- الخطوة 1: تثبيت Docker -->
+            <div class="accordion-item">
+              <h2 class="accordion-header">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#step1">
+                  <i class="fas fa-docker text-primary me-2"></i>
+                  <strong>الخطوة 1: تثبيت Docker (30 دقيقة)</strong>
+                </button>
+              </h2>
+              <div id="step1" class="accordion-collapse collapse show" data-bs-parent="#installAccordion">
+                <div class="accordion-body">
+                  <h6>لماذا Docker؟</h6>
+                  <p>Docker يسهل تشغيل Prometheus و Grafana بدون تعقيدات التثبيت اليدوي</p>
+                  
+                  <h6>خطوات التثبيت:</h6>
+                  <ol>
+                    <li>تحميل Docker Desktop من الموقع الرسمي:
+                      <br><a href="https://www.docker.com/products/docker-desktop" target="_blank" class="btn btn-primary btn-sm mt-2">
+                        <i class="fas fa-download"></i> تحميل Docker Desktop
+                      </a>
+                    </li>
+                    <li class="mt-3">تثبيت Docker Desktop (اتبع التعليمات)</li>
+                    <li class="mt-2">إعادة تشغيل الكمبيوتر</li>
+                    <li class="mt-2">التحقق من التثبيت:
+                      <pre class="bg-dark text-white p-3 rounded mt-2"><code>docker --version</code></pre>
+                      يجب أن يظهر: <code>Docker version 20.x.x</code>
+                    </li>
+                  </ol>
+
+                  <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>ملاحظة:</strong> Docker Desktop متوفر لـ Windows, Mac, و Linux
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- الخطوة 2: إنشاء ملف prometheus.yml -->
+            <div class="accordion-item">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#step2">
+                  <i class="fas fa-file-code text-warning me-2"></i>
+                  <strong>الخطوة 2: إنشاء ملف Prometheus (10 دقائق)</strong>
+                </button>
+              </h2>
+              <div id="step2" class="accordion-collapse collapse" data-bs-parent="#installAccordion">
+                <div class="accordion-body">
+                  <h6>1. إنشاء مجلد للتكوين:</h6>
+                  <pre class="bg-dark text-white p-3 rounded"><code>mkdir prometheus-config
+cd prometheus-config</code></pre>
+
+                  <h6 class="mt-3">2. إنشاء ملف <code>prometheus.yml</code>:</h6>
+                  <pre class="bg-dark text-white p-3 rounded" style="max-height: 400px; overflow-y: auto;"><code># prometheus.yml
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'garage_manager'
+    static_configs:
+      - targets: ['host.docker.internal:5000']
+    metrics_path: '/security/prometheus-metrics'
+    scrape_interval: 5s</code></pre>
+
+                  <button class="btn btn-success btn-sm" onclick="copyToClipboard('prometheus-config')">
+                    <i class="fas fa-copy"></i> نسخ التكوين
+                  </button>
+
+                  <div class="alert alert-warning mt-3">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>مهم:</strong> احفظ هذا الملف في مجلد خاص واحفظ المسار
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- الخطوة 3: تشغيل Prometheus -->
+            <div class="accordion-item">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#step3">
+                  <i class="fas fa-database text-success me-2"></i>
+                  <strong>الخطوة 3: تشغيل Prometheus (15 دقيقة)</strong>
+                </button>
+              </h2>
+              <div id="step3" class="accordion-collapse collapse" data-bs-parent="#installAccordion">
+                <div class="accordion-body">
+                  <h6>تشغيل Prometheus في Docker:</h6>
+                  <pre class="bg-dark text-white p-3 rounded"><code>docker run -d \
+  --name prometheus \
+  -p 9090:9090 \
+  -v ${PWD}/prometheus.yml:/etc/prometheus/prometheus.yml \
+  prom/prometheus</code></pre>
+
+                  <button class="btn btn-primary btn-sm" onclick="copyToClipboard('prometheus-run')">
+                    <i class="fas fa-copy"></i> نسخ الأمر
+                  </button>
+
+                  <h6 class="mt-4">التحقق من التشغيل:</h6>
+                  <ol>
+                    <li>افتح المتصفح على: <a href="http://localhost:9090" target="_blank">http://localhost:9090</a></li>
+                    <li>في شريط البحث اكتب: <code>garage_manager_requests_total</code></li>
+                    <li>اضغط "Execute"</li>
+                    <li>يجب أن تظهر البيانات ✅</li>
+                  </ol>
+
+                  <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i>
+                    <strong>نجح!</strong> Prometheus الآن يجمع البيانات من التطبيق
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- الخطوة 4: تشغيل Grafana -->
+            <div class="accordion-item">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#step4">
+                  <i class="fas fa-chart-line text-info me-2"></i>
+                  <strong>الخطوة 4: تشغيل Grafana (20 دقيقة)</strong>
+                </button>
+              </h2>
+              <div id="step4" class="accordion-collapse collapse" data-bs-parent="#installAccordion">
+                <div class="accordion-body">
+                  <h6>تشغيل Grafana في Docker:</h6>
+                  <pre class="bg-dark text-white p-3 rounded"><code>docker run -d \
+  --name grafana \
+  -p 3000:3000 \
+  grafana/grafana</code></pre>
+
+                  <button class="btn btn-primary btn-sm" onclick="copyToClipboard('grafana-run')">
+                    <i class="fas fa-copy"></i> نسخ الأمر
+                  </button>
+
+                  <h6 class="mt-4">تسجيل الدخول:</h6>
+                  <ol>
+                    <li>افتح المتصفح على: <a href="http://localhost:3000" target="_blank">http://localhost:3000</a></li>
+                    <li>Username: <code>admin</code></li>
+                    <li>Password: <code>admin</code></li>
+                    <li>ستُطلب تغيير كلمة المرور (اختر كلمة مرور قوية)</li>
+                  </ol>
+
+                  <div class="alert alert-info">
+                    <i class="fas fa-lock"></i>
+                    <strong>أمان:</strong> تأكد من تغيير كلمة المرور الافتراضية!
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- الخطوة 5: ربط Prometheus بـ Grafana -->
+            <div class="accordion-item">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#step5">
+                  <i class="fas fa-link text-danger me-2"></i>
+                  <strong>الخطوة 5: ربط Prometheus بـ Grafana (15 دقيقة)</strong>
+                </button>
+              </h2>
+              <div id="step5" class="accordion-collapse collapse" data-bs-parent="#installAccordion">
+                <div class="accordion-body">
+                  <h6>إضافة Prometheus كمصدر بيانات:</h6>
+                  <ol>
+                    <li>في Grafana، اذهب إلى: <strong>Configuration</strong> → <strong>Data Sources</strong></li>
+                    <li>اضغط <strong>Add data source</strong></li>
+                    <li>اختر <strong>Prometheus</strong></li>
+                    <li>في <code>URL</code> اكتب: <code>http://host.docker.internal:9090</code></li>
+                    <li>اضغط <strong>Save & Test</strong></li>
+                    <li>يجب أن يظهر: <span class="text-success">✅ Data source is working</span></li>
+                  </ol>
+
+                  <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i>
+                    <strong>ممتاز!</strong> Grafana الآن مربوط بـ Prometheus
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- الخطوة 6: إنشاء Dashboard -->
+            <div class="accordion-item">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#step6">
+                  <i class="fas fa-desktop text-primary me-2"></i>
+                  <strong>الخطوة 6: إنشاء Dashboard (30 دقيقة)</strong>
+                </button>
+              </h2>
+              <div id="step6" class="accordion-collapse collapse" data-bs-parent="#installAccordion">
+                <div class="accordion-body">
+                  <h6>طريقتان لإنشاء Dashboard:</h6>
+
+                  <div class="card border-info mb-3">
+                    <div class="card-header bg-info text-white">
+                      <strong>الطريقة السريعة: استيراد Dashboard جاهز</strong>
+                    </div>
+                    <div class="card-body">
+                      <ol>
+                        <li>اذهب إلى: <strong>Create</strong> → <strong>Import</strong></li>
+                        <li>ألصق JSON التالي:</li>
+                      </ol>
+                      <textarea class="form-control font-monospace" rows="10" id="dashboard-json" readonly>{
+  "dashboard": {
+    "title": "Garage Manager Dashboard",
+    "panels": [
+      {
+        "title": "الطلبات/الثانية",
+        "targets": [{"expr": "rate(garage_manager_requests_total[1m])"}]
+      },
+      {
+        "title": "وقت الاستجابة",
+        "targets": [{"expr": "garage_manager_request_duration_seconds"}]
+      },
+      {
+        "title": "المستخدمين النشطين",
+        "targets": [{"expr": "garage_manager_active_users"}]
+      },
+      {
+        "title": "حجم قاعدة البيانات",
+        "targets": [{"expr": "garage_manager_database_size_bytes"}]
+      }
+    ]
+  }
+}</textarea>
+                      <button class="btn btn-success btn-sm mt-2" onclick="copyToClipboard('dashboard-json')">
+                        <i class="fas fa-copy"></i> نسخ Dashboard JSON
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="card border-warning">
+                    <div class="card-header bg-warning text-dark">
+                      <strong>الطريقة اليدوية: إنشاء Dashboard مخصص</strong>
+                    </div>
+                    <div class="card-body">
+                      <ol>
+                        <li>اذهب إلى: <strong>Create</strong> → <strong>Dashboard</strong></li>
+                        <li>اضغط <strong>Add new panel</strong></li>
+                        <li>في <code>Metrics browser</code> اختر متريك (مثل: <code>garage_manager_requests_total</code>)</li>
+                        <li>خصص العرض (نوع الرسم، الألوان، إلخ)</li>
+                        <li>اضغط <strong>Apply</strong></li>
+                        <li>كرر للمتريكات الأخرى</li>
+                        <li>احفظ Dashboard</li>
+                      </ol>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- الخطوة 7: إعداد التنبيهات -->
+            <div class="accordion-item">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#step7">
+                  <i class="fas fa-bell text-warning me-2"></i>
+                  <strong>الخطوة 7: إعداد التنبيهات (45 دقيقة)</strong>
+                </button>
+              </h2>
+              <div id="step7" class="accordion-collapse collapse" data-bs-parent="#installAccordion">
+                <div class="accordion-body">
+                  <h6>إنشاء تنبيه (Alert):</h6>
+                  <ol>
+                    <li>في Grafana، اذهب إلى: <strong>Alerting</strong> → <strong>Alert rules</strong></li>
+                    <li>اضغط <strong>New alert rule</strong></li>
+                    <li>املأ التفاصيل:
+                      <ul class="mt-2">
+                        <li><strong>Name:</strong> وقت استجابة بطيء</li>
+                        <li><strong>Query:</strong> <code>garage_manager_request_duration_seconds > 1</code></li>
+                        <li><strong>Condition:</strong> IS ABOVE 1</li>
+                        <li><strong>For:</strong> 5m (5 دقائق)</li>
+                      </ul>
+                    </li>
+                    <li>اختر <strong>Notification channel</strong> (Email, Slack, Webhook)</li>
+                    <li>احفظ التنبيه</li>
+                  </ol>
+
+                  <h6 class="mt-4">أمثلة تنبيهات مهمة:</h6>
+                  <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                      <thead class="table-light">
+                        <tr>
+                          <th>التنبيه</th>
+                          <th>الشرط</th>
+                          <th>المدة</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>وقت استجابة بطيء</td>
+                          <td><code>&gt; 1000ms</code></td>
+                          <td>5 دقائق</td>
+                        </tr>
+                        <tr>
+                          <td>معدل أخطاء عالي</td>
+                          <td><code>&gt; 5%</code></td>
+                          <td>2 دقائق</td>
+                        </tr>
+                        <tr>
+                          <td>قاعدة بيانات ممتلئة</td>
+                          <td><code>&gt; 80%</code></td>
+                          <td>10 دقائق</td>
+                        </tr>
+                        <tr>
+                          <td>النظام متوقف</td>
+                          <td><code>= 0 requests</code></td>
+                          <td>1 دقيقة</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- أوامر سريعة -->
+          <div class="card border-dark mt-4">
+            <div class="card-header bg-dark text-white">
+              <h5 class="mb-0"><i class="fas fa-terminal"></i> أوامر سريعة مفيدة</h5>
+            </div>
+            <div class="card-body">
+              <div class="row">
+                <div class="col-md-6">
+                  <h6>إيقاف الخدمات:</h6>
+                  <pre class="bg-dark text-white p-2 rounded"><code>docker stop prometheus grafana</code></pre>
+                </div>
+                <div class="col-md-6">
+                  <h6>تشغيل الخدمات:</h6>
+                  <pre class="bg-dark text-white p-2 rounded"><code>docker start prometheus grafana</code></pre>
+                </div>
+                <div class="col-md-6 mt-3">
+                  <h6>حذف الخدمات:</h6>
+                  <pre class="bg-dark text-white p-2 rounded"><code>docker rm -f prometheus grafana</code></pre>
+                </div>
+                <div class="col-md-6 mt-3">
+                  <h6>عرض اللوقات:</h6>
+                  <pre class="bg-dark text-white p-2 rounded"><code>docker logs prometheus
+docker logs grafana</code></pre>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- روابط مفيدة -->
+          <div class="card border-info mt-4">
+            <div class="card-header bg-info text-white">
+              <h5 class="mb-0"><i class="fas fa-link"></i> روابط مفيدة</h5>
+            </div>
+            <div class="card-body">
+              <div class="row">
+                <div class="col-md-4">
+                  <h6><i class="fas fa-rocket"></i> التطبيق:</h6>
+                  <ul class="list-unstyled">
+                    <li><a href="{{ url_for('security.prometheus_metrics') }}" target="_blank">Prometheus Metrics</a></li>
+                    <li><a href="{{ url_for('security.api_live_metrics') }}" target="_blank">Live Metrics (JSON)</a></li>
+                  </ul>
+                </div>
+                <div class="col-md-4">
+                  <h6><i class="fas fa-database"></i> Prometheus:</h6>
+                  <ul class="list-unstyled">
+                    <li><a href="http://localhost:9090" target="_blank">Prometheus UI</a></li>
+                    <li><a href="http://localhost:9090/targets" target="_blank">Targets Status</a></li>
+                  </ul>
+                </div>
+                <div class="col-md-4">
+                  <h6><i class="fas fa-chart-area"></i> Grafana:</h6>
+                  <ul class="list-unstyled">
+                    <li><a href="http://localhost:3000" target="_blank">Grafana Dashboard</a></li>
+                    <li><a href="https://grafana.com/docs/" target="_blank">Grafana Documentation</a></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function copyToClipboard(elementId) {
+  const element = document.getElementById(elementId);
+  if (!element) return;
+  
+  const text = element.textContent || element.value;
+  navigator.clipboard.writeText(text).then(() => {
+    alert('✅ تم النسخ إلى الحافظة!');
+  });
+}
+
+function checkPrometheus() {
+  const statusEl = document.getElementById('prometheus-status');
+  statusEl.innerHTML = '<strong>⏳ جاري التحقق...</strong>';
+  
+  fetch('http://localhost:9090/-/healthy', {mode: 'no-cors'})
+    .then(() => {
+      statusEl.innerHTML = '<strong class="text-success">✅ يعمل</strong>';
+    })
+    .catch(() => {
+      statusEl.innerHTML = '<strong class="text-danger">❌ غير متصل</strong>';
+    });
+}
+
+function checkGrafana() {
+  const statusEl = document.getElementById('grafana-status');
+  statusEl.innerHTML = '<strong>⏳ جاري التحقق...</strong>';
+  
+  fetch('http://localhost:3000/api/health', {mode: 'no-cors'})
+    .then(() => {
+      statusEl.innerHTML = '<strong class="text-success">✅ يعمل</strong>';
+    })
+    .catch(() => {
+      statusEl.innerHTML = '<strong class="text-danger">❌ غير متصل</strong>';
+    });
+}
+
+// Auto-check on page load
+setTimeout(() => {
+  checkPrometheus();
+  checkGrafana();
+}, 1000);
+</script>
+{% endblock %}
+

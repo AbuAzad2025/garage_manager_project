@@ -41,42 +41,73 @@
     </div>
 
     <div class="card-body bg-light">
-      <!-- الملخصات -->
+      <!-- إحصائيات سريعة محسّنة -->
       {% if summary %}
-      <div class="row mb-4">
-        <div class="col-md-3">
-          <div class="card text-white bg-primary">
+      <div class="row g-3 mb-4">
+        <div class="col-lg-3 col-md-6">
+          <div class="card border-0 shadow-sm bg-primary text-white">
             <div class="card-body">
-              <h5 class="card-title">📊 إجمالي المبيعات</h5>
-              <h3>{{ "{:,.2f}".format(summary.total_sales) }} ₪</h3>
-              <small>{{ summary.sales_count }} فاتورة</small>
+              <div class="d-flex justify-content-between">
+                <div>
+                  <h6 class="card-title text-white-50 mb-1">إجمالي المبيعات</h6>
+                  <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(summary.total_sales) }} ₪</h3>
+                  <small class="opacity-75">{{ summary.sales_count }} فاتورة</small>
+                </div>
+                <div class="align-self-center">
+                  <i class="fas fa-file-invoice fa-2x opacity-75"></i>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-        <div class="col-md-3">
-          <div class="card text-white bg-success">
+        
+        <div class="col-lg-3 col-md-6">
+          <div class="card border-0 shadow-sm bg-success text-white">
             <div class="card-body">
-              <h5 class="card-title">💰 المدفوع</h5>
-              <h3>{{ "{:,.2f}".format(summary.total_paid) }} ₪</h3>
-              <small>{{ "{:.1f}".format((summary.total_paid / summary.total_sales * 100) if summary.total_sales > 0 else 0) }}%</small>
+              <div class="d-flex justify-content-between">
+                <div>
+                  <h6 class="card-title text-white-50 mb-1">المدفوع</h6>
+                  <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(summary.total_paid) }} ₪</h3>
+                  <small class="opacity-75">{{ "{:.1f}".format((summary.total_paid / summary.total_sales * 100) if summary.total_sales > 0 else 0) }}%</small>
+                </div>
+                <div class="align-self-center">
+                  <i class="fas fa-check-circle fa-2x opacity-75"></i>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-        <div class="col-md-3">
-          <div class="card text-white bg-warning">
+        
+        <div class="col-lg-3 col-md-6">
+          <div class="card border-0 shadow-sm bg-warning text-white">
             <div class="card-body">
-              <h5 class="card-title">⏳ المستحق</h5>
-              <h3>{{ "{:,.2f}".format(summary.total_pending) }} ₪</h3>
-              <small>{{ "{:.1f}".format((summary.total_pending / summary.total_sales * 100) if summary.total_sales > 0 else 0) }}%</small>
+              <div class="d-flex justify-content-between">
+                <div>
+                  <h6 class="card-title text-white-50 mb-1">المستحق</h6>
+                  <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(summary.total_pending) }} ₪</h3>
+                  <small class="opacity-75">{{ "{:.1f}".format((summary.total_pending / summary.total_sales * 100) if summary.total_sales > 0 else 0) }}%</small>
+                </div>
+                <div class="align-self-center">
+                  <i class="fas fa-clock fa-2x opacity-75"></i>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-        <div class="col-md-3">
-          <div class="card text-white bg-info">
+        
+        <div class="col-lg-3 col-md-6">
+          <div class="card border-0 shadow-sm bg-info text-white">
             <div class="card-body">
-              <h5 class="card-title">📈 متوسط الفاتورة</h5>
-              <h3>{{ "{:,.2f}".format(summary.average_sale) }} ₪</h3>
-              <small>لكل فاتورة</small>
+              <div class="d-flex justify-content-between">
+                <div>
+                  <h6 class="card-title text-white-50 mb-1">متوسط الفاتورة</h6>
+                  <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(summary.average_sale) }} ₪</h3>
+                  <small class="opacity-75">لكل فاتورة</small>
+                </div>
+                <div class="align-self-center">
+                  <i class="fas fa-chart-line fa-2x opacity-75"></i>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -141,16 +172,22 @@
               </td>
               <td><span class="badge {{ sale.status_class }}">{{ sale.status_label }}</span></td>
               <td class="text-center">
-                <div class="btn-group">
-                  <a href="{{ url_for('sales_bp.sale_detail', id=sale.id) }}" class="btn btn-sm btn-outline-primary" title="عرض"><i class="fas fa-eye"></i></a>
-                  <a href="{{ url_for('sales_bp.edit_sale', id=sale.id) }}" class="btn btn-sm btn-outline-warning" title="تعديل"><i class="fas fa-edit"></i></a>
-                  <a href="{{ url_for('sales_bp.generate_invoice', id=sale.id) }}" class="btn btn-sm btn-outline-info" title="طباعة"><i class="fas fa-print"></i></a>
+                <div class="table-actions">
+                  <a href="{{ url_for('sales_bp.sale_detail', id=sale.id) }}" class="btn btn-action-view btn-action-sm" title="عرض">
+                    <i class="fas fa-eye"></i>
+                  </a>
+                  <a href="{{ url_for('sales_bp.edit_sale', id=sale.id) }}" class="btn btn-action-edit btn-action-sm" title="تعديل">
+                    <i class="fas fa-edit"></i>
+                  </a>
+                  <a href="{{ url_for('sales_bp.generate_invoice', id=sale.id) }}" class="btn btn-action-print btn-action-sm" title="طباعة">
+                    <i class="fas fa-print"></i>
+                  </a>
                   {% if sale.is_archived %}
-                  <button type="button" class="btn btn-sm btn-success" title="استعادة" onclick="console.log('🔘 [TEMPLATE] تم النقر على زر استعادة المبيعة رقم: {{ sale.id }}'); restoreSale({{ sale.id }})">
+                  <button type="button" class="btn btn-action-restore btn-action-sm" title="استعادة" onclick="restoreSale({{ sale.id }})">
                     <i class="fas fa-undo"></i>
                   </button>
                   {% else %}
-                  <button type="button" class="btn btn-sm btn-warning" title="أرشفة" onclick="console.log('🔘 [TEMPLATE] تم النقر على زر أرشفة المبيعة رقم: {{ sale.id }}'); archiveSale({{ sale.id }})">
+                  <button type="button" class="btn btn-action-archive btn-action-sm" title="أرشفة" onclick="archiveSale({{ sale.id }})">
                     <i class="fas fa-archive"></i>
                   </button>
                   {% endif %}

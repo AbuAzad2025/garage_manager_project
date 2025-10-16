@@ -1,6 +1,3 @@
-# user_guide.py - User Guide Routes
-# Location: /garage_manager/routes/user_guide.py
-# Description: User guide and help documentation routes
 
 from flask import Blueprint, render_template
 

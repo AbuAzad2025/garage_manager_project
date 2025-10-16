@@ -93,6 +93,32 @@
           icon.classList.toggle('fa-eye-slash');
         }
       });
+
+      input.addEventListener('input', function() {
+        var password = this.value;
+        var strength = 0;
+        
+        if (password.length >= 8) strength++;
+        if (password.length >= 12) strength++;
+        if (/[a-z]/.test(password)) strength++;
+        if (/[A-Z]/.test(password)) strength++;
+        if (/[0-9]/.test(password)) strength++;
+        if (/[^a-zA-Z0-9]/.test(password)) strength++;
+        
+        var strengthText = strength <= 2 ? 'ضعيف' : strength <= 4 ? 'متوسط' : 'قوي';
+        var strengthColor = strength <= 2 ? 'danger' : strength <= 4 ? 'warning' : 'success';
+        
+        var existingFeedback = input.parentElement.parentElement.querySelector('.password-strength-feedback');
+        if (!existingFeedback && password.length > 0) {
+          var feedback = document.createElement('small');
+          feedback.className = 'password-strength-feedback text-' + strengthColor + ' d-block mt-1';
+          feedback.textContent = 'قوة كلمة المرور: ' + strengthText;
+          input.parentElement.parentElement.appendChild(feedback);
+        } else if (existingFeedback) {
+          existingFeedback.className = 'password-strength-feedback text-' + strengthColor + ' d-block mt-1';
+          existingFeedback.textContent = password.length > 0 ? 'قوة كلمة المرور: ' + strengthText : '';
+        }
+      });
     }
   })();
 </script>

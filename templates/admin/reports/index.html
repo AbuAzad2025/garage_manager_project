@@ -32,79 +32,108 @@
                             </h3>
                         </div>
                         <div class="card-body">
-                            <div class="alert alert-info">
-                                <h5><i class="fas fa-info-circle"></i> معلومات التقارير</h5>
-                                <p>هذه الصفحة تحتوي على التقارير الإدارية للنظام.</p>
+                            <div class="alert alert-danger border-0 shadow-sm">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <strong>تحذير أمني:</strong> هذه التقارير حساسة ومتاحة فقط للمالك والإدارة العليا. جميع الوصولات مسجلة.
                             </div>
                             
+                            <!-- تقارير المدفوعات والبطاقات -->
                             <div class="row">
-                                <div class="col-md-4">
-                                    <div class="card card-primary">
-                                        <div class="card-header">
-                                            <h3 class="card-title">تقارير المبيعات</h3>
-                                        </div>
-                                        <div class="card-body">
-                                            <p>تقارير مفصلة عن المبيعات والأرباح</p>
-                                            <a href="{{ url_for('reports_bp.universal') }}" class="btn btn-primary">عرض التقارير</a>
+                                <div class="col-md-6">
+                                    <div class="card border-0 shadow-lg" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                        <div class="card-body text-white">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <div>
+                                                    <h4 class="mb-1"><i class="fas fa-credit-card"></i> تقرير معاملات البطاقات</h4>
+                                                    <p class="mb-0 opacity-75">جميع معاملات البطاقات الائتمانية والمدفوعات الإلكترونية</p>
+                                                </div>
+                                                <i class="fas fa-credit-card fa-3x opacity-25"></i>
+                                            </div>
+                                            <div class="d-grid">
+                                                <a href="{{ url_for('admin_reports.cards') }}" class="btn btn-light btn-lg fw-bold">
+                                                    <i class="fas fa-eye"></i> عرض التقرير
+                                                </a>
+                                            </div>
+                                            <div class="row mt-3 text-center">
+                                                <div class="col-4">
+                                                    <small class="opacity-75">الفلاتر</small>
+                                                </div>
+                                                <div class="col-4">
+                                                    <small class="opacity-75">البحث</small>
+                                                </div>
+                                                <div class="col-4">
+                                                    <small class="opacity-75">التصدير</small>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-4">
-                                    <div class="card card-success">
-                                        <div class="card-header">
-                                            <h3 class="card-title">تقارير المخزون</h3>
-                                        </div>
-                                        <div class="card-body">
-                                            <p>تقارير عن حالة المخزون والحركة</p>
-                                            <a href="{{ url_for('reports_bp.universal') }}?type=inventory" class="btn btn-success">عرض التقارير</a>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="card card-warning">
-                                        <div class="card-header">
-                                            <h3 class="card-title">تقارير العملاء</h3>
-                                        </div>
-                                        <div class="card-body">
-                                            <p>تقارير عن العملاء والمعاملات</p>
-                                            <a href="{{ url_for('reports_bp.universal') }}?type=customers" class="btn btn-warning">عرض التقارير</a>
+                                
+                                <div class="col-md-6">
+                                    <div class="card border-0 shadow-lg" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                                        <div class="card-body text-white">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <div>
+                                                    <h4 class="mb-1"><i class="fas fa-clipboard-list"></i> تقرير الحجوزات المسبقة</h4>
+                                                    <p class="mb-0 opacity-75">جميع الطلبات المسبقة من المتجر الإلكتروني</p>
+                                                </div>
+                                                <i class="fas fa-clipboard-list fa-3x opacity-25"></i>
+                                            </div>
+                                            <div class="d-grid">
+                                                <a href="{{ url_for('admin_reports.preorders') }}" class="btn btn-light btn-lg fw-bold">
+                                                    <i class="fas fa-eye"></i> عرض التقرير
+                                                </a>
+                                            </div>
+                                            <div class="row mt-3 text-center">
+                                                <div class="col-4">
+                                                    <small class="opacity-75">الحالة</small>
+                                                </div>
+                                                <div class="col-4">
+                                                    <small class="opacity-75">العملاء</small>
+                                                </div>
+                                                <div class="col-4">
+                                                    <small class="opacity-75">المنتجات</small>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                             
-                            <!-- تقارير إضافية -->
+                            <!-- روابط سريعة للتقارير الأخرى -->
                             <div class="row mt-4">
-                                <div class="col-md-4">
-                                    <div class="card card-info">
-                                        <div class="card-header">
-                                            <h3 class="card-title">تقارير المالية</h3>
+                                <div class="col-12">
+                                    <div class="card border-0 shadow-sm">
+                                        <div class="card-header bg-gradient-primary text-white">
+                                            <h5 class="mb-0"><i class="fas fa-link"></i> روابط سريعة للتقارير الأخرى</h5>
                                         </div>
                                         <div class="card-body">
-                                            <p>تقارير عن الأرباح والخسائر</p>
-                                            <a href="{{ url_for('reports_bp.universal') }}?type=financial" class="btn btn-info">عرض التقارير</a>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="card card-danger">
-                                        <div class="card-header">
-                                            <h3 class="card-title">تقارير الصيانة</h3>
-                                        </div>
-                                        <div class="card-body">
-                                            <p>تقارير عن عمليات الصيانة</p>
-                                            <a href="{{ url_for('reports_bp.universal') }}?type=maintenance" class="btn btn-danger">عرض التقارير</a>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="card card-secondary">
-                                        <div class="card-header">
-                                            <h3 class="card-title">تقارير شاملة</h3>
-                                        </div>
-                                        <div class="card-body">
-                                            <p>تقارير شاملة لجميع العمليات</p>
-                                            <a href="{{ url_for('reports_bp.universal') }}?type=all" class="btn btn-secondary">عرض التقارير</a>
+                                            <div class="row">
+                                                <div class="col-md-3 mb-3">
+                                                    <a href="{{ url_for('reports_bp.index') }}" class="btn btn-outline-primary w-100">
+                                                        <i class="fas fa-chart-bar"></i><br>
+                                                        <small>التقارير العامة</small>
+                                                    </a>
+                                                </div>
+                                                <div class="col-md-3 mb-3">
+                                                    <a href="{{ url_for('reports_bp.sales') }}" class="btn btn-outline-success w-100">
+                                                        <i class="fas fa-shopping-cart"></i><br>
+                                                        <small>تقرير المبيعات</small>
+                                                    </a>
+                                                </div>
+                                                <div class="col-md-3 mb-3">
+                                                    <a href="{{ url_for('reports_bp.payments_summary') }}" class="btn btn-outline-info w-100">
+                                                        <i class="fas fa-money-bill-wave"></i><br>
+                                                        <small>تقرير الدفعات</small>
+                                                    </a>
+                                                </div>
+                                                <div class="col-md-3 mb-3">
+                                                    <a href="{{ url_for('ledger.index') }}" class="btn btn-outline-warning w-100">
+                                                        <i class="fas fa-book"></i><br>
+                                                        <small>دفتر الأستاذ</small>
+                                                    </a>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

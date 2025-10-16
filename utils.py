@@ -1511,3 +1511,213 @@ def _install_accounting_listeners():
         if not sess or not getattr(target, "sale_id", None):
             return
         _recompute_sale_totals(sess, int(target.sale_id))
+
+
+def archive_record(record, reason=None, user_id=None):
+    """أرشفة سجل"""
+    from datetime import datetime
+    from flask import flash
+    from flask_login import current_user
+    from sqlalchemy.exc import SQLAlchemyError
+    from extensions import db
+    from models import Archive
+    
+    try:
+        if user_id is None and current_user and current_user.is_authenticated:
+            user_id = current_user.id
+        
+        archive = Archive.archive_record(
+            record=record,
+            reason=reason or 'أرشفة تلقائية',
+            user_id=user_id
+        )
+        
+        record.is_archived = True
+        record.archived_at = datetime.utcnow()
+        record.archived_by = user_id
+        record.archive_reason = reason or 'أرشفة تلقائية'
+        
+        db.session.commit()
+        return archive
+        
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        raise e
+
+def restore_record(archive_id):
+    """استعادة سجل من الأرشيف"""
+    from sqlalchemy.exc import SQLAlchemyError
+    from extensions import db
+    from models import Archive
+    import json
+    
+    try:
+        archive = Archive.query.get_or_404(archive_id)
+        
+        model_map = {
+            'service_requests': 'ServiceRequest',
+            'payments': 'Payment', 
+            'sales': 'Sale',
+            'expenses': 'Expense',
+            'checks': 'Check',
+            'customers': 'Customer',
+            'suppliers': 'Supplier',
+            'partners': 'Partner',
+            'shipments': 'Shipment'
+        }
+        
+        model_name = model_map.get(archive.record_type)
+        if not model_name:
+            raise ValueError(f'نوع السجل غير مدعوم للاستعادة: {archive.record_type}')
+        
+        from models import ServiceRequest, Payment, Sale, Expense, Check, Customer, Supplier, Partner, Shipment
+        model_map_actual = {
+            'ServiceRequest': ServiceRequest,
+            'Payment': Payment,
+            'Sale': Sale, 
+            'Expense': Expense,
+            'Check': Check,
+            'Customer': Customer,
+            'Supplier': Supplier,
+            'Partner': Partner,
+            'Shipment': Shipment
+        }
+        
+        model_class = model_map_actual.get(model_name)
+        if not model_class:
+            raise ValueError(f'نموذج غير موجود: {model_name}')
+        
+        original_record = model_class.query.get(archive.record_id)
+        
+        if original_record:
+            original_record.is_archived = False
+            original_record.archived_at = None
+            original_record.archived_by = None
+            original_record.archive_reason = None
+            
+            db.session.delete(archive)
+            db.session.commit()
+            
+            return original_record
+        else:
+            archived_data = json.loads(archive.archived_data)
+            
+            new_record = model_class()
+            for key, value in archived_data.items():
+                if hasattr(new_record, key) and key not in ['id', 'is_archived', 'archived_at', 'archived_by', 'archive_reason']:
+                    # تحويل التواريخ من string إلى datetime
+                    if value and isinstance(value, str) and ('_at' in key or 'date' in key.lower() or '_time' in key):
+                        try:
+                            # محاولة تحويل التاريخ
+                            if 'T' in value:  # ISO format
+                                value = datetime.fromisoformat(value.replace('Z', '+00:00'))
+                            else:
+                                value = datetime.strptime(value, '%Y-%m-%d %H:%M:%S')
+                        except (ValueError, AttributeError):
+                            # إذا فشل التحويل، حاول تنسيق آخر
+                            try:
+                                value = datetime.strptime(value, '%Y-%m-%d')
+                            except (ValueError, AttributeError):
+                                pass  # اترك القيمة كما هي
+                    
+                    setattr(new_record, key, value)
+            
+            db.session.add(new_record)
+            db.session.flush()
+            
+            db.session.delete(archive)
+            db.session.commit()
+            
+            return new_record
+            
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        raise e
+
+
+
+# Calculation utilities
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
+
+TWOPLACES = Decimal("0.01")
+ZERO_PLACES = Decimal("1")
+
+def D(x):
+    """Convert to Decimal safely"""
+    if x is None:
+        return Decimal("0")
+    if isinstance(x, Decimal):
+        return x
+    try:
+        return Decimal(str(x))
+    except (InvalidOperation, ValueError, TypeError):
+        return Decimal("0")
+
+def q0(x):
+    """Quantize to zero decimal places"""
+    return D(x).quantize(ZERO_PLACES, rounding=ROUND_HALF_UP)
+
+def q2(x):
+    """Quantize to two decimal places"""
+    return D(x).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
+
+def _q2(x):
+    """Quantize to two decimal places and return as float"""
+    return float(q2(x))
+
+def money_fmt(value):
+    """Format money with thousand separators"""
+    v = value if isinstance(value, Decimal) else D(value or 0)
+    return f"{v:,.2f}"
+
+def line_total_decimal(qty, unit_price, discount_rate):
+    """Calculate line total with discount"""
+    q = D(qty)
+    p = D(unit_price)
+    dr = D(discount_rate or 0)
+    one = Decimal("1")
+    hundred = Decimal("100")
+    total = q * p * (one - dr / hundred)
+    return total.quantize(TWOPLACES, rounding=ROUND_HALF_UP)
+
+def safe_divide(numerator, denominator, default=Decimal("0")):
+    """Safe division returning default if denominator is zero"""
+    num = D(numerator)
+    den = D(denominator)
+    if den == 0:
+        return D(default)
+    return (num / den).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
+
+def calculate_percentage(part, total):
+    """Calculate percentage"""
+    if D(total) == 0:
+        return Decimal("0")
+    return (D(part) / D(total) * 100).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
+
+
+
+def get_archive_stats():
+    """Get archive statistics"""
+    from sqlalchemy import func
+    from datetime import datetime
+    from extensions import db
+    from models import Archive
+    
+    total_archives = Archive.query.count()
+    
+    type_stats = db.session.query(
+        Archive.record_type,
+        func.count(Archive.id).label('count')
+    ).group_by(Archive.record_type).all()
+    
+    current_month = datetime.now().replace(day=1)
+    monthly_archives = Archive.query.filter(
+        Archive.archived_at >= current_month
+    ).count()
+    
+    return {
+        'total_archives': total_archives,
+        'type_stats': type_stats,
+        'monthly_archives': monthly_archives
+    }
+

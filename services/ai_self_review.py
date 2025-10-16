@@ -1,6 +1,3 @@
-# ai_self_review.py - AI Self-Review System
-# Location: /garage_manager/services/ai_self_review.py
-# Description: AI self-review and learning system
 
 
 import json

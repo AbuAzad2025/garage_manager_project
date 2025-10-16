@@ -30,13 +30,29 @@
     <div class="code" aria-hidden="true">500</div>
     <h1 id="err-title" class="title">خطأ داخلي في الخادم</h1>
     <p class="desc">حدث خلل غير متوقع أثناء معالجة الطلب.</p>
-    <p class="hint mono">الرجاء المحاولة لاحقًا أو مراجعة الدعم الفني.</p>
-    <div class="row">
-      <a class="btn btn-primary" href="{{ url_for('main.dashboard') }}">الانتقال إلى اللوحة</a>
-      <a class="btn btn-ghost" href="/" rel="home">الصفحة الرئيسية</a>
-      <button class="btn btn-ghost" type="button" onclick="history.back()">عودة للخلف</button>
+    
+    <div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:12px;padding:16px;margin:16px 0;">
+      <strong>❌ ماذا حدث؟</strong>
+      <ul style="margin:8px 0 0;padding-right:20px;color:#9ca3af;">
+        <li>حدث خطأ غير متوقع في الخادم</li>
+        <li>تم تسجيل الخطأ تلقائياً للمراجعة</li>
+        <li>سيتم إصلاح المشكلة في أقرب وقت</li>
+      </ul>
     </div>
-    <div class="footer">كود الخطأ: 500 · تحقق من السجلات لمعرفة التفاصيل.</div>
+    
+    <p class="hint mono">
+      <strong>رقم المرجع:</strong> {{ request.headers.get('X-Request-Id', 'N/A') }}<br>
+      <strong>التاريخ:</strong> {{ now().strftime('%Y-%m-%d %H:%M:%S') if now else '' }}
+    </p>
+    
+    <div class="row">
+      <button class="btn btn-primary" type="button" onclick="location.reload()">إعادة المحاولة</button>
+      <a class="btn btn-ghost" href="{{ url_for('main.dashboard') }}">اللوحة الرئيسية</a>
+      <a class="btn btn-ghost" href="https://wa.me/970562150193?text=خطأ 500 - المسار: {{ path }}" target="_blank">إبلاغ الدعم</a>
+    </div>
+    <div class="footer">
+      <strong>للدعم الفوري:</strong> واتساب 0562150193 | البريد: ahmed@azad-systems.com | رام الله 🇵🇸
+    </div>
   </main>
 </div>
 </body>

@@ -1,5 +1,3 @@
-# routes/advanced_control.py
-# Location: /garage_manager/routes/advanced_control.py
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app, send_file
 from flask_login import login_required, current_user
@@ -7,7 +5,7 @@ from sqlalchemy import text, func, inspect
 from datetime import datetime, timedelta
 from extensions import db
 from models import User, SystemSettings
-from utils import is_super
+import utils
 from functools import wraps
 import os
 import json
@@ -21,7 +19,7 @@ def owner_only(f):
     @wraps(f)
     @login_required
     def decorated_function(*args, **kwargs):
-        if not is_super():
+        if not utils.is_super():
             flash('⛔ الوصول محظور', 'danger')
             return redirect(url_for('main.dashboard'))
         if current_user.id != 1 and current_user.username.lower() not in ['azad', 'owner', 'admin']:

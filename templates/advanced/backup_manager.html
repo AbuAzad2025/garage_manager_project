@@ -9,6 +9,69 @@
   
   {% include 'advanced/_navigation.html' %}
   
+  <!-- بطاقات إحصائية سريعة -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-primary text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">إجمالي النسخ</h6>
+              <h3 class="mb-0 fw-bold">{{ backups|length }}</h3>
+              <small class="opacity-75">نسخة احتياطية</small>
+            </div>
+            <i class="fas fa-database fa-2x opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-success text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">نوع القاعدة</h6>
+              <h3 class="mb-0 fw-bold">{{ current_db_type|upper }}</h3>
+              <small class="opacity-75">قاعدة البيانات</small>
+            </div>
+            <i class="fas fa-server fa-2x opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-info text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">الجدولة التلقائية</h6>
+              <h3 class="mb-0 fw-bold">{{ schedule_status|default('معطلة') }}</h3>
+              <small class="opacity-75">الحالة</small>
+            </div>
+            <i class="fas fa-clock fa-2x opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-warning text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">آخر نسخة</h6>
+              <h3 class="mb-0 fw-bold">{{ backups[0].date if backups else 'لا يوجد' }}</h3>
+              <small class="opacity-75">{{ backups[0].name if backups else '-' }}</small>
+            </div>
+            <i class="fas fa-history fa-2x opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
   <div class="alert alert-info border-0 shadow-sm mb-4">
     <h5><i class="fas fa-database"></i> <strong>مدير النسخ المتقدم</strong></h5>
     <p class="mb-0">نسخ احتياطي + تحويل قواعد البيانات + جدولة تلقائية</p>

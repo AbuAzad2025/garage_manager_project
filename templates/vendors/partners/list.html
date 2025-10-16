@@ -82,7 +82,7 @@
         <i class="fas fa-file-invoice-dollar me-1"></i> قائمة التسويات
       </a>
       {% if current_user.has_permission('manage_vendors') %}
-        <a href="{{ url_for('vendors_bp.partners_create') }}" class="btn btn-success">
+        <a href="{{ url_for('vendors_bp.partners_create') }}" class="btn btn-action-add">
           <i class="fas fa-plus me-1"></i> شريك جديد
         </a>
       {% endif %}

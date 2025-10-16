@@ -30,12 +30,9 @@
             <a href="{{ url_for('security.logs_download', log_type=log.type) }}" class="btn btn-sm btn-success">
               <i class="fas fa-download"></i> تحميل
             </a>
-            <form method="POST" action="{{ url_for('security.logs_clear', log_type=log.type) }}" style="display:inline;" onsubmit="return confirm('هل تريد مسح هذا اللوج؟');">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="btn btn-sm btn-danger">
-                <i class="fas fa-trash"></i> مسح
-              </button>
-            </form>
+            <button type="button" class="btn btn-sm btn-warning" onclick="clearLog('{{ log.type }}', '{{ log.name }}')">
+              <i class="fas fa-broom"></i> تنظيف
+            </button>
           </div>
         </div>
       </div>
@@ -52,5 +49,65 @@
   </div>
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// دالة تنظيف اللوج باستخدام AJAX
+function clearLog(logType, logName) {
+  // نافذة تأكيد عصرية باستخدام SweetAlert2
+  Swal.fire({
+    title: 'تأكيد التنظيف',
+    html: `هل أنت متأكد من تنظيف محتوى<br><strong>${logName || logType}.log</strong>؟<br><br><small class="text-muted">⚠️ سيتم إفراغ الملف بالكامل!</small>`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ffc107',
+    cancelButtonColor: '#6c757d',
+    confirmButtonText: '<i class="fas fa-broom"></i> نعم، نظف',
+    cancelButtonText: '<i class="fas fa-times"></i> إلغاء',
+    showLoaderOnConfirm: true,
+    preConfirm: () => {
+      // إرسال طلب AJAX
+      return fetch(`{{ url_for('security.logs_clear', log_type='PLACEHOLDER') }}`.replace('PLACEHOLDER', logType), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRFToken': '{{ csrf_token() }}'
+        }
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(response.statusText);
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (!data.success) {
+          throw new Error(data.message);
+        }
+        return data;
+      })
+      .catch(error => {
+        Swal.showValidationMessage(`خطأ: ${error}`);
+      });
+    },
+    allowOutsideClick: () => !Swal.isLoading()
+  }).then((result) => {
+    if (result.isConfirmed) {
+      // نجح التنظيف
+      Swal.fire({
+        title: 'تم بنجاح!',
+        text: result.value.message || 'تم تنظيف اللوج بنجاح',
+        icon: 'success',
+        confirmButtonText: 'حسناً'
+      }).then(() => {
+        // إعادة تحميل الصفحة لتحديث أحجام الملفات
+        location.reload();
+      });
+    }
+  });
+}
+</script>
 {% endblock %}
 

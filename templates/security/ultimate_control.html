@@ -570,6 +570,63 @@
   </div>
 
   <hr class="my-4">
+  <h4 class="mb-3"><i class="fas fa-chart-line"></i> تحسينات الأداء و UX</h4>
+
+  <div class="row g-3 mb-4">
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <div class="card-body text-center">
+          <i class="fas fa-chart-line fa-3x text-white mb-3"></i>
+          <h5 class="text-white fw-bold">لوحة المراقبة الشاملة</h5>
+          <p class="text-white-50 small">Grafana-like Dashboard</p>
+          <a href="{{ url_for('security.monitoring_dashboard') }}" class="btn btn-light btn-sm fw-bold">
+            <i class="fas fa-tachometer-alt"></i> فتح لوحة المراقبة
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+        <div class="card-body text-center">
+          <i class="fas fa-server fa-3x text-white mb-3"></i>
+          <h5 class="text-white fw-bold">Grafana + Prometheus</h5>
+          <p class="text-white-50 small">Professional Monitoring</p>
+          <a href="{{ url_for('security.grafana_setup') }}" class="btn btn-light btn-sm fw-bold">
+            <i class="fas fa-cog"></i> إعداد Grafana
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4 col-md-6">
+      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);">
+        <div class="card-body text-center">
+          <i class="fas fa-moon fa-3x text-white mb-3"></i>
+          <h5 class="text-white fw-bold">الوضع الليلي</h5>
+          <p class="text-white-50 small">Dark Mode Settings</p>
+          <a href="{{ url_for('security.dark_mode_settings') }}" class="btn btn-light btn-sm fw-bold">
+            <i class="fas fa-cog"></i> إعدادات Dark Mode
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4 col-md-6">
+      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+        <div class="card-body text-center">
+          <i class="fas fa-robot fa-3x text-white mb-3"></i>
+          <h5 class="text-white fw-bold">المساعد الذكي AI</h5>
+          <p class="text-white-50 small">محلي 100%</p>
+          <a href="{{ url_for('security.ai_assistant') }}" class="btn btn-light btn-sm fw-bold">
+            <i class="fas fa-comments"></i> فتح المساعد
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="my-4">
   <h4 class="mb-3"><i class="fas fa-rocket"></i> الوحدات المتقدمة</h4>
 
   <div class="row g-3">

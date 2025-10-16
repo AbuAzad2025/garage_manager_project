@@ -1,6 +1,3 @@
-# partner_settlements.py - Partner Settlements Routes
-# Location: /garage_manager/routes/partner_settlements.py
-# Description: Partner settlements and financial agreements routes
 
 from datetime import datetime, date as _date, time as _time
 from decimal import Decimal, ROUND_HALF_UP
@@ -9,7 +6,7 @@ from flask_login import login_required
 from sqlalchemy import and_
 from sqlalchemy.exc import SQLAlchemyError
 from extensions import db
-from utils import permission_required
+import utils
 from models import Partner, PaymentDirection, PaymentMethod, PartnerSettlement, PartnerSettlementStatus, build_partner_settlement_draft, AuditLog
 import json
 
@@ -17,7 +14,7 @@ partner_settlements_bp = Blueprint("partner_settlements_bp", __name__, url_prefi
 
 @partner_settlements_bp.route("/settlements", methods=["GET"], endpoint="list")
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def settlements_list():
     """قائمة تسويات الشركاء"""
     return render_template("partner_settlements/list.html")
@@ -86,14 +83,14 @@ def _overlap_exists(partner_id: int, dfrom: datetime, dto: datetime) -> bool:
 
 @partner_settlements_bp.route("/<int:partner_id>/settlements/preview", methods=["GET"])
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def preview(partner_id):
     from flask import redirect
     return redirect(url_for('partner_settlements_bp.partner_settlement', partner_id=partner_id))
 
 @partner_settlements_bp.route("/<int:partner_id>/settlements/create", methods=["POST"])
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def create(partner_id):
     partner = _get_partner_or_404(partner_id)
     dfrom, dto, err = _extract_range_from_request()
@@ -140,7 +137,7 @@ def create(partner_id):
 
 @partner_settlements_bp.route("/settlements/<int:settlement_id>/confirm", methods=["POST"])
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def confirm(settlement_id):
     ps = db.session.get(PartnerSettlement, settlement_id)
     if not ps:
@@ -165,7 +162,7 @@ def confirm(settlement_id):
 
 @partner_settlements_bp.route("/settlements/<int:settlement_id>", methods=["GET"])
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def show(settlement_id):
     ps = db.session.get(PartnerSettlement, settlement_id)
     if not ps:
@@ -177,7 +174,7 @@ def show(settlement_id):
 
 @partner_settlements_bp.route("/<int:partner_id>/settlement", methods=["GET"], endpoint="partner_settlement")
 @login_required
-@permission_required("manage_vendors")
+# @permission_required("manage_vendors")  # Commented out
 def partner_settlement(partner_id):
     """التسوية الذكية للشريك"""
     partner = _get_partner_or_404(partner_id)

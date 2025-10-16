@@ -624,7 +624,6 @@ h1, h2, h3, h4, h5, h6 {
   padding: 1.5rem;
 }
 
-/* Enhanced Button System */
 .btn {
   border-radius: var(--border-radius);
   font-weight: var(--font-weight-medium);
@@ -1081,4 +1080,791 @@ img {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+.btn-action-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  padding: 0.6rem 1.5rem !important;
+  border-radius: 0.5rem !important;
+  font-weight: 700 !important;
+  font-size: 0.95rem !important;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4) !important;
+  transition: all 0.3s ease !important;
+  text-decoration: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+}
+
+.btn-action-primary:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6) !important;
+  color: #ffffff !important;
+}
+
+/* أزرار الإضافة - Add/Create */
+.btn-action-add {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  padding: 0.6rem 1.5rem !important;
+  border-radius: 0.5rem !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 15px rgba(56, 239, 125, 0.4) !important;
+  transition: all 0.3s ease !important;
+}
+
+.btn-action-add:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(56, 239, 125, 0.6) !important;
+}
+
+/* أزرار التعديل - Edit */
+.btn-action-edit {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  padding: 0.5rem 1.2rem !important;
+  border-radius: 0.4rem !important;
+  font-weight: 600 !important;
+  box-shadow: 0 3px 10px rgba(245, 87, 108, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.btn-action-edit:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 5px 15px rgba(245, 87, 108, 0.5) !important;
+}
+
+/* أزرار الحذف - Delete */
+.btn-action-delete {
+  background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  padding: 0.5rem 1.2rem !important;
+  border-radius: 0.4rem !important;
+  font-weight: 600 !important;
+  box-shadow: 0 3px 10px rgba(235, 51, 73, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.btn-action-delete:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 5px 15px rgba(235, 51, 73, 0.5) !important;
+}
+
+/* أزرار العرض - View */
+.btn-action-view {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  padding: 0.5rem 1.2rem !important;
+  border-radius: 0.4rem !important;
+  font-weight: 600 !important;
+  box-shadow: 0 3px 10px rgba(79, 172, 254, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.btn-action-view:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 5px 15px rgba(79, 172, 254, 0.5) !important;
+}
+
+/* أزرار العودة - Back/Cancel */
+.btn-action-back {
+  background: #6c757d !important;
+  color: #ffffff !important;
+  border: none !important;
+  padding: 0.5rem 1.2rem !important;
+  border-radius: 0.4rem !important;
+  font-weight: 600 !important;
+  transition: all 0.3s ease !important;
+}
+
+.btn-action-back:hover {
+  background: #5a6268 !important;
+  transform: translateY(-2px) !important;
+}
+
+/* أزرار الحفظ - Save */
+.btn-action-save {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  padding: 0.7rem 2rem !important;
+  border-radius: 0.5rem !important;
+  font-weight: 700 !important;
+  font-size: 1rem !important;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4) !important;
+  transition: all 0.3s ease !important;
+}
+
+.btn-action-save:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6) !important;
+}
+
+/* أزرار صغيرة - Small Actions */
+.btn-action-sm {
+  padding: 0.4rem 1rem !important;
+  font-size: 0.875rem !important;
+  border-radius: 0.3rem !important;
+}
+
+/* أزرار كبيرة - Large Actions */
+.btn-action-lg {
+  padding: 0.8rem 2.5rem !important;
+  font-size: 1.1rem !important;
+  border-radius: 0.6rem !important;
+}
+
+/* مجموعة أزرار - Button Group */
+.btn-group-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.btn-group-actions-end {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.btn-group-actions-center {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+}
+
+/* أزرار أيقونة فقط - Icon Only */
+.btn-icon-only {
+  width: 2.5rem !important;
+  height: 2.5rem !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 0.4rem !important;
+  transition: all 0.3s ease !important;
+}
+
+.btn-icon-only:hover {
+  transform: scale(1.1) !important;
+}
+
+/* أزرار التقارير - Reports */
+.btn-action-report {
+  background: linear-gradient(135deg, #FA8BFF 0%, #2BD2FF 90%, #2BFF88 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  padding: 0.6rem 1.5rem !important;
+  border-radius: 0.5rem !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 15px rgba(250, 139, 255, 0.4) !important;
+  transition: all 0.3s ease !important;
+}
+
+.btn-action-report:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(250, 139, 255, 0.6) !important;
+}
+
+/* أزرار التصدير - Export */
+.btn-action-export {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  padding: 0.5rem 1.2rem !important;
+  border-radius: 0.4rem !important;
+  font-weight: 600 !important;
+  box-shadow: 0 3px 10px rgba(245, 87, 108, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.btn-action-export:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 5px 15px rgba(245, 87, 108, 0.5) !important;
+}
+
+/* أزرار البحث - Search */
+.btn-action-search {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  padding: 0.5rem 1.2rem !important;
+  border-radius: 0.4rem !important;
+  font-weight: 600 !important;
+  box-shadow: 0 3px 10px rgba(79, 172, 254, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.btn-action-search:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 5px 15px rgba(79, 172, 254, 0.5) !important;
+}
+
+/* أزرار التحديث - Refresh */
+.btn-action-refresh {
+  background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%) !important;
+  color: #495057 !important;
+  border: none !important;
+  padding: 0.5rem 1.2rem !important;
+  border-radius: 0.4rem !important;
+  font-weight: 600 !important;
+  box-shadow: 0 3px 10px rgba(168, 237, 234, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.btn-action-refresh:hover {
+  transform: rotate(180deg) translateY(-2px) !important;
+  box-shadow: 0 5px 15px rgba(168, 237, 234, 0.5) !important;
+}
+
+/* أزرار التحميل - Download */
+.btn-action-download {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  padding: 0.5rem 1.2rem !important;
+  border-radius: 0.4rem !important;
+  font-weight: 600 !important;
+  box-shadow: 0 3px 10px rgba(245, 87, 108, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.btn-action-download:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 5px 15px rgba(245, 87, 108, 0.5) !important;
+}
+
+/* أزرار الطباعة - Print */
+.btn-action-print {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  padding: 0.5rem 1.2rem !important;
+  border-radius: 0.4rem !important;
+  font-weight: 600 !important;
+  box-shadow: 0 3px 10px rgba(102, 126, 234, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.btn-action-print:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.5) !important;
+}
+
+/* Container للأزرار */
+.actions-container {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 0.5rem;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
+}
+
+.actions-container-end {
+  justify-content: flex-end;
+}
+
+.actions-container-start {
+  justify-content: flex-start;
+}
+
+.actions-container-center {
+  justify-content: center;
+}
+
+.actions-container-between {
+  justify-content: space-between;
+}
+
+/* أزرار الجدول - Table Actions */
+.table-actions {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: center;
+  align-items: center;
+}
+
+.table-actions .btn {
+  padding: 0.4rem 0.8rem !important;
+  font-size: 0.85rem !important;
+  border-radius: 0.3rem !important;
+}
+
+/* أزرار البطاقات - Card Actions */
+.card-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.card-actions .btn {
+  flex: 1;
+  min-width: 120px;
+}
+
+/* أزرار النماذج - Form Actions */
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  padding: 1.5rem 0;
+  border-top: 2px solid #e9ecef;
+  margin-top: 2rem;
+  justify-content: flex-end;
+}
+
+.form-actions .btn {
+  min-width: 140px;
+}
+
+/* أزرار منبثقة - Floating Action Button */
+.btn-floating {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50% !important;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  transition: all 0.3s ease !important;
+  z-index: 1000;
+}
+
+.btn-floating:hover {
+  transform: scale(1.1) rotate(90deg) !important;
+  box-shadow: 0 12px 35px rgba(102, 126, 234, 0.8) !important;
+}
+
+/* أزرار التصفية - Filter */
+.btn-action-filter {
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  padding: 0.5rem 1.2rem !important;
+  border-radius: 0.4rem !important;
+  font-weight: 600 !important;
+  box-shadow: 0 3px 10px rgba(250, 112, 154, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.btn-action-filter:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 5px 15px rgba(250, 112, 154, 0.5) !important;
+}
+
+/* أزرار الأرشفة - Archive */
+.btn-action-archive {
+  background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%) !important;
+  color: #495057 !important;
+  border: none !important;
+  padding: 0.5rem 1.2rem !important;
+  border-radius: 0.4rem !important;
+  font-weight: 600 !important;
+  box-shadow: 0 3px 10px rgba(252, 182, 159, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.btn-action-archive:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 5px 15px rgba(252, 182, 159, 0.5) !important;
+  color: #212529 !important;
+}
+
+/* أزرار الاستعادة - Restore */
+.btn-action-restore {
+  background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%) !important;
+  color: #495057 !important;
+  border: none !important;
+  padding: 0.5rem 1.2rem !important;
+  border-radius: 0.4rem !important;
+  font-weight: 600 !important;
+  box-shadow: 0 3px 10px rgba(168, 237, 234, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.btn-action-restore:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 5px 15px rgba(168, 237, 234, 0.5) !important;
+  color: #212529 !important;
+}
+
+/* تحسينات عامة للأزرار */
+.btn {
+  cursor: pointer !important;
+  user-select: none !important;
+  text-transform: none !important;
+  letter-spacing: 0.02em !important;
+}
+
+.btn:active {
+  transform: scale(0.98) !important;
+}
+
+.btn:disabled, .btn.disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+
+/* أزرار مع أيقونة */
+.btn i {
+  margin-left: 0.4rem;
+}
+
+/* تجاوب الأزرار */
+@media (max-width: 768px) {
+  .btn-action-primary,
+  .btn-action-add,
+  .btn-action-save {
+    padding: 0.5rem 1.2rem !important;
+    font-size: 0.9rem !important;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+  }
+  
+  .form-actions .btn {
+    width: 100%;
+  }
+  
+  .actions-container {
+    flex-direction: column;
+  }
+  
+  .actions-container .btn {
+    width: 100%;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+*:focus {
+  outline: 3px solid #667eea;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+button:focus, a:focus, input:focus, select:focus, textarea:focus {
+  outline: 3px solid #667eea;
+  outline-offset: 2px;
+}
+
+.skeleton-loader {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.skeleton-item {
+  height: 60px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  border-radius: 0.5rem;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.toast-container {
+  position: fixed;
+  top: 80px;
+  left: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.toast {
+  min-width: 300px;
+  padding: 1rem 1.5rem;
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  animation: slideInLeft 0.3s ease;
+}
+
+.toast.success {
+  border-right: 4px solid #38ef7d;
+}
+
+.toast.error {
+  border-right: 4px solid #eb3349;
+}
+
+.toast.info {
+  border-right: 4px solid #4facfe;
+}
+
+.toast.warning {
+  border-right: 4px solid #fee140;
+}
+
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+tbody tr {
+  transition: all 0.2s ease;
+}
+
+tbody tr:hover {
+  background: #f8f9fa !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  transform: scale(1.005);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #6c757d;
+}
+
+.empty-state img {
+  max-width: 200px;
+  opacity: 0.6;
+  margin-bottom: 1.5rem;
+}
+
+.empty-state h4 {
+  color: #495057;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+  color: #6c757d;
+  margin-bottom: 1.5rem;
+}
+
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+}
+
+.loading-spinner {
+  width: 60px;
+  height: 60px;
+  border: 4px solid rgba(255,255,255,0.3);
+  border-top: 4px solid #ffffff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.btn.loading {
+  position: relative;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.btn.loading .btn-text {
+  opacity: 0;
+}
+
+.btn.loading .btn-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.quick-actions-fab {
+  position: fixed;
+  bottom: 2rem;
+  left: 2rem;
+  z-index: 1000;
+}
+
+.fab-trigger {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.fab-trigger:hover {
+  transform: scale(1.1) rotate(45deg);
+  box-shadow: 0 12px 35px rgba(102, 126, 234, 0.8);
+}
+
+.fab-menu {
+  position: absolute;
+  bottom: 80px;
+  left: 0;
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  padding: 0.5rem;
+  display: none;
+  min-width: 200px;
+}
+
+.fab-menu.active {
+  display: block;
+  animation: fadeInUp 0.3s ease;
+}
+
+.fab-menu a {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  color: #495057;
+  text-decoration: none;
+  border-radius: 0.3rem;
+  transition: all 0.2s ease;
+}
+
+.fab-menu a:hover {
+  background: #f8f9fa;
+  color: #667eea;
+  transform: translateX(5px);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .quick-actions-fab {
+    bottom: 5rem;
+  }
+}
+
+.password-strength {
+  margin-top: 0.5rem;
+}
+
+.strength-bar {
+  height: 4px;
+  border-radius: 2px;
+  transition: all 0.3s ease;
+  margin-bottom: 0.5rem;
+}
+
+.strength-bar.weak {
+  width: 33%;
+  background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+}
+
+.strength-bar.medium {
+  width: 66%;
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+}
+
+.strength-bar.strong {
+  width: 100%;
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+}
+
+.mobile-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+  display: none;
+  justify-content: space-around;
+  padding: 0.5rem;
+  z-index: 1000;
+}
+
+.mobile-bottom-nav a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  color: #6c757d;
+  text-decoration: none;
+  font-size: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.mobile-bottom-nav a:hover,
+.mobile-bottom-nav a.active {
+  color: #667eea;
+}
+
+.mobile-bottom-nav a i {
+  font-size: 1.25rem;
+}
+
+@media (max-width: 768px) {
+  .mobile-bottom-nav {
+    display: flex;
+  }
+  
+  .content-wrapper {
+    padding-bottom: 5rem;
+  }
 }

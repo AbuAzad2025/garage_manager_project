@@ -6,7 +6,7 @@
   <div class="d-flex align-items-center justify-content-between mb-3">
     <h2 class="mb-0"><i class="fas fa-users me-2"></i>الموظفون</h2>
     {% if current_user.has_permission('manage_expenses') %}
-    <a href="{{ url_for('expenses_bp.add_employee') }}" class="btn btn-success">
+    <a href="{{ url_for('expenses_bp.add_employee') }}" class="btn btn-action-add">
       <i class="fas fa-plus"></i> إضافة موظف
     </a>
     {% endif %}

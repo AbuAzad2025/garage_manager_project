@@ -27,19 +27,55 @@
 </nav>
 
 <main class="container py-4">
+  <!-- إحصائيات سريعة -->
+  <div class="row mb-3">
+    <div class="col-md-3">
+      <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <div class="card-body text-white text-center">
+          <h3 class="mb-1">{{ rows|length }}</h3>
+          <p class="mb-0 small">إجمالي المعاملات</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);">
+        <div class="card-body text-white text-center">
+          <h3 class="mb-1">{{ rows|selectattr('status', 'equalto', 'SUCCESS')|list|length }}</h3>
+          <p class="mb-0 small">معاملات ناجحة</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #ffd89b 0%, #19547b 100%);">
+        <div class="card-body text-white text-center">
+          <h3 class="mb-1">{{ rows|selectattr('status', 'equalto', 'PENDING')|list|length }}</h3>
+          <p class="mb-0 small">قيد الانتظار</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);">
+        <div class="card-body text-white text-center">
+          <h3 class="mb-1">{{ rows|selectattr('status', 'equalto', 'FAILED')|list|length }}</h3>
+          <p class="mb-0 small">معاملات فاشلة</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="card shadow-sm mb-3">
     <div class="card-body">
       <form method="GET" class="row g-2 align-items-end">
         <div class="col-6 col-md-3">
-          <label class="form-label">من</label>
+          <label class="form-label fw-bold">من</label>
           <input type="date" class="form-control" name="start" value="{{ request.args.get('start','') }}">
         </div>
         <div class="col-6 col-md-3">
-          <label class="form-label">إلى</label>
+          <label class="form-label fw-bold">إلى</label>
           <input type="date" class="form-control" name="end" value="{{ request.args.get('end','') }}">
         </div>
         <div class="col-6 col-md-3">
-          <label class="form-label">الحالة</label>
+          <label class="form-label fw-bold">الحالة</label>
           <select class="form-select" name="status">
             <option value="">الكل</option>
             {% for s in ['PENDING','SUCCESS','FAILED','REFUNDED'] %}
@@ -48,11 +84,12 @@
           </select>
         </div>
         <div class="col-6 col-md-3">
-          <label class="form-label">بحث</label>
+          <label class="form-label fw-bold">بحث</label>
           <input type="text" class="form-control" name="q" placeholder="مرجع/اسم/هاتف" value="{{ request.args.get('q','') }}">
         </div>
         <div class="col-12 text-end">
           <button class="btn btn-primary"><i class="fa-solid fa-magnifying-glass me-1"></i> تصفية</button>
+          <a href="{{ url_for('admin_reports.cards') }}" class="btn btn-secondary"><i class="fa-solid fa-undo me-1"></i> إعادة تعيين</a>
         </div>
       </form>
     </div>

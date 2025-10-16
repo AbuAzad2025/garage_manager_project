@@ -1,6 +1,3 @@
-# auth.py - Authentication Routes
-# Location: /garage_manager/routes/auth.py
-# Description: User authentication and authorization routes
 
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -15,7 +12,7 @@ from sqlalchemy import select, func
 from extensions import db, limiter, mail
 from forms import LoginForm, CustomerFormOnline, CustomerPasswordResetForm, CustomerPasswordResetRequestForm
 from models import Customer, User
-from utils import _audit, redis_client as _redis
+import utils
 
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
@@ -89,9 +86,9 @@ def _la_key(ip: str, identifier: Optional[str]) -> str:
 
 def is_blocked(ip: str, identifier: Optional[str]) -> bool:
     try:
-        if _redis:
+        if utils.redis_client:
             key = _la_key(ip, identifier)
-            val = _redis.get(key)
+            val = utils.redis_client.get(key)
             if val is None:
                 return False
             try:
@@ -116,9 +113,9 @@ def is_blocked(ip: str, identifier: Optional[str]) -> bool:
 
 def record_attempt(ip: str, identifier: Optional[str]) -> None:
     try:
-        if _redis:
+        if utils.redis_client:
             key = _la_key(ip, identifier)
-            pipe = _redis.pipeline()
+            pipe = utils.redis_client.pipeline()
             pipe.incr(key)
             pipe.expire(key, int(BLOCK_TIME.total_seconds()))
             pipe.execute()
@@ -132,8 +129,8 @@ def record_attempt(ip: str, identifier: Optional[str]) -> None:
 
 def clear_attempts(ip: str, identifier: Optional[str]) -> None:
     try:
-        if _redis:
-            _redis.delete(_la_key(ip, identifier))
+        if utils.redis_client:
+            utils.redis_client.delete(_la_key(ip, identifier))
     except Exception:
         pass
     _login_attempts_mem.pop((ip, _norm_ident(identifier)), None)
@@ -157,7 +154,7 @@ def login():
     identifier = _get_login_identifier(form)
     if is_blocked(ip, identifier):
         flash("❌ تم حظر محاولات الدخول مؤقتًا، حاول بعد 10 دقائق.", "danger")
-        _audit("login.blocked", ok=False, note="blocked window")
+        utils._audit("login.blocked", ok=False, note="blocked window")
         return render_template("auth/login.html", form=form)
 
     password = request.form.get("password", "") or ""
@@ -195,7 +192,7 @@ def login():
         except Exception:
             db.session.rollback()
         clear_attempts(ip, identifier)
-        _audit("login.success", ok=True, user_id=user.id, note=f"ip={ip}")
+        utils._audit("login.success", ok=True, user_id=user.id, note=f"ip={ip}")
         return _redirect_back_or("main.dashboard")
 
     if customer and customer.check_password(password) and customer.is_online and customer.is_active:
@@ -212,11 +209,11 @@ def login():
         
         login_user(customer, remember=remember, fresh=True)
         clear_attempts(ip, identifier)
-        _audit("login.success.customer", ok=True, customer_id=customer.id, note=f"ip={ip}")
+        utils._audit("login.success.customer", ok=True, customer_id=customer.id, note=f"ip={ip}")
         return _redirect_back_or("shop.catalog")
 
     record_attempt(ip, identifier)
-    _audit("login.failed", ok=False, note=f"id={identifier or ''}; ip={ip}")
+    utils._audit("login.failed", ok=False, note=f"id={identifier or ''}; ip={ip}")
     flash("❌ بيانات الدخول غير صحيحة.", "danger")
     return render_template("auth/login.html", form=form)
 
@@ -224,7 +221,7 @@ def login():
 @auth_bp.route("/logout", methods=["POST"])
 @login_required
 def logout():
-    _audit("logout", ok=True, user_id=getattr(current_user, "id", None))
+    utils._audit("logout", ok=True, user_id=getattr(current_user, "id", None))
     logout_user()
     flash("تم تسجيل الخروج بنجاح.", "info")
     resp = redirect(url_for("auth.login", fresh=1))
@@ -264,7 +261,7 @@ def customer_register():
         db.session.add(customer)
         db.session.commit()
         login_user(customer, fresh=True)
-        _audit("customer.register", ok=True, customer_id=customer.id)
+        utils._audit("customer.register", ok=True, customer_id=customer.id)
         flash("✅ تم إنشاء حسابك بنجاح! يمكنك الآن استخدام المتجر.", "success")
         return redirect(url_for("shop.catalog"))
     return render_template("auth/customer_register.html", form=form)
@@ -308,7 +305,7 @@ def customer_password_reset(token: str):
     if form.validate_on_submit():
         customer.set_password(form.password.data)
         db.session.commit()
-        _audit("customer.password_reset", ok=True, customer_id=customer.id)
+        utils._audit("customer.password_reset", ok=True, customer_id=customer.id)
         flash("✅ تم تحديث كلمة المرور بنجاح.", "success")
         return redirect(url_for("auth.login"))
     return render_template("auth/customer_password_reset.html", form=form, token=token)

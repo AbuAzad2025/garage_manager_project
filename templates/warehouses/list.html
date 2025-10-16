@@ -9,6 +9,73 @@
 {% endblock %}
 
 {% block content %}
+<!-- إحصائيات سريعة -->
+<div class="row mb-4">
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="card border-0 shadow-sm bg-primary text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">إجمالي المستودعات</h6>
+            <h3 class="mb-0 fw-bold">{{ warehouses|length if warehouses else 0 }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-warehouse fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="card border-0 shadow-sm bg-success text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">المستودعات النشطة</h6>
+            <h3 class="mb-0 fw-bold">{{ warehouses|selectattr('is_active')|list|length if warehouses else 0 }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-check-circle fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="card border-0 shadow-sm bg-info text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">مستودعات رئيسية</h6>
+            <h3 class="mb-0 fw-bold">{{ warehouses|selectattr('warehouse_type', 'equalto', 'MAIN')|list|length if warehouses else 0 }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-building fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="card border-0 shadow-sm bg-warning text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">مستودعات الشركاء</h6>
+            <h3 class="mb-0 fw-bold">{{ warehouses|selectattr('warehouse_type', 'equalto', 'PARTNER')|list|length if warehouses else 0 }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-handshake fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="card shadow-sm">
   <div class="card-body">
 
@@ -37,7 +104,7 @@
       </form>
 
       {% if current_user.has_permission('manage_warehouses') %}
-      <a href="{{ url_for('warehouse_bp.create') }}" class="btn btn-success">
+      <a href="{{ url_for('warehouse_bp.create') }}" class="btn btn-action-add">
         <i class="fas fa-plus"></i> مستودع جديد
       </a>
       {% endif %}
@@ -60,26 +127,28 @@
             <tr>
               <td class="text-center">{{ w.id }}</td>
               <td><a href="{{ url_for('warehouse_bp.detail', warehouse_id=w.id) }}">{{ w.name }}</a></td>
-              <td>{{ w.warehouse_type_display | default(w.warehouse_type, true) }}</td>
+              <td>{{ ar_label('warehouse_type', w.warehouse_type) if ar_label else w.warehouse_type }}</td>
               <td>{{ '✓' if w.is_active else '✗' }}</td>
               <td class="text-nowrap">
-                <a class="btn btn-sm btn-outline-info" href="{{ url_for('warehouse_bp.preview_inventory', warehouse_id=w.id) }}">
-                  <i class="fas fa-clipboard-list"></i> معاينة
-                </a>
-                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('warehouse_bp.detail', warehouse_id=w.id) }}">
-                  <i class="fas fa-eye"></i> تفاصيل
-                </a>
-                {% if current_user.has_permission('manage_warehouses') %}
-                <a class="btn btn-sm btn-outline-warning" href="{{ url_for('warehouse_bp.edit', warehouse_id=w.id) }}">
-                  <i class="fas fa-edit"></i> تعديل
-                </a>
-                <form method="post" action="{{ url_for('warehouse_bp.delete', warehouse_id=w.id) }}" class="d-inline">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="btn btn-sm btn-outline-danger btn-delete">
-                    <i class="fas fa-trash"></i> حذف
-                  </button>
-                </form>
-                {% endif %}
+                <div class="table-actions">
+                  <a class="btn btn-action-view btn-action-sm" href="{{ url_for('warehouse_bp.detail', warehouse_id=w.id) }}" title="تفاصيل">
+                    <i class="fas fa-eye"></i>
+                  </a>
+                  <a class="btn btn-action-report btn-action-sm" href="{{ url_for('warehouse_bp.preview_inventory', warehouse_id=w.id) }}" title="معاينة">
+                    <i class="fas fa-clipboard-list"></i>
+                  </a>
+                  {% if current_user.has_permission('manage_warehouses') %}
+                  <a class="btn btn-action-edit btn-action-sm" href="{{ url_for('warehouse_bp.edit', warehouse_id=w.id) }}" title="تعديل">
+                    <i class="fas fa-edit"></i>
+                  </a>
+                  <form method="post" action="{{ url_for('warehouse_bp.delete', warehouse_id=w.id) }}" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-action-delete btn-action-sm btn-delete" title="حذف">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </form>
+                  {% endif %}
+                </div>
               </td>
             </tr>
             {% endfor %}

@@ -178,47 +178,63 @@
         <div class="container-fluid">
             
             <!-- إحصائيات سريعة -->
-            <div class="row mb-4">
-                <div class="col-lg-3 col-6">
-                    <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                        <i class="fas fa-clock stat-icon"></i>
-                        <div class="stat-content" style="position: relative; z-index: 1;">
-                            <h3 id="stat-pending-count">0</h3>
-                        <p class="mb-0">شيكات آجلة (معلقة)</p>
-                            <small id="stat-pending-amount">0.00 ₪</small>
+            <div class="row mb-4 g-3">
+                <div class="col-lg-3 col-md-6">
+                    <div class="card border-0 shadow-sm text-white h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="text-white-50 mb-1">شيكات آجلة (معلقة)</h6>
+                                    <h3 class="mb-0 fw-bold" id="stat-pending-count">0</h3>
+                                    <small class="opacity-75" id="stat-pending-amount">0.00 ₪</small>
+                                </div>
+                                <i class="fas fa-clock fa-2x opacity-50"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
                 
-                <div class="col-lg-3 col-6">
-                    <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                        <i class="fas fa-check-circle stat-icon"></i>
-                        <div class="stat-content" style="position: relative; z-index: 1;">
-                            <h3 id="stat-cashed-count">0</h3>
-                        <p class="mb-0">شيكات مسحوبة</p>
-                            <small id="stat-cashed-amount">0.00 ₪</small>
+                <div class="col-lg-3 col-md-6">
+                    <div class="card border-0 shadow-sm text-white h-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="text-white-50 mb-1">شيكات مسحوبة</h6>
+                                    <h3 class="mb-0 fw-bold" id="stat-cashed-count">0</h3>
+                                    <small class="opacity-75" id="stat-cashed-amount">0.00 ₪</small>
+                                </div>
+                                <i class="fas fa-check-circle fa-2x opacity-50"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
                 
-                <div class="col-lg-3 col-6">
-                    <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                        <i class="fas fa-undo stat-icon"></i>
-                        <div class="stat-content" style="position: relative; z-index: 1;">
-                            <h3 id="stat-returned-count">0</h3>
-                        <p class="mb-0">شيكات مرتجعة</p>
-                            <small id="stat-returned-amount">0.00 ₪</small>
+                <div class="col-lg-3 col-md-6">
+                    <div class="card border-0 shadow-sm text-white h-100" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="text-white-50 mb-1">شيكات مرتجعة</h6>
+                                    <h3 class="mb-0 fw-bold" id="stat-returned-count">0</h3>
+                                    <small class="opacity-75" id="stat-returned-amount">0.00 ₪</small>
+                                </div>
+                                <i class="fas fa-undo fa-2x opacity-50"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
                 
-                <div class="col-lg-3 col-6">
-                    <div class="stat-card" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
-                        <i class="fas fa-exclamation-triangle stat-icon"></i>
-                        <div class="stat-content" style="position: relative; z-index: 1;">
-                            <h3 id="stat-overdue-count">0</h3>
-                        <p class="mb-0">شيكات متأخرة</p>
-                            <small id="stat-overdue-amount">0.00 ₪</small>
+                <div class="col-lg-3 col-md-6">
+                    <div class="card border-0 shadow-sm text-white h-100" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="text-white-50 mb-1">شيكات متأخرة</h6>
+                                    <h3 class="mb-0 fw-bold" id="stat-overdue-count">0</h3>
+                                    <small class="opacity-75" id="stat-overdue-amount">0.00 ₪</small>
+                                </div>
+                                <i class="fas fa-exclamation-triangle fa-2x opacity-50"></i>
+                            </div>
                         </div>
                     </div>
                 </div>

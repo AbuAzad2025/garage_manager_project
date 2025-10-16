@@ -1,6 +1,3 @@
-# shop.py - Online Shop Routes
-# Location: /garage_manager/routes/shop.py
-# Description: Online shop and e-commerce functionality routes
 
 from datetime import datetime
 import uuid, json
@@ -34,7 +31,7 @@ from models import (
     PaymentDirection,
     PaymentEntityType,
 )
-from utils import send_whatsapp_message
+import utils
 
 shop_bp = Blueprint("shop", __name__, url_prefix="/shop", template_folder="templates/shop")
 
@@ -872,7 +869,7 @@ def checkout():
             try:
                 if getattr(g.online_customer, "phone", None):
                     if prepaid > 0 and op.status == "SUCCESS":
-                        send_whatsapp_message(
+                        utils.send_whatsapp_message(
                             g.online_customer.phone,
                             f"✅ تم تأكيد طلبك {preorder.order_number} وإتمام الدفع بنجاح. تم دفع عربون {prepaid} {getattr(g.online_customer,'currency','ILS')}"
                         )

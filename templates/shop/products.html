@@ -114,13 +114,13 @@
             {% if can_manage %}
               <td class="text-center">
                 <div class="btn-group btn-group-sm">
-                  <a href="{{ url_for('shop.admin_product_edit', pid=p.id) }}" class="btn btn-warning" title="تعديل">
+                  <a href="{{ url_for('shop.admin_product_edit', pid=p.id) }}" class="btn btn-action-edit btn-action-sm" title="تعديل">
                     <i class="fas fa-edit"></i>
                   </a>
                   <form method="POST" action="{{ url_for('shop.admin_product_delete', pid=p.id) }}"
                         onsubmit="return confirm('تأكيد حذف {{ display_name }}؟ لا يمكن التراجع.');" class="d-inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn btn-danger" title="حذف">
+                    <button type="submit" class="btn btn-action-delete btn-action-sm" title="حذف">
                       <i class="fas fa-trash"></i>
                     </button>
                   </form>

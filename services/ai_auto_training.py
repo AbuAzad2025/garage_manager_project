@@ -1,6 +1,3 @@
-# ai_auto_training.py - AI Auto Training System
-# Location: /garage_manager/services/ai_auto_training.py
-# Description: AI automatic training and learning system
 
 
 import os

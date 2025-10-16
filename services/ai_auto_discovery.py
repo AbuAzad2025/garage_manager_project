@@ -1,6 +1,3 @@
-# ai_auto_discovery.py - AI Auto Discovery System
-# Location: /garage_manager/services/ai_auto_discovery.py
-# Description: AI auto-discovery and system exploration
 
 
 import os

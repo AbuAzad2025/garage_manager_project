@@ -3,40 +3,92 @@
 {% block page_title %}معاينة الاستيراد - {{ warehouse.name }}{% endblock %}
 {% block content %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/import.css') }}">
-<div class="card shadow-sm mb-3">
-  <div class="card-body">
-    <div class="row g-3 align-items-center">
-      <div class="col-md-2">
-        <div class="stat">
-          <div class="stat-label">إجمالي الصفوف</div>
-          <div class="stat-value">{{ report.total }}</div>
-        </div>
-      </div>
-      <div class="col-md-2">
-        <div class="stat">
-          <div class="stat-label">جديد</div>
-          <div class="stat-value text-success">{{ report.new_items }}</div>
-        </div>
-      </div>
-      <div class="col-md-2">
-        <div class="stat">
-          <div class="stat-label">مطابق</div>
-          <div class="stat-value text-primary">{{ report.matches }}</div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="stat">
-          <div class="stat-label">صفوف ناقصة الاسم</div>
-          <div class="stat-value text-danger">{{ report.missing_required_rows|length }}</div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="stat">
-          <div class="stat-label">تحذيرات</div>
-          <div class="stat-value text-warning">{{ report.warnings|length }}</div>
+<!-- إحصائيات سريعة -->
+<div class="row mb-4">
+  <div class="col-lg-2 col-md-4 mb-3">
+    <div class="card border-0 shadow-sm bg-primary text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">إجمالي الصفوف</h6>
+            <h3 class="mb-0 fw-bold">{{ report.total }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-list fa-2x opacity-75"></i>
+          </div>
         </div>
       </div>
     </div>
+  </div>
+  
+  <div class="col-lg-2 col-md-4 mb-3">
+    <div class="card border-0 shadow-sm bg-success text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">منتجات جديدة</h6>
+            <h3 class="mb-0 fw-bold">{{ report.new_items }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-plus-circle fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-2 col-md-4 mb-3">
+    <div class="card border-0 shadow-sm bg-info text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">منتجات مطابقة</h6>
+            <h3 class="mb-0 fw-bold">{{ report.matches }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-check-circle fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="card border-0 shadow-sm bg-danger text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">صفوف ناقصة الاسم</h6>
+            <h3 class="mb-0 fw-bold">{{ report.missing_required_rows|length }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-exclamation-triangle fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="card border-0 shadow-sm bg-warning text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">تحذيرات</h6>
+            <h3 class="mb-0 fw-bold">{{ report.warnings|length }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-exclamation-circle fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+  <div class="card-body">
+    <div class="row g-3 align-items-center">
     <div class="mt-3 d-flex flex-wrap gap-2">
       <input type="hidden" id="token" value="{{ token }}">
       <input type="text" id="searchBox" class="form-control w-auto" placeholder="بحث">

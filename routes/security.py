@@ -1,14 +1,10 @@
-# security.py - Security Routes
-# Location: /garage_manager/routes/security.py
-# Description: Security management and system administration routes
-
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import text, func
 from datetime import datetime, timedelta, timezone
 from extensions import db, cache
 from models import User, AuditLog
-from utils import is_super
+import utils
 from functools import wraps
 import json
 import os
@@ -69,13 +65,12 @@ def _get_action_color(action):
     return 'secondary'
 
 
-# SECURITY: Owner only decorator (أول Super Admin فقط - المالك)
 def owner_only(f):
     @wraps(f)
     @login_required
     def decorated_function(*args, **kwargs):
         # فحص 1: يجب أن يكون Super Admin
-        if not is_super():
+        if not utils.is_super():
             flash('⛔ الوصول محظور', 'danger')
             return redirect(url_for('main.dashboard'))
         
@@ -182,7 +177,7 @@ def block_user(user_id):
     """حظر مستخدم معين"""
     user = User.query.get_or_404(user_id)
     
-    if is_super() and user.id == current_user.id:
+    if utils.is_super() and user.id == current_user.id:
         flash('❌ لا يمكنك حظر نفسك!', 'danger')
     else:
         user.is_active = False
@@ -842,74 +837,131 @@ def card_vault():
     return render_template('security/card_vault.html', cards=cards, stats=stats)
 
 
-@security_bp.route('/theme-editor', methods=['GET', 'POST'])
+@security_bp.route('/code-editor', methods=['GET', 'POST'])
+@security_bp.route('/theme-editor', methods=['GET', 'POST'])  # Backward compatibility
 @owner_only
 def theme_editor():
-    """محرر المظهر - تعديل CSS مباشر"""
+    """محرر الكود الموحد - 3 في 1 (CSS + HTML + النصوص)"""
     import os
-    css_dir = os.path.join(current_app.root_path, 'static', 'css')
-    
-    if request.method == 'POST':
-        filename = request.form.get('filename', 'style.css')
-        content = request.form.get('content', '')
-        
-        if filename.endswith('.css') and not '..' in filename:
-            filepath = os.path.join(css_dir, filename)
-            try:
-                with open(filepath, 'w', encoding='utf-8') as f:
-                    f.write(content)
-                flash(f'✅ تم حفظ {filename} بنجاح!', 'success')
-            except Exception as e:
-                flash(f'❌ خطأ: {str(e)}', 'danger')
-        else:
-            flash('❌ اسم ملف غير صالح', 'danger')
-    
-    css_files = [f for f in os.listdir(css_dir) if f.endswith('.css')]
-    selected_file = request.args.get('file', 'style.css')
-    
-    content = ''
-    if selected_file in css_files:
-        filepath = os.path.join(css_dir, selected_file)
-        try:
-            with open(filepath, 'r', encoding='utf-8') as f:
-                content = f.read()
-        except:
-            content = ''
-    
-    return render_template('security/theme_editor.html', 
-                         css_files=css_files, 
-                         selected_file=selected_file,
-                         content=content)
-
-
-@security_bp.route('/text-editor', methods=['GET', 'POST'])
-@owner_only
-def text_editor():
-    """محرر النصوص - تخصيص الترجمات والنصوص"""
     from models import SystemSettings
     
-    if request.method == 'POST':
-        key = request.form.get('key')
-        value = request.form.get('value')
-        
-        setting = SystemSettings.query.filter_by(key=key).first()
-        if setting:
-            setting.value = value
-        else:
-            setting = SystemSettings(key=key, value=value)
-            db.session.add(setting)
-        
-        db.session.commit()
-        flash(f'✅ تم تحديث {key}', 'success')
-        return redirect(url_for('security.text_editor'))
+    editor_type = request.args.get('type', 'css')  # css, html, text
     
+    if request.method == 'POST':
+        editor_type = request.form.get('editor_type', 'css')
+        
+        if editor_type == 'css':
+            # حفظ CSS
+            css_dir = os.path.join(current_app.root_path, 'static', 'css')
+            filename = request.form.get('filename', 'style.css')
+            content = request.form.get('content', '')
+            
+            if filename.endswith('.css') and not '..' in filename:
+                filepath = os.path.join(css_dir, filename)
+                try:
+                    with open(filepath, 'w', encoding='utf-8') as f:
+                        f.write(content)
+                    flash(f'✅ تم حفظ {filename} بنجاح!', 'success')
+                except Exception as e:
+                    flash(f'❌ خطأ: {str(e)}', 'danger')
+                    
+        elif editor_type == 'html':
+            # حفظ HTML Template
+            templates_dir = os.path.join(current_app.root_path, 'templates')
+            filepath = request.form.get('filepath', '')
+            content = request.form.get('content', '')
+            
+            if filepath and not '..' in filepath:
+                full_path = os.path.join(templates_dir, filepath)
+                try:
+                    os.makedirs(os.path.dirname(full_path), exist_ok=True)
+                    with open(full_path, 'w', encoding='utf-8') as f:
+                        f.write(content)
+                    flash(f'✅ تم حفظ {filepath} بنجاح!', 'success')
+                except Exception as e:
+                    flash(f'❌ خطأ: {str(e)}', 'danger')
+                    
+        elif editor_type == 'text':
+            # حفظ النصوص
+            key = request.form.get('key')
+            value = request.form.get('value')
+            
+            setting = SystemSettings.query.filter_by(key=key).first()
+            if setting:
+                setting.value = value
+            else:
+                setting = SystemSettings(key=key, value=value)
+                db.session.add(setting)
+            
+            db.session.commit()
+            flash(f'✅ تم تحديث {key}', 'success')
+        
+        return redirect(url_for('security.theme_editor', type=editor_type))
+    
+    # جمع البيانات حسب النوع
+    data = {}
+    
+    # CSS Files
+    css_dir = os.path.join(current_app.root_path, 'static', 'css')
+    css_files = [f for f in os.listdir(css_dir) if f.endswith('.css')]
+    selected_css = request.args.get('file', 'style.css')
+    css_content = ''
+    if selected_css in css_files:
+        try:
+            with open(os.path.join(css_dir, selected_css), 'r', encoding='utf-8') as f:
+                css_content = f.read()
+        except:
+            pass
+    data['css'] = {'files': css_files, 'selected': selected_css, 'content': css_content}
+    
+    # HTML Templates
+    templates_dir = os.path.join(current_app.root_path, 'templates')
+    def get_templates_tree(directory, prefix=''):
+        items = []
+        try:
+            for item in sorted(os.listdir(directory)):
+                if item.startswith('.') or item == '__pycache__':
+                    continue
+                full_path = os.path.join(directory, item)
+                rel_path = os.path.join(prefix, item) if prefix else item
+                if os.path.isdir(full_path):
+                    items.append({'type': 'dir', 'name': item, 'path': rel_path})
+                    items.extend(get_templates_tree(full_path, rel_path))
+                elif item.endswith('.html'):
+                    items.append({'type': 'file', 'name': item, 'path': rel_path})
+        except:
+            pass
+        return items
+    
+    templates_tree = get_templates_tree(templates_dir)
+    selected_template = request.args.get('template', 'base.html')
+    template_content = ''
+    if selected_template and not '..' in selected_template:
+        try:
+            with open(os.path.join(templates_dir, selected_template), 'r', encoding='utf-8') as f:
+                template_content = f.read()
+        except:
+            pass
+    data['html'] = {'tree': templates_tree, 'selected': selected_template, 'content': template_content}
+    
+    # Text Settings
     text_settings = SystemSettings.query.filter(
         SystemSettings.key.like('%_text%') | 
         SystemSettings.key.like('%_label%') |
         SystemSettings.key.like('%_name%')
     ).all()
+    data['text'] = {'settings': text_settings}
     
-    return render_template('security/text_editor.html', settings=text_settings)
+    return render_template('security/theme_editor.html', 
+                         data=data,
+                         active_tab=editor_type)
+
+
+@security_bp.route('/text-editor', methods=['GET', 'POST'])
+@owner_only
+def text_editor():
+    """إعادة توجيه لمحرر الكود الموحد - تبويب النصوص"""
+    return redirect(url_for('security.theme_editor', type='text'))
 
 
 @security_bp.route('/logo-manager', methods=['GET', 'POST'])
@@ -957,57 +1009,8 @@ def logo_manager():
 @security_bp.route('/template-editor', methods=['GET', 'POST'])
 @owner_only
 def template_editor():
-    """محرر القوالب - تعديل HTML مباشر"""
-    import os
-    templates_dir = os.path.join(current_app.root_path, 'templates')
-    
-    if request.method == 'POST':
-        filepath = request.form.get('filepath', '')
-        content = request.form.get('content', '')
-        
-        if filepath and not '..' in filepath:
-            full_path = os.path.join(templates_dir, filepath)
-            try:
-                os.makedirs(os.path.dirname(full_path), exist_ok=True)
-                with open(full_path, 'w', encoding='utf-8') as f:
-                    f.write(content)
-                flash(f'✅ تم حفظ {filepath} بنجاح!', 'success')
-            except Exception as e:
-                flash(f'❌ خطأ: {str(e)}', 'danger')
-    
-    selected_file = request.args.get('file', 'base.html')
-    content = ''
-    
-    if selected_file and not '..' in selected_file:
-        filepath = os.path.join(templates_dir, selected_file)
-        try:
-            with open(filepath, 'r', encoding='utf-8') as f:
-                content = f.read()
-        except:
-            content = ''
-    
-    def get_templates_tree(directory, prefix=''):
-        items = []
-        try:
-            for item in sorted(os.listdir(directory)):
-                if item.startswith('.'):
-                    continue
-                full_path = os.path.join(directory, item)
-                rel_path = os.path.join(prefix, item) if prefix else item
-                if os.path.isdir(full_path):
-                    items.append({'name': item, 'path': rel_path, 'is_dir': True})
-                elif item.endswith('.html'):
-                    items.append({'name': item, 'path': rel_path, 'is_dir': False})
-        except:
-            pass
-        return items
-    
-    templates_tree = get_templates_tree(templates_dir)
-    
-    return render_template('security/template_editor.html',
-                         templates=templates_tree,
-                         selected_file=selected_file,
-                         content=content)
+    """إعادة توجيه لمحرر الكود الموحد - تبويب HTML"""
+    return redirect(url_for('security.theme_editor', type='html'))
 
 
 @security_bp.route('/table-manager', methods=['GET', 'POST'])
@@ -1462,33 +1465,92 @@ def python_console():
     return render_template('security/python_console.html', result=result, error=error)
 
 
-@security_bp.route('/system-settings', methods=['GET', 'POST'])
+@security_bp.route('/settings', methods=['GET', 'POST'])
+@security_bp.route('/system-settings', methods=['GET', 'POST'])  # Backward compatibility
 @owner_only
 def system_settings():
-    """إعدادات النظام الحرجة"""
-    if request.method == 'POST':
-        # حفظ الإعدادات
-        settings = {
-            'maintenance_mode': request.form.get('maintenance_mode') == 'on',
-            'registration_enabled': request.form.get('registration_enabled') == 'on',
-            'api_enabled': request.form.get('api_enabled') == 'on',
-        }
-        
-        # حفظ في SystemSettings
-        for key, value in settings.items():
-            _set_system_setting(key, value)
-        
-        flash('تم حفظ الإعدادات', 'success')
-        return redirect(url_for('security.system_settings'))
+    """إعدادات النظام الموحدة - 3 في 1 (عامة + متقدمة + ثوابت)"""
+    tab = request.args.get('tab', 'general')  # general, advanced, constants
     
-    # قراءة الإعدادات الحالية
-    settings = {
-        'maintenance_mode': _get_system_setting('maintenance_mode', False),
-        'registration_enabled': _get_system_setting('registration_enabled', True),
-        'api_enabled': _get_system_setting('api_enabled', True),
+    if request.method == 'POST':
+        tab = request.form.get('active_tab', 'general')
+        
+        if tab == 'general':
+            # حفظ الإعدادات العامة
+            settings = {
+                'maintenance_mode': request.form.get('maintenance_mode') == 'on',
+                'registration_enabled': request.form.get('registration_enabled') == 'on',
+                'api_enabled': request.form.get('api_enabled') == 'on',
+            }
+            for key, value in settings.items():
+                _set_system_setting(key, value)
+            flash('✅ تم حفظ الإعدادات العامة', 'success')
+            
+        elif tab == 'advanced':
+            # حفظ التكوينات المتقدمة
+            config = {
+                'SESSION_TIMEOUT': request.form.get('session_timeout', 3600),
+                'MAX_LOGIN_ATTEMPTS': request.form.get('max_login_attempts', 5),
+                'PASSWORD_MIN_LENGTH': request.form.get('password_min_length', 8),
+                'AUTO_BACKUP_ENABLED': request.form.get('auto_backup_enabled') == 'on',
+                'BACKUP_INTERVAL_HOURS': request.form.get('backup_interval_hours', 24),
+                'ENABLE_EMAIL_NOTIFICATIONS': request.form.get('enable_email_notifications') == 'on',
+                'ENABLE_SMS_NOTIFICATIONS': request.form.get('enable_sms_notifications') == 'on',
+            }
+            for key, value in config.items():
+                _set_system_setting(key, value)
+            flash('✅ تم تحديث التكوين المتقدم', 'success')
+            
+        elif tab == 'constants':
+            # حفظ الثوابت
+            constants = {
+                'COMPANY_NAME': request.form.get('company_name', ''),
+                'COMPANY_ADDRESS': request.form.get('company_address', ''),
+                'COMPANY_PHONE': request.form.get('company_phone', ''),
+                'COMPANY_EMAIL': request.form.get('company_email', ''),
+                'TAX_NUMBER': request.form.get('tax_number', ''),
+                'CURRENCY_SYMBOL': request.form.get('currency_symbol', '$'),
+                'TIMEZONE': request.form.get('timezone', 'UTC'),
+                'DATE_FORMAT': request.form.get('date_format', '%Y-%m-%d'),
+                'TIME_FORMAT': request.form.get('time_format', '%H:%M:%S'),
+            }
+            for key, value in constants.items():
+                if value:
+                    _set_system_setting(key, value)
+            flash('✅ تم تحديث الثوابت', 'success')
+        
+        return redirect(url_for('security.system_settings', tab=tab))
+    
+    # قراءة جميع الإعدادات
+    data = {
+        'general': {
+            'maintenance_mode': _get_system_setting('maintenance_mode', False),
+            'registration_enabled': _get_system_setting('registration_enabled', True),
+            'api_enabled': _get_system_setting('api_enabled', True),
+        },
+        'advanced': {
+            'SESSION_TIMEOUT': _get_system_setting('SESSION_TIMEOUT', 3600),
+            'MAX_LOGIN_ATTEMPTS': _get_system_setting('MAX_LOGIN_ATTEMPTS', 5),
+            'PASSWORD_MIN_LENGTH': _get_system_setting('PASSWORD_MIN_LENGTH', 8),
+            'AUTO_BACKUP_ENABLED': _get_system_setting('AUTO_BACKUP_ENABLED', True),
+            'BACKUP_INTERVAL_HOURS': _get_system_setting('BACKUP_INTERVAL_HOURS', 24),
+            'ENABLE_EMAIL_NOTIFICATIONS': _get_system_setting('ENABLE_EMAIL_NOTIFICATIONS', True),
+            'ENABLE_SMS_NOTIFICATIONS': _get_system_setting('ENABLE_SMS_NOTIFICATIONS', False),
+        },
+        'constants': {
+            'COMPANY_NAME': _get_system_setting('COMPANY_NAME', 'Azad Garage'),
+            'COMPANY_ADDRESS': _get_system_setting('COMPANY_ADDRESS', ''),
+            'COMPANY_PHONE': _get_system_setting('COMPANY_PHONE', ''),
+            'COMPANY_EMAIL': _get_system_setting('COMPANY_EMAIL', ''),
+            'TAX_NUMBER': _get_system_setting('TAX_NUMBER', ''),
+            'CURRENCY_SYMBOL': _get_system_setting('CURRENCY_SYMBOL', '$'),
+            'TIMEZONE': _get_system_setting('TIMEZONE', 'UTC'),
+            'DATE_FORMAT': _get_system_setting('DATE_FORMAT', '%Y-%m-%d'),
+            'TIME_FORMAT': _get_system_setting('TIME_FORMAT', '%H:%M:%S'),
+        }
     }
     
-    return render_template('security/system_settings.html', settings=settings)
+    return render_template('security/system_settings.html', data=data, active_tab=tab)
 
 
 @security_bp.route('/emergency-tools')
@@ -1751,21 +1813,51 @@ def logs_view(log_type):
 @security_bp.route('/logs-clear/<log_type>', methods=['POST'])
 @owner_only
 def logs_clear(log_type):
-    """مسح ملف لوج"""
+    """تنظيف محتوى ملف لوج (إفراغه)"""
     import os
+    from flask import jsonify
     
     log_files = {
-        'error': 'error.log',
-        'server': 'server_error.log',
+        'error': 'logs/error.log',
+        'server': 'logs/server_error.log',
+        'access': 'logs/access.log',
+        'performance': 'logs/performance.log',
+        'security': 'logs/security.log',
+        'audit': 'instance/audit.log'
     }
     
     log_path = log_files.get(log_type)
-    if log_path and os.path.exists(log_path):
+    
+    # التحقق من وجود الملف
+    if not log_path:
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': 'نوع اللوج غير صحيح'}), 400
+        flash('نوع اللوج غير صحيح', 'error')
+        return redirect(url_for('security.logs_viewer'))
+    
+    if not os.path.exists(log_path):
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': 'ملف اللوج غير موجود'}), 404
+        flash('ملف اللوج غير موجود', 'warning')
+        return redirect(url_for('security.logs_viewer'))
+    
+    try:
+        # تنظيف الملف (إفراغه)
         with open(log_path, 'w') as f:
             f.write('')
-        flash(f'تم مسح {log_type}.log', 'success')
-    else:
-        flash('ملف اللوج غير موجود', 'warning')
+        
+        # دعم AJAX
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': True, 
+                'message': f'✅ تم تنظيف محتوى {log_type}.log بنجاح'
+            })
+        
+        flash(f'✅ تم تنظيف محتوى {log_type}.log بنجاح', 'success')
+    except Exception as e:
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': f'❌ خطأ: {str(e)}'}), 500
+        flash(f'❌ خطأ في تنظيف اللوج: {str(e)}', 'error')
     
     return redirect(url_for('security.logs_viewer'))
 
@@ -1785,76 +1877,15 @@ def error_tracker():
 @security_bp.route('/system-constants', methods=['GET', 'POST'])
 @owner_only
 def system_constants():
-    """تعديل الثوابت الأساسية للنظام"""
-    if request.method == 'POST':
-        constants = {
-            'COMPANY_NAME': request.form.get('company_name', ''),
-            'COMPANY_ADDRESS': request.form.get('company_address', ''),
-            'COMPANY_PHONE': request.form.get('company_phone', ''),
-            'COMPANY_EMAIL': request.form.get('company_email', ''),
-            'TAX_NUMBER': request.form.get('tax_number', ''),
-            'CURRENCY_SYMBOL': request.form.get('currency_symbol', '$'),
-            'TIMEZONE': request.form.get('timezone', 'UTC'),
-            'DATE_FORMAT': request.form.get('date_format', '%Y-%m-%d'),
-            'TIME_FORMAT': request.form.get('time_format', '%H:%M:%S'),
-        }
-        
-        for key, value in constants.items():
-            if value:
-                _set_system_setting(key, value)
-        
-        flash('تم تحديث الثوابت', 'success')
-        return redirect(url_for('security.system_constants'))
-    
-    # قراءة الثوابت الحالية
-    constants = {
-        'COMPANY_NAME': _get_system_setting('COMPANY_NAME', 'Azad Garage'),
-        'COMPANY_ADDRESS': _get_system_setting('COMPANY_ADDRESS', ''),
-        'COMPANY_PHONE': _get_system_setting('COMPANY_PHONE', ''),
-        'COMPANY_EMAIL': _get_system_setting('COMPANY_EMAIL', ''),
-        'TAX_NUMBER': _get_system_setting('TAX_NUMBER', ''),
-        'CURRENCY_SYMBOL': _get_system_setting('CURRENCY_SYMBOL', '$'),
-        'TIMEZONE': _get_system_setting('TIMEZONE', 'UTC'),
-        'DATE_FORMAT': _get_system_setting('DATE_FORMAT', '%Y-%m-%d'),
-        'TIME_FORMAT': _get_system_setting('TIME_FORMAT', '%H:%M:%S'),
-    }
-    
-    return render_template('security/system_constants.html', constants=constants)
+    """إعادة توجيه لصفحة الإعدادات الموحدة - تبويب الثوابت"""
+    return redirect(url_for('security.system_settings', tab='constants'))
 
 
 @security_bp.route('/advanced-config', methods=['GET', 'POST'])
 @owner_only
 def advanced_config():
-    """تكوين متقدم للنظام"""
-    if request.method == 'POST':
-        config = {
-            'SESSION_TIMEOUT': request.form.get('session_timeout', 3600),
-            'MAX_LOGIN_ATTEMPTS': request.form.get('max_login_attempts', 5),
-            'PASSWORD_MIN_LENGTH': request.form.get('password_min_length', 8),
-            'AUTO_BACKUP_ENABLED': request.form.get('auto_backup_enabled') == 'on',
-            'BACKUP_INTERVAL_HOURS': request.form.get('backup_interval_hours', 24),
-            'ENABLE_EMAIL_NOTIFICATIONS': request.form.get('enable_email_notifications') == 'on',
-            'ENABLE_SMS_NOTIFICATIONS': request.form.get('enable_sms_notifications') == 'on',
-        }
-        
-        for key, value in config.items():
-            _set_system_setting(key, value)
-        
-        flash('تم تحديث التكوين المتقدم', 'success')
-        return redirect(url_for('security.advanced_config'))
-    
-    # قراءة التكوين الحالي
-    config = {
-        'SESSION_TIMEOUT': _get_system_setting('SESSION_TIMEOUT', 3600),
-        'MAX_LOGIN_ATTEMPTS': _get_system_setting('MAX_LOGIN_ATTEMPTS', 5),
-        'PASSWORD_MIN_LENGTH': _get_system_setting('PASSWORD_MIN_LENGTH', 8),
-        'AUTO_BACKUP_ENABLED': _get_system_setting('AUTO_BACKUP_ENABLED', True),
-        'BACKUP_INTERVAL_HOURS': _get_system_setting('BACKUP_INTERVAL_HOURS', 24),
-        'ENABLE_EMAIL_NOTIFICATIONS': _get_system_setting('ENABLE_EMAIL_NOTIFICATIONS', True),
-        'ENABLE_SMS_NOTIFICATIONS': _get_system_setting('ENABLE_SMS_NOTIFICATIONS', False),
-    }
-    
-    return render_template('security/advanced_config.html', config=config)
+    """إعادة توجيه لصفحة الإعدادات الموحدة - تبويب المتقدمة"""
+    return redirect(url_for('security.system_settings', tab='advanced'))
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -3157,4 +3188,48 @@ def _get_security_notifications():
         })
     
     return notifications
+
+
+@security_bp.route('/monitoring-dashboard')
+@owner_only
+def monitoring_dashboard():
+    """لوحة مراقبة الأداء الشاملة (Grafana-like)"""
+    return render_template('security/monitoring_dashboard.html',
+                         title='لوحة المراقبة الشاملة')
+
+
+@security_bp.route('/dark-mode-settings', methods=['GET', 'POST'])
+@owner_only
+def dark_mode_settings():
+    """إعدادات الوضع الليلي (Dark Mode)"""
+    if request.method == 'POST':
+        # حفظ الإعدادات
+        flash('✅ تم حفظ إعدادات الوضع الليلي', 'success')
+        return redirect(url_for('security.dark_mode_settings'))
+    
+    return render_template('security/dark_mode_settings.html',
+                         title='إعدادات الوضع الليلي')
+
+
+@security_bp.route('/grafana-setup')
+@owner_only
+def grafana_setup():
+    """إعداد وتثبيت Grafana + Prometheus"""
+    return render_template('security/grafana_setup.html',
+                         title='إعداد Grafana + Prometheus')
+
+
+@security_bp.route('/prometheus-metrics')
+def prometheus_metrics():
+    """Prometheus metrics endpoint"""
+    from services.prometheus_service import get_all_metrics
+    return get_all_metrics()
+
+
+@security_bp.route('/api/live-metrics')
+@owner_only
+def api_live_metrics():
+    """API للحصول على المتريكات الحية"""
+    from services.prometheus_service import get_live_metrics_json
+    return jsonify(get_live_metrics_json())
 
