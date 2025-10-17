@@ -115,7 +115,7 @@
                   <a href="{{ url_for('archive.view_archive', archive_id=archive.id) }}" class="btn btn-outline-primary" title="عرض">
                     <i class="fas fa-eye"></i>
                   </a>
-                  {% if current_user.id == 1 or (current_user.role and current_user.role.name == 'super_admin') %}
+                  {% if current_user.is_system or (current_user.role and current_user.role.name == 'Super Admin') %}
                   <form method="POST" action="{{ url_for('archive.restore_archive', archive_id=archive.id) }}" class="d-inline" onsubmit="return confirm('هل أنت متأكد من استعادة هذا السجل؟')">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-outline-success" title="استعادة">
@@ -123,7 +123,7 @@
                     </button>
                   </form>
                   {% endif %}
-                  {% if current_user.id == 1 %}
+                  {% if current_user.is_system %}
                   <form method="POST" action="{{ url_for('archive.delete_archive', archive_id=archive.id) }}" class="d-inline" onsubmit="return confirm('هل أنت متأكد من حذف هذا الأرشيف نهائياً؟')">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-outline-danger" title="حذف نهائي">

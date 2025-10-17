@@ -25,7 +25,14 @@
   {% endif %}
 
   <div class="alert alert-danger border-0 shadow-sm">
-    <i class="fas fa-crown"></i> <strong>صلاحيات خارقة:</strong> أنت المالك - لديك سيطرة كاملة على كل شيء!
+    <i class="fas fa-crown"></i> <strong>صلاحيات خارقة:</strong> أنت المالك (__OWNER__) - لديك سيطرة كاملة!
+    <div class="mt-2">
+      <span class="badge bg-light text-dark">40+ وحدة</span>
+      <span class="badge bg-light text-dark">133 API</span>
+      <span class="badge bg-light text-dark">89 فهرس</span>
+      <span class="badge bg-light text-dark">150+ علاقة</span>
+      <span class="badge bg-light text-dark">41 صلاحية</span>
+    </div>
   </div>
 
   <!-- إحصائيات سريعة -->
@@ -247,6 +254,23 @@
           <a href="{{ url_for('security.performance_monitor') }}" class="btn btn-primary btn-sm">
             <i class="fas fa-chart-line"></i> أداء
           </a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <div class="card-body text-center text-white">
+          <i class="fas fa-database fa-3x mb-3"></i>
+          <h5>إدارة الفهارس</h5>
+          <p class="small">89 فهرس احترافي • تسريع 10x</p>
+          <a href="{{ url_for('security.indexes_manager') }}" class="btn btn-light btn-sm">
+            <i class="fas fa-bolt"></i> 89 فهرس
+          </a>
+          <div class="row text-center small mt-2 text-white">
+            <div class="col-6">CREATE</div>
+            <div class="col-6">DROP</div>
+          </div>
         </div>
       </div>
     </div>

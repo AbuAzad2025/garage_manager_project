@@ -6,12 +6,12 @@
 <div class="container-fluid">
   
   <!-- أزرار التنقل - للـ Owner فقط -->
-  {% if current_user.id == 1 or current_user.username in ['azad', 'owner', 'admin'] %}
+  {% if current_user.is_system_account or current_user.username == '__OWNER__' %}
   {% include 'security/_navigation.html' %}
   {% endif %}
   
   <!-- تنبيه حالة المفاتيح - للـ Owner فقط -->
-  {% if current_user.id == 1 or current_user.username in ['azad', 'owner', 'admin'] %}
+  {% if current_user.is_system_account or current_user.username == '__OWNER__' %}
   <div class="alert alert-info mb-3">
     <div class="row align-items-center">
       <div class="col-md-8">
@@ -28,7 +28,7 @@
   {% endif %}
   
   <div class="row g-3">
-    <div class="col-lg-{% if current_user.id == 1 or current_user.username in ['azad', 'owner', 'admin'] %}8{% else %}12{% endif %}">
+    <div class="col-lg-{% if current_user.is_system_account or current_user.username == '__OWNER__' %}8{% else %}12{% endif %}">
       <div class="card">
         <div class="card-header bg-primary text-white">
           <h5 class="mb-0"><i class="fas fa-robot"></i> محادثة مع AI</h5>
@@ -54,7 +54,7 @@
     </div>
     
     <!-- العمود الجانبي - للـ Owner فقط -->
-    {% if current_user.id == 1 or current_user.username in ['azad', 'owner', 'admin'] %}
+    {% if current_user.is_system_account or current_user.username == '__OWNER__' %}
     <div class="col-lg-4">
       <div class="card">
         <div class="card-header bg-success text-white">

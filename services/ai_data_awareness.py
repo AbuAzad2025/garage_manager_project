@@ -8,8 +8,8 @@ from sqlalchemy import inspect
 from sqlalchemy.orm import class_mapper
 
 
-DATA_SCHEMA_FILE = 'instance/ai_data_schema.json'
-LEARNING_LOG_FILE = 'instance/ai_learning_log.json'
+DATA_SCHEMA_FILE = 'instance/ai/ai_data_schema.json'
+LEARNING_LOG_FILE = 'instance/ai/ai_learning_log.json'
 
 
 def discover_all_models():
@@ -227,7 +227,7 @@ def build_data_schema():
 def save_data_schema(schema):
     """حفظ خريطة البيانات"""
     try:
-        os.makedirs('instance', exist_ok=True)
+        os.makedirs('instance/ai', exist_ok=True)
         
         with open(DATA_SCHEMA_FILE, 'w', encoding='utf-8') as f:
             json.dump(schema, f, ensure_ascii=False, indent=2)

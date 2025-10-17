@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 
-AUTO_TRAINING_LOG = 'instance/ai_auto_training.json'
+AUTO_TRAINING_LOG = 'instance/ai/ai_auto_training.json'
 
 
 def should_auto_train():
@@ -83,7 +83,7 @@ def execute_silent_training():
 def log_auto_training():
     """تسجيل حدث التدريب التلقائي"""
     try:
-        os.makedirs('instance', exist_ok=True)
+        os.makedirs('instance/ai', exist_ok=True)
         
         # حساب mtime للملفات
         files_to_check = ['models.py', 'routes/', 'templates/', 'forms.py']

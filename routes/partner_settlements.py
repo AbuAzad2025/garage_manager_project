@@ -226,63 +226,83 @@ def partner_settlement(partner_id):
 def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_to: datetime):
     """
     حساب التسوية الذكية الشاملة للشريك
-    يشمل: جرد القطع، المباع، المتبقي، نصيب الشريك، الدفعات
+    
+    المعادلة المحاسبية الصحيحة:
+    ═════════════════════════════════════════════════════════════
+    حقوق الشريك = المخزون + المبيعات
+    التزامات الشريك = مبيعات له + صيانة له + تالف + مصروفات
+    الدفعات المسددة = دفعنا له (OUT) + دفع لنا (IN)
+    
+    الرصيد النهائي = حقوقه - التزاماته - الدفعات المسددة
+    ═════════════════════════════════════════════════════════════
+    
+    ملاحظات مهمة:
+    - جميع العملات تُحول إلى ILS قبل الجمع
+    - الدفعات الواردة (IN) تُخصم من الرصيد (يُحسب له)
+    - الدفعات الصادرة (OUT) تُخصم من الرصيد (يُحسب له)
     """
     try:
-        from models import (
-            Payment, Product, Warehouse, WarehouseType, StockLevel,
-            SaleLine, Sale, convert_amount
-        )
-        from sqlalchemy import func, desc
-        from sqlalchemy.orm import joinedload
-        
         partner = db.session.get(Partner, partner_id)
         if not partner:
             return {"success": False, "error": "الشريك غير موجود"}
         
         # ═══════════════════════════════════════════════════════════
-        # 1. جرد القطع من مستودع الشركاء
+        # 🔵 جانب المدين (ما له علينا - حقوقه)
         # ═══════════════════════════════════════════════════════════
         
-        partner_inventory = _get_partner_inventory(partner_id, date_from, date_to)
+        # 1. نصيبه من المخزون الحالي (من التكلفة)
+        inventory = _get_partner_inventory(partner_id, date_from, date_to)
         
-        # ═══════════════════════════════════════════════════════════
-        # 2. حساب نصيب الشريك من المبيعات
-        # ═══════════════════════════════════════════════════════════
-        
+        # 2. نصيبه من المبيعات (من سعر البيع)
         sales_share = _get_partner_sales_share(partner_id, date_from, date_to)
         
-        # ═══════════════════════════════════════════════════════════
-        # 3. الدفعات المدفوعة للشريك
-        # ═══════════════════════════════════════════════════════════
-        
-        payments_made = _get_payments_to_partner(partner_id, date_from, date_to)
+        # 3. دفعات استلمناها منه (IN) - دين علينا له
+        payments_from_partner = _get_partner_payments_received(partner_id, partner, date_from, date_to)
         
         # ═══════════════════════════════════════════════════════════
-        # 4. المصروفات المخصومة من حصة الشريك
+        # 🔴 جانب الدائن (ما عليه لنا - حقوقنا)
         # ═══════════════════════════════════════════════════════════
         
+        # 4. دفعات دفعناها له (OUT)
+        payments_to_partner = _get_payments_to_partner(partner_id, date_from, date_to)
+        
+        # 5. مبيعات له (كعميل)
+        sales_to_partner = _get_partner_sales_as_customer(partner_id, partner, date_from, date_to)
+        
+        # 6. رسوم صيانة عليه
+        service_fees = _get_partner_service_fees(partner_id, partner, date_from, date_to)
+        
+        # 7. نصيبه من القطع التالفة
+        damaged_items = _get_partner_damaged_items(partner_id, date_from, date_to)
+        
+        # 8. المصروفات المخصومة (إن وجدت)
         expenses_deducted = _get_partner_expenses(partner_id, date_from, date_to)
         
         # ═══════════════════════════════════════════════════════════
-        # الحساب النهائي
+        # الحساب المحاسبي الصحيح
         # ═══════════════════════════════════════════════════════════
         
-        # نصيب الشريك من المبيعات (تحويل كل شيء إلى Decimal)
-        total_share = Decimal(str(sales_share["total_share_ils"] or 0))
+        # حقوق الشريك (ما استحقه من عمله)
+        partner_rights = Decimal(str(inventory.get("total", 0))) + \
+                        Decimal(str(sales_share.get("total_share_ils", 0)))
         
-        # ما تم دفعه + المصروفات المخصومة
-        total_paid = Decimal(str(payments_made or 0)) + Decimal(str(expenses_deducted or 0))
+        # التزامات الشريك (ما عليه لنا)
+        partner_obligations = Decimal(str(sales_to_partner.get("total_ils", 0))) + \
+                             Decimal(str(service_fees.get("total_ils", 0))) + \
+                             Decimal(str(damaged_items.get("total_ils", 0))) + \
+                             Decimal(str(expenses_deducted or 0))
         
-        # المتبقي للشريك
-        balance = total_share - total_paid
+        # صافي الحساب قبل احتساب الدفعات
+        net_before_payments = partner_rights - partner_obligations
         
-        # ═══════════════════════════════════════════════════════════
-        # معلومات إضافية
-        # ═══════════════════════════════════════════════════════════
+        # الدفعات (كلها تُخصم من الرصيد)
+        # - دفعات واردة (IN): دفع لنا من جيبه → تُحسب له (تُخصم من مديونيته)
+        # - دفعات صادرة (OUT): دفعنا له من حقوقه → تُحسب له (تُخصم من حقوقه)
+        paid_to_partner = Decimal(str(payments_to_partner.get("total_ils", 0)))
+        received_from_partner = Decimal(str(payments_from_partner.get("total_ils", 0)))
         
-        # التسويات السابقة
-        previous_settlements = _get_previous_partner_settlements(partner_id, date_from)
+        # الرصيد النهائي = (ما استحقه - ما عليه - ما دفعناه - ما دفعه)
+        balance = net_before_payments - paid_to_partner - received_from_partner
         
         return {
             "success": True,
@@ -296,27 +316,42 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
                 "from": date_from.isoformat(),
                 "to": date_to.isoformat()
             },
-            # جرد القطع
-            "inventory": partner_inventory,
-            # نصيب الشريك من المبيعات
-            "sales_share": sales_share,
-            # الدفعات
-            "payments_made": payments_made,
-            # المصروفات
-            "expenses_deducted": expenses_deducted,
-            # الرصيد النهائي
+            # 🟢 حقوق الشريك (ما استحقه من عمله)
+            "rights": {
+                "inventory": inventory,
+                "sales_share": sales_share,
+                "total": float(partner_rights)
+            },
+            # 🔴 التزامات الشريك (ما عليه لنا)
+            "obligations": {
+                "sales_to_partner": sales_to_partner,
+                "service_fees": service_fees,
+                "damaged_items": damaged_items,
+                "expenses": {"total_ils": float(expenses_deducted or 0)},
+                "total": float(partner_obligations)
+            },
+            # 💰 الدفعات المسددة (كلها تُخصم من الرصيد)
+            "payments": {
+                "paid_to_partner": payments_to_partner,  # OUT - دفعنا له
+                "received_from_partner": payments_from_partner,  # IN - دفع لنا
+                "total_paid": float(paid_to_partner),
+                "total_received": float(received_from_partner),
+                "total_settled": float(paid_to_partner + received_from_partner)
+            },
+            # 🎯 الرصيد
             "balance": {
-                "total_share": float(total_share),
-                "total_paid": float(total_paid),
-                "remaining": float(balance),
-                "direction": "دفع للشريك" if balance > 0 else "قبض من الشريك" if balance < 0 else "متوازن",
-                "payment_direction": "OUT" if balance > 0 else "IN",
+                "gross": float(net_before_payments),  # قبل الدفعات
+                "net": float(balance),  # النهائي بعد الدفعات
+                "amount": float(balance),
+                "direction": "له علينا" if balance > 0 else "عليه لنا" if balance < 0 else "متوازن",
+                "payment_direction": "OUT" if balance > 0 else "IN" if balance < 0 else None,
+                "action": "ندفع له" if balance > 0 else "يدفع لنا" if balance < 0 else "لا شيء",
                 "currency": "ILS",
-                "note": "جميع المبالغ محولة إلى الشيكل (ILS) حسب أسعار الصرف"
+                "formula": f"({float(partner_rights):.2f} - {float(partner_obligations):.2f} - {float(paid_to_partner):.2f} - {float(received_from_partner):.2f}) = {float(balance):.2f}"
             },
             # معلومات إضافية
-            "previous_settlements": previous_settlements,
-            "currency_note": "⚠️ تنبيه: تم توحيد جميع العملات إلى الشيكل (ILS) باستخدام أسعار الصرف المسجلة"
+            "previous_settlements": _get_previous_partner_settlements(partner_id, date_from),
+            "currency_note": "⚠️ جميع المبالغ بالشيكل (ILS) بعد التحويل"
         }
         
     except ValueError as e:
@@ -633,174 +668,309 @@ def _convert_to_ils(amount: Decimal | float, from_currency: str, at: datetime = 
 
 def _get_partner_inventory(partner_id: int, date_from: datetime, date_to: datetime):
     """
-    جرد القطع من مستودع الشركاء
-    يفصل المباع من المتبقي
+    المخزون الحالي للشريك (نصيبه من التكلفة)
+    يحسب من المستودعات التي لها صفة شراكة وله نسبة فيها
     """
     from models import (
-        Warehouse, WarehouseType, StockLevel, Product,
-        SaleLine, Sale
+        Warehouse, WarehousePartnerShare, StockLevel, Product, ProductPartner
     )
     from sqlalchemy import func
     
-    # جلب مستودعات الشركاء للشريك
-    partner_warehouses = db.session.query(Warehouse.id).filter(
-        Warehouse.partner_id == partner_id,
-        Warehouse.warehouse_type == WarehouseType.PARTNER.value
+    # جلب المستودعات التي للشريك نسبة فيها
+    partner_warehouse_shares = db.session.query(
+        WarehousePartnerShare.warehouse_id,
+        WarehousePartnerShare.product_id,
+        WarehousePartnerShare.share_percentage,
+        Warehouse.name.label('warehouse_name')
+    ).join(
+        Warehouse, Warehouse.id == WarehousePartnerShare.warehouse_id
+    ).filter(
+        WarehousePartnerShare.partner_id == partner_id,
+        WarehousePartnerShare.share_percentage > 0
     ).all()
     
-    warehouse_ids = [w[0] for w in partner_warehouses]
-    
-    if not warehouse_ids:
-        return {
-            "sold_items": [],
-            "remaining_items": [],
-            "total_sold_count": 0,
-            "total_remaining_count": 0
-        }
-    
-    # القطع المتبقية في المخزون
-    remaining_stock = db.session.query(
+    if not partner_warehouse_shares:
+        # إذا لم يكن له نسب محددة، نستخدم ProductPartner العامة
+        product_shares = db.session.query(
+            ProductPartner.product_id,
+            ProductPartner.share_percent
+        ).filter(
+            ProductPartner.partner_id == partner_id,
+            ProductPartner.share_percent > 0
+        ).all()
+        
+        if not product_shares:
+            return {"items": [], "total": 0.0}
+        
+        # حساب المخزون من جميع المستودعات للقطع التي له نسبة فيها
+        product_ids = [ps[0] for ps in product_shares]
+        share_map = {ps[0]: float(ps[1]) for ps in product_shares}
+        
+        inventory_items = db.session.query(
         Product.id.label("product_id"),
         Product.name.label("product_name"),
         Product.sku,
-        Product.selling_price,
-        func.sum(StockLevel.quantity).label("quantity")
+            Warehouse.name.label("warehouse_name"),
+            StockLevel.quantity,
+            Product.purchase_price
     ).join(
-        Product, Product.id == StockLevel.product_id
+            StockLevel, StockLevel.product_id == Product.id
+        ).join(
+            Warehouse, Warehouse.id == StockLevel.warehouse_id
     ).filter(
-        StockLevel.warehouse_id.in_(warehouse_ids),
+            Product.id.in_(product_ids),
         StockLevel.quantity > 0
-    ).group_by(
-        Product.id, Product.name, Product.sku, Product.selling_price
     ).all()
-    
-    remaining_items = []
-    for item in remaining_stock:
-        remaining_items.append({
-            "product_id": item.product_id,
-            "product_name": item.product_name,
-            "sku": item.sku,
-            "quantity": int(item.quantity or 0),
-            "sale_price": float(item.selling_price or item.price or 0),
-            "total_value": float((item.quantity or 0) * (item.selling_price or item.price or 0))
-        })
-    
-    # القطع المباعة خلال الفترة (من مستودعات الشريك)
-    sold_items_query = db.session.query(
+    else:
+        # له نسب محددة حسب المستودع والقطعة
+        inventory_items = []
+        for wh_share in partner_warehouse_shares:
+            wh_id, prod_id, share_pct, wh_name = wh_share
+            
+            # إذا كان product_id محدد، نأخذ هذا المنتج فقط
+            if prod_id:
+                stock = db.session.query(
+                    Product.id.label("product_id"),
+                    Product.name.label("product_name"),
+                    Product.sku,
+                    StockLevel.quantity,
+                    Product.purchase_price
+                ).join(
+                    Product, Product.id == StockLevel.product_id
+                ).filter(
+                    StockLevel.warehouse_id == wh_id,
+                    StockLevel.product_id == prod_id,
+                    StockLevel.quantity > 0
+                ).first()
+                
+                if stock:
+                    inventory_items.append({
+                        'product_id': stock.product_id,
+                        'product_name': stock.product_name,
+                        'sku': stock.sku,
+                        'warehouse_name': wh_name,
+                        'quantity': stock.quantity,
+                        'purchase_price': stock.purchase_price,
+                        'share_pct': share_pct
+                    })
+            else:
+                # جميع المنتجات في هذا المستودع
+                stocks = db.session.query(
         Product.id.label("product_id"),
         Product.name.label("product_name"),
         Product.sku,
-        SaleLine.unit_price,
-        Warehouse.share_percent,
-        func.sum(SaleLine.quantity).label("total_quantity"),
-        func.sum(SaleLine.quantity * SaleLine.unit_price).label("total_sales")
+                    StockLevel.quantity,
+                    Product.purchase_price
     ).join(
-        Sale, Sale.id == SaleLine.sale_id
-    ).join(
-        Product, Product.id == SaleLine.product_id
-    ).join(
-        Warehouse, Warehouse.id == SaleLine.warehouse_id
+                    Product, Product.id == StockLevel.product_id
     ).filter(
-        SaleLine.warehouse_id.in_(warehouse_ids),
-        Sale.sale_date >= date_from,
-        Sale.sale_date <= date_to
-    ).group_by(
-        Product.id, Product.name, Product.sku, SaleLine.unit_price, Warehouse.share_percent
+                    StockLevel.warehouse_id == wh_id,
+                    StockLevel.quantity > 0
     ).all()
     
-    sold_items = []
-    for item in sold_items_query:
-        share_pct = float(item.share_percent or 0)
-        total_sales = float(item.total_sales or 0)
-        partner_share = total_sales * (share_pct / 100.0)
-        
-        sold_items.append({
-            "product_id": item.product_id,
-            "product_name": item.product_name,
-            "sku": item.sku,
-            "quantity": int(item.total_quantity or 0),
-            "unit_price": float(item.unit_price or 0),
-            "total_sales": total_sales,
-            "share_percentage": share_pct,
-            "partner_share": partner_share
-        })
+                for stock in stocks:
+                    inventory_items.append({
+                        'product_id': stock.product_id,
+                        'product_name': stock.product_name,
+                        'sku': stock.sku,
+                        'warehouse_name': wh_name,
+                        'quantity': stock.quantity,
+                        'purchase_price': stock.purchase_price,
+                        'share_pct': share_pct
+                    })
     
-    return {
-        "sold_items": sold_items,
-        "remaining_items": remaining_items,
-        "total_sold_count": len(sold_items),
-        "total_remaining_count": len(remaining_items)
-    }
-
-
-def _get_partner_sales_share(partner_id: int, date_from: datetime, date_to: datetime):
-    """حساب نصيب الشريك من المبيعات مع تحويل العملات"""
-    from models import SaleLine, Sale, Warehouse, WarehouseType
-    from sqlalchemy import func
-    
-    # جلب مستودعات الشركاء
-    partner_warehouses = db.session.query(Warehouse.id).filter(
-        Warehouse.partner_id == partner_id,
-        Warehouse.warehouse_type == WarehouseType.PARTNER.value
-    ).all()
-    
-    warehouse_ids = [w[0] for w in partner_warehouses]
-    
-    if not warehouse_ids:
-        return {"items": [], "total_share": 0, "total_share_ils": 0, "count": 0}
-    
-    # جلب المبيعات مع التفاصيل
-    sales_query = db.session.query(
-        Sale, SaleLine, Warehouse.share_percent
-    ).join(
-        SaleLine, SaleLine.sale_id == Sale.id
-    ).join(
-        Warehouse, Warehouse.id == SaleLine.warehouse_id
-    ).filter(
-        SaleLine.warehouse_id.in_(warehouse_ids),
-        Sale.sale_date >= date_from,
-        Sale.sale_date <= date_to
-    ).all()
-    
+    # حساب نصيب الشريك من كل قطعة
     items = []
-    total_share_ils = Decimal('0.00')
+    total = Decimal("0")
     
-    for sale, line, share_percent in sales_query:
-        share_pct = Decimal(str(share_percent or 0))
-        line_total = Decimal(str(line.line_total or 0))
-        currency = sale.currency or "ILS"
+    for inv_item in inventory_items:
+        if isinstance(inv_item, dict):
+            prod_id = inv_item['product_id']
+            prod_name = inv_item['product_name']
+            sku = inv_item['sku']
+            wh_name = inv_item['warehouse_name']
+            qty = inv_item['quantity']
+            cost = inv_item['purchase_price']
+            share_pct = inv_item['share_pct']
+        else:
+            prod_id = inv_item.product_id
+            prod_name = inv_item.product_name
+            sku = inv_item.sku
+            wh_name = getattr(inv_item, 'warehouse_name', '-')
+            qty = inv_item.quantity
+            cost = inv_item.purchase_price
+            share_pct = share_map.get(prod_id, 0) if 'share_map' in locals() else 0
         
-        # نصيب الشريك من هذا السطر
-        partner_share = line_total * (share_pct / Decimal('100.0'))
+        partner_share = Decimal(str(qty)) * Decimal(str(cost or 0)) * Decimal(str(share_pct)) / Decimal("100")
         
-        # تحويل إلى ILS
-        partner_share_ils = _convert_to_ils(partner_share, currency, sale.sale_date)
-        total_share_ils = total_share_ils + partner_share_ils
+        # ⚠️ ملاحظة: جميع تكاليف المنتجات مُفترض أنها بالشيكل (ILS)
+        # جدول Product لا يحتوي على حقل currency
+        # إذا تمت إضافة عملات للمنتجات مستقبلاً، استخدم:
+        # partner_share = _convert_to_ils(partner_share, product.currency, datetime.utcnow())
+        
+        total += partner_share
         
         items.append({
-            "sale_id": sale.id,
-            "sale_number": sale.sale_number,
-            "sale_date": sale.sale_date,
-            "product_name": line.product.name if line.product else "غير محدد",
-            "quantity": int(line.quantity or 0),
-            "unit_price": float(line.unit_price or 0),
-            "line_total": float(line_total),
-            "share_percentage": share_pct,
-            "partner_share_original": float(partner_share),
-            "currency": currency,
-            "partner_share_ils": float(partner_share_ils)
+            "product_id": prod_id,
+            "product_name": prod_name,
+            "sku": sku,
+            "warehouse": wh_name,
+            "quantity": int(qty),
+            "cost_per_unit": float(cost or 0),
+            "share_percentage": float(share_pct),
+            "partner_share": float(partner_share)
         })
     
     return {
         "items": items,
-        "count": len(items),
-        "total_share": float(sum(Decimal(str(item["partner_share_original"])) for item in items)),
-        "total_share_ils": float(total_share_ils)
+        "total": float(total),
+        "count": len(items)
+    }
+
+
+def _get_partner_sales_share(partner_id: int, date_from: datetime, date_to: datetime):
+    """
+    حساب نصيب الشريك من المبيعات (من سعر البيع)
+    يشمل: مبيعات الصيانة + مبيعات عادية
+    """
+    from models import (
+        ServicePart, ServiceRequest, SaleLine, Sale, Product,
+        ProductPartner, Customer
+    )
+    from sqlalchemy import func
+    
+    all_sales = []
+    total_ils = Decimal('0.00')
+    
+    # ═══════════════════════════════════════════════════════════
+    # 1. مبيعات قطع الصيانة (ServicePart)
+    # ═══════════════════════════════════════════════════════════
+    
+    service_sales = db.session.query(
+        ServiceRequest.id.label("service_id"),
+        ServiceRequest.service_number,
+        ServiceRequest.received_at.label("date"),
+        Customer.name.label("customer_name"),
+        Product.name.label("product_name"),
+        Product.sku,
+        ServicePart.quantity,
+        ServicePart.unit_price,
+        ServicePart.share_percentage,
+        ServiceRequest.currency
+    ).join(
+        ServicePart, ServicePart.service_id == ServiceRequest.id
+    ).join(
+        Product, Product.id == ServicePart.part_id
+    ).join(
+        Customer, Customer.id == ServiceRequest.customer_id
+    ).filter(
+        ServicePart.partner_id == partner_id,
+        ServiceRequest.received_at >= date_from,
+        ServiceRequest.received_at <= date_to,
+        ServiceRequest.status == 'COMPLETED'
+    ).all()
+    
+    for item in service_sales:
+        total_amount = Decimal(str(item.quantity)) * Decimal(str(item.unit_price))
+        share_pct = Decimal(str(item.share_percentage or 0))
+        partner_share = total_amount * share_pct / Decimal("100")
+        
+        # تحويل إلى شيكل
+        try:
+            partner_share_ils = _convert_to_ils(partner_share, item.currency, item.date)
+        except Exception:
+            partner_share_ils = partner_share
+        
+        total_ils += partner_share_ils
+        
+        all_sales.append({
+            "type": "صيانة",
+            "reference_number": item.service_number,
+            "date": item.date.strftime("%Y-%m-%d") if item.date else "",
+            "customer_name": item.customer_name,
+            "product_name": item.product_name,
+            "sku": item.sku,
+            "quantity": item.quantity,
+            "unit_price": float(item.unit_price),
+            "total_amount": float(total_amount),
+            "share_percentage": float(share_pct),
+            "partner_share": float(partner_share),
+            "currency": item.currency,
+            "partner_share_ils": float(partner_share_ils)
+        })
+    
+    # ═══════════════════════════════════════════════════════════
+    # 2. مبيعات عادية (SaleLine)
+    # ═══════════════════════════════════════════════════════════
+    
+    regular_sales = db.session.query(
+        Sale.id.label("sale_id"),
+        Sale.sale_number,
+        Sale.sale_date,
+        Customer.name.label("customer_name"),
+        Product.name.label("product_name"),
+        Product.sku,
+        SaleLine.quantity,
+        SaleLine.unit_price,
+        ProductPartner.share_percent,
+        Sale.currency
+    ).join(
+        SaleLine, SaleLine.sale_id == Sale.id
+    ).join(
+        Product, Product.id == SaleLine.product_id
+    ).join(
+        ProductPartner, ProductPartner.product_id == Product.id
+    ).join(
+        Customer, Customer.id == Sale.customer_id
+    ).filter(
+        ProductPartner.partner_id == partner_id,
+        Sale.sale_date >= date_from,
+        Sale.sale_date <= date_to,
+        Sale.status == 'CONFIRMED',
+        ProductPartner.share_percent > 0
+    ).all()
+    
+    for item in regular_sales:
+        total_amount = Decimal(str(item.quantity)) * Decimal(str(item.unit_price))
+        share_pct = Decimal(str(item.share_percent or 0))
+        partner_share = total_amount * share_pct / Decimal("100")
+        
+        # تحويل إلى شيكل
+        try:
+            partner_share_ils = _convert_to_ils(partner_share, item.currency, item.sale_date)
+        except Exception:
+            partner_share_ils = partner_share
+        
+        total_ils += partner_share_ils
+        
+        all_sales.append({
+            "type": "بيع عادي",
+            "reference_number": item.sale_number,
+            "date": item.sale_date.strftime("%Y-%m-%d") if item.sale_date else "",
+            "customer_name": item.customer_name,
+            "product_name": item.product_name,
+            "sku": item.sku,
+            "quantity": item.quantity,
+            "unit_price": float(item.unit_price),
+            "total_amount": float(total_amount),
+            "share_percentage": float(share_pct),
+            "partner_share": float(partner_share),
+            "currency": item.currency,
+            "partner_share_ils": float(partner_share_ils)
+        })
+    
+    return {
+        "items": all_sales,
+        "count": len(all_sales),
+        "total_share": float(total_ils),
+        "total_share_ils": float(total_ils)
     }
 
 
 def _get_payments_to_partner(partner_id: int, date_from: datetime, date_to: datetime):
-    """جلب الدفعات المدفوعة للشريك مع تحويل العملات"""
+    """
+    دفعات دفعناها للشريك (OUT) - تُخصم من حقوقه علينا
+    """
     from models import Payment, PaymentDirection, PaymentStatus
     
     payments = db.session.query(Payment).filter(
@@ -809,18 +979,32 @@ def _get_payments_to_partner(partner_id: int, date_from: datetime, date_to: date
         Payment.status == PaymentStatus.COMPLETED.value,
         Payment.payment_date >= date_from,
         Payment.payment_date <= date_to
-    ).all()
+    ).order_by(Payment.payment_date).all()
     
+    items = []
     total_ils = Decimal('0.00')
-    for payment in payments:
-        amount = Decimal(str(payment.total_amount or 0))
-        currency = payment.currency or "ILS"
-        payment_date = payment.payment_date or datetime.utcnow()
-        
-        amount_ils = _convert_to_ils(amount, currency, payment_date)
-        total_ils = total_ils + amount_ils
     
-    return float(total_ils)
+    for payment in payments:
+        amount_ils = _convert_to_ils(Decimal(str(payment.total_amount or 0)), payment.currency, payment.payment_date)
+        total_ils += amount_ils
+        
+        items.append({
+            "payment_id": payment.id,
+            "payment_number": payment.payment_number,
+            "date": payment.payment_date.strftime("%Y-%m-%d") if payment.payment_date else "",
+            "method": payment.method,
+            "check_number": payment.check_number,
+            "amount": float(payment.total_amount or 0),
+            "currency": payment.currency,
+            "amount_ils": float(amount_ils),
+            "notes": payment.notes
+        })
+    
+    return {
+        "items": items,
+        "total_ils": float(total_ils),
+        "count": len(items)
+    }
 
 
 def _get_partner_expenses(partner_id: int, date_from: datetime, date_to: datetime):
@@ -866,3 +1050,210 @@ def _get_previous_partner_settlements(partner_id: int, before_date: datetime):
         "from_date": s.from_date,
         "to_date": s.to_date
     } for s in settlements]
+
+
+def _get_partner_payments_received(partner_id: int, partner: Partner, date_from: datetime, date_to: datetime):
+    """
+    دفعات استلمناها من الشريك (IN) - تُضاف إلى حقوقه علينا
+    """
+    from models import Payment, PaymentDirection, PaymentStatus
+    
+    payments = db.session.query(Payment).filter(
+        Payment.partner_id == partner_id,
+        Payment.direction == PaymentDirection.IN.value,
+        Payment.status == PaymentStatus.COMPLETED.value,
+        Payment.payment_date >= date_from,
+        Payment.payment_date <= date_to
+    ).order_by(Payment.payment_date).all()
+    
+    items = []
+    total_ils = Decimal('0.00')
+    
+    for payment in payments:
+        amount_ils = _convert_to_ils(Decimal(str(payment.total_amount or 0)), payment.currency, payment.payment_date)
+        total_ils += amount_ils
+        
+        items.append({
+            "payment_id": payment.id,
+            "payment_number": payment.payment_number,
+            "date": payment.payment_date.strftime("%Y-%m-%d") if payment.payment_date else "",
+            "method": payment.method,
+            "check_number": payment.check_number,
+            "amount": float(payment.total_amount or 0),
+            "currency": payment.currency,
+            "amount_ils": float(amount_ils),
+            "notes": payment.notes
+        })
+    
+    return {
+        "items": items,
+        "total_ils": float(total_ils),
+        "count": len(items)
+    }
+
+
+def _get_partner_sales_as_customer(partner_id: int, partner: Partner, date_from: datetime, date_to: datetime):
+    """
+    مبيعات للشريك (كعميل) - تُخصم من حقوقه
+    """
+    from models import Sale, SaleLine, Product
+    
+    if not partner.customer_id:
+        return {"items": [], "total_ils": 0.0, "count": 0}
+    
+    sales = db.session.query(
+        Sale.id.label("sale_id"),
+        Sale.sale_number,
+        Sale.sale_date,
+        Sale.currency,
+        Sale.total_amount,
+        Sale.status
+    ).filter(
+        Sale.customer_id == partner.customer_id,
+        Sale.sale_date >= date_from,
+        Sale.sale_date <= date_to,
+        Sale.status == 'CONFIRMED'
+    ).order_by(Sale.sale_date).all()
+    
+    items = []
+    total_ils = Decimal('0.00')
+    
+    for sale in sales:
+        # جلب تفاصيل الأسطر
+        sale_lines = db.session.query(
+            Product.name.label("product_name"),
+            SaleLine.quantity,
+            SaleLine.unit_price
+        ).join(
+            Product, Product.id == SaleLine.product_id
+        ).filter(
+            SaleLine.sale_id == sale.sale_id
+        ).all()
+        
+        amount_ils = _convert_to_ils(Decimal(str(sale.total_amount or 0)), sale.currency, sale.sale_date)
+        total_ils += amount_ils
+        
+        items.append({
+            "sale_id": sale.sale_id,
+            "sale_number": sale.sale_number,
+            "date": sale.sale_date.strftime("%Y-%m-%d") if sale.sale_date else "",
+            "products": [{"name": sl.product_name, "qty": sl.quantity, "price": float(sl.unit_price)} for sl in sale_lines],
+            "amount": float(sale.total_amount or 0),
+            "currency": sale.currency,
+            "amount_ils": float(amount_ils),
+            "status": sale.status
+        })
+    
+    return {
+        "items": items,
+        "total_ils": float(total_ils),
+        "count": len(items)
+    }
+
+
+def _get_partner_service_fees(partner_id: int, partner: Partner, date_from: datetime, date_to: datetime):
+    """
+    رسوم صيانة على الشريك (كعميل) - تُخصم من حقوقه
+    """
+    from models import ServiceRequest
+    
+    if not partner.customer_id:
+        return {"items": [], "total_ils": 0.0, "count": 0}
+    
+    services = db.session.query(ServiceRequest).filter(
+        ServiceRequest.customer_id == partner.customer_id,
+        ServiceRequest.received_at >= date_from,
+        ServiceRequest.received_at <= date_to,
+        ServiceRequest.status == 'COMPLETED'
+    ).order_by(ServiceRequest.received_at).all()
+    
+    items = []
+    total_ils = Decimal('0.00')
+    
+    for service in services:
+        amount_ils = _convert_to_ils(Decimal(str(service.total_amount or 0)), service.currency, service.received_at)
+        total_ils += amount_ils
+        
+        items.append({
+            "service_id": service.id,
+            "service_number": service.service_number,
+            "date": service.received_at.strftime("%Y-%m-%d") if service.received_at else "",
+            "description": service.description or service.problem_description,
+            "amount": float(service.total_amount or 0),
+            "currency": service.currency,
+            "amount_ils": float(amount_ils),
+            "status": service.status
+        })
+    
+    return {
+        "items": items,
+        "total_ils": float(total_ils),
+        "count": len(items)
+    }
+
+
+def _get_partner_damaged_items(partner_id: int, date_from: datetime, date_to: datetime):
+    """
+    القطع التالفة - نصيب الشريك من الخسارة (من سعر التكلفة)
+    """
+    from models import (
+        StockAdjustment, StockAdjustmentItem, Product, 
+        ProductPartner, Warehouse
+    )
+    
+    # القطع التالفة
+    damaged_items = db.session.query(
+        StockAdjustment.date,
+        Product.name.label("product_name"),
+        Product.sku,
+        StockAdjustmentItem.quantity,
+        StockAdjustmentItem.unit_cost,
+        ProductPartner.share_percent,
+        StockAdjustmentItem.notes,
+        Warehouse.name.label("warehouse_name")
+    ).join(
+        StockAdjustmentItem, StockAdjustmentItem.adjustment_id == StockAdjustment.id
+    ).join(
+        Product, Product.id == StockAdjustmentItem.product_id
+    ).join(
+        ProductPartner, ProductPartner.product_id == Product.id
+    ).outerjoin(
+        Warehouse, Warehouse.id == StockAdjustmentItem.warehouse_id
+    ).filter(
+        ProductPartner.partner_id == partner_id,
+        StockAdjustment.reason == 'DAMAGED',
+        StockAdjustment.date >= date_from,
+        StockAdjustment.date <= date_to,
+        ProductPartner.share_percent > 0
+    ).order_by(StockAdjustment.date).all()
+    
+    items = []
+    total_ils = Decimal('0.00')
+    
+    for damaged in damaged_items:
+        partner_loss = Decimal(str(damaged.quantity)) * Decimal(str(damaged.unit_cost or 0)) * Decimal(str(damaged.share_percent)) / Decimal("100")
+        
+        # ⚠️ ملاحظة: جميع تكاليف التعديلات مُفترض أنها بالشيكل (ILS)
+        # StockAdjustmentItem.unit_cost لا يرتبط بعملة محددة
+        # إذا تمت إضافة عملات للتعديلات مستقبلاً، استخدم:
+        # partner_loss = _convert_to_ils(partner_loss, adjustment.currency, damaged.date)
+        
+        total_ils += partner_loss
+        
+        items.append({
+            "date": damaged.date.strftime("%Y-%m-%d") if damaged.date else "",
+            "product_name": damaged.product_name,
+            "sku": damaged.sku,
+            "warehouse": damaged.warehouse_name or "-",
+            "quantity": damaged.quantity,
+            "unit_cost": float(damaged.unit_cost or 0),
+            "share_percentage": float(damaged.share_percent),
+            "partner_loss": float(partner_loss),
+            "reason": damaged.notes or "تالف"
+        })
+    
+    return {
+        "items": items,
+        "total_ils": float(total_ils),
+        "count": len(items)
+    }

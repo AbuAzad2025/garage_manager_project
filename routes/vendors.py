@@ -466,51 +466,137 @@ def partners_list():
     
     for partner in partners:
         try:
-            from models import fx_rate
+            from models import fx_rate, ServicePart, ServiceRequest, SaleLine, Sale, ProductPartner, Customer as CustomerModel
+            from sqlalchemy import func
+            from decimal import Decimal
             
-            # حساب المبيعات للشريك - تحويل للشيقل
-            sales = Sale.query.filter(Sale.partner_id == partner.id).all()
-            sales_total = 0.0
-            for s in sales:
-                amount = float(s.total_amount or 0)
-                if s.currency and s.currency != 'ILS':
+            # ═══════════════════════════════════════════════════════════
+            # المدين (ما له علينا)
+            # ═══════════════════════════════════════════════════════════
+            
+            sales_total = Decimal('0.0')
+            
+            # 1. مبيعات الصيانة
+            service_parts = db.session.query(ServicePart, ServiceRequest).join(
+                ServiceRequest, ServiceRequest.id == ServicePart.service_id
+            ).filter(
+                ServicePart.partner_id == partner.id,
+                ServiceRequest.status == 'COMPLETED'
+            ).all()
+            
+            for sp, sr in service_parts:
+                amount = Decimal(str(sp.quantity)) * Decimal(str(sp.unit_price)) * Decimal(str(sp.share_percentage or 0)) / Decimal('100')
+                if sr.currency and sr.currency != 'ILS':
                     try:
-                        rate = fx_rate(s.currency, 'ILS', s.sale_date, raise_on_missing=False)
+                        rate = fx_rate(sr.currency, 'ILS', sr.received_at, raise_on_missing=False)
                         if rate > 0:
-                            amount = float(amount * float(rate))
-                        else:
-                            print(f"⚠️ WARNING: سعر صرف مفقود لـ {s.currency}/ILS في المبيعة #{s.id}")
-                    except ValueError as ve:
-                        print(f"⚠️ ERROR: {str(ve)} - Sale #{s.id}")
-                    except Exception as ex:
-                        print(f"⚠️ ERROR: خطأ في تحويل العملة للمبيعة #{s.id}: {str(ex)}")
+                            amount = amount * Decimal(str(rate))
+                    except:
+                        pass
                 sales_total += amount
             
-            # حساب الدفعات للشريك - استخدام fx_rate_used
-            payments = Payment.query.filter(
-                Payment.partner_id == partner.id,
-                Payment.direction == 'IN'
+            # 2. مبيعات عادية
+            regular_sales = db.session.query(SaleLine, Sale, ProductPartner).join(
+                Sale, Sale.id == SaleLine.sale_id
+            ).join(
+                ProductPartner, ProductPartner.product_id == SaleLine.product_id
+            ).filter(
+                ProductPartner.partner_id == partner.id,
+                Sale.status == 'CONFIRMED'
             ).all()
-            payments_total = 0.0
-            for p in payments:
-                amount = float(p.total_amount or 0)
-                if p.fx_rate_used:
-                    amount *= float(p.fx_rate_used)
-                elif p.currency and p.currency != 'ILS':
+            
+            for sl, sale, pp in regular_sales:
+                amount = Decimal(str(sl.quantity)) * Decimal(str(sl.unit_price)) * Decimal(str(pp.share_percent or 0)) / Decimal('100')
+                if sale.currency and sale.currency != 'ILS':
+                    try:
+                        rate = fx_rate(sale.currency, 'ILS', sale.sale_date, raise_on_missing=False)
+                        if rate > 0:
+                            amount = amount * Decimal(str(rate))
+                    except:
+                        pass
+                sales_total += amount
+            
+            # ═══════════════════════════════════════════════════════════
+            # الدائن (ما عليه لنا)
+            # ═══════════════════════════════════════════════════════════
+            
+            payments_total = Decimal('0.0')
+            
+            # 1. دفعات دفعناها له (OUT) - تُحسب له
+            payments_out = Payment.query.filter(
+                Payment.partner_id == partner.id,
+                Payment.direction == 'OUT',
+                Payment.status == 'COMPLETED'
+            ).all()
+            
+            for p in payments_out:
+                amount = Decimal(str(p.total_amount or 0))
+                if p.currency and p.currency != 'ILS':
                     try:
                         rate = fx_rate(p.currency, 'ILS', p.payment_date, raise_on_missing=False)
                         if rate > 0:
-                            amount = float(amount * float(rate))
-                        else:
-                            print(f"⚠️ WARNING: سعر صرف مفقود لـ {p.currency}/ILS في الدفعة #{p.id}")
-                    except ValueError as ve:
-                        print(f"⚠️ ERROR: {str(ve)} - Payment #{p.id}")
-                    except Exception as ex:
-                        print(f"⚠️ ERROR: خطأ في تحويل العملة للدفعة #{p.id}: {str(ex)}")
+                            amount = amount * Decimal(str(rate))
+                    except:
+                        pass
                 payments_total += amount
             
-            # الرصيد = المبيعات - المدفوعات (موجب يعني مستحق للشريك)
-            balance = sales_total - payments_total
+            # 2. دفعات دفعها لنا (IN) - تُحسب له (تُخصم)
+            payments_in = Payment.query.filter(
+                Payment.partner_id == partner.id,
+                Payment.direction == 'IN',
+                Payment.status == 'COMPLETED'
+            ).all()
+            
+            for p in payments_in:
+                amount = Decimal(str(p.total_amount or 0))
+                if p.currency and p.currency != 'ILS':
+                    try:
+                        rate = fx_rate(p.currency, 'ILS', p.payment_date, raise_on_missing=False)
+                        if rate > 0:
+                            amount = amount * Decimal(str(rate))
+                    except:
+                        pass
+                payments_total += amount
+            
+            # 3. مبيعات له كعميل + صيانة له
+            if partner.customer_id:
+                # مبيعات
+                customer_sales = Sale.query.filter(
+                    Sale.customer_id == partner.customer_id,
+                    Sale.status == 'CONFIRMED'
+                ).all()
+                
+                for s in customer_sales:
+                    amount = Decimal(str(s.total_amount or 0))
+                    if s.currency and s.currency != 'ILS':
+                        try:
+                            rate = fx_rate(s.currency, 'ILS', s.sale_date, raise_on_missing=False)
+                            if rate > 0:
+                                amount = amount * Decimal(str(rate))
+                        except:
+                            pass
+                    payments_total += amount
+                
+                # صيانة
+                customer_services = ServiceRequest.query.filter(
+                    ServiceRequest.customer_id == partner.customer_id,
+                    ServiceRequest.status == 'COMPLETED'
+                ).all()
+                
+                for sr in customer_services:
+                    amount = Decimal(str(sr.total_amount or 0))
+                    if sr.currency and sr.currency != 'ILS':
+                        try:
+                            rate = fx_rate(sr.currency, 'ILS', sr.received_at, raise_on_missing=False)
+                            if rate > 0:
+                                amount = amount * Decimal(str(rate))
+                        except:
+                            pass
+                    payments_total += amount
+            
+            # الرصيد = حقوقه - التزاماته - الدفعات المسددة
+            # (ما استحقه - ما عليه - ما دفعناه - ما دفعه)
+            balance = float(sales_total - payments_total)
             
             total_sales += float(sales_total)
             total_payments += float(payments_total)

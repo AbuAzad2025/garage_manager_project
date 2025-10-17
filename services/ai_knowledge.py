@@ -7,8 +7,8 @@ from pathlib import Path
 from datetime import datetime
 
 
-KNOWLEDGE_CACHE_FILE = 'instance/ai_knowledge_cache.json'
-TRAINING_LOG_FILE = 'instance/ai_training_log.json'
+KNOWLEDGE_CACHE_FILE = 'instance/ai/ai_knowledge_cache.json'
+TRAINING_LOG_FILE = 'instance/ai/ai_training_log.json'
 
 
 class SystemKnowledgeBase:
@@ -46,7 +46,7 @@ class SystemKnowledgeBase:
     def save_to_cache(self):
         """حفظ المعرفة في الذاكرة المستمرة"""
         try:
-            os.makedirs('instance', exist_ok=True)
+            os.makedirs('instance/ai', exist_ok=True)
             self.knowledge['last_indexed'] = datetime.now().isoformat()
             self.knowledge['index_count'] = self.knowledge.get('index_count', 0) + 1
             

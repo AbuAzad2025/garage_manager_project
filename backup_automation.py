@@ -14,7 +14,8 @@ class AutomatedBackupManager:
     
     def init_app(self, app):
         self.app = app
-        self.backup_dir = Path(app.instance_path) / 'backups' / 'db'
+        # مسار موحد للنسخ الاحتياطية
+        self.backup_dir = Path(app.instance_path) / 'backups'
         self.backup_dir.mkdir(parents=True, exist_ok=True)
         
         self.retention_policy = {

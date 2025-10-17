@@ -62,15 +62,55 @@
   <hr class="hr-soft my-4">
 
   <div class="auth-buttons">
-    <a href="{{ url_for('shop.catalog') }}" class="btn btn-success shop-btn fw-bold w-100 mb-2">
-      <i class="fas fa-store"></i> تصفح المتجر بدون تسجيل
-    </a>
-    <a href="{{ url_for('user_guide.index') }}" class="btn btn-outline-info btn-sm w-100 mb-2">
-      <i class="fas fa-book"></i> دليل المستخدم
-    </a>
-    <a href="{{ url_for('pricing.index') }}" class="btn btn-outline-warning btn-sm w-100">
-      <i class="fas fa-tags"></i> الأسعار والباقات
-    </a>
+    <div class="row g-2 mb-3">
+      <div class="col-12">
+        <a href="{{ url_for('user_guide.index') }}" class="btn btn-info w-100 fw-bold py-2">
+          <i class="fas fa-star me-2"></i> المميزات (40+ وحدة • 133 API)
+        </a>
+      </div>
+    </div>
+    <div class="row g-2 mb-3">
+      <div class="col-6">
+        <a href="{{ url_for('pricing.index') }}" class="btn btn-warning w-100">
+          <i class="fas fa-tags me-1"></i> الأسعار<br>
+          <small>من $500/سنة</small>
+        </a>
+      </div>
+      <div class="col-6">
+        <a href="{{ url_for('other_systems.index') }}" class="btn btn-secondary w-100">
+          <i class="fas fa-cogs me-1"></i> أنظمة أخرى<br>
+          <small>4 أنظمة</small>
+        </a>
+      </div>
+    </div>
+    <div class="row g-2">
+      <div class="col-12">
+        <a href="{{ url_for('shop.catalog') }}" class="btn btn-success shop-btn fw-bold w-100">
+          <i class="fas fa-store me-2"></i> تصفح المتجر بدون تسجيل
+        </a>
+      </div>
+    </div>
+  </div>
+  
+  <div class="mt-4 text-center">
+    <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+      <div class="card-body text-white py-3">
+        <h6 class="fw-bold mb-2">
+          <i class="fas fa-rocket me-2"></i>نظام احترافي متكامل
+        </h6>
+        <div class="row small">
+          <div class="col-4">
+            <strong>40+</strong><br>وحدة
+          </div>
+          <div class="col-4">
+            <strong>133</strong><br>API
+          </div>
+          <div class="col-4">
+            <strong>89</strong><br>فهرس
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 {% endblock %}
 

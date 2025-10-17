@@ -8,17 +8,23 @@
   {% include 'security/_navigation.html' %}
   
   <div class="alert alert-danger border-0 shadow-sm">
-    <i class="fas fa-exclamation-triangle"></i>
-    <strong>تحذير:</strong> هذه الوحدة سرية ومتاحة فقط لـ Super Admin. جميع الإجراءات يتم تسجيلها.
+    <i class="fas fa-crown"></i>
+    <strong>🔐 المالك فقط:</strong> هذه الوحدة السرية متاحة للمالك (__OWNER__) فقط! 
+    <span class="badge bg-warning text-dark ms-2">Super Admin ممنوع</span>
+    <br><small>جميع الإجراءات يتم تسجيلها في Audit Trail</small>
   </div>
 
   <div class="alert alert-info border-0 shadow-sm">
-    <i class="fas fa-info-circle"></i>
-    <strong>تنظيم الصفحات:</strong>
-    <ul class="mb-0 mt-2">
-      <li><strong>هذه الصفحة:</strong> الأمان الأساسي + الإحصائيات + الحظر</li>
-      <li><strong>لوحة التحكم النهائية:</strong> أدوات متقدمة + AI + تطوير + إعدادات</li>
-    </ul>
+    <i class="fas fa-rocket"></i>
+    <strong>النظام v5.0.0:</strong>
+    <span class="badge bg-success ms-1">40+ وحدة</span>
+    <span class="badge bg-info ms-1">133 API</span>
+    <span class="badge bg-warning text-dark ms-1">89 فهرس</span>
+    <span class="badge bg-danger ms-1">150+ علاقة</span>
+    <br><small class="mt-2 d-block">
+      <strong>هذه الصفحة:</strong> الأمان الأساسي + الإحصائيات + الحظر |
+      <strong>لوحة التحكم النهائية:</strong> 37+ أداة متقدمة
+    </small>
   </div>
 
   <!-- الإحصائيات -->
@@ -81,7 +87,11 @@
             <a href="{{ url_for('security.ultimate_control') }}" class="btn btn-light btn-sm fw-bold">
               <i class="fas fa-bolt"></i> التحكم النهائي
             </a>
-            <small class="opacity-75">AI + أدوات + إعدادات</small>
+            <div class="row text-center small mt-2">
+              <div class="col-4 opacity-75">40 وحدة</div>
+              <div class="col-4 opacity-75">133 API</div>
+              <div class="col-4 opacity-75">89 فهرس</div>
+            </div>
           </div>
         </div>
       </div>
@@ -359,10 +369,23 @@
             </a>
           </div>
         </div>
+        </div>
       </div>
     </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+        <div class="card-body text-center text-white">
+          <i class="fas fa-database fa-3x mb-3"></i>
+          <h5 class="fw-bold">إدارة الفهارس</h5>
+          <p class="small opacity-75">تسريع 10x</p>
+          <a href="{{ url_for('security.indexes_manager') }}" class="btn btn-light btn-sm fw-bold">
+            <i class="fas fa-bolt"></i> فهارس
+          </a>
+        </div>
+      </div>
+    </div>
+    
   </div>
-
-</div>
 {% endblock %}
 

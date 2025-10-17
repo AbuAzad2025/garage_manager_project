@@ -6,14 +6,14 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 
-INTERACTIONS_LOG = 'instance/ai_interactions.json'
-SELF_AUDIT_LOG = 'instance/ai_self_audit.json'
-TRAINING_POLICY = 'instance/ai_training_policy.json'
+INTERACTIONS_LOG = 'instance/ai/ai_interactions.json'
+SELF_AUDIT_LOG = 'instance/ai/ai_self_audit.json'
+TRAINING_POLICY = 'instance/ai/ai_training_policy.json'
 
 
 def log_interaction(question, answer, confidence, search_results):
     try:
-        os.makedirs('instance', exist_ok=True)
+        os.makedirs('instance/ai', exist_ok=True)
         
         interactions = []
         if os.path.exists(INTERACTIONS_LOG):

@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  /* Enhanced Font System */
+  /* ═══════ 📝 نظام الخطوط ═══════ */
   --font-family-ar: 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   --font-weight-light: 300;
   --font-weight-normal: 400;
@@ -10,80 +10,112 @@
   --font-weight-bold: 700;
   --font-weight-extrabold: 800;
   
-  /* Enhanced Color System - تباين محسّن للقراءة */
+  /* ═══════ 🎨 الألوان الأساسية ═══════ */
   --primary-color: #0056b3;
   --primary-hover: #003d82;
+  --primary-light: #0066cc;
+  
   --secondary-color: #495057;
+  --secondary-light: #6c757d;
+  
   --success-color: #155724;
+  --success-light: #28a745;
+  
   --danger-color: #721c24;
+  --danger-light: #dc3545;
+  
   --warning-color: #856404;
+  --warning-light: #ffc107;
+  
   --info-color: #0c5460;
+  --info-light: #17a2b8;
+  
   --light-color: #f8f9fa;
   --dark-color: #212529;
   
-  /* Enhanced Sidebar Colors */
+  /* ═══════ 📂 ألوان Sidebar ═══════ */
   --sidebar-link-default: #e0e0e0;
   --sidebar-link-hover: #ffffff;
   --sidebar-link-hover-bg: rgba(255, 255, 255, 0.15);
   --sidebar-link-focus-border: #00c6ff;
-  --sidebar-bg: linear-gradient(180deg, #2c3e50 0%, #34495e 100%);
+  --sidebar-bg: linear-gradient(180deg, #2c3e50 0%, #4ca1af 100%);
   --sidebar-brand-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   
-  /* Enhanced Content Colors */
+  /* ═══════ 📄 ألوان المحتوى ═══════ */
   --content-bg: #f8f9fb;
   --content-text: #212529;
   --content-text-muted: #495057;
   
-  /* Enhanced Card System */
+  /* ═══════ 🃏 نظام البطاقات ═══════ */
+  --card-bg: #ffffff;
   --card-header-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   --card-header-text: #ffffff;
   --card-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
   --card-shadow-hover: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
   --card-border-radius: 0.75rem;
   
-  /* Enhanced Footer */
+  /* ═══════ 🔽 Footer ═══════ */
   --footer-bg: #f4f6f9;
   --footer-text: #212529;
   
-  /* Enhanced Alert System */
+  /* ═══════ ⚠️ نظام التنبيهات ═══════ */
   --alert-success: #28a745;
+  --alert-success-bg: #d4edda;
   --alert-danger: #dc3545;
+  --alert-danger-bg: #f8d7da;
   --alert-warning: #ffc107;
+  --alert-warning-bg: #fff3cd;
   --alert-info: #17a2b8;
+  --alert-info-bg: #d1ecf1;
   --alert-border-radius: 0.75rem;
   
-  /* Enhanced Dark Theme */
+  /* ═══════ 🌙 الوضع الليلي ═══════ */
   --dark-bg: #0f2027;
+  --dark-bg-alt: #273143;
   --dark-sidebar-bg: linear-gradient(180deg, #141e30 0%, #243b55 100%);
   --dark-content-bg: #1c1f26;
   --dark-card-bg: #2d3748;
   --dark-text: #e2e8f0;
-  /* Enhanced Dark Theme Colors */
-  --dark-bg-alt: #273143;
-  --dark-text: #c2c7d0;
-  --dark-text-alt: #e0e0e0;
+  --dark-text-muted: #c2c7d0;
+  --dark-text-light: #e0e0e0;
   
-  /* Enhanced Navbar */
+  /* ═══════ 🔝 Navbar ═══════ */
   --navbar-bg: linear-gradient(90deg, #1f4037 0%, #99f2c8 100%);
   --navbar-text: #ffffff;
   --navbar-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   
-  /* Enhanced Transitions */
+  /* ═══════ ⚡ الانتقالات ═══════ */
   --transition-fast: 0.15s ease-in-out;
   --transition-normal: 0.3s ease-in-out;
   --transition-slow: 0.5s ease-in-out;
   
-  /* Enhanced Shadows - ظلال أوضح */
+  /* ═══════ 🎭 الظلال ═══════ */
   --shadow-sm: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.15);
   --shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.25);
   --shadow-lg: 0 1rem 3rem rgba(0, 0, 0, 0.35);
   
-  /* Enhanced Border Radius */
+  /* ═══════ 📐 الزوايا ═══════ */
   --border-radius-sm: 0.25rem;
   --border-radius: 0.375rem;
   --border-radius-lg: 0.5rem;
   --border-radius-xl: 0.75rem;
   --border-radius-xxl: 1rem;
+  
+  /* ═══════ 🎨 التدرجات ═══════ */
+  --gradient-primary: linear-gradient(135deg, #0066cc 0%, #003d82 100%);
+  --gradient-success: linear-gradient(135deg, #28a745 0%, #155724 100%);
+  --gradient-danger: linear-gradient(135deg, #dc3545 0%, #721c24 100%);
+  --gradient-warning: linear-gradient(135deg, #ffc107 0%, #856404 100%);
+  --gradient-info: linear-gradient(135deg, #17a2b8 0%, #0c5460 100%);
+  
+  /* ═══════ 🎯 ألوان الحالة ═══════ */
+  --status-paid: var(--success-light);
+  --status-unpaid: var(--danger-light);
+  --status-partial: var(--warning-light);
+  --status-pending: var(--warning-light);
+  --status-confirmed: var(--success-light);
+  --status-cancelled: var(--danger-light);
+  --status-completed: var(--info-light);
 }
 
 *, *::before, *::after {

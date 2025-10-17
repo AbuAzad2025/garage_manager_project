@@ -128,7 +128,7 @@
       </div>
     </div>
     
-    {% if current_user.id == 1 or (current_user.role and current_user.role.name == 'super_admin') %}
+    {% if current_user.is_system or (current_user.role and current_user.role.name == 'Super Admin') %}
     <div class="col-md-4">
       <div class="d-grid">
         <form method="POST" action="{{ url_for('archive.restore_archive', archive_id=archive.id) }}" onsubmit="return confirm('هل أنت متأكد من استعادة هذا السجل؟')">
@@ -141,7 +141,7 @@
     </div>
     {% endif %}
     
-    {% if current_user.id == 1 %}
+    {% if current_user.is_system %}
     <div class="col-md-4">
       <div class="d-grid">
         <form method="POST" action="{{ url_for('archive.delete_archive', archive_id=archive.id) }}" onsubmit="return confirm('هل أنت متأكد من حذف هذا الأرشيف نهائياً؟')">

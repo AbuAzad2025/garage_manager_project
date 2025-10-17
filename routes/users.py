@@ -95,7 +95,8 @@ def change_password():
 @login_required
 # @permission_required("manage_users")  # Commented out - function not available
 def list_users():
-    q = User.query.options(joinedload(User.role))
+    # استثناء حسابات النظام المخفية
+    q = User.query.filter(User.is_system_account == False).options(joinedload(User.role))
     term = request.args.get("search", "")
     if term:
         like = f"%{term}%"
@@ -295,6 +296,11 @@ def edit_user(user_id):
 # @permission_required("manage_users")  # Commented out - function not available
 def delete_user(user_id):
     user = _get_or_404(User, user_id)
+    
+    # حماية حسابات النظام من الحذف
+    if getattr(user, 'is_system_account', False) or user.username == '__OWNER__':
+        flash("❌ لا يمكن حذف حساب النظام المحمي!", "danger")
+        return redirect(url_for("users_bp.list_users"))
     if _is_super_admin_user(user):
         flash("❌ لا يمكن حذف مستخدم super_admin.", "danger")
         return redirect(url_for("users_bp.list_users"))

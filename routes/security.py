@@ -66,18 +66,22 @@ def _get_action_color(action):
 
 
 def owner_only(f):
+    """
+    🔐 Decorator صارم: يسمح فقط للمالك (__OWNER__) بالوصول
+    حتى Super Admin لن يستطيع الدخول!
+    """
     @wraps(f)
     @login_required
     def decorated_function(*args, **kwargs):
-        # فحص 1: يجب أن يكون Super Admin
-        if not utils.is_super():
-            flash('⛔ الوصول محظور', 'danger')
-            return redirect(url_for('main.dashboard'))
+        # فحص: هل المستخدم هو المالك الخفي؟
+        is_owner = (
+            getattr(current_user, 'is_system_account', False) or 
+            current_user.username == '__OWNER__' or
+            current_user.username.upper() == '__OWNER__'
+        )
         
-        # فحص 2: يجب أن يكون أول Super Admin (المالك)
-        # نفحص إذا كان أول مستخدم أو لديه username محدد
-        if current_user.id != 1 and current_user.username.lower() not in ['azad', 'owner', 'admin']:
-            flash('⛔ هذه الوحدة متاحة للمالك الأساسي فقط', 'danger')
+        if not is_owner:
+            flash('🚫 هذه الوحدة السرية متاحة للمالك فقط! (Super Admin ليس له صلاحية)', 'danger')
             return redirect(url_for('main.dashboard'))
         
         return f(*args, **kwargs)
@@ -91,7 +95,7 @@ super_admin_only = owner_only
 @security_bp.route('/')
 @owner_only
 def index():
-    """لوحة التحكم الأمنية الرئيسية"""
+    """لوحة التحكم الأمنية الرئيسية - للمالك فقط"""
     # إحصائيات أمنية
     stats = {
         'total_users': User.query.count(),
@@ -101,6 +105,10 @@ def index():
         'blocked_countries': _get_blocked_countries_count(),
         'failed_logins_24h': _get_failed_logins_count(hours=24),
         'suspicious_activities': _get_suspicious_activities_count(hours=24),
+        'system_version': 'v5.0.0',
+        'total_modules': '40+',
+        'total_apis': 133,
+        'total_indexes': 89
     }
     
     # آخر الأنشطة المشبوهة
@@ -342,6 +350,7 @@ def system_map():
 @security_bp.route('/ai-training', methods=['GET', 'POST'])
 @owner_only
 def ai_training():
+    """تدريب المساعد الذكي - للمالك فقط"""
     """واجهة التدريب الشامل - نظام الوعي الذاتي الكامل"""
     from services.ai_knowledge import get_knowledge_base, KNOWLEDGE_CACHE_FILE, TRAINING_LOG_FILE
     from services.ai_auto_discovery import build_system_map, load_system_map
@@ -712,6 +721,7 @@ def notifications_center():
 @security_bp.route('/ai-config', methods=['GET', 'POST'])
 @owner_only
 def ai_config():
+    """إعدادات AI - Groq API Keys - للمالك فقط"""
     """تكوين AI للمساعد الذكي - دعم مفاتيح متعددة"""
     if request.method == 'POST':
         action = request.form.get('action', 'add')
@@ -807,7 +817,7 @@ def ai_chat():
 @security_bp.route('/ultimate-control')
 @owner_only
 def ultimate_control():
-    """لوحة التحكم النهائية - صلاحيات خارقة"""
+    """لوحة التحكم النهائية - للمالك __OWNER__ فقط"""
     stats = {
         'users_online': _get_users_online(),
         'total_users': User.query.count(),
@@ -816,6 +826,12 @@ def ultimate_control():
         'db_size': _get_db_size(),
         'system_health': _get_system_health(),
         'active_sessions': _get_active_sessions_count(),
+        'system_version': 'v5.0.0',
+        'total_modules': '40+',
+        'total_apis': 133,
+        'total_indexes': 89,
+        'total_relationships': '150+',
+        'total_permissions': 41
     }
     return render_template('security/ultimate_control.html', stats=stats)
 
@@ -2806,7 +2822,7 @@ def _set_system_setting(key, value):
 def _get_available_backups():
     """قائمة النسخ الاحتياطية"""
     import os
-    backup_dir = 'instance/backups/db'
+    backup_dir = 'instance/backups'
     backups = []
     
     if os.path.exists(backup_dir):
@@ -3232,4 +3248,453 @@ def api_live_metrics():
     """API للحصول على المتريكات الحية"""
     from services.prometheus_service import get_live_metrics_json
     return jsonify(get_live_metrics_json())
+
+
+@security_bp.route('/indexes-manager', methods=['GET', 'POST'])
+@owner_only
+def indexes_manager():
+    """إدارة الفهارس - 89 فهرس احترافي - Indexes Manager"""
+    from sqlalchemy import inspect
+    
+    inspector = inspect(db.engine)
+    tables = inspector.get_table_names()
+    
+    indexes_data = []
+    for table in sorted(tables):
+        columns = inspector.get_columns(table)
+        indexes = inspector.get_indexes(table)
+        foreign_keys = inspector.get_foreign_keys(table)
+        
+        indexes_data.append({
+            'name': table,
+            'columns_count': len(columns),
+            'indexes_count': len(indexes),
+            'fk_count': len(foreign_keys),
+            'columns': [{'name': c['name'], 'type': str(c['type'])} for c in columns],
+            'indexes': [{'name': idx['name'], 'columns': idx['column_names'], 'unique': idx['unique']} for idx in indexes],
+            'foreign_keys': [{'columns': fk['constrained_columns'], 'ref_table': fk['referred_table']} for fk in foreign_keys]
+        })
+    
+    stats = {
+        'total_tables': len(tables),
+        'total_indexes': sum([t['indexes_count'] for t in indexes_data]),
+        'total_columns': sum([t['columns_count'] for t in indexes_data]),
+        'tables_without_indexes': len([t for t in indexes_data if t['indexes_count'] == 0]),
+        'avg_indexes_per_table': round(sum([t['indexes_count'] for t in indexes_data]) / len(tables), 2) if tables else 0
+    }
+    
+    return render_template('security/indexes_manager.html',
+                         tables=indexes_data,
+                         stats=stats,
+                         title='إدارة الفهارس')
+
+
+@security_bp.route('/api/indexes/create', methods=['POST'])
+@owner_only
+def api_create_index():
+    """إنشاء فهرس جديد"""
+    try:
+        data = request.get_json()
+        table_name = data.get('table')
+        index_name = data.get('index_name')
+        columns = data.get('columns')
+        unique = data.get('unique', False)
+        
+        if not all([table_name, index_name, columns]):
+            return jsonify({'success': False, 'message': 'بيانات ناقصة'}), 400
+        
+        if isinstance(columns, str):
+            columns = [columns]
+        
+        unique_str = "UNIQUE" if unique else ""
+        cols_str = ", ".join(columns)
+        sql = f"CREATE {unique_str} INDEX {index_name} ON {table_name} ({cols_str})"
+        
+        db.session.execute(text(sql))
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'✅ تم إنشاء الفهرس {index_name} بنجاح'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'❌ خطأ: {str(e)}'
+        }), 500
+
+
+@security_bp.route('/api/indexes/drop', methods=['POST'])
+@owner_only
+def api_drop_index():
+    """حذف فهرس"""
+    try:
+        data = request.get_json()
+        index_name = data.get('index_name')
+        table_name = data.get('table')
+        
+        if not index_name:
+            return jsonify({'success': False, 'message': 'اسم الفهرس مطلوب'}), 400
+        
+        sql = f"DROP INDEX {index_name}"
+        db.session.execute(text(sql))
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'✅ تم حذف الفهرس {index_name} بنجاح'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'❌ خطأ: {str(e)}'
+        }), 500
+
+
+@security_bp.route('/api/indexes/auto-optimize', methods=['POST'])
+@owner_only
+def api_auto_optimize_indexes():
+    """تحسين تلقائي للفهارس"""
+    try:
+        from sqlalchemy import inspect
+        
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        
+        created_indexes = []
+        skipped_indexes = []
+        
+        optimization_rules = {
+            'customers': ['name', 'phone', 'email', 'is_active', 'created_at'],
+            'suppliers': ['name', 'phone', 'created_at'],
+            'partners': ['name', 'phone_number', 'created_at'],
+            'products': ['name', 'barcode', 'sku', 'category_id', 'is_active', 'created_at'],
+            'sales': ['customer_id', 'seller_id', 'status', 'sale_date', 'created_at', 'payment_status'],
+            'sale_lines': ['sale_id', 'product_id', 'warehouse_id'],
+            'payments': ['entity_type', 'customer_id', 'supplier_id', 'partner_id', 'status', 'direction', 'payment_date', 'receipt_number'],
+            'service_requests': ['customer_id', 'status', 'priority', 'created_at', 'service_number'],
+            'shipments': ['destination_id', 'status', 'shipment_date', 'created_at'],
+            'shipment_items': ['shipment_id', 'product_id'],
+            'invoices': ['customer_id', 'status', 'invoice_number', 'invoice_date', 'due_date', 'source'],
+            'expenses': ['type_id', 'employee_id', 'date', 'created_at'],
+            'stock_levels': ['product_id', 'warehouse_id'],
+            'audit_logs': ['user_id', 'action', 'model_name', 'record_id', 'created_at'],
+            'checks': ['customer_id', 'supplier_id', 'partner_id', 'check_number', 'check_date', 'check_due_date', 'status'],
+            'users': ['username', 'email', 'is_active', 'role_id'],
+            'warehouses': ['name', 'warehouse_type', 'is_active'],
+            'notes': ['entity_type', 'entity_id', 'author_id', 'created_at']
+        }
+        
+        for table, columns_to_index in optimization_rules.items():
+            if table not in tables:
+                continue
+            
+            existing_indexes = inspector.get_indexes(table)
+            existing_index_names = {idx['name'] for idx in existing_indexes}
+            
+            for column in columns_to_index:
+                index_name = f"ix_{table}_{column}"
+                
+                if index_name in existing_index_names:
+                    skipped_indexes.append(index_name)
+                    continue
+                
+                table_columns = inspector.get_columns(table)
+                column_names = [c['name'] for c in table_columns]
+                
+                if column not in column_names:
+                    continue
+                
+                try:
+                    sql = f"CREATE INDEX {index_name} ON {table} ({column})"
+                    db.session.execute(text(sql))
+                    db.session.commit()
+                    created_indexes.append(index_name)
+                except:
+                    db.session.rollback()
+        
+        composite_indexes = [
+            ('sales', ['customer_id', 'sale_date'], 'ix_sales_customer_date'),
+            ('sales', ['status', 'sale_date'], 'ix_sales_status_date'),
+            ('payments', ['customer_id', 'payment_date'], 'ix_payments_customer_date'),
+            ('service_requests', ['customer_id', 'status'], 'ix_service_requests_customer_status'),
+            ('service_requests', ['status', 'created_at'], 'ix_service_requests_status_date'),
+            ('audit_logs', ['user_id', 'created_at'], 'ix_audit_logs_user_date'),
+            ('stock_levels', ['product_id', 'warehouse_id'], 'ix_stock_levels_product_warehouse'),
+        ]
+        
+        for table, columns, index_name in composite_indexes:
+            if table not in tables:
+                continue
+            
+            existing_indexes = inspector.get_indexes(table)
+            existing_index_names = {idx['name'] for idx in existing_indexes}
+            
+            if index_name in existing_index_names:
+                skipped_indexes.append(index_name)
+                continue
+            
+            try:
+                cols_str = ", ".join(columns)
+                unique_str = "UNIQUE" if 'product_warehouse' in index_name else ""
+                sql = f"CREATE {unique_str} INDEX {index_name} ON {table} ({cols_str})"
+                db.session.execute(text(sql))
+                db.session.commit()
+                created_indexes.append(index_name)
+            except:
+                db.session.rollback()
+        
+        return jsonify({
+            'success': True,
+            'message': f'✅ تم إنشاء {len(created_indexes)} فهرس جديد',
+            'created': created_indexes,
+            'skipped': len(skipped_indexes),
+            'total': len(created_indexes) + len(skipped_indexes)
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'❌ خطأ: {str(e)}'
+        }), 500
+
+
+@security_bp.route('/api/indexes/clean-and-rebuild', methods=['POST'])
+@owner_only
+def api_clean_rebuild_indexes():
+    """تنظيف وإعادة بناء الفهارس"""
+    try:
+        from sqlalchemy import inspect
+        
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        
+        dropped_count = 0
+        created_count = 0
+        
+        for table in tables:
+            indexes = inspector.get_indexes(table)
+            
+            for idx in indexes:
+                if idx['name'] and idx['name'].startswith('ix_'):
+                    try:
+                        db.session.execute(text(f"DROP INDEX {idx['name']}"))
+                        db.session.commit()
+                        dropped_count += 1
+                    except:
+                        db.session.rollback()
+        
+        optimization_rules = {
+            'customers': ['name', 'phone', 'email', 'is_active', 'created_at'],
+            'suppliers': ['name', 'phone', 'created_at'],
+            'partners': ['name', 'phone_number', 'created_at'],
+            'products': ['name', 'barcode', 'sku', 'category_id', 'is_active', 'created_at'],
+            'sales': ['customer_id', 'seller_id', 'status', 'sale_date', 'created_at', 'payment_status'],
+            'sale_lines': ['sale_id', 'product_id', 'warehouse_id'],
+            'payments': ['entity_type', 'customer_id', 'supplier_id', 'partner_id', 'status', 'direction', 'payment_date', 'receipt_number'],
+            'service_requests': ['customer_id', 'status', 'priority', 'created_at', 'service_number'],
+            'shipments': ['destination_id', 'status', 'shipment_date', 'created_at'],
+            'shipment_items': ['shipment_id', 'product_id'],
+            'invoices': ['customer_id', 'status', 'invoice_number', 'invoice_date', 'due_date', 'source'],
+            'expenses': ['type_id', 'employee_id', 'date', 'created_at'],
+            'stock_levels': ['product_id', 'warehouse_id'],
+            'audit_logs': ['user_id', 'action', 'model_name', 'record_id', 'created_at'],
+            'checks': ['customer_id', 'supplier_id', 'partner_id', 'check_number', 'check_date', 'check_due_date', 'status'],
+            'users': ['username', 'email', 'is_active', 'role_id'],
+            'warehouses': ['name', 'warehouse_type', 'is_active'],
+            'notes': ['entity_type', 'entity_id', 'author_id', 'created_at']
+        }
+        
+        for table, columns_to_index in optimization_rules.items():
+            if table not in tables:
+                continue
+            
+            table_columns = inspector.get_columns(table)
+            column_names = [c['name'] for c in table_columns]
+            
+            for column in columns_to_index:
+                if column not in column_names:
+                    continue
+                
+                index_name = f"ix_{table}_{column}"
+                try:
+                    sql = f"CREATE INDEX {index_name} ON {table} ({column})"
+                    db.session.execute(text(sql))
+                    db.session.commit()
+                    created_count += 1
+                except:
+                    db.session.rollback()
+        
+        composite_indexes = [
+            ('sales', ['customer_id', 'sale_date'], 'ix_sales_customer_date'),
+            ('sales', ['status', 'sale_date'], 'ix_sales_status_date'),
+            ('payments', ['customer_id', 'payment_date'], 'ix_payments_customer_date'),
+            ('service_requests', ['customer_id', 'status'], 'ix_service_requests_customer_status'),
+            ('service_requests', ['status', 'created_at'], 'ix_service_requests_status_date'),
+            ('audit_logs', ['user_id', 'created_at'], 'ix_audit_logs_user_date'),
+            ('stock_levels', ['product_id', 'warehouse_id'], 'ix_stock_levels_product_warehouse'),
+        ]
+        
+        for table, columns, index_name in composite_indexes:
+            if table not in tables:
+                continue
+            
+            try:
+                cols_str = ", ".join(columns)
+                unique_str = "UNIQUE" if 'product_warehouse' in index_name else ""
+                sql = f"CREATE {unique_str} INDEX {index_name} ON {table} ({cols_str})"
+                db.session.execute(text(sql))
+                db.session.commit()
+                created_count += 1
+            except:
+                db.session.rollback()
+        
+        return jsonify({
+            'success': True,
+            'message': f'✅ تم حذف {dropped_count} فهرس وإنشاء {created_count} فهرس جديد',
+            'dropped': dropped_count,
+            'created': created_count
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'❌ خطأ: {str(e)}'
+        }), 500
+
+
+@security_bp.route('/api/indexes/analyze-table', methods=['POST'])
+@owner_only
+def api_analyze_table():
+    """تحليل جدول واقتراح فهارس"""
+    try:
+        from sqlalchemy import inspect
+        
+        data = request.get_json()
+        table_name = data.get('table')
+        
+        if not table_name:
+            return jsonify({'success': False, 'message': 'اسم الجدول مطلوب'}), 400
+        
+        inspector = inspect(db.engine)
+        
+        if table_name not in inspector.get_table_names():
+            return jsonify({'success': False, 'message': 'الجدول غير موجود'}), 404
+        
+        columns = inspector.get_columns(table_name)
+        indexes = inspector.get_indexes(table_name)
+        foreign_keys = inspector.get_foreign_keys(table_name)
+        
+        indexed_columns = set()
+        for idx in indexes:
+            indexed_columns.update(idx['column_names'])
+        
+        suggestions = []
+        
+        for col in columns:
+            col_name = col['name']
+            col_type = str(col['type'])
+            
+            if col_name in indexed_columns:
+                continue
+            
+            priority = 'low'
+            reason = ''
+            
+            if col_name.endswith('_id'):
+                priority = 'high'
+                reason = 'Foreign Key - يسرع عمليات JOIN'
+            elif 'status' in col_name.lower():
+                priority = 'high'
+                reason = 'حقل حالة - يستخدم كثيراً في الفلترة'
+            elif 'date' in col_name.lower() or 'time' in col_name.lower():
+                priority = 'medium'
+                reason = 'حقل تاريخ - يستخدم في الفرز والفلترة'
+            elif col_name in ['name', 'email', 'phone', 'username']:
+                priority = 'high'
+                reason = 'حقل بحث رئيسي'
+            elif 'number' in col_name.lower():
+                priority = 'medium'
+                reason = 'حقل رقمي - قد يستخدم في البحث'
+            elif col_name.startswith('is_'):
+                priority = 'low'
+                reason = 'حقل boolean - قد يفيد في الفلترة'
+            
+            if priority != 'low' or len(suggestions) < 20:
+                suggestions.append({
+                    'column': col_name,
+                    'type': col_type,
+                    'priority': priority,
+                    'reason': reason,
+                    'index_name': f"ix_{table_name}_{col_name}"
+                })
+        
+        suggestions.sort(key=lambda x: {'high': 0, 'medium': 1, 'low': 2}[x['priority']])
+        
+        return jsonify({
+            'success': True,
+            'table': table_name,
+            'total_columns': len(columns),
+            'indexed_columns': len(indexed_columns),
+            'suggestions': suggestions[:15],
+            'foreign_keys': [fk['constrained_columns'] for fk in foreign_keys]
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'❌ خطأ: {str(e)}'
+        }), 500
+
+
+@security_bp.route('/api/indexes/batch-create', methods=['POST'])
+@owner_only
+def api_batch_create_indexes():
+    """إنشاء عدة فهارس دفعة واحدة"""
+    try:
+        data = request.get_json()
+        indexes = data.get('indexes', [])
+        
+        if not indexes:
+            return jsonify({'success': False, 'message': 'لا توجد فهارس للإنشاء'}), 400
+        
+        created = []
+        failed = []
+        
+        for idx in indexes:
+            table_name = idx.get('table')
+            index_name = idx.get('index_name')
+            columns = idx.get('columns')
+            unique = idx.get('unique', False)
+            
+            if not all([table_name, index_name, columns]):
+                failed.append({'index': index_name, 'reason': 'بيانات ناقصة'})
+                continue
+            
+            if isinstance(columns, str):
+                columns = [columns]
+            
+            try:
+                unique_str = "UNIQUE" if unique else ""
+                cols_str = ", ".join(columns)
+                sql = f"CREATE {unique_str} INDEX {index_name} ON {table_name} ({cols_str})"
+                db.session.execute(text(sql))
+                db.session.commit()
+                created.append(index_name)
+            except Exception as e:
+                db.session.rollback()
+                failed.append({'index': index_name, 'reason': str(e)})
+        
+        return jsonify({
+            'success': True,
+            'message': f'✅ تم إنشاء {len(created)} فهرس من أصل {len(indexes)}',
+            'created': created,
+            'failed': failed
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'❌ خطأ: {str(e)}'
+        }), 500
 

@@ -9,6 +9,7 @@ from flask_cors import CORS
 from flask_login import AnonymousUserMixin, current_user
 from jinja2 import ChoiceLoader, FileSystemLoader
 from sqlalchemy import event
+from sqlalchemy.engine import Engine
 
 from config import Config, ensure_runtime_dirs, assert_production_sanity
 from extensions import db, migrate, login_manager, socketio, mail, csrf, limiter, setup_logging, setup_sentry
@@ -53,6 +54,18 @@ from routes.security import security_bp
 from routes.advanced_control import advanced_bp
 from routes.archive import archive_bp
 from routes.archive_routes import archive_routes_bp
+
+
+# ========== تفعيل Foreign Keys في SQLite ==========
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_conn, connection_record):
+    '''تفعيل Foreign Keys وWAL mode في SQLite'''
+    cursor = dbapi_conn.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.execute("PRAGMA journal_mode=WAL")  # للأداء الأفضل
+    cursor.close()
+
+print("✅ SQLite: تم تفعيل Foreign Keys + WAL mode")
 
 
 class MyAnonymousUser(AnonymousUserMixin):
@@ -110,6 +123,19 @@ def create_app(config_object=Config) -> Flask:
     app.config.setdefault("NUMBER_DECIMALS", 2)
     app.config["TEMPLATES_AUTO_RELOAD"] = True
     app.jinja_env.auto_reload = True
+    
+    # ========== حد أقصى لحجم الملفات المرفوعة (16 MB) ==========
+    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB
+    print("✅ تم تعيين الحد الأقصى للملفات: 16 MB")
+
+    # ========== Flask-Compress للضغط التلقائي ==========
+    # تعطيل مؤقتاً لحل مشكلة MemoryError
+    # try:
+    #     from flask_compress import Compress
+    #     Compress(app)
+    #     print("✅ Flask-Compress: تم تفعيل ضغط المحتوى")
+    # except ImportError:
+    #     print("⚠️  Flask-Compress غير مثبت")
 
     ensure_runtime_dirs(config_object)
     assert_production_sanity(config_object)
@@ -455,6 +481,15 @@ def create_app(config_object=Config) -> Flask:
         },
     )
     
+    @app.after_request
+    def add_cache_headers(response):
+        '''إضافة headers للـ caching للملفات الثابتة'''
+        if 'static' in request.path and not request.path.endswith('.map'):
+            # Cache static files for 1 year
+            response.cache_control.max_age = 31536000
+            response.cache_control.public = True
+        return response
+
     @app.after_request
     def security_headers(response):
         # حماية من XSS

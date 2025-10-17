@@ -621,7 +621,7 @@ def system_health():
         if action == 'fix_permissions':
             try:
                 # إصلاح صلاحيات المجلدات
-                dirs_to_fix = ['instance', 'instance/backups', 'instance/backups/db', 'static/uploads']
+                dirs_to_fix = ['instance', 'instance/backups', 'instance/ai', 'static/uploads']
                 for dir_path in dirs_to_fix:
                     full_path = os.path.join(current_app.root_path, dir_path)
                     os.makedirs(full_path, exist_ok=True)

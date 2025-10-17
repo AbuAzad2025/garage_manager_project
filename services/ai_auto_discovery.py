@@ -7,8 +7,8 @@ from pathlib import Path
 from flask import current_app
 
 
-SYSTEM_MAP_FILE = 'instance/ai_system_map.json'
-DISCOVERY_LOG_FILE = 'instance/ai_discovery_log.json'
+SYSTEM_MAP_FILE = 'instance/ai/ai_system_map.json'
+DISCOVERY_LOG_FILE = 'instance/ai/ai_discovery_log.json'
 
 
 def discover_all_routes():
@@ -229,7 +229,7 @@ def extract_modules(templates):
 def save_system_map(system_map):
     """حفظ خريطة النظام"""
     try:
-        os.makedirs('instance', exist_ok=True)
+        os.makedirs('instance/ai', exist_ok=True)
         
         with open(SYSTEM_MAP_FILE, 'w', encoding='utf-8') as f:
             json.dump(system_map, f, ensure_ascii=False, indent=2)

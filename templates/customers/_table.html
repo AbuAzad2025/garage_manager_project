@@ -59,13 +59,13 @@
             {% if customer.is_archived %}
             <button type="button" class="btn btn-action-restore btn-action-sm restore-btn"
                     data-id="{{ customer.id }}"
-                    data-restore-url="{{ url_for('archive_bp.restore', table_name='customers', record_id=customer.id) }}" title="استعادة">
+                    data-restore-url="{{ url_for('customers_bp.restore_customer', customer_id=customer.id) }}" title="استعادة">
               <i class="fas fa-undo"></i>
             </button>
             {% else %}
             <button type="button" class="btn btn-action-archive btn-action-sm archive-btn"
                     data-id="{{ customer.id }}"
-                    data-archive-url="{{ url_for('archive_bp.archive', table_name='customers', record_id=customer.id) }}" title="أرشفة">
+                    data-archive-url="{{ url_for('customers_bp.archive_customer', customer_id=customer.id) }}" title="أرشفة">
               <i class="fas fa-archive"></i>
             </button>
             {% endif %}

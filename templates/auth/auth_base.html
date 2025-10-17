@@ -27,41 +27,46 @@
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav me-auto">
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('shop.catalog') }}">
-              <i class="fas fa-store me-1"></i> المتجر
-            </a>
-          </li>
-          <li class="nav-item">
             <a class="nav-link" href="{{ url_for('user_guide.index') }}" target="_blank">
-              <i class="fas fa-book me-1"></i> دليل الاستخدام
+              <i class="fas fa-star me-1"></i> المميزات
+              <span class="badge bg-success ms-1">40+</span>
             </a>
           </li>
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('pricing.index') }}" target="_blank">
               <i class="fas fa-tags me-1"></i> الأسعار
+              <span class="badge bg-warning text-dark ms-1">من $500</span>
             </a>
           </li>
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('other_systems.index') }}" target="_blank">
-              <i class="fas fa-cogs me-1"></i> أنظمتنا الأخرى
+              <i class="fas fa-cogs me-1"></i> أنظمة أخرى
+              <span class="badge bg-info ms-1">4</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('shop.catalog') }}">
+              <i class="fas fa-store me-1"></i> المتجر
             </a>
           </li>
           <li class="nav-item">
             <a class="nav-link" href="https://wa.me/970562150193?text=أحتاج%20للمساعدة" target="_blank">
-              <i class="fab fa-whatsapp me-1"></i> دعم فني
+              <i class="fab fa-whatsapp me-1"></i> دعم فوري
             </a>
           </li>
         </ul>
         
         <ul class="navbar-nav">
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('auth.login') }}">
-              <i class="fas fa-sign-in-alt me-1"></i> تسجيل الدخول
+            <a class="nav-link fw-semibold" href="{{ url_for('auth.login') }}">
+              <i class="fas fa-sign-in-alt me-1"></i> دخول
             </a>
           </li>
           <li class="nav-item">
-            <a class="nav-link btn btn-success text-white ms-2 px-3" href="{{ url_for('auth.customer_register') }}">
-              <i class="fas fa-user-plus me-1"></i> إنشاء حساب مجاني
+            <a class="nav-link btn text-white fw-bold ms-2 px-4 py-2" 
+               style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border-radius: 25px;"
+               href="{{ url_for('auth.customer_register') }}">
+              <i class="fas fa-rocket me-1"></i> ابدأ مجاناً
             </a>
           </li>
         </ul>
@@ -94,9 +99,9 @@
       <div class="sidebar-section">
         <h6 class="sidebar-title">📚 تعرف علينا</h6>
         <ul class="sidebar-menu">
-          <li><a href="{{ url_for('user_guide.index') }}"><i class="fas fa-book"></i> دليل الاستخدام</a></li>
-          <li><a href="{{ url_for('pricing.index') }}"><i class="fas fa-tags"></i> الأسعار والباقات</a></li>
-          <li><a href="{{ url_for('other_systems.index') }}"><i class="fas fa-cogs"></i> أنظمتنا الأخرى</a></li>
+          <li><a href="{{ url_for('user_guide.index') }}"><i class="fas fa-star"></i> المميزات (40+ وحدة)</a></li>
+          <li><a href="{{ url_for('pricing.index') }}"><i class="fas fa-tags"></i> الأسعار (من $500/سنة)</a></li>
+          <li><a href="{{ url_for('other_systems.index') }}"><i class="fas fa-cogs"></i> أنظمتنا الأخرى (4 أنظمة)</a></li>
         </ul>
       </div>
       
@@ -112,9 +117,19 @@
     
     <div class="sidebar-footer">
       <div class="contact-info text-center">
-        <p class="mb-2 fw-bold"><i class="fas fa-map-marker-alt"></i> رام الله - فلسطين 🇵🇸</p>
-        <p class="mb-1"><i class="fas fa-phone"></i> +970-562-150-193</p>
-        <p class="mb-0"><i class="fab fa-whatsapp"></i> دعم فوري 24/7</p>
+        <div class="mb-3">
+          <div class="badge bg-success mb-2">
+            <i class="fas fa-rocket me-1"></i> نظام احترافي 100%
+          </div>
+          <div class="small">
+            <strong>40+</strong> وحدة •
+            <strong>133</strong> API •
+            <strong>89</strong> فهرس
+          </div>
+        </div>
+        <p class="mb-2 fw-bold"><i class="fas fa-map-marker-alt me-1"></i> رام الله - فلسطين 🇵🇸</p>
+        <p class="mb-1"><i class="fas fa-phone me-1"></i> +970-562-150-193</p>
+        <p class="mb-0"><i class="fab fa-whatsapp me-1"></i> دعم فوري 24/7</p>
       </div>
     </div>
   </div>

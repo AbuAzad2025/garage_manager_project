@@ -287,6 +287,7 @@
 <script src="{{ url_for('static', filename='adminlte/plugins/jszip/jszip.min.js') }}"></script>
 <script src="{{ url_for('static', filename='adminlte/plugins/datatables-buttons/js/buttons.html5.min.js') }}"></script>
 <script src="{{ url_for('static', filename='adminlte/plugins/datatables-buttons/js/buttons.print.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/datatables-arabic.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 <script src="{{ url_for('static', filename='js/archive.js') }}"></script>
@@ -305,11 +306,7 @@
     if (window.jQuery && $.fn && $.fn.select2) {
       try { $.fn.select2.defaults.set('dir', 'rtl'); } catch (_) {}
     }
-    if (window.jQuery && $.fn && $.fn.dataTable) {
-      $.extend(true, $.fn.dataTable.defaults, {
-        language: { url: "{{ url_for('static', filename='datatables/Arabic.json') }}" }
-      });
-    }
+    // DataTables Arabic translation now loaded from datatables-arabic.js
   })();
 </script>
 

