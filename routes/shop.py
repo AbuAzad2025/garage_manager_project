@@ -990,13 +990,13 @@ def admin_product_new():
         serial = (getattr(p, "serial_no", None) or "").strip() or None
         if sku and _exists_product_field(Product.sku, sku):
             flash("SKU مستخدم بالفعل.", "danger")
-            return render_template("shop/admin_product_form.html", form=form)
+            return render_template("shop/admin_product_form.html", form=form, product=None)
         if barcode and _exists_product_field(Product.barcode, barcode):
             flash("الباركود مستخدم بالفعل.", "danger")
-            return render_template("shop/admin_product_form.html", form=form)
+            return render_template("shop/admin_product_form.html", form=form, product=None)
         if serial and _exists_product_field(Product.serial_no, serial):
             flash("الرقم التسلسلي مستخدم بالفعل.", "danger")
-            return render_template("shop/admin_product_form.html", form=form)
+            return render_template("shop/admin_product_form.html", form=form, product=None)
         db.session.add(p)
         db.session.flush()
         online_val = getattr(WarehouseType, "ONLINE").value if hasattr(WarehouseType, "ONLINE") else "ONLINE"
@@ -1018,7 +1018,7 @@ def admin_product_new():
         except SQLAlchemyError as e:
             db.session.rollback()
             flash(f"خطأ: {e}", "danger")
-    return render_template("shop/admin_product_form.html", form=form)
+    return render_template("shop/admin_product_form.html", form=form, product=None)
 
 @shop_bp.route("/admin/products/<int:pid>/edit", methods=["GET", "POST"], endpoint="admin_product_edit")
 @super_admin_required

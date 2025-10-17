@@ -217,9 +217,10 @@ def delete_supplier(supplier_id):
             return redirect(url_for("vendors_bp.suppliers_list"))
         
         # جمع المعلومات المرتبطة
-        from models import Payment, Shipment
+        from models import Payment, ExchangeTransaction
         payments_count = db.session.query(Payment).filter_by(supplier_id=supplier_id).count()
-        purchases_count = db.session.query(Shipment).filter_by(supplier_id=supplier_id).count()
+        # Shipment لا يحتوي على supplier_id، استخدم ExchangeTransaction بدلاً منه
+        purchases_count = db.session.query(ExchangeTransaction).filter_by(supplier_id=supplier_id).count()
         
         return render_template(
             "hard_delete/confirm_supplier.html",

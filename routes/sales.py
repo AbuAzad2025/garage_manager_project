@@ -16,6 +16,9 @@ import utils
 from utils import D, line_total_decimal, money_fmt, archive_record, restore_record  # Import from utils package
 from decimal import Decimal, ROUND_HALF_UP
 
+# تعريف TWOPLACES للتقريب العشري
+TWOPLACES = Decimal('0.01')
+
 sales_bp = Blueprint("sales_bp", __name__, url_prefix="/sales", template_folder="templates/sales")
 
 STATUS_MAP = {

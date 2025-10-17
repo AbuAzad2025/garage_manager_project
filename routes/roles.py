@@ -24,12 +24,15 @@ def _is_protected_role_name(name: str) -> bool:
 
 def _group_permissions():
     """إرجاع الصلاحيات مجمعة حسب module لاستخدامها في القالب."""
-    perms = Permission.query.order_by(Permission.module.asc(), Permission.name.asc()).all()
-    grouped = {}
-    for p in perms:
-        mod = p.module or "أخرى"
-        grouped.setdefault(mod, []).append((str(p.id), p.name or p.code or f"perm-{p.id}"))
-    return grouped
+    try:
+        perms = Permission.query.order_by(Permission.module.asc(), Permission.name.asc()).all()
+        grouped = {}
+        for p in perms:
+            mod = p.module or "أخرى"
+            grouped.setdefault(mod, []).append((str(p.id), p.name or p.code or f"perm-{p.id}"))
+        return grouped
+    except Exception:
+        return {}
 
 
 @roles_bp.route("/", methods=["GET"], endpoint="list_roles")
@@ -49,10 +52,13 @@ def list_roles():
 # @permission_required("manage_roles")  # Commented out
 def create_role():
     form = RoleForm()
-    all_permissions = _group_permissions()
+    all_permissions = _group_permissions() or {}
 
     # لتعبئة الـ choices في الفورم (مطلوب لـ validate_on_submit)
-    flat_choices = [item for group in all_permissions.values() for item in group]
+    if all_permissions and isinstance(all_permissions, dict):
+        flat_choices = [item for group in all_permissions.values() for item in group]
+    else:
+        flat_choices = []
     form.permissions.choices = flat_choices
 
     if form.validate_on_submit():
@@ -83,7 +89,7 @@ def create_role():
             db.session.rollback()
             flash("اسم الدور مستخدم بالفعل.", "danger")
 
-    return render_template("roles/form.html", form=form, action="create", all_permissions=all_permissions)
+    return render_template("roles/form.html", form=form, action="create", all_permissions=all_permissions or {})
 
 
 @roles_bp.route("/<int:role_id>/edit", methods=["GET", "POST"], endpoint="edit_role")

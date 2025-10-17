@@ -4,7 +4,7 @@ import os
 import sqlite3
 from datetime import date, datetime, timedelta, time
 
-from flask import Blueprint, current_app, flash, redirect, render_template, send_file, send_from_directory, url_for
+from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, send_file, send_from_directory, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func, case
 

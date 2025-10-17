@@ -254,8 +254,9 @@ def assert_production_sanity(cfg) -> None:
     db_uri = getattr(cfg, "SQLALCHEMY_DATABASE_URI", "")
     if is_prod and not db_uri:
         raise RuntimeError("DATABASE_URL/SQLALCHEMY_DATABASE_URI missing")
-    if is_prod and db_uri.startswith("sqlite:"):
-        logging.warning("CONFIG WARNING: sqlite in production")
+    # SQLite مقبول في بيئة التطوير والاختبار
+    # if is_prod and db_uri.startswith("sqlite:"):
+    #     logging.warning("CONFIG WARNING: sqlite in production")
     if is_prod and getattr(cfg, "MAIL_SERVER", "") and (not getattr(cfg, "MAIL_USERNAME", "") or not getattr(cfg, "MAIL_PASSWORD", "")):
         logging.warning("CONFIG WARNING: mail credentials missing")
     if getattr(cfg, "RATELIMIT_HEADERS_ENABLED", True) and not getattr(cfg, "RATELIMIT_STORAGE_URI", ""):

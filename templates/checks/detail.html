@@ -204,7 +204,7 @@
                 <tr>
                   <th width="40%">عميل:</th>
                   <td>
-                    <a href="{{ url_for('customers.detail', customer_id=check.customer.id) }}" class="btn btn-sm btn-primary">
+                    <a href="{{ url_for('customers_bp.customer_detail', customer_id=check.customer.id) }}" class="btn btn-sm btn-primary">
                       <i class="fas fa-external-link-alt"></i> {{ check.customer.name }}
                     </a>
                   </td>

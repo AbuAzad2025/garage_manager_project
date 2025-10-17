@@ -1297,6 +1297,7 @@ def download_receipt(payment_id: int):
 @login_required
 # @permission_required("manage_payments")  # Commented out
 def entity_fields():
+    """جلب حقول الجهة المرتبطة بالدفعة"""
     entity_type = (request.args.get("type") or "customer").strip().lower()
     entity_id = request.args.get("entity_id")
     form = PaymentForm()
@@ -1872,15 +1873,17 @@ def shop_payment_status(payment_id):
         
         return jsonify({
             "payment_id": payment.id,
-            "payment_number": payment.payment_number,
-            "status": payment.status,
-            "total_amount": float(payment.total_amount),
-            "currency": payment.currency,
+            "payment_number": payment.payment_number or f"PAY-{payment.id}",
+            "status": getattr(payment, 'status', 'COMPLETED'),
+            "total_amount": float(payment.total_amount or 0),
+            "currency": payment.currency or 'ILS',
             "payment_date": payment.payment_date.isoformat() if payment.payment_date else None,
-            "created_at": payment.created_at.isoformat() if payment.created_at else None
+            "created_by": payment.created_by if hasattr(payment, 'created_by') else None
         })
         
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 @payments_bp.route("/archive/<int:payment_id>", methods=["POST"])

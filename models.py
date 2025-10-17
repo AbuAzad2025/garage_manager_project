@@ -3,7 +3,7 @@ import enum
 import re, hashlib
 import json
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from flask import current_app, has_request_context, request
 from flask_login import UserMixin, current_user
@@ -47,7 +47,7 @@ class Archive(db.Model):
     archived_data = Column(Text, nullable=False)
     archive_reason = Column(String(200))
     archived_by = Column(Integer, ForeignKey('users.id'), nullable=False)
-    archived_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    archived_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     original_created_at = Column(DateTime)
     original_updated_at = Column(DateTime)
     user = relationship('User', backref='archives')
@@ -646,8 +646,8 @@ class SystemSettings(db.Model):
     description = db.Column(db.Text)
     data_type = db.Column(db.String(20), default='string')  # string, boolean, number, json
     is_public = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     @classmethod
     def get_setting(cls, key, default=None):
@@ -692,7 +692,7 @@ class SystemSettings(db.Model):
         setting.description = description or setting.description
         setting.data_type = data_type
         setting.is_public = is_public
-        setting.updated_at = datetime.utcnow()
+        setting.updated_at = datetime.now(timezone.utc)
         
         db.session.commit()
         return setting
@@ -716,8 +716,8 @@ class DeletionLog(db.Model):
     entity_id = db.Column(db.Integer, nullable=False, index=True)  # معرف الكيان المحذوف
     entity_name = db.Column(db.String(200), nullable=False)  # اسم الكيان المحذوف
     status = db.Column(db.String(20), nullable=False, default="PENDING", index=True)  # DeletionStatus
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
     # تفاصيل الحذف
     deleted_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
@@ -779,7 +779,7 @@ class DeletionLog(db.Model):
     def mark_restored(self, restored_by, notes=None):
         """تسجيل الاستعادة"""
         self.status = DeletionStatus.RESTORED.value
-        self.restored_at = datetime.utcnow()
+        self.restored_at = datetime.now(timezone.utc)
         self.restored_by = restored_by
         self.restoration_notes = notes
 
@@ -865,7 +865,7 @@ def money(x) -> Decimal:
         return Decimal("0.00")
 
 def generate_idempotency_key(prefix: str = "pay") -> str:
-    raw = f"{prefix}:{uuid.uuid4()}:{datetime.utcnow().timestamp()}"
+    raw = f"{prefix}:{uuid.uuid4()}:{datetime.now(timezone.utc).timestamp()}"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:64]
 
 def ensure_currency(cur: str | None, default: str = "ILS") -> str:
@@ -900,7 +900,7 @@ def fx_rate(base: str, quote: str, at: datetime | None = None, raise_on_missing:
     qv = ensure_currency(quote)
     if b == qv:
         return Decimal("1")
-    t = at or datetime.utcnow()
+    t = at or datetime.now(timezone.utc)
     
     # 1. البحث عن سعر محلي (مدخل من الادمن)
     q = (
@@ -1086,7 +1086,7 @@ def auto_update_missing_rates():
         currency_codes = [c.code for c in currencies]
         
         updated_count = 0
-        today = datetime.utcnow().date()
+        today = datetime.now(timezone.utc).date()
         
         for base_code in currency_codes:
             for quote_code in currency_codes:
@@ -1103,7 +1103,7 @@ def auto_update_missing_rates():
                 if not existing_rate:
                     try:
                         # محاولة سحب السعر من السيرفرات العالمية
-                        rate = _fetch_external_fx_rate(base_code, quote_code, datetime.utcnow())
+                        rate = _fetch_external_fx_rate(base_code, quote_code, datetime.now(timezone.utc))
                         if rate and rate > Decimal("0"):
                             updated_count += 1
                     except Exception:
@@ -1126,14 +1126,14 @@ def get_fx_rate_with_fallback(base: str, quote: str, at: datetime | None = None)
     try:
         # محاولة جلب السعر من السيرفرات الأونلاين أولاً
         try:
-            online_rate = _fetch_external_fx_rate(base, quote, at or datetime.utcnow())
+            online_rate = _fetch_external_fx_rate(base, quote, at or datetime.now(timezone.utc))
             if online_rate and online_rate > Decimal("0"):
                 return {
                     'rate': float(online_rate),
                     'source': 'online',
                     'base': base,
                     'quote': quote,
-                    'timestamp': at or datetime.utcnow(),
+                    'timestamp': at or datetime.now(timezone.utc),
                     'success': True
                 }
         except:
@@ -1148,7 +1148,7 @@ def get_fx_rate_with_fallback(base: str, quote: str, at: datetime | None = None)
                     'source': 'manual',
                     'base': base,
                     'quote': quote,
-                    'timestamp': at or datetime.utcnow(),
+                    'timestamp': at or datetime.now(timezone.utc),
                     'success': True
                 }
         except:
@@ -1160,7 +1160,7 @@ def get_fx_rate_with_fallback(base: str, quote: str, at: datetime | None = None)
             'source': 'default',
             'base': base,
             'quote': quote,
-            'timestamp': at or datetime.utcnow(),
+            'timestamp': at or datetime.now(timezone.utc),
             'success': False,
             'error': 'No exchange rate available'
         }
@@ -1171,7 +1171,7 @@ def get_fx_rate_with_fallback(base: str, quote: str, at: datetime | None = None)
             'source': 'failed',
             'base': base,
             'quote': quote,
-            'timestamp': at or datetime.utcnow(),
+            'timestamp': at or datetime.now(timezone.utc),
             'success': False,
             'error': str(e)
         }
@@ -1501,7 +1501,7 @@ class User(db.Model, UserMixin, TimestampMixin, AuditMixin):
             return False
 
     def mark_login(self, ip: str | None = None) -> None:
-        self.last_login = datetime.utcnow()
+        self.last_login = datetime.now(timezone.utc)
         self.last_seen = self.last_login
         if ip:
             self.last_login_ip = ip
@@ -1531,7 +1531,7 @@ class User(db.Model, UserMixin, TimestampMixin, AuditMixin):
         return bool(perms & targets)
 
     def touch(self) -> None:
-        self.last_seen = datetime.utcnow()
+        self.last_seen = datetime.now(timezone.utc)
 
     @property
     def avatar_or_initials(self) -> str:
@@ -2213,7 +2213,7 @@ def supplier_after_insert_create_customer(mapper, connection, target):
                     credit_limit=0,
                     current_balance=0,
                     notes=f"عميل مرتبط بالمورد #{target.id}",
-                    created_at=datetime.utcnow()
+                    created_at=datetime.now(timezone.utc)
                 ).returning(Customer.id)
             )
             customer_id = result.scalar_one()
@@ -2299,7 +2299,7 @@ class SupplierSettlement(db.Model, TimestampMixin, AuditMixin):
     def ensure_code(self):
         if self.code:
             return
-        prefix = datetime.utcnow().strftime("SS-%Y%m")
+        prefix = datetime.now(timezone.utc).strftime("SS-%Y%m")
         cnt = db.session.query(func.count(SupplierSettlement.id)).filter(SupplierSettlement.code.like(f"{prefix}-%")).scalar() or 0
         self.code = f"{prefix}-{cnt + 1:04d}"
 
@@ -2346,7 +2346,7 @@ class SupplierLoanSettlement(db.Model, TimestampMixin, AuditMixin):
     loan_id = db.Column(db.Integer, db.ForeignKey("product_supplier_loans.id", ondelete="CASCADE"), nullable=True, index=True)
     supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id", ondelete="SET NULL"), nullable=True, index=True)
     settled_price = db.Column(db.Numeric(12, 2), nullable=False)
-    settlement_date = db.Column(db.DateTime, default=datetime.utcnow)
+    settlement_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     notes = db.Column(db.Text)
 
     loan = db.relationship("ProductSupplierLoan", back_populates="settlements")
@@ -2375,7 +2375,7 @@ class SupplierLoanSettlement(db.Model, TimestampMixin, AuditMixin):
     ) -> "Payment":
         return Payment(
             total_amount=self.settled_price,
-            payment_date=datetime.utcnow(),
+            payment_date=datetime.now(timezone.utc),
             method=method or PaymentMethod.BANK,
             status=status or PaymentStatus.PENDING,
             direction=direction or PaymentDirection.OUT,
@@ -2417,7 +2417,7 @@ def _ss_before_insert(_m, _c, t: SupplierSettlement):
     t.status = getattr(t.status, "value", t.status)
     t.mode = getattr(t.mode, "value", t.mode)
     if not t.code:
-        prefix = datetime.utcnow().strftime("SS-%Y%m")
+        prefix = datetime.now(timezone.utc).strftime("SS-%Y%m")
         cnt = db.session.query(func.count(SupplierSettlement.id)).filter(SupplierSettlement.code.like(f"{prefix}-%")).scalar() or 0
         t.code = f"{prefix}-{cnt + 1:04d}"
 
@@ -2750,7 +2750,7 @@ def partner_after_insert_create_customer(mapper, connection, target):
                     currency=target.currency,
                     credit_limit=0,
                     notes=f"حساب مرتبط بالشريك #{target.id}",
-                    created_at=datetime.utcnow(),
+                    created_at=datetime.now(timezone.utc),
                     is_active=True
                 ).returning(Customer.id)
             )
@@ -2823,7 +2823,7 @@ class PartnerSettlement(db.Model, TimestampMixin, AuditMixin):
     def ensure_code(self):
         if self.code:
             return
-        prefix = datetime.utcnow().strftime("PS-%Y%m")
+        prefix = datetime.now(timezone.utc).strftime("PS-%Y%m")
         cnt = db.session.query(func.count(PartnerSettlement.id)).filter(PartnerSettlement.code.like(f"{prefix}-%")).scalar() or 0
         self.code = f"{prefix}-{cnt + 1:04d}"
 
@@ -3513,7 +3513,7 @@ class Transfer(db.Model, TimestampMixin, AuditMixin):
     destination_id = db.Column(db.Integer, db.ForeignKey('warehouses.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     direction = db.Column(sa_str_enum(TransferDirection, name='transfer_direction'), nullable=False)
-    transfer_date = db.Column(DateTime, default=datetime.utcnow, index=True)
+    transfer_date = db.Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     notes = db.Column(db.Text)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     product = db.relationship('Product', back_populates='transfers')
@@ -3534,7 +3534,7 @@ class Transfer(db.Model, TimestampMixin, AuditMixin):
 @event.listens_for(Transfer, 'before_insert', propagate=True)
 def _ensure_transfer_reference(mapper, connection, target: "Transfer"):
     if getattr(target, 'reference', None): return
-    prefix = datetime.utcnow().strftime("TRF%Y%m%d"); unique = uuid.uuid4().hex[:8].upper()
+    prefix = datetime.now(timezone.utc).strftime("TRF%Y%m%d"); unique = uuid.uuid4().hex[:8].upper()
     target.reference = f"{prefix}-{unique}"
 
 @event.listens_for(Transfer, "after_insert", propagate=True)
@@ -3732,7 +3732,7 @@ class PreOrder(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'preorders'
     id = db.Column(db.Integer, primary_key=True)
     reference = db.Column(db.String(50), unique=True, index=True)
-    preorder_date = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    preorder_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     expected_date = db.Column(db.DateTime)
     customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), index=True)
     supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'), index=True)
@@ -3830,7 +3830,7 @@ class PreOrder(db.Model, TimestampMixin, AuditMixin):
         if not self.can_refund(amount): raise ValueError("preorder.refund_exceeds_allowed")
         self.refunded_total = q(self.refunded_total or 0) + q(amount or 0)
     def cancel(self, by_user_id: int | None = None, reason: str | None = None):
-        self.cancelled_at = datetime.utcnow(); self.cancelled_by = by_user_id; self.cancel_reason = (reason or None); self.status = PreOrderStatus.CANCELLED.value
+        self.cancelled_at = datetime.now(timezone.utc); self.cancelled_by = by_user_id; self.cancel_reason = (reason or None); self.status = PreOrderStatus.CANCELLED.value
     def __repr__(self): return f"<PreOrder {self.reference or self.id}>"
 
 _ALLOWED_PREORDER_TRANSITIONS = {"PENDING":{"CONFIRMED","CANCELLED","FULFILLED"},"CONFIRMED":{"FULFILLED","CANCELLED"},"FULFILLED":set(),"CANCELLED":set()}
@@ -3838,7 +3838,7 @@ _ALLOWED_PREORDER_TRANSITIONS = {"PENDING":{"CONFIRMED","CANCELLED","FULFILLED"}
 @event.listens_for(PreOrder, 'before_insert')
 def _preorder_before_insert(mapper, connection, target):
     if not getattr(target, 'reference', None):
-        prefix = datetime.utcnow().strftime("PRE%Y%m%d"); unique = uuid.uuid4().hex[:8].upper()
+        prefix = datetime.now(timezone.utc).strftime("PRE%Y%m%d"); unique = uuid.uuid4().hex[:8].upper()
         target.reference = f"{prefix}-{unique}"
     target.currency = ensure_currency(target.currency or 'ILS')
 
@@ -3879,7 +3879,7 @@ class Sale(db.Model, TimestampMixin, AuditMixin):
 
     id = db.Column(db.Integer, primary_key=True)
     sale_number = db.Column(db.String(50), unique=True, index=True)
-    sale_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    sale_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
 
     customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"), nullable=False, index=True)
     seller_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
@@ -3969,7 +3969,7 @@ class Sale(db.Model, TimestampMixin, AuditMixin):
 
     def cancel(self, by_user_id: int | None = None, reason: str | None = None):
         self.status = SaleStatus.CANCELLED.value
-        self.cancelled_at = datetime.utcnow()
+        self.cancelled_at = datetime.now(timezone.utc)
         self.cancelled_by = by_user_id
         self.cancel_reason = (reason or None)
 
@@ -4028,7 +4028,7 @@ class Sale(db.Model, TimestampMixin, AuditMixin):
 @event.listens_for(Sale, "before_insert")
 def _sale_before_insert_ref(mapper, connection, target: "Sale"):
     if not getattr(target, "sale_number", None):
-        prefix = datetime.utcnow().strftime("SAL%Y%m%d")
+        prefix = datetime.now(timezone.utc).strftime("SAL%Y%m%d")
         count = connection.execute(sa_text("SELECT COUNT(*) FROM sales WHERE sale_number LIKE :pfx"), {"pfx": f"{prefix}-%"}).scalar() or 0
         target.sale_number = f"{prefix}-{count+1:04d}"
     target.currency = ensure_currency(getattr(target, "currency", None) or "ILS")
@@ -4223,7 +4223,7 @@ class Invoice(db.Model, TimestampMixin):
 
     id = Column(Integer, primary_key=True)
     invoice_number = Column(String(50), unique=True, index=True, nullable=False)
-    invoice_date = Column(DateTime, default=datetime.utcnow, index=True, nullable=False)
+    invoice_date = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True, nullable=False)
     due_date = Column(DateTime, index=True)
 
     customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False, index=True)
@@ -4333,7 +4333,7 @@ class Invoice(db.Model, TimestampMixin):
         self.refunded_total = q(self.refunded_total or 0) + amt
 
     def cancel(self, by_user_id: int | None = None, reason: str | None = None):
-        self.cancelled_at = datetime.utcnow()
+        self.cancelled_at = datetime.now(timezone.utc)
         self.cancelled_by = by_user_id
         self.cancel_reason = (reason or None)
         self.status = InvoiceStatus.CANCELLED.value
@@ -4523,7 +4523,7 @@ class Payment(db.Model):
 
     id = Column(Integer, primary_key=True)
     payment_number = Column(String(50), unique=True, nullable=False, index=True)
-    payment_date = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    payment_date = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
 
     subtotal = Column(Numeric(12, 2))
     tax_rate = Column(Numeric(5, 2))
@@ -4831,7 +4831,7 @@ class PaymentSplit(db.Model):
 
 
 def _next_payment_number(connection) -> str:
-    prefix = datetime.utcnow().strftime("PMT%Y%m%d")
+    prefix = datetime.now(timezone.utc).strftime("PMT%Y%m%d")
     # استخدام MAX بدلاً من COUNT لتجنب التكرار
     result = connection.execute(
         sa_text("SELECT payment_number FROM payments WHERE payment_number LIKE :pfx ORDER BY payment_number DESC LIMIT 1"), 
@@ -5317,8 +5317,8 @@ class Shipment(db.Model, TimestampMixin, AuditMixin):
     id = db.Column(db.Integer, primary_key=True)
     number = db.Column(db.String(50), unique=True, index=True)
     shipment_number = db.Column(db.String(50), unique=True, index=True)
-    date = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-    shipment_date = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    shipment_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     expected_arrival = db.Column(db.DateTime)
     actual_arrival   = db.Column(db.DateTime)
     delivered_date = db.Column(db.DateTime)
@@ -5410,7 +5410,7 @@ class Shipment(db.Model, TimestampMixin, AuditMixin):
     def update_status(self, new_status: str):
         self.status = (new_status or "").strip().upper()
         if self.status == "ARRIVED" and not self.actual_arrival:
-            self.actual_arrival = datetime.utcnow()
+            self.actual_arrival = datetime.now(timezone.utc)
 
     def _apply_arrival_stock(self):
         for it in (self.items or []):
@@ -5472,7 +5472,7 @@ def _shipment_before_insert(mapper, connection, target: "Shipment"):
         # XXXX = رقم تسلسلي يومي (hexadecimal)
         # CCC = checksum للتحقق
         
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         date_part = now.strftime("%Y%m%d")
         
         # حساب العدد اليومي
@@ -5547,7 +5547,7 @@ def _shipment_status_toggle(target, value, oldvalue, initiator):
     if old != "ARRIVED" and new == "ARRIVED":
         target._apply_arrival_stock()
         if not getattr(target, "actual_arrival", None):
-            target.actual_arrival = datetime.utcnow()
+            target.actual_arrival = datetime.now(timezone.utc)
     elif old == "ARRIVED" and new != "ARRIVED":
         target._revert_arrival_stock()
 
@@ -5681,7 +5681,7 @@ class ServiceRequest(db.Model, TimestampMixin, AuditMixin):
     resolution = db.Column(db.Text)
     notes = db.Column(db.Text)
 
-    received_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    received_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     started_at = db.Column(db.DateTime)
     expected_delivery = db.Column(db.DateTime)
     completed_at = db.Column(db.DateTime)
@@ -5811,18 +5811,18 @@ class ServiceRequest(db.Model, TimestampMixin, AuditMixin):
         self.refunded_total = _Q2(_D(self.refunded_total or 0) + _D(amount or 0))
 
     def cancel(self, by_user_id=None, reason=None):
-        self.cancelled_at = datetime.utcnow()
+        self.cancelled_at = datetime.now(timezone.utc)
         self.cancelled_by = by_user_id
         self.cancel_reason = (reason or None)
         self.status = ServiceStatus.CANCELLED.value
 
     def mark_started(self):
-        if not self.started_at: self.started_at = datetime.utcnow()
+        if not self.started_at: self.started_at = datetime.now(timezone.utc)
         if self.status == ServiceStatus.PENDING.value: self.status = ServiceStatus.IN_PROGRESS.value
 
     def mark_completed(self):
         self.status = ServiceStatus.COMPLETED.value
-        if not self.completed_at: self.completed_at = datetime.utcnow()
+        if not self.completed_at: self.completed_at = datetime.now(timezone.utc)
 
     def __repr__(self): return f"<ServiceRequest {self.service_number or self.id}>"
 
@@ -5923,7 +5923,7 @@ def _srv_enforce_transitions(mapper, connection, target: ServiceRequest):
 def _ensure_service_number(mapper, connection, target: ServiceRequest):
     if getattr(target, "service_number", None):
         return
-    prefix = datetime.utcnow().strftime("SRV%Y%m%d")
+    prefix = datetime.now(timezone.utc).strftime("SRV%Y%m%d")
     cnt = connection.execute(
         sa_text("SELECT COUNT(*) FROM service_requests WHERE service_number LIKE :pfx"),
         {"pfx": f"{prefix}-%"},
@@ -5934,7 +5934,7 @@ def _ensure_service_number(mapper, connection, target: ServiceRequest):
 def _set_completed_at_on_status_change(target, value, oldvalue, initiator):
     newv = getattr(value, "value", value)
     if newv == ServiceStatus.COMPLETED.value and not target.completed_at:
-        target.completed_at = datetime.utcnow()
+        target.completed_at = datetime.now(timezone.utc)
 
 @event.listens_for(ServiceRequest, "after_update")
 def _gl_on_service_complete(mapper, connection, target: "ServiceRequest"):
@@ -6250,7 +6250,7 @@ class OnlineCart(db.Model, TimestampMixin):
     def is_expired(self) -> bool:
         if not self.expires_at:
             return False
-        return datetime.utcnow() >= self.expires_at
+        return datetime.now(timezone.utc) >= self.expires_at
 
     def to_dict(self):
         return {
@@ -6272,14 +6272,14 @@ class OnlineCart(db.Model, TimestampMixin):
 @event.listens_for(OnlineCart, 'before_insert')
 def _cart_before_insert(mapper, connection, target: 'OnlineCart'):
     if not getattr(target, 'cart_id', None):
-        prefix = datetime.utcnow().strftime("CRT%Y%m%d")
+        prefix = datetime.now(timezone.utc).strftime("CRT%Y%m%d")
         count = connection.execute(
             sa_text("SELECT COUNT(*) FROM online_carts WHERE cart_id LIKE :pfx"),
             {"pfx": f"{prefix}-%"},
         ).scalar() or 0
         target.cart_id = f"{prefix}-{count+1:04d}"
     if not getattr(target, 'expires_at', None):
-        target.expires_at = datetime.utcnow() + timedelta(days=7)
+        target.expires_at = datetime.now(timezone.utc) + timedelta(days=7)
 
 
 class OnlineCartItem(db.Model):
@@ -6292,7 +6292,7 @@ class OnlineCartItem(db.Model):
                            nullable=False, index=True)
     quantity = db.Column(db.Integer, default=1, nullable=False)
     price = db.Column(db.Numeric(12, 2), nullable=False)
-    added_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    added_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
 
     cart = db.relationship('OnlineCart', back_populates='items')
     product = db.relationship('Product', back_populates='online_cart_items')
@@ -6446,7 +6446,7 @@ class OnlinePreOrder(db.Model, TimestampMixin):
 @event.listens_for(OnlinePreOrder, 'before_insert')
 def _op_before_insert(mapper, connection, target: 'OnlinePreOrder'):
     if not getattr(target, 'order_number', None):
-        prefix = datetime.utcnow().strftime("OPR%Y%m%d")
+        prefix = datetime.now(timezone.utc).strftime("OPR%Y%m%d")
         count = connection.execute(
             sa_text("SELECT COUNT(*) FROM online_preorders WHERE order_number LIKE :pfx"),
             {"pfx": f"{prefix}-%"},
@@ -6663,7 +6663,7 @@ class OnlinePayment(db.Model, TimestampMixin):
             yy = int('20' + yy)
             if not (1 <= mm <= 12):
                 return False
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             return (yy > now.year) or (yy == now.year and mm >= now.month)
         except Exception:
             return False
@@ -6792,7 +6792,7 @@ def _opay_touch_order(mapper, connection, target: "OnlinePayment"):
 @event.listens_for(OnlinePayment, "before_insert")
 def _opay_before_insert(mapper, connection, target: "OnlinePayment"):
     if not getattr(target, "payment_ref", None):
-        prefix = datetime.utcnow().strftime("OPAY%Y%m%d")
+        prefix = datetime.now(timezone.utc).strftime("OPAY%Y%m%d")
         count = connection.execute(
             sa_text("SELECT COUNT(*) FROM online_payments WHERE payment_ref LIKE :pfx"),
             {"pfx": f"{prefix}-%"},
@@ -6801,7 +6801,7 @@ def _opay_before_insert(mapper, connection, target: "OnlinePayment"):
     target.currency = ensure_currency(target.currency or "ILS")
     st = (target.status or "").upper()
     if st in ("SUCCESS", "FAILED", "REFUNDED") and not target.processed_at:
-        target.processed_at = datetime.utcnow()
+        target.processed_at = datetime.now(timezone.utc)
 
 
 @event.listens_for(OnlinePayment, "before_update")
@@ -6813,7 +6813,7 @@ def _opay_before_update(mapper, connection, target: "OnlinePayment"):
     _opay_enforce_transition(prev, getattr(target, "status", None))
     st = (target.status or "").upper()
     if st in ("SUCCESS", "FAILED", "REFUNDED") and not target.processed_at:
-        target.processed_at = datetime.utcnow()
+        target.processed_at = datetime.now(timezone.utc)
 
 
 class UtilityAccount(db.Model, TimestampMixin, AuditMixin):
@@ -6854,7 +6854,7 @@ class StockAdjustment(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = "stock_adjustments"
 
     id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    date = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
     warehouse_id = db.Column(db.Integer, db.ForeignKey("warehouses.id", ondelete="SET NULL"), index=True)
     reason = db.Column(db.String(20), nullable=False, index=True)
     notes = db.Column(db.Text)
@@ -7022,7 +7022,7 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = "expenses"
 
     id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    date = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
     amount = db.Column(db.Numeric(12, 2), nullable=False)
     currency = db.Column(db.String(10), default="ILS", nullable=False)
 
@@ -7509,9 +7509,9 @@ class GLBatch(db.Model, TimestampMixin):
 def _glb_before_insert(mapper, connection, target: "GLBatch"):
     target.currency = (target.currency or "ILS").upper()
     if not target.code:
-        target.code = f"{target.source_type or 'SRC'}-{target.source_id or 0}-{target.purpose or 'PUR'}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+        target.code = f"{target.source_type or 'SRC'}-{target.source_id or 0}-{target.purpose or 'PUR'}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
     if (target.status or "DRAFT").upper() == "POSTED" and not target.posted_at:
-        target.posted_at = datetime.utcnow()
+        target.posted_at = datetime.now(timezone.utc)
 
 
 @event.listens_for(GLBatch, "before_update")
@@ -7519,7 +7519,7 @@ def _glb_before_update(mapper, connection, target: "GLBatch"):
     target.currency = (target.currency or "ILS").upper()
     st = (target.status or "DRAFT").upper()
     if st == "POSTED" and not target.posted_at:
-        target.posted_at = datetime.utcnow()
+        target.posted_at = datetime.now(timezone.utc)
     if st != "POSTED":
         target.posted_at = None
 
@@ -7634,7 +7634,7 @@ def _gl_upsert_batch_and_entries(
         {"st": source_type, "sid": source_id, "p": purpose}
     )
 
-    batch_code = f"{source_type}-{source_id}-{purpose}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+    batch_code = f"{source_type}-{source_id}-{purpose}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
     cur = connection.execute(
         sa_text("""
             INSERT INTO gl_batches
@@ -7793,7 +7793,7 @@ class ProductRatingHelpful(db.Model, TimestampMixin):
         
         if existing:
             existing.is_helpful = is_helpful
-            existing.updated_at = datetime.utcnow()
+            existing.updated_at = datetime.now(timezone.utc)
         else:
             new_helpful = cls(
                 rating_id=rating_id,
@@ -7857,7 +7857,7 @@ class CustomerLoyalty(db.Model, TimestampMixin, AuditMixin):
         """إضافة نقاط للعميل"""
         self.total_points += points
         self.available_points += points
-        self.last_activity = datetime.utcnow()
+        self.last_activity = datetime.now(timezone.utc)
         
         # إنشاء سجل النقاط
         point_record = CustomerLoyaltyPoints(
@@ -7881,7 +7881,7 @@ class CustomerLoyalty(db.Model, TimestampMixin, AuditMixin):
         
         self.available_points -= points
         self.used_points += points
-        self.last_activity = datetime.utcnow()
+        self.last_activity = datetime.now(timezone.utc)
         
         # إنشاء سجل النقاط
         point_record = CustomerLoyaltyPoints(
@@ -7996,7 +7996,7 @@ class Check(db.Model, TimestampMixin, AuditMixin):
     # معلومات الشيك الأساسية
     check_number = Column(String(100), nullable=False, index=True)
     check_bank = Column(String(200), nullable=False)
-    check_date = Column(DateTime, default=datetime.utcnow, nullable=False)
+    check_date = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     check_due_date = Column(DateTime, nullable=False, index=True)
     
     # المبلغ والعملة
@@ -8063,7 +8063,7 @@ class Check(db.Model, TimestampMixin, AuditMixin):
         """هل الشيك متأخر"""
         if self.status in [CheckStatus.CASHED.value, CheckStatus.CANCELLED.value]:
             return False
-        return self.check_due_date < datetime.utcnow()
+        return self.check_due_date < datetime.now(timezone.utc)
     
     @hybrid_property
     def days_until_due(self):
@@ -8072,7 +8072,7 @@ class Check(db.Model, TimestampMixin, AuditMixin):
             due_date = self.check_due_date.date()
         else:
             due_date = self.check_due_date
-        today = datetime.utcnow().date()
+        today = datetime.now(timezone.utc).date()
         return (due_date - today).days
     
     @hybrid_property
@@ -8094,7 +8094,7 @@ class Check(db.Model, TimestampMixin, AuditMixin):
         
         # إضافة التغيير الجديد
         change = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "old_status": self.status,
             "new_status": new_status,
             "reason": reason,

@@ -1105,11 +1105,12 @@ def products(id):
         warehouse_id=base_warehouse.id,
     )
 
-@warehouse_bp.route("/<int:warehouse_id>/transfer", methods=["POST"], endpoint="transfer_inline")
+@warehouse_bp.route("/<int:id>/transfer", methods=["POST"], endpoint="transfer_inline")
 @login_required
 @csrf.exempt
 # @permission_required("manage_inventory", "manage_warehouses", "warehouse_transfer")  # Commented out
-def transfer_inline(warehouse_id):
+def transfer_inline(id):
+    warehouse_id = id
     data = request.get_json(silent=True) or request.form or {}
 
     def _i(v, d=None):

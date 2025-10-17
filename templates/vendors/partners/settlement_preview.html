@@ -275,17 +275,20 @@
             </h4>
             
             <!-- 1. المخزون الحالي -->
-            {% if balance_data.rights.inventory['items']|length > 0 %}
+            {% if balance_data.rights.inventory.get('items', [])|length > 0 %}
             <div class="card settlement-detail-card">
-                <div class="card-header bg-success text-white">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
                         <i class="fas fa-boxes"></i> المخزون الحالي (نصيبه من التكلفة)
                         <span class="badge bg-light text-dark">{{ balance_data.rights.inventory.count }}</span>
                     </h5>
+                    <button class="btn btn-sm btn-light no-print" onclick="printTable('inventoryTable', 'المخزون الحالي للشريك')">
+                        <i class="fas fa-print"></i> طباعة
+                    </button>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-sm table-hover">
+                        <table class="table table-sm table-hover" id="inventoryTable">
                             <thead>
                                 <tr>
                                     <th>القطعة</th>
@@ -298,7 +301,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for item in balance_data.rights.inventory['items'] %}
+                                {% for item in balance_data.rights.inventory.get('items', []) %}
                                 <tr>
                                     <td>{{ item.product_name }}</td>
                                     <td><code>{{ item.sku or '—' }}</code></td>
@@ -323,17 +326,20 @@
             {% endif %}
             
             <!-- 2. المبيعات -->
-            {% if balance_data.rights.sales_share['items']|length > 0 %}
+            {% if balance_data.rights.sales_share.get('items', [])|length > 0 %}
             <div class="card settlement-detail-card">
-                <div class="card-header bg-success text-white">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
                         <i class="fas fa-chart-line"></i> نصيبه من المبيعات (من سعر البيع)
                         <span class="badge bg-light text-dark">{{ balance_data.rights.sales_share.count }}</span>
                     </h5>
+                    <button class="btn btn-sm btn-light no-print" onclick="printTable('salesShareTable', 'نصيب الشريك من المبيعات')">
+                        <i class="fas fa-print"></i> طباعة
+                    </button>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-sm table-hover">
+                        <table class="table table-sm table-hover" id="salesShareTable">
                             <thead>
                                 <tr>
                                     <th>النوع</th>
@@ -348,7 +354,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for item in balance_data.rights.sales_share['items'] %}
+                                {% for item in balance_data.rights.sales_share.get('items', []) %}
                                 <tr>
                                     <td><span class="badge badge-{% if item.type == 'صيانة' %}info{% else %}primary{% endif %}">{{ item.type }}</span></td>
                                     <td><code>{{ item.reference_number }}</code></td>
@@ -380,17 +386,20 @@
             </h4>
             
             <!-- مبيعات للشريك (كعميل) -->
-            {% if balance_data.obligations.sales_to_partner['items']|length > 0 %}
+            {% if balance_data.obligations.sales_to_partner.get('items', [])|length > 0 %}
             <div class="card settlement-detail-card">
-                <div class="card-header bg-danger text-white">
+                <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
                         <i class="fas fa-shopping-cart"></i> مبيعات للشريك (كعميل)
                         <span class="badge bg-light text-dark">{{ balance_data.obligations.sales_to_partner.count }}</span>
                     </h5>
+                    <button class="btn btn-sm btn-light no-print" onclick="printTable('salesToPartnerTable', 'المبيعات للشريك')">
+                        <i class="fas fa-print"></i> طباعة
+                    </button>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-sm table-hover">
+                        <table class="table table-sm table-hover" id="salesToPartnerTable">
                             <thead>
                                 <tr>
                                     <th>رقم الفاتورة</th>
@@ -402,7 +411,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for item in balance_data.obligations.sales_to_partner['items'] %}
+                                {% for item in balance_data.obligations.sales_to_partner.get('items', []) %}
                                 <tr>
                                     <td><code>{{ item.sale_number }}</code></td>
                                     <td><small>{{ item.date }}</small></td>
@@ -431,17 +440,20 @@
             </h4>
             
             <!-- دفعنا له (OUT) -->
-            {% if balance_data.payments.paid_to_partner['items']|length > 0 %}
+            {% if balance_data.payments.paid_to_partner.get('items', [])|length > 0 %}
             <div class="card settlement-detail-card">
-                <div class="card-header bg-warning text-dark">
+                <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
                         <i class="fas fa-money-check-alt"></i> دفعنا له (OUT) - تُحسب له
                         <span class="badge bg-light text-dark">{{ balance_data.payments.paid_to_partner.count }}</span>
                     </h5>
+                    <button class="btn btn-sm btn-light no-print" onclick="printTable('paymentOutTable', 'دفعنا للشريك')">
+                        <i class="fas fa-print"></i> طباعة
+                    </button>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-sm table-hover">
+                        <table class="table table-sm table-hover" id="paymentOutTable">
                             <thead>
                                 <tr>
                                     <th>رقم السند</th>
@@ -455,7 +467,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for item in balance_data.payments.paid_to_partner['items'] %}
+                                {% for item in balance_data.payments.paid_to_partner.get('items', []) %}
                                 <tr>
                                     <td><code>{{ item.payment_number }}</code></td>
                                     <td><small>{{ item.date }}</small></td>
@@ -482,17 +494,20 @@
             {% endif %}
             
             <!-- دفع لنا (IN) -->
-            {% if balance_data.payments.received_from_partner['items']|length > 0 %}
+            {% if balance_data.payments.received_from_partner.get('items', [])|length > 0 %}
             <div class="card settlement-detail-card">
-                <div class="card-header bg-warning text-dark">
+                <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
                         <i class="fas fa-hand-holding-usd"></i> دفع لنا (IN) - تُحسب له
                         <span class="badge bg-light text-dark">{{ balance_data.payments.received_from_partner.count }}</span>
                     </h5>
+                    <button class="btn btn-sm btn-light no-print" onclick="printTable('paymentInTable', 'دفع الشريك لنا')">
+                        <i class="fas fa-print"></i> طباعة
+                    </button>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-sm table-hover">
+                        <table class="table table-sm table-hover" id="paymentInTable">
                             <thead>
                                 <tr>
                                     <th>رقم السند</th>
@@ -506,7 +521,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for item in balance_data.payments.received_from_partner['items'] %}
+                                {% for item in balance_data.payments.received_from_partner.get('items', []) %}
                                 <tr>
                                     <td><code>{{ item.payment_number }}</code></td>
                                     <td><small>{{ item.date }}</small></td>
@@ -531,9 +546,49 @@
                 </div>
             </div>
             {% endif %}
+            <!-- رسوم صيانة -->
+            {% if balance_data.obligations.service_fees.get('items', [])|length > 0 %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>رقم الفاتورة</th>
+                                    <th>التاريخ</th>
+                                    <th>المنتجات</th>
+                                    <th class="text-end">المبلغ</th>
+                                    <th>العملة</th>
+                                    <th class="text-end">بالشيقل</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in balance_data.obligations.sales_to_partner.get('items', []) %}
+                                <tr>
+                                    <td><code>{{ item.sale_number }}</code></td>
+                                    <td><small>{{ item.date }}</small></td>
+                                    <td><small>{% for p in item.products %}{{ p.name }} ({{p.qty}}){% if not loop.last %}, {% endif %}{% endfor %}</small></td>
+                                    <td class="text-end">{{ "%.2f"|format(item.amount) }}</td>
+                                    <td>{{ item.currency }}</td>
+                                    <td class="text-end"><strong>{{ "%.2f"|format(item.amount_ils) }}</strong></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-light">
+                                    <td colspan="5" class="text-end"><strong>الإجمالي:</strong></td>
+                                    <td class="text-end"><strong class="text-danger">{{ "%.2f"|format(balance_data.obligations.sales_to_partner.total_ils) }}</strong></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
             
             <!-- رسوم صيانة -->
-            {% if balance_data.obligations.service_fees['items']|length > 0 %}
+            {% if balance_data.obligations.service_fees.get('items', [])|length > 0 %}
             <div class="card settlement-detail-card">
                 <div class="card-header bg-danger text-white">
                     <h5 class="mb-0">
@@ -555,7 +610,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for item in balance_data.obligations.service_fees['items'] %}
+                                {% for item in balance_data.obligations.service_fees.get('items', []) %}
                                 <tr>
                                     <td><code>{{ item.service_number }}</code></td>
                                     <td><small>{{ item.date }}</small></td>
@@ -579,7 +634,7 @@
             {% endif %}
             
             <!-- قطع تالفة -->
-            {% if balance_data.obligations.damaged_items['items']|length > 0 %}
+            {% if balance_data.obligations.damaged_items.get('items', [])|length > 0 %}
             <div class="card settlement-detail-card">
                 <div class="card-header bg-danger text-white">
                     <h5 class="mb-0">
@@ -604,7 +659,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for item in balance_data.obligations.damaged_items['items'] %}
+                                {% for item in balance_data.obligations.damaged_items.get('items', []) %}
                                 <tr>
                                     <td><small>{{ item.date }}</small></td>
                                     <td>{{ item.product_name }}</td>
@@ -765,6 +820,37 @@
       window.print();
     }
   });
+  
+  // دالة طباعة جدول محدد
+  window.printTable = function(tableId, title) {
+    const table = document.getElementById(tableId);
+    if (!table) return;
+    
+    const printWindow = window.open('', '', 'height=600,width=800');
+    printWindow.document.write('<html><head><title>' + title + '</title>');
+    printWindow.document.write('<style>');
+    printWindow.document.write('body { font-family: Arial, sans-serif; direction: rtl; }');
+    printWindow.document.write('table { width: 100%; border-collapse: collapse; margin: 20px 0; }');
+    printWindow.document.write('th, td { border: 1px solid #ddd; padding: 8px; text-align: right; }');
+    printWindow.document.write('th { background-color: #f8f9fa; font-weight: bold; }');
+    printWindow.document.write('.text-end { text-align: left; }');
+    printWindow.document.write('h2 { text-align: center; color: #333; margin-bottom: 20px; }');
+    printWindow.document.write('.print-header { text-align: center; margin-bottom: 20px; }');
+    printWindow.document.write('.print-footer { text-align: center; margin-top: 20px; font-size: 12px; color: #666; }');
+    printWindow.document.write('@media print { .no-print { display: none; } }');
+    printWindow.document.write('</style></head><body>');
+    printWindow.document.write('<div class="print-header">');
+    printWindow.document.write('<h2>' + title + '</h2>');
+    printWindow.document.write('<p>{{ partner.name }} | {{ date_from.strftime("%Y-%m-%d") }} - {{ date_to.strftime("%Y-%m-%d") }}</p>');
+    printWindow.document.write('</div>');
+    printWindow.document.write(table.outerHTML);
+    printWindow.document.write('<div class="print-footer">');
+    printWindow.document.write('<p>طُبع بتاريخ: ' + new Date().toLocaleString('ar-EG') + '</p>');
+    printWindow.document.write('</div>');
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    printWindow.print();
+  }
   
   // DataTables لجداول طويلة (إن وجدت مستقبلاً)
   // حالياً لا توجد جداول بحاجة لـ DataTables

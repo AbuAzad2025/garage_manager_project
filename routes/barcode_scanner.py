@@ -4,7 +4,7 @@ import qrcode
 import io
 import base64
 import uuid
-from flask import Blueprint, render_template, request, jsonify, send_file, flash, redirect, url_for
+from flask import Blueprint, render_template, request, jsonify, send_file, flash, redirect, url_for, abort
 from flask_login import login_required, current_user
 from sqlalchemy import or_, and_, func
 from extensions import db, csrf
@@ -15,6 +15,13 @@ from datetime import datetime
 import json
 
 barcode_scanner_bp = Blueprint("barcode_scanner", __name__, url_prefix="/barcode")
+
+def _get_or_404(model, ident):
+    """Helper to get object or return 404"""
+    obj = db.session.get(model, ident)
+    if obj is None:
+        abort(404)
+    return obj
 
 
 def generate_unique_barcode():
@@ -745,6 +752,7 @@ def barcode_stats():
         ).all()
         
         stats = {
+            "success": True,
             "total_products": total_products,
             "products_with_barcode": products_with_barcode,
             "products_without_barcode": products_without_barcode,
@@ -761,7 +769,9 @@ def barcode_stats():
         return render_template("barcode_scanner/stats.html", stats=stats)
         
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @barcode_scanner_bp.route("/bulk-import", methods=["POST"], endpoint="bulk_import_products")

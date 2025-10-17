@@ -4,7 +4,7 @@ from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 from flask import Blueprint, Response, current_app, jsonify, request, render_template
 from flask_login import current_user, login_required
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, text
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError, OperationalError
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import aliased
@@ -171,20 +171,30 @@ def api_success_response(data=None, message=None, code=200):
 @login_required
 def api_index():
     """صفحة API الرئيسية"""
-    return render_template("api/index.html")
+    try:
+        return render_template("api/index.html")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 @bp.route("/docs", methods=["GET"], endpoint="docs")
 @login_required
 def api_docs():
     """صفحة توثيق API"""
-    return render_template("api/index.html")
+    try:
+        return render_template("api/index.html")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 @bp.route("/health", methods=["GET"], endpoint="health")
 def api_health():
     """فحص صحة API"""
     try:
         # فحص قاعدة البيانات
-        db.session.execute("SELECT 1")
+        db.session.execute(text("SELECT 1"))
         
         # فحص عدد السجلات
         total_customers = Customer.query.count()
@@ -250,6 +260,9 @@ def _limit_from_request(default: int = 20, max_: int = 100) -> int:
         return min(max(1, v), max_)
     except Exception:
         return default
+
+# Alias for backward compatibility
+_query_limit = _limit_from_request
 
 def _as_int(v, default=None, *, min_=None, max_=None):
     try:
@@ -1372,7 +1385,7 @@ def api_products_by_warehouse(wid: int):
 # @permission_required("view_inventory")  # Commented out
 def api_inventory_summary():
     ids = request.args.getlist("warehouse_ids", type=int)
-    q = utils._q()
+    q = utils.q  # q is a function, not _q()
     wh_ids = ids or [w.id for w in Warehouse.query.order_by(Warehouse.name).all()]
     if not wh_ids:
         return jsonify({"data": []})
@@ -1621,12 +1634,12 @@ def update_partner_shares(warehouse_id: int):
 @limiter.limit("60/minute")
 # @permission_required("manage_sales", "view_reports")  # Commented out
 def invoices():
-    q = utils._q()
+    q = utils.q
     qry = Invoice.query
     if q:
         like = f"%{q}%"
         qry = qry.filter(or_(Invoice.invoice_number.ilike(like), Invoice.currency.ilike(like)))
-    rows = qry.order_by(Invoice.id.desc()).limit(_query_limit(20, 100)).all()
+    rows = qry.order_by(Invoice.id.desc()).limit(utils._query_limit(20, 100)).all()
     return jsonify(
         [
             {
@@ -1645,7 +1658,7 @@ def invoices():
 @limiter.limit("60/minute")
 # @permission_required("manage_service")  # Commented out
 def services():
-    q = utils._q()
+    q = utils.q
     qry = ServiceRequest.query
     if q:
         like = f"%{q}%"
@@ -1663,7 +1676,7 @@ def services():
                 ServiceRequest.notes.ilike(like),
             )
         )
-    rows = qry.order_by(ServiceRequest.id.desc()).limit(_query_limit(20, 100)).all()
+    rows = qry.order_by(ServiceRequest.id.desc()).limit(utils._query_limit(20, 100)).all()
     return jsonify(
         [{"id": s.id, "text": _number_of(s, "service_number", "SVC"), "number": _number_of(s, "service_number", "SVC")} for s in rows]
     )
@@ -1673,12 +1686,12 @@ def services():
 @limiter.limit("60/minute")
 # @permission_required("manage_sales", "view_reports")  # Commented out
 def sales():
-    q = utils._q()
+    q = utils.q
     qry = Sale.query
     if q:
         like = f"%{q}%"
         qry = qry.filter(or_(Sale.sale_number.ilike(like),))
-    rows = qry.order_by(Sale.id.desc()).limit(_query_limit(20, 100)).all()
+    rows = qry.order_by(Sale.id.desc()).limit(utils._query_limit(20, 100)).all()
     return jsonify(
         [
             {
@@ -1698,7 +1711,7 @@ def sales():
 @limiter.limit("60/minute")
 # @permission_required("manage_warehouses", "view_reports")  # Commented out
 def shipments():
-    q = utils._q()
+    q = utils.q
     qry = Shipment.query
     if q:
         like = f"%{q}%"
@@ -2106,7 +2119,7 @@ def delete_shipment_api(id: int):
 @limiter.limit("60/minute")
 # @permission_required("warehouse_transfer", "manage_inventory")  # Commented out
 def transfers():
-    q = utils._q()
+    q = utils.q
     qry = Transfer.query
     if q:
         like = f"%{q}%"
@@ -2131,7 +2144,7 @@ def transfers():
 @limiter.limit("60/minute")
 # @permission_required("view_preorders", "manage_inventory")  # Commented out
 def preorders():
-    q = utils._q()
+    q = utils.q
     qry = PreOrder.query
     if q:
         like = f"%{q}%"
@@ -2155,7 +2168,7 @@ def preorders():
 @limiter.limit("60/minute")
 # @permission_required("view_preorders")  # Commented out
 def online_preorders():
-    q = utils._q()
+    q = utils.q
     qry = OnlinePreOrder.query
     if q:
         like = f"%{q}%"
@@ -2180,7 +2193,7 @@ def online_preorders():
 @limiter.limit("60/minute")
 # @permission_required("manage_expenses")  # Commented out
 def expenses():
-    q = utils._q()
+    q = utils.q
     qry = Expense.query
     if q:
         like = f"%{q}%"
@@ -2204,9 +2217,9 @@ def expenses():
 @limiter.limit("60/minute")
 # @permission_required("manage_vendors")  # Commented out
 def loan_settlements():
-    q = utils._q()
+    q = utils.q
     qry = SupplierLoanSettlement.query
-    if q.isdigit():
+    if q and str(q).isdigit():
         qry = qry.filter(SupplierLoanSettlement.id == int(q))
     rows = qry.order_by(SupplierLoanSettlement.id.desc()).limit(_query_limit(50, 200)).all()
     return jsonify(
@@ -2219,7 +2232,7 @@ def loan_settlements():
 @limiter.limit("60/minute")
 # @permission_required("manage_payments", "view_reports")  # Commented out
 def payments():
-    q = utils._q()
+    q = utils.q
     qry = Payment.query
     if q:
         like = f"%{q}%"
@@ -2550,7 +2563,7 @@ def _stock_row_locked(pid: int, wid: int) -> StockLevel:
 @limiter.limit("60/minute")
 # @permission_required("manage_inventory", "view_inventory", "view_warehouses")  # Commented out
 def list_exchange_transactions():
-    q = utils._q()
+    q = utils.q
     qry = ExchangeTransaction.query
     if q:
         like = f"%{q}%"
@@ -2948,14 +2961,26 @@ def api_list_archives():
 def api_get_archive(archive_id):
     """الحصول على تفاصيل الأرشيف"""
     try:
-        archive = Archive.query.get_or_404(archive_id)
+        archive = db.session.get(Archive, archive_id)
+        if not archive:
+            return jsonify({'success': False, 'error': 'الأرشيف غير موجود'}), 404
         
         return jsonify({
             'success': True,
-            'data': archive.to_dict()
+            'data': {
+                'id': archive.id,
+                'record_type': getattr(archive, 'record_type', 'unknown'),
+                'record_id': getattr(archive, 'record_id', None),
+                'archive_reason': getattr(archive, 'archive_reason', ''),
+                'archived_at': archive.archived_at.isoformat() if hasattr(archive, 'archived_at') and archive.archived_at else None,
+                'user_id': getattr(archive, 'user_id', None),
+                'user_name': archive.user.username if hasattr(archive, 'user') and archive.user else None
+            }
         })
         
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @bp.route("/archive/<int:archive_id>/restore", methods=["POST"])

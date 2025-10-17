@@ -803,54 +803,16 @@ def partners_delete(id):
 @login_required
 # @permission_required("manage_vendors")  # Commented out
 def supplier_smart_settlement(supplier_id):
-    """التسوية الذكية للمورد"""
-    supplier = _get_or_404(Supplier, supplier_id)
+    """التسوية الذكية للمورد - redirect to new endpoint"""
+    # توجيه للـ endpoint الجديد
+    params = {}
+    if request.args.get('date_from'):
+        params['date_from'] = request.args.get('date_from')
+    if request.args.get('date_to'):
+        params['date_to'] = request.args.get('date_to')
     
-    # الحصول على الفترة الزمنية
-    date_from = request.args.get('date_from')
-    date_to = request.args.get('date_to')
-    
-    if date_from:
-        date_from = datetime.fromisoformat(date_from)
-    else:
-        date_from = datetime(2024, 1, 1)
-    
-    if date_to:
-        date_to = datetime.fromisoformat(date_to)
-    else:
-        date_to = datetime.utcnow()
-    
-    # حساب الرصيد الذكي
-    balance_data = _calculate_smart_supplier_balance(supplier_id, date_from, date_to)
-    
-    # إنشاء object بسيط للتوافق مع القالب
-    from types import SimpleNamespace
-    ss = SimpleNamespace(
-        id=None,  # لا يوجد id لأنها تسوية ذكية (غير محفوظة)
-        supplier=supplier,
-        from_date=date_from,
-        to_date=date_to,
-        currency=supplier.currency,
-        total_gross=balance_data.get("incoming", {}).get("total", 0) if isinstance(balance_data, dict) else 0,
-        total_due=balance_data.get("balance", {}).get("amount", 0) if isinstance(balance_data, dict) else 0,
-        status="DRAFT",
-        code=f"SS-SMART-{supplier_id}-{date_from.strftime('%Y%m%d')}",
-        lines=[],
-        created_at=date_from,
-        updated_at=datetime.utcnow()
-    )
-    
-    # استخدام settlement_preview بدلاً من smart_settlement (غير موجود)
-    return render_template(
-        "vendors/suppliers/settlement_preview.html",
-        supplier=supplier,
-        ss=ss,  # object بدلاً من dict
-        entity=supplier,
-        entity_type="supplier",
-        balance_data=balance_data,
-        date_from=date_from,
-        date_to=date_to
-    )
+    return redirect(url_for('supplier_settlements_bp.supplier_settlement', 
+                           supplier_id=supplier_id, **params))
 
 
 @vendors_bp.route("/partners/<int:partner_id>/smart-settlement", methods=["GET"], endpoint="partner_smart_settlement")
@@ -894,17 +856,15 @@ def partner_smart_settlement(partner_id):
         updated_at=datetime.utcnow()
     )
     
-    # استخدام settlement_preview بدلاً من smart_settlement (غير موجود)
-    return render_template(
-        "vendors/partners/settlement_preview.html",
-        partner=partner,
-        ps=ps,  # object بدلاً من dict
-        entity=partner,
-        entity_type="partner",
-        balance_data=balance_data,
-        date_from=date_from,
-        date_to=date_to
-    )
+    # توجيه للـ endpoint الجديد
+    params = {}
+    if request.args.get('date_from'):
+        params['date_from'] = request.args.get('date_from')
+    if request.args.get('date_to'):
+        params['date_to'] = request.args.get('date_to')
+    
+    return redirect(url_for('partner_settlements_bp.partner_settlement', 
+                           partner_id=partner_id, **params))
 
 
 def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, date_to: datetime):
