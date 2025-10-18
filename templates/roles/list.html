@@ -2,7 +2,7 @@
 {% block title %}إدارة الأدوار{% endblock %}
 
 {% block head_extra %}
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap4.min.css">
+<!-- DataTables CSS محمّل في base.html -->
 {% endblock %}
 
 {% block content %}
@@ -163,8 +163,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap4.min.js"></script>
+<!-- DataTables محمّل في base.html -->
 <script>
 (function () {
   function clampBadges(container) {

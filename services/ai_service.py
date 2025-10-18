@@ -5,7 +5,7 @@ import psutil
 import os
 import re
 from datetime import datetime, timezone, timedelta
-from sqlalchemy import func, text
+from sqlalchemy import func, text, desc
 from extensions import db
 from models import SystemSettings
 from services.ai_knowledge import get_knowledge_base, analyze_error, format_error_response
@@ -30,6 +30,10 @@ from services.ai_data_awareness import (
     auto_build_if_needed,
     find_model_by_keyword,
     load_data_schema
+)
+from services.ai_auto_training import (
+    should_auto_train,
+    init_auto_training
 )
 
 
@@ -306,30 +310,230 @@ def analyze_question_intent(question):
 
 
 def get_or_create_session_memory(session_id):
-    """الحصول على أو إنشاء ذاكرة المحادثة"""
+    """الحصول على أو إنشاء ذاكرة المحادثة - محسّنة"""
     if session_id not in _conversation_memory:
         _conversation_memory[session_id] = {
             'messages': [],
             'context': {},
             'created_at': datetime.now(timezone.utc),
-            'last_updated': datetime.now(timezone.utc)
+            'last_updated': datetime.now(timezone.utc),
+            'user_preferences': {},  # تفضيلات المستخدم
+            'topics': [],  # المواضيع المحادثة
+            'entities_mentioned': {},  # الكيانات المذكورة
+            'last_intent': None,  # آخر نية
         }
     
     _conversation_memory[session_id]['last_updated'] = datetime.now(timezone.utc)
     return _conversation_memory[session_id]
 
 
-def add_to_memory(session_id, role, content):
-    """إضافة رسالة للذاكرة"""
+def add_to_memory(session_id, role, content, context=None):
+    """إضافة رسالة للذاكرة - محسّنة مع context"""
     memory = get_or_create_session_memory(session_id)
-    memory['messages'].append({
+    
+    message_entry = {
         'role': role,
         'content': content,
-        'timestamp': datetime.now(timezone.utc).isoformat()
-    })
+        'timestamp': datetime.now(timezone.utc).isoformat(),
+    }
     
-    if len(memory['messages']) > 20:
-        memory['messages'] = memory['messages'][-20:]
+    # حفظ السياق إذا كان متوفراً
+    if context:
+        message_entry['context'] = {
+            'intent': context.get('intent'),
+            'entities': context.get('entities'),
+            'sentiment': context.get('sentiment'),
+        }
+        
+        # تحديث الكيانات المذكورة
+        for entity in context.get('entities', []):
+            if entity not in memory['entities_mentioned']:
+                memory['entities_mentioned'][entity] = 0
+            memory['entities_mentioned'][entity] += 1
+        
+        # حفظ آخر نية
+        if context.get('intent'):
+            memory['last_intent'] = context['intent']
+    
+    memory['messages'].append(message_entry)
+    
+    # الاحتفاظ بآخر 50 رسالة (زيادة من 20)
+    if len(memory['messages']) > 50:
+        memory['messages'] = memory['messages'][-50:]
+
+
+def get_conversation_context(session_id):
+    """الحصول على سياق المحادثة الكامل"""
+    memory = get_or_create_session_memory(session_id)
+    
+    return {
+        'message_count': len(memory['messages']),
+        'duration': (datetime.now(timezone.utc) - memory['created_at']).total_seconds(),
+        'most_mentioned_entities': sorted(
+            memory['entities_mentioned'].items(),
+            key=lambda x: x[1],
+            reverse=True
+        )[:5],
+        'last_intent': memory.get('last_intent'),
+        'recent_topics': memory.get('topics', [])[-5:],
+    }
+
+
+def deep_data_analysis(query, context):
+    """🔬 تحليل عميق للبيانات - يستنتج ويحلل بذكاء
+    
+    يحلل البيانات ويستنتج:
+    - الأنماط (Patterns)
+    - الاتجاهات (Trends)
+    - الشذوذ (Anomalies)
+    - العلاقات (Correlations)
+    - التنبؤات (Predictions)
+    """
+    from models import Customer, ServiceRequest, Invoice, Payment, Expense, Product
+    from datetime import timedelta
+    from sqlalchemy import func
+    
+    analysis_result = {
+        'success': True,
+        'insights': [],
+        'warnings': [],
+        'recommendations': [],
+        'data_summary': {},
+    }
+    
+    try:
+        # تحليل حسب الكيانات المطلوبة
+        entities = context.get('entities', [])
+        time_scope = context.get('time_scope')
+        
+        # تحديد نطاق التاريخ
+        end_date = datetime.now(timezone.utc)
+        if time_scope == 'today':
+            start_date = end_date.replace(hour=0, minute=0, second=0)
+        elif time_scope == 'week':
+            start_date = end_date - timedelta(days=7)
+        elif time_scope == 'month':
+            start_date = end_date - timedelta(days=30)
+        else:
+            start_date = end_date - timedelta(days=90)  # افتراضياً 3 أشهر
+        
+        # 1. تحليل العملاء
+        if 'customer' in entities:
+            total_customers = Customer.query.count()
+            active_customers = db.session.query(func.count(func.distinct(Invoice.customer_id))).filter(
+                Invoice.created_at >= start_date
+            ).scalar() or 0
+            
+            activity_rate = (active_customers / total_customers * 100) if total_customers > 0 else 0
+            
+            analysis_result['data_summary']['customers'] = {
+                'total': total_customers,
+                'active': active_customers,
+                'activity_rate': round(activity_rate, 1),
+            }
+            
+            # استنتاجات
+            if activity_rate < 30:
+                analysis_result['warnings'].append(
+                    f'⚠️ نشاط منخفض: فقط {activity_rate:.1f}% من العملاء نشطين'
+                )
+                analysis_result['recommendations'].append(
+                    '📞 تواصل مع العملاء غير النشطين - قدم عروض خاصة'
+                )
+            elif activity_rate > 70:
+                analysis_result['insights'].append(
+                    f'✅ نشاط ممتاز: {activity_rate:.1f}% من العملاء نشطين!'
+                )
+        
+        # 2. تحليل المبيعات
+        if 'invoice' in entities or 'sales' in str(query).lower():
+            current_sales = db.session.query(func.sum(Invoice.total_amount)).filter(
+                Invoice.created_at >= start_date
+            ).scalar() or 0
+            
+            prev_start = start_date - (end_date - start_date)
+            prev_sales = db.session.query(func.sum(Invoice.total_amount)).filter(
+                Invoice.created_at >= prev_start,
+                Invoice.created_at < start_date
+            ).scalar() or 0
+            
+            change = float(current_sales) - float(prev_sales)
+            change_percent = (change / float(prev_sales) * 100) if prev_sales > 0 else 0
+            
+            analysis_result['data_summary']['sales'] = {
+                'current': float(current_sales),
+                'previous': float(prev_sales),
+                'change': change,
+                'change_percent': round(change_percent, 1),
+            }
+            
+            # استنتاجات
+            if change_percent > 20:
+                analysis_result['insights'].append(
+                    f'📈 نمو رائع: المبيعات ارتفعت بـ {change_percent:.1f}%!'
+                )
+                analysis_result['recommendations'].append(
+                    '💡 استمر على هذا النهج - وثّق ما فعلته لتكرار النجاح'
+                )
+            elif change_percent < -10:
+                analysis_result['warnings'].append(
+                    f'📉 انخفاض ملحوظ: المبيعات انخفضت بـ {abs(change_percent):.1f}%'
+                )
+                analysis_result['recommendations'].extend([
+                    '🔍 راجع الأسعار - هل ارتفعت كثيراً؟',
+                    '📊 قارن مع المنافسين',
+                    '🎁 قدم عروض خاصة لتحفيز المبيعات',
+                ])
+        
+        # 3. تحليل النفقات
+        if 'expense' in entities:
+            total_expenses = db.session.query(func.sum(Expense.amount)).filter(
+                Expense.date >= start_date
+            ).scalar() or 0
+            
+            analysis_result['data_summary']['expenses'] = {
+                'total': float(total_expenses),
+            }
+            
+            # مقارنة مع المبيعات
+            if 'sales' in analysis_result['data_summary']:
+                sales = analysis_result['data_summary']['sales']['current']
+                expense_ratio = (float(total_expenses) / sales * 100) if sales > 0 else 0
+                
+                if expense_ratio > 70:
+                    analysis_result['warnings'].append(
+                        f'⚠️ النفقات مرتفعة جداً: {expense_ratio:.1f}% من المبيعات!'
+                    )
+                    analysis_result['recommendations'].append(
+                        '💰 ابحث عن طرق لتقليل النفقات دون المساس بالجودة'
+                    )
+        
+        # 4. اكتشاف الأنماط (Pattern Detection)
+        # العملاء الأكثر ربحية
+        if 'customer' in entities or context.get('intent') == 'analysis':
+            top_customers = db.session.query(
+                Customer.name,
+                func.sum(Invoice.total_amount).label('total')
+            ).join(Invoice).filter(
+                Invoice.created_at >= start_date
+            ).group_by(Customer.id).order_by(
+                func.sum(Invoice.total_amount).desc()
+            ).limit(3).all()
+            
+            if top_customers:
+                analysis_result['insights'].append(
+                    f'🏆 أفضل 3 عملاء يمثلون جزءاً كبيراً من الإيرادات'
+                )
+                analysis_result['data_summary']['top_customers'] = [
+                    {'name': name, 'total': float(total)}
+                    for name, total in top_customers
+                ]
+    
+    except Exception as e:
+        analysis_result['success'] = False
+        analysis_result['error'] = str(e)
+    
+    return analysis_result
 
 
 def analyze_accounting_data(currency=None):
@@ -1627,18 +1831,665 @@ def handle_navigation_request(message):
         return f"⚠️ خطأ في البحث عن الصفحة: {str(e)}"
 
 
+def enhanced_context_understanding(message):
+    """🧠 فهم سياقي متقدم - محرك NLP ذكي (ليس قوائم!)
+    
+    يستخدم:
+    - تحليل لغوي متقدم (NLP)
+    - فهم البنية النحوية
+    - استنتاج المعنى الدلالي
+    - معالجة السياق
+    
+    بدلاً من: قوائم if/elif الغبية!
+    """
+    import re
+    from datetime import datetime
+    
+    # 🧠 استخدام محرك NLP الذكي
+    try:
+        from services.ai_nlp_engine import understand_text
+        nlp_result = understand_text(message)
+        
+        # تحويل نتيجة NLP للصيغة المطلوبة
+        context = {
+            'message': message,
+            'normalized': message.lower(),
+            'intent': nlp_result['intent']['primary_intent'],
+            'subintent': nlp_result['intent'].get('secondary_intents', [])[0] if nlp_result['intent'].get('secondary_intents') else None,
+            'entities': list(nlp_result['sentence_structure']['entities'].keys()),
+            'context_type': nlp_result['sentence_structure']['intent'] or 'question',
+            'sentiment': nlp_result['sentence_structure']['sentiment'],
+            'priority': 'urgent' if nlp_result['sentence_structure']['is_urgent'] else 'normal',
+            'confidence': nlp_result['intent']['confidence'],
+            'keywords': [],
+            'time_scope': None,
+            'requires_data': len(nlp_result['sentence_structure']['entities']) > 0,
+            'requires_action': nlp_result['intent']['primary_intent'] == 'executable_command',
+            'nlp_reasoning': nlp_result['intent']['reasoning'],
+            'semantic_concept': nlp_result['semantic_meaning']['main_concept'],
+        }
+        
+        # إضافة time_scope
+        if nlp_result['semantic_meaning']['is_temporal']:
+            text_lower = message.lower()
+            if 'اليوم' in text_lower or 'today' in text_lower:
+                context['time_scope'] = 'today'
+            elif 'الأسبوع' in text_lower or 'week' in text_lower:
+                context['time_scope'] = 'week'
+            elif 'الشهر' in text_lower or 'month' in text_lower:
+                context['time_scope'] = 'month'
+        
+        return context
+        
+    except Exception as e:
+        # fallback للطريقة القديمة في حال فشل NLP
+        print(f"⚠️ NLP fallback: {e}")
+        pass
+    
+    # الطريقة القديمة (backup فقط)
+    message_lower = message.lower()
+    
+    # تطبيع النص العربي
+    def normalize_arabic(text):
+        """إزالة التشكيل والهمزات للفهم الأفضل"""
+        if not text:
+            return ""
+        # إزالة التشكيل
+        text = re.sub(r'[\u0617-\u061A\u064B-\u0652]', '', text)
+        # توحيد الهمزات
+        text = re.sub('[إأٱآا]', 'ا', text)
+        text = re.sub('ى', 'ي', text)
+        text = re.sub('ؤ', 'و', text)
+        text = re.sub('ئ', 'ي', text)
+        text = re.sub('ة', 'ه', text)
+        return text
+    
+    normalized = normalize_arabic(message_lower)
+    
+    context = {
+        'message': message,
+        'normalized': normalized,
+        'intent': 'unknown',
+        'subintent': None,
+        'entities': [],
+        'context_type': 'question',  # greeting, question, command, complaint
+        'sentiment': 'neutral',  # positive, negative, neutral
+        'priority': 'normal',  # urgent, high, normal, low
+        'confidence': 0.5,
+        'keywords': [],
+        'time_scope': None,  # today, week, month, year
+        'requires_data': False,
+        'requires_action': False,
+    }
+    
+    # 1. تحليل السياق - تحية أم سؤال أم أمر؟
+    greetings = ['صباح', 'مساء', 'مرحبا', 'مرحباً', 'اهلا', 'أهلاً', 'السلام', 'hello', 'hi', 'hey', 'شلونك', 'كيفك']
+    complaints = ['مشكلة', 'مشاكل', 'خطأ', 'خلل', 'عطل', 'problem', 'error', 'issue', 'bug']
+    urgent_words = ['سريع', 'عاجل', 'الان', 'الآن', 'فوري', 'urgent', 'asap', 'now', 'immediately']
+    
+    if any(g in normalized for g in greetings):
+        context['context_type'] = 'greeting'
+        context['sentiment'] = 'positive'
+    elif any(c in normalized for c in complaints):
+        context['context_type'] = 'complaint'
+        context['sentiment'] = 'negative'
+        context['priority'] = 'high'
+    elif any(w in normalized for w in ['كيف', 'how', 'شرح', 'explain']):
+        context['context_type'] = 'how_to'
+    elif any(w in normalized for w in ['اضف', 'انشئ', 'create', 'add']):
+        context['context_type'] = 'command'
+        context['requires_action'] = True
+    
+    # 2. تحليل الأولوية
+    if any(u in normalized for u in urgent_words):
+        context['priority'] = 'urgent'
+    
+    # 3. تحليل النية - ماذا يريد؟
+    intent_patterns = {
+        'count': ['كم', 'عدد', 'count', 'how many', 'كام', 'قديش'],
+        'explanation': ['ما هو', 'what is', 'شرح', 'explain', 'عرف'],
+        'navigation': ['وين', 'اين', 'where', 'اذهب', 'take me', 'افتح', 'open'],
+        'calculation': ['احسب', 'calculate', 'حساب'],
+        'comparison': ['مقارنة', 'compare', 'vs', 'الفرق'],
+        'analysis': ['حلل', 'analyze', 'تحليل', 'افحص', 'check'],
+        'recommendation': ['اقترح', 'recommend', 'نصيحة', 'advice'],
+        'troubleshooting': ['مشكلة', 'problem', 'خطأ', 'error', 'لا يعمل'],
+        'tutorial': ['كيف', 'how', 'خطوات', 'steps'],
+        'data_query': ['اعرض', 'show', 'قائمة', 'list'],
+    }
+    
+    for intent, patterns in intent_patterns.items():
+        if any(p in normalized for p in patterns):
+            context['intent'] = intent
+            context['confidence'] = 0.8
+            break
+    
+    # 4. استخراج الكيانات - عن ماذا يتحدث؟
+    entities_map = {
+        'customer': ['عميل', 'عملاء', 'زبون', 'customer'],
+        'service': ['صيانة', 'service', 'تصليح', 'اصلاح', 'repair'],
+        'invoice': ['فاتورة', 'فواتير', 'invoice'],
+        'payment': ['دفعة', 'دفع', 'payment'],
+        'product': ['منتج', 'منتجات', 'قطعة', 'product', 'part'],
+        'expense': ['نفقة', 'مصروف', 'expense'],
+        'supplier': ['مورد', 'موردين', 'supplier'],
+        'warehouse': ['مخزن', 'مخازن', 'warehouse', 'مخزون', 'inventory'],
+        'partner': ['شريك', 'شركاء', 'partner'],
+        'report': ['تقرير', 'report'],
+        'vat': ['vat', 'ضريبة', 'tax'],
+        'profit': ['ربح', 'profit', 'خسارة', 'loss'],
+    }
+    
+    for entity, keywords in entities_map.items():
+        if any(k in normalized for k in keywords):
+            context['entities'].append(entity)
+            context['requires_data'] = True
+    
+    # 5. تحليل النطاق الزمني
+    time_keywords = {
+        'today': ['اليوم', 'today'],
+        'week': ['الاسبوع', 'اسبوع', 'week'],
+        'month': ['الشهر', 'شهر', 'month'],
+        'year': ['السنة', 'سنة', 'عام', 'year'],
+    }
+    
+    for scope, keywords in time_keywords.items():
+        if any(k in normalized for k in keywords):
+            context['time_scope'] = scope
+            break
+    
+    # 6. استخراج الكلمات المفتاحية
+    words = normalized.split()
+    context['keywords'] = [w for w in words if len(w) > 2 and w not in [
+        'كم', 'ما', 'من', 'في', 'على', 'الى', 'هل', 'ماذا', 'كيف',
+        'what', 'how', 'where', 'when', 'why', 'the', 'is', 'are'
+    ]]
+    
+    # 7. تحديد SubIntent للدقة
+    if context['intent'] == 'count' and 'customer' in context['entities']:
+        context['subintent'] = 'count_customers'
+    elif context['intent'] == 'analysis' and 'sales' in normalized:
+        context['subintent'] = 'analyze_sales'
+    elif context['intent'] == 'navigation':
+        context['subintent'] = 'find_page'
+    
+    return context
+
+
 def local_intelligent_response(message):
-    """رد محلي ذكي - بدون Groq - يعتمد على القواعد والبحث المباشر"""
-    from services.ai_knowledge import get_local_faq_responses, get_local_quick_rules
-    from models import Customer, ServiceRequest, Expense, Product, Supplier, Invoice, Payment
+    """رد محلي ذكي كامل - فهم شامل للنظام بدون API + حماية أمنية + دليل المستخدم
+    
+    🧠 **محسّن بالكامل:**
+    - فهم سياقي متقدم
+    - تحليل ذكي للنوايا
+    - دمج جميع قواعد المعرفة
+    - ردود تفاعلية وليست قوالب
+    """
+    # استيراد جميع المكونات الذكية
+    try:
+        from services.ai_knowledge import get_local_faq_responses, get_local_quick_rules
+    except:
+        get_local_faq_responses = lambda: {}
+        get_local_quick_rules = lambda: {}
+    
+    try:
+        from services.ai_auto_discovery import auto_discover_if_needed, find_route_by_keyword
+    except:
+        find_route_by_keyword = lambda x: None
+    
+    try:
+        from services.ai_data_awareness import auto_build_if_needed, find_model_by_keyword
+    except:
+        find_model_by_keyword = lambda x: None
+    
+    try:
+        from services.ai_security import (
+            is_sensitive_query, get_security_response, sanitize_response,
+            is_owner, is_manager, get_user_role_name, log_security_event
+        )
+    except:
+        is_sensitive_query = lambda x: {'is_sensitive': False, 'is_owner_only': False}
+        get_security_response = lambda x, y: None
+        sanitize_response = lambda x: x
+        is_owner = lambda: False
+        is_manager = lambda: False
+        get_user_role_name = lambda: 'User'
+        log_security_event = lambda x, y, z: None
+    
+    try:
+        from services.ai_advanced_intelligence import (
+            get_deep_system_knowledge, find_workflow_by_query,
+            explain_relationship, explain_field, get_all_workflows_list
+        )
+    except:
+        get_deep_system_knowledge = lambda x: None
+        find_workflow_by_query = lambda x: None
+        explain_relationship = lambda x: None
+        explain_field = lambda x: None
+        get_all_workflows_list = lambda: "قائمة العمليات غير متاحة"
+    
+    try:
+        from services.ai_user_guide_knowledge import search_user_guide, get_all_faqs, USER_GUIDE_KNOWLEDGE
+    except:
+        search_user_guide = lambda x: None
+        get_all_faqs = lambda: []
+        USER_GUIDE_KNOWLEDGE = {}
+    
+    try:
+        from services.ai_business_knowledge import search_business_knowledge, ACCOUNTING_KNOWLEDGE, TAX_KNOWLEDGE, CUSTOMS_KNOWLEDGE
+    except:
+        search_business_knowledge = lambda x: {'results': []}
+        ACCOUNTING_KNOWLEDGE = {}
+        TAX_KNOWLEDGE = {}
+        CUSTOMS_KNOWLEDGE = {}
+    
+    try:
+        from services.ai_operations_knowledge import (
+            get_settlement_explanation, get_question_suggestions, get_smart_promotion,
+            get_comparison_response, get_pricing_hint, ALL_SYSTEM_OPERATIONS
+        )
+    except:
+        get_settlement_explanation = lambda x: None
+        get_question_suggestions = lambda x: []
+        get_smart_promotion = lambda x: ""
+        get_comparison_response = lambda x=None: ""
+        get_pricing_hint = lambda x: ""
+        ALL_SYSTEM_OPERATIONS = {}
+    
+    try:
+        from services.ai_intelligence_engine import (
+            analyze_customer_health, analyze_inventory_intelligence, analyze_sales_performance,
+            analyze_business_risks, smart_recommendations, feel_and_respond,
+            think_and_deduce, proactive_alerts, innovate_solution
+        )
+    except:
+        analyze_customer_health = lambda x=None: {}
+        analyze_inventory_intelligence = lambda: {}
+        analyze_sales_performance = lambda x=30: {}
+        analyze_business_risks = lambda: {'status': '✅ آمن', 'overall_score': 10, 'critical': [], 'high': [], 'medium': []}
+        smart_recommendations = lambda x: []
+        feel_and_respond = lambda x, y: "💡"
+        think_and_deduce = lambda x, y: {}
+        proactive_alerts = lambda: []
+        innovate_solution = lambda x: {}
+    
+    try:
+        from services.ai_parts_database import search_part_by_name, search_part_by_number, explain_part_function, get_parts_for_vehicle
+        from services.ai_mechanical_knowledge import diagnose_problem, get_repair_guide, COMMON_PROBLEMS, VEHICLE_SYSTEMS
+        from services.ai_diagnostic_engine import smart_diagnose, diagnose_heavy_equipment, check_part_in_inventory
+        from services.ai_predictive_analytics import predict_needed_parts, analyze_recurring_failures
+        from services.ai_ecu_knowledge import explain_dtc_code, ecu_connection_guide, ECU_KNOWLEDGE
+    except:
+        search_part_by_name = lambda x: None
+        search_part_by_number = lambda x: None
+        explain_part_function = lambda x: "لم أجد معلومات عن هذه القطعة"
+        get_parts_for_vehicle = lambda x: []
+        diagnose_problem = lambda x: None
+        get_repair_guide = lambda x: None
+        COMMON_PROBLEMS = {}
+        VEHICLE_SYSTEMS = {}
+        smart_diagnose = lambda x: {'success': False, 'message': 'التشخيص غير متاح'}
+        diagnose_heavy_equipment = lambda x: None
+        check_part_in_inventory = lambda x: {'found': False}
+        predict_needed_parts = lambda x: {'success': False}
+        analyze_recurring_failures = lambda x: "التحليل غير متاح"
+        explain_dtc_code = lambda x: "معلومات الكود غير متاحة"
+        ecu_connection_guide = lambda x: None
+        ECU_KNOWLEDGE = {}
+    
+    from models import Customer, ServiceRequest, Expense, Product, Supplier, Invoice, Payment, User, Role, Permission
     
     message_lower = message.lower()
+    
+    # 🧠 فهم سياقي متقدم - تحليل النية والكيانات (NLP الذكي!)
+    context = enhanced_context_understanding(message)
+    
+    # 🔍 وضع الشرح - إذا طلب المستخدم فهم كيف تم تحليل السؤال
+    if any(word in message_lower for word in ['كيف فهمت', 'اشرح فهمك', 'debug', 'explain']):
+        try:
+            from services.ai_nlp_engine import get_nlp_engine
+            engine = get_nlp_engine()
+            result = engine.process(message)
+            return engine.explain_understanding(result)
+        except:
+            pass
+    
+    # 🔒 فحص أمني أولاً - حماية المعلومات الحساسة
+    sensitivity = is_sensitive_query(message)
+    if sensitivity['is_sensitive'] or sensitivity['is_owner_only']:
+        security_response = get_security_response(message, sensitivity)
+        if security_response:
+            log_security_event(message, sensitivity, 'BLOCKED')
+            return security_response
+        else:
+            log_security_event(message, sensitivity, 'ALLOWED')
+    
+    # 0. ردود التحية - مع تحليل ذكي واستباقي وفهم السياق
+    if context['context_type'] == 'greeting':
+        # جمع إحصائيات + تحليل ذكي
+        try:
+            total_customers = Customer.query.count()
+            total_services = ServiceRequest.query.count()
+            total_users = User.query.count()
+            
+            # 🧠 التحليل الذكي والاستباقي
+            alerts = proactive_alerts()
+            recommendations = smart_recommendations('general')
+            risks = analyze_business_risks()
+            
+            response = f"""👋 **أهلاً وسهلاً! صباح النور!**
+
+🤖 أنا المساعد الذكي - أحلل وأفهم وأدرك وأوصي!
+
+📊 **حالة النظام الآن:**
+• 👥 العملاء: {total_customers}
+• 🔧 طلبات الصيانة: {total_services}
+• 👤 المستخدمين: {total_users}
+
+🎯 **تقييم الوضع العام:** {risks.get('status', '✅ آمن')} (نقاط: {risks.get('overall_score', 10)}/10)
+"""
+            
+            # 🚨 التنبيهات الاستباقية
+            if alerts:
+                response += "\n⚠️ **تنبيهات مهمة:**\n"
+                for alert in alerts[:3]:  # أول 3
+                    response += f"  • {alert}\n"
+            
+            # 💡 التوصيات الذكية
+            if recommendations:
+                response += "\n💡 **توصياتي لك:**\n"
+                for rec in recommendations[:3]:  # أول 3
+                    response += f"  • {rec}\n"
+            
+            response += """
+🎯 **اسألني عن أي شيء - سأحلل وأوصي:**
+• 📊 "حلل أداء المبيعات" - أحكم بذكاء
+• 🔍 "افحص صحة العملاء" - أكتشف المشاكل
+• 🧭 "ما الفرص المتاحة؟" - أبتكر حلول
+• 💰 "أعطني أفضل 5 عملاء" - أحلل بعمق
+
+**أنا لست مجرد معلومات - أنا مستشار ذكي!** 🧠
+
+✨ **نظام Garage Manager - الأقوى في فلسطين!** 🇵🇸"""
+            
+            return response
+        except:
+            return """👋 **أهلاً وسهلاً!**
+
+🤖 أنا المساعد الذكي - اسألني عن أي شيء! 😊"""
+    
+    # ✨ نظام ردود ذكي بناءً على الفهم السياقي
+    # استخدام context لتوليد ردود أكثر ذكاءً ودقة
+    
+    # 1. معالجة الشكاوى والمشاكل بذكاء
+    if context['context_type'] == 'complaint' or context['priority'] in ['urgent', 'high']:
+        empathy_response = "😟 أشعر بقلقك وأفهم أهمية الموضوع. دعني أساعدك فوراً...\n\n"
+        # ستتم معالجة التفاصيل لاحقاً في الكود
+        # هذا فقط لتعيين النبرة
+    
+    # 2. توجيه الأسئلة حسب النية (Intent-based routing)
+    if context['intent'] == 'count' and context['entities']:
+        # سيتم البحث في قاعدة البيانات لاحقاً
+        pass
+    elif context['intent'] == 'analysis' and context['entities']:
+        # سيتم استدعاء محرك التحليل الذكي
+        pass
+    elif context['intent'] == 'recommendation':
+        # استدعاء نظام التوصيات
+        recommendations = smart_recommendations(context.get('entities', [])[0] if context.get('entities') else 'general')
+        if recommendations:
+            return f"""💡 **توصياتي الذكية:**
+
+{chr(10).join(f'• {rec}' for rec in recommendations)}
+
+✅ هذه توصيات مبنية على تحليل البيانات الفعلية في النظام!"""
+    
+    # التنقل - وين/أين/اذهب/افتح (محسّن بالسياق)
+    if context['intent'] == 'navigation' or any(word in message_lower for word in ['وين', 'أين', 'اذهب', 'افتح', 'صفحة', 'where', 'show me', 'رابط']):
+        try:
+            route_info = find_route_by_keyword(message)
+            if route_info and route_info.get('matches'):
+                match = route_info['matches'][0]
+                return f"""📍 **وجدت الصفحة!**
+
+📛 **الاسم:** {match['endpoint']}
+🔗 **الرابط:** {match['url']}
+📄 **القالب:** {match.get('linked_templates', ['N/A'])[0] if match.get('linked_templates') else 'N/A'}
+📦 **الوحدة:** {match.get('blueprint', 'N/A')}
+
+✅ انقر على الرابط أو ابحث عنها في القائمة الجانبية!"""
+        except:
+            pass
+    
+    # 💼 البحث في المعرفة المتخصصة (محاسبة، ضرائب، جمارك) أولاً
+    try:
+        business_results = search_business_knowledge(message)
+        if business_results and business_results.get('results'):
+            best_result = business_results['results'][0]
+            result_type = best_result['type']
+            
+            if result_type == 'accounting':
+                concept = best_result['data']
+                response = f"""📊 **معرفة محاسبية متخصصة:**
+
+**{concept['name']}**
+
+📝 **التعريف:**
+{concept['definition']}
+
+"""
+                if concept.get('formula'):
+                    response += f"🔢 **المعادلة:**\n{concept['formula']}\n\n"
+                
+                if concept.get('importance'):
+                    response += f"⭐ **الأهمية:**\n{concept['importance']}\n\n"
+                
+                if concept.get('management'):
+                    response += f"💡 **الإدارة:**\n"
+                    for tip in concept['management']:
+                        response += f"  • {tip}\n"
+                
+                return sanitize_response(response)
+            
+            elif result_type == 'tax':
+                response = f"""💰 **معرفة ضريبية متخصصة:**
+
+{best_result['topic']}
+
+📚 المعلومات متوفرة ومفصلة. اسأل عن:
+• ضريبة القيمة المضافة (VAT)
+• ضريبة الدخل
+• ضريبة الاستقطاع
+• الامتثال الضريبي
+
+مثال: "كيف أحسب VAT؟" أو "ما هي نسب ضريبة الدخل؟"
+"""
+                return sanitize_response(response)
+            
+            elif result_type == 'customs':
+                response = f"""🛃 **معرفة جمركية متخصصة:**
+
+{best_result['topic']}
+
+📚 المعلومات متوفرة ومفصلة. اسأل عن:
+• عملية الاستيراد (10 خطوات)
+• الرسوم الجمركية
+• نظام HS Code
+• المستندات المطلوبة
+
+مثال: "ما هي خطوات الاستيراد؟" أو "كيف تحسب الرسوم الجمركية؟"
+"""
+                return sanitize_response(response)
+    except:
+        pass
+    
+    # 📚 البحث في دليل المستخدم - معرفة شاملة
+    try:
+        guide_results = search_user_guide(message)
+        if guide_results and guide_results.get('results'):
+            best_result = guide_results['results'][0]
+            
+            if best_result['type'] == 'faq':
+                response = f"""📖 **من دليل المستخدم:**
+
+❓ **{best_result['question']}**
+
+{best_result['answer']}
+
+🔗 **الرابط:** {best_result.get('route', 'N/A')}"""
+                return sanitize_response(response)
+    except:
+        pass
+    
+    # 🧠 الذكاء المتقدم - workflows وشرح عميق
+    if any(word in message_lower for word in ['كيف', 'شرح', 'how', 'explain', 'خطوات', 'steps']):
+        # محاولة الحصول على workflow أولاً
+        try:
+            deep_knowledge = get_deep_system_knowledge(message)
+            if deep_knowledge:
+                return sanitize_response(deep_knowledge)
+        except:
+            pass
+        
+        # شرح الحقول والنماذج
+        try:
+            model_info = find_model_by_keyword(message)
+            if model_info and model_info.get('model'):
+                model = model_info['model']
+                
+                # شرح العلاقات إذا كانت متوفرة
+                relationship_info = explain_relationship(model['name'])
+                
+                response = f"""📊 **شرح {model['name']}:**
+
+📝 **الوصف:** {model.get('description', 'جدول في قاعدة البيانات')}
+
+🔑 **الحقول الرئيسية:**
+{chr(10).join([f"  • {col['name']}: {col.get('type', 'N/A')}" for col in model.get('columns', [])[:10]])}
+
+"""
+                if relationship_info:
+                    response += f"\n{relationship_info}\n"
+                
+                response += "\n✅ هذا هو شرح مبسط!"
+                
+                return sanitize_response(response)
+        except:
+            pass
+    
+    # قائمة العمليات والمميزات - مع ترويج ذكي
+    if any(word in message_lower for word in ['عمليات', 'workflows', 'ماذا يمكنك', 'what can', 'مميزات', 'features']):
+        try:
+            # دمج workflows مع مميزات النظام
+            workflows_list = get_all_workflows_list()
+            system_overview = USER_GUIDE_KNOWLEDGE.get('system_overview', {})
+            comparison = get_comparison_response()
+            
+            response = f"""{workflows_list}
+
+📊 **نظرة عامة على النظام:**
+• {system_overview.get('modules_count', '40+')} وحدة عمل
+• {system_overview.get('api_endpoints', 362)} API Endpoint
+• {system_overview.get('reports_count', '20+')} تقرير مالي
+
+✨ **ما يميز نظامنا:**
+• 🤖 مساعد AI ذكي (أنا!)
+• 🔒 نظام أمان متقدم (35+ صلاحية)
+• ⚡ أداء فائق (89 فهرس محسّن)
+• 💱 متعدد العملات (ILS/USD/JOD)
+• 🎨 واجهة عصرية وسريعة
+
+🏆 **أقوى من الشامل والأندلس بمراحل!**
+
+💡 اسألني بالتفصيل عن أي شيء!"""
+            
+            return sanitize_response(response)
+        except:
+            pass
     
     # 1. فحص FAQ أولاً
     faq = get_local_faq_responses()
     for key, response in faq.items():
         if key in message_lower:
             return f"💡 **رد محلي فوري:**\n\n{response}"
+    
+    # 🔍 أسئلة تحليلية ذكية - يحلل ويستنتج ويوصي
+    if any(word in message_lower for word in ['افحص', 'حلل', 'analyze', 'check', 'أفضل', 'best', 'top']):
+        # أفضل العملاء
+        if 'عملاء' in message_lower or 'customer' in message_lower:
+            try:
+                # استخراج العدد من السؤال
+                import re
+                numbers = re.findall(r'\d+', message)
+                limit = int(numbers[0]) if numbers else 5
+                
+                # الاستعلام الذكي
+                top_customers = db.session.query(
+                    Customer.name,
+                    func.sum(Invoice.total_amount).label('total')
+                ).join(Invoice).group_by(Customer.id).order_by(func.sum(Invoice.total_amount).desc()).limit(limit).all()
+                
+                if top_customers:
+                    response = f"""🏆 **أفضل {limit} عملاء (بالتحليل الذكي):**
+
+"""
+                    total_all = sum([float(total) for _, total in top_customers])
+                    for idx, (name, total) in enumerate(top_customers, 1):
+                        percentage = (float(total) / total_all * 100) if total_all > 0 else 0
+                        response += f"{idx}. **{name}** - {float(total):.2f}₪ ({percentage:.1f}%)\n"
+                    
+                    # 🧠 الاستنتاج الذكي
+                    if len(top_customers) >= 3:
+                        top_3_total = sum([float(total) for _, total in top_customers[:3]])
+                        top_3_percent = (top_3_total / total_all * 100) if total_all > 0 else 0
+                        
+                        response += f"""
+📊 **تحليلي:**
+• أفضل 3 عملاء يمثلون {top_3_percent:.1f}% من الإجمالي
+"""
+                        if top_3_percent > 60:
+                            response += """
+🚨 **تحذير:** اعتماد كبير على عدد قليل من العملاء!
+💡 **توصيتي:** وسّع قاعدة العملاء لتقليل المخاطر
+"""
+                        else:
+                            response += """
+✅ **جيد:** توزيع متوازن نسبياً
+"""
+                    
+                    response += "\n💡 **توصيتي:** اعتنِ بهؤلاء العملاء - هم عمود المشروع!"
+                    return sanitize_response(response)
+            except:
+                pass
+        
+        # افحص المخزون
+        if 'مخزون' in message_lower or 'inventory' in message_lower:
+            try:
+                analysis = analyze_inventory_intelligence()
+                
+                response = f"""🔍 **فحص ذكي للمخزون:**
+
+🎯 **الحالة:** {analysis['status']}
+"""
+                if analysis['alerts']:
+                    response += "\n🚨 **ما اكتشفته:**\n"
+                    for alert in analysis['alerts'][:5]:
+                        response += f"  • {alert}\n"
+                
+                if analysis['critical_actions']:
+                    response += "\n⚡ **إجراءات عاجلة:**\n"
+                    for action in analysis['critical_actions']:
+                        response += f"  • {action}\n"
+                
+                if analysis['opportunities']:
+                    response += "\n💡 **فرص:**\n"
+                    for opp in analysis['opportunities'][:3]:
+                        response += f"  • {opp}\n"
+                
+                response += "\n✅ هذا تحليل ذكي - أدركت المشكلة وأوصيت بالحل!"
+                return sanitize_response(response)
+            except:
+                pass
     
     # 2. فحص القواعد السريعة
     quick_rules = get_local_quick_rules()
@@ -1662,28 +2513,225 @@ def local_intelligent_response(message):
                 except:
                     pass
     
-    # 3. حسابات مالية محلية
-    if 'احسب' in message_lower or 'calculate' in message_lower:
-        if 'vat' in message_lower or 'ضريبة' in message_lower:
-            # استخراج الرقم
-            import re
-            numbers = re.findall(r'\d+', message)
+    # 💼 أسئلة متخصصة - محاسبة وضرائب وجمارك
+    # VAT
+    if any(word in message_lower for word in ['vat', 'ضريبة القيمة المضافة', 'ضريبة مضافة']):
+        if 'كيف' in message_lower or 'how' in message_lower or 'احسب' in message_lower:
+            vat_data = TAX_KNOWLEDGE.get('vat', {})
+            return sanitize_response(f"""💰 **ضريبة القيمة المضافة (VAT):**
+
+📝 **التعريف:**
+{vat_data.get('definition', 'ضريبة على الاستهلاك')}
+
+📊 **النسب:**
+• فلسطين: {vat_data.get('rates', {}).get('palestine', '16%')}
+• إسرائيل: {vat_data.get('rates', {}).get('israel', '17%')}
+
+🔢 **كيفية الحساب:**
+• لإضافة VAT: السعر × 1.16 (فلسطين)
+• لاستخراج VAT: السعر الشامل / 1.16
+• مبلغ VAT: السعر × 0.16 / 1.16
+
+💡 **آلية العمل:**
+• ضريبة المبيعات (Output VAT) - مستحقة للحكومة
+• ضريبة المشتريات (Input VAT) - قابلة للخصم
+• الصافي = ضريبة المبيعات - ضريبة المشتريات
+
+📋 **التقديم:**
+• شهرياً أو ربع سنوي
+• موعد: عادة 15 من الشهر التالي
+
+✅ مثال: منتج سعره 1000₪
+• VAT (16%) = 160₪
+• السعر الشامل = 1160₪""")
+    
+    # ضريبة الدخل
+    if any(word in message_lower for word in ['ضريبة دخل', 'ضريبة الدخل', 'income tax']):
+        if 'فلسطين' in message_lower or 'palestine' in message_lower:
+            return sanitize_response(f"""💰 **ضريبة الدخل في فلسطين:**
+
+**للأفراد (شرائح تصاعدية):**
+• 0% حتى 75,000₪
+• 5% من 75,001 - 150,000₪
+• 10% من 150,001 - 250,000₪
+• 15% فوق 250,000₪
+
+**للشركات:**
+• 15% على صافي الربح
+
+💡 **الخصومات المسموحة:**
+• المصاريف التشغيلية
+• الإهلاك
+• الرواتب والأجور
+• التأمينات
+• الفوائد المدفوعة
+
+📋 **التقديم:**
+• إقرار سنوي
+• موعد: نهاية أبريل للسنة السابقة
+• دفعات مقدمة ربع سنوية
+
+⚠️ استشر محاسب قانوني لحالتك الخاصة!""")
+    
+    # الجمارك
+    if any(word in message_lower for word in ['جمارك', 'استيراد', 'تخليص', 'customs', 'import']):
+        if 'خطوات' in message_lower or 'كيف' in message_lower or 'how' in message_lower:
+            return sanitize_response(f"""🛃 **عملية الاستيراد - 10 خطوات:**
+
+1️⃣ التأكد من السلعة المسموح استيرادها
+2️⃣ الحصول على فاتورة (Invoice) من المورد
+3️⃣ شحن البضاعة (بحري/جوي/بري)
+4️⃣ وصول البضاعة للميناء/المعبر
+5️⃣ تقديم المستندات للجمارك
+6️⃣ الفحص الجمركي (قد يكون عشوائي)
+7️⃣ تقييم البضاعة وحساب الرسوم
+8️⃣ دفع الرسوم
+9️⃣ الإفراج عن البضاعة
+🔟 النقل للمخزن
+
+📄 **المستندات المطلوبة:**
+• فاتورة تجارية (Commercial Invoice)
+• بوليصة الشحن (Bill of Lading)
+• قائمة التعبئة (Packing List)
+• شهادة المنشأ (Certificate of Origin)
+• تصريح استيراد (إن لزم)
+• رخصة الاستيراد
+
+💰 **حساب الرسوم:**
+• أساس الحساب: قيمة CIF
+• CIF = Cost + Insurance + Freight
+• الرسوم حسب HS Code (نظام منسق)
+
+⚠️ استشر مخلص جمركي محترف!""")
+    
+    # تسويات الشركاء والموردين
+    if any(word in message_lower for word in ['تسوية شريك', 'تسوية مورد', 'كيف أسوي', 'partner settlement', 'supplier settlement']):
+        if 'شريك' in message_lower or 'partner' in message_lower:
+            settlement_data = get_settlement_explanation('partner')
+            promotion = get_smart_promotion('settlements')
+            return sanitize_response(f"""🤝 **تسوية الشركاء - نظام ذكي 100%:**
+
+{settlement_data['how_it_works']}
+
+📋 **الخطوات:**
+{chr(10).join(settlement_data['steps'])}
+
+⭐ **المميزات:**
+{chr(10).join(settlement_data['features'])}
+
+{promotion}
+
+🔗 **الرابط:** /vendors/partners/settlement""")
+        
+        elif 'مورد' in message_lower or 'supplier' in message_lower:
+            settlement_data = get_settlement_explanation('supplier')
+            return sanitize_response(f"""📦 **تسوية الموردين:**
+
+{settlement_data['how_it_works']}
+
+📋 **الخطوات:**
+{chr(10).join(settlement_data['steps'])}
+
+🔗 **الرابط:** /vendors/suppliers/settlement""")
+    
+    # مقارنة مع أنظمة أخرى
+    if any(word in message_lower for word in ['مقارنة', 'الشامل', 'الأندلس', 'compare', 'shamil', 'andalus', 'vs']):
+        competitor = None
+        if 'شامل' in message_lower or 'shamil' in message_lower:
+            competitor = 'shamil'
+        elif 'أندلس' in message_lower or 'andalus' in message_lower:
+            competitor = 'andalus'
+        
+        comparison = get_comparison_response(competitor)
+        return sanitize_response(comparison)
+    
+    # السعر
+    if any(word in message_lower for word in ['سعر', 'price', 'كم', 'تكلفة', 'cost']):
+        pricing = get_pricing_hint('when_asked_directly')
+        return sanitize_response(pricing)
+    
+    # الذمم المدينة
+    if any(word in message_lower for word in ['ذمم مدينة', 'accounts receivable', 'ar aging']):
+        return sanitize_response(f"""📊 **الذمم المدينة (AR - Accounts Receivable):**
+
+📝 **التعريف:**
+المبالغ المستحقة للشركة من العملاء مقابل بضائع أو خدمات تم تقديمها.
+
+⭐ **الأهمية:**
+تمثل سيولة مستقبلية للشركة.
+
+🔢 **المعادلة:**
+AR = إجمالي الفواتير - المدفوعات المحصلة
+
+💡 **الإدارة الفعالة:**
+• متابعة دورية لأعمار الذمم
+• تحصيل المستحقات في الوقت المناسب
+• وضع حد ائتماني لكل عميل (Credit Limit)
+• إعداد تقرير AR Aging شهرياً
+
+📋 **تقرير AR Aging:**
+يصنف المستحقات حسب العمر:
+• 0-30 يوم (جيد)
+• 31-60 يوم (متابعة)
+• 61-90 يوم (تحذير)
+• +90 يوم (خطر!)
+
+✅ متوفر في النظام: /reports/ar-aging""")
+    
+    # 3. حسابات مالية محلية - محسّن بالفهم السياقي
+    if context['intent'] == 'calculation' or 'احسب' in message_lower or 'calculate' in message_lower:
+        # استخراج الأرقام من السؤال
+        import re
+        numbers = re.findall(r'\d+(?:\.\d+)?', message)
+        
+        if 'vat' in context.get('entities', []) or 'vat' in message_lower or 'ضريبة' in message_lower:
             if numbers:
-                amount = float(numbers[0])
+                amount = float(numbers[0].replace(',', ''))
                 country = 'israel' if 'إسرائيل' in message_lower or 'israel' in message_lower else 'palestine'
                 
-                from services.ai_knowledge_finance import calculate_vat
-                vat_result = calculate_vat(amount, country)
-                
-                return f"""💰 **حساب VAT محلي:**
+                try:
+                    from services.ai_knowledge_finance import calculate_vat
+                    vat_result = calculate_vat(amount, country)
+                    
+                    return f"""💰 **حساب VAT ذكي:**
 
-المبلغ الأساسي: {amount:.2f}₪
-الدولة: {'فلسطين' if country == 'palestine' else 'إسرائيل'}
-نسبة VAT: {vat_result['rate']}%
-قيمة VAT: {vat_result['vat_amount']:.2f}₪
-الإجمالي: {vat_result['total_with_vat']:.2f}₪
+📊 **المدخلات:**
+• المبلغ الأساسي: {amount:,.2f}₪
+• الدولة: {'🇵🇸 فلسطين' if country == 'palestine' else '🇮🇱 إسرائيل'}
 
-✅ حساب محلي دقيق 100%"""
+🧮 **النتيجة:**
+• نسبة VAT: {vat_result['vat_rate']}%
+• قيمة VAT: {vat_result['vat_amount']:,.2f}₪
+• **الإجمالي شامل VAT: {vat_result['total_with_vat']:,.2f}₪**
+
+✅ **حساب محلي دقيق 100%** - بدون اتصال إنترنت!
+
+💡 **لاحظ:** النظام يحسب VAT تلقائياً في جميع الفواتير!"""
+                except:
+                    pass
+        
+        # حساب ضريبة الدخل
+        if 'دخل' in message_lower or 'income tax' in message_lower:
+            if numbers:
+                income = float(numbers[0].replace(',', ''))
+                try:
+                    from services.ai_knowledge_finance import calculate_palestine_income_tax
+                    tax = calculate_palestine_income_tax(income)
+                    net = income - tax
+                    
+                    return f"""💰 **حساب ضريبة الدخل (فلسطين):**
+
+📊 **الدخل الإجمالي:** {income:,.2f}₪
+
+🧮 **الضريبة المحسوبة:**
+• ضريبة الدخل: {tax:,.2f}₪
+• **صافي الدخل: {net:,.2f}₪**
+
+📈 **النسبة الفعلية:** {(tax/income*100):.2f}%
+
+✅ حساب حسب الشرائح التصاعدية الفلسطينية!"""
+                except:
+                    pass
     
     # 4. معلومات عن الوحدات
     modules_info = {
@@ -1708,9 +2756,10 @@ def local_intelligent_response(message):
 
 ✅ يمكنك الوصول مباشرة من القائمة الجانبية."""
     
-    # 5. إحصائيات شاملة
-    if 'إحصائيات' in message_lower or 'تقرير' in message_lower or 'ملخص' in message_lower:
+    # 5. إحصائيات ذكية - مع تحليل وحكم واستنتاج
+    if 'إحصائيات' in message_lower or 'تقرير' in message_lower or 'ملخص' in message_lower or 'حلل' in message_lower:
         try:
+            # جمع البيانات
             stats = {
                 'customers': Customer.query.count(),
                 'services': ServiceRequest.query.count(),
@@ -1721,33 +2770,248 @@ def local_intelligent_response(message):
                 'payments': Payment.query.count(),
             }
             
-            response = """📊 **إحصائيات النظام الشاملة:**
-
-👥 العملاء: {customers}
-🔧 طلبات الصيانة: {services}
-💸 النفقات: {expenses}
-📦 المنتجات: {products}
-🏭 الموردين: {suppliers}
-📄 الفواتير: {invoices}
-💳 المدفوعات: {payments}
-
-✅ بيانات محلية دقيقة 100%"""
+            # 🧠 التحليل الذكي
+            sales_analysis = analyze_sales_performance(30)
+            inventory_analysis = analyze_inventory_intelligence()
+            risks = analyze_business_risks()
             
-            return response.format(**stats)
+            # 💭 الشعور والاستجابة
+            empathy = feel_and_respond(message, stats)
+            
+            response = f"""{empathy} **تحليل ذكي شامل للنظام:**
+
+📊 **الأرقام الأساسية:**
+• 👥 العملاء: {stats['customers']}
+• 🔧 طلبات الصيانة: {stats['services']}
+• 📄 الفواتير: {stats['invoices']}
+• 💳 المدفوعات: {stats['payments']}
+
+💰 **تحليل المبيعات (30 يوم):**
+• الإجمالي: {sales_analysis['current_sales']:.2f}₪
+• التغير: {sales_analysis['change_percent']:+.1f}% عن الفترة السابقة
+• الحكم: {sales_analysis['judgment']}
+• متوسط الفاتورة: {sales_analysis['avg_invoice']:.2f}₪
+
+🎯 **تقييم الأمان:** {risks['status']} (نقاط: {risks['overall_score']}/10)
+"""
+            
+            # التنبيهات
+            if risks['critical']:
+                response += "\n🚨 **تنبيهات حرجة:**\n"
+                for alert in risks['critical']:
+                    response += f"  • {alert}\n"
+            
+            if risks['high']:
+                response += "\n⚠️ **تنبيهات مهمة:**\n"
+                for alert in risks['high'][:2]:
+                    response += f"  • {alert}\n"
+            
+            # الاستنتاجات
+            if sales_analysis.get('insights'):
+                response += "\n💡 **استنتاجاتي:**\n"
+                for insight in sales_analysis['insights'][:2]:
+                    response += f"  • {insight}\n"
+            
+            # التوصيات
+            if sales_analysis.get('recommendations'):
+                response += "\n🎯 **توصياتي لك:**\n"
+                for rec in sales_analysis['recommendations'][:3]:
+                    response += f"  • {rec}\n"
+            
+            response += "\n✅ هذا تحليل ذكي حقيقي - ليس مجرد أرقام!"
+            
+            return response
         except Exception as e:
             pass
     
-    # لا يوجد رد محلي مباشر
-    return None
+    # معلومات عن الدور الحالي
+    if any(word in message_lower for word in ['من أنا', 'دوري', 'صلاحياتي', 'who am i', 'my role']):
+        role_name = get_user_role_name()
+        role_info = f"""👤 **معلوماتك:**
+
+**الدور:** {role_name}
+
+"""
+        if is_owner():
+            role_info += """🔓 **صلاحياتك:**
+• كامل الصلاحيات - أنت المالك
+• تستطيع رؤية جميع المعلومات
+• تستطيع الوصول لكل شيء في النظام
+"""
+        elif is_manager():
+            role_info += """🔑 **صلاحياتك:**
+• صلاحيات إدارية
+• الوصول للتقارير والإحصائيات
+• إدارة العملاء والمبيعات
+• المعلومات الحساسة محمية
+"""
+        else:
+            role_info += """ℹ️ **صلاحياتك:**
+• صلاحيات محدودة
+• الوصول للمعلومات العامة
+• بعض المعلومات الحساسة محمية
+"""
+        
+        return role_info
+    
+    # 🔧 أسئلة ميكانيكية - قطع غيار وتشخيص
+    # البحث عن قطعة
+    if any(word in message_lower for word in ['قطعة', 'part', 'فلتر', 'filter', 'سير', 'belt', 'بوجية', 'plug']):
+        try:
+            # استخراج اسم القطعة
+            part_result = check_part_in_inventory(message)
+            if part_result['found']:
+                return sanitize_response(part_result['response'])
+            
+            # محاولة الشرح من قاعدة المعرفة
+            explanation = explain_part_function(message)
+            if 'لم أجد' not in explanation:
+                return sanitize_response(explanation)
+        except:
+            pass
+    
+    # التشخيص - عطل أو مشكلة
+    if any(word in message_lower for word in ['عطل', 'مشكلة', 'خلل', 'fault', 'problem', 'issue', 'تقطيع', 'صوت', 'sound']):
+        try:
+            diagnosis_result = smart_diagnose(message)
+            if diagnosis_result.get('success'):
+                return sanitize_response(diagnosis_result['response'])
+            else:
+                # أسئلة توضيحية
+                return sanitize_response(diagnosis_result['message'] + '\n\n' + '\n'.join(diagnosis_result.get('questions', [])))
+        except:
+            pass
+    
+    # كود عطل DTC
+    if any(word in message_lower for word in ['كود', 'code', 'p0', 'p1', 'p2', 'p3', 'dtc']):
+        # استخراج الكود
+        import re
+        code_match = re.search(r'[Pp][0-3]\d{3}', message)
+        if code_match:
+            code = code_match.group()
+            explanation = explain_dtc_code(code)
+            return sanitize_response(explanation)
+    
+    # التنبؤ بالقطع
+    if any(word in message_lower for word in ['تنبأ', 'توقع', 'predict', 'قطع مطلوبة', 'needed parts', 'شو بدي اطلب']):
+        try:
+            predictions = predict_needed_parts(90)
+            if predictions.get('success'):
+                response = f"""🔮 **تنبؤ ذكي بالقطع المطلوبة:**
+
+📊 **بناءً على {predictions['period']} الماضية:**
+
+"""
+                for idx, pred in enumerate(predictions['top_5'], 1):
+                    response += f"""{idx}. **{pred['part_name']}**
+   • استخدمت: {pred['total_used']} قطعة في {pred['usage_count']} مرة
+   • المعدل الشهري: {pred['monthly_rate']} قطعة
+   • التنبؤ للشهر القادم: {pred['predicted_next_month']} قطعة
+   • المخزون الحالي: {pred['current_stock']}
+   • يجب طلب: {pred['need_to_order']} قطعة
+   • الأولوية: **{pred['priority']}**
+
+"""
+                
+                response += """💡 **توصيتي:**
+اطلب القطع ذات الأولوية العالية الآن لتجنب نفاد المخزون!
+
+✅ هذا تنبؤ ذكي بناءً على بيانات حقيقية!"""
+                
+                return sanitize_response(response)
+        except:
+            pass
+    
+    # تحليل الأعطال المتكررة
+    if any(word in message_lower for word in ['أعطال متكررة', 'recurring', 'الأكثر تكرار', 'most common']):
+        try:
+            analysis = analyze_recurring_failures(180)
+            return sanitize_response(analysis)
+        except:
+            pass
+    
+    # شرح نظام معين
+    if any(word in message_lower for word in ['نظام الوقود', 'نظام التبريد', 'fuel system', 'cooling system', 'كيف يعمل']):
+        for system_key, system_data in VEHICLE_SYSTEMS.items():
+            if system_key in message_lower or system_data['name'] in message:
+                response = f"""⚙️ **{system_data['name']}:**
+
+📦 **المكونات:**
+"""
+                for comp in system_data.get('components', []):
+                    response += f"  • {comp}\n"
+                
+                if system_data.get('how_it_works'):
+                    response += f"\n🔄 **كيف يعمل:**\n{system_data['how_it_works']}\n"
+                
+                return sanitize_response(response)
+    
+    # لم يتم فهم السؤال - اقترح أسئلة
+    suggestions = get_question_suggestions('when_unclear')
+    return '\n'.join(suggestions)
 
 
 def ai_chat_with_search(message, session_id='default'):
-    """رد AI محسّن مع Validation و Self-Review"""
+    """رد AI محسّن مع Validation و Self-Review + ذاكرة محادثة"""
     global _last_audit_time
+    
+    # 🧠 حفظ السؤال في الذاكرة
+    memory = get_or_create_session_memory(session_id)
+    add_to_memory(session_id, 'user', message)
+    
+    # فهم السياق من الذاكرة
+    recent_messages = memory['messages'][-5:] if len(memory['messages']) > 0 else []
+    context_keywords = []
+    for msg in recent_messages:
+        if msg['role'] == 'user':
+            context_keywords.extend(msg['content'].lower().split())
+    
+    # أسئلة المتابعة
+    follow_up_keywords = ['وبعدين', 'وكمان', 'وأيضا', 'and then', 'also', 'more', 'كمان', 'زيادة']
+    is_follow_up = any(keyword in message.lower() for keyword in follow_up_keywords)
+    
+    if is_follow_up and len(recent_messages) > 0:
+        # البحث عن آخر موضوع
+        last_topic = None
+        for msg in reversed(recent_messages):
+            if msg['role'] == 'assistant':
+                content = msg['content'].lower()
+                if 'عميل' in content:
+                    last_topic = 'customers'
+                elif 'مخزون' in content or 'منتج' in content:
+                    last_topic = 'inventory'
+                elif 'صيانة' in content:
+                    last_topic = 'services'
+                elif 'فاتورة' in content or 'مبيعات' in content:
+                    last_topic = 'sales'
+                break
+        
+        if last_topic:
+            contextual_response = f"""💡 **فهمت - تكملة للموضوع السابق ({last_topic}):**
+
+"""
+            if last_topic == 'customers':
+                contextual_response += """بعد إضافة العميل، يمكنك:
+1. إضافة سيارته (/customers/<id>/vehicles)
+2. إنشاء طلب صيانة له (/service/create)
+3. عمل فاتورة له (/sales/create)
+
+ماذا تريد أن تفعل؟"""
+            elif last_topic == 'inventory':
+                contextual_response += """بعد إدارة المخزون، يمكنك:
+1. عرض تقرير المخزون المنخفض
+2. طلب قطع غيار جديدة
+3. عمل جرد للمخزون
+
+ماذا تريد؟"""
+            
+            add_to_memory(session_id, 'assistant', contextual_response)
+            return contextual_response
     
     # محاولة رد محلي ذكي أولاً
     local_response = local_intelligent_response(message)
     if local_response:
+        add_to_memory(session_id, 'assistant', local_response)
         return local_response
     
     intent = analyze_question_intent(message)

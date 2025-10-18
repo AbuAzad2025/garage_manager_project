@@ -35,15 +35,28 @@
         </div>
         <div class="card-body" style="height: 500px; overflow-y: auto;" id="chatContainer">
           <div class="chat-messages" id="chatMessages">
-            <div class="alert alert-info">
-              <strong>مرحباً!</strong> أنا مساعد الأمان الذكي. اسألني عن أي شيء يتعلق بأمان النظام.
+            <div class="alert alert-success">
+              <h5><i class="fas fa-robot"></i> <strong>مرحباً! أنا المساعد الذكي المحلي</strong></h5>
+              <hr>
+              <p class="mb-2">🎯 <strong>أنا أفهم كل شيء في النظام:</strong></p>
+              <ul class="mb-2">
+                <li>📊 جميع الصفحات (362 endpoint)</li>
+                <li>💾 جميع الجداول والحقول</li>
+                <li>🔗 العلاقات بين البيانات</li>
+                <li>💱 الحسابات المالية (VAT، ضريبة الدخل)</li>
+                <li>🌍 المرادفات العربية والإنجليزية</li>
+              </ul>
+              <p class="mb-1"><strong>💬 جرب الآن:</strong></p>
+              <small>
+                • "صباح الخير" | "وين صفحة الصيانة؟" | "كيف أضيف عميل؟" | "احسب VAT لـ 1000"
+              </small>
             </div>
           </div>
         </div>
         <div class="card-footer">
           <form id="chatForm">
             <div class="input-group">
-              <input type="text" class="form-control" id="chatInput" placeholder="اسأل AI...">
+              <input type="text" class="form-control" id="chatInput" placeholder="اسألني عن أي شيء في النظام... (مثال: وين صفحة الصيانة؟)">
               <button class="btn btn-primary" type="submit">
                 <i class="fas fa-paper-plane"></i> إرسال
               </button>

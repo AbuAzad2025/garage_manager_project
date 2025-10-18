@@ -283,23 +283,68 @@ def log_discovery_event(event_type, routes_count, templates_count):
 
 
 def find_route_by_keyword(keyword, system_map=None):
-    """البحث عن مسار حسب كلمة مفتاحية"""
+    """البحث الذكي عن مسار حسب كلمة مفتاحية - محسّن"""
     if not system_map:
         system_map = load_system_map()
     
-    if not system_map:
-        return []
+    if not system_map or not system_map.get('routes'):
+        return {'matches': [], 'keyword': keyword}
     
     keyword_lower = keyword.lower()
     matches = []
     
-    for route in system_map['routes']['all']:
-        if (keyword_lower in route['endpoint'].lower() or
-            keyword_lower in route['url'].lower() or
-            (route['blueprint'] and keyword_lower in route['blueprint'].lower())):
-            matches.append(route)
+    # خريطة الكلمات المرادفة
+    synonyms = {
+        'صيانة': ['service', 'repair', 'maintenance'],
+        'عملاء': ['customer', 'client'],
+        'مبيعات': ['sale', 'sales', 'invoice'],
+        'نفقات': ['expense', 'expenses'],
+        'موردين': ['vendor', 'supplier', 'partner'],
+        'مخازن': ['warehouse', 'stock'],
+        'منتجات': ['product', 'part'],
+        'دفتر': ['ledger', 'account'],
+        'تقارير': ['report', 'reports'],
+        'مستخدمين': ['user', 'users'],
+        'أدوار': ['role', 'roles', 'permission'],
+        'أمان': ['security', 'auth'],
+        'متجر': ['shop', 'catalog'],
+        'دفعات': ['payment', 'payments'],
+        'شيكات': ['check', 'checks'],
+    }
     
-    return matches
+    # جمع الكلمات للبحث
+    search_terms = [keyword_lower]
+    for ar_word, en_synonyms in synonyms.items():
+        if ar_word in keyword_lower:
+            search_terms.extend(en_synonyms)
+        for syn in en_synonyms:
+            if syn in keyword_lower:
+                search_terms.append(ar_word)
+                break
+    
+    for route in system_map['routes']['all']:
+        score = 0
+        for term in search_terms:
+            if term in route['endpoint'].lower():
+                score += 10
+            if term in route['url'].lower():
+                score += 8
+            if route['blueprint'] and term in route['blueprint'].lower():
+                score += 6
+            if route.get('linked_templates'):
+                for tpl in route.get('linked_templates', []):
+                    if term in tpl.lower():
+                        score += 4
+        
+        if score > 0:
+            route_with_score = route.copy()
+            route_with_score['relevance_score'] = score
+            matches.append(route_with_score)
+    
+    # ترتيب حسب الصلة
+    matches.sort(key=lambda x: x.get('relevance_score', 0), reverse=True)
+    
+    return {'matches': matches[:10], 'keyword': keyword, 'total': len(matches)}
 
 
 def find_template_by_keyword(keyword, system_map=None):

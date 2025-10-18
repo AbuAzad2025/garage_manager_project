@@ -65,7 +65,7 @@ def set_sqlite_pragma(dbapi_conn, connection_record):
     cursor.execute("PRAGMA journal_mode=WAL")  # للأداء الأفضل
     cursor.close()
 
-print("✅ SQLite: تم تفعيل Foreign Keys + WAL mode")
+# تم تفعيل Foreign Keys + WAL mode
 
 
 class MyAnonymousUser(AnonymousUserMixin):

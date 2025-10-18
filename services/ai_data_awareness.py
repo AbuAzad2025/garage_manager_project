@@ -278,33 +278,82 @@ def log_learning_event(event_type, details):
 
 
 def find_model_by_keyword(keyword):
-    """البحث عن نموذج حسب كلمة مفتاحية"""
+    """البحث الذكي عن نموذج حسب كلمة مفتاحية - محسّن"""
     schema = load_data_schema()
     
-    if not schema:
+    if not schema or not schema.get('models'):
         return None
     
     keyword_lower = keyword.lower()
-    matches = []
     
-    # البحث في الخريطة الوظيفية
-    for module_name, module_data in schema['functional_mapping'].items():
-        if any(k in keyword_lower for k in module_data['keywords']):
-            matches.append({
-                'module': module_name,
-                'models': module_data['models'],
-                'purpose': module_data['purpose']
-            })
+    # خريطة الكلمات المرادفة
+    model_synonyms = {
+        'عميل': ['customer', 'client'],
+        'مورد': ['supplier', 'vendor', 'partner'],
+        'منتج': ['product', 'part'],
+        'صيانة': ['service', 'servicerequest'],
+        'فاتورة': ['invoice', 'sale'],
+        'دفعة': ['payment'],
+        'مخزن': ['warehouse', 'stock'],
+        'مستخدم': ['user'],
+        'دور': ['role'],
+        'صلاحية': ['permission'],
+        'نفقة': ['expense'],
+        'شيك': ['check'],
+        'ملاحظة': ['note'],
+        'شحنة': ['shipment'],
+        'عملة': ['currency', 'exchange'],
+    }
+    
+    # جمع الكلمات للبحث
+    search_terms = [keyword_lower]
+    for ar_word, en_synonyms in model_synonyms.items():
+        if ar_word in keyword_lower:
+            search_terms.extend(en_synonyms)
+        for syn in en_synonyms:
+            if syn in keyword_lower:
+                search_terms.append(ar_word)
+                break
+    
+    best_match = None
+    highest_score = 0
     
     # البحث المباشر في أسماء النماذج
-    for model_name in schema['models'].keys():
-        if keyword_lower in model_name.lower():
-            matches.append({
-                'model': model_name,
-                'table': schema['models'][model_name]['table_name']
-            })
+    for model_name, model_data in schema['models'].items():
+        score = 0
+        for term in search_terms:
+            if term in model_name.lower():
+                score += 15
+            if term in model_data.get('table_name', '').lower():
+                score += 10
+            # البحث في أسماء الأعمدة
+            for col in model_data.get('columns', []):
+                if term in col.get('name', '').lower():
+                    score += 2
+        
+        if score > highest_score:
+            highest_score = score
+            best_match = {
+                'name': model_name,
+                'table_name': model_data.get('table_name'),
+                'description': f'نموذج {model_name} - يحتوي على {len(model_data.get("columns", []))} حقل',
+                'columns': model_data.get('columns', []),
+                'relationships': [rel.get('name', '') for rel in model_data.get('relationships', [])],
+                'score': score
+            }
     
-    return matches
+    # البحث في الخريطة الوظيفية
+    for module_name, module_data in schema.get('functional_mapping', {}).items():
+        if any(k in keyword_lower for k in module_data.get('keywords', [])):
+            if not best_match or highest_score < 5:
+                best_match = {
+                    'module': module_name,
+                    'models': module_data.get('models', []),
+                    'purpose': module_data.get('purpose', ''),
+                    'description': f'وحدة {module_name}'
+                }
+    
+    return {'model': best_match, 'keyword': keyword} if best_match else None
 
 
 def auto_build_if_needed():

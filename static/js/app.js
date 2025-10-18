@@ -38,6 +38,8 @@
     if (!$.fn.DataTable) return;
     $(root).find(".datatable").each(function () {
       const $tbl = $(this);
+      // تخطي الجداول المحددة بـ data-dt-skip
+      if ($tbl.data("dt-skip") || $tbl.attr("data-dt-skip")) return;
       if ($tbl.data("dt-initialized")) return;
       $tbl.data("dt-initialized", 1);
 
