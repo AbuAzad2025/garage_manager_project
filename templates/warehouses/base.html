@@ -11,77 +11,10 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2/css/select2.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
   {% block dt_styles %}{% endblock %}
-  
-  <style>
-    /* تحسين مظهر أزرار التنقل */
-    .breadcrumb-item a.btn {
-      transition: all 0.3s ease;
-      border: none;
-      font-size: 0.9rem;
-      padding: 0.5rem 1rem;
-    }
-    
-    .breadcrumb-item a.btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
-    }
-    
-    .breadcrumb-item a.btn.fw-bold {
-      font-weight: 600 !important;
-      letter-spacing: 0.3px;
-    }
-    
-    .breadcrumb-item.active a.btn {
-      box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
-      font-weight: 700;
-    }
-    
-    /* ألوان محسّنة للأزرار */
-    .btn-primary {
-      background: linear-gradient(135deg, #0061f2 0%, #0052cc 100%);
-      color: white;
-    }
-    
-    .btn-info {
-      background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
-      color: white;
-    }
-    
-    .btn-dark {
-      background: linear-gradient(135deg, #343a40 0%, #23272b 100%);
-      color: white;
-    }
-    
-    .btn-success {
-      background: linear-gradient(135deg, #28a745 0%, #218838 100%);
-      color: white;
-    }
-    
-    .btn-warning {
-      background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
-      color: #212529;
-      font-weight: 600;
-    }
-    
-    .btn-outline-warning {
-      border: 2px solid #ffc107;
-      color: #ffc107;
-      font-weight: 600;
-    }
-    
-    .btn-outline-warning:hover {
-      background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
-      color: #212529;
-      border-color: #ffc107;
-    }
-    
-    /* فاصل بصري */
-    .breadcrumb-item > span.text-muted {
-      font-size: 1.2rem;
-      opacity: 0.5;
-    }
-  </style>
 {% endblock %}
+
+{% set ep = request.endpoint or '' %}
+{% macro is_active(prefix) -%}{% if ep.startswith(prefix) %}active{% endif %}{%- endmacro %}
 
 {% block breadcrumb %}
   {% set DEFAULT_WID = 1 %}
@@ -92,59 +25,46 @@
       (request.view_args.get('warehouse_id') if request.view_args and request.view_args.get('warehouse_id') is not none else none)))
   %}
 
-  <!-- الأزرار الأكثر استخداماً -->
-  <li class="breadcrumb-item {{ is_active('warehouse_bp.list') }}">
+  <!-- أزرار التنقل محسّنة -->
+  <div class="warehouse-nav-buttons d-flex flex-wrap align-items-center gap-2 mb-3">
     <a class="btn btn-sm btn-primary shadow-sm fw-bold" 
        href="{{ url_for('warehouse_bp.list') }}"
        title="عرض قائمة جميع المستودعات">
       <i class="fas fa-warehouse me-1"></i> قائمة المستودعات
     </a>
-  </li>
 
-  <li class="breadcrumb-item {{ is_active('warehouse_bp.products') }}">
     <a class="btn btn-sm btn-info text-white shadow-sm fw-bold" 
        href="{{ url_for('warehouse_bp.products', id=(wid or DEFAULT_WID)) }}"
        title="عرض جميع منتجات المستودع">
       <i class="fas fa-box-open me-1"></i> منتجاتي
     </a>
-  </li>
 
-  <li class="breadcrumb-item {{ is_active('warehouse_bp.inventory_summary') }}">
     <a class="btn btn-sm btn-dark shadow-sm fw-bold" 
        href="{{ url_for('warehouse_bp.inventory_summary') }}"
        title="كشف شامل لجميع المخزون عبر المستودعات">
       <i class="fas fa-table me-1"></i> كشف المخزون
     </a>
-  </li>
 
-  <li class="breadcrumb-item">
     <span class="text-muted mx-2">|</span>
-  </li>
 
-  <!-- الأزرار الثانوية -->
-  <li class="breadcrumb-item {{ is_active('warehouse_bp.create') }}">
     <a class="btn btn-sm btn-success shadow-sm" 
        href="{{ url_for('warehouse_bp.create') }}"
        title="إضافة مستودع جديد">
       <i class="fas fa-plus me-1"></i> مستودع جديد
     </a>
-  </li>
 
-  <li class="breadcrumb-item {{ is_active('warehouse_bp.preorders_list') }}">
     <a class="btn btn-sm btn-warning text-dark shadow-sm" 
        href="{{ url_for('warehouse_bp.preorders_list') }}"
        title="عرض جميع حجوزات العملاء">
       <i class="fas fa-clipboard-list me-1"></i> الحجوزات
     </a>
-  </li>
 
-  <li class="breadcrumb-item {{ is_active('warehouse_bp.preorder_create') }}">
     <a class="btn btn-sm btn-outline-warning shadow-sm" 
        href="{{ url_for('warehouse_bp.preorder_create') }}"
        title="إنشاء حجز جديد لعميل">
       <i class="fas fa-file-signature me-1"></i> إنشاء حجز
     </a>
-  </li>
+  </div>
 {% endblock %}
 
 {% block content %}
