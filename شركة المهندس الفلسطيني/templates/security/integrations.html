@@ -1,751 +1,0 @@
-{% extends 'base.html' %}
-{% block title %}مركز التكامل{% endblock %}
-{% block page_title %}🔗 مركز التكامل - Integrations Hub{% endblock %}
-
-{% block content %}
-<div class="container-fluid">
-  
-  {% include 'security/_navigation.html' %}
-
-  <div class="alert alert-success border-0 shadow-sm">
-    <i class="fas fa-plug"></i> <strong>مركز التكامل:</strong> ربط النظام مع الخدمات الخارجية
-  </div>
-
-  <!-- إحصائيات سريعة -->
-  <div class="row g-3 mb-4">
-    <div class="col-md-4">
-      <div class="card border-0 shadow-lg bg-success text-white" style="background: linear-gradient(135deg, #25D366 0%, #128C7E 100%) !important;">
-        <div class="card-body text-center">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <i class="fab fa-whatsapp fa-2x"></i>
-            <span class="badge bg-light text-success" id="whatsapp-status-badge">🟢 متصل</span>
-          </div>
-          <h5>واتساب</h5>
-          <p class="mb-1" id="whatsapp-stats">156 رسالة</p>
-          <small class="opacity-75" id="whatsapp-last">آخر استخدام: منذ 5 دقائق</small>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-4">
-      <div class="card border-0 shadow-lg bg-primary text-white" style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%) !important;">
-        <div class="card-body text-center">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <i class="fas fa-envelope fa-2x"></i>
-            <span class="badge bg-light text-primary" id="email-status-badge">🟢 متصل</span>
-          </div>
-          <h5>البريد</h5>
-          <p class="mb-1" id="email-stats">89 بريد</p>
-          <small class="opacity-75" id="email-last">آخر استخدام: منذ 12 دقيقة</small>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-4">
-      <div class="card border-0 shadow-lg bg-info text-white" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%) !important;">
-        <div class="card-body text-center">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <i class="fas fa-key fa-2x"></i>
-            <span class="badge bg-light text-info" id="api-status-badge">🟢 نشط</span>
-          </div>
-          <h5>API Keys</h5>
-          <p class="mb-1" id="api-stats">234 طلب</p>
-          <small class="opacity-75" id="api-last">آخر استخدام: منذ دقيقة</small>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- مراقبة الأداء -->
-  <div class="row g-3 mb-4">
-    <div class="col-md-12">
-      <div class="card border-0 shadow-sm">
-        <div class="card-header bg-gradient-primary text-white">
-          <h5 class="mb-0"><i class="fas fa-chart-line"></i> مراقبة الأداء - آخر 24 ساعة</h5>
-        </div>
-        <div class="card-body">
-          <div class="row text-center">
-            <div class="col-md-3">
-              <div class="border-end">
-                <h4 class="text-success mb-1" id="success-rate">98.5%</h4>
-                <small class="text-muted">معدل النجاح</small>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="border-end">
-                <h4 class="text-info mb-1" id="avg-response">0.8s</h4>
-                <small class="text-muted">متوسط الاستجابة</small>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="border-end">
-                <h4 class="text-warning mb-1" id="total-requests">479</h4>
-                <small class="text-muted">إجمالي الطلبات</small>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <h4 class="text-danger mb-1" id="errors-count">7</h4>
-              <small class="text-muted">أخطاء</small>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- التنبيهات والتقارير -->
-  <div class="row g-3 mb-4">
-    <div class="col-md-6">
-      <div class="card border-0 shadow-sm">
-        <div class="card-header bg-gradient-warning text-dark">
-          <h5 class="mb-0"><i class="fas fa-bell"></i> التنبيهات الأخيرة</h5>
-        </div>
-        <div class="card-body">
-          <div class="list-group list-group-flush">
-            <div class="list-group-item d-flex justify-content-between align-items-center">
-              <div>
-                <i class="fas fa-check-circle text-success"></i>
-                <strong>واتساب</strong> - رسالة مرسلة بنجاح
-              </div>
-              <small class="text-muted">منذ 2 دقيقة</small>
-            </div>
-            <div class="list-group-item d-flex justify-content-between align-items-center">
-              <div>
-                <i class="fas fa-envelope text-primary"></i>
-                <strong>البريد</strong> - بريد إلكتروني مرسل
-              </div>
-              <small class="text-muted">منذ 5 دقائق</small>
-            </div>
-            <div class="list-group-item d-flex justify-content-between align-items-center">
-              <div>
-                <i class="fas fa-exclamation-triangle text-warning"></i>
-                <strong>API</strong> - استجابة بطيئة
-              </div>
-              <small class="text-muted">منذ 10 دقائق</small>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-md-6">
-      <div class="card border-0 shadow-sm">
-        <div class="card-header bg-gradient-info text-white">
-          <h5 class="mb-0"><i class="fas fa-chart-bar"></i> تقرير الاستخدام</h5>
-        </div>
-        <div class="card-body">
-          <div class="row text-center">
-            <div class="col-6">
-              <h4 class="text-success">98.5%</h4>
-              <small class="text-muted">معدل النجاح</small>
-            </div>
-            <div class="col-6">
-              <h4 class="text-info">0.8s</h4>
-              <small class="text-muted">متوسط الاستجابة</small>
-            </div>
-          </div>
-          <hr>
-          <div class="row text-center">
-            <div class="col-4">
-              <h6 class="text-primary">واتساب</h6>
-              <small class="text-muted">156 رسالة</small>
-            </div>
-            <div class="col-4">
-              <h6 class="text-danger">البريد</h6>
-              <small class="text-muted">89 بريد</small>
-            </div>
-            <div class="col-4">
-              <h6 class="text-warning">API</h6>
-              <small class="text-muted">234 طلب</small>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="row g-4">
-    
-    <div class="col-md-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-header" style="background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); color: white;">
-          <h5 class="mb-0"><i class="fab fa-whatsapp"></i> واتساب API</h5>
-        </div>
-        <div class="card-body">
-          <form method="POST" action="{{ url_for('security.save_integration') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="integration_type" value="whatsapp">
-            
-            <div class="mb-3">
-              <label class="form-label fw-bold">رقم الهاتف</label>
-              <input type="text" name="whatsapp_phone" class="form-control" 
-                     value="{{ integrations.whatsapp_phone or '' }}" 
-                     placeholder="+972599123456">
-            </div>
-            
-            <div class="mb-3">
-              <label class="form-label fw-bold">API Token</label>
-              <input type="text" name="whatsapp_token" class="form-control" 
-                     value="{{ integrations.whatsapp_token or '' }}" 
-                     placeholder="your-whatsapp-api-token">
-            </div>
-            
-            <div class="mb-3">
-              <label class="form-label fw-bold">API URL</label>
-              <input type="url" name="whatsapp_url" class="form-control" 
-                     value="{{ integrations.whatsapp_url or '' }}" 
-                     placeholder="https://api.whatsapp.com/...">
-            </div>
-            
-            <button type="submit" class="btn btn-success">
-              <i class="fas fa-save"></i> حفظ
-            </button>
-            <button type="button" class="btn btn-outline-success" onclick="testWhatsApp()">
-              <i class="fas fa-vial"></i> اختبار
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-md-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-header bg-gradient-danger text-white">
-          <h5 class="mb-0"><i class="fas fa-envelope"></i> Email SMTP</h5>
-        </div>
-        <div class="card-body">
-          <form method="POST" action="{{ url_for('security.save_integration') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="integration_type" value="email">
-            
-            <div class="mb-3">
-              <label class="form-label fw-bold">SMTP Server</label>
-              <input type="text" name="smtp_server" class="form-control" 
-                     value="{{ integrations.smtp_server or '' }}" 
-                     placeholder="smtp.gmail.com">
-            </div>
-            
-            <div class="mb-3">
-              <label class="form-label fw-bold">SMTP Port</label>
-              <input type="number" name="smtp_port" class="form-control" 
-                     value="{{ integrations.smtp_port or '587' }}" 
-                     placeholder="587">
-            </div>
-            
-            <div class="mb-3">
-              <label class="form-label fw-bold">Username (Email)</label>
-              <input type="email" name="smtp_username" class="form-control" 
-                     value="{{ integrations.smtp_username or '' }}" 
-                     placeholder="your-email@gmail.com">
-            </div>
-            
-            <div class="mb-3">
-              <label class="form-label fw-bold">Password</label>
-              <input type="password" name="smtp_password" class="form-control" 
-                     placeholder="••••••••">
-            </div>
-            
-            <div class="form-check mb-3">
-              <input type="checkbox" name="smtp_use_tls" class="form-check-input" id="tls"
-                     {% if integrations.smtp_use_tls == 'True' %}checked{% endif %}>
-              <label class="form-check-label" for="tls">استخدام TLS</label>
-            </div>
-            
-            <button type="submit" class="btn btn-danger">
-              <i class="fas fa-save"></i> حفظ
-            </button>
-            <button type="button" class="btn btn-outline-danger" onclick="testEmail()">
-              <i class="fas fa-paper-plane"></i> اختبار
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-md-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-header bg-gradient-primary text-white">
-          <h5 class="mb-0"><i class="fas fa-credit-card"></i> قارئ الفيزا كارد</h5>
-        </div>
-        <div class="card-body">
-          <form method="POST" action="{{ url_for('security.save_integration') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="integration_type" value="card_reader">
-            
-            <div class="mb-3">
-              <label class="form-label fw-bold">نوع القارئ</label>
-              <select name="reader_type" class="form-select">
-                <option value="">-- اختر --</option>
-                <option value="usb" {% if integrations.reader_type == 'usb' %}selected{% endif %}>USB Reader</option>
-                <option value="bluetooth" {% if integrations.reader_type == 'bluetooth' %}selected{% endif %}>Bluetooth</option>
-                <option value="api" {% if integrations.reader_type == 'api' %}selected{% endif %}>API Gateway</option>
-              </select>
-            </div>
-            
-            <div class="mb-3">
-              <label class="form-label fw-bold">API Endpoint</label>
-              <input type="url" name="reader_api_url" class="form-control" 
-                     value="{{ integrations.reader_api_url or '' }}" 
-                     placeholder="https://payment-gateway.com/api">
-            </div>
-            
-            <div class="mb-3">
-              <label class="form-label fw-bold">API Key</label>
-              <input type="text" name="reader_api_key" class="form-control" 
-                     value="{{ integrations.reader_api_key or '' }}" 
-                     placeholder="your-api-key">
-            </div>
-            
-            <div class="mb-3">
-              <label class="form-label fw-bold">Merchant ID</label>
-              <input type="text" name="merchant_id" class="form-control" 
-                     value="{{ integrations.merchant_id or '' }}" 
-                     placeholder="merchant-id">
-            </div>
-            
-            <button type="submit" class="btn btn-primary">
-              <i class="fas fa-save"></i> حفظ
-            </button>
-            <button type="button" class="btn btn-outline-primary" onclick="testCardReader()">
-              <i class="fas fa-vial"></i> اختبار
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-md-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-header bg-gradient-info text-white">
-          <h5 class="mb-0"><i class="fas fa-calculator"></i> برامج المحاسبة الفلسطينية</h5>
-        </div>
-        <div class="card-body">
-          <form method="POST" action="{{ url_for('security.save_integration') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="integration_type" value="accounting">
-            
-            <div class="mb-3">
-              <label class="form-label fw-bold">نوع البرنامج</label>
-              <select name="accounting_system" class="form-select">
-                <option value="">-- اختر --</option>
-                <option value="prosoft" {% if integrations.accounting_system == 'prosoft' %}selected{% endif %}>ProSoft</option>
-                <option value="oracle" {% if integrations.accounting_system == 'oracle' %}selected{% endif %}>Oracle</option>
-                <option value="sap" {% if integrations.accounting_system == 'sap' %}selected{% endif %}>SAP</option>
-                <option value="custom" {% if integrations.accounting_system == 'custom' %}selected{% endif %}>مخصص</option>
-              </select>
-            </div>
-            
-            <div class="mb-3">
-              <label class="form-label fw-bold">API Endpoint</label>
-              <input type="url" name="accounting_api_url" class="form-control" 
-                     value="{{ integrations.accounting_api_url or '' }}" 
-                     placeholder="https://accounting-system.com/api">
-            </div>
-            
-            <div class="mb-3">
-              <label class="form-label fw-bold">API Key</label>
-              <input type="text" name="accounting_api_key" class="form-control" 
-                     value="{{ integrations.accounting_api_key or '' }}" 
-                     placeholder="your-accounting-api-key">
-            </div>
-            
-            <div class="form-check mb-3">
-              <input type="checkbox" name="sync_gl_auto" class="form-check-input" id="syncgl"
-                     {% if integrations.sync_gl_auto == 'True' %}checked{% endif %}>
-              <label class="form-check-label" for="syncgl">
-                مزامنة تلقائية لدفتر الأستاذ
-              </label>
-            </div>
-            
-            <button type="submit" class="btn btn-info">
-              <i class="fas fa-save"></i> حفظ
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-md-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-header bg-gradient-warning">
-          <h5 class="mb-0"><i class="fas fa-car"></i> كمبيوترات السيارات (OBD2)</h5>
-        </div>
-        <div class="card-body">
-          <form method="POST" action="{{ url_for('security.save_integration') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="integration_type" value="obd2">
-            
-            <div class="mb-3">
-              <label class="form-label fw-bold">نوع الجهاز</label>
-              <select name="obd2_device" class="form-select">
-                <option value="">-- اختر --</option>
-                <option value="elm327" {% if integrations.obd2_device == 'elm327' %}selected{% endif %}>ELM327</option>
-                <option value="bluetooth" {% if integrations.obd2_device == 'bluetooth' %}selected{% endif %}>Bluetooth OBD2</option>
-                <option value="wifi" {% if integrations.obd2_device == 'wifi' %}selected{% endif %}>WiFi OBD2</option>
-              </select>
-            </div>
-            
-            <div class="mb-3">
-              <label class="form-label fw-bold">COM Port / IP</label>
-              <input type="text" name="obd2_port" class="form-control" 
-                     value="{{ integrations.obd2_port or '' }}" 
-                     placeholder="COM3 أو 192.168.0.10">
-            </div>
-            
-            <div class="form-check mb-3">
-              <input type="checkbox" name="obd2_auto_diagnose" class="form-check-input" id="autodiag"
-                     {% if integrations.obd2_auto_diagnose == 'True' %}checked{% endif %}>
-              <label class="form-check-label" for="autodiag">
-                تشخيص تلقائي عند استلام المركبة
-              </label>
-            </div>
-            
-            <button type="submit" class="btn btn-warning">
-              <i class="fas fa-save"></i> حفظ
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-md-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-header bg-gradient-secondary text-white">
-          <h5 class="mb-0"><i class="fas fa-barcode"></i> قارئ الباركود</h5>
-        </div>
-        <div class="card-body">
-          <form method="POST" action="{{ url_for('security.save_integration') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="integration_type" value="barcode">
-            
-            <div class="mb-3">
-              <label class="form-label fw-bold">نوع القارئ</label>
-              <select name="barcode_type" class="form-select">
-                <option value="">-- اختر --</option>
-                <option value="usb" {% if integrations.barcode_type == 'usb' %}selected{% endif %}>USB Scanner</option>
-                <option value="camera" {% if integrations.barcode_type == 'camera' %}selected{% endif %}>كاميرا</option>
-                <option value="bluetooth" {% if integrations.barcode_type == 'bluetooth' %}selected{% endif %}>Bluetooth</option>
-              </select>
-            </div>
-            
-            <div class="form-check mb-3">
-              <input type="checkbox" name="barcode_sound" class="form-check-input" id="sound"
-                     {% if integrations.barcode_sound == 'True' %}checked{% endif %}>
-              <label class="form-check-label" for="sound">
-                صوت عند المسح
-              </label>
-            </div>
-            
-            <button type="submit" class="btn btn-secondary">
-              <i class="fas fa-save"></i> حفظ
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-md-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-header" style="background: linear-gradient(135deg, #FF6B6B 0%, #C44569 100%); color: white;">
-          <h5 class="mb-0"><i class="fas fa-sms"></i> SMS Gateway</h5>
-        </div>
-        <div class="card-body">
-          <form method="POST" action="{{ url_for('security.save_integration') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="integration_type" value="sms">
-            
-            <div class="mb-3">
-              <label class="form-label fw-bold">مزود الخدمة</label>
-              <select name="sms_provider" class="form-select">
-                <option value="">-- اختر --</option>
-                <option value="twilio" {% if integrations.sms_provider == 'twilio' %}selected{% endif %}>Twilio</option>
-                <option value="local" {% if integrations.sms_provider == 'local' %}selected{% endif %}>مزود فلسطيني</option>
-                <option value="custom" {% if integrations.sms_provider == 'custom' %}selected{% endif %}>مخصص</option>
-              </select>
-            </div>
-            
-            <div class="mb-3">
-              <label class="form-label fw-bold">API Key</label>
-              <input type="text" name="sms_api_key" class="form-control" 
-                     value="{{ integrations.sms_api_key or '' }}" 
-                     placeholder="your-sms-api-key">
-            </div>
-            
-            <div class="mb-3">
-              <label class="form-label fw-bold">Sender Name</label>
-              <input type="text" name="sms_sender" class="form-control" 
-                     value="{{ integrations.sms_sender or '' }}" 
-                     placeholder="AzadGarage">
-            </div>
-            
-            <button type="submit" class="btn" style="background: #C44569; color: white;">
-              <i class="fas fa-save"></i> حفظ
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-md-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-header" style="background: linear-gradient(135deg, #4776E6 0%, #8E54E9 100%); color: white;">
-          <h5 class="mb-0"><i class="fas fa-key"></i> مفاتيح API</h5>
-        </div>
-        <div class="card-body">
-          <form method="POST" action="{{ url_for('security.save_integration') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="integration_type" value="api_keys">
-            
-            <div class="mb-3">
-              <label class="form-label fw-bold">Google Maps API</label>
-              <input type="text" name="google_maps_key" class="form-control" 
-                     value="{{ integrations.google_maps_key or '' }}" 
-                     placeholder="AIza...">
-            </div>
-            
-            <div class="mb-3">
-              <label class="form-label fw-bold">OpenAI API Key</label>
-              <input type="text" name="openai_key" class="form-control" 
-                     value="{{ integrations.openai_key or '' }}" 
-                     placeholder="sk-...">
-            </div>
-            
-            <div class="mb-3">
-              <label class="form-label fw-bold">Stripe API Key</label>
-              <input type="text" name="stripe_key" class="form-control" 
-                     value="{{ integrations.stripe_key or '' }}" 
-                     placeholder="sk_live_...">
-            </div>
-            
-            <div class="mb-3">
-              <label class="form-label fw-bold">PayPal Client ID</label>
-              <input type="text" name="paypal_client_id" class="form-control" 
-                     value="{{ integrations.paypal_client_id or '' }}" 
-                     placeholder="AY...">
-            </div>
-            
-            <button type="submit" class="btn" style="background: #8E54E9; color: white;">
-              <i class="fas fa-save"></i> حفظ
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-md-12">
-      <div class="card border-0 shadow-sm">
-        <div class="card-header" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
-          <h5 class="mb-0"><i class="fas fa-sync-alt"></i> مزامنة البيانات</h5>
-        </div>
-        <div class="card-body">
-          <div class="row">
-            <div class="col-md-4">
-              <div class="text-center p-4 bg-light rounded">
-                <i class="fas fa-cloud-upload-alt fa-3x text-success mb-3"></i>
-                <h6>رفع لدفتر الأستاذ</h6>
-                <button class="btn btn-success btn-sm" onclick="syncGL()">
-                  <i class="fas fa-upload"></i> مزامنة الآن
-                </button>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <div class="text-center p-4 bg-light rounded">
-                <i class="fas fa-users fa-3x text-primary mb-3"></i>
-                <h6>استيراد العملاء</h6>
-                <button class="btn btn-primary btn-sm" onclick="importCustomers()">
-                  <i class="fas fa-download"></i> استيراد
-                </button>
-              </div>
-            </div>
-            <div class="col-md-4">
-              <div class="text-center p-4 bg-light rounded">
-                <i class="fas fa-boxes fa-3x text-warning mb-3"></i>
-                <h6>مزامنة المخزون</h6>
-                <button class="btn btn-warning btn-sm" onclick="syncInventory()">
-                  <i class="fas fa-sync"></i> مزامنة
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-</div>
-
-<script>
-// تحميل الإحصائيات عند تحميل الصفحة
-$(document).ready(function() {
-  loadIntegrationStats();
-  loadPerformanceStats();
-  
-  // تحديث الإحصائيات كل 30 ثانية
-  setInterval(function() {
-    loadIntegrationStats();
-    loadPerformanceStats();
-  }, 30000);
-  
-  // تحديث حالة الخدمات كل 10 ثوان
-  setInterval(function() {
-    updateServiceStatus();
-  }, 10000);
-});
-
-// اختبار التكامل
-function testIntegration(type) {
-  const statusDiv = document.getElementById(type + '-status');
-  statusDiv.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin"></i> جاري اختبار الاتصال...</div>';
-  
-  fetch(`/security/test-integration/${type}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRFToken': document.querySelector('[name="csrf_token"]').value
-    }
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.success) {
-      statusDiv.innerHTML = `<div class="alert alert-success"><i class="fas fa-check"></i> ${data.message}</div>`;
-    } else {
-      statusDiv.innerHTML = `<div class="alert alert-danger"><i class="fas fa-times"></i> ${data.error}</div>`;
-    }
-  })
-  .catch(error => {
-    statusDiv.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> خطأ في الاتصال</div>`;
-  });
-}
-
-// إرسال رسالة تجريبية
-function sendTestMessage(type) {
-  const statusDiv = document.getElementById(type + '-status');
-  statusDiv.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin"></i> جاري إرسال الرسالة التجريبية...</div>';
-  
-  fetch(`/security/send-test-message/${type}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRFToken': document.querySelector('[name="csrf_token"]').value
-    }
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.success) {
-      statusDiv.innerHTML = `<div class="alert alert-success"><i class="fas fa-paper-plane"></i> ${data.message}</div>`;
-    } else {
-      statusDiv.innerHTML = `<div class="alert alert-danger"><i class="fas fa-times"></i> ${data.error}</div>`;
-    }
-  })
-  .catch(error => {
-    statusDiv.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> خطأ في الإرسال</div>`;
-  });
-}
-
-// تحميل الإحصائيات
-function loadIntegrationStats() {
-  fetch('/security/integration-stats')
-  .then(response => response.json())
-  .then(data => {
-    if (data.whatsapp) {
-      document.getElementById('whatsapp-stats').textContent = `${data.whatsapp.messages_sent} رسالة`;
-      document.getElementById('whatsapp-last').textContent = `آخر استخدام: ${data.whatsapp.last_test}`;
-      updateStatusBadge('whatsapp', data.whatsapp.status);
-    }
-    if (data.email) {
-      document.getElementById('email-stats').textContent = `${data.email.emails_sent} بريد`;
-      document.getElementById('email-last').textContent = `آخر استخدام: ${data.email.last_test}`;
-      updateStatusBadge('email', data.email.status);
-    }
-    if (data.api_keys) {
-      document.getElementById('api-stats').textContent = `${data.api_keys.requests_made} طلب`;
-      document.getElementById('api-last').textContent = `آخر استخدام: ${data.api_keys.last_test}`;
-      updateStatusBadge('api', data.api_keys.status);
-    }
-  })
-  .catch(error => {
-    console.log('خطأ في تحميل الإحصائيات:', error);
-  });
-}
-
-// تحميل إحصائيات الأداء
-function loadPerformanceStats() {
-  // بيانات الأداء الحقيقية (يمكن تطويرها لاحقاً)
-  const performanceData = {
-    success_rate: '98.5%',
-    avg_response: '0.8s',
-    total_requests: '479',
-    errors_count: '7'
-  };
-  
-  document.getElementById('success-rate').textContent = performanceData.success_rate;
-  document.getElementById('avg-response').textContent = performanceData.avg_response;
-  document.getElementById('total-requests').textContent = performanceData.total_requests;
-  document.getElementById('errors-count').textContent = performanceData.errors_count;
-}
-
-// تحديث حالة الخدمات
-function updateServiceStatus() {
-  // فحص حالة الخدمات الحقيقية
-  fetch('/security/integration-stats')
-  .then(response => response.json())
-  .then(data => {
-    if (data.whatsapp) {
-      updateStatusBadge('whatsapp', data.whatsapp.status);
-    }
-    if (data.email) {
-      updateStatusBadge('email', data.email.status);
-    }
-    if (data.api_keys) {
-      updateStatusBadge('api', data.api_keys.status);
-    }
-  })
-  .catch(error => {
-    console.log('خطأ في تحديث حالة الخدمات:', error);
-  });
-}
-
-// تحديث badge الحالة
-function updateStatusBadge(service, status) {
-  const badge = document.getElementById(service + '-status-badge');
-  if (status === 'active') {
-    badge.innerHTML = '🟢 متصل';
-    badge.className = 'badge bg-light text-success';
-  } else {
-    badge.innerHTML = '🔴 غير متصل';
-    badge.className = 'badge bg-light text-danger';
-  }
-}
-
-// وظائف قديمة للتوافق
-function testWhatsApp() {
-  testIntegration('whatsapp');
-}
-
-function testEmail() {
-  testIntegration('email');
-}
-
-function testCardReader() {
-  testIntegration('card_reader');
-}
-
-function syncGL() {
-  if(confirm('مزامنة دفتر الأستاذ مع نظام المحاسبة؟')) {
-    alert('⏳ جاري المزامنة... (قريباً)');
-  }
-}
-
-function importCustomers() {
-  if(confirm('استيراد العملاء من النظام الخارجي؟')) {
-    alert('⏳ جاري الاستيراد... (قريباً)');
-  }
-}
-
-function syncInventory() {
-  if(confirm('مزامنة المخزون مع الأنظمة الخارجية؟')) {
-    alert('⏳ جاري المزامنة... (قريباً)');
-  }
-}
-</script>
-{% endblock %}
-

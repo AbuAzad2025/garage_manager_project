@@ -1,391 +1,0 @@
-{% extends 'base.html' %}
-{% block title %}وحدة الأمان المتقدمة{% endblock %}
-{% block page_title %}🔒 وحدة الأمان المتقدمة{% endblock %}
-
-{% block content %}
-<div class="container-fluid">
-  
-  {% include 'security/_navigation.html' %}
-  
-  <div class="alert alert-danger border-0 shadow-sm">
-    <i class="fas fa-crown"></i>
-    <strong>🔐 المالك فقط:</strong> هذه الوحدة السرية متاحة للمالك (__OWNER__) فقط! 
-    <span class="badge bg-warning text-dark ms-2">Super Admin ممنوع</span>
-    <br><small>جميع الإجراءات يتم تسجيلها في Audit Trail</small>
-  </div>
-
-  <div class="alert alert-info border-0 shadow-sm">
-    <i class="fas fa-rocket"></i>
-    <strong>النظام v5.0.0:</strong>
-    <span class="badge bg-success ms-1">40+ وحدة</span>
-    <span class="badge bg-info ms-1">133 API</span>
-    <span class="badge bg-warning text-dark ms-1">89 فهرس</span>
-    <span class="badge bg-danger ms-1">150+ علاقة</span>
-    <br><small class="mt-2 d-block">
-      <strong>هذه الصفحة:</strong> الأمان الأساسي + الإحصائيات + الحظر |
-      <strong>لوحة التحكم النهائية:</strong> 37+ أداة متقدمة
-    </small>
-  </div>
-
-  <!-- الإحصائيات -->
-  <div class="row g-3 mb-4">
-    <div class="col-lg-3 col-md-6">
-      <div class="small-box bg-info">
-        <div class="inner">
-          <h3>{{ stats.total_users }}</h3>
-          <p>إجمالي المستخدمين</p>
-        </div>
-        <div class="icon"><i class="fas fa-users"></i></div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="small-box bg-success">
-        <div class="inner">
-          <h3>{{ stats.active_users }}</h3>
-          <p>مستخدمين نشطين</p>
-        </div>
-        <div class="icon"><i class="fas fa-user-check"></i></div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="small-box bg-danger">
-        <div class="inner">
-          <h3>{{ stats.blocked_users }}</h3>
-          <p>مستخدمين محظورين</p>
-        </div>
-        <div class="icon"><i class="fas fa-user-lock"></i></div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="small-box bg-warning">
-        <div class="inner">
-          <h3>{{ stats.failed_logins_24h }}</h3>
-          <p>محاولات فاشلة (24 ساعة)</p>
-        </div>
-        <div class="icon"><i class="fas fa-exclamation-triangle"></i></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- الإجراءات السريعة -->
-  <div class="row g-3 mb-4">
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #FF6B6B 0%, #4ECDC4 100%);">
-        <div class="card-body text-center text-white">
-          <div class="position-relative">
-            <i class="fas fa-crown fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark">
-              {{ stats.total_users + 37 }}
-            </span>
-          </div>
-          <h5 class="fw-bold">لوحة التحكم النهائية</h5>
-          <p class="small opacity-75">صلاحيات خارقة + 37 أداة متقدمة</p>
-          <div class="d-grid gap-2">
-            <a href="{{ url_for('security.ultimate_control') }}" class="btn btn-light btn-sm fw-bold">
-              <i class="fas fa-bolt"></i> التحكم النهائي
-            </a>
-            <div class="row text-center small mt-2">
-              <div class="col-4 opacity-75">40 وحدة</div>
-              <div class="col-4 opacity-75">133 API</div>
-              <div class="col-4 opacity-75">89 فهرس</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-        <div class="card-body text-center text-white">
-          <div class="position-relative">
-            <i class="fas fa-robot fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success">
-              AI
-            </span>
-          </div>
-          <h5 class="fw-bold">AI & Analytics</h5>
-          <p class="small opacity-75">ذكاء اصطناعي + تحليل متقدم</p>
-          <div class="d-grid gap-2">
-            <a href="{{ url_for('security.ultimate_control') }}" class="btn btn-light btn-sm fw-bold">
-              <i class="fas fa-brain"></i> الذهاب للتحكم المتقدم
-            </a>
-            <div class="row text-center">
-              <div class="col-4">
-                <small class="opacity-75">مساعد</small>
-              </div>
-              <div class="col-4">
-                <small class="opacity-75">تحليل</small>
-              </div>
-              <div class="col-4">
-                <small class="opacity-75">تدريب</small>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-        <div class="card-body text-center text-white">
-          <div class="position-relative">
-            <i class="fas fa-code fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-info">
-              API
-            </span>
-          </div>
-          <h5 class="fw-bold">API Documentation</h5>
-          <p class="small opacity-75">وثائق API الكاملة + أمثلة</p>
-          <div class="d-grid gap-2">
-            <a href="{{ url_for('api.docs') }}" class="btn btn-light btn-sm fw-bold">
-              <i class="fas fa-book"></i> عرض الوثائق
-            </a>
-            <div class="row text-center">
-              <div class="col-6">
-                <small class="opacity-75">Endpoints</small>
-              </div>
-              <div class="col-6">
-                <small class="opacity-75">Examples</small>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #FF512F 0%, #DD2476 100%);">
-        <div class="card-body text-center text-white">
-          <div class="position-relative">
-            <i class="fas fa-ban fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark">
-              {{ stats.blocked_ips }}
-            </span>
-          </div>
-          <h5 class="fw-bold">Firewall Manager</h5>
-          <p class="small opacity-75">حظر IP + حماية متقدمة</p>
-          <div class="d-grid gap-2">
-            <a href="{{ url_for('security.block_ip') }}" class="btn btn-light btn-sm fw-bold">
-              <i class="fas fa-shield-alt"></i> إدارة الحظر
-            </a>
-            <div class="row text-center">
-              <div class="col-6">
-                <small class="opacity-75">حظر IP</small>
-              </div>
-              <div class="col-6">
-                <small class="opacity-75">حظر دولة</small>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #f12711 0%, #f5af19 100%);">
-        <div class="card-body text-center text-white">
-          <div class="position-relative">
-            <i class="fas fa-globe fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-              {{ stats.blocked_countries }}
-            </span>
-          </div>
-          <h5 class="fw-bold">حظر الدول</h5>
-          <p class="small opacity-75">حظر دول كاملة + جغرافي</p>
-          <div class="d-grid gap-2">
-            <a href="{{ url_for('security.block_country') }}" class="btn btn-light btn-sm fw-bold">
-              <i class="fas fa-flag"></i> إدارة الحظر
-            </a>
-            <div class="row text-center">
-              <div class="col-6">
-                <small class="opacity-75">حظر دولة</small>
-              </div>
-              <div class="col-6">
-                <small class="opacity-75">إلغاء حظر</small>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #134E5E 0%, #71B280 100%);">
-        <div class="card-body text-center text-white">
-          <div class="position-relative">
-            <i class="fas fa-broom fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark">
-              ⚠️
-            </span>
-          </div>
-          <h5 class="fw-bold">تنظيف النظام</h5>
-          <p class="small opacity-75">حذف بيانات + تحسين الأداء</p>
-          <div class="d-grid gap-2">
-            <a href="{{ url_for('security.system_cleanup') }}" class="btn btn-light btn-sm fw-bold">
-              <i class="fas fa-trash-alt"></i> تنظيف آمن
-            </a>
-            <div class="row text-center">
-              <div class="col-6">
-                <small class="opacity-75">حذف بيانات</small>
-              </div>
-              <div class="col-6">
-                <small class="opacity-75">تحسين</small>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);">
-        <div class="card-body text-center text-white">
-          <div class="position-relative">
-            <i class="fas fa-file-alt fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success">
-              6
-            </span>
-          </div>
-          <h5 class="fw-bold">اللوجات والسجلات</h5>
-          <p class="small opacity-75">6 أنواع لوجات شاملة</p>
-          <div class="d-grid gap-2">
-            <a href="{{ url_for('security.logs_viewer') }}" class="btn btn-light btn-sm fw-bold">
-              <i class="fas fa-eye"></i> عرض اللوجات
-            </a>
-            <div class="row text-center">
-              <div class="col-4">
-                <small class="opacity-75">أخطاء</small>
-              </div>
-              <div class="col-4">
-                <small class="opacity-75">أمان</small>
-              </div>
-              <div class="col-4">
-                <small class="opacity-75">أداء</small>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
-        <div class="card-body text-center text-white">
-          <div class="position-relative">
-            <i class="fas fa-cogs fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark">
-              ⚙️
-            </span>
-          </div>
-          <h5 class="fw-bold">إعدادات النظام</h5>
-          <p class="small opacity-75">تكوين + إعدادات متقدمة</p>
-          <div class="d-grid gap-2">
-            <a href="{{ url_for('security.ultimate_control') }}" class="btn btn-light btn-sm fw-bold">
-              <i class="fas fa-sliders-h"></i> الذهاب للإعدادات
-            </a>
-            <div class="row text-center">
-              <div class="col-6">
-                <small class="opacity-75">تكوين</small>
-              </div>
-              <div class="col-6">
-                <small class="opacity-75">متقدم</small>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- المحظورين -->
-  <div class="row g-3">
-    <div class="col-lg-6">
-      <div class="card border-0 shadow-lg" style="background: linear-gradient(135deg, #FF512F 0%, #DD2476 100%);">
-        <div class="card-header text-white border-0" style="background: rgba(255,255,255,0.1);">
-          <div class="d-flex justify-content-between align-items-center">
-            <h5 class="mb-0 fw-bold"><i class="fas fa-ban"></i> IPs محظورة</h5>
-            <span class="badge bg-warning text-dark fs-6">{{ stats.blocked_ips }}</span>
-          </div>
-        </div>
-        <div class="card-body text-white">
-          <div class="row text-center">
-            <div class="col-4">
-              <h4 class="fw-bold">{{ stats.blocked_ips }}</h4>
-              <small class="opacity-75">IPs محظورة</small>
-            </div>
-            <div class="col-4">
-              <h4 class="fw-bold">{{ stats.failed_logins_24h }}</h4>
-              <small class="opacity-75">محاولات فاشلة</small>
-            </div>
-            <div class="col-4">
-              <h4 class="fw-bold">{{ stats.suspicious_activities }}</h4>
-              <small class="opacity-75">أنشطة مشبوهة</small>
-            </div>
-          </div>
-          <div class="d-grid gap-2 mt-3">
-            <a href="{{ url_for('security.blocked_ips') }}" class="btn btn-light btn-sm fw-bold">
-              <i class="fas fa-list"></i> عرض القائمة الكاملة
-            </a>
-            <a href="{{ url_for('security.block_ip') }}" class="btn btn-outline-light btn-sm">
-              <i class="fas fa-plus"></i> حظر IP جديد
-            </a>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-6">
-      <div class="card border-0 shadow-lg" style="background: linear-gradient(135deg, #f12711 0%, #f5af19 100%);">
-        <div class="card-header text-white border-0" style="background: rgba(255,255,255,0.1);">
-          <div class="d-flex justify-content-between align-items-center">
-            <h5 class="mb-0 fw-bold"><i class="fas fa-globe"></i> دول محظورة</h5>
-            <span class="badge bg-danger fs-6">{{ stats.blocked_countries }}</span>
-          </div>
-        </div>
-        <div class="card-body text-white">
-          <div class="row text-center">
-            <div class="col-4">
-              <h4 class="fw-bold">{{ stats.blocked_countries }}</h4>
-              <small class="opacity-75">دول محظورة</small>
-            </div>
-            <div class="col-4">
-              <h4 class="fw-bold">{{ stats.total_users }}</h4>
-              <small class="opacity-75">إجمالي المستخدمين</small>
-            </div>
-            <div class="col-4">
-              <h4 class="fw-bold">{{ stats.active_users }}</h4>
-              <small class="opacity-75">مستخدمين نشطين</small>
-            </div>
-          </div>
-          <div class="d-grid gap-2 mt-3">
-            <a href="{{ url_for('security.blocked_countries') }}" class="btn btn-light btn-sm fw-bold">
-              <i class="fas fa-list"></i> عرض القائمة الكاملة
-            </a>
-            <a href="{{ url_for('security.block_country') }}" class="btn btn-outline-light btn-sm">
-              <i class="fas fa-plus"></i> حظر دولة جديدة
-            </a>
-          </div>
-        </div>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-        <div class="card-body text-center text-white">
-          <i class="fas fa-database fa-3x mb-3"></i>
-          <h5 class="fw-bold">إدارة الفهارس</h5>
-          <p class="small opacity-75">تسريع 10x</p>
-          <a href="{{ url_for('security.indexes_manager') }}" class="btn btn-light btn-sm fw-bold">
-            <i class="fas fa-bolt"></i> فهارس
-          </a>
-        </div>
-      </div>
-    </div>
-    
-  </div>
-{% endblock %}
-

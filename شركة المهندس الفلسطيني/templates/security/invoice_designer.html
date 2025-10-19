@@ -1,58 +1,0 @@
-{% extends 'base.html' %}
-{% block title %}محرر الفواتير{% endblock %}
-{% block page_title %}📄 محرر الفواتير - Invoice Designer{% endblock %}
-
-{% block content %}
-<div class="container-fluid">
-  
-  {% include 'security/_navigation.html' %}
-
-  <div class="row">
-    <div class="col-md-8 mx-auto">
-      <div class="card border-0 shadow-sm">
-        <div class="card-header bg-gradient-warning">
-          <h5 class="mb-0"><i class="fas fa-file-invoice-dollar"></i> تصميم الفواتير</h5>
-        </div>
-        <div class="card-body">
-          <form method="POST">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            
-            <div class="mb-3">
-              <label class="form-label fw-bold">لون العنوان</label>
-              <input type="color" name="header_color" class="form-control form-control-color" 
-                     value="{{ settings.invoice_header_color or '#0056b3' }}">
-            </div>
-            
-            <div class="mb-3">
-              <label class="form-label fw-bold">نص الفوتر</label>
-              <textarea name="footer_text" class="form-control" rows="3">{{ settings.invoice_footer_text }}</textarea>
-            </div>
-            
-            <div class="form-check mb-3">
-              <input type="checkbox" name="show_logo" class="form-check-input" id="logo"
-                     {% if settings.invoice_show_logo == 'True' %}checked{% endif %}>
-              <label class="form-check-label" for="logo">
-                عرض الشعار
-              </label>
-            </div>
-            
-            <div class="form-check mb-3">
-              <input type="checkbox" name="show_tax" class="form-check-input" id="tax"
-                     {% if settings.invoice_show_tax == 'True' %}checked{% endif %}>
-              <label class="form-check-label" for="tax">
-                عرض الضريبة
-              </label>
-            </div>
-            
-            <button type="submit" class="btn btn-warning">
-              <i class="fas fa-save"></i> حفظ التصميم
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-  </div>
-
-</div>
-{% endblock %}
-

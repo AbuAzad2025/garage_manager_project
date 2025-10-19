@@ -1,86 +1,0 @@
-{% extends 'base.html' %}
-{% block title %}معالج قواعد البيانات{% endblock %}
-{% block page_title %}🔄 معالج قواعد البيانات - DB Merger{% endblock %}
-
-{% block content %}
-<div class="container-fluid">
-  
-  {% include 'advanced/_navigation.html' %}
-  
-  <div class="alert alert-info border-0 shadow-sm">
-    <i class="fas fa-info-circle"></i> <strong>دمج ذكي:</strong> رفع قاعدة بيانات قديمة ودمجها مع الحالية بذكاء
-  </div>
-
-  <div class="row g-4 mb-4">
-    <div class="col-md-4">
-      <div class="card border-0 shadow-sm bg-primary text-white">
-        <div class="card-body text-center">
-          <h3>{{ stats.current_db_size }}</h3>
-          <p class="mb-0">حجم قاعدة البيانات</p>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-4">
-      <div class="card border-0 shadow-sm bg-success text-white">
-        <div class="card-body text-center">
-          <h3>{{ stats.total_tables }}</h3>
-          <p class="mb-0">عدد الجداول</p>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-4">
-      <div class="card border-0 shadow-sm bg-info text-white">
-        <div class="card-body text-center">
-          <h3>{{ stats.total_records|default(0) }}</h3>
-          <p class="mb-0">إجمالي السجلات</p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="row">
-    <div class="col-md-8 mx-auto">
-      <div class="card border-0 shadow-lg">
-        <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-          <h5 class="mb-0"><i class="fas fa-database"></i> رفع ودمج قاعدة بيانات</h5>
-        </div>
-        <div class="card-body">
-          <form method="POST" enctype="multipart/form-data">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            
-            <div class="mb-4">
-              <label class="form-label fw-bold">اختر ملف قاعدة البيانات (.db)</label>
-              <input type="file" name="db_file" class="form-control" accept=".db" required>
-              <small class="text-muted">يجب أن يكون ملف SQLite (.db)</small>
-            </div>
-            
-            <div class="mb-4">
-              <label class="form-label fw-bold">وضع الدمج</label>
-              <select name="merge_mode" class="form-select">
-                <option value="smart">ذكي (تجاهل المكرر)</option>
-                <option value="force">قوي (استبدال)</option>
-                <option value="append">إضافة فقط</option>
-              </select>
-              <small class="text-muted">
-                • <strong>ذكي:</strong> يتجاهل السجلات المكررة<br>
-                • <strong>قوي:</strong> يستبدل السجلات الموجودة<br>
-                • <strong>إضافة:</strong> يضيف فقط السجلات الجديدة
-              </small>
-            </div>
-            
-            <div class="alert alert-warning">
-              <i class="fas fa-exclamation-triangle"></i> <strong>تحذير:</strong> احفظ نسخة احتياطية قبل الدمج!
-            </div>
-            
-            <button type="submit" class="btn btn-primary btn-lg w-100">
-              <i class="fas fa-upload"></i> رفع ودمج الآن
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-  </div>
-
-</div>
-{% endblock %}
-
