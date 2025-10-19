@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}إحصائيات الباركود{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-barcode"></i>
+                        إحصائيات الباركود
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="info-box">
+                                <span class="info-box-icon bg-info"><i class="fas fa-box"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">إجمالي المنتجات</span>
+                                    <span class="info-box-number">{{ stats.total_products }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <div class="info-box">
+                                <span class="info-box-icon bg-success"><i class="fas fa-barcode"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">منتجات مع باركود</span>
+                                    <span class="info-box-number">{{ stats.products_with_barcode }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <div class="info-box">
+                                <span class="info-box-icon bg-warning"><i class="fas fa-exclamation-triangle"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">منتجات بدون باركود</span>
+                                    <span class="info-box-number">{{ stats.products_without_barcode }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <div class="info-box">
+                                <span class="info-box-icon bg-primary"><i class="fas fa-percentage"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">نسبة التغطية</span>
+                                    <span class="info-box-number">{{ stats.barcode_percentage }}%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if stats.barcode_lengths %}
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5>توزيع أطوال الباركود</h5>
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>طول الباركود</th>
+                                        <th>عدد المنتجات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in stats.barcode_lengths %}
+                                    <tr>
+                                        <td>{{ item.length }} رقم</td>
+                                        <td>{{ item.count }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

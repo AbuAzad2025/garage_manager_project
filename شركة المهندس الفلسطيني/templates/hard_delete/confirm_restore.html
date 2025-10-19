@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+
+{% block title %}تأكيد الاستعادة{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-undo"></i>
+                        تأكيد استعادة الحذف
+                    </h3>
+                </div>
+                <div class="card-body">
+                    {% if deletion_log %}
+                    <div class="alert alert-warning">
+                        <h4><i class="fas fa-exclamation-triangle"></i> تحذير مهم</h4>
+                        <p>أنت على وشك استعادة عملية حذف قوي. هذا الإجراء سيعيد جميع البيانات المحذوفة إلى النظام.</p>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>تفاصيل الحذف:</h5>
+                            <table class="table table-bordered">
+                                <tr>
+                                    <td><strong>نوع الحذف:</strong></td>
+                                    <td>{{ deletion_log.deletion_type }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>الكيان:</strong></td>
+                                    <td>{{ deletion_log.entity_name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>الحالة الحالية:</strong></td>
+                                    <td>
+                                        <span class="badge badge-{{ 'success' if deletion_log.status == 'COMPLETED' else 'warning' }}">
+                                            {{ deletion_log.status }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>تاريخ الحذف:</strong></td>
+                                    <td>{{ deletion_log.created_at.strftime('%Y-%m-%d %H:%M') if deletion_log.created_at else 'غير محدد' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>سبب الحذف:</strong></td>
+                                    <td>{{ deletion_log.deletion_reason or 'غير محدد' }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>البيانات المرتبطة:</h5>
+                            {% if deletion_log.related_entities %}
+                            <ul class="list-group">
+                                {% for entity_type, count in deletion_log.related_entities.items() %}
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>{{ entity_type }}</span>
+                                    <span class="badge badge-primary">{{ count }}</span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% else %}
+                            <p class="text-muted">لا توجد بيانات مرتبطة</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <h5><i class="fas fa-info-circle"></i> ملاحظات مهمة:</h5>
+                        <ul>
+                            <li>سيتم استعادة جميع البيانات المحذوفة</li>
+                            <li>سيتم إعادة العمليات المحاسبية</li>
+                            <li>سيتم تحديث المخزون</li>
+                            <li>هذا الإجراء لا يمكن التراجع عنه</li>
+                        </ul>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('hard_delete_bp.restore_deletion', deletion_id=deletion_log.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        
+                        <div class="form-group">
+                            <label for="restore_reason">سبب الاستعادة:</label>
+                            <textarea class="form-control" id="restore_reason" name="restore_reason" 
+                                      rows="3" placeholder="أدخل سبب الاستعادة..." required></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="confirm_restore" name="confirm_restore" required>
+                                <label class="form-check-label" for="confirm_restore">
+                                    أؤكد أنني أريد استعادة هذا الحذف وأفهم العواقب
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-undo"></i>
+                                تأكيد الاستعادة
+                            </button>
+                            <a href="{{ url_for('hard_delete_bp.deletion_logs') }}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i>
+                                إلغاء
+                            </a>
+                        </div>
+                    </form>
+                    {% else %}
+                    <div class="alert alert-danger">
+                        <h4><i class="fas fa-exclamation-circle"></i> خطأ</h4>
+                        <p>سجل الحذف غير موجود أو لا يمكن استعادته.</p>
+                        <a href="{{ url_for('hard_delete_bp.deletion_logs') }}" class="btn btn-primary">
+                            العودة إلى السجل
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

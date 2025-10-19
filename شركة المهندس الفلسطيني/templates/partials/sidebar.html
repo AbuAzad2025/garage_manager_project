@@ -1,0 +1,226 @@
+<!-- templates/_sidebar.html -->
+<aside class="main-sidebar sidebar-dark-primary elevation-4" dir="rtl">
+  <a href="{{ url_for('main.dashboard') }}" class="brand-link text-center">
+    {% if system_settings.custom_logo %}
+    <img src="{{ url_for('static', filename=system_settings.custom_logo.replace('static/', '')) }}" alt="Logo"
+         class="brand-image img-circle elevation-3" style="opacity:.9; max-height:45px;">
+    {% else %}
+    <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Garage Logo"
+         class="brand-image img-circle elevation-3" style="opacity:.9; max-height:45px;">
+    {% endif %}
+    <span class="brand-text font-weight-light d-block">{{ system_settings.system_name or 'نظام إدارة الكراج' }}</span>
+  </a>
+
+  <div class="sidebar">
+    <div class="user-panel mt-3 pb-3 mb-3 d-flex justify-content-end">
+      <div class="info text-right">
+        <a href="{{ url_for('users_bp.profile') }}" class="d-block">
+          {{ current_user.username if current_user.is_authenticated else "ضيف" }}
+        </a>
+      </div>
+      <div class="image">
+        <img src="{{ url_for('static', filename='img/azad_logo.png') }}" class="img-circle elevation-2" alt="User Image">
+      </div>
+    </div>
+
+    <nav class="mt-2">
+      <ul class="nav nav-pills nav-sidebar flex-column text-right" data-widget="treeview" role="menu" data-accordion="false">
+
+        <!-- 🏠 لوحة التحكم -->
+        <li class="nav-item">
+          <a href="{{ url_for('main.dashboard') }}" class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}">
+            <i class="nav-icon fas fa-tachometer-alt"></i>
+            <p>لوحة التحكم</p>
+          </a>
+        </li>
+
+        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+        <!-- 📊 العمليات اليومية -->
+        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+
+        {% if has_perm('manage_customers') or shop_is_super_admin %}
+        <li class="nav-item">
+          <a href="{{ url_for('customers_bp.list_customers') }}" class="nav-link {% if request.blueprint == 'customers_bp' %}active{% endif %}">
+            <i class="nav-icon fas fa-users"></i>
+            <p>العملاء</p>
+          </a>
+        </li>
+        {% endif %}
+
+        {% if has_perm('manage_service') or shop_is_super_admin %}
+        <li class="nav-item">
+          <a href="{{ url_for('service.list_requests') }}" class="nav-link {% if request.blueprint == 'service' %}active{% endif %}">
+            <i class="nav-icon fas fa-tools"></i>
+            <p>الصيانة</p>
+          </a>
+        </li>
+        {% endif %}
+
+        {% if has_perm('manage_sales') or shop_is_super_admin %}
+        <li class="nav-item">
+          <a href="{{ url_for('sales_bp.list_sales') }}" class="nav-link {% if request.blueprint == 'sales_bp' %}active{% endif %}">
+            <i class="nav-icon fas fa-shopping-cart"></i>
+            <p>المبيعات</p>
+          </a>
+        </li>
+        {% endif %}
+
+        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+        <!-- 📦 إدارة المخزون -->
+        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+
+        {% if has_perm('view_warehouses') or has_perm('manage_warehouses') or shop_is_super_admin %}
+        <li class="nav-item">
+          <a href="{{ url_for('warehouse_bp.list') }}" class="nav-link {% if request.blueprint == 'warehouse_bp' %}active{% endif %}">
+            <i class="nav-icon fas fa-warehouse"></i>
+            <p>المستودعات</p>
+          </a>
+        </li>
+        {% endif %}
+
+        {% if has_perm('manage_vendors') or shop_is_super_admin %}
+        <li class="nav-item">
+          <a href="{{ url_for('vendors_bp.suppliers_list') }}" class="nav-link {% if request.endpoint == 'vendors_bp.suppliers_list' %}active{% endif %}">
+            <i class="nav-icon fas fa-truck"></i>
+            <p>الموردين</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_for('vendors_bp.partners_list') }}" class="nav-link {% if request.endpoint == 'vendors_bp.partners_list' %}active{% endif %}">
+            <i class="nav-icon fas fa-handshake"></i>
+            <p>الشركاء</p>
+          </a>
+        </li>
+        {% endif %}
+
+        {% if has_perm('manage_shipments') or shop_is_super_admin %}
+        <li class="nav-item">
+          <a href="{{ url_for('shipments_bp.list_shipments') }}" class="nav-link {% if request.blueprint == 'shipments_bp' %}active{% endif %}">
+            <i class="nav-icon fas fa-shipping-fast"></i>
+            <p>الشحنات</p>
+          </a>
+        </li>
+        {% endif %}
+
+        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+        <!-- 💰 المالية والمحاسبة -->
+        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+
+        {% if has_perm('manage_payments') or shop_is_super_admin %}
+        <li class="nav-item">
+          <a href="{{ url_for('payments.index') }}" class="nav-link {% if request.blueprint == 'payments' %}active{% endif %}">
+            <i class="nav-icon fas fa-money-bill-wave"></i>
+            <p>الدفعات</p>
+          </a>
+        </li>
+        {% endif %}
+
+        {% if has_perm('view_payments') or has_perm('manage_payments') or shop_is_super_admin %}
+        <li class="nav-item">
+          <a href="{{ url_for('checks.index') }}" class="nav-link {% if request.blueprint == 'checks' %}active{% endif %}">
+            <i class="nav-icon fas fa-money-check"></i>
+            <p>الشيكات</p>
+          </a>
+        </li>
+        {% endif %}
+
+        {% if has_perm('manage_expenses') or shop_is_super_admin %}
+        <li class="nav-item">
+          <a href="{{ url_for('expenses_bp.list_expenses') }}" class="nav-link {% if request.blueprint == 'expenses_bp' %}active{% endif %}">
+            <i class="nav-icon fas fa-receipt"></i>
+            <p>النفقات</p>
+          </a>
+        </li>
+        {% endif %}
+
+        {% if has_perm('manage_ledger') or shop_is_super_admin %}
+        <li class="nav-item">
+          <a href="{{ url_for('ledger.index') }}" class="nav-link {% if request.blueprint == 'ledger' %}active{% endif %}">
+            <i class="nav-icon fas fa-book"></i>
+            <p>دفتر الأستاذ</p>
+          </a>
+        </li>
+        {% endif %}
+
+        {% if has_perm('manage_currencies') or shop_is_super_admin %}
+        <li class="nav-item">
+          <a href="{{ url_for('currencies.list') }}" class="nav-link {% if request.blueprint == 'currencies' %}active{% endif %}">
+            <i class="nav-icon fas fa-coins"></i>
+            <p>العملات</p>
+          </a>
+        </li>
+        {% endif %}
+
+        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+        <!-- 📊 التقارير والتحليلات -->
+        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+
+        {% if has_perm('view_reports') or has_perm('manage_reports') or shop_is_super_admin %}
+        <li class="nav-item">
+          <a href="{{ url_for('reports_bp.universal') }}" class="nav-link {% if request.blueprint == 'reports_bp' %}active{% endif %}">
+            <i class="nav-icon fas fa-chart-line"></i>
+            <p>التقارير</p>
+          </a>
+        </li>
+        {% endif %}
+
+        {% if has_any('manage_customers','manage_service','manage_sales','manage_reports') or shop_is_super_admin %}
+        <li class="nav-item">
+          <a href="{{ url_for('notes_bp.list_notes') }}" class="nav-link {% if request.blueprint == 'notes_bp' %}active{% endif %}">
+            <i class="nav-icon fas fa-sticky-note"></i>
+            <p>الملاحظات</p>
+          </a>
+        </li>
+        {% endif %}
+
+        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+        <!-- ⚙️ الإدارة والإعدادات -->
+        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+
+        {% if has_perm('manage_users') or shop_is_super_admin %}
+        <li class="nav-item">
+          <a href="{{ url_for('users_bp.list_users') }}" class="nav-link {% if request.blueprint == 'users_bp' %}active{% endif %}">
+            <i class="nav-icon fas fa-user-cog"></i>
+            <p>المستخدمون</p>
+          </a>
+        </li>
+        {% endif %}
+
+        {% if shop_is_super_admin %}
+        <li class="nav-item">
+          <a href="{{ url_for('shop.catalog') }}" class="nav-link" target="_blank">
+            <i class="nav-icon fas fa-store"></i>
+            <p>المتجر الإلكتروني</p>
+          </a>
+        </li>
+        {% endif %}
+
+        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+        <!-- 🔧 النظام والصيانة -->
+        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+
+        {% if has_perm('manage_archive') or shop_is_super_admin %}
+        <li class="nav-item">
+          <a href="{{ url_for('archive.index') }}" class="nav-link {% if request.blueprint == 'archive' %}active{% endif %}">
+            <i class="nav-icon fas fa-archive"></i>
+            <p>الأرشيف</p>
+          </a>
+        </li>
+        {% endif %}
+
+
+        {% if has_perm('backup_database') or shop_is_super_admin %}
+        <li class="nav-item">
+          <a href="{{ url_for('main.backup_db') }}" class="nav-link {% if request.endpoint == 'main.backup_db' %}active{% endif %}">
+            <i class="nav-icon fas fa-database"></i>
+            <p>النسخ الاحتياطي</p>
+          </a>
+        </li>
+        {% endif %}
+
+
+
+      </ul>
+    </nav>
+  </div>
+</aside>

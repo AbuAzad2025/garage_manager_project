@@ -1,0 +1,372 @@
+{% extends 'base.html' %}
+{% block title %}إعدادات النظام v5.0{% endblock %}
+{% block page_title %}⚙️ إعدادات النظام <span class="badge bg-success ms-2">v5.0</span> <span class="badge bg-info ms-1">40 وحدة</span>{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  {% include 'security/_navigation.html' %}
+  
+  <div class="alert alert-info border-0 shadow-sm">
+    <i class="fas fa-info-circle"></i>
+    <strong>إعدادات موحدة:</strong> جميع إعدادات النظام في مكان واحد (عامة + متقدمة + ثوابت)
+    <div class="mt-2">
+      <span class="badge bg-success">40+ وحدة</span>
+      <span class="badge bg-info">133 API</span>
+      <span class="badge bg-warning text-dark">89 فهرس</span>
+      <span class="badge bg-danger">150+ علاقة</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-gradient-primary text-white">
+      <h5 class="mb-0"><i class="fas fa-cogs"></i> إعدادات النظام الشاملة</h5>
+    </div>
+    <div class="card-body">
+      
+      <!-- Nav tabs -->
+      <ul class="nav nav-tabs nav-fill mb-4" id="settingsTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if active_tab == 'general' %}active{% endif %}" 
+                  id="general-tab" 
+                  data-bs-toggle="tab" 
+                  data-bs-target="#general" 
+                  type="button" 
+                  role="tab">
+            <i class="fas fa-sliders-h"></i> الإعدادات العامة
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if active_tab == 'advanced' %}active{% endif %}" 
+                  id="advanced-tab" 
+                  data-bs-toggle="tab" 
+                  data-bs-target="#advanced" 
+                  type="button" 
+                  role="tab">
+            <i class="fas fa-cog"></i> التكوينات المتقدمة
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if active_tab == 'constants' %}active{% endif %}" 
+                  id="constants-tab" 
+                  data-bs-toggle="tab" 
+                  data-bs-target="#constants" 
+                  type="button" 
+                  role="tab">
+            <i class="fas fa-building"></i> ثوابت الشركة
+          </button>
+        </li>
+      </ul>
+
+      <!-- Tab panes -->
+      <div class="tab-content" id="settingsTabContent">
+        
+        <!-- التبويب 1: الإعدادات العامة -->
+        <div class="tab-pane fade {% if active_tab == 'general' %}show active{% endif %}" 
+             id="general" 
+             role="tabpanel">
+          <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="active_tab" value="general">
+            
+            <div class="row">
+              <div class="col-md-4">
+                <div class="card mb-3 border-warning">
+                  <div class="card-header bg-warning text-dark">
+                    <strong><i class="fas fa-tools"></i> وضع الصيانة</strong>
+                  </div>
+                  <div class="card-body">
+                    <div class="form-check form-switch">
+                      <input class="form-check-input" type="checkbox" name="maintenance_mode" id="maintenance_mode" {% if data.general.maintenance_mode %}checked{% endif %}>
+                      <label class="form-check-label" for="maintenance_mode">
+                        تفعيل وضع الصيانة<br>
+                        <small class="text-muted">سيمنع الوصول لجميع المستخدمين</small>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col-md-4">
+                <div class="card mb-3 border-info">
+                  <div class="card-header bg-info text-white">
+                    <strong><i class="fas fa-user-plus"></i> التسجيل</strong>
+                  </div>
+                  <div class="card-body">
+                    <div class="form-check form-switch">
+                      <input class="form-check-input" type="checkbox" name="registration_enabled" id="registration_enabled" {% if data.general.registration_enabled %}checked{% endif %}>
+                      <label class="form-check-label" for="registration_enabled">
+                        السماح بتسجيل مستخدمين جدد<br>
+                        <small class="text-muted">يمكن للزوار إنشاء حسابات</small>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col-md-4">
+                <div class="card mb-3 border-primary">
+                  <div class="card-header bg-primary text-white">
+                    <strong><i class="fas fa-code"></i> API</strong>
+                  </div>
+                  <div class="card-body">
+                    <div class="form-check form-switch">
+                      <input class="form-check-input" type="checkbox" name="api_enabled" id="api_enabled" {% if data.general.api_enabled %}checked{% endif %}>
+                      <label class="form-check-label" for="api_enabled">
+                        تفعيل الوصول لـ API<br>
+                        <small class="text-muted">يسمح بالاتصال عبر API</small>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-primary btn-lg">
+                <i class="fas fa-save"></i> حفظ الإعدادات العامة
+              </button>
+            </div>
+          </form>
+        </div>
+        
+        <!-- التبويب 2: التكوينات المتقدمة -->
+        <div class="tab-pane fade {% if active_tab == 'advanced' %}show active{% endif %}" 
+             id="advanced" 
+             role="tabpanel">
+          
+          <div class="alert alert-danger">
+            <i class="fas fa-radiation"></i> <strong>تحذير:</strong> تعديل هذه الإعدادات يؤثر على سلوك النظام!
+          </div>
+          
+          <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="active_tab" value="advanced">
+            
+            <div class="row">
+              <div class="col-md-6">
+                <div class="card mb-3">
+                  <div class="card-header bg-primary text-white">
+                    <strong><i class="fas fa-shield-alt"></i> الجلسات والأمان</strong>
+                  </div>
+                  <div class="card-body">
+                    <div class="mb-3">
+                      <label class="form-label">مهلة الجلسة (ثانية)</label>
+                      <input type="number" name="session_timeout" class="form-control" value="{{ data.advanced.SESSION_TIMEOUT }}">
+                      <small class="text-muted">الافتراضي: 3600 (ساعة واحدة)</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                      <label class="form-label">محاولات الدخول القصوى</label>
+                      <input type="number" name="max_login_attempts" class="form-control" value="{{ data.advanced.MAX_LOGIN_ATTEMPTS }}">
+                      <small class="text-muted">الافتراضي: 5 محاولات</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                      <label class="form-label">الحد الأدنى لطول كلمة المرور</label>
+                      <input type="number" name="password_min_length" class="form-control" value="{{ data.advanced.PASSWORD_MIN_LENGTH }}">
+                      <small class="text-muted">الافتراضي: 8 أحرف</small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col-md-6">
+                <div class="card mb-3">
+                  <div class="card-header bg-success text-white">
+                    <strong><i class="fas fa-database"></i> النسخ الاحتياطي</strong>
+                  </div>
+                  <div class="card-body">
+                    <div class="mb-3">
+                      <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="auto_backup_enabled" id="auto_backup" {% if data.advanced.AUTO_BACKUP_ENABLED %}checked{% endif %}>
+                        <label class="form-check-label" for="auto_backup">
+                          <strong>تفعيل النسخ الاحتياطي التلقائي</strong><br>
+                          <small class="text-muted">ينشئ نسخة تلقائياً حسب الفاصل الزمني</small>
+                        </label>
+                      </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                      <label class="form-label">فاصل النسخ الاحتياطي (ساعات)</label>
+                      <input type="number" name="backup_interval_hours" class="form-control" value="{{ data.advanced.BACKUP_INTERVAL_HOURS }}">
+                      <small class="text-muted">الافتراضي: 24 ساعة (يومياً)</small>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                      <i class="fas fa-info-circle"></i>
+                      <small>النظام يحتفظ بآخر 5 نسخ فقط تلقائياً</small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col-md-6">
+                <div class="card mb-3">
+                  <div class="card-header bg-info text-white">
+                    <strong><i class="fas fa-bell"></i> الإشعارات</strong>
+                  </div>
+                  <div class="card-body">
+                    <div class="mb-3">
+                      <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="enable_email_notifications" id="email_notif" {% if data.advanced.ENABLE_EMAIL_NOTIFICATIONS %}checked{% endif %}>
+                        <label class="form-check-label" for="email_notif">
+                          <strong>إشعارات البريد الإلكتروني</strong><br>
+                          <small class="text-muted">إرسال إشعارات عبر Email</small>
+                        </label>
+                      </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                      <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="enable_sms_notifications" id="sms_notif" {% if data.advanced.ENABLE_SMS_NOTIFICATIONS %}checked{% endif %}>
+                        <label class="form-check-label" for="sms_notif">
+                          <strong>إشعارات SMS</strong><br>
+                          <small class="text-muted">إرسال رسائل نصية</small>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-success btn-lg">
+                <i class="fas fa-save"></i> حفظ التكوينات المتقدمة
+              </button>
+            </div>
+          </form>
+        </div>
+        
+        <!-- التبويب 3: ثوابت الشركة -->
+        <div class="tab-pane fade {% if active_tab == 'constants' %}show active{% endif %}" 
+             id="constants" 
+             role="tabpanel">
+          
+          <div class="alert alert-warning">
+            <i class="fas fa-building"></i> <strong>معلومات الشركة:</strong> هذه البيانات تظهر في الفواتير والتقارير
+          </div>
+          
+          <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="active_tab" value="constants">
+            
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label"><i class="fas fa-building"></i> <strong>اسم الشركة</strong></label>
+                  <input type="text" name="company_name" class="form-control form-control-lg" value="{{ data.constants.COMPANY_NAME }}" placeholder="Azad Garage">
+                </div>
+              </div>
+              
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label"><i class="fas fa-envelope"></i> <strong>البريد الإلكتروني</strong></label>
+                  <input type="email" name="company_email" class="form-control form-control-lg" value="{{ data.constants.COMPANY_EMAIL }}" placeholder="info@azad-garage.ps">
+                </div>
+              </div>
+              
+              <div class="col-md-12">
+                <div class="mb-3">
+                  <label class="form-label"><i class="fas fa-map-marker-alt"></i> <strong>العنوان</strong></label>
+                  <input type="text" name="company_address" class="form-control" value="{{ data.constants.COMPANY_ADDRESS }}" placeholder="رام الله، فلسطين">
+                </div>
+              </div>
+              
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label"><i class="fas fa-phone"></i> <strong>رقم الهاتف</strong></label>
+                  <input type="text" name="company_phone" class="form-control" value="{{ data.constants.COMPANY_PHONE }}" placeholder="+970-XXX-XXXX">
+                </div>
+              </div>
+              
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label"><i class="fas fa-file-invoice"></i> <strong>الرقم الضريبي</strong></label>
+                  <input type="text" name="tax_number" class="form-control" value="{{ data.constants.TAX_NUMBER }}" placeholder="123456789">
+                </div>
+              </div>
+              
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label"><i class="fas fa-dollar-sign"></i> <strong>رمز العملة</strong></label>
+                  <input type="text" name="currency_symbol" class="form-control" value="{{ data.constants.CURRENCY_SYMBOL }}" placeholder="₪">
+                </div>
+              </div>
+              
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label"><i class="fas fa-globe"></i> <strong>المنطقة الزمنية</strong></label>
+                  <select name="timezone" class="form-select">
+                    <option value="UTC" {% if data.constants.TIMEZONE == 'UTC' %}selected{% endif %}>UTC (عالمي)</option>
+                    <option value="Asia/Jerusalem" {% if data.constants.TIMEZONE == 'Asia/Jerusalem' %}selected{% endif %}>القدس (فلسطين)</option>
+                    <option value="Asia/Damascus" {% if data.constants.TIMEZONE == 'Asia/Damascus' %}selected{% endif %}>دمشق (سوريا)</option>
+                    <option value="Asia/Amman" {% if data.constants.TIMEZONE == 'Asia/Amman' %}selected{% endif %}>عمان (الأردن)</option>
+                    <option value="Asia/Riyadh" {% if data.constants.TIMEZONE == 'Asia/Riyadh' %}selected{% endif %}>الرياض (السعودية)</option>
+                    <option value="Asia/Dubai" {% if data.constants.TIMEZONE == 'Asia/Dubai' %}selected{% endif %}>دبي (الإمارات)</option>
+                    <option value="Africa/Cairo" {% if data.constants.TIMEZONE == 'Africa/Cairo' %}selected{% endif %}>القاهرة (مصر)</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label"><i class="fas fa-calendar"></i> <strong>صيغة التاريخ</strong></label>
+                  <select name="date_format" class="form-select">
+                    <option value="%Y-%m-%d" {% if data.constants.DATE_FORMAT == '%Y-%m-%d' %}selected{% endif %}>YYYY-MM-DD (2025-10-16)</option>
+                    <option value="%d/%m/%Y" {% if data.constants.DATE_FORMAT == '%d/%m/%Y' %}selected{% endif %}>DD/MM/YYYY (16/10/2025)</option>
+                    <option value="%m/%d/%Y" {% if data.constants.DATE_FORMAT == '%m/%d/%Y' %}selected{% endif %}>MM/DD/YYYY (10/16/2025)</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label"><i class="fas fa-clock"></i> <strong>صيغة الوقت</strong></label>
+                  <select name="time_format" class="form-select">
+                    <option value="%H:%M:%S" {% if data.constants.TIME_FORMAT == '%H:%M:%S' %}selected{% endif %}>24 ساعة (23:45:30)</option>
+                    <option value="%I:%M:%S %p" {% if data.constants.TIME_FORMAT == '%I:%M:%S %p' %}selected{% endif %}>12 ساعة (11:45:30 PM)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            
+            <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-secondary btn-lg">
+                <i class="fas fa-save"></i> حفظ ثوابت الشركة
+              </button>
+            </div>
+          </form>
+        </div>
+        
+      </div>
+      
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// حفظ التبويب النشط في localStorage
+document.querySelectorAll('#settingsTabs button').forEach(tab => {
+  tab.addEventListener('shown.bs.tab', function (event) {
+    const tabId = event.target.getAttribute('data-bs-target').replace('#', '');
+    localStorage.setItem('settingsActiveTab', tabId);
+  });
+});
+
+// استعادة التبويب النشط
+document.addEventListener('DOMContentLoaded', function() {
+  const savedTab = localStorage.getItem('settingsActiveTab');
+  if (savedTab && !{{ 'true' if active_tab else 'false' }}) {
+    const tabTrigger = document.querySelector(`#settingsTabs button[data-bs-target="#${savedTab}"]`);
+    if (tabTrigger) {
+      bootstrap.Tab.getInstance(tabTrigger)?.show() || new bootstrap.Tab(tabTrigger).show();
+    }
+  }
+});
+</script>
+{% endblock %}

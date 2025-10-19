@@ -24,6 +24,26 @@
 {% block content %}
 <div class="container py-5">
   <!-- تنبيه معلوماتي -->
+  <!-- تنبيه القطع غير المسعّرة -->
+  <div id="unpricedAlert" class="alert alert-warning alert-dismissible fade show mb-4" role="alert" style="display: none;">
+    <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>تنبيه: قطع غير مسعّرة للشركاء</h5>
+    <hr>
+    <p class="mb-2">
+      <strong>هناك <span id="unpricedCount">0</span> قطعة للشركاء غير مسعّرة بشكل كامل.</strong>
+    </p>
+    <p class="mb-2">
+      لإتمام التسويات بشكل صحيح، يجب تسعير هذه القطع (سعر تكلفة + سعر بيع).
+    </p>
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-sm btn-danger" onclick="showUnpricedModal()">
+        <i class="fas fa-tag me-1"></i> تسعير القطع
+      </button>
+      <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="alert">
+        <i class="fas fa-times me-1"></i> تجاهل
+      </button>
+    </div>
+  </div>
+
   <div class="alert alert-info alert-dismissible fade show mb-4" role="alert">
     <h5 class="alert-heading"><i class="fas fa-info-circle me-2"></i>كيفية الوصول للتسويات</h5>
     <hr>
@@ -63,14 +83,14 @@
   <div class="row mb-4">
     <div class="col-md-6">
       <div class="card bg-warning text-white p-3 mb-3 rounded-4 shadow-sm">
-        <h6 class="mb-1">إجمالي المبيعات</h6>
-        <h3 class="mb-0">{{ "%.2f"|format(summary.total_sales) }} ₪</h3>
+        <h6 class="mb-1">عدد الشركاء</h6>
+        <h3 class="mb-0">{{ summary.total_partners }}</h3>
       </div>
     </div>
     <div class="col-md-6">
       <div class="card bg-secondary text-white p-3 mb-3 rounded-4 shadow-sm">
-        <h6 class="mb-1">إجمالي المدفوعات</h6>
-        <h3 class="mb-0">{{ "%.2f"|format(summary.total_payments) }} ₪</h3>
+        <h6 class="mb-1">متوسط الرصيد</h6>
+        <h3 class="mb-0">{{ "%.2f"|format(summary.average_balance) }} ₪</h3>
       </div>
     </div>
   </div>
@@ -297,6 +317,90 @@
       console.log('تم تحديث مستحق قبض:', totalCreditEl.textContent);
     }
   });
+  
+  // التحقق من القطع غير المسعّرة
+  fetch('/partners/unpriced-items')
+    .then(res => res.json())
+    .then(data => {
+      if (data.success && data.count > 0) {
+        document.getElementById('unpricedCount').textContent = data.count;
+        document.getElementById('unpricedAlert').style.display = 'block';
+        
+        // حفظ البيانات للاستخدام في Modal
+        window.unpricedItems = data.items;
+      }
+    })
+    .catch(err => console.error('خطأ في جلب القطع غير المسعّرة:', err));
+});
+</script>
+
+<script>
+// Modal لتسعير القطع
+function showUnpricedModal() {
+  if (!window.unpricedItems || window.unpricedItems.length === 0) {
+    alert('لا توجد قطع غير مسعّرة');
+    return;
+  }
+  
+  // إنشاء HTML للقطع
+  let html = '<div class="list-group">';
+  window.unpricedItems.forEach(item => {
+    const missingText = item.missing.map(m => 
+      m === 'purchase_price' ? 'سعر تكلفة' : 'سعر بيع'
+    ).join(' + ');
+    
+    html += `
+      <div class="list-group-item">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h6 class="mb-1">${item.product_name}</h6>
+            <small class="text-muted">SKU: ${item.sku || '-'} | الشريك: ${item.partner_name} (${item.share_percentage}%)</small>
+            <br>
+            <small class="text-danger">مفقود: ${missingText}</small>
+          </div>
+          <a href="/parts/${item.product_id}/edit" class="btn btn-sm btn-primary" target="_blank">
+            <i class="fas fa-edit"></i> تسعير
+          </a>
+        </div>
+      </div>
+    `;
+  });
+  html += '</div>';
+  
+  // إنشاء Modal ديناميكياً
+  const modal = document.createElement('div');
+  modal.className = 'modal fade';
+  modal.id = 'pricingModal';
+  modal.setAttribute('tabindex', '-1');
+  modal.innerHTML = `
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header bg-warning">
+          <h5 class="modal-title"><i class="fas fa-tag me-2"></i> قطع الشركاء غير المسعّرة</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-info">
+            <strong>تعليمات:</strong> انقر على زر "تسعير" بجانب كل قطعة لتحديث أسعارها.
+          </div>
+          ${html}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  const modalInstance = new bootstrap.Modal(modal);
+  modalInstance.show();
+  
+  // حذف Modal عند الإغلاق
+  modal.addEventListener('hidden.bs.modal', () => {
+    modal.remove();
+  });
+}
 </script>
 
 <script>

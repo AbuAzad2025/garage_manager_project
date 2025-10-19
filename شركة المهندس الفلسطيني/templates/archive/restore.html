@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}استعادة الأرشيف{% endblock %}
+{% block page_header %}🔄 استعادة الأرشيف #{{ archive.id }}{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+  
+  <div class="alert alert-info border-0 shadow-sm mb-4">
+    <i class="fas fa-info-circle"></i>
+    <strong>معلومات الاستعادة:</strong> سيتم استعادة السجل المؤرشف إلى الجدول الأصلي وحذف الأرشيف. 
+    تأكد من صحة البيانات قبل الاستعادة.
+  </div>
+
+  <!-- معلومات الأرشيف -->
+  <div class="card border-0 shadow-lg mb-4">
+    <div class="card-header bg-gradient-success text-white">
+      <h5 class="mb-0"><i class="fas fa-archive"></i> معلومات الأرشيف المراد استعادته</h5>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-6">
+          <table class="table table-borderless">
+            <tr>
+              <th>نوع السجل:</th>
+              <td>
+                {% if archive.record_type == 'service_requests' %}
+                <span class="badge bg-primary"><i class="fas fa-tools"></i> طلب صيانة</span>
+                {% elif archive.record_type == 'payments' %}
+                <span class="badge bg-success"><i class="fas fa-credit-card"></i> دفعة</span>
+                {% elif archive.record_type == 'sales' %}
+                <span class="badge bg-info"><i class="fas fa-shopping-cart"></i> مبيعة</span>
+                {% elif archive.record_type == 'expenses' %}
+                <span class="badge bg-warning"><i class="fas fa-receipt"></i> نفقة</span>
+                {% elif archive.record_type == 'checks' %}
+                <span class="badge bg-danger"><i class="fas fa-money-check"></i> شيك</span>
+                {% else %}
+                <span class="badge bg-secondary">{{ archive.record_type }}</span>
+                {% endif %}
+              </td>
+            </tr>
+            <tr>
+              <th>معرف السجل:</th>
+              <td><strong>#{{ archive.record_id }}</strong></td>
+            </tr>
+            <tr>
+              <th>تاريخ الأرشفة:</th>
+              <td>{{ archive.archived_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+            </tr>
+          </table>
+        </div>
+        <div class="col-md-6">
+          <table class="table table-borderless">
+            <tr>
+              <th>أرشفة بواسطة:</th>
+              <td>{{ archive.user.username if archive.user else 'غير معروف' }}</td>
+            </tr>
+            <tr>
+              <th>سبب الأرشفة:</th>
+              <td>{{ archive.archive_reason or 'بدون سبب' }}</td>
+            </tr>
+            <tr>
+              <th>تاريخ الإنشاء الأصلي:</th>
+              <td>{{ archive.original_created_at.strftime('%Y-%m-%d %H:%M:%S') if archive.original_created_at else 'غير محدد' }}</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- نموذج الاستعادة -->
+  <div class="card border-0 shadow-lg">
+    <div class="card-header bg-gradient-warning text-dark">
+      <h5 class="mb-0"><i class="fas fa-undo"></i> نموذج استعادة السجل</h5>
+    </div>
+    <div class="card-body">
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="row g-3">
+          <div class="col-md-12">
+            <label for="reason" class="form-label fw-bold">سبب الاستعادة</label>
+            <textarea name="reason" id="reason" class="form-control" rows="3" required placeholder="أدخل سبب استعادة هذا السجل"></textarea>
+            <div class="form-text">أدخل سبب استعادة هذا السجل</div>
+          </div>
+          
+          <div class="col-12">
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+              <button type="submit" class="btn btn-success fw-bold" onclick="return confirm('هل أنت متأكد من استعادة هذا السجل؟')">
+                <i class="fas fa-undo"></i> استعادة السجل
+              </button>
+              <a href="{{ url_for('archive.view_archive', archive_id=archive.id) }}" class="btn btn-outline-secondary">
+                <i class="fas fa-times"></i> إلغاء
+              </a>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- تحذيرات -->
+  <div class="row g-3 mt-4">
+    <div class="col-md-6">
+      <div class="card border-warning">
+        <div class="card-body">
+          <h6 class="text-warning"><i class="fas fa-exclamation-triangle"></i> تحذيرات مهمة</h6>
+          <ul class="mb-0">
+            <li>سيتم حذف الأرشيف نهائياً</li>
+            <li>السجل سيظهر في الجدول الأصلي</li>
+            <li>قد يتغير معرف السجل الجديد</li>
+            <li>تأكد من عدم وجود تعارضات</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-6">
+      <div class="card border-info">
+        <div class="card-body">
+          <h6 class="text-info"><i class="fas fa-info-circle"></i> معلومات إضافية</h6>
+          <ul class="mb-0">
+            <li>البيانات محفوظة بأمان</li>
+            <li>يمكن استعادة السجل مرة أخرى</li>
+            <li>التواريخ الأصلية محفوظة</li>
+            <li>سجل الاستعادة سيُحفظ</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

@@ -1,0 +1,144 @@
+{% extends 'shop/base.html' %}
+{% block title %}وصل الطلب #{{ preorder.order_number }}{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
+{% set _size = (request.args.get('s','a4')|lower) %}
+{% set _ori  = (request.args.get('o','portrait')|lower) %}
+{% if _size == 'a5' %}{% set W=148 %}{% set H=210 %}{% else %}{% set W=210 %}{% set H=297 %}{% endif %}
+{% if _ori == 'landscape' %}{% set PW=H %}{% set PH=W %}{% else %}{% set PW=W %}{% set PH=H %}{% endif %}
+{% set MT=12 %}{% set MR=12 %}{% set ML=12 %}
+
+<style>
+  @page{size:{{PW}}mm {{PH}}mm;margin:{{MT}}mm {{MR}}mm {{MT}}mm {{ML}}mm}
+  html,body{direction:rtl;text-align:right}
+  .receipt-paper{max-width:900px;margin:0 auto}
+  .num{font-variant-numeric:tabular-nums}
+  .table-receipt{width:100%;border-collapse:collapse;table-layout:fixed}
+  .table-receipt th,.table-receipt td{border:1px solid #dee2e6;padding:8px;vertical-align:middle}
+  .table-receipt thead th{background:#f1f3f5;font-weight:700;color:#212529;white-space:nowrap}
+  .table-receipt tfoot td{font-weight:700;background:#fafafa}
+  .table-receipt col.col-prod{width:52%}
+  .table-receipt col.col-qty {width:12%}
+  .table-receipt col.col-price{width:18%}
+  .table-receipt col.col-sum  {width:18%}
+  .receipt-header{border-bottom:2px solid #1a237e;margin-bottom:20px;padding-bottom:10px}
+  .receipt-footer{text-align:center;margin-top:30px;font-size:0.9rem;color:#555}
+  @media print{
+    nav,.navbar,.sidebar,.btn,.alert,.breadcrumb,.footer,.no-print{display:none!important}
+    .card{box-shadow:none!important;border:0!important}
+    thead{display:table-header-group}
+    tfoot{display:table-footer-group}
+    .receipt-paper{max-width:none;width:100%}
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="receipt-paper">
+  <div class="receipt-header d-flex justify-content-between align-items-center">
+    <div>
+      <h4 class="mb-0">Azad Store</h4>
+      <small class="text-muted">وصل شراء رسمي</small>
+    </div>
+    <img src="{{ url_for('static', filename='img/azad_logo.png') }}" alt="Logo" height="50">
+  </div>
+
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+      <div>
+        <div class="fw-bold">وصل الطلب</div>
+        <small class="text-muted">رقم: {{ preorder.order_number }}</small>
+      </div>
+      <span class="badge bg-{{
+          'success' if preorder.status == 'FULFILLED' else
+          'warning' if preorder.status == 'CONFIRMED' else
+          'info'    if preorder.status == 'PENDING'   else 'secondary' }}">
+        {{
+          'مكتمل' if preorder.status == 'FULFILLED' else
+          'مؤكد'  if preorder.status == 'CONFIRMED' else
+          'قيد الانتظار' if preorder.status == 'PENDING' else 'ملغي' }}
+      </span>
+    </div>
+
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <h6 class="mb-2">تفاصيل الطلب</h6>
+          <ul class="list-unstyled mb-0">
+            <li><strong>رقم الطلب:</strong> {{ preorder.order_number }}</li>
+            <li><strong>التاريخ:</strong> {{ preorder.created_at.strftime('%Y-%m-%d %H:%M') if preorder.created_at else '—' }}</li>
+            <li><strong>الحالة:</strong> {{
+              'مكتمل' if preorder.status == 'FULFILLED' else
+              'مؤكد'  if preorder.status == 'CONFIRMED' else
+              'قيد الانتظار' if preorder.status == 'PENDING' else 'ملغي' }}</li>
+          </ul>
+        </div>
+        <div class="col-md-6">
+          <h6 class="mb-2">تفاصيل الزبون</h6>
+          <ul class="list-unstyled mb-0">
+            <li><strong>الاسم:</strong>  {{ preorder.customer.name  if preorder.customer else '—' }}</li>
+            <li><strong>الهاتف:</strong> {{ preorder.customer.phone if preorder.customer else '—' }}</li>
+            <li><strong>البريد:</strong> {{ preorder.customer.email if preorder.customer else '—' }}</li>
+          </ul>
+        </div>
+      </div>
+
+      <hr>
+      <h6 class="mb-3">المنتجات</h6>
+      <div class="table-responsive">
+        <table class="table-receipt">
+          <colgroup>
+            <col class="col-prod"><col class="col-qty"><col class="col-price"><col class="col-sum">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>المنتج</th>
+              <th class="text-center">الكمية</th>
+              <th class="text-end">السعر</th>
+              <th class="text-end">الإجمالي</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in preorder.items or [] %}
+            {% set display_name = item.product.commercial_name or item.product.name %}
+            <tr>
+              <td>{{ display_name }}</td>
+              <td class="text-center num">{{ item.quantity }}</td>
+              <td class="text-end num">{{ '%.2f'|format(item.price or 0) }}</td>
+              <td class="text-end num">{{ '%.2f'|format((item.quantity or 0) * (item.price or 0)) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="3" class="text-end">المجموع الكلي</td>
+              <td class="text-end num">{{ '%.2f'|format(preorder.total_amount or 0) }} شيكل</td>
+            </tr>
+            <tr>
+              <td colspan="3" class="text-end">المبلغ المطلوب كعربون</td>
+              <td class="text-end num">{{ '%.2f'|format(preorder.prepaid_amount or 0) }} شيكل</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-between no-print">
+    <a href="{{ url_for('shop.preorder_list') }}" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-right me-2"></i> الرجوع لقائمة الطلبات
+    </a>
+    <button onclick="window.print()" class="btn btn-primary">
+      <i class="fas fa-print me-2"></i> طباعة الوصل
+    </button>
+  </div>
+
+  <div class="receipt-footer">
+    <p>شكرًا لتسوقك معنا 💙</p>
+    <small>Azad Store - جميع الحقوق محفوظة</small>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}{{ super() }}{% endblock %}

@@ -1,0 +1,699 @@
+{% extends "base.html" %}
+{% block title %}ملفي الشخصي{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+<li class="breadcrumb-item active">ملفي الشخصي</li>
+{% endblock %}
+
+{% block head_extra %}
+  {{ super() }}
+  <style>
+    /* تصميم البروفايل الجديد */
+    .profile-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 15px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .profile-header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+      opacity: 0.3;
+    }
+    
+    .profile-avatar {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      border: 4px solid rgba(255,255,255,0.3);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      transition: all 0.3s ease;
+      position: relative;
+      z-index: 2;
+    }
+    
+    .profile-avatar:hover {
+      transform: scale(1.05);
+      border-color: rgba(255,255,255,0.8);
+    }
+    
+    .profile-info {
+      position: relative;
+      z-index: 2;
+    }
+    
+    .profile-name {
+      font-size: 2rem;
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .profile-role {
+      font-size: 1.1rem;
+      opacity: 0.9;
+      margin-bottom: 1rem;
+    }
+    
+    .profile-status {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.5rem 1rem;
+      border-radius: 25px;
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+    
+    .status-active {
+      background: rgba(40, 167, 69, 0.2);
+      color: #28a745;
+      border: 1px solid rgba(40, 167, 69, 0.3);
+    }
+    
+    .status-inactive {
+      background: rgba(108, 117, 125, 0.2);
+      color: #6c757d;
+      border: 1px solid rgba(108, 117, 125, 0.3);
+    }
+    
+    /* البطاقات */
+    .stats-card {
+      background: white;
+      border-radius: 15px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      border: none;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .stats-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+    }
+    
+    .stats-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+    }
+    
+    .stat-icon {
+      width: 60px;
+      height: 60px;
+      border-radius: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      color: white;
+      margin-bottom: 1rem;
+    }
+    
+    .stat-number {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 0.5rem;
+    }
+    
+    .stat-label {
+      color: #666;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+    
+    /* معلومات مفصلة */
+    .info-section {
+      background: white;
+      border-radius: 15px;
+      padding: 2rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      margin-bottom: 2rem;
+    }
+    
+    .info-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #f8f9fa;
+    }
+    
+    .info-header i {
+      font-size: 1.5rem;
+      margin-left: 1rem;
+      color: #667eea;
+    }
+    
+    .info-header h4 {
+      margin: 0;
+      color: #333;
+      font-weight: 600;
+    }
+    
+    .info-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 0;
+      border-bottom: 1px solid #f8f9fa;
+    }
+    
+    .info-item:last-child {
+      border-bottom: none;
+    }
+    
+    .info-label {
+      font-weight: 600;
+      color: #555;
+      display: flex;
+      align-items: center;
+    }
+    
+    .info-label i {
+      margin-left: 0.5rem;
+      color: #667eea;
+      width: 20px;
+    }
+    
+    .info-value {
+      color: #333;
+      text-align: left;
+      direction: ltr;
+    }
+    
+    /* الصلاحيات */
+    .permission-badge {
+      display: inline-block;
+      background: linear-gradient(45deg, #667eea, #764ba2);
+      color: white;
+      padding: 0.4rem 1rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      margin: 0.2rem;
+      transition: all 0.3s ease;
+    }
+    
+    .permission-badge:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    /* الأنشطة الأخيرة */
+    .activity-item {
+      display: flex;
+      align-items: center;
+      padding: 1rem;
+      border-radius: 10px;
+      margin-bottom: 0.5rem;
+      background: #f8f9fa;
+      transition: all 0.3s ease;
+    }
+    
+    .activity-item:hover {
+      background: #e9ecef;
+      transform: translateX(5px);
+    }
+    
+    .activity-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 1rem;
+      color: white;
+      font-size: 0.9rem;
+    }
+    
+    .activity-content {
+      flex: 1;
+    }
+    
+    .activity-title {
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 0.2rem;
+    }
+    
+    .activity-time {
+      font-size: 0.8rem;
+      color: #666;
+    }
+    
+    /* الأزرار */
+    .action-btn {
+      padding: 0.75rem 2rem;
+      border-radius: 25px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .btn-primary-gradient {
+      background: linear-gradient(45deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+    }
+    
+    .btn-primary-gradient:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+      color: white;
+    }
+    
+    .btn-outline-gradient {
+      background: transparent;
+      color: #667eea;
+      border: 2px solid #667eea;
+    }
+    
+    .btn-outline-gradient:hover {
+      background: linear-gradient(45deg, #667eea, #764ba2);
+      color: white;
+      transform: translateY(-2px);
+    }
+    
+    /* الاستجابة */
+    @media (max-width: 768px) {
+      .profile-header {
+        padding: 1.5rem;
+        text-align: center;
+      }
+      
+      .profile-name {
+        font-size: 1.5rem;
+      }
+      
+      .stats-card {
+        margin-bottom: 1rem;
+      }
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid" dir="rtl">
+  <!-- رأس البروفايل -->
+  <div class="profile-header text-center">
+    <div class="row align-items-center">
+      <div class="col-md-3">
+        {% if current_user.avatar_url %}
+          <img class="profile-avatar" 
+               src="{{ current_user.avatar_url }}"
+               alt="صورة المستخدم">
+        {% else %}
+          <div class="profile-avatar d-flex align-items-center justify-content-center" 
+               style="background: linear-gradient(45deg, #007bff, #28a745); color: white; font-weight: bold; font-size: 36px;">
+            {{ current_user.avatar_or_initials }}
+          </div>
+        {% endif %}
+      </div>
+      <div class="col-md-9 profile-info text-md-right text-center">
+        <h1 class="profile-name">{{ user.username }}</h1>
+        <p class="profile-role">{{ user.role.name if user.role else "بدون دور" }}</p>
+        <div class="profile-status {{ 'status-active' if user.is_active else 'status-inactive' }}">
+          <i class="fas fa-circle mr-2"></i>
+          {{ 'نشط' if user.is_active else 'موقوف' }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- الإحصائيات -->
+  <div class="row mb-4">
+    <div class="col-md-3 col-sm-6 mb-3">
+      <div class="stats-card text-center">
+        <div class="stat-icon" style="background: linear-gradient(45deg, #28a745, #20c997);">
+          <i class="fas fa-sign-in-alt"></i>
+        </div>
+        <div class="stat-number">{{ user.login_count or 0 }}</div>
+        <div class="stat-label">مرات الدخول</div>
+      </div>
+    </div>
+    
+    <div class="col-md-3 col-sm-6 mb-3">
+      <div class="stats-card text-center">
+        <div class="stat-icon" style="background: linear-gradient(45deg, #007bff, #6610f2);">
+          <i class="fas fa-calendar-plus"></i>
+        </div>
+        <div class="stat-number">{{ (user.created_at.strftime('%Y-%m-%d') if user.created_at else 'غير محدد') }}</div>
+        <div class="stat-label">تاريخ الإنشاء</div>
+      </div>
+    </div>
+    
+    <div class="col-md-3 col-sm-6 mb-3">
+      <div class="stats-card text-center">
+        <div class="stat-icon" style="background: linear-gradient(45deg, #fd7e14, #e83e8c);">
+          <i class="fas fa-clock"></i>
+        </div>
+        <div class="stat-number">
+          {% if user.last_login %}
+            {{ user.last_login.strftime('%H:%M') }}
+          {% else %}
+            --
+          {% endif %}
+        </div>
+        <div class="stat-label">آخر دخول</div>
+      </div>
+    </div>
+    
+    <div class="col-md-3 col-sm-6 mb-3">
+      <div class="stats-card text-center">
+        <div class="stat-icon" style="background: linear-gradient(45deg, #6f42c1, #e83e8c);">
+          <i class="fas fa-shield-alt"></i>
+        </div>
+        <div class="stat-number">
+          {% set perms = (user.extra_permissions.all() if user.extra_permissions else []) | list %}
+          {{ perms|length }}
+        </div>
+        <div class="stat-label">صلاحيات إضافية</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- المعلومات الشخصية -->
+    <div class="col-md-6 mb-4">
+      <div class="info-section">
+        <div class="info-header">
+          <i class="fas fa-user"></i>
+          <h4>المعلومات الشخصية</h4>
+        </div>
+        
+        <div class="info-item">
+          <span class="info-label">
+            <i class="fas fa-envelope"></i>
+            البريد الإلكتروني
+          </span>
+          <span class="info-value">
+            {% if user.email %}
+              <a href="mailto:{{ user.email }}" class="text-primary">{{ user.email }}</a>
+            {% else %}
+              <span class="text-muted">غير محدد</span>
+            {% endif %}
+          </span>
+        </div>
+        
+        <div class="info-item">
+          <span class="info-label">
+            <i class="fas fa-network-wired"></i>
+            آخر عنوان IP
+          </span>
+          <span class="info-value">
+            {% if user.last_login_ip %}
+              <code>{{ user.last_login_ip }}</code>
+            {% else %}
+              <span class="text-muted">غير محدد</span>
+            {% endif %}
+          </span>
+        </div>
+        
+        <div class="info-item">
+          <span class="info-label">
+            <i class="fas fa-eye"></i>
+            آخر ظهور
+          </span>
+          <span class="info-value">
+            {% if user.last_seen %}
+              <span title="{{ user.last_seen|format_datetime }}">{{ user.last_seen|format_datetime }}</span>
+              <br><small class="text-muted timeago" data-dt="{{ user.last_seen.isoformat() }}"></small>
+            {% else %}
+              <span class="text-muted">غير محدد</span>
+            {% endif %}
+          </span>
+        </div>
+        
+        <div class="info-item">
+          <span class="info-label">
+            <i class="fas fa-calendar-alt"></i>
+            آخر دخول
+          </span>
+          <span class="info-value">
+            {% if user.last_login %}
+              <span title="{{ user.last_login|format_datetime }}">{{ user.last_login|format_datetime }}</span>
+              <br><small class="text-muted timeago" data-dt="{{ user.last_login.isoformat() }}"></small>
+            {% else %}
+              <span class="text-muted">لم يسجل دخول بعد</span>
+            {% endif %}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- الصلاحيات والأدوار -->
+    <div class="col-md-6 mb-4">
+      <div class="info-section">
+        <div class="info-header">
+          <i class="fas fa-shield-alt"></i>
+          <h4>الصلاحيات والأدوار</h4>
+        </div>
+        
+        <div class="info-item">
+          <span class="info-label">
+            <i class="fas fa-crown"></i>
+            الدور الأساسي
+          </span>
+          <span class="info-value">
+            <span class="badge badge-primary badge-lg">{{ user.role.name if user.role else 'بدون دور' }}</span>
+          </span>
+        </div>
+        
+        <div class="info-item">
+          <span class="info-label">
+            <i class="fas fa-key"></i>
+            الصلاحيات الإضافية
+          </span>
+          <span class="info-value">
+            {% set perms = (user.extra_permissions.all() if user.extra_permissions else []) | list %}
+            {% if perms|length %}
+              <div class="mt-2">
+                {% for p in perms %}
+                  <span class="permission-badge">
+                    {{ p.display_name if p.display_name is defined else (p.name_ar or p.name) }}
+                  </span>
+                {% endfor %}
+              </div>
+            {% else %}
+              <span class="text-muted">لا توجد صلاحيات إضافية</span>
+            {% endif %}
+          </span>
+        </div>
+        
+        <div class="info-item">
+          <span class="info-label">
+            <i class="fas fa-check-circle"></i>
+            حالة الحساب
+          </span>
+          <span class="info-value">
+            {% if user.is_active %}
+              <span class="badge badge-success">
+                <i class="fas fa-check mr-1"></i>
+                نشط
+              </span>
+            {% else %}
+              <span class="badge badge-secondary">
+                <i class="fas fa-times mr-1"></i>
+                موقوف
+              </span>
+            {% endif %}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- الأنشطة الأخيرة (مثال) -->
+  <div class="row">
+    <div class="col-12">
+      <div class="info-section">
+        <div class="info-header">
+          <i class="fas fa-history"></i>
+          <h4>الأنشطة الأخيرة</h4>
+        </div>
+        
+        <div class="activity-item">
+          <div class="activity-icon" style="background: linear-gradient(45deg, #28a745, #20c997);">
+            <i class="fas fa-sign-in-alt"></i>
+          </div>
+          <div class="activity-content">
+            <div class="activity-title">تسجيل دخول ناجح</div>
+            <div class="activity-time">
+              {% if user.last_login %}
+                {{ user.last_login|format_datetime }}
+              {% else %}
+                لم يسجل دخول بعد
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        
+        <div class="activity-item">
+          <div class="activity-icon" style="background: linear-gradient(45deg, #007bff, #6610f2);">
+            <i class="fas fa-user-cog"></i>
+          </div>
+          <div class="activity-content">
+            <div class="activity-title">إنشاء الحساب</div>
+            <div class="activity-time">
+              {% if user.created_at %}
+                {{ user.created_at|format_datetime }}
+              {% else %}
+                غير محدد
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        
+        <div class="activity-item">
+          <div class="activity-icon" style="background: linear-gradient(45deg, #fd7e14, #e83e8c);">
+            <i class="fas fa-eye"></i>
+          </div>
+          <div class="activity-content">
+            <div class="activity-title">آخر ظهور في النظام</div>
+            <div class="activity-time">
+              {% if user.last_seen %}
+                {{ user.last_seen|format_datetime }}
+              {% else %}
+                لم يظهر بعد
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- أزرار الإجراءات -->
+  <div class="row">
+    <div class="col-12 text-center">
+      <div class="d-flex justify-content-center flex-wrap gap-3">
+        {# SECURITY MODULE - Owner only (CONFIDENTIAL) #}
+        {% if current_user.is_system or current_user.username == '__OWNER__' %}
+          <a href="{{ url_for('security.index') }}" class="action-btn" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);">
+            <i class="fas fa-shield-alt mr-2"></i>
+            🔒 اللوحة السرية (المالك فقط)
+          </a>
+        {% endif %}
+        
+        {% if has_perm('manage_users') %}
+          <a href="{{ url_for('users_bp.edit_user', user_id=user.id) }}" class="action-btn btn-primary-gradient">
+            <i class="fas fa-edit mr-2"></i>
+            تعديل الحساب
+          </a>
+        {% endif %}
+        
+        <a href="{{ url_for('users_bp.change_password') }}" class="action-btn btn-outline-gradient">
+          <i class="fas fa-key mr-2"></i>
+          تغيير كلمة المرور
+        </a>
+        
+        <a href="{{ url_for('main.dashboard') }}" class="action-btn btn-outline-gradient">
+          <i class="fas fa-arrow-left mr-2"></i>
+          رجوع
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script>
+    // تحديث الوقت النسبي
+    function fromNowArabic(iso){
+      if(!iso) return '';
+      var d=new Date(iso); 
+      if(isNaN(d)) return '';
+      var s=Math.floor((Date.now()-d.getTime())/1000), v=s, u='ثانية';
+      
+      if(s>=31536000){v=Math.floor(s/31536000);u='سنة';}
+      else if(s>=2592000){v=Math.floor(s/2592000);u='شهر';}
+      else if(s>=604800){v=Math.floor(s/604800);u='أسبوع';}
+      else if(s>=86400){v=Math.floor(s/86400);u='يوم';}
+      else if(s>=3600){v=Math.floor(s/3600);u='ساعة';}
+      else if(s>=60){v=Math.floor(s/60);u='دقيقة';}
+      
+      return 'منذ ' + v + ' ' + u;
+    }
+    
+    function renderAll(){
+      document.querySelectorAll('.timeago').forEach(function(el){
+        var iso=el.getAttribute('data-dt');
+        if(!iso) return;
+        el.textContent = fromNowArabic(iso);
+      });
+    }
+    
+    // تحديث فوري
+    renderAll();
+    
+    // تحديث كل دقيقة
+    setInterval(renderAll, 60000);
+    
+    // تأثيرات تفاعلية
+    document.addEventListener('DOMContentLoaded', function() {
+      // تأثير الكتابة للاسم
+      const nameElement = document.querySelector('.profile-name');
+      if (nameElement) {
+        const text = nameElement.textContent;
+        nameElement.textContent = '';
+        let i = 0;
+        
+        function typeWriter() {
+          if (i < text.length) {
+            nameElement.textContent += text.charAt(i);
+            i++;
+            setTimeout(typeWriter, 100);
+          }
+        }
+        
+        setTimeout(typeWriter, 500);
+      }
+      
+      // تأثير العد للإحصائيات
+      const statNumbers = document.querySelectorAll('.stat-number');
+      statNumbers.forEach(stat => {
+        const target = parseInt(stat.textContent) || 0;
+        if (target > 0) {
+          let current = 0;
+          const increment = target / 50;
+          
+          function updateNumber() {
+            if (current < target) {
+              current += increment;
+              stat.textContent = Math.floor(current);
+              setTimeout(updateNumber, 50);
+            } else {
+              stat.textContent = target;
+            }
+          }
+          
+          setTimeout(updateNumber, 1000);
+        }
+      });
+    });
+  </script>
+{% endblock %}

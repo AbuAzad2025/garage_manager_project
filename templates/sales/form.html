@@ -33,7 +33,7 @@
     /* بنود الفاتورة */
     .sale-line{
       display:grid;
-      grid-template-columns: 4fr 2fr 1fr 1fr 2fr; /* منتج | مستودع | كمية | سعر | إجراءات */
+      grid-template-columns: 2fr 4fr 1fr 1fr 2fr; /* مستودع | منتج | كمية | سعر | إجراءات */
       grid-gap:8px; align-items:start;
     }
     @media(max-width:992px){
@@ -134,12 +134,12 @@
                   {% for line in form.lines %}
                   <div class="sale-line mb-2 p-2 border rounded bg-white" data-index="{{ loop.index0 }}">
                     <div class="form-group">
-                      {{ line.product_id(class="form-control select2 ajax-select product-select", required=True,
-                        **{'data-endpoint': url_for('api.products'),'data-placeholder':'اختر الصنف','data-allow-clear':1}) }}
-                    </div>
-                    <div class="form-group">
                       {{ line.warehouse_id(class="form-control select2 ajax-select warehouse-select", required=True,
                         **{'data-endpoint': url_for('api.warehouses'),'data-placeholder':'اختر المستودع','data-allow-clear':1}) }}
+                    </div>
+                    <div class="form-group">
+                      {{ line.product_id(class="form-control select2 ajax-select product-select", required=True,
+                        **{'data-endpoint': url_for('api.products'),'data-placeholder':'اختر الصنف','data-allow-clear':1}) }}
                     </div>
                     <div class="form-group">
                       {{ line.quantity(class="form-control quantity-input", min="1", step="1", required=True, placeholder="الكمية") }}

@@ -1684,6 +1684,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
     credit_limit = Column(Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
     discount_rate = Column(Numeric(5, 2), default=0, nullable=False, server_default=sa_text("0"))
     currency = Column(String(10), default="ILS", nullable=False, server_default=sa_text("'ILS'"))
+    opening_balance = Column(Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"), comment="الرصيد الافتتاحي (موجب=له علينا، سالب=عليه لنا)")
 
     sales = relationship("Sale", back_populates="customer")
     preorders = relationship("PreOrder", back_populates="customer")
@@ -1964,6 +1965,7 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
     balance = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
     payment_terms = db.Column(db.String(50))
     currency = db.Column(db.String(10), default="ILS", nullable=False, server_default=sa_text("'ILS'"))
+    opening_balance = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"), comment="الرصيد الافتتاحي (موجب=له علينا، سالب=عليه لنا)")
     
     # ربط تلقائي مع جدول العملاء
     customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"), index=True, nullable=True)
@@ -2174,15 +2176,9 @@ def supplier_after_insert_create_customer(mapper, connection, target):
     if not target.customer_id:
         from sqlalchemy import insert as sa_insert, select as sa_select, update as sa_update
         
-        # البحث عن عميل موجود
+        # البحث عن عميل موجود بالهاتف
         existing_customer_id = None
-        if target.identity_number:
-            result = connection.execute(
-                sa_select(Customer.id).where(Customer.identity_number == target.identity_number)
-            ).first()
-            if result:
-                existing_customer_id = result[0]
-        elif target.phone:
+        if target.phone:
             result = connection.execute(
                 sa_select(Customer.id).where(Customer.phone == target.phone)
             ).first()
@@ -2205,13 +2201,12 @@ def supplier_after_insert_create_customer(mapper, connection, target):
             result = connection.execute(
                 sa_insert(Customer).values(
                     name=f"{target.name} (مورد)",
-                    identity_number=target.identity_number,
-                    phone=target.phone,
-                    email=target.email,
+                    phone=target.phone or "0000000000",  # قيمة افتراضية إذا لم يكن هناك رقم
+                    whatsapp=target.phone or "0000000000",
+                    email=target.email or f"supplier_{target.id}@temp.local",
                     address=target.address,
                     currency=target.currency,
                     credit_limit=0,
-                    current_balance=0,
                     notes=f"عميل مرتبط بالمورد #{target.id}",
                     created_at=datetime.now(timezone.utc)
                 ).returning(Customer.id)
@@ -2528,6 +2523,7 @@ class Partner(db.Model, TimestampMixin, AuditMixin):
     balance = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
     share_percentage = db.Column(db.Numeric(5, 2), default=0, nullable=False, server_default=sa_text("0"))
     currency = db.Column(db.String(10), default="ILS", nullable=False, server_default=sa_text("'ILS'"))
+    opening_balance = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"), comment="الرصيد الافتتاحي (موجب=له علينا، سالب=عليه لنا)")
     notes = db.Column(db.Text)
     
     # ربط تلقائي مع جدول العملاء
@@ -2774,6 +2770,161 @@ def _partner_before_update(_m, _c, t: Partner):
     t.email = (t.email or "").strip().lower() or None
     t.currency = (t.currency or "ILS").upper()
     t.name = (t.name or "").strip()
+
+def update_partner_balance(partner_id: int, connection=None):
+    """
+    تحديث رصيد الشريك تلقائياً بناءً على جميع المعاملات
+    """
+    from datetime import datetime
+    from sqlalchemy import text as sa_text
+    
+    # استخدام connection إذا كان متاحاً (داخل event listener)
+    # وإلا استخدام db.session
+    if connection is None:
+        connection = db.session.connection()
+    
+    # حساب الرصيد من جميع المعاملات
+    # هذا استعلام SQL مباشر لتجنب مشاكل الـ circular imports
+    query = sa_text("""
+        WITH partner_data AS (
+            SELECT :partner_id as pid
+        ),
+        -- حقوق الشريك (نصيبه من المبيعات)
+        sales_share AS (
+            SELECT COALESCE(SUM(
+                sl.quantity * sl.unit_price * 
+                COALESCE(pp.share_percent, wps.share_percentage, 0) / 100
+            ), 0) as total
+            FROM sales s
+            JOIN sale_lines sl ON sl.sale_id = s.id
+            JOIN products p ON p.id = sl.product_id
+            LEFT JOIN product_partners pp ON pp.product_id = p.id AND pp.partner_id = :partner_id
+            LEFT JOIN warehouse_partner_shares wps ON wps.product_id = p.id AND wps.partner_id = :partner_id
+            WHERE s.status = 'CONFIRMED'
+            AND (pp.partner_id IS NOT NULL OR wps.partner_id IS NOT NULL)
+        ),
+        -- التزامات الشريك (مبيعات له كعميل)
+        sales_to_partner AS (
+            SELECT COALESCE(SUM(s.total_amount), 0) as total
+            FROM sales s
+            JOIN partners par ON par.customer_id = s.customer_id
+            WHERE par.id = :partner_id
+            AND s.status = 'CONFIRMED'
+        ),
+        -- الدفعات الواردة من الشريك
+        payments_in AS (
+            SELECT COALESCE(SUM(p.total_amount), 0) as total
+            FROM payments p
+            LEFT JOIN sales s ON s.id = p.sale_id
+            LEFT JOIN partners par ON par.customer_id = s.customer_id
+            WHERE p.status = 'COMPLETED'
+            AND p.direction = 'IN'
+            AND (
+                p.partner_id = :partner_id
+                OR p.customer_id = (SELECT customer_id FROM partners WHERE id = :partner_id)
+                OR par.id = :partner_id
+            )
+        ),
+        -- الدفعات الصادرة للشريك
+        payments_out AS (
+            SELECT COALESCE(SUM(p.total_amount), 0) as total
+            FROM payments p
+            WHERE p.status = 'COMPLETED'
+            AND p.direction = 'OUT'
+            AND p.partner_id = :partner_id
+        )
+        SELECT 
+            (SELECT total FROM sales_share) - 
+            (SELECT total FROM sales_to_partner) - 
+            (SELECT total FROM payments_out) + 
+            (SELECT total FROM payments_in) + 
+            COALESCE((SELECT opening_balance FROM partners WHERE id = :partner_id), 0) as balance
+    """)
+    
+    result = connection.execute(query, {"partner_id": partner_id}).fetchone()
+    balance = float(result[0] if result else 0)
+    
+    # تحديث رصيد الشريك
+    update_query = sa_text("UPDATE partners SET balance = :balance WHERE id = :partner_id")
+    connection.execute(update_query, {"balance": balance, "partner_id": partner_id})
+    
+    return balance
+
+def update_supplier_balance(supplier_id: int, connection=None):
+    """
+    تحديث رصيد المورد تلقائياً بناءً على جميع المعاملات
+    """
+    from sqlalchemy import text as sa_text
+    
+    if connection is None:
+        connection = db.session.connection()
+    
+    # حساب الرصيد من جميع المعاملات
+    query = sa_text("""
+        WITH supplier_data AS (
+            SELECT :supplier_id as sid
+        ),
+        -- حقوق المورد (قيمة القطع في مستودع التبادل)
+        exchange_items AS (
+            SELECT COALESCE(SUM(et.quantity * et.unit_cost), 0) as total
+            FROM exchange_transactions et
+            WHERE et.supplier_id = :supplier_id
+            AND et.direction IN ('IN', 'PURCHASE', 'CONSIGN_IN')
+        ),
+        -- التزامات المورد (مبيعات له كعميل)
+        sales_to_supplier AS (
+            SELECT COALESCE(SUM(s.total_amount), 0) as total
+            FROM sales s
+            JOIN suppliers sup ON sup.customer_id = s.customer_id
+            WHERE sup.id = :supplier_id
+            AND s.status = 'CONFIRMED'
+        ),
+        -- الدفعات الواردة
+        payments_in AS (
+            SELECT COALESCE(SUM(p.total_amount), 0) as total
+            FROM payments p
+            LEFT JOIN sales s ON s.id = p.sale_id
+            LEFT JOIN suppliers sup ON sup.customer_id = s.customer_id
+            WHERE p.status = 'COMPLETED'
+            AND p.direction = 'IN'
+            AND (
+                p.supplier_id = :supplier_id
+                OR p.customer_id = (SELECT customer_id FROM suppliers WHERE id = :supplier_id)
+                OR sup.id = :supplier_id
+            )
+        ),
+        -- الدفعات الصادرة
+        payments_out AS (
+            SELECT COALESCE(SUM(p.total_amount), 0) as total
+            FROM payments p
+            WHERE p.status = 'COMPLETED'
+            AND p.direction = 'OUT'
+            AND p.supplier_id = :supplier_id
+        ),
+        -- المرتجعات
+        returns_out AS (
+            SELECT COALESCE(SUM(et.quantity * et.unit_cost), 0) as total
+            FROM exchange_transactions et
+            WHERE et.supplier_id = :supplier_id
+            AND et.direction IN ('OUT', 'RETURN')
+        )
+        SELECT 
+            (SELECT total FROM exchange_items) - 
+            (SELECT total FROM sales_to_supplier) - 
+            (SELECT total FROM payments_out) + 
+            (SELECT total FROM payments_in) - 
+            (SELECT total FROM returns_out) + 
+            COALESCE((SELECT opening_balance FROM suppliers WHERE id = :supplier_id), 0) as balance
+    """)
+    
+    result = connection.execute(query, {"supplier_id": supplier_id}).fetchone()
+    balance = float(result[0] if result else 0)
+    
+    # تحديث رصيد المورد
+    update_query = sa_text("UPDATE suppliers SET balance = :balance WHERE id = :supplier_id")
+    connection.execute(update_query, {"balance": balance, "supplier_id": supplier_id})
+    
+    return balance
 
 
 class PartnerSettlement(db.Model, TimestampMixin, AuditMixin):
@@ -3608,11 +3759,17 @@ def _xt_guard_and_price(mapper, connection, target: "ExchangeTransaction"):
     wh = connection.execute(sa_text("SELECT id, warehouse_type, supplier_id FROM warehouses WHERE id=:wid"), {"wid": target.warehouse_id}).mappings().first()
     if not wh: raise ValueError("Warehouse not found.")
     wt = (wh["warehouse_type"] or "").upper()
+    
+    # ملاحظة: المستودع ليس مرتبطاً بمورد محدد
+    # المورد يُحدد في ExchangeTransaction نفسه (target.supplier_id)
+    # لذلك نستخدم supplier_id من المعاملة وليس من المستودع
     if wt == WarehouseType.EXCHANGE.value:
-        if not wh["supplier_id"]: raise ValueError("EXCHANGE warehouse must be linked to a Supplier.")
-        target.supplier_id = wh["supplier_id"]
+        # إذا لم يكن supplier_id محدد في المعاملة، نستخدم من المستودع (إن وجد)
+        if not target.supplier_id and wh["supplier_id"]:
+            target.supplier_id = wh["supplier_id"]
     else:
         target.supplier_id = None
+    
     uc = D(target.unit_cost or 0)
     if uc <= 0:
         price = connection.execute(sa_text("SELECT COALESCE(purchase_price,0) AS p FROM products WHERE id=:pid"), {"pid": target.product_id}).scalar() or 0
@@ -3627,6 +3784,13 @@ def _exchange_after_insert(mapper, connection, target: "ExchangeTransaction"):
     delta = _ex_dir_sign(target.direction) * int(target.quantity or 0)
     if delta: _apply_stock_delta(connection, target.product_id, target.warehouse_id, delta)
     _maybe_post_gl_exchange(connection, target)
+    
+    # تحديث رصيد المورد
+    if hasattr(target, 'supplier_id') and target.supplier_id:
+        try:
+            update_supplier_balance(target.supplier_id, connection)
+        except Exception as e:
+            print(f"⚠️ تحذير: فشل تحديث رصيد المورد: {e}")
 
 @event.listens_for(ExchangeTransaction, "after_update")
 def _exchange_after_update(mapper, connection, target: "ExchangeTransaction"):
@@ -3644,11 +3808,25 @@ def _exchange_after_update(mapper, connection, target: "ExchangeTransaction"):
         redo_delta = _ex_dir_sign(d_new) * int(q_new or 0)
         if redo_delta: _apply_stock_delta(connection, int(p_new), int(w_new), redo_delta)
     _maybe_post_gl_exchange(connection, target)
+    
+    # تحديث رصيد المورد
+    if hasattr(target, 'supplier_id') and target.supplier_id:
+        try:
+            update_supplier_balance(target.supplier_id, connection)
+        except Exception as e:
+            print(f"⚠️ تحذير: فشل تحديث رصيد المورد: {e}")
 
 @event.listens_for(ExchangeTransaction, "after_delete")
 def _exchange_after_delete(mapper, connection, target: "ExchangeTransaction"):
     delta = -_ex_dir_sign(target.direction) * int(target.quantity or 0)
     if delta: _apply_stock_delta(connection, target.product_id, target.warehouse_id, delta)
+    
+    # تحديث رصيد المورد
+    if hasattr(target, 'supplier_id') and target.supplier_id:
+        try:
+            update_supplier_balance(target.supplier_id, connection)
+        except Exception as e:
+            print(f"⚠️ تحذير: فشل تحديث رصيد المورد: {e}")
 
 def _maybe_post_gl_exchange(connection, tx: "ExchangeTransaction"):
     try:
@@ -4001,11 +4179,24 @@ class Sale(db.Model, TimestampMixin, AuditMixin):
                 lvl.reserved_quantity = max(0, cur - need)
 
     def update_payment_status(self):
-        paid = float(self.total_paid or 0)
+        """تحديث حالة الدفع وحساب المبلغ المدفوع من الدفعات المرتبطة"""
+        from sqlalchemy import func
+        
+        # حساب total_paid من الدفعات المكتملة المرتبطة بهذا البيع
+        paid_sum = db.session.query(
+            func.coalesce(func.sum(Payment.total_amount), 0)
+        ).filter(
+            Payment.sale_id == self.id,
+            Payment.status == PaymentStatus.COMPLETED,
+            Payment.direction == PaymentDirection.IN
+        ).scalar() or 0
+        
+        self.total_paid = float(paid_sum)
         total = float(self.total or 0)
+        
         self.payment_status = (
-            PaymentProgress.PAID.value if paid >= total
-            else PaymentProgress.PARTIAL.value if paid > 0
+            PaymentProgress.PAID.value if self.total_paid >= total
+            else PaymentProgress.PARTIAL.value if self.total_paid > 0
             else PaymentProgress.PENDING.value
         )
 
@@ -4031,6 +4222,39 @@ def _sale_before_insert_ref(mapper, connection, target: "Sale"):
         prefix = datetime.now(timezone.utc).strftime("SAL%Y%m%d")
         count = connection.execute(sa_text("SELECT COUNT(*) FROM sales WHERE sale_number LIKE :pfx"), {"pfx": f"{prefix}-%"}).scalar() or 0
         target.sale_number = f"{prefix}-{count+1:04d}"
+
+@event.listens_for(Sale, "after_insert", propagate=True)
+@event.listens_for(Sale, "after_update", propagate=True)
+@event.listens_for(Sale, "after_delete", propagate=True)
+def _update_partner_supplier_balance_on_sale(mapper, connection, target: "Sale"):
+    """تحديث رصيد الشريك/المورد عند تغيير المبيعة"""
+    try:
+        if hasattr(target, 'customer_id') and target.customer_id:
+            from sqlalchemy import text as sa_text
+            
+            # البحث عن الشريك المرتبط
+            partner_result = connection.execute(
+                sa_text("SELECT id FROM partners WHERE customer_id = :cid"),
+                {"cid": target.customer_id}
+            ).fetchone()
+            if partner_result:
+                update_partner_balance(partner_result[0], connection)
+            
+            # البحث عن المورد المرتبط
+            supplier_result = connection.execute(
+                sa_text("SELECT id FROM suppliers WHERE customer_id = :cid"),
+                {"cid": target.customer_id}
+            ).fetchone()
+            if supplier_result:
+                update_supplier_balance(supplier_result[0], connection)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"⚠️ تحذير: فشل تحديث رصيد الشريك/المورد عند تعديل المبيعة: {e}")
+
+@event.listens_for(Sale, "before_insert")
+@event.listens_for(Sale, "before_update")
+def _sale_ensure_currency(mapper, connection, target: "Sale"):
     target.currency = ensure_currency(getattr(target, "currency", None) or "ILS")
 
 @event.listens_for(Sale, "before_insert")
@@ -4152,6 +4376,31 @@ def _recompute_sale_total_amount(connection, sale_id: int):
 @event.listens_for(SaleLine, "after_delete")
 def _sale_line_touch_sale_total(mapper, connection, target: "SaleLine"):
     sid = getattr(target, "sale_id", None)
+    if sid:
+        # تحديث أرصدة الشركاء/الموردين المرتبطين بالقطعة
+        try:
+            from sqlalchemy import text as sa_text
+            pid = getattr(target, "product_id", None)
+            if pid:
+                # تحديث أرصدة الشركاء المرتبطين بهذه القطعة
+                partner_results = connection.execute(
+                    sa_text("""
+                        SELECT DISTINCT partner_id 
+                        FROM warehouse_partner_shares 
+                        WHERE product_id = :pid
+                        UNION
+                        SELECT DISTINCT partner_id 
+                        FROM product_partners 
+                        WHERE product_id = :pid
+                    """),
+                    {"pid": pid}
+                ).fetchall()
+                
+                for partner_row in partner_results:
+                    if partner_row[0]:
+                        update_partner_balance(partner_row[0], connection)
+        except Exception as e:
+            print(f"⚠️ تحذير: فشل تحديث رصيد الشريك عند تعديل SaleLine: {e}")
     if sid:
         _recompute_sale_total_amount(connection, int(sid))
 
@@ -4997,6 +5246,174 @@ def _split_before_save(mapper, connection, target: "PaymentSplit"):
         target.details = {}
     else:
         target.details = {k: v for k, v in target.details.items() if v not in (None, "", [])}
+
+
+# ===== تحديث total_paid و balance_due في Sales تلقائياً =====
+def _update_sale_payment_totals(connection, sale_id):
+    """تحديث total_paid و balance_due في جدول Sales"""
+    if not sale_id:
+        return
+    
+    # حساب total_paid من جدول Payments
+    total_paid_result = connection.execute(
+        sa_text("""
+            SELECT COALESCE(SUM(total_amount), 0) 
+            FROM payments 
+            WHERE sale_id = :sale_id 
+              AND direction = 'IN'
+              AND status = 'COMPLETED'
+        """),
+        {"sale_id": sale_id}
+    ).scalar() or 0
+    
+    # جلب total_amount من Sale
+    sale_total = connection.execute(
+        sa_text("SELECT total_amount FROM sales WHERE id = :sale_id"),
+        {"sale_id": sale_id}
+    ).scalar() or 0
+    
+    # حساب balance_due
+    balance_due = float(sale_total) - float(total_paid_result)
+    balance_due = max(0, balance_due)  # لا يمكن أن يكون سالب
+    
+    # تحديث الحقول في جدول Sales
+    connection.execute(
+        sa_text("""
+            UPDATE sales 
+            SET total_paid = :total_paid,
+                balance_due = :balance_due,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = :sale_id
+        """),
+        {
+            "sale_id": sale_id,
+            "total_paid": float(total_paid_result),
+            "balance_due": balance_due
+        }
+    )
+
+
+@event.listens_for(Payment, "after_insert", propagate=True)
+@event.listens_for(Payment, "after_update", propagate=True)
+@event.listens_for(Payment, "after_delete", propagate=True)
+def _update_partner_supplier_balance_on_payment(mapper, connection, target: "Payment"):
+    """تحديث رصيد الشريك/المورد عند تغيير الدفعة"""
+    try:
+        # تحديث رصيد الشريك
+        if hasattr(target, 'partner_id') and target.partner_id:
+            update_partner_balance(target.partner_id, connection)
+        
+        # تحديث رصيد المورد
+        if hasattr(target, 'supplier_id') and target.supplier_id:
+            update_supplier_balance(target.supplier_id, connection)
+        
+        # تحديث عبر customer_id للشريك
+        if hasattr(target, 'customer_id') and target.customer_id:
+            from sqlalchemy import text as sa_text
+            # البحث عن الشريك/المورد المرتبط بهذا العميل
+            partner_result = connection.execute(
+                sa_text("SELECT id FROM partners WHERE customer_id = :cid"),
+                {"cid": target.customer_id}
+            ).fetchone()
+            if partner_result:
+                update_partner_balance(partner_result[0], connection)
+            
+            supplier_result = connection.execute(
+                sa_text("SELECT id FROM suppliers WHERE customer_id = :cid"),
+                {"cid": target.customer_id}
+            ).fetchone()
+            if supplier_result:
+                update_supplier_balance(supplier_result[0], connection)
+        
+        # تحديث عبر sale_id
+        if hasattr(target, 'sale_id') and target.sale_id:
+            from sqlalchemy import text as sa_text
+            sale_result = connection.execute(
+                sa_text("SELECT customer_id FROM sales WHERE id = :sid"),
+                {"sid": target.sale_id}
+            ).fetchone()
+            if sale_result and sale_result[0]:
+                # البحث عن الشريك/المورد
+                partner_result = connection.execute(
+                    sa_text("SELECT id FROM partners WHERE customer_id = :cid"),
+                    {"cid": sale_result[0]}
+                ).fetchone()
+                if partner_result:
+                    update_partner_balance(partner_result[0], connection)
+                
+                supplier_result = connection.execute(
+                    sa_text("SELECT id FROM suppliers WHERE customer_id = :cid"),
+                    {"cid": sale_result[0]}
+                ).fetchone()
+                if supplier_result:
+                    update_supplier_balance(supplier_result[0], connection)
+    except Exception as e:
+        # لا نريد أن يفشل الـ transaction بسبب تحديث الرصيد
+        import traceback
+        traceback.print_exc()
+        print(f"⚠️ تحذير: فشل تحديث رصيد الشريك/المورد: {e}")
+
+@event.listens_for(Payment, "after_insert", propagate=True)
+@event.listens_for(Payment, "after_update", propagate=True)
+@event.listens_for(Payment, "after_delete", propagate=True)
+def _update_sale_on_payment_change(mapper, connection, target: "Payment"):
+    """تحديث total_paid و balance_due في Sale عند تغيير Payment"""
+    if hasattr(target, 'sale_id') and target.sale_id:
+        _update_sale_payment_totals(connection, target.sale_id)
+
+
+# ===== تحديث total_paid و balance_due في Invoices تلقائياً =====
+def _update_invoice_payment_totals(connection, invoice_id):
+    """تحديث total_paid و balance_due في جدول Invoices"""
+    if not invoice_id:
+        return
+    
+    # حساب total_paid من جدول Payments
+    total_paid_result = connection.execute(
+        sa_text("""
+            SELECT COALESCE(SUM(total_amount), 0) 
+            FROM payments 
+            WHERE invoice_id = :invoice_id 
+              AND direction = 'IN'
+              AND status = 'COMPLETED'
+        """),
+        {"invoice_id": invoice_id}
+    ).scalar() or 0
+    
+    # جلب total_amount من Invoice
+    invoice_total = connection.execute(
+        sa_text("SELECT total_amount FROM invoices WHERE id = :invoice_id"),
+        {"invoice_id": invoice_id}
+    ).scalar() or 0
+    
+    # حساب balance_due
+    balance_due = float(invoice_total) - float(total_paid_result)
+    balance_due = max(0, balance_due)
+    
+    # تحديث الحقول في جدول Invoices
+    connection.execute(
+        sa_text("""
+            UPDATE invoices 
+            SET total_paid = :total_paid,
+                balance_due = :balance_due,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = :invoice_id
+        """),
+        {
+            "invoice_id": invoice_id,
+            "total_paid": float(total_paid_result),
+            "balance_due": balance_due
+        }
+    )
+
+
+@event.listens_for(Payment, "after_insert", propagate=True)
+@event.listens_for(Payment, "after_update", propagate=True)
+@event.listens_for(Payment, "after_delete", propagate=True)
+def _update_invoice_on_payment_change(mapper, connection, target: "Payment"):
+    """تحديث total_paid و balance_due في Invoice عند تغيير Payment"""
+    if hasattr(target, 'invoice_id') and target.invoice_id:
+        _update_invoice_payment_totals(connection, target.invoice_id)
 
 
 def _avg_cost_until(product_id: int, supplier_id: int, as_of: datetime) -> Decimal:

@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}مستند قابل للطباعة{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}" media="print">
+  {% block head_extra %}{% endblock %}
+</head>
+<body class="rtl">
+  {% block content %}{% endblock %}
+</body>
+</html>

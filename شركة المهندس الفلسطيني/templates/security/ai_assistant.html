@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+{% block title %}AI Security Assistant{% endblock %}
+{% block page_title %}🤖 مساعد الأمان الذكي{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <!-- أزرار التنقل - للـ Owner فقط -->
+  {% if current_user.is_system_account or current_user.username == '__OWNER__' %}
+  {% include 'security/_navigation.html' %}
+  {% endif %}
+  
+  <!-- تنبيه حالة المفاتيح - للـ Owner فقط -->
+  {% if current_user.is_system_account or current_user.username == '__OWNER__' %}
+  <div class="alert alert-info mb-3">
+    <div class="row align-items-center">
+      <div class="col-md-8">
+        <i class="fas fa-info-circle"></i> <strong>المساعد الذكي متصل بـ Groq API (Llama 3.3 70B)</strong>
+        <br><small>تأكد من تفعيل مفتاح في <a href="{{ url_for('security.ai_config') }}" class="alert-link">إدارة المفاتيح</a></small>
+      </div>
+      <div class="col-md-4 text-end">
+        <a href="{{ url_for('security.ai_config') }}" class="btn btn-sm btn-outline-primary">
+          <i class="fas fa-key"></i> إدارة المفاتيح
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  
+  <div class="row g-3">
+    <div class="col-lg-{% if current_user.is_system_account or current_user.username == '__OWNER__' %}8{% else %}12{% endif %}">
+      <div class="card">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0"><i class="fas fa-robot"></i> محادثة مع AI</h5>
+        </div>
+        <div class="card-body" style="height: 500px; overflow-y: auto;" id="chatContainer">
+          <div class="chat-messages" id="chatMessages">
+            <div class="alert alert-success">
+              <h5><i class="fas fa-robot"></i> <strong>مرحباً! أنا المساعد الذكي المحلي</strong></h5>
+              <hr>
+              <p class="mb-2">🎯 <strong>أنا أفهم كل شيء في النظام:</strong></p>
+              <ul class="mb-2">
+                <li>📊 جميع الصفحات (362 endpoint)</li>
+                <li>💾 جميع الجداول والحقول</li>
+                <li>🔗 العلاقات بين البيانات</li>
+                <li>💱 الحسابات المالية (VAT، ضريبة الدخل)</li>
+                <li>🌍 المرادفات العربية والإنجليزية</li>
+              </ul>
+              <p class="mb-1"><strong>💬 جرب الآن:</strong></p>
+              <small>
+                • "صباح الخير" | "وين صفحة الصيانة؟" | "كيف أضيف عميل؟" | "احسب VAT لـ 1000"
+              </small>
+            </div>
+          </div>
+        </div>
+        <div class="card-footer">
+          <form id="chatForm">
+            <div class="input-group">
+              <input type="text" class="form-control" id="chatInput" placeholder="اسألني عن أي شيء في النظام... (مثال: وين صفحة الصيانة؟)">
+              <button class="btn btn-primary" type="submit">
+                <i class="fas fa-paper-plane"></i> إرسال
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    
+    <!-- العمود الجانبي - للـ Owner فقط -->
+    {% if current_user.is_system_account or current_user.username == '__OWNER__' %}
+    <div class="col-lg-4">
+      <div class="card">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0"><i class="fas fa-lightbulb"></i> اقتراحات ذكية</h5>
+        </div>
+        <div class="card-body">
+          {% if suggestions %}
+            {% for sug in suggestions %}
+            <div class="alert alert-{{ sug.type }} alert-sm">
+              <strong>{{ sug.title }}</strong><br>
+              <small>{{ sug.action }}</small>
+            </div>
+            {% endfor %}
+          {% else %}
+            <p class="text-muted">لا توجد اقتراحات حالياً</p>
+          {% endif %}
+        </div>
+      </div>
+      
+      <div class="card mt-3">
+        <div class="card-header bg-info text-white">
+          <h5 class="mb-0"><i class="fas fa-chart-line"></i> روابط سريعة</h5>
+        </div>
+        <div class="card-body">
+          <a href="{{ url_for('security.database_browser') }}" class="btn btn-sm btn-outline-primary w-100 mb-2">
+            <i class="fas fa-database"></i> متصفح قاعدة البيانات
+          </a>
+          <a href="{{ url_for('security.decrypt_tool') }}" class="btn btn-sm btn-outline-warning w-100 mb-2">
+            <i class="fas fa-key"></i> فك التشفير
+          </a>
+          <a href="{{ url_for('security.ai_analytics') }}" class="btn btn-sm btn-outline-success w-100 mb-2">
+            <i class="fas fa-brain"></i> تحليلات AI
+          </a>
+          <a href="{{ url_for('security.pattern_detection') }}" class="btn btn-sm btn-outline-danger w-100">
+            <i class="fas fa-search"></i> كشف الأنماط
+          </a>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<script>
+// CSRF Token
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+document.getElementById('chatForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const input = document.getElementById('chatInput');
+  const message = input.value.trim();
+  if (!message) return;
+  
+  // عرض رسالة المستخدم
+  const chatMessages = document.getElementById('chatMessages');
+  chatMessages.innerHTML += `
+    <div class="alert alert-secondary mb-2">
+      <strong><i class="fas fa-user"></i> أنت:</strong> ${message}
+    </div>`;
+  input.value = '';
+  
+  // عرض مؤشر التحميل
+  const loadingId = 'loading-' + Date.now();
+  chatMessages.innerHTML += `
+    <div class="alert alert-info mb-2" id="${loadingId}">
+      <i class="fas fa-spinner fa-spin"></i> <strong>AI يفكر...</strong>
+    </div>`;
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  
+  // إرسال للـ AI
+  try {
+    const response = await fetch('{{ url_for("security.ai_chat") }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({message})
+    });
+    
+    // حذف مؤشر التحميل
+    document.getElementById(loadingId)?.remove();
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    // عرض رد AI
+    chatMessages.innerHTML += `
+      <div class="alert alert-success mb-2">
+        <strong><i class="fas fa-robot"></i> AI:</strong> ${data.response}
+      </div>`;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    
+  } catch (err) {
+    // حذف مؤشر التحميل
+    document.getElementById(loadingId)?.remove();
+    
+    chatMessages.innerHTML += `
+      <div class="alert alert-danger mb-2">
+        <strong><i class="fas fa-exclamation-triangle"></i> خطأ:</strong> 
+        ${err.message || 'خطأ في الاتصال بـ AI'}
+        <br><small>تأكد من تفعيل مفتاح في <a href="{{ url_for('security.ai_config') }}" class="alert-link">إدارة المفاتيح</a></small>
+      </div>`;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    
+    console.error('AI Error:', err);
+  }
+});
+</script>
+{% endblock %}
+

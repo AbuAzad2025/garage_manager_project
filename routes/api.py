@@ -51,7 +51,7 @@ from models import (
     StockAdjustment,
 )
 
-bp = Blueprint("api", __name__, url_prefix="/api/v1")
+bp = Blueprint("api", __name__, url_prefix="/api")
 
 # ===== Global Error Handlers =====
 
@@ -1223,6 +1223,53 @@ def api_warehouses():
             "supplier_id": w.supplier_id,
             "is_active": bool(w.is_active),
         } for w in rows]
+    })
+
+@bp.get("/warehouses/<int:id>/products")
+@login_required
+@limiter.limit("60/minute")
+# @permission_required("view_inventory", "view_warehouses")  # Commented out
+def api_warehouse_products(id):
+    """Get products available in a specific warehouse"""
+    w = Warehouse.query.get_or_404(id)
+    q = (request.args.get("q") or "").strip()
+    limit = _limit_from_request(20, 50)
+    
+    # Query stock levels for this warehouse
+    qry = (
+        db.session.query(StockLevel, Product)
+        .join(Product, StockLevel.product_id == Product.id)
+        .filter(StockLevel.warehouse_id == id)
+        .filter(StockLevel.quantity > 0)  # Only products with stock
+    )
+    
+    # Search filter
+    if q:
+        like = f"%{q}%"
+        qry = qry.filter(or_(
+            Product.name.ilike(like),
+            Product.sku.ilike(like),
+            Product.part_number.ilike(like),
+            Product.barcode.ilike(like),
+        ))
+    
+    # Execute query
+    results = qry.order_by(Product.name.asc()).limit(limit).all()
+    
+    # Format response
+    return jsonify({
+        "results": [{
+            "id": p.id,
+            "text": p.name,
+            "name": p.name,
+            "sku": p.sku or "",
+            "part_number": p.part_number or "",
+            "barcode": p.barcode or "",
+            "price": float(p.price or 0),
+            "quantity": float(sl.quantity or 0),
+            "warehouse_id": id,
+            "warehouse_name": w.name,
+        } for sl, p in results]
     })
 
 @bp.put("/warehouses/<int:id>")

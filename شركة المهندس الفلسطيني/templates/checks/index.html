@@ -1,0 +1,483 @@
+{% extends 'base.html' %}
+
+{% block title %}إدارة الشيكات{% endblock %}
+
+{# Version: 3.0 - FINAL #}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<style>
+    /* تحسينات التصميم */
+    .stat-card {
+        border-radius: 15px;
+        padding: 25px;
+        color: white;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        transition: transform 0.3s;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+    .stat-icon {
+        position: absolute;
+        left: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 60px;
+        opacity: 0.3;
+    }
+    
+    /* Tabs مخصصة */
+    .nav-tabs-custom {
+        background: #f4f6f9;
+        border-radius: 10px;
+        padding: 10px;
+    }
+    .nav-tabs-custom .nav-link {
+        border: none;
+        border-radius: 8px;
+        padding: 12px 25px;
+        font-weight: 600;
+        color: #495057;
+        transition: all 0.3s;
+    }
+    .nav-tabs-custom .nav-link:hover {
+        background: #e9ecef;
+    }
+    .nav-tabs-custom .nav-link.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white !important;
+        box-shadow: 0 3px 10px rgba(102, 126, 234, 0.3);
+    }
+    .nav-tabs-custom .badge {
+        background: rgba(255,255,255,0.3);
+        padding: 4px 10px;
+        border-radius: 12px;
+        margin-right: 8px;
+    }
+    .nav-tabs-custom .nav-link.active .badge {
+        background: rgba(255,255,255,0.9);
+        color: #667eea;
+    }
+    
+    /* جداول ذكية */
+    .checks-table {
+        font-size: 14px;
+    }
+    .checks-table th {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-weight: 600;
+        border: none;
+        padding: 15px 10px;
+    }
+    .checks-table tbody tr {
+        transition: all 0.2s;
+    }
+    .checks-table tbody tr:hover {
+        background: #f8f9fa;
+        transform: scale(1.01);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    /* صفوف ملونة حسب الحالة */
+    .row-overdue {
+        background: #fff5f5 !important;
+        border-right: 4px solid #dc3545;
+    }
+    .row-due-soon {
+        background: #fffbf0 !important;
+        border-right: 4px solid #ffc107;
+    }
+    .row-cashed {
+        background: #f0fff4 !important;
+        border-right: 4px solid #28a745;
+    }
+    .row-pending {
+        background: #f0f8ff !important;
+        border-right: 4px solid #007bff;
+    }
+    
+    /* Badges مخصصة */
+    .badge-custom {
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    
+    /* Empty state */
+    .empty-state {
+        padding: 60px 20px;
+        text-align: center;
+        color: #6c757d;
+    }
+    .empty-state i {
+        font-size: 64px;
+        margin-bottom: 20px;
+        opacity: 0.5;
+    }
+    
+    /* 🔥 Force visible tab-pane - Critical Fix */
+    .tab-content { 
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+    
+    .tab-content .tab-pane { 
+        display: none !important; 
+    }
+    
+    .tab-content .tab-pane.active.show { 
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+    
+    /* فرض عرض الجداول */
+    .table { 
+        display: table !important;
+        visibility: visible !important;
+    }
+    
+    .table tbody { 
+        display: table-row-group !important; 
+    }
+    
+    .table tr { 
+        display: table-row !important; 
+    }
+    
+    .table td, .table th { 
+        display: table-cell !important; 
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+    <section class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <div class="col-sm-6">
+                    <h1><i class="fas fa-money-check-alt"></i> إدارة الشيكات</h1>
+                </div>
+                <div class="col-sm-6">
+                    <ol class="breadcrumb float-sm-left">
+                        <li class="breadcrumb-item"><a href="/">الرئيسية</a></li>
+                        <li class="breadcrumb-item active">الشيكات</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="content">
+        <div class="container-fluid">
+            
+            <!-- إحصائيات سريعة -->
+            <div class="row mb-4 g-3">
+                <div class="col-lg-3 col-md-6">
+                    <div class="card border-0 shadow-sm text-white h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="text-white-50 mb-1">شيكات آجلة (معلقة)</h6>
+                                    <h3 class="mb-0 fw-bold" id="stat-pending-count">0</h3>
+                                    <small class="opacity-75" id="stat-pending-amount">0.00 ₪</small>
+                                </div>
+                                <i class="fas fa-clock fa-2x opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-3 col-md-6">
+                    <div class="card border-0 shadow-sm text-white h-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="text-white-50 mb-1">شيكات مسحوبة</h6>
+                                    <h3 class="mb-0 fw-bold" id="stat-cashed-count">0</h3>
+                                    <small class="opacity-75" id="stat-cashed-amount">0.00 ₪</small>
+                                </div>
+                                <i class="fas fa-check-circle fa-2x opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-3 col-md-6">
+                    <div class="card border-0 shadow-sm text-white h-100" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="text-white-50 mb-1">شيكات مرتجعة</h6>
+                                    <h3 class="mb-0 fw-bold" id="stat-returned-count">0</h3>
+                                    <small class="opacity-75" id="stat-returned-amount">0.00 ₪</small>
+                                </div>
+                                <i class="fas fa-undo fa-2x opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-3 col-md-6">
+                    <div class="card border-0 shadow-sm text-white h-100" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="text-white-50 mb-1">شيكات متأخرة</h6>
+                                    <h3 class="mb-0 fw-bold" id="stat-overdue-count">0</h3>
+                                    <small class="opacity-75" id="stat-overdue-amount">0.00 ₪</small>
+                                </div>
+                                <i class="fas fa-exclamation-triangle fa-2x opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- أزرار التحكم -->
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <div class="btn-group float-left">
+                        <button type="button" class="btn btn-primary" onclick="window.location.href='/checks/new'">
+                            <i class="fas fa-plus"></i> إضافة شيك يدوي
+                        </button>
+                        <button type="button" class="btn btn-success" onclick="refreshAll()">
+                        <i class="fas fa-sync-alt"></i> تحديث
+                    </button>
+                        <button type="button" class="btn btn-info" onclick="window.location.href='/checks/reports'">
+                            <i class="fas fa-chart-bar"></i> التقارير
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabs للشيكات -->
+            <div class="card card-primary card-outline card-outline-tabs">
+                <div class="card-header p-0 border-bottom-0">
+                    <ul class="nav nav-tabs nav-tabs-custom" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" data-toggle="pill" href="#tab-pending" role="tab">
+                                <i class="fas fa-clock"></i> آجلة (معلقة)
+                                <span class="badge" id="badge-pending">0</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-toggle="pill" href="#tab-overdue" role="tab">
+                                <i class="fas fa-exclamation-triangle"></i> متأخرة
+                                <span class="badge" id="badge-overdue">0</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-toggle="pill" href="#tab-cashed" role="tab">
+                                <i class="fas fa-check-circle"></i> مسحوبة
+                                <span class="badge" id="badge-cashed">0</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-toggle="pill" href="#tab-returned" role="tab">
+                                <i class="fas fa-undo"></i> مرتجعة
+                                <span class="badge" id="badge-returned">0</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-toggle="pill" href="#tab-cancelled" role="tab">
+                                <i class="fas fa-times-circle"></i> ملغاة/تالفة
+                                <span class="badge badge-secondary" id="badge-cancelled">0</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-toggle="pill" href="#tab-archived" role="tab">
+                                <i class="fas fa-archive"></i> مؤرشفة
+                                <span class="badge badge-dark" id="badge-archived">0</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-toggle="pill" href="#tab-all" role="tab">
+                                <i class="fas fa-list"></i> الكل
+                                <span class="badge" id="badge-all">0</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="card-body">
+                    <div class="tab-content">
+                        <!-- Tab: آجلة -->
+                        <div class="tab-pane fade show active" id="tab-pending" role="tabpanel">
+                                <table class="table table-hover checks-table" id="table-pending">
+                                    <thead>
+                                        <tr>
+                                        <th>#</th>
+                                        <th>رقم الشيك</th>
+                                        <th>المبلغ</th>
+                                        <th>البنك</th>
+                                        <th>الجهة</th>
+                                        <th>تاريخ الاستحقاق</th>
+                                        <th>الاتجاه</th>
+                                        <th>الحالة</th>
+                                        <th>المصدر</th>
+                                        <th>إجراءات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr><td colspan="10" class="text-center">جاري التحميل...</td></tr>
+                                    </tbody>
+                                </table>
+                        </div>
+
+                        <!-- Tab: متأخرة -->
+                        <div class="tab-pane fade" id="tab-overdue" role="tabpanel">
+                                <table class="table table-hover checks-table" id="table-overdue">
+                                    <thead>
+                                        <tr>
+                                        <th>#</th>
+                                        <th>رقم الشيك</th>
+                                        <th>المبلغ</th>
+                                        <th>البنك</th>
+                                        <th>الجهة</th>
+                                        <th>تاريخ الاستحقاق</th>
+                                        <th>الاتجاه</th>
+                                        <th>الحالة</th>
+                                        <th>المصدر</th>
+                                        <th>إجراءات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr><td colspan="10" class="text-center">جاري التحميل...</td></tr>
+                                    </tbody>
+                                </table>
+                        </div>
+
+                        <!-- Tab: مسحوبة -->
+                        <div class="tab-pane fade" id="tab-cashed" role="tabpanel">
+                                <table class="table table-hover checks-table" id="table-cashed">
+                                    <thead>
+                                        <tr>
+                                        <th>#</th>
+                                        <th>رقم الشيك</th>
+                                        <th>المبلغ</th>
+                                        <th>البنك</th>
+                                        <th>الجهة</th>
+                                        <th>تاريخ الاستحقاق</th>
+                                        <th>الاتجاه</th>
+                                        <th>الحالة</th>
+                                        <th>المصدر</th>
+                                        <th>إجراءات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr><td colspan="10" class="text-center">جاري التحميل...</td></tr>
+                                    </tbody>
+                                </table>
+                        </div>
+
+                        <!-- Tab: مرتجعة -->
+                        <div class="tab-pane fade" id="tab-returned" role="tabpanel">
+                                <table class="table table-hover checks-table" id="table-returned">
+                                    <thead>
+                                        <tr>
+                                        <th>#</th>
+                                        <th>رقم الشيك</th>
+                                        <th>المبلغ</th>
+                                        <th>البنك</th>
+                                        <th>الجهة</th>
+                                        <th>تاريخ الاستحقاق</th>
+                                        <th>الاتجاه</th>
+                                        <th>الحالة</th>
+                                        <th>المصدر</th>
+                                        <th>إجراءات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr><td colspan="10" class="text-center">جاري التحميل...</td></tr>
+                                    </tbody>
+                                </table>
+                        </div>
+
+                        <!-- Tab: ملغاة/تالفة -->
+                        <div class="tab-pane fade" id="tab-cancelled" role="tabpanel">
+                                <table class="table table-hover checks-table" id="table-cancelled">
+                                    <thead class="bg-secondary">
+                                        <tr>
+                                        <th>#</th>
+                                        <th>رقم الشيك</th>
+                                        <th>المبلغ</th>
+                                        <th>البنك</th>
+                                        <th>الجهة</th>
+                                        <th>تاريخ الاستحقاق</th>
+                                        <th>الاتجاه</th>
+                                        <th>الحالة</th>
+                                        <th>المصدر</th>
+                                        <th>إجراءات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr><td colspan="10" class="text-center">جاري التحميل...</td></tr>
+                                    </tbody>
+                                </table>
+                        </div>
+
+                        <!-- Tab: مؤرشفة -->
+                        <div class="tab-pane fade" id="tab-archived" role="tabpanel">
+                                <table class="table table-hover checks-table" id="table-archived">
+                                    <thead class="bg-dark">
+                                        <tr>
+                                        <th>#</th>
+                                        <th>رقم الشيك</th>
+                                        <th>المبلغ</th>
+                                        <th>البنك</th>
+                                        <th>الجهة</th>
+                                        <th>تاريخ الاستحقاق</th>
+                                        <th>الاتجاه</th>
+                                        <th>الحالة</th>
+                                        <th>المصدر</th>
+                                        <th>إجراءات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr><td colspan="10" class="text-center">جاري التحميل...</td></tr>
+                                    </tbody>
+                                </table>
+                        </div>
+
+                        <!-- Tab: الكل -->
+                        <div class="tab-pane fade" id="tab-all" role="tabpanel">
+                                <table class="table table-hover checks-table" id="table-all">
+                                    <thead>
+                                        <tr>
+                                        <th>#</th>
+                                        <th>رقم الشيك</th>
+                                        <th>المبلغ</th>
+                                        <th>البنك</th>
+                                        <th>الجهة</th>
+                                        <th>تاريخ الاستحقاق</th>
+                                        <th>الاتجاه</th>
+                                        <th>الحالة</th>
+                                        <th>المصدر</th>
+                                        <th>إجراءات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr><td colspan="10" class="text-center">جاري التحميل...</td></tr>
+                                    </tbody>
+                                </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="{{ url_for('static', filename='js/checks.js') }}?v={{ range(1000, 9999) | random }}"></script>
+{% endblock %}

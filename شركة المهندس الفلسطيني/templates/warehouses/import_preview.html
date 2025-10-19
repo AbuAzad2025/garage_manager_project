@@ -1,0 +1,243 @@
+{% extends 'warehouses/base.html' %}
+{% block title %}معاينة الاستيراد{% endblock %}
+{% block page_title %}معاينة الاستيراد - {{ warehouse.name }}{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/import.css') }}">
+<!-- إحصائيات سريعة -->
+<div class="row mb-4">
+  <div class="col-lg-2 col-md-4 mb-3">
+    <div class="card border-0 shadow-sm bg-primary text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">إجمالي الصفوف</h6>
+            <h3 class="mb-0 fw-bold">{{ report.total }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-list fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-2 col-md-4 mb-3">
+    <div class="card border-0 shadow-sm bg-success text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">منتجات جديدة</h6>
+            <h3 class="mb-0 fw-bold">{{ report.new_items }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-plus-circle fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-2 col-md-4 mb-3">
+    <div class="card border-0 shadow-sm bg-info text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">منتجات مطابقة</h6>
+            <h3 class="mb-0 fw-bold">{{ report.matches }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-check-circle fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="card border-0 shadow-sm bg-danger text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">صفوف ناقصة الاسم</h6>
+            <h3 class="mb-0 fw-bold">{{ report.missing_required_rows|length }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-exclamation-triangle fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="card border-0 shadow-sm bg-warning text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">تحذيرات</h6>
+            <h3 class="mb-0 fw-bold">{{ report.warnings|length }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-exclamation-circle fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+  <div class="card-body">
+    <div class="row g-3 align-items-center">
+    <div class="mt-3 d-flex flex-wrap gap-2">
+      <input type="hidden" id="token" value="{{ token }}">
+      <input type="text" id="searchBox" class="form-control w-auto" placeholder="بحث">
+      <select id="quickFilter" class="form-select w-auto">
+        <option value="all">الكل</option>
+        <option value="missing">الناقص الإجباري</option>
+        <option value="warnings">تحذيرات</option>
+        <option value="new">جديد</option>
+        <option value="matched">مطابق</option>
+      </select>
+      <button class="btn btn-outline-secondary" id="btnToggleCompact">عرض مضغوط</button>
+      <div class="ms-auto d-flex gap-2">
+        <form method="post" id="saveForm">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="token" value="{{ token }}">
+          <input type="hidden" name="action" value="save">
+          <input type="hidden" name="rows_json" id="rows_json_save">
+          <button type="button" class="btn btn-secondary" id="btnSave">حفظ التعديلات</button>
+        </form>
+        <form method="post" action="{{ url_for('warehouse_bp.import_commit', id=warehouse.id) }}" id="commitForm">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="token" value="{{ token }}">
+          <input type="hidden" name="rows_json" id="rows_json_commit">
+          <input type="hidden" name="mode" value="append">
+          <input type="hidden" name="dry_run" value="0">
+          <button type="button" class="btn btn-primary" id="btnCommit">تنفيذ الاستيراد</button>
+        </form>
+        <a class="btn btn-outline-dark" href="{{ url_for('warehouse_bp.import_products', id=warehouse.id) }}">رفع ملف آخر</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-bordered align-middle" id="previewTable">
+        <thead class="table-light">
+          <tr>
+            <th style="width:64px">#</th>
+            <th>name</th>
+            <th>sku</th>
+            <th>part_number</th>
+            <th>brand</th>
+            <th>price</th>
+            <th>selling_price</th>
+            <th>purchase_price</th>
+            <th>quantity</th>
+            <th>match</th>
+            <th>warnings</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          {% set d = r.data %}
+          {% set m = r.match %}
+          <tr data-rownum="{{ r.rownum }}" class="{% if not d.name %}row-missing{% endif %} {% if r.soft_warnings and r.soft_warnings|length %}row-warning{% endif %} {% if m.product_id %}row-matched{% else %}row-new{% endif %}">
+            <td class="text-center">{{ r.rownum }}</td>
+            <td><input type="text" class="form-control form-control-sm cell" data-field="name" value="{{ d.name or '' }}"></td>
+            <td><input type="text" class="form-control form-control-sm cell" data-field="sku" value="{{ d.sku or '' }}"></td>
+            <td><input type="text" class="form-control form-control-sm cell" data-field="part_number" value="{{ d.part_number or '' }}"></td>
+            <td><input type="text" class="form-control form-control-sm cell" data-field="brand" value="{{ d.brand or '' }}"></td>
+            <td><input type="text" class="form-control form-control-sm cell num" data-field="price" value="{{ d.price if d.price is not none else '' }}"></td>
+            <td><input type="text" class="form-control form-control-sm cell num" data-field="selling_price" value="{{ d.selling_price if d.selling_price is not none else '' }}"></td>
+            <td><input type="text" class="form-control form-control-sm cell num" data-field="purchase_price" value="{{ d.purchase_price if d.purchase_price is not none else '' }}"></td>
+            <td><input type="text" class="form-control form-control-sm cell int" data-field="quantity" value="{{ d.quantity if d.quantity is not none else '' }}"></td>
+            <td class="text-nowrap">{% if m.product_id %}<span class="badge bg-primary">مطابق {{ m.key }}</span>{% else %}<span class="badge bg-success">جديد</span>{% endif %}</td>
+            <td class="small">{% if r.soft_warnings %}{{ r.soft_warnings|join('، ') }}{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <details class="mt-3">
+      <summary class="mb-2">حقول إضافية</summary>
+      <div class="table-responsive">
+        <table class="table table-bordered align-middle" id="extraTable">
+          <thead class="table-light">
+            <tr>
+              <th style="width:64px">#</th>
+              <th>description</th>
+              <th>commercial_name</th>
+              <th>chassis_number</th>
+              <th>serial_no</th>
+              <th>barcode</th>
+              <th>unit</th>
+              <th>category_name</th>
+              <th>cost_before_shipping</th>
+              <th>cost_after_shipping</th>
+              <th>unit_price_before_tax</th>
+              <th>min_price</th>
+              <th>max_price</th>
+              <th>tax_rate</th>
+              <th>min_qty</th>
+              <th>reorder_point</th>
+              <th>condition</th>
+              <th>origin_country</th>
+              <th>warranty_period</th>
+              <th>weight</th>
+              <th>dimensions</th>
+              <th>image</th>
+              <th>notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in rows %}
+            {% set d = r.data %}
+            <tr data-rownum="{{ r.rownum }}">
+              <td class="text-center">{{ r.rownum }}</td>
+              <td><input type="text" class="form-control form-control-sm cell" data-field="description" value="{{ d.description or '' }}"></td>
+              <td><input type="text" class="form-control form-control-sm cell" data-field="commercial_name" value="{{ d.commercial_name or '' }}"></td>
+              <td><input type="text" class="form-control form-control-sm cell" data-field="chassis_number" value="{{ d.chassis_number or '' }}"></td>
+              <td><input type="text" class="form-control form-control-sm cell" data-field="serial_no" value="{{ d.serial_no or '' }}"></td>
+              <td><input type="text" class="form-control form-control-sm cell" data-field="barcode" value="{{ d.barcode or '' }}"></td>
+              <td><input type="text" class="form-control form-control-sm cell" data-field="unit" value="{{ d.unit or '' }}"></td>
+              <td><input type="text" class="form-control form-control-sm cell" data-field="category_name" value="{{ d.category_name or '' }}"></td>
+              <td><input type="text" class="form-control form-control-sm cell num" data-field="cost_before_shipping" value="{{ d.cost_before_shipping if d.cost_before_shipping is not none else '' }}"></td>
+              <td><input type="text" class="form-control form-control-sm cell num" data-field="cost_after_shipping" value="{{ d.cost_after_shipping if d.cost_after_shipping is not none else '' }}"></td>
+              <td><input type="text" class="form-control form-control-sm cell num" data-field="unit_price_before_tax" value="{{ d.unit_price_before_tax if d.unit_price_before_tax is not none else '' }}"></td>
+              <td><input type="text" class="form-control form-control-sm cell num" data-field="min_price" value="{{ d.min_price if d.min_price is not none else '' }}"></td>
+              <td><input type="text" class="form-control form-control-sm cell num" data-field="max_price" value="{{ d.max_price if d.max_price is not none else '' }}"></td>
+              <td><input type="text" class="form-control form-control-sm cell num" data-field="tax_rate" value="{{ d.tax_rate if d.tax_rate is not none else '' }}"></td>
+              <td><input type="text" class="form-control form-control-sm cell int" data-field="min_qty" value="{{ d.min_qty if d.min_qty is not none else '' }}"></td>
+              <td><input type="text" class="form-control form-control-sm cell int" data-field="reorder_point" value="{{ d.reorder_point if d.reorder_point is not none else '' }}"></td>
+              <td>
+                <select class="form-select form-select-sm cell" data-field="condition">
+                  {% set cond = (d.condition or 'NEW') %}
+                  <option value="NEW" {{ 'selected' if cond=='NEW' else '' }}>NEW</option>
+                  <option value="USED" {{ 'selected' if cond=='USED' else '' }}>USED</option>
+                  <option value="REFURBISHED" {{ 'selected' if cond=='REFURBISHED' else '' }}>REFURBISHED</option>
+                </select>
+              </td>
+              <td><input type="text" class="form-control form-control-sm cell" data-field="origin_country" value="{{ d.origin_country or '' }}"></td>
+              <td><input type="text" class="form-control form-control-sm cell int" data-field="warranty_period" value="{{ d.warranty_period if d.warranty_period is not none else '' }}"></td>
+              <td><input type="text" class="form-control form-control-sm cell num" data-field="weight" value="{{ d.weight if d.weight is not none else '' }}"></td>
+              <td><input type="text" class="form-control form-control-sm cell" data-field="dimensions" value="{{ d.dimensions or '' }}"></td>
+              <td><input type="text" class="form-control form-control-sm cell" data-field="image" value="{{ d.image or '' }}"></td>
+              <td><input type="text" class="form-control form-control-sm cell" data-field="notes" value="{{ d.notes or '' }}"></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  </div>
+</div>
+<script>
+  window.__IMPORT_ROWS__={{ rows|tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/import_preview.js') }}"></script>
+{% endblock %}

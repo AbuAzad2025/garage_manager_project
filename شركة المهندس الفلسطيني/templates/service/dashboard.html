@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% block title %}لوحة تحكم الصيانة{% endblock %}
+{% block page_header %}لوحة تحكم الصيانة{% endblock %}
+{% block breadcrumb %}
+  <li class="breadcrumb-item"><a href="{{ url_for('service.list_requests') }}">طلبات الصيانة</a></li>
+  <li class="breadcrumb-item active">لوحة التحكم</li>
+{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+
+  {# استخراج أرقام مفيدة من status_distribution #}
+  {% set s = namespace(pending=0, in_progress=0, completed=0, total=total_requests) %}
+  {% for st, cnt in status_distribution %}
+    {% set key = (st.value if st is not string else st)|upper %}
+    {% if key == 'PENDING' %}{% set s.pending = cnt %}{% endif %}
+    {% if key == 'IN_PROGRESS' %}{% set s.in_progress = cnt %}{% endif %}
+    {% if key == 'COMPLETED' %}{% set s.completed = cnt %}{% endif %}
+  {% endfor %}
+
+  <!-- كروت سريعة محسنة -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card border-0 shadow-lg text-center" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <div class="card-body text-white">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <i class="fas fa-tools fa-2x opacity-75"></i>
+            <span class="badge bg-light text-primary fs-6">{{ s.total }}</span>
+          </div>
+          <h5 class="fw-bold">إجمالي الطلبات</h5>
+          <p class="mb-0 opacity-75">جميع طلبات الصيانة</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-lg text-center" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+        <div class="card-body text-white">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <i class="fas fa-cog fa-2x opacity-75"></i>
+            <span class="badge bg-light text-danger fs-6">{{ s.in_progress }}</span>
+          </div>
+          <h5 class="fw-bold">قيد التنفيذ</h5>
+          <p class="mb-0 opacity-75">طلبات جارية</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-lg text-center" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+        <div class="card-body text-white">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <i class="fas fa-check-circle fa-2x opacity-75"></i>
+            <span class="badge bg-light text-success fs-6">{{ completed_this_month }}</span>
+          </div>
+          <h5 class="fw-bold">مكتمل هذا الشهر</h5>
+          <p class="mb-0 opacity-75">طلبات مكتملة</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-lg text-center" style="background: linear-gradient(135deg, #f12711 0%, #f5af19 100%);">
+        <div class="card-body text-white">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <i class="fas fa-clock fa-2x opacity-75"></i>
+            <span class="badge bg-light text-warning fs-6">{{ s.pending }}</span>
+          </div>
+          <h5 class="fw-bold">معلّق</h5>
+          <p class="mb-0 opacity-75">في انتظار المعالجة</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- رسوم بيانية محسنة -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-gradient-primary text-white">
+          <h5 class="mb-0"><i class="fas fa-chart-pie"></i> توزيع الحالات</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="statusChart" height="200"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-gradient-info text-white">
+          <h5 class="mb-0"><i class="fas fa-chart-bar"></i> توزيع الأولويات</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="priorityChart" height="200"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- أعلى الأولويات -->
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div class="card h-100">
+        <div class="card-header">طلبات عالية الأولوية</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered mb-0">
+              <thead class="table-light">
+                <tr><th>الطلب</th><th>العميل</th><th>تاريخ الاستلام</th><th>إجراء</th></tr>
+              </thead>
+              <tbody>
+                {% for r in high_priority %}
+                <tr>
+                  <td>{{ r.service_number or ('#' ~ r.id) }}</td>
+                  <td>{{ r.customer.name if r.customer else (r.name or '—') }}</td>
+                  <td>{{ r.received_at and r.received_at.strftime('%Y-%m-%d') or '—' }}</td>
+                  <td><a href="{{ url_for('service.view_request', rid=r.id) }}" class="btn btn-sm btn-outline-primary">عرض</a></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="text-center text-muted">لا يوجد</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- المتأخرة عن الموعد -->
+    <div class="col-md-6">
+      <div class="card h-100">
+        <div class="card-header">طلبات متأخرة</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered mb-0">
+              <thead class="table-light">
+                <tr><th>الطلب</th><th>العميل</th><th>بدأت</th><th>المدة المتوقعة</th><th>إجراء</th></tr>
+              </thead>
+              <tbody>
+                {% for r in overdue %}
+                <tr>
+                  <td>{{ r.service_number or ('#' ~ r.id) }}</td>
+                  <td>{{ r.customer.name if r.customer else (r.name or '—') }}</td>
+                  <td>{{ r.start_time and r.start_time.strftime('%Y-%m-%d %H:%M') or '—' }}</td>
+                  <td>{{ r.estimated_duration or '—' }} دقيقة</td>
+                  <td><a href="{{ url_for('service.view_request', rid=r.id) }}" class="btn btn-sm btn-outline-danger">فتح</a></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="text-center text-muted">لا يوجد</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- أكثر الفنيين نشاطًا -->
+  <div class="card mt-4">
+    <div class="card-header">الفنيون الأكثر نشاطًا</div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm table-bordered mb-0">
+          <thead class="table-light">
+            <tr><th>الفني</th><th>عدد الطلبات</th></tr>
+          </thead>
+          <tbody>
+            {% for row in active_mechanics %}
+              {% set uname = row.username if row.username is defined else row[0] %}
+              {% set cnt   = row.request_count if row.request_count is defined else row[1] %}
+              <tr><td>{{ uname }}</td><td>{{ cnt }}</td></tr>
+            {% else %}
+              <tr><td colspan="2" class="text-center text-muted">لا يوجد بيانات</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script>
+    // نستخدم القيم المحقونة من context_processor
+    const statusMap = {{ STATUS_LABELS|tojson }};
+    const statusRaw = [
+      {% for st, cnt in status_distribution %}
+        { key: "{{ (st.value if st is not string else st)|upper }}", count: {{ cnt }} },
+      {% endfor %}
+    ];
+    const statusLabels = statusRaw.map(x => statusMap[x.key] || x.key);
+    const statusCounts = statusRaw.map(x => x.count);
+
+    const priRaw = [
+      {% for pr, cnt in priority_distribution %}
+        { key: "{{ (pr.value if pr is not string else pr)|upper }}", count: {{ cnt }} },
+      {% endfor %}
+    ];
+    const priLabels = priRaw.map(x => x.key);
+    const priCounts = priRaw.map(x => x.count);
+
+    const ctx1 = document.getElementById('statusChart');
+    if (ctx1) new Chart(ctx1, { type: 'doughnut', data: { labels: statusLabels, datasets: [{ data: statusCounts }] } });
+
+    const ctx2 = document.getElementById('priorityChart');
+    if (ctx2) new Chart(ctx2, { type: 'bar', data: { labels: priLabels, datasets: [{ data: priCounts }] }, options: { plugins: { legend: { display:false } } } });
+  </script>
+  <script src="{{ url_for('static', filename='js/service.js') }}"></script>
+{% endblock %}

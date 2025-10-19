@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+{% block title %}{{ form.name.data and 'تعديل' or 'إضافة' }} شريك{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-7">
+      <div class="card shadow-sm rounded-4">
+        <div class="card-header d-flex justify-content-between align-items-center bg-info text-white">
+          <h4 class="mb-0"><i class="fas fa-handshake me-2"></i>{{ form.name.data and 'تعديل' or 'إضافة' }} شريك</h4>
+          {% if partner %}
+          <div class="btn-group">
+            {% if partner.balance and partner.balance > 0 %}
+            <a href="{{ url_for('payments.create_payment', 
+                           entity_type='PARTNER', 
+                           entity_id=partner.id,
+                           amount=partner.balance,
+                           currency=partner.currency if partner.currency else 'ILS',
+                           reference='دفع لشريك: ' ~ partner.name,
+                           notes='دفع مستحقات الشريك: ' ~ partner.name,
+                           partner_id=partner.id) }}" class="btn btn-sm btn-primary">
+              <i class="fas fa-coins me-1"></i> دفع ({{ '%.2f'|format(partner.balance) }} ₪)
+            </a>
+            {% endif %}
+            <a href="{{ url_for('payments.index') }}?entity_type=PARTNER&entity_id={{ partner.id }}" class="btn btn-sm btn-warning">
+              <i class="fas fa-file-invoice-dollar me-1"></i> دفعات
+            </a>
+            <button type="button"
+                    class="btn btn-sm btn-success btn-settle"
+                    data-entity-type="partner"
+                    data-id="{{ partner.id }}"
+                    data-name="{{ partner.name }}"
+                    data-balance="{{ '%.2f'|format(partner.net_balance) }}"
+                    data-currency="{{ partner.currency or 'ILS' }}">
+              <i class="fas fa-scale-balanced me-1"></i> تسوية
+            </button>
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="card-body">
+          <form method="post" autocomplete="off">
+            {{ form.hidden_tag() }}
+
+            <div class="row g-3">
+              <div class="col-md-6">
+                {{ form.name.label(class="form-label") }}
+                {{ form.name(class="form-control") }}
+                {% for err in form.name.errors %}<small class="text-danger">{{ err }}</small>{% endfor %}
+              </div>
+              <div class="col-md-6">
+                {{ form.identity_number.label(class="form-label") }}
+                {{ form.identity_number(class="form-control") }}
+                {% for err in form.identity_number.errors %}<small class="text-danger">{{ err }}</small>{% endfor %}
+              </div>
+            </div>
+
+            <div class="row g-3 mt-3">
+              <div class="col-md-6">
+                {{ form.phone_number.label(class="form-label") }}
+                {{ form.phone_number(class="form-control") }}
+                {% for err in form.phone_number.errors %}<small class="text-danger">{{ err }}</small>{% endfor %}
+              </div>
+              <div class="col-md-6">
+                {{ form.contact_info.label(class="form-label") }}
+                {{ form.contact_info(class="form-control") }}
+                {% for err in form.contact_info.errors %}<small class="text-danger">{{ err }}</small>{% endfor %}
+              </div>
+            </div>
+
+            <div class="mt-3">
+              {{ form.address.label(class="form-label") }}
+              {{ form.address(class="form-control") }}
+              {% for err in form.address.errors %}<small class="text-danger">{{ err }}</small>{% endfor %}
+            </div>
+
+            <div class="mt-3">
+              {{ form.share_percentage.label(class="form-label") }}
+              {{ form.share_percentage(class="form-control", step="0.01") }}
+              {% for err in form.share_percentage.errors %}<small class="text-danger">{{ err }}</small>{% endfor %}
+            </div>
+
+            {% if partner %}
+            <div class="mt-3">
+              <label class="form-label">الرصيد الحالي</label>
+              <input type="text" class="form-control" value="{{ '%.2f'|format(partner.net_balance) }}" readonly>
+            </div>
+            {% endif %}
+
+            <div class="d-flex gap-2 mt-4">
+              <button type="submit" class="btn btn-{{ form.name.data and 'warning' or 'success' }}">
+                <i class="fas fa-save me-1"></i> حفظ
+              </button>
+              <a href="{{ url_for('vendors_bp.partners_list') }}" class="btn btn-outline-secondary">عودة</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="vendors-config" data-pay-url="{{ url_for('payments.create_payment') }}"></div>
+
+<div class="modal fade" id="settlementModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4">
+      <div class="modal-header bg-light">
+        <h5 class="modal-title"><i class="fas fa-scale-balanced me-2"></i> تسوية رصيد</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2 text-muted small">الجهة: <span id="stlName"></span></div>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>الرصيد الحالي:</div>
+          <div id="stlBalance" class="fw-bold"></div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">المبلغ للتسوية</label>
+          <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control" id="stlAmount">
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-md-6">
+            <label class="form-label">الاتجاه</label>
+            <div id="stlDirectionBadge"></div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">العملة</label>
+            <input type="text" class="form-control" id="stlCurrency" readonly>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">طريقة الدفع</label>
+          <select id="stlMethod" class="form-select">
+            <option value="cash">نقداً</option>
+            <option value="bank">تحويل بنكي</option>
+            <option value="cheque">شيك</option>
+            <option value="card">بطاقة</option>
+            <option value="online">إلكتروني</option>
+          </select>
+        </div>
+        <input type="hidden" id="stlEntityType">
+        <input type="hidden" id="stlEntityId">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" id="stlPrint"><i class="fas fa-print me-1"></i> طباعة</button>
+        <button type="button" class="btn btn-success" id="stlConfirm"><i class="fas fa-check me-1"></i> إنشاء سند</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/vendors.js') }}"></script>
+{% endblock %}

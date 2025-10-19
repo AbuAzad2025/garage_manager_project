@@ -1,0 +1,846 @@
+{% extends "base.html" %}
+{% block title %}تسوية مورد {{ ss.supplier.name }} ({{ ss.code }}){% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/statement-print.css') }}">
+<style>
+.settlement-detail-card {
+    border-radius: 12px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.settlement-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white !important;
+    padding: 20px;
+    border-radius: 12px 12px 0 0;
+}
+
+.summary-box {
+    background: #f8f9fa;
+    border-left: 4px solid #667eea;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+}
+
+.summary-label {
+    font-size: 0.85rem;
+    color: #6c757d;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.summary-value {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #343a40;
+}
+
+.status-badge {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- رأس الصفحة للطباعة فقط -->
+<div class="print-header-info">
+  <div class="company-logo">
+    <img src="{{ url_for('static', filename='img/azad_logo.png') }}" alt="Logo">
+  </div>
+  <div class="company-info">
+    <div class="company-name">{{ system_settings.system_name or system_settings.company_name or 'كراج أزاد' }}</div>
+    <div class="company-details">
+      {% if system_settings.COMPANY_ADDRESS %}📍 {{ system_settings.COMPANY_ADDRESS }}{% endif %}
+      {% if system_settings.COMPANY_PHONE %} | 📞 {{ system_settings.COMPANY_PHONE }}{% endif %}<br>
+      {% if system_settings.COMPANY_EMAIL %}📧 {{ system_settings.COMPANY_EMAIL }}{% endif %}
+      {% if system_settings.TAX_NUMBER %} | رقم ضريبي: {{ system_settings.TAX_NUMBER }}{% endif %}
+    </div>
+  </div>
+  <div class="statement-type">
+    <h2>تسوية مورد</h2>
+    <div class="statement-date">📅 {{ now()|format_datetime }}</div>
+    <div class="user-info">👤 {{ current_user.username if current_user.is_authenticated else 'النظام' }}</div>
+  </div>
+</div>
+
+<!-- تذييل الصفحة للطباعة فقط -->
+<div class="print-footer-info">
+  <div class="footer-line">
+    <strong>{{ system_settings.system_name or system_settings.company_name or 'كراج أزاد' }}</strong>
+  </div>
+  <div class="footer-line print-time">
+    طُبع بواسطة: {{ current_user.username if current_user.is_authenticated else 'النظام' }} | 
+    {{ now()|format_datetime }} | 
+    صفحة <span class="page-number"></span>
+  </div>
+</div>
+
+<div class="content-wrapper">
+    <div class="content-header no-print">
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <div class="col-sm-6">
+                    <h1 class="m-0">
+                        <i class="fas fa-{% if balance_data and balance_data.success %}calculator{% else %}file-invoice-dollar{% endif %}"></i> 
+                        {% if balance_data and balance_data.success %}التسوية الذكية{% else %}تسوية مورد{% endif %}
+                    </h1>
+                </div>
+                <div class="col-sm-6">
+                    <ol class="breadcrumb float-sm-right">
+                        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+                        <li class="breadcrumb-item"><a href="{{ url_for('vendors_bp.suppliers_list') }}">الموردين</a></li>
+                        <li class="breadcrumb-item active">التسوية</li>
+                    </ol>
+                </div>
+            </div>
+            
+            <!-- اختيار الفترة الزمنية للتسوية الذكية -->
+            {% if balance_data and balance_data.success %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    <form method="GET" action="{{ url_for('supplier_settlements_bp.supplier_settlement', supplier_id=supplier.id) }}" class="row g-3 align-items-end">
+                        <div class="col-md-4">
+                            <label for="date_from" class="form-label"><i class="fas fa-calendar-alt"></i> من تاريخ</label>
+                            <input type="date" class="form-control" id="date_from" name="date_from" 
+                                   value="{{ date_from.strftime('%Y-%m-%d') if date_from else '' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="date_to" class="form-label"><i class="fas fa-calendar-alt"></i> إلى تاريخ</label>
+                            <input type="date" class="form-control" id="date_to" name="date_to" 
+                                   value="{{ date_to.strftime('%Y-%m-%d') if date_to else '' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-sync-alt"></i> تحديث التسوية
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="document.getElementById('date_from').value='2024-01-01'; document.getElementById('date_to').value='';">
+                                <i class="fas fa-undo"></i> إعادة تعيين
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <section class="content">
+        <div class="container-fluid">
+            
+            <!-- معلومات التسوية -->
+            <div class="card settlement-detail-card">
+                <div class="settlement-header">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h3 class="mb-2"><i class="fas fa-truck"></i> {{ ss.supplier.name }}</h3>
+                            <p class="mb-0">
+                                <i class="fas fa-barcode"></i> رقم التسوية: <strong>{{ ss.code }}</strong>
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            {% set s = (ss.status.value if ss.status and ss.status.value is defined else ss.status) or 'DRAFT' %}
+                            <span class="status-badge {% if s == 'DRAFT' %}bg-warning text-dark{% elif s == 'CONFIRMED' %}bg-success{% else %}bg-secondary{% endif %}">
+                                {{ s }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-calendar-alt"></i> <strong>الفترة:</strong> 
+                        {{ ss.from_date.strftime("%Y-%m-%d") }} → {{ ss.to_date.strftime("%Y-%m-%d") }}
+                        {% if not ss.id %}
+                        <br><span class="badge bg-warning text-dark"><i class="fas fa-magic"></i> تسوية ذكية تلقائية</span>
+                        {% endif %}
+                    </div>
+                    {% if balance_data and balance_data.currency_note %}
+                    <div class="alert alert-primary">
+                        <i class="fas fa-exchange-alt"></i> {{ balance_data.currency_note }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- التسوية الذكية: تحذير القطع غير المسعّرة -->
+            {% if balance_data and balance_data.has_warnings and balance_data.unpriced_items|length > 0 %}
+            <div class="alert alert-danger no-print" style="border-left: 5px solid #dc3545;">
+                <h4><i class="fas fa-exclamation-triangle"></i> ⚠️ تحذير: يوجد {{ balance_data.unpriced_items|length }} قطعة غير مسعّرة</h4>
+                <p class="mb-3"><strong>لا يمكن إتمام التسوية قبل تسعير جميع القطع!</strong></p>
+                <p>يرجى إدخال أسعار القطع التالية ثم الضغط على "حفظ" لكل قطعة:</p>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered bg-white">
+                        <thead>
+                            <tr>
+                                <th>المنتج</th>
+                                <th>SKU</th>
+                                <th>الكمية</th>
+                                <th>التاريخ</th>
+                                <th class="no-print">السعر المقترح</th>
+                                <th class="no-print">إجراء</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in balance_data.unpriced_items %}
+                            <tr data-tx-id="{{ item.id }}">
+                                <td>{{ item.product_name }}</td>
+                                <td><code>{{ item.product_sku or '—' }}</code></td>
+                                <td>{{ item.quantity }}</td>
+                                <td><small>{{ item.date.strftime("%Y-%m-%d") if item.date else '—' }}</small></td>
+                                <td class="no-print">
+                                    <input type="number" step="0.01" min="0" 
+                                           class="form-control form-control-sm" 
+                                           style="width: 120px; display: inline-block;"
+                                           placeholder="السعر" 
+                                           data-tx-id="{{ item.id }}">
+                                </td>
+                                <td class="no-print">
+                                    <button class="btn btn-sm btn-primary update-price-btn" 
+                                            data-tx-id="{{ item.id }}">
+                                        <i class="fas fa-check"></i> حفظ
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- الملخص المالي -->
+            {% if balance_data and balance_data.success %}
+            <!-- ملخص بسيط واضح -->
+            <div class="alert alert-info text-center mb-4">
+                <h5 class="mb-3">📊 المعادلة المحاسبية</h5>
+                <p class="mb-0" dir="ltr" style="font-size: 1.1rem; font-weight: 600;">
+                    <span class="text-success">حقوق المورد ({{ "%.2f"|format(balance_data.rights.total) }})</span>
+                    <strong> - </strong>
+                    <span class="text-danger">التزاماته ({{ "%.2f"|format(balance_data.obligations.total) }})</span>
+                    <strong> - </strong>
+                    <span class="text-warning">الدفعات المسددة ({{ "%.2f"|format(balance_data.payments.total_settled) }})</span>
+                    <strong> = </strong>
+                    <span class="text-primary">الرصيد ({{ "%.2f"|format(balance_data.balance.amount) }})</span>
+                </p>
+            </div>
+            
+            <div class="row">
+                <div class="col-lg-3 col-md-6 mb-3">
+                    <div class="summary-box" style="border-left-color: #28a745;">
+                        <div class="summary-label">🟢 حقوق المورد</div>
+                        <div class="summary-value text-success">{{ "%.2f"|format(balance_data.rights.total) }}</div>
+                        <small class="text-muted">₪ ما له علينا</small>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6 mb-3">
+                    <div class="summary-box" style="border-left-color: #dc3545;">
+                        <div class="summary-label">🔴 التزامات المورد</div>
+                        <div class="summary-value text-danger">{{ "%.2f"|format(balance_data.obligations.total) }}</div>
+                        <small class="text-muted">₪ ما عليه لنا</small>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6 mb-3">
+                    <div class="summary-box" style="border-left-color: #ffc107;">
+                        <div class="summary-label">💰 الدفعات المسددة</div>
+                        <div class="summary-value text-warning">{{ "%.2f"|format(balance_data.payments.total_settled) }}</div>
+                        <small class="text-muted">₪ تسديدات</small>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6 mb-3">
+                    <div class="summary-box" style="border-left-color: #007bff; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);">
+                        <div class="summary-label">🎯 الرصيد النهائي</div>
+                        <div class="summary-value {% if balance_data.balance.amount > 0 %}text-success{% elif balance_data.balance.amount < 0 %}text-danger{% else %}text-secondary{% endif %}">
+                            {{ "%.2f"|format(balance_data.balance.amount|abs) }}
+                        </div>
+                        <small class="text-muted">₪ {{ balance_data.balance.direction }}</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- تفاصيل التسوية -->
+            <!-- التسوية الذكية: تفاصيل شاملة -->
+            
+            <!-- القطع الواردة من المورد -->
+            {% if balance_data.rights.exchange_items.get('items', [])|length > 0 %}
+            <div class="card settlement-detail-card">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="fas fa-boxes"></i> القطع من مستودع التبادل (حقوق المورد)
+                        <span class="badge bg-light text-dark">{{ balance_data.rights.exchange_items.get('items', [])|length }}</span>
+                    </h4>
+                    <button class="btn btn-sm btn-light no-print" onclick="printTable('exchangeItemsTable', 'القطع من مستودع التبادل')">
+                        <i class="fas fa-print"></i> طباعة
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-bordered table-sm" id="exchangeItemsTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>المنتج</th>
+                                    <th>SKU</th>
+                                    <th class="text-end">الكمية</th>
+                                    <th class="text-end">السعر</th>
+                                    <th class="text-end">القيمة (₪)</th>
+                                    <th>التاريخ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in balance_data.rights.exchange_items.get('items', []) %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+                                    <td>{{ item.product_name }}</td>
+                                    <td><code>{{ item.product_sku or '—' }}</code></td>
+                                    <td class="text-end">{{ item.quantity }}</td>
+                                    <td class="text-end">{{ "%.2f"|format(item.unit_cost) }}</td>
+                                    <td class="text-end"><strong>{{ "%.2f"|format(item.total_value) }}</strong></td>
+                                    <td><small>{{ item.date }}</small></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr>
+                                    <td colspan="5" class="text-end"><strong>الإجمالي:</strong></td>
+                                    <td class="text-end"><strong class="text-success">{{ "%.2f"|format(balance_data.rights.exchange_items.get('total_value_ils', 0)) }}</strong></td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- المبيعات والصيانة (التزامات المورد) -->
+            <div class="row">
+                {% if balance_data.obligations.sales_to_supplier.get('items', [])|length > 0 %}
+                <div class="col-md-6">
+                    <div class="card settlement-detail-card">
+                        <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="fas fa-shopping-cart"></i> المبيعات له (كعميل)
+                                <span class="badge bg-light text-dark">{{ balance_data.obligations.sales_to_supplier.get('count', 0) }}</span>
+                            </h5>
+                            <button class="btn btn-sm btn-light no-print" onclick="printTable('salesTable', 'المبيعات للمورد')">
+                                <i class="fas fa-print"></i> طباعة
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover" id="salesTable">
+                                    <thead>
+                                        <tr>
+                                            <th>الفاتورة</th>
+                                            <th>التاريخ</th>
+                                            <th class="text-end">المبلغ (₪)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in balance_data.obligations.sales_to_supplier.get('items', []) %}
+                                        <tr>
+                                            <td>#{{ item.sale_number }}</td>
+                                            <td><small>{{ item.date }}</small></td>
+                                            <td class="text-end">
+                                                {{ "%.2f"|format(item.amount_ils) }}
+                                                {% if item.currency != 'ILS' %}
+                                                <br><small class="text-muted">({{ item.currency }}: {{ "%.2f"|format(item.amount) }})</small>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                    <tfoot class="table-light">
+                                        <tr>
+                                            <td colspan="2" class="text-end"><strong>المجموع:</strong></td>
+                                            <td class="text-end"><strong class="text-danger">{{ "%.2f"|format(balance_data.obligations.sales_to_supplier.get('total_ils', 0)) }}</strong></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if balance_data.obligations.services_to_supplier.get('items', [])|length > 0 %}
+                <div class="col-md-6">
+                    <div class="card settlement-detail-card">
+                        <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="fas fa-wrench"></i> الصيانة له (كعميل)
+                                <span class="badge bg-light text-dark">{{ balance_data.obligations.services_to_supplier.get('count', 0) }}</span>
+                            </h5>
+                            <button class="btn btn-sm btn-light no-print" onclick="printTable('servicesTable', 'الصيانة للمورد')">
+                                <i class="fas fa-print"></i> طباعة
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover" id="servicesTable">
+                                    <thead>
+                                        <tr>
+                                            <th>رقم الخدمة</th>
+                                            <th>التاريخ</th>
+                                            <th class="text-end">المبلغ (₪)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in balance_data.obligations.services_to_supplier.get('items', []) %}
+                                        <tr>
+                                            <td>#{{ item.service_number }}</td>
+                                            <td><small>{{ item.date }}</small></td>
+                                            <td class="text-end">
+                                                {{ "%.2f"|format(item.amount_ils) }}
+                                                {% if item.currency != 'ILS' %}
+                                                <br><small class="text-muted">({{ item.currency }}: {{ "%.2f"|format(item.amount) }})</small>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                    <tfoot class="table-light">
+                                        <tr>
+                                            <td colspan="2" class="text-end"><strong>المجموع:</strong></td>
+                                            <td class="text-end"><strong class="text-danger">{{ "%.2f"|format(balance_data.obligations.services_to_supplier.get('total_ils', 0)) }}</strong></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- الدفعات والمرتجعات -->
+            <div class="row">
+                {% if balance_data.payments.paid_to_supplier.get('items', [])|length > 0 %}
+                <div class="col-md-4">
+                    <div class="card settlement-detail-card">
+                        <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="fas fa-money-bill-wave"></i> دفعنا له (OUT)
+                                <span class="badge bg-dark">{{ balance_data.payments.paid_to_supplier.get('count', 0) }}</span>
+                            </h5>
+                            <button class="btn btn-sm btn-light no-print" onclick="printTable('paymentOutTable', 'دفعنا للمورد')">
+                                <i class="fas fa-print"></i> طباعة
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover" id="paymentOutTable">
+                                    <thead>
+                                        <tr>
+                                            <th>التاريخ</th>
+                                            <th class="text-end">المبلغ (₪)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in balance_data.payments.paid_to_supplier.get('items', []) %}
+                                        <tr>
+                                            <td><small>{{ item.date }}</small></td>
+                                            <td class="text-end">{{ "%.2f"|format(item.amount_ils) }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                    <tfoot class="table-light">
+                                        <tr>
+                                            <td class="text-end"><strong>المجموع:</strong></td>
+                                            <td class="text-end"><strong class="text-warning">{{ "%.2f"|format(balance_data.payments.total_paid) }}</strong></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if balance_data.payments.received_from_supplier.get('items', [])|length > 0 %}
+                <div class="col-md-4">
+                    <div class="card settlement-detail-card">
+                        <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="fas fa-hand-holding-usd"></i> دفع لنا (IN)
+                                <span class="badge bg-dark">{{ balance_data.payments.received_from_supplier.get('count', 0) }}</span>
+                            </h5>
+                            <button class="btn btn-sm btn-light no-print" onclick="printTable('paymentInTable', 'دفع المورد لنا')">
+                                <i class="fas fa-print"></i> طباعة
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover" id="paymentInTable">
+                                    <thead>
+                                        <tr>
+                                            <th>التاريخ</th>
+                                            <th class="text-end">المبلغ (₪)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in balance_data.payments.received_from_supplier.get('items', []) %}
+                                        <tr>
+                                            <td><small>{{ item.date }}</small></td>
+                                            <td class="text-end">{{ "%.2f"|format(item.amount_ils) }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                    <tfoot class="table-light">
+                                        <tr>
+                                            <td class="text-end"><strong>المجموع:</strong></td>
+                                            <td class="text-end"><strong class="text-warning">{{ "%.2f"|format(balance_data.payments.total_received) }}</strong></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if balance_data.payments.returns_to_supplier.get('items', [])|length > 0 %}
+                <div class="col-md-4">
+                    <div class="card settlement-detail-card">
+                        <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="fas fa-undo"></i> مرتجعات له
+                                <span class="badge bg-dark">{{ balance_data.payments.returns_to_supplier.get('count', 0) }}</span>
+                            </h5>
+                            <button class="btn btn-sm btn-light no-print" onclick="printTable('returnsTable', 'مرتجعات للمورد')">
+                                <i class="fas fa-print"></i> طباعة
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover" id="returnsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>المنتج</th>
+                                            <th class="text-end">الكمية</th>
+                                            <th class="text-end">القيمة (₪)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in balance_data.payments.returns_to_supplier.get('items', []) %}
+                                        <tr>
+                                            <td>{{ item.product_name }}</td>
+                                            <td class="text-end">{{ item.quantity }}</td>
+                                            <td class="text-end">{{ "%.2f"|format(item.total_value) }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                    <tfoot class="table-light">
+                                        <tr>
+                                            <td colspan="2" class="text-end"><strong>المجموع:</strong></td>
+                                            <td class="text-end"><strong class="text-warning">{{ "%.2f"|format(balance_data.payments.total_returns) }}</strong></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- التسويات السابقة -->
+            {% if balance_data.previous_settlements|length > 0 %}
+            <div class="card settlement-detail-card border-secondary">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history"></i> سجل التسويات السابقة
+                        <span class="badge bg-light text-dark">{{ balance_data.previous_settlements|length }}</span>
+                    </h5>
+                    <small class="text-white-50">عرض التسويات المكتملة للمورد قبل هذه الفترة</small>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>ملاحظة:</strong> التسويات أدناه تمت في فترات سابقة وتم احتساب مبالغها في حينه. 
+                        التسوية الحالية تحسب فقط المعاملات من <strong>{{ ss.from_date.strftime("%Y-%m-%d") }}</strong> إلى <strong>{{ ss.to_date.strftime("%Y-%m-%d") }}</strong>.
+                    </div>
+                    
+                    <div class="accordion" id="previousSettlementsAccordion">
+                        {% for settlement in balance_data.previous_settlements %}
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="heading-{{ settlement.id }}">
+                                <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" 
+                                        data-bs-toggle="collapse" data-bs-target="#collapse-{{ settlement.id }}">
+                                    <div class="d-flex justify-content-between align-items-center w-100 me-3">
+                                        <div>
+                                            <strong><i class="fas fa-file-invoice"></i> {{ settlement.code }}</strong>
+                                            <br>
+                                            <small class="text-muted">
+                                                {{ settlement.from_date.strftime("%Y-%m-%d") if settlement.from_date else '—' }} → 
+                                                {{ settlement.to_date.strftime("%Y-%m-%d") if settlement.to_date else '—' }}
+                                            </small>
+                                        </div>
+                                        <div class="text-end">
+                                            <span class="badge bg-{{ 'success' if settlement.status == 'CONFIRMED' else 'warning' }}">
+                                                {{ settlement.status }}
+                                            </span>
+                                            <br>
+                                            <strong class="text-primary">{{ "%.2f"|format(settlement.total_due) }} ₪</strong>
+                                        </div>
+                                    </div>
+                                </button>
+                            </h2>
+                            <div id="collapse-{{ settlement.id }}" 
+                                 class="accordion-collapse collapse {% if loop.first %}show{% endif %}" 
+                                 data-bs-parent="#previousSettlementsAccordion">
+                                <div class="accordion-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p><strong>📅 التاريخ:</strong> {{ settlement.date.strftime("%Y-%m-%d %H:%M") if settlement.date else '—' }}</p>
+                                            <p><strong>💰 المبلغ المستحق:</strong> <span class="text-primary">{{ "%.2f"|format(settlement.total_due) }} ₪</span></p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>📊 الحالة:</strong> <span class="badge bg-info">{{ settlement.status }}</span></p>
+                                            {% if settlement.notes %}
+                                            <p><strong>📝 ملاحظات:</strong> {{ settlement.notes }}</p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="alert alert-light mt-2 mb-0">
+                                        <small>
+                                            <i class="fas fa-info-circle"></i> 
+                                            هذه التسوية تغطي الفترة من {{ settlement.from_date.strftime("%d/%m/%Y") }} إلى {{ settlement.to_date.strftime("%d/%m/%Y") }}
+                                            ولا تشمل معاملات التسوية الحالية.
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> لا توجد تسويات سابقة لهذا المورد.
+            </div>
+            {% endif %}
+            
+            {% endif %}
+            
+            <!-- أزرار الإجراءات -->
+            <div class="card settlement-detail-card no-print">
+                <div class="card-body text-center">
+                    <button type="button" class="btn btn-outline-primary btn-lg" id="btn-print">
+                        <i class="fas fa-print"></i> طباعة التسوية
+                    </button>
+                    
+                    {% if balance_data and balance_data.success %}
+                        {% if balance_data.has_unpriced and balance_data.unpriced_items|length > 0 %}
+                        <!-- يوجد قطع غير مسعّرة - نعطل زر الدفع -->
+                        <button class="btn btn-danger btn-lg" disabled title="يجب تسعير جميع القطع قبل إتمام التسوية">
+                            <i class="fas fa-exclamation-triangle"></i> 
+                            يجب تسعير {{ balance_data.unpriced_items|length }} قطعة أولاً
+                        </button>
+                        {% elif balance_data.balance.amount|abs > 0.01 %}
+                        <!-- لا توجد قطع غير مسعّرة - الزر نشط -->
+                        <a href="{{ url_for('payments.create_payment',
+                                           entity_type='SUPPLIER',
+                                          entity_id=supplier.id,
+                                          direction=balance_data.balance.payment_direction,
+                                          total_amount=('%.2f'|format(balance_data.balance.amount|abs)),
+                                          currency='ILS',
+                                          reference='SmartSettle-' ~ supplier.id ~ '-' ~ date_from.strftime('%Y%m%d'),
+                                          notes='تسوية ذكية - ' ~ supplier.name ~ ' - ' ~ date_from.strftime('%Y-%m-%d') ~ ' إلى ' ~ date_to.strftime('%Y-%m-%d')) }}"
+                           class="btn btn-{% if balance_data.balance.payment_direction == 'OUT' %}success{% else %}warning{% endif %} btn-lg">
+                            <i class="fas fa-{% if balance_data.balance.payment_direction == 'OUT' %}money-check-alt{% else %}hand-holding-usd{% endif %}"></i> 
+                            {{ balance_data.balance.action }} - {{ "%.2f"|format(balance_data.balance.amount|abs) }} ₪
+                        </a>
+                        {% else %}
+                        <button class="btn btn-secondary btn-lg" disabled>
+                            <i class="fas fa-balance-scale"></i> الحساب متوازن
+                        </button>
+                        {% endif %}
+                    {% endif %}
+                    
+                    <a href="{{ url_for('vendors_bp.suppliers_list') }}" class="btn btn-secondary btn-lg">
+                        <i class="fas fa-arrow-right"></i> العودة
+                    </a>
+                </div>
+            </div>
+
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function() {
+  'use strict';
+  
+  // زر الطباعة
+  document.getElementById('btn-print')?.addEventListener('click', function () {
+    window.print();
+  });
+  
+  // Ctrl+P للطباعة
+  document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+      e.preventDefault();
+      window.print();
+    }
+  });
+  
+  // DataTables للجداول الطويلة
+  {% if balance_data and balance_data.get('success') and balance_data.get('rights') and balance_data.rights.exchange_items.get('items', [])|length > 10 %}
+  $('#exchangeItemsTable').DataTable({
+    language: {
+      url: '{{ url_for("static", filename="datatables/Arabic.json") }}'
+    },
+    pageLength: 25,
+    order: [[6, 'desc']],  // ترتيب حسب التاريخ
+    dom: 'frtip',
+    searching: true,
+    paging: true,
+    info: true
+  });
+  {% endif %}
+  
+  // دالة طباعة جدول محدد
+  window.printTable = function(tableId, title) {
+    const table = document.getElementById(tableId);
+    if (!table) return;
+    
+    const printWindow = window.open('', '', 'height=600,width=800');
+    printWindow.document.write('<html><head><title>' + title + '</title>');
+    printWindow.document.write('<style>');
+    printWindow.document.write('body { font-family: Arial, sans-serif; direction: rtl; }');
+    printWindow.document.write('table { width: 100%; border-collapse: collapse; margin: 20px 0; }');
+    printWindow.document.write('th, td { border: 1px solid #ddd; padding: 8px; text-align: right; }');
+    printWindow.document.write('th { background-color: #f8f9fa; font-weight: bold; }');
+    printWindow.document.write('.text-end { text-align: left; }');
+    printWindow.document.write('h2 { text-align: center; color: #333; margin-bottom: 20px; }');
+    printWindow.document.write('.print-header { text-align: center; margin-bottom: 20px; }');
+    printWindow.document.write('.print-footer { text-align: center; margin-top: 20px; font-size: 12px; color: #666; }');
+    printWindow.document.write('@media print { .no-print { display: none; } }');
+    printWindow.document.write('</style></head><body>');
+    printWindow.document.write('<div class="print-header">');
+    printWindow.document.write('<h2>' + title + '</h2>');
+    printWindow.document.write('<p>{{ supplier.name }} | {{ ss.from_date.strftime("%Y-%m-%d") }} - {{ ss.to_date.strftime("%Y-%m-%d") }}</p>');
+    printWindow.document.write('</div>');
+    printWindow.document.write(table.outerHTML);
+    printWindow.document.write('<div class="print-footer">');
+    printWindow.document.write('<p>طُبع بتاريخ: ' + new Date().toLocaleString('ar-EG') + '</p>');
+    printWindow.document.write('</div>');
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    printWindow.print();
+  }
+  
+  // تحديث أسعار القطع غير المسعّرة (للتسوية الذكية)
+  let unpricedCount = {{ balance_data.unpriced_items|length if balance_data and balance_data.unpriced_items else 0 }};
+  
+  function updateUnpricedCounter() {
+    // تحديث عداد القطع غير المسعّرة في الصفحة
+    const counterElements = document.querySelectorAll('.unpriced-counter');
+    counterElements.forEach(el => {
+      el.textContent = unpricedCount;
+    });
+    
+    // إذا لم يتبقى قطع غير مسعّرة، إعادة تحميل الصفحة
+    if (unpricedCount === 0) {
+      setTimeout(() => {
+        alert('✓ تم تسعير جميع القطع بنجاح! سيتم تحديث التسوية الآن...');
+        location.reload();
+      }, 500);
+    }
+  }
+  
+  document.querySelectorAll('.update-price-btn').forEach(btn => {
+    btn.addEventListener('click', async function() {
+      const txId = this.dataset.txId;
+      const input = document.querySelector(`input.form-control[data-tx-id="${txId}"]`);
+      const newPrice = parseFloat(input.value);
+      
+      if (isNaN(newPrice) || newPrice < 0) {
+        alert('❌ يرجى إدخال سعر صحيح (رقم >= 0)');
+        input.focus();
+        return;
+      }
+      
+      if (newPrice === 0) {
+        if (!confirm('⚠️ السعر المدخل هو صفر. هل أنت متأكد؟')) {
+          return;
+        }
+      }
+      
+      // تأكيد من المستخدم
+      if (!confirm(`✓ تأكيد التسعير\n\nالسعر الجديد: ${newPrice.toFixed(2)} ₪\n\nهل أنت متأكد؟`)) {
+        return;
+      }
+      
+      // تعطيل الزر أثناء المعالجة
+      const originalHTML = this.innerHTML;
+      this.disabled = true;
+      this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الحفظ...';
+      input.disabled = true;
+      
+      try {
+        const response = await fetch(`{{ url_for('supplier_settlements_bp.update_exchange_transaction_price', tx_id=0) }}`.replace('/0/', `/${txId}/`), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+          },
+          body: JSON.stringify({ unit_cost: newPrice })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          // نجح الحفظ - إخفاء السطر وتحديث العداد
+          const row = this.closest('tr');
+          row.style.backgroundColor = '#d4edda';
+          row.style.transition = 'all 0.5s ease';
+          
+          setTimeout(() => {
+            row.style.opacity = '0';
+            setTimeout(() => {
+              row.remove();
+              unpricedCount--;
+              updateUnpricedCounter();
+            }, 300);
+          }, 800);
+          
+        } else {
+          alert('❌ خطأ: ' + result.error);
+          this.disabled = false;
+          this.innerHTML = originalHTML;
+          input.disabled = false;
+        }
+      } catch (error) {
+        alert('❌ حدث خطأ في الاتصال بالخادم');
+        console.error(error);
+        this.disabled = false;
+        this.innerHTML = originalHTML;
+        input.disabled = false;
+      }
+    });
+    
+    // السماح بالضغط على Enter لحفظ السعر
+    const input = document.querySelector(`input.form-control[data-tx-id="${btn.dataset.txId}"]`);
+    if (input) {
+      input.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          btn.click();
+        }
+      });
+    }
+  });
+})();
+</script>
+{% endblock %}

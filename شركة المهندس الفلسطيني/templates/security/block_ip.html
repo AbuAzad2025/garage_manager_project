@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}حظر IP{% endblock %}
+{% block page_title %}🔒 حظر عنوان IP{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  {% include 'security/_navigation.html' %}
+  
+  <div class="card">
+    <div class="card-header bg-danger text-white">
+      <h5 class="mb-0">حظر عنوان IP</h5>
+    </div>
+    <div class="card-body">
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="mb-3">
+          <label class="form-label">عنوان IP *</label>
+          <input type="text" name="ip" class="form-control" placeholder="مثال: 192.168.1.100" required>
+        </div>
+        
+        <div class="mb-3">
+          <label class="form-label">السبب</label>
+          <textarea name="reason" class="form-control" rows="3" placeholder="سبب الحظر..."></textarea>
+        </div>
+        
+        <div class="mb-3">
+          <label class="form-label">المدة</label>
+          <select name="duration" class="form-select">
+            <option value="permanent">دائم</option>
+            <option value="1h">ساعة واحدة</option>
+            <option value="24h">24 ساعة</option>
+            <option value="7d">7 أيام</option>
+            <option value="30d">30 يوم</option>
+          </select>
+        </div>
+        
+        <button type="submit" class="btn btn-danger">
+          <i class="fas fa-ban"></i> حظر IP
+        </button>
+        <a href="{{ url_for('security.index') }}" class="btn btn-secondary">إلغاء</a>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

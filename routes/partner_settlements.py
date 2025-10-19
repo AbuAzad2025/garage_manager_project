@@ -7,10 +7,138 @@ from sqlalchemy import and_
 from sqlalchemy.exc import SQLAlchemyError
 from extensions import db
 import utils
-from models import Partner, PaymentDirection, PaymentMethod, PartnerSettlement, PartnerSettlementStatus, build_partner_settlement_draft, AuditLog
+from models import Partner, PaymentDirection, PaymentMethod, PartnerSettlement, PartnerSettlementStatus, build_partner_settlement_draft, AuditLog, SaleStatus
 import json
 
 partner_settlements_bp = Blueprint("partner_settlements_bp", __name__, url_prefix="/partners")
+
+def get_unpriced_partner_products():
+    """
+    جلب القطع غير المسعّرة للشركاء
+    Returns: list of dicts with product info
+    """
+    from models import (
+        WarehousePartnerShare, ProductPartner, Product, 
+        Partner, StockLevel, Warehouse
+    )
+    from sqlalchemy import or_
+    
+    unpriced_items = []
+    
+    # 1. القطع من WarehousePartnerShare غير المسعّرة
+    wps_unpriced = db.session.query(
+        WarehousePartnerShare.partner_id,
+        Partner.name.label("partner_name"),
+        Product.id.label("product_id"),
+        Product.name.label("product_name"),
+        Product.sku,
+        Product.purchase_price,
+        Product.selling_price,
+        WarehousePartnerShare.share_percentage.label("share_pct")
+    ).join(
+        Partner, Partner.id == WarehousePartnerShare.partner_id
+    ).join(
+        Product, Product.id == WarehousePartnerShare.product_id
+    ).filter(
+        or_(
+            Product.purchase_price == None,
+            Product.purchase_price == 0,
+            Product.selling_price == None,
+            Product.selling_price == 0
+        )
+    ).all()
+    
+    for item in wps_unpriced:
+        # التحقق من وجود مخزون
+        has_stock = db.session.query(StockLevel).filter(
+            StockLevel.product_id == item.product_id,
+            StockLevel.quantity > 0
+        ).first() is not None
+        
+        unpriced_items.append({
+            "partner_id": item.partner_id,
+            "partner_name": item.partner_name,
+            "product_id": item.product_id,
+            "product_name": item.product_name,
+            "sku": item.sku,
+            "purchase_price": float(item.purchase_price or 0),
+            "selling_price": float(item.selling_price or 0),
+            "share_percentage": float(item.share_pct),
+            "has_stock": has_stock,
+            "missing": []
+        })
+        
+        # تحديد ما هو مفقود
+        if not item.purchase_price or item.purchase_price == 0:
+            unpriced_items[-1]["missing"].append("purchase_price")
+        if not item.selling_price or item.selling_price == 0:
+            unpriced_items[-1]["missing"].append("selling_price")
+    
+    # 2. القطع من ProductPartner غير المسعّرة
+    pp_unpriced = db.session.query(
+        ProductPartner.partner_id,
+        Partner.name.label("partner_name"),
+        Product.id.label("product_id"),
+        Product.name.label("product_name"),
+        Product.sku,
+        Product.purchase_price,
+        Product.selling_price,
+        ProductPartner.share_percent.label("share_pct")
+    ).join(
+        Partner, Partner.id == ProductPartner.partner_id
+    ).join(
+        Product, Product.id == ProductPartner.product_id
+    ).filter(
+        or_(
+            Product.purchase_price == None,
+            Product.purchase_price == 0,
+            Product.selling_price == None,
+            Product.selling_price == 0
+        )
+    ).all()
+    
+    # إضافة فقط القطع التي ليست مكررة
+    existing_ids = {(item["partner_id"], item["product_id"]) for item in unpriced_items}
+    
+    for item in pp_unpriced:
+        if (item.partner_id, item.product_id) in existing_ids:
+            continue
+        
+        has_stock = db.session.query(StockLevel).filter(
+            StockLevel.product_id == item.product_id,
+            StockLevel.quantity > 0
+        ).first() is not None
+        
+        unpriced_items.append({
+            "partner_id": item.partner_id,
+            "partner_name": item.partner_name,
+            "product_id": item.product_id,
+            "product_name": item.product_name,
+            "sku": item.sku,
+            "purchase_price": float(item.purchase_price or 0),
+            "selling_price": float(item.selling_price or 0),
+            "share_percentage": float(item.share_pct),
+            "has_stock": has_stock,
+            "missing": []
+        })
+        
+        if not item.purchase_price or item.purchase_price == 0:
+            unpriced_items[-1]["missing"].append("purchase_price")
+        if not item.selling_price or item.selling_price == 0:
+            unpriced_items[-1]["missing"].append("selling_price")
+    
+    return unpriced_items
+
+@partner_settlements_bp.route("/unpriced-items", methods=["GET"])
+@login_required
+def check_unpriced_items():
+    """التحقق من القطع غير المسعّرة للشركاء"""
+    unpriced = get_unpriced_partner_products()
+    return jsonify({
+        "success": True,
+        "count": len(unpriced),
+        "items": unpriced
+    })
 
 @partner_settlements_bp.route("/settlements", methods=["GET"], endpoint="list")
 @login_required
@@ -191,7 +319,7 @@ def partner_settlement(partner_id):
     if date_to:
         date_to = _parse_iso_to_datetime(date_to, end=True)
     else:
-        date_to = datetime.utcnow()
+        date_to = datetime.now()
     
     # حساب الرصيد الذكي
     balance_data = _calculate_smart_partner_balance(partner_id, date_from, date_to)
@@ -264,7 +392,7 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
         # ═══════════════════════════════════════════════════════════
         
         # 4. دفعات دفعناها له (OUT)
-        payments_to_partner = _get_payments_to_partner(partner_id, date_from, date_to)
+        payments_to_partner = _get_payments_to_partner(partner_id, partner, date_from, date_to)
         
         # 5. مبيعات له (كعميل)
         sales_to_partner = _get_partner_sales_as_customer(partner_id, partner, date_from, date_to)
@@ -295,14 +423,16 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
         # صافي الحساب قبل احتساب الدفعات
         net_before_payments = partner_rights - partner_obligations
         
-        # الدفعات (كلها تُخصم من الرصيد)
-        # - دفعات واردة (IN): دفع لنا من جيبه → تُحسب له (تُخصم من مديونيته)
-        # - دفعات صادرة (OUT): دفعنا له من حقوقه → تُحسب له (تُخصم من حقوقه)
+        # الدفعات:
+        # - دفعات واردة (IN): دفع لنا → تُنقص من مديونيته (تُضاف للرصيد إذا كان سالب)
+        # - دفعات صادرة (OUT): دفعنا له → تُنقص من حقوقنا عليه (تُطرح من الرصيد)
         paid_to_partner = Decimal(str(payments_to_partner.get("total_ils", 0)))
         received_from_partner = Decimal(str(payments_from_partner.get("total_ils", 0)))
         
-        # الرصيد النهائي = (ما استحقه - ما عليه - ما دفعناه - ما دفعه)
-        balance = net_before_payments - paid_to_partner - received_from_partner
+        # الرصيد النهائي = (حقوقه - التزاماته) - (دفعنا له) + (دفع لنا)
+        # مثال: إذا كان عليه 100 ودفع لنا 60، الرصيد = -100 + 60 = -40 (باقي عليه 40)
+        # مثال: إذا كان له 100 ودفعنا له 60، الرصيد = 100 - 60 = 40 (باقي له 40)
+        balance = net_before_payments - paid_to_partner + received_from_partner
         
         return {
             "success": True,
@@ -347,7 +477,7 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
                 "payment_direction": "OUT" if balance > 0 else "IN" if balance < 0 else None,
                 "action": "ندفع له" if balance > 0 else "يدفع لنا" if balance < 0 else "لا شيء",
                 "currency": "ILS",
-                "formula": f"({float(partner_rights):.2f} - {float(partner_obligations):.2f} - {float(paid_to_partner):.2f} - {float(received_from_partner):.2f}) = {float(balance):.2f}"
+                "formula": f"({float(partner_rights):.2f} - {float(partner_obligations):.2f} - {float(paid_to_partner):.2f} + {float(received_from_partner):.2f}) = {float(balance):.2f}"
             },
             # معلومات إضافية
             "previous_settlements": _get_previous_partner_settlements(partner_id, date_from),
@@ -682,7 +812,7 @@ def _get_partner_inventory(partner_id: int, date_from: datetime, date_to: dateti
         WarehousePartnerShare.product_id,
         WarehousePartnerShare.share_percentage,
         Warehouse.name.label('warehouse_name')
-    ).join(
+    ).outerjoin(
         Warehouse, Warehouse.id == WarehousePartnerShare.warehouse_id
     ).filter(
         WarehousePartnerShare.partner_id == partner_id,
@@ -727,8 +857,68 @@ def _get_partner_inventory(partner_id: int, date_from: datetime, date_to: dateti
         for wh_share in partner_warehouse_shares:
             wh_id, prod_id, share_pct, wh_name = wh_share
             
-            # إذا كان product_id محدد، نأخذ هذا المنتج فقط
-            if prod_id:
+            # إذا كان warehouse_id = None، نأخذ من جميع مستودعات الشركاء
+            if wh_id is None:
+                # جلب جميع مستودعات الشركاء
+                partner_warehouses = db.session.query(Warehouse.id, Warehouse.name).filter(
+                    Warehouse.warehouse_type == 'PARTNER'
+                ).all()
+                
+                if prod_id:
+                    # قطعة محددة من جميع مستودعات الشركاء
+                    for wh in partner_warehouses:
+                        stock = db.session.query(
+                            Product.id.label("product_id"),
+                            Product.name.label("product_name"),
+                            Product.sku,
+                            StockLevel.quantity,
+                            Product.purchase_price
+                        ).join(
+                            Product, Product.id == StockLevel.product_id
+                        ).filter(
+                            StockLevel.warehouse_id == wh.id,
+                            StockLevel.product_id == prod_id,
+                            StockLevel.quantity > 0
+                        ).first()
+                        
+                        if stock:
+                            inventory_items.append({
+                                'product_id': stock.product_id,
+                                'product_name': stock.product_name,
+                                'sku': stock.sku,
+                                'warehouse_name': wh.name,
+                                'quantity': stock.quantity,
+                                'purchase_price': stock.purchase_price,
+                                'share_pct': share_pct
+                            })
+                else:
+                    # جميع القطع من جميع مستودعات الشركاء
+                    for wh in partner_warehouses:
+                        stocks = db.session.query(
+                            Product.id.label("product_id"),
+                            Product.name.label("product_name"),
+                            Product.sku,
+                            StockLevel.quantity,
+                            Product.purchase_price
+                        ).join(
+                            Product, Product.id == StockLevel.product_id
+                        ).filter(
+                            StockLevel.warehouse_id == wh.id,
+                            StockLevel.quantity > 0
+                        ).all()
+                        
+                        for stock in stocks:
+                            inventory_items.append({
+                                'product_id': stock.product_id,
+                                'product_name': stock.product_name,
+                                'sku': stock.sku,
+                                'warehouse_name': wh.name,
+                                'quantity': stock.quantity,
+                                'purchase_price': stock.purchase_price,
+                                'share_pct': share_pct
+                            })
+            elif prod_id:
+                # مستودع محدد + قطعة محددة
                 stock = db.session.query(
                     Product.id.label("product_id"),
                     Product.name.label("product_name"),
@@ -748,32 +938,32 @@ def _get_partner_inventory(partner_id: int, date_from: datetime, date_to: dateti
                         'product_id': stock.product_id,
                         'product_name': stock.product_name,
                         'sku': stock.sku,
-                        'warehouse_name': wh_name,
+                        'warehouse_name': wh_name or 'غير محدد',
                         'quantity': stock.quantity,
                         'purchase_price': stock.purchase_price,
                         'share_pct': share_pct
                     })
             else:
-                # جميع المنتجات في هذا المستودع
+                # مستودع محدد + جميع القطع
                 stocks = db.session.query(
-        Product.id.label("product_id"),
-        Product.name.label("product_name"),
-        Product.sku,
+                    Product.id.label("product_id"),
+                    Product.name.label("product_name"),
+                    Product.sku,
                     StockLevel.quantity,
                     Product.purchase_price
-    ).join(
+                ).join(
                     Product, Product.id == StockLevel.product_id
-    ).filter(
+                ).filter(
                     StockLevel.warehouse_id == wh_id,
                     StockLevel.quantity > 0
-    ).all()
+                ).all()
     
                 for stock in stocks:
                     inventory_items.append({
                         'product_id': stock.product_id,
                         'product_name': stock.product_name,
                         'sku': stock.sku,
-                        'warehouse_name': wh_name,
+                        'warehouse_name': wh_name or 'غير محدد',
                         'quantity': stock.quantity,
                         'purchase_price': stock.purchase_price,
                         'share_pct': share_pct
@@ -835,7 +1025,7 @@ def _get_partner_sales_share(partner_id: int, date_from: datetime, date_to: date
     """
     from models import (
         ServicePart, ServiceRequest, SaleLine, Sale, Product,
-        ProductPartner, Customer
+        ProductPartner, WarehousePartnerShare, Customer
     )
     from sqlalchemy import func
     
@@ -899,11 +1089,12 @@ def _get_partner_sales_share(partner_id: int, date_from: datetime, date_to: date
             "partner_share_ils": float(partner_share_ils)
         })
     
-    # ═══════════════════════════════════════════════════════════
+    # ═════════════════════════════════════════════════════════
     # 2. مبيعات عادية (SaleLine)
     # ═══════════════════════════════════════════════════════════
     
-    regular_sales = db.session.query(
+    # 2.1 مبيعات من ProductPartner
+    regular_sales_pp = db.session.query(
         Sale.id.label("sale_id"),
         Sale.sale_number,
         Sale.sale_date,
@@ -912,7 +1103,7 @@ def _get_partner_sales_share(partner_id: int, date_from: datetime, date_to: date
         Product.sku,
         SaleLine.quantity,
         SaleLine.unit_price,
-        ProductPartner.share_percent,
+        ProductPartner.share_percent.label("share_pct"),
         Sale.currency
     ).join(
         SaleLine, SaleLine.sale_id == Sale.id
@@ -926,13 +1117,53 @@ def _get_partner_sales_share(partner_id: int, date_from: datetime, date_to: date
         ProductPartner.partner_id == partner_id,
         Sale.sale_date >= date_from,
         Sale.sale_date <= date_to,
-        Sale.status == 'CONFIRMED',
+        Sale.status == SaleStatus.CONFIRMED,
         ProductPartner.share_percent > 0
     ).all()
     
-    for item in regular_sales:
+    # 2.2 مبيعات من WarehousePartnerShare
+    regular_sales_wps = db.session.query(
+        Sale.id.label("sale_id"),
+        Sale.sale_number,
+        Sale.sale_date,
+        Customer.name.label("customer_name"),
+        Product.name.label("product_name"),
+        Product.sku,
+        SaleLine.quantity,
+        SaleLine.unit_price,
+        WarehousePartnerShare.share_percentage.label("share_pct"),
+        Sale.currency
+    ).join(
+        SaleLine, SaleLine.sale_id == Sale.id
+    ).join(
+        Product, Product.id == SaleLine.product_id
+    ).join(
+        WarehousePartnerShare, WarehousePartnerShare.product_id == Product.id
+    ).join(
+        Customer, Customer.id == Sale.customer_id
+    ).filter(
+        WarehousePartnerShare.partner_id == partner_id,
+        Sale.sale_date >= date_from,
+        Sale.sale_date <= date_to,
+        Sale.status == SaleStatus.CONFIRMED,
+        WarehousePartnerShare.share_percentage > 0
+    ).all()
+    
+    # دمج النتائج
+    all_regular_sales = list(regular_sales_pp) + list(regular_sales_wps)
+    
+    # تتبع المبيعات المضافة لتجنب التكرار
+    added_sales = set()
+    
+    for item in all_regular_sales:
+        # تجنب تكرار نفس السطر
+        sale_line_key = (item.sale_id, item.product_name, item.quantity)
+        if sale_line_key in added_sales:
+            continue
+        added_sales.add(sale_line_key)
+        
         total_amount = Decimal(str(item.quantity)) * Decimal(str(item.unit_price))
-        share_pct = Decimal(str(item.share_percent or 0))
+        share_pct = Decimal(str(item.share_pct or 0))
         partner_share = total_amount * share_pct / Decimal("100")
         
         # تحويل إلى شيكل
@@ -967,24 +1198,30 @@ def _get_partner_sales_share(partner_id: int, date_from: datetime, date_to: date
     }
 
 
-def _get_payments_to_partner(partner_id: int, date_from: datetime, date_to: datetime):
+def _get_payments_to_partner(partner_id: int, partner: Partner, date_from: datetime, date_to: datetime):
     """
     دفعات دفعناها للشريك (OUT) - تُخصم من حقوقه علينا
-    """
-    from models import Payment, PaymentDirection, PaymentStatus
     
-    payments = db.session.query(Payment).filter(
-        Payment.partner_id == partner_id,
-        Payment.direction == PaymentDirection.OUT.value,
-        Payment.status == PaymentStatus.COMPLETED.value,
-        Payment.payment_date >= date_from,
-        Payment.payment_date <= date_to
-    ).order_by(Payment.payment_date).all()
+    تشمل:
+    1. الدفعات المرتبطة مباشرة بـ partner_id
+    2. الدفعات المرتبطة بـ customer_id (العميل المرتبط بالشريك)
+    3. الدفعات المرتبطة بمبيعات للعميل (entity_type = SALE)
+    """
+    from models import Payment, PaymentDirection, PaymentStatus, PaymentEntityType, Sale
     
     items = []
     total_ils = Decimal('0.00')
     
-    for payment in payments:
+    # 1. الدفعات المرتبطة مباشرة بالشريك
+    direct_payments = db.session.query(Payment).filter(
+        Payment.partner_id == partner_id,
+        Payment.direction == PaymentDirection.OUT,
+        Payment.status == PaymentStatus.COMPLETED,
+        Payment.payment_date >= date_from,
+        Payment.payment_date <= date_to
+    ).all()
+    
+    for payment in direct_payments:
         amount_ils = _convert_to_ils(Decimal(str(payment.total_amount or 0)), payment.currency, payment.payment_date)
         total_ils += amount_ils
         
@@ -997,8 +1234,70 @@ def _get_payments_to_partner(partner_id: int, date_from: datetime, date_to: date
             "amount": float(payment.total_amount or 0),
             "currency": payment.currency,
             "amount_ils": float(amount_ils),
-            "notes": payment.notes
+            "notes": payment.notes,
+            "source": "partner"
         })
+    
+    # 2. الدفعات المرتبطة بالعميل المرتبط بالشريك
+    if partner.customer_id:
+        customer_payments = db.session.query(Payment).filter(
+            Payment.customer_id == partner.customer_id,
+            Payment.direction == PaymentDirection.OUT,
+            Payment.status == PaymentStatus.COMPLETED,
+            Payment.payment_date >= date_from,
+            Payment.payment_date <= date_to
+        ).all()
+        
+        for payment in customer_payments:
+            amount_ils = _convert_to_ils(Decimal(str(payment.total_amount or 0)), payment.currency, payment.payment_date)
+            total_ils += amount_ils
+            
+            items.append({
+                "payment_id": payment.id,
+                "payment_number": payment.payment_number,
+                "date": payment.payment_date.strftime("%Y-%m-%d") if payment.payment_date else "",
+                "method": payment.method,
+                "check_number": payment.check_number,
+                "amount": float(payment.total_amount or 0),
+                "currency": payment.currency,
+                "amount_ils": float(amount_ils),
+                "notes": payment.notes,
+                "source": "customer"
+            })
+        
+        # 3. الدفعات المرتبطة بمبيعات للعميل (entity_type = SALE)
+        sale_payments = db.session.query(Payment).join(
+            Sale, Sale.id == Payment.sale_id
+        ).filter(
+            Payment.entity_type == PaymentEntityType.SALE,
+            Sale.customer_id == partner.customer_id,
+            Payment.direction == PaymentDirection.OUT,
+            Payment.status == PaymentStatus.COMPLETED,
+            Payment.payment_date >= date_from,
+            Payment.payment_date <= date_to
+        ).all()
+        
+        for payment in sale_payments:
+            # تجنب التكرار - تحقق إذا كانت الدفعة موجودة بالفعل
+            if not any(item['payment_id'] == payment.id for item in items):
+                amount_ils = _convert_to_ils(Decimal(str(payment.total_amount or 0)), payment.currency, payment.payment_date)
+                total_ils += amount_ils
+                
+                items.append({
+                    "payment_id": payment.id,
+                    "payment_number": payment.payment_number,
+                    "date": payment.payment_date.strftime("%Y-%m-%d") if payment.payment_date else "",
+                    "method": payment.method,
+                    "check_number": payment.check_number,
+                    "amount": float(payment.total_amount or 0),
+                    "currency": payment.currency,
+                    "amount_ils": float(amount_ils),
+                    "notes": payment.notes,
+                    "source": "sale"
+                })
+    
+    # ترتيب حسب التاريخ
+    items.sort(key=lambda x: x['date'])
     
     return {
         "items": items,
@@ -1055,21 +1354,28 @@ def _get_previous_partner_settlements(partner_id: int, before_date: datetime):
 def _get_partner_payments_received(partner_id: int, partner: Partner, date_from: datetime, date_to: datetime):
     """
     دفعات استلمناها من الشريك (IN) - تُضاف إلى حقوقه علينا
-    """
-    from models import Payment, PaymentDirection, PaymentStatus
     
-    payments = db.session.query(Payment).filter(
-        Payment.partner_id == partner_id,
-        Payment.direction == PaymentDirection.IN.value,
-        Payment.status == PaymentStatus.COMPLETED.value,
-        Payment.payment_date >= date_from,
-        Payment.payment_date <= date_to
-    ).order_by(Payment.payment_date).all()
+    تشمل:
+    1. الدفعات المرتبطة مباشرة بـ partner_id
+    2. الدفعات المرتبطة بـ customer_id (العميل المرتبط بالشريك)
+    3. الدفعات المرتبطة بمبيعات للعميل (entity_type = SALE)
+    """
+    from models import Payment, PaymentDirection, PaymentStatus, PaymentEntityType, Sale
+    from sqlalchemy import or_
     
     items = []
     total_ils = Decimal('0.00')
     
-    for payment in payments:
+    # 1. الدفعات المرتبطة مباشرة بالشريك
+    direct_payments = db.session.query(Payment).filter(
+        Payment.partner_id == partner_id,
+        Payment.direction == PaymentDirection.IN,
+        Payment.status == PaymentStatus.COMPLETED,
+        Payment.payment_date >= date_from,
+        Payment.payment_date <= date_to
+    ).all()
+    
+    for payment in direct_payments:
         amount_ils = _convert_to_ils(Decimal(str(payment.total_amount or 0)), payment.currency, payment.payment_date)
         total_ils += amount_ils
         
@@ -1082,8 +1388,70 @@ def _get_partner_payments_received(partner_id: int, partner: Partner, date_from:
             "amount": float(payment.total_amount or 0),
             "currency": payment.currency,
             "amount_ils": float(amount_ils),
-            "notes": payment.notes
+            "notes": payment.notes,
+            "source": "partner"
         })
+    
+    # 2. الدفعات المرتبطة بالعميل المرتبط بالشريك
+    if partner.customer_id:
+        customer_payments = db.session.query(Payment).filter(
+            Payment.customer_id == partner.customer_id,
+            Payment.direction == PaymentDirection.IN,
+            Payment.status == PaymentStatus.COMPLETED,
+            Payment.payment_date >= date_from,
+            Payment.payment_date <= date_to
+        ).all()
+        
+        for payment in customer_payments:
+            amount_ils = _convert_to_ils(Decimal(str(payment.total_amount or 0)), payment.currency, payment.payment_date)
+            total_ils += amount_ils
+            
+            items.append({
+                "payment_id": payment.id,
+                "payment_number": payment.payment_number,
+                "date": payment.payment_date.strftime("%Y-%m-%d") if payment.payment_date else "",
+                "method": payment.method,
+                "check_number": payment.check_number,
+                "amount": float(payment.total_amount or 0),
+                "currency": payment.currency,
+                "amount_ils": float(amount_ils),
+                "notes": payment.notes,
+                "source": "customer"
+            })
+        
+        # 3. الدفعات المرتبطة بمبيعات للعميل (entity_type = SALE)
+        sale_payments = db.session.query(Payment).join(
+            Sale, Sale.id == Payment.sale_id
+        ).filter(
+            Payment.entity_type == PaymentEntityType.SALE,
+            Sale.customer_id == partner.customer_id,
+            Payment.direction == PaymentDirection.IN,
+            Payment.status == PaymentStatus.COMPLETED,
+            Payment.payment_date >= date_from,
+            Payment.payment_date <= date_to
+        ).all()
+        
+        for payment in sale_payments:
+            # تجنب التكرار - تحقق إذا كانت الدفعة موجودة بالفعل
+            if not any(item['payment_id'] == payment.id for item in items):
+                amount_ils = _convert_to_ils(Decimal(str(payment.total_amount or 0)), payment.currency, payment.payment_date)
+                total_ils += amount_ils
+                
+                items.append({
+                    "payment_id": payment.id,
+                    "payment_number": payment.payment_number,
+                    "date": payment.payment_date.strftime("%Y-%m-%d") if payment.payment_date else "",
+                    "method": payment.method,
+                    "check_number": payment.check_number,
+                    "amount": float(payment.total_amount or 0),
+                    "currency": payment.currency,
+                    "amount_ils": float(amount_ils),
+                    "notes": payment.notes,
+                    "source": "sale"
+                })
+    
+    # ترتيب حسب التاريخ
+    items.sort(key=lambda x: x['date'])
     
     return {
         "items": items,
@@ -1112,7 +1480,7 @@ def _get_partner_sales_as_customer(partner_id: int, partner: Partner, date_from:
         Sale.customer_id == partner.customer_id,
         Sale.sale_date >= date_from,
         Sale.sale_date <= date_to,
-        Sale.status == 'CONFIRMED'
+        Sale.status == SaleStatus.CONFIRMED
     ).order_by(Sale.sale_date).all()
     
     items = []

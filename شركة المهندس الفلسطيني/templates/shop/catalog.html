@@ -1,0 +1,480 @@
+{% extends 'shop/base.html' %}
+
+{% block title %}المنتجات المتاحة{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/shop.css') }}">
+<style>
+  .product-card .card{border-radius:15px;overflow:hidden;transition:transform .3s ease,box-shadow .3s ease;box-shadow:0 4px 15px rgba(0,0,0,.08)}
+  .product-card .card:hover{transform:translateY(-6px);box-shadow:0 8px 22px rgba(0,0,0,.15)}
+  .card-title{font-weight:700;font-size:1.1rem;color:#1a237e}
+  .badge-price{background:linear-gradient(135deg,#1a237e,#311b92);font-size:.85rem;padding:.4em .6em;border-radius:12px}
+  .badge-unavail{background:linear-gradient(135deg,#e53935,#b71c1c);font-size:.8rem;padding:.35em .6em;border-radius:10px}
+  .btn-add{background:linear-gradient(135deg,#0066cc,#3ba3ff);color:#fff;border:none;transition:.3s}
+  .btn-add:hover{opacity:.9;transform:translateY(-2px)}
+  .card-text{font-size:.9rem;color:#555}
+  .qty-control .btn-step{min-width:32px}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="hero-section">
+  <div class="hero-background">
+    <div class="hero-particles"></div>
+    <div class="hero-gradient"></div>
+  </div>
+  <div class="hero-content">
+    <div class="container">
+      <div class="row align-items-center min-vh-50">
+        <div class="col-lg-6" data-aos="fade-right" data-aos-duration="1000">
+          <h1 class="hero-title">
+            <span class="hero-title-main">متجرنا الإلكتروني</span>
+            <span class="hero-title-sub">لقطع غيار السيارات</span>
+          </h1>
+          <p class="hero-description">
+            اكتشف أفضل قطع الغيار الأصلية بأسعار تنافسية وجودة عالية. 
+            نحن نقدم لك كل ما تحتاجه لصيانة سيارتك بأعلى المعايير.
+          </p>
+          <div class="hero-buttons">
+            <a href="#products" class="btn btn-hero-primary">
+              <i class="fas fa-shopping-bag me-2"></i>
+              تسوق الآن
+            </a>
+            <a href="#features" class="btn btn-hero-secondary">
+              <i class="fas fa-info-circle me-2"></i>
+              اعرف المزيد
+            </a>
+          </div>
+        </div>
+        <div class="col-lg-6" data-aos="fade-left" data-aos-duration="1000">
+          <div class="hero-image">
+            <div class="hero-card">
+              <i class="fas fa-car hero-icon"></i>
+              <h3>قطع غيار أصلية</h3>
+              <p>جودة مضمونة</p>
+            </div>
+            <div class="hero-card">
+              <i class="fas fa-shipping-fast hero-icon"></i>
+              <h3>توصيل سريع</h3>
+              <p>خلال 24 ساعة</p>
+            </div>
+            <div class="hero-card">
+              <i class="fas fa-shield-alt hero-icon"></i>
+              <h3>ضمان شامل</h3>
+              <p>على جميع المنتجات</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Statistics -->
+<section class="py-4 bg-light">
+  <div class="container">
+    <div class="row g-3">
+      <div class="col-lg-3 col-md-6">
+        <div class="card border-0 shadow-sm bg-primary text-white">
+          <div class="card-body">
+            <div class="d-flex justify-content-between">
+              <div>
+                <h6 class="card-title text-white-50 mb-1">إجمالي المنتجات</h6>
+                <h3 class="mb-0 fw-bold">{{ products|length }}</h3>
+              </div>
+              <div class="align-self-center">
+                <i class="fas fa-boxes fa-2x opacity-75"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-3 col-md-6">
+        <div class="card border-0 shadow-sm bg-success text-white">
+          <div class="card-body">
+            <div class="d-flex justify-content-between">
+              <div>
+                <h6 class="card-title text-white-50 mb-1">منتجات متوفرة</h6>
+                <h3 class="mb-0 fw-bold">{{ products|selectattr('is_active')|list|length }}</h3>
+              </div>
+              <div class="align-self-center">
+                <i class="fas fa-check-circle fa-2x opacity-75"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-3 col-md-6">
+        <div class="card border-0 shadow-sm bg-info text-white">
+          <div class="card-body">
+            <div class="d-flex justify-content-between">
+              <div>
+                <h6 class="card-title text-white-50 mb-1">عروض خاصة</h6>
+                <h3 class="mb-0 fw-bold">{{ products|selectattr('online_price')|list|length }}</h3>
+              </div>
+              <div class="align-self-center">
+                <i class="fas fa-tags fa-2x opacity-75"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-3 col-md-6">
+        <div class="card border-0 shadow-sm text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+          <div class="card-body">
+            <div class="d-flex justify-content-between">
+              <div>
+                <h6 class="card-title text-white-50 mb-1">توصيل سريع</h6>
+                <h3 class="mb-0 fw-bold">24 ساعة</h3>
+              </div>
+              <div class="align-self-center">
+                <i class="fas fa-shipping-fast fa-2x opacity-75"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Products Section -->
+<section id="products" class="py-5">
+  <div class="container">
+    <!-- Section Header -->
+    <div class="row align-items-center mb-5" data-aos="fade-up">
+      <div class="col-lg-6">
+        <h2 class="section-title">
+          <span class="section-title-main">🛍️ المنتجات المتاحة</span>
+          <span class="section-title-sub">اكتشف أفضل قطع الغيار</span>
+        </h2>
+        <p class="section-description">
+          نقدم لك مجموعة واسعة من قطع غيار السيارات الأصلية بأسعار تنافسية وجودة عالية
+        </p>
+      </div>
+      <div class="col-lg-6">
+        <div class="search-container" data-aos="fade-left" data-aos-delay="200">
+          <div class="modern-search">
+            <div class="search-input-group">
+              <input type="text" id="search" class="search-input" placeholder="ابحث عن منتج...">
+              <button class="search-btn" type="button">
+                <i class="fas fa-search"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin Actions -->
+    {% if has_any('manage_shop', 'manage_inventory') %}
+    <div class="admin-actions mb-4" data-aos="fade-up" data-aos-delay="300">
+      <div class="btn-group modern-btn-group" role="group">
+        <a href="{{ url_for('shop.admin_products') }}" class="btn btn-admin-primary">
+          <i class="fas fa-cogs me-2"></i> إدارة المنتجات
+        </a>
+        {% if has_any('view_reports','manage_reports') and 'admin_reports.cards' in current_app.view_functions %}
+        <a href="{{ url_for('admin_reports.cards') }}" class="btn btn-admin-secondary">
+          <i class="fas fa-chart-line me-2"></i> تقارير البطاقات
+        </a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Products Grid -->
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4" id="products-container">
+      {% for product in products %}
+      {% set avail = avail_map.get(product.id, 0) %}
+      {% set display_name = product.commercial_name or product.name %}
+      {% set img = product.online_image or product.image %}
+      {% if img %}
+        {% if img.startswith('http') or img.startswith('/') %}
+          {% set src = img %}
+        {% else %}
+          {% set src = url_for('static', filename=img) %}
+        {% endif %}
+      {% else %}
+        {% set src = url_for('static', filename='products/default.png') %}
+      {% endif %}
+      {% set display_price = (product.online_price if (product.online_price or 0) > 0 else (product.selling_price if (product.selling_price or 0) > 0 else (product.price or 0))) %}
+
+      <div class="col product-card"
+           data-name="{{ (display_name or '')|lower }}"
+           data-desc="{{ (product.description or '')|lower }}"
+           data-aos="fade-up"
+           data-aos-delay="{{ loop.index0 * 100 }}">
+        <div class="modern-product-card">
+          <div class="product-image-container">
+            <img
+              src="{{ src }}"
+              class="product-image" loading="lazy"
+              alt="{{ display_name }}"
+              onerror="this.onerror=null;this.src='{{ url_for('static', filename='products/default.png') }}'">
+            
+            <div class="product-overlay">
+              <div class="product-actions">
+                <a href="{{ url_for('shop.product_detail', product_id=product.id) }}" class="action-btn view-btn" title="عرض التفاصيل">
+                  <i class="fas fa-eye"></i>
+                </a>
+                <button class="action-btn wishlist-btn" title="إضافة للمفضلة">
+                  <i class="fas fa-heart"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="product-badges">
+              <span class="price-badge">
+                <i class="fas fa-tag me-1"></i>
+                {{ '%.2f'|format(display_price) }} شيكل
+              </span>
+              {% if avail <= 0 %}
+              <span class="stock-badge unavailable">غير متوفر</span>
+              {% else %}
+              <span class="stock-badge available">{{ avail }} متوفر</span>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="product-content">
+            <h5 class="product-title">{{ display_name }}</h5>
+            <p class="product-description">{{ (product.description or '')|truncate(80) }}</p>
+            
+            <div class="product-footer">
+              {% if avail > 0 and not has_any('manage_shop','manage_inventory') %}
+                {% if current_user.is_authenticated %}
+                  <form method="POST"
+                        action="{{ url_for('shop.add_to_cart', product_id=product.id) }}"
+                        class="add-to-cart-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="quantity-controls">
+                      <button type="button" class="qty-btn minus" data-dir="-1" title="نقص">
+                        <i class="fas fa-minus"></i>
+                      </button>
+                      <input type="number" name="quantity" class="qty-input"
+                             value="1" min="1" step="1" inputmode="numeric" pattern="[0-9]*"
+                             data-max="{{ avail }}">
+                      <button type="button" class="qty-btn plus" data-dir="1" title="زيادة">
+                        <i class="fas fa-plus"></i>
+                      </button>
+                    </div>
+                    <button type="submit" class="add-to-cart-btn" title="احجز المنتج">
+                      <i class="fas fa-shopping-cart me-2"></i>
+                      احجز الآن
+                    </button>
+                  </form>
+                {% else %}
+                  <a href="{{ url_for('auth.login') }}" class="login-to-buy-btn">
+                    <i class="fas fa-sign-in-alt me-2"></i>
+                    سجّل للحجز
+                  </a>
+                {% endif %}
+              {% endif %}
+
+              {% if has_any('manage_shop', 'manage_inventory') %}
+              <div class="admin-actions">
+                <a href="{{ url_for('shop.admin_product_edit', pid=product.id) }}" class="admin-btn edit-btn" title="تعديل">
+                  <i class="fas fa-edit"></i>
+                </a>
+                <form method="POST" action="{{ url_for('shop.admin_product_delete', pid=product.id) }}"
+                      onsubmit="return confirm('هل أنت متأكد من حذف المنتج؟ لا يمكن التراجع.');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="admin-btn delete-btn" title="حذف">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </form>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <div class="col-12">
+        <div class="no-products" data-aos="fade-up">
+          <div class="no-products-icon">
+            <i class="fas fa-box-open"></i>
+          </div>
+          <h3>لا توجد منتجات متاحة حالياً</h3>
+          <p>نعمل على إضافة منتجات جديدة قريباً</p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  (function(){
+    // Modern search functionality
+    const box = document.getElementById('products-container');
+    const search = document.getElementById('search');
+    const cards = Array.from(box.querySelectorAll('.product-card'));
+    
+    function filter(){
+      const q = (search && search.value || '').trim().toLowerCase();
+      let shown = 0;
+      cards.forEach((c, index) => {
+        const name = c.getAttribute('data-name') || '';
+        const desc = c.getAttribute('data-desc') || '';
+        const show = !q || name.includes(q) || desc.includes(q);
+        
+        if (show) {
+          c.style.display = '';
+          c.style.animationDelay = `${index * 50}ms`;
+          c.classList.add('animate-in');
+        } else {
+          c.style.display = 'none';
+          c.classList.remove('animate-in');
+        }
+        if(show) shown++;
+      });
+      
+      // Update results count
+      const resultsCount = document.getElementById('results-count');
+      if (resultsCount) {
+        resultsCount.textContent = `${shown} منتج`;
+      }
+    }
+    
+    if(search){
+      search.addEventListener('input', () => { 
+        window.clearTimeout(search._t); 
+        search._t = setTimeout(filter, 120); 
+      });
+    }
+    
+    // Modern quantity controls
+    document.querySelectorAll('.quantity-controls').forEach(group => {
+      const input = group.querySelector('.qty-input');
+      const max = parseInt(input.getAttribute('data-max') || '0') || 0;
+      const clamp = v => { 
+        v = isNaN(v) ? 1 : v; 
+        v = Math.max(1, v); 
+        if(max > 0) v = Math.min(max, v); 
+        return v; 
+      };
+      
+      group.querySelectorAll('.qty-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const dir = parseInt(btn.getAttribute('data-dir')) || 0;
+          const cur = parseInt(input.value || '1') || 1;
+          const newVal = clamp(cur + dir);
+          input.value = newVal;
+          
+          // Add visual feedback
+          btn.style.transform = 'scale(0.95)';
+          setTimeout(() => {
+            btn.style.transform = '';
+          }, 150);
+        });
+      });
+      
+      input.addEventListener('input', () => {
+        input.value = String(input.value).replace(/[^\d]/g,'');
+        input.value = clamp(parseInt(input.value || '1'));
+      });
+    });
+    
+    // Add to cart animations
+    document.querySelectorAll('.add-to-cart-form').forEach(form => {
+      form.addEventListener('submit', function(e) {
+        const btn = this.querySelector('.add-to-cart-btn');
+        if (btn) {
+          btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الإضافة...';
+          btn.disabled = true;
+        }
+      });
+    });
+    
+    // Wishlist functionality
+    document.querySelectorAll('.wishlist-btn').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        this.classList.toggle('active');
+        const icon = this.querySelector('i');
+        if (this.classList.contains('active')) {
+          icon.className = 'fas fa-heart';
+          this.style.background = 'var(--danger-color)';
+          this.style.color = 'white';
+          showToast('تمت الإضافة للمفضلة', 'success');
+        } else {
+          icon.className = 'far fa-heart';
+          this.style.background = 'white';
+          this.style.color = 'var(--primary-color)';
+          showToast('تمت الإزالة من المفضلة', 'info');
+        }
+      });
+    });
+    
+    // View product functionality
+    document.querySelectorAll('.view-btn').forEach(btn => {
+      btn.addEventListener('click', function(e) {
+        // Allow the link to work normally - don't prevent default
+        const card = this.closest('.product-card');
+        const title = card.querySelector('.product-title').textContent;
+        showToast(`عرض تفاصيل: ${title}`, 'info');
+      });
+    });
+    
+    // Toast notification system
+    function showToast(message, type = 'info') {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
+        ${message}
+      `;
+      
+      document.body.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+          document.body.removeChild(toast);
+        }, 300);
+      }, 3000);
+    }
+    
+    // Smooth scroll for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+          });
+        }
+      });
+    });
+    
+    // Navbar scroll effect
+    let lastScrollTop = 0;
+    const navbar = document.querySelector('.modern-nav');
+    
+    window.addEventListener('scroll', () => {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      
+      if (scrollTop > 100) {
+        navbar.classList.add('scrolled');
+      } else {
+        navbar.classList.remove('scrolled');
+      }
+      
+      lastScrollTop = scrollTop;
+    });
+    
+  })();
+</script>
+<script src="{{ url_for('static', filename='js/shop.js') }}"></script>
+{% endblock %}

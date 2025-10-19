@@ -1,0 +1,59 @@
+{# templates/reports/online.html #}
+{% extends 'reports/_base.html' %}
+
+{% block title %}{{ FIELD_LABELS.get("online_report", "تقرير الأونلاين") }}{% endblock %}
+{% block page_title %}{{ FIELD_LABELS.get("online", "الأونلاين") }}{% endblock %}
+
+{% block reports_breadcrumb_extra %}
+<li class="breadcrumb-item active">{{ FIELD_LABELS.get("online", "الأونلاين") }}</li>
+{% endblock %}
+
+{% block report_content %}
+<div class="container-fluid" dir="rtl">
+
+  <!-- العنوان -->
+  <div class="mb-3">
+    <h4 class="fw-bold"><i class="fas fa-globe"></i> {{ FIELD_LABELS.get("online", "الأونلاين") }}</h4>
+  </div>
+
+  <!-- البطاقات -->
+  <div class="row g-3">
+    <div class="col-md-3 col-sm-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-body text-center">
+          <div class="text-muted small">{{ FIELD_LABELS.get("orders_count", "عدد الطلبات") }}</div>
+          <div class="fs-5 fw-bold">{{ orders_count }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3 col-sm-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-body text-center">
+          <div class="text-muted small">{{ FIELD_LABELS.get("orders_total", "إجمالي الطلبات") }}</div>
+          <div class="fs-5 fw-bold">{{ "{:,.2f}".format(orders_total) }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3 col-sm-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-body text-center">
+          <div class="text-muted small">{{ FIELD_LABELS.get("payments_total", "مدفوعات ناجحة") }}</div>
+          <div class="fs-5 fw-bold">{{ "{:,.2f}".format(payments_total) }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3 col-sm-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-body text-center">
+          <div class="text-muted small">{{ FIELD_LABELS.get("carts_active", "سلال نشِطة") }}</div>
+          <div class="fs-5 fw-bold">{{ carts_active }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

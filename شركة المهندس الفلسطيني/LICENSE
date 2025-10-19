@@ -1,0 +1,578 @@
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                                                                               ║
+║                    AZAD SMART SYSTEMS PROPRIETARY LICENSE                     ║
+║                      رخصة ملكية شركة أزاد للأنظمة الذكية                    ║
+║                                                                               ║
+║                            Version 1.0 - 2024-2025                            ║
+║                                                                               ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+Copyright © 2024-2025 Azad Smart Systems Company
+حقوق النشر © 2024-2025 شركة أزاد للأنظمة الذكية
+
+Developed by: Eng. Ahmed Ghannam | المهندس أحمد غنام
+Location: Ramallah, Palestine 🇵🇸
+Website: https://azad-systems.com
+Contact: sales@azad-systems.com | support@azad-systems.com
+
+═══════════════════════════════════════════════════════════════════════════════
+
+⚠️  IMPORTANT NOTICE - تنبيه هام جداً ⚠️
+
+This software contains proprietary code and intellectual property owned by
+Azad Smart Systems Company. Unauthorized commercial use is strictly prohibited.
+
+هذا البرنامج يحتوي على كود ملكي وملكية فكرية مملوكة لشركة أزاد للأنظمة الذكية.
+الاستخدام التجاري غير المصرح به ممنوع منعاً باتاً.
+
+═══════════════════════════════════════════════════════════════════════════════
+
+TABLE OF CONTENTS | جدول المحتويات
+
+1. Definitions | التعريفات
+2. Grant of License | منح الترخيص
+3. Permitted Use | الاستخدام المسموح
+4. Prohibited Use | الاستخدام الممنوع
+5. Commercial Licensing | الترخيص التجاري
+6. Protection Mechanisms | آليات الحماية
+7. Intellectual Property | الملكية الفكرية
+8. Liability and Warranty | المسؤولية والضمان
+9. Termination | الإنهاء
+10. Legal Action | الإجراءات القانونية
+11. Contact Information | معلومات الاتصال
+
+═══════════════════════════════════════════════════════════════════════════════
+
+1. DEFINITIONS | التعريفات
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+"Software" refers to the Garage Manager System, including but not limited to:
+- Source code and compiled binaries
+- Documentation and resources
+- Database schemas and migrations
+- Templates, styles, and assets
+- All associated intellectual property
+
+"Licensor" refers to Azad Smart Systems Company and its authorized representatives.
+
+"Licensee" refers to any individual or entity using the Software.
+
+"Commercial Use" refers to any use of the Software that:
+- Generates revenue or profit
+- Is part of a business operation
+- Provides services to third parties for compensation
+- Is used in a production environment for business purposes
+
+"Personal Use" refers to non-commercial use for:
+- Learning and education
+- Personal projects
+- Academic research
+- Non-profit activities
+
+═══════════════════════════════════════════════════════════════════════════════
+
+2. GRANT OF LICENSE | منح الترخيص
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Subject to the terms of this License, Licensor grants Licensee a limited,
+non-exclusive, non-transferable, revocable license to use the Software
+SOLELY for Personal Use as defined herein.
+
+بموجب شروط هذه الرخصة، يمنح المرخِّص المرخَّص له رخصة محدودة وغير حصرية
+وغير قابلة للنقل وقابلة للإلغاء لاستخدام البرنامج للاستخدام الشخصي فقط.
+
+═══════════════════════════════════════════════════════════════════════════════
+
+3. PERMITTED USE | الاستخدام المسموح
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ YOU MAY:
+
+a) Use the Software for personal, non-commercial purposes
+b) Study the Software for educational purposes
+c) Modify the Software for personal learning
+d) Use the Software in academic research projects
+e) Test and evaluate the Software in non-production environments
+
+✅ يُسمح لك بـ:
+
+أ) استخدام البرنامج للأغراض الشخصية غير التجارية
+ب) دراسة البرنامج للأغراض التعليمية
+ج) تعديل البرنامج للتعلم الشخصي
+د) استخدام البرنامج في المشاريع البحثية الأكاديمية
+هـ) اختبار وتقييم البرنامج في بيئات غير إنتاجية
+
+═══════════════════════════════════════════════════════════════════════════════
+
+4. PROHIBITED USE | الاستخدام الممنوع
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🚫 YOU MAY NOT, WITHOUT EXPLICIT WRITTEN PERMISSION:
+
+a) Use the Software for Commercial Use as defined above
+b) Deploy the Software in a production environment for business purposes
+c) Sell, rent, lease, or license the Software to third parties
+d) Offer the Software as a service (SaaS) to third parties
+e) Remove, modify, or obscure any copyright notices or license information
+f) Reverse engineer, decompile, or disassemble the Software's protection mechanisms
+g) Remove or disable built-in tracking, analytics, or protection features
+h) Use the Software to compete with Azad Smart Systems
+i) Redistribute the Software without proper attribution
+j) Create derivative works for commercial purposes
+k) Use the Software in any way that violates Palestinian or international law
+
+🚫 لا يجوز لك، بدون إذن كتابي صريح:
+
+أ) استخدام البرنامج للاستخدام التجاري كما هو معرّف أعلاه
+ب) نشر البرنامج في بيئة إنتاج لأغراض تجارية
+ج) بيع أو تأجير أو تأجير أو ترخيص البرنامج لأطراف ثالثة
+د) تقديم البرنامج كخدمة (SaaS) لأطراف ثالثة
+هـ) إزالة أو تعديل أو إخفاء أي إشعارات حقوق نشر أو معلومات ترخيص
+و) الهندسة العكسية أو فك تجميع آليات الحماية في البرنامج
+ز) إزالة أو تعطيل ميزات التتبع أو التحليلات أو الحماية المدمجة
+ح) استخدام البرنامج للمنافسة مع شركة أزاد للأنظمة الذكية
+ط) إعادة توزيع البرنامج دون الإسناد المناسب
+ي) إنشاء أعمال مشتقة لأغراض تجارية
+ك) استخدام البرنامج بأي طريقة تنتهك القانون الفلسطيني أو الدولي
+
+═══════════════════════════════════════════════════════════════════════════════
+
+5. COMMERCIAL LICENSING | الترخيص التجاري
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️  MANDATORY REQUIREMENT FOR COMMERCIAL USE | شرط إلزامي للاستخدام التجاري
+
+ANY COMMERCIAL USE OF THIS SOFTWARE REQUIRES:
+
+1. A VALID COMMERCIAL LICENSE from Azad Smart Systems
+2. Written authorization from the Licensor
+3. Payment of applicable licensing fees
+4. Compliance with all terms of the commercial license agreement
+
+أي استخدام تجاري لهذا البرنامج يتطلب:
+
+١. ترخيص تجاري صالح من شركة أزاد للأنظمة الذكية
+٢. تفويض كتابي من المرخِّص
+٣. دفع رسوم الترخيص المطبقة
+٤. الامتثال لجميع شروط اتفاقية الترخيص التجاري
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 COMMERCIAL LICENSE PACKAGES | باقات الترخيص التجاري
+
+╔════════════════════════════════════════════════════════════════════════════╗
+║                                                                            ║
+║  🏢 BASIC LICENSE | الرخصة الأساسية                                       ║
+║  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                       ║
+║  • Single location | موقع واحد                                            ║
+║  • Up to 3 users | حتى 3 مستخدمين                                        ║
+║  • Email support | دعم البريد الإلكتروني                                 ║
+║  • Standard updates | تحديثات قياسية                                      ║
+║  • $499/year | 499 دولار سنوياً                                          ║
+║                                                                            ║
+║  🏆 PROFESSIONAL LICENSE | الرخصة الاحترافية                              ║
+║  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                   ║
+║  • Up to 3 locations | حتى 3 مواقع                                       ║
+║  • Up to 10 users | حتى 10 مستخدمين                                      ║
+║  • Priority support | دعم ذو أولوية                                      ║
+║  • All features | جميع الميزات                                           ║
+║  • Custom branding | علامة تجارية مخصصة                                  ║
+║  • $999/year | 999 دولار سنوياً                                          ║
+║                                                                            ║
+║  🌟 ENTERPRISE LICENSE | رخصة المؤسسات                                    ║
+║  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                     ║
+║  • Unlimited locations | مواقع غير محدودة                                ║
+║  • Unlimited users | مستخدمين غير محدودين                                ║
+║  • 24/7 dedicated support | دعم متخصص 24/7                                ║
+║  • Custom development | تطوير مخصص                                        ║
+║  • On-premise deployment | نشر على الخادم الخاص                           ║
+║  • Source code access | الوصول للكود المصدري                              ║
+║  • Contact for pricing | اتصل للحصول على الأسعار                          ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+To obtain a commercial license:
+
+📧 Email: sales@azad-systems.com
+📱 Phone: +970-XXX-XXXX
+🌐 Web: https://azad-systems.com/licenses
+💬 WhatsApp: +970-YYY-YYYY
+
+للحصول على ترخيص تجاري:
+
+البريد الإلكتروني: sales@azad-systems.com
+الهاتف: +970-XXX-XXXX
+الموقع: https://azad-systems.com/licenses
+واتساب: +970-YYY-YYYY
+
+═══════════════════════════════════════════════════════════════════════════════
+
+6. PROTECTION MECHANISMS | آليات الحماية
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔒 NOTICE TO USERS AND DEVELOPERS | إشعار للمستخدمين والمطورين
+
+This Software incorporates advanced protection and monitoring mechanisms that
+operate transparently to ensure license compliance and protect intellectual
+property rights. These mechanisms are an integral part of the Software and
+cannot be separated or disabled.
+
+يتضمن هذا البرنامج آليات حماية ومراقبة متقدمة تعمل بشكل شفاف لضمان الامتثال
+للترخيص وحماية حقوق الملكية الفكرية. هذه الآليات جزء لا يتجزأ من البرنامج
+ولا يمكن فصلها أو تعطيلها.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+BUILT-IN PROTECTION FEATURES | ميزات الحماية المدمجة:
+
+🔐 Installation Fingerprinting
+   • Each installation is assigned a unique cryptographic identifier
+   • كل تثبيت يُخصص له معرّف تشفيري فريد
+
+📊 Usage Analytics and Telemetry
+   • Anonymous usage statistics for improvement purposes
+   • إحصائيات استخدام مجهولة لأغراض التحسين
+
+🛡️ License Validation System
+   • Periodic verification of license status and compliance
+   • تحقق دوري من حالة الترخيص والامتثال
+
+🔍 Integrity Monitoring
+   • Detection of unauthorized modifications or tampering
+   • كشف التعديلات غير المصرح بها أو التلاعب
+
+📡 Secure Communication Channels
+   • Encrypted communication with licensing servers
+   • اتصال مشفر مع خوادم الترخيص
+
+⚠️  TAMPERING WARNING | تحذير التلاعب
+
+ANY ATTEMPT TO:
+- Remove or disable protection mechanisms
+- Modify licensing validation code
+- Bypass usage analytics
+- Tamper with fingerprinting systems
+- Reverse engineer protection features
+
+أي محاولة لـ:
+- إزالة أو تعطيل آليات الحماية
+- تعديل كود التحقق من الترخيص
+- تجاوز تحليلات الاستخدام
+- التلاعب بأنظمة البصمات
+- الهندسة العكسية لميزات الحماية
+
+WILL RESULT IN:
+✗ Immediate license termination
+✗ Legal action and prosecution
+✗ Financial penalties and damages
+✗ Permanent blacklisting from future licenses
+✗ Public disclosure of violation
+
+سيؤدي إلى:
+✗ إنهاء فوري للترخيص
+✗ إجراءات قانونية ومقاضاة
+✗ عقوبات مالية وتعويضات
+✗ إدراج دائم في القائمة السوداء من التراخيص المستقبلية
+✗ الكشف العلني عن الانتهاك
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 DATA COLLECTION DISCLOSURE | الإفصاح عن جمع البيانات
+
+For license compliance and system improvement, the Software may collect:
+
+✓ Installation unique identifier (non-personally identifiable)
+✓ System configuration and environment details
+✓ Usage patterns and feature utilization (aggregated)
+✓ Error logs and crash reports (if enabled)
+✓ License validation status and history
+
+The Software DOES NOT collect:
+✗ Personal customer data
+✗ Financial records or transactions
+✗ Business-sensitive information
+✗ User credentials or passwords
+✗ Private communication content
+
+لأغراض الامتثال للترخيص وتحسين النظام، قد يجمع البرنامج:
+
+✓ معرّف التثبيت الفريد (غير قابل للتحديد شخصياً)
+✓ تفاصيل تكوين النظام والبيئة
+✓ أنماط الاستخدام واستخدام الميزات (مجمّعة)
+✓ سجلات الأخطاء وتقارير الأعطال (إذا تم تفعيلها)
+✓ حالة التحقق من الترخيص والتاريخ
+
+البرنامج لا يجمع:
+✗ بيانات العملاء الشخصية
+✗ السجلات المالية أو المعاملات
+✗ معلومات حساسة للأعمال
+✗ بيانات اعتماد المستخدم أو كلمات المرور
+✗ محتوى الاتصالات الخاصة
+
+Privacy is our priority. All collected data is handled in accordance with
+international privacy standards (GDPR, CCPA) and Palestinian data protection laws.
+
+الخصوصية أولويتنا. جميع البيانات المجمعة تُعالج وفقاً لمعايير الخصوصية
+الدولية (GDPR، CCPA) وقوانين حماية البيانات الفلسطينية.
+
+═══════════════════════════════════════════════════════════════════════════════
+
+7. INTELLECTUAL PROPERTY RIGHTS | حقوق الملكية الفكرية
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ALL RIGHTS RESERVED | جميع الحقوق محفوظة
+
+The Software, including but not limited to:
+- Source code and algorithms
+- Database schemas and structures
+- User interfaces and designs
+- Documentation and materials
+- Trademarks and branding
+- Patents and trade secrets
+
+Are the exclusive property of Azad Smart Systems Company and are protected by:
+- Palestinian copyright law
+- International copyright treaties
+- Trade secret law
+- Patent law (where applicable)
+
+البرنامج، بما في ذلك على سبيل المثال لا الحصر:
+- الكود المصدري والخوارزميات
+- مخططات قاعدة البيانات والهياكل
+- واجهات المستخدم والتصاميم
+- الوثائق والمواد
+- العلامات التجارية والعلامات التجارية
+- براءات الاختراع والأسرار التجارية
+
+هي ملكية حصرية لشركة أزاد للأنظمة الذكية ومحمية بموجب:
+- قانون حقوق النشر الفلسطيني
+- المعاهدات الدولية لحقوق النشر
+- قانون الأسرار التجارية
+- قانون براءات الاختراع (حيثما ينطبق)
+
+No transfer of ownership or intellectual property rights occurs through the
+grant of this License.
+
+لا يحدث نقل للملكية أو حقوق الملكية الفكرية من خلال منح هذه الرخصة.
+
+═══════════════════════════════════════════════════════════════════════════════
+
+8. LIABILITY AND WARRANTY DISCLAIMER | إخلاء المسؤولية والضمان
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+
+يُقدم البرنامج "كما هو" دون أي ضمانات من أي نوع، سواء صريحة أو ضمنية،
+بما في ذلك على سبيل المثال لا الحصر ضمانات القابلية للتسويق والملاءمة
+لغرض معين وعدم الانتهاك.
+
+IN NO EVENT SHALL AZAD SMART SYSTEMS BE LIABLE FOR ANY CLAIM, DAMAGES, OR
+OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE,
+ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.
+
+في أي حال من الأحوال، لن تكون شركة أزاد للأنظمة الذكية مسؤولة عن أي
+مطالبة أو أضرار أو مسؤولية أخرى، سواء في دعوى عقد أو ضرر أو غير ذلك،
+ناشئة عن أو فيما يتعلق بالبرنامج أو الاستخدام أو التعاملات الأخرى في البرنامج.
+
+═══════════════════════════════════════════════════════════════════════════════
+
+9. TERMINATION | الإنهاء
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+This License is effective until terminated. Your rights under this License
+will terminate automatically without notice if you fail to comply with any
+of its terms.
+
+هذه الرخصة سارية المفعول حتى إنهائها. ستنتهي حقوقك بموجب هذه الرخصة
+تلقائياً دون إشعار إذا فشلت في الامتثال لأي من شروطها.
+
+Upon termination, you must:
+- Cease all use of the Software
+- Destroy all copies of the Software
+- Delete all Software installations
+- Remove any derivative works
+
+عند الإنهاء، يجب عليك:
+- إيقاف جميع استخدامات البرنامج
+- تدمير جميع نسخ البرنامج
+- حذف جميع تثبيتات البرنامج
+- إزالة أي أعمال مشتقة
+
+═══════════════════════════════════════════════════════════════════════════════
+
+10. LEGAL ACTION AND ENFORCEMENT | الإجراءات القانونية والإنفاذ
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Azad Smart Systems reserves the right to:
+
+⚖️  Take legal action against any violation of this License
+⚖️  Seek injunctive relief to prevent unauthorized use
+⚖️  Pursue damages and compensation for license violations
+⚖️  Report violations to relevant authorities
+⚖️  Publish information about license violators
+
+تحتفظ شركة أزاد للأنظمة الذكية بالحق في:
+
+⚖️  اتخاذ إجراءات قانونية ضد أي انتهاك لهذه الرخصة
+⚖️  السعي للحصول على أمر قضائي لمنع الاستخدام غير المصرح به
+⚖️  المطالبة بالتعويضات عن انتهاكات الترخيص
+⚖️  الإبلاغ عن الانتهاكات للسلطات ذات الصلة
+⚖️  نشر معلومات عن منتهكي الترخيص
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+GOVERNING LAW | القانون الحاكم
+
+This License shall be governed by and construed in accordance with the laws
+of Palestine, without regard to its conflict of law provisions.
+
+تخضع هذه الرخصة وتُفسر وفقاً لقوانين فلسطين، دون اعتبار لأحكام تنازع القوانين.
+
+DISPUTE RESOLUTION | حل النزاعات
+
+Any disputes arising from this License shall be resolved through:
+1. Good faith negotiation
+2. Mediation (if negotiation fails)
+3. Arbitration in Ramallah, Palestine
+4. Litigation in Palestinian courts (as last resort)
+
+أي نزاعات ناشئة عن هذه الرخصة يتم حلها من خلال:
+١. المفاوضات بحسن نية
+٢. الوساطة (إذا فشلت المفاوضات)
+٣. التحكيم في رام الله، فلسطين
+٤. التقاضي في المحاكم الفلسطينية (كملاذ أخير)
+
+═══════════════════════════════════════════════════════════════════════════════
+
+11. CONTACT INFORMATION | معلومات الاتصال
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+╔════════════════════════════════════════════════════════════════════════════╗
+║                                                                            ║
+║                    AZAD SMART SYSTEMS COMPANY                              ║
+║                    شركة أزاد للأنظمة الذكية                              ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+🏢 Company Name:
+   Azad Smart Systems Company
+   شركة أزاد للأنظمة الذكية
+
+👨‍💻 Lead Developer:
+   Eng. Ahmed Ghannam
+   المهندس أحمد غنام
+
+📍 Location:
+   Ramallah, Palestine 🇵🇸
+   رام الله، فلسطين
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📞 CONTACT CHANNELS | قنوات الاتصال:
+
+General Inquiries | استفسارات عامة:
+📧 info@azad-systems.com
+📱 +970-XXX-XXXX
+
+Sales & Licensing | المبيعات والترخيص:
+📧 sales@azad-systems.com
+💼 +970-YYY-YYYY
+
+Technical Support | الدعم الفني:
+📧 support@azad-systems.com
+🛠️ +970-ZZZ-ZZZZ
+
+Security & Compliance | الأمان والامتثال:
+📧 security@azad-systems.com
+🔒 +970-SSS-SSSS
+
+Legal Department | القسم القانوني:
+📧 legal@azad-systems.com
+⚖️ +970-LLL-LLLL
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🌐 ONLINE PRESENCE | الحضور الإلكتروني:
+
+Official Website | الموقع الرسمي:
+https://azad-systems.com
+
+Documentation | الوثائق:
+https://docs.azad-systems.com
+
+Licensing Portal | بوابة الترخيص:
+https://licenses.azad-systems.com
+
+Support Center | مركز الدعم:
+https://support.azad-systems.com
+
+Community Forum | منتدى المجتمع:
+https://community.azad-systems.com
+
+GitHub Organization:
+https://github.com/azadsystems
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📋 LICENSE SUMMARY | ملخص الترخيص
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ ALLOWED:                          ✅ مسموح:
+   • Personal use                       • الاستخدام الشخصي
+   • Educational use                    • الاستخدام التعليمي
+   • Research purposes                  • أغراض البحث
+   • Testing & evaluation               • الاختبار والتقييم
+
+❌ PROHIBITED WITHOUT LICENSE:       ❌ ممنوع بدون ترخيص:
+   • Commercial use                     • الاستخدام التجاري
+   • Production deployment              • النشر الإنتاجي
+   • Selling services                   • بيع الخدمات
+   • SaaS offerings                     • عروض SaaS
+   • Redistribution                     • إعادة التوزيع
+   • Removing protections               • إزالة الحماية
+
+═══════════════════════════════════════════════════════════════════════════════
+
+⚠️  FINAL WARNING | تحذير نهائي ⚠️
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+UNAUTHORIZED COMMERCIAL USE OF THIS SOFTWARE IS:
+- A violation of intellectual property rights
+- Subject to legal prosecution
+- Subject to financial penalties
+- Subject to permanent license revocation
+
+الاستخدام التجاري غير المصرح به لهذا البرنامج:
+- انتهاك لحقوق الملكية الفكرية
+- يخضع للمقاضاة القانونية
+- يخضع لعقوبات مالية
+- يخضع للإلغاء الدائم للترخيص
+
+BY USING THIS SOFTWARE, YOU ACKNOWLEDGE THAT YOU HAVE READ, UNDERSTOOD,
+AND AGREE TO BE BOUND BY THE TERMS OF THIS LICENSE.
+
+باستخدام هذا البرنامج، فإنك تقر بأنك قد قرأت وفهمت ووافقت على الالتزام
+بشروط هذه الرخصة.
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Document Version: 1.0.0
+Last Updated: October 2025
+Effective Date: October 18, 2025
+
+إصدار الوثيقة: 1.0.0
+آخر تحديث: أكتوبر 2025
+تاريخ السريان: 18 أكتوبر 2025
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Made with ❤️ in Palestine 🇵🇸
+صُنع بكل حب في فلسطين
+
+Copyright © 2024-2025 Azad Smart Systems Company. All Rights Reserved.
+حقوق النشر © 2024-2025 شركة أزاد للأنظمة الذكية. جميع الحقوق محفوظة.
+
+═══════════════════════════════════════════════════════════════════════════════

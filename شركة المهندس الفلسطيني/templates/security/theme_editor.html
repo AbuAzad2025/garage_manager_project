@@ -1,0 +1,264 @@
+{% extends 'base.html' %}
+{% block title %}محرر الكود الموحد v5.0{% endblock %}
+{% block page_title %}💻 محرر الكود الموحد <span class="badge bg-dark ms-2">CSS + HTML + Text</span>{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  {% include 'security/_navigation.html' %}
+  
+  <div class="alert alert-warning border-0 shadow-sm">
+    <i class="fas fa-exclamation-triangle"></i> <strong>تحذير:</strong> احفظ نسخة احتياطية قبل التعديل!
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-dark text-white">
+      <h5 class="mb-0"><i class="fas fa-code"></i> محرر الأكواد والنصوص الشامل</h5>
+    </div>
+    <div class="card-body">
+      
+      <!-- Nav tabs -->
+      <ul class="nav nav-tabs nav-fill mb-4" id="editorTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if active_tab == 'css' %}active{% endif %}" 
+                  id="css-tab" 
+                  data-bs-toggle="tab" 
+                  data-bs-target="#css" 
+                  type="button" 
+                  role="tab">
+            <i class="fas fa-palette"></i> محرر CSS (المظهر)
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if active_tab == 'html' %}active{% endif %}" 
+                  id="html-tab" 
+                  data-bs-toggle="tab" 
+                  data-bs-target="#html" 
+                  type="button" 
+                  role="tab">
+            <i class="fas fa-code"></i> محرر HTML (القوالب)
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if active_tab == 'text' %}active{% endif %}" 
+                  id="text-tab" 
+                  data-bs-toggle="tab" 
+                  data-bs-target="#text" 
+                  type="button" 
+                  role="tab">
+            <i class="fas fa-language"></i> محرر النصوص (الترجمات)
+          </button>
+        </li>
+      </ul>
+
+      <!-- Tab panes -->
+      <div class="tab-content" id="editorTabContent">
+        
+        <!-- التبويب 1: محرر CSS -->
+        <div class="tab-pane fade {% if active_tab == 'css' %}show active{% endif %}" 
+             id="css" 
+             role="tabpanel">
+          
+          <div class="row">
+            <div class="col-md-3">
+              <div class="card">
+                <div class="card-header bg-primary text-white">
+                  <h6 class="mb-0"><i class="fas fa-folder"></i> ملفات CSS</h6>
+                </div>
+                <div class="list-group list-group-flush">
+                  {% for file in data.css.files %}
+                    <a href="{{ url_for('security.theme_editor', type='css', file=file) }}" 
+                       class="list-group-item list-group-item-action {% if file == data.css.selected %}active{% endif %}">
+                      <i class="fas fa-file-code"></i> {{ file }}
+                    </a>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-9">
+              <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="editor_type" value="css">
+                <input type="hidden" name="filename" value="{{ data.css.selected }}">
+                
+                <div class="card">
+                  <div class="card-header bg-gradient-primary text-white d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-edit"></i> تحرير: {{ data.css.selected }}</h6>
+                    <button type="submit" class="btn btn-light btn-sm">
+                      <i class="fas fa-save"></i> حفظ
+                    </button>
+                  </div>
+                  <div class="card-body p-0">
+                    <textarea name="content" class="form-control code-editor" placeholder="/* أدخل كود CSS هنا */">{{ data.css.content }}</textarea>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+        
+        <!-- التبويب 2: محرر HTML -->
+        <div class="tab-pane fade {% if active_tab == 'html' %}show active{% endif %}" 
+             id="html" 
+             role="tabpanel">
+          
+          <div class="row">
+            <div class="col-md-3">
+              <div class="card">
+                <div class="card-header bg-success text-white">
+                  <h6 class="mb-0"><i class="fas fa-folder-open"></i> القوالب</h6>
+                </div>
+                <div class="list-group list-group-flush" style="max-height: 600px; overflow-y: auto;">
+                  {% for template in data.html.tree %}
+                    {% if template.type == 'file' %}
+                    <a href="{{ url_for('security.theme_editor', type='html', template=template.path) }}" 
+                       class="list-group-item list-group-item-action {% if template.path == data.html.selected %}active{% endif %}">
+                      <i class="fas fa-file-code"></i> {{ template.name }}
+                      <br><small class="text-muted">{{ template.path }}</small>
+                    </a>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-9">
+              <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="editor_type" value="html">
+                <input type="hidden" name="filepath" value="{{ data.html.selected }}">
+                
+                <div class="card">
+                  <div class="card-header bg-gradient-success text-white d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-edit"></i> تحرير: {{ data.html.selected }}</h6>
+                    <button type="submit" class="btn btn-light btn-sm">
+                      <i class="fas fa-save"></i> حفظ
+                    </button>
+                  </div>
+                  <div class="card-body p-0">
+                    <textarea name="content" class="form-control code-editor" placeholder="<!-- أدخل كود HTML هنا -->">{{ data.html.content }}</textarea>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+        
+        <!-- التبويب 3: محرر النصوص -->
+        <div class="tab-pane fade {% if active_tab == 'text' %}show active{% endif %}" 
+             id="text" 
+             role="tabpanel">
+          
+          <div class="row">
+            <div class="col-md-8 mx-auto">
+              <div class="card">
+                <div class="card-header bg-gradient-warning">
+                  <h5 class="mb-0"><i class="fas fa-language"></i> إعدادات النصوص والترجمات</h5>
+                </div>
+                <div class="card-body">
+                  
+                  {% if data.text.settings %}
+                  {% for setting in data.text.settings %}
+                  <form method="POST" class="mb-3">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="editor_type" value="text">
+                    <input type="hidden" name="key" value="{{ setting.key }}">
+                    
+                    <div class="card border-warning">
+                      <div class="card-header bg-light">
+                        <strong>{{ setting.key }}</strong>
+                      </div>
+                      <div class="card-body">
+                        <textarea name="value" class="form-control mb-2" rows="2">{{ setting.value }}</textarea>
+                        <button type="submit" class="btn btn-warning btn-sm">
+                          <i class="fas fa-save"></i> حفظ
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                  {% endfor %}
+                  {% else %}
+                  <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> لا توجد إعدادات نصوص حالياً
+                  </div>
+                  {% endif %}
+                  
+                  <hr class="my-4">
+                  
+                  <!-- إضافة نص جديد -->
+                  <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="editor_type" value="text">
+                    
+                    <div class="card border-primary">
+                      <div class="card-header bg-primary text-white">
+                        <strong><i class="fas fa-plus"></i> إضافة نص جديد</strong>
+                      </div>
+                      <div class="card-body">
+                        <div class="mb-3">
+                          <label class="form-label">المفتاح (Key)</label>
+                          <input type="text" name="key" class="form-control" placeholder="welcome_message" required>
+                        </div>
+                        <div class="mb-3">
+                          <label class="form-label">القيمة (Value)</label>
+                          <textarea name="value" class="form-control" rows="3" placeholder="النص هنا..." required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                          <i class="fas fa-plus"></i> إضافة
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                  
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+      </div>
+      
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.code-editor {
+  font-family: 'Courier New', Consolas, monospace;
+  font-size: 14px;
+  border: none;
+  min-height: 600px;
+  direction: ltr;
+  text-align: left;
+  background: #f8f9fa;
+  padding: 1rem;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// حفظ التبويب النشط
+document.querySelectorAll('#editorTabs button').forEach(tab => {
+  tab.addEventListener('shown.bs.tab', function (event) {
+    const tabId = event.target.getAttribute('data-bs-target').replace('#', '');
+    localStorage.setItem('editorActiveTab', tabId);
+  });
+});
+
+// استعادة التبويب النشط
+document.addEventListener('DOMContentLoaded', function() {
+  const savedTab = localStorage.getItem('editorActiveTab');
+  if (savedTab && !{{ 'true' if active_tab else 'false' }}) {
+    const tabTrigger = document.querySelector(`#editorTabs button[data-bs-target="#${savedTab}"]`);
+    if (tabTrigger) {
+      bootstrap.Tab.getInstance(tabTrigger)?.show() || new bootstrap.Tab(tabTrigger).show();
+    }
+  }
+});
+</script>
+{% endblock %}

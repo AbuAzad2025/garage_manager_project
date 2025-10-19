@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block title %}مدير الوحدات{% endblock %}
+{% block page_title %}🧩 مدير الوحدات - Module Manager{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  {% include 'advanced/_navigation.html' %}
+  
+  <div class="alert alert-info border-0 shadow-sm">
+    <i class="fas fa-puzzle-piece"></i> <strong>تحكم بالوحدات:</strong> فعّل أو عطّل الوحدات حسب احتياجك
+  </div>
+
+  <div class="row g-3">
+    {% for module in modules %}
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100 {% if not module.enabled %}opacity-50{% endif %}">
+        <div class="card-body">
+          <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="module_key" value="{{ module.key }}">
+            
+            <div class="d-flex align-items-center justify-content-between mb-3">
+              <div class="d-flex align-items-center gap-3">
+                <div class="p-3 rounded bg-{{ module.color }} bg-opacity-10">
+                  <i class="fas fa-{{ module.icon }} fa-2x text-{{ module.color }}"></i>
+                </div>
+                <div>
+                  <h6 class="mb-0">{{ module.name }}</h6>
+                  <small class="text-muted">{{ module.key }}</small>
+                </div>
+              </div>
+              
+              <div class="form-check form-switch">
+                <input type="checkbox" name="enabled" class="form-check-input" 
+                       style="width: 3rem; height: 1.5rem;"
+                       {% if module.enabled %}checked{% endif %}
+                       onchange="this.form.submit()">
+              </div>
+            </div>
+          </form>
+          
+          <div class="d-flex gap-2">
+            {% if module.enabled %}
+              <span class="badge bg-success">مفعّل</span>
+            {% else %}
+              <span class="badge bg-secondary">معطّل</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}
+

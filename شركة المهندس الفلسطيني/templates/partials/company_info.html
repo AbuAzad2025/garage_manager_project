@@ -1,0 +1,90 @@
+<!-- معلومات الشركة الديناميكية من الإعدادات -->
+<div class="company-info card border-0 shadow-sm">
+  <div class="card-body">
+    <div class="d-flex align-items-center mb-3">
+      {% if system_settings.custom_logo %}
+      <img src="{{ url_for('static', filename=system_settings.custom_logo.replace('static/', '')) }}" 
+           alt="Logo" class="mr-3" style="max-height: 50px;">
+      {% else %}
+      <img src="{{ url_for('static', filename='img/azad_logo.png') }}" 
+           alt="Azad Logo" class="mr-3" style="max-height: 50px;">
+      {% endif %}
+      <h4 class="mb-0 fw-bold text-primary">{{ system_settings.company_name or 'شركة أزاد للأنظمة الذكية' }}</h4>
+    </div>
+    
+    <div class="row">
+      {% if system_settings.COMPANY_ADDRESS %}
+      <div class="col-md-6 mb-2">
+        <div class="d-flex align-items-start">
+          <i class="fas fa-map-marker-alt text-danger mt-1 mr-2"></i>
+          <div>
+            <small class="text-muted">العنوان</small>
+            <div class="fw-bold">{{ system_settings.COMPANY_ADDRESS }}</div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+      
+      {% if system_settings.COMPANY_PHONE %}
+      <div class="col-md-6 mb-2">
+        <div class="d-flex align-items-start">
+          <i class="fas fa-phone text-success mt-1 mr-2"></i>
+          <div>
+            <small class="text-muted">الهاتف</small>
+            <div class="fw-bold">
+              <a href="tel:{{ system_settings.COMPANY_PHONE }}" class="text-decoration-none">
+                {{ system_settings.COMPANY_PHONE }}
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+      
+      {% if system_settings.COMPANY_EMAIL %}
+      <div class="col-md-6 mb-2">
+        <div class="d-flex align-items-start">
+          <i class="fas fa-envelope text-info mt-1 mr-2"></i>
+          <div>
+            <small class="text-muted">البريد الإلكتروني</small>
+            <div class="fw-bold">
+              <a href="mailto:{{ system_settings.COMPANY_EMAIL }}" class="text-decoration-none">
+                {{ system_settings.COMPANY_EMAIL }}
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+      
+      {% if system_settings.TAX_NUMBER %}
+      <div class="col-md-6 mb-2">
+        <div class="d-flex align-items-start">
+          <i class="fas fa-file-invoice text-warning mt-1 mr-2"></i>
+          <div>
+            <small class="text-muted">الرقم الضريبي</small>
+            <div class="fw-bold">{{ system_settings.TAX_NUMBER }}</div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+    
+    <!-- روابط التواصل الاجتماعي -->
+    <div class="mt-3 pt-3 border-top">
+      <div class="d-flex justify-content-center gap-2">
+        <a href="https://wa.me/970562150193?text=مرحباً" target="_blank" 
+           class="btn btn-success btn-sm" title="واتساب">
+          <i class="fab fa-whatsapp"></i> واتساب
+        </a>
+        <a href="tel:+970562150193" class="btn btn-primary btn-sm" title="اتصال">
+          <i class="fas fa-phone"></i> اتصل الآن
+        </a>
+        <a href="mailto:ahmed@azad-systems.com" class="btn btn-info btn-sm" title="بريد">
+          <i class="fas fa-envelope"></i> راسلنا
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+

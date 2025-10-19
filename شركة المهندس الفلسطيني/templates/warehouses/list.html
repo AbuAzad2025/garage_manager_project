@@ -1,0 +1,200 @@
+{% extends 'warehouses/base.html' %}
+
+{% block title %}قائمة المستودعات{% endblock %}
+{% block page_title %}المستودعات{% endblock %}
+
+{% block head_extra %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/warehouses.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- إحصائيات سريعة -->
+<div class="row mb-4">
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="card border-0 shadow-sm bg-primary text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">إجمالي المستودعات</h6>
+            <h3 class="mb-0 fw-bold">{{ warehouses|length if warehouses else 0 }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-warehouse fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="card border-0 shadow-sm bg-success text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">المستودعات النشطة</h6>
+            <h3 class="mb-0 fw-bold">{{ warehouses|selectattr('is_active')|list|length if warehouses else 0 }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-check-circle fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="card border-0 shadow-sm bg-info text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">مستودعات رئيسية</h6>
+            <h3 class="mb-0 fw-bold">{{ warehouses|selectattr('warehouse_type', 'equalto', 'MAIN')|list|length if warehouses else 0 }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-building fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="card border-0 shadow-sm bg-warning text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">مستودعات الشركاء</h6>
+            <h3 class="mb-0 fw-bold">{{ warehouses|selectattr('warehouse_type', 'equalto', 'PARTNER')|list|length if warehouses else 0 }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-handshake fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body">
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+      <form class="row g-2 flex-grow-1" method="get" action="{{ url_for('warehouse_bp.list') }}">
+        <div class="col-md-3">
+<select class="form-select" name="type">
+  <option value="">{{ 'كل الأنواع' }}</option>
+  <option value="MAIN"      {{ 'selected' if (filter_type|upper) == 'MAIN' }}>رئيسي</option>
+  <option value="PARTNER"   {{ 'selected' if (filter_type|upper) == 'PARTNER' }}>شريك</option>
+  <option value="EXCHANGE"  {{ 'selected' if (filter_type|upper) == 'EXCHANGE' }}>تبادل</option>
+  <option value="ONLINE"    {{ 'selected' if (filter_type|upper) == 'ONLINE' }}>أونلاين</option>
+  <option value="INVENTORY" {{ 'selected' if (filter_type|upper) == 'INVENTORY' }}>ملكيتي</option>
+</select>
+
+        </div>
+        <div class="col-md-5">
+          <input class="form-control" type="text" name="search" placeholder="ابحث بالاسم" value="{{ search or '' }}">
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-primary w-100" type="submit">تصفية</button>
+        </div>
+        <div class="col-md-2">
+          <a class="btn btn-light w-100" href="{{ url_for('warehouse_bp.list') }}">إلغاء</a>
+        </div>
+      </form>
+
+      {% if current_user.has_permission('manage_warehouses') %}
+      <a href="{{ url_for('warehouse_bp.create') }}" class="btn btn-action-add">
+        <i class="fas fa-plus"></i> مستودع جديد
+      </a>
+      {% endif %}
+    </div>
+
+    {% if warehouses and warehouses|length %}
+      <div class="table-responsive">
+        <table class="table table-striped table-hover align-middle" id="warehouses-table" style="width:100%">
+          <thead class="table-light">
+            <tr>
+              <th class="text-center" style="width:90px">رقم</th>
+              <th>الاسم</th>
+              <th>النوع</th>
+              <th>نشط؟</th>
+              <th style="width:260px">إجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for w in warehouses %}
+            <tr>
+              <td class="text-center">{{ w.id }}</td>
+              <td><a href="{{ url_for('warehouse_bp.detail', warehouse_id=w.id) }}">{{ w.name }}</a></td>
+              <td>{{ ar_label('warehouse_type', w.warehouse_type) if ar_label else w.warehouse_type }}</td>
+              <td>{{ '✓' if w.is_active else '✗' }}</td>
+              <td class="text-nowrap">
+                <div class="table-actions">
+                  <a class="btn btn-action-view btn-action-sm" href="{{ url_for('warehouse_bp.detail', warehouse_id=w.id) }}" title="تفاصيل">
+                    <i class="fas fa-eye"></i>
+                  </a>
+                  <a class="btn btn-action-report btn-action-sm" href="{{ url_for('warehouse_bp.preview_inventory', warehouse_id=w.id) }}" title="معاينة">
+                    <i class="fas fa-clipboard-list"></i>
+                  </a>
+                  {% if current_user.has_permission('manage_warehouses') %}
+                  <a class="btn btn-action-edit btn-action-sm" href="{{ url_for('warehouse_bp.edit', warehouse_id=w.id) }}" title="تعديل">
+                    <i class="fas fa-edit"></i>
+                  </a>
+                  <form method="post" action="{{ url_for('warehouse_bp.delete', warehouse_id=w.id) }}" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-action-delete btn-action-sm btn-delete" title="حذف">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="alert alert-info mb-0">لا توجد مستودعات.</div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script>
+    (function() {
+      if (window.jQuery && $.fn.DataTable) {
+        $('#warehouses-table').DataTable({
+          pageLength: 25,
+          order: [],
+          columnDefs: [
+            { targets: 0, type: 'num' }
+          ],
+          language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/ar.json' }
+        });
+      }
+      $(document).on('click', '.btn-delete', function(e){
+        e.preventDefault();
+        const $form = $(this).closest('form');
+        if(!$form.length) return;
+        if (window.Swal) {
+          Swal.fire({
+            icon: 'warning',
+            title: 'تأكيد الحذف',
+            text: 'سيتم حذف المستودع نهائيًا',
+            showCancelButton: true,
+            confirmButtonText: 'حذف',
+            cancelButtonText: 'إلغاء',
+            reverseButtons: true
+          }).then((r)=>{ if(r.isConfirmed) $form.trigger('submit'); });
+        } else {
+          if (confirm('تأكيد الحذف؟')) $form.trigger('submit');
+        }
+      });
+    })();
+  </script>
+{% endblock %}

@@ -1,0 +1,560 @@
+{% extends 'base.html' %}
+{% block title %}لوحة التحكم{% endblock %}
+{% block page_title %}لوحة التحكم{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item active">الرئيسية</li>
+{% endblock %}
+{% block content %}
+<div class="container-fluid">
+
+  <div class="row mb-3">
+    <div class="col-12 d-flex flex-wrap gap-2 justify-content-end">
+      {% if shop_is_super_admin %}
+      <a href="{{ url_for('shop.catalog') }}" target="_blank" class="btn btn-sm text-white fw-bold shadow-sm px-3" style="background:linear-gradient(45deg,#667eea,#764ba2)">
+        <i class="fas fa-store me-1"></i> المتجر
+      </a>
+      {% endif %}
+      {% if shop_is_super_admin or has_perm('backup_database') %}
+      <a href="{{ url_for('main.backup_db') }}" class="btn btn-sm text-white fw-bold shadow-sm px-3" style="background:linear-gradient(45deg,#43cea2,#185a9d)">
+        <i class="fas fa-database me-1"></i> النسخ الاحتياطي
+      </a>
+      {% endif %}
+      {% if shop_is_super_admin %}
+      <a href="{{ url_for('main.restore_db') }}" class="btn btn-sm text-dark fw-bold shadow-sm px-3" style="background:linear-gradient(45deg,#f7971e,#ffd200)">
+        <i class="fas fa-upload me-1"></i> استعادة النسخ
+      </a>
+      <button type="button" class="btn btn-sm text-white fw-bold shadow-sm px-3" style="background:linear-gradient(45deg,#11998e,#38ef7d)" onclick="toggleAutomatedBackup()">
+        <i class="fas fa-clock me-1"></i> <span id="backup-toggle-text">نسخ تلقائي</span>
+      </button>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- رسوم بيانية تفاعلية -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-lg">
+        <div class="card-header bg-white border-0">
+          <h5 class="card-title mb-0">
+            <i class="fas fa-chart-line text-primary me-2"></i>
+            إحصائيات المبيعات الشهرية
+          </h5>
+        </div>
+        <div class="card-body">
+          <canvas id="salesChart" height="100"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-lg">
+        <div class="card-header bg-white border-0">
+          <h5 class="card-title mb-0">
+            <i class="fas fa-chart-pie text-success me-2"></i>
+            توزيع العملاء
+          </h5>
+        </div>
+        <div class="card-body">
+          <canvas id="customersChart" height="200"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- تنبيهات الشيكات -->
+  <div class="row g-3 mb-4" id="check-alerts-section" style="display: none;">
+    <div class="col-12">
+      <div class="card border-0 shadow-lg border-danger">
+        <div class="card-header bg-gradient text-white" style="background:linear-gradient(135deg,#ff6b6b,#ee5a6f)">
+          <h5 class="card-title mb-0">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            تنبيهات الشيكات العاجلة
+          </h5>
+        </div>
+        <div class="card-body" id="check-alerts-container">
+          <!-- سيتم ملؤها ديناميكياً -->
+        </div>
+        <div class="card-footer text-center">
+          <a href="/checks" class="btn btn-primary">
+            <i class="fas fa-money-check-alt"></i> عرض جميع الشيكات
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- بطاقات أساسية -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-lg text-white h-100" style="background:linear-gradient(135deg,#00c6ff,#0072ff)">
+        <div class="card-body d-flex align-items-center justify-content-between">
+          <div>
+            <h2 class="fw-bold mb-1">{{ recent_services|length }}</h2>
+            <div class="small">طلبات الصيانة المعلقة</div>
+          </div>
+          <i class="fas fa-tools fa-2x opacity-75"></i>
+        </div>
+        <a href="{{ url_for('service.list_requests') }}" class="card-footer text-center fw-semibold text-decoration-none text-white bg-transparent border-0">عرض التفاصيل <i class="fas fa-arrow-circle-left"></i></a>
+      </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-lg text-dark h-100" style="background:linear-gradient(135deg,#fceabb,#f8b500)">
+        <div class="card-body d-flex align-items-center justify-content-between">
+          <div>
+            <h2 class="fw-bold mb-1">{{ low_stock|length }}</h2>
+            <div class="small">قطع المخزون المنخفض</div>
+          </div>
+          <i class="fas fa-boxes fa-2x opacity-75"></i>
+        </div>
+        <a href="{{ url_for('warehouse_bp.list') }}" class="card-footer text-center fw-semibold text-decoration-none text-dark bg-transparent border-0">إدارة المستودعات <i class="fas fa-arrow-circle-left"></i></a>
+      </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-lg text-white h-100" style="background:linear-gradient(135deg,#f00000,#dc281e)">
+        <div class="card-body d-flex align-items-center justify-content-between">
+          <div>
+            <h2 class="fw-bold mb-1">{{ pending_exchanges|default(0) }}</h2>
+            <div class="small">طلبات التبادل المعلقة</div>
+          </div>
+          <i class="fas fa-exchange-alt fa-2x opacity-75"></i>
+        </div>
+        <a href="{{ url_for('shipments_bp.list_shipments') }}" class="card-footer text-center fw-semibold text-decoration-none text-white bg-transparent border-0">عرض التفاصيل <i class="fas fa-arrow-circle-left"></i></a>
+      </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-lg text-white h-100" style="background:linear-gradient(135deg,#11998e,#38ef7d)">
+        <div class="card-body d-flex align-items-center justify-content-between">
+          <div>
+            <h2 class="fw-bold mb-1">{{ today_revenue|default(0)|format_currency }}</h2>
+            <div class="small">إيرادات اليوم (مبيعات)</div>
+          </div>
+          <i class="fas fa-dollar-sign fa-2x opacity-75"></i>
+        </div>
+        <a href="{{ url_for('reports_bp.dynamic_report') }}" class="card-footer text-center fw-semibold text-decoration-none text-white bg-transparent border-0">عرض التقارير <i class="fas fa-arrow-circle-left"></i></a>
+      </div>
+    </div>
+  </div>
+
+  <!-- بطاقات التدفقات النقدية - اليوم -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-4 col-md-6">
+      <div class="card border-0 shadow h-100" style="background:linear-gradient(135deg,#4facfe,#00f2fe);color:#fff">
+        <div class="card-body d-flex align-items-center justify-content-between">
+          <div>
+            <div class="small opacity-75">وارد اليوم</div>
+            <h3 class="fw-bold mb-0">{{ today_incoming|default(0)|format_currency }}</h3>
+          </div>
+          <i class="fas fa-arrow-down fa-2x opacity-75"></i>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4 col-md-6">
+      <div class="card border-0 shadow h-100" style="background:linear-gradient(135deg,#ff9966,#ff5e62);color:#fff">
+        <div class="card-body d-flex align-items-center justify-content-between">
+          <div>
+            <div class="small opacity-75">صادر اليوم</div>
+            <h3 class="fw-bold mb-0">{{ today_outgoing|default(0)|format_currency }}</h3>
+          </div>
+          <i class="fas fa-arrow-up fa-2x opacity-75"></i>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4 col-md-12">
+      <div class="card border-0 shadow h-100" style="background:linear-gradient(135deg,#56ab2f,#a8e063);color:#fff">
+        <div class="card-body d-flex align-items-center justify-content-between">
+          <div>
+            <div class="small opacity-75">صافي اليوم</div>
+            <h3 class="fw-bold mb-0">{{ (today_incoming|default(0) - today_outgoing|default(0))|format_currency }}</h3>
+          </div>
+          <i class="fas fa-balance-scale fa-2x opacity-75"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- بطاقات التدفقات النقدية - الأسبوع -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-4 col-md-6">
+      <div class="card border-0 shadow h-100" style="background:linear-gradient(135deg,#36d1dc,#5b86e5);color:#fff">
+        <div class="card-body d-flex align-items-center justify-content-between">
+          <div>
+            <div class="small opacity-75">وارد الأسبوع</div>
+            <h3 class="fw-bold mb-0">{{ week_incoming|default(0)|format_currency }}</h3>
+          </div>
+          <i class="fas fa-sign-in-alt fa-2x opacity-75"></i>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4 col-md-6">
+      <div class="card border-0 shadow h-100" style="background:linear-gradient(135deg,#f7971e,#ffd200);color:#2b2b2b">
+        <div class="card-body d-flex align-items-center justify-content-between">
+          <div>
+            <div class="small opacity-75">صادر الأسبوع</div>
+            <h3 class="fw-bold mb-0">{{ week_outgoing|default(0)|format_currency }}</h3>
+          </div>
+          <i class="fas fa-sign-out-alt fa-2x opacity-75"></i>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4 col-md-12">
+      <div class="card border-0 shadow h-100" style="background:linear-gradient(135deg,#00b09b,#96c93d);color:#fff">
+        <div class="card-body d-flex align-items-center justify-content-between">
+          <div>
+            <div class="small opacity-75">صافي الأسبوع</div>
+            <h3 class="fw-bold mb-0">{{ week_net|default(0)|format_currency }}</h3>
+          </div>
+          <i class="fas fa-equals fa-2x opacity-75"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- مخططات -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-lg h-100">
+        <div class="card-header fw-bold text-white" style="background:linear-gradient(45deg,#ee0979,#ff6a00)">
+          <i class="fas fa-chart-line me-1"></i> إيرادات الأسبوع (مبيعات)
+        </div>
+        <div class="card-body" style="height:320px">
+          <canvas
+            class="chartjs-chart"
+            data-chart-type="line"
+            data-label="إيرادات الأسبوع"
+            data-labels='{{ revenue_labels|default([])|tojson }}'
+            data-values='{{ revenue_values|default([])|tojson }}'
+            data-fill="1"
+            data-smooth="1"
+            data-unit="₪">
+          </canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-lg h-100">
+        <div class="card-header fw-bold text-white" style="background:linear-gradient(45deg,#36d1dc,#5b86e5)">
+          <i class="fas fa-tools me-1"></i> طلبات الصيانة الأسبوعية
+        </div>
+        <div class="card-body" style="height:320px">
+          <canvas
+            class="chartjs-chart"
+            data-chart-type="bar"
+            data-label="طلبات الصيانة"
+            data-labels='{{ service_metrics.day_labels|default([])|tojson }}'
+            data-values='{{ service_metrics.day_counts|default([])|tojson }}'
+            data-unit="طلب">
+          </canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- مخططات وارد/صادر/صافي الأسبوع (كل واحد Dataset منفصل لتوافق المُولِّد الحالي) -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-lg h-100">
+        <div class="card-header fw-bold text-white" style="background:linear-gradient(45deg,#00c6ff,#0072ff)">
+          <i class="fas fa-arrow-down me-1"></i> وارد الأسبوع
+        </div>
+        <div class="card-body" style="height:260px">
+          <canvas
+            class="chartjs-chart"
+            data-chart-type="line"
+            data-label="وارد"
+            data-labels='{{ payments_day_labels|default([])|tojson }}'
+            data-values='{{ payments_in_values|default([])|tojson }}'
+            data-fill="0"
+            data-smooth="1"
+            data-unit="₪">
+          </canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-lg h-100">
+        <div class="card-header fw-bold text-white" style="background:linear-gradient(45deg,#ff9966,#ff5e62)">
+          <i class="fas fa-arrow-up me-1"></i> صادر الأسبوع
+        </div>
+        <div class="card-body" style="height:260px">
+          <canvas
+            class="chartjs-chart"
+            data-chart-type="line"
+            data-label="صادر"
+            data-labels='{{ payments_day_labels|default([])|tojson }}'
+            data-values='{{ payments_out_values|default([])|tojson }}'
+            data-fill="0"
+            data-smooth="1"
+            data-unit="₪">
+          </canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-lg h-100">
+        <div class="card-header fw-bold text-white" style="background:linear-gradient(45deg,#00b09b,#96c93d)">
+          <i class="fas fa-equals me-1"></i> صافي الأسبوع
+        </div>
+        <div class="card-body" style="height:260px">
+          <canvas
+            class="chartjs-chart"
+            data-chart-type="bar"
+            data-label="صافي"
+            data-labels='{{ payments_day_labels|default([])|tojson }}'
+            data-values='{{ payments_net_values|default([])|tojson }}'
+            data-unit="₪">
+          </canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- آخر 5 طلبات صيانة -->
+  <div class="card border-0 shadow-lg">
+    <div class="card-header fw-bold text-white" style="background:linear-gradient(45deg,#232526,#414345)">
+      <i class="fas fa-history me-1"></i> آخر 5 طلبات صيانة
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle text-center">
+          <thead class="text-white" style="background:linear-gradient(45deg,#0f2027,#203a43,#2c5364)">
+            <tr>
+              <th>رقم الطلب</th>
+              <th>السيارة</th>
+              <th>الحالة</th>
+              <th>تاريخ البداية</th>
+              <th>إجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in recent_services[:5] %}
+            <tr>
+              <td>{{ s.id }}</td>
+              <td>{{ s.vehicle_vrn }}</td>
+              <td><span class="badge bg-gradient-info text-dark">{{ s.status_label or s.status }}</span></td>
+              <td>{{ s.started_at|default('')|format_date }}</td>
+              <td class="d-flex gap-2 justify-content-center">
+                <a href="{{ url_for('service.view_request', rid=s.id) }}" class="btn btn-sm text-white shadow-sm" style="background:linear-gradient(45deg,#667eea,#764ba2)"><i class="fas fa-eye"></i> عرض</a>
+                <a href="{{ url_for('service.view_receipt', rid=s.id) }}" target="_blank" class="btn btn-sm text-white shadow-sm" style="background:linear-gradient(45deg,#36d1dc,#5b86e5)"><i class="fas fa-file-pdf"></i> تقرير</a>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="5" class="text-muted">لا توجد طلبات صيانة حالياً</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // رسم بياني للمبيعات الشهرية
+    const salesCtx = document.getElementById('salesChart').getContext('2d');
+    const salesChart = new Chart(salesCtx, {
+        type: 'line',
+        data: {
+            labels: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو'],
+            datasets: [{
+                label: 'المبيعات (شيكل)',
+                data: [12000, 19000, 15000, 25000, 22000, 30000],
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value.toLocaleString() + ' ₪';
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // رسم بياني لتوزيع العملاء
+    const customersCtx = document.getElementById('customersChart').getContext('2d');
+    const customersChart = new Chart(customersCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['عملاء جدد', 'عملاء نشطين', 'عملاء غير نشطين'],
+            datasets: [{
+                data: [30, 50, 20],
+                backgroundColor: [
+                    'rgba(54, 162, 235, 0.8)',
+                    'rgba(75, 192, 192, 0.8)',
+                    'rgba(255, 99, 132, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(54, 162, 235, 1)',
+                    'rgba(75, 192, 192, 1)',
+                    'rgba(255, 99, 132, 1)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true
+                    }
+                }
+            }
+        }
+    });
+
+    // تحديث البيانات كل 30 ثانية
+    setInterval(function() {
+        // يمكن إضافة AJAX هنا لتحديث البيانات
+        console.log('تحديث البيانات...');
+    }, 30000);
+});
+
+// تحميل تنبيهات الشيكات العاجلة
+function loadCheckAlerts() {
+    $.get('/checks/api/alerts', function(response) {
+        if (response.success && response.count > 0) {
+            const container = $('#check-alerts-container');
+            container.empty();
+            
+            // عرض أول 5 تنبيهات فقط
+            const alerts = response.alerts.slice(0, 5);
+            
+            alerts.forEach(alert => {
+                const alertClass = alert.severity === 'danger' ? 'check-alert-danger' : 'check-alert-warning';
+                const iconClass = alert.icon || 'fas fa-exclamation-circle';
+                
+                const alertHtml = `
+                    <div class="check-alert-item ${alertClass}" onclick="window.location.href='${alert.link}'">
+                        <div class="d-flex align-items-center">
+                            <i class="${iconClass} fa-2x me-3"></i>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1 fw-bold">${alert.title}</h6>
+                                <p class="mb-0 small">${alert.message}</p>
+                            </div>
+                            <div class="text-start">
+                                <span class="badge badge-${alert.severity} fs-6 px-3 py-2">
+                                    ${new Intl.NumberFormat('ar-EG', {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2
+                                    }).format(alert.amount)} ${alert.currency}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.append(alertHtml);
+            });
+            
+            $('#check-alerts-section').show();
+        } else {
+            $('#check-alerts-section').hide();
+        }
+    }).fail(function() {
+        // في حالة الخطأ، إخفاء القسم
+        $('#check-alerts-section').hide();
+    });
+}
+
+// تحميل التنبيهات عند تحميل الصفحة
+loadCheckAlerts();
+
+// تحديث كل 5 دقائق
+setInterval(loadCheckAlerts, 300000);
+
+</script>
+
+<style>
+  .check-alert-item {
+    border-left: 4px solid;
+    border-radius: 5px;
+    padding: 15px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  .check-alert-item:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    transform: translateX(5px);
+  }
+  .check-alert-danger { 
+    border-left-color: #dc3545; 
+    background: #f8d7da; 
+  }
+  .check-alert-warning { 
+    border-left-color: #ffc107; 
+    background: #fff3cd; 
+  }
+</style>
+
+<script>
+function checkBackupStatus() {
+  fetch('{{ url_for("main.automated_backup_status") }}')
+    .then(r => r.json())
+    .then(data => {
+      const btn = document.getElementById('backup-toggle-text');
+      if (data.enabled) {
+        btn.textContent = 'إيقاف التلقائي';
+        btn.parentElement.classList.add('btn-success');
+        btn.parentElement.classList.remove('btn-secondary');
+      } else {
+        btn.textContent = 'تفعيل التلقائي';
+        btn.parentElement.classList.add('btn-secondary');
+        btn.parentElement.classList.remove('btn-success');
+      }
+    })
+    .catch(err => console.error('Error checking backup status:', err));
+}
+
+function toggleAutomatedBackup() {
+  if (confirm('هل تريد تغيير حالة النسخ الاحتياطي التلقائي؟')) {
+    fetch('{{ url_for("main.toggle_automated_backup") }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token() }}'
+      }
+    })
+    .then(r => {
+      if (r.ok) {
+        location.reload();
+      }
+    })
+    .catch(err => {
+      alert('حدث خطأ: ' + err);
+    });
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  if (document.getElementById('backup-toggle-text')) {
+    checkBackupStatus();
+  }
+});
+</script>
+{% endblock %}

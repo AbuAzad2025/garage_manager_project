@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block title %}{{ is_edit and 'تعديل نوع مصروف' or 'إضافة نوع مصروف' }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4" dir="rtl">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h3 class="mb-0">{{ is_edit and '✏️ تعديل نوع مصروف' or '➕ إضافة نوع مصروف' }}</h3>
+    <div>
+      <a href="{{ url_for('expenses_bp.types_list') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-right"></i> رجوع
+      </a>
+    </div>
+  </div>
+
+  <form method="post" class="needs-validation" novalidate>
+    {{ form.hidden_tag() }}
+    <div class="card card-outline card-primary shadow-sm">
+      <div class="card-header">
+        <h5 class="card-title mb-0">📝 بيانات نوع المصروف</h5>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            {{ form.name.label(class="form-label") }}
+            {{ form.name(class=("form-control is-invalid" if form.name.errors else "form-control"), placeholder="مثال: رواتب، جمارك، كهرباء...", autofocus=True, maxlength="100") }}
+            {% for e in form.name.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="col-md-6">
+            {{ form.description.label(class="form-label") }}
+            {{ form.description(class=("form-control is-invalid" if form.description.errors else "form-control"), rows="3", placeholder="وصف اختياري حتى 500 حرف") }}
+            {% for e in form.description.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="col-md-12">
+            <div class="form-check form-switch mt-2">
+              {{ form.is_active(class=("form-check-input is-invalid" if form.is_active.errors else "form-check-input"), id="is_active") }}
+              <label class="form-check-label" for="is_active">مُفعّل</label>
+              {% for e in form.is_active.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-footer d-flex gap-2">
+        <button class="btn btn-success">{{ is_edit and '💾 حفظ التعديلات' or '💾 حفظ النوع' }}</button>
+        <a href="{{ url_for('expenses_bp.types_list') }}" class="btn btn-outline-secondary">إلغاء</a>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{% endblock %}

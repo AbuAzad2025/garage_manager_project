@@ -126,7 +126,19 @@
             {% for w in warehouses %}
             <tr>
               <td class="text-center">{{ w.id }}</td>
-              <td><a href="{{ url_for('warehouse_bp.detail', warehouse_id=w.id) }}">{{ w.name }}</a></td>
+              <td>
+                <div class="d-flex align-items-center justify-content-between">
+                  <a href="{{ url_for('warehouse_bp.detail', warehouse_id=w.id) }}" class="fw-bold text-decoration-none">
+                    {{ w.name }}
+                  </a>
+                  <a href="{{ url_for('warehouse_bp.add_product', id=w.id) }}" 
+                     class="btn btn-success btn-sm ms-2"
+                     title="إضافة منتج لهذا المستودع">
+                    <i class="fas fa-plus"></i>
+                    <span class="d-none d-lg-inline"> إضافة منتج</span>
+                  </a>
+                </div>
+              </td>
               <td>{{ ar_label('warehouse_type', w.warehouse_type) if ar_label else w.warehouse_type }}</td>
               <td>{{ '✓' if w.is_active else '✗' }}</td>
               <td class="text-nowrap">

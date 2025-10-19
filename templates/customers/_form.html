@@ -51,6 +51,14 @@
     </div>
     {% for e in form.discount_rate.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
   </div>
+  <div class="col-md-4">
+    <label class="form-label fw-bold">{{ form.opening_balance.label.text }} <i class="fas fa-info-circle text-info" title="موجب = له علينا، سالب = عليه لنا"></i></label>
+    <div class="input-group">
+      {{ form.opening_balance(class="form-control" + (' is-invalid' if form.opening_balance.errors else ''), placeholder="0.00", inputmode="decimal") }}
+      <span class="input-group-text">₪</span>
+    </div>
+    {% for e in form.opening_balance.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
+  </div>
   <div class="col-md-4 d-flex align-items-center">
     <div class="form-check form-switch">
       {{ form.is_active(class="form-check-input") }}

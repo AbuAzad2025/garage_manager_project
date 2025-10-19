@@ -1,0 +1,135 @@
+{% extends 'warehouses/base.html' %}
+
+{% block title %}كشف المخزون{% endblock %}
+{% block page_title %}كشف المخزون عبر المستودعات{% endblock %}
+
+{% block content %}
+<!-- إحصائيات سريعة -->
+<div class="row mb-4">
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="card border-0 shadow-sm bg-primary text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">إجمالي المنتجات</h6>
+            <h3 class="mb-0 fw-bold">{{ rows|length if rows else 0 }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-boxes fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="card border-0 shadow-sm bg-success text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">إجمالي الكمية</h6>
+            <h3 class="mb-0 fw-bold">{{ rows|sum(attribute='total') if rows else 0 }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-layer-group fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="card border-0 shadow-sm bg-info text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">المستودعات المحددة</h6>
+            <h3 class="mb-0 fw-bold">{{ warehouses|length if warehouses else 0 }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-warehouse fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="card border-0 shadow-sm bg-warning text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">متوسط الكمية</h6>
+            <h3 class="mb-0 fw-bold">{{ "%.1f"|format((rows|sum(attribute='total') / rows|length) if rows and rows|length > 0 else 0) }}</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-chart-line fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="get" class="row g-3 align-items-end">
+      <div class="col-md-5">
+        <label class="form-label">اختر المستودعات</label>
+        <select name="warehouse_ids" multiple class="form-select" size="6">
+          {% for w in warehouses %}
+            <option value="{{ w.id }}" selected>{{ w.name }}</option>
+          {% endfor %}
+        </select>
+        <div class="form-text">اضغط Ctrl/⌘ للاختيار المتعدد</div>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">بحث عن قطعة</label>
+        <input type="text" name="q" class="form-control" value="{{ search or '' }}" placeholder="اسم القطعة">
+      </div>
+      <div class="col-md-3 d-flex gap-2">
+        <button type="submit" class="btn btn-primary flex-fill">تطبيق</button>
+        <a href="{{ url_for('warehouse_bp.inventory_summary') }}" class="btn btn-outline-secondary flex-fill">تهيئة</a>
+        <button type="submit" name="export" value="csv" class="btn btn-success flex-fill">تصدير CSV</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-sm table-bordered align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>القطعة</th>
+          <th>ID القطعة</th>
+          <th>SKU</th>
+          {% for w in warehouses %}
+            <th class="text-center">{{ w.name }}</th>
+          {% endfor %}
+          <th class="text-end">الإجمالي</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+          {% set p = r.product %}
+          <tr>
+            <td><a href="{{ url_for('warehouse_bp.product_card', product_id=p.id) }}">{{ p.name }}</a></td>
+            <td>{{ p.id }}</td>
+            <td>{{ p.sku or '-' }}</td>
+            {% for w in warehouses %}
+              {% set cell = r.by[w.id] %}
+              <td class="text-center">{{ cell.on }}</td>
+            {% endfor %}
+            <td class="text-end">{{ r.total }}</td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="{{ 4 + warehouses|length }}" class="text-center text-muted">لا توجد بيانات</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

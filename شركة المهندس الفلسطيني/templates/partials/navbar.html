@@ -1,0 +1,381 @@
+<nav class="main-header navbar navbar-expand navbar-primary navbar-dark" dir="rtl" {% if system_settings.primary_color %}style="background-color: {{ system_settings.primary_color }} !important;"{% endif %}>
+  <!-- الساعة والتاريخ وأسعار الصرف في بداية الشريط -->
+  <div class="navbar-brand mr-auto d-flex align-items-center flex-wrap">
+    <!-- الساعة -->
+    <span class="badge badge-warning mr-2" style="padding: 8px 12px;">
+      <i class="fas fa-clock mr-1"></i>
+      <span id="current-time" style="font-size: 14px; font-weight: bold; color: #000;">--:--:--</span>
+    </span>
+    
+    <!-- التاريخ الميلادي -->
+    <span class="badge badge-info mr-2" style="padding: 8px 12px;">
+      <i class="fas fa-calendar mr-1"></i>
+      <span id="current-date-gregorian" style="font-size: 13px; font-weight: bold; color: #fff;">--/--/----</span>
+    </span>
+    
+    <!-- التاريخ الهجري -->
+    <span class="badge badge-secondary mr-2" style="padding: 8px 12px; background: linear-gradient(135deg, #4a148c 0%, #6a1b9a 100%) !important;">
+      <i class="fas fa-moon mr-1"></i>
+      <span id="current-date-hijri" style="font-size: 13px; font-weight: bold; color: #fff;">-- --- ----</span>
+    </span>
+    
+    <!-- سعر الدولار -->
+    <span class="badge badge-success mr-2" style="padding: 8px 12px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important; border: none;">
+      <i class="fas fa-dollar-sign mr-1"></i>
+      <span style="font-size: 13px; font-weight: bold;">$</span>
+      <span id="usd-rate" style="font-size: 14px; font-weight: bold; color: #fff;">--</span>
+      <span style="font-size: 11px; opacity: 0.9;">₪</span>
+    </span>
+    
+    <!-- سعر الدينار -->
+    <span class="badge mr-2" style="padding: 8px 12px; background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%) !important; border: none;">
+      <i class="fas fa-coins mr-1"></i>
+      <span style="font-size: 13px; font-weight: bold;">JOD</span>
+      <span id="jod-rate" style="font-size: 14px; font-weight: bold; color: #fff;">--</span>
+      <span style="font-size: 11px; opacity: 0.9;">₪</span>
+    </span>
+  </div>
+
+  <ul class="navbar-nav">
+    <li class="nav-item">
+      <a class="nav-link" data-widget="pushmenu" href="#" role="button">
+        <i class="fas fa-bars"></i>
+      </a>
+    </li>
+
+    {% if current_user.is_authenticated and shop_is_super_admin %}
+    <li class="nav-item">
+      <a class="nav-link" href="{{ url_for('shop.catalog') }}" target="_blank">
+        <i class="fas fa-store"></i> المتجر
+      </a>
+    </li>
+    {% endif %}
+    
+    {% if current_user.is_authenticated and (shop_is_super_admin or (current_user.role and current_user.role.name in ['manager', 'مدير'])) %}
+    <li class="nav-item">
+      <a class="nav-link" href="{{ url_for('security.ai_assistant') }}" title="المساعد الذكي - يفهم كل شيء في النظام">
+        <i class="fas fa-robot"></i> المساعد الذكي
+      </a>
+    </li>
+    {% endif %}
+  </ul>
+
+  {% if current_user.is_authenticated %}
+  <!-- معلومات المستخدم والدور -->
+  <ul class="navbar-nav mr-auto">
+    <li class="nav-item">
+      <span class="navbar-text text-white d-flex align-items-center">
+        <i class="fas fa-crown mr-2 text-warning"></i>
+        <span class="font-weight-bold text-white">{{ current_user.role.name if current_user.role else 'مستخدم' }}</span>
+      </span>
+    </li>
+  </ul>
+  
+  <ul class="navbar-nav ml-auto">
+    <li class="nav-item dropdown">
+      <a class="nav-link d-flex align-items-center" data-toggle="dropdown" href="#" aria-expanded="false">
+        <!-- صورة المستخدم أو أيقونة -->
+        <div class="user-avatar mr-2">
+          {% if current_user.avatar_url %}
+            <img src="{{ current_user.avatar_url }}" class="rounded-circle" width="32" height="32" alt="صورة المستخدم">
+          {% else %}
+            <div class="avatar-placeholder rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; background: linear-gradient(45deg, #007bff, #28a745); color: white; font-weight: bold;">
+              {{ current_user.avatar_or_initials }}
+            </div>
+          {% endif %}
+        </div>
+        <span class="font-weight-bold">{{ current_user.username }}</span>
+        <i class="fas fa-chevron-down ml-2"></i>
+      </a>
+      <div class="dropdown-menu dropdown-menu-right" style="min-width: 280px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); background-color: #ffffff;">
+        <!-- معلومات المستخدم في الأعلى -->
+        <div class="dropdown-header bg-light text-center py-3">
+          <div class="user-info">
+            {% if current_user.avatar_url %}
+              <img src="{{ current_user.avatar_url }}" class="rounded-circle mb-2" width="50" height="50" alt="صورة المستخدم">
+            {% else %}
+              <div class="avatar-placeholder rounded-circle d-flex align-items-center justify-content-center mx-auto mb-2" style="width: 50px; height: 50px; background: linear-gradient(45deg, #007bff, #28a745); color: white; font-weight: bold; font-size: 18px;">
+                {{ current_user.avatar_or_initials }}
+              </div>
+            {% endif %}
+            <h6 class="mb-0 font-weight-bold" style="color: #212529;">{{ current_user.username }}</h6>
+            <small style="color: #6c757d;">{{ current_user.role.name if current_user.role else 'مستخدم' }}</small>
+          </div>
+        </div>
+        
+        <div class="dropdown-divider"></div>
+        
+        <!-- روابط الملف الشخصي -->
+        <a href="{{ url_for('users_bp.profile') }}" class="dropdown-item py-2" style="color: #000000; font-weight: 700; font-size: 15px;">
+          <i class="fas fa-user-cog mr-3" style="color: #0056b3; font-size: 16px;"></i> <strong>الملف الشخصي</strong>
+        </a>
+        
+        <a href="{{ url_for('users_bp.edit_profile') }}" class="dropdown-item py-2" style="color: #000000; font-weight: 700; font-size: 15px;">
+          <i class="fas fa-edit mr-3" style="color: #28a745; font-size: 16px;"></i> <strong>تعديل الملف الشخصي</strong>
+        </a>
+
+        <a href="{{ url_for('users_bp.change_password') }}" class="dropdown-item py-2" style="color: #000000; font-weight: 700; font-size: 15px;">
+          <i class="fas fa-key mr-3" style="color: #ffc107; font-size: 16px;"></i> <strong>تغيير كلمة المرور</strong>
+        </a>
+
+        {% if has_perm('manage_users') or shop_is_super_admin %}
+        <div class="dropdown-divider"></div>
+        <h6 class="dropdown-header" style="color: #0056b3; font-weight: 800; font-size: 15px; background-color: #e7f3ff; padding: 8px; border-radius: 5px;">
+          <i class="fas fa-users mr-2"></i> <strong>إدارة المستخدمين</strong>
+        </h6>
+        <a href="{{ url_for('users_bp.create_user') }}" class="dropdown-item py-2" style="color: #000000; font-weight: 700; font-size: 15px;">
+          <i class="fas fa-user-plus mr-3" style="color: #17a2b8; font-size: 16px;"></i> <strong>إضافة مستخدم</strong>
+        </a>
+        <a href="{{ url_for('users_bp.list_users') if url_for('users_bp.list_users') else '#' }}" class="dropdown-item py-2" style="color: #000000; font-weight: 700; font-size: 15px;">
+          <i class="fas fa-list mr-3" style="color: #17a2b8; font-size: 16px;"></i> <strong>قائمة المستخدمين</strong>
+        </a>
+        {% endif %}
+
+        {% if shop_is_super_admin or has_perm('backup_database') or has_perm('restore_database') %}
+        <div class="dropdown-divider"></div>
+        <h6 class="dropdown-header" style="color: #e67e22; font-weight: 800; font-size: 15px; background-color: #fff3cd; padding: 8px; border-radius: 5px;">
+          <i class="fas fa-database mr-2"></i> <strong>النسخ الاحتياطي</strong>
+        </h6>
+        {% if shop_is_super_admin or has_perm('backup_database') %}
+        <a href="{{ url_for('main.backup_db') }}" class="dropdown-item py-2" style="color: #000000; font-weight: 700; font-size: 15px;">
+          <i class="fas fa-download mr-3" style="color: #28a745; font-size: 16px;"></i> <strong>نسخ احتياطي</strong>
+        </a>
+        {% endif %}
+        {% if shop_is_super_admin or has_perm('restore_database') %}
+        <a href="{{ url_for('main.restore_db') }}" class="dropdown-item py-2" style="color: #000000; font-weight: 700; font-size: 15px;">
+          <i class="fas fa-upload mr-3" style="color: #ffc107; font-size: 16px;"></i> <strong>استعادة نسخة</strong>
+        </a>
+        {% endif %}
+        {% endif %}
+
+        <div class="dropdown-divider"></div>
+        
+        <!-- تسجيل الخروج -->
+        <div class="px-3 py-2">
+          <form action="{{ url_for('auth.logout') }}" method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-danger btn-block" style="font-weight: 700; font-size: 15px; padding: 10px; border-radius: 8px;">
+              <i class="fas fa-sign-out-alt mr-2"></i> <strong>تسجيل خروج</strong>
+            </button>
+          </form>
+        </div>
+      </div>
+    </li>
+  </ul>
+  {% endif %}
+</nav>
+
+<style>
+/* تحسينات الأفاتار والمستخدم */
+.user-avatar img {
+  transition: all 0.3s ease;
+  border: 2px solid rgba(255,255,255,0.3);
+}
+
+.user-avatar img:hover {
+  transform: scale(1.1);
+  border-color: #007bff;
+}
+
+.avatar-placeholder {
+  transition: all 0.3s ease;
+  border: 2px solid rgba(255,255,255,0.3);
+}
+
+.avatar-placeholder:hover {
+  transform: scale(1.1);
+  border-color: #28a745;
+}
+
+/* تحسين القائمة المنسدلة */
+.dropdown-menu {
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dropdown-menu {
+  background-color: #ffffff !important;
+  border: 2px solid #dee2e6 !important;
+}
+
+.dropdown-item {
+  transition: all 0.2s ease;
+  border-radius: 5px;
+  margin: 2px 8px;
+  color: #000000 !important;
+  font-weight: 700 !important;
+  font-size: 15px !important;
+  background-color: #f8f9fa !important;
+  border: 1px solid #e9ecef;
+}
+
+.dropdown-item:hover {
+  background-color: #007bff !important;
+  transform: translateX(5px);
+  color: #ffffff !important;
+  border-color: #0056b3 !important;
+}
+
+.dropdown-item:hover i {
+  color: #ffffff !important;
+}
+
+.dropdown-item:active, .dropdown-item:focus {
+  background-color: #0056b3 !important;
+  color: #ffffff !important;
+}
+
+.dropdown-header {
+  font-weight: 800 !important;
+  font-size: 15px !important;
+  color: #000000 !important;
+  margin: 5px 8px !important;
+}
+
+.dropdown-menu .text-muted {
+  color: #495057 !important;
+}
+
+/* تحسين أيقونة الدور */
+.navbar-text i.fa-crown {
+  animation: glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+  from {
+    text-shadow: 0 0 5px #ffc107;
+  }
+  to {
+    text-shadow: 0 0 20px #ffc107, 0 0 30px #ffc107;
+  }
+}
+</style>
+
+<script>
+// تحديث الوقت والتاريخ
+function updateDateTime() {
+    const now = new Date();
+    
+    // تنسيق الوقت (بأرقام إنجليزية)
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const timeString = `${hours}:${minutes}:${seconds}`;
+    
+    // تنسيق التاريخ الميلادي (بأرقام إنجليزية)
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const gregorianDate = `${year}/${month}/${day}`;
+    
+    // تنسيق التاريخ الهجري (بأرقام إنجليزية)
+    try {
+        const hijriDate = new Intl.DateTimeFormat('en-u-ca-islamic', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        }).format(now);
+        
+        // استبدال الأرقام العربية بإنجليزية إن وجدت
+        const hijriEnglish = hijriDate.replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+        
+        document.getElementById('current-date-hijri').textContent = hijriEnglish;
+    } catch (e) {
+        // في حالة عدم دعم التقويم الهجري
+        document.getElementById('current-date-hijri').textContent = 'Hijri N/A';
+    }
+    
+    // تحديث العناصر
+    const timeElement = document.getElementById('current-time');
+    const gregorianElement = document.getElementById('current-date-gregorian');
+    
+    if (timeElement) {
+        timeElement.textContent = timeString;
+    }
+    if (gregorianElement) {
+        gregorianElement.textContent = gregorianDate;
+    }
+}
+
+// جلب أسعار الصرف
+async function updateExchangeRates() {
+    try {
+        // جلب أسعار الصرف من API أو من قاعدة البيانات
+        const response = await fetch('/api/v1/exchange-rates?base=ILS');
+        if (response.ok) {
+            const data = await response.json();
+            
+            // تحديث سعر الدولار (كم شيقل يساوي دولار واحد)
+            const usdElement = document.getElementById('usd-rate');
+            if (usdElement && data.USD) {
+                usdElement.textContent = parseFloat(data.USD).toFixed(2);
+            }
+            
+            // تحديث سعر الدينار (كم شيقل يساوي دينار واحد)
+            const jodElement = document.getElementById('jod-rate');
+            if (jodElement && data.JOD) {
+                jodElement.textContent = parseFloat(data.JOD).toFixed(2);
+            }
+        } else {
+            // في حالة الفشل، استخدام قيم افتراضية
+            document.getElementById('usd-rate').textContent = '3.65';
+            document.getElementById('jod-rate').textContent = '5.15';
+        }
+    } catch (error) {
+        console.log('Using default exchange rates');
+        // قيم افتراضية تقريبية
+        document.getElementById('usd-rate').textContent = '3.65';
+        document.getElementById('jod-rate').textContent = '5.15';
+    }
+}
+
+// انتظار تحميل DOM
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, starting clock and exchange rates...');
+    
+    // تحديث الوقت والتاريخ
+    updateDateTime();
+    setInterval(updateDateTime, 1000);
+    
+    // تحديث أسعار الصرف
+    updateExchangeRates();
+    // تحديث أسعار الصرف كل 5 دقائق
+    setInterval(updateExchangeRates, 5 * 60 * 1000);
+});
+
+// تحديث فوري أيضاً
+updateDateTime();
+updateExchangeRates();
+
+// تحسينات إضافية للنافبار
+document.addEventListener('DOMContentLoaded', function() {
+    // إضافة تأثير hover للعناصر باستخدام vanilla JavaScript
+    const navbarTextElements = document.querySelectorAll('.navbar-text');
+    navbarTextElements.forEach(element => {
+        element.addEventListener('mouseenter', function() {
+            this.classList.add('text-warning');
+        });
+        element.addEventListener('mouseleave', function() {
+            this.classList.remove('text-warning');
+        });
+        
+        // إضافة تأثير النقر
+        element.addEventListener('click', function() {
+            this.classList.add('text-info');
+            setTimeout(() => {
+                this.classList.remove('text-info');
+            }, 1000);
+        });
+    });
+});
+</script>

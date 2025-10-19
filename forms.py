@@ -789,6 +789,7 @@ class CustomerForm(FlaskForm):
     credit_limit = MoneyField('حد الائتمان', validators=[Optional(), NumberRange(min=0, message="يجب أن يكون ≥ 0")])
     discount_rate = PercentField('معدل الخصم (%)', validators=[Optional()])
     currency = CurrencySelectField('العملة', validators=[DataRequired(message='العملة مطلوبة')])
+    opening_balance = MoneyField('الرصيد الافتتاحي (موجب=له، سالب=عليه)', validators=[Optional()])
     is_active = BooleanField('نشط', default=True)
     is_online = BooleanField('عميل أونلاين', default=False)
     is_archived = BooleanField('مؤرشف', default=False)
@@ -874,7 +875,7 @@ class SupplierForm(FlaskForm):
     email = StrippedStringField('البريد الإلكتروني', validators=[Optional(), Email(), Length(max=120), Unique(Supplier, "email", message="البريد مستخدم مسبقًا", case_insensitive=True, normalizer=normalize_email)])
     address = StrippedStringField('العنوان', validators=[Optional(), Length(max=200)])
     notes = TextAreaField('ملاحظات', validators=[Optional(), Length(max=1000)])
-    balance = MoneyField('الرصيد الافتتاحي', validators=[Optional(), NumberRange(min=0)])
+    opening_balance = MoneyField('الرصيد الافتتاحي (موجب=له، سالب=عليه)', validators=[Optional()])
     payment_terms = StrippedStringField('شروط الدفع', validators=[Optional(), Length(max=50)])
     currency = CurrencySelectField('العملة', validators=[Optional()])
     submit = SubmitField('حفظ المورد')
@@ -910,7 +911,7 @@ class PartnerForm(FlaskForm):
     phone_number = StrippedStringField('رقم الجوال', validators=[Optional(), Length(max=20), Unique(Partner, "phone_number", message="رقم الهاتف مستخدم مسبقًا", normalizer=normalize_phone)])
     email = StrippedStringField('البريد الإلكتروني', validators=[Optional(), Email(), Length(max=120), Unique(Partner, "email", message="البريد مستخدم مسبقًا", case_insensitive=True, normalizer=normalize_email)])
     address = StrippedStringField('العنوان', validators=[Optional(), Length(max=200)])
-    balance = MoneyField('الرصيد', validators=[Optional(), NumberRange(min=0)])
+    opening_balance = MoneyField('الرصيد الافتتاحي (موجب=له، سالب=عليه)', validators=[Optional()])
     share_percentage = PercentField('نسبة الشريك (%)', validators=[Optional()])
     currency = CurrencySelectField('العملة', validators=[DataRequired()])
     notes = TextAreaField('ملاحظات', validators=[Optional(), Length(max=1000)])
@@ -3840,10 +3841,10 @@ class PartnerShareForm(FlaskForm):
 
 
 class ExchangeVendorForm(FlaskForm):
-    supplier_id = AjaxSelectField('المورّد / التاجر', endpoint='api.search_suppliers', get_label='name', validators=[DataRequired()])
+    supplier_id = AjaxSelectField('المورّد / التاجر', endpoint='api.search_suppliers', get_label='name', validators=[Optional()], coerce=int)
     vendor_phone = StrippedStringField('هاتف المورد', validators=[Optional(), Length(max=50)])
     vendor_paid = MoneyField('المبلغ المدفوع', validators=[Optional(), NumberRange(min=0)])
-    vendor_price = MoneyField('سعر المورد', validators=[Optional(), NumberRange(min=0)])
+    vendor_price = MoneyField('سعر القطعة (التكلفة)', validators=[Optional(), NumberRange(min=0)])
     submit = SubmitField('حفظ')
 
     def validate_vendor_phone(self, field):
@@ -3851,14 +3852,7 @@ class ExchangeVendorForm(FlaskForm):
 
     def validate(self, extra_validators=None):
         if not super().validate(extra_validators=extra_validators): return False
-        vp = D(self.vendor_paid.data or 0)
-        vr = D(self.vendor_price.data or 0)
-        if vp <= 0 and vr <= 0:
-            self.vendor_price.errors.append('أدخل سعر المورد or مبلغًا مدفوعًا.')
-            return False
-        if vr > 0 and vp > vr:
-            self.vendor_paid.errors.append('المبلغ المدفوع لا يجب أن يتجاوز سعر المورد.')
-            return False
+        # لا حاجة للفحص - يمكن إضافة المنتج بدون مورد محدد
         return True
 
 

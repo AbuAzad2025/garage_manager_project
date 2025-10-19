@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% block title %}أدوات الطوارئ{% endblock %}
+{% block page_title %}🚨 أدوات الطوارئ{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  {% include 'security/_navigation.html' %}
+  
+  <div class="alert alert-danger border-0 shadow">
+    <i class="fas fa-radiation"></i> <strong>تحذير شديد:</strong> هذه الأدوات للحالات الحرجة فقط!
+  </div>
+
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div class="card border-warning">
+        <div class="card-header bg-warning text-dark">
+          <h5 class="mb-0"><i class="fas fa-tools"></i> وضع الصيانة</h5>
+        </div>
+        <div class="card-body">
+          <p>تفعيل وضع الصيانة سيمنع جميع المستخدمين من الوصول للنظام.</p>
+          <form method="POST" action="{{ url_for('security.toggle_maintenance_mode') }}" onsubmit="return confirm('⚠️ هل تريد تبديل وضع الصيانة؟ سيؤثر على جميع المستخدمين!');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-warning">
+              <i class="fas fa-power-off"></i> تبديل وضع الصيانة
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-6">
+      <div class="card border-danger">
+        <div class="card-header bg-danger text-white">
+          <h5 class="mb-0"><i class="fas fa-trash"></i> مسح الكاش</h5>
+        </div>
+        <div class="card-body">
+          <p>مسح جميع البيانات المؤقتة (Cache) من الذاكرة.</p>
+          <form method="POST" action="{{ url_for('security.clear_system_cache') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-danger">
+              <i class="fas fa-broom"></i> مسح الكاش
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-6">
+      <div class="card border-danger">
+        <div class="card-header bg-danger text-white">
+          <h5 class="mb-0"><i class="fas fa-sign-out-alt"></i> إنهاء جميع الجلسات</h5>
+        </div>
+        <div class="card-body">
+          <p>فصل جميع المستخدمين المتصلين فوراً!</p>
+          <form method="POST" action="{{ url_for('security.kill_all_sessions') }}" onsubmit="return confirm('هل أنت متأكد؟ سيتم فصل الجميع!');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-danger">
+              <i class="fas fa-power-off"></i> فصل الجميع
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-6">
+      <div class="card border-info">
+        <div class="card-header bg-info text-white">
+          <h5 class="mb-0"><i class="fas fa-save"></i> نسخ احتياطي طارئ</h5>
+        </div>
+        <div class="card-body">
+          <p>إنشاء نسخة احتياطية فورية لقاعدة البيانات.</p>
+          <a href="{{ url_for('security.advanced_backup') }}" class="btn btn-info">
+            <i class="fas fa-database"></i> نسخ احتياطي
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

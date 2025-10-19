@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% block title %}عارض اللوجات{% endblock %}
+{% block page_title %}📋 عارض اللوجات{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  {% include 'security/_navigation.html' %}
+  
+  <div class="alert alert-warning">
+    <i class="fas fa-file-alt"></i> <strong>لوجات النظام:</strong> تتبع كامل لجميع الأحداث والأخطاء
+  </div>
+
+  <div class="row g-3">
+    {% for log in log_files %}
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header bg-{{ log.type == 'error' and 'danger' or (log.type == 'server' and 'warning' or 'info') }} text-white">
+          <h6 class="mb-0">{{ log.type|upper }}.log</h6>
+        </div>
+        <div class="card-body">
+          <p><strong>المسار:</strong> <code>{{ log.path }}</code></p>
+          <p><strong>الحجم:</strong> {{ log.size }}</p>
+          <p><strong>آخر تعديل:</strong> {{ log.modified.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+          
+          <div class="btn-group w-100">
+            <a href="{{ url_for('security.logs_view', log_type=log.type) }}" class="btn btn-sm btn-primary">
+              <i class="fas fa-eye"></i> عرض
+            </a>
+            <a href="{{ url_for('security.logs_download', log_type=log.type) }}" class="btn btn-sm btn-success">
+              <i class="fas fa-download"></i> تحميل
+            </a>
+            <button type="button" class="btn btn-sm btn-warning" onclick="clearLog('{{ log.type }}', '{{ log.name }}')">
+              <i class="fas fa-broom"></i> تنظيف
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    
+    {% if not log_files %}
+    <div class="col-12">
+      <div class="alert alert-info text-center">
+        <i class="fas fa-info-circle"></i> لا توجد ملفات لوج متاحة
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// دالة تنظيف اللوج باستخدام AJAX
+function clearLog(logType, logName) {
+  // نافذة تأكيد عصرية باستخدام SweetAlert2
+  Swal.fire({
+    title: 'تأكيد التنظيف',
+    html: `هل أنت متأكد من تنظيف محتوى<br><strong>${logName || logType}.log</strong>؟<br><br><small class="text-muted">⚠️ سيتم إفراغ الملف بالكامل!</small>`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ffc107',
+    cancelButtonColor: '#6c757d',
+    confirmButtonText: '<i class="fas fa-broom"></i> نعم، نظف',
+    cancelButtonText: '<i class="fas fa-times"></i> إلغاء',
+    showLoaderOnConfirm: true,
+    preConfirm: () => {
+      // إرسال طلب AJAX
+      return fetch(`{{ url_for('security.logs_clear', log_type='PLACEHOLDER') }}`.replace('PLACEHOLDER', logType), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRFToken': '{{ csrf_token() }}'
+        }
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(response.statusText);
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (!data.success) {
+          throw new Error(data.message);
+        }
+        return data;
+      })
+      .catch(error => {
+        Swal.showValidationMessage(`خطأ: ${error}`);
+      });
+    },
+    allowOutsideClick: () => !Swal.isLoading()
+  }).then((result) => {
+    if (result.isConfirmed) {
+      // نجح التنظيف
+      Swal.fire({
+        title: 'تم بنجاح!',
+        text: result.value.message || 'تم تنظيف اللوج بنجاح',
+        icon: 'success',
+        confirmButtonText: 'حسناً'
+      }).then(() => {
+        // إعادة تحميل الصفحة لتحديث أحجام الملفات
+        location.reload();
+      });
+    }
+  });
+}
+</script>
+{% endblock %}
+

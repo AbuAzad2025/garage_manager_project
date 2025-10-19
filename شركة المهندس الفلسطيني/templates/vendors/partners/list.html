@@ -1,0 +1,306 @@
+{% extends 'base.html' %}
+{% block title %}الشركاء{% endblock %}
+
+{% block head_extra %}
+  {{ super() }}
+  <style>
+    #partnersTable td .btn {
+      min-width: 75px;   /* كانت 90px */
+      font-size: 0.85rem; /* حجم الخط أصغر */
+      padding: 0.35rem 0.6rem; /* أصغر من قبل */
+      text-align: center;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #partnersTable td .btn i {
+      margin-inline-end: 3px;
+      font-size: 0.85em;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <!-- تنبيه معلوماتي -->
+  <div class="alert alert-info alert-dismissible fade show mb-4" role="alert">
+    <h5 class="alert-heading"><i class="fas fa-info-circle me-2"></i>كيفية الوصول للتسويات</h5>
+    <hr>
+    <p class="mb-0">
+      <strong>📋 قائمة جميع التسويات:</strong> انقر على زر <span class="badge bg-warning text-dark"><i class="fas fa-file-invoice-dollar"></i> قائمة التسويات</span> في الأعلى
+    </p>
+    <p class="mb-0">
+      <strong>🧮 تسوية ذكية لشريك:</strong> انقر على زر <span class="badge bg-success"><i class="fas fa-calculator"></i> تسوية ذكية</span> في سطر الشريك - تشمل جرد القطع، المبيعات، نصيب الشريك، والدفعات
+    </p>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
+  </div>
+
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card bg-primary text-white p-3 mb-3 rounded-4 shadow-sm">
+        <h6 class="mb-1">عدد الشركاء</h6><h3 class="mb-0">{{ partners|length }}</h3>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card {% if summary.total_balance > 0 %}bg-danger{% elif summary.total_balance < 0 %}bg-success{% else %}bg-secondary{% endif %} text-white p-3 mb-3 rounded-4 shadow-sm">
+        <h6 class="mb-1">الرصيد الصافي</h6><h3 class="mb-0">{{ "%.2f"|format(summary.total_balance) }} ₪</h3>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-warning text-white p-3 mb-3 rounded-4 shadow-sm">
+        <h6 class="mb-1">مستحق دفع للشركاء</h6><h3 class="mb-0">{{ summary.partners_with_debt }}</h3>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card bg-success text-white p-3 mb-3 rounded-4 shadow-sm">
+        <h6 class="mb-1">شركاء مدينين لنا</h6><h3 class="mb-0">{{ summary.partners_with_credit }}</h3>
+      </div>
+    </div>
+  </div>
+
+  <!-- ملخصات إضافية -->
+  <div class="row mb-4">
+    <div class="col-md-6">
+      <div class="card bg-warning text-white p-3 mb-3 rounded-4 shadow-sm">
+        <h6 class="mb-1">إجمالي المبيعات</h6>
+        <h3 class="mb-0">{{ "%.2f"|format(summary.total_sales) }} ₪</h3>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card bg-secondary text-white p-3 mb-3 rounded-4 shadow-sm">
+        <h6 class="mb-1">إجمالي المدفوعات</h6>
+        <h3 class="mb-0">{{ "%.2f"|format(summary.total_payments) }} ₪</h3>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-between mb-3">
+    <input id="partnerSearch" type="text" class="form-control w-25" placeholder="بحث سريع...">
+    <div class="btn-group">
+      <a href="{{ url_for('partner_settlements_bp.list') }}" class="btn btn-warning">
+        <i class="fas fa-file-invoice-dollar me-1"></i> قائمة التسويات
+      </a>
+      {% if current_user.has_permission('manage_vendors') %}
+        <a href="{{ url_for('vendors_bp.partners_create') }}" class="btn btn-action-add">
+          <i class="fas fa-plus me-1"></i> شريك جديد
+        </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card shadow-sm rounded-4">
+    <div class="card-body p-0">
+      <table class="table table-striped table-hover mb-0" id="partnersTable">
+        <thead class="table-dark">
+          <tr>
+            <th style="width:70px">#</th>
+            <th>الاسم</th>
+            <th>الهاتف</th>
+            <th>الرصيد</th>
+            <th style="width:480px">عمليات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in partners %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td class="partner-name">{{ p.name }}</td>
+            <td class="partner-phone">{{ p.phone_number or '—' }}</td>
+            <td>
+              <span class="badge {% if (p.balance_in_ils or 0) < 0 %}bg-danger{% elif (p.balance_in_ils or 0) == 0 %}bg-secondary{% else %}bg-success{% endif %}">
+                {{ '%.2f'|format(p.balance_in_ils or 0) }} ₪
+              </span>
+            </td>
+            <td class="d-flex flex-wrap gap-1">
+              <a href="{{ url_for('partner_settlements_bp.partner_settlement', partner_id=p.id) }}"
+                 class="btn btn-sm btn-success d-flex align-items-center"
+                 title="التسوية الذكية الشاملة - جرد، مبيعات، نصيب، دفعات">
+                <i class="fas fa-calculator"></i>
+                <span class="d-none d-lg-inline ms-1">تسوية ذكية</span>
+              </a>
+              {% if p.balance and p.balance > 0 %}
+              <a href="{{ url_for('payments.create_payment', 
+                                 entity_type='PARTNER', 
+                                 entity_id=p.id,
+                                 amount=p.balance,
+                                 currency=p.currency if p.currency else 'ILS',
+                                 reference='دفع لشريك: ' ~ p.name,
+                                 notes='دفع مستحقات الشريك: ' ~ p.name ~ ((' - هاتف: ' ~ p.phone) if p.phone else ''),
+                                 partner_id=p.id) }}"
+                 class="btn btn-sm btn-primary d-flex align-items-center" title="دفع ({{ '%.2f'|format(p.balance) }} ₪)">
+                <i class="fas fa-coins"></i>
+                <span class="d-none d-lg-inline ms-1">دفع</span>
+              </a>
+              {% endif %}
+              <a href="{{ url_for('payments.index') }}?entity_type=PARTNER&entity_id={{ p.id }}"
+                 class="btn btn-sm btn-warning d-flex align-items-center" title="كشف حساب مبسط">
+                <i class="fas fa-file-invoice-dollar"></i>
+                <span class="d-none d-lg-inline ms-1">كشف حساب</span>
+              </a>
+              <a href="{{ url_for('reports_bp.partner_detail_report', partner_id=p.id) }}"
+                 class="btn btn-sm btn-info d-flex align-items-center" title="تقرير تفصيلي شامل">
+                <i class="fas fa-chart-line"></i>
+                <span class="d-none d-lg-inline ms-1">تقرير مفصل</span>
+              </a>
+              {% if current_user.has_permission('manage_vendors') %}
+                <a href="{{ url_for('vendors_bp.partners_edit', id=p.id) }}"
+                   class="btn btn-sm btn-secondary">
+                  <i class="fas fa-edit"></i> تعديل
+                </a>
+                {% if p.is_archived %}
+                <button type="button" class="btn btn-sm btn-success" onclick="console.log('🔘 [TEMPLATE] تم النقر على زر استعادة الشريك رقم: {{ p.id }}'); restorePartner({{ p.id }})">
+                  <i class="fas fa-undo"></i> استعادة
+                </button>
+                {% else %}
+                <button type="button" class="btn btn-sm btn-warning" onclick="console.log('🔘 [TEMPLATE] تم النقر على زر أرشفة الشريك رقم: {{ p.id }}'); archivePartner({{ p.id }})">
+                  <i class="fas fa-archive"></i> أرشفة
+                </button>
+                {% endif %}
+                <form method="post"
+                      action="{{ url_for('vendors_bp.partners_delete', id=p.id) }}"
+                      class="d-inline"
+                      onsubmit="return confirm('حذف الشريك؟');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-sm btn-danger">
+                    <i class="fas fa-trash"></i> حذف عادي
+                  </button>
+                </form>
+                <a href="{{ url_for('hard_delete_bp.delete_partner', partner_id=p.id) }}"
+                   class="btn btn-sm btn-outline-danger"
+                   title="حذف قوي"
+                   onclick="return confirm('حذف قوي - سيتم حذف جميع البيانات المرتبطة!')">
+                  <i class="fas fa-bomb"></i> حذف قوي
+                </a>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="text-center py-4">لا توجد بيانات</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="vendors-config" data-pay-url="{{ url_for('payments.create_payment') }}"></div>
+
+<div class="modal fade" id="settlementModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4">
+      <div class="modal-header bg-light">
+        <h5 class="modal-title"><i class="fas fa-scale-balanced me-2"></i> تسوية رصيد</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2 text-muted small">الجهة: <span id="stlName"></span></div>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>الرصيد الحالي:</div>
+          <div id="stlBalance" class="fw-bold"></div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">المبلغ للتسوية</label>
+          <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control" id="stlAmount">
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-md-6">
+            <label class="form-label">الاتجاه</label>
+            <div id="stlDirectionBadge"></div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">العملة</label>
+            <input type="text" class="form-control" id="stlCurrency" readonly>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">طريقة الدفع</label>
+          <select id="stlMethod" class="form-select">
+            <option value="cash">نقداً</option>
+            <option value="bank">تحويل بنكي</option>
+            <option value="cheque">شيك</option>
+            <option value="card">بطاقة</option>
+            <option value="online">إلكتروني</option>
+          </select>
+        </div>
+        <input type="hidden" id="stlEntityType">
+        <input type="hidden" id="stlEntityId">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" id="stlPrint"><i class="fas fa-print me-1"></i> طباعة</button>
+        <button type="button" class="btn btn-success" id="stlConfirm"><i class="fas fa-check me-1"></i> إنشاء سند</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/vendors.js') }}"></script>
+<script>
+  // حساب ملخصات الشركاء - الحل المضمون
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log('بدء حساب ملخصات الشركاء...');
+    
+    const rows = document.querySelectorAll('tbody tr');
+    console.log('عدد صفوف الشركاء:', rows.length);
+    
+    let totalBalance = 0;
+    let totalDebit = 0;
+    let totalCredit = 0;
+    
+    rows.forEach((row, index) => {
+      const cells = row.querySelectorAll('td');
+      if (cells.length >= 6) {
+        const balanceText = cells[5].textContent.trim();
+        console.log(`الشريك ${index + 1}: ${balanceText}`);
+        
+        // استخراج الرقم من النص
+        const balanceMatch = balanceText.match(/-?\d+(?:,\d{3})*(?:\.\d{2})?/);
+        if (balanceMatch) {
+          const balance = parseFloat(balanceMatch[0].replace(/,/g, ''));
+          console.log(`الرصيد المستخرج: ${balance}`);
+          
+          totalBalance += balance;
+          
+          if (balance < 0) {
+            totalDebit += Math.abs(balance);
+          } else {
+            totalCredit += balance;
+          }
+        }
+      }
+    });
+    
+    console.log('ملخصات الشركاء المحسوبة:');
+    console.log('الرصيد الصافي:', totalBalance);
+    console.log('مستحق سحب:', totalDebit);
+    console.log('مستحق قبض:', totalCredit);
+    
+    // تحديث الملخصات
+    const totalBalanceEl = document.getElementById('total-balance');
+    const totalDebitEl = document.getElementById('total-debit');
+    const totalCreditEl = document.getElementById('total-credit');
+    
+    if (totalBalanceEl) {
+      totalBalanceEl.textContent = totalBalance.toFixed(2);
+      console.log('تم تحديث الرصيد الصافي:', totalBalanceEl.textContent);
+    }
+    
+    if (totalDebitEl) {
+      totalDebitEl.textContent = totalDebit.toFixed(2);
+      console.log('تم تحديث مستحق سحب:', totalDebitEl.textContent);
+    }
+    
+    if (totalCreditEl) {
+      totalCreditEl.textContent = totalCredit.toFixed(2);
+      console.log('تم تحديث مستحق قبض:', totalCreditEl.textContent);
+    }
+  });
+</script>
+
+<script>
+  // وظائف الأرشفة متوفرة الآن في archive.js
+  console.log('📋 تم تحميل صفحة الشركاء - وظائف الأرشفة متوفرة');
+</script>
+{% endblock %}

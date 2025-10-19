@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title %}حظر دولة{% endblock %}
+{% block page_title %}🌍 حظر دولة{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  {% include 'security/_navigation.html' %}
+  
+  <div class="card"><div class="card-header bg-warning"><h5 class="mb-0">حظر دولة</h5></div>
+    <div class="card-body">
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-3"><label class="form-label">كود الدولة (ISO 2) *</label><input type="text" name="country_code" class="form-control" placeholder="US, IL, RU" maxlength="2" required></div>
+        <div class="mb-3"><label class="form-label">السبب</label><textarea name="reason" class="form-control" rows="3"></textarea></div>
+        <button type="submit" class="btn btn-warning"><i class="fas fa-ban"></i> حظر</button>
+        <a href="{{ url_for('security.index') }}" class="btn btn-secondary">إلغاء</a>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

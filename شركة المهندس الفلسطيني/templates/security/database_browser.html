@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% block title %}متصفح قاعدة البيانات{% endblock %}
+{% block page_title %}🗄️ متصفح قاعدة البيانات{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  {% include 'security/_navigation.html' %}
+  
+  <div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle"></i> <strong>تحذير:</strong> هذا الوصول للمالك فقط. كن حذراً!
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-dark text-white">
+      <h5 class="mb-0">اختر جدول</h5>
+    </div>
+    <div class="card-body">
+      <form method="GET">
+        <div class="row">
+          <div class="col-md-10">
+            <select name="table" class="form-select">
+              <option value="">-- اختر جدول --</option>
+              {% for table in tables %}
+              <option value="{{ table }}" {% if selected_table == table %}selected{% endif %}>{{ table }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2">
+            <button type="submit" class="btn btn-primary w-100">عرض</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% if data %}
+  <div class="card mt-3">
+    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+      <h5 class="mb-0">{{ selected_table }} ({{ data|length }} صف)</h5>
+      <a href="{{ url_for('security.db_editor_table', table_name=selected_table) }}" class="btn btn-sm btn-warning">
+        <i class="fas fa-edit"></i> تحرير متقدم
+      </a>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+        <table class="table table-sm table-striped table-bordered">
+          <thead class="table-dark sticky-top">
+            <tr>
+              {% for col in columns %}
+              <th>{{ col }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in data %}
+            <tr>
+              {% for col in columns %}
+              <td><small>{{ row[col] }}</small></td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+

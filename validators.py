@@ -37,3 +37,5 @@ class Unique:
 
         if query.first():
             raise ValidationError(self.message)
+
+

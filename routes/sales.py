@@ -193,6 +193,36 @@ def _release_stock(sale: Sale) -> None:
         rec.reserved_quantity = new_reserved
         db.session.flush()
 
+def _deduct_stock(sale: Sale) -> None:
+    """
+    خصم المخزون الفعلي عند اكتمال البيع/الدفع
+    يخصم من quantity و reserved_quantity معاً
+    """
+    req = _collect_requirements_from_lines(sale.lines or [])
+    if not req:
+        return
+    _lock_stock_rows(list(req.keys()))
+    for (pid, wid), qty in req.items():
+        rec = (
+            db.session.query(StockLevel)
+            .filter_by(product_id=pid, warehouse_id=wid)
+            .with_for_update(nowait=False)
+            .first()
+        )
+        if not rec:
+            continue
+        
+        # خصم من الكمية الفعلية
+        new_quantity = max(0, int(rec.quantity or 0) - qty)
+        
+        # خصم من الكمية المحجوزة أيضاً
+        current_reserved = int(rec.reserved_quantity or 0)
+        new_reserved = max(0, current_reserved - qty)
+        
+        rec.quantity = new_quantity
+        rec.reserved_quantity = new_reserved
+        db.session.flush()
+
 def _resolve_lines_from_form(form: SaleForm, require_stock: bool) -> Tuple[List[Dict[str, Any]], Optional[str]]:
     lines_payload: List[Dict[str, Any]] = []
     for ent in form.lines.entries:

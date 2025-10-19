@@ -1,0 +1,233 @@
+{# templates/reports/index.html #}
+{% extends 'reports/_base.html' %}
+
+{% block title %}مركز التقارير{% endblock %}
+{% block page_title %}مركز التقارير{% endblock %}
+
+{% block reports_breadcrumb_extra %}
+<li class="breadcrumb-item active">مركز التقارير</li>
+{% endblock %}
+
+{% block report_content %}
+
+<!-- إحصائيات سريعة -->
+<div class="row g-3 mb-4">
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm bg-primary text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">إجمالي التقارير</h6>
+            <h3 class="mb-0 fw-bold">15</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-chart-bar fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm bg-success text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">تقارير مالية</h6>
+            <h3 class="mb-0 fw-bold">8</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-dollar-sign fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm bg-warning text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">تقارير المخزون</h6>
+            <h3 class="mb-0 fw-bold">3</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-boxes fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm bg-info text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">تقارير تحليلية</h6>
+            <h3 class="mb-0 fw-bold">4</h3>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-chart-line fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+
+  <div class="col-md-3 col-sm-6 d-flex align-items-stretch">
+    <a class="text-decoration-none w-100" href="{{ url_for('reports_bp.dynamic_report') }}">
+      <div class="report-card dynamic h-100 w-100">
+        <i class="fas fa-sliders-h"></i>
+        <h5>تقرير ديناميكي</h5>
+        <p>ابنِ تقريرك حسب الحقول والفلاتر</p>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6 d-flex align-items-stretch">
+    <a class="text-decoration-none w-100" href="{{ url_for('reports_bp.customers_report') }}">
+      <div class="report-card customers h-100 w-100">
+        <i class="fas fa-user-friends"></i>
+        <h5>تقارير العملاء</h5>
+        <p>إجمالي الفواتير / المدفوع / الرصيد</p>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6 d-flex align-items-stretch">
+    <a class="text-decoration-none w-100" href="{{ url_for('reports_bp.suppliers_report') }}">
+      <div class="report-card suppliers h-100 w-100">
+        <i class="fas fa-truck-loading"></i>
+        <h5>الموردون</h5>
+        <p>الرصيد / المدفوع / الصافي</p>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6 d-flex align-items-stretch">
+    <a class="text-decoration-none w-100" href="{{ url_for('reports_bp.partners_report') }}">
+      <div class="report-card partners h-100 w-100">
+        <i class="fas fa-handshake"></i>
+        <h5>الشركاء</h5>
+        <p>الحصة / الرصيد / المدفوع</p>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6 d-flex align-items-stretch">
+    <a class="text-decoration-none w-100" href="{{ url_for('reports_bp.sales') }}">
+      <div class="report-card sales h-100 w-100">
+        <i class="fas fa-cash-register"></i>
+        <h5>المبيعات</h5>
+        <p>ملخص وفواصل زمنية</p>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6 d-flex align-items-stretch">
+    <a class="text-decoration-none w-100" href="{{ url_for('reports_bp.payments_summary') }}">
+      <div class="report-card payments h-100 w-100">
+        <i class="fas fa-wallet"></i>
+        <h5>ملخص المدفوعات</h5>
+        <p>حسب طريقة الدفع</p>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6 d-flex align-items-stretch">
+    <a class="text-decoration-none w-100" href="{{ url_for('reports_bp.top_products') }}">
+      <div class="report-card products h-100 w-100">
+        <i class="fas fa-crown"></i>
+        <h5>أفضل المنتجات</h5>
+        <p>كمية وإيراد</p>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6 d-flex align-items-stretch">
+    <a class="text-decoration-none w-100" href="{{ url_for('reports_bp.expenses_report') }}">
+      <div class="report-card expenses h-100 w-100">
+        <i class="fas fa-wallet"></i>
+        <h5>المصاريف</h5>
+        <p>حسب النوع / الموظف</p>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6 d-flex align-items-stretch">
+    <a class="text-decoration-none w-100" href="{{ url_for('reports_bp.inventory') }}">
+      <div class="report-card inventory h-100 w-100">
+        <i class="fas fa-boxes"></i>
+        <h5>المخزون</h5>
+        <p>منتج × مستودع</p>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6 d-flex align-items-stretch">
+    <a class="text-decoration-none w-100" href="{{ url_for('reports_bp.below_min_stock_report') }}">
+      <div class="report-card below-min h-100 w-100">
+        <i class="fas fa-exclamation-triangle"></i>
+        <h5>تحت الحد الأدنى</h5>
+        <p>الأصناف منخفضة المخزون</p>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6 d-flex align-items-stretch">
+    <a class="text-decoration-none w-100" href="{{ url_for('reports_bp.shipments') }}">
+      <div class="report-card shipments h-100 w-100">
+        <i class="fas fa-shipping-fast"></i>
+        <h5>الشحنات</h5>
+        <p>قيمة وإجماليات</p>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6 d-flex align-items-stretch">
+    <a class="text-decoration-none w-100" href="{{ url_for('reports_bp.online') }}">
+      <div class="report-card online h-100 w-100">
+        <i class="fas fa-globe"></i>
+        <h5>الأونلاين</h5>
+        <p>طلبات / مدفوعات / سلال</p>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6 d-flex align-items-stretch">
+    <a class="text-decoration-none w-100" href="{{ url_for('reports_bp.ar_aging') }}">
+      <div class="report-card ar h-100 w-100">
+        <i class="fas fa-user-clock"></i>
+        <h5>أعمار الذمم (عملاء)</h5>
+        <p>تفصيل حسب الفترات</p>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6 d-flex align-items-stretch">
+    <a class="text-decoration-none w-100" href="{{ url_for('reports_bp.ap_aging') }}">
+      <div class="report-card ap h-100 w-100">
+        <i class="fas fa-truck-loading"></i>
+        <h5>أعمار الذمم (موردون)</h5>
+        <p>تفصيل حسب الفترات</p>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6 d-flex align-items-stretch">
+    <a class="text-decoration-none w-100" href="{{ url_for('reports_bp.service_reports') }}">
+      <div class="report-card service h-100 w-100">
+        <i class="fas fa-tools"></i>
+        <h5>تقارير الصيانة</h5>
+        <p>عدد / إيراد / قطع / أجور</p>
+      </div>
+    </a>
+  </div>
+
+</div>
+{% endblock %}

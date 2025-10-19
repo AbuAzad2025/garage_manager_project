@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% block title %}إدارة روابط الداشبورد{% endblock %}
+{% block page_title %}🔗 إدارة روابط الداشبورد - Links Manager{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  {% include 'advanced/_navigation.html' %}
+  
+  <!-- بطاقات إحصائية سريعة -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-primary text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">إجمالي الروابط</h6>
+              <h3 class="mb-0 fw-bold">{{ links|length }}</h3>
+              <small class="opacity-75">رابط في النظام</small>
+            </div>
+            <i class="fas fa-link fa-2x opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-success text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">روابط ظاهرة</h6>
+              <h3 class="mb-0 fw-bold">{{ links|selectattr('visible', 'equalto', true)|list|length }}</h3>
+              <small class="opacity-75">رابط نشط</small>
+            </div>
+            <i class="fas fa-eye fa-2x opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-secondary text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">روابط مخفية</h6>
+              <h3 class="mb-0 fw-bold">{{ links|selectattr('visible', 'equalto', false)|list|length }}</h3>
+              <small class="opacity-75">رابط معطل</small>
+            </div>
+            <i class="fas fa-eye-slash fa-2x opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-info text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">نسبة التفعيل</h6>
+              <h3 class="mb-0 fw-bold">{{ '%.0f'|format((links|selectattr('visible', 'equalto', true)|list|length / links|length * 100) if links else 0) }}%</h3>
+              <small class="opacity-75">من الروابط</small>
+            </div>
+            <i class="fas fa-chart-pie fa-2x opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="alert alert-warning border-0 shadow-sm">
+    <i class="fas fa-eye-slash"></i> <strong>تحكم بالروابط:</strong> أخفِ أو أظهر الروابط في الداشبورد حسب نسخة البرنامج
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-gradient-primary text-white">
+      <h5 class="mb-0"><i class="fas fa-link"></i> الروابط المتاحة ({{ links|length }})</h5>
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        {% for link in links %}
+        <div class="col-md-6">
+          <div class="card border h-100 {% if link.visible %}border-success{% else %}border-secondary{% endif %}">
+            <div class="card-body">
+              <form method="POST" class="d-flex align-items-center justify-content-between">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="toggle_link">
+                <input type="hidden" name="link_key" value="{{ link.key }}">
+                
+                <div class="d-flex align-items-center gap-3">
+                  <i class="fas fa-{{ link.icon }} fa-2x {% if link.visible %}text-success{% else %}text-secondary{% endif %}"></i>
+                  <div>
+                    <h6 class="mb-0">{{ link.name }}</h6>
+                    <small class="text-muted">{{ link.key }}</small>
+                  </div>
+                </div>
+                
+                <div class="form-check form-switch">
+                  <input type="checkbox" name="visible" class="form-check-input" 
+                         style="width: 3rem; height: 1.5rem;"
+                         {% if link.visible %}checked{% endif %}
+                         onchange="this.form.submit()">
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

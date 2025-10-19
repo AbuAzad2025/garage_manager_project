@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+
+{% block title %}تسويات الموردين{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+    <div class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <div class="col-sm-6">
+                    <h1 class="m-0">تسويات الموردين</h1>
+                </div>
+                <div class="col-sm-6">
+                    <ol class="breadcrumb float-sm-right">
+                        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+                        <li class="breadcrumb-item active">تسويات الموردين</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <section class="content">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <i class="fas fa-truck"></i>
+                                قائمة تسويات الموردين
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <h5><i class="fas fa-info-circle"></i> نظام التسويات الذكي</h5>
+                                <p>يمكنك عرض تسويات الموردين التفصيلية من صفحة المورد مباشرة.</p>
+                                <p><strong>للوصول:</strong> الموردين → اختر مورد → زر "التسوية الذكية"</p>
+                            </div>
+                            
+                            <!-- إحصائيات سريعة -->
+                            <div class="row mb-4">
+                                <div class="col-md-3">
+                                    <div class="small-box bg-info">
+                                        <div class="inner">
+                                            <h3 id="total-suppliers">-</h3>
+                                            <p>إجمالي الموردين</p>
+                                        </div>
+                                        <div class="icon"><i class="fas fa-truck"></i></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="small-box bg-success">
+                                        <div class="inner">
+                                            <h3 id="active-settlements">-</h3>
+                                            <p>تسويات نشطة</p>
+                                        </div>
+                                        <div class="icon"><i class="fas fa-check-circle"></i></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="small-box bg-warning">
+                                        <div class="inner">
+                                            <h3 id="pending-settlements">-</h3>
+                                            <p>تسويات معلقة</p>
+                                        </div>
+                                        <div class="icon"><i class="fas fa-clock"></i></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="small-box bg-primary">
+                                        <div class="inner">
+                                            <h3 id="total-amount">-</h3>
+                                            <p>إجمالي المبالغ</p>
+                                        </div>
+                                        <div class="icon"><i class="fas fa-dollar-sign"></i></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-striped table-hover" id="settlements-table">
+                                    <thead class="thead-dark">
+                                        <tr>
+                                            <th>رقم التسوية</th>
+                                            <th>اسم المورد</th>
+                                            <th>الفترة</th>
+                                            <th>المشتريات</th>
+                                            <th>المدفوعات</th>
+                                            <th>الرصيد</th>
+                                            <th>العملة</th>
+                                            <th>الحالة</th>
+                                            <th>الإجراءات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="settlements-tbody">
+                                        <tr>
+                                            <td colspan="9" class="text-center text-muted">
+                                                <i class="fas fa-spinner fa-spin"></i> جاري التحميل...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

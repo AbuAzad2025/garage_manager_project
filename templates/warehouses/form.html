@@ -24,22 +24,7 @@
             {{ form.warehouse_type.label(class="form-label") }}
             {{ form.warehouse_type(class="form-select", id="warehouse_type", required=True) }}
             {% for e in form.warehouse_type.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-          </div>
-
-          <div id="row-partner" class="mb-3 d-none">
-            {{ form.partner_id.label(class="form-label") }}
-            <select id="{{ form.partner_id.id }}" name="{{ form.partner_id.name }}" class="form-select ajax"
-                    data-url="{{ url_for('api.search_partners') }}"
-                    data-current="{{ form.partner_id.data or '' }}"></select>
-            {% for e in form.partner_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-          </div>
-
-          <div id="row-supplier" class="mb-3 d-none">
-            {{ form.supplier_id.label(class="form-label") }}
-            <select id="{{ form.supplier_id.id }}" name="{{ form.supplier_id.name }}" class="form-select ajax"
-                    data-url="{{ url_for('api.search_suppliers') }}"
-                    data-current="{{ form.supplier_id.data or '' }}"></select>
-            {% for e in form.supplier_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            <small class="text-muted"><i class="fas fa-info-circle"></i> الشريك/المورد يُحدد عند إضافة المنتج، وليس عند إنشاء المستودع</small>
           </div>
 
           <div id="row-parent" class="mb-3 d-none">
@@ -48,12 +33,6 @@
                     data-url="{{ url_for('api.search_warehouses') }}"
                     data-current="{{ form.parent_id.data or '' }}"></select>
             {% for e in form.parent_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-          </div>
-
-          <div id="row-share" class="mb-3 d-none">
-            {{ form.share_percent.label(class="form-label") }}
-            {{ form.share_percent(class="form-control", placeholder="نسبة الشريك %") }}
-            {% for e in form.share_percent.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
           </div>
 
           <div id="row-online" class="mb-3 d-none">
@@ -129,10 +108,7 @@
 <script>
 (function () {
   const $type = document.getElementById('warehouse_type');
-  const rowPartner  = document.getElementById('row-partner');
-  const rowSupplier = document.getElementById('row-supplier');
   const rowParent   = document.getElementById('row-parent');
-  const rowShare    = document.getElementById('row-share');
   const rowOnline   = document.getElementById('row-online');
 
   function show(el, on) {
@@ -146,9 +122,6 @@
 
   function syncUI() {
     const t = ($type.value || '').toUpperCase();
-    show(rowPartner,  t === 'PARTNER');
-    show(rowShare,    t === 'PARTNER');
-    show(rowSupplier, t === 'SUPPLIER' || t === 'EXCHANGE');
     show(rowParent,   t !== 'MAIN' && t !== 'ONLINE');
     show(rowOnline,   t === 'ONLINE');
   }

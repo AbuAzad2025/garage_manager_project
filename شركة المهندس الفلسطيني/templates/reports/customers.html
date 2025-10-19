@@ -1,0 +1,178 @@
+{# templates/reports/customers.html #}
+{% extends 'reports/_base.html' %}
+{% block title %}تقارير العملاء{% endblock %}
+{% block page_title %}تقارير العملاء{% endblock %}
+
+{% block reports_breadcrumb_extra %}
+<li class="breadcrumb-item active">{{ FIELD_LABELS.get("customers", "العملاء") }}</li>
+{% endblock %}
+
+{% block report_content %}
+<div class="container-fluid" dir="rtl">
+
+  <div class="mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <h4 class="fw-bold m-0"><i class="fas fa-user-friends"></i> {{ FIELD_LABELS.get("customers", "العملاء") }}</h4>
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-outline-primary btn-sm" id="btn-print">
+        <i class="fas fa-print"></i> طباعة
+      </button>
+      <form class="d-flex gap-2" method="get" action="{{ url_for('reports_bp.customers_report') }}">
+        <input type="date" name="start" class="form-control form-control-sm" value="{{ start or '' }}">
+        <input type="date" name="end"   class="form-control form-control-sm" value="{{ end or '' }}">
+        <button class="btn btn-primary btn-sm"><i class="fas fa-sync-alt"></i> تحديث</button>
+        <a class="btn btn-outline-dark btn-sm" href="{{ url_for('reports_bp.customers_report') }}"><i class="fas fa-times"></i></a>
+      </form>
+    </div>
+  </div>
+
+  {% set _n = data|length %}
+  {% set sum_invoiced = data|sum(attribute='total_invoiced') %}
+  {% set sum_paid     = data|sum(attribute='total_paid') %}
+  {% set sum_balance  = data|sum(attribute='balance') %}
+  {% set avg_invoiced = (sum_invoiced / _n) if _n else 0 %}
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-4">
+      <div class="card shadow-sm"><div class="card-body text-center">
+        <div class="text-muted small">{{ FIELD_LABELS.get("total_invoiced", "إجمالي الفواتير/المبيعات/الصيانة") }}</div>
+        <div class="fs-5 fw-bold">{{ "{:,.2f}".format(sum_invoiced or 0) }}</div>
+      </div></div>
+    </div>
+    <div class="col-md-4">
+      <div class="card shadow-sm"><div class="card-body text-center">
+        <div class="text-muted small">{{ FIELD_LABELS.get("total_paid", "إجمالي المدفوع") }}</div>
+        <div class="fs-5 fw-bold">{{ "{:,.2f}".format(sum_paid or 0) }}</div>
+      </div></div>
+    </div>
+    <div class="col-md-4">
+      <div class="card shadow-sm"><div class="card-body text-center">
+        <div class="text-muted small">{{ FIELD_LABELS.get("balance", "إجمالي الرصيد") }}</div>
+        <div class="fs-5 fw-bold">{{ "{:,.2f}".format(sum_balance or 0) }}</div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      {% if not data %}
+        <div class="alert alert-info m-0">لا توجد بيانات لعرضها.</div>
+      {% else %}
+      <div class="table-responsive">
+        <table id="report-table" class="table table-striped table-bordered align-middle">
+          <thead class="table-dark">
+          <tr>
+            <th style="width:60px">#</th>
+            <th>{{ FIELD_LABELS.get("name", "الاسم") }}</th>
+            <th class="text-end">{{ FIELD_LABELS.get("total_invoiced", "إجمالي فواتير") }}</th>
+            <th class="text-end">{{ FIELD_LABELS.get("total_paid", "مدفوع") }}</th>
+            <th class="text-end">{{ FIELD_LABELS.get("balance", "رصيد") }}</th>
+            <th class="text-center" style="width:180px">نسبة السداد</th>
+            <th style="min-width:160px">سبب الأفضلية</th>
+            <th style="min-width:160px">إجراءات</th>
+          </tr>
+          </thead>
+          <tbody>
+          {% for r in data %}
+            {% set invoiced = r.total_invoiced or 0 %}
+            {% set paid = r.total_paid or 0 %}
+            {% set bal = r.balance or 0 %}
+            {% set pay_rate = (paid / invoiced * 100) if invoiced else 0 %}
+{% set reason =
+  "سداد ممتاز" if pay_rate >= 95 and bal <= 0
+  else "قيمة فواتير مرتفعة" if invoiced and invoiced >= (avg_invoiced * 1.5)
+  else "انضباط سداد جيد" if pay_rate >= 80
+  else "رصيد مُستحق مرتفع" if bal > 0 and pay_rate < 50
+  else "أداء مستقر"
+%}
+
+            <tr data-invoiced="{{ "%.6f"|format(invoiced) }}">
+              <td class="rank text-center fw-bold"></td>
+              <td>
+                {% if r.id %}
+                  <a class="text-decoration-none" href="{{ url_for('customers_bp.customer_detail', customer_id=r.id) }}">{{ r.name }}</a>
+                {% else %} {{ r.name }} {% endif %}
+              </td>
+              <td class="text-end fw-semibold">{{ "{:,.2f}".format(invoiced) }}</td>
+              <td class="text-end">{{ "{:,.2f}".format(paid) }}</td>
+              <td class="text-end {{ 'positive' if bal < 0 else 'negative' if bal > 0 else 'zero' }}">
+                {{ "{:,.2f}".format(bal) }}
+              </td>
+              <td class="text-center">
+                <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" style="height:10px;">
+                  <div class="progress-bar" style="width: {{ pay_rate if pay_rate<=100 else 100 }}%;"></div>
+                </div>
+                <div class="small text-muted mt-1">{{ "{:.1f}%".format(pay_rate) }}</div>
+              </td>
+              <td>{{ reason }}</td>
+              <td>
+                <div class="btn-group btn-group-sm" role="group">
+                  {% if r.id %}
+                    <a class="btn btn-outline-primary"  href="{{ url_for('customers_bp.customer_detail', customer_id=r.id) }}"><i class="fas fa-id-card"></i> تفاصيل</a>
+                    <a class="btn btn-outline-secondary" href="{{ url_for('customers_bp.customer_analytics', customer_id=r.id) }}"><i class="fas fa-chart-line"></i> تحليل</a>
+                    <a class="btn btn-outline-dark"      href="{{ url_for('customers_bp.account_statement', customer_id=r.id) }}"><i class="fas fa-file-invoice"></i> كشف حساب</a>
+                  {% else %}<span class="text-muted">—</span>{% endif %}
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+          <tfoot>
+          <tr class="table-light fw-bold">
+            <td></td>
+            <td class="text-end">الإجمالي:</td>
+            <td class="text-end">{{ "{:,.2f}".format(sum_invoiced or 0) }}</td>
+            <td class="text-end">{{ "{:,.2f}".format(sum_paid or 0) }}</td>
+            <td class="text-end {{ 'positive' if sum_balance < 0 else 'negative' if sum_balance > 0 else 'zero' }}">
+              {{ "{:,.2f}".format(sum_balance or 0) }}
+            </td>
+            <td colspan="3"></td>
+          </tr>
+          </tfoot>
+        </table>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% if data and data|length %}
+<script>
+(function () {
+  const tbl = document.getElementById('report-table');
+  if (!tbl) return;
+  const tbody = tbl.tBodies[0];
+  const rows = Array.from(tbody.rows);
+
+  rows.sort((a, b) => {
+    const av = parseFloat(a.getAttribute('data-invoiced') || '0');
+    const bv = parseFloat(b.getAttribute('data-invoiced') || '0');
+    return bv - av;
+  });
+  rows.forEach(r => tbody.appendChild(r));
+
+  const medal = (i) => {
+    if (i === 1) return '<i class="fas fa-crown text-warning" title="الأول"></i>';
+    if (i === 2) return '<i class="fas fa-medal text-secondary" title="الثاني"></i>';
+    if (i === 3) return '<i class="fas fa-medal" style="color:#b87333" title="الثالث"></i>';
+    return i.toString();
+  };
+  Array.from(tbody.rows).forEach((tr, idx) => {
+    const cell = tr.querySelector('td.rank');
+    if (cell) cell.innerHTML = medal(idx + 1);
+  });
+})();
+
+// زر الطباعة
+document.getElementById('btn-print')?.addEventListener('click', function () {
+  window.print();
+});
+</script>
+{% endif %}
+{% endblock %}
+
+{% block styles %}
+<style>
+  .chart-container{max-height:360px; overflow:auto;}
+  canvas{max-height:320px !important;}
+</style>
+{% endblock %}

@@ -1387,6 +1387,14 @@ def add_product(id):
                 product = product_form.apply_to(Product())
                 if not product.category_id and product.category_name:
                     product.category_id = _ensure_category_id(product.category_name)
+                
+                # التأكد من حفظ نوع المركبة
+                if product_form.vehicle_type_id.data:
+                    try:
+                        product.vehicle_type_id = int(product_form.vehicle_type_id.data)
+                    except (ValueError, TypeError):
+                        product.vehicle_type_id = None
+                
                 db.session.add(product)
                 db.session.flush()
 
@@ -1479,14 +1487,16 @@ def add_product(id):
 
                     rows = []
                     for sid, phone, paid, price in zip(s_ids, v_phone, v_paid, v_price):
-                        sid_i = _to_int(sid)
+                        sid_i = _to_int(sid) if sid and str(sid).strip() else None
                         paid_d = _to_dec(paid)
                         price_d = _to_dec(price)
+                        # إضافة الصف فقط إذا كان هناك معلومات
                         if sid_i or phone or paid_d or price_d:
                             rows.append((sid_i, (phone or "").strip() or None, paid_d, price_d))
 
-                    if not rows or not any(r[0] for r in rows):
-                        raise ValueError("يرجى إضافة مورد واحد على الأقل لمستودع التبادل.")
+                    # إذا لم يتم إضافة أي صفوف، نضيف معاملة افتراضية بدون مورد
+                    if not rows:
+                        rows.append((None, None, None, None))
 
                     for sid_i, phone, paid_d, price_d in rows:
                         note_parts = []
@@ -1501,6 +1511,7 @@ def add_product(id):
                             ExchangeTransaction(
                                 product=product,
                                 warehouse_id=warehouse.id,
+                                supplier_id=sid_i,  # ✅ صحّحت من partner_id إلى supplier_id
                                 partner_id=None,
                                 quantity=init_qty,
                                 unit_cost=float(price_d) if price_d is not None else None,
@@ -1509,6 +1520,27 @@ def add_product(id):
                                 notes=" | ".join(note_parts) if note_parts else None,
                             )
                         )
+                        
+                        # إنشاء دفعة تلقائية إذا كان هناك مبلغ مدفوع
+                        if sid_i and paid_d and paid_d > 0:
+                            from models import Payment, PaymentDirection, PaymentStatus, PaymentEntityType
+                            from datetime import datetime as dt
+                            
+                            # حساب إجمالي الدفعة = الكمية × المبلغ المدفوع للقطعة الواحدة
+                            total_payment = init_qty * paid_d
+                            
+                            payment = Payment(
+                                supplier_id=sid_i,
+                                entity_type=PaymentEntityType.SUPPLIER,
+                                direction=PaymentDirection.OUT,
+                                status=PaymentStatus.COMPLETED,
+                                total_amount=float(total_payment),
+                                currency='ILS',
+                                payment_date=dt.now(),
+                                method='cash',  # ✅ lowercase
+                                notes=f"دفعة مقدمة عند استلام {init_qty} قطعة - {product.name}"
+                            )
+                            db.session.add(payment)
 
             db.session.commit()
             if is_online and (product.online_price is None or product.online_price == 0):
@@ -2711,9 +2743,9 @@ def preorder_convert_to_sale(preorder_id):
         sale = Sale(
             customer_id=preorder.customer_id,
             seller_id=current_user.id,
-            sale_date=datetime.utcnow(),
+            sale_date=datetime.now(),
             preorder_id=preorder.id,
-            status=SaleStatus.CONFIRMED.value,
+            status=SaleStatus.CONFIRMED,
             currency=preorder.currency or "ILS",
             tax_rate=tax_rate,
             total_paid=0,  # سنحدثه بعد إضافة SaleLine

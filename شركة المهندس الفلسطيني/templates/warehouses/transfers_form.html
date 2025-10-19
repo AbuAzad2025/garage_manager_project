@@ -1,0 +1,63 @@
+{% extends 'warehouses/base.html' %}
+{% block title %}تحويل جديد{% endblock %}
+{% block page_title %}تحويل جديد - {{ warehouse.name }}{% endblock %}
+
+{% block w_content %}
+<form id="transferForm" method="post" action="{{ url_for('warehouse_bp.transfer_inline', id=warehouse.id) }}" novalidate>
+  {{ form.hidden_tag() }}
+  <input type="hidden" name="source_id" value="{{ warehouse.id }}">
+
+  <div class="card shadow-sm mb-3">
+    <div class="card-body">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+          <label class="form-label">{{ form.product_id.label }}</label>
+          {{ form.product_id(class="form-control") }}
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">{{ form.source_id.label }}</label>
+          {{ form.source_id(class="form-control", id="source_id") }}
+          <div class="form-text">سيتم تعيينه للمستودع الحالي</div>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">{{ form.destination_id.label }}</label>
+          {{ form.destination_id(class="form-control") }}
+        </div>
+      </div>
+
+      <div class="row g-3 mt-3">
+        <div class="col-md-3">
+          <label class="form-label">{{ form.quantity.label }}</label>
+          {{ form.quantity(class="form-control") }}
+        </div>
+        <div class="col-md-9">
+          <label class="form-label">{{ form.notes.label }}</label>
+          {{ form.notes(class="form-control") }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-end gap-2">
+    {{ form.submit(class="btn btn-primary") }}
+    <a class="btn btn-secondary" href="{{ url_for('warehouse_bp.transfers', id=warehouse.id) }}">
+      <i class="fas fa-arrow-left me-1"></i> رجوع
+    </a>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  (function(){
+    var s = document.getElementById('source_id');
+    if (s) {
+      s.value = '{{ warehouse.id }}';
+      s.setAttribute('disabled','disabled');
+    }
+  })();
+</script>
+{% endblock %}

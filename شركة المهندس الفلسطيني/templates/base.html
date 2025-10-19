@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}{{ system_settings.system_name or 'نظام إدارة الكراج' }} - {{ system_settings.company_name or 'شركة ازاد للأنظمة الذكية' }}{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="{{ system_settings.system_name or 'نظام إدارة الكراج المتكامل' }} - {{ system_settings.company_name or 'شركة ازاد للأنظمة الذكية' }}">
+  <meta name="keywords" content="نظام إدارة الكراج، إدارة المركبات، صيانة السيارات، {{ system_settings.company_name or 'شركة ازاد' }}">
+  <meta name="author" content="{{ system_settings.company_name or 'شركة ازاد للأنظمة الذكية' }}">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  
+  <!-- Favicon -->
+  {% if system_settings.custom_favicon %}
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename=system_settings.custom_favicon.replace('static/', '')) }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename=system_settings.custom_favicon.replace('static/', '')) }}">
+  {% else %}
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  {% endif %}
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- CSS Libraries -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/fontawesome-free/css/all.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/overlayScrollbars/css/OverlayScrollbars.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/css/adminlte.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2/css/select2.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/datatables-bs4/css/dataTables.bootstrap4.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/datatables-responsive/css/responsive.bootstrap4.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/datatables-buttons/css/buttons.bootstrap4.min.css') }}">
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  
+  <!-- Dynamic System Colors from Security Settings -->
+  {% if system_settings.primary_color %}
+  <style>
+    :root {
+      --primary-color: {{ system_settings.primary_color }};
+    }
+    
+    /* Apply primary color dynamically */
+    .btn-primary, .badge-primary, .bg-primary,
+    .alert-primary, .text-primary, .border-primary {
+      background-color: {{ system_settings.primary_color }} !important;
+      border-color: {{ system_settings.primary_color }} !important;
+    }
+    
+    .btn-primary:hover, .btn-primary:focus {
+      background-color: {{ system_settings.primary_color }}dd !important;
+      border-color: {{ system_settings.primary_color }}dd !important;
+    }
+    
+    a, .nav-link.active, .sidebar .nav-link.active {
+      color: {{ system_settings.primary_color }} !important;
+    }
+    
+    .content-header {
+      background: linear-gradient(135deg, {{ system_settings.primary_color }} 0%, {{ system_settings.primary_color }}cc 100%) !important;
+    }
+    
+    .main-sidebar {
+      background-color: {{ system_settings.primary_color }}22 !important;
+    }
+  </style>
+  {% endif %}
+  
+  {% block styles %}{% endblock %}
+  {% block head_extra %}{% endblock %}
+  
+  <!-- Enhanced Styles -->
+  <style>
+    /* Enhanced Select2 Styling */
+    .select2-container .select2-selection--single {
+      height: calc(2.25rem + 2px);
+      border: 1px solid #ced4da;
+      border-radius: 0.375rem;
+      transition: all 0.15s ease-in-out;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+      line-height: 2.25rem;
+      color: #495057;
+      font-weight: 500;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+      height: 100%;
+      top: 0;
+    }
+    .select2-container--default .select2-selection--single:focus {
+      border-color: #007bff;
+      box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+    
+    /* Enhanced DataTables */
+    .dataTables_wrapper .dataTables_length,
+    .dataTables_wrapper .dataTables_filter,
+    .dataTables_wrapper .dataTables_info,
+    .dataTables_wrapper .dataTables_paginate {
+      margin: 1rem 0;
+    }
+    
+    /* Enhanced Cards */
+    .card {
+      border: none;
+      border-radius: 0.75rem;
+      box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+      transition: all 0.3s ease;
+    }
+    .card:hover {
+      box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+      transform: translateY(-2px);
+    }
+    
+    /* Enhanced Buttons */
+    .btn {
+      border-radius: 0.5rem;
+      font-weight: 500;
+      transition: all 0.3s ease;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+    
+    /* Enhanced Alerts */
+    .alert {
+      border: none;
+      border-radius: 0.75rem;
+      font-weight: 500;
+    }
+    
+    /* Enhanced Breadcrumb */
+    .breadcrumb {
+      background: transparent;
+      padding: 0;
+      margin: 0;
+    }
+    .breadcrumb-item + .breadcrumb-item::before {
+      content: "›";
+      color: #6c757d;
+      font-weight: bold;
+    }
+    
+    /* Enhanced Content Header - Harmonized with AdminLTE */
+    .content-header {
+      background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+      color: #ffffff;
+      border-radius: 0 0 0.5rem 0.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .content-header h1 {
+      color: #ffffff;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      font-weight: 600;
+    }
+    
+    /* Enhanced Breadcrumb - Harmonized with AdminLTE */
+    .breadcrumb {
+      background: transparent;
+      padding: 0;
+      margin: 0;
+    }
+    .breadcrumb-item {
+      color: #6c757d;
+      font-weight: 400;
+    }
+    .breadcrumb-item + .breadcrumb-item::before {
+      content: "›";
+      color: #adb5bd;
+      font-weight: normal;
+    }
+    .breadcrumb-item a {
+      color: #007bff;
+      text-decoration: none;
+      font-weight: 400;
+    }
+    .breadcrumb-item a:hover {
+      color: #0056b3;
+      text-decoration: underline;
+    }
+    
+    /* Enhanced Text Contrast - Harmonized with AdminLTE */
+    body {
+      color: #495057;
+      background-color: #f4f6f9;
+    }
+    
+    .text-muted {
+      color: #6c757d !important;
+    }
+    
+    .text-dark {
+      color: #343a40 !important;
+    }
+    
+    .text-primary {
+      color: #007bff !important;
+    }
+    
+    /* Enhanced Card Text - Harmonized with AdminLTE */
+    .card {
+      background: #ffffff;
+      color: #495057;
+      border: 1px solid #dee2e6;
+    }
+    
+    .card-header {
+      background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+      color: #ffffff;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .card-body {
+      color: #495057;
+    }
+    
+    /* Enhanced Table Text - Harmonized with AdminLTE */
+    .table {
+      color: #495057;
+    }
+    
+    .table th {
+      color: #343a40;
+      font-weight: 600;
+      background-color: #f8f9fa;
+    }
+    
+    .table td {
+      color: #495057;
+    }
+  </style>
+</head>
+<body class="hold-transition sidebar-mini layout-fixed text-sm">
+<div class="wrapper">
+  {% include 'partials/navbar.html' %}
+  {% include 'partials/sidebar.html' %}
+  <div class="content-wrapper">
+    <div class="content-header border-bottom mb-3 pb-2 bg-light">
+      <div class="container-fluid">
+        <div class="row align-items-center">
+          <div class="col-sm-6">
+            <h1 class="m-0 fw-bold text-primary">{% block page_title %}{% endblock %}</h1>
+          </div>
+          <div class="col-sm-6">
+            <ol class="breadcrumb float-sm-left small m-0">
+              {% block breadcrumb %}{% endblock %}
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+    <section class="content">
+      <div class="container-fluid">
+        {% with messages = get_unique_flashes(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
+                <i class="fas fa-info-circle me-2"></i>{{ message }}
+                <button type="button" class="close" data-dismiss="alert" aria-label="إغلاق">
+                  <span aria-hidden="true">&times;</span>
+                </button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+      </div>
+    </section>
+  </div>
+  {% include 'partials/footer.html' %}
+</div>
+
+<script src="{{ url_for('static', filename='adminlte/plugins/jquery/jquery.min.js') }}"></script>
+<script src="{{ url_for('static', filename='adminlte/plugins/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+<script src="{{ url_for('static', filename='adminlte/plugins/overlayScrollbars/js/jquery.overlayScrollbars.min.js') }}"></script>
+<script src="{{ url_for('static', filename='adminlte/js/adminlte.min.js') }}"></script>
+<script src="{{ url_for('static', filename='adminlte/plugins/select2/js/select2.full.min.js') }}"></script>
+<script src="{{ url_for('static', filename='adminlte/plugins/datatables/jquery.dataTables.min.js') }}"></script>
+<script src="{{ url_for('static', filename='adminlte/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js') }}"></script>
+<script src="{{ url_for('static', filename='adminlte/plugins/datatables-responsive/js/dataTables.responsive.min.js') }}"></script>
+<script src="{{ url_for('static', filename='adminlte/plugins/datatables-responsive/js/responsive.bootstrap4.min.js') }}"></script>
+<script src="{{ url_for('static', filename='adminlte/plugins/datatables-buttons/js/dataTables.buttons.min.js') }}"></script>
+<script src="{{ url_for('static', filename='adminlte/plugins/datatables-buttons/js/buttons.bootstrap4.min.js') }}"></script>
+<script src="{{ url_for('static', filename='adminlte/plugins/jszip/jszip.min.js') }}"></script>
+<script src="{{ url_for('static', filename='adminlte/plugins/datatables-buttons/js/buttons.html5.min.js') }}"></script>
+<script src="{{ url_for('static', filename='adminlte/plugins/datatables-buttons/js/buttons.print.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/datatables-arabic.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+<script src="{{ url_for('static', filename='js/archive.js') }}"></script>
+
+<script>
+  (function () {
+    var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    if (token && window.jQuery) {
+      $.ajaxSetup({
+        beforeSend: function (xhr) {
+          xhr.setRequestHeader('X-CSRFToken', token);
+          xhr.setRequestHeader('X-CSRF-Token', token);
+        }
+      });
+    }
+    if (window.jQuery && $.fn && $.fn.select2) {
+      try { $.fn.select2.defaults.set('dir', 'rtl'); } catch (_) {}
+    }
+    // DataTables Arabic translation now loaded from datatables-arabic.js
+  })();
+</script>
+
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script src="{{ url_for('static', filename='js/ux-enhancements.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% block title %}تتبع الأخطاء{% endblock %}
+{% block page_title %}🐛 تتبع الأخطاء{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  {% include 'security/_navigation.html' %}
+  
+  <!-- إحصائيات -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="small-box bg-danger">
+        <div class="inner">
+          <h3>{{ error_stats.total_errors }}</h3>
+          <p>إجمالي الأخطاء</p>
+        </div>
+        <div class="icon"><i class="fas fa-exclamation-circle"></i></div>
+      </div>
+    </div>
+    
+    <div class="col-md-3">
+      <div class="small-box bg-warning">
+        <div class="inner">
+          <h3>{{ error_stats.today_errors }}</h3>
+          <p>أخطاء اليوم</p>
+        </div>
+        <div class="icon"><i class="fas fa-calendar-day"></i></div>
+      </div>
+    </div>
+    
+    <div class="col-md-3">
+      <div class="small-box bg-danger">
+        <div class="inner">
+          <h3>{{ error_stats.critical_errors }}</h3>
+          <p>أخطاء حرجة</p>
+        </div>
+        <div class="icon"><i class="fas fa-skull-crossbones"></i></div>
+      </div>
+    </div>
+    
+    <div class="col-md-3">
+      <div class="small-box bg-warning">
+        <div class="inner">
+          <h3>{{ error_stats.warning_errors }}</h3>
+          <p>تحذيرات</p>
+        </div>
+        <div class="icon"><i class="fas fa-exclamation-triangle"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- قائمة الأخطاء -->
+  <div class="card">
+    <div class="card-header bg-danger text-white">
+      <h5 class="mb-0">آخر الأخطاء ({{ errors|length }})</h5>
+    </div>
+    <div class="card-body">
+      <div style="max-height:500px; overflow-y:auto;">
+        <table class="table table-sm table-striped">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>الرسالة</th>
+              <th>الوقت</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for error in errors %}
+            <tr>
+              <td>{{ loop.index }}</td>
+              <td><small><code>{{ error.message }}</code></small></td>
+              <td><small>{{ error.timestamp.strftime('%H:%M:%S') if error.timestamp else 'N/A' }}</small></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

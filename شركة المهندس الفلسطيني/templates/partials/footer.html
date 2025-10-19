@@ -1,0 +1,53 @@
+<footer class="main-footer text-center" dir="rtl" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); color: #212529; font-weight: 500; padding: 20px 0; border-top: 3px solid #667eea;">
+  <div class="container">
+    <!-- الصف الأول: الشعار والاسم -->
+    <div style="display: flex; align-items: center; justify-content: center; gap: 15px; flex-wrap: wrap; margin-bottom: 15px;">
+      <img src="{{ url_for('static', filename='img/azad_logo.png') }}"
+           alt="Azad Logo"
+           style="height:40px; vertical-align:middle; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));">
+      <div style="text-align: center;">
+        <strong style="font-size: 1.2rem; display: block;">{{ system_settings.company_name or 'شركة أزاد للنظم الذكية' }}</strong>
+        <small class="text-muted">{{ system_settings.system_name or 'نظام إدارة الكراج المتكامل' }}</small>
+      </div>
+      <span style="display: inline-flex; align-items: center; gap: 5px; font-weight: 700;">
+        <span style="font-size: 2rem; line-height: 1;">🇵🇸</span>
+        <span style="color: #009900; font-size: 1.1rem; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">فلسطين</span>
+      </span>
+    </div>
+    
+    <!-- الصف الثاني: معلومات التواصل -->
+    <div style="margin: 15px 0; padding: 15px; background: white; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+      <div class="row text-center">
+        <div class="col-md-4 mb-2 mb-md-0">
+          <i class="fas fa-phone text-success"></i>
+          <a href="tel:+970562150193" class="text-decoration-none fw-bold" style="color: #212529;">
+            +970-562-150-193
+          </a>
+        </div>
+        <div class="col-md-4 mb-2 mb-md-0">
+          <i class="fab fa-whatsapp text-success"></i>
+          <a href="https://wa.me/970562150193?text=مرحباً" target="_blank" class="text-decoration-none fw-bold" style="color: #212529;">
+            واتساب (دعم فوري)
+          </a>
+        </div>
+        <div class="col-md-4">
+          <i class="fas fa-envelope text-info"></i>
+          <a href="mailto:ahmed@azad-systems.com" class="text-decoration-none fw-bold" style="color: #212529;">
+            ahmed@azad-systems.com
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <!-- الصف الثالث: حقوق النشر -->
+    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #dee2e6;">
+      <div class="d-flex justify-content-center align-items-center gap-3 flex-wrap">
+        <span><strong>&copy; 2025</strong> جميع الحقوق محفوظة</span>
+        <span>|</span>
+        <span>رام الله - فلسطين</span>
+        <span>|</span>
+        <span>الإصدار: <strong>{{ system_settings.system_version or '1.0.0' }}</strong></span>
+      </div>
+    </div>
+  </div>
+</footer>

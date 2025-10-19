@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% block title %}استعادة قاعدة البيانات{% endblock %}
+{% block page_title %}استعادة قاعدة البيانات{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+<li class="breadcrumb-item active">استعادة قاعدة البيانات</li>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+  
+  <!-- بطاقات تحذيرية -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-danger text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">تحذير عالي</h6>
+              <h3 class="mb-0 fw-bold"><i class="fas fa-exclamation-triangle"></i></h3>
+              <small class="opacity-75">عملية حساسة</small>
+            </div>
+            <i class="fas fa-shield-alt fa-2x opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-warning text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">صلاحية مطلوبة</h6>
+              <h3 class="mb-0 fw-bold">Super Admin</h3>
+              <small class="opacity-75">فقط</small>
+            </div>
+            <i class="fas fa-user-shield fa-2x opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-info text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">أنواع الملفات</h6>
+              <h3 class="mb-0 fw-bold">.db, .sqlite</h3>
+              <small class="opacity-75">المدعومة</small>
+            </div>
+            <i class="fas fa-file-archive fa-2x opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-secondary text-white h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">نسخة احتياطية</h6>
+              <h3 class="mb-0 fw-bold">مطلوبة</h3>
+              <small class="opacity-75">قبل الاستعادة</small>
+            </div>
+            <i class="fas fa-database fa-2x opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="card shadow-lg border-0">
+    <div class="card-header bg-danger text-white d-flex align-items-center">
+      <i class="fas fa-database me-2"></i>
+      <h5 class="mb-0">استعادة قاعدة البيانات</h5>
+    </div>
+    <div class="card-body">
+
+      {% if shop_is_super_admin %}
+        <div class="alert alert-warning d-flex align-items-center">
+          <i class="fas fa-exclamation-triangle fa-lg me-2"></i>
+          <div><strong>تحذير:</strong> سيؤدي المتابعة إلى استبدال جميع البيانات الحالية بالملف المحدد.</div>
+        </div>
+        <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+          {{ form.hidden_tag() }}
+          <div class="mb-3">
+            {{ form.db_file.label(class="form-label fw-bold") }}
+            {{ form.db_file(class="form-control", accept=".db,.sqlite,.sqlite3,application/x-sqlite3") }}
+            {% if form.db_file.errors %}
+            <div class="invalid-feedback d-block mt-1">
+              {% for err in form.db_file.errors %}
+                <i class="fas fa-times-circle"></i> {{ err }}<br>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+          <div class="d-flex gap-2 mt-3">
+            <button type="submit" class="btn btn-danger">
+              <i class="fas fa-upload"></i> استعادة الآن
+            </button>
+            <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary">
+              <i class="fas fa-times"></i> إلغاء
+            </a>
+          </div>
+        </form>
+      {% else %}
+        <div class="alert alert-danger">
+          <i class="fas fa-ban"></i> هذه الصفحة متاحة فقط لمستخدم <strong>Super Admin</strong>.
+        </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const input = document.querySelector('input[type="file"]');
+    if (!input) return;
+    input.addEventListener('change', function () {
+      const ok = this.files && this.files.length > 0;
+      this.classList.toggle('is-valid', ok);
+      this.classList.toggle('is-invalid', !ok);
+    });
+  });
+</script>
+{% endblock %}

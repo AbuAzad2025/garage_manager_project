@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}محاولات فاشلة{% endblock %}
+{% block page_title %}⚠️ محاولات تسجيل الدخول الفاشلة{% endblock %}
+{% block content %}
+<div class="container-fluid">
+  {% include 'security/_navigation.html' %}
+  
+  <div class="card"><div class="card-body">
+    <h6>آخر {{ hours }} ساعة</h6>
+    <table class="table table-sm">
+      <thead><tr><th>التاريخ</th><th>IP</th><th>الإجراء</th></tr></thead>
+      <tbody>{% for log in failed %}<tr><td>{{ log.created_at|format_datetime }}</td><td><code>{{ log.ip_address }}</code></td><td>{{ log.action }}</td></tr>{% endfor %}</tbody>
+    </table>
+  </div></div>
+</div>
+{% endblock %}
+

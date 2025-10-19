@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block title %}إدارة الإصدارات{% endblock %}
+{% block page_title %}📦 إدارة الإصدارات - Version Control{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  {% include 'advanced/_navigation.html' %}
+  
+  <div class="row">
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-gradient-primary text-white">
+          <h5 class="mb-0"><i class="fas fa-plus"></i> إصدار جديد</h5>
+        </div>
+        <div class="card-body">
+          <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="create_version">
+            
+            <div class="mb-3">
+              <label class="form-label fw-bold">رقم الإصدار</label>
+              <input type="text" name="version_name" class="form-control" 
+                     placeholder="v1.0.0" required>
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label fw-bold">ملاحظات</label>
+              <textarea name="version_notes" class="form-control" rows="4" 
+                        placeholder="ما الجديد في هذا الإصدار؟"></textarea>
+            </div>
+            
+            <button type="submit" class="btn btn-primary w-100">
+              <i class="fas fa-save"></i> إنشاء إصدار
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-8">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-gradient-success text-white">
+          <h5 class="mb-0"><i class="fas fa-history"></i> سجل الإصدارات ({{ versions|length }})</h5>
+        </div>
+        <div class="card-body">
+          <div class="timeline">
+            {% for version in versions %}
+            <div class="mb-4 p-3 border-start border-primary border-4 bg-light rounded">
+              <div class="d-flex justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                  <h6 class="mb-2">
+                    <span class="badge bg-primary">{{ version.name }}</span>
+                    <small class="text-muted">{{ version.date[:19] }}</small>
+                  </h6>
+                  <p class="mb-0">{{ version.notes or 'لا توجد ملاحظات' }}</p>
+                </div>
+                <form method="POST" style="display:inline;" onsubmit="return confirm('⚠️ هل أنت متأكد من حذف هذا الإصدار؟');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="action" value="delete_version">
+                  <input type="hidden" name="version_name" value="{{ version.name }}">
+                  <button type="submit" class="btn btn-sm btn-danger">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </form>
+              </div>
+            </div>
+            {% else %}
+            <p class="text-center text-muted">لا توجد إصدارات</p>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

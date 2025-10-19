@@ -31,9 +31,7 @@
             <tr>
               <th>#</th>
               <th>{{ FIELD_LABELS.get("name", "الاسم") }}</th>
-              <th>{{ FIELD_LABELS.get("balance", "الرصيد") }}</th>
-              <th>{{ FIELD_LABELS.get("total_paid", "مدفوع") }}</th>
-              <th>{{ FIELD_LABELS.get("net_balance", "صافي") }}</th>
+              <th>{{ FIELD_LABELS.get("balance", "الرصيد (موجب=له علينا، سالب=عليه لنا)") }}</th>
             </tr>
           </thead>
           <tbody>
@@ -41,9 +39,15 @@
               <tr>
                 <td>{{ r.id }}</td>
                 <td>{{ r.name }}</td>
-                <td class="text-end">{{ "{:,.2f}".format(r.balance) }}</td>
-                <td class="text-end">{{ "{:,.2f}".format(r.total_paid) }}</td>
-                <td class="text-end">{{ "{:,.2f}".format(r.net_balance) }}</td>
+                <td class="text-end">
+                  {% if r.balance > 0 %}
+                    <span class="text-danger">{{ "{:,.2f}".format(r.balance) }}</span>
+                  {% elif r.balance < 0 %}
+                    <span class="text-success">{{ "{:,.2f}".format(r.balance|abs) }}</span>
+                  {% else %}
+                    {{ "{:,.2f}".format(r.balance) }}
+                  {% endif %}
+                </td>
               </tr>
             {% endfor %}
           </tbody>

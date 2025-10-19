@@ -1,0 +1,203 @@
+{% extends 'warehouses/base.html' %}
+
+{% block title %}{{ 'تعديل مستودع' if warehouse else 'مستودع جديد' }}{% endblock %}
+{% block page_title %}{{ 'تعديل مستودع' if warehouse else 'مستودع جديد' }}{% endblock %}
+
+{% block content %}
+<form id="warehouse-form" method="post" novalidate data-mode="{{ 'edit' if warehouse else 'create' }}">
+  {{ form.hidden_tag() }}
+
+  <div class="row g-4">
+    <div class="col-md-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-primary text-white">
+          <i class="fas fa-warehouse me-1"></i> معلومات أساسية
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            {{ form.name.label(class="form-label") }}
+            {{ form.name(class="form-control", placeholder="اسم المستودع", required=True) }}
+            {% for e in form.name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="mb-3">
+            {{ form.warehouse_type.label(class="form-label") }}
+            {{ form.warehouse_type(class="form-select", id="warehouse_type", required=True) }}
+            {% for e in form.warehouse_type.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="row-partner" class="mb-3 d-none">
+            {{ form.partner_id.label(class="form-label") }}
+            <select id="{{ form.partner_id.id }}" name="{{ form.partner_id.name }}" class="form-select ajax"
+                    data-url="{{ url_for('api.search_partners') }}"
+                    data-current="{{ form.partner_id.data or '' }}"></select>
+            {% for e in form.partner_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="row-supplier" class="mb-3 d-none">
+            {{ form.supplier_id.label(class="form-label") }}
+            <select id="{{ form.supplier_id.id }}" name="{{ form.supplier_id.name }}" class="form-select ajax"
+                    data-url="{{ url_for('api.search_suppliers') }}"
+                    data-current="{{ form.supplier_id.data or '' }}"></select>
+            {% for e in form.supplier_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="row-parent" class="mb-3 d-none">
+            {{ form.parent_id.label(class="form-label") }}
+            <select id="{{ form.parent_id.id }}" name="{{ form.parent_id.name }}" class="form-select ajax"
+                    data-url="{{ url_for('api.search_warehouses') }}"
+                    data-current="{{ form.parent_id.data or '' }}"></select>
+            {% for e in form.parent_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="row-share" class="mb-3 d-none">
+            {{ form.share_percent.label(class="form-label") }}
+            {{ form.share_percent(class="form-control", placeholder="نسبة الشريك %") }}
+            {% for e in form.share_percent.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="row-online" class="mb-3 d-none">
+            <div class="mb-2">
+              {% if form.online_slug is defined %}
+                {{ form.online_slug.label(class="form-label") }}
+                {{ form.online_slug(class="form-control", placeholder="معرّف الأونلاين") }}
+                {% for e in form.online_slug.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+              {% endif %}
+            </div>
+            <div class="form-check">
+              {% if form.online_is_default is defined %}
+                {{ form.online_is_default(class="form-check-input", id="online_is_default") }}
+                <label class="form-check-label" for="online_is_default">{{ form.online_is_default.label.text }}</label>
+                {% for e in form.online_is_default.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+              {% endif %}
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-secondary text-white">
+          <i class="fas fa-cogs me-1"></i> الإعدادات
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            {{ form.location.label(class="form-label") }}
+            {{ form.location(class="form-control", placeholder="موقع المستودع") }}
+            {% for e in form.location.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="mb-3">
+            {{ form.capacity.label(class="form-label") }}
+            {{ form.capacity(class="form-control", placeholder="السعة القصوى") }}
+            {% for e in form.capacity.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="mb-3">
+            {{ form.notes.label(class="form-label") }}
+            {{ form.notes(class="form-control", rows="2", placeholder="ملاحظات إضافية") }}
+            {% for e in form.notes.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="form-check mb-2">
+            {{ form.is_active(class="form-check-input", id="is_active") }}
+            <label class="form-check-label" for="is_active">
+              <i class="fas fa-toggle-on me-1"></i> {{ form.is_active.label.text }}
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-4 d-flex gap-2">
+    <button class="btn btn-success">
+      <i class="fas fa-save me-1"></i> حفظ
+    </button>
+    <a href="{{ url_for('warehouse_bp.list') }}" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-right me-1"></i> رجوع
+    </a>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
+<script>
+(function () {
+  const $type = document.getElementById('warehouse_type');
+  const rowPartner  = document.getElementById('row-partner');
+  const rowSupplier = document.getElementById('row-supplier');
+  const rowParent   = document.getElementById('row-parent');
+  const rowShare    = document.getElementById('row-share');
+  const rowOnline   = document.getElementById('row-online');
+
+  function show(el, on) {
+    if (!el) return;
+    el.classList.toggle('d-none', !on);
+    if (!on) {
+      const inputs = el.querySelectorAll('input, select, textarea');
+      inputs.forEach(i => { if (i.tagName === 'SELECT') i.value = ''; else i.value = ''; });
+    }
+  }
+
+  function syncUI() {
+    const t = ($type.value || '').toUpperCase();
+    show(rowPartner,  t === 'PARTNER');
+    show(rowShare,    t === 'PARTNER');
+    show(rowSupplier, t === 'SUPPLIER' || t === 'EXCHANGE');
+    show(rowParent,   t !== 'MAIN' && t !== 'ONLINE');
+    show(rowOnline,   t === 'ONLINE');
+  }
+
+  $type.addEventListener('change', syncUI);
+  syncUI();
+
+  if (window.jQuery && jQuery().select2) {
+    jQuery('.ajax').each(function () {
+      const $el = jQuery(this);
+      const url = $el.data('url');
+      const current = $el.data('current') || '';
+      $el.select2({
+        dir: 'rtl',
+        width: '100%',
+        ajax: {
+          url: url,
+          dataType: 'json',
+          delay: 250,
+          data: params => ({ q: params.term || '', limit: 20 }),
+          processResults: data => {
+            const results = data.results || data;
+            return { results: (results || []).map(x => ({ id: x.id, text: x.text || x.name })) };
+          }
+        },
+        placeholder: '— اختر —',
+        allowClear: true
+      });
+      if (current) {
+        fetch(url + '?id=' + encodeURIComponent(current))
+          .then(r => r.json())
+          .then(d => {
+            const item = (d.results && d.results[0]) || (Array.isArray(d) ? d[0] : null);
+            if (item) {
+              const opt = new Option(item.text || item.name, item.id, true, true);
+              $el.append(opt).trigger('change');
+            }
+          })
+          .catch(() => {});
+      }
+    });
+  }
+
+  const form = document.getElementById('warehouse-form');
+  if (form) {
+    form.addEventListener('submit', function () {
+      return true;
+    });
+  }
+})();
+</script>
+{% endblock %}

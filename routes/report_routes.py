@@ -477,85 +477,55 @@ def top_products():
 
 @reports_bp.route("/suppliers", methods=["GET"], endpoint="suppliers_report")
 def suppliers_report():
-    q = (
-        db.session.query(
-            Supplier.id,
-            Supplier.name,
-            func.coalesce(Supplier.balance, 0).label("balance"),
-            func.coalesce(func.sum(Payment.total_amount), 0).label("total_paid"),
-        )
-        .outerjoin(
-            Payment,
-            (Payment.supplier_id == Supplier.id)
-            & (Payment.status == PaymentStatus.COMPLETED.value)
-            & (Payment.direction == PaymentDirection.OUT.value),
-        )
-        .group_by(Supplier.id, Supplier.name, Supplier.balance)
-        .order_by(Supplier.name.asc())
-    )
+    # استخدام Supplier.balance المحدّث تلقائياً
+    q = Supplier.query.order_by(Supplier.name.asc()).all()
+    
     data = []
-    for r in q.all():
-        paid = float(r.total_paid or 0)
-        balance = float(r.balance or 0)
-        net_balance = balance - paid
+    total_balance = 0
+    for supplier in q:
+        balance = float(supplier.balance or 0)
         data.append(
             {
-                "id": r.id,
-                "name": r.name,
-                "total_paid": paid,
+                "id": supplier.id,
+                "name": supplier.name,
                 "balance": balance,
-                "net_balance": net_balance,
             }
         )
+        total_balance += balance
+    
+    totals = {
+        "balance": total_balance,
+    }
     return render_template(
         "reports/suppliers.html",
         data=data,
+        totals=totals,
         FIELD_LABELS=FIELD_LABELS,
         MODEL_LABELS=MODEL_LABELS,
     )
 
 @reports_bp.route("/partners", methods=["GET"], endpoint="partners_report")
 def partners_report():
-    q = (
-        db.session.query(
-            Partner.id,
-            Partner.name,
-            func.coalesce(Partner.balance, 0).label("balance"),
-            Partner.share_percentage,
-            func.coalesce(func.sum(Payment.total_amount), 0).label("total_paid"),
-        )
-        .outerjoin(
-            Payment,
-            (Payment.partner_id == Partner.id)
-            & (Payment.status == PaymentStatus.COMPLETED.value),
-        )
-        .group_by(Partner.id, Partner.name, Partner.balance, Partner.share_percentage)
-        .order_by(Partner.name.asc())
-    )
+    # استخدام Partner.balance المحدّث تلقائياً
+    q = Partner.query.order_by(Partner.name.asc()).all()
+    
     data = []
-    total_balance = total_paid = total_net = 0
-    for r in q.all():
-        paid = float(r.total_paid or 0)
-        balance = float(r.balance or 0)
-        net_balance = balance - paid
-        share = float(r.share_percentage or 0)
+    total_balance = 0
+    for partner in q:
+        balance = float(partner.balance or 0)
+        share = float(partner.share_percentage or 0)
         data.append(
             {
-                "id": r.id,
-                "name": r.name,
+                "id": partner.id,
+                "name": partner.name,
                 "balance": balance,
-                "total_paid": paid,
-                "net_balance": net_balance,
                 "share_percentage": share,
             }
         )
         total_balance += balance
-        total_paid += paid
-        total_net += net_balance
+    
     totals = {
         "balance": total_balance,
-        "total_paid": total_paid,
-        "net_balance": total_net,
     }
     return render_template(
         "reports/partners.html",
@@ -600,7 +570,7 @@ def customers_report():
             func.coalesce(func.sum(Sale.total_amount), 0).label("total")
         )
         .filter(Sale.customer_id.isnot(None))
-        .filter(Sale.status == SaleStatus.CONFIRMED.value)
+        .filter(Sale.status == SaleStatus.CONFIRMED)
         .filter(sale_date)
         .group_by(Sale.customer_id)
         .subquery()

@@ -1,0 +1,278 @@
+{% extends 'base.html' %}
+{% block title %}المصاريف / الرواتب / الجمارك{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+  /* يظهر شريط التمرير حتى مع تغليف DataTables */
+  .table-responsive{overflow-x:auto}
+
+  /* عند استخدام DataTables مع scrollX */
+  .dataTables_wrapper .dataTables_scrollBody{
+    overflow-x:auto !important;
+    overflow-y:hidden;
+  }
+
+  /* اجعل عمود الإجراءات دائمًا ظاهرًا */
+  table.table-sticky th:last-child,
+  table.table-sticky td:last-child{
+    position:sticky;
+    right:0;                 /* لأننا RTL */
+    background:var(--bs-body-bg, #fff);
+    z-index:3;
+    box-shadow:-4px 0 6px rgba(0,0,0,.06);
+  }
+
+  /* منع سحق الأعمدة على الشاشات الصغيرة */
+  table.table-sticky{min-width:1200px}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4" dir="rtl">
+  <div class="card shadow-sm mb-3">
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <h2 class="mb-0"><i class="fas fa-receipt me-2"></i> كل المصاريف</h2>
+      {% if current_user.has_permission('manage_expenses') %}
+      <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ url_for('expenses_bp.create_expense') }}" class="btn btn-action-add"><i class="fas fa-plus"></i> إضافة مصروف</a>
+        <a href="{{ url_for('expenses_bp.quick_add') }}" class="btn btn-warning"><i class="fas fa-bolt"></i> مصروف سريع</a>
+        <a href="{{ url_for('expenses_bp.types_list') }}" class="btn btn-outline-secondary"><i class="fas fa-tags"></i> أنواع المصاريف</a>
+        <a href="{{ url_for('expenses_bp.employees_list') }}" class="btn btn-outline-secondary"><i class="fas fa-users"></i> الموظفون</a>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="card-body">
+      <!-- الملخصات المالية -->
+      {% if summary %}
+      <div class="row mb-4 g-3">
+        <div class="col-lg-3 col-md-6">
+          <div class="card border-0 shadow-sm text-white bg-danger h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <h6 class="text-white-50 mb-1">💰 إجمالي النفقات</h6>
+                  <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(summary.total_expenses) }} ₪</h3>
+                  <small class="opacity-75">{{ summary.expenses_count }} مصروف</small>
+                </div>
+                <i class="fas fa-receipt fa-2x opacity-50"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+          <div class="card border-0 shadow-sm text-white bg-success h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <h6 class="text-white-50 mb-1">✅ المدفوع</h6>
+                  <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(summary.total_paid) }} ₪</h3>
+                  <small class="opacity-75">{{ "{:.1f}".format(summary.payment_percentage) }}% مدفوع</small>
+                </div>
+                <i class="fas fa-check-circle fa-2x opacity-50"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+          <div class="card border-0 shadow-sm text-white bg-warning h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <h6 class="text-white-50 mb-1">⏳ غير المدفوع</h6>
+                  <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(summary.total_balance) }} ₪</h3>
+                  <small class="opacity-75">{{ "{:.1f}".format(100 - summary.payment_percentage) }}% متبقي</small>
+                </div>
+                <i class="fas fa-clock fa-2x opacity-50"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+          <div class="card border-0 shadow-sm text-white bg-info h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <h6 class="text-white-50 mb-1">📊 متوسط المصروف</h6>
+                  <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(summary.average_expense) }} ₪</h3>
+                  <small class="opacity-75">لكل مصروف</small>
+                </div>
+                <i class="fas fa-chart-line fa-2x opacity-50"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- تصنيف النفقات -->
+      <div class="row mb-4">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header bg-primary text-white">
+              <h5 class="mb-0">📊 التصنيف حسب النوع</h5>
+            </div>
+            <div class="card-body">
+              <table class="table table-sm">
+                <thead>
+                  <tr>
+                    <th>النوع</th>
+                    <th>العدد</th>
+                    <th>المبلغ (₪)</th>
+                    <th>النسبة</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for type_name, data in summary.expenses_by_type[:5] %}
+                  <tr>
+                    <td><strong>{{ type_name }}</strong></td>
+                    <td>{{ data.count }}</td>
+                    <td>{{ "{:,.2f}".format(data.amount) }}</td>
+                    <td>
+                      {% set percentage = (data.amount / summary.total_expenses * 100) if summary.total_expenses > 0 else 0 %}
+                      <div class="progress" style="height: 20px;">
+                        <div class="progress-bar bg-danger" role="progressbar" style="width: {{ percentage }}%">
+                          {{ "{:.1f}".format(percentage) }}%
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header bg-info text-white">
+              <h5 class="mb-0">💱 التصنيف حسب العملة</h5>
+            </div>
+            <div class="card-body">
+              <table class="table table-sm">
+                <thead>
+                  <tr>
+                    <th>العملة</th>
+                    <th>العدد</th>
+                    <th>المبلغ الأصلي</th>
+                    <th>بالشيقل</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for currency, data in summary.expenses_by_currency.items() %}
+                  <tr>
+                    <td><strong>{{ currency }}</strong></td>
+                    <td>{{ data.count }}</td>
+                    <td>{{ "{:,.2f}".format(data.amount) }}</td>
+                    <td>{{ "{:,.2f}".format(data.amount_ils) }} ₪</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+      
+      {# … نفس فورم الفلاتر كما هو … #}
+      {{ super() }}
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body table-responsive">
+      <table id="expenses-table" class="table table-striped table-bordered align-middle table-sticky">
+        <thead class="table-primary text-center">
+          <tr>
+            <th>التاريخ</th>
+            <th>النوع</th>
+            <th>الموظف</th>
+            <th>المستفيد</th>
+            <th>المبلغ</th>
+            <th>العملة</th>
+            <th>طريقة الدفع</th>
+            <th>مدفوع</th>
+            <th>الرصيد</th>
+            <th>الوصف</th>
+            <th>ملاحظات</th>
+            <th>رقم الفاتورة</th>
+            <th style="width:180px">إجراءات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in expenses %}
+          {% set pt = e.payee_type or '' %}
+          <tr>
+            <td class="text-nowrap">{{ e.date|format_date }}</td>
+            <td>{{ e.type.name if e.type else '—' }}</td>
+            <td>{{ e.employee.name if e.employee else '—' }}</td>
+            <td>
+              {% if pt == 'EMPLOYEE' %}<span class="badge bg-info text-dark me-1">موظّف</span>
+              {% elif pt == 'UTILITY' %}<span class="badge bg-secondary me-1">مرفق</span>
+              {% elif pt %}<span class="badge bg-light text-dark me-1">أخرى</span>{% endif %}
+              {{ e.payee_name or e.paid_to or '—' }}
+            </td>
+            <td class="fw-bold text-end">
+              {{ e.amount|number_format(2) }} <span class="badge bg-light text-dark">{{ e.currency }}</span>
+            </td>
+            <td>{{ e.currency }}</td>
+            <td class="text-nowrap">{{ e.payment_method or '—' }}</td>
+            <td class="text-end">{{ (e.total_paid or 0)|float|round(2)|number_format(2) }}</td>
+            <td class="text-end">
+              {% if e.is_paid %}<span class="badge bg-success">مدفوع</span>
+              {% else %}{{ (e.balance or 0)|float|round(2)|number_format(2) }}{% endif %}
+            </td>
+            <td class="text-truncate" style="max-width:220px">{{ e.description or '—' }}</td>
+            <td class="text-truncate" style="max-width:220px">{{ e.notes or '—' }}</td>
+            <td>{{ e.tax_invoice_number or '—' }}</td>
+            <td class="text-nowrap text-center">
+              <div class="btn-group">
+                <a href="{{ url_for('expenses_bp.detail', exp_id=e.id) }}" class="btn btn-sm btn-info" title="تفاصيل"><i class="fas fa-eye"></i></a>
+                {% if current_user.has_permission('manage_expenses') %}
+                  <a href="{{ url_for('expenses_bp.edit', exp_id=e.id) }}" class="btn btn-sm btn-warning" title="تعديل"><i class="fas fa-edit"></i></a>
+                  {% if e.is_archived %}
+                  <button type="button" class="btn btn-action-restore btn-action-sm" title="استعادة" onclick="console.log('🔘 [TEMPLATE] تم النقر على زر استعادة النفقة رقم: {{ e.id }}'); restoreExpense({{ e.id }})">
+                    <i class="fas fa-undo"></i>
+                  </button>
+                  {% else %}
+                  <button type="button" class="btn btn-action-archive btn-action-sm" title="أرشفة" onclick="console.log('🔘 [TEMPLATE] تم النقر على زر أرشفة النفقة رقم: {{ e.id }}'); archiveExpense({{ e.id }})">
+                    <i class="fas fa-archive"></i>
+                  </button>
+                  {% endif %}
+                  <form method="post" action="{{ url_for('expenses_bp.delete', exp_id=e.id) }}" onsubmit="return confirm('حذف المصروف؟');" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-sm btn-danger" title="حذف عادي"><i class="fas fa-trash"></i></button>
+                  </form>
+                  <a href="{{ url_for('hard_delete_bp.delete_expense', expense_id=e.id) }}"
+                     class="btn btn-sm btn-outline-danger" title="حذف قوي"
+                     onclick="return confirm('حذف قوي - سيتم حذف جميع البيانات المرتبطة!')">
+                    <i class="fas fa-bomb"></i>
+                  </a>
+                {% endif %}
+                {% if current_user.has_permission('manage_payments') and not e.is_paid and e.balance and e.balance > 0 %}
+                  <a href="{{ url_for('expenses_bp.pay', exp_id=e.id) }}" class="btn btn-sm btn-outline-success" title="دفع ({{ '%.2f'|format(e.balance) }} ₪)"><i class="fas fa-money-bill-wave"></i></a>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          {# … نفس الإجماليات … #}
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/expenses.js') }}"></script>
+<script>
+  // وظائف الأرشفة متوفرة الآن في archive.js
+  console.log('📋 تم تحميل صفحة النفقات - وظائف الأرشفة متوفرة');
+</script>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}محرر قاعدة البيانات{% endblock %}
+{% block page_title %}🛠️ محرر قاعدة البيانات المتقدم{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  {% include 'security/_navigation.html' %}
+  
+  <div class="alert alert-danger border-0 shadow">
+    <i class="fas fa-radiation"></i> <strong>تحذير شديد:</strong> صلاحيات كاملة لتعديل قاعدة البيانات!
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-dark text-white">
+      <h5 class="mb-0"><i class="fas fa-table"></i> اختر جدول للتحرير</h5>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        {% for table in tables %}
+        <div class="col-md-3 mb-3">
+          <div class="card border-primary">
+            <div class="card-body text-center">
+              <i class="fas fa-database fa-2x text-primary mb-2"></i>
+              <h6>{{ table }}</h6>
+              <a href="{{ url_for('security.db_editor_table', table_name=table) }}" class="btn btn-sm btn-primary">
+                <i class="fas fa-edit"></i> تحرير
+              </a>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

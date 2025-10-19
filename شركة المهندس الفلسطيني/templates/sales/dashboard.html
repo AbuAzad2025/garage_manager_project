@@ -1,0 +1,188 @@
+<!-- File: templates/sales/dashboard.html -->
+{% extends 'base.html' %}
+{% block title %}لوحة المبيعات{% endblock %}
+
+{% block head_extra %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/sales.css') }}">
+  <style>
+    .small-box{border-radius:1rem;box-shadow:0 .5rem 1rem rgba(0,0,0,.08); position:relative; overflow:hidden;}
+    .small-box .icon{opacity:.2; position:absolute; inset-inline-start:16px; top:50%; transform:translateY(-50%); font-size:3.25rem;}
+    .small-box .inner h3{font-weight:800; margin-bottom:.25rem;}
+    .small-box-footer{display:block; padding-top:.35rem; font-size:.925rem; text-decoration:none;}
+    .card{border:0;border-radius:1rem;box-shadow:0 .5rem 1rem rgba(0,0,0,.08)}
+    .card-header{border-bottom:0; background:#f8f9fc;}
+    .table thead th{white-space:nowrap}
+  </style>
+{% endblock %}
+
+{% block content %}
+{# مُنسّق أرقام بسيط #}
+{% macro num(x) -%}
+  {{ "{:,.2f}".format((x or 0)|float) }}
+{%- endmacro %}
+
+<div class="container-fluid py-3">
+  <!-- الصف الأول -->
+  <div class="row">
+    <div class="col-xl-4 col-md-6 mb-3">
+      <div class="small-box bg-primary text-white p-3">
+        <div class="d-flex justify-content-between align-items-center">
+          <div class="inner">
+            <h3 class="mb-1">{{ (total_sales or 0)|int }}</h3>
+            <p class="mb-0">إجمالي عدد الفواتير</p>
+            <a href="{{ url_for('sales_bp.list_sales') }}" class="small-box-footer text-white-50">
+              إلى الفواتير <i class="fas fa-arrow-left mr-1"></i>
+            </a>
+          </div>
+          <div class="icon"><i class="fas fa-receipt"></i></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-4 col-md-6 mb-3">
+      <div class="small-box bg-success text-white p-3">
+        <div class="d-flex justify-content-between align-items-center">
+          <div class="inner">
+            <h3 class="mb-1">{{ num(total_revenue) }}</h3>
+            <p class="mb-0">إجمالي الإيرادات</p>
+            <span class="small-box-footer text-white-50">إجمالي عبر كل الشهور</span>
+          </div>
+          <div class="icon"><i class="fas fa-dollar-sign"></i></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-4 col-md-6 mb-3">
+      <div class="small-box bg-warning text-dark p-3">
+        <div class="d-flex justify-content-between align-items-center">
+          <div class="inner">
+            <h3 class="mb-1">{{ (pending_sales or 0)|int }}</h3>
+            <p class="mb-0">فواتير مسودة</p>
+            <a href="{{ url_for('sales_bp.list_sales', status='DRAFT') }}" class="small-box-footer text-dark">
+              اعرض المسودات <i class="fas fa-arrow-left mr-1"></i>
+            </a>
+          </div>
+          <div class="icon" style="color:#000; opacity:.18;"><i class="fas fa-hourglass-half"></i></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- الصف الثاني: رسوم -->
+  <div class="row">
+    <div class="col-xl-6 mb-3">
+      <div class="card h-100">
+        <div class="card-header font-weight-bold"><i class="fas fa-chart-bar mr-2"></i> عدد الفواتير شهريًا</div>
+        <div class="card-body">
+          <div style="height:320px"><canvas id="salesCountChart" aria-label="عدد الفواتير"></canvas></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-xl-6 mb-3">
+      <div class="card h-100">
+        <div class="card-header font-weight-bold"><i class="fas fa-chart-line mr-2"></i> الإيراد الشهري</div>
+        <div class="card-body">
+          <div style="height:320px"><canvas id="revenueChart" aria-label="الإيراد"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- الصف الثالث: جداول -->
+  <div class="row">
+    <div class="col-xl-6 mb-3">
+      <div class="card h-100">
+        <div class="card-header font-weight-bold"><i class="fas fa-user-tie mr-2"></i> أفضل العملاء</div>
+        <div class="card-body p-0">
+          <table class="table table-striped table-hover mb-0">
+            <thead class="table-dark">
+              <tr><th>العميل</th><th class="text-right">الإنفاق</th></tr>
+            </thead>
+            <tbody>
+              {% for name, spent in top_customers %}
+                <tr>
+                  <td>{{ name }}</td>
+                  <td class="text-right">{{ num(spent) }}</td>
+                </tr>
+              {% else %}
+                <tr><td colspan="2" class="text-center text-muted">لا توجد بيانات</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-6 mb-3">
+      <div class="card h-100">
+        <div class="card-header font-weight-bold"><i class="fas fa-cubes mr-2"></i> أفضل المنتجات</div>
+        <div class="card-body p-0">
+          <table class="table table-striped table-hover mb-0">
+            <thead class="table-dark">
+              <tr><th>المنتج</th><th class="text-center">المباع</th><th class="text-right">الإيراد</th></tr>
+            </thead>
+            <tbody>
+              {% for name, sold, rev in top_products %}
+                <tr>
+                  <td>{{ name }}</td>
+                  <td class="text-center">{{ (sold or 0)|int }}</td>
+                  <td class="text-right">{{ num(rev) }}</td>
+                </tr>
+              {% else %}
+                <tr><td colspan="3" class="text-center text-muted">لا توجد بيانات</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script>
+    (function ensureChart(cb){
+      if(window.Chart) return cb();
+      var s=document.createElement('script');
+      s.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
+      s.onload=cb; document.head.appendChild(s);
+    })(function(){
+      var labels = {{ months|tojson }};
+      var countData = {{ sales_count|tojson }};
+      var revenueData = {{ revenue|tojson }};
+
+      function kfmt(n){ // آلاف/فواصل
+        try { return (n||0).toLocaleString('ar-EG'); } catch(e){ return n; }
+      }
+
+      var ctx1 = document.getElementById('salesCountChart');
+      if (ctx1) {
+        new Chart(ctx1, {
+          type: 'bar',
+          data: { labels: labels, datasets: [{ label: 'عدد الفواتير', data: countData, borderWidth: 2 }] },
+          options: {
+            responsive:true, maintainAspectRatio:false,
+            plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:function(ctx){ return 'عدد: '+kfmt(ctx.parsed.y); } } } },
+            scales:{ y:{ beginAtZero:true, ticks:{ callback:kfmt, precision:0 } } }
+          }
+        });
+      }
+
+      var ctx2 = document.getElementById('revenueChart');
+      if (ctx2) {
+        new Chart(ctx2, {
+          type: 'line',
+          data: { labels: labels, datasets: [{ label: 'الإيراد', data: revenueData, borderWidth: 3, tension:.35, fill:true }] },
+          options: {
+            responsive:true, maintainAspectRatio:false,
+            plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:function(ctx){ return '₪ '+kfmt(ctx.parsed.y); } } } },
+            scales:{ y:{ beginAtZero:true, ticks:{ callback:function(v){ return '₪ '+kfmt(v); } } } }
+          }
+        });
+      }
+    });
+  </script>
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% block title %}طباعة المصاريف{% endblock %}
+
+{% block content %}
+<div class="container mt-4" dir="rtl">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h3 class="mb-0"><i class="fas fa-print me-2"></i> تقرير المصاريف</h3>
+      <div class="text-muted small mt-1">
+        {% if search %}بحث: <strong>{{ search }}</strong> · {% endif %}
+        {% if start %}من: <strong>{{ start.strftime('%Y-%m-%d') }}</strong> · {% endif %}
+        {% if end %}إلى: <strong>{{ end.strftime('%Y-%m-%d') }}</strong> · {% endif %}
+        مولّد: {{ generated_at|format_datetime }}
+      </div>
+    </div>
+    <button class="btn btn-dark d-print-none" onclick="window.print()">
+      <i class="fas fa-print"></i> طباعة
+    </button>
+  </div>
+
+  {% set total_paid_sum = expenses|map(attribute='total_paid')|sum|float %}
+  {% set total_balance_sum = expenses|map(attribute='balance')|sum|float %}
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <table class="table table-bordered table-sm align-middle text-center">
+        <thead class="table-light">
+          <tr>
+            <th>#</th>
+            <th>التاريخ</th>
+            <th>النوع</th>
+            <th>الموظف</th>
+            <th>المستفيد</th>
+            <th>المبلغ</th>
+            <th>العملة</th>
+            <th>طريقة الدفع</th>
+            <th>الوصف</th>
+            <th>ملاحظات</th>
+            <th>رقم الفاتورة</th>
+            <th>المدفوع</th>
+            <th>الرصيد</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in expenses %}
+          {% set pt = e.payee_type or '' %}
+          <tr>
+            <td>{{ e.id }}</td>
+            <td class="text-nowrap">{{ e.date|format_date }}</td>
+            <td>{{ e.type.name if e.type else '—' }}</td>
+            <td>{{ e.employee.name if e.employee else '—' }}</td>
+            <td>
+              {% if pt == 'EMPLOYEE' %}
+                موظّف —
+              {% elif pt == 'UTILITY' %}
+                مرفق —
+              {% elif pt %}
+                أخرى —
+              {% endif %}
+              {{ e.payee_name or e.paid_to or '—' }}
+            </td>
+            <td class="text-end">{{ e.amount|number_format(2) }}</td>
+            <td>{{ e.currency }}</td>
+            <td class="text-nowrap">{{ e.payment_method or '—' }}</td>
+            <td class="text-truncate" style="max-width:260px">{{ e.description or '—' }}</td>
+            <td class="text-truncate" style="max-width:260px">{{ e.notes or '—' }}</td>
+            <td>{{ e.tax_invoice_number or '—' }}</td>
+            <td class="text-end">{{ (e.total_paid or 0)|float|round(2)|number_format(2) }}</td>
+            <td class="text-end">{{ (e.balance or 0)|float|round(2)|number_format(2) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="fw-bold">
+            <th colspan="5" class="text-end">الإجماليات</th>
+            <th class="text-end">{{ total_amount|number_format(2) }}</th>
+            <th></th>
+            <th></th>
+            <th colspan="3" class="text-end">مدفوع/رصيد</th>
+            <th class="text-end">{{ total_paid_sum|round(2)|number_format(2) }}</th>
+            <th class="text-end">{{ total_balance_sum|round(2)|number_format(2) }}</th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+
+<style>
+  @media print {
+    .main-header, .main-footer, .d-print-none { display: none !important; }
+    .content-wrapper, .container { margin: 0; padding: 0; }
+    .card, .card-body { border: none !important; box-shadow: none !important; }
+    table { font-size: 12px; }
+    th, td { padding: 4px !important; }
+  }
+</style>
+{% endblock %}

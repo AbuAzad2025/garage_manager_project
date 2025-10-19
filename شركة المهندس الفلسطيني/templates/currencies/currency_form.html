@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block page_title %}إضافة عملة جديدة{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('currencies.list') }}">إدارة العملات</a></li>
+<li class="breadcrumb-item active">إضافة عملة جديدة</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-plus me-2"></i>
+                    إضافة عملة جديدة
+                </h3>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="code" class="form-label">رمز العملة <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="code" name="code" 
+                                       placeholder="مثال: USD, EUR, ILS" required maxlength="10">
+                                <small class="form-text text-muted">رمز العملة الدولي (3 أحرف)</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="name" class="form-label">اسم العملة <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="name" name="name" 
+                                       placeholder="مثال: الدولار الأمريكي" required>
+                                <small class="form-text text-muted">الاسم الكامل للعملة</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="symbol" class="form-label">رمز العملة</label>
+                                <input type="text" class="form-control" id="symbol" name="symbol" 
+                                       placeholder="مثال: $, €, ₪" maxlength="10">
+                                <small class="form-text text-muted">الرمز المستخدم لعرض العملة</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="decimals" class="form-label">عدد الخانات العشرية</label>
+                                <select class="form-control" id="decimals" name="decimals">
+                                    <option value="0">0 (أرقام صحيحة)</option>
+                                    <option value="1">1</option>
+                                    <option value="2" selected>2 (افتراضي)</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                </select>
+                                <small class="form-text text-muted">عدد الخانات العشرية للعملة</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="is_active" name="is_active" checked>
+                            <label class="form-check-label" for="is_active">
+                                العملة نشطة
+                            </label>
+                        </div>
+                        <small class="form-text text-muted">العملات غير النشطة لن تظهر في القوائم المنسدلة</small>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save me-1"></i>
+                            إضافة العملة
+                        </button>
+                        <a href="{{ url_for('currencies.list') }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i>
+                            إلغاء
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="fas fa-info-circle me-2"></i>
+                    معلومات مهمة
+                </h5>
+            </div>
+            <div class="card-body">
+                <h6>أمثلة على العملات:</h6>
+                <ul class="list-unstyled">
+                    <li><strong>USD</strong> - الدولار الأمريكي ($)</li>
+                    <li><strong>EUR</strong> - اليورو (€)</li>
+                    <li><strong>ILS</strong> - الشيكل الإسرائيلي (₪)</li>
+                    <li><strong>JOD</strong> - الدينار الأردني (د.أ)</li>
+                    <li><strong>AED</strong> - الدرهم الإماراتي (د.إ)</li>
+                    <li><strong>SAR</strong> - الريال السعودي (ر.س)</li>
+                </ul>
+                
+                <h6 class="mt-3">نصائح:</h6>
+                <ul class="list-unstyled">
+                    <li>• استخدم الرموز الدولية المعيارية</li>
+                    <li>• تأكد من صحة الرمز قبل الإضافة</li>
+                    <li>• يمكن تعديل العملة لاحقاً</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // تحويل رمز العملة إلى أحرف كبيرة
+    document.getElementById('code').addEventListener('input', function(e) {
+        e.target.value = e.target.value.toUpperCase();
+    });
+    
+    // التحقق من صحة البيانات قبل الإرسال
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const code = document.getElementById('code').value.trim();
+        const name = document.getElementById('name').value.trim();
+        
+        if (!code || !name) {
+            e.preventDefault();
+            alert('الرمز والاسم مطلوبان');
+            return;
+        }
+        
+        if (code.length < 3) {
+            e.preventDefault();
+            alert('رمز العملة يجب أن يكون 3 أحرف على الأقل');
+            return;
+        }
+    });
+});
+</script>
+{% endblock %}

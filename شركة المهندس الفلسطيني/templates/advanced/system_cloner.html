@@ -1,0 +1,316 @@
+{% extends 'base.html' %}
+{% block title %}مولد الأنظمة المخصصة{% endblock %}
+{% block page_title %}🎯 مولد الأنظمة المخصصة - System Cloner{% endblock %}
+
+{% block head_extra %}
+{{ super() }}
+<style>
+.module-card {
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: 2px solid transparent;
+}
+.module-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+}
+.module-card.selected {
+  border-color: #0056b3;
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+}
+.module-card.required {
+  border-color: #28a745;
+  opacity: 0.7;
+}
+.dependency-badge {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.4rem;
+}
+.info-box {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1.5rem;
+  border-radius: 10px;
+  margin-bottom: 2rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  {% include 'advanced/_navigation.html' %}
+  
+  <div class="info-box shadow-lg">
+    <h4><i class="fas fa-magic"></i> <strong>مولد الأنظمة المخصصة الذكي</strong></h4>
+    <p class="mb-2">اختر الوحدات التي تريدها وسيتم إنشاء نظام مصغر جاهز للتحميل والتشغيل!</p>
+    <ul class="mb-0 small">
+      <li>✅ استنساخ ذكي للملفات والقوالب</li>
+      <li>✅ حل التبعيات تلقائياً</li>
+      <li>✅ إنشاء models.py و app.py مخصص</li>
+      <li>✅ ملف README شامل</li>
+      <li>✅ requirements.txt جاهز</li>
+    </ul>
+  </div>
+
+  <form method="POST" id="clonerForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    
+    <div class="row mb-4">
+      <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body">
+            <label class="form-label fw-bold">
+              <i class="fas fa-tag"></i> اسم النظام المخصص
+            </label>
+            <input type="text" name="clone_name" class="form-control form-control-lg" 
+                   placeholder="مثال: system_lite" required>
+            <small class="text-muted">سيتم إنشاء مجلد بهذا الاسم في: instance/clones/</small>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100 bg-info text-white">
+          <div class="card-body text-center">
+            <h2 class="mb-0"><span id="selectedCount">1</span> / {{ modules|length }}</h2>
+            <p class="mb-0">الوحدات المختارة</p>
+            <small>النواة الأساسية مطلوبة دائماً</small>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100 bg-success text-white">
+          <div class="card-body text-center">
+            <h2 class="mb-0" id="estimatedFiles">~50</h2>
+            <p class="mb-0">ملف متوقع</p>
+            <small>تقدير تقريبي</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-gradient-primary text-white">
+        <h5 class="mb-0"><i class="fas fa-filter"></i> فلترة سريعة</h5>
+      </div>
+      <div class="card-body">
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-outline-primary" onclick="selectAll()">
+            <i class="fas fa-check-double"></i> تحديد الكل
+          </button>
+          <button type="button" class="btn btn-outline-secondary" onclick="deselectAll()">
+            <i class="fas fa-times"></i> إلغاء الكل
+          </button>
+          <button type="button" class="btn btn-outline-success" onclick="selectRecommended()">
+            <i class="fas fa-star"></i> الموصى به
+          </button>
+          <button type="button" class="btn btn-outline-info" onclick="selectMinimal()">
+            <i class="fas fa-compress"></i> الحد الأدنى
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+      {% for key, module in modules.items() %}
+      <div class="col-md-4">
+        <div class="card module-card h-100 {% if module.required %}required{% endif %}" 
+             onclick="toggleModule(this, '{{ key }}', {{ module.required|tojson }})"
+             data-module="{{ key }}">
+          <div class="card-body">
+            <div class="form-check">
+              <input type="checkbox" name="modules" value="{{ key }}" 
+                     class="form-check-input module-checkbox" 
+                     id="module_{{ key }}"
+                     {% if module.required %}checked disabled{% endif %}>
+              <label class="form-check-label w-100" for="module_{{ key }}">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <h6 class="mb-0">
+                    {{ module.name }}
+                    {% if module.required %}
+                      <span class="badge bg-success">مطلوب</span>
+                    {% endif %}
+                  </h6>
+                  <i class="fas fa-check-circle text-success" style="display:none;"></i>
+                </div>
+                <p class="text-muted small mb-2">{{ module.description }}</p>
+                
+                {% if module.dependencies %}
+                <div class="mb-2">
+                  <small class="text-muted">يعتمد على:</small><br>
+                  {% for dep in module.dependencies %}
+                    <span class="badge bg-secondary dependency-badge">{{ dep }}</span>
+                  {% endfor %}
+                </div>
+                {% endif %}
+                
+                <div class="small text-muted">
+                  <i class="fas fa-database"></i> {{ module.files.models|length }} موديل
+                  <i class="fas fa-route ms-2"></i> {{ module.files.routes|length }} route
+                  <i class="fas fa-file-code ms-2"></i> {{ module.files.templates|length }} قالب
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="card border-0 shadow-lg mb-4" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+      <div class="card-body text-white">
+        <h5 class="mb-3"><i class="fas fa-exclamation-triangle"></i> شروط وضوابط مهمة:</h5>
+        <ul class="mb-0">
+          <li>✅ النواة الأساسية (Core) مطلوبة دائماً ولا يمكن إلغاؤها</li>
+          <li>✅ سيتم حل التبعيات تلقائياً (إذا اخترت Sales سيتم تضمين Customers)</li>
+          <li>✅ النظام المستنسخ سيكون مستقلاً تماماً</li>
+          <li>✅ يجب تشغيل <code>flask db upgrade</code> بعد الاستنساخ</li>
+          <li>⚠️ قد تحتاج لتعديل بعض الملفات يدوياً حسب احتياجك</li>
+          <li>⚠️ النظام المستنسخ لن يحتوي على البيانات - فقط الهيكل</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="text-center">
+      <button type="submit" class="btn btn-lg shadow-lg fw-bold" 
+              style="background: linear-gradient(135deg, #FA8BFF 0%, #2BD2FF 50%, #2BFF88 100%); 
+                     color: white; min-width: 400px; padding: 1rem 2rem; font-size: 1.2rem;">
+        <i class="fas fa-magic"></i> إنشاء النظام المخصص الآن
+      </button>
+      <p class="text-muted mt-2 small">سيتم إنشاء مجلد كامل مع جميع الملفات المطلوبة</p>
+    </div>
+  </form>
+
+  {% if download_ready %}
+  <div class="alert alert-success border-0 shadow-lg mt-4 text-center animate__animated animate__bounceIn">
+    <h5><i class="fas fa-check-circle"></i> النظام جاهز للتحميل!</h5>
+    <a href="{{ url_for('advanced.download_cloned_system', clone_name=download_ready) }}" 
+       class="btn btn-success btn-lg mt-2">
+      <i class="fas fa-download"></i> تحميل {{ download_ready }}.zip
+    </a>
+  </div>
+  {% endif %}
+
+  {% if cloned_systems %}
+  <div class="card border-0 shadow-sm mt-4">
+    <div class="card-header bg-gradient-info text-white">
+      <h5 class="mb-0"><i class="fas fa-archive"></i> الأنظمة المستنسخة ({{ cloned_systems|length }})</h5>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead class="table-light">
+            <tr>
+              <th>الاسم</th>
+              <th>الحجم</th>
+              <th>تاريخ الإنشاء</th>
+              <th>الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for system in cloned_systems %}
+            <tr>
+              <td><strong>{{ system.name }}</strong></td>
+              <td><span class="badge bg-info">{{ system.size }}</span></td>
+              <td>{{ system.created }}</td>
+              <td>
+                <a href="{{ url_for('advanced.download_cloned_system', clone_name=system.name) }}" 
+                   class="btn btn-sm btn-success">
+                  <i class="fas fa-download"></i> تحميل
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+const modulesData = {{ modules|tojson }};
+
+function toggleModule(card, key, required) {
+  if (required) return;
+  
+  const checkbox = card.querySelector('.module-checkbox');
+  checkbox.checked = !checkbox.checked;
+  
+  if (checkbox.checked) {
+    card.classList.add('selected');
+    card.querySelector('.fa-check-circle').style.display = 'block';
+  } else {
+    card.classList.remove('selected');
+    card.querySelector('.fa-check-circle').style.display = 'none';
+  }
+  
+  updateCount();
+}
+
+function updateCount() {
+  const count = document.querySelectorAll('.module-checkbox:checked').length;
+  document.getElementById('selectedCount').textContent = count;
+  document.getElementById('estimatedFiles').textContent = '~' + (count * 15);
+}
+
+function selectAll() {
+  document.querySelectorAll('.module-checkbox:not([disabled])').forEach(cb => {
+    cb.checked = true;
+    cb.closest('.module-card').classList.add('selected');
+    cb.closest('.module-card').querySelector('.fa-check-circle').style.display = 'block';
+  });
+  updateCount();
+}
+
+function deselectAll() {
+  document.querySelectorAll('.module-checkbox:not([disabled])').forEach(cb => {
+    cb.checked = false;
+    cb.closest('.module-card').classList.remove('selected');
+    cb.closest('.module-card').querySelector('.fa-check-circle').style.display = 'none';
+  });
+  updateCount();
+}
+
+function selectRecommended() {
+  deselectAll();
+  const recommended = ['customers', 'sales', 'service', 'payments', 'warehouses', 'reports'];
+  recommended.forEach(key => {
+    const checkbox = document.getElementById('module_' + key);
+    if (checkbox && !checkbox.disabled) {
+      checkbox.checked = true;
+      checkbox.closest('.module-card').classList.add('selected');
+      checkbox.closest('.module-card').querySelector('.fa-check-circle').style.display = 'block';
+    }
+  });
+  updateCount();
+}
+
+function selectMinimal() {
+  deselectAll();
+  const minimal = ['customers', 'payments'];
+  minimal.forEach(key => {
+    const checkbox = document.getElementById('module_' + key);
+    if (checkbox && !checkbox.disabled) {
+      checkbox.checked = true;
+      checkbox.closest('.module-card').classList.add('selected');
+      checkbox.closest('.module-card').querySelector('.fa-check-circle').style.display = 'block';
+    }
+  });
+  updateCount();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.module-checkbox:checked:not([disabled])').forEach(cb => {
+    cb.closest('.module-card').classList.add('selected');
+    cb.closest('.module-card').querySelector('.fa-check-circle').style.display = 'block';
+  });
+  document.querySelectorAll('.module-checkbox:checked[disabled]').forEach(cb => {
+    cb.closest('.module-card').querySelector('.fa-check-circle').style.display = 'block';
+  });
+  updateCount();
+});
+</script>
+{% endblock %}

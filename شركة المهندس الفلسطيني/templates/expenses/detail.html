@@ -1,0 +1,206 @@
+{% extends 'base.html' %}
+{% block title %}تفاصيل المصروف #{{ expense.id }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4" dir="rtl">
+  
+  <!-- شريط الأدوات -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white">
+      <div class="d-flex justify-content-between align-items-center">
+        <h3 class="mb-0">
+          <i class="fas fa-file-invoice-dollar me-2"></i>
+          تفاصيل المصروف #{{ expense.id }}
+        </h3>
+        <div class="d-flex gap-2">
+          <a href="{{ url_for('expenses_bp.list_expenses') }}" class="btn btn-outline-light">
+            <i class="fas fa-arrow-right me-1"></i> رجوع
+          </a>
+          {% if has_perm('manage_payments') %}
+          <a href="{{ url_for('expenses_bp.pay', exp_id=expense.id) }}" class="btn btn-success">
+            <i class="fas fa-money-bill-wave me-1"></i> دفع
+          </a>
+          {% endif %}
+          {% if has_perm('manage_expenses') %}
+          <a href="{{ url_for('expenses_bp.edit', exp_id=expense.id) }}" class="btn btn-warning">
+            <i class="fas fa-edit me-1"></i> تعديل
+          </a>
+          <form method="post" action="{{ url_for('expenses_bp.delete', exp_id=expense.id) }}" style="display:inline;" onsubmit="return confirm('حذف المصروف؟');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-danger"><i class="fas fa-trash me-1"></i> حذف</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="card card-outline card-primary">
+    <div class="card-header bg-light">
+      <h5 class="card-title mb-0 text-primary">
+        <i class="fas fa-info-circle me-2"></i>معلومات المصروف
+      </h5>
+    </div>
+
+    <div class="card-body">
+      <dl class="row mb-0">
+        <dt class="col-sm-3 text-end">رقم المصروف</dt>
+        <dd class="col-sm-9">#{{ expense.id }}</dd>
+
+        <dt class="col-sm-3 text-end">التاريخ</dt>
+        <dd class="col-sm-9">{{ expense.date|format_datetime }}</dd>
+
+        <dt class="col-sm-3 text-end">المبلغ</dt>
+        <dd class="col-sm-9">{{ expense.amount|number_format(2) }} {{ expense.currency }}</dd>
+
+        <dt class="col-sm-3 text-end">العملة</dt>
+        <dd class="col-sm-9">{{ expense.currency }}</dd>
+
+        <dt class="col-sm-3 text-end">النوع</dt>
+        <dd class="col-sm-9">{{ expense.type.name if expense.type else '—' }}</dd>
+
+        <dt class="col-sm-3 text-end">الموظف</dt>
+        <dd class="col-sm-9">{{ expense.employee.name if expense.employee else '—' }}</dd>
+
+        <dt class="col-sm-3 text-end">المستفيد</dt>
+        <dd class="col-sm-9">
+          {% if expense.payee_type == 'EMPLOYEE' %}
+            <span class="badge bg-info text-dark me-1">موظّف</span>
+          {% elif expense.payee_type == 'UTILITY' %}
+            <span class="badge bg-secondary me-1">مرفق</span>
+          {% elif expense.payee_type %}
+            <span class="badge bg-light text-dark me-1">أخرى</span>
+          {% endif %}
+          {{ expense.payee_name or expense.paid_to or '—' }}
+        </dd>
+
+        <dt class="col-sm-3 text-end">الشحنة</dt>
+        <dd class="col-sm-9">{{ expense.shipment.number if expense.shipment else '—' }}</dd>
+
+        <dt class="col-sm-3 text-end">حساب المرفق</dt>
+        <dd class="col-sm-9">
+          {% if expense.utility_account %}
+            {{ expense.utility_account.alias or expense.utility_account.provider }}
+          {% else %}—{% endif %}
+        </dd>
+
+        <dt class="col-sm-3 text-end">تسوية مخزون</dt>
+        <dd class="col-sm-9">{{ expense.stock_adjustment_id or '—' }}</dd>
+
+        <dt class="col-sm-3 text-end">المستودع</dt>
+        <dd class="col-sm-9">{{ expense.warehouse.name if expense.warehouse else '—' }}</dd>
+
+        <dt class="col-sm-3 text-end">الشريك</dt>
+        <dd class="col-sm-9">{{ expense.partner.name if expense.partner else '—' }}</dd>
+
+        <dt class="col-sm-3 text-end">بداية الفترة</dt>
+        <dd class="col-sm-9">{{ expense.period_start|format_date if expense.period_start else '—' }}</dd>
+
+        <dt class="col-sm-3 text-end">نهاية الفترة</dt>
+        <dd class="col-sm-9">{{ expense.period_end|format_date if expense.period_end else '—' }}</dd>
+
+        <dt class="col-sm-3 text-end">طريقة الدفع</dt>
+        <dd class="col-sm-9">{{ expense.payment_method or '—' }}</dd>
+
+        {% if (expense.payment_method or '').lower() == 'cheque' %}
+        <dt class="col-sm-3 text-end">رقم الشيك</dt>
+        <dd class="col-sm-9">{{ expense.check_number or '—' }}</dd>
+        <dt class="col-sm-3 text-end">البنك</dt>
+        <dd class="col-sm-9">{{ expense.check_bank or '—' }}</dd>
+        <dt class="col-sm-3 text-end">تاريخ الاستحقاق</dt>
+        <dd class="col-sm-9">{{ expense.check_due_date|format_date if expense.check_due_date else '—' }}</dd>
+        {% elif (expense.payment_method or '').lower() == 'bank' %}
+        <dt class="col-sm-3 text-end">مرجع التحويل</dt>
+        <dd class="col-sm-9">{{ expense.bank_transfer_ref or '—' }}</dd>
+        {% elif (expense.payment_method or '').lower() == 'card' %}
+        <dt class="col-sm-3 text-end">حامل البطاقة</dt>
+        <dd class="col-sm-9">{{ expense.card_holder or '—' }}</dd>
+        <dt class="col-sm-3 text-end">رقم البطاقة</dt>
+        <dd class="col-sm-9">{{ expense.card_number and ('**** **** **** ' ~ expense.card_number) or '—' }}</dd>
+        <dt class="col-sm-3 text-end">انتهاء البطاقة</dt>
+        <dd class="col-sm-9">{{ expense.card_expiry or '—' }}</dd>
+        {% elif (expense.payment_method or '').lower() == 'online' %}
+        <dt class="col-sm-3 text-end">بوابة الدفع</dt>
+        <dd class="col-sm-9">{{ expense.online_gateway or '—' }}</dd>
+        <dt class="col-sm-3 text-end">مرجع العملية</dt>
+        <dd class="col-sm-9">{{ expense.online_ref or '—' }}</dd>
+        {% endif %}
+
+        <dt class="col-sm-3 text-end">تفاصيل الدفع</dt>
+        <dd class="col-sm-9">{{ expense.payment_details or '—' }}</dd>
+
+        <dt class="col-sm-3 text-end">رقم فاتورة ضريبية</dt>
+        <dd class="col-sm-9">{{ expense.tax_invoice_number or '—' }}</dd>
+
+        <dt class="col-sm-3 text-end">الوصف</dt>
+        <dd class="col-sm-9">{{ expense.description or '—' }}</dd>
+
+        <dt class="col-sm-3 text-end">ملاحظات</dt>
+        <dd class="col-sm-9">{{ expense.notes or '—' }}</dd>
+
+        <dt class="col-sm-3 text-end">المدفوع حتى الآن</dt>
+        <dd class="col-sm-9">{{ (expense.total_paid or 0)|float|round(2)|number_format(2) }} {{ expense.currency }}</dd>
+
+        <dt class="col-sm-3 text-end">الرصيد المتبقي</dt>
+        <dd class="col-sm-9">{{ (expense.balance or 0)|float|round(2)|number_format(2) }} {{ expense.currency }}</dd>
+
+        <dt class="col-sm-3 text-end">مدفوع بالكامل</dt>
+        <dd class="col-sm-9">
+          {% if expense.is_paid %}
+            <span class="badge bg-success">مدفوع</span>
+          {% else %}
+            <span class="badge bg-danger">غير مدفوع</span>
+          {% endif %}
+        </dd>
+
+        {% if expense.created_at %}
+        <dt class="col-sm-3 text-end">تاريخ الإنشاء</dt>
+        <dd class="col-sm-9">{{ expense.created_at|format_datetime }}</dd>
+        {% endif %}
+
+        {% if expense.updated_at %}
+        <dt class="col-sm-3 text-end">آخر تعديل</dt>
+        <dd class="col-sm-9">{{ expense.updated_at|format_datetime }}</dd>
+        {% endif %}
+      </dl>
+    </div>
+  </div>
+
+  {% if expense.payments and expense.payments|length > 0 %}
+  <div class="card card-outline card-secondary mt-3">
+    <div class="card-header">
+      <h5 class="card-title mb-0"><i class="fas fa-list me-1"></i> الدفعات المرتبطة</h5>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-striped mb-0">
+        <thead>
+          <tr>
+            <th>التاريخ</th>
+            <th>المبلغ</th>
+            <th>العملة</th>
+            <th>الحالة</th>
+            <th>رقم الدفعة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in expense.payments %}
+          <tr>
+            <td>{{ p.payment_date|format_date if p.payment_date else '—' }}</td>
+            <td>{{ (p.total_amount or 0)|float|round(2)|number_format(2) }}</td>
+            <td>{{ p.currency or expense.currency }}</td>
+            <td>{{ p.status or '—' }}</td>
+            <td>{{ p.payment_number or p.id }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/expenses.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+
+{% block title %}كشف مفصل للعميل - {{ customer.name }}{% endblock %}
+
+{% block content %}
+<div class="content-wrapper py-4 px-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">
+            <i class="fas fa-user text-primary me-2"></i>
+            كشف مفصل للعميل: {{ customer.name }}
+        </h2>
+        <div class="btn-group">
+            <a href="{{ url_for('reports_bp.customers_report') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-right me-1"></i>
+                العودة للقائمة
+            </a>
+            <button onclick="window.print()" class="btn btn-outline-primary">
+                <i class="fas fa-print me-1"></i>
+                طباعة
+            </button>
+        </div>
+    </div>
+
+    <!-- معلومات العميل -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>معلومات العميل</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-sm-6">
+                            <strong>الاسم:</strong> {{ customer.name }}<br>
+                            <strong>الهاتف:</strong> {{ customer.phone or 'غير محدد' }}<br>
+                            <strong>البريد الإلكتروني:</strong> {{ customer.email or 'غير محدد' }}
+                        </div>
+                        <div class="col-sm-6">
+                            <strong>الرصيد الحالي:</strong> 
+                            <span class="badge {% if current_balance >= 0 %}bg-success{% else %}bg-danger{% endif %} fs-6">
+                                {{ current_balance|format_currency }}
+                            </span><br>
+                            <strong>حد الائتمان:</strong> {{ customer.credit_limit|format_currency if customer.credit_limit else 'غير محدد' }}<br>
+                            <strong>نسبة الخصم:</strong> {{ customer.discount_rate or 0 }}%
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>ملخص الإجماليات</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6 mb-2">
+                            <div class="border-end">
+                                <strong class="text-success">إجمالي المبيعات</strong><br>
+                                <span class="fs-5">{{ total_sales|format_currency }}</span>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-2">
+                            <strong class="text-primary">إجمالي الفواتير</strong><br>
+                            <span class="fs-5">{{ total_invoices|format_currency }}</span>
+                        </div>
+                        <div class="col-6">
+                            <strong class="text-warning">إجمالي الصيانة</strong><br>
+                            <span class="fs-5">{{ total_services|format_currency }}</span>
+                        </div>
+                        <div class="col-6">
+                            <strong class="text-info">إجمالي المدفوعات</strong><br>
+                            <span class="fs-5">{{ total_payments|format_currency }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- فلتر التاريخ -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-4">
+                    <label for="start" class="form-label">من تاريخ</label>
+                    <input type="date" class="form-control" id="start" name="start" value="{{ start_date }}">
+                </div>
+                <div class="col-md-4">
+                    <label for="end" class="form-label">إلى تاريخ</label>
+                    <input type="date" class="form-control" id="end" name="end" value="{{ end_date }}">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-search me-1"></i>تصفية
+                    </button>
+                    <a href="{{ url_for('reports_bp.customer_detail_report', customer_id=customer.id) }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-1"></i>إلغاء
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- المبيعات -->
+    {% if sales %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-shopping-cart me-2"></i>
+                المبيعات ({{ sales|length }} عملية)
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>رقم البيع</th>
+                            <th>التاريخ</th>
+                            <th>الحالة</th>
+                            <th>طريقة الدفع</th>
+                            <th>المبلغ</th>
+                            <th>العملة</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sale in sales %}
+                        <tr>
+                            <td>{{ sale.sale_number or sale.id }}</td>
+                            <td>{{ sale.sale_date.strftime('%Y-%m-%d') if sale.sale_date else 'غير محدد' }}</td>
+                            <td>
+                                <span class="badge bg-{% if sale.status == 'CONFIRMED' %}success{% elif sale.status == 'PENDING' %}warning{% else %}secondary{% endif %}">
+                                    {{ sale.status }}
+                                </span>
+                            </td>
+                            <td>{{ sale.payment_method or 'غير محدد' }}</td>
+                            <td>{{ sale.total_amount|format_currency }}</td>
+                            <td>{{ sale.currency or 'ILS' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- الفواتير -->
+    {% if invoices %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-file-invoice me-2"></i>
+                الفواتير ({{ invoices|length }} فاتورة)
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>رقم الفاتورة</th>
+                            <th>التاريخ</th>
+                            <th>الحالة</th>
+                            <th>المبلغ</th>
+                            <th>المدفوع</th>
+                            <th>المتبقي</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for invoice in invoices %}
+                        <tr>
+                            <td>{{ invoice.invoice_number or invoice.id }}</td>
+                            <td>{{ invoice.invoice_date.strftime('%Y-%m-%d') if invoice.invoice_date else 'غير محدد' }}</td>
+                            <td>
+                                <span class="badge bg-{% if invoice.status == 'PAID' %}success{% elif invoice.status == 'PARTIAL' %}warning{% else %}danger{% endif %}">
+                                    {{ invoice.status }}
+                                </span>
+                            </td>
+                            <td>{{ invoice.total_amount|format_currency }}</td>
+                            <td>{{ invoice.total_paid|format_currency }}</td>
+                            <td>{{ (invoice.total_amount - invoice.total_paid)|format_currency }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- طلبات الصيانة -->
+    {% if services %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-warning text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-tools me-2"></i>
+                طلبات الصيانة ({{ services|length }} طلب)
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>رقم الطلب</th>
+                            <th>تاريخ الاستلام</th>
+                            <th>الأولوية</th>
+                            <th>الميكانيكي</th>
+                            <th>التكلفة</th>
+                            <th>الحالة</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for service in services %}
+                        <tr>
+                            <td>{{ service.id }}</td>
+                            <td>{{ service.received_at.strftime('%Y-%m-%d') if service.received_at else 'غير محدد' }}</td>
+                            <td>
+                                <span class="badge bg-{% if service.priority == 'HIGH' %}danger{% elif service.priority == 'MEDIUM' %}warning{% else %}info{% endif %}">
+                                    {{ service.priority }}
+                                </span>
+                            </td>
+                            <td>{{ service.mechanic_id or 'غير محدد' }}</td>
+                            <td>{{ service.service_cost|format_currency }}</td>
+                            <td>
+                                <span class="badge bg-{% if service.status == 'COMPLETED' %}success{% elif service.status == 'IN_PROGRESS' %}warning{% else %}secondary{% endif %}">
+                                    {{ service.status }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- المدفوعات -->
+    {% if payments %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-credit-card me-2"></i>
+                المدفوعات ({{ payments|length }} دفعة)
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>رقم الدفعة</th>
+                            <th>التاريخ</th>
+                            <th>طريقة الدفع</th>
+                            <th>المبلغ</th>
+                            <th>الحالة</th>
+                            <th>ملاحظات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in payments %}
+                        <tr>
+                            <td>{{ payment.id }}</td>
+                            <td>{{ payment.payment_date.strftime('%Y-%m-%d') if payment.payment_date else 'غير محدد' }}</td>
+                            <td>{{ payment.method or 'غير محدد' }}</td>
+                            <td>{{ payment.total_amount|format_currency }}</td>
+                            <td>
+                                <span class="badge bg-{% if payment.status == 'COMPLETED' %}success{% elif payment.status == 'PENDING' %}warning{% else %}danger{% endif %}">
+                                    {{ payment.status }}
+                                </span>
+                            </td>
+                            <td>{{ payment.notes or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- الطلبات المسبقة -->
+    {% if preorders %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-secondary text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-shopping-bag me-2"></i>
+                الطلبات المسبقة ({{ preorders|length }} طلب)
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>رقم الطلب</th>
+                            <th>تاريخ الإنشاء</th>
+                            <th>المبلغ</th>
+                            <th>الحالة</th>
+                            <th>ملاحظات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for preorder in preorders %}
+                        <tr>
+                            <td>{{ preorder.id }}</td>
+                            <td>{{ preorder.created_at.strftime('%Y-%m-%d') if preorder.created_at else 'غير محدد' }}</td>
+                            <td>{{ preorder.total_amount|format_currency }}</td>
+                            <td>
+                                <span class="badge bg-{% if preorder.status == 'CONFIRMED' %}success{% elif preorder.status == 'PENDING' %}warning{% else %}secondary{% endif %}">
+                                    {{ preorder.status }}
+                                </span>
+                            </td>
+                            <td>{{ preorder.notes or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- رسالة في حالة عدم وجود بيانات -->
+    {% if not sales and not invoices and not services and not payments and not preorders %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">لا توجد معاملات في الفترة المحددة</h5>
+            <p class="text-muted">لم يتم العثور على أي معاملات للعميل في الفترة المحددة.</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

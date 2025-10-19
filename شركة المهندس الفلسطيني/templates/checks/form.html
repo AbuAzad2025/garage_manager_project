@@ -1,0 +1,490 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ 'تعديل شيك' if check else 'إضافة شيك جديد' }}{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+  <div class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2">
+        <div class="col-sm-6">
+          <h1 class="m-0">
+            <i class="fas fa-money-check-alt"></i>
+            {{ 'تعديل شيك' if check else 'إضافة شيك جديد' }}
+          </h1>
+        </div>
+        <div class="col-sm-6">
+          <ol class="breadcrumb float-sm-right">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('checks.index') }}">الشيكات</a></li>
+            <li class="breadcrumb-item active">{{ 'تعديل' if check else 'إضافة' }}</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <section class="content">
+    <div class="container-fluid">
+      <form method="POST" id="checkForm">
+        <div class="row">
+          <!-- القسم الأول: معلومات الشيك الأساسية -->
+          <div class="col-md-6">
+            <div class="card card-primary">
+              <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-info-circle"></i> معلومات الشيك</h3>
+              </div>
+              <div class="card-body">
+                <div class="form-group">
+                  <label for="check_number">رقم الشيك *</label>
+                  <input type="text" class="form-control" id="check_number" name="check_number" 
+                         value="{{ check.check_number if check else '' }}" required>
+                </div>
+
+                <div class="form-group">
+                  <label for="check_bank">اسم البنك *</label>
+                  <input type="text" class="form-control" id="check_bank" name="check_bank" 
+                         value="{{ check.check_bank if check else '' }}" required
+                         placeholder="مثال: بنك فلسطين">
+                </div>
+
+                <div class="row">
+                  <div class="col-md-6">
+                    <div class="form-group">
+                      <label for="check_date">تاريخ الشيك *</label>
+                      <input type="date" class="form-control" id="check_date" name="check_date" 
+                             value="{{ check.check_date.strftime('%Y-%m-%d') if check else '' }}" required>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="form-group">
+                      <label for="check_due_date">تاريخ الاستحقاق *</label>
+                      <input type="date" class="form-control" id="check_due_date" name="check_due_date" 
+                             value="{{ check.check_due_date.strftime('%Y-%m-%d') if check else '' }}" required>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="row">
+                  <div class="col-md-8">
+                    <div class="form-group">
+                      <label for="amount">المبلغ *</label>
+                      <input type="number" step="0.01" class="form-control" id="amount" name="amount" 
+                             value="{{ check.amount if check else '' }}" required>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="form-group">
+                      <label for="currency">العملة *</label>
+                      <select class="form-control" id="currency" name="currency" required>
+                        {% for curr in currencies %}
+                        <option value="{{ curr }}" {{ 'selected' if check and check.currency == curr else '' }}>{{ curr }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="direction">نوع الشيك *</label>
+                  <select class="form-control" id="direction" name="direction" required>
+                    <option value="IN" {{ 'selected' if check and check.direction == 'IN' else '' }}>
+                      شيك وارد (نستلم)
+                    </option>
+                    <option value="OUT" {{ 'selected' if check and check.direction == 'OUT' else '' }}>
+                      شيك صادر (ندفع)
+                    </option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="reference_number">رقم مرجعي</label>
+                  <input type="text" class="form-control" id="reference_number" name="reference_number" 
+                         value="{{ check.reference_number if check else '' }}" 
+                         placeholder="رقم مرجعي للتتبع (اختياري)">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- القسم الثاني: معلومات الساحب والمستفيد -->
+          <div class="col-md-6">
+            <div class="card card-info">
+              <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-users"></i> معلومات الأطراف</h3>
+              </div>
+              <div class="card-body">
+                <!-- معلومات الساحب -->
+                <div id="drawerSection">
+                  <h5 class="text-info"><i class="fas fa-user-edit"></i> معلومات الساحب (من يصدر الشيك)</h5>
+                  <div class="form-group">
+                    <label for="drawer_name">اسم الساحب</label>
+                    <input type="text" class="form-control" id="drawer_name" name="drawer_name" 
+                           value="{{ check.drawer_name if check else '' }}">
+                  </div>
+                  <div class="row">
+                    <div class="col-md-6">
+                      <div class="form-group">
+                        <label for="drawer_phone">هاتف الساحب</label>
+                        <input type="tel" class="form-control" id="drawer_phone" name="drawer_phone" 
+                               value="{{ check.drawer_phone if check else '' }}">
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-group">
+                        <label for="drawer_id_number">رقم الهوية</label>
+                        <input type="text" class="form-control" id="drawer_id_number" name="drawer_id_number" 
+                               value="{{ check.drawer_id_number if check else '' }}">
+                      </div>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label for="drawer_address">عنوان الساحب</label>
+                    <textarea class="form-control" id="drawer_address" name="drawer_address" rows="2">{{ check.drawer_address if check else '' }}</textarea>
+                  </div>
+                </div>
+
+                <hr>
+
+                <!-- معلومات المستفيد -->
+                <div id="payeeSection">
+                  <h5 class="text-success"><i class="fas fa-user-check"></i> معلومات المستفيد (من يستلم الشيك)</h5>
+                  <div class="form-group">
+                    <label for="payee_name">اسم المستفيد</label>
+                    <input type="text" class="form-control" id="payee_name" name="payee_name" 
+                           value="{{ check.payee_name if check else '' }}">
+                  </div>
+                  <div class="row">
+                    <div class="col-md-6">
+                      <div class="form-group">
+                        <label for="payee_phone">هاتف المستفيد</label>
+                        <input type="tel" class="form-control" id="payee_phone" name="payee_phone" 
+                               value="{{ check.payee_phone if check else '' }}">
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-group">
+                        <label for="payee_account">رقم الحساب</label>
+                        <input type="text" class="form-control" id="payee_account" name="payee_account" 
+                               value="{{ check.payee_account if check else '' }}">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- القسم الثالث: الربط والملاحظات -->
+        <div class="row">
+          <div class="col-md-6">
+            <div class="card card-warning">
+              <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-link"></i> ربط بجهة (اختياري)</h3>
+              </div>
+              <div class="card-body">
+                <div class="form-group">
+                  <label for="entity_type">نوع الجهة</label>
+                  <select class="form-control" id="entity_type">
+                    <option value="">-- بدون ربط --</option>
+                    <option value="customer">عميل</option>
+                    <option value="supplier">مورد</option>
+                    <option value="partner">شريك</option>
+                  </select>
+                </div>
+
+                <div class="form-group" id="customerSelect" style="display: none;">
+                  <label for="customer_id">العميل</label>
+                  <div class="input-group">
+                    <select class="form-control select2" id="customer_id" name="customer_id" data-placeholder="ابحث عن عميل...">
+                      <option value="">-- اختر عميل --</option>
+                      {% for customer in customers %}
+                      <option value="{{ customer.id }}" 
+                              data-phone="{{ customer.phone }}" 
+                              data-email="{{ customer.email }}"
+                              {{ 'selected' if check and check.customer_id == customer.id else '' }}>
+                        {{ customer.name }}{% if customer.phone %} - {{ customer.phone }}{% endif %}
+                      </option>
+                      {% endfor %}
+                    </select>
+                    <div class="input-group-append">
+                      <a href="{{ url_for('customers_bp.create_form') }}" class="btn btn-action-add" target="_blank" title="إضافة عميل جديد">
+                        <i class="fas fa-plus"></i>
+                      </a>
+                    </div>
+                  </div>
+                  <small class="form-text text-muted">
+                    <i class="fas fa-info-circle"></i> لم تجد العميل؟ 
+                    <a href="{{ url_for('customers_bp.create_form') }}" target="_blank">أضف عميل جديد</a>
+                  </small>
+                </div>
+
+                <div class="form-group" id="supplierSelect" style="display: none;">
+                  <label for="supplier_id">المورد</label>
+                  <div class="input-group">
+                    <select class="form-control select2" id="supplier_id" name="supplier_id" data-placeholder="ابحث عن مورد...">
+                      <option value="">-- اختر مورد --</option>
+                      {% for supplier in suppliers %}
+                      <option value="{{ supplier.id }}" 
+                              data-phone="{{ supplier.phone }}" 
+                              data-email="{{ supplier.email }}"
+                              {{ 'selected' if check and check.supplier_id == supplier.id else '' }}>
+                        {{ supplier.name }}{% if supplier.phone %} - {{ supplier.phone }}{% endif %}
+                      </option>
+                      {% endfor %}
+                    </select>
+                    <div class="input-group-append">
+                      <a href="{{ url_for('vendors_bp.suppliers_create') }}" class="btn btn-action-add" target="_blank" title="إضافة مورد جديد">
+                        <i class="fas fa-plus"></i>
+                      </a>
+                    </div>
+                  </div>
+                  <small class="form-text text-muted">
+                    <i class="fas fa-info-circle"></i> لم تجد المورد؟ 
+                    <a href="{{ url_for('vendors_bp.suppliers_create') }}" target="_blank">أضف مورد جديد</a>
+                  </small>
+                </div>
+
+                <div class="form-group" id="partnerSelect" style="display: none;">
+                  <label for="partner_id">الشريك</label>
+                  <div class="input-group">
+                    <select class="form-control select2" id="partner_id" name="partner_id" data-placeholder="ابحث عن شريك...">
+                      <option value="">-- اختر شريك --</option>
+                      {% for partner in partners %}
+                      <option value="{{ partner.id }}" 
+                              data-phone="{{ partner.phone_number }}" 
+                              data-email="{{ partner.email }}"
+                              {{ 'selected' if check and check.partner_id == partner.id else '' }}>
+                        {{ partner.name }}{% if partner.phone_number %} - {{ partner.phone_number }}{% endif %}
+                      </option>
+                      {% endfor %}
+                    </select>
+                    <div class="input-group-append">
+                      <a href="{{ url_for('vendors_bp.partners_create') }}" class="btn btn-action-add" target="_blank" title="إضافة شريك جديد">
+                        <i class="fas fa-plus"></i>
+                      </a>
+                    </div>
+                  </div>
+                  <small class="form-text text-muted">
+                    <i class="fas fa-info-circle"></i> لم تجد الشريك؟ 
+                    <a href="{{ url_for('vendors_bp.partners_create') }}" target="_blank">أضف شريك جديد</a>
+                  </small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="card card-secondary">
+              <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-sticky-note"></i> ملاحظات</h3>
+              </div>
+              <div class="card-body">
+                <div class="form-group">
+                  <label for="notes">ملاحظات عامة</label>
+                  <textarea class="form-control" id="notes" name="notes" rows="4" 
+                            placeholder="ملاحظات يمكن مشاركتها...">{{ check.notes if check else '' }}</textarea>
+                </div>
+
+                <div class="form-group">
+                  <label for="internal_notes">ملاحظات داخلية</label>
+                  <textarea class="form-control" id="internal_notes" name="internal_notes" rows="4" 
+                            placeholder="ملاحظات داخلية لا تظهر للعملاء...">{{ check.internal_notes if check else '' }}</textarea>
+                  <small class="form-text text-muted">هذه الملاحظات لن تظهر في التقارير العامة</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- أزرار الإجراءات -->
+        <div class="row">
+          <div class="col-12">
+            <div class="card">
+              <div class="card-body">
+                <button type="submit" class="btn btn-success btn-lg">
+                  <i class="fas fa-save"></i> حفظ الشيك
+                </button>
+                <a href="{{ url_for('checks.index') }}" class="btn btn-secondary btn-lg">
+                  <i class="fas fa-times"></i> إلغاء
+                </a>
+                {% if check %}
+                <a href="{{ url_for('checks.check_detail', check_id=check.id) }}" class="btn btn-info btn-lg">
+                  <i class="fas fa-eye"></i> عرض التفاصيل
+                </a>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </section>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // تأكد من تحميل jQuery و Select2
+  if (typeof jQuery === 'undefined' || typeof $.fn.select2 === 'undefined') {
+    console.error('jQuery أو Select2 غير محمل');
+    return;
+  }
+
+  const entityType = document.getElementById('entity_type');
+  const customerSelect = document.getElementById('customerSelect');
+  const supplierSelect = document.getElementById('supplierSelect');
+  const partnerSelect = document.getElementById('partnerSelect');
+  
+  // تهيئة Select2 للبحث الذكي
+  function initSelect2(selector, placeholder) {
+    $(selector).select2({
+      theme: 'bootstrap4',
+      dir: 'rtl',
+      placeholder: placeholder,
+      language: {
+        noResults: function() {
+          return "لا توجد نتائج";
+        },
+        searching: function() {
+          return "جاري البحث...";
+        }
+      },
+      width: '100%',
+      allowClear: true
+    });
+  }
+  
+  // التحكم في عرض قوائم الجهات
+  entityType.addEventListener('change', function() {
+    console.log('نوع الجهة المختار:', this.value);
+    
+    // إخفاء جميع القوائم وإلغاء تفعيل Select2
+    try {
+      if (typeof $.fn.select2 !== 'undefined') {
+        $('#customer_id').select2('destroy');
+        $('#supplier_id').select2('destroy');
+        $('#partner_id').select2('destroy');
+      }
+    } catch(e) {
+      // تجاهل الأخطاء إذا لم يكن select2 مهيأ
+      console.log('تحذير: خطأ في destroy select2:', e.message);
+    }
+    
+    customerSelect.style.display = 'none';
+    supplierSelect.style.display = 'none';
+    partnerSelect.style.display = 'none';
+    
+    // مسح القيم من الحقول المخفية
+    document.getElementById('customer_id').value = '';
+    document.getElementById('supplier_id').value = '';
+    document.getElementById('partner_id').value = '';
+    
+    if (this.value === 'customer') {
+      console.log('عرض قائمة العملاء');
+      customerSelect.style.display = 'block';
+      setTimeout(function() {
+        initSelect2('#customer_id', 'ابحث عن عميل...');
+      }, 100);
+    } else if (this.value === 'supplier') {
+      console.log('عرض قائمة الموردين');
+      supplierSelect.style.display = 'block';
+      setTimeout(function() {
+        initSelect2('#supplier_id', 'ابحث عن مورد...');
+      }, 100);
+    } else if (this.value === 'partner') {
+      console.log('عرض قائمة الشركاء');
+      partnerSelect.style.display = 'block';
+      setTimeout(function() {
+        initSelect2('#partner_id', 'ابحث عن شريك...');
+      }, 100);
+    }
+  });
+  
+  // تحديد القيمة الحالية عند التعديل
+  {% if check %}
+    {% if check.customer_id %}
+      entityType.value = 'customer';
+      customerSelect.style.display = 'block';
+      setTimeout(function() {
+        initSelect2('#customer_id', 'ابحث عن عميل...');
+      }, 100);
+    {% elif check.supplier_id %}
+      entityType.value = 'supplier';
+      supplierSelect.style.display = 'block';
+      setTimeout(function() {
+        initSelect2('#supplier_id', 'ابحث عن مورد...');
+      }, 100);
+    {% elif check.partner_id %}
+      entityType.value = 'partner';
+      partnerSelect.style.display = 'block';
+      setTimeout(function() {
+        initSelect2('#partner_id', 'ابحث عن شريك...');
+      }, 100);
+    {% endif %}
+  {% endif %}
+  
+  // التحقق من صحة النموذج
+  document.getElementById('checkForm').addEventListener('submit', function(e) {
+    const amount = parseFloat(document.getElementById('amount').value);
+    if (amount <= 0) {
+      e.preventDefault();
+      alert('يرجى إدخال مبلغ صحيح');
+      return false;
+    }
+    
+    const checkDate = new Date(document.getElementById('check_date').value);
+    const dueDate = new Date(document.getElementById('check_due_date').value);
+    
+    if (dueDate < checkDate) {
+      if (!confirm('تاريخ الاستحقاق أقل من تاريخ الشيك. هل تريد المتابعة؟')) {
+        e.preventDefault();
+        return false;
+      }
+    }
+  });
+});
+</script>
+
+<style>
+.card-header {
+  font-weight: bold;
+}
+.form-group label {
+  font-weight: 600;
+}
+.btn-lg {
+  padding: 10px 30px;
+  font-size: 16px;
+}
+/* تحسينات Select2 */
+.select2-container--bootstrap4 .select2-selection {
+  border-color: #ced4da;
+  min-height: 38px;
+}
+.select2-container--bootstrap4.select2-container--focus .select2-selection {
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+.input-group-append .btn {
+  height: 38px;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.select2-container {
+  width: 100% !important;
+}
+.select2-results__option {
+  text-align: right;
+}
+/* تحسين شكل الروابط */
+.form-text a {
+  font-weight: 600;
+  text-decoration: underline;
+}
+.form-text a:hover {
+  color: #0056b3;
+}
+</style>
+{% endblock %}
+

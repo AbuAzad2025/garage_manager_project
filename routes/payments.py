@@ -51,9 +51,11 @@ from models import (
     PaymentMethod,
     PaymentSplit,
     PaymentStatus,
+    PaymentProgress,
     PreOrder,
     PreOrderStatus,
     Sale,
+    SaleStatus,
     ServiceRequest,
     Shipment,
     Supplier,
@@ -930,8 +932,20 @@ def create_payment():
                 if payment.sale_id:
                     sale = db.session.get(Sale, payment.sale_id)
                     if sale and hasattr(sale, "update_payment_status"):
+                        old_paid = float(sale.total_paid or 0)
                         sale.update_payment_status()
                         db.session.add(sale)
+                        
+                        # خصم المخزون عند اكتمال الدفع (إذا كانت مؤكدة ومدفوعة)
+                        if sale.status == SaleStatus.CONFIRMED and sale.payment_status == PaymentProgress.PAID.value and old_paid < float(sale.total or 0):
+                            from routes.sales import _deduct_stock
+                            try:
+                                _deduct_stock(sale)
+                            except Exception as stock_err:
+                                # إذا فشل الخصم، نسجل الخطأ لكن لا نمنع الدفع
+                                import traceback
+                                traceback.print_exc()
+                                print(f"⚠️ تحذير: فشل خصم المخزون للبيع {sale.sale_number}: {stock_err}")
                         
                         # إذا كانت المبيعة من حجز مسبق ومدفوعة بالكامل، نحدث حالة الحجز
                         if sale.preorder_id and sale.balance_due <= 0:

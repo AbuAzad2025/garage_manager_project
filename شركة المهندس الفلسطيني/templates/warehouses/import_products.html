@@ -1,0 +1,51 @@
+{% extends 'warehouses/base.html' %}
+{% block title %}استيراد منتجات{% endblock %}
+{% block page_title %}استيراد منتجات - {{ warehouse.name }}{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/import.css') }}">
+<div class="card shadow-sm">
+  <div class="card-body">
+    <form method="post" enctype="multipart/form-data" id="upload-form" novalidate>
+      {{ form.hidden_tag() }}
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">الملف</label>
+          {{ form.file(class="form-control", accept=".csv,.xlsx,.xls") }}
+          {% for err in form.file.errors %}
+            <div class="text-danger small">{{ err }}</div>
+          {% endfor %}
+        </div>
+        <div class="col-md-6">
+          {% if form.duplicate_strategy %}
+          <label class="form-label">سياسة التكرار</label>
+          {{ form.duplicate_strategy(class="form-select") }}
+          {% endif %}
+        </div>
+        <div class="col-md-6 d-flex align-items-center">
+          {% if form.dry_run %}
+          <div class="form-check me-3">
+            {{ form.dry_run(class="form-check-input", id="dry_run") }}
+            <label class="form-check-label" for="dry_run">فحص فقط</label>
+          </div>
+          {% endif %}
+          {% if form.continue_after_warnings %}
+          <div class="form-check">
+            {{ form.continue_after_warnings(class="form-check-input", id="continue_after_warnings") }}
+            <label class="form-check-label" for="continue_after_warnings">المتابعة رغم التحذيرات</label>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      <div class="d-flex gap-2 mt-3">
+        <button class="btn btn-primary">رفع وفحص</button>
+        <a class="btn btn-secondary" href="{{ url_for('warehouse_bp.detail', warehouse_id=warehouse.id) }}">رجوع</a>
+      </div>
+    </form>
+    <div class="mt-4">
+      <div class="small text-muted mb-2">يدعم CSV وXLSX. الترويسات الموصى بها:</div>
+      <pre class="bg-light p-2 border rounded small mb-0"><code>name,sku,part_number,brand,description,commercial_name,chassis_number,serial_no,barcode,unit,category_name,price,selling_price,purchase_price,cost_before_shipping,cost_after_shipping,unit_price_before_tax,min_price,max_price,tax_rate,min_qty,reorder_point,condition,origin_country,warranty_period,weight,dimensions,image,notes,quantity</code></pre>
+    </div>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='js/import_upload.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% set st = enum_val(payment.status) %}
+{% set is_completed = st == 'COMPLETED' %}
+{% set m = (enum_val(s.method) | string) | lower %}
+{% set d = s.details if s.details is mapping else {} %}
+
+<tr id="split-{{ s.id }}">
+  <td>{{ loop.index }}.</td>
+
+  <td class="amount-cell" data-amount="{{ '%.0f'|format(s.amount or 0) }}">
+    {{ '%.0f'|format(s.amount or 0) }} {{ payment.currency or '' }}
+  </td>
+
+  <td>{{ m|upper }}</td>
+
+  <td>
+    {% if m in ['cheque', 'check'] %}
+      رقم الشيك: {{ d.get('check_number') or '—' }}<br>
+      البنك: {{ d.get('check_bank') or '—' }}<br>
+      الاستحقاق: {{ d.get('check_due_date') or d.get('due_date') or '—' }}
+
+    {% elif m in ['bank', 'transfer', 'bank_transfer'] %}
+      مرجع التحويل: {{ d.get('bank_transfer_ref') or d.get('reference') or '—' }}
+
+    {% elif m in ['card', 'credit'] %}
+      بطاقة: {{
+        (d.get('card_last4') and ('****' ~ (d.get('card_last4')|string)))
+        or (d.get('card_number') and ('****' ~ ((d.get('card_number')|string)[-4:])) )
+        or '—'
+      }}<br>
+      حامل البطاقة: {{ d.get('card_holder') or '—' }}<br>
+      انتهاء: {{ d.get('card_expiry') or '—' }}
+
+    {% elif m in ['online', 'mobile'] %}
+      البوابة: {{ d.get('online_gateway') or d.get('gateway') or '—' }}<br>
+      المرجع: {{ d.get('online_ref') or d.get('reference') or '—' }}
+
+    {% elif m == 'cash' %}
+      نقداً
+
+    {% else %}
+      —
+    {% endif %}
+  </td>
+
+  <td>
+    <button type="button"
+            class="btn btn-sm btn-danger remove-split"
+            data-split-id="{{ s.id }}"
+            {% if is_completed %}disabled{% endif %}>
+      🗑️ حذف
+    </button>
+  </td>
+</tr>

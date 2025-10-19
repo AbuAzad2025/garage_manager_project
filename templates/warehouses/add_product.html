@@ -33,46 +33,69 @@
   </div>
 {% endif %}
 
-  <div class="text-muted mb-2">الحقول المعلّمة بعلامة <span class="req">*</span> مطلوبة</div>
-  <div class="alert alert-info mb-3">
-    نوع المستودع: <strong>{{ wtype }}</strong>
-  </div>
-
-  <div class="card mb-3 shadow-sm">
-    <div class="card-header">التعريف / المعرّفات</div>
-    <div class="card-body">
-      <div class="row g-3">
-        <div class="col-md-6">{{ product_form.name.label }} {{ product_form.name(class_="form-control", required=True) }}</div>
-        <div class="col-md-3">{{ product_form.sku.label }} {{ product_form.sku(class_="form-control") }}</div>
-        <div class="col-md-3">
-          {{ product_form.barcode.label }}
-          {{ product_form.barcode(
-               class_="form-control",
-               id="barcode",
-               dir="ltr",
-               inputmode="numeric",
-               maxlength="13",
-               placeholder="EAN-13 أو UPC-A",
-               **{'data-barcode-url': url_for('api.barcode_validate')}
-             ) }}
-          <small id="barcodeHelp" class="form-text text-muted">امسح الباركود بالقارئ</small>
-        </div>
-        <div class="col-md-4">{{ product_form.part_number.label }} {{ product_form.part_number(class_="form-control") }}</div>
-        <div class="col-md-4">{{ product_form.serial_no.label }} {{ product_form.serial_no(class_="form-control") }}</div>
-        <div class="col-md-4">{{ product_form.chassis_number.label }} {{ product_form.chassis_number(class_="form-control") }}</div>
-        <div class="col-md-6">{{ product_form.commercial_name.label }} {{ product_form.commercial_name(class_="form-control") }}</div>
-        <div class="col-md-6">{{ product_form.brand.label }} {{ product_form.brand(class_="form-control") }}</div>
+  <div class="alert alert-primary mb-3">
+    <div class="d-flex align-items-center">
+      <i class="fas fa-warehouse fa-2x me-3"></i>
+      <div>
+        <strong>نوع المستودع: {{ wtype }}</strong>
+        <div class="small">الحقول المعلّمة بـ <span class="text-danger">*</span> إلزامية</div>
       </div>
     </div>
   </div>
 
-  <div class="card mb-3 shadow-sm">
-    <div class="card-header">الوصف والتصنيف</div>
+  <!-- القسم 1: المعلومات الأساسية -->
+  <div class="card mb-3 shadow-sm border-primary">
+    <div class="card-header bg-primary text-white">
+      <i class="fas fa-info-circle me-1"></i> المعلومات الأساسية
+    </div>
     <div class="card-body">
-      <div class="mb-3">{{ product_form.description.label }} {{ product_form.description(class_="form-control", rows="3") }}</div>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">{{ product_form.name.label.text }} <span class="text-danger">*</span></label>
+          {{ product_form.name(class_="form-control", required=True, placeholder="مثال: كمبرسر خلاطات") }}
+          <small class="text-muted"><i class="fas fa-info-circle"></i> اسم القطعة كما سيظهر في الفواتير</small>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">{{ product_form.sku.label.text }} <span class="text-muted">(اختياري)</span></label>
+          {{ product_form.sku(class_="form-control", placeholder="مثال: COMP-001") }}
+          <small class="text-muted"><i class="fas fa-tag"></i> كود داخلي للبحث السريع</small>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">{{ product_form.part_number.label.text }} <span class="text-muted">(اختياري)</span></label>
+          {{ product_form.part_number(class_="form-control", placeholder="رقم القطعة") }}
+          <small class="text-muted"><i class="fas fa-hashtag"></i> رقم القطعة من المصنع</small>
+        </div>
+        <div class="col-md-12">
+          <label class="form-label">{{ product_form.barcode.label.text }} <span class="text-muted">(اختياري)</span></label>
+          <div class="input-group">
+            {{ product_form.barcode(
+                 class_="form-control",
+                 id="barcode",
+                 dir="ltr",
+                 inputmode="numeric",
+                 maxlength="13",
+                 placeholder="EAN-13 أو UPC-A",
+                 **{'data-barcode-url': url_for('api.barcode_validate')}
+               ) }}
+            <button type="button" class="btn btn-outline-secondary" onclick="alert('وجّه القارئ للحقل واضغط مسح')">
+              <i class="fas fa-barcode"></i> مسح
+            </button>
+          </div>
+          <small class="text-muted"><i class="fas fa-camera"></i> يمكن مسحه بقارئ الباركود</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- القسم 2: التصنيف -->
+  <div class="card mb-3 shadow-sm">
+    <div class="card-header bg-secondary text-white">
+      <i class="fas fa-tags me-1"></i> التصنيف والنوع
+    </div>
+    <div class="card-body">
       <div class="row g-3">
         <div class="col-md-4">
-          <label class="form-label">{{ product_form.category_id.label.text }}</label>
+          <label class="form-label">{{ product_form.category_id.label.text }} <span class="text-muted">(اختياري)</span></label>
           <div class="input-group">
             {{ product_form.category_id(
                  class_="form-control select2",
@@ -82,9 +105,10 @@
                ) }}
             <button type="button" class="btn btn-outline-primary" id="btn-add-category" data-toggle="modal" data-target="#categoryModal">+</button>
           </div>
+          <small class="text-muted"><i class="fas fa-folder"></i> تصنيف المنتج (مثال: محركات، إطارات)</small>
         </div>
         <div class="col-md-4">
-          <label class="form-label">{{ product_form.vehicle_type_id.label.text }}</label>
+          <label class="form-label">{{ product_form.vehicle_type_id.label.text }} <span class="text-muted">(اختياري)</span></label>
           <div class="input-group">
             {{ product_form.vehicle_type_id(
                  class_="form-control select2",
@@ -94,134 +118,338 @@
                ) }}
             <button type="button" class="btn btn-outline-primary" id="btn-add-vehicle-type" data-toggle="modal" data-target="#equipmentTypeModal">+</button>
           </div>
+          <small class="text-muted"><i class="fas fa-truck"></i> نوع السيارة/المعدة (مثال: جيب، شاحنة، حفار)</small>
         </div>
-        <div class="col-md-2">{{ product_form.condition.label }} {{ product_form.condition(class_="form-select") }}</div>
-        <div class="col-md-2">{{ product_form.origin_country.label }} {{ product_form.origin_country(class_="form-control") }}</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card mb-3 shadow-sm">
-    <div class="card-header">التسعير والضرائب</div>
-    <div class="card-body">
-      <div class="row g-3">
-        <div class="col-md-3">{{ product_form.price.label }} {{ product_form.price(class_="form-control", required=True) }}</div>
-        <div class="col-md-3">{{ product_form.unit_price_before_tax.label }} {{ product_form.unit_price_before_tax(class_="form-control") }}</div>
-        <div class="col-md-2">{{ product_form.tax_rate.label }} {{ product_form.tax_rate(class_="form-control") }}</div>
-        <div class="col-md-2">{{ product_form.min_price.label }} {{ product_form.min_price(class_="form-control") }}</div>
-        <div class="col-md-2">{{ product_form.max_price.label }} {{ product_form.max_price(class_="form-control") }}</div>
-      </div>
-      <div class="row g-3 mt-3">
-        <div class="col-md-3">{{ product_form.cost_before_shipping.label }} {{ product_form.cost_before_shipping(class_="form-control") }}</div>
-        <div class="col-md-3">{{ product_form.cost_after_shipping.label }} {{ product_form.cost_after_shipping(class_="form-control") }}</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card mb-3 shadow-sm">
-    <div class="card-header">المخزون والحدود</div>
-    <div class="card-body">
-      <div class="row g-3">
-        <div class="col-md-2">{{ stock_form.quantity.label }} {{ stock_form.quantity(class_="form-control") }}</div>
-        <div class="col-md-2">{{ stock_form.reserved_quantity.label }} {{ stock_form.reserved_quantity(class_="form-control") }}</div>
-        <div class="col-md-2">{{ stock_form.min_stock.label }} {{ stock_form.min_stock(class_="form-control") }}</div>
-        <div class="col-md-2">{{ stock_form.max_stock.label }} {{ stock_form.max_stock(class_="form-control") }}</div>
-        <div class="col-md-2">{{ product_form.min_qty.label }} {{ product_form.min_qty(class_="form-control") }}</div>
-        <div class="col-md-2">{{ product_form.reorder_point.label }} {{ product_form.reorder_point(class_="form-control") }}</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card mb-3 shadow-sm">
-    <div class="card-header">المواصفات</div>
-    <div class="card-body">
-      <div class="row g-3 align-items-center">
-        <div class="col-md-3">{{ product_form.weight.label }} {{ product_form.weight(class_="form-control") }}</div>
-        <div class="col-md-3">{{ product_form.dimensions.label }} {{ product_form.dimensions(class_="form-control") }}</div>
-        <div class="col-md-3">{{ product_form.warranty_period.label }} {{ product_form.warranty_period(class_="form-control") }}</div>
-        <div class="col-md-3 d-flex gap-3 align-items-center">
-          <div class="form-check">
-            {{ product_form.is_active(class_="form-check-input", id="is_active_id") }}
-            <label class="form-check-label" for="is_active_id">{{ product_form.is_active.label.text }}</label>
-          </div>
-          <div class="form-check">
-            {{ product_form.is_digital(class_="form-check-input", id="is_digital_id") }}
-            <label class="form-check-label" for="is_digital_id">{{ product_form.is_digital.label.text }}</label>
-          </div>
-          <div class="form-check">
-            {{ product_form.is_exchange(class_="form-check-input", id="is_exchange_id") }}
-            <label class="form-check-label" for="is_exchange_id">{{ product_form.is_exchange.label.text }}</label>
-          </div>
+        <div class="col-md-4">
+          <label class="form-label">{{ product_form.brand.label.text }} <span class="text-muted">(اختياري)</span></label>
+          {{ product_form.brand(class_="form-control", placeholder="مثال: Toyota, Caterpillar") }}
+          <small class="text-muted"><i class="fas fa-copyright"></i> الماركة أو الشركة المصنعة</small>
         </div>
       </div>
     </div>
   </div>
 
-  <div class="card mb-3 {% if (wtype|upper) == 'PARTNER' %}{% else %}d-none{% endif %}" id="partner-section">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <span>مساهمات الشركاء</span>
+  <!-- القسم 3: التسعير والكمية -->
+  <div class="card mb-3 shadow-sm border-success">
+    <div class="card-header bg-success text-white">
+      <i class="fas fa-dollar-sign me-1"></i> التسعير والكمية
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label">{{ product_form.price.label.text }} <span class="text-danger">*</span></label>
+          <div class="input-group">
+            {{ product_form.price(class_="form-control", required=True, placeholder="0.00") }}
+            <span class="input-group-text">₪</span>
+          </div>
+          <small class="text-muted"><i class="fas fa-money-bill-wave text-success"></i> السعر الذي سنبيع به للعملاء</small>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">{{ stock_form.quantity.label.text }} <span class="text-muted">(اختياري)</span></label>
+          {{ stock_form.quantity(class_="form-control", placeholder="0") }}
+          <small class="text-muted"><i class="fas fa-boxes"></i> عدد القطع المُضافة الآن</small>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">{{ product_form.min_qty.label.text }} <span class="text-muted">(اختياري)</span></label>
+          {{ product_form.min_qty(class_="form-control", placeholder="5") }}
+          <small class="text-muted"><i class="fas fa-bell text-warning"></i> تنبيه عند النقص لهذا العدد</small>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">{{ product_form.tax_rate.label.text }} <span class="text-muted">(اختياري)</span></label>
+          <div class="input-group">
+            {{ product_form.tax_rate(class_="form-control", placeholder="16") }}
+            <span class="input-group-text">%</span>
+          </div>
+          <small class="text-muted"><i class="fas fa-percent"></i> نسبة الضريبة</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- القسم 4: مساهمات الشركاء (يظهر فقط لمستودعات الشراكة) -->
+  <div class="card mb-3 shadow-sm border-warning {% if (wtype|upper) == 'PARTNER' %}{% else %}d-none{% endif %}" id="partner-section">
+    <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+      <div>
+        <i class="fas fa-handshake me-1"></i> مساهمات الشركاء
+        <small class="ms-2">(خاص بمستودعات الشراكة)</small>
+      </div>
       <div class="d-flex gap-2">
-        <a href="{{ url_for('vendors_bp.partners_create') }}" class="btn btn-sm btn-outline-primary" target="_blank">شريك جديد</a>
-        <button type="button" id="add-partner-btn" class="btn btn-sm btn-secondary">إضافة صف</button>
+        <a href="{{ url_for('vendors_bp.partners_create') }}" class="btn btn-sm btn-outline-dark" target="_blank">
+          <i class="fas fa-user-plus"></i> شريك جديد
+        </a>
+        <button type="button" id="add-partner-btn" class="btn btn-sm btn-dark">
+          <i class="fas fa-plus"></i> إضافة صف
+        </button>
       </div>
     </div>
     <div class="card-body" id="partners-container">
       {% for p_form in partners_forms %}
-      <div class="partner-entry border rounded p-3 mb-3">
-        {{ p_form.partner_id.label }}
+      <div class="partner-entry border rounded p-3 mb-3 bg-light">
+        <label class="form-label">الشريك <span class="text-danger">*</span></label>
         {{ p_form.partner_id(
              class_="form-control select2",
              placeholder="اختر الشريك",
              **{'data-url': url_for('api.search_partners')}
            ) }}
+        <small class="text-muted"><i class="fas fa-user"></i> الشريك صاحب الحصة في هذه القطعة</small>
+        
         <div class="row g-2 mt-2">
-          <div class="col-md-4">{{ p_form.share_percentage.label }} {{ p_form.share_percentage(class_="form-control") }}</div>
-          <div class="col-md-4">{{ p_form.share_amount.label }} {{ p_form.share_amount(class_="form-control") }}</div>
-          <div class="col-md-4">{{ p_form.notes.label }} {{ p_form.notes(class_="form-control") }}</div>
+          <div class="col-md-4">
+            <label class="form-label">{{ p_form.share_percentage.label.text }} <span class="text-danger">*</span></label>
+            <div class="input-group">
+              {{ p_form.share_percentage(class_="form-control", placeholder="50") }}
+              <span class="input-group-text">%</span>
+            </div>
+            <small class="text-muted"><i class="fas fa-percentage"></i> نسبة حصة الشريك</small>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">{{ p_form.share_amount.label.text }} <span class="text-muted">(اختياري)</span></label>
+            {{ p_form.share_amount(class_="form-control", placeholder="0.00") }}
+            <small class="text-muted"><i class="fas fa-coins"></i> القيمة المالية للحصة</small>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">{{ p_form.notes.label.text }} <span class="text-muted">(اختياري)</span></label>
+            {{ p_form.notes(class_="form-control", placeholder="ملاحظات") }}
+            <small class="text-muted"><i class="fas fa-comment"></i> أي ملاحظات إضافية</small>
+          </div>
         </div>
-        <button type="button" class="btn btn-sm btn-danger remove-partner-btn mt-3">حذف</button>
+        <button type="button" class="btn btn-sm btn-danger remove-partner-btn mt-3">
+          <i class="fas fa-trash"></i> حذف
+        </button>
       </div>
       {% endfor %}
     </div>
   </div>
 
-  <div class="card mb-3 {% if (wtype|upper) == 'EXCHANGE' %}{% else %}d-none{% endif %}" id="exchange-section">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <span>تجار / مورّدون للتبادل</span>
-      <div class="d-flex gap-2">
-        <a href="{{ url_for('vendors_bp.suppliers_create') }}" class="btn btn-sm btn-outline-primary" target="_blank">مورّد جديد</a>
-        <button type="button" id="add-vendor-btn" class="btn btn-sm btn-secondary">إضافة صف</button>
+  <!-- القسم 4: معلومات المورّد/التاجر (يظهر فقط لمستودعات التبادل) -->
+  <div class="card mb-3 shadow-sm border-info {% if (wtype|upper) == 'EXCHANGE' %}{% else %}d-none{% endif %}" id="exchange-section">
+    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+      <div>
+        <i class="fas fa-truck-loading me-1"></i> معلومات المورّد/التاجر
+        <small class="ms-2">(خاص بمستودعات التبادل)</small>
       </div>
+      <button type="button" id="add-vendor-btn" class="btn btn-sm btn-light">
+        <i class="fas fa-plus"></i> إضافة صف
+      </button>
     </div>
     <div class="card-body" id="vendors-container">
+      <div class="alert alert-info mb-3">
+        <i class="fas fa-lightbulb"></i> <strong>ملاحظة مهمة:</strong>
+        المورد اختياري، لكن يُنصح بتحديده لتتبع الحسابات بدقة.
+      </div>
+      
       {% for v_form in exchange_vendors_forms %}
-      <div class="vendor-entry border rounded p-3 mb-3">
-        <div class="row g-2">
-          <div class="col-md-6">
-            {{ v_form.supplier_id.label }}
+      <div class="vendor-entry border rounded p-3 mb-3 bg-light">
+        <div class="row g-3">
+          <div class="col-md-12">
+            <label class="form-label">{{ v_form.supplier_id.label.text }} <span class="text-muted">(اختياري)</span></label>
             <div class="input-group">
               {{ v_form.supplier_id(
                    class_="form-control select2",
-                   placeholder="اختر المورد",
+                   placeholder="اختر المورد/التاجر",
                    **{'data-url': url_for('api.search_suppliers')}
                  ) }}
-              <button type="button" class="btn btn-outline-primary add-supplier-btn" data-toggle="modal" data-target="#supplierModal">+</button>
+              <a href="{{ url_for('vendors_bp.suppliers_create') }}" target="_blank" class="btn btn-outline-primary" title="إضافة مورد جديد">
+                <i class="fas fa-plus"></i>
+              </a>
+            </div>
+            <small class="text-muted"><i class="fas fa-user-tie"></i> التاجر صاحب القطعة (يمكن تركه فارغاً)</small>
+          </div>
+          
+          <div class="col-md-6">
+            <label class="form-label">{{ v_form.vendor_price.label.text }}</label>
+            <div class="input-group">
+              {{ v_form.vendor_price(class_="form-control", placeholder="0.00") }}
+              <span class="input-group-text">₪</span>
+            </div>
+            <small class="text-muted"><i class="fas fa-dollar-sign text-success"></i> سعر تكلفة القطعة الواحدة</small>
+          </div>
+          
+          <div class="col-md-6">
+            <label class="form-label">{{ v_form.vendor_paid.label.text }} <span class="text-muted">(اختياري)</span></label>
+            <div class="input-group">
+              {{ v_form.vendor_paid(class_="form-control", placeholder="0.00") }}
+              <span class="input-group-text">₪</span>
+            </div>
+            <small class="text-muted">
+              <i class="fas fa-hand-holding-usd text-warning"></i> 
+              المبلغ المدفوع <strong>للقطعة الواحدة</strong>
+            </small>
+          </div>
+          
+          <div class="col-md-12">
+            <div class="alert alert-warning mb-0 py-2">
+              <i class="fas fa-calculator"></i> <strong>تلقائي:</strong>
+              سيتم إنشاء دفعة صادرة = (الكمية × المبلغ المدفوع)
             </div>
           </div>
-          <div class="col-md-6">{{ v_form.vendor_phone.label }} {{ v_form.vendor_phone(class_="form-control") }}</div>
-          <div class="col-md-6">{{ v_form.vendor_paid.label }} {{ v_form.vendor_paid(class_="form-control") }}</div>
-          <div class="col-md-6">{{ v_form.vendor_price.label }} {{ v_form.vendor_price(class_="form-control") }}</div>
-          <div class="col-12"><small class="text-muted">اختر مورّدًا من القائمة أو أضِف جديدًا عند الحاجة.</small></div>
+          
+          <div class="col-md-12">
+            <label class="form-label">{{ v_form.vendor_phone.label.text }} <span class="text-muted">(اختياري)</span></label>
+            {{ v_form.vendor_phone(class_="form-control", placeholder="05xxxxxxxx") }}
+            <small class="text-muted"><i class="fas fa-phone"></i> رقم هاتف المورد للتواصل</small>
+          </div>
         </div>
-        <button type="button" class="btn btn-sm btn-danger remove-vendor-btn mt-3">حذف</button>
+        <button type="button" class="btn btn-sm btn-danger remove-vendor-btn mt-3">
+          <i class="fas fa-trash"></i> حذف
+        </button>
       </div>
       {% endfor %}
+    </div>
+  </div>
+
+  <!-- القسم 5: تفاصيل إضافية (قابل للطي) -->
+  <div class="card mb-3 shadow-sm">
+    <div class="card-header" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#additionalDetails" aria-expanded="false">
+      <i class="fas fa-angle-down me-2"></i>
+      <strong>تفاصيل إضافية</strong>
+      <span class="text-muted small">(اضغط لعرض 21 حقل إضافي)</span>
+    </div>
+    <div id="additionalDetails" class="collapse">
+      <div class="card-body">
+        
+        <!-- معرّفات إضافية -->
+        <h6 class="text-primary border-bottom pb-2 mb-3"><i class="fas fa-id-card"></i> معرّفات إضافية</h6>
+        <div class="row g-3 mb-4">
+          <div class="col-md-4">
+            <label class="form-label">{{ product_form.serial_no.label.text }}</label>
+            {{ product_form.serial_no(class_="form-control", placeholder="رقم تسلسلي") }}
+            <small class="text-muted">للتتبع والضمان</small>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">{{ product_form.chassis_number.label.text }}</label>
+            {{ product_form.chassis_number(class_="form-control", placeholder="رقم شاصي السيارة") }}
+            <small class="text-muted">مهم للسيارات والمعدات</small>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">{{ product_form.commercial_name.label.text }}</label>
+            {{ product_form.commercial_name(class_="form-control", placeholder="الاسم التجاري") }}
+            <small class="text-muted">اسم بديل للعرض</small>
+          </div>
+        </div>
+
+        <!-- الوصف والحالة -->
+        <h6 class="text-primary border-bottom pb-2 mb-3"><i class="fas fa-file-alt"></i> الوصف والحالة</h6>
+        <div class="row g-3 mb-4">
+          <div class="col-md-8">
+            <label class="form-label">{{ product_form.description.label.text }}</label>
+            {{ product_form.description(class_="form-control", rows="2", placeholder="وصف تفصيلي للقطعة") }}
+            <small class="text-muted">معلومات إضافية عن القطعة</small>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">{{ product_form.condition.label.text }}</label>
+            {{ product_form.condition(class_="form-select") }}
+            <small class="text-muted">جديد/مستعمل/معاد تصنيع</small>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">{{ product_form.origin_country.label.text }}</label>
+            {{ product_form.origin_country(class_="form-control", placeholder="الصين") }}
+            <small class="text-muted">بلد المنشأ</small>
+          </div>
+        </div>
+
+        <!-- تسعير متقدم -->
+        <h6 class="text-primary border-bottom pb-2 mb-3"><i class="fas fa-chart-line"></i> تسعير متقدم</h6>
+        <div class="row g-3 mb-4">
+          <div class="col-md-3">
+            <label class="form-label">{{ product_form.unit_price_before_tax.label.text }}</label>
+            {{ product_form.unit_price_before_tax(class_="form-control", placeholder="0.00") }}
+            <small class="text-muted">يُحسب تلقائياً من السعر والضريبة</small>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">{{ product_form.min_price.label.text }}</label>
+            {{ product_form.min_price(class_="form-control", placeholder="0.00") }}
+            <small class="text-muted">الحد الأدنى للسعر</small>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">{{ product_form.max_price.label.text }}</label>
+            {{ product_form.max_price(class_="form-control", placeholder="0.00") }}
+            <small class="text-muted">الحد الأقصى للسعر</small>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">{{ product_form.cost_before_shipping.label.text }}</label>
+            {{ product_form.cost_before_shipping(class_="form-control", placeholder="0.00") }}
+            <small class="text-muted">التكلفة قبل الشحن</small>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">{{ product_form.cost_after_shipping.label.text }}</label>
+            {{ product_form.cost_after_shipping(class_="form-control", placeholder="0.00") }}
+            <small class="text-muted">التكلفة بعد الشحن</small>
+          </div>
+        </div>
+
+        <!-- إدارة مخزون متقدمة -->
+        <h6 class="text-primary border-bottom pb-2 mb-3"><i class="fas fa-warehouse"></i> إدارة مخزون متقدمة</h6>
+        <div class="row g-3 mb-4">
+          <div class="col-md-3">
+            <label class="form-label">{{ stock_form.reserved_quantity.label.text }}</label>
+            {{ stock_form.reserved_quantity(class_="form-control bg-light", placeholder="0", readonly=True) }}
+            <small class="text-muted"><i class="fas fa-lock"></i> تُحسب تلقائياً من الحجوزات</small>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">{{ stock_form.min_stock.label.text }}</label>
+            {{ stock_form.min_stock(class_="form-control", placeholder="0") }}
+            <small class="text-muted">حد أدنى للمخزون</small>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">{{ stock_form.max_stock.label.text }}</label>
+            {{ stock_form.max_stock(class_="form-control", placeholder="0") }}
+            <small class="text-muted">حد أقصى للمخزون</small>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">{{ product_form.reorder_point.label.text }}</label>
+            {{ product_form.reorder_point(class_="form-control", placeholder="0") }}
+            <small class="text-muted">نقطة إعادة الطلب</small>
+          </div>
+        </div>
+
+        <!-- المواصفات الفنية -->
+        <h6 class="text-primary border-bottom pb-2 mb-3"><i class="fas fa-cogs"></i> المواصفات الفنية</h6>
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label class="form-label">{{ product_form.weight.label.text }}</label>
+            {{ product_form.weight(class_="form-control", placeholder="كجم") }}
+            <small class="text-muted">الوزن بالكيلوغرام</small>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">{{ product_form.dimensions.label.text }}</label>
+            {{ product_form.dimensions(class_="form-control", placeholder="الطول×العرض×الارتفاع") }}
+            <small class="text-muted">الأبعاد بالسنتيمتر</small>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">{{ product_form.warranty_period.label.text }}</label>
+            {{ product_form.warranty_period(class_="form-control", placeholder="12") }}
+            <small class="text-muted">فترة الضمان بالأشهر</small>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">خيارات</label>
+            <div class="d-flex flex-column gap-2">
+              <div class="form-check">
+                {{ product_form.is_active(class_="form-check-input", id="is_active_id") }}
+                <label class="form-check-label" for="is_active_id">{{ product_form.is_active.label.text }}</label>
+              </div>
+              <div class="form-check">
+                {{ product_form.is_digital(class_="form-check-input", id="is_digital_id") }}
+                <label class="form-check-label" for="is_digital_id">{{ product_form.is_digital.label.text }}</label>
+              </div>
+              <div class="form-check">
+                {{ product_form.is_exchange(class_="form-check-input", id="is_exchange_id") }}
+                <label class="form-check-label" for="is_exchange_id">{{ product_form.is_exchange.label.text }}</label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
   <div class="mt-4 d-flex gap-2">
-    <button type="submit" class="btn btn-primary"><i class="fas fa-check me-1"></i> حفظ المنتج</button>
-    <a href="{{ url_for('warehouse_bp.products', id=warehouse.id) }}" class="btn btn-secondary"><i class="fas fa-arrow-right me-1"></i> عودة</a>
+    <button type="submit" class="btn btn-primary btn-lg">
+      <i class="fas fa-check me-1"></i> حفظ المنتج
+    </button>
+    <a href="{{ url_for('warehouse_bp.products', id=warehouse.id) }}" class="btn btn-secondary btn-lg">
+      <i class="fas fa-arrow-right me-1"></i> عودة
+    </a>
   </div>
 </form>
 
@@ -268,80 +496,201 @@
     </form>
   </div>
 </div>
-
-<div class="modal fade" id="supplierModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <form id="create-supplier-form" class="modal-content" method="post"
-          action="{{ url_for('api.create_supplier') }}"
-          data-url="{{ url_for('api.create_supplier') }}"
-          data-search-url="{{ url_for('api.search_suppliers') }}">
-      <div class="modal-header">
-        <h5 class="modal-title">إضافة مورّد</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="إغلاق"><span aria-hidden="true">&times;</span></button>
-      </div>
-      <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">الاسم *</label>
-          <input type="text" name="name" class="form-control" required>
-        </div>
-        <div class="row g-2">
-          <div class="col-md-6">
-            <label class="form-label">الهاتف</label>
-            <input type="text" name="phone" class="form-control">
-          </div>
-          <div class="col-md-6">
-            <label class="form-label">الرقم التعريفي</label>
-            <input type="text" name="identity_number" class="form-control">
-          </div>
-        </div>
-        <div class="mt-3">
-          <label class="form-label">العنوان</label>
-          <input type="text" name="address" class="form-control">
-        </div>
-        <div class="mt-3">
-          <label class="form-label">ملاحظات</label>
-          <textarea name="notes" class="form-control" rows="2"></textarea>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
-        <button type="submit" class="btn btn-primary">حفظ</button>
-      </div>
-    </form>
-  </div>
-</div>
-
 <template id="partner-template">
-  <div class="partner-entry border rounded p-3 mb-3">
-    <label>الشريك</label>
+  <div class="partner-entry border rounded p-3 mb-3 bg-light">
+    <label class="form-label">الشريك <span class="text-danger">*</span></label>
     <select name="partner_id" class="form-control select2" placeholder="اختر الشريك"
             data-url="{{ url_for('api.search_partners') }}"></select>
+    <small class="text-muted"><i class="fas fa-user"></i> الشريك صاحب الحصة في هذه القطعة</small>
+    
     <div class="row g-2 mt-2">
-      <div class="col-md-4"><label>نسبة المشاركة</label><input type="number" step="0.01" name="share_percentage" class="form-control" /></div>
-      <div class="col-md-4"><label>قيمة المساهمة</label><input type="number" step="0.01" name="share_amount" class="form-control" /></div>
-      <div class="col-md-4"><label>ملاحظات</label><input type="text" name="notes" class="form-control" /></div>
+      <div class="col-md-4">
+        <label class="form-label">نسبة المشاركة <span class="text-danger">*</span></label>
+        <div class="input-group">
+          <input type="number" step="0.01" name="share_percentage" class="form-control" placeholder="50" />
+          <span class="input-group-text">%</span>
+        </div>
+        <small class="text-muted"><i class="fas fa-percentage"></i> نسبة حصة الشريك</small>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">قيمة المساهمة <span class="text-muted">(اختياري)</span></label>
+        <input type="number" step="0.01" name="share_amount" class="form-control" placeholder="0.00" />
+        <small class="text-muted"><i class="fas fa-coins"></i> القيمة المالية للحصة</small>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">ملاحظات <span class="text-muted">(اختياري)</span></label>
+        <input type="text" name="notes" class="form-control" placeholder="ملاحظات" />
+        <small class="text-muted"><i class="fas fa-comment"></i> أي ملاحظات إضافية</small>
+      </div>
     </div>
-    <button type="button" class="btn btn-sm btn-danger remove-partner-btn mt-3">حذف</button>
+    <button type="button" class="btn btn-sm btn-danger remove-partner-btn mt-3">
+      <i class="fas fa-trash"></i> حذف
+    </button>
   </div>
 </template>
 
 <template id="vendor-template">
-  <div class="vendor-entry border rounded p-3 mb-3">
-    <div class="row g-2">
-      <div class="col-md-6">
-        <label>المورّد / التاجر</label>
+  <div class="vendor-entry border rounded p-3 mb-3 bg-light">
+    <div class="row g-3">
+      <div class="col-md-12">
+        <label class="form-label">المورّد/التاجر <span class="text-muted">(اختياري)</span></label>
         <div class="input-group">
-          <select name="supplier_id" class="form-control select2" placeholder="اختر المورد"
+          <select name="supplier_id" class="form-control select2" placeholder="اختر المورد/التاجر"
                   data-url="{{ url_for('api.search_suppliers') }}"></select>
-          <button type="button" class="btn btn-outline-primary add-supplier-btn" data-toggle="modal" data-target="#supplierModal">+</button>
+          <a href="{{ url_for('vendors_bp.suppliers_create') }}" target="_blank" class="btn btn-outline-primary" title="إضافة مورد جديد">
+            <i class="fas fa-plus"></i>
+          </a>
+        </div>
+        <small class="text-muted"><i class="fas fa-user-tie"></i> التاجر صاحب القطعة (يمكن تركه فارغاً)</small>
+      </div>
+      
+      <div class="col-md-6">
+        <label class="form-label">سعر القطعة (التكلفة)</label>
+        <div class="input-group">
+          <input type="number" step="0.01" name="vendor_price" class="form-control" placeholder="0.00" />
+          <span class="input-group-text">₪</span>
+        </div>
+        <small class="text-muted"><i class="fas fa-dollar-sign text-success"></i> سعر تكلفة القطعة الواحدة</small>
+      </div>
+      
+      <div class="col-md-6">
+        <label class="form-label">المبلغ المدفوع <span class="text-muted">(اختياري)</span></label>
+        <div class="input-group">
+          <input type="number" step="0.01" name="vendor_paid" class="form-control" placeholder="0.00" />
+          <span class="input-group-text">₪</span>
+        </div>
+        <small class="text-muted">
+          <i class="fas fa-hand-holding-usd text-warning"></i> 
+          المبلغ المدفوع <strong>للقطعة الواحدة</strong>
+        </small>
+      </div>
+      
+      <div class="col-md-12">
+        <div class="alert alert-warning mb-0 py-2">
+          <i class="fas fa-calculator"></i> <strong>تلقائي:</strong>
+          سيتم إنشاء دفعة صادرة = (الكمية × المبلغ المدفوع)
         </div>
       </div>
-      <div class="col-md-6"><label>الهاتف</label><input type="text" name="vendor_phone" class="form-control" /></div>
-      <div class="col-md-6"><label>المبلغ المدفوع</label><input type="number" step="0.01" name="vendor_paid" class="form-control" /></div>
-      <div class="col-md-6"><label>السعر</label><input type="number" step="0.01" name="vendor_price" class="form-control" /></div>
-      <div class="col-12"><small class="text-muted">اختر مورّدًا من القائمة أو أضف جديدًا عند الحاجة.</small></div>
+      
+      <div class="col-md-12">
+        <label class="form-label">هاتف المورد <span class="text-muted">(اختياري)</span></label>
+        <input type="text" name="vendor_phone" class="form-control" placeholder="05xxxxxxxx" />
+        <small class="text-muted"><i class="fas fa-phone"></i> رقم هاتف المورد للتواصل</small>
+      </div>
     </div>
-    <button type="button" class="btn btn-sm btn-danger remove-vendor-btn mt-3">حذف</button>
+    <button type="button" class="btn btn-sm btn-danger remove-vendor-btn mt-3">
+      <i class="fas fa-trash"></i> حذف
+    </button>
   </div>
 </template>
+
+<script>
+// معالج إضافة نوع مركبة جديد
+$(document).ready(function() {
+  $('#equipmentTypeForm').on('submit', function(e) {
+    e.preventDefault();
+    
+    const $form = $(this);
+    const name = $('#et_name').val().trim();
+    const notes = $('#et_notes').val().trim();
+    
+    if (!name) {
+      alert('الاسم مطلوب');
+      return false;
+    }
+    
+    // تعطيل الزر لمنع الإرسال المتكرر
+    const $submitBtn = $form.find('button[type="submit"]');
+    $submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> جاري الحفظ...');
+    
+    $.ajax({
+      url: '{{ url_for("api.create_equipment_type") }}',
+      method: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({
+        name: name,
+        notes: notes
+      }),
+      success: function(response) {
+        // إغلاق الـ modal
+        $('#equipmentTypeModal').modal('hide');
+        
+        // إضافة الخيار الجديد للـ select
+        const $vehicleTypeSelect = $('#vehicle_type_id');
+        const newOption = new Option(response.text, response.id, true, true);
+        $vehicleTypeSelect.append(newOption).trigger('change');
+        
+        // تنظيف النموذج
+        $('#et_name').val('');
+        $('#et_notes').val('');
+        $submitBtn.prop('disabled', false).html('حفظ');
+        
+        // رسالة نجاح
+        if (typeof toastr !== 'undefined') {
+          toastr.success('تمت إضافة نوع المركبة بنجاح');
+        } else {
+          alert('تمت إضافة نوع المركبة بنجاح');
+        }
+      },
+      error: function(xhr) {
+        $submitBtn.prop('disabled', false).html('حفظ');
+        const error = xhr.responseJSON?.error || 'حدث خطأ';
+        alert('تعذر إضافة النوع: ' + error);
+      }
+    });
+    
+    return false;
+  });
+});
+</script>
+
+<style>
+/* تنسيقات خاصة بصفحة إضافة منتج */
+.req {
+  color: #dc3545;
+  font-weight: bold;
+}
+
+.card-header[data-bs-toggle="collapse"] {
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.card-header[data-bs-toggle="collapse"]:hover {
+  background-color: #f8f9fa;
+}
+
+.card-header[data-bs-toggle="collapse"] i.fa-angle-down {
+  transition: transform 0.3s;
+}
+
+.card-header[data-bs-toggle="collapse"][aria-expanded="true"] i.fa-angle-down {
+  transform: rotate(-180deg);
+}
+
+.bg-light {
+  background-color: #f8f9fa !important;
+}
+
+.input-group-text {
+  background-color: #e9ecef;
+  border-color: #ced4da;
+}
+
+.alert-warning {
+  background-color: #fff3cd;
+  border-color: #ffc107;
+  color: #664d03;
+}
+
+.text-danger {
+  color: #dc3545 !important;
+}
+
+small.text-muted {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.875em;
+}
+</style>
 {% endblock %}

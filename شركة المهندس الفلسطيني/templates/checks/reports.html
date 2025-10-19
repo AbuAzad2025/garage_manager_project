@@ -1,0 +1,404 @@
+{% extends 'base.html' %}
+
+{% block title %}تقارير الشيكات{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+/* 🔥 Force visible tables - Critical Fix */
+.table { 
+    display: table !important;
+    visibility: visible !important;
+}
+
+.table tbody { 
+    display: table-row-group !important; 
+}
+
+.table tr { 
+    display: table-row !important; 
+}
+
+.table td, .table th { 
+    display: table-cell !important; 
+}
+
+.table-responsive {
+    display: block !important;
+    visibility: visible !important;
+}
+
+/* 🔥 Force visible charts */
+.card-body {
+    display: block !important;
+    visibility: visible !important;
+}
+
+canvas {
+    display: block !important;
+    visibility: visible !important;
+    min-height: 250px !important;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+  <div class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2">
+        <div class="col-sm-6">
+          <h1 class="m-0"><i class="fas fa-chart-bar"></i> تقارير الشيكات</h1>
+        </div>
+        <div class="col-sm-6">
+          <ol class="breadcrumb float-sm-right">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('checks.index') }}">الشيكات</a></li>
+            <li class="breadcrumb-item active">التقارير</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <section class="content">
+    <div class="container-fluid">
+      <!-- الإحصائيات العامة -->
+      <div class="row">
+        <div class="col-lg-3 col-6">
+          <div class="small-box bg-info">
+            <div class="inner">
+              <h3>{{ all_checks|length }}</h3>
+              <p>إجمالي الشيكات (جميع المصادر)</p>
+            </div>
+            <div class="icon">
+              <i class="fas fa-money-check-alt"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-3 col-6">
+          <div class="small-box bg-danger">
+            <div class="inner">
+              <h3>{{ overdue_checks|length }}</h3>
+              <p>شيكات متأخرة</p>
+            </div>
+            <div class="icon">
+              <i class="fas fa-exclamation-triangle"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-3 col-6">
+          <div class="small-box bg-warning">
+            <div class="inner">
+              <h3>{{ due_soon_checks|length }}</h3>
+              <p>تستحق خلال 7 أيام</p>
+            </div>
+            <div class="icon">
+              <i class="fas fa-clock"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-3 col-6">
+          <div class="small-box bg-success">
+            <div class="inner">
+              {% set cashed_count = all_checks|selectattr('status', 'equalto', 'CASHED')|list|length %}
+              <h3>{{ cashed_count }}</h3>
+              <p>تم صرفها (جميع المصادر)</p>
+            </div>
+            <div class="icon">
+              <i class="fas fa-check-circle"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- الرسوم البيانية -->
+      <div class="row">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title"><i class="fas fa-chart-pie"></i> توزيع الشيكات حسب الحالة</h3>
+            </div>
+            <div class="card-body">
+              <canvas id="statusChart" height="250"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title"><i class="fas fa-chart-pie"></i> توزيع الشيكات حسب الاتجاه</h3>
+            </div>
+            <div class="card-body">
+              <canvas id="directionChart" height="250"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- الشيكات المتأخرة -->
+      {% if overdue_checks %}
+      <div class="row">
+        <div class="col-12">
+          <div class="card card-danger">
+            <div class="card-header">
+              <h3 class="card-title"><i class="fas fa-exclamation-triangle"></i> الشيكات المتأخرة</h3>
+            </div>
+            <div class="card-body table-responsive">
+              <table class="table table-bordered table-striped">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>رقم الشيك</th>
+                    <th>البنك</th>
+                    <th>المبلغ</th>
+                    <th>الاستحقاق</th>
+                    <th>الجهة</th>
+                    <th>الأيام المتأخرة</th>
+                    <th>إجراءات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for check in overdue_checks %}
+                  <tr class="table-danger">
+                    <td>{{ loop.index }}</td>
+                    <td><strong>{{ check.get('check_number', '-') }}</strong></td>
+                    <td>{{ check.get('check_bank', '-') }}</td>
+                    <td class="text-success"><strong>{{ "%0.2f"|format(check.get('amount', 0)) }} ₪</strong></td>
+                    <td>{{ check.get('due_date_formatted', check.get('check_due_date', '-')) }}</td>
+                    <td>{{ check.get('entity_name', '-') }}</td>
+                    <td class="text-danger"><strong>{{ check.get('days_until_due', 0)|abs }} يوم</strong></td>
+                    <td>
+                      <span class="badge badge-secondary">{{ check.get('source', '-') }}</span>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- الشيكات المستحقة قريباً -->
+      {% if due_soon_checks %}
+      <div class="row">
+        <div class="col-12">
+          <div class="card card-warning">
+            <div class="card-header">
+              <h3 class="card-title"><i class="fas fa-clock"></i> الشيكات المستحقة قريباً (خلال 7 أيام)</h3>
+            </div>
+            <div class="card-body table-responsive">
+              <table class="table table-bordered table-striped">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>رقم الشيك</th>
+                    <th>البنك</th>
+                    <th>المبلغ</th>
+                    <th>الاستحقاق</th>
+                    <th>الجهة</th>
+                    <th>بعد (أيام)</th>
+                    <th>إجراءات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for check in due_soon_checks %}
+                  <tr class="table-warning">
+                    <td>{{ loop.index }}</td>
+                    <td><strong>{{ check.get('check_number', '-') }}</strong></td>
+                    <td>{{ check.get('check_bank', '-') }}</td>
+                    <td class="text-success"><strong>{{ "%0.2f"|format(check.get('amount', 0)) }} ₪</strong></td>
+                    <td>{{ check.get('due_date_formatted', check.get('check_due_date', '-')) }}</td>
+                    <td>{{ check.get('entity_name', '-') }}</td>
+                    <td class="text-warning"><strong>{{ check.get('days_until_due', 0) }} يوم</strong></td>
+                    <td>
+                      <span class="badge badge-secondary">{{ check.get('source', '-') }}</span>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- إحصائيات مفصلة -->
+      <div class="row">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title"><i class="fas fa-table"></i> إحصائيات حسب الحالة</h3>
+            </div>
+            <div class="card-body table-responsive">
+              <table class="table table-bordered">
+                <thead>
+                  <tr>
+                    <th>الحالة</th>
+                    <th>العدد</th>
+                    <th>المبلغ الإجمالي</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for stat in stats_by_status %}
+                  <tr>
+                    <td>
+                      <span class="badge badge-{{ CHECK_STATUS.get(stat.status, {}).get('color', 'secondary') if CHECK_STATUS else 'info' }}">
+                        {{ stat.status }}
+                      </span>
+                    </td>
+                    <td><strong>{{ stat.count if stat.count is defined else stat.get('count', 0) }}</strong></td>
+                    <td class="text-success"><strong>{{ "%0.2f"|format(stat.total_amount if stat.total_amount is defined else stat.get('total_amount', 0)) }} ₪</strong></td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title"><i class="fas fa-table"></i> إحصائيات حسب الاتجاه</h3>
+            </div>
+            <div class="card-body table-responsive">
+              <table class="table table-bordered">
+                <thead>
+                  <tr>
+                    <th>الاتجاه</th>
+                    <th>العدد</th>
+                    <th>المبلغ الإجمالي</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for stat in stats_by_direction %}
+                  <tr>
+                    <td>
+                      {% if stat.direction == 'IN' %}
+                        <span class="badge badge-success"><i class="fas fa-arrow-down"></i> وارد</span>
+                      {% else %}
+                        <span class="badge badge-danger"><i class="fas fa-arrow-up"></i> صادر</span>
+                      {% endif %}
+                    </td>
+                    <td><strong>{{ stat.count }}</strong></td>
+                    <td class="text-success"><strong>{{ "%0.2f"|format(stat.total_amount or 0) }} ₪</strong></td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+// 🔥 فرض إظهار جميع العناصر ورسم الـ Charts
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🔥 تحميل صفحة التقارير...');
+    
+    // فرض إظهار الجداول
+    document.querySelectorAll('.table-responsive').forEach(function(el) {
+        el.style.setProperty('display', 'block', 'important');
+        el.style.setProperty('visibility', 'visible', 'important');
+    });
+    
+    document.querySelectorAll('table').forEach(function(el) {
+        el.style.setProperty('display', 'table', 'important');
+        el.style.setProperty('visibility', 'visible', 'important');
+    });
+    
+    // فرض إظهار الـ Cards والـ Canvas
+    document.querySelectorAll('.card-body').forEach(function(el) {
+        el.style.setProperty('display', 'block', 'important');
+        el.style.setProperty('visibility', 'visible', 'important');
+    });
+    
+    document.querySelectorAll('canvas').forEach(function(el) {
+        el.style.setProperty('display', 'block', 'important');
+        el.style.setProperty('visibility', 'visible', 'important');
+    });
+    
+    console.log('✅ تم فرض إظهار جميع العناصر في التقارير');
+    
+    // رسم بياني للحالات
+    setTimeout(function() {
+        const statusCanvas = document.getElementById('statusChart');
+        if (statusCanvas) {
+            console.log('📊 رسم بياني الحالات...');
+            const statusCtx = statusCanvas.getContext('2d');
+            const statusChart = new Chart(statusCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: [{% for stat in stats_by_status %}'{{ stat.status }}'{% if not loop.last %},{% endif %}{% endfor %}],
+                    datasets: [{
+                        data: [{% for stat in stats_by_status %}{{ stat.count if stat.count is defined else stat.get('count', 0) }}{% if not loop.last %},{% endif %}{% endfor %}],
+                        backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545', '#17a2b8', '#6c757d', '#e83e8c']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        title: {
+                            display: true,
+                            text: 'إجمالي: {{ all_checks|length }} شيك'
+                        }
+                    }
+                }
+            });
+            console.log('✅ تم رسم بياني الحالات');
+        } else {
+            console.error('❌ لم يتم العثور على statusChart canvas');
+        }
+        
+        // رسم بياني للاتجاه
+        const directionCanvas = document.getElementById('directionChart');
+        if (directionCanvas) {
+            console.log('📊 رسم بياني الاتجاه...');
+            const directionCtx = directionCanvas.getContext('2d');
+            const directionChart = new Chart(directionCtx, {
+                type: 'pie',
+                data: {
+                    labels: [{% for stat in stats_by_direction %}'{{ "وارد" if (stat.direction if stat.direction is defined else stat.get("direction")) == "IN" else "صادر" }}'{% if not loop.last %},{% endif %}{% endfor %}],
+                    datasets: [{
+                        data: [{% for stat in stats_by_direction %}{{ stat.count if stat.count is defined else stat.get('count', 0) }}{% if not loop.last %},{% endif %}{% endfor %}],
+                        backgroundColor: ['#28a745', '#dc3545']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        title: {
+                            display: true,
+                            text: 'إجمالي: {{ all_checks|length }} شيك'
+                        }
+                    }
+                }
+            });
+            console.log('✅ تم رسم بياني الاتجاه');
+        } else {
+            console.error('❌ لم يتم العثور على directionChart canvas');
+        }
+    }, 500);
+});
+</script>
+{% endblock %}
+
