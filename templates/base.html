@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8">
-  <title>{% block title %}{{ system_settings.system_name or 'نظام إدارة الكراج' }} - {{ system_settings.company_name or 'شركة ازاد للأنظمة الذكية' }}{% endblock %}</title>
+  <title>{% block title %}{{ system_settings.system_name or 'شركة ازاد' }} - {{ system_settings.company_name or 'شركة ازاد' }}{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="{{ system_settings.system_name or 'نظام إدارة الكراج المتكامل' }} - {{ system_settings.company_name or 'شركة ازاد للأنظمة الذكية' }}">
   <meta name="keywords" content="نظام إدارة الكراج، إدارة المركبات، صيانة السيارات، {{ system_settings.company_name or 'شركة ازاد' }}">
@@ -310,8 +310,10 @@
   })();
 </script>
 
-<!-- Socket.IO for real-time notifications -->
+<!-- Socket.IO for real-time notifications - فقط إذا كان مُفعل -->
+{% if config.get('SOCKETIO_ENABLED', False) %}
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js" integrity="sha384-/KNQL8Nu5gCHLqwqfQjA689Hhoqgi2S84SNUxC3roTe4EhJ9AfLkp8QiQcU8AMzI" crossorigin="anonymous"></script>
+{% endif %}
 
 <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>

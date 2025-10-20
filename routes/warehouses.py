@@ -343,7 +343,10 @@ def api_warehouse_info():
     w = Warehouse.query.filter_by(id=wid).first()
     if not w:
         return jsonify({"error": "not_found"}), 404
-    wt = getattr(w.warehouse_type, "value", w.warehouse_type)
+    if hasattr(w.warehouse_type, 'value'):
+        wt = w.warehouse_type.value
+    else:
+        wt = str(w.warehouse_type)
     wt = str(wt).upper() if wt else ""
     return jsonify({
         "id": w.id,
@@ -1131,8 +1134,7 @@ def transfer_inline(id):
         return jsonify({"success": False, "error": "warehouse_mismatch"}), 400
 
     try:
-        _lock_stock_rows([(pid, sid), (pid, did)])
-
+        # تم إزالة _lock_stock_rows لأن with_for_update يقوم بالمهمة
         src = StockLevel.query.filter_by(warehouse_id=sid, product_id=pid).with_for_update(nowait=False).first()
         if not src:
             src = StockLevel(warehouse_id=sid, product_id=pid, quantity=0, reserved_quantity=0)
@@ -2246,7 +2248,12 @@ def ajax_update_stock(warehouse_id):
 @login_required
 # @permission_required("manage_inventory", "manage_warehouses", "warehouse_transfer")  # Commented out
 def ajax_transfer(warehouse_id):
+    import logging
+    logging.info(f"🔄 بدء عملية التحويل - warehouse_id: {warehouse_id}")
+    
     data = request.get_json(silent=True) or request.form
+    logging.info(f"📦 البيانات المستلمة: {dict(data)}")
+    
     def _i(name):
         v = data.get(name)
         try:
@@ -2266,10 +2273,67 @@ def ajax_transfer(warehouse_id):
     except Exception:
         tdate = datetime.utcnow()
     notes = (data.get("notes") or "").strip() or None
+    
+    logging.info(f"📋 معلومات التحويل - المنتج: {pid}, من: {sid}, إلى: {did}, الكمية: {qty}")
+    
     if not (pid and sid and did and qty > 0) or sid == did:
+        logging.error(f"❌ بيانات غير صحيحة - pid:{pid}, sid:{sid}, did:{did}, qty:{qty}")
         return jsonify({"success": False, "errors": {"form": "invalid"}}), 400
     if sid != warehouse_id:
+        logging.error(f"❌ عدم تطابق المستودع - المتوقع:{warehouse_id}, المستلم:{sid}")
         return jsonify({"success": False, "errors": {"warehouse": "mismatch"}}), 400
+    
+    # ========== التحقق من التوافق بين أنواع المستودعات ==========
+    source_warehouse = Warehouse.query.get(sid)
+    dest_warehouse = Warehouse.query.get(did)
+    
+    if not source_warehouse or not dest_warehouse:
+        return jsonify({"success": False, "error": "المستودع غير موجود"}), 404
+    
+    source_type = source_warehouse.warehouse_type
+    dest_type = dest_warehouse.warehouse_type
+    
+    # قواعد التوافق
+    isolated_types = ['PARTNER', 'EXCHANGE']
+    open_types = ['MAIN', 'ONLINE', 'INVENTORY']
+    
+    # تسميات الأنواع بالعربي
+    type_names = {
+        'PARTNER': 'شريك',
+        'EXCHANGE': 'تبادل',
+        'MAIN': 'رئيسي',
+        'ONLINE': 'أونلاين',
+        'INVENTORY': 'ملكية كاملة'
+    }
+    
+    # PARTNER معزول
+    if source_type == 'PARTNER' or dest_type == 'PARTNER':
+        if source_type != 'PARTNER' or dest_type != 'PARTNER':
+            error_msg = ''
+            if source_type == 'PARTNER':
+                error_msg = '⛔ خطأ في التحويل!\n\nمستودع الشريك يحول فقط لمستودع شريك آخر.\nالرجاء اختيار مستودع شريك كوجهة.'
+            else:
+                error_msg = '⛔ خطأ في التحويل!\n\nمستودع الشريك يستقبل فقط من مستودع شريك آخر.\nالرجاء اختيار مستودع شريك كمصدر.'
+            return jsonify({"success": False, "error": error_msg}), 400
+    
+    # EXCHANGE معزول
+    if source_type == 'EXCHANGE' or dest_type == 'EXCHANGE':
+        if source_type != 'EXCHANGE' or dest_type != 'EXCHANGE':
+            error_msg = ''
+            if source_type == 'EXCHANGE':
+                error_msg = '⛔ خطأ في التحويل!\n\nمستودع التبادل يحول فقط لمستودع تبادل آخر.\nالرجاء اختيار مستودع تبادل كوجهة.'
+            else:
+                error_msg = '⛔ خطأ في التحويل!\n\nمستودع التبادل يستقبل فقط من مستودع تبادل آخر.\nالرجاء اختيار مستودع تبادل كمصدر.'
+            return jsonify({"success": False, "error": error_msg}), 400
+    
+    # التحقق أن كلاهما من المستودعات المفتوحة
+    if source_type not in open_types and dest_type not in open_types:
+        if source_type != dest_type:
+            source_name = type_names.get(source_type, source_type)
+            dest_name = type_names.get(dest_type, dest_type)
+            error_msg = f'⛔ خطأ في التحويل!\n\nلا يمكن التحويل من مستودع {source_name} إلى مستودع {dest_name}.\nالرجاء مراجعة قواعد التحويل.'
+            return jsonify({"success": False, "error": error_msg}), 400
+    
     try:
         with db.session.begin():
             src = (StockLevel.query.filter_by(warehouse_id=sid, product_id=pid).with_for_update(nowait=False).first())

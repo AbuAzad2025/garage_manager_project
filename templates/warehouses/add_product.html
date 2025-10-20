@@ -1,5 +1,4 @@
 {% extends 'warehouses/base.html' %}
-{% block title %}إضافة منتج - {{ warehouse.name }}{% endblock %}
 {% block page_title %}إضافة منتج - {{ warehouse.name }}{% endblock %}
 
 {% block content %}
@@ -300,7 +299,7 @@
 
   <!-- القسم 5: تفاصيل إضافية (قابل للطي) -->
   <div class="card mb-3 shadow-sm">
-    <div class="card-header" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#additionalDetails" aria-expanded="false">
+    <div class="card-header" style="cursor: pointer;" data-toggle="collapse" data-target="#additionalDetails" aria-expanded="false">
       <i class="fas fa-angle-down me-2"></i>
       <strong>تفاصيل إضافية</strong>
       <span class="text-muted small">(اضغط لعرض 21 حقل إضافي)</span>
@@ -584,15 +583,21 @@
   </div>
 </template>
 
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
 <script>
-// معالج إضافة نوع مركبة جديد
-$(document).ready(function() {
-  $('#equipmentTypeForm').on('submit', function(e) {
+// معالج إضافة نوع مركبة جديد - باستخدام vanilla JS
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.getElementById('equipmentTypeForm');
+  if (!form) return;
+  
+  form.addEventListener('submit', function(e) {
     e.preventDefault();
     
-    const $form = $(this);
-    const name = $('#et_name').val().trim();
-    const notes = $('#et_notes').val().trim();
+    const name = document.getElementById('et_name').value.trim();
+    const notes = document.getElementById('et_notes').value.trim();
     
     if (!name) {
       alert('الاسم مطلوب');
@@ -600,30 +605,46 @@ $(document).ready(function() {
     }
     
     // تعطيل الزر لمنع الإرسال المتكرر
-    const $submitBtn = $form.find('button[type="submit"]');
-    $submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> جاري الحفظ...');
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الحفظ...';
     
-    $.ajax({
-      url: '{{ url_for("api.create_equipment_type") }}',
+    fetch('{{ url_for("api.create_equipment_type") }}', {
       method: 'POST',
-      contentType: 'application/json',
-      data: JSON.stringify({
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+      },
+      body: JSON.stringify({
         name: name,
         notes: notes
-      }),
-      success: function(response) {
-        // إغلاق الـ modal
-        $('#equipmentTypeModal').modal('hide');
+      })
+    })
+    .then(response => response.json())
+    .then(function(response) {
+        // إغلاق الـ modal (استخدام Bootstrap 4 API)
+        const modal = document.getElementById('equipmentTypeModal');
+        if (modal && window.jQuery) {
+          $(modal).modal('hide');
+        }
         
         // إضافة الخيار الجديد للـ select
-        const $vehicleTypeSelect = $('#vehicle_type_id');
-        const newOption = new Option(response.text, response.id, true, true);
-        $vehicleTypeSelect.append(newOption).trigger('change');
+        const vehicleTypeSelect = document.getElementById('vehicle_type_id');
+        if (vehicleTypeSelect) {
+          const newOption = new Option(response.text, response.id, true, true);
+          vehicleTypeSelect.appendChild(newOption);
+          
+          // تحديث select2 إذا كان مفعّل
+          if (window.jQuery && $(vehicleTypeSelect).data('select2')) {
+            $(vehicleTypeSelect).trigger('change');
+          }
+        }
         
         // تنظيف النموذج
-        $('#et_name').val('');
-        $('#et_notes').val('');
-        $submitBtn.prop('disabled', false).html('حفظ');
+        document.getElementById('et_name').value = '';
+        document.getElementById('et_notes').value = '';
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'حفظ';
         
         // رسالة نجاح
         if (typeof toastr !== 'undefined') {
@@ -631,13 +652,12 @@ $(document).ready(function() {
         } else {
           alert('تمت إضافة نوع المركبة بنجاح');
         }
-      },
-      error: function(xhr) {
-        $submitBtn.prop('disabled', false).html('حفظ');
-        const error = xhr.responseJSON?.error || 'حدث خطأ';
-        alert('تعذر إضافة النوع: ' + error);
-      }
-    });
+      })
+      .catch(function(error) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'حفظ';
+        alert('تعذر إضافة النوع: ' + (error.message || 'حدث خطأ'));
+      });
     
     return false;
   });
@@ -651,20 +671,20 @@ $(document).ready(function() {
   font-weight: bold;
 }
 
-.card-header[data-bs-toggle="collapse"] {
+.card-header[data-toggle="collapse"] {
   cursor: pointer;
   transition: background-color 0.3s;
 }
 
-.card-header[data-bs-toggle="collapse"]:hover {
+.card-header[data-toggle="collapse"]:hover {
   background-color: #f8f9fa;
 }
 
-.card-header[data-bs-toggle="collapse"] i.fa-angle-down {
+.card-header[data-toggle="collapse"] i.fa-angle-down {
   transition: transform 0.3s;
 }
 
-.card-header[data-bs-toggle="collapse"][aria-expanded="true"] i.fa-angle-down {
+.card-header[data-toggle="collapse"][aria-expanded="true"] i.fa-angle-down {
   transform: rotate(-180deg);
 }
 

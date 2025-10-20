@@ -1,60 +1,357 @@
 {% extends 'warehouses/base.html' %}
-{% block title %}تحويلات {{ warehouse.name }}{% endblock %}
 {% block page_title %}تحويلات مستودع {{ warehouse.name }}{% endblock %}
 
 {% block w_content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h5 class="mb-0">
-    <i class="fas fa-exchange-alt text-info me-1"></i>
-    تحويلات المستودع: <strong>{{ warehouse.name }}</strong>
-    <span class="badge bg-secondary">{{ transfers|length }}</span>
-  </h5>
-  {% if current_user.has_permission('manage_inventory') %}
-    <a href="{{ url_for('warehouse_bp.create_transfer', id=warehouse.id) }}" class="btn btn-sm btn-success">
-      <i class="fas fa-random me-1"></i> إضافة تحويل
-    </a>
-  {% endif %}
+
+<!-- إحصائيات سريعة -->
+<div class="row mb-4">
+  {% set total_transfers = transfers|length if transfers else 0 %}
+  {% set total_quantity = transfers|sum(attribute='quantity') if transfers else 0 %}
+  {% set unique_products = transfers|map(attribute='product_id')|unique|list|length if transfers else 0 %}
+  {% set this_month = transfers|selectattr('transfer_date', 'defined')|list if transfers else [] %}
+  
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="card border-0 shadow-sm bg-primary text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">إجمالي التحويلات</h6>
+            <h2 class="mb-0 fw-bold">{{ total_transfers }}</h2>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-exchange-alt fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="card border-0 shadow-sm bg-success text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">إجمالي الكميات</h6>
+            <h2 class="mb-0 fw-bold">{{ total_quantity }}</h2>
+            <small class="text-white-50">قطعة محوّلة</small>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-boxes fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="card border-0 shadow-sm bg-info text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">منتجات مختلفة</h6>
+            <h2 class="mb-0 fw-bold">{{ unique_products }}</h2>
+            <small class="text-white-50">صنف محوّل</small>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-cubes fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-lg-3 col-md-6 mb-3">
+    <div class="card border-0 shadow-sm bg-warning text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h6 class="card-title text-white-50 mb-1">آخر تحويل</h6>
+            <h6 class="mb-0 fw-bold">
+              {% if transfers and transfers|length > 0 %}
+                {{ transfers[0].transfer_date.strftime('%Y-%m-%d') if transfers[0].transfer_date else '-' }}
+              {% else %}
+                -
+              {% endif %}
+            </h6>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-calendar-day fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- أزرار وفلاتر -->
+<div class="card shadow-sm mb-3">
+  <div class="card-body">
+    <div class="row g-3 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label fw-bold">
+          <i class="fas fa-calendar me-1"></i> من تاريخ
+        </label>
+        <input type="date" class="form-control" id="filter-date-from" dir="ltr">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-bold">
+          <i class="fas fa-calendar me-1"></i> إلى تاريخ
+        </label>
+        <input type="date" class="form-control" id="filter-date-to" dir="ltr">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-bold">
+          <i class="fas fa-box me-1"></i> المنتج
+        </label>
+        <input type="text" class="form-control" id="filter-product" placeholder="اسم المنتج">
+      </div>
+      <div class="col-md-3">
+        <div class="d-flex gap-2">
+          <button class="btn btn-primary flex-fill" id="btn-filter">
+            <i class="fas fa-filter me-1"></i> تطبيق
+          </button>
+          <button class="btn btn-secondary" id="btn-reset">
+            <i class="fas fa-redo me-1"></i> إعادة
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="card shadow-sm">
-  <div class="card-body table-responsive">
-    <table id="transfersTable" class="table table-striped table-hover align-middle mb-0">
-      <thead class="table-light">
-        <tr>
-          <th>#</th>
-          <th>التاريخ</th>
-          <th>الصنف</th>
-          <th>من</th>
-          <th>إلى</th>
-          <th class="text-center">الكمية</th>
-          <th>المستخدم</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for t in transfers %}
-        <tr>
-          <td>{{ loop.index }}</td>
-          <td>{{ t.transfer_date.strftime('%Y-%m-%d') }}</td>
-          <td>{{ t.product.name }}</td>
-          <td>{{ t.source_warehouse.name }}</td>
-          <td>{{ t.destination_warehouse.name }}</td>
-          <td class="text-center">{{ t.quantity }}</td>
-          <td>{{ t.user.username if t.user else '—' }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="card-header bg-light">
+    <div class="d-flex justify-content-between align-items-center">
+      <h5 class="mb-0">
+        <i class="fas fa-list me-2"></i>
+        تحويلات المستودع: <strong>{{ warehouse.name }}</strong>
+        <span class="badge bg-primary">{{ total_transfers }}</span>
+      </h5>
+      <div class="d-flex gap-2">
+        {% if current_user.has_permission('manage_inventory') %}
+          <a href="{{ url_for('warehouse_bp.create_transfer', id=warehouse.id) }}" class="btn btn-success">
+            <i class="fas fa-random me-1"></i> إضافة تحويل
+          </a>
+        {% endif %}
+        <button class="btn btn-outline-success" id="btn-export-csv">
+          <i class="fas fa-file-csv me-1"></i> تصدير CSV
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="card-body">
+    {% if transfers and transfers|length > 0 %}
+    <div class="table-responsive">
+      <table id="transfersTable" class="table table-striped table-hover align-middle mb-0" style="width:100%">
+        <thead class="table-light">
+          <tr>
+            <th style="width:60px">#</th>
+            <th style="width:150px">التاريخ والوقت</th>
+            <th style="width:120px">المرجع</th>
+            <th>المنتج</th>
+            <th>من مستودع</th>
+            <th>إلى مستودع</th>
+            <th style="width:90px" class="text-center">الكمية</th>
+            <th style="width:100px">المستخدم</th>
+            <th>ملاحظات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in transfers %}
+          <tr>
+            <td class="text-center">{{ loop.index }}</td>
+            <td class="text-nowrap">
+              <small class="d-block">{{ t.transfer_date.strftime('%Y-%m-%d') if t.transfer_date else '-' }}</small>
+              <small class="text-muted">{{ t.transfer_date.strftime('%H:%M') if t.transfer_date else '-' }}</small>
+            </td>
+            <td>
+              <code class="small">{{ t.reference or '-' }}</code>
+            </td>
+            <td>
+              <i class="fas fa-box text-primary me-1"></i>
+              {{ t.product.name if t.product else '-' }}
+            </td>
+            <td>
+              <i class="fas fa-warehouse text-danger me-1"></i>
+              {{ t.source_warehouse.name if t.source_warehouse else '-' }}
+            </td>
+            <td>
+              <i class="fas fa-warehouse text-success me-1"></i>
+              {{ t.destination_warehouse.name if t.destination_warehouse else '-' }}
+            </td>
+            <td class="text-center">
+              <span class="badge bg-primary">{{ t.quantity }}</span>
+            </td>
+            <td>
+              <i class="fas fa-user text-muted me-1"></i>
+              {{ t.user.username if t.user else '—' }}
+            </td>
+            <td class="small text-muted">
+              {{ t.notes[:50] if t.notes else '—' }}
+              {% if t.notes and t.notes|length > 50 %}...{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="alert alert-warning text-center py-5">
+      <i class="fas fa-inbox fa-3x mb-3 d-block text-muted"></i>
+      <h5>لا توجد تحويلات بعد</h5>
+      <p class="text-muted mb-3">ابدأ بتحويل المنتجات بين المستودعات</p>
+      {% if current_user.has_permission('manage_inventory') %}
+        <a href="{{ url_for('warehouse_bp.create_transfer', id=warehouse.id) }}" class="btn btn-success">
+          <i class="fas fa-random me-1"></i> إنشاء تحويل
+        </a>
+      {% endif %}
+    </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}
 
 {% block dt_scripts %}
 <script>
+(function() {
+  'use strict';
+  
+  let dataTable;
+  
+  // ========== تهيئة DataTables ==========
   $(function () {
-    $('#transfersTable').DataTable({
-      pageLength: 25,
-      language: { url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/ar.json' }
-    });
+    const $table = $('#transfersTable');
+    if ($table.length && $table.find('tbody tr').length > 0) {
+      dataTable = $table.DataTable({
+        pageLength: 25,
+        order: [[1, 'desc']], // الأحدث أولاً
+        language: { 
+          url: '/static/datatables/Arabic.json',
+          emptyTable: "لا توجد تحويلات",
+          info: "عرض _START_ إلى _END_ من أصل _TOTAL_ تحويل",
+          search: "بحث:"
+        },
+        columnDefs: [
+          { targets: 0, type: 'num' },
+          { targets: 6, className: 'text-center' }
+        ],
+        dom: 'Bfrtip',
+        buttons: []
+      });
+    }
   });
+
+  // ========== الفلاتر ==========
+  const filterDateFrom = document.getElementById('filter-date-from');
+  const filterDateTo = document.getElementById('filter-date-to');
+  const filterProduct = document.getElementById('filter-product');
+  const btnFilter = document.getElementById('btn-filter');
+  const btnReset = document.getElementById('btn-reset');
+
+  if (btnFilter) {
+    btnFilter.addEventListener('click', applyFilters);
+  }
+
+  if (btnReset) {
+    btnReset.addEventListener('click', function() {
+      if (filterDateFrom) filterDateFrom.value = '';
+      if (filterDateTo) filterDateTo.value = '';
+      if (filterProduct) filterProduct.value = '';
+      if (dataTable) {
+        dataTable.search('').draw();
+      }
+    });
+  }
+
+  function applyFilters() {
+    if (!dataTable) return;
+    
+    let searchTerms = [];
+    
+    if (filterProduct && filterProduct.value.trim()) {
+      searchTerms.push(filterProduct.value.trim());
+    }
+    
+    const searchQuery = searchTerms.join(' ');
+    dataTable.search(searchQuery).draw();
+    
+    // للتواريخ: نستخدم custom filter
+    if (filterDateFrom && filterDateFrom.value) {
+      $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+        const dateStr = data[1]; // عمود التاريخ
+        const filterDate = new Date(filterDateFrom.value);
+        const rowDate = new Date(dateStr);
+        return rowDate >= filterDate;
+      });
+    }
+    
+    if (filterDateTo && filterDateTo.value) {
+      $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+        const dateStr = data[1];
+        const filterDate = new Date(filterDateTo.value);
+        const rowDate = new Date(dateStr);
+        return rowDate <= filterDate;
+      });
+    }
+    
+    dataTable.draw();
+    
+    // تنظيف الفلاتر
+    $.fn.dataTable.ext.search = [];
+  }
+
+  // ========== تصدير CSV ==========
+  const btnExportCSV = document.getElementById('btn-export-csv');
+  if (btnExportCSV) {
+    btnExportCSV.addEventListener('click', function() {
+      exportTableToCSV('transfers.csv');
+    });
+  }
+
+  function exportTableToCSV(filename) {
+    const table = document.getElementById('transfersTable');
+    if (!table) return;
+    
+    let csv = [];
+    const rows = table.querySelectorAll('tr');
+    
+    for (let i = 0; i < rows.length; i++) {
+      const row = [], cols = rows[i].querySelectorAll('td, th');
+      
+      for (let j = 0; j < cols.length - 1; j++) { // تخطي عمود الإجراءات
+        let data = cols[j].innerText.replace(/"/g, '""');
+        row.push('"' + data + '"');
+      }
+      
+      csv.push(row.join(','));
+    }
+    
+    const csvContent = '\ufeff' + csv.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    
+    if (window.showNotification) {
+      showNotification('تم تصدير الملف بنجاح', 'success');
+    }
+  }
+
+  // ========== Notification ==========
+  function showNotification(message, type = 'info') {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3 shadow`;
+    alertDiv.style.zIndex = '9999';
+    alertDiv.innerHTML = `
+      ${message}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    setTimeout(() => alertDiv.remove(), 3000);
+  }
+
+})();
 </script>
 {% endblock %}

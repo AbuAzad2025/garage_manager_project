@@ -187,6 +187,70 @@
   }
 }
 
+/* تحسينات صفحة تفاصيل المستودع */
+.warehouse-detail-actions {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e9ecef;
+}
+
+.action-group h6 {
+  font-weight: 600;
+  color: #6c757d;
+  border-bottom: 1px solid #dee2e6;
+  padding-bottom: 0.5rem;
+}
+
+.action-group .btn {
+  transition: all 0.3s ease;
+}
+
+.action-group .btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* تحسين النماذج القابلة للطي */
+.card-header .btn-link {
+  color: #495057;
+  font-weight: 600;
+}
+
+.card-header .btn-link:hover {
+  color: #007bff;
+}
+
+.card-header .btn-link i {
+  transition: transform 0.3s ease;
+}
+
+.card-header .btn-link[aria-expanded="true"] i {
+  transform: rotate(90deg);
+}
+
+/* تحسين الحقول مع التوضيحات */
+.form-label {
+  font-weight: 600;
+  color: #495057;
+}
+
+.form-label small {
+  font-size: 0.8rem;
+  color: #6c757d;
+  line-height: 1.2;
+}
+
+.form-label i {
+  color: #007bff;
+}
+
+/* تحسين الأيقونات */
+.fa-box { color: #28a745; }
+.fa-hashtag { color: #17a2b8; }
+.fa-exclamation-triangle { color: #ffc107; }
+.fa-exclamation-circle { color: #dc3545; }
+
 .card-header .small { color: var(--muted); }
 .alert [data-bs-dismiss="alert"] { float: left; }
 

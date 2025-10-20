@@ -1,51 +1,988 @@
 {% extends 'warehouses/base.html' %}
-{% block title %}استيراد منتجات{% endblock %}
 {% block page_title %}استيراد منتجات - {{ warehouse.name }}{% endblock %}
+
+{% block head_extra %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/import.css') }}">
+  <style>
+    /* Drag & Drop Zone */
+    .drop-zone {
+      border: 3px dashed #cbd5e0;
+      border-radius: 1rem;
+      padding: 3rem 2rem;
+      text-align: center;
+      background: #f8f9fa;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      position: relative;
+    }
+    .drop-zone:hover {
+      border-color: #007bff;
+      background: #e7f3ff;
+      transform: scale(1.01);
+    }
+    .drop-zone.drag-over {
+      border-color: #28a745;
+      background: #d4edda;
+      transform: scale(1.02);
+    }
+    .drop-zone-icon {
+      font-size: 4rem;
+      color: #6c757d;
+      margin-bottom: 1rem;
+    }
+    .drop-zone.drag-over .drop-zone-icon {
+      color: #28a745;
+      animation: bounce 0.5s;
+    }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    /* File Info */
+    .file-info {
+      background: #fff;
+      border: 2px solid #28a745;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      margin-top: 1rem;
+    }
+    .file-info-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #e9ecef;
+    }
+    .file-info-item:last-child {
+      border-bottom: none;
+    }
+    
+    /* Progress Bar */
+    .upload-progress {
+      display: none;
+      margin-top: 1rem;
+    }
+    .upload-progress.active {
+      display: block;
+    }
+    
+    /* Preview Table */
+    .preview-table {
+      max-height: 300px;
+      overflow: auto;
+      margin-top: 1rem;
+    }
+    .preview-table table {
+      font-size: 0.85rem;
+    }
+    
+    /* Field Guide */
+    .field-guide {
+      background: #f8f9fa;
+      border-radius: 0.5rem;
+      padding: 1rem;
+    }
+    .field-badge {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      margin-left: 0.5rem;
+    }
+    .field-required { background: #dc3545; color: white; }
+    .field-important { background: #ffc107; color: #000; }
+    .field-optional { background: #6c757d; color: white; }
+    
+    /* Tabs */
+    .nav-tabs .nav-link {
+      border: none;
+      border-bottom: 3px solid transparent;
+      color: #6c757d;
+      font-weight: 600;
+    }
+    .nav-tabs .nav-link.active {
+      border-bottom-color: #007bff;
+      color: #007bff;
+    }
+  </style>
+{% endblock %}
+
 {% block content %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/import.css') }}">
+
+<!-- Alert توضيحي -->
+<div class="alert alert-info mb-4">
+  <div class="d-flex align-items-start">
+    <i class="fas fa-info-circle fa-2x me-3"></i>
+    <div>
+      <h5 class="mb-2">استيراد منتجات دفعة واحدة إلى {{ warehouse.name }}</h5>
+      <p class="mb-0 small">
+        قم برفع ملف CSV أو Excel يحتوي على المنتجات. يمكنك استيراد مئات المنتجات دفعة واحدة بدلاً من إدخالها يدوياً.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- Tabs للتنظيم -->
+<ul class="nav nav-tabs mb-4" id="importTabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" id="upload-tab" data-bs-toggle="tab" data-target="#upload-panel" type="button">
+      <i class="fas fa-upload me-1"></i> رفع الملف
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="template-tab" data-bs-toggle="tab" data-target="#template-panel" type="button">
+      <i class="fas fa-download me-1"></i> تحميل قالب
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="guide-tab" data-bs-toggle="tab" data-target="#guide-panel" type="button">
+      <i class="fas fa-book me-1"></i> دليل الحقول
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="examples-tab" data-bs-toggle="tab" data-target="#examples-panel" type="button">
+      <i class="fas fa-lightbulb me-1"></i> أمثلة
+    </button>
+  </li>
+</ul>
+
+<div class="tab-content" id="importTabsContent">
+  
+  <!-- Tab 1: رفع الملف -->
+  <div class="tab-pane fade show active" id="upload-panel">
 <div class="card shadow-sm">
   <div class="card-body">
     <form method="post" enctype="multipart/form-data" id="upload-form" novalidate>
       {{ form.hidden_tag() }}
-      <div class="row g-3">
-        <div class="col-md-6">
-          <label class="form-label">الملف</label>
-          {{ form.file(class="form-control", accept=".csv,.xlsx,.xls") }}
+          
+          <!-- Drag & Drop Zone -->
+          <div class="drop-zone" id="drop-zone">
+            <div class="drop-zone-icon">
+              <i class="fas fa-cloud-upload-alt"></i>
+            </div>
+            <h5 class="mb-2">اسحب ملف CSV أو Excel هنا</h5>
+            <p class="text-muted mb-3">أو اضغط لاختيار ملف من جهازك</p>
+            {{ form.file(class="d-none", id="file-input", accept=".csv,.xlsx,.xls") }}
+            <div class="text-muted small">
+              <i class="fas fa-check-circle text-success me-1"></i> CSV, XLSX
+              <span class="mx-2">|</span>
+              <i class="fas fa-exclamation-triangle text-warning me-1"></i> حد أقصى 5 MB
+            </div>
           {% for err in form.file.errors %}
-            <div class="text-danger small">{{ err }}</div>
+              <div class="text-danger small mt-2">{{ err }}</div>
           {% endfor %}
         </div>
+
+          <!-- File Info (يظهر بعد اختيار الملف) -->
+          <div id="file-info" class="file-info d-none">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+              <div>
+                <h6 class="mb-1">
+                  <i class="fas fa-file-excel text-success me-2"></i>
+                  <span id="file-name">filename.csv</span>
+                </h6>
+                <button type="button" class="btn btn-sm btn-outline-danger" id="remove-file">
+                  <i class="fas fa-times me-1"></i> إزالة
+                </button>
+              </div>
+              <span class="badge bg-success" id="file-size">0 KB</span>
+            </div>
+            
+            <div class="file-info-item">
+              <span class="text-muted">عدد الصفوف المتوقع:</span>
+              <strong id="estimated-rows">-</strong>
+            </div>
+            <div class="file-info-item">
+              <span class="text-muted">نوع الملف:</span>
+              <strong id="file-type">-</strong>
+            </div>
+            
+            <!-- Preview الصفوف الأولى -->
+            <div id="preview-container" class="mt-3 d-none">
+              <h6 class="mb-2">
+                <i class="fas fa-eye me-1"></i> معاينة سريعة (أول 5 صفوف):
+              </h6>
+              <div class="preview-table">
+                <table class="table table-sm table-bordered mb-0" id="preview-table">
+                  <thead class="table-light">
+                    <tr id="preview-headers"></tr>
+                  </thead>
+                  <tbody id="preview-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Upload Progress -->
+          <div class="upload-progress" id="upload-progress">
+            <div class="d-flex justify-content-between mb-2">
+              <span class="small text-muted">جاري رفع الملف...</span>
+              <span class="small fw-bold" id="progress-percent">0%</span>
+            </div>
+            <div class="progress" style="height: 20px;">
+              <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                   role="progressbar" 
+                   id="progress-bar"
+                   style="width: 0%">
+              </div>
+            </div>
+          </div>
+
+          <!-- الإعدادات -->
+          <div class="row g-3 mt-3">
         <div class="col-md-6">
           {% if form.duplicate_strategy %}
-          <label class="form-label">سياسة التكرار</label>
+              <label class="form-label fw-bold">
+                <i class="fas fa-random text-info me-1"></i> سياسة التكرار
+              </label>
           {{ form.duplicate_strategy(class="form-select") }}
+              <small class="text-muted d-block mt-1">
+                <i class="fas fa-info-circle"></i>
+                ماذا تفعل عند وجود منتج مكرر (نفس SKU أو رقم القطعة)
+              </small>
           {% endif %}
         </div>
-        <div class="col-md-6 d-flex align-items-center">
+            
+            <div class="col-md-6">
+              <label class="form-label fw-bold">
+                <i class="fas fa-cog text-secondary me-1"></i> خيارات
+              </label>
+              <div>
           {% if form.dry_run %}
-          <div class="form-check me-3">
-            {{ form.dry_run(class="form-check-input", id="dry_run") }}
-            <label class="form-check-label" for="dry_run">فحص فقط</label>
+                <div class="form-check form-switch mb-2">
+                  {{ form.dry_run(class="form-check-input", id="dry_run", role="switch", checked=True) }}
+                  <label class="form-check-label" for="dry_run">
+                    <strong>فحص فقط</strong> (لا يُدخل البيانات - آمن للتجربة)
+                  </label>
           </div>
           {% endif %}
           {% if form.continue_after_warnings %}
-          <div class="form-check">
-            {{ form.continue_after_warnings(class="form-check-input", id="continue_after_warnings") }}
-            <label class="form-check-label" for="continue_after_warnings">المتابعة رغم التحذيرات</label>
+                <div class="form-check form-switch">
+                  {{ form.continue_after_warnings(class="form-check-input", id="continue_after_warnings", role="switch") }}
+                  <label class="form-check-label" for="continue_after_warnings">
+                    المتابعة رغم التحذيرات
+                  </label>
+                </div>
+                {% endif %}
+              </div>
+            </div>
           </div>
-          {% endif %}
-        </div>
+
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary btn-lg" id="btn-submit">
+              <span class="btn-text">
+                <i class="fas fa-upload me-1"></i> رفع وفحص
+              </span>
+              <span class="btn-loading d-none">
+                <span class="spinner-border spinner-border-sm me-1"></span>
+                جاري الرفع...
+              </span>
+            </button>
+            <a class="btn btn-info" href="{{ url_for('warehouse_bp.import_runs', id=warehouse.id) }}" title="عرض سجل عمليات الاستيراد السابقة">
+              <i class="fas fa-history me-1"></i> سجل العمليات
+            </a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('warehouse_bp.detail', warehouse_id=warehouse.id) }}">
+              <i class="fas fa-arrow-right me-1"></i> رجوع
+            </a>
+          </div>
+        </form>
       </div>
-      <div class="d-flex gap-2 mt-3">
-        <button class="btn btn-primary">رفع وفحص</button>
-        <a class="btn btn-secondary" href="{{ url_for('warehouse_bp.detail', warehouse_id=warehouse.id) }}">رجوع</a>
-      </div>
-    </form>
-    <div class="mt-4">
-      <div class="small text-muted mb-2">يدعم CSV وXLSX. الترويسات الموصى بها:</div>
-      <pre class="bg-light p-2 border rounded small mb-0"><code>name,sku,part_number,brand,description,commercial_name,chassis_number,serial_no,barcode,unit,category_name,price,selling_price,purchase_price,cost_before_shipping,cost_after_shipping,unit_price_before_tax,min_price,max_price,tax_rate,min_qty,reorder_point,condition,origin_country,warranty_period,weight,dimensions,image,notes,quantity</code></pre>
     </div>
   </div>
+
+  <!-- Tab 2: تحميل قالب -->
+  <div class="tab-pane fade" id="template-panel">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5 class="mb-3">
+          <i class="fas fa-download text-success me-2"></i>
+          تحميل قالب جاهز
+        </h5>
+        <p class="text-muted">
+          حمّل قالب جاهز يحتوي على كل الحقول المطلوبة مع أمثلة توضيحية، ثم املأه ببياناتك وارفعه.
+        </p>
+
+        <div class="row g-3 mt-3">
+          <div class="col-md-6">
+            <div class="card border-success h-100">
+              <div class="card-body text-center">
+                <div class="mb-3">
+                  <i class="fas fa-file-csv fa-3x text-success"></i>
+                </div>
+                <h6 class="card-title">قالب CSV</h6>
+                <p class="card-text small text-muted">
+                  ملف نصي بسيط يعمل مع Excel وGoogle Sheets
+                </p>
+                <a href="{{ url_for('warehouse_bp.detail', warehouse_id=warehouse.id) }}?download_template=csv" 
+                   class="btn btn-success" id="download-csv-template">
+                  <i class="fas fa-download me-1"></i> تحميل CSV
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="card border-primary h-100">
+              <div class="card-body text-center">
+                <div class="mb-3">
+                  <i class="fas fa-file-excel fa-3x text-primary"></i>
+                </div>
+                <h6 class="card-title">قالب Excel</h6>
+                <p class="card-text small text-muted">
+                  ملف Excel مع تنسيق وألوان توضيحية
+                </p>
+                <a href="{{ url_for('warehouse_bp.detail', warehouse_id=warehouse.id) }}?download_template=xlsx" 
+                   class="btn btn-primary" id="download-xlsx-template">
+                  <i class="fas fa-download me-1"></i> تحميل Excel
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="alert alert-warning mt-4">
+          <i class="fas fa-exclamation-triangle me-2"></i>
+          <strong>ملاحظة:</strong> لا تغيّر ترتيب الأعمدة أو أسماء الترويسات في السطر الأول.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 3: دليل الحقول -->
+  <div class="tab-pane fade" id="guide-panel">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5 class="mb-3">
+          <i class="fas fa-book text-primary me-2"></i>
+          دليل الحقول المدعومة
+        </h5>
+
+        <div class="field-guide">
+          <!-- الحقول الإلزامية -->
+          <h6 class="text-danger mb-3">
+            <i class="fas fa-star me-1"></i> حقول إلزامية
+          </h6>
+          <div class="table-responsive">
+            <table class="table table-sm table-hover">
+              <thead class="table-light">
+                <tr>
+                  <th style="width: 150px">اسم الحقل</th>
+                  <th>الوصف</th>
+                  <th style="width: 200px">مثال</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>name</code> <span class="field-badge field-required">إلزامي</span></td>
+                  <td>اسم المنتج كما سيظهر في الفواتير</td>
+                  <td><code>بخاخ بنزين</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- الحقول المهمة -->
+          <h6 class="text-warning mt-4 mb-3">
+            <i class="fas fa-exclamation-circle me-1"></i> حقول مهمة (موصى بها بشدة)
+          </h6>
+          <div class="table-responsive">
+            <table class="table table-sm table-hover">
+              <thead class="table-light">
+                <tr>
+                  <th style="width: 150px">اسم الحقل</th>
+                  <th>الوصف</th>
+                  <th style="width: 200px">مثال</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>price</code> <span class="field-badge field-important">مهم</span></td>
+                  <td>سعر البيع الأساسي</td>
+                  <td><code>125.50</code></td>
+                </tr>
+                <tr>
+                  <td><code>quantity</code> <span class="field-badge field-important">مهم</span></td>
+                  <td>الكمية المتوفرة</td>
+                  <td><code>15</code></td>
+                </tr>
+                <tr>
+                  <td><code>sku</code> <span class="field-badge field-important">مهم</span></td>
+                  <td>كود المنتج الداخلي</td>
+                  <td><code>BK-001</code></td>
+                </tr>
+                <tr>
+                  <td><code>brand</code> <span class="field-badge field-important">مهم</span></td>
+                  <td>اسم الماركة/الشركة المصنعة</td>
+                  <td><code>Bosch</code></td>
+                </tr>
+                <tr>
+                  <td><code>part_number</code> <span class="field-badge field-important">مهم</span></td>
+                  <td>رقم القطعة الأصلي</td>
+                  <td><code>0280158017</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- الحقول الاختيارية -->
+          <div class="mt-4">
+            <h6 class="text-secondary mb-2">
+              <i class="fas fa-list me-1"></i> حقول اختيارية (25 حقل)
+            </h6>
+            <details class="mb-3">
+              <summary class="btn btn-sm btn-outline-secondary mb-2">
+                عرض كل الحقول الاختيارية
+              </summary>
+              <div class="table-responsive mt-2">
+                <table class="table table-sm table-hover">
+                  <tbody>
+                    <tr>
+                      <td><code>description</code></td>
+                      <td>وصف تفصيلي للمنتج</td>
+                    </tr>
+                    <tr>
+                      <td><code>selling_price</code></td>
+                      <td>سعر البيع (إذا كان مختلف عن price)</td>
+                    </tr>
+                    <tr>
+                      <td><code>purchase_price</code></td>
+                      <td>سعر الشراء/التكلفة</td>
+                    </tr>
+                    <tr>
+                      <td><code>barcode</code></td>
+                      <td>الباركود (EAN-13 أو UPC-A)</td>
+                    </tr>
+                    <tr>
+                      <td><code>serial_no</code></td>
+                      <td>الرقم التسلسلي</td>
+                    </tr>
+                    <tr>
+                      <td><code>category_name</code></td>
+                      <td>اسم الفئة (محركات، فلاتر، إطارات...)</td>
+                    </tr>
+                    <tr>
+                      <td><code>min_price</code>, <code>max_price</code></td>
+                      <td>نطاق السعر المسموح</td>
+                    </tr>
+                    <tr>
+                      <td><code>tax_rate</code></td>
+                      <td>نسبة الضريبة (مثال: 16 للمئة)</td>
+                    </tr>
+                    <tr>
+                      <td><code>min_qty</code></td>
+                      <td>الحد الأدنى للتنبيه</td>
+                    </tr>
+                    <tr>
+                      <td><code>weight</code></td>
+                      <td>الوزن بالكيلوغرام</td>
+                    </tr>
+                    <tr>
+                      <td><code>dimensions</code></td>
+                      <td>الأبعاد (طول×عرض×ارتفاع)</td>
+                    </tr>
+                    <tr>
+                      <td><code>warranty_period</code></td>
+                      <td>مدة الضمان بالأشهر</td>
+                    </tr>
+                    <tr>
+                      <td colspan="2" class="text-center text-muted">
+                        + 13 حقل إضافي (commercial_name, chassis_number, condition...)
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 mt-4">
+          <button type="submit" class="btn btn-primary btn-lg" id="btn-submit-guide" disabled>
+            <i class="fas fa-upload me-1"></i> رفع وفحص
+          </button>
+          <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('upload-tab').click()">
+            <i class="fas fa-arrow-right me-1"></i> ارجع للرفع
+          </button>
+        </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 4: أمثلة -->
+  <div class="tab-pane fade" id="examples-panel">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5 class="mb-3">
+          <i class="fas fa-lightbulb text-warning me-2"></i>
+          أمثلة عملية
+        </h5>
+
+        <div class="accordion" id="examplesAccordion">
+          <!-- مثال 1: CSV بسيط -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button" type="button" data-bs-toggle="collapse" data-target="#example1">
+                <i class="fas fa-file-csv text-success me-2"></i>
+                مثال 1: ملف CSV بسيط (الحد الأدنى)
+              </button>
+            </h2>
+            <div id="example1" class="accordion-collapse collapse show" data-parent="#examplesAccordion">
+              <div class="accordion-body">
+                <pre class="bg-light p-3 rounded"><code>name,price,quantity
+بخاخ بنزين,120.50,10
+فلتر زيت,45.00,25
+بطارية 12 فولت,350.00,5</code></pre>
+              </div>
+            </div>
+          </div>
+
+          <!-- مثال 2: CSV كامل -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-target="#example2">
+                <i class="fas fa-file-excel text-primary me-2"></i>
+                مثال 2: ملف كامل مع كل التفاصيل
+              </button>
+            </h2>
+            <div id="example2" class="accordion-collapse collapse" data-parent="#examplesAccordion">
+              <div class="accordion-body">
+                <pre class="bg-light p-3 rounded"><code>name,sku,part_number,brand,price,selling_price,purchase_price,quantity,category_name,barcode
+بخاخ بنزين,BK-001,0280158017,Bosch,120.50,130.00,95.00,10,محركات,1234567890123
+فلتر زيت,FT-002,HU7008z,Mann,45.00,50.00,32.00,25,فلاتر,9876543210987
+بطارية 12V,BT-003,VAR60AH,Varta,350.00,380.00,280.00,5,كهرباء,5551234567890</code></pre>
+              </div>
+            </div>
+          </div>
+
+          <!-- مثال 3: أخطاء شائعة -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-target="#example3">
+                <i class="fas fa-exclamation-triangle text-danger me-2"></i>
+                أخطاء شائعة وكيفية تجنبها
+              </button>
+            </h2>
+            <div id="example3" class="accordion-collapse collapse" data-parent="#examplesAccordion">
+              <div class="accordion-body">
+                <h6 class="text-danger">❌ خطأ - استخدام فواصل في الأرقام:</h6>
+                <pre class="bg-light p-2 rounded mb-3"><code>price,quantity
+"1,250.50",10  ❌ خطأ</code></pre>
+
+                <h6 class="text-success">✅ صحيح:</h6>
+                <pre class="bg-light p-2 rounded mb-3"><code>price,quantity
+1250.50,10  ✅ صحيح</code></pre>
+
+                <hr>
+
+                <h6 class="text-danger">❌ خطأ - ترويسات بالعربي:</h6>
+                <pre class="bg-light p-2 rounded mb-3"><code>الاسم,السعر,الكمية  ❌ خطأ
+بخاخ,120,10</code></pre>
+
+                <h6 class="text-success">✅ صحيح:</h6>
+                <pre class="bg-light p-2 rounded mb-3"><code>name,price,quantity  ✅ صحيح
+بخاخ,120,10</code></pre>
+
+                <div class="alert alert-info mt-3">
+                  <i class="fas fa-magic me-2"></i>
+                  <strong>نصيحة ذكية:</strong> النظام يدعم الترويسات بالعربي أيضاً! 
+                  يمكنك استخدام "الاسم" بدل "name" وسيتم التحويل تلقائياً.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
 </div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function() {
+  'use strict';
+  
+  // ========== العناصر ==========
+  const dropZone = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('file-input');
+  const fileInfo = document.getElementById('file-info');
+  const fileName = document.getElementById('file-name');
+  const fileSize = document.getElementById('file-size');
+  const fileType = document.getElementById('file-type');
+  const estimatedRows = document.getElementById('estimated-rows');
+  const removeFileBtn = document.getElementById('remove-file');
+  const uploadForm = document.getElementById('upload-form');
+  const btnSubmit = document.getElementById('btn-submit');
+  const uploadProgress = document.getElementById('upload-progress');
+  const progressBar = document.getElementById('progress-bar');
+  const progressPercent = document.getElementById('progress-percent');
+  const previewContainer = document.getElementById('preview-container');
+  const previewHeaders = document.getElementById('preview-headers');
+  const previewBody = document.getElementById('preview-body');
+
+  const MAX_SIZE_MB = 5;
+  const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
+  
+  // ========== الدوال المساعدة ==========
+  function formatBytes(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  }
+  
+  function showNotification(message, type = 'info') {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3 shadow`;
+    alertDiv.style.zIndex = '9999';
+    alertDiv.innerHTML = `
+      ${message}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    setTimeout(() => alertDiv.remove(), 5000);
+  }
+
+  // ========== Drag & Drop ==========
+  if (dropZone && fileInput) {
+    // النقر على المنطقة = فتح File Dialog
+    dropZone.addEventListener('click', () => fileInput.click());
+    
+    // منع السلوك الافتراضي
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      dropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      });
+    });
+    
+    // تأثيرات visual عند السحب
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropZone.addEventListener(eventName, () => {
+        dropZone.classList.add('drag-over');
+      });
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropZone.addEventListener(eventName, () => {
+        dropZone.classList.remove('drag-over');
+      });
+    });
+    
+    // معالج Drop
+    dropZone.addEventListener('drop', (e) => {
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        fileInput.files = files;
+        handleFileSelect(files[0]);
+      }
+    });
+    
+    // معالج اختيار الملف العادي
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        handleFileSelect(e.target.files[0]);
+      }
+    });
+  }
+
+  // ========== معالج اختيار الملف (الوظيفة الأصلية محسّنة) ==========
+  function handleFileSelect(file) {
+    if (!file) return;
+
+    // التحقق من الامتداد (الوظيفة الأصلية)
+    const ext = file.name.split('.').pop().toLowerCase();
+    const mime = file.type;
+    const allowedExtensions = ['csv', 'xlsx', 'xls'];
+    const allowedMimeTypes = [
+      'text/csv',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      '' // بعض الأنظمة ما ترسل MIME type
+    ];
+
+    if (!allowedExtensions.includes(ext)) {
+      showNotification('❌ الرجاء اختيار ملف بصيغة CSV أو Excel فقط', 'danger');
+      fileInput.value = '';
+      return;
+    }
+
+    // التحقق من الحجم (الوظيفة الأصلية)
+    if (file.size > MAX_SIZE_BYTES) {
+      showNotification(`❌ حجم الملف كبير جداً. الحد الأقصى ${MAX_SIZE_MB} MB`, 'danger');
+      fileInput.value = '';
+      return;
+    }
+
+    // ✨ جديد: عرض معلومات الملف
+    if (fileName) fileName.textContent = file.name;
+    if (fileSize) fileSize.textContent = formatBytes(file.size);
+    if (fileType) {
+      const types = {
+        'csv': 'CSV (Comma-Separated Values)',
+        'xlsx': 'Excel Workbook',
+        'xls': 'Excel 97-2003'
+      };
+      fileType.textContent = types[ext] || ext.toUpperCase();
+    }
+    
+    // ✨ جديد: تقدير عدد الصفوف (تقريبي)
+    if (estimatedRows && ext === 'csv') {
+      const avgBytesPerRow = 100; // تقدير تقريبي
+      const estimated = Math.floor(file.size / avgBytesPerRow);
+      estimatedRows.textContent = `~${estimated} صف`;
+    } else {
+      estimatedRows.textContent = 'جاري الحساب...';
+    }
+    
+    // إخفاء Drop Zone وإظهار File Info
+    dropZone.classList.add('d-none');
+    fileInfo.classList.remove('d-none');
+    
+    // ✨ جديد: معاينة الملف (للـ CSV فقط)
+    if (ext === 'csv' && file.size < 1024 * 1024) { // فقط للملفات أقل من 1MB
+      previewCSVFile(file);
+    }
+    
+    // الوظيفة الأصلية: إشعار النجاح
+    showNotification('✅ تم اختيار ملف صالح. جاهز للرفع!', 'success');
+  }
+
+  // ========== معاينة ملف CSV ==========
+  function previewCSVFile(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const text = e.target.result;
+        const lines = text.split('\n').filter(l => l.trim()).slice(0, 6); // أول 6 أسطر
+        
+        if (lines.length < 2) return; // لازم headers + صف واحد على الأقل
+        
+        const headers = lines[0].split(',').map(h => h.trim());
+        const rows = lines.slice(1, 6);
+        
+        // عرض Headers
+        previewHeaders.innerHTML = headers.map(h => 
+          `<th class="text-nowrap"><code>${h}</code></th>`
+        ).join('');
+        
+        // عرض الصفوف
+        previewBody.innerHTML = rows.map(row => {
+          const cells = row.split(',').map(c => c.trim());
+          return '<tr>' + cells.map(c => 
+            `<td class="text-nowrap">${c}</td>`
+          ).join('') + '</tr>';
+        }).join('');
+        
+        previewContainer.classList.remove('d-none');
+        
+        // تحديث عدد الصفوف الفعلي
+        if (estimatedRows) {
+          estimatedRows.textContent = `~${lines.length - 1} صف (معاينة)`;
+        }
+      } catch (err) {
+        console.warn('Failed to preview CSV:', err);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  // ========== إزالة الملف ==========
+  if (removeFileBtn) {
+    removeFileBtn.addEventListener('click', () => {
+      fileInput.value = '';
+      dropZone.classList.remove('d-none');
+      fileInfo.classList.add('d-none');
+      previewContainer.classList.add('d-none');
+      showNotification('تم إزالة الملف', 'info');
+    });
+  }
+
+  // ========== معالج الإرسال (الوظيفة الأصلية محسّنة) ==========
+  if (uploadForm) {
+    uploadForm.addEventListener('submit', function(e) {
+      // التحقق من وجود ملف
+      if (!fileInput.files || fileInput.files.length === 0) {
+        e.preventDefault();
+        showNotification('❌ الرجاء اختيار ملف للرفع', 'danger');
+        document.getElementById('upload-tab').click();
+        dropZone.classList.add('shake');
+        setTimeout(() => dropZone.classList.remove('shake'), 500);
+        return false;
+      }
+      
+      // ✨ جديد: Loading state
+      if (btnSubmit) {
+        btnSubmit.disabled = true;
+        const btnText = btnSubmit.querySelector('.btn-text');
+        const btnLoading = btnSubmit.querySelector('.btn-loading');
+        if (btnText) btnText.classList.add('d-none');
+        if (btnLoading) btnLoading.classList.remove('d-none');
+      }
+      
+      // ✨ جديد: Progress simulation (لأن الرفع عادي بدون AJAX)
+      if (uploadProgress) {
+        uploadProgress.classList.add('active');
+        let progress = 0;
+        const interval = setInterval(() => {
+          progress += Math.random() * 15;
+          if (progress > 90) progress = 90;
+          if (progressBar) progressBar.style.width = progress + '%';
+          if (progressPercent) progressPercent.textContent = Math.round(progress) + '%';
+        }, 200);
+        
+        // سيتوقف التقدم عند 90% حتى يُرسل الفورم فعلياً
+      }
+      
+      // الوظيفة الأصلية: السماح بالإرسال
+      return true;
+    });
+  }
+
+  // ========== Tabs Navigation (دعم Bootstrap 4 و 5) ==========
+  document.querySelectorAll('[data-bs-toggle="tab"], [data-toggle="tab"]').forEach(tab => {
+    tab.addEventListener('click', function(e) {
+      e.preventDefault();
+      const target = this.getAttribute('data-target') || this.getAttribute('data-bs-target');
+      
+      // إخفاء كل الـ panels
+      document.querySelectorAll('.tab-pane').forEach(pane => {
+        pane.classList.remove('show', 'active');
+      });
+      
+      // إزالة active من كل الـ tabs
+      document.querySelectorAll('.nav-link').forEach(link => {
+        link.classList.remove('active');
+      });
+      
+      // تفعيل الـ tab والـ panel المطلوب
+      this.classList.add('active');
+      const targetPane = document.querySelector(target);
+      if (targetPane) {
+        targetPane.classList.add('show', 'active');
+      }
+    });
+  });
+
+  // ========== Accordion (دعم Bootstrap 4 و 5) ==========
+  document.querySelectorAll('[data-bs-toggle="collapse"], [data-toggle="collapse"]').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      const target = this.getAttribute('data-target') || this.getAttribute('data-bs-target');
+      const targetEl = document.querySelector(target);
+      
+      if (targetEl) {
+        targetEl.classList.toggle('show');
+        
+        // تغيير الأيقونة
+        const icon = this.querySelector('i');
+        if (icon) {
+          if (targetEl.classList.contains('show')) {
+            this.classList.remove('collapsed');
+          } else {
+            this.classList.add('collapsed');
+          }
+        }
+      }
+    });
+  });
+
+  // ========== تحميل القوالب (Generate & Download) ==========
+  const csvTemplateBtn = document.getElementById('download-csv-template');
+  const xlsxTemplateBtn = document.getElementById('download-xlsx-template');
+  
+  if (csvTemplateBtn) {
+    csvTemplateBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      generateCSVTemplate();
+    });
+  }
+  
+  if (xlsxTemplateBtn) {
+    xlsxTemplateBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      showNotification('⚠️ قالب Excel سيكون متاحاً قريباً. استخدم CSV حالياً.', 'warning');
+    });
+  }
+
+  // ========== توليد قالب CSV ==========
+  function generateCSVTemplate() {
+    const headers = [
+      'name', 'sku', 'part_number', 'brand', 'description',
+      'price', 'selling_price', 'purchase_price', 'quantity',
+      'category_name', 'barcode', 'serial_no', 
+      'min_price', 'max_price', 'tax_rate', 'min_qty',
+      'weight', 'dimensions', 'warranty_period',
+      'condition', 'origin_country', 'unit', 'notes'
+    ];
+    
+    const examples = [
+      ['بخاخ بنزين', 'BK-001', '0280158017', 'Bosch', 'بخاخ وقود أصلي', 
+       '120.50', '130.00', '95.00', '10', 
+       'محركات', '1234567890123', 'SN-001',
+       '100.00', '150.00', '16', '5',
+       '0.5', '10x5x5', '12',
+       'NEW', 'Germany', 'قطعة', 'أصلي ألماني'],
+      
+      ['فلتر زيت', 'FT-002', 'HU7008z', 'Mann', 'فلتر زيت محرك',
+       '45.00', '50.00', '32.00', '25',
+       'فلاتر', '9876543210987', 'SN-002',
+       '35.00', '60.00', '16', '10',
+       '0.3', '8x8x10', '6',
+       'NEW', 'China', 'قطعة', 'متوافق مع تويوتا'],
+      
+      ['بطارية 12V 60AH', 'BT-003', 'VAR60AH', 'Varta', 'بطارية سيارة',
+       '350.00', '380.00', '280.00', '5',
+       'كهرباء', '5551234567890', 'SN-003',
+       '300.00', '450.00', '16', '2',
+       '15.0', '20x17x17', '24',
+       'NEW', 'Turkey', 'قطعة', 'ضمان سنتين']
+    ];
+    
+    // بناء CSV
+    let csv = headers.join(',') + '\n';
+    csv += examples.map(row => row.join(',')).join('\n');
+    
+    // تحميل الملف
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'products_template.csv';
+    link.click();
+    
+    showNotification('✅ تم تحميل قالب CSV مع أمثلة', 'success');
+  }
+
+  // ========== Keyboard Shortcuts ==========
+  document.addEventListener('keydown', function(e) {
+    // Ctrl+U للتحميل
+    if ((e.ctrlKey || e.metaKey) && e.key === 'u') {
+      e.preventDefault();
+      fileInput.click();
+    }
+  });
+
+  // ========== Animation للـ drop-zone ==========
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
+      20%, 40%, 60%, 80% { transform: translateX(10px); }
+    }
+    .shake {
+      animation: shake 0.6s;
+    }
+  `;
+  document.head.appendChild(style);
+
+})();
+</script>
 <script src="{{ url_for('static', filename='js/import_upload.js') }}"></script>
 {% endblock %}

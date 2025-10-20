@@ -1,68 +1,287 @@
 {% extends 'warehouses/base.html' %}
 
-{% block title %}تفاصيل المستودع: {{ warehouse.name }}{% endblock %}
 {% block page_title %}تفاصيل المستودع: {{ warehouse.name }}{% endblock %}
+
+{% block head_extra %}
+{{ super() }}
+<style>
+  .stat-card {
+    border: none;
+    border-radius: 10px;
+    transition: transform 0.2s;
+  }
+  
+  .stat-card:hover {
+    transform: translateY(-5px);
+  }
+  
+  .stat-icon {
+    font-size: 2.5rem;
+    opacity: 0.8;
+  }
+  
+  .info-card-item {
+    padding: 12px;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .info-card-item:last-child {
+    border-bottom: none;
+  }
+  
+  .info-icon {
+    font-size: 1.2rem;
+    margin-left: 8px;
+    color: #6c757d;
+  }
+  
+  .quick-action-btn {
+    margin: 4px;
+  }
+  
+  .nav-tabs .nav-link {
+    color: #6c757d;
+    font-weight: 500;
+  }
+  
+  .nav-tabs .nav-link.active {
+    color: #495057;
+    font-weight: 600;
+  }
+  
+  .tab-content {
+    padding: 20px;
+    border: 1px solid #dee2e6;
+    border-top: none;
+    border-radius: 0 0 0.25rem 0.25rem;
+  }
+  
+  .border-danger {
+    border-color: #dc3545 !important;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
+  }
+  
+  .border-warning {
+    border-color: #ffc107 !important;
+    box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25) !important;
+  }
+  
+  .alert-primary h4 {
+    color: inherit;
+  }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="card shadow-sm">
   <div class="card-body">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <div class="d-flex gap-2">
-        <button class="btn btn-primary btn-sm" onclick="openBarcodeScanner()">
-          <i class="fas fa-barcode"></i> ماسح الباركود
-        </button>
-        <button class="btn btn-info btn-sm" onclick="openQuickStockUpdate()">
-          <i class="fas fa-edit"></i> تحديث سريع
-        </button>
-        <button class="btn btn-warning btn-sm" onclick="generateBarcodesForMissing()">
-          <i class="fas fa-qrcode"></i> توليد باركودات
-        </button>
+    <!-- أزرار الإدارة محسّنة -->
+    <div class="warehouse-detail-actions mb-4">
+      <!-- أدوات الباركود -->
+      <div class="action-group mb-3">
+        <h6 class="text-muted mb-2">
+          <i class="fas fa-barcode me-1"></i> أدوات الباركود
+        </h6>
+        <div class="d-flex flex-wrap gap-2">
+          <button class="btn btn-primary btn-sm" onclick="openBarcodeScanner()" title="فتح ماسح الباركود">
+            <i class="fas fa-barcode me-1"></i> ماسح الباركود
+          </button>
+          <button class="btn btn-info btn-sm" onclick="openQuickStockUpdate()" title="تحديث سريع للمخزون">
+            <i class="fas fa-edit me-1"></i> تحديث سريع
+          </button>
+          <button class="btn btn-warning btn-sm" onclick="generateBarcodesForMissing()" title="توليد باركودات للمنتجات المفقودة">
+            <i class="fas fa-qrcode me-1"></i> توليد باركودات
+          </button>
+          <a href="{{ url_for('barcode_scanner.bulk_scan_page') }}" class="btn btn-outline-info btn-sm" title="مسح جماعي للمنتجات">
+            <i class="fas fa-barcode me-1"></i> مسح جماعي
+          </a>
+        </div>
       </div>
-      <div class="d-flex gap-2">
-        <a href="{{ url_for('warehouse_bp.add_product', id=warehouse.id) }}" class="btn btn-outline-primary btn-sm">
-          <i class="fas fa-plus"></i> إضافة منتج
-        </a>
-        <a href="{{ url_for('barcode_scanner.bulk_scan_page') }}" class="btn btn-outline-info btn-sm">
-          <i class="fas fa-barcode"></i> مسح جماعي
-        </a>
-        <a href="{{ url_for('warehouse_bp.import_products', id=warehouse.id) }}" class="btn btn-outline-secondary btn-sm">
-          <i class="fas fa-file-upload"></i> استيراد (CSV)
-        </a>
-        <a href="{{ url_for('shipments_bp.create_shipment', destination_id=warehouse.id) }}" class="btn btn-success btn-sm">
-          <i class="fas fa-truck-loading"></i> إنشاء شحنة
-        </a>
+
+      <!-- أدوات الإدارة -->
+      <div class="action-group">
+        <h6 class="text-muted mb-2">
+          <i class="fas fa-cogs me-1"></i> أدوات الإدارة
+        </h6>
+        <div class="d-flex flex-wrap gap-2">
+          <a href="{{ url_for('warehouse_bp.add_product', id=warehouse.id) }}" class="btn btn-success btn-sm" title="إضافة منتج جديد للمستودع">
+            <i class="fas fa-plus me-1"></i> إضافة منتج
+          </a>
+          <a href="{{ url_for('warehouse_bp.import_products', id=warehouse.id) }}" class="btn btn-outline-secondary btn-sm" title="استيراد منتجات من ملف CSV">
+            <i class="fas fa-file-upload me-1"></i> استيراد (CSV)
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- إحصائيات سريعة -->
+    {% set stock_list = stock_levels if stock_levels else [] %}
+    {% set total_products = stock_list|length %}
+    {% set total_quantity = stock_list|sum(attribute='quantity') if stock_list else 0 %}
+    {% set low_stock_items = [] %}
+    {% for sl in stock_list %}
+      {% if sl.min_stock and sl.quantity and sl.quantity < sl.min_stock %}
+        {% set _ = low_stock_items.append(sl) %}
+      {% endif %}
+    {% endfor %}
+    {% set low_stock_count = low_stock_items|length %}
+    
+    <div class="row mb-4">
+      <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card shadow-sm bg-primary text-white">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="text-white-50 mb-1">المنتجات</h6>
+                <h2 class="mb-0 fw-bold">{{ total_products }}</h2>
+                <small class="text-white-50">صنف مختلف</small>
+              </div>
+              <div>
+                <i class="fas fa-boxes stat-icon"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card shadow-sm bg-success text-white">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="text-white-50 mb-1">إجمالي الكمية</h6>
+                <h2 class="mb-0 fw-bold">{{ total_quantity }}</h2>
+                <small class="text-white-50">قطعة</small>
+              </div>
+              <div>
+                <i class="fas fa-cubes stat-icon"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card shadow-sm bg-warning text-white">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="text-white-50 mb-1">تحذير مخزون</h6>
+                <h2 class="mb-0 fw-bold">{{ low_stock_count }}</h2>
+                <small class="text-white-50">منتج تحت الحد</small>
+              </div>
+              <div>
+                <i class="fas fa-exclamation-triangle stat-icon"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card shadow-sm bg-info text-white">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 class="text-white-50 mb-1">السعة</h6>
+                <h4 class="mb-0 fw-bold">{{ warehouse.capacity or 'غير محدد' }}</h4>
+                <small class="text-white-50">الحد الأقصى</small>
+              </div>
+              <div>
+                <i class="fas fa-warehouse stat-icon"></i>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
     <div class="row gy-4">
       <!-- العمود الجانبي -->
       <div class="col-lg-4">
-        <div class="card h-100">
+        <div class="card h-100 shadow-sm">
+          <div class="card-header bg-light">
+            <h5 class="mb-0">
+              <i class="fas fa-info-circle me-2"></i>
+              معلومات المستودع
+            </h5>
+          </div>
           <div class="card-body">
-            <h5 class="mb-3">معلومات المستودع</h5>
-            <ul class="list-group list-group-flush">
-              <li class="list-group-item"><strong>الاسم:</strong> {{ warehouse.name }}</li>
-              <li class="list-group-item">
-                <strong>النوع:</strong>
-                {{ ar_label('warehouse_type', warehouse.warehouse_type) if ar_label else (warehouse.warehouse_type or '-') }}
-              </li>
-              <li class="list-group-item"><strong>الموقع:</strong> {{ warehouse.location or '-' }}</li>
-              <li class="list-group-item"><strong>السعة:</strong> {{ warehouse.capacity or '-' }}</li>
-              <li class="list-group-item"><strong>الحالة:</strong> {{ 'نشط' if warehouse.is_active else 'غير نشط' }}</li>
-            </ul>
+            <div class="info-card-item">
+              <div>
+                <i class="fas fa-tag info-icon"></i>
+                <strong>الاسم</strong>
+              </div>
+              <span>{{ warehouse.name }}</span>
+            </div>
+            <div class="info-card-item">
+              <div>
+                <i class="fas fa-layer-group info-icon"></i>
+                <strong>النوع</strong>
+              </div>
+              <span>{{ ar_label('warehouse_type', warehouse.warehouse_type) if ar_label else (warehouse.warehouse_type or '-') }}</span>
+            </div>
+            <div class="info-card-item">
+              <div>
+                <i class="fas fa-map-marker-alt info-icon"></i>
+                <strong>الموقع</strong>
+              </div>
+              <span>{{ warehouse.location or '-' }}</span>
+            </div>
+            <div class="info-card-item">
+              <div>
+                <i class="fas fa-box-open info-icon"></i>
+                <strong>السعة</strong>
+              </div>
+              <span>{{ warehouse.capacity or '-' }}</span>
+            </div>
+            <div class="info-card-item">
+              <div>
+                <i class="fas fa-power-off info-icon"></i>
+                <strong>الحالة</strong>
+              </div>
+              <span class="badge {{ 'bg-success' if warehouse.is_active else 'bg-secondary' }}">
+                {{ 'نشط' if warehouse.is_active else 'غير نشط' }}
+              </span>
+            </div>
 
             <hr class="my-3">
 
-            <h6 class="mb-2">بحث سريع عن منتج</h6>
-            <div class="mb-2">
+            <h6 class="mb-3">
+              <i class="fas fa-search me-2"></i>
+              بحث سريع عن منتج
+            </h6>
+            <div class="mb-3">
+              <label class="form-label small text-muted">البحث بالاسم أو رقم القطعة</label>
               <select id="product-quick"
                       class="form-control select2"
                       data-endpoint="{{ url_for('api.search_products') }}"
                       data-placeholder="ابحث بالاسم أو رقم القطعة أو الباركود"></select>
-              <small class="text-muted d-block mt-1">اكتب الاسم أو أدخل رقم القطعة أو امسح الباركود.</small>
             </div>
             <div>
+              <label class="form-label small text-muted">البحث بالباركود</label>
               <input id="barcode-input" type="text" class="form-control" placeholder="أدخل/امسح الباركود ثم Enter">
+            </div>
+            
+            <hr class="my-3">
+            
+            <h6 class="mb-2">
+              <i class="fas fa-bolt me-2"></i>
+              إجراءات سريعة
+            </h6>
+            <div class="d-grid gap-2">
+              <a href="{{ url_for('warehouse_bp.products', id=warehouse.id) }}" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-list me-1"></i> عرض كل المنتجات
+              </a>
+              <a href="{{ url_for('warehouse_bp.transfers', id=warehouse.id) }}" class="btn btn-outline-info btn-sm">
+                <i class="fas fa-exchange-alt me-1"></i> التحويلات
+              </a>
+              <a href="{{ url_for('warehouse_bp.preview_inventory', warehouse_id=warehouse.id) }}" class="btn btn-outline-success btn-sm">
+                <i class="fas fa-edit me-1"></i> تعديل المخزون
+              </a>
             </div>
           </div>
         </div>
@@ -72,189 +291,335 @@
       <div class="col-lg-8">
         <div id="op-alerts"></div>
 
-        <!-- 1) تحديث مخزون مباشر -->
-        <div class="card mb-4">
-          <div class="card-body">
-            <h5 class="mb-2">١) تحديث مخزون مباشر</h5>
-            <form class="stock-level-form"
-                  action="{{ url_for('warehouse_bp.ajax_update_stock', warehouse_id=warehouse.id) }}"
-                  method="POST" novalidate>
-              {{ stock_form.hidden_tag() }}
-              <div class="row g-3">
-                <div class="col-md-6">
-                  {{ stock_form.product_id.label }}
-                  {{ stock_form.product_id(
-                      class_="form-control select2",
-                      data_endpoint=url_for('api.search_products'),
-                      id="stock-product"
-                  ) }}
-                  {% for err in stock_form.product_id.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+        <!-- Tabs للنماذج -->
+        <div class="card shadow-sm mb-4">
+          <div class="card-header bg-light">
+            <h5 class="mb-0">
+              <i class="fas fa-tasks me-2"></i>
+              العمليات المتاحة
+            </h5>
+          </div>
+          <div class="card-body p-0">
+            <ul class="nav nav-tabs" id="operationsTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="stock-tab" data-bs-toggle="tab" data-bs-target="#stock-content" type="button" role="tab">
+                  <i class="fas fa-box me-1"></i> تحديث مخزون
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="transfer-tab" data-bs-toggle="tab" data-bs-target="#transfer-content" type="button" role="tab">
+                  <i class="fas fa-exchange-alt me-1"></i> تحويل
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="exchange-tab" data-bs-toggle="tab" data-bs-target="#exchange-content" type="button" role="tab">
+                  <i class="fas fa-random me-1"></i> وارد/صادر/تسوية
+                </button>
+              </li>
+            </ul>
+            
+            <div class="tab-content" id="operationsTabContent">
+              <!-- Tab 1: تحديث مخزون مباشر -->
+              <div class="tab-pane fade show active" id="stock-content" role="tabpanel">
+                <div class="alert alert-success mb-3">
+                  <i class="fas fa-info-circle me-2"></i>
+                  <strong>شرح التحديث:</strong> يمكنك تحديث كمية أي منتج في مستودع <strong>{{ warehouse.name }}</strong> مباشرة.
+                  <br>
+                  <small>الكمية التي تدخلها هي الكمية النهائية (وليست الزيادة أو النقصان).</small>
                 </div>
-                <div class="col-md-3">
-                  {{ stock_form.quantity.label }}
-                  {{ stock_form.quantity(class_="form-control", placeholder="مثال: 15") }}
-                  {% for err in stock_form.quantity.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-                </div>
-                <div class="col-md-3">
-                  {{ stock_form.min_stock.label }}
-                  {{ stock_form.min_stock(class_="form-control", placeholder="حد أدنى للتنبيه") }}
-                </div>
-                <div class="col-md-3">
-                  {{ stock_form.max_stock.label }}
-                  {{ stock_form.max_stock(class_="form-control", placeholder="حد أعلى للتنبيه") }}
-                </div>
-                <div class="col-12">
-                  <button type="submit" class="btn btn-success" onclick="return confirm('تأكيد تحديث المخزون؟')">تحديث</button>
-                </div>
+                
+                <form class="stock-level-form"
+                      action="{{ url_for('warehouse_bp.ajax_update_stock', warehouse_id=warehouse.id) }}"
+                      method="POST" novalidate>
+                  {{ stock_form.hidden_tag() }}
+                  
+                  <!-- عرض الكمية المتاحة -->
+                  <div class="alert alert-primary d-none" id="stock-current-info">
+                    <div class="row align-items-center">
+                      <div class="col-md-8">
+                        <strong id="stock-current-product">-</strong>
+                      </div>
+                      <div class="col-md-4 text-end">
+                        <span class="text-muted">الكمية الحالية:</span>
+                        <h4 class="mb-0 d-inline ms-2" id="stock-current-qty">-</h4>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label class="form-label">
+                        <i class="fas fa-box me-1"></i>{{ stock_form.product_id.label }} <span class="text-danger">*</span>
+                        <small class="text-muted d-block">ابحث بالاسم أو رقم القطعة أو امسح الباركود</small>
+                      </label>
+                      {{ stock_form.product_id(
+                          class_="form-control select2",
+                          data_endpoint=url_for('api.search_products'),
+                          id="stock-product"
+                      ) }}
+                      {% for err in stock_form.product_id.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label">
+                        <i class="fas fa-hashtag me-1"></i>{{ stock_form.quantity.label }} <span class="text-danger">*</span>
+                        <small class="text-muted d-block">الكمية الجديدة (النهائية)</small>
+                      </label>
+                      {{ stock_form.quantity(class_="form-control", placeholder="مثال: 15", id="stock-quantity-input") }}
+                      {% for err in stock_form.quantity.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label">
+                        <i class="fas fa-exclamation-triangle me-1"></i>{{ stock_form.min_stock.label }}
+                        <small class="text-muted d-block">حد أدنى للتنبيه (اختياري)</small>
+                      </label>
+                      {{ stock_form.min_stock(class_="form-control", placeholder="حد أدنى للتنبيه") }}
+                    </div>
+                    <div class="col-md-3">
+                      <label class="form-label">
+                        <i class="fas fa-exclamation-circle me-1"></i>{{ stock_form.max_stock.label }}
+                        <small class="text-muted d-block">حد أعلى للتنبيه (اختياري)</small>
+                      </label>
+                      {{ stock_form.max_stock(class_="form-control", placeholder="حد أعلى للتنبيه") }}
+                    </div>
+                    <div class="col-12">
+                      <button type="submit" class="btn btn-success">
+                        <i class="fas fa-check me-1"></i> تحديث المخزون
+                      </button>
+                    </div>
+                  </div>
+                </form>
               </div>
-            </form>
+              
+              <!-- Tab 2: تحويل بين مستودعين -->
+              <div class="tab-pane fade" id="transfer-content" role="tabpanel">
+                <div class="alert alert-info mb-3">
+                  <i class="fas fa-info-circle me-2"></i>
+                  <strong>شرح التحويل:</strong> يمكنك نقل منتج من أي مستودع إلى أي مستودع آخر.
+                  <br>
+                  <small>سيتم خصم الكمية من المستودع المصدر وإضافتها للمستودع الوجهة.</small>
+                </div>
+                
+                <div class="alert alert-warning mb-3" style="border-right: 4px solid #ffc107;">
+                  <h6 class="mb-2"><i class="fas fa-exclamation-triangle me-2"></i><strong>قواعد التحويل حسب نوع المستودع:</strong></h6>
+                  <ul class="mb-0" style="font-size: 0.9rem; line-height: 1.8;">
+                    <li><strong>مستودع شريك:</strong> يحول فقط لمستودع شريك آخر</li>
+                    <li><strong>مستودع تبادل:</strong> يحول فقط لمستودع تبادل آخر</li>
+                    <li><strong>مستودع رئيسي/أونلاين/ملكية كاملة:</strong> يحولون لبعضهم بحرية</li>
+                  </ul>
+                </div>
+                
+                <form id="transfer-form"
+                      action="{{ url_for('warehouse_bp.ajax_transfer', warehouse_id=warehouse.id) }}"
+                      method="POST" novalidate>
+                  {{ transfer_form.hidden_tag() }}
+                  {% if transfer_form.direction %}
+                    <input type="hidden" name="direction" value="IN">
+                  {% endif %}
+                  
+                  <!-- عرض الكمية المتاحة في المستودع المصدر -->
+                  <div class="alert alert-primary d-none" id="transfer-stock-info">
+                    <div class="row align-items-center">
+                      <div class="col-md-6">
+                        <strong id="transfer-product-name">-</strong>
+                      </div>
+                      <div class="col-md-6 text-end">
+                        <span class="text-muted">المتاح في المصدر:</span>
+                        <h4 class="mb-0 d-inline ms-2" id="transfer-available-qty">-</h4>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="row g-3">
+                    <div class="col-12">
+                      <label class="form-label fw-bold">
+                        <i class="fas fa-box me-1"></i>
+                        {{ transfer_form.product_id.label }} <span class="text-danger">*</span>
+                      </label>
+                      {{ transfer_form.product_id(
+                          class_="form-control select2",
+                          data_endpoint=url_for('api.search_products'),
+                          id="transfer-product"
+                      ) }}
+                      {% for err in transfer_form.product_id.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                      <small class="text-muted">اختر المنتج المراد تحويله</small>
+                    </div>
+                    
+                    <div class="col-md-4">
+                      <label class="form-label fw-bold">
+                        <i class="fas fa-hashtag me-1"></i>
+                        {{ transfer_form.quantity.label }} <span class="text-danger">*</span>
+                      </label>
+                      {{ transfer_form.quantity(class_="form-control", placeholder="مثال: 5", type="number", min="1", id="transfer-quantity-input") }}
+                      {% for err in transfer_form.quantity.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+                      <small class="text-muted">الكمية المراد نقلها</small>
+                      <div class="d-none text-danger small mt-1" id="transfer-warning">⚠️ الكمية أكبر من المتاح!</div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                      <label class="form-label fw-bold">
+                        <i class="fas fa-warehouse text-danger me-1"></i>
+                        من مستودع <span class="text-danger">*</span>
+                      </label>
+                      {{ transfer_form.source_id(
+                          class_="form-control select2",
+                          data_endpoint=url_for('api.search_warehouses'),
+                          id="transfer-source"
+                      ) }}
+                      <small class="text-muted">المستودع الذي سيُخصم منه</small>
+                    </div>
+                    
+                    <div class="col-md-4">
+                      <label class="form-label fw-bold">
+                        <i class="fas fa-warehouse text-success me-1"></i>
+                        إلى مستودع <span class="text-danger">*</span>
+                      </label>
+                      {{ transfer_form.destination_id(
+                          class_="form-control select2",
+                          data_endpoint=url_for('api.search_warehouses'),
+                          id="transfer-destination"
+                      ) }}
+                      <small class="text-muted">المستودع الذي سيُضاف إليه</small>
+                    </div>
+                    
+                    <div class="col-12">
+                      <label class="form-label">
+                        <i class="fas fa-comment me-1"></i>
+                        {{ transfer_form.notes.label }}
+                      </label>
+                      {{ transfer_form.notes(class_="form-control", placeholder="ملاحظات (اختياري)") }}
+                    </div>
+                    
+                    <div class="col-12">
+                      <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-exchange-alt me-1"></i> تنفيذ التحويل
+                      </button>
+                      <button type="button" class="btn btn-secondary" onclick="$('#transfer-form')[0].reset();">
+                        <i class="fas fa-redo me-1"></i> إعادة تعيين
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+              
+              <!-- Tab 3: وارد/صادر/تسوية -->
+              <div class="tab-pane fade" id="exchange-content" role="tabpanel">
+                <div class="alert alert-warning mb-3">
+                  <i class="fas fa-exclamation-triangle me-2"></i>
+                  <strong>شرح العمليات:</strong>
+                  <ul class="mb-0 mt-2">
+                    <li><strong>وارد (IN):</strong> إضافة كمية للمستودع (من مورد/شريك)</li>
+                    <li><strong>صادر (OUT):</strong> خصم كمية من المستودع (بيع/إرجاع لمورد)</li>
+                    <li><strong>تسوية (ADJUSTMENT):</strong> تصحيح المخزون (جرد/خطأ)</li>
+                  </ul>
+                </div>
+                
+                <form id="exchange-form"
+                      action="{{ url_for('api.create_exchange_transaction') }}"
+                      method="POST"
+                      novalidate
+                      data-warehouse-name="{{ warehouse.name }}">
+                  {{ exchange_form.hidden_tag() }}
+                  <input type="hidden" name="warehouse_id" value="{{ warehouse.id }}">
+                  
+                  <!-- عرض الكمية المتاحة -->
+                  <div class="alert alert-primary d-none" id="exchange-stock-info">
+                    <div class="row align-items-center">
+                      <div class="col-md-6">
+                        <strong id="exchange-product-name">-</strong>
+                      </div>
+                      <div class="col-md-6 text-end">
+                        <span class="text-muted">الكمية الحالية في {{ warehouse.name }}:</span>
+                        <h4 class="mb-0 d-inline ms-2" id="exchange-current-qty">-</h4>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="row g-3">
+                    <div class="col-md-8">
+                      <label class="form-label fw-bold">
+                        <i class="fas fa-box me-1"></i>
+                        المنتج <span class="text-danger">*</span>
+                      </label>
+                      <select name="product_id"
+                              id="exchange-product"
+                              class="form-control select2"
+                              required
+                              data-endpoint="{{ url_for('api.search_products') }}"></select>
+                      <small class="text-muted">اختر المنتج</small>
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label fw-bold">
+                        <i class="fas fa-hashtag me-1"></i>
+                        الكمية <span class="text-danger">*</span>
+                      </label>
+                      <input type="number" name="quantity" min="1" class="form-control" placeholder="مثال: 3" required id="exchange-quantity-input">
+                      <small class="text-muted">العدد</small>
+                      <div class="d-none text-warning small mt-1" id="exchange-warning">⚠️ تحذير: قد تصل لكمية سالبة!</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label fw-bold">
+                        <i class="fas fa-arrows-alt-v me-1"></i>
+                        الاتجاه <span class="text-danger">*</span>
+                      </label>
+                      <select name="direction" class="form-control" id="exchange-direction">
+                        <option value="IN">➕ وارد (IN) - إضافة للمخزون</option>
+                        <option value="OUT">➖ صادر (OUT) - خصم من المخزون</option>
+                        <option value="ADJUSTMENT">🔄 تسوية (ADJUSTMENT) - تصحيح</option>
+                      </select>
+                    </div>
+                    <div class="col-md-6" id="partner-field-group" style="display: none;">
+                      <label class="form-label">
+                        <i class="fas fa-handshake me-1"></i>
+                        الشريك <span class="text-danger" id="partner-required">*</span>
+                      </label>
+                      <select name="partner_id"
+                              id="exchange-partner"
+                              class="form-control select2"
+                              data-endpoint="{{ url_for('api.search_partners') }}"></select>
+                      <small class="text-muted">الشريك المرتبط بهذه العملية</small>
+                    </div>
+                    
+                    <div class="col-md-6" id="supplier-field-group" style="display: none;">
+                      <label class="form-label">
+                        <i class="fas fa-truck me-1"></i>
+                        المورد/التاجر <span class="text-danger" id="supplier-required">*</span>
+                      </label>
+                      <select name="supplier_id"
+                              id="exchange-supplier"
+                              class="form-control select2"
+                              data-endpoint="{{ url_for('api.search_suppliers') }}"></select>
+                      <small class="text-muted">المورد أو التاجر المحلي</small>
+                    </div>
+                    <div class="col-md-12">
+                      <label class="form-label">
+                        <i class="fas fa-dollar-sign me-1"></i>
+                        سعر/تكلفة للوحدة (اختياري)
+                      </label>
+                      <input type="number" step="0.01" name="unit_cost" class="form-control" placeholder="مثال: 12.50">
+                      <small class="text-muted">السعر أو التكلفة لكل قطعة</small>
+                    </div>
+                    <div class="col-12">
+                      <label class="form-label">
+                        <i class="fas fa-comment me-1"></i>
+                        ملاحظات
+                      </label>
+                      <textarea name="notes" class="form-control" rows="2" placeholder="سبب العملية أو أي تفاصيل إضافية"></textarea>
+                    </div>
+                    <div class="col-12">
+                      <button type="submit" class="btn btn-secondary">
+                        <i class="fas fa-save me-1"></i> تسجيل العملية
+                      </button>
+                      <button type="button" class="btn btn-light" onclick="$('#exchange-form')[0].reset();">
+                        <i class="fas fa-redo me-1"></i> إعادة تعيين
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- 2) تحويل بين مستودعين -->
-        <div class="card mb-4">
-          <div class="card-body">
-            <h5 class="mb-2">٢) تحويل بين مستودعين</h5>
-            <form id="transfer-form"
-                  action="{{ url_for('warehouse_bp.ajax_transfer', warehouse_id=warehouse.id) }}"
-                  method="POST" novalidate>
-              {{ transfer_form.hidden_tag() }}
-              {% if transfer_form.direction %}{{ transfer_form.direction(type="hidden") }}{% endif %}
-              <div class="row g-3">
-                <div class="col-md-6">
-                  {{ transfer_form.product_id.label }}
-                  {{ transfer_form.product_id(
-                      class_="form-control select2",
-                      data_endpoint=url_for('api.search_products'),
-                      id="transfer-product"
-                  ) }}
-                  {% for err in transfer_form.product_id.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-                </div>
-                <div class="col-md-3">
-                  {{ transfer_form.quantity.label }}
-                  {{ transfer_form.quantity(class_="form-control", placeholder="مثال: 5") }}
-                  {% for err in transfer_form.quantity.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
-                </div>
-                <div class="col-md-6">
-                  {{ transfer_form.source_id.label }}
-                  {{ transfer_form.source_id(
-                      class_="form-control select2",
-                      data_endpoint=url_for('api.search_warehouses'),
-                      id="transfer-source"
-                  ) }}
-                </div>
-                <div class="col-md-6">
-                  {{ transfer_form.destination_id.label }}
-                  {{ transfer_form.destination_id(
-                      class_="form-control select2",
-                      data_endpoint=url_for('api.search_warehouses'),
-                      id="transfer-destination"
-                  ) }}
-                </div>
-                <div class="col-12">
-                  {{ transfer_form.notes.label }}
-                  {{ transfer_form.notes(class_="form-control", placeholder="ملاحظات (اختياري)") }}
-                </div>
-                <div class="col-12">
-                  <button type="submit" class="btn btn-primary" onclick="return confirm('تأكيد تنفيذ التحويل بين المستودعين؟')">تنفيذ التحويل</button>
-                </div>
-              </div>
-            </form>
-          </div>
-        </div>
-
-        <!-- 3) وارد/صادر/تسوية -->
-        <div class="card mb-4">
-          <div class="card-body">
-            <h5 class="mb-2">٣) وارد/صادر/تسوية</h5>
-            <form id="exchange-form"
-                  action="{{ url_for('api.create_exchange_transaction') }}"
-                  method="POST"
-                  novalidate
-                  data-warehouse-name="{{ warehouse.name }}">
-              {{ exchange_form.hidden_tag() }}
-              <input type="hidden" name="warehouse_id" value="{{ warehouse.id }}">
-              <div class="row g-3">
-                <div class="col-md-6">
-                  <label class="form-label">المنتج</label>
-                  <select name="product_id"
-                          id="exchange-product"
-                          class="form-control select2"
-                          required
-                          data-endpoint="{{ url_for('api.search_products') }}"></select>
-                </div>
-                <div class="col-md-3">
-                  <label class="form-label">الكمية</label>
-                  <input type="number" name="quantity" min="1" class="form-control" placeholder="مثال: 3" required>
-                </div>
-                <div class="col-md-3">
-                  <label class="form-label">الاتجاه</label>
-                  <select name="direction" class="form-control">
-                    <option value="IN">وارد (IN)</option>
-                    <option value="OUT">صادر (OUT)</option>
-                    <option value="ADJUSTMENT">تسوية (ADJUSTMENT)</option>
-                  </select>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">الشريك (اختياري)</label>
-                  <select name="partner_id"
-                          class="form-control select2"
-                          data-endpoint="{{ url_for('api.search_partners') }}"></select>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">سعر/تكلفة للوحدة (اختياري)</label>
-                  <input type="number" step="0.01" name="unit_cost" class="form-control" placeholder="مثال: 12.50">
-                </div>
-                <div class="col-12">
-                  <label class="form-label">ملاحظات</label>
-                  <input type="text" name="notes" class="form-control" placeholder="سبب العملية أو أي تفاصيل إضافية">
-                </div>
-                <div class="col-12">
-                  <button class="btn btn-secondary" onclick="return confirm('تأكيد تسجيل العملية؟')">تسجيل العملية</button>
-                </div>
-              </div>
-            </form>
-          </div>
-        </div>
-
-        <!-- جدول الشحنات -->
-        <div class="d-flex justify-content-between align-items-center mb-2">
-          <h4 class="mb-0">الشحنات الواردة</h4>
-          <a href="{{ url_for('shipments_bp.create_shipment', destination_id=warehouse.id) }}" class="btn btn-success btn-sm">إنشاء شحنة</a>
-        </div>
-
-        <div class="table-responsive">
-          <table class="table table-bordered table-hover" id="shipments-table">
-            <thead class="table-light">
-              <tr>
-                <th>رقم الشحنة</th>
-                <th>تاريخ الشحن</th>
-                <th>الوصول المتوقع</th>
-                <th>الحالة</th>
-                <th style="width:120px">إجراءات</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for s in warehouse.shipments_received or [] %}
-              <tr>
-                <td><a href="{{ url_for('shipments_bp.shipment_detail', id=s.id) }}">{{ s.shipment_number }}</a></td>
-                <td>{{ s.shipment_date.strftime('%Y-%m-%d') if s.shipment_date }}</td>
-                <td>{{ s.expected_arrival.strftime('%Y-%m-%d') if s.expected_arrival }}</td>
-                <td>{{ s.status }}</td>
-                <td class="text-nowrap">
-                  <a href="{{ url_for('shipments_bp.edit_shipment', id=s.id) }}" class="btn btn-warning btn-sm">تعديل</a>
-                  <form method="POST" action="{{ url_for('shipments_bp.delete_shipment', id=s.id) }}" class="d-inline-block">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn btn-danger btn-sm btn-delete">حذف</button>
-                  </form>
-                </td>
-              </tr>
-              {% else %}
-              <tr><td colspan="5" class="text-center">لا توجد سجلات</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
 
       </div>
     </div>
@@ -268,13 +633,358 @@
   {# كل الجافاسكربت في static/js/warehouses.js #}
   
   <script>
-    // فتح ماسح الباركود
-    function openBarcodeScanner() {
-      window.open('/barcode/', '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+  (function() {
+    'use strict';
+    
+    // ========== متغيرات عامة ==========
+    let stockData = {
+      stock: {},
+      transfer: {},
+      exchange: {}
+    };
+    
+    // ========== دعم Bootstrap Tabs (4 و 5) ==========
+    $(function() {
+      // دعم Bootstrap 4
+      $('[data-bs-toggle="tab"]').on('click', function(e) {
+        e.preventDefault();
+        const target = $(this).data('bs-target');
+        
+        // إخفاء جميع الـ tabs
+        $('.tab-pane').removeClass('show active');
+        $('.nav-link').removeClass('active');
+        
+        // تفعيل الـ tab المحدد
+        $(this).addClass('active');
+        $(target).addClass('show active');
+      });
+    });
+    
+    // ========== جلب معلومات المخزون ==========
+    async function fetchStockInfo(productId, warehouseId) {
+      try {
+        const url = `/api/products/${productId}/stock?warehouse_id=${warehouseId}`;
+        console.log('🌐 API Request:', url);
+        
+        const response = await fetch(url);
+        console.log('📡 API Response Status:', response.status);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('❌ API Error Response:', errorText);
+          throw new Error('فشل في جلب البيانات');
+        }
+        
+        const data = await response.json();
+        console.log('✅ API Data:', data);
+        return data;
+      } catch (error) {
+        console.error('❌ خطأ في جلب معلومات المخزون:', error);
+        return null;
+      }
     }
     
-    // تحديث سريع للمخزون
-    function openQuickStockUpdate() {
+    // ========== نموذج تحديث المخزون ==========
+    $('#stock-product').on('change', async function() {
+      const productId = $(this).val();
+      if (!productId) {
+        $('#stock-current-info').addClass('d-none');
+        return;
+      }
+      
+      const data = await fetchStockInfo(productId, {{ warehouse.id }});
+      if (data && data.success) {
+        stockData.stock = data;
+        $('#stock-current-product').text(data.product_name);
+        $('#stock-current-qty').text(data.stock_quantity || 0);
+        $('#stock-current-info').removeClass('d-none');
+        
+        // تعيين الكمية الحالية كقيمة افتراضية
+        $('#stock-quantity-input').val(data.stock_quantity || 0);
+      }
+    });
+    
+    // ========== نموذج التحويل ==========
+    let transferSourceWarehouse = {{ warehouse.id }};
+    let warehouseTypes = {};
+    
+    // تعيين المستودع الحالي كمصدر افتراضي
+    $(document).ready(function() {
+      // انتظار تهيئة Select2 بشكل كامل
+      setTimeout(function() {
+        if ($('#transfer-source').length) {
+          // إنشاء option جديد للمستودع الحالي
+          const newOption = new Option('{{ warehouse.name }}', {{ warehouse.id }}, true, true);
+          $('#transfer-source').append(newOption).trigger('change');
+          
+          console.log('✅ تم تعيين المستودع المصدر: {{ warehouse.name }} (ID: {{ warehouse.id }})');
+          console.log('📌 المستودع الحالي:', $('#transfer-source').val());
+        } else {
+          console.warn('⚠️ عنصر #transfer-source غير موجود');
+        }
+      }, 1000);
+    });
+    
+    // ========== قواعد التوافق بين المستودعات ==========
+    function canTransferBetween(sourceType, destType) {
+      // PARTNER معزول - فقط PARTNER → PARTNER
+      if (sourceType === 'PARTNER' || destType === 'PARTNER') {
+        return sourceType === 'PARTNER' && destType === 'PARTNER';
+      }
+      
+      // EXCHANGE معزول - فقط EXCHANGE → EXCHANGE
+      if (sourceType === 'EXCHANGE' || destType === 'EXCHANGE') {
+        return sourceType === 'EXCHANGE' && destType === 'EXCHANGE';
+      }
+      
+      // المستودعات المفتوحة: MAIN, ONLINE, INVENTORY
+      const openTypes = ['MAIN', 'ONLINE', 'INVENTORY'];
+      return openTypes.includes(sourceType) && openTypes.includes(destType);
+    }
+    
+    // جلب نوع المستودع
+    async function getWarehouseType(warehouseId) {
+      if (warehouseTypes[warehouseId]) {
+        return warehouseTypes[warehouseId];
+      }
+      
+      try {
+        const response = await fetch(`/api/warehouses/${warehouseId}/info`);
+        const data = await response.json();
+        
+        if (data.success) {
+          warehouseTypes[warehouseId] = data.warehouse_type;
+          return data.warehouse_type;
+        }
+      } catch (error) {
+        console.error('خطأ في جلب نوع المستودع:', error);
+      }
+      
+      return null;
+    }
+    
+    // عند اختيار المنتج (دعم لكل من change و select2:select)
+    $('#transfer-product').on('change select2:select', async function() {
+      const productId = $(this).val();
+      const sourceId = $('#transfer-source').val();
+      
+      console.log('🔍 تم اختيار المنتج:', productId, 'من المستودع:', sourceId);
+      
+      if (!productId || !sourceId) {
+        $('#transfer-stock-info').addClass('d-none');
+        console.warn('⚠️ المنتج أو المستودع المصدر غير محدد');
+        return;
+      }
+      
+      updateTransferStockInfo(productId, sourceId);
+    });
+    
+    // عند اختيار المستودع المصدر
+    $('#transfer-source').on('change', async function() {
+      const sourceId = $(this).val();
+      const productId = $('#transfer-product').val();
+      const destId = $('#transfer-destination').val();
+      
+      transferSourceWarehouse = sourceId;
+      
+      if (!productId || !sourceId) {
+        $('#transfer-stock-info').addClass('d-none');
+        return;
+      }
+      
+      updateTransferStockInfo(productId, sourceId);
+      
+      // التحقق من التوافق
+      if (destId) {
+        await checkWarehouseCompatibility(sourceId, destId);
+      }
+    });
+    
+    // عند اختيار المستودع الوجهة
+    $('#transfer-destination').on('change', async function() {
+      const destId = $(this).val();
+      const sourceId = $('#transfer-source').val();
+      
+      if (sourceId && destId) {
+        await checkWarehouseCompatibility(sourceId, destId);
+      }
+    });
+    
+    // التحقق من التوافق بين المستودعات
+    async function checkWarehouseCompatibility(sourceId, destId) {
+      const sourceType = await getWarehouseType(sourceId);
+      const destType = await getWarehouseType(destId);
+      
+      if (!sourceType || !destType) return;
+      
+      if (!canTransferBetween(sourceType, destType)) {
+        const errorMsg = getTransferErrorMessage(sourceType, destType);
+        showNotification(errorMsg, 'error');
+        $('#transfer-destination').val('').trigger('change');
+      }
+    }
+    
+    // رسائل الخطأ حسب النوع
+    function getTransferErrorMessage(sourceType, destType) {
+      const typeNames = {
+        'PARTNER': 'شريك',
+        'EXCHANGE': 'تبادل',
+        'MAIN': 'رئيسي',
+        'ONLINE': 'أونلاين',
+        'INVENTORY': 'ملكية كاملة'
+      };
+      
+      if (sourceType === 'PARTNER' && destType !== 'PARTNER') {
+        return '⛔ خطأ في التحويل!\n\nمستودع الشريك يحول فقط لمستودع شريك آخر.\nالرجاء اختيار مستودع شريك كوجهة.';
+      }
+      if (destType === 'PARTNER' && sourceType !== 'PARTNER') {
+        return '⛔ خطأ في التحويل!\n\nمستودع الشريك يستقبل فقط من مستودع شريك آخر.\nالرجاء اختيار مستودع شريك كمصدر.';
+      }
+      if (sourceType === 'EXCHANGE' && destType !== 'EXCHANGE') {
+        return '⛔ خطأ في التحويل!\n\nمستودع التبادل يحول فقط لمستودع تبادل آخر.\nالرجاء اختيار مستودع تبادل كوجهة.';
+      }
+      if (destType === 'EXCHANGE' && sourceType !== 'EXCHANGE') {
+        return '⛔ خطأ في التحويل!\n\nمستودع التبادل يستقبل فقط من مستودع تبادل آخر.\nالرجاء اختيار مستودع تبادل كمصدر.';
+      }
+      
+      const sourceName = typeNames[sourceType] || sourceType;
+      const destName = typeNames[destType] || destType;
+      return `⛔ خطأ في التحويل!\n\nلا يمكن التحويل من مستودع ${sourceName} إلى مستودع ${destName}.\nالرجاء مراجعة قواعد التحويل أعلاه.`;
+    }
+    
+    async function updateTransferStockInfo(productId, sourceId) {
+      console.log('📦 جلب معلومات المخزون للمنتج:', productId, 'من المستودع:', sourceId);
+      
+      const data = await fetchStockInfo(productId, sourceId);
+      
+      console.log('📊 بيانات المخزون المستلمة:', data);
+      
+      if (data && data.success) {
+        stockData.transfer = data;
+        $('#transfer-product-name').text(data.product_name);
+        $('#transfer-available-qty').text(data.stock_quantity || 0);
+        $('#transfer-stock-info').removeClass('d-none');
+        checkTransferQuantity();
+        
+        console.log('✅ تم عرض الكمية المتاحة:', data.stock_quantity);
+      } else {
+        console.error('❌ فشل في جلب معلومات المخزون');
+        $('#transfer-stock-info').addClass('d-none');
+      }
+    }
+    
+    // التحقق من الكمية المدخلة
+    $('#transfer-quantity-input').on('input', checkTransferQuantity);
+    
+    function checkTransferQuantity() {
+      const requestedQty = parseInt($('#transfer-quantity-input').val()) || 0;
+      const availableQty = stockData.transfer.stock_quantity || 0;
+      
+      if (requestedQty > availableQty) {
+        $('#transfer-warning').removeClass('d-none');
+        $('#transfer-quantity-input').addClass('border-danger');
+      } else {
+        $('#transfer-warning').addClass('d-none');
+        $('#transfer-quantity-input').removeClass('border-danger');
+      }
+    }
+    
+    // ========== نموذج وارد/صادر/تسوية ==========
+    
+    // ========== تحديد نوع المستودع وإظهار/إخفاء الحقول ==========
+    const warehouseType = '{% if warehouse.warehouse_type.value %}{{ warehouse.warehouse_type.value }}{% else %}{{ warehouse.warehouse_type }}{% endif %}';
+    console.log('🏭 نوع المستودع الحالي:', warehouseType);
+    
+    function updateExchangeFormFields() {
+      // إخفاء كل الحقول الديناميكية أولاً
+      $('#partner-field-group, #supplier-field-group').hide();
+      $('#exchange-partner, #exchange-supplier').prop('required', false);
+      
+      if (warehouseType === 'PARTNER') {
+        // مستودع شريك ← إظهار حقل الشريك
+        $('#partner-field-group').show();
+        $('#exchange-partner').prop('required', true);
+        console.log('✅ [Exchange] مستودع شريك - حقل الشريك مفعّل');
+      } else if (warehouseType === 'EXCHANGE') {
+        // مستودع تبادل ← إظهار حقل المورد
+        $('#supplier-field-group').show();
+        $('#exchange-supplier').prop('required', true);
+        console.log('✅ [Exchange] مستودع تبادل - حقل المورد مفعّل');
+      } else {
+        // مستودع رئيسي/أونلاين/ملكية كاملة ← لا حقول إضافية
+        console.log('ℹ️ [Exchange] مستودع عادي - لا حقول شريك/مورد');
+      }
+    }
+    
+    // تشغيل عند تحميل الصفحة
+    $(document).ready(function() {
+      setTimeout(updateExchangeFormFields, 300);
+    });
+    
+    // دعم select2 و change للمنتج
+    $('#exchange-product').on('change select2:select', async function() {
+      const productId = $(this).val();
+      
+      console.log('🔍 [Exchange] تم اختيار المنتج:', productId);
+      
+      if (!productId) {
+        $('#exchange-stock-info').addClass('d-none');
+        console.warn('⚠️ [Exchange] لم يتم اختيار منتج');
+        return;
+      }
+      
+      console.log('📦 [Exchange] جلب معلومات المخزون للمنتج:', productId);
+      const data = await fetchStockInfo(productId, {{ warehouse.id }});
+      
+      console.log('📊 [Exchange] البيانات المستلمة:', data);
+      
+      if (data && data.success) {
+        stockData.exchange = data;
+        $('#exchange-product-name').text(data.product_name);
+        $('#exchange-current-qty').text(data.stock_quantity || 0);
+        $('#exchange-stock-info').removeClass('d-none');
+        checkExchangeQuantity();
+        
+        console.log('✅ [Exchange] تم عرض الكمية الحالية:', data.stock_quantity);
+      } else {
+        console.error('❌ [Exchange] فشل في جلب معلومات المخزون');
+        $('#exchange-stock-info').addClass('d-none');
+      }
+    });
+    
+    // التحقق من الكمية حسب الاتجاه
+    $('#exchange-quantity-input, #exchange-direction').on('input change', checkExchangeQuantity);
+    
+    function checkExchangeQuantity() {
+      const requestedQty = parseInt($('#exchange-quantity-input').val()) || 0;
+      const currentQty = stockData.exchange.stock_quantity || 0;
+      const direction = $('#exchange-direction').val();
+      
+      console.log(`🔍 [Exchange] تحقق: الكمية=${requestedQty}, المتاح=${currentQty}, الاتجاه=${direction}`);
+      
+      // تحذير عند الصادر (OUT) أو التسوية للأسفل
+      if (direction === 'OUT' && requestedQty > currentQty) {
+        $('#exchange-warning').removeClass('d-none').text(`⚠️ تحذير: الكمية المطلوبة (${requestedQty}) أكبر من المتاح (${currentQty})! سيؤدي لرصيد سالب!`);
+        $('#exchange-quantity-input').addClass('border-warning');
+        console.warn(`⚠️ [Exchange] تحذير: محاولة خصم ${requestedQty} من رصيد ${currentQty}`);
+      } else if (direction === 'ADJUSTMENT' && requestedQty > currentQty + 100) {
+        $('#exchange-warning').removeClass('d-none').text(`ℹ️ ملاحظة: التسوية ستضيف ${requestedQty - currentQty} قطعة للمخزون`);
+        $('#exchange-quantity-input').removeClass('border-warning').addClass('border-info');
+        console.info(`ℹ️ [Exchange] تسوية كبيرة: من ${currentQty} إلى ${requestedQty}`);
+      } else {
+        $('#exchange-warning').addClass('d-none');
+        $('#exchange-quantity-input').removeClass('border-warning border-info');
+        console.log('✅ [Exchange] الكمية مقبولة');
+      }
+    }
+    
+    // ========== فتح ماسح الباركود ==========
+    window.openBarcodeScanner = function() {
+      window.open('/barcode/', '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+    };
+    
+    // ========== تحديث سريع للمخزون ==========
+    window.openQuickStockUpdate = function() {
       const productId = prompt('أدخل معرف المنتج أو امسح الباركود:');
       if (productId) {
         const quantity = prompt('أدخل الكمية الجديدة:');
@@ -282,9 +992,8 @@
           updateStockQuickly(productId, parseInt(quantity));
         }
       }
-    }
+    };
     
-    // تحديث المخزون بسرعة
     function updateStockQuickly(productId, quantity) {
       fetch('/barcode/inventory/update', {
         method: 'POST',
@@ -293,7 +1002,7 @@
         },
         body: JSON.stringify({
           barcode: productId,
-          warehouse_id: {{ warehouse.id }},
+          warehouse_id: {{ warehouse.id|tojson }},
           quantity_change: quantity,
           operation: 'adjust'
         })
@@ -301,20 +1010,20 @@
       .then(response => response.json())
       .then(data => {
         if (data.success) {
-          alert('تم تحديث المخزون بنجاح');
-          location.reload();
+          showNotification('تم تحديث المخزون بنجاح', 'success');
+          setTimeout(() => location.reload(), 1000);
         } else {
-          alert('خطأ: ' + data.error);
+          showNotification('خطأ: ' + data.error, 'error');
         }
       })
       .catch(error => {
-        alert('حدث خطأ أثناء تحديث المخزون');
+        showNotification('حدث خطأ أثناء تحديث المخزون', 'error');
         console.error('Error:', error);
       });
     }
     
-    // توليد باركودات للمنتجات المفقودة
-    function generateBarcodesForMissing() {
+    // ========== توليد باركودات للمنتجات المفقودة ==========
+    window.generateBarcodesForMissing = function() {
       if (confirm('هل تريد توليد باركودات فريدة لجميع المنتجات التي لا تحتوي على باركود؟')) {
         fetch('/barcode/auto-assign', {
           method: 'POST',
@@ -325,17 +1034,235 @@
         .then(response => response.json())
         .then(data => {
           if (data.success) {
-            alert(data.message);
-            location.reload();
+            showNotification(data.message, 'success');
+            setTimeout(() => location.reload(), 1000);
           } else {
-            alert('خطأ: ' + data.error);
+            showNotification('خطأ: ' + data.error, 'error');
           }
         })
         .catch(error => {
-          alert('حدث خطأ أثناء توليد الباركودات');
+          showNotification('حدث خطأ أثناء توليد الباركودات', 'error');
           console.error('Error:', error);
         });
       }
+    };
+    
+    // ========== تحسين Form Submissions ==========
+    $('.stock-level-form').on('submit', function(e) {
+      e.preventDefault();
+      const form = $(this);
+      
+      // التحقق من الحقول الإلزامية
+      const productId = $('#stock-product').val();
+      const quantity = $('#stock-quantity-input').val();
+      
+      if (!productId) {
+        showNotification('الرجاء اختيار المنتج', 'error');
+        return false;
+      }
+      
+      if (!quantity || quantity < 0) {
+        showNotification('الرجاء إدخال كمية صحيحة', 'error');
+        return false;
+      }
+      
+      if (!confirm(`تأكيد تحديث المخزون؟\nالكمية الجديدة: ${quantity}`)) {
+        return false;
+      }
+      
+      $.ajax({
+        url: form.attr('action'),
+        method: 'POST',
+        data: form.serialize(),
+        success: function(response) {
+          if (response.success) {
+            showNotification('تم تحديث المخزون بنجاح', 'success');
+            setTimeout(() => location.reload(), 1000);
+          } else {
+            showNotification('خطأ: ' + (response.error || 'فشل التحديث'), 'error');
+          }
+        },
+        error: function(xhr) {
+          showNotification('حدث خطأ أثناء تحديث المخزون', 'error');
+        }
+      });
+    });
+    
+    $('#transfer-form').on('submit', async function(e) {
+      e.preventDefault();
+      const form = $(this);
+      
+      // التحقق من الحقول
+      const productId = $('#transfer-product').val();
+      const sourceId = $('#transfer-source').val();
+      const destId = $('#transfer-destination').val();
+      const quantity = parseInt($('#transfer-quantity-input').val()) || 0;
+      const availableQty = stockData.transfer.stock_quantity || 0;
+      
+      if (!productId) {
+        showNotification('الرجاء اختيار المنتج', 'error');
+        return false;
+      }
+      
+      if (!sourceId || !destId) {
+        showNotification('الرجاء اختيار المستودع المصدر والوجهة', 'error');
+        return false;
+      }
+      
+      if (sourceId === destId) {
+        showNotification('لا يمكن التحويل إلى نفس المستودع!', 'error');
+        return false;
+      }
+      
+      if (quantity <= 0) {
+        showNotification('الرجاء إدخال كمية صحيحة', 'error');
+        return false;
+      }
+      
+      // ========== التحقق من التوافق بين المستودعات ==========
+      const sourceType = await getWarehouseType(sourceId);
+      const destType = await getWarehouseType(destId);
+      
+      if (!canTransferBetween(sourceType, destType)) {
+        const errorMsg = getTransferErrorMessage(sourceType, destType);
+        showNotification(errorMsg, 'error');
+        return false;
+      }
+      
+      // تحذير إذا الكمية أكبر من المتاح
+      if (quantity > availableQty) {
+        if (!confirm(`⚠️ تحذير!\nالكمية المطلوبة: ${quantity}\nالمتاح في المصدر: ${availableQty}\n\nهل تريد المتابعة؟`)) {
+          return false;
+        }
+      } else {
+        if (!confirm(`تأكيد تنفيذ التحويل؟\nالكمية: ${quantity}\nمن: ${$('#transfer-source option:selected').text()}\nإلى: ${$('#transfer-destination option:selected').text()}`)) {
+          return false;
+        }
+      }
+      
+      $.ajax({
+        url: form.attr('action'),
+        method: 'POST',
+        data: form.serialize(),
+        success: function(response) {
+          if (response.success) {
+            showNotification('تم تنفيذ التحويل بنجاح', 'success');
+            setTimeout(() => location.reload(), 1000);
+          } else {
+            showNotification('خطأ: ' + (response.error || 'فشل التحويل'), 'error');
+          }
+        },
+        error: function(xhr) {
+          showNotification('حدث خطأ أثناء التحويل', 'error');
+        }
+      });
+    });
+    
+    $('#exchange-form').on('submit', function(e) {
+      e.preventDefault();
+      const form = $(this);
+      
+      console.log('📤 [Exchange] بدء إرسال نموذج العملية');
+      
+      // التحقق من الحقول
+      const productId = $('#exchange-product').val();
+      const quantity = parseInt($('#exchange-quantity-input').val()) || 0;
+      const direction = $('#exchange-direction').val();
+      const currentQty = stockData.exchange.stock_quantity || 0;
+      
+      console.log(`📋 [Exchange] بيانات النموذج: المنتج=${productId}, الكمية=${quantity}, الاتجاه=${direction}, المتاح=${currentQty}`);
+      
+      if (!productId) {
+        showNotification('الرجاء اختيار المنتج', 'error');
+        console.error('❌ [Exchange] المنتج غير محدد');
+        return false;
+      }
+      
+      if (quantity <= 0) {
+        showNotification('الرجاء إدخال كمية صحيحة', 'error');
+        console.error('❌ [Exchange] الكمية غير صحيحة:', quantity);
+        return false;
+      }
+      
+      // ========== Validation حسب نوع المستودع ==========
+      if (warehouseType === 'PARTNER') {
+        const partnerId = $('#exchange-partner').val();
+        if (!partnerId) {
+          showNotification('⚠️ مستودع شريك: يجب اختيار الشريك!', 'error');
+          console.error('❌ [Exchange] مستودع PARTNER يتطلب partner_id');
+          $('#exchange-partner').focus();
+          return false;
+        }
+        console.log('✅ [Exchange] Partner validation passed:', partnerId);
+      } else if (warehouseType === 'EXCHANGE') {
+        const supplierId = $('#exchange-supplier').val();
+        if (!supplierId) {
+          showNotification('⚠️ مستودع تبادل: يجب اختيار المورد/التاجر!', 'error');
+          console.error('❌ [Exchange] مستودع EXCHANGE يتطلب supplier_id');
+          $('#exchange-supplier').focus();
+          return false;
+        }
+        console.log('✅ [Exchange] Supplier validation passed:', supplierId);
+      }
+      
+      // تحذير خاص للصادر
+      if (direction === 'OUT' && quantity > currentQty) {
+        console.warn(`⚠️ [Exchange] محاولة خصم ${quantity} من ${currentQty} (سيكون الرصيد: ${currentQty - quantity})`);
+        if (!confirm(`⚠️ تحذير!\nصادر: ${quantity}\nالمتاح حالياً: ${currentQty}\nالنتيجة: ${currentQty - quantity} (سالب!)\n\nهل تريد المتابعة؟`)) {
+          console.log('🚫 [Exchange] تم إلغاء العملية من قبل المستخدم');
+          return false;
+        }
+      } else {
+        const directionText = direction === 'IN' ? 'وارد' : direction === 'OUT' ? 'صادر' : 'تسوية';
+        if (!confirm(`تأكيد تسجيل العملية؟\nالعملية: ${directionText}\nالكمية: ${quantity}`)) {
+          console.log('🚫 [Exchange] تم إلغاء العملية من قبل المستخدم');
+          return false;
+        }
+      }
+      
+      console.log('🌐 [Exchange] إرسال البيانات للخادم...');
+      
+      $.ajax({
+        url: form.attr('action'),
+        method: 'POST',
+        data: form.serialize(),
+        success: function(response) {
+          console.log('📡 [Exchange] استجابة الخادم:', response);
+          
+          if (response.success) {
+            showNotification('تم تسجيل العملية بنجاح', 'success');
+            console.log('✅ [Exchange] العملية نجحت!');
+            setTimeout(() => location.reload(), 1000);
+          } else {
+            showNotification('خطأ: ' + (response.error || 'فشلت العملية'), 'error');
+            console.error('❌ [Exchange] فشلت العملية:', response.error);
+          }
+        },
+        error: function(xhr) {
+          console.error('❌ [Exchange] خطأ في الاتصال:', xhr.status, xhr.responseText);
+          showNotification('حدث خطأ أثناء تسجيل العملية', 'error');
+        }
+      });
+    });
+    
+    
+    // ========== Notification Helper ==========
+    function showNotification(message, type = 'info') {
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          title: type === 'error' ? 'خطأ!' : type === 'success' ? 'نجح!' : 'تنبيه',
+          text: message,
+          icon: type === 'error' ? 'error' : type === 'success' ? 'success' : 'info',
+          confirmButtonText: 'حسناً',
+          timer: 3000
+        });
+      } else if (typeof toastr !== 'undefined') {
+        toastr[type](message);
+      } else {
+        alert(message);
+      }
     }
+    
+  })();
   </script>
 {% endblock %}

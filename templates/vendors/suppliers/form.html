@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 {% block title %}{{ form.name.data and 'تعديل' or 'إضافة' }} مورد{% endblock %}
 
 {% block content %}
@@ -46,7 +46,7 @@
 
               <button type="button"
                       class="btn btn-sm btn-success d-flex align-items-center btn-settle"
-                      data-bs-toggle="tooltip"
+                      data-toggle="tooltip"
                       title="تسوية"
                       data-entity-type="supplier"
                       data-id="{{ supplier.id }}"

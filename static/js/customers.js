@@ -142,16 +142,46 @@
 
   const customersTable = qs("#customersTable");
   if (customersTable && window.jQuery && window.jQuery.fn && window.jQuery.fn.DataTable) {
-    const lastCol = (customersTable.tHead && customersTable.tHead.rows[0]) ? customersTable.tHead.rows[0].cells.length - 1 : 8;
-    window.jQuery(customersTable).DataTable({
-      language: { url: "/static/datatables/Arabic.json" },
-      paging: false,
-      searching: false,
-      info: false,
-      ordering: true,
-      order: [[0, "desc"]],
-      columnDefs: [{ orderable: false, targets: [lastCol] }]
-    });
+    const $tbl = window.jQuery(customersTable);
+    
+    // تحقق من البنية
+    if (!$tbl.find('thead').length || !$tbl.find('tbody').length) {
+      return;
+    }
+    
+    // تحقق من وجود بيانات فعلية
+    const dataRows = $tbl.find('tbody tr').not(':has(td[colspan])');
+    if (dataRows.length === 0) {
+      return; // لا نهيئ DataTables للجداول الفارغة
+    }
+    
+    // تحقق من تطابق الأعمدة
+    const headerCols = $tbl.find('thead tr:first th, thead tr:first td').length;
+    const bodyCols = dataRows.first().find('td').length;
+    
+    if (headerCols !== bodyCols) {
+      console.error('Customers table: column mismatch', {header: headerCols, body: bodyCols});
+      return;
+    }
+    
+    try {
+        const lastCol = (customersTable.tHead && customersTable.tHead.rows[0]) ? customersTable.tHead.rows[0].cells.length - 1 : 8;
+        $tbl.DataTable({
+          language: { 
+            url: "/static/datatables/Arabic.json",
+            emptyTable: "لا توجد بيانات",
+            paginate: { first: "الأول", last: "الأخير", next: "التالي", previous: "السابق" }
+          },
+          paging: false,
+          searching: false,
+          info: false,
+          ordering: true,
+          order: [[0, "desc"]],
+          columnDefs: [{ orderable: false, targets: [lastCol] }]
+        });
+    } catch (e) {
+      console.error('Customers DataTable initialization failed:', e);
+    }
   }
 
   ["#customer-create-form", "#customer-edit-form"].forEach(sel => {

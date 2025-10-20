@@ -311,7 +311,7 @@ function updateDateTime() {
 async function updateExchangeRates() {
     try {
         // جلب أسعار الصرف من API أو من قاعدة البيانات
-        const response = await fetch('/api/v1/exchange-rates?base=ILS');
+        const response = await fetch('/api/exchange-rates');
         if (response.ok) {
             const data = await response.json();
             
@@ -341,7 +341,7 @@ async function updateExchangeRates() {
 
 // انتظار تحميل DOM
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, starting clock and exchange rates...');
+    // console.log('DOM loaded, starting clock and exchange rates...');
     
     // تحديث الوقت والتاريخ
     updateDateTime();

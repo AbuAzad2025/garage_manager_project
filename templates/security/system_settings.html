@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 {% block title %}إعدادات النظام v5.0{% endblock %}
 {% block page_title %}⚙️ إعدادات النظام <span class="badge bg-success ms-2">v5.0</span> <span class="badge bg-info ms-1">40 وحدة</span>{% endblock %}
 
@@ -29,8 +29,8 @@
         <li class="nav-item" role="presentation">
           <button class="nav-link {% if active_tab == 'general' %}active{% endif %}" 
                   id="general-tab" 
-                  data-bs-toggle="tab" 
-                  data-bs-target="#general" 
+                  data-toggle="tab" 
+                  data-target="#general" 
                   type="button" 
                   role="tab">
             <i class="fas fa-sliders-h"></i> الإعدادات العامة
@@ -39,8 +39,8 @@
         <li class="nav-item" role="presentation">
           <button class="nav-link {% if active_tab == 'advanced' %}active{% endif %}" 
                   id="advanced-tab" 
-                  data-bs-toggle="tab" 
-                  data-bs-target="#advanced" 
+                  data-toggle="tab" 
+                  data-target="#advanced" 
                   type="button" 
                   role="tab">
             <i class="fas fa-cog"></i> التكوينات المتقدمة
@@ -49,8 +49,8 @@
         <li class="nav-item" role="presentation">
           <button class="nav-link {% if active_tab == 'constants' %}active{% endif %}" 
                   id="constants-tab" 
-                  data-bs-toggle="tab" 
-                  data-bs-target="#constants" 
+                  data-toggle="tab" 
+                  data-target="#constants" 
                   type="button" 
                   role="tab">
             <i class="fas fa-building"></i> ثوابت الشركة
@@ -353,7 +353,7 @@
 // حفظ التبويب النشط في localStorage
 document.querySelectorAll('#settingsTabs button').forEach(tab => {
   tab.addEventListener('shown.bs.tab', function (event) {
-    const tabId = event.target.getAttribute('data-bs-target').replace('#', '');
+    const tabId = (event.target.getAttribute('data-bs-target') || event.target.getAttribute('data-target') || '').replace('#', '');
     localStorage.setItem('settingsActiveTab', tabId);
   });
 });
@@ -362,7 +362,7 @@ document.querySelectorAll('#settingsTabs button').forEach(tab => {
 document.addEventListener('DOMContentLoaded', function() {
   const savedTab = localStorage.getItem('settingsActiveTab');
   if (savedTab && !{{ 'true' if active_tab else 'false' }}) {
-    const tabTrigger = document.querySelector(`#settingsTabs button[data-bs-target="#${savedTab}"]`);
+    const tabTrigger = document.querySelector(`#settingsTabs button[data-target="#${savedTab}"]`);
     if (tabTrigger) {
       bootstrap.Tab.getInstance(tabTrigger)?.show() || new bootstrap.Tab(tabTrigger).show();
     }

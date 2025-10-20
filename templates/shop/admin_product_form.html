@@ -1,4 +1,4 @@
-{% extends 'shop/base.html' %}
+﻿{% extends 'shop/base.html' %}
 
 {% block title %}{{ 'تعديل منتج' if product else 'إضافة منتج' }}{% endblock %}
 
@@ -123,8 +123,8 @@
               <button type="button"
                       class="btn btn-outline-primary"
                       id="btn-add-category"
-                      data-bs-toggle="modal"
-                      data-bs-target="#quickCategoryModal">+</button>
+                      data-toggle="modal"
+                      data-target="#quickCategoryModal">+</button>
             </div>
             {% if form.category_id.errors %}
               <div class="text-danger small mt-1">{{ form.category_id.errors | join(', ') }}</div>

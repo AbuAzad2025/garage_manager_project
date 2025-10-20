@@ -433,17 +433,33 @@ def init_extensions(app):
     app.config.setdefault('COMPRESS_LEVEL', 6)
     app.config.setdefault('COMPRESS_MIN_SIZE', 500)
 
-    socketio.init_app(
-        app,
-        async_mode=app.config.get("SOCKETIO_ASYNC_MODE"),
-        message_queue=app.config.get("SOCKETIO_MESSAGE_QUEUE"),
-        cors_allowed_origins=app.config.get("SOCKETIO_CORS_ORIGINS", "*"),
-        logger=app.config.get("SOCKETIO_LOGGER", False),
-        engineio_logger=app.config.get("SOCKETIO_ENGINEIO_LOGGER", False),
-        ping_timeout=app.config.get("SOCKETIO_PING_TIMEOUT", 20),
-        ping_interval=app.config.get("SOCKETIO_PING_INTERVAL", 25),
-        max_http_buffer_size=app.config.get("SOCKETIO_MAX_HTTP_BUFFER_SIZE", 100_000_000),
-    )
+    # تعطيل SocketIO في Development mode لتجنب أخطاء WebSocket
+    # يمكن تفعيله في Production مع gunicorn + gevent
+    if not app.config.get('SOCKETIO_ENABLED', False):
+        # تهيئة بدون websocket transport (polling only)
+        socketio.init_app(
+            app,
+            async_mode='threading',  # استخدام threading بدل eventlet/gevent
+            cors_allowed_origins=app.config.get("SOCKETIO_CORS_ORIGINS", "*"),
+            logger=False,
+            engineio_logger=False,
+            ping_timeout=20,
+            ping_interval=25,
+            transports=['polling']  # فقط polling، بدون websocket
+        )
+    else:
+        # في Production mode
+        socketio.init_app(
+            app,
+            async_mode=app.config.get("SOCKETIO_ASYNC_MODE"),
+            message_queue=app.config.get("SOCKETIO_MESSAGE_QUEUE"),
+            cors_allowed_origins=app.config.get("SOCKETIO_CORS_ORIGINS", "*"),
+            logger=app.config.get("SOCKETIO_LOGGER", False),
+            engineio_logger=app.config.get("SOCKETIO_ENGINEIO_LOGGER", False),
+            ping_timeout=app.config.get("SOCKETIO_PING_TIMEOUT", 20),
+            ping_interval=app.config.get("SOCKETIO_PING_INTERVAL", 25),
+            max_http_buffer_size=app.config.get("SOCKETIO_MAX_HTTP_BUFFER_SIZE", 100_000_000),
+        )
 
     app.config.setdefault("RATELIMIT_HEADERS_ENABLED", True)
     app.config.setdefault("RATELIMIT_STORAGE_URI", "memory://")

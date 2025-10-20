@@ -1,6 +1,5 @@
 {% extends 'warehouses/base.html' %}
 {% set is_edit = shipment is not none %}
-{% block title %}{{ is_edit and 'تعديل شحنة' or 'شحنة جديدة' }}{% endblock %}
 {% block page_title %}{{ is_edit and 'تعديل شحنة' or 'شحنة جديدة' }}{% endblock %}
 
 {% block head_extra %}

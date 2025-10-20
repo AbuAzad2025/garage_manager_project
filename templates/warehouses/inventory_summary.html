@@ -1,9 +1,30 @@
 {% extends 'warehouses/base.html' %}
 
-{% block title %}كشف المخزون{% endblock %}
 {% block page_title %}كشف المخزون عبر المستودعات{% endblock %}
 
 {% block content %}
+<style>
+  /* طباعة محسّنة للجداول */
+  @media print {
+    body * { visibility: hidden; }
+    .print-area, .print-area * { visibility: visible; }
+    .print-area { position: absolute; left: 0; top: 0; width: 100%; }
+    .no-print { display: none !important; }
+    table { page-break-inside: auto; }
+    tr { page-break-inside: avoid; page-break-after: auto; }
+    thead { display: table-header-group; }
+    tfoot { display: table-footer-group; }
+  }
+  /* تحسين قراءة الجدول */
+  .table thead th { position: sticky; top: 0; z-index: 2; }
+  .table-responsive { max-height: 70vh; }
+  .spinner-inline { display: inline-flex; align-items: center; gap: .4rem; }
+  .spinner-inline .spinner-border { width: 1rem; height: 1rem; border-width: .15rem; }
+  .fade-in { animation: fadeIn .2s ease-in; }
+  @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+  .hint { cursor: help; }
+}
+</style>
 <!-- إحصائيات سريعة -->
 <div class="row mb-4">
   <div class="col-lg-3 col-md-6 mb-3">
@@ -71,9 +92,9 @@
   </div>
 </div>
 
-<div class="card mb-4">
+<div class="card mb-4 no-print">
   <div class="card-body">
-    <form method="get" class="row g-3 align-items-end">
+    <form id="inv-form" method="get" class="row g-3 align-items-end" onsubmit="return onSubmitInvForm(event)">
       <div class="col-md-5">
         <label class="form-label">اختر المستودعات</label>
         <select name="warehouse_ids" multiple class="form-select" size="6">
@@ -88,15 +109,19 @@
         <input type="text" name="q" class="form-control" value="{{ search or '' }}" placeholder="اسم القطعة">
       </div>
       <div class="col-md-3 d-flex gap-2">
-        <button type="submit" class="btn btn-primary flex-fill">تطبيق</button>
+        <button id="apply-btn" type="submit" class="btn btn-primary flex-fill">
+          <span class="label">تطبيق</span>
+          <span class="spinner-inline d-none"><span class="spinner-border spinner-border-sm"></span> جاري التحميل</span>
+        </button>
         <a href="{{ url_for('warehouse_bp.inventory_summary') }}" class="btn btn-outline-secondary flex-fill">تهيئة</a>
         <button type="submit" name="export" value="csv" class="btn btn-success flex-fill">تصدير CSV</button>
+        <button type="button" class="btn btn-dark flex-fill" onclick="printInventory()"><i class="fas fa-print me-1"></i>طباعة</button>
       </div>
     </form>
   </div>
 </div>
 
-<div class="card">
+<div class="card print-area">
   <div class="table-responsive">
     <table class="table table-sm table-bordered align-middle mb-0">
       <thead class="table-light">
@@ -132,4 +157,44 @@
     </table>
   </div>
 </div>
+<script>
+  // منع التعليق عند الضغط وتوفير مؤشر تحميل
+  function onSubmitInvForm(ev){
+    var btn = document.getElementById('apply-btn');
+    if(!btn) return true;
+    if(btn.disabled) return false;
+    btn.disabled = true;
+    btn.querySelector('.label').classList.add('d-none');
+    btn.querySelector('.spinner-inline').classList.remove('d-none');
+    // اسمح للمتصفح بإرسال الطلب
+    setTimeout(function(){
+      // في حال لم يُعد التوجيه أو التحميل لسبب ما، أعد تمكين الزر بعد 8 ثوانٍ
+      if(btn.disabled){
+        btn.disabled = false;
+        btn.querySelector('.label').classList.remove('d-none');
+        btn.querySelector('.spinner-inline').classList.add('d-none');
+      }
+    }, 8000);
+    return true;
+  }
+
+  function estimatePrintPages(){
+    // تقدير بسيط للصفحات: ~30 صف لكل صفحة (يتغير حسب الطول الحقيقي للرؤوس)
+    var rows = document.querySelectorAll('.print-area tbody tr');
+    var count = 0;
+    rows.forEach(function(r){ if(r.querySelectorAll('td').length > 1) count++; });
+    var pages = Math.ceil(count / 30);
+    return {rows: count, pages: Math.max(pages, 1)};
+  }
+
+  function printInventory(){
+    var est = estimatePrintPages();
+    if(est.pages > 10){
+      if(!confirm('تحذير: سيتم طباعة حوالي ' + est.pages + ' صفحة (' + est.rows + ' صف). هل تريد المتابعة؟')){
+        return;
+      }
+    }
+    window.print();
+  }
+</script>
 {% endblock %}

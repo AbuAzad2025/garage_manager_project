@@ -1,6 +1,5 @@
 {% extends 'warehouses/base.html' %}
 
-{% block title %}قائمة المستودعات{% endblock %}
 {% block page_title %}المستودعات{% endblock %}
 
 {% block head_extra %}
@@ -178,17 +177,37 @@
 {% block scripts %}
   {{ super() }}
   <script>
-    (function() {
+    document.addEventListener('DOMContentLoaded', function() {
+      // تهيئة DataTables
       if (window.jQuery && $.fn.DataTable) {
-        $('#warehouses-table').DataTable({
-          pageLength: 25,
-          order: [],
-          columnDefs: [
-            { targets: 0, type: 'num' }
-          ],
-          language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/ar.json' }
-        });
+        const $table = $('#warehouses-table');
+        if ($table.length) {
+          // تحقق من البنية
+          const dataRows = $table.find('tbody tr').not(':has(td[colspan])');
+          if (dataRows.length > 0) {
+            try {
+              $table.DataTable({
+                pageLength: 25,
+                order: [],
+                columnDefs: [
+                  { targets: 0, type: 'num' }
+                ],
+                language: { 
+                  url: '/static/datatables/Arabic.json',
+                  emptyTable: "لا توجد مستودعات",
+                  info: "عرض _START_ إلى _END_ من أصل _TOTAL_",
+                  search: "بحث:",
+                  paginate: { first: "الأول", last: "الأخير", next: "التالي", previous: "السابق" }
+                }
+              });
+            } catch (e) {
+              console.error('Warehouses DataTable failed:', e);
+            }
+          }
+        }
       }
+      
+      // معالج زر الحذف
       $(document).on('click', '.btn-delete', function(e){
         e.preventDefault();
         const $form = $(this).closest('form');
@@ -207,6 +226,6 @@
           if (confirm('تأكيد الحذف؟')) $form.trigger('submit');
         }
       });
-    })();
+    });
   </script>
 {% endblock %}

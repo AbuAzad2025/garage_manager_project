@@ -411,11 +411,46 @@
     var $tbl = jQuery('#shipments-table');
     if (!$tbl.length) return;
     if (jQuery.fn.DataTable.isDataTable($tbl)) return;
-    $tbl.DataTable({
-      pageLength: 10,
-      order: [[2, 'desc']],
-      language: { url: '/static/datatables/Arabic.json' }
-    });
+    
+    // تحقق من وجود thead و tbody
+    if (!$tbl.find('thead').length || !$tbl.find('tbody').length) {
+      return; // لا نهيئ الجدول إذا لم يكن له بنية صحيحة
+    }
+    
+    // تحقق من وجود بيانات فعلية (ليس فقط صف "لا توجد سجلات")
+    var dataRows = $tbl.find('tbody tr').not(':has(td[colspan])');
+    if (dataRows.length === 0) {
+      return; // لا نهيئ DataTables للجداول الفارغة
+    }
+    
+    // تحقق من تطابق عدد الأعمدة في صف البيانات الأول
+    var headerCols = $tbl.find('thead tr:first th, thead tr:first td').length;
+    var bodyCols = dataRows.first().find('td').length;
+    
+    if (headerCols !== bodyCols) {
+      console.error('Shipments table: column count mismatch', {
+        header: headerCols, 
+        body: bodyCols,
+        message: 'يرجى التحقق من بنية الجدول في detail.html'
+      });
+      return;
+    }
+    
+    try {
+      $tbl.DataTable({
+        pageLength: 10,
+        order: [[2, 'desc']],
+        language: { 
+          url: '/static/datatables/Arabic.json',
+          emptyTable: "لا توجد بيانات",
+          info: "عرض _START_ إلى _END_ من أصل _TOTAL_",
+          search: "بحث:",
+          paginate: { first: "الأول", last: "الأخير", next: "التالي", previous: "السابق" }
+        }
+      });
+    } catch (e) {
+      console.error('Shipments DataTable initialization failed:', e);
+    }
   }
 
   function setDefaultSourceIfPossible() {
@@ -442,12 +477,46 @@
     if (!(window.jQuery && jQuery.fn.DataTable)) return;
     var $tbl = jQuery('#inventory-table');
     if (!$tbl.length || jQuery.fn.DataTable.isDataTable($tbl)) return;
-    $tbl.DataTable({
-      pageLength: 50,
-      order: [[3, 'asc']],
-      scrollX: true,
-      language: { url: '/static/datatables/Arabic.json' }
-    });
+    
+    // تحقق من وجود thead و tbody
+    if (!$tbl.find('thead').length || !$tbl.find('tbody').length) {
+      return;
+    }
+    
+    // تحقق من وجود بيانات فعلية (ليس فقط صف فارغ)
+    var dataRows = $tbl.find('tbody tr').not(':has(td[colspan])');
+    if (dataRows.length === 0) {
+      return; // لا نهيئ DataTables للجداول الفارغة
+    }
+    
+    // تحقق من تطابق عدد الأعمدة في صف البيانات الأول
+    var headerCols = $tbl.find('thead tr:first th, thead tr:first td').length;
+    var bodyCols = dataRows.first().find('td').length;
+    
+    if (headerCols !== bodyCols) {
+      console.error('Inventory table: column count mismatch', {
+        header: headerCols,
+        body: bodyCols
+      });
+      return;
+    }
+    
+    try {
+      $tbl.DataTable({
+        pageLength: 50,
+        order: [[3, 'asc']],
+        scrollX: true,
+        language: { 
+          url: '/static/datatables/Arabic.json',
+          emptyTable: "لا توجد بيانات",
+          info: "عرض _START_ إلى _END_ من أصل _TOTAL_",
+          search: "بحث:",
+          paginate: { first: "الأول", last: "الأخير", next: "التالي", previous: "السابق" }
+        }
+      });
+    } catch (e) {
+      console.error('Inventory DataTable initialization failed:', e);
+    }
   }
 
   function initExpandedToggle(){

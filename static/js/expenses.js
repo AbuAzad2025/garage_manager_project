@@ -293,31 +293,63 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function initDT(tableEl, extraOpts) {
       if (!tableEl || $.fn.DataTable.isDataTable(tableEl)) return;
-      const cols = tableEl.tHead ? tableEl.tHead.rows[0].cells.length : 0;
-      const lastCol = cols ? cols - 1 : null;
-      const baseOpts = {
-        language: { url: langUrl },
-        ordering: true,
-        info: true,
-        autoWidth: false,
-        responsive: false,
-        stateSave: true,
-        pageLength: 25,
-        scrollX: true,
-        scrollCollapse: true,
-        initComplete: function() {
-          if (typeof window.onExpensesTableReady === "function") {
-            window.onExpensesTableReady(this.api());
+      
+      // تحقق من البنية
+      const $tbl = $(tableEl);
+      if (!$tbl.find('thead').length || !$tbl.find('tbody').length) {
+        return;
+      }
+      
+      // تحقق من وجود بيانات فعلية
+      const dataRows = $tbl.find('tbody tr').not(':has(td[colspan])');
+      if (dataRows.length === 0) {
+        return; // لا نهيئ DataTables للجداول الفارغة
+      }
+      
+      // تحقق من تطابق الأعمدة
+      const headerCols = $tbl.find('thead tr:first th, thead tr:first td').length;
+      const bodyCols = dataRows.first().find('td').length;
+      
+      if (headerCols !== bodyCols) {
+        console.error('Table column mismatch:', tableEl.id, {header: headerCols, body: bodyCols});
+        return;
+      }
+      
+      try {
+        const cols = tableEl.tHead ? tableEl.tHead.rows[0].cells.length : 0;
+        const lastCol = cols ? cols - 1 : null;
+        const baseOpts = {
+          language: { 
+            url: langUrl,
+            emptyTable: "لا توجد بيانات",
+            info: "عرض _START_ إلى _END_ من أصل _TOTAL_",
+            search: "بحث:",
+            paginate: { first: "الأول", last: "الأخير", next: "التالي", previous: "السابق" }
+          },
+          ordering: true,
+          info: true,
+          autoWidth: false,
+          responsive: false,
+          stateSave: true,
+          pageLength: 25,
+          scrollX: true,
+          scrollCollapse: true,
+          initComplete: function() {
+            if (typeof window.onExpensesTableReady === "function") {
+              window.onExpensesTableReady(this.api());
+            }
           }
-        }
-      };
-      if (lastCol !== null) baseOpts.columnDefs = [{ orderable: false, targets: [lastCol], width: 180, className: 'text-nowrap' }];
-      baseOpts.dom = hasButtons ? "Bfrtip" : "frtip";
-      if (hasButtons) baseOpts.buttons = ["excelHtml5", "print"];
-      const api = $(tableEl).DataTable(Object.assign({}, baseOpts, extraOpts || {}));
-      $(window).on('resize', () => api.columns.adjust());
-      document.addEventListener('shown.bs.tab', () => api.columns.adjust());
-      document.addEventListener('shown.bs.collapse', () => api.columns.adjust());
+        };
+        if (lastCol !== null) baseOpts.columnDefs = [{ orderable: false, targets: [lastCol], width: 180, className: 'text-nowrap' }];
+        baseOpts.dom = hasButtons ? "Bfrtip" : "frtip";
+        if (hasButtons) baseOpts.buttons = ["excelHtml5", "print"];
+        const api = $(tableEl).DataTable(Object.assign({}, baseOpts, extraOpts || {}));
+        $(window).on('resize', () => api.columns.adjust());
+        document.addEventListener('shown.bs.tab', () => api.columns.adjust());
+        document.addEventListener('shown.bs.collapse', () => api.columns.adjust());
+      } catch (e) {
+        console.error('Table initialization failed:', tableEl.id, e);
+      }
     }
 
     initDT(document.getElementById('expenses-table'));

@@ -40,27 +40,52 @@
   let dt;
   function initDataTable() {
     const table = $('#report-table');
-    if (!table || !window.jQuery || !jQuery.fn?.DataTable) return;
+    if (!table || !table.length || !window.jQuery || !jQuery.fn?.DataTable) return;
     if (jQuery.fn.dataTable.isDataTable(table)) {
       dt = jQuery(table).DataTable();
       return;
     }
-    dt = jQuery(table).DataTable({
-      pageLength: 50,
-      order: [],
-      autoWidth: false,
-      language: {
-        emptyTable: "لا توجد بيانات",
-        info: "إظهار _START_ إلى _END_ من أصل _TOTAL_",
-        infoEmpty: "إظهار 0 إلى 0 من أصل 0",
-        lengthMenu: "إظهار _MENU_",
-        loadingRecords: "جارٍ التحميل...",
-        processing: "جارٍ المعالجة...",
-        search: "بحث:",
-        zeroRecords: "لا نتائج مطابقة",
-        paginate: { first: "الأول", last: "الأخير", next: "التالي", previous: "السابق" }
-      }
-    });
+    
+    // تحقق من البنية
+    if (!table.find('thead').length || !table.find('tbody').length) {
+      return;
+    }
+    
+    // تحقق من وجود بيانات فعلية
+    const dataRows = table.find('tbody tr').not(':has(td[colspan])');
+    if (dataRows.length === 0) {
+      return; // لا نهيئ DataTables للجداول الفارغة
+    }
+    
+    // تحقق من تطابق الأعمدة
+    const headerCols = table.find('thead tr:first th, thead tr:first td').length;
+    const bodyCols = dataRows.first().find('td').length;
+    
+    if (headerCols !== bodyCols) {
+      console.error('Report table: column mismatch', {header: headerCols, body: bodyCols});
+      return;
+    }
+    
+    try {
+      dt = jQuery(table).DataTable({
+        pageLength: 50,
+        order: [],
+        autoWidth: false,
+        language: {
+          emptyTable: "لا توجد بيانات",
+          info: "إظهار _START_ إلى _END_ من أصل _TOTAL_",
+          infoEmpty: "إظهار 0 إلى 0 من أصل 0",
+          lengthMenu: "إظهار _MENU_",
+          loadingRecords: "جارٍ التحميل...",
+          processing: "جارٍ المعالجة...",
+          search: "بحث:",
+          zeroRecords: "لا نتائج مطابقة",
+          paginate: { first: "الأول", last: "الأخير", next: "التالي", previous: "السابق" }
+        }
+      });
+    } catch (e) {
+      console.error('Report DataTable initialization failed:', e);
+    }
   }
 
   function renderTable(headers, rows) {

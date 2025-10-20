@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 {% block title %}محرر الكود الموحد v5.0{% endblock %}
 {% block page_title %}💻 محرر الكود الموحد <span class="badge bg-dark ms-2">CSS + HTML + Text</span>{% endblock %}
 
@@ -22,8 +22,8 @@
         <li class="nav-item" role="presentation">
           <button class="nav-link {% if active_tab == 'css' %}active{% endif %}" 
                   id="css-tab" 
-                  data-bs-toggle="tab" 
-                  data-bs-target="#css" 
+                  data-toggle="tab" 
+                  data-target="#css" 
                   type="button" 
                   role="tab">
             <i class="fas fa-palette"></i> محرر CSS (المظهر)
@@ -32,8 +32,8 @@
         <li class="nav-item" role="presentation">
           <button class="nav-link {% if active_tab == 'html' %}active{% endif %}" 
                   id="html-tab" 
-                  data-bs-toggle="tab" 
-                  data-bs-target="#html" 
+                  data-toggle="tab" 
+                  data-target="#html" 
                   type="button" 
                   role="tab">
             <i class="fas fa-code"></i> محرر HTML (القوالب)
@@ -42,8 +42,8 @@
         <li class="nav-item" role="presentation">
           <button class="nav-link {% if active_tab == 'text' %}active{% endif %}" 
                   id="text-tab" 
-                  data-bs-toggle="tab" 
-                  data-bs-target="#text" 
+                  data-toggle="tab" 
+                  data-target="#text" 
                   type="button" 
                   role="tab">
             <i class="fas fa-language"></i> محرر النصوص (الترجمات)
@@ -245,7 +245,7 @@
 // حفظ التبويب النشط
 document.querySelectorAll('#editorTabs button').forEach(tab => {
   tab.addEventListener('shown.bs.tab', function (event) {
-    const tabId = event.target.getAttribute('data-bs-target').replace('#', '');
+    const tabId = (event.target.getAttribute('data-bs-target') || event.target.getAttribute('data-target') || '').replace('#', '');
     localStorage.setItem('editorActiveTab', tabId);
   });
 });
@@ -254,7 +254,7 @@ document.querySelectorAll('#editorTabs button').forEach(tab => {
 document.addEventListener('DOMContentLoaded', function() {
   const savedTab = localStorage.getItem('editorActiveTab');
   if (savedTab && !{{ 'true' if active_tab else 'false' }}) {
-    const tabTrigger = document.querySelector(`#editorTabs button[data-bs-target="#${savedTab}"]`);
+    const tabTrigger = document.querySelector(`#editorTabs button[data-target="#${savedTab}"]`);
     if (tabTrigger) {
       bootstrap.Tab.getInstance(tabTrigger)?.show() || new bootstrap.Tab(tabTrigger).show();
     }

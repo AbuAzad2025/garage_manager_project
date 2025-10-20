@@ -1,103 +1,410 @@
 {% extends 'warehouses/base.html' %}
 
-{% block title %}{{ 'تعديل مستودع' if warehouse else 'مستودع جديد' }}{% endblock %}
 {% block page_title %}{{ 'تعديل مستودع' if warehouse else 'مستودع جديد' }}{% endblock %}
 
+{% block head_extra %}
+  {{ super() }}
+  <style>
+    .warehouse-type-card {
+      border: 2px solid transparent;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      height: 100%;
+    }
+    .warehouse-type-card:hover {
+      border-color: #007bff;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,123,255,0.2);
+    }
+    .warehouse-type-card.selected {
+      border-color: #28a745;
+      background-color: #f0f9ff;
+    }
+    .warehouse-type-icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .info-tooltip {
+      cursor: help;
+      border-bottom: 1px dotted #6c757d;
+    }
+    .form-control:focus, .form-select:focus {
+      border-color: #80bdff;
+      box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+    }
+    .was-validated .form-control:valid {
+      border-color: #28a745;
+    }
+    .was-validated .form-control:invalid {
+      border-color: #dc3545;
+    }
+    #btn-submit:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    .field-group {
+      background: #f8f9fa;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      border: 1px solid #e9ecef;
+      margin-bottom: 1rem;
+    }
+    .field-help {
+      font-size: 0.85rem;
+      color: #6c757d;
+      margin-top: 0.25rem;
+    }
+    .field-help i {
+      color: #007bff;
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+      20%, 40%, 60%, 80% { transform: translateX(5px); }
+    }
+    .shake {
+      animation: shake 0.5s;
+    }
+  </style>
+{% endblock %}
+
 {% block content %}
-<form id="warehouse-form" method="post" novalidate data-mode="{{ 'edit' if warehouse else 'create' }}">
+<!-- نظرة عامة على أنواع المستودعات -->
+<div class="alert alert-info mb-4" id="type-info-alert">
+  <div class="d-flex align-items-start">
+    <i class="fas fa-info-circle fa-2x me-3 mt-1"></i>
+    <div>
+      <h5 class="mb-2">اختر نوع المستودع المناسب لاحتياجاتك</h5>
+      <p class="mb-0 small" id="type-description">
+        اختر نوع المستودع من القائمة أدناه لعرض الحقول المناسبة لكل نوع.
+      </p>
+    </div>
+  </div>
+</div>
+
+<form id="warehouse-form" method="post" novalidate class="needs-validation" data-mode="{{ 'edit' if warehouse else 'create' }}">
   {{ form.hidden_tag() }}
 
-  <div class="row g-4">
+  <!-- قسم 1: اختيار نوع المستودع مع البطاقات التوضيحية -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white">
+      <i class="fas fa-warehouse me-2"></i>
+      <strong>معلومات المستودع الأساسية</strong>
+    </div>
+    <div class="card-body">
+      
+      <!-- اسم المستودع -->
+      <div class="mb-4">
+        <label class="form-label fw-bold">
+          <i class="fas fa-tag text-primary me-1"></i>
+          {{ form.name.label.text }}
+          <span class="text-danger">*</span>
+        </label>
+        {{ form.name(class="form-control form-control-lg", placeholder="مثال: المستودع الرئيسي، مستودع الشراكة مع أحمد، مستودع قطع غيار علي", required=True, autofocus=True) }}
+        {% for e in form.name.errors %}
+          <div class="invalid-feedback d-block">{{ e }}</div>
+        {% endfor %}
+        <div class="field-help">
+          <i class="fas fa-lightbulb"></i>
+          اختر اسماً واضحاً يسهل التعرف عليه في التقارير والعمليات اليومية
+        </div>
+      </div>
+
+      <!-- نوع المستودع -->
+      <div class="mb-3">
+        <label class="form-label fw-bold">
+          <i class="fas fa-list-alt text-primary me-1"></i>
+          {{ form.warehouse_type.label.text }}
+          <span class="text-danger">*</span>
+        </label>
+        {{ form.warehouse_type(class="form-select form-select-lg", id="warehouse_type", required=True) }}
+        {% for e in form.warehouse_type.errors %}
+          <div class="invalid-feedback d-block">{{ e }}</div>
+        {% endfor %}
+      </div>
+
+      <!-- بطاقات توضيحية لأنواع المستودعات -->
+      <div class="row g-3 mb-3" id="warehouse-types-info">
+        <!-- رئيسي -->
+        <div class="col-md-6 col-lg-4">
+          <div class="warehouse-type-card card h-100 border-primary" data-type="MAIN">
+            <div class="card-body text-center">
+              <div class="warehouse-type-icon text-primary">
+                <i class="fas fa-building"></i>
+              </div>
+              <h6 class="card-title fw-bold">مستودع رئيسي</h6>
+              <p class="card-text small text-muted">
+                المستودع الأساسي للكراج. يحتوي على قطع الغيار المملوكة بالكامل للشركة.
+              </p>
+              <ul class="list-unstyled small text-start">
+                <li><i class="fas fa-check text-success me-1"></i> ملكية كاملة</li>
+                <li><i class="fas fa-check text-success me-1"></i> إدارة مباشرة</li>
+                <li><i class="fas fa-check text-success me-1"></i> سهل الاستخدام</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- شريك -->
+        <div class="col-md-6 col-lg-4">
+          <div class="warehouse-type-card card h-100 border-warning" data-type="PARTNER">
+            <div class="card-body text-center">
+              <div class="warehouse-type-icon text-warning">
+                <i class="fas fa-handshake"></i>
+              </div>
+              <h6 class="card-title fw-bold">مستودع شريك</h6>
+              <p class="card-text small text-muted">
+                قطع مملوكة بالمشاركة مع شريك واحد أو أكثر. يتم توزيع الأرباح حسب النسب.
+              </p>
+              <ul class="list-unstyled small text-start">
+                <li><i class="fas fa-users text-warning me-1"></i> ملكية مشتركة</li>
+                <li><i class="fas fa-percent text-warning me-1"></i> توزيع أرباح</li>
+                <li><i class="fas fa-calculator text-warning me-1"></i> حصص محسوبة</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- تبادل -->
+        <div class="col-md-6 col-lg-4">
+          <div class="warehouse-type-card card h-100 border-info" data-type="EXCHANGE">
+            <div class="card-body text-center">
+              <div class="warehouse-type-icon text-info">
+                <i class="fas fa-exchange-alt"></i>
+              </div>
+              <h6 class="card-title fw-bold">مستودع تبادل</h6>
+              <p class="card-text small text-muted">
+                قطع مستلمة من موردين لبيعها بالعمولة. القطع ملك للمورد حتى البيع.
+              </p>
+              <ul class="list-unstyled small text-start">
+                <li><i class="fas fa-truck text-info me-1"></i> قطع الموردين</li>
+                <li><i class="fas fa-money-bill-wave text-info me-1"></i> بيع بالعمولة</li>
+                <li><i class="fas fa-sync text-info me-1"></i> تسويات مستمرة</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- أونلاين -->
+        <div class="col-md-6 col-lg-4">
+          <div class="warehouse-type-card card h-100 border-success" data-type="ONLINE">
+            <div class="card-body text-center">
+              <div class="warehouse-type-icon text-success">
+                <i class="fas fa-globe"></i>
+              </div>
+              <h6 class="card-title fw-bold">مستودع أونلاين</h6>
+              <p class="card-text small text-muted">
+                مستودع افتراضي للمتجر الإلكتروني. يظهر المنتجات على الموقع للطلب أونلاين.
+              </p>
+              <ul class="list-unstyled small text-start">
+                <li><i class="fas fa-shopping-cart text-success me-1"></i> بيع إلكتروني</li>
+                <li><i class="fas fa-link text-success me-1"></i> رابط مخصص</li>
+                <li><i class="fas fa-image text-success me-1"></i> صور ووصف</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- ملكيتي -->
+        <div class="col-md-6 col-lg-4">
+          <div class="warehouse-type-card card h-100 border-secondary" data-type="INVENTORY">
+            <div class="card-body text-center">
+              <div class="warehouse-type-icon text-secondary">
+                <i class="fas fa-box"></i>
+              </div>
+              <h6 class="card-title fw-bold">مستودع ملكيتي</h6>
+              <p class="card-text small text-muted">
+                مستودع للقطع الخاصة بالكراج (أدوات، معدات، مستلزمات) غير المخصصة للبيع.
+              </p>
+              <ul class="list-unstyled small text-start">
+                <li><i class="fas fa-tools text-secondary me-1"></i> أدوات الكراج</li>
+                <li><i class="fas fa-ban text-secondary me-1"></i> غير للبيع</li>
+                <li><i class="fas fa-clipboard-list text-secondary me-1"></i> للاستخدام الداخلي</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- قسم 2: الحقول الديناميكية حسب النوع -->
+  <div class="row g-4 mt-1">
     <div class="col-md-6">
       <div class="card shadow-sm h-100">
-        <div class="card-header bg-primary text-white">
-          <i class="fas fa-warehouse me-1"></i> معلومات أساسية
+        <div class="card-header bg-secondary text-white">
+          <i class="fas fa-map-marker-alt me-1"></i> الموقع والإعدادات
         </div>
         <div class="card-body">
           <div class="mb-3">
-            {{ form.name.label(class="form-label") }}
-            {{ form.name(class="form-control", placeholder="اسم المستودع", required=True) }}
-            {% for e in form.name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            <label class="form-label">
+              <i class="fas fa-map-marker-alt text-secondary me-1"></i>
+              {{ form.location.label.text }}
+            </label>
+            {{ form.location(class="form-control", placeholder="مثال: الطابق الأول - قسم القطع الثقيلة") }}
+            {% for e in form.location.errors %}
+              <div class="invalid-feedback d-block">{{ e }}</div>
+            {% endfor %}
+            <div class="field-help">
+              <i class="fas fa-info-circle"></i>
+              الموقع الفعلي للمستودع داخل الكراج أو المنشأة
+            </div>
           </div>
 
           <div class="mb-3">
-            {{ form.warehouse_type.label(class="form-label") }}
-            {{ form.warehouse_type(class="form-select", id="warehouse_type", required=True) }}
-            {% for e in form.warehouse_type.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-            <small class="text-muted"><i class="fas fa-info-circle"></i> الشريك/المورد يُحدد عند إضافة المنتج، وليس عند إنشاء المستودع</small>
-          </div>
-
-          <div id="row-parent" class="mb-3 d-none">
-            {{ form.parent_id.label(class="form-label") }}
-            <select id="{{ form.parent_id.id }}" name="{{ form.parent_id.name }}" class="form-select ajax"
-                    data-url="{{ url_for('api.search_warehouses') }}"
-                    data-current="{{ form.parent_id.data or '' }}"></select>
-            {% for e in form.parent_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-          </div>
-
-          <div id="row-online" class="mb-3 d-none">
-            <div class="mb-2">
-              {% if form.online_slug is defined %}
-                {{ form.online_slug.label(class="form-label") }}
-                {{ form.online_slug(class="form-control", placeholder="معرّف الأونلاين") }}
-                {% for e in form.online_slug.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-              {% endif %}
+            <label class="form-label">
+              <i class="fas fa-boxes text-secondary me-1"></i>
+              {{ form.capacity.label.text }}
+            </label>
+            <div class="input-group">
+              {{ form.capacity(class="form-control", placeholder="مثال: 1000", type="number", min="0") }}
+              <span class="input-group-text">قطعة</span>
             </div>
-            <div class="form-check">
-              {% if form.online_is_default is defined %}
-                {{ form.online_is_default(class="form-check-input", id="online_is_default") }}
-                <label class="form-check-label" for="online_is_default">{{ form.online_is_default.label.text }}</label>
-                {% for e in form.online_is_default.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-              {% endif %}
+            {% for e in form.capacity.errors %}
+              <div class="invalid-feedback d-block">{{ e }}</div>
+            {% endfor %}
+            <div class="field-help">
+              <i class="fas fa-info-circle"></i>
+              الحد الأقصى لعدد القطع التي يستوعبها المستودع (اختياري)
             </div>
           </div>
 
+          <div class="mb-3">
+            <label class="form-label">
+              <i class="fas fa-sticky-note text-secondary me-1"></i>
+              {{ form.notes.label.text }}
+            </label>
+            {{ form.notes(class="form-control", rows="3", placeholder="أي ملاحظات أو تفاصيل إضافية عن المستودع...") }}
+            {% for e in form.notes.errors %}
+              <div class="invalid-feedback d-block">{{ e }}</div>
+            {% endfor %}
+          </div>
+
+          <div class="form-check form-switch">
+            {{ form.is_active(class="form-check-input", id="is_active", role="switch", checked=True) }}
+            <label class="form-check-label fw-bold" for="is_active">
+              <i class="fas fa-toggle-on me-1 text-success"></i> 
+              {{ form.is_active.label.text }}
+            </label>
+            <div class="field-help ms-4">
+              المستودعات غير النشطة لا تظهر في القوائم الافتراضية
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
     <div class="col-md-6">
       <div class="card shadow-sm h-100">
-        <div class="card-header bg-secondary text-white">
-          <i class="fas fa-cogs me-1"></i> الإعدادات
+        <div class="card-header bg-info text-white">
+          <i class="fas fa-cogs me-1"></i> إعدادات متقدمة
         </div>
         <div class="card-body">
-          <div class="mb-3">
-            {{ form.location.label(class="form-label") }}
-            {{ form.location(class="form-control", placeholder="موقع المستودع") }}
-            {% for e in form.location.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+
+          <!-- حقل المستودع الأب -->
+          <div id="row-parent" class="mb-3 d-none">
+            <div class="field-group">
+              <label class="form-label fw-bold">
+                <i class="fas fa-sitemap text-info me-1"></i>
+                {{ form.parent_id.label.text }}
+              </label>
+              <select id="{{ form.parent_id.id }}" name="{{ form.parent_id.name }}" class="form-select ajax"
+                      data-url="{{ url_for('api.search_warehouses') }}"
+                      data-current="{{ form.parent_id.data or '' }}"></select>
+              {% for e in form.parent_id.errors %}
+                <div class="invalid-feedback d-block">{{ e }}</div>
+              {% endfor %}
+              <div class="field-help">
+                <i class="fas fa-info-circle"></i>
+                المستودع الأب يُستخدم لتنظيم المستودعات بشكل هرمي (اختياري)
+              </div>
+            </div>
           </div>
 
-          <div class="mb-3">
-            {{ form.capacity.label(class="form-label") }}
-            {{ form.capacity(class="form-control", placeholder="السعة القصوى") }}
-            {% for e in form.capacity.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          <!-- حقول الأونلاين -->
+          <div id="row-online" class="mb-3 d-none">
+            <div class="field-group">
+              {% if form.online_slug is defined %}
+                <div class="mb-3">
+                  <label class="form-label fw-bold">
+                    <i class="fas fa-link text-success me-1"></i>
+                    {{ form.online_slug.label.text }}
+                  </label>
+                  <div class="input-group">
+                    <span class="input-group-text">
+                      <i class="fas fa-globe"></i>
+                    </span>
+                    {{ form.online_slug(class="form-control", placeholder="online-store", dir="ltr") }}
+                  </div>
+                  {% for e in form.online_slug.errors %}
+                    <div class="invalid-feedback d-block">{{ e }}</div>
+                  {% endfor %}
+                  <div class="field-help">
+                    <i class="fas fa-info-circle"></i>
+                    الرابط الفريد للمتجر: <code>yoursite.com/shop/<span id="slug-preview">online-store</span></code>
+                  </div>
+                </div>
+              {% endif %}
+
+              {% if form.online_is_default is defined %}
+                <div class="form-check form-switch">
+                  {{ form.online_is_default(class="form-check-input", id="online_is_default", role="switch") }}
+                  <label class="form-check-label fw-bold" for="online_is_default">
+                    <i class="fas fa-star me-1 text-warning"></i>
+                    {{ form.online_is_default.label.text }}
+                  </label>
+                  <div class="field-help ms-4">
+                    المستودع الافتراضي يظهر تلقائياً عند فتح المتجر الإلكتروني
+                  </div>
+                  {% for e in form.online_is_default.errors %}
+                    <div class="invalid-feedback d-block">{{ e }}</div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
           </div>
 
-          <div class="mb-3">
-            {{ form.notes.label(class="form-label") }}
-            {{ form.notes(class="form-control", rows="2", placeholder="ملاحظات إضافية") }}
-            {% for e in form.notes.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          <!-- رسالة توضيحية للشركاء والموردين -->
+          <div class="alert alert-warning mb-0">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>ملاحظة مهمة:</strong>
+            <p class="mb-0 small mt-2">
+              الشركاء والموردين يتم تحديدهم عند <strong>إضافة المنتج</strong> للمستودع، وليس عند إنشاء المستودع نفسه.
+              كل منتج يمكن أن يكون له شريك أو مورد مختلف.
+            </p>
           </div>
 
-          <div class="form-check mb-2">
-            {{ form.is_active(class="form-check-input", id="is_active") }}
-            <label class="form-check-label" for="is_active">
-              <i class="fas fa-toggle-on me-1"></i> {{ form.is_active.label.text }}
-            </label>
-          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <div class="mt-4 d-flex gap-2">
-    <button class="btn btn-success">
-      <i class="fas fa-save me-1"></i> حفظ
-    </button>
-    <a href="{{ url_for('warehouse_bp.list') }}" class="btn btn-outline-secondary">
-      <i class="fas fa-arrow-right me-1"></i> رجوع
-    </a>
+  <!-- أزرار الحفظ -->
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center">
+        <div class="text-muted">
+          <i class="fas fa-info-circle me-1"></i>
+          تأكد من صحة المعلومات قبل الحفظ
+        </div>
+        <div class="d-flex gap-2">
+          <a href="{{ url_for('warehouse_bp.list') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-times me-1"></i> إلغاء
+          </a>
+          <button type="submit" class="btn btn-success btn-lg" id="btn-submit">
+            <span class="btn-text">
+              <i class="fas fa-save me-1"></i> 
+              {{ 'تحديث المستودع' if warehouse else 'إنشاء المستودع' }}
+            </span>
+            <span class="btn-loading d-none">
+              <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+              جاري الحفظ...
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </form>
 {% endblock %}
@@ -107,10 +414,27 @@
 <script src="{{ url_for('static', filename='js/warehouses.js') }}"></script>
 <script>
 (function () {
+  'use strict';
+  
+  // ===== العناصر الأساسية =====
   const $type = document.getElementById('warehouse_type');
-  const rowParent   = document.getElementById('row-parent');
-  const rowOnline   = document.getElementById('row-online');
+  const rowParent = document.getElementById('row-parent');
+  const rowOnline = document.getElementById('row-online');
+  const form = document.getElementById('warehouse-form');
+  const btnSubmit = document.getElementById('btn-submit');
+  const typeInfoAlert = document.getElementById('type-info-alert');
+  const typeDescription = document.getElementById('type-description');
+  
+  // ===== أوصاف أنواع المستودعات =====
+  const typeDescriptions = {
+    'MAIN': 'المستودع الرئيسي - لقطع الغيار المملوكة بالكامل للشركة. الخيار الأمثل للبدء.',
+    'PARTNER': 'مستودع الشراكة - لإدارة القطع المشتركة مع شركاء. يتم توزيع الأرباح حسب النسب المحددة لكل قطعة.',
+    'EXCHANGE': 'مستودع التبادل - لقطع الموردين التي تباع بالعمولة. القطع تبقى ملك للمورد حتى البيع.',
+    'ONLINE': 'المستودع الإلكتروني - لعرض المنتجات على المتجر الإلكتروني. يحتاج صور وأسعار خاصة.',
+    'INVENTORY': 'مستودع الأدوات - لأدوات ومعدات الكراج الخاصة. غير مخصصة للبيع.'
+  };
 
+  // ===== الدالة الأصلية: إظهار/إخفاء العناصر (محفوظة كما هي) =====
   function show(el, on) {
     if (!el) return;
     el.classList.toggle('d-none', !on);
@@ -120,15 +444,66 @@
     }
   }
 
+  // ===== الدالة الأصلية المحسّنة: مزامنة الواجهة =====
   function syncUI() {
     const t = ($type.value || '').toUpperCase();
-    show(rowParent,   t !== 'MAIN' && t !== 'ONLINE');
-    show(rowOnline,   t === 'ONLINE');
+    
+    // الوظيفة الأصلية محفوظة
+    show(rowParent, t !== 'MAIN' && t !== 'ONLINE');
+    show(rowOnline, t === 'ONLINE');
+    
+    // ✨ جديد: تحديث البطاقات التوضيحية
+    document.querySelectorAll('.warehouse-type-card').forEach(card => {
+      const cardType = card.getAttribute('data-type');
+      if (cardType === t) {
+        card.classList.add('selected');
+      } else {
+        card.classList.remove('selected');
+      }
+    });
+    
+    // ✨ جديد: تحديث الوصف
+    if (typeDescription && typeDescriptions[t]) {
+      typeDescription.textContent = typeDescriptions[t];
+      typeInfoAlert.className = 'alert mb-4 ' + getAlertClass(t);
+    }
+  }
+  
+  // ===== دالة جديدة: تحديد لون Alert حسب النوع =====
+  function getAlertClass(type) {
+    const colors = {
+      'MAIN': 'alert-primary',
+      'PARTNER': 'alert-warning',
+      'EXCHANGE': 'alert-info',
+      'ONLINE': 'alert-success',
+      'INVENTORY': 'alert-secondary'
+    };
+    return colors[type] || 'alert-info';
   }
 
+  // ===== الوظيفة الأصلية: الاستماع لتغيير النوع (محفوظة) =====
   $type.addEventListener('change', syncUI);
-  syncUI();
+  
+  // ===== جديد: النقر على البطاقات لاختيار النوع =====
+  document.querySelectorAll('.warehouse-type-card').forEach(card => {
+    card.addEventListener('click', function() {
+      const type = this.getAttribute('data-type');
+      if (type && $type) {
+        $type.value = type;
+        $type.dispatchEvent(new Event('change'));
+        
+        // Scroll smooth للنموذج
+        setTimeout(() => {
+          const formCard = document.querySelector('.card.shadow-sm.mb-4');
+          if (formCard) {
+            formCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }
+        }, 100);
+      }
+    });
+  });
 
+  // ===== الوظيفة الأصلية: تهيئة Select2 (محفوظة بالكامل) =====
   if (window.jQuery && jQuery().select2) {
     jQuery('.ajax').each(function () {
       const $el = jQuery(this);
@@ -148,8 +523,16 @@
           }
         },
         placeholder: '— اختر —',
-        allowClear: true
+        allowClear: true,
+        language: {
+          noResults: () => 'لا توجد نتائج',
+          searching: () => 'جاري البحث...',
+          inputTooShort: () => 'أدخل حرف واحد على الأقل',
+          loadingMore: () => 'جاري تحميل المزيد...'
+        }
       });
+      
+      // الوظيفة الأصلية: تحميل القيمة الحالية (محفوظة)
       if (current) {
         fetch(url + '?id=' + encodeURIComponent(current))
           .then(r => r.json())
@@ -165,12 +548,224 @@
     });
   }
 
-  const form = document.getElementById('warehouse-form');
+  // ===== جديد: تحديث معاينة الـ slug =====
+  const slugInput = document.getElementById('online_slug');
+  const slugPreview = document.getElementById('slug-preview');
+  if (slugInput && slugPreview) {
+    slugInput.addEventListener('input', function() {
+      const value = this.value.trim() || 'online-store';
+      slugPreview.textContent = value;
+    });
+    // تحديث أولي
+    if (slugInput.value) {
+      slugPreview.textContent = slugInput.value;
+    }
+  }
+
+  // ===== الوظيفة الأصلية المحسّنة: معالج الإرسال =====
   if (form) {
-    form.addEventListener('submit', function () {
+    form.addEventListener('submit', function (e) {
+      // ✨ جديد: Loading state
+      if (btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.querySelector('.btn-text').classList.add('d-none');
+        btnSubmit.querySelector('.btn-loading').classList.remove('d-none');
+      }
+      
+      // ✨ جديد: Validation visual
+      form.classList.add('was-validated');
+      
+      // التحقق من الحقول المطلوبة
+      const nameInput = document.querySelector('#warehouse-form input[name="name"]');
+      if (nameInput && !nameInput.value.trim()) {
+        e.preventDefault();
+        nameInput.classList.add('shake');
+        nameInput.focus();
+        
+        if (btnSubmit) {
+          btnSubmit.disabled = false;
+          btnSubmit.querySelector('.btn-text').classList.remove('d-none');
+          btnSubmit.querySelector('.btn-loading').classList.add('d-none');
+        }
+        
+        setTimeout(() => nameInput.classList.remove('shake'), 500);
+        
+        // رسالة خطأ
+        if (window.Swal) {
+          Swal.fire({
+            icon: 'error',
+            title: 'حقل مطلوب',
+            text: 'الرجاء إدخال اسم المستودع',
+            confirmButtonText: 'حسناً'
+          });
+        } else {
+          alert('الرجاء إدخال اسم المستودع');
+        }
+        return false;
+      }
+      
+      // الوظيفة الأصلية محفوظة
       return true;
     });
   }
+
+  // ===== جديد: Keyboard shortcuts =====
+  document.addEventListener('keydown', function(e) {
+    // Ctrl+S أو Cmd+S للحفظ
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      if (form && btnSubmit && !btnSubmit.disabled) {
+        form.requestSubmit();
+      }
+    }
+    
+    // Escape للإلغاء
+    if (e.key === 'Escape') {
+      const cancelBtn = document.querySelector('a.btn-outline-secondary');
+      if (cancelBtn && confirm('هل تريد إلغاء التعديلات والعودة؟')) {
+        window.location.href = cancelBtn.href;
+      }
+    }
+  });
+
+  // ===== جديد: Auto-save للـ localStorage (Draft) =====
+  const draftKey = 'warehouse_form_draft_' + (form.dataset.mode || 'create');
+  
+  // تحميل المسودة عند فتح الصفحة
+  function loadDraft() {
+    try {
+      const draft = localStorage.getItem(draftKey);
+      if (draft && form.dataset.mode === 'create') {
+        const data = JSON.parse(draft);
+        const shouldLoad = confirm('وُجدت مسودة محفوظة سابقاً. هل تريد تحميلها؟');
+        if (shouldLoad) {
+          Object.keys(data).forEach(key => {
+            const input = form.querySelector(`[name="${key}"]`);
+            if (input && data[key]) {
+              input.value = data[key];
+              if (key === 'warehouse_type') {
+                input.dispatchEvent(new Event('change'));
+              }
+            }
+          });
+        } else {
+          localStorage.removeItem(draftKey);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load draft:', e);
+    }
+  }
+  
+  // حفظ المسودة عند التعديل
+  function saveDraft() {
+    if (form.dataset.mode !== 'create') return; // فقط للإنشاء الجديد
+    
+    try {
+      const data = {};
+      const inputs = form.querySelectorAll('input[name], select[name], textarea[name]');
+      inputs.forEach(input => {
+        if (input.name && input.name !== 'csrf_token' && input.value) {
+          data[input.name] = input.value;
+        }
+      });
+      localStorage.setItem(draftKey, JSON.stringify(data));
+    } catch (e) {
+      console.warn('Failed to save draft:', e);
+    }
+  }
+  
+  // حفظ تلقائي كل 30 ثانية
+  let draftTimer;
+  function startAutoSave() {
+    draftTimer = setInterval(saveDraft, 30000);
+  }
+  
+  // حذف المسودة عند الحفظ الناجح
+  form.addEventListener('submit', function() {
+    localStorage.removeItem(draftKey);
+    if (draftTimer) clearInterval(draftTimer);
+  });
+
+  // ===== جديد: Real-time validation =====
+  const nameInput = form.querySelector('input[name="name"]');
+  if (nameInput) {
+    nameInput.addEventListener('blur', function() {
+      if (!this.value.trim()) {
+        this.classList.add('is-invalid');
+      } else {
+        this.classList.remove('is-invalid');
+        this.classList.add('is-valid');
+      }
+    });
+    
+    nameInput.addEventListener('input', function() {
+      this.classList.remove('is-invalid', 'is-valid');
+    });
+  }
+
+  // ===== جديد: Capacity validation =====
+  const capacityInput = form.querySelector('input[name="capacity"]');
+  if (capacityInput) {
+    capacityInput.addEventListener('change', function() {
+      const value = parseInt(this.value);
+      if (value < 0) {
+        this.value = 0;
+      }
+    });
+  }
+
+  // ===== التهيئة الأولية =====
+  syncUI();
+  loadDraft();
+  startAutoSave();
+  
+  // ===== جديد: Tooltips (إذا كان Bootstrap Tooltip موجود) =====
+  if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"], .info-tooltip'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+      return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+  }
+
+  // ===== جديد: Confirmation عند المغادرة مع تعديلات غير محفوظة =====
+  let formChanged = false;
+  form.addEventListener('input', () => { formChanged = true; });
+  form.addEventListener('submit', () => { formChanged = false; });
+  
+  window.addEventListener('beforeunload', function(e) {
+    if (formChanged) {
+      e.preventDefault();
+      e.returnValue = 'لديك تعديلات غير محفوظة. هل تريد المغادرة؟';
+      return e.returnValue;
+    }
+  });
+
+  // ===== جديد: Focus management =====
+  // عند اختيار نوع مستودع، التركيز على أول حقل ظاهر
+  $type.addEventListener('change', function() {
+    setTimeout(() => {
+      const firstVisibleInput = form.querySelector('.field-group:not(.d-none) input:not([type="hidden"]), .field-group:not(.d-none) select');
+      if (firstVisibleInput) {
+        firstVisibleInput.focus();
+      }
+    }, 100);
+  });
+
+  // ===== إضافة رسالة نجاح عند الحفظ (إذا كانت في الـ URL) =====
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('success') === '1') {
+    if (window.Swal) {
+      Swal.fire({
+        icon: 'success',
+        title: 'تم الحفظ بنجاح',
+        text: 'تم حفظ بيانات المستودع',
+        timer: 2000,
+        showConfirmButton: false
+      });
+    }
+  }
+
 })();
 </script>
 {% endblock %}

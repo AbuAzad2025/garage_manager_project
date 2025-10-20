@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block title %}تفاصيل طلب الصيانة{% endblock %}
 {% block page_header %}طلب {{ service.service_number or ('#' ~ service.id) }}{% endblock %}
 
@@ -114,7 +114,7 @@
           <i class="fas fa-print"></i> طباعة مباشرة
         </button>
         {% if current_user.has_permission('manage_service') %}
-        <button class="btn btn-warning fw-bold" data-bs-toggle="modal" data-bs-target="#archiveModal">
+        <button class="btn btn-warning fw-bold" data-toggle="modal" data-target="#archiveModal">
           <i class="fas fa-archive"></i> أرشفة الطلب
         </button>
         <form action="{{ url_for('service.delete_request', rid=service.id) }}" method="post" class="d-inline">

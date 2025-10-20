@@ -126,7 +126,7 @@ def create_app(config_object=Config) -> Flask:
     
     # ========== حد أقصى لحجم الملفات المرفوعة (16 MB) ==========
     app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB
-    print("✅ تم تعيين الحد الأقصى للملفات: 16 MB")
+    # print("تم تعيين الحد الأقصى للملفات: 16 MB")
 
     # ========== Flask-Compress للضغط التلقائي ==========
     # تعطيل مؤقتاً لحل مشكلة MemoryError
@@ -418,7 +418,10 @@ def create_app(config_object=Config) -> Flask:
     attach_acl(main_bp, read_perm=None, write_perm=None)
     attach_acl(partner_settlements_bp, read_perm="manage_vendors", write_perm="manage_vendors")
     attach_acl(supplier_settlements_bp, read_perm="manage_vendors", write_perm="manage_vendors")
-    attach_acl(api_bp, read_perm="access_api", write_perm="manage_api")
+    # API endpoints تحتاج صلاحية access_api
+    # استثناء: endpoint أسعار الصرف متاح للجميع (بدون مصادقة)
+    attach_acl(api_bp, read_perm="access_api", write_perm="manage_api",
+               exempt_prefixes=["/api/exchange-rates"])
     attach_acl(notes_bp, read_perm="view_notes", write_perm="manage_notes")
     attach_acl(bp_barcode, read_perm="view_parts", write_perm=None)
     attach_acl(ledger_bp, read_perm="manage_ledger", write_perm="manage_ledger")

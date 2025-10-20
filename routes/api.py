@@ -4,7 +4,7 @@ from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 from flask import Blueprint, Response, current_app, jsonify, request, render_template
 from flask_login import current_user, login_required
-from sqlalchemy import func, or_, text
+from sqlalchemy import func, or_, text, case
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError, OperationalError
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import aliased
@@ -218,10 +218,29 @@ def api_health():
         return api_error_response('API غير صحي', 500, {'error': str(e)})
 
 @bp.route("/exchange-rates", methods=["GET"], endpoint="get_exchange_rates")
+@limiter.limit("20/minute")  # حماية: فقط 20 طلب في الدقيقة لكل IP
 def get_current_exchange_rates():
-    """جلب أسعار الصرف الحالية - متاح للجميع لعرضها في navbar"""
+    """
+    IMPORTANT: هذا الـ endpoint متاح للجميع بدون مصادقة (public endpoint)
+    يتم تجاوز فحص الصلاحيات في acl_manager.py
+    """
+    """جلب أسعار الصرف الحالية - متاح للجميع لعرضها في navbar
+    
+    محمي بـ Rate Limiting (20 طلب/دقيقة) والنتائج محفوظة مؤقتاً (5 دقائق)
+    """
     try:
         from models import get_fx_rate_with_fallback
+        from flask import current_app
+        import time
+        
+        # محاولة الحصول على القيم من Cache
+        cache_key = 'exchange_rates_cache'
+        cached_data = current_app.config.get('_exchange_rates_cache', {})
+        cache_time = current_app.config.get('_exchange_rates_cache_time', 0)
+        
+        # إذا كانت البيانات محفوظة وصالحة (أقل من 5 دقائق)
+        if cached_data and (time.time() - cache_time) < 300:
+            return jsonify(cached_data)
         
         # جلب سعر الدولار مقابل الشيقل
         usd_to_ils = get_fx_rate_with_fallback('USD', 'ILS')
@@ -229,24 +248,26 @@ def get_current_exchange_rates():
         # جلب سعر الدينار مقابل الشيقل
         jod_to_ils = get_fx_rate_with_fallback('JOD', 'ILS')
         
-        return jsonify({
+        # تجهيز الاستجابة (بدون معلومات حساسة)
+        response_data = {
             'success': True,
-            'USD': usd_to_ils.get('rate', 3.65),
-            'JOD': jod_to_ils.get('rate', 5.15),
-            'usd_source': usd_to_ils.get('source', 'default'),
-            'jod_source': jod_to_ils.get('source', 'default'),
-            'timestamp': datetime.utcnow().isoformat()
-        })
+            'USD': float(usd_to_ils.get('rate', 3.65)),
+            'JOD': float(jod_to_ils.get('rate', 5.15))
+        }
+        
+        # حفظ في Cache
+        current_app.config['_exchange_rates_cache'] = response_data
+        current_app.config['_exchange_rates_cache_time'] = time.time()
+        
+        return jsonify(response_data)
+        
     except Exception as e:
         # في حالة الخطأ، إرجاع قيم افتراضية
         return jsonify({
             'success': False,
             'USD': 3.65,
-            'JOD': 5.15,
-            'usd_source': 'default',
-            'jod_source': 'default',
-            'error': str(e)
-        })
+            'JOD': 5.15
+        }), 200  # نرجع 200 حتى لا يعتقد المتصفح أن هناك خطأ
 
 from utils import D as _D, _q2
 
@@ -1225,11 +1246,11 @@ def api_warehouses():
         } for w in rows]
     })
 
-@bp.get("/warehouses/<int:id>/products")
+@bp.get("/warehouses/<int:id>/products/stocked")
 @login_required
 @limiter.limit("60/minute")
 # @permission_required("view_inventory", "view_warehouses")  # Commented out
-def api_warehouse_products(id):
+def api_warehouse_products_stocked(id):
     """Get products available in a specific warehouse"""
     w = Warehouse.query.get_or_404(id)
     q = (request.args.get("q") or "").strip()
@@ -1352,10 +1373,22 @@ def api_delete_warehouse(id):
 @limiter.limit("60/minute")
 # @permission_required("view_inventory", "view_warehouses", "manage_inventory")  # Commented out
 def api_products_by_warehouse(wid: int):
+    from models import Warehouse, WarehouseType
+    
+    warehouse = db.session.get(Warehouse, wid)
+    # Normalize warehouse_type to uppercase string like 'EXCHANGE' or 'PARTNER'
+    if warehouse:
+        if hasattr(warehouse.warehouse_type, "value"):
+            warehouse_type = str(warehouse.warehouse_type.value).upper()
+        else:
+            warehouse_type = str(warehouse.warehouse_type).upper()
+    else:
+        warehouse_type = None
+    
     q = (request.args.get("q") or "").strip()
     selected_ids = request.args.getlist("warehouse_ids", type=int) or []
     sum_ids = selected_ids or [wid]
-    limit = _limit_from_request(200, 500)
+    limit = _limit_from_request(200, 1000)
 
     SL_curr = aliased(StockLevel)
 
@@ -1406,9 +1439,86 @@ def api_products_by_warehouse(wid: int):
         )
         totals_map = {pid: int(t or 0) for pid, t in trows}
 
+    partners_map = {}
+    suppliers_map = {}
+    
+    from models import ProductPartner, Partner, Supplier, ExchangeTransaction
+    
+    if warehouse_type == 'PARTNER' and pid_list:
+        pp_rows = (
+            db.session.query(
+                ProductPartner.product_id,
+                Partner.id,
+                Partner.name,
+                ProductPartner.share_percent
+            )
+            .join(Partner, Partner.id == ProductPartner.partner_id)
+            .filter(ProductPartner.product_id.in_(pid_list))
+            .all()
+        )
+        
+        for prod_id, partner_id, partner_name, share_pct in pp_rows:
+            if prod_id not in partners_map:
+                partners_map[prod_id] = []
+            partners_map[prod_id].append({
+                'id': partner_id,
+                'name': partner_name,
+                'share_percent': float(share_pct or 0)
+            })
+        
+        if warehouse and warehouse.partner_id:
+            wh_partner_id = warehouse.partner_id
+            partner = db.session.get(Partner, wh_partner_id)
+            if partner:
+                for prod_id in pid_list:
+                    if prod_id not in partners_map:
+                        partners_map[prod_id] = []
+                    if not any(p['id'] == wh_partner_id for p in partners_map[prod_id]):
+                        partners_map[prod_id].append({
+                            'id': partner.id,
+                            'name': partner.name,
+                            'share_percent': float(warehouse.share_percent or 100)
+                        })
+    
+    elif warehouse_type == 'EXCHANGE' and pid_list:
+        supp_rows = (
+            db.session.query(
+                ExchangeTransaction.product_id,
+                Supplier.id,
+                Supplier.name,
+                func.sum(
+                    case(
+                        (ExchangeTransaction.direction.in_(['IN', 'PURCHASE', 'CONSIGN_IN']), ExchangeTransaction.quantity),
+                        else_=-ExchangeTransaction.quantity
+                    )
+                ).label('total_qty')
+            )
+            .join(Supplier, Supplier.id == ExchangeTransaction.supplier_id)
+            .filter(
+                ExchangeTransaction.product_id.in_(pid_list),
+                ExchangeTransaction.warehouse_id == wid,
+                ExchangeTransaction.supplier_id.isnot(None)
+            )
+            .group_by(ExchangeTransaction.product_id, Supplier.id, Supplier.name)
+            .all()
+        )
+        
+        for prod_id, supp_id, supp_name, total_qty in supp_rows:
+            if prod_id not in suppliers_map:
+                suppliers_map[prod_id] = []
+            suppliers_map[prod_id].append({
+                'id': supp_id,
+                'name': supp_name,
+                'share_percent': 100,
+                'quantity': int(total_qty or 0)
+            })
+    
     out = []
     for p, qty_curr in rows:
         total_q = totals_map.get(p.id, int(qty_curr or 0))
+        partners_data = partners_map.get(p.id, [])
+        suppliers_data = suppliers_map.get(p.id, [])
+        
         out.append({
             "id": p.id,
             "name": p.name,
@@ -1422,8 +1532,12 @@ def api_products_by_warehouse(wid: int):
             "online_price": float(getattr(p, "online_price", 0) or 0),
             "quantity": int(qty_curr or 0),
             "total_quantity": total_q,
+            "partners": partners_data,
+            "suppliers": suppliers_data,
+            "created_at": p.created_at.isoformat() if hasattr(p, 'created_at') and p.created_at else None,
+            "status": "active" if getattr(p, "is_active", True) else "inactive",
         })
-
+    
     return jsonify({"data": out, "results": out})
 
 @bp.get("/warehouses/inventory")
@@ -2644,32 +2758,60 @@ def list_exchange_transactions():
 @limiter.limit("30/minute")
 # @permission_required("manage_inventory", "manage_warehouses")  # Commented out
 def create_exchange_transaction():
-    d = request.get_json(silent=True) or {}
+    import logging
+    
+    d = request.get_json(silent=True) or request.form or {}
+    logging.info(f"📦 [Exchange API] البيانات المستلمة: {dict(d)}")
+    
     try:
         pid = int(d.get("product_id") or 0)
         wid = int(d.get("warehouse_id") or 0)
         partner_id = int(d.get("partner_id") or 0) or None
+        supplier_id = int(d.get("supplier_id") or 0) or None  # إضافة دعم supplier_id
         direction = (d.get("direction") or "").strip().upper()
         qty = int(float(d.get("quantity") or 0))
         unit_cost = _D(d.get("unit_cost"))
         notes = (d.get("notes") or "").strip() or None
-    except Exception:
+    except Exception as e:
+        logging.error(f"❌ [Exchange API] خطأ في parsing: {str(e)}")
         return jsonify({"success": False, "error": "invalid_payload"}), 400
+    
     if not (pid and wid and direction in {"IN", "OUT", "ADJUSTMENT"} and qty > 0):
+        logging.error(f"❌ [Exchange API] بيانات غير مكتملة: pid={pid}, wid={wid}, dir={direction}, qty={qty}")
         return jsonify({"success": False, "error": "invalid"}), 400
-    try:
-        _ensure_exchange_warehouse(wid)
-    except ValueError as e:
-        code = str(e)
-        msg = {
-            "warehouse_not_found": "المخزن غير موجود",
-            "not_exchange_warehouse": "يجب أن تكون الحركة على مخزن تبادل.",
-            "exchange_requires_supplier": "مخزن التبادل يجب أن يكون مربوطًا بمورد.",
-        }.get(code, "invalid_warehouse")
-        return jsonify({"success": False, "error": msg}), 400
+    
+    # التحقق من وجود المستودع والحصول على نوعه
+    wh = Warehouse.query.get(wid)
+    if not wh:
+        logging.error(f"❌ [Exchange API] المستودع {wid} غير موجود")
+        return jsonify({"success": False, "error": "المستودع غير موجود"}), 404
+    
+    wh_type = getattr(wh.warehouse_type, "value", wh.warehouse_type)
+    logging.info(f"🏭 [Exchange API] نوع المستودع {wid}: {wh_type}")
+    
+    # ========== Validation حسب نوع المستودع ==========
+    if wh_type == WarehouseType.PARTNER.value:
+        if not partner_id:
+            logging.error(f"❌ [Exchange API] مستودع PARTNER يتطلب partner_id")
+            return jsonify({"success": False, "error": "⚠️ مستودع شريك: يجب تحديد الشريك!"}), 400
+        supplier_id = None  # مستودعات PARTNER لا تستخدم supplier_id
+        logging.info(f"✅ [Exchange API] مستودع PARTNER مع partner_id={partner_id}")
+    elif wh_type == WarehouseType.EXCHANGE.value:
+        if not supplier_id:
+            logging.error(f"❌ [Exchange API] مستودع EXCHANGE يتطلب supplier_id")
+            return jsonify({"success": False, "error": "⚠️ مستودع تبادل: يجب تحديد المورد/التاجر!"}), 400
+        partner_id = None  # مستودعات EXCHANGE لا تستخدم partner_id
+        logging.info(f"✅ [Exchange API] مستودع EXCHANGE مع supplier_id={supplier_id}")
+    else:
+        # MAIN, ONLINE, INVENTORY - لا يتطلب شريك أو مورد
+        partner_id = None
+        supplier_id = None
+        logging.info(f"ℹ️ [Exchange API] مستودع {wh_type} - لا يتطلب شريك/مورد")
+    
     priced = bool(unit_cost and unit_cost > 0)
     if direction == "ADJUSTMENT":
         if not priced:
+            logging.error(f"❌ [Exchange API] تسوية بدون تكلفة")
             return jsonify({"success": False, "error": "هذه تسوية: أدخل تكلفة موجبة للوحدة."}), 400
     if direction == "OUT":
         avail = _available_qty(pid, wid)
@@ -2679,12 +2821,14 @@ def create_exchange_transaction():
         product_id=pid,
         warehouse_id=wid,
         partner_id=partner_id,
+        supplier_id=supplier_id,  # إضافة supplier_id
         direction=direction,
         quantity=qty,
         unit_cost=(unit_cost if priced else None),
         is_priced=bool(priced),
         notes=notes,
     )
+    logging.info(f"✅ [Exchange API] إنشاء ExchangeTransaction: partner={partner_id}, supplier={supplier_id}")
     db.session.add(xt)
     db.session.flush()
     warning = None
@@ -3711,3 +3855,82 @@ def api_restore_payment(payment_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ===== Product Stock API =====
+
+@bp.route('/products/<int:product_id>/stock', methods=['GET'])
+@login_required
+def get_product_stock(product_id):
+    """جلب معلومات المخزون للمنتج في مستودع معين"""
+    try:
+        warehouse_id = request.args.get('warehouse_id', type=int)
+        
+        # التحقق من وجود المنتج
+        product = Product.query.get(product_id)
+        if not product:
+            return jsonify({
+                'success': False,
+                'error': 'المنتج غير موجود'
+            }), 404
+        
+        stock_quantity = 0
+        
+        # إذا تم تحديد مستودع معين
+        if warehouse_id:
+            stock_level = StockLevel.query.filter_by(
+                product_id=product_id,
+                warehouse_id=warehouse_id
+            ).first()
+            
+            if stock_level:
+                stock_quantity = stock_level.quantity or 0
+        else:
+            # جلب إجمالي المخزون من جميع المستودعات
+            stock_levels = StockLevel.query.filter_by(product_id=product_id).all()
+            stock_quantity = sum(sl.quantity or 0 for sl in stock_levels)
+        
+        return jsonify({
+            'success': True,
+            'product_id': product.id,
+            'product_name': product.name,
+            'stock_quantity': stock_quantity,
+            'warehouse_id': warehouse_id
+        })
+        
+    except Exception as e:
+        logging.error(f"خطأ في جلب معلومات المخزون: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'حدث خطأ أثناء جلب البيانات'
+        }), 500
+
+
+# ===== Warehouse Info API =====
+
+@bp.route('/warehouses/<int:warehouse_id>/info', methods=['GET'])
+@login_required
+def get_warehouse_info(warehouse_id):
+    """جلب معلومات المستودع بما فيها النوع"""
+    try:
+        warehouse = Warehouse.query.get(warehouse_id)
+        if not warehouse:
+            return jsonify({
+                'success': False,
+                'error': 'المستودع غير موجود'
+            }), 404
+        
+        return jsonify({
+            'success': True,
+            'warehouse_id': warehouse.id,
+            'warehouse_name': warehouse.name,
+            'warehouse_type': warehouse.warehouse_type,
+            'is_active': warehouse.is_active
+        })
+        
+    except Exception as e:
+        logging.error(f"خطأ في جلب معلومات المستودع: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'حدث خطأ أثناء جلب البيانات'
+        }), 500

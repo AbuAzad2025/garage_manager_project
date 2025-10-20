@@ -21,7 +21,7 @@
     initPerformanceOptimizations();
     
     // Initialize real-time notifications
-    initNotifications();
+    initSocketNotifications();
   });
 
   function initAll(root) {
@@ -52,19 +52,64 @@
 
       const noSortIdx = $tbl.find("thead th.dt-nosort").map((i, el) => i).get();
 
-      $tbl.DataTable({
-        dom: hasButtons ? "Bfrtip" : "frtip",
-        buttons: hasButtons ? [
-          { extend: "excelHtml5", text: '<i class="fas fa-file-excel"></i> Excel' },
-          { extend: "print", text: '<i class="fas fa-print"></i> طباعة' }
-        ] : [],
-        pageLength: pageLen,
-        responsive: true,
-        autoWidth: false,
-        language: { url: "/static/datatables/Arabic.json" },
-        order,
-        columnDefs: noSortIdx.length ? [{ orderable: false, targets: noSortIdx }] : []
-      });
+      // تحقق من وجود thead و tbody صحيحين
+      if (!$tbl.find('thead').length || !$tbl.find('tbody').length) {
+        return;
+      }
+
+      // تحقق من وجود بيانات فعلية (تجاهل صفوف colspan)
+      const dataRows = $tbl.find('tbody tr').not(':has(td[colspan])');
+      if (dataRows.length === 0) {
+        return; // لا نهيئ DataTables للجداول الفارغة
+      }
+
+      // تحقق من تطابق عدد الأعمدة في صف البيانات الأول
+      const headerCols = $tbl.find('thead tr:first th, thead tr:first td').length;
+      const bodyCols = dataRows.first().find('td').length;
+      
+      if (headerCols !== bodyCols) {
+        console.error('DataTable column mismatch:', $tbl.attr('id'), {
+          header: headerCols,
+          body: bodyCols
+        });
+        return;
+      }
+
+      try {
+        $tbl.DataTable({
+          dom: hasButtons ? "Bfrtip" : "frtip",
+          buttons: hasButtons ? [
+            { extend: "excelHtml5", text: '<i class="fas fa-file-excel"></i> Excel' },
+            { extend: "print", text: '<i class="fas fa-print"></i> طباعة' }
+          ] : [],
+          pageLength: pageLen,
+          responsive: true,
+          autoWidth: false,
+          language: { 
+            url: "/static/datatables/Arabic.json",
+            // fallback في حالة فشل تحميل الملف
+            emptyTable: "لا توجد بيانات متاحة",
+            info: "عرض _START_ إلى _END_ من أصل _TOTAL_ سجل",
+            infoEmpty: "عرض 0 إلى 0 من أصل 0 سجل",
+            infoFiltered: "(مفلتر من إجمالي _MAX_ سجل)",
+            lengthMenu: "عرض _MENU_ سجل",
+            loadingRecords: "جاري التحميل...",
+            processing: "جاري المعالجة...",
+            search: "بحث:",
+            zeroRecords: "لم يتم العثور على نتائج",
+            paginate: {
+              first: "الأول",
+              last: "الأخير", 
+              next: "التالي",
+              previous: "السابق"
+            }
+          },
+          order,
+          columnDefs: noSortIdx.length ? [{ orderable: false, targets: noSortIdx }] : []
+        });
+      } catch (e) {
+        console.error('DataTable initialization failed:', e, $tbl);
+      }
     });
   }
 
@@ -215,7 +260,7 @@
     }, 1000));
 
     // Enhanced notifications
-    initNotifications();
+    initSocketNotifications();
   }
 
   function performSearch(query, target) {
@@ -274,7 +319,11 @@
   }
 
   // نظام الإشعارات الفورية
-  function initNotifications() {
+  let socketNotificationsInitialized = false;
+  function initSocketNotifications() {
+    if (socketNotificationsInitialized) return;
+    socketNotificationsInitialized = true;
+    
     if (typeof io === 'undefined') {
       console.warn('Socket.IO not loaded, notifications disabled');
       return;
