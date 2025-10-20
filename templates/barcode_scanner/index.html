@@ -2,6 +2,293 @@
 
 {% block title %}نظام الباركود المتكامل{% endblock %}
 
+{% block extra_head %}
+<style>
+/* تحسينات التصميم */
+.stat-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+    transition: transform 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+}
+
+.stat-icon {
+    font-size: 2.5rem;
+    opacity: 0.8;
+}
+
+.card-modern {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.card-modern:hover {
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+}
+
+.card-header-modern {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px 15px 0 0 !important;
+    border: none;
+    padding: 20px;
+}
+
+.card-header-modern h3 {
+    margin: 0;
+    font-weight: 600;
+}
+
+.btn-modern {
+    border-radius: 10px;
+    padding: 12px 24px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    border: none;
+}
+
+.btn-modern:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.form-control-modern {
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    padding: 12px 16px;
+    transition: all 0.3s ease;
+}
+
+.form-control-modern:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.warehouse-type-badge {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.partner-fields, .supplier-fields {
+    background: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    border-radius: 10px;
+    padding: 15px;
+    margin-top: 10px;
+}
+
+.stock-info {
+    background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+    color: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin: 10px 0;
+}
+
+.warning-info {
+    background: linear-gradient(135deg, #ff9a56 0%, #ff6b6b 100%);
+    color: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin: 10px 0;
+}
+
+.alert-modern {
+    border: none;
+    border-radius: 15px;
+    padding: 20px;
+    margin: 15px 0;
+}
+
+.product-card {
+    background: white;
+    border-radius: 15px;
+    padding: 20px;
+    margin: 10px 0;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    border-left: 5px solid #667eea;
+}
+
+.barcode-preview {
+    text-align: center;
+    background: white;
+    border-radius: 15px;
+    padding: 20px;
+    margin: 15px 0;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* تحسينات للجداول */
+.table-modern {
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+}
+
+.table-modern th {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    font-weight: 600;
+    padding: 15px;
+}
+
+.table-modern td {
+    padding: 12px 15px;
+    border-color: #f1f3f4;
+}
+
+/* تحسينات للأزرار */
+.btn-primary-modern {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    color: white;
+}
+
+.btn-success-modern {
+    background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+    border: none;
+    color: white;
+}
+
+.btn-warning-modern {
+    background: linear-gradient(135deg, #ff9a56 0%, #ffad56 100%);
+    border: none;
+    color: white;
+}
+
+.btn-danger-modern {
+    background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+    border: none;
+    color: white;
+}
+
+.btn-info-modern {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    border: none;
+    color: white;
+}
+
+/* تحسينات للـ loading */
+.loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* تحسينات للـ notifications */
+.notification-success {
+    background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+    color: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin: 10px 0;
+    border: none;
+}
+
+.notification-error {
+    background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+    color: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin: 10px 0;
+    border: none;
+}
+
+.notification-warning {
+    background: linear-gradient(135deg, #ff9a56 0%, #ffad56 100%);
+    color: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin: 10px 0;
+    border: none;
+}
+
+/* تحسينات للـ responsive */
+@media (max-width: 768px) {
+    .stat-card {
+        margin-bottom: 15px;
+    }
+    
+    .card-modern {
+        margin-bottom: 20px;
+    }
+    
+    .btn-modern {
+        width: 100%;
+        margin: 5px 0;
+    }
+}
+
+/* تحسينات للـ animations */
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.slide-in {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+}
+
+/* تحسينات للـ focus states */
+.form-control-modern:focus,
+.select2-container--default .select2-selection--single:focus,
+.select2-container--default .select2-selection--multiple:focus {
+    outline: none;
+    border-color: #667eea !important;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25) !important;
+}
+
+/* تحسينات للـ select2 */
+.select2-container--default .select2-selection--single,
+.select2-container--default .select2-selection--multiple {
+    border: 2px solid #e9ecef !important;
+    border-radius: 10px !important;
+    padding: 8px 12px !important;
+    min-height: 45px !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 30px !important;
+    padding-left: 0 !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 30px !important;
+    right: 8px !important;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="content-wrapper">
     <!-- Content Header -->
@@ -32,94 +319,141 @@
     <!-- Main content -->
     <section class="content">
         <div class="container-fluid">
-            <!-- إحصائيات سريعة -->
+            <!-- إحصائيات سريعة محسنة -->
             <div class="row">
-                <div class="col-lg-3 col-6">
-                    <div class="small-box bg-info">
-                        <div class="inner">
-                            <h3 id="total-products">-</h3>
-                            <p>إجمالي المنتجات</p>
-                        </div>
-                        <div class="icon">
-                            <i class="fas fa-boxes"></i>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-3 col-6">
-                    <div class="small-box bg-success">
-                        <div class="inner">
-                            <h3 id="products-with-barcode">-</h3>
-                            <p>منتجات مع باركود</p>
-                        </div>
-                        <div class="icon">
-                            <i class="fas fa-barcode"></i>
+                <div class="col-lg-3 col-md-6 col-12 mb-4">
+                    <div class="stat-card fade-in">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h2 class="mb-1" id="total-products">
+                                    <span class="loading-spinner"></span>
+                                </h2>
+                                <p class="mb-0" style="opacity: 0.9;">إجمالي المنتجات</p>
+                            </div>
+                            <div class="stat-icon">
+                                <i class="fas fa-boxes"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-lg-3 col-6">
-                    <div class="small-box bg-warning">
-                        <div class="inner">
-                            <h3 id="products-without-barcode">-</h3>
-                            <p>منتجات بدون باركود</p>
+                <div class="col-lg-3 col-md-6 col-12 mb-4">
+                    <div class="stat-card fade-in" style="background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h2 class="mb-1" id="products-with-barcode">
+                                    <span class="loading-spinner"></span>
+                                </h2>
+                                <p class="mb-0" style="opacity: 0.9;">منتجات مع باركود</p>
+                            </div>
+                            <div class="stat-icon">
+                                <i class="fas fa-barcode"></i>
+                            </div>
                         </div>
-                        <div class="icon">
-                            <i class="fas fa-exclamation-triangle"></i>
-                        </div>
-                        <a href="#" class="small-box-footer" id="auto-assign-btn">
-                            إعطاء باركود تلقائي <i class="fas fa-arrow-circle-right"></i>
-                        </a>
                     </div>
                 </div>
-                <div class="col-lg-3 col-6">
-                    <div class="small-box bg-danger">
-                        <div class="inner">
-                            <h3 id="barcode-percentage">-</h3>
-                            <p>نسبة الباركود</p>
+                <div class="col-lg-3 col-md-6 col-12 mb-4">
+                    <div class="stat-card fade-in" style="background: linear-gradient(135deg, #ff9a56 0%, #ffad56 100%);">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h2 class="mb-1" id="products-without-barcode">
+                                    <span class="loading-spinner"></span>
+                                </h2>
+                                <p class="mb-0" style="opacity: 0.9;">منتجات بدون باركود</p>
+                            </div>
+                            <div class="stat-icon">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
                         </div>
-                        <div class="icon">
-                            <i class="fas fa-percentage"></i>
+                        <div class="mt-3">
+                            <button class="btn btn-light btn-sm btn-modern" id="auto-assign-btn" style="width: 100%;">
+                                <i class="fas fa-magic me-1"></i> إعطاء باركود تلقائي
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6 col-12 mb-4">
+                    <div class="stat-card fade-in" style="background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h2 class="mb-1" id="barcode-percentage">
+                                    <span class="loading-spinner"></span>%
+                                </h2>
+                                <p class="mb-0" style="opacity: 0.9;">نسبة التغطية</p>
+                            </div>
+                            <div class="stat-icon">
+                                <i class="fas fa-percentage"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- أدوات الباركود -->
+            <!-- أدوات الباركود محسنة -->
             <div class="row">
                 <!-- ماسح الباركود -->
-                <div class="col-md-6">
-                    <div class="card card-primary">
-                        <div class="card-header">
-                            <h3 class="card-title">
-                                <i class="fas fa-qrcode mr-2"></i>
-                                ماسح الباركود
+                <div class="col-lg-6 col-md-12 mb-4">
+                    <div class="card card-modern">
+                        <div class="card-header-modern">
+                            <h3>
+                                <i class="fas fa-qrcode me-2"></i>
+                                ماسح الباركود الذكي
                             </h3>
                         </div>
-                        <div class="card-body">
-                            <div class="form-group">
-                                <label for="barcode-input">أدخل الباركود أو امسحه:</label>
+                        <div class="card-body p-4">
+                            <div class="form-group mb-4">
+                                <label for="barcode-input" class="form-label fw-bold">
+                                    <i class="fas fa-barcode me-1 text-primary"></i>
+                                    أدخل الباركود أو امسحه:
+                                </label>
                                 <div class="input-group">
-                                    <input type="text" class="form-control" id="barcode-input" 
-                                           placeholder="أدخل الباركود أو SKU أو رقم القطعة">
-                                    <div class="input-group-append">
-                                        <button class="btn btn-primary" type="button" id="scan-btn">
-                                            <i class="fas fa-search"></i> مسح
-                                        </button>
-                                    </div>
+                                    <input type="text" class="form-control form-control-modern" id="barcode-input" 
+                                           placeholder="أدخل الباركود أو SKU أو رقم القطعة" autocomplete="off">
+                                    <button class="btn btn-primary-modern btn-modern" type="button" id="scan-btn">
+                                        <i class="fas fa-search me-1"></i> مسح
+                                    </button>
                                 </div>
+                                <small class="form-text text-muted mt-2">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    يمكنك إدخال الباركود أو SKU أو رقم القطعة للبحث
+                                </small>
+                            </div>
+                            
+                            <!-- Loading state -->
+                            <div id="scan-loading" class="text-center py-4" style="display: none;">
+                                <div class="loading-spinner mx-auto mb-2"></div>
+                                <p class="text-muted">جاري البحث عن المنتج...</p>
                             </div>
                             
                             <!-- نتائج المسح -->
-                            <div id="scan-results" class="mt-3" style="display: none;">
-                                <div class="alert alert-success">
-                                    <h5><i class="fas fa-check-circle"></i> تم العثور على المنتج</h5>
+                            <div id="scan-results" class="fade-in" style="display: none;">
+                                <div class="alert-modern notification-success">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <i class="fas fa-check-circle fa-2x me-3"></i>
+                                        <div>
+                                            <h5 class="mb-1">تم العثور على المنتج</h5>
+                                            <p class="mb-0 opacity-75">تم العثور على المنتج بنجاح</p>
+                                        </div>
+                                    </div>
                                     <div id="product-info"></div>
                                 </div>
                             </div>
                             
-                            <div id="scan-error" class="mt-3" style="display: none;">
-                                <div class="alert alert-danger">
-                                    <h5><i class="fas fa-times-circle"></i> المنتج غير موجود</h5>
-                                    <p id="error-message"></p>
+                            <!-- خطأ في المسح -->
+                            <div id="scan-error" class="fade-in" style="display: none;">
+                                <div class="alert-modern notification-error">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <i class="fas fa-times-circle fa-2x me-3"></i>
+                                        <div>
+                                            <h5 class="mb-1">المنتج غير موجود</h5>
+                                            <p class="mb-0 opacity-75">لم يتم العثور على المنتج</p>
+                                        </div>
+                                    </div>
+                                    <div id="error-message"></div>
+                                    <div class="mt-3">
+                                        <button class="btn btn-light btn-modern btn-sm" id="create-product-btn">
+                                            <i class="fas fa-plus me-1"></i> إنشاء منتج جديد
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -127,44 +461,76 @@
                 </div>
 
                 <!-- توليد الباركود -->
-                <div class="col-md-6">
-                    <div class="card card-success">
-                        <div class="card-header">
-                            <h3 class="card-title">
-                                <i class="fas fa-print mr-2"></i>
+                <div class="col-lg-6 col-md-12 mb-4">
+                    <div class="card card-modern">
+                        <div class="card-header-modern" style="background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);">
+                            <h3>
+                                <i class="fas fa-print me-2"></i>
                                 توليد الباركود
                             </h3>
                         </div>
-                        <div class="card-body">
-                            <div class="form-group">
-                                <label for="product-search">البحث عن المنتج:</label>
-                                <input type="text" class="form-control" id="product-search" 
-                                       placeholder="ابحث بالاسم أو SKU">
-                                <div id="search-results" class="mt-2"></div>
+                        <div class="card-body p-4">
+                            <div class="form-group mb-4">
+                                <label for="product-search" class="form-label fw-bold">
+                                    <i class="fas fa-search me-1 text-success"></i>
+                                    البحث عن المنتج:
+                                </label>
+                                <input type="text" class="form-control form-control-modern" id="product-search" 
+                                       placeholder="ابحث بالاسم أو SKU أو رقم القطعة" autocomplete="off">
+                                <small class="form-text text-muted mt-2">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    ابدأ الكتابة للبحث عن المنتجات
+                                </small>
+                                <div id="search-results" class="mt-3"></div>
                             </div>
                             
-                            <div class="form-group">
-                                <label for="barcode-type">نوع الباركود:</label>
-                                <select class="form-control" id="barcode-type">
-                                    <option value="CODE128">باركود خطي</option>
+                            <div class="form-group mb-4">
+                                <label for="barcode-type" class="form-label fw-bold">
+                                    <i class="fas fa-cog me-1 text-success"></i>
+                                    نوع الباركود:
+                                </label>
+                                <select class="form-control form-control-modern" id="barcode-type">
+                                    <option value="CODE128">باركود خطي (CODE128)</option>
                                     <option value="QR">QR Code</option>
                                 </select>
+                                <div class="alert alert-info mt-3" style="font-size: 0.85rem;">
+                                    <h6 class="mb-2"><i class="fas fa-info-circle me-1"></i><strong>توضيح أنواع الباركود:</strong></h6>
+                                    <ul class="mb-0" style="line-height: 1.8;">
+                                        <li><strong>باركود خطي (CODE128):</strong> باركود تقليدي يمكن مسحه بماسح الباركود العادي، يحتوي على أرقام وحروف</li>
+                                        <li><strong>QR Code:</strong> رمز استجابة سريع ثنائي الأبعاد، يمكن مسحه بالهاتف، يحتوي على معلومات أكثر</li>
+                                    </ul>
+                                </div>
                             </div>
                             
-                            <button class="btn btn-success" id="generate-btn" disabled>
-                                <i class="fas fa-barcode"></i> توليد الباركود
-                            </button>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-success-modern btn-modern" id="generate-btn" disabled>
+                                    <i class="fas fa-barcode me-1"></i> توليد الباركود
+                                </button>
+                            </div>
+                            
+                            <!-- Loading state -->
+                            <div id="generate-loading" class="text-center py-4" style="display: none;">
+                                <div class="loading-spinner mx-auto mb-2"></div>
+                                <p class="text-muted">جاري توليد الباركود...</p>
+                            </div>
                             
                             <!-- معاينة الباركود -->
-                            <div id="barcode-preview" class="mt-3" style="display: none;">
-                                <div class="text-center">
-                                    <img id="barcode-image" class="img-fluid" style="max-width: 300px;">
-                                    <div class="mt-2">
-                                        <button class="btn btn-info btn-sm" id="print-btn">
-                                            <i class="fas fa-print"></i> طباعة
+                            <div id="barcode-preview" class="fade-in" style="display: none;">
+                                <div class="barcode-preview">
+                                    <h5 class="mb-3">
+                                        <i class="fas fa-eye me-2"></i>
+                                        معاينة الباركود
+                                    </h5>
+                                    <img id="barcode-image" class="img-fluid mb-3" style="max-width: 300px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
+                                    <div class="d-flex gap-2 justify-content-center">
+                                        <button class="btn btn-info-modern btn-modern btn-sm" id="print-btn">
+                                            <i class="fas fa-print me-1"></i> طباعة
                                         </button>
-                                        <button class="btn btn-secondary btn-sm" id="download-btn">
-                                            <i class="fas fa-download"></i> تحميل
+                                        <button class="btn btn-secondary btn-modern btn-sm" id="download-btn">
+                                            <i class="fas fa-download me-1"></i> تحميل
+                                        </button>
+                                        <button class="btn btn-warning-modern btn-modern btn-sm" id="copy-btn">
+                                            <i class="fas fa-copy me-1"></i> نسخ
                                         </button>
                                     </div>
                                 </div>
@@ -174,96 +540,312 @@
                 </div>
             </div>
 
-            <!-- تحديث المخزون -->
+            <!-- تحديث المخزون بالباركود -->
             <div class="row">
-                <div class="col-12">
-                    <div class="card card-warning">
-                        <div class="card-header">
-                            <h3 class="card-title">
-                                <i class="fas fa-warehouse mr-2"></i>
+                <div class="col-12 mb-4">
+                    <div class="card card-modern">
+                        <div class="card-header-modern" style="background: linear-gradient(135deg, #ff9a56 0%, #ffad56 100%);">
+                            <h3>
+                                <i class="fas fa-warehouse me-2"></i>
                                 تحديث المخزون بالباركود
                             </h3>
                         </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label for="inventory-barcode">باركود المنتج:</label>
-                                        <input type="text" class="form-control" id="inventory-barcode" 
-                                               placeholder="امسح أو أدخل الباركود">
+                        <div class="card-body p-4">
+                            <!-- توضيح العمليات -->
+                            <div class="alert alert-info mb-4" style="border-right: 4px solid #4facfe;">
+                                <h6 class="mb-2"><i class="fas fa-info-circle me-2"></i><strong>توضيح أنواع العمليات:</strong></h6>
+                                <ul class="mb-0" style="font-size: 0.9rem; line-height: 1.8;">
+                                    <li><strong>تعديل:</strong> تعديل الكمية إلى الرقم المحدد (تجاهل القيمة الحالية)</li>
+                                    <li><strong>إضافة:</strong> إضافة الكمية المحددة للمخزون الحالي</li>
+                                    <li><strong>طرح:</strong> طرح الكمية المحددة من المخزون الحالي</li>
+                                </ul>
+                            </div>
+                            
+                            <!-- معلومات المخزون الحالي -->
+                            <div id="current-stock-info" class="stock-info" style="display: none;">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-info-circle fa-2x me-3"></i>
+                                    <div>
+                                        <h6 class="mb-1">المخزون الحالي</h6>
+                                        <p class="mb-0" id="current-stock-text"></p>
                                     </div>
                                 </div>
-                                <div class="col-md-3">
+                            </div>
+                            
+                            <!-- تحذير الكمية -->
+                            <div id="quantity-warning" class="warning-info" style="display: none;">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
+                                    <div>
+                                        <h6 class="mb-1">تحذير الكمية</h6>
+                                        <p class="mb-0" id="warning-text"></p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-lg-3 col-md-6 mb-3">
                                     <div class="form-group">
-                                        <label for="warehouse-select">المستودع:</label>
-                                        <select class="form-control" id="warehouse-select">
+                                        <label for="inventory-barcode" class="form-label fw-bold">
+                                            <i class="fas fa-barcode me-1 text-warning"></i>
+                                            باركود المنتج:
+                                        </label>
+                                        <input type="text" class="form-control form-control-modern" id="inventory-barcode" 
+                                               placeholder="امسح أو أدخل الباركود" autocomplete="off">
+                                        <small class="form-text text-muted mt-1">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            امسح الباركود أو أدخله يدوياً
+                                        </small>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-lg-3 col-md-6 mb-3">
+                                    <div class="form-group">
+                                        <label for="warehouse-select" class="form-label fw-bold">
+                                            <i class="fas fa-warehouse me-1 text-warning"></i>
+                                            المستودع:
+                                        </label>
+                                        <select class="form-control form-control-modern" id="warehouse-select">
                                             <option value="">اختر المستودع</option>
                                         </select>
+                                        <small class="form-text text-muted mt-1">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            اختر المستودع المطلوب
+                                        </small>
                                     </div>
                                 </div>
-                                <div class="col-md-2">
+                                
+                                <div class="col-lg-2 col-md-4 mb-3">
                                     <div class="form-group">
-                                        <label for="quantity-change">الكمية:</label>
-                                        <input type="number" class="form-control" id="quantity-change" 
-                                               value="0" min="-9999" max="9999">
+                                        <label for="quantity-change" class="form-label fw-bold">
+                                            <i class="fas fa-calculator me-1 text-warning"></i>
+                                            الكمية:
+                                        </label>
+                                        <input type="number" class="form-control form-control-modern" id="quantity-change" 
+                                               value="0" min="-9999" max="9999" step="1">
                                     </div>
                                 </div>
-                                <div class="col-md-3">
+                                
+                                <div class="col-lg-2 col-md-4 mb-3">
                                     <div class="form-group">
-                                        <label for="operation-type">نوع العملية:</label>
-                                        <select class="form-control" id="operation-type">
+                                        <label for="operation-type" class="form-label fw-bold">
+                                            <i class="fas fa-cog me-1 text-warning"></i>
+                                            نوع العملية:
+                                        </label>
+                                        <select class="form-control form-control-modern" id="operation-type">
                                             <option value="adjust">تعديل</option>
                                             <option value="add">إضافة</option>
                                             <option value="subtract">طرح</option>
                                         </select>
                                     </div>
                                 </div>
+                                
+                                <div class="col-lg-2 col-md-4 mb-3">
+                                    <div class="form-group">
+                                        <label class="form-label fw-bold">
+                                            <i class="fas fa-tools me-1 text-warning"></i>
+                                            الإجراء:
+                                        </label>
+                                        <div class="d-grid">
+                                            <button class="btn btn-warning-modern btn-modern" id="update-inventory-btn" disabled>
+                                                <i class="fas fa-sync me-1"></i> تحديث
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <button class="btn btn-warning" id="update-inventory-btn">
-                                <i class="fas fa-sync"></i> تحديث المخزون
-                            </button>
+                            
+                            <!-- حقول ديناميكية حسب نوع المستودع -->
+                            <div id="dynamic-fields-container" style="display: none;">
+                                <hr class="my-4">
+                                <h5 class="mb-3">
+                                    <i class="fas fa-cogs me-2"></i>
+                                    حقول إضافية حسب نوع المستودع
+                                </h5>
+                                
+                                <!-- حقول الشريك -->
+                                <div id="partner-fields" class="partner-fields" style="display: none;">
+                                    <h6 class="mb-3">
+                                        <i class="fas fa-handshake me-2"></i>
+                                        معلومات الشريك
+                                    </h6>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label for="partner-select" class="form-label fw-bold">
+                                                    الشريك <span class="text-danger">*</span>:
+                                                </label>
+                                                <select class="form-control form-control-modern" id="partner-select" onchange="updatePartnerInfoIndex()">
+                                                    <option value="">اختر الشريك</option>
+                                                </select>
+                                                <small class="form-text text-muted mt-2">
+                                                    <i class="fas fa-info-circle me-1"></i>
+                                                    سيتم ربط العملية بهذا الشريك
+                                                </small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label class="form-label fw-bold">
+                                                    نسبة المساهمة:
+                                                </label>
+                                                <div class="input-group">
+                                                    <input type="number" class="form-control form-control-modern" id="partner-share-index" 
+                                                           value="0" min="0" max="100" step="0.01" readonly 
+                                                           style="background-color: #f8f9fa;">
+                                                    <div class="input-group-append">
+                                                        <span class="input-group-text">%</span>
+                                                    </div>
+                                                </div>
+                                                <small class="form-text text-muted mt-2">
+                                                    <i class="fas fa-percentage me-1"></i>
+                                                    نسبة مساهمة الشريك
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- معلومات إضافية -->
+                                    <div id="partner-info-index" class="alert alert-info mt-3" style="display: none;">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-info-circle fa-2x me-3"></i>
+                                            <div id="partner-details-index"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- حقول المورد -->
+                                <div id="supplier-fields" class="supplier-fields" style="display: none;">
+                                    <h6 class="mb-3">
+                                        <i class="fas fa-truck me-2"></i>
+                                        معلومات المورد/التاجر
+                                    </h6>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label for="supplier-select" class="form-label fw-bold">
+                                                    المورد/التاجر <span class="text-danger">*</span>:
+                                                </label>
+                                                <select class="form-control form-control-modern" id="supplier-select">
+                                                    <option value="">اختر المورد</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- توليد متعدد -->
+            <!-- توليد باركودات متعددة -->
             <div class="row">
-                <div class="col-12">
-                    <div class="card card-info">
-                        <div class="card-header">
-                            <h3 class="card-title">
-                                <i class="fas fa-layer-group mr-2"></i>
+                <div class="col-12 mb-4">
+                    <div class="card card-modern">
+                        <div class="card-header-modern" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                            <h3>
+                                <i class="fas fa-layer-group me-2"></i>
                                 توليد باركودات متعددة
                             </h3>
                         </div>
-                        <div class="card-body">
+                        <div class="card-body p-4">
                             <div class="row">
-                                <div class="col-md-8">
+                                <div class="col-lg-8 col-md-12 mb-4">
                                     <div class="form-group">
-                                        <label>اختر المنتجات:</label>
-                                        <div id="bulk-products-list" class="border p-3" style="max-height: 200px; overflow-y: auto;">
-                                            <p class="text-muted">استخدم البحث أعلاه لإضافة المنتجات</p>
+                                        <label class="form-label fw-bold mb-3">
+                                            <i class="fas fa-list me-1 text-info"></i>
+                                            اختر المنتجات:
+                                        </label>
+                                        <div id="bulk-products-list" class="border rounded p-3" style="max-height: 300px; overflow-y: auto; background: #f8f9fa;">
+                                            <div class="text-center text-muted py-4">
+                                                <i class="fas fa-plus-circle fa-3x mb-3 opacity-50"></i>
+                                                <p class="mb-0">استخدم البحث أعلاه لإضافة المنتجات</p>
+                                                <small>يمكنك البحث بالاسم أو SKU أو رقم القطعة</small>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center mt-2">
+                                            <small class="text-muted">
+                                                <i class="fas fa-info-circle me-1"></i>
+                                                المنتجات المحددة: <span id="selected-count">0</span>
+                                            </small>
+                                            <button class="btn btn-outline-danger btn-sm" id="clear-selection-btn" disabled>
+                                                <i class="fas fa-trash me-1"></i> مسح الكل
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label for="bulk-barcode-type">نوع الباركود:</label>
-                                        <select class="form-control" id="bulk-barcode-type">
-                                            <option value="CODE128">باركود خطي</option>
+                                
+                                <div class="col-lg-4 col-md-12">
+                                    <div class="form-group mb-4">
+                                        <label for="bulk-barcode-type" class="form-label fw-bold">
+                                            <i class="fas fa-cog me-1 text-info"></i>
+                                            نوع الباركود:
+                                        </label>
+                                        <select class="form-control form-control-modern" id="bulk-barcode-type">
+                                            <option value="CODE128">باركود خطي (CODE128)</option>
                                             <option value="QR">QR Code</option>
                                         </select>
+                                        <small class="form-text text-muted mt-2">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            CODE128: للماسحات العادية | QR: للهواتف والماسحات الحديثة
+                                        </small>
                                     </div>
-                                    <button class="btn btn-info" id="bulk-generate-btn" disabled>
-                                        <i class="fas fa-barcode"></i> توليد جميع الباركودات
-                                    </button>
+                                    
+                                    <div class="form-group mb-4">
+                                        <label class="form-label fw-bold">
+                                            <i class="fas fa-download me-1 text-info"></i>
+                                            خيارات التحميل:
+                                        </label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="download-individual" checked>
+                                            <label class="form-check-label" for="download-individual">
+                                                تحميل منفصل لكل باركود
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="download-zip">
+                                            <label class="form-check-label" for="download-zip">
+                                                تحميل ملف مضغوط (ZIP)
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="d-grid gap-2">
+                                        <button class="btn btn-info-modern btn-modern" id="bulk-generate-btn" disabled>
+                                            <i class="fas fa-barcode me-1"></i> توليد جميع الباركودات
+                                        </button>
+                                        <button class="btn btn-secondary btn-modern" id="preview-bulk-btn" disabled>
+                                            <i class="fas fa-eye me-1"></i> معاينة
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Loading state -->
+                                    <div id="bulk-loading" class="text-center py-4" style="display: none;">
+                                        <div class="loading-spinner mx-auto mb-2"></div>
+                                        <p class="text-muted">جاري توليد الباركودات...</p>
+                                        <small class="text-muted">من <span id="current-index">0</span> إلى <span id="total-count">0</span></small>
+                                    </div>
                                 </div>
                             </div>
                             
                             <!-- نتائج التوليد المتعدد -->
-                            <div id="bulk-results" class="mt-3" style="display: none;">
-                                <h5>الباركودات المُولدة:</h5>
+                            <div id="bulk-results" class="fade-in" style="display: none;">
+                                <hr class="my-4">
+                                <div class="d-flex justify-content-between align-items-center mb-4">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-check-circle text-success me-2"></i>
+                                        الباركودات المُولدة بنجاح
+                                    </h5>
+                                    <div>
+                                        <button class="btn btn-success btn-modern btn-sm me-2" id="download-all-btn">
+                                            <i class="fas fa-download me-1"></i> تحميل الكل
+                                        </button>
+                                        <button class="btn btn-info btn-modern btn-sm" id="print-all-btn">
+                                            <i class="fas fa-print me-1"></i> طباعة الكل
+                                        </button>
+                                    </div>
+                                </div>
                                 <div id="bulk-barcodes-grid" class="row"></div>
                             </div>
                         </div>
@@ -303,12 +885,17 @@
 $(document).ready(function() {
     let selectedProduct = null;
     let bulkProducts = [];
+    let currentWarehouseType = null;
     
     // تحميل الإحصائيات
     loadStats();
     
     // تحميل المستودعات
     loadWarehouses();
+    
+    // تحميل الشركاء والموردين
+    loadPartners();
+    loadSuppliers();
     
     // مسح الباركود
     $('#scan-btn').click(function() {
@@ -346,14 +933,45 @@ $(document).ready(function() {
         }
     });
     
-    // تحديث المخزون
+    // تحديث المخزون مع الحقول الديناميكية
     $('#update-inventory-btn').click(function() {
         updateInventory();
+    });
+    
+    // تغيير المستودع - تحديث الحقول الديناميكية
+    $('#warehouse-select').on('change', function() {
+        const warehouseId = $(this).val();
+        const warehouseType = $(this).find('option:selected').data('type');
+        
+        console.log(`🏭 [Warehouse Change] المستودع: ${warehouseId}, النوع: ${warehouseType}`);
+        
+        if (warehouseId && warehouseType) {
+            currentWarehouseType = warehouseType;
+            showDynamicFields(warehouseType);
+            checkProductStock();
+        } else {
+            hideDynamicFields();
+        }
+    });
+    
+    // تغيير الباركود - فحص المخزون
+    $('#inventory-barcode').on('input', function() {
+        checkProductStock();
+    });
+    
+    // تغيير الكمية - فحص التحذيرات
+    $('#quantity-change, #operation-type').on('input change', function() {
+        checkQuantityWarning();
     });
     
     // توليد متعدد
     $('#bulk-generate-btn').click(function() {
         bulkGenerateBarcodes();
+    });
+    
+    // مسح المنتجات المحددة
+    $('#clear-selection-btn').click(function() {
+        clearBulkSelection();
     });
     
     // طباعة الباركود
@@ -396,18 +1014,171 @@ $(document).ready(function() {
     
     function loadWarehouses() {
         // تحميل المستودعات من API
-        fetch('/api/v1/warehouses')
+        fetch('/barcode/warehouses')
             .then(response => response.json())
             .then(data => {
                 const select = $('#warehouse-select');
                 select.empty().append('<option value="">اختر المستودع</option>');
-                if (data.results && Array.isArray(data.results)) {
-                    data.results.forEach(warehouse => {
-                        select.append(`<option value="${warehouse.id}">${warehouse.name}</option>`);
+                if (data.success && data.warehouses && Array.isArray(data.warehouses)) {
+                    console.log(`✅ [Warehouses] تم جلب ${data.warehouses.length} مستودع`);
+                    data.warehouses.forEach(warehouse => {
+                        const typeName = getWarehouseTypeName(warehouse.type);
+                        select.append(`<option value="${warehouse.id}" data-type="${warehouse.type}">${warehouse.name} (${typeName})</option>`);
+                    });
+                } else {
+                    console.warn('⚠️ [Warehouses] لم يتم العثور على مستودعات');
+                }
+            })
+            .catch(error => {
+                console.error('❌ [Warehouses] خطأ في تحميل المستودعات:', error);
+            });
+    }
+    
+    function loadPartners() {
+        // تحميل الشركاء مع نسبة المساهمة
+        fetch('/api/partners')
+            .then(response => response.json())
+            .then(data => {
+                const select = $('#partner-select');
+                select.empty().append('<option value="">اختر الشريك</option>');
+                if (data.success && data.partners) {
+                    console.log(`✅ [Partners] تم جلب ${data.count} شريك`);
+                    data.partners.forEach(partner => {
+                        const shareText = partner.share_percentage ? ` (نسبة: ${partner.share_percentage}%)` : '';
+                        select.append(`<option value="${partner.id}" data-share="${partner.share_percentage}">${partner.name}${shareText}</option>`);
+                    });
+                } else {
+                    console.warn('⚠️ [Partners] لم يتم العثور على شركاء');
+                }
+            })
+            .catch(error => {
+                console.error('❌ [Partners] خطأ في تحميل الشركاء:', error);
+            });
+    }
+    
+    function loadSuppliers() {
+        // تحميل الموردين
+        fetch('/api/suppliers')
+            .then(response => response.json())
+            .then(data => {
+                const select = $('#supplier-select');
+                select.empty().append('<option value="">اختر المورد</option>');
+                if (data.success && data.suppliers) {
+                    data.suppliers.forEach(supplier => {
+                        select.append(`<option value="${supplier.id}">${supplier.name}</option>`);
                     });
                 }
             })
-            .catch(error => console.error('Error loading warehouses:', error));
+            .catch(error => console.error('Error loading suppliers:', error));
+    }
+    
+    function getWarehouseTypeName(type) {
+        const typeNames = {
+            'MAIN': 'رئيسي',
+            'PARTNER': 'شريك',
+            'EXCHANGE': 'تبادل',
+            'ONLINE': 'أونلاين',
+            'INVENTORY': 'ملكية كاملة'
+        };
+        return typeNames[type] || type;
+    }
+    
+    function showDynamicFields(warehouseType) {
+        const container = $('#dynamic-fields-container');
+        const partnerFields = $('#partner-fields');
+        const supplierFields = $('#supplier-fields');
+        
+        // إخفاء جميع الحقول أولاً
+        partnerFields.hide();
+        supplierFields.hide();
+        $('#partner-select').prop('required', false);
+        $('#supplier-select').prop('required', false);
+        
+        console.log(`🔍 [Dynamic Fields] نوع المستودع: ${warehouseType}`);
+        
+        if (warehouseType === 'PARTNER') {
+            partnerFields.show();
+            $('#partner-select').prop('required', true);
+            container.show();
+            console.log('✅ [Dynamic Fields] مستودع شريك - حقل الشريك مفعّل');
+        } else if (warehouseType === 'EXCHANGE') {
+            supplierFields.show();
+            $('#supplier-select').prop('required', true);
+            container.show();
+            console.log('✅ [Dynamic Fields] مستودع تبادل - حقل المورد مفعّل');
+        } else {
+            container.hide();
+            console.log('ℹ️ [Dynamic Fields] مستودع عادي - لا حقول إضافية');
+        }
+    }
+    
+    function hideDynamicFields() {
+        $('#dynamic-fields-container').hide();
+        $('#partner-fields').hide();
+        $('#supplier-fields').hide();
+        $('#partner-select').prop('required', false);
+        $('#supplier-select').prop('required', false);
+        currentWarehouseType = null;
+    }
+    
+    function checkProductStock() {
+        const barcode = $('#inventory-barcode').val().trim();
+        const warehouseId = $('#warehouse-select').val();
+        
+        if (barcode && warehouseId) {
+            fetch(`/barcode/check-product?barcode=${encodeURIComponent(barcode)}&warehouse_id=${warehouseId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.exists) {
+                        showCurrentStock(data.product);
+                    } else {
+                        hideCurrentStock();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking product stock:', error);
+                    hideCurrentStock();
+                });
+        } else {
+            hideCurrentStock();
+        }
+    }
+    
+    function showCurrentStock(product) {
+        const stockInfo = $('#current-stock-info');
+        const stockText = $('#current-stock-text');
+        
+        stockText.html(`
+            <strong>${product.name}</strong><br>
+            <small>الكمية الحالية: <span class="badge bg-light text-dark">${product.current_quantity}</span></small>
+        `);
+        
+        stockInfo.show();
+        $('#update-inventory-btn').prop('disabled', false);
+    }
+    
+    function hideCurrentStock() {
+        $('#current-stock-info').hide();
+        $('#update-inventory-btn').prop('disabled', true);
+    }
+    
+    function checkQuantityWarning() {
+        const quantity = parseInt($('#quantity-change').val()) || 0;
+        const operation = $('#operation-type').val();
+        const currentStock = parseInt($('#current-stock-text .badge').text()) || 0;
+        
+        const warningDiv = $('#quantity-warning');
+        const warningText = $('#warning-text');
+        
+        if (operation === 'subtract' && quantity > currentStock) {
+            warningText.html(`تحذير: الكمية المطلوبة (${quantity}) أكبر من المتاح (${currentStock})! سيؤدي لرصيد سالب!`);
+            warningDiv.show();
+        } else if (operation === 'adjust' && quantity > currentStock + 100) {
+            warningText.html(`ملاحظة: التسوية ستضيف ${quantity - currentStock} قطعة للمخزون`);
+            warningDiv.show();
+        } else {
+            warningDiv.hide();
+        }
     }
     
     function scanBarcode(barcode) {
@@ -539,36 +1310,133 @@ $(document).ready(function() {
         const operation = $('#operation-type').val();
         
         if (!barcode || !warehouseId) {
-            alert('يرجى إدخال الباركود واختيار المستودع');
+            showNotification('يرجى إدخال الباركود واختيار المستودع', 'error');
             return;
         }
+        
+        // التحقق من الحقول المطلوبة حسب نوع المستودع
+        if (currentWarehouseType === 'PARTNER') {
+            const partnerId = $('#partner-select').val();
+            if (!partnerId) {
+                showNotification('مستودع شريك: يجب اختيار الشريك!', 'error');
+                $('#partner-select').focus();
+                return;
+            }
+        } else if (currentWarehouseType === 'EXCHANGE') {
+            const supplierId = $('#supplier-select').val();
+            if (!supplierId) {
+                showNotification('مستودع تبادل: يجب اختيار المورد/التاجر!', 'error');
+                $('#supplier-select').focus();
+                return;
+            }
+        }
+        
+        // إعداد البيانات
+        const requestData = {
+            barcode: barcode,
+            warehouse_id: warehouseId,
+            quantity_change: quantityChange,
+            operation: operation
+        };
+        
+        // إضافة الحقول الديناميكية
+        if (currentWarehouseType === 'PARTNER') {
+            requestData.partner_id = $('#partner-select').val();
+        } else if (currentWarehouseType === 'EXCHANGE') {
+            requestData.supplier_id = $('#supplier-select').val();
+        }
+        
+        console.log('📦 [Inventory Update] البيانات المرسلة:', requestData);
+        
+        // إظهار loading
+        $('#update-inventory-btn').prop('disabled', true).html('<span class="loading-spinner"></span> جاري التحديث...');
         
         fetch('/barcode/inventory/update', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                barcode: barcode,
-                warehouse_id: warehouseId,
-                quantity_change: quantityChange,
-                operation: operation
-            })
+            body: JSON.stringify(requestData)
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert(`تم تحديث المخزون بنجاح. الكمية الجديدة: ${data.new_quantity}`);
+                showNotification(`تم تحديث المخزون بنجاح. الكمية الجديدة: ${data.new_quantity}`, 'success');
                 $('#inventory-barcode').val('');
                 $('#quantity-change').val(0);
+                $('#current-stock-info').hide();
+                $('#quantity-warning').hide();
             } else {
-                alert('خطأ في تحديث المخزون: ' + data.error);
+                showNotification('خطأ في تحديث المخزون: ' + data.error, 'error');
             }
         })
         .catch(error => {
-            alert('حدث خطأ أثناء تحديث المخزون');
+            showNotification('حدث خطأ أثناء تحديث المخزون', 'error');
             console.error('Error:', error);
+        })
+        .finally(() => {
+            // إعادة تعيين الزر
+            $('#update-inventory-btn').prop('disabled', false).html('<i class="fas fa-sync me-1"></i> تحديث');
         });
+    }
+    
+    function showNotification(message, type = 'info') {
+        // استخدام SweetAlert إذا كان متاحاً
+        if (typeof Swal !== 'undefined') {
+            const icon = type === 'success' ? 'success' : type === 'error' ? 'error' : 'info';
+            Swal.fire({
+                icon: icon,
+                title: type === 'success' ? 'نجح' : type === 'error' ? 'خطأ' : 'تنبيه',
+                text: message,
+                timer: 3000,
+                showConfirmButton: false
+            });
+        } else {
+            // استخدام alert كبديل
+            alert(message);
+        }
+    }
+    
+    function clearBulkSelection() {
+        bulkProducts = [];
+        updateBulkProductsList();
+        $('#clear-selection-btn').prop('disabled', true);
+        $('#bulk-generate-btn').prop('disabled', true);
+        $('#preview-bulk-btn').prop('disabled', true);
+    }
+    
+    // تحديث معلومات الشريك عند الاختيار
+    function updatePartnerInfoIndex() {
+        const select = document.getElementById('partner-select');
+        const selectedOption = select.options[select.selectedIndex];
+        
+        if (selectedOption && selectedOption.value) {
+            const share = selectedOption.dataset.share || 0;
+            const phone = selectedOption.dataset.phone || '';
+            const email = selectedOption.dataset.email || '';
+            const balance = selectedOption.dataset.balance || 0;
+            
+            // تحديث حقل نسبة المساهمة
+            document.getElementById('partner-share-index').value = share;
+            
+            // عرض معلومات الشريك
+            const partnerDetails = document.getElementById('partner-details-index');
+            partnerDetails.innerHTML = `
+                <div>
+                    <strong>الشريك:</strong> ${selectedOption.text}<br>
+                    ${phone ? `<strong>الهاتف:</strong> ${phone}<br>` : ''}
+                    ${email ? `<strong>البريد:</strong> ${email}<br>` : ''}
+                    <strong>الرصيد:</strong> ${balance} شيكل
+                </div>
+            `;
+            document.getElementById('partner-info-index').style.display = 'block';
+            
+            console.log(`✅ [Partner Info] الشريك: ${selectedOption.text}, نسبة: ${share}%`);
+        } else {
+            // إخفاء المعلومات
+            document.getElementById('partner-share-index').value = 0;
+            document.getElementById('partner-info-index').style.display = 'none';
+        }
     }
     
     function updateBulkProductsList() {

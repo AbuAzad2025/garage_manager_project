@@ -44,6 +44,7 @@
       <div class="d-flex gap-2">
         <button id="btnCompact"  class="btn btn-outline-secondary">نسخة مبسطة</button>
         <button id="btnExpanded" class="btn btn-outline-secondary">نسخة موسعة</button>
+        <button id="btnAutoFill" class="btn btn-info"><i class="fas fa-magic me-1"></i>املأ البيانات</button>
         <button id="btnSave" class="btn btn-primary">حفظ التغييرات</button>
         <button id="btnPrint" type="button" class="btn btn-dark"><i class="fas fa-print me-1"></i>طباعة</button>
         <a href="{{ url_for('warehouse_bp.list') }}" class="btn btn-light">رجوع</a>
@@ -63,6 +64,12 @@
             <th class="text-end">سعر الشراء</th>
             <th class="text-end">سعر البيع</th>
             <th class="text-end">القيمة</th>
+            {% if warehouse_type == 'PARTNER' %}
+            <th>الشريك</th>
+            <th>نسبة الشريك</th>
+            {% elif warehouse_type == 'EXCHANGE' %}
+            <th>المورد</th>
+            {% endif %}
             <th>بطاقة</th>
 
             <th class="expanded-col">الاسم التجاري</th>
@@ -86,6 +93,15 @@
             <th class="expanded-col text-end">الوزن</th>
             <th class="expanded-col">الأبعاد</th>
             <th class="expanded-col">صورة</th>
+            {% if warehouse_type == 'PARTNER' %}
+            <th class="expanded-col">الشريك (موسع)</th>
+            <th class="expanded-col">نسبة الشريك (موسع)</th>
+            <th class="expanded-col">رصيد الشريك</th>
+            {% elif warehouse_type == 'EXCHANGE' %}
+            <th class="expanded-col">المورد (موسع)</th>
+            <th class="expanded-col">هاتف المورد</th>
+            <th class="expanded-col">رصيد المورد</th>
+            {% endif %}
           </tr>
         </thead>
         <tbody>
@@ -124,6 +140,38 @@
             <td class="text-end fw-bold" data-field="row_total">
               {{ format_currency((r.selling_price or 0) * (r.quantity or 0)) }}
             </td>
+
+            {% if warehouse_type == 'PARTNER' %}
+            <td>
+              {% if product_partners.get(r.product_id) %}
+                {% for partner in product_partners.get(r.product_id) %}
+                  <small class="d-block">{{ partner.name }}</small>
+                {% endfor %}
+              {% else %}
+                <small class="text-muted">-</small>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if product_partners.get(r.product_id) %}
+                {% for partner in product_partners.get(r.product_id) %}
+                  <span class="badge bg-info">{{ partner.share_percentage }}%</span>
+                {% endfor %}
+              {% else %}
+                <small class="text-muted">-</small>
+              {% endif %}
+            </td>
+            {% elif warehouse_type == 'EXCHANGE' %}
+            <td>
+              {% if product_suppliers.get(r.product_id) %}
+                <small>{{ product_suppliers.get(r.product_id).name }}</small>
+                {% if product_suppliers.get(r.product_id).phone %}
+                  <br><small class="text-muted">{{ product_suppliers.get(r.product_id).phone }}</small>
+                {% endif %}
+              {% else %}
+                <small class="text-muted">-</small>
+              {% endif %}
+            </td>
+            {% endif %}
 
             <td>
               <a class="btn btn-sm btn-outline-primary" href="{{ url_for('warehouse_bp.goto_product_card') }}?id={{ r.product_id }}">بطاقة</a>
@@ -212,12 +260,146 @@
             <td class="expanded-col" data-field="image">
               <input class="form-control form-control-sm text" type="text" value="{{ r.image or '' }}">
             </td>
+            
+            {% if warehouse_type == 'PARTNER' %}
+            <td class="expanded-col">
+              {% if product_partners.get(r.product_id) %}
+                {% for partner in product_partners.get(r.product_id) %}
+                  <small class="d-block text-primary fw-bold">{{ partner['name'] }}</small>
+                {% endfor %}
+              {% else %}
+                <small class="text-muted">-</small>
+              {% endif %}
+            </td>
+            <td class="expanded-col text-center">
+              {% if product_partners.get(r.product_id) %}
+                {% for partner in product_partners.get(r.product_id) %}
+                  <span class="badge bg-success">{{ partner['share_percentage'] }}%</span>
+                {% endfor %}
+              {% else %}
+                <small class="text-muted">-</small>
+              {% endif %}
+            </td>
+            <td class="expanded-col text-end">
+              {% if product_partners.get(r.product_id) %}
+                {% for partner in product_partners.get(r.product_id) %}
+                  <small class="d-block">{{ partner['balance'] }} ₪</small>
+                {% endfor %}
+              {% else %}
+                <small class="text-muted">-</small>
+              {% endif %}
+            </td>
+            {% elif warehouse_type == 'EXCHANGE' %}
+            <td class="expanded-col">
+              {% if product_suppliers.get(r.product_id) %}
+                <small class="text-primary fw-bold">{{ product_suppliers[r.product_id]['name'] }}</small>
+              {% else %}
+                <small class="text-muted">-</small>
+              {% endif %}
+            </td>
+            <td class="expanded-col">
+              {% if product_suppliers.get(r.product_id) and product_suppliers[r.product_id].get('phone') %}
+                <small class="text-info">{{ product_suppliers[r.product_id]['phone'] }}</small>
+              {% else %}
+                <small class="text-muted">-</small>
+              {% endif %}
+            </td>
+            <td class="expanded-col text-end">
+              {% if product_suppliers.get(r.product_id) %}
+                <small>{{ product_suppliers[r.product_id]['balance'] }} ₪</small>
+              {% else %}
+                <small class="text-muted">-</small>
+              {% endif %}
+            </td>
+            {% endif %}
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
 
+  </div>
+</div>
+
+<!-- Modal التنبيهات -->
+<div class="modal fade" id="alertsModal" tabindex="-1" aria-labelledby="alertsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header bg-warning text-dark">
+        <h5 class="modal-title" id="alertsModalLabel">
+          <i class="fas fa-exclamation-triangle me-2"></i>
+          تنبيهات البيانات الناقصة
+        </h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info">
+          <h6><i class="fas fa-info-circle me-2"></i>ملاحظة:</h6>
+          <p class="mb-0">تم العثور على منتجات تحتاج لإكمال البيانات. يمكنك ملء هذه البيانات مباشرة من هنا أو تجاهلها.</p>
+        </div>
+        
+        <!-- ملخص المشاكل -->
+        <div class="row mb-4">
+          <div class="col-md-3">
+            <div class="card border-danger">
+              <div class="card-body text-center">
+                <h3 class="text-danger mb-0" id="countNoPricing">0</h3>
+                <small>منتجات بدون تسعير</small>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card border-warning">
+              <div class="card-body text-center">
+                <h3 class="text-warning mb-0" id="countNoBarcode">0</h3>
+                <small>منتجات بدون باركود</small>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card border-info">
+              <div class="card-body text-center">
+                <h3 class="text-info mb-0" id="countNoPartnerShare">0</h3>
+                <small>شركاء بدون نسب</small>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="card border-secondary">
+              <div class="card-body text-center">
+                <h3 class="text-secondary mb-0" id="countIncomplete">0</h3>
+                <small>بيانات ناقصة أخرى</small>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- جدول المنتجات التي تحتاج تعديل -->
+        <div class="table-responsive" style="max-height: 400px;">
+          <table class="table table-sm table-hover" id="issues-table">
+            <thead class="table-dark sticky-top">
+              <tr>
+                <th>المنتج</th>
+                <th>المشكلة</th>
+                <th>القيمة الحالية</th>
+                <th>الإجراء المقترح</th>
+              </tr>
+            </thead>
+            <tbody id="issues-tbody">
+              <!-- سيتم ملؤه بالـ JavaScript -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+        <button type="button" class="btn btn-success" id="btnApplySuggestions">
+          <i class="fas fa-check me-1"></i>تطبيق الإصلاحات المقترحة
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}
@@ -289,9 +471,22 @@
         tableEl.classList.toggle('expanded-on', isExpanded);
         localStorage.setItem(VIEW_KEY, isExpanded ? 'expanded' : 'compact');
 
-        if (window.jQuery && window.jQuery.fn && jQuery.fn.DataTable && jQuery.fn.DataTable.isDataTable('#inventory-table')) {
-          jQuery('#inventory-table').DataTable().columns.adjust().draw(false);
+        // تحديث DataTables بعد تغيير العرض
+        try {
+          if (window.jQuery && window.jQuery.fn && jQuery.fn.DataTable && jQuery.fn.DataTable.isDataTable('#inventory-table')) {
+            const dt = jQuery('#inventory-table').DataTable();
+            setTimeout(() => {
+              try {
+                dt.columns.adjust().draw(false);
+              } catch(e) {
+                console.warn('DataTables adjust warning:', e);
+              }
+            }, 100);
+          }
+        } catch(e) {
+          console.warn('DataTables warning:', e);
         }
+        
         if (wrapper) wrapper.scrollLeft = 0;
 
         btnExpanded.classList.toggle('btn-secondary', isExpanded);
@@ -399,16 +594,377 @@ if (window.jQuery && $.fn.DataTable) {
   // حدّث الأعمدة بعد التبديل بين مبسطة/موسعة
   document.getElementById('btnCompact')?.addEventListener('click', () => {
     document.getElementById('inventory-table').classList.remove('expanded-on');
-    dt.columns.adjust().draw(false);
+    setTimeout(() => {
+      try {
+        dt.columns.adjust().draw(false);
+      } catch(e) {
+        console.warn('DataTables adjust error:', e);
+      }
+    }, 150);
   });
   document.getElementById('btnExpanded')?.addEventListener('click', () => {
     document.getElementById('inventory-table').classList.add('expanded-on');
-    dt.columns.adjust().draw(false);
+    setTimeout(() => {
+      try {
+        dt.columns.adjust().draw(false);
+      } catch(e) {
+        console.warn('DataTables adjust error:', e);
+      }
+    }, 150);
   });
 }
 
       const initial = localStorage.getItem(VIEW_KEY) || 'compact';
       applyView(initial === 'expanded' ? 'expanded' : 'compact');
+      
+      // ========== ملء البيانات التلقائي ==========
+      
+      const warehouseType = '{{ warehouse_type }}';
+      const productPartners = {{ product_partners | tojson | safe }};
+      const productSuppliers = {{ product_suppliers | tojson | safe }};
+      
+      // لا فحص تلقائي - فقط عند الضغط على زر "املأ البيانات"
+      
+      function checkDataIssues() {
+        const issues = [];
+        let noPricingCount = 0;
+        let noBarcodeCount = 0;
+        let noPartnerShareCount = 0;
+        let incompleteCount = 0;
+        
+        const rows = tableEl.querySelectorAll('tbody tr[data-product]');
+        
+        rows.forEach((row, index) => {
+          const productId = row.dataset.product;
+          const productName = row.querySelector('td[data-field="name"] input')?.value || 'منتج غير معروف';
+          
+          // فحص التسعير
+          const purchasePrice = parseFloat(row.querySelector('td[data-field="purchase_price"] input')?.value) || 0;
+          const sellingPrice = parseFloat(row.querySelector('td[data-field="selling_price"] input')?.value) || 0;
+          const price = parseFloat(row.querySelector('td[data-field="price"] input')?.value) || 0;
+          
+          if (purchasePrice === 0 || sellingPrice === 0) {
+            noPricingCount++;
+            issues.push({
+              productId: productId,
+              productName: productName,
+              issue: 'بدون تسعير',
+              currentValue: `شراء: ${purchasePrice} | بيع: ${sellingPrice}`,
+              suggestion: 'يرجى إدخال أسعار الشراء والبيع',
+              severity: 'danger',
+              field: 'pricing'
+            });
+          }
+          
+          // فحص الباركود (expanded column)
+          const barcodeCell = row.querySelector('td[data-field="barcode"]');
+          if (barcodeCell && barcodeCell.offsetParent !== null) {
+            const barcode = barcodeCell.querySelector('input')?.value || '';
+            if (!barcode || barcode.trim() === '') {
+              noBarcodeCount++;
+              issues.push({
+                productId: productId,
+                productName: productName,
+                issue: 'بدون باركود',
+                currentValue: '-',
+                suggestion: 'سيتم توليد باركود تلقائي: PRD-' + productId,
+                severity: 'warning',
+                field: 'barcode',
+                autoValue: 'PRD-' + productId + '-' + Date.now()
+              });
+            }
+          }
+          
+          // فحص SKU
+          const sku = row.querySelector('td[data-field="sku"] input')?.value || '';
+          if (!sku || sku.trim() === '') {
+            incompleteCount++;
+            const barcodeInput = row.querySelector('td[data-field="barcode"] input');
+            const barcode = barcodeInput?.value || '';
+            issues.push({
+              productId: productId,
+              productName: productName,
+              issue: 'بدون SKU',
+              currentValue: '-',
+              suggestion: 'سيتم استخدام الباركود كـ SKU',
+              severity: 'info',
+              field: 'sku',
+              autoValue: barcode || ('PRD-' + productId + '-' + Date.now())
+            });
+          }
+          
+          // فحص الوحدة (expanded column)
+          const unitCell = row.querySelector('td[data-field="unit"]');
+          if (unitCell && unitCell.offsetParent !== null) {
+            const unit = unitCell.querySelector('input')?.value || '';
+            if (!unit || unit.trim() === '') {
+              incompleteCount++;
+              issues.push({
+                productId: productId,
+                productName: productName,
+                issue: 'بدون وحدة',
+                currentValue: '-',
+                suggestion: 'سيتم تعيين "قطعة"',
+                severity: 'info',
+                field: 'unit',
+                autoValue: 'قطعة'
+              });
+            }
+          }
+          
+          // فحص الحالة (expanded column)
+          const conditionCell = row.querySelector('td[data-field="condition"]');
+          if (conditionCell && conditionCell.offsetParent !== null) {
+            const condition = conditionCell.querySelector('input')?.value || '';
+            if (!condition || condition.trim() === '') {
+              incompleteCount++;
+            }
+          }
+          
+          // فحص مدة الضمان (expanded column)
+          const warrantyCell = row.querySelector('td[data-field="warranty_period"]');
+          if (warrantyCell && warrantyCell.offsetParent !== null) {
+            const warranty = warrantyCell.querySelector('input')?.value || '0';
+            if (warranty === '0') {
+              incompleteCount++;
+            }
+          }
+          
+          // فحص نسب الشركاء (فقط لمستودعات PARTNER)
+          if (warehouseType === 'PARTNER') {
+            const partners = productPartners[productId];
+            if (!partners || partners.length === 0) {
+              noPartnerShareCount++;
+              issues.push({
+                productId: productId,
+                productName: productName,
+                issue: 'منتج شريك بدون نسبة مساهمة',
+                currentValue: '-',
+                suggestion: 'يرجى تحديد الشريك ونسبة المساهمة يدوياً',
+                severity: 'danger',
+                field: 'partner_share'
+              });
+            }
+          }
+          
+          // فحص الموردين (فقط لمستودعات EXCHANGE)
+          if (warehouseType === 'EXCHANGE') {
+            const supplier = productSuppliers[productId];
+            if (!supplier) {
+              incompleteCount++;
+              issues.push({
+                productId: productId,
+                productName: productName,
+                issue: 'منتج تبادل بدون مورد',
+                currentValue: '-',
+                suggestion: 'يرجى تحديد المورد يدوياً من نموذج التبادل',
+                severity: 'warning',
+                field: 'supplier'
+              });
+            }
+          }
+        });
+        
+        // تحديث العدادات
+        document.getElementById('countNoPricing').textContent = noPricingCount;
+        document.getElementById('countNoBarcode').textContent = noBarcodeCount;
+        document.getElementById('countNoPartnerShare').textContent = noPartnerShareCount;
+        document.getElementById('countIncomplete').textContent = incompleteCount;
+        
+        // ملء جدول المشاكل
+        const tbody = document.getElementById('issues-tbody');
+        tbody.innerHTML = '';
+        
+        issues.forEach(issue => {
+          const severityClass = {
+            'danger': 'table-danger',
+            'warning': 'table-warning',
+            'info': 'table-info'
+          }[issue.severity] || '';
+          
+          const row = document.createElement('tr');
+          row.className = severityClass;
+          row.innerHTML = `
+            <td><strong>${issue.productName}</strong><br><small class="text-muted">ID: ${issue.productId}</small></td>
+            <td><span class="badge bg-${issue.severity}">${issue.issue}</span></td>
+            <td>${issue.currentValue}</td>
+            <td>${issue.suggestion}</td>
+          `;
+          tbody.appendChild(row);
+        });
+        
+        // عرض Modal إذا كان هناك مشاكل
+        const totalIssues = noPricingCount + noBarcodeCount + noPartnerShareCount + incompleteCount;
+        if (totalIssues > 0) {
+          // تخزين المشاكل للاستخدام لاحقاً
+          window.dataIssues = issues;
+          
+          // عرض تنبيه
+          if (typeof $ !== 'undefined' && $.fn.modal) {
+            $('#alertsModal').modal('show');
+          }
+        } else {
+          alert('✅ جميع البيانات مكتملة!\n\nلا توجد مشاكل في المنتجات.');
+        }
+      }
+      
+      // زر املأ البيانات - يعرض Modal التنبيهات أولاً
+      document.getElementById('btnAutoFill')?.addEventListener('click', function() {
+        // التأكد أن الجدول في الوضع الموسع للفحص
+        const wasExpanded = tableEl.classList.contains('expanded-on');
+        if (!wasExpanded) {
+          tableEl.classList.add('expanded-on');
+        }
+        
+        // فحص البيانات
+        setTimeout(() => {
+          checkDataIssues();
+          
+          // إرجاع الوضع الأصلي
+          if (!wasExpanded) {
+            setTimeout(() => {
+              tableEl.classList.remove('expanded-on');
+            }, 500);
+          }
+        }, 200);
+      });
+      
+      function autoFillData() {
+        const rows = tableEl.querySelectorAll('tbody tr[data-product]');
+        let updatedCount = 0;
+        
+        rows.forEach((row) => {
+          const productId = row.dataset.product;
+          let hasChanges = false;
+          
+          // توليد باركود إذا لم يكن موجود
+          const barcodeInput = row.querySelector('td[data-field="barcode"] input');
+          if (barcodeInput && (!barcodeInput.value || barcodeInput.value.trim() === '')) {
+            const newBarcode = 'PRD-' + productId + '-' + Date.now();
+            barcodeInput.value = newBarcode;
+            setPending(productId, 'barcode', newBarcode, barcodeInput);
+            hasChanges = true;
+            
+            // استخدام الباركود كـ SKU إذا لم يكن موجود
+            const skuInput = row.querySelector('td[data-field="sku"] input');
+            if (skuInput && (!skuInput.value || skuInput.value.trim() === '')) {
+              skuInput.value = newBarcode;
+              setPending(productId, 'sku', newBarcode, skuInput);
+            }
+          } else {
+            // إذا كان الباركود موجود لكن SKU فارغ، استخدم الباركود
+            const skuInput = row.querySelector('td[data-field="sku"] input');
+            const barcode = barcodeInput.value.trim();
+            if (skuInput && (!skuInput.value || skuInput.value.trim() === '') && barcode) {
+              skuInput.value = barcode;
+              setPending(productId, 'sku', barcode, skuInput);
+              hasChanges = true;
+            }
+          }
+          
+          // تعيين الوحدة الافتراضية (فقط في الوضع الموسع)
+          const unitCell = row.querySelector('td[data-field="unit"]');
+          if (unitCell && unitCell.offsetParent !== null) {
+            const unitInput = unitCell.querySelector('input');
+            if (unitInput && (!unitInput.value || unitInput.value.trim() === '')) {
+              unitInput.value = 'قطعة';
+              setPending(productId, 'unit', 'قطعة', unitInput);
+              hasChanges = true;
+            }
+          }
+          
+          // تعيين الحالة الافتراضية (فقط في الوضع الموسع)
+          const conditionCell = row.querySelector('td[data-field="condition"]');
+          if (conditionCell && conditionCell.offsetParent !== null) {
+            const conditionInput = conditionCell.querySelector('input');
+            if (conditionInput && (!conditionInput.value || conditionInput.value.trim() === '')) {
+              conditionInput.value = 'NEW';
+              setPending(productId, 'condition', 'NEW', conditionInput);
+              hasChanges = true;
+            }
+          }
+          
+          // تعيين مدة الضمان الافتراضية (فقط في الوضع الموسع)
+          const warrantyCell = row.querySelector('td[data-field="warranty_period"]');
+          if (warrantyCell && warrantyCell.offsetParent !== null) {
+            const warrantyInput = warrantyCell.querySelector('input');
+            if (warrantyInput && (!warrantyInput.value || warrantyInput.value === '0')) {
+              warrantyInput.value = '12';
+              setPending(productId, 'warranty_period', '12', warrantyInput);
+              hasChanges = true;
+            }
+          }
+          
+          // تعيين الحد الأدنى (فقط في الوضع الموسع)
+          const minQtyCell = row.querySelector('td[data-field="min_qty"]');
+          if (minQtyCell && minQtyCell.offsetParent !== null) {
+            const minQtyInput = minQtyCell.querySelector('input');
+            if (minQtyInput && (!minQtyInput.value || minQtyInput.value === '0')) {
+              minQtyInput.value = '1';
+              setPending(productId, 'min_qty', '1', minQtyInput);
+              hasChanges = true;
+            }
+          }
+          
+          // تعيين نقطة إعادة الطلب (فقط في الوضع الموسع)
+          const reorderCell = row.querySelector('td[data-field="reorder_point"]');
+          if (reorderCell && reorderCell.offsetParent !== null) {
+            const reorderInput = reorderCell.querySelector('input');
+            if (reorderInput && (!reorderInput.value || reorderInput.value === '0')) {
+              reorderInput.value = '5';
+              setPending(productId, 'reorder_point', '5', reorderInput);
+              hasChanges = true;
+            }
+          }
+          
+          if (hasChanges) updatedCount++;
+        });
+        
+        if (updatedCount > 0) {
+          alert(`✅ تم ملء البيانات لـ ${updatedCount} منتج.\n\nيرجى مراجعة البيانات ثم الضغط على "حفظ التغييرات".`);
+          updatePendingBadge();
+          showSaved();
+        } else {
+          alert('✅ جميع البيانات مكتملة!');
+        }
+      }
+      
+      // تطبيق الإصلاحات المقترحة من Modal
+      document.getElementById('btnApplySuggestions')?.addEventListener('click', function() {
+        if (!window.dataIssues || window.dataIssues.length === 0) {
+          alert('لا توجد إصلاحات لتطبيقها');
+          return;
+        }
+        
+        let appliedCount = 0;
+        
+        window.dataIssues.forEach(issue => {
+          if (issue.autoValue) {
+            const row = tableEl.querySelector(`tr[data-product="${issue.productId}"]`);
+            if (!row) return;
+            
+            const input = row.querySelector(`td[data-field="${issue.field}"] input`);
+            if (input) {
+              input.value = issue.autoValue;
+              setPending(issue.productId, issue.field, issue.autoValue, input);
+              appliedCount++;
+            }
+          }
+        });
+        
+        if (appliedCount > 0) {
+          alert(`✅ تم تطبيق ${appliedCount} إصلاح.\n\nيرجى مراجعة البيانات ثم الضغط على "حفظ التغييرات".`);
+          updatePendingBadge();
+          
+          // إغلاق Modal
+          if (typeof $ !== 'undefined' && $.fn.modal) {
+            $('#alertsModal').modal('hide');
+          }
+        } else {
+          alert('لا توجد إصلاحات لتطبيقها.');
+        }
+      });
+      
     })();
   </script>
 {% endblock %}

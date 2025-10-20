@@ -257,8 +257,8 @@
         {% with messages = get_unique_flashes(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
-              <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
-                <i class="fas fa-info-circle me-2"></i>{{ message }}
+              <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm auto-dismiss-alert" role="alert" style="position: relative; z-index: 1050;">
+                <i class="fas fa-{% if category == 'success' %}check-circle{% elif category == 'danger' or category == 'error' %}exclamation-circle{% elif category == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>{{ message }}
                 <button type="button" class="close" data-dismiss="alert" aria-label="إغلاق">
                   <span aria-hidden="true">&times;</span>
                 </button>
@@ -318,6 +318,39 @@
 <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 <script src="{{ url_for('static', filename='js/ux-enhancements.js') }}"></script>
+
+<script>
+// ========== إدارة التنبيهات التلقائية ==========
+(function() {
+  // إخفاء التنبيهات تلقائياً بعد 5 ثواني
+  document.addEventListener('DOMContentLoaded', function() {
+    const alerts = document.querySelectorAll('.auto-dismiss-alert');
+    
+    alerts.forEach(function(alert) {
+      // تأخير قبل البدء بالإخفاء
+      setTimeout(function() {
+        // إضافة تأثير fade out
+        alert.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+        alert.style.opacity = '0';
+        alert.style.transform = 'translateY(-20px)';
+        
+        // إزالة العنصر بعد انتهاء التأثير
+        setTimeout(function() {
+          alert.remove();
+        }, 500);
+      }, 5000); // 5 ثواني
+    });
+  });
+  
+  // منع التنبيهات من التأثير على الأداء
+  const originalAlert = window.alert;
+  window.alert = function(message) {
+    console.log('[Alert]', message);
+    return originalAlert.call(window, message);
+  };
+})();
+</script>
+
 {% block scripts %}{% endblock %}
 </body>
 </html>

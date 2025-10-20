@@ -1287,6 +1287,8 @@ def update_product_inline(warehouse_id, product_id):
 # @permission_required("view_inventory")  # Commented out
 def preview_inventory(warehouse_id: int):
     warehouse = _get_or_404(Warehouse, warehouse_id)
+    
+    # جلب جميع حقول المنتج مع معلومات الشريك/المورد
     rows = (
         db.session.query(
             Product.id.label("product_id"),
@@ -1294,10 +1296,32 @@ def preview_inventory(warehouse_id: int):
             Product.part_number,
             Product.name,
             Product.brand,
+            Product.commercial_name,
+            Product.chassis_number,
+            Product.serial_no,
+            Product.barcode,
+            Product.unit,
+            Product.price,
             Product.purchase_price,
             Product.selling_price,
+            Product.cost_before_shipping,
+            Product.cost_after_shipping,
+            Product.unit_price_before_tax,
+            Product.min_price,
+            Product.max_price,
+            Product.tax_rate,
+            Product.min_qty,
+            Product.reorder_point,
+            Product.condition,
+            Product.origin_country,
+            Product.warranty_period,
+            Product.weight,
+            Product.dimensions,
+            Product.image,
+            ProductCategory.name.label("category_name"),
             func.coalesce(func.sum(StockLevel.quantity), 0).label("quantity"),
         )
+        .outerjoin(ProductCategory, Product.category_id == ProductCategory.id)
         .join(StockLevel, StockLevel.product_id == Product.id)
         .filter(StockLevel.warehouse_id == warehouse.id)
         .group_by(
@@ -1306,13 +1330,81 @@ def preview_inventory(warehouse_id: int):
             Product.part_number,
             Product.name,
             Product.brand,
+            Product.commercial_name,
+            Product.chassis_number,
+            Product.serial_no,
+            Product.barcode,
+            Product.unit,
+            Product.price,
             Product.purchase_price,
             Product.selling_price,
+            Product.cost_before_shipping,
+            Product.cost_after_shipping,
+            Product.unit_price_before_tax,
+            Product.min_price,
+            Product.max_price,
+            Product.tax_rate,
+            Product.min_qty,
+            Product.reorder_point,
+            Product.condition,
+            Product.origin_country,
+            Product.warranty_period,
+            Product.weight,
+            Product.dimensions,
+            Product.image,
+            ProductCategory.name,
         )
         .order_by(Product.name.asc())
         .all()
     )
-    return render_template("warehouses/preview_inventory.html", warehouse=warehouse, rows=rows)
+    
+    # جلب معلومات الشركاء والموردين لكل منتج
+    warehouse_type = getattr(warehouse.warehouse_type, "value", warehouse.warehouse_type)
+    product_partners = {}
+    product_suppliers = {}
+    
+    if warehouse_type == 'PARTNER':
+        # جلب معلومات الشركاء للمنتجات
+        for row in rows:
+            shares = ProductPartnerShare.query.filter_by(product_id=row.product_id).all()
+            if shares:
+                partner_info = []
+                for share in shares:
+                    if share.partner:
+                        partner_info.append({
+                            'name': share.partner.name,
+                            'share_percentage': float(share.share_percentage) if share.share_percentage else 0,
+                            'balance': float(share.partner.balance) if share.partner.balance else 0,
+                            'phone': share.partner.phone_number,
+                            'email': share.partner.email
+                        })
+                product_partners[row.product_id] = partner_info
+    
+    elif warehouse_type == 'EXCHANGE':
+        # جلب معلومات الموردين للمنتجات
+        for row in rows:
+            # البحث في ExchangeTransaction عن آخر مورد تعامل مع هذا المنتج
+            last_exchange = ExchangeTransaction.query.filter_by(
+                product_id=row.product_id,
+                warehouse_id=warehouse_id
+            ).filter(ExchangeTransaction.supplier_id.isnot(None)).order_by(ExchangeTransaction.created_at.desc()).first()
+            
+            if last_exchange and last_exchange.supplier:
+                product_suppliers[row.product_id] = {
+                    'name': last_exchange.supplier.name,
+                    'phone': last_exchange.supplier.phone,
+                    'balance': float(last_exchange.supplier.balance) if last_exchange.supplier.balance else 0,
+                    'email': last_exchange.supplier.email
+                }
+    
+    return render_template(
+        "warehouses/preview_inventory.html", 
+        warehouse=warehouse, 
+        rows=rows,
+        product_partners=product_partners,
+        product_suppliers=product_suppliers,
+        warehouse_type=warehouse_type
+    )
 
 
 @warehouse_bp.route("/<int:id>/add-product", methods=["GET", "POST"], endpoint="add_product")

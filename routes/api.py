@@ -3934,3 +3934,79 @@ def get_warehouse_info(warehouse_id):
             'success': False,
             'error': 'حدث خطأ أثناء جلب البيانات'
         }), 500
+
+
+# ===== Partners API =====
+
+@bp.route('/partners', methods=['GET'])
+@login_required
+def get_partners():
+    """جلب قائمة الشركاء مع نسبة المساهمة"""
+    try:
+        partners = Partner.query.filter_by(is_archived=False).all()
+        
+        partners_list = []
+        for partner in partners:
+            partner_data = {
+                'id': partner.id,
+                'name': partner.name,
+                'contact_info': partner.contact_info,
+                'phone': partner.phone_number,
+                'email': partner.email,
+                'share_percentage': float(partner.share_percentage) if partner.share_percentage else 0,
+                'balance': float(partner.balance) if partner.balance else 0
+            }
+            partners_list.append(partner_data)
+        
+        logging.info(f"[Get Partners] Loaded {len(partners_list)} partners")
+        
+        return jsonify({
+            'success': True,
+            'partners': partners_list,
+            'count': len(partners_list)
+        })
+        
+    except Exception as e:
+        logging.error(f"[Get Partners] Error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'حدث خطأ أثناء جلب الشركاء'
+        }), 500
+
+
+# ===== Suppliers API =====
+
+@bp.route('/suppliers', methods=['GET'])
+@login_required
+def get_suppliers():
+    """جلب قائمة الموردين"""
+    try:
+        suppliers = Supplier.query.filter_by(is_archived=False).all()
+        
+        suppliers_list = []
+        for supplier in suppliers:
+            supplier_data = {
+                'id': supplier.id,
+                'name': supplier.name,
+                'contact_info': supplier.contact,
+                'phone': supplier.phone,
+                'email': supplier.email,
+                'balance': float(supplier.balance) if supplier.balance else 0,
+                'is_local': supplier.is_local
+            }
+            suppliers_list.append(supplier_data)
+        
+        logging.info(f"[Get Suppliers] Loaded {len(suppliers_list)} suppliers")
+        
+        return jsonify({
+            'success': True,
+            'suppliers': suppliers_list,
+            'count': len(suppliers_list)
+        })
+        
+    except Exception as e:
+        logging.error(f"[Get Suppliers] Error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'حدث خطأ أثناء جلب الموردين'
+        }), 500

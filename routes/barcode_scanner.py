@@ -386,16 +386,24 @@ def bulk_generate_barcodes():
 @login_required
 # @permission_required("manage_warehouses")  # Commented out
 def inventory_update_by_barcode():
-    """تحديث المخزون باستخدام الباركود"""
+    """تحديث المخزون باستخدام الباركود مع دعم الحقول الديناميكية"""
+    import logging
+    
     try:
         data = request.get_json() if request.is_json else request.form.to_dict()
+        logging.info(f"📦 [Inventory Update] البيانات المستلمة: {dict(data)}")
         
         barcode = data.get("barcode", "").strip()
         warehouse_id = data.get("warehouse_id")
         quantity_change = int(data.get("quantity_change", 0))
         operation = data.get("operation", "adjust")  # adjust, add, subtract
         
+        # الحقول الديناميكية
+        partner_id = data.get("partner_id")
+        supplier_id = data.get("supplier_id")
+        
         if not barcode or not warehouse_id:
+            logging.error(f"❌ [Inventory Update] بيانات ناقصة: barcode={barcode}, warehouse_id={warehouse_id}")
             return jsonify({"error": "الباركود ومعرف المستودع مطلوبان"}), 400
         
         # البحث عن المنتج
@@ -408,10 +416,32 @@ def inventory_update_by_barcode():
         ).first()
         
         if not product:
+            logging.error(f"❌ [Inventory Update] المنتج غير موجود: {barcode}")
             return jsonify({"error": "المنتج غير موجود"}), 404
         
         # البحث عن المستودع
         warehouse = _get_or_404(Warehouse, warehouse_id)
+        warehouse_type = getattr(warehouse.warehouse_type, "value", warehouse.warehouse_type)
+        logging.info(f"🏭 [Inventory Update] نوع المستودع: {warehouse_type}")
+        
+        # ========== Validation حسب نوع المستودع ==========
+        if warehouse_type == 'PARTNER':
+            if not partner_id:
+                logging.error(f"❌ [Inventory Update] مستودع PARTNER يتطلب partner_id")
+                return jsonify({"error": "⚠️ مستودع شريك: يجب تحديد الشريك!"}), 400
+            supplier_id = None  # مستودعات PARTNER لا تستخدم supplier_id
+            logging.info(f"✅ [Inventory Update] مستودع PARTNER مع partner_id={partner_id}")
+        elif warehouse_type == 'EXCHANGE':
+            if not supplier_id:
+                logging.error(f"❌ [Inventory Update] مستودع EXCHANGE يتطلب supplier_id")
+                return jsonify({"error": "⚠️ مستودع تبادل: يجب تحديد المورد/التاجر!"}), 400
+            partner_id = None  # مستودعات EXCHANGE لا تستخدم partner_id
+            logging.info(f"✅ [Inventory Update] مستودع EXCHANGE مع supplier_id={supplier_id}")
+        else:
+            # MAIN, ONLINE, INVENTORY - لا يتطلب شريك أو مورد
+            partner_id = None
+            supplier_id = None
+            logging.info(f"ℹ️ [Inventory Update] مستودع {warehouse_type} - لا يتطلب شريك/مورد")
         
         # الحصول على مستوى المخزون الحالي
         stock_level = StockLevel.query.filter_by(
@@ -428,21 +458,37 @@ def inventory_update_by_barcode():
                 reserved_quantity=0
             )
             db.session.add(stock_level)
+            logging.info(f"✅ [Inventory Update] إنشاء مخزون جديد للمنتج {product.id}")
+        
+        # التحقق من الكمية المتاحة قبل الطرح
+        if operation == "subtract" and quantity_change > stock_level.quantity:
+            logging.error(f"❌ [Inventory Update] كمية غير كافية: المطلوب={quantity_change}, المتاح={stock_level.quantity}")
+            return jsonify({
+                "error": "insufficient_stock",
+                "message": f"الكمية المطلوبة ({quantity_change}) أكبر من المتاح ({stock_level.quantity})",
+                "available": stock_level.quantity
+            }), 400
         
         # تحديث الكمية
         if operation == "add":
             stock_level.quantity += quantity_change
+            logging.info(f"➕ [Inventory Update] إضافة {quantity_change} للمخزون")
         elif operation == "subtract":
             stock_level.quantity -= quantity_change
+            logging.info(f"➖ [Inventory Update] طرح {quantity_change} من المخزون")
         else:  # adjust
             stock_level.quantity = quantity_change
+            logging.info(f"🔄 [Inventory Update] تعديل المخزون إلى {quantity_change}")
         
         # التأكد من أن الكمية لا تكون سالبة
         if stock_level.quantity < 0:
             stock_level.quantity = 0
+            logging.warning(f"⚠️ [Inventory Update] تم تصحيح الكمية السالبة إلى 0")
         
         db.session.add(stock_level)
         db.session.commit()
+        
+        logging.info(f"🎉 [Inventory Update] تم تحديث المخزون بنجاح: {stock_level.quantity}")
         
         return jsonify({
             "success": True,
@@ -454,13 +500,22 @@ def inventory_update_by_barcode():
             },
             "warehouse": {
                 "id": warehouse.id,
-                "name": warehouse.name
+                "name": warehouse.name,
+                "type": warehouse_type
             },
-            "new_quantity": stock_level.quantity
+            "new_quantity": stock_level.quantity,
+            "operation": operation,
+            "partner_id": partner_id,
+            "supplier_id": supplier_id
         })
         
+    except ValueError as ve:
+        db.session.rollback()
+        logging.error(f"❌ [Inventory Update] خطأ في القيم: {str(ve)}")
+        return jsonify({"error": "خطأ في القيم المدخلة"}), 400
     except Exception as e:
         db.session.rollback()
+        logging.error(f"❌ [Inventory Update] خطأ غير متوقع: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -779,21 +834,57 @@ def barcode_stats():
 # @permission_required("manage_warehouses")  # Commented out
 @csrf.exempt
 def bulk_import_products():
-    """استيراد جماعي للمنتجات بالباركود"""
+    """استيراد جماعي للمنتجات بالباركود مع دعم الحقول الديناميكية"""
+    import logging
+    
     try:
         data = request.get_json()
         products_data = data.get("products", [])
         warehouse_id = data.get("warehouse_id", 1)
         existing_product_action = data.get("existing_product_action", "add_quantity")
         
+        # الحقول الديناميكية
+        partner_id = data.get("partner_id")
+        supplier_id = data.get("supplier_id")
+        
+        logging.info(f"📦 [Bulk Import] بدء الاستيراد: {len(products_data)} منتج، مستودع: {warehouse_id}")
+        logging.info(f"🏭 [Bulk Import] حقول ديناميكية: partner_id={partner_id}, supplier_id={supplier_id}")
+        
         if not products_data:
             return jsonify({"error": "لا توجد بيانات منتجات"}), 400
+        
+        # التحقق من المستودع ونوعه
+        warehouse = Warehouse.query.get(warehouse_id)
+        if not warehouse:
+            return jsonify({"error": "المستودع غير موجود"}), 404
+            
+        warehouse_type = getattr(warehouse.warehouse_type, "value", warehouse.warehouse_type)
+        logging.info(f"🏭 [Bulk Import] نوع المستودع: {warehouse_type}")
+        
+        # ========== Validation حسب نوع المستودع ==========
+        if warehouse_type == 'PARTNER':
+            if not partner_id:
+                logging.error(f"❌ [Bulk Import] مستودع PARTNER يتطلب partner_id")
+                return jsonify({"error": "⚠️ مستودع شريك: يجب تحديد الشريك!"}), 400
+            supplier_id = None  # مستودعات PARTNER لا تستخدم supplier_id
+            logging.info(f"✅ [Bulk Import] مستودع PARTNER مع partner_id={partner_id}")
+        elif warehouse_type == 'EXCHANGE':
+            if not supplier_id:
+                logging.error(f"❌ [Bulk Import] مستودع EXCHANGE يتطلب supplier_id")
+                return jsonify({"error": "⚠️ مستودع تبادل: يجب تحديد المورد/التاجر!"}), 400
+            partner_id = None  # مستودعات EXCHANGE لا تستخدم partner_id
+            logging.info(f"✅ [Bulk Import] مستودع EXCHANGE مع supplier_id={supplier_id}")
+        else:
+            # MAIN, ONLINE, INVENTORY - لا يتطلب شريك أو مورد
+            partner_id = None
+            supplier_id = None
+            logging.info(f"ℹ️ [Bulk Import] مستودع {warehouse_type} - لا يتطلب شريك/مورد")
         
         imported_count = 0
         updated_count = 0
         errors = []
         
-        for product_data in products_data:
+        for i, product_data in enumerate(products_data):
             try:
                 barcode = product_data.get("barcode", "").strip()
                 name = product_data.get("name", "").strip()
@@ -861,6 +952,7 @@ def bulk_import_products():
                         )
                     db.session.add(stock)
                     updated_count += 1
+                    logging.info(f"✅ [Bulk Import] تحديث منتج: {name} ({barcode})")
                     
                 else:
                     # إنشاء منتج جديد
@@ -890,12 +982,17 @@ def bulk_import_products():
                     )
                     db.session.add(stock)
                     imported_count += 1
+                    logging.info(f"✅ [Bulk Import] إنشاء منتج جديد: {name} ({barcode})")
                     
             except Exception as e:
-                errors.append(f"خطأ في المنتج {barcode}: {str(e)}")
+                error_msg = f"خطأ في المنتج {barcode}: {str(e)}"
+                errors.append(error_msg)
+                logging.error(f"❌ [Bulk Import] {error_msg}")
                 continue
         
         db.session.commit()
+        
+        logging.info(f"🎉 [Bulk Import] اكتمل الاستيراد: {imported_count} جديد، {updated_count} محدث، {len(errors)} خطأ")
         
         return jsonify({
             "success": True,
@@ -903,11 +1000,15 @@ def bulk_import_products():
             "updated_count": updated_count,
             "total_processed": imported_count + updated_count,
             "errors": errors[:10],  # أول 10 أخطاء فقط
-            "errors_count": len(errors)
+            "errors_count": len(errors),
+            "warehouse_type": warehouse_type,
+            "partner_id": partner_id,
+            "supplier_id": supplier_id
         })
         
     except Exception as e:
         db.session.rollback()
+        logging.error(f"❌ [Bulk Import] خطأ غير متوقع: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -918,3 +1019,62 @@ def bulk_scan_page():
     """صفحة المسح الجماعي"""
     warehouses = Warehouse.query.filter_by(is_active=True).all()
     return render_template("barcode_scanner/bulk_scan.html", warehouses=warehouses)
+
+
+# ========== API Endpoints جديدة لدعم أنواع المستودعات ==========
+
+@barcode_scanner_bp.route("/check-product", methods=["GET"], endpoint="check_product")
+@login_required
+def check_product():
+    """فحص وجود المنتج والمخزون في مستودع معين"""
+    import logging
+    
+    try:
+        barcode = request.args.get("barcode", "").strip()
+        warehouse_id = request.args.get("warehouse_id", type=int)
+        
+        if not barcode or not warehouse_id:
+            return jsonify({"success": False, "error": "الباركود ومعرف المستودع مطلوبان"}), 400
+        
+        # البحث عن المنتج
+        product = Product.query.filter(
+            or_(
+                Product.barcode == barcode,
+                Product.sku == barcode,
+                Product.part_number == barcode
+            )
+        ).first()
+        
+        if not product:
+            return jsonify({
+                "success": False,
+                "exists": False,
+                "error": "المنتج غير موجود"
+            }), 404
+        
+        # البحث عن المخزون
+        stock_level = StockLevel.query.filter_by(
+            product_id=product.id,
+            warehouse_id=warehouse_id
+        ).first()
+        
+        current_quantity = stock_level.quantity if stock_level else 0
+        
+        return jsonify({
+            "success": True,
+            "exists": True,
+            "product": {
+                "id": product.id,
+                "name": product.name,
+                "sku": product.sku,
+                "barcode": product.barcode,
+                "part_number": product.part_number,
+                "brand": product.brand,
+                "price": float(product.price) if product.price else 0,
+                "current_quantity": current_quantity
+            }
+        })
+        
+    except Exception as e:
+        logging.error(f"[Check Product] خطأ: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500

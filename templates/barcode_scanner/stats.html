@@ -2,87 +2,435 @@
 
 {% block title %}إحصائيات الباركود{% endblock %}
 
+{% block extra_head %}
+<style>
+/* تحسينات التصميم الشاملة */
+.stat-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+    transition: transform 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+}
+
+.stat-icon {
+    font-size: 2.5rem;
+    opacity: 0.8;
+}
+
+.card-modern {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.card-modern:hover {
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+}
+
+.card-header-modern {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px 15px 0 0 !important;
+    border: none;
+    padding: 20px;
+}
+
+.card-header-modern h3 {
+    margin: 0;
+    font-weight: 600;
+}
+
+.chart-container {
+    background: white;
+    border-radius: 15px;
+    padding: 20px;
+    margin: 20px 0;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+}
+
+.table-modern {
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+}
+
+.table-modern th {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    font-weight: 600;
+    padding: 15px;
+}
+
+.table-modern td {
+    padding: 12px 15px;
+    border-color: #f1f3f4;
+}
+
+.progress-modern {
+    height: 12px;
+    border-radius: 10px;
+    background: #e9ecef;
+    overflow: hidden;
+    margin: 10px 0;
+}
+
+.progress-bar-modern {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    height: 100%;
+    transition: width 0.3s ease;
+    border-radius: 10px;
+}
+
+/* تحسينات للـ animations */
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* تحسينات للـ responsive */
+@media (max-width: 768px) {
+    .stat-card {
+        margin-bottom: 15px;
+    }
+    
+    .card-modern {
+        margin-bottom: 20px;
+    }
+}
+
+/* تحسينات للـ charts */
+.chart-wrapper {
+    position: relative;
+    height: 300px;
+    margin: 20px 0;
+}
+
+.chart-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 15px;
+    text-align: center;
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">
-                        <i class="fas fa-barcode"></i>
-                        إحصائيات الباركود
-                    </h3>
+<div class="content-wrapper">
+    <!-- Content Header -->
+    <div class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-4">
+                <div class="col-sm-6">
+                    <h1 class="m-0">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        إحصائيات الباركود المتقدمة
+                    </h1>
+                    <p class="text-muted mt-2">تحليل شامل لتغطية الباركود في النظام</p>
                 </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-3">
-                            <div class="info-box">
-                                <span class="info-box-icon bg-info"><i class="fas fa-box"></i></span>
-                                <div class="info-box-content">
-                                    <span class="info-box-text">إجمالي المنتجات</span>
-                                    <span class="info-box-number">{{ stats.total_products }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-3">
-                            <div class="info-box">
-                                <span class="info-box-icon bg-success"><i class="fas fa-barcode"></i></span>
-                                <div class="info-box-content">
-                                    <span class="info-box-text">منتجات مع باركود</span>
-                                    <span class="info-box-number">{{ stats.products_with_barcode }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-3">
-                            <div class="info-box">
-                                <span class="info-box-icon bg-warning"><i class="fas fa-exclamation-triangle"></i></span>
-                                <div class="info-box-content">
-                                    <span class="info-box-text">منتجات بدون باركود</span>
-                                    <span class="info-box-number">{{ stats.products_without_barcode }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-3">
-                            <div class="info-box">
-                                <span class="info-box-icon bg-primary"><i class="fas fa-percentage"></i></span>
-                                <div class="info-box-content">
-                                    <span class="info-box-text">نسبة التغطية</span>
-                                    <span class="info-box-number">{{ stats.barcode_percentage }}%</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    {% if stats.barcode_lengths %}
-                    <div class="row mt-4">
-                        <div class="col-12">
-                            <h5>توزيع أطوال الباركود</h5>
-                            <table class="table table-bordered">
-                                <thead>
-                                    <tr>
-                                        <th>طول الباركود</th>
-                                        <th>عدد المنتجات</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for item in stats.barcode_lengths %}
-                                    <tr>
-                                        <td>{{ item.length }} رقم</td>
-                                        <td>{{ item.count }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                    {% endif %}
+                <div class="col-sm-6">
+                    <ol class="breadcrumb float-sm-right">
+                        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+                        <li class="breadcrumb-item"><a href="{{ url_for('barcode_scanner.index') }}">نظام الباركود</a></li>
+                        <li class="breadcrumb-item active">الإحصائيات</li>
+                    </ol>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Main content -->
+    <section class="content">
+        <div class="container-fluid">
+            <!-- إحصائيات سريعة محسنة -->
+            <div class="row mb-4">
+                <div class="col-lg-3 col-md-6 col-12 mb-4">
+                    <div class="stat-card fade-in">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h2 class="mb-1">{{ stats.total_products }}</h2>
+                                <p class="mb-0" style="opacity: 0.9;">إجمالي المنتجات</p>
+                            </div>
+                            <div class="stat-icon">
+                                <i class="fas fa-boxes"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6 col-12 mb-4">
+                    <div class="stat-card fade-in" style="background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h2 class="mb-1">{{ stats.products_with_barcode }}</h2>
+                                <p class="mb-0" style="opacity: 0.9;">منتجات مع باركود</p>
+                            </div>
+                            <div class="stat-icon">
+                                <i class="fas fa-barcode"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6 col-12 mb-4">
+                    <div class="stat-card fade-in" style="background: linear-gradient(135deg, #ff9a56 0%, #ffad56 100%);">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h2 class="mb-1">{{ stats.products_without_barcode }}</h2>
+                                <p class="mb-0" style="opacity: 0.9;">منتجات بدون باركود</p>
+                            </div>
+                            <div class="stat-icon">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6 col-12 mb-4">
+                    <div class="stat-card fade-in" style="background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h2 class="mb-1">{{ stats.barcode_percentage }}%</h2>
+                                <p class="mb-0" style="opacity: 0.9;">نسبة التغطية</p>
+                            </div>
+                            <div class="stat-icon">
+                                <i class="fas fa-percentage"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- مخططات إحصائية -->
+            <div class="row">
+                <!-- مخطط التغطية -->
+                <div class="col-lg-6 col-md-12 mb-4">
+                    <div class="card card-modern">
+                        <div class="card-header-modern">
+                            <h3>
+                                <i class="fas fa-chart-pie me-2"></i>
+                                توزيع الباركود
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-wrapper">
+                                <canvas id="barcodeChart"></canvas>
+                            </div>
+                            <div class="text-center mt-3">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <div class="bg-success rounded-circle me-2" style="width: 15px; height: 15px;"></div>
+                                            <span>مع باركود ({{ stats.products_with_barcode }})</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <div class="bg-warning rounded-circle me-2" style="width: 15px; height: 15px;"></div>
+                                            <span>بدون باركود ({{ stats.products_without_barcode }})</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- شريط التقدم -->
+                <div class="col-lg-6 col-md-12 mb-4">
+                    <div class="card card-modern">
+                        <div class="card-header-modern">
+                            <h3>
+                                <i class="fas fa-chart-bar me-2"></i>
+                                نسبة التغطية
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="text-center mb-4">
+                                <h2 class="display-4 text-primary">{{ stats.barcode_percentage }}%</h2>
+                                <p class="text-muted">نسبة المنتجات التي تحتوي على باركود</p>
+                            </div>
+                            
+                            <div class="progress-modern">
+                                <div class="progress-bar-modern" style="width: {{ stats.barcode_percentage }}%"></div>
+                            </div>
+                            
+                            <div class="row mt-4">
+                                <div class="col-6">
+                                    <div class="text-center">
+                                        <h4 class="text-success">{{ stats.products_with_barcode }}</h4>
+                                        <p class="text-muted mb-0">منتجات مع باركود</p>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-center">
+                                        <h4 class="text-warning">{{ stats.products_without_barcode }}</h4>
+                                        <p class="text-muted mb-0">منتجات بدون باركود</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- جدول أطوال الباركود -->
+            {% if stats.barcode_lengths %}
+            <div class="row">
+                <div class="col-12 mb-4">
+                    <div class="card card-modern">
+                        <div class="card-header-modern">
+                            <h3>
+                                <i class="fas fa-table me-2"></i>
+                                توزيع أطوال الباركود
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-modern">
+                                    <thead>
+                                        <tr>
+                                            <th>طول الباركود</th>
+                                            <th>عدد المنتجات</th>
+                                            <th>النسبة</th>
+                                            <th>شريط التقدم</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in stats.barcode_lengths %}
+                                        <tr>
+                                            <td>
+                                                <span class="badge bg-primary">{{ item.length }} رقم</span>
+                                            </td>
+                                            <td>
+                                                <strong>{{ item.count }}</strong>
+                                            </td>
+                                            <td>
+                                                {% set percentage = (item.count / stats.products_with_barcode * 100) if stats.products_with_barcode > 0 else 0 %}
+                                                {{ "%.1f"|format(percentage) }}%
+                                            </td>
+                                            <td>
+                                                <div class="progress-modern" style="height: 8px;">
+                                                    <div class="progress-bar-modern" style="width: {{ percentage }}%"></div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- توصيات -->
+            <div class="row">
+                <div class="col-12 mb-4">
+                    <div class="card card-modern">
+                        <div class="card-header-modern">
+                            <h3>
+                                <i class="fas fa-lightbulb me-2"></i>
+                                التوصيات والإجراءات
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                {% if stats.products_without_barcode > 0 %}
+                                <div class="col-lg-4 col-md-6 mb-3">
+                                    <div class="alert alert-warning">
+                                        <h6><i class="fas fa-exclamation-triangle me-2"></i>إضافة باركود</h6>
+                                        <p class="mb-2">يوجد {{ stats.products_without_barcode }} منتج بدون باركود</p>
+                                        <a href="{{ url_for('barcode_scanner.index') }}" class="btn btn-warning btn-sm">
+                                            <i class="fas fa-plus me-1"></i>إضافة باركود
+                                        </a>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
+                                <div class="col-lg-4 col-md-6 mb-3">
+                                    <div class="alert alert-info">
+                                        <h6><i class="fas fa-chart-line me-2"></i>تحسين التغطية</h6>
+                                        <p class="mb-2">هدف التغطية: 100%</p>
+                                        <a href="{{ url_for('barcode_scanner.bulk_scan_page') }}" class="btn btn-info btn-sm">
+                                            <i class="fas fa-layer-group me-1"></i>مسح جماعي
+                                        </a>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-lg-4 col-md-6 mb-3">
+                                    <div class="alert alert-success">
+                                        <h6><i class="fas fa-check-circle me-2"></i>مراقبة الجودة</h6>
+                                        <p class="mb-2">راجع المنتجات بانتظام</p>
+                                        <a href="{{ url_for('barcode_scanner.index') }}" class="btn btn-success btn-sm">
+                                            <i class="fas fa-search me-1"></i>مراجعة المنتجات
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+$(document).ready(function() {
+    // مخطط توزيع الباركود
+    const ctx = document.getElementById('barcodeChart').getContext('2d');
+    const barcodeChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['مع باركود', 'بدون باركود'],
+            datasets: [{
+                data: [{{ stats.products_with_barcode }}, {{ stats.products_without_barcode }}],
+                backgroundColor: [
+                    '#28a745',
+                    '#ffc107'
+                ],
+                borderColor: [
+                    '#28a745',
+                    '#ffc107'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = {{ stats.total_products }};
+                            const percentage = ((context.parsed / total) * 100).toFixed(1);
+                            return context.label + ': ' + context.parsed + ' (' + percentage + '%)';
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
 {% endblock %}
 

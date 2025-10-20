@@ -535,7 +535,7 @@ def create_app(config_object=Config) -> Flask:
     def _log_status(resp):
         if resp.status_code in (302, 401, 403, 404):
             loc = resp.headers.get("Location")
-            app.logger.warning("HTTP %s %s → %s", resp.status_code, request.path, loc or "")
+            app.logger.warning("HTTP %s %s -> %s", resp.status_code, request.path, loc or "")
         return resp
 
     @app.teardown_appcontext

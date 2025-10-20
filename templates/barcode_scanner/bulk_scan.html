@@ -4,69 +4,376 @@
 
 {% block extra_head %}
 <style>
-/* تحسين الألوان والتباين */
-.form-group label {
-    color: #343a40 !important;
-    font-weight: 600 !important;
-    margin-bottom: 5px !important;
+/* تحسينات التصميم الشاملة */
+.stat-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+    transition: transform 0.3s ease;
 }
 
-.form-control {
+.stat-card:hover {
+    transform: translateY(-5px);
+}
+
+.stat-icon {
+    font-size: 2.5rem;
+    opacity: 0.8;
+}
+
+.card-modern {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.card-modern:hover {
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+}
+
+.card-header-modern {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px 15px 0 0 !important;
+    border: none;
+    padding: 20px;
+}
+
+.card-header-modern h3 {
+    margin: 0;
+    font-weight: 600;
+}
+
+.btn-modern {
+    border-radius: 10px;
+    padding: 12px 24px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    border: none;
+}
+
+.btn-modern:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.form-control-modern {
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    padding: 12px 16px;
+    transition: all 0.3s ease;
+}
+
+.form-control-modern:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.warehouse-type-badge {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.partner-fields, .supplier-fields {
+    background: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    border-radius: 10px;
+    padding: 15px;
+    margin-top: 10px;
+}
+
+.stock-info {
+    background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+    color: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin: 10px 0;
+}
+
+.warning-info {
+    background: linear-gradient(135deg, #ff9a56 0%, #ff6b6b 100%);
+    color: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin: 10px 0;
+}
+
+.alert-modern {
+    border: none;
+    border-radius: 15px;
+    padding: 20px;
+    margin: 15px 0;
+}
+
+.product-card {
+    background: white;
+    border-radius: 15px;
+    padding: 20px;
+    margin: 10px 0;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    border-left: 5px solid #667eea;
+}
+
+.barcode-preview {
+    text-align: center;
+    background: white;
+    border-radius: 15px;
+    padding: 20px;
+    margin: 15px 0;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* تحسينات للجداول */
+.table-modern {
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+}
+
+.table-modern th {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    font-weight: 600;
+    padding: 15px;
+}
+
+.table-modern td {
+    padding: 12px 15px;
+    border-color: #f1f3f4;
+}
+
+/* تحسينات للأزرار */
+.btn-primary-modern {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    color: white;
+}
+
+.btn-success-modern {
+    background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+    border: none;
+    color: white;
+}
+
+.btn-warning-modern {
+    background: linear-gradient(135deg, #ff9a56 0%, #ffad56 100%);
+    border: none;
+    color: white;
+}
+
+.btn-danger-modern {
+    background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+    border: none;
+    color: white;
+}
+
+.btn-info-modern {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    border: none;
+    color: white;
+}
+
+/* تحسينات للـ loading */
+.loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* تحسينات للـ notifications */
+.notification-success {
+    background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+    color: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin: 10px 0;
+    border: none;
+}
+
+.notification-error {
+    background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+    color: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin: 10px 0;
+    border: none;
+}
+
+.notification-warning {
+    background: linear-gradient(135deg, #ff9a56 0%, #ffad56 100%);
+    color: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin: 10px 0;
+    border: none;
+}
+
+/* تحسينات للـ responsive */
+@media (max-width: 768px) {
+    .stat-card {
+        margin-bottom: 15px;
+    }
+    
+    .card-modern {
+        margin-bottom: 20px;
+    }
+    
+    .btn-modern {
+        width: 100%;
+        margin: 5px 0;
+    }
+}
+
+/* تحسينات للـ animations */
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.slide-in {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+}
+
+/* تحسينات للـ focus states */
+.form-control-modern:focus,
+.select2-container--default .select2-selection--single:focus,
+.select2-container--default .select2-selection--multiple:focus {
+    outline: none;
+    border-color: #667eea !important;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25) !important;
+}
+
+/* تحسينات للـ select2 */
+.select2-container--default .select2-selection--single,
+.select2-container--default .select2-selection--multiple {
     border: 2px solid #e9ecef !important;
-    border-radius: 6px !important;
-    padding: 10px 12px !important;
-    font-size: 14px !important;
-    transition: all 0.3s ease !important;
+    border-radius: 10px !important;
+    padding: 8px 12px !important;
+    min-height: 45px !important;
 }
 
-.form-control:focus {
-    border-color: #007bff !important;
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 30px !important;
+    padding-left: 0 !important;
 }
 
-.card-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-    color: white !important;
-    border-bottom: none !important;
+.select2-container--default .solid .select2-selection--single .select2-selection__arrow {
+    height: 30px !important;
+    right: 8px !important;
 }
 
-.card-header h3 {
-    color: white !important;
-    margin: 0 !important;
+/* تحسينات خاصة بالمسح الجماعي */
+.bulk-scan-container {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+    padding: 20px 0;
 }
 
-.alert-info {
-    background-color: #e7f3ff !important;
-    border-color: #b8daff !important;
-    color: #004085 !important;
-    border-radius: 8px !important;
-    padding: 12px 16px !important;
+.scan-step {
+    background: white;
+    border-radius: 15px;
+    padding: 30px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
 }
 
-.btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-    border: none !important;
-    border-radius: 6px !important;
-    padding: 10px 20px !important;
-    font-weight: 600 !important;
-    transition: all 0.3s ease !important;
+.scan-step:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
 }
 
-.btn-primary:hover {
-    transform: translateY(-2px) !important;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4) !important;
+.step-number {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.2rem;
+    margin-bottom: 20px;
 }
 
-.btn-success {
-    background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%) !important;
-    border: none !important;
-    color: white !important;
+.upload-area {
+    border: 3px dashed #dee2e6;
+    border-radius: 15px;
+    padding: 40px;
+    text-align: center;
+    transition: all 0.3s ease;
+    background: #f8f9fa;
 }
 
-.btn-danger {
-    background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%) !important;
-    border: none !important;
-    color: white !important;
+.upload-area:hover {
+    border-color: #667eea;
+    background: #f0f2f5;
+}
+
+.upload-area.dragover {
+    border-color: #667eea;
+    background: #e3f2fd;
+    transform: scale(1.02);
+}
+
+.product-item {
+    background: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin: 10px 0;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+    border-left: 4px solid #667eea;
+    transition: all 0.3s ease;
+}
+
+.product-item:hover {
+    transform: translateX(5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+}
+
+.product-item.selected {
+    border-left-color: #28a745;
+    background: #f8fff9;
+}
+
+.progress-modern {
+    height: 8px;
+    border-radius: 10px;
+    background: #e9ecef;
+    overflow: hidden;
+}
+
+.progress-bar-modern {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    height: 100%;
+    transition: width 0.3s ease;
+    border-radius: 10px;
 }
 
 /* تمييز الحقول المطلوبة */
@@ -149,49 +456,57 @@
     <!-- Main content -->
     <section class="content">
         <div class="container-fluid">
-            <!-- إحصائيات سريعة -->
+            <!-- إحصائيات سريعة محسنة -->
             <div class="row mb-4">
-                <div class="col-lg-3 col-6">
-                    <div class="small-box bg-info">
-                        <div class="inner">
-                            <h3 id="scanned-count">0</h3>
-                            <p>منتجات ممسوحة</p>
-                        </div>
-                        <div class="icon">
-                            <i class="fas fa-barcode"></i>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-3 col-6">
-                    <div class="small-box bg-success">
-                        <div class="inner">
-                            <h3 id="new-products">0</h3>
-                            <p>منتجات جديدة</p>
-                        </div>
-                        <div class="icon">
-                            <i class="fas fa-plus"></i>
+                <div class="col-lg-3 col-md-6 col-12 mb-4">
+                    <div class="stat-card fade-in">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h2 class="mb-1" id="scanned-count">0</h2>
+                                <p class="mb-0" style="opacity: 0.9;">منتجات ممسوحة</p>
+                            </div>
+                            <div class="stat-icon">
+                                <i class="fas fa-barcode"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-lg-3 col-6">
-                    <div class="small-box bg-warning">
-                        <div class="inner">
-                            <h3 id="updated-products">0</h3>
-                            <p>منتجات محدثة</p>
-                        </div>
-                        <div class="icon">
-                            <i class="fas fa-edit"></i>
+                <div class="col-lg-3 col-md-6 col-12 mb-4">
+                    <div class="stat-card fade-in" style="background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h2 class="mb-1" id="new-products">0</h2>
+                                <p class="mb-0" style="opacity: 0.9;">منتجات جديدة</p>
+                            </div>
+                            <div class="stat-icon">
+                                <i class="fas fa-plus"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-lg-3 col-6">
-                    <div class="small-box bg-danger">
-                        <div class="inner">
-                            <h3 id="errors-count">0</h3>
-                            <p>أخطاء</p>
+                <div class="col-lg-3 col-md-6 col-12 mb-4">
+                    <div class="stat-card fade-in" style="background: linear-gradient(135deg, #ff9a56 0%, #ffad56 100%);">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h2 class="mb-1" id="updated-products">0</h2>
+                                <p class="mb-0" style="opacity: 0.9;">منتجات محدثة</p>
+                            </div>
+                            <div class="stat-icon">
+                                <i class="fas fa-edit"></i>
+                            </div>
                         </div>
-                        <div class="icon">
-                            <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6 col-12 mb-4">
+                    <div class="stat-card fade-in" style="background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h2 class="mb-1" id="errors-count">0</h2>
+                                <p class="mb-0" style="opacity: 0.9;">أخطاء</p>
+                            </div>
+                            <div class="stat-icon">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -199,87 +514,121 @@
 
             <div class="row">
                 <!-- إعدادات المسح -->
-                <div class="col-md-4">
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title">
-                                <i class="fas fa-cog"></i> إعدادات المسح
+                <div class="col-lg-4 col-md-12 mb-4">
+                    <div class="card card-modern">
+                        <div class="card-header-modern">
+                            <h3>
+                                <i class="fas fa-cog me-2"></i>
+                                إعدادات المسح
                             </h3>
                         </div>
-                        <div class="card-body">
-                            <div class="form-group">
-                                <label style="color: #343a40 !important; font-weight: bold;">المستودع:</label>
-                                <select class="form-control" id="warehouse-select" onchange="loadWarehouseFields()">
+                        <div class="card-body p-4">
+                            <!-- توضيح المسح الجماعي -->
+                            <div class="alert alert-info mb-4" style="border-right: 4px solid #4facfe;">
+                                <h6 class="mb-2"><i class="fas fa-info-circle me-2"></i><strong>عن المسح الجماعي:</strong></h6>
+                                <ul class="mb-0" style="font-size: 0.9rem; line-height: 1.8;">
+                                    <li>يمكنك استيراد عدة منتجات دفعة واحدة باستخدام الباركود</li>
+                                    <li>الحقول المطلوبة تختلف حسب نوع المستودع المختار</li>
+                                    <li><strong>مستودع شريك:</strong> يتطلب تحديد الشريك ونسبة المساهمة</li>
+                                    <li><strong>مستودع تبادل:</strong> يتطلب تحديد المورد/التاجر المحلي</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="form-group mb-4">
+                                <label class="form-label fw-bold">
+                                    <i class="fas fa-warehouse me-1 text-primary"></i>
+                                    المستودع:
+                                </label>
+                                <select class="form-control form-control-modern" id="warehouse-select" onchange="loadWarehouseFields()">
                                     <option value="">اختر المستودع...</option>
                                     <!-- سيتم ملؤها بالـ JavaScript -->
                                 </select>
-                                <small class="form-text" style="color: #6c757d !important;">
+                                <small class="form-text text-muted mt-2">
+                                    <i class="fas fa-info-circle me-1"></i>
                                     سيتم تحديث الحقول المطلوبة حسب نوع المستودع المختار
                                 </small>
                             </div>
                             
-                            <div id="warehouse-info" class="alert alert-info" style="display: none; background-color: #e7f3ff !important; border-color: #b8daff !important; color: #004085 !important;">
-                                <i class="fas fa-info-circle"></i>
-                                <span id="warehouse-type-info"></span>
+                            <div id="warehouse-info" class="alert-modern notification-success" style="display: none;">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-info-circle fa-2x me-3"></i>
+                                    <div>
+                                        <h6 class="mb-1">معلومات المستودع</h6>
+                                        <p class="mb-0" id="warehouse-type-info"></p>
+                                    </div>
+                                </div>
                             </div>
                             
                             <!-- حقول خاصة بمستودع الشركاء -->
-                            <div id="partner-fields" class="card mb-3" style="display: none; border: 2px solid #17a2b8; background-color: #e7f9fc;">
-                                <div class="card-header" style="background-color: #17a2b8; color: white;">
-                                    <i class="fas fa-handshake"></i> معلومات الشريك
-                                </div>
-                                <div class="card-body">
-                                    <div class="form-group">
-                                        <label style="color: #343a40 !important; font-weight: bold;">الشريك: <span style="color: red;">*</span></label>
-                                        <input type="text" class="form-control" id="default-partner-name" placeholder="اسم الشريك">
+                            <div id="partner-fields" class="partner-fields" style="display: none;">
+                                <h6 class="mb-3">
+                                    <i class="fas fa-handshake me-2"></i>
+                                    معلومات الشريك
+                                </h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label fw-bold">
+                                                الشريك <span class="text-danger">*</span>:
+                                            </label>
+                                            <select class="form-control form-control-modern" id="partner-select" onchange="updatePartnerInfo()">
+                                                <option value="">اختر الشريك...</option>
+                                                <!-- سيتم ملؤها بالـ JavaScript -->
+                                            </select>
+                                            <small class="form-text text-muted mt-2">
+                                                <i class="fas fa-info-circle me-1"></i>
+                                                سيتم ربط المنتجات المستوردة بهذا الشريك
+                                            </small>
+                                        </div>
                                     </div>
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="form-group">
-                                                <label style="color: #343a40 !important;">نسبة المساهمة (%):</label>
-                                                <input type="number" class="form-control" id="default-partner-share" placeholder="50" min="0" max="100">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="form-label fw-bold">
+                                                نسبة المساهمة:
+                                            </label>
+                                            <div class="input-group">
+                                                <input type="number" class="form-control form-control-modern" id="partner-share" 
+                                                       value="0" min="0" max="100" step="0.01" readonly 
+                                                       style="background-color: #f8f9fa;">
+                                                <div class="input-group-append">
+                                                    <span class="input-group-text">%</span>
+                                                </div>
                                             </div>
+                                            <small class="form-text text-muted mt-2">
+                                                <i class="fas fa-percentage me-1"></i>
+                                                نسبة مساهمة الشريك في المنتجات
+                                            </small>
                                         </div>
-                                        <div class="col-md-6">
-                                            <div class="form-group">
-                                                <label style="color: #343a40 !important;">مبلغ المساهمة:</label>
-                                                <input type="number" class="form-control" id="default-partner-amount" placeholder="0.00" step="0.01">
-                                            </div>
-                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- معلومات إضافية عن الشريك -->
+                                <div id="partner-info-display" class="alert alert-info mt-3" style="display: none;">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-info-circle fa-2x me-3"></i>
+                                        <div id="partner-details"></div>
                                     </div>
                                 </div>
                             </div>
                             
                             <!-- حقول خاصة بمستودع التبادل -->
-                            <div id="exchange-fields" class="card mb-3" style="display: none; border: 2px solid #ffc107; background-color: #fffbf0;">
-                                <div class="card-header" style="background-color: #ffc107; color: #212529;">
-                                    <i class="fas fa-exchange-alt"></i> معلومات التاجر/المورد
-                                </div>
-                                <div class="card-body">
-                                    <div class="form-group">
-                                        <label style="color: #343a40 !important; font-weight: bold;">التاجر/المورد: <span style="color: red;">*</span></label>
-                                        <input type="text" class="form-control" id="default-vendor-name" placeholder="اسم التاجر أو المورد">
-                                    </div>
-                                    <div class="row">
-                                        <div class="col-md-4">
-                                            <div class="form-group">
-                                                <label style="color: #343a40 !important;">رقم الهاتف:</label>
-                                                <input type="text" class="form-control" id="default-vendor-phone" placeholder="05xxxxxxxx">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="form-group">
-                                                <label style="color: #343a40 !important;">المبلغ المدفوع:</label>
-                                                <input type="number" class="form-control" id="default-vendor-paid" placeholder="0.00" step="0.01">
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="form-group">
-                                                <label style="color: #343a40 !important;">سعر التاجر:</label>
-                                                <input type="number" class="form-control" id="default-vendor-price" placeholder="0.00" step="0.01">
-                                            </div>
-                                        </div>
-                                    </div>
+                            <div id="supplier-fields" class="supplier-fields" style="display: none;">
+                                <h6 class="mb-3">
+                                    <i class="fas fa-truck me-2"></i>
+                                    معلومات المورد/التاجر
+                                </h6>
+                                <div class="form-group">
+                                    <label class="form-label fw-bold">
+                                        المورد/التاجر <span class="text-danger">*</span>:
+                                    </label>
+                                    <select class="form-control form-control-modern" id="supplier-select">
+                                        <option value="">اختر المورد...</option>
+                                        <!-- سيتم ملؤها بالـ JavaScript -->
+                                    </select>
+                                    <small class="form-text text-muted mt-2">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        سيتم ربط المنتجات المستوردة بهذا المورد
+                                    </small>
                                 </div>
                             </div>
                             
@@ -304,24 +653,50 @@
                                 </div>
                             </div>
                             
-                            <div class="form-group">
-                                <label>السعر الافتراضي:</label>
-                                <input type="number" class="form-control" id="default-price" value="0" step="0.01">
+                            <hr class="my-4">
+                            <h6 class="mb-3">
+                                <i class="fas fa-cog me-2"></i>
+                                القيم الافتراضية
+                            </h6>
+                            
+                            <div class="form-group mb-3">
+                                <label class="form-label fw-bold">
+                                    <i class="fas fa-dollar-sign me-1 text-success"></i>
+                                    السعر الافتراضي:
+                                </label>
+                                <input type="number" class="form-control form-control-modern" id="default-price" value="0" step="0.01">
+                                <small class="form-text text-muted mt-1">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    سيتم تطبيق هذا السعر على المنتجات الجديدة
+                                </small>
                             </div>
                             
-                            <div class="form-group">
-                                <label>الكمية الافتراضية:</label>
-                                <input type="number" class="form-control" id="default-quantity" value="1">
+                            <div class="form-group mb-3">
+                                <label class="form-label fw-bold">
+                                    <i class="fas fa-calculator me-1 text-success"></i>
+                                    الكمية الافتراضية:
+                                </label>
+                                <input type="number" class="form-control form-control-modern" id="default-quantity" value="1" min="1">
+                                <small class="form-text text-muted mt-1">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    سيتم تطبيق هذه الكمية على المنتجات الجديدة
+                                </small>
                             </div>
                             
-                            <div class="form-group">
-                                <label>الماركة الافتراضية:</label>
-                                <input type="text" class="form-control" id="default-brand" placeholder="مثال: Toyota">
+                            <div class="form-group mb-3">
+                                <label class="form-label fw-bold">
+                                    <i class="fas fa-tag me-1 text-success"></i>
+                                    الماركة الافتراضية:
+                                </label>
+                                <input type="text" class="form-control form-control-modern" id="default-brand" placeholder="مثال: Toyota">
                             </div>
                             
-                            <div class="form-group">
-                                <label>رقم القطعة الافتراضي:</label>
-                                <input type="text" class="form-control" id="default-part-number" placeholder="مثال: 12345">
+                            <div class="form-group mb-3">
+                                <label class="form-label fw-bold">
+                                    <i class="fas fa-hashtag me-1 text-success"></i>
+                                    رقم القطعة الافتراضي:
+                                </label>
+                                <input type="text" class="form-control form-control-modern" id="default-part-number" placeholder="مثال: 12345">
                             </div>
                             
                             <div class="form-group">
@@ -840,6 +1215,8 @@ async function processBarcode(barcode) {
 document.addEventListener('DOMContentLoaded', function() {
     setupConfirmButton();
     loadWarehouses();
+    loadPartners();
+    loadSuppliers();
 });
 
 // تحميل قائمة المستودعات
@@ -862,6 +1239,99 @@ async function loadWarehouses() {
         }
     } catch (error) {
         console.error('خطأ في تحميل المستودعات:', error);
+    }
+}
+
+// تحميل قائمة الشركاء مع نسبة المساهمة
+async function loadPartners() {
+    try {
+        const response = await fetch('/api/partners');
+        const data = await response.json();
+        
+        if (data.success && data.partners) {
+            const select = document.getElementById('partner-select');
+            select.innerHTML = '<option value="">اختر الشريك...</option>';
+            
+            console.log(`✅ [Partners] تم جلب ${data.count} شريك`);
+            
+            data.partners.forEach(partner => {
+                const shareText = partner.share_percentage ? ` (نسبة: ${partner.share_percentage}%)` : '';
+                const option = document.createElement('option');
+                option.value = partner.id;
+                option.textContent = `${partner.name}${shareText}`;
+                option.dataset.share = partner.share_percentage || 0;
+                option.dataset.phone = partner.phone || '';
+                option.dataset.email = partner.email || '';
+                option.dataset.balance = partner.balance || 0;
+                select.appendChild(option);
+            });
+        } else {
+            console.warn('⚠️ [Partners] لم يتم العثور على شركاء');
+        }
+    } catch (error) {
+        console.error('❌ [Partners] خطأ في تحميل الشركاء:', error);
+    }
+}
+
+// تحديث معلومات الشريك عند الاختيار
+function updatePartnerInfo() {
+    const select = document.getElementById('partner-select');
+    const selectedOption = select.options[select.selectedIndex];
+    
+    if (selectedOption && selectedOption.value) {
+        const share = selectedOption.dataset.share || 0;
+        const phone = selectedOption.dataset.phone || '';
+        const email = selectedOption.dataset.email || '';
+        const balance = selectedOption.dataset.balance || 0;
+        
+        // تحديث حقل نسبة المساهمة
+        document.getElementById('partner-share').value = share;
+        
+        // عرض معلومات الشريك
+        const partnerDetails = document.getElementById('partner-details');
+        partnerDetails.innerHTML = `
+            <div>
+                <strong>الشريك:</strong> ${selectedOption.text}<br>
+                ${phone ? `<strong>الهاتف:</strong> ${phone}<br>` : ''}
+                ${email ? `<strong>البريد:</strong> ${email}<br>` : ''}
+                <strong>الرصيد:</strong> ${balance} شيكل
+            </div>
+        `;
+        document.getElementById('partner-info-display').style.display = 'block';
+        
+        console.log(`✅ [Partner Info] الشريك: ${selectedOption.text}, نسبة: ${share}%`);
+    } else {
+        // إخفاء المعلومات
+        document.getElementById('partner-share').value = 0;
+        document.getElementById('partner-info-display').style.display = 'none';
+    }
+}
+
+// تحميل قائمة الموردين
+async function loadSuppliers() {
+    try {
+        const response = await fetch('/api/suppliers');
+        const data = await response.json();
+        
+        if (data.success && data.suppliers) {
+            const select = document.getElementById('supplier-select');
+            select.innerHTML = '<option value="">اختر المورد...</option>';
+            
+            console.log(`✅ [Suppliers] تم جلب ${data.count} مورد`);
+            
+            data.suppliers.forEach(supplier => {
+                const option = document.createElement('option');
+                option.value = supplier.id;
+                option.textContent = supplier.name;
+                option.dataset.phone = supplier.phone || '';
+                option.dataset.email = supplier.email || '';
+                select.appendChild(option);
+            });
+        } else {
+            console.warn('⚠️ [Suppliers] لم يتم العثور على موردين');
+        }
+    } catch (error) {
+        console.error('❌ [Suppliers] خطأ في تحميل الموردين:', error);
     }
 }
 
@@ -901,7 +1371,7 @@ async function loadWarehouseFields() {
             
             // إظهار/إخفاء الحقول الإضافية حسب نوع المستودع
             document.getElementById('partner-fields').style.display = data.show_partner_fields ? 'block' : 'none';
-            document.getElementById('exchange-fields').style.display = data.show_exchange_fields ? 'block' : 'none';
+            document.getElementById('supplier-fields').style.display = data.show_exchange_fields ? 'block' : 'none';
             document.getElementById('online-fields').style.display = data.show_online_fields ? 'block' : 'none';
             
             // تحديث الحقول المطلوبة
