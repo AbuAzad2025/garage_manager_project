@@ -12,6 +12,83 @@
     .is-valid { border-color: #28a745 !important; }
     .is-invalid { border-color: #dc3545 !important; }
     .invalid-feedback { display:block; font-size:0.85rem; }
+    
+    /* تحسينات Tabs */
+    .nav-tabs .nav-link {
+      border-radius: 10px 10px 0 0;
+      font-weight: 600;
+      padding: 12px 24px;
+      transition: all 0.3s ease;
+    }
+    
+    .nav-tabs .nav-link.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-color: #667eea;
+    }
+    
+    .nav-tabs .nav-link:hover:not(.active) {
+      background: #f8f9fa;
+    }
+    
+    .tab-content {
+      border: 2px solid #e9ecef;
+      border-radius: 0 15px 15px 15px;
+      padding: 20px;
+      background: white;
+      min-height: 300px;
+    }
+    
+    /* تحسينات البطاقات */
+    .stat-card-mini {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 10px;
+      padding: 15px;
+      text-align: center;
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+    }
+    
+    .stat-card-mini h3 {
+      font-size: 1.5rem;
+      margin-bottom: 5px;
+    }
+    
+    .stat-card-mini p {
+      font-size: 0.85rem;
+      margin: 0;
+      opacity: 0.9;
+    }
+    
+    /* تحسينات البنود */
+    .shipment-item {
+      background: #f8f9fa;
+      border-left: 4px solid #667eea !important;
+      transition: all 0.3s ease;
+    }
+    
+    .shipment-item:hover {
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      transform: translateX(5px);
+    }
+    
+    .shipment-partner {
+      background: #fff9e6;
+      border-left: 4px solid #ffc107 !important;
+    }
+    
+    /* تحسينات الحقول */
+    .form-label {
+      font-weight: 600;
+      color: #495057;
+      margin-bottom: 8px;
+    }
+    
+    .required-field::after {
+      content: " *";
+      color: #dc3545;
+      font-weight: bold;
+    }
   </style>
 {% endblock %}
 
@@ -33,6 +110,7 @@
         'data-url': url_for('api.products'),
         'data-placeholder': 'اختر الصنف'
       }) }}
+      <small class="text-muted">المنتج أو القطعة المراد شحنها</small>
     </div>
     <div class="col-md-3">
       {{ sf.warehouse_id.label(class="form-label") }}
@@ -43,6 +121,7 @@
         'data-placeholder': 'اختر المخزن',
         'data-params': '{"active_only":"1"}'
       }) }}
+      <small class="text-muted">المستودع الذي سيستلم هذا البند</small>
     </div>
     <div class="col-md-2">
       {{ sf.quantity.label(class="form-label") }}
@@ -52,6 +131,7 @@
         'type': 'number', 'min': '1', 'required': True,
         'placeholder': 'الكمية المطلوبة'
       }) }}
+      <small class="text-muted">عدد الوحدات</small>
     </div>
     <div class="col-md-2">
       {{ sf.unit_cost.label(class="form-label") }}
@@ -61,6 +141,7 @@
         'type': 'number', 'step': '0.01', 'required': True,
         'placeholder': 'سعر الوحدة'
       }) }}
+      <small class="text-muted">سعر التكلفة للوحدة الواحدة</small>
     </div>
     <div class="col-md-1 text-end">
       <button type="button" class="btn btn-sm btn-outline-danger btn-remove-item">حذف</button>
@@ -73,11 +154,13 @@
         'type': 'number', 'step': '0.01',
         'placeholder': 'قيمة للإفصاح'
       }) }}
+      <small class="text-muted">القيمة المعلنة للجمارك (اختياري، يُحسب تلقائياً = الكمية × السعر)</small>
     </div>
     {% if sf.notes is defined %}
     <div class="col-12 mt-1">
       {{ sf.notes.label(class="form-label") }}
       {{ render_field(sf.notes, {'id': sf.notes.id, 'class': 'form-control', 'placeholder': 'ملاحظات البند'}) }}
+      <small class="text-muted">أي ملاحظات خاصة بهذا البند (اختياري)</small>
     </div>
     {% endif %}
   </div>
@@ -98,6 +181,7 @@
         'data-init-id': pf.partner_id.data.id if pf.partner_id.data is not string and pf.partner_id.data and pf.partner_id.data.id is defined else (pf.partner_id.data if pf.partner_id.data else ''),
         'data-init-text': pf.partner_id.data.name if pf.partner_id.data is not string and pf.partner_id.data and pf.partner_id.data.name is defined else ''
       }) }}
+      <small class="text-muted">الشريك في هذه الشحنة</small>
     </div>
     <div class="col-md-2">
       {{ pf.share_percentage.label(class="form-label") }}
@@ -106,6 +190,7 @@
         'type': 'number', 'step': '0.01',
         'placeholder': 'نسبة من 100'
       }) }}
+      <small class="text-muted">نسبة الشريك من إجمالي الشحنة</small>
     </div>
     <div class="col-md-2">
       {{ pf.share_amount.label(class="form-label") }}
@@ -114,6 +199,7 @@
         'type': 'number', 'step': '0.01',
         'placeholder': 'مبلغ ثابت'
       }) }}
+      <small class="text-muted">أو مبلغ ثابت بدلاً من النسبة</small>
     </div>
     <div class="col-md-4 text-end">
       <a href="{{ url_for('vendors_bp.partners_create') }}" target="_blank" class="btn btn-sm btn-outline-secondary">+ شريك جديد</a>
@@ -124,18 +210,21 @@
     <div class="col-md-4 mt-2">
       {{ pf.identity_number.label(class="form-label") }}
       {{ render_field(pf.identity_number, {'id': pf.identity_number.id, 'class': 'form-control', 'placeholder': 'رقم الهوية'}) }}
+      <small class="text-muted">رقم الهوية أو جواز السفر</small>
     </div>
     {% endif %}
     {% if pf.phone_number is defined %}
     <div class="col-md-4 mt-2">
       {{ pf.phone_number.label(class="form-label") }}
       {{ render_field(pf.phone_number, {'id': pf.phone_number.id, 'class': 'form-control', 'placeholder': 'هاتف الشريك'}) }}
+      <small class="text-muted">رقم جوال الشريك للتواصل</small>
     </div>
     {% endif %}
     {% if pf.address is defined %}
     <div class="col-md-4 mt-2">
       {{ pf.address.label(class="form-label") }}
       {{ render_field(pf.address, {'id': pf.address.id, 'class': 'form-control', 'placeholder': 'العنوان'}) }}
+      <small class="text-muted">عنوان السكن أو العمل</small>
     </div>
     {% endif %}
     {% if pf.unit_price_before_tax is defined %}
@@ -145,6 +234,7 @@
         'id': pf.unit_price_before_tax.id, 'class': 'form-control',
         'type': 'number', 'step': '0.01', 'placeholder': 'سعر قبل الضريبة'
       }) }}
+      <small class="text-muted">سعر البيع قبل احتساب الضريبة</small>
     </div>
     {% endif %}
     {% if pf.expiry_date is defined %}
@@ -154,12 +244,14 @@
         'id': pf.expiry_date.id, 'class': 'form-control',
         'type': 'date', 'dir': 'ltr', 'placeholder': 'تاريخ انتهاء'
       }) }}
+      <small class="text-muted">تاريخ انتهاء الاتفاقية (اختياري)</small>
     </div>
     {% endif %}
     {% if pf.notes is defined %}
     <div class="col-md-4 mt-2">
       {{ pf.notes.label(class="form-label") }}
       {{ render_field(pf.notes, {'id': pf.notes.id, 'class': 'form-control', 'placeholder': 'ملاحظات الشريك'}) }}
+      <small class="text-muted">ملاحظات خاصة بالشريك (اختياري)</small>
     </div>
     {% endif %}
   </div>
@@ -170,74 +262,144 @@
 <form method="POST" id="shipment-form" novalidate autocomplete="off">
   {{ form.hidden_tag() }}
 
-  <div class="card mb-3">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <span>بيانات الشحنة</span>
-      <div class="small text-muted">رقم الشحنة يتولد تلقائياً عند تركه فارغاً</div>
+  <!-- إحصائيات سريعة -->
+  <div class="row mb-3">
+    <div class="col-md-3">
+      <div class="stat-card-mini">
+        <h3 id="summary-items-count">0</h3>
+        <p>عدد البنود</p>
+      </div>
     </div>
-    <div class="card-body">
-      <div class="row g-2">
-        <div class="col-md-3">
-          {{ form.shipment_number.label(class="form-label") }}
-          {{ render_field(form.shipment_number, {'id': form.shipment_number.id, 'class': 'form-control', 'placeholder': 'اتركه فارغاً للتوليد التلقائي'}) }}
-        </div>
-        <div class="col-md-3">
-          {{ form.shipment_date.label(class="form-label") }}
-          {{ render_field(form.shipment_date, {'id': form.shipment_date.id, 'class': 'form-control dtp', 'dir': 'ltr', 'placeholder': 'تاريخ الشحن'}) }}
-        </div>
-        <div class="col-md-3">
-          {{ form.expected_arrival.label(class="form-label") }}
-          {{ render_field(form.expected_arrival, {'id': form.expected_arrival.id, 'class': 'form-control dtp', 'dir': 'ltr', 'placeholder': 'تاريخ الوصول المتوقع'}) }}
-        </div>
-        <div class="col-md-3">
-          {{ form.actual_arrival.label(class="form-label") }}
-          {{ render_field(form.actual_arrival, {'id': form.actual_arrival.id, 'class': 'form-control dtp', 'dir': 'ltr', 'placeholder': 'تاريخ الوصول الفعلي'}) }}
-        </div>
-        <div class="col-md-4">
-          {{ form.origin.label(class="form-label") }}
-          {{ render_field(form.origin, {'id': form.origin.id, 'class': 'form-control', 'placeholder': 'بلد/مدينة المنشأ'}) }}
-        </div>
-        <div class="col-md-4">
-          {{ form.destination_id.label(class="form-label") }}
-          {{ render_field(form.destination_id, {
-            'id': form.destination_id.id,
-            'class': 'select2 form-control select2-ajax',
-            'data-url': url_for('api.search_warehouses'),
-            'data-placeholder': 'اختر الوجهة',
-            'data-params': '{"active_only":"1"}'
-          }) }}
-        </div>
-        <div class="col-md-2">
-          {{ form.carrier.label(class="form-label") }}
-          {{ render_field(form.carrier, {'id': form.carrier.id, 'class': 'form-control', 'placeholder': 'شركة النقل'}) }}
-        </div>
-        <div class="col-md-2">
-          {{ form.tracking_number.label(class="form-label") }}
-          {{ render_field(form.tracking_number, {'id': form.tracking_number.id, 'class': 'form-control', 'placeholder': 'رقم التتبع'}) }}
-        </div>
-        <div class="col-md-3">
-          {{ form.status.label(class="form-label") }}
-          {{ render_field(form.status, {'id': form.status.id, 'class': 'form-select'}) }}
-        </div>
-        {% if form.currency is defined %}
-        <div class="col-md-3">
-          {{ form.currency.label(class="form-label") }}
-          {{ render_field(form.currency, {'id': form.currency.id, 'class': 'form-select'}) }}
-        </div>
-        {% endif %}
+    <div class="col-md-3">
+      <div class="stat-card-mini">
+        <h3 id="summary-items-qty">0</h3>
+        <p>إجمالي الكميات</p>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-card-mini">
+        <h3 id="summary-items-value">0.00</h3>
+        <p>قيمة البنود</p>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-card-mini">
+        <h3 id="summary-total-value">0.00</h3>
+        <p>الإجمالي النهائي</p>
       </div>
     </div>
   </div>
 
-  <div class="card mb-3">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <span>بنود الشحنة</span>
-      <div class="d-flex gap-2">
-        <input type="text" id="barcode-input" class="form-control form-control-sm" placeholder="سكان باركود أو بحث سريع">
-        <button type="button" class="btn btn-sm btn-secondary" id="add-item">+ إضافة بند</button>
+  <!-- Tabs Navigation -->
+  <ul class="nav nav-tabs" id="shipmentTabs" role="tablist">
+    <li class="nav-item">
+      <a class="nav-link active" id="info-tab" data-toggle="tab" href="#info-panel" role="tab">
+        <i class="fas fa-info-circle"></i> معلومات الشحنة
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" id="items-tab" data-toggle="tab" href="#items-panel" role="tab">
+        <i class="fas fa-boxes"></i> البنود <span class="badge badge-primary" id="items-badge">0</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" id="costs-tab" data-toggle="tab" href="#costs-panel" role="tab">
+        <i class="fas fa-dollar-sign"></i> التكاليف والضرائب
+      </a>
+    </li>
+    <li class="nav-item" id="partners-tab-item" style="display:none;">
+      <a class="nav-link" id="partners-tab" data-toggle="tab" href="#partners-panel" role="tab">
+        <i class="fas fa-handshake"></i> الشركاء <span class="badge badge-warning" id="partners-badge">0</span>
+      </a>
+    </li>
+  </ul>
+
+  <!-- Tabs Content -->
+  <div class="tab-content" id="shipmentTabsContent">
+    
+    <!-- Tab 1: معلومات الشحنة -->
+    <div class="tab-pane fade show active" id="info-panel" role="tabpanel">
+      <div class="alert alert-info mb-3">
+        <i class="fas fa-info-circle"></i>
+        <strong>معلومات أساسية:</strong> رقم الشحنة يتولد تلقائياً عند تركه فارغاً. حدد المستودع الوجهة وتواريخ الشحنة.
+      </div>
+      
+      <div class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label required-field">رقم الشحنة</label>
+          {{ render_field(form.shipment_number, {'id': form.shipment_number.id, 'class': 'form-control', 'placeholder': 'توليد تلقائي'}) }}
+          <small class="text-muted">اتركه فارغاً للتوليد التلقائي</small>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label required-field">تاريخ الشحن</label>
+          {{ render_field(form.shipment_date, {'id': form.shipment_date.id, 'class': 'form-control dtp', 'dir': 'ltr'}) }}
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">الوصول المتوقع</label>
+          {{ render_field(form.expected_arrival, {'id': form.expected_arrival.id, 'class': 'form-control dtp', 'dir': 'ltr'}) }}
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">الوصول الفعلي</label>
+          {{ render_field(form.actual_arrival, {'id': form.actual_arrival.id, 'class': 'form-control dtp', 'dir': 'ltr'}) }}
+        </div>
+        
+        <div class="col-md-4">
+          <label class="form-label">المنشأ</label>
+          {{ render_field(form.origin, {'id': form.origin.id, 'class': 'form-control', 'placeholder': 'بلد أو مدينة المنشأ'}) }}
+          <small class="text-muted">من أين تأتي الشحنة؟</small>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label required-field">المستودع الوجهة</label>
+          {{ render_field(form.destination_id, {
+            'id': form.destination_id.id,
+            'class': 'select2 form-control select2-ajax',
+            'data-url': url_for('api.search_warehouses'),
+            'data-placeholder': 'اختر المستودع المستلم',
+            'data-params': '{"active_only":"1"}'
+          }) }}
+          <small class="text-muted">المستودع الذي ستصل إليه البضاعة</small>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">حالة الشحنة</label>
+          {{ render_field(form.status, {'id': form.status.id, 'class': 'form-select'}) }}
+        </div>
+        
+        <div class="col-md-3">
+          <label class="form-label">شركة النقل</label>
+          {{ render_field(form.carrier, {'id': form.carrier.id, 'class': 'form-control', 'placeholder': 'اسم الناقل'}) }}
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">رقم التتبع</label>
+          {{ render_field(form.tracking_number, {'id': form.tracking_number.id, 'class': 'form-control', 'placeholder': 'Tracking Number', 'dir': 'ltr'}) }}
+        </div>
+        {% if form.currency is defined %}
+        <div class="col-md-3">
+          <label class="form-label">العملة</label>
+          {{ render_field(form.currency, {'id': form.currency.id, 'class': 'form-select'}) }}
+        </div>
+        {% endif %}
+        
+        <div class="col-12">
+          <label class="form-label">ملاحظات</label>
+          {{ render_field(form.notes, {'id': form.notes.id, 'class': 'form-control', 'rows': '3', 'placeholder': 'أي ملاحظات عامة عن الشحنة'}) }}
+        </div>
       </div>
     </div>
-    <div class="card-body">
+
+    <!-- Tab 2: بنود الشحنة -->
+    <div class="tab-pane fade" id="items-panel" role="tabpanel">
+      <div class="alert alert-info mb-3">
+        <i class="fas fa-boxes"></i>
+        <strong>بنود الشحنة:</strong> أضف المنتجات، الكميات، والمستودعات. يمكنك استخدام الباركود للإضافة السريعة.
+      </div>
+      
+      <div class="d-flex gap-2 mb-3">
+        <input type="text" id="barcode-input" class="form-control" placeholder="🔍 سكان باركود أو بحث سريع بالاسم/رقم القطعة" style="max-width: 400px;">
+        <button type="button" class="btn btn-primary" id="add-item">
+          <i class="fas fa-plus"></i> إضافة بند
+        </button>
+      </div>
+      
       <div id="items-wrapper"
            data-index="{{ form.items|length }}"
            data-url-products="{{ url_for('api.products') }}"
@@ -245,23 +407,78 @@
         {% for sf in form.items %}
           {{ item_row(sf, loop.index0) }}
         {% else %}
-          <div class="text-muted small">لا توجد بنود بعد.</div>
+          <div class="text-center text-muted py-5" id="no-items-msg">
+            <i class="fas fa-box-open fa-3x mb-3"></i>
+            <p>لا توجد بنود بعد. ابدأ بإضافة بند باستخدام الزر أعلاه.</p>
+          </div>
         {% endfor %}
       </div>
-      <div class="mt-2 small text-muted">
-        عدد البنود: <span id="items-count">0</span> | مجموع الكميات: <span id="items-qty-sum">0</span> | إجمالي البنود: <span id="items-cost-sum">0.00</span>
-      </div>
     </div>
-  </div>
 
-  <div class="card mb-3">
-    <div class="card-header d-flex justify-content-between align-items-center">
-      <span>شركاء الشحنة</span>
-      <div class="d-flex gap-2">
-        <button type="button" class="btn btn-sm btn-outline-secondary" id="add-partner">+ إضافة شريك</button>
+    <!-- Tab 3: التكاليف والضرائب -->
+    <div class="tab-pane fade" id="costs-panel" role="tabpanel">
+      <div class="alert alert-info mb-3">
+        <i class="fas fa-calculator"></i>
+        <strong>التكاليف:</strong> أدخل تكاليف الشحن الإضافية. الإجمالي النهائي يُحسب تلقائياً.
+      </div>
+      
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label">قيمة البنود (تلقائي)</label>
+          {{ render_field(form.value_before, {'id': form.value_before.id, 'class': 'form-control', 'type': 'number', 'step': '0.01', 'readonly': True}) }}
+          <small class="text-muted">مجموع قيمة البنود المضافة</small>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">تكلفة الشحن</label>
+          {{ render_field(form.shipping_cost, {'id': form.shipping_cost.id, 'class': 'form-control cost-field', 'type': 'number', 'step': '0.01', 'placeholder': '0.00'}) }}
+          <small class="text-muted">تكلفة نقل البضاعة</small>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">الجمارك</label>
+          {{ render_field(form.customs, {'id': form.customs.id, 'class': 'form-control cost-field', 'type': 'number', 'step': '0.01', 'placeholder': '0.00'}) }}
+          <small class="text-muted">رسوم جمركية</small>
+        </div>
+        
+        <div class="col-md-4">
+          <label class="form-label">ضريبة القيمة المضافة (VAT)</label>
+          {{ render_field(form.vat, {'id': form.vat.id, 'class': 'form-control cost-field', 'type': 'number', 'step': '0.01', 'placeholder': '0.00'}) }}
+          <small class="text-muted">ضريبة على القيمة المضافة</small>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">التأمين</label>
+          {{ render_field(form.insurance, {'id': form.insurance.id, 'class': 'form-control cost-field', 'type': 'number', 'step': '0.01', 'placeholder': '0.00'}) }}
+          <small class="text-muted">تأمين على الشحنة</small>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label"><strong>الإجمالي النهائي (تلقائي)</strong></label>
+          {{ render_field(form.total_value, {'id': form.total_value.id, 'class': 'form-control', 'type': 'number', 'step': '0.01', 'readonly': True, 'style': 'font-weight: bold; font-size: 1.1rem; background: #e9ecef;'}) }}
+          <small class="text-muted">إجمالي الشحنة شاملاً كل التكاليف</small>
+        </div>
+      </div>
+      
+      <div class="alert alert-warning mt-3">
+        <i class="fas fa-exclamation-triangle"></i>
+        <strong>ملاحظة:</strong> عند وصول الشحنة (ARRIVED)، ستوزع التكاليف الإضافية على البنود بنسبة قيمتها.
       </div>
     </div>
-    <div class="card-body">
+
+    <!-- Tab 4: الشركاء -->
+    <div class="tab-pane fade" id="partners-panel" role="tabpanel">
+      <div class="alert alert-warning mb-3">
+        <i class="fas fa-handshake"></i>
+        <strong>شركاء الشحنة:</strong> يظهر فقط إذا كان المستودع الوجهة من نوع "شريك". مجموع النسب يجب أن يساوي 100%.
+      </div>
+      
+      <div class="mb-3">
+        <button type="button" class="btn btn-warning" id="add-partner">
+          <i class="fas fa-plus"></i> إضافة شريك
+        </button>
+        <div class="float-end">
+          <span class="badge badge-info" id="partners-total-pct">0%</span>
+          <span class="text-muted">مجموع النسب</span>
+        </div>
+      </div>
+      
       <div id="partners-wrapper"
            data-index="{{ form.partners|length }}"
            data-url-partners="{{ url_for('api.search_partners') }}"
@@ -269,46 +486,19 @@
         {% for pf in form.partners %}
           {{ partner_row(pf, loop.index0) }}
         {% else %}
-          <div class="text-muted small">لا توجد صفوف شركاء بعد.</div>
+          <div class="text-center text-muted py-5" id="no-partners-msg">
+            <i class="fas fa-users fa-3x mb-3"></i>
+            <p>لا توجد شركاء بعد. أضف شريكاً إذا كانت الشحنة مشتركة.</p>
+          </div>
         {% endfor %}
       </div>
-    </div>
-  </div>
-
-  <div class="card mb-3">
-    <div class="card-header">تكاليف الشحنة</div>
-    <div class="card-body">
-      <div class="row g-2">
-        <div class="col-md-3">
-          {{ form.value_before.label(class="form-label") }}
-          {{ render_field(form.value_before, {'id': form.value_before.id, 'class': 'form-control', 'step': '0.01', 'readonly': True, 'placeholder': 'إجمالي البنود'}) }}
-        </div>
-        <div class="col-md-3">
-          {{ form.shipping_cost.label(class="form-label") }}
-          {{ render_field(form.shipping_cost, {'id': form.shipping_cost.id, 'class': 'form-control', 'step': '0.01', 'placeholder': 'تكلفة الشحن'}) }}
-        </div>
-        <div class="col-md-3">
-          {{ form.customs.label(class="form-label") }}
-          {{ render_field(form.customs, {'id': form.customs.id, 'class': 'form-control', 'step': '0.01', 'placeholder': 'الجمارك'}) }}
-        </div>
-        <div class="col-md-3">
-          {{ form.vat.label(class="form-label") }}
-          {{ render_field(form.vat, {'id': form.vat.id, 'class': 'form-control', 'step': '0.01', 'placeholder': 'ضريبة القيمة المضافة'}) }}
-        </div>
-        <div class="col-md-3">
-          {{ form.insurance.label(class="form-label") }}
-          {{ render_field(form.insurance, {'id': form.insurance.id, 'class': 'form-control', 'step': '0.01', 'placeholder': 'التأمين'}) }}
-        </div>
-        <div class="col-md-3">
-          {{ form.total_value.label(class="form-label") }}
-          {{ render_field(form.total_value, {'id': form.total_value.id, 'class': 'form-control', 'step': '0.01', 'readonly': True, 'placeholder': 'الإجمالي'}) }}
-        </div>
-        <div class="col-md-6">
-          {{ form.notes.label(class="form-label") }}
-          {{ render_field(form.notes, {'id': form.notes.id, 'class': 'form-control', 'placeholder': 'ملاحظات عامة'}) }}
-        </div>
+      
+      <div class="alert alert-danger mt-3" id="partners-validation-alert" style="display: none;">
+        <i class="fas fa-times-circle"></i>
+        <strong>خطأ:</strong> <span id="partners-validation-msg"></span>
       </div>
     </div>
+    
   </div>
 
   <div class="mt-3">
@@ -324,22 +514,26 @@
         <label class="form-label" for="items-__INDEX__-product_id">الصنف</label>
         <select name="items-__INDEX__-product_id" id="items-__INDEX__-product_id"
                 class="select2 form-control select2-ajax" data-placeholder="اختر الصنف"></select>
+        <small class="text-muted">المنتج أو القطعة المراد شحنها</small>
       </div>
       <div class="col-md-3">
         <label class="form-label" for="items-__INDEX__-warehouse_id">المخزن</label>
         <select name="items-__INDEX__-warehouse_id" id="items-__INDEX__-warehouse_id"
                 class="select2 form-control select2-ajax" data-placeholder="اختر المخزن"
                 data-params='{"active_only":"1"}'></select>
+        <small class="text-muted">المستودع الذي سيستلم هذا البند</small>
       </div>
       <div class="col-md-2">
         <label class="form-label" for="items-__INDEX__-quantity">الكمية</label>
         <input type="number" min="1" required name="items-__INDEX__-quantity"
                id="items-__INDEX__-quantity" class="form-control item-qty" placeholder="الكمية المطلوبة">
+        <small class="text-muted">عدد الوحدات</small>
       </div>
       <div class="col-md-2">
         <label class="form-label" for="items-__INDEX__-unit_cost">سعر الوحدة</label>
         <input type="number" step="0.01" required name="items-__INDEX__-unit_cost"
                id="items-__INDEX__-unit_cost" class="form-control item-cost" placeholder="سعر الوحدة">
+        <small class="text-muted">سعر التكلفة للوحدة الواحدة</small>
       </div>
       <div class="col-md-1 text-end">
         <button type="button" class="btn btn-sm btn-outline-danger btn-remove-item">حذف</button>
@@ -348,6 +542,7 @@
         <label class="form-label" for="items-__INDEX__-declared_value">القيمة المعلنة</label>
         <input type="number" step="0.01" name="items-__INDEX__-declared_value"
                id="items-__INDEX__-declared_value" class="form-control item-declared" placeholder="قيمة للإفصاح">
+        <small class="text-muted">القيمة المعلنة للجمارك (اختياري، يُحسب تلقائياً = الكمية × السعر)</small>
       </div>
     </div>
   </div>
@@ -364,6 +559,7 @@
                 data-placeholder="اختر الشريك"
                 data-url="{{ url_for('api.search_partners') }}"
                 data-new-url="{{ url_for('vendors_bp.partners_create') }}"></select>
+        <small class="text-muted">الشريك في هذه الشحنة</small>
       </div>
       <div class="col-md-2">
         <label class="form-label" for="partners-__INDEX__-share_percentage">نسبة الشريك %</label>
@@ -371,6 +567,7 @@
                name="partners-__INDEX__-share_percentage"
                id="partners-__INDEX__-share_percentage"
                class="form-control" placeholder="نسبة من 100">
+        <small class="text-muted">نسبة الشريك من إجمالي الشحنة</small>
       </div>
       <div class="col-md-2">
         <label class="form-label" for="partners-__INDEX__-share_amount">حصة الشريك</label>
@@ -378,6 +575,7 @@
                name="partners-__INDEX__-share_amount"
                id="partners-__INDEX__-share_amount"
                class="form-control" placeholder="مبلغ ثابت">
+        <small class="text-muted">أو مبلغ ثابت بدلاً من النسبة</small>
       </div>
       <div class="col-md-4 text-end">
         <button type="button" class="btn btn-sm btn-outline-danger btn-remove-partner">حذف</button>
@@ -389,6 +587,7 @@
                name="partners-__INDEX__-identity_number"
                id="partners-__INDEX__-identity_number"
                class="form-control" placeholder="رقم الهوية">
+        <small class="text-muted">رقم الهوية أو جواز السفر</small>
       </div>
       <div class="col-md-4 mt-2">
         <label class="form-label" for="partners-__INDEX__-phone_number">الجوال</label>
@@ -396,6 +595,7 @@
                name="partners-__INDEX__-phone_number"
                id="partners-__INDEX__-phone_number"
                class="form-control" placeholder="هاتف الشريك">
+        <small class="text-muted">رقم جوال الشريك للتواصل</small>
       </div>
       <div class="col-md-4 mt-2">
         <label class="form-label" for="partners-__INDEX__-address">العنوان</label>
@@ -403,6 +603,7 @@
                name="partners-__INDEX__-address"
                id="partners-__INDEX__-address"
                class="form-control" placeholder="العنوان">
+        <small class="text-muted">عنوان السكن أو العمل</small>
       </div>
       <div class="col-md-4 mt-2">
         <label class="form-label" for="partners-__INDEX__-unit_price_before_tax">سعر قبل الضريبة</label>
@@ -410,6 +611,7 @@
                name="partners-__INDEX__-unit_price_before_tax"
                id="partners-__INDEX__-unit_price_before_tax"
                class="form-control" placeholder="سعر قبل الضريبة">
+        <small class="text-muted">سعر البيع قبل احتساب الضريبة</small>
       </div>
       <div class="col-md-4 mt-2">
         <label class="form-label" for="partners-__INDEX__-expiry_date">تاريخ انتهاء</label>
@@ -417,6 +619,7 @@
                name="partners-__INDEX__-expiry_date"
                id="partners-__INDEX__-expiry_date"
                class="form-control" placeholder="تاريخ انتهاء">
+        <small class="text-muted">تاريخ انتهاء الاتفاقية (اختياري)</small>
       </div>
       <div class="col-md-4 mt-2">
         <label class="form-label" for="partners-__INDEX__-notes">ملاحظات</label>
@@ -424,6 +627,7 @@
                name="partners-__INDEX__-notes"
                id="partners-__INDEX__-notes"
                class="form-control" placeholder="ملاحظات الشريك">
+        <small class="text-muted">ملاحظات خاصة بالشريك (اختياري)</small>
       </div>
     </div>
   </div>
@@ -443,7 +647,9 @@
         <form id="partnerForm" method="POST">
           <div class="modal-header">
             <h5 class="modal-title">إضافة شريك جديد</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+            <button type="button" class="close" data-dismiss="modal" aria-label="إغلاق">
+              <span aria-hidden="true">&times;</span>
+            </button>
           </div>
           <div class="modal-body">
             <div class="mb-3">
@@ -461,7 +667,7 @@
           </div>
           <div class="modal-footer">
             <button type="submit" class="btn btn-primary">حفظ</button>
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
           </div>
         </form>
       </div>
@@ -474,7 +680,9 @@
         <form id="productForm" method="POST">
           <div class="modal-header">
             <h5 class="modal-title">إضافة منتج جديد</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+            <button type="button" class="close" data-dismiss="modal" aria-label="إغلاق">
+              <span aria-hidden="true">&times;</span>
+            </button>
           </div>
           <div class="modal-body">
             <div class="mb-3">
@@ -488,7 +696,7 @@
           </div>
           <div class="modal-footer">
             <button type="submit" class="btn btn-primary">حفظ</button>
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
           </div>
         </form>
       </div>
@@ -501,7 +709,9 @@
         <form id="warehouseForm" method="POST">
           <div class="modal-header">
             <h5 class="modal-title">إضافة مخزن جديد</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+            <button type="button" class="close" data-dismiss="modal" aria-label="إغلاق">
+              <span aria-hidden="true">&times;</span>
+            </button>
           </div>
           <div class="modal-body">
             <div class="mb-3">
@@ -515,10 +725,247 @@
           </div>
           <div class="modal-footer">
             <button type="submit" class="btn btn-primary">حفظ</button>
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
           </div>
         </form>
       </div>
     </div>
   </div>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const $ = window.jQuery;
+    
+    // === دوال المساعدة ===
+    function parseNum(v) {
+      v = (v ?? '').toString().trim().replace(',', '.');
+      const n = parseFloat(v);
+      return isNaN(n) ? 0 : n;
+    }
+    
+    function fmt2(n) {
+      return (Number(n || 0)).toFixed(2);
+    }
+    
+    // === تحديث الإحصائيات السريعة ===
+    function updateSummaryStats() {
+      const itemsWrap = document.getElementById('items-wrapper');
+      const rows = itemsWrap ? itemsWrap.querySelectorAll('.shipment-item') : [];
+      
+      let cnt = 0, qty = 0, itemsValue = 0;
+      rows.forEach(r => {
+        const q = parseNum(r.querySelector('.item-qty')?.value || '0');
+        const c = parseNum(r.querySelector('.item-cost')?.value || '0');
+        if (q > 0) {
+          cnt += 1;
+          qty += q;
+          itemsValue += q * c;
+        }
+      });
+      
+      // قيمة التكاليف الإضافية
+      const shipping = parseNum(document.getElementById('shipping_cost')?.value || 0);
+      const customs = parseNum(document.getElementById('customs')?.value || 0);
+      const vat = parseNum(document.getElementById('vat')?.value || 0);
+      const insurance = parseNum(document.getElementById('insurance')?.value || 0);
+      const totalValue = itemsValue + shipping + customs + vat + insurance;
+      
+      // تحديث البطاقات
+      document.getElementById('summary-items-count').textContent = cnt;
+      document.getElementById('summary-items-qty').textContent = qty;
+      document.getElementById('summary-items-value').textContent = fmt2(itemsValue);
+      document.getElementById('summary-total-value').textContent = fmt2(totalValue);
+      
+      // تحديث Badges
+      document.getElementById('items-badge').textContent = cnt;
+    }
+    
+    // === تحديث badges الشركاء ===
+    function updatePartnersBadge() {
+      const partnersWrap = document.getElementById('partners-wrapper');
+      const partnerRows = partnersWrap ? partnersWrap.querySelectorAll('.shipment-partner') : [];
+      let partnerCnt = 0;
+      partnerRows.forEach(r => {
+        const pid = $(r).find('[name$="-partner_id"]').val();
+        if (pid) partnerCnt++;
+      });
+      document.getElementById('partners-badge').textContent = partnerCnt;
+    }
+    
+    // === حساب مجموع نسب الشركاء ===
+    function calculatePartnersTotal() {
+      let sum = 0;
+      document.querySelectorAll('#partners-wrapper [name$="-share_percentage"]').forEach(el => {
+        sum += parseNum(el.value);
+      });
+      return sum;
+    }
+    
+    // === تحديث عرض نسب الشركاء ===
+    function updatePartnersValidation() {
+      const sum = calculatePartnersTotal();
+      const badge = document.getElementById('partners-total-pct');
+      const alert = document.getElementById('partners-validation-alert');
+      const msg = document.getElementById('partners-validation-msg');
+      
+      if (badge) {
+        badge.textContent = fmt2(sum) + '%';
+        badge.classList.remove('badge-info', 'badge-success', 'badge-danger');
+        if (sum > 100) {
+          badge.classList.add('badge-danger');
+        } else if (sum === 100) {
+          badge.classList.add('badge-success');
+        } else {
+          badge.classList.add('badge-info');
+        }
+      }
+      
+      if (sum > 100) {
+        alert.style.display = 'block';
+        msg.textContent = `مجموع النسب ${fmt2(sum)}% يتجاوز 100%. يرجى التعديل.`;
+      } else if (sum > 0 && sum < 100) {
+        alert.style.display = 'block';
+        msg.textContent = `مجموع النسب ${fmt2(sum)}% أقل من 100%. المتبقي: ${fmt2(100 - sum)}%`;
+        alert.classList.remove('alert-danger');
+        alert.classList.add('alert-warning');
+      } else {
+        alert.style.display = 'none';
+        alert.classList.remove('alert-warning');
+        alert.classList.add('alert-danger');
+      }
+    }
+    
+    // === إظهار/إخفاء tab الشركاء بناءً على نوع المستودع ===
+    async function updatePartnersTabVisibility() {
+      const destField = document.getElementById('destination_id') || document.querySelector('[name="destination_id"]');
+      const warehouseId = $(destField).val() || destField?.value;
+      
+      const partnersTabItem = document.getElementById('partners-tab-item');
+      
+      if (!warehouseId) {
+        partnersTabItem.style.display = 'none';
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/api/warehouses/${warehouseId}/info`);
+        if (!response.ok) {
+          partnersTabItem.style.display = 'none';
+          return;
+        }
+        
+        const data = await response.json();
+        const warehouseType = data.warehouse_type || data.type;
+        
+        if (warehouseType === 'PARTNER') {
+          partnersTabItem.style.display = 'block';
+        } else {
+          partnersTabItem.style.display = 'none';
+          // إذا كان المستخدم في tab الشركاء، نقله للـ tab الأول
+          const activeTab = document.querySelector('#shipmentTabs .nav-link.active');
+          if (activeTab && activeTab.id === 'partners-tab') {
+            document.getElementById('info-tab').click();
+          }
+        }
+      } catch (err) {
+        console.error('Error checking warehouse type:', err);
+        partnersTabItem.style.display = 'none';
+      }
+    }
+    
+    // === الربط مع الأحداث الموجودة في shipments.js ===
+    
+    // نراقب التغييرات في البنود
+    const itemsWrapper = document.getElementById('items-wrapper');
+    if (itemsWrapper) {
+      const observer = new MutationObserver(() => {
+        updateSummaryStats();
+      });
+      observer.observe(itemsWrapper, { childList: true, subtree: true });
+      
+      itemsWrapper.addEventListener('input', () => {
+        updateSummaryStats();
+      });
+    }
+    
+    // نراقب التغييرات في الشركاء
+    const partnersWrapper = document.getElementById('partners-wrapper');
+    if (partnersWrapper) {
+      const observer = new MutationObserver(() => {
+        updatePartnersBadge();
+        updatePartnersValidation();
+      });
+      observer.observe(partnersWrapper, { childList: true, subtree: true });
+      
+      partnersWrapper.addEventListener('input', (e) => {
+        if (e.target && e.target.name && e.target.name.endsWith('-share_percentage')) {
+          updatePartnersValidation();
+        }
+        updatePartnersBadge();
+      });
+      
+      $(partnersWrapper).on('select2:select select2:clear', '[name$="-partner_id"]', function() {
+        updatePartnersBadge();
+      });
+    }
+    
+    // نراقب التغييرات في حقول التكاليف
+    document.querySelectorAll('.cost-field').forEach(field => {
+      field.addEventListener('input', () => {
+        updateSummaryStats();
+      });
+    });
+    
+    // نراقب تغيير المستودع الوجهة
+    const destField = document.getElementById('destination_id') || document.querySelector('[name="destination_id"]');
+    if (destField) {
+      $(destField).on('change select2:select', () => {
+        updatePartnersTabVisibility();
+      });
+    }
+    
+    // === التحميل الأولي ===
+    updateSummaryStats();
+    updatePartnersBadge();
+    updatePartnersValidation();
+    updatePartnersTabVisibility();
+    
+    // === تحسين رسالة التحقق عند الإرسال ===
+    const form = document.getElementById('shipment-form');
+    if (form) {
+      form.addEventListener('submit', function(e) {
+        const sum = calculatePartnersTotal();
+        const partnersWrap = document.getElementById('partners-wrapper');
+        const partnerRows = partnersWrap ? partnersWrap.querySelectorAll('.shipment-partner') : [];
+        let hasPartners = false;
+        partnerRows.forEach(r => {
+          const pid = $(r).find('[name$="-partner_id"]').val();
+          if (pid) hasPartners = true;
+        });
+        
+        // إذا كان هناك شركاء، نتحقق من النسب
+        if (hasPartners && sum > 100.000001) {
+          e.preventDefault();
+          updatePartnersValidation();
+          
+          // نذهب إلى tab الشركاء
+          document.getElementById('partners-tab').click();
+          
+          // نعرض رسالة تنبيه
+          if (window.Swal) {
+            Swal.fire({
+              icon: 'error',
+              title: 'خطأ في نسب الشركاء',
+              text: `مجموع نسب الشركاء ${fmt2(sum)}% يتجاوز 100%. يرجى التعديل.`,
+              confirmButtonText: 'فهمت'
+            });
+          } else {
+            alert(`مجموع نسب الشركاء ${fmt2(sum)}% يتجاوز 100%. يرجى التعديل.`);
+          }
+          return false;
+        }
+      });
+    }
+  });
+  </script>
 {% endblock %}

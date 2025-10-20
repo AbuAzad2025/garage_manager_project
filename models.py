@@ -5793,7 +5793,7 @@ class Shipment(db.Model, TimestampMixin, AuditMixin):
     )
 
     __table_args__ = (
-        db.CheckConstraint("status IN ('DRAFT','IN_TRANSIT','ARRIVED','CANCELLED','CREATED')", name="chk_shipment_status_allowed"),
+        db.CheckConstraint("status IN ('DRAFT','PENDING','IN_TRANSIT','IN_CUSTOMS','ARRIVED','DELIVERED','CANCELLED','RETURNED','CREATED')", name="chk_shipment_status_allowed"),
         db.Index("ix_shipments_dest_status", "destination_id", "status"),
         db.CheckConstraint("value_before >= 0", name="ck_shipment_value_before_non_negative"),
         db.CheckConstraint("shipping_cost >= 0", name="ck_shipment_shipping_cost_non_negative"),

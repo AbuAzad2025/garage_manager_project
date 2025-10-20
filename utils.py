@@ -1226,19 +1226,25 @@ def _audit(event: str, *, ok: bool = True, user_id=None, customer_id=None, note:
     record_id = int(customer_id) if customer_id is not None else (int(user_id) if user_id is not None else None)
     old_json = json.dumps(details_old, ensure_ascii=False, default=str) if details_old else None
     new_json = json.dumps(extra, ensure_ascii=False, default=str) if extra else None
-    entry = AuditLog(
-        created_at=datetime.now(timezone.utc),
-        model_name="Auth",
-        record_id=record_id,
-        user_id=(user_id if user_id is not None else (getattr(current_user, "id", None) if getattr(current_user, "is_authenticated", False) else None)),
-        action=str(event),
-        old_data=old_json,
-        new_data=new_json,
-        ip_address=request.remote_addr,
-        user_agent=request.headers.get("User-Agent"),
-    )
-    db.session.add(entry)
-    db.session.flush()
+    try:
+        entry = AuditLog(
+            created_at=datetime.now(timezone.utc),
+            model_name="Auth",
+            record_id=record_id,
+            user_id=(user_id if user_id is not None else (getattr(current_user, "id", None) if getattr(current_user, "is_authenticated", False) else None)),
+            action=str(event),
+            old_data=old_json,
+            new_data=new_json,
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get("User-Agent"),
+        )
+        db.session.add(entry)
+        db.session.flush()
+    except Exception as e:
+        # تجاهل أخطاء audit لعدم تعطيل النظام
+        db.session.rollback()
+        import logging
+        logging.warning(f"Audit log failed: {e}")
 
 
 def log_audit(model_name: str, record_id: int, action: str, old_data: Optional[dict] = None, new_data: Optional[dict] = None):

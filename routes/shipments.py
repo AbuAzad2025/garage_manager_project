@@ -167,15 +167,22 @@ def _items_snapshot(sh):
         for i in sh.items
     ]
 
-def _ensure_partner_warehouse(warehouse_id):
+def _ensure_partner_warehouse(warehouse_id, shipment=None):
     """تأكد من أن المستودع مربوط بشريك إذا كان من نوع PARTNER"""
     from models import Warehouse, WarehouseType
     warehouse = db.session.get(Warehouse, warehouse_id)
     if not warehouse:
         raise ValueError("warehouse_not_found")
+    
+    # إذا كان المستودع من نوع PARTNER، نتحقق من وجود شركاء في الشحنة
     if warehouse.warehouse_type == WarehouseType.PARTNER.value:
-        if not warehouse.partner_id:
-            raise ValueError("partner_warehouse_requires_partner")
+        if shipment:
+            # نتحقق من وجود شركاء في الشحنة
+            has_partners = len(shipment.partners) > 0 if hasattr(shipment, 'partners') else False
+            if not has_partners:
+                raise ValueError("partner_warehouse_requires_partner")
+        # إذا لم نمرر الشحنة، نسمح بالعملية (للتوافق مع الكود القديم)
+    
     return warehouse
 
 @shipments_bp.route("/", methods=["GET"], endpoint="list_shipments")
@@ -867,7 +874,7 @@ def mark_arrived(id: int):
         # التحقق من المستودعات قبل اعتماد الوصول
         for item in sh.items:
             if item.warehouse_id:
-                _ensure_partner_warehouse(item.warehouse_id)
+                _ensure_partner_warehouse(item.warehouse_id, sh)
         
         _apply_arrival_items([
             {"product_id": it.product_id, "warehouse_id": it.warehouse_id, "quantity": it.quantity}
@@ -899,7 +906,7 @@ def cancel_shipment(id: int):
             # التحقق من المستودعات قبل إلغاء الوصول
             for item in sh.items:
                 if item.warehouse_id:
-                    _ensure_partner_warehouse(item.warehouse_id)
+                    _ensure_partner_warehouse(item.warehouse_id, sh)
             
             _reverse_arrival_items(_items_snapshot(sh))
         sh.status = "CANCELLED"
@@ -930,7 +937,7 @@ def mark_in_transit(id):
             # التحقق من المستودعات قبل وضع الشحنة في الطريق
             for item in sh.items:
                 if item.warehouse_id:
-                    _ensure_partner_warehouse(item.warehouse_id)
+                    _ensure_partner_warehouse(item.warehouse_id, sh)
             
             sh.status = "IN_TRANSIT"
             db.session.commit()
@@ -959,7 +966,7 @@ def mark_in_customs(id):
             # التحقق من المستودعات قبل وضع الشحنة في الجمارك
             for item in sh.items:
                 if item.warehouse_id:
-                    _ensure_partner_warehouse(item.warehouse_id)
+                    _ensure_partner_warehouse(item.warehouse_id, sh)
             
             sh.status = "IN_CUSTOMS"
             db.session.commit()
@@ -988,7 +995,7 @@ def mark_delivered(id):
             # التحقق من المستودعات قبل تسليم الشحنة
             for item in sh.items:
                 if item.warehouse_id:
-                    _ensure_partner_warehouse(item.warehouse_id)
+                    _ensure_partner_warehouse(item.warehouse_id, sh)
             
             sh.status = "DELIVERED"
             sh.delivered_date = datetime.utcnow()
@@ -1018,7 +1025,7 @@ def mark_returned(id):
             # التحقق من المستودعات قبل إرجاع الشحنة
             for item in sh.items:
                 if item.warehouse_id:
-                    _ensure_partner_warehouse(item.warehouse_id)
+                    _ensure_partner_warehouse(item.warehouse_id, sh)
             
             sh.status = "RETURNED"
             db.session.commit()
