@@ -322,6 +322,24 @@ def perform_backup_db(app):
         app.logger.error(f"Backup process failed: {e}")
 
 
+def update_exchange_rates_job(app):
+    """تحديث أسعار الصرف دورياً من السيرفرات العالمية"""
+    try:
+        with app.app_context():
+            from models import auto_update_missing_rates
+            
+            result = auto_update_missing_rates()
+            
+            if result.get('success'):
+                updated = result.get('updated_rates', 0)
+                app.logger.info(f"[FX Update] Updated {updated} exchange rates")
+            else:
+                app.logger.warning(f"[FX Update] Failed: {result.get('message', 'Unknown error')}")
+                
+    except Exception as e:
+        app.logger.error(f"[FX Update] Job failed: {e}")
+
+
 def perform_backup_sql(app):
     """نسخ احتياطي SQL محسن"""
     try:
@@ -504,6 +522,15 @@ def init_extensions(app):
             "interval",
             seconds=app.config.get("BACKUP_SQL_INTERVAL").total_seconds(),
             id="sql_backup",
+            replace_existing=True,
+        )
+        
+        # مهمة تحديث أسعار الصرف دورياً
+        scheduler.add_job(
+            lambda: update_exchange_rates_job(app),
+            "interval",
+            hours=1,  # كل ساعة
+            id="update_fx_rates",
             replace_existing=True,
         )
     except Exception as e:

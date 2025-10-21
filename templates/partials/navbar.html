@@ -42,6 +42,14 @@
         <i class="fas fa-bars"></i>
       </a>
     </li>
+    
+    <!-- زر تبديل موقع Sidebar -->
+    <li class="nav-item">
+      <button class="nav-link btn btn-link text-white" onclick="toggleSidebarPosition()" title="نقل القائمة الجانبية يمين/يسار" style="border: none; background: none;">
+        <i class="fas fa-exchange-alt"></i>
+        <span class="badge badge-warning" id="sidebar-position-badge">يسار</span>
+      </button>
+    </li>
 
     {% if current_user.is_authenticated and shop_is_super_admin %}
     <li class="nav-item">

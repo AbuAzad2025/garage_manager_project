@@ -12,6 +12,38 @@
     border: none;
 }
 
+/* أزرار القطع غير المسعرة - واضحة وبارزة */
+#cost-warnings .card {
+    position: sticky;
+    top: 70px;
+    z-index: 1040;
+    animation: pulse-gradient 3s ease-in-out infinite;
+}
+
+@keyframes pulse-gradient {
+    0%, 100% { 
+        box-shadow: 0 4px 20px rgba(240, 147, 251, 0.5);
+        transform: scale(1);
+    }
+    50% { 
+        box-shadow: 0 8px 40px rgba(245, 87, 108, 0.7);
+        transform: scale(1.01);
+    }
+}
+
+#cost-warnings .btn-lg {
+    font-size: 1.1rem;
+    padding: 12px 24px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+}
+
+#cost-warnings .btn-lg:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 25px rgba(0,0,0,0.3);
+}
+
 .ledger-header {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white !important;
@@ -181,24 +213,34 @@
                 </div>
             </div>
 
-            <!-- تحذيرات المنتجات بدون تكلفة -->
+            <!-- أزرار إدارة القطع غير المسعرة - بديل للتنبيهات المزعجة -->
             <div class="row mt-3" id="cost-warnings" style="display: none;">
                 <div class="col-12">
-                    <div class="alert alert-warning">
-                        <h5><i class="fas fa-exclamation-triangle"></i> تنبيهات التكلفة</h5>
-                        <div id="estimated-products-alert" style="display: none;">
-                            <strong>⚠️ منتجات تم تقدير تكلفتها (70% من سعر البيع):</strong>
-                            <span id="estimated-count" class="badge badge-warning">0</span>
-                            <button class="btn btn-sm btn-warning ml-2" onclick="showEstimatedProducts()">
-                                <i class="fas fa-eye"></i> عرض التفاصيل
-                            </button>
-                        </div>
-                        <div id="no-cost-products-alert" style="display: none;" class="mt-2">
-                            <strong>❌ منتجات بدون تكلفة (تم تجاهلها):</strong>
-                            <span id="no-cost-count" class="badge badge-danger">0</span>
-                            <button class="btn btn-sm btn-danger ml-2" onclick="showNoCostProducts()">
-                                <i class="fas fa-eye"></i> عرض التفاصيل
-                            </button>
+                    <div class="card border-0 shadow-lg" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                                <div class="text-white">
+                                    <h5 class="mb-1">
+                                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                                        <strong>تنبيه: توجد منتجات غير مسعرة!</strong>
+                                    </h5>
+                                    <p class="mb-0 opacity-75">
+                                        <small>يرجى تسعير المنتجات للحصول على حسابات أرباح دقيقة</small>
+                                    </p>
+                                </div>
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <button id="btn-show-estimated" class="btn btn-warning btn-lg fw-bold" onclick="showEstimatedProducts()" style="display: none;">
+                                        <i class="fas fa-calculator mr-2"></i>
+                                        منتجات مقدرة (<span id="estimated-count">0</span>)
+                                        <i class="fas fa-arrow-left ml-2"></i>
+                                    </button>
+                                    <button id="btn-show-no-cost" class="btn btn-danger btn-lg fw-bold" onclick="showNoCostProducts()" style="display: none;">
+                                        <i class="fas fa-times-circle mr-2"></i>
+                                        بدون تكلفة (<span id="no-cost-count">0</span>)
+                                        <i class="fas fa-arrow-left ml-2"></i>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -311,6 +353,9 @@
                                 </button>
                                 <button class="btn btn-info btn-sm" onclick="printLedger()">
                                     <i class="fas fa-print"></i> طباعة
+                                </button>
+                                <button class="btn btn-warning btn-sm" onclick="forceShowPricingAlert()" title="التحقق من تسعير المنتجات">
+                                    <i class="fas fa-tags"></i> فحص التسعير
                                 </button>
                             </div>
                         </div>
@@ -513,7 +558,7 @@ function updateLedgerTable(data) {
                 <td class="text-center">${entry.date}</td>
                 <td class="text-center"><strong>${entry.transaction_number}</strong></td>
                 <td class="text-center"><span class="badge badge-${getTransactionBadgeClass(entry.type)}">${entry.type_ar}</span></td>
-                <td>${entry.description}</td>
+                <td>${getTransactionDescription(entry)}</td>
                 <td class="text-end ${debitClass}">${entry.debit > 0 ? formatCurrency(entry.debit) : '—'}</td>
                 <td class="text-end ${creditClass}">${entry.credit > 0 ? formatCurrency(entry.credit) : '—'}</td>
                 <td class="text-end ${balanceClass}">${formatCurrency(entry.balance)}</td>
@@ -640,31 +685,36 @@ function updateStatistics(stats) {
         marginCard.css('background', 'linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%)');
     }
     
-    // عرض تحذيرات المنتجات بدون تكلفة
+    // عرض أزرار القطع غير المسعرة
     const estimatedCount = stats.estimated_products_count || 0;
     const noCostCount = stats.products_without_cost_count || 0;
+    
+    console.log('📊 منتجات مقدرة:', estimatedCount, 'بدون تكلفة:', noCostCount);
     
     if (estimatedCount > 0 || noCostCount > 0) {
         $('#cost-warnings').show();
         
         if (estimatedCount > 0) {
-            $('#estimated-products-alert').show();
+            $('#btn-show-estimated').show();
             $('#estimated-count').text(estimatedCount);
             // حفظ البيانات لعرضها لاحقاً
             window.estimatedProducts = stats.estimated_products || [];
+            console.log('✅ زر المنتجات المقدرة ظاهر');
         } else {
-            $('#estimated-products-alert').hide();
+            $('#btn-show-estimated').hide();
         }
         
         if (noCostCount > 0) {
-            $('#no-cost-products-alert').show();
+            $('#btn-show-no-cost').show();
             $('#no-cost-count').text(noCostCount);
             window.productsWithoutCost = stats.products_without_cost || [];
+            console.log('✅ زر المنتجات بدون تكلفة ظاهر');
         } else {
-            $('#no-cost-products-alert').hide();
+            $('#btn-show-no-cost').hide();
         }
     } else {
         $('#cost-warnings').hide();
+        console.log('ℹ️ لا توجد منتجات غير مسعرة');
     }
 }
 
@@ -674,30 +724,44 @@ function showEstimatedProducts() {
     
     let html = '<div class="alert alert-warning">';
     html += '<strong>⚠️ تنبيه:</strong> هذه المنتجات تم تقدير تكلفتها بـ 70% من سعر البيع. يمكنك تحديث التكلفة الفعلية الآن.';
+    html += '<hr>';
+    html += '<small><i class="fas fa-info-circle"></i> <strong>ملاحظة:</strong> يمكنك تحديث التكلفة مباشرة من هنا أو الذهاب إلى صفحة المنتج.</small>';
     html += '</div>';
-    html += '<div class="table-responsive"><table class="table table-sm table-bordered" id="estimated-products-table">';
-    html += '<thead><tr><th>المنتج</th><th>الكمية</th><th>سعر البيع</th><th>التكلفة المقدرة</th><th>التكلفة الفعلية</th><th>إجراء</th></tr></thead><tbody>';
+    html += '<div class="table-responsive"><table class="table table-sm table-bordered table-hover" id="estimated-products-table">';
+    html += '<thead class="table-dark"><tr><th>المنتج</th><th>الكمية</th><th>سعر البيع</th><th>التكلفة المقدرة</th><th>التكلفة الفعلية</th><th>إجراءات</th></tr></thead><tbody>';
     
     window.estimatedProducts.forEach(p => {
         html += `<tr data-product-id="${p.id}">
-            <td>${p.name}</td>
-            <td>${p.qty_sold}</td>
-            <td>${formatCurrency(p.selling_price)} ₪</td>
-            <td class="text-warning">${formatCurrency(p.estimated_cost)} ₪</td>
             <td>
+                <strong>${p.name}</strong><br>
+                <small class="text-muted">SKU: ${p.sku || 'غير محدد'}</small>
+            </td>
+            <td class="text-center">${p.qty_sold}</td>
+            <td class="text-end">${formatCurrency(p.selling_price)} ₪</td>
+            <td class="text-end text-warning"><strong>${formatCurrency(p.estimated_cost)} ₪</strong></td>
+            <td class="text-center">
                 <input type="number" step="0.01" min="0" 
                        class="form-control form-control-sm cost-input" 
                        data-product-id="${p.id}"
                        placeholder="أدخل التكلفة"
-                       value="${p.actual_cost || ''}"
+                       value="${p.actual_cost || p.estimated_cost}"
                        style="width: 120px;">
             </td>
-            <td>
-                <button class="btn btn-sm btn-success save-cost-btn" 
-                        data-product-id="${p.id}"
-                        onclick="saveSingleCost(${p.id})">
-                    <i class="fas fa-save"></i> حفظ
-                </button>
+            <td class="text-center">
+                <div class="btn-group btn-group-sm" role="group">
+                    <button class="btn btn-success save-cost-btn" 
+                            data-product-id="${p.id}"
+                            onclick="saveSingleCost(${p.id})"
+                            title="حفظ التكلفة">
+                        <i class="fas fa-save"></i> حفظ
+                    </button>
+                    <a href="/warehouses/products/${p.id}/edit" 
+                       class="btn btn-primary"
+                       title="تعديل المنتج بالكامل"
+                       target="_blank">
+                        <i class="fas fa-edit"></i> تعديل
+                    </a>
+                </div>
             </td>
         </tr>`;
     });
@@ -731,28 +795,42 @@ function showNoCostProducts() {
     
     let html = '<div class="alert alert-danger">';
     html += '<strong>❌ تحذير:</strong> هذه المنتجات ليس لها تكلفة محددة وتم تجاهلها من حساب الأرباح! يرجى إدخال التكلفة الآن.';
+    html += '<hr>';
+    html += '<small><i class="fas fa-info-circle"></i> <strong>ملاحظة:</strong> يمكنك تسعير المنتجات مباشرة من هنا أو الذهاب إلى صفحة المنتج.</small>';
     html += '</div>';
-    html += '<div class="table-responsive"><table class="table table-sm table-bordered" id="no-cost-products-table">';
-    html += '<thead><tr><th>المنتج</th><th>الكمية المباعة</th><th>سعر البيع</th><th>التكلفة</th><th>إجراء</th></tr></thead><tbody>';
+    html += '<div class="table-responsive"><table class="table table-sm table-bordered table-hover" id="no-cost-products-table">';
+    html += '<thead class="table-dark"><tr><th>المنتج</th><th>الكمية المباعة</th><th>سعر البيع</th><th>سعر الشراء (التكلفة)</th><th>إجراءات</th></tr></thead><tbody>';
     
     window.productsWithoutCost.forEach(p => {
         html += `<tr data-product-id="${p.id}">
-            <td>${p.name}</td>
-            <td>${p.qty_sold}</td>
-            <td>${formatCurrency(p.selling_price || 0)} ₪</td>
             <td>
+                <strong>${p.name}</strong><br>
+                <small class="text-muted">SKU: ${p.sku || 'غير محدد'}</small>
+            </td>
+            <td class="text-center">${p.qty_sold}</td>
+            <td class="text-end">${formatCurrency(p.selling_price || 0)} ₪</td>
+            <td class="text-center">
                 <input type="number" step="0.01" min="0" 
                        class="form-control form-control-sm cost-input" 
                        data-product-id="${p.id}"
                        placeholder="أدخل التكلفة"
                        style="width: 120px;">
             </td>
-            <td>
-                <button class="btn btn-sm btn-success save-cost-btn" 
-                        data-product-id="${p.id}"
-                        onclick="saveSingleCost(${p.id})">
-                    <i class="fas fa-save"></i> حفظ
-                </button>
+            <td class="text-center">
+                <div class="btn-group btn-group-sm" role="group">
+                    <button class="btn btn-success save-cost-btn" 
+                            data-product-id="${p.id}"
+                            onclick="saveSingleCost(${p.id})"
+                            title="حفظ التكلفة">
+                        <i class="fas fa-save"></i> حفظ
+                    </button>
+                    <a href="/warehouses/products/${p.id}/edit" 
+                       class="btn btn-primary"
+                       title="تعديل المنتج بالكامل"
+                       target="_blank">
+                        <i class="fas fa-edit"></i> تعديل
+                    </a>
+                </div>
             </td>
         </tr>`;
     });
@@ -995,6 +1073,41 @@ function getTransactionBadgeClass(type) {
     return classes[type] || 'secondary';
 }
 
+function getTransactionDescription(entry) {
+    // إضافة وصف بسيط وواضح لكل نوع معاملة
+    const descriptions = {
+        'sale': '💰 مبيعات: تزيد الرصيد (مدين)',
+        'purchase': '🛒 مشتريات: تنقص الرصيد (دائن)',
+        'expense': '📊 مصروف: تنقص الرصيد (دائن)',
+        'payment': '💳 دفعة: تحصيل (مدين) أو سداد (دائن)',
+        'service': '🔧 صيانة: تزيد الرصيد (مدين)',
+        'maintenance': '🛠️ صيانة: تزيد الرصيد (مدين)'
+    };
+    
+    const baseDesc = descriptions[entry.type] || 'عملية محاسبية';
+    
+    // إضافة ملخص سريع
+    let summary = `<div class="small text-muted mt-1">`;
+    if (entry.debit > 0) {
+        summary += `<i class="fas fa-arrow-up text-success"></i> مدين: ${formatCurrency(entry.debit)}`;
+    }
+    if (entry.credit > 0) {
+        summary += `<i class="fas fa-arrow-down text-danger"></i> دائن: ${formatCurrency(entry.credit)}`;
+    }
+    summary += ` | <i class="fas fa-balance-scale"></i> الرصيد: ${formatCurrency(entry.balance)}`;
+    summary += `</div>`;
+    
+    return `
+        <div>
+            ${entry.description}
+            <small class="text-muted d-block" style="font-size: 0.85em;">
+                ${baseDesc}
+            </small>
+            ${summary}
+        </div>
+    `;
+}
+
 function formatCurrency(amount) {
     const num = parseFloat(amount || 0);
     return num.toLocaleString('ar-IL', {
@@ -1021,6 +1134,50 @@ function exportLedger() {
 
 function printLedger() {
     window.print();
+}
+
+function forceShowPricingAlert() {
+    const estimatedCount = window.estimatedProducts ? window.estimatedProducts.length : 0;
+    const noCostCount = window.productsWithoutCost ? window.productsWithoutCost.length : 0;
+    
+    console.log('🔍 فحص التسعير:', {
+        estimated: estimatedCount,
+        noCost: noCostCount,
+        estimatedData: window.estimatedProducts,
+        noCostData: window.productsWithoutCost
+    });
+    
+    if (estimatedCount > 0 && noCostCount > 0) {
+        Swal.fire({
+            title: '⚠️ اختر نوع المنتجات',
+            html: `
+                <div class="d-flex flex-column gap-3 p-3">
+                    <button class="btn btn-warning btn-lg" onclick="Swal.close(); showEstimatedProducts();">
+                        <i class="fas fa-calculator mr-2"></i>
+                        منتجات مقدرة (${estimatedCount})
+                    </button>
+                    <button class="btn btn-danger btn-lg" onclick="Swal.close(); showNoCostProducts();">
+                        <i class="fas fa-times-circle mr-2"></i>
+                        منتجات بدون تكلفة (${noCostCount})
+                    </button>
+                </div>
+            `,
+            showConfirmButton: false,
+            showCancelButton: true,
+            cancelButtonText: 'إغلاق'
+        });
+    } else if (estimatedCount > 0) {
+        showEstimatedProducts();
+    } else if (noCostCount > 0) {
+        showNoCostProducts();
+    } else {
+        Swal.fire({
+            icon: 'success',
+            title: '✅ ممتاز!',
+            text: 'جميع المنتجات مسعرة بشكل صحيح',
+            timer: 3000
+        });
+    }
 }
 
 function viewTransaction(type, id) {
@@ -1063,7 +1220,16 @@ function showAlert(message, type) {
         </div>
     `;
     $('.content').prepend(alert);
-    setTimeout(() => $('.alert').fadeOut(), 3000);
+    
+    // فقط تنبيهات النجاح تختفي تلقائياً بعد 8 ثواني
+    if (type !== 'error') {
+        setTimeout(() => {
+            $('.alert').fadeOut(500, function() {
+                $(this).remove();
+            });
+        }, 8000);
+    }
+    // تنبيهات الأخطاء والتحذيرات تبقى حتى يغلقها المستخدم
 }
 
 // المساعد الذكي

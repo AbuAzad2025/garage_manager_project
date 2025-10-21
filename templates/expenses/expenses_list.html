@@ -192,6 +192,7 @@
             <th>المستفيد</th>
             <th>المبلغ</th>
             <th>العملة</th>
+            <th>سعر الصرف</th>
             <th>طريقة الدفع</th>
             <th>مدفوع</th>
             <th>الرصيد</th>
@@ -215,9 +216,21 @@
               {{ e.payee_name or e.paid_to or '—' }}
             </td>
             <td class="fw-bold text-end">
-              {{ e.amount|number_format(2) }} <span class="badge bg-light text-dark">{{ e.currency }}</span>
+              {{ e.amount|number_format(2) }}
             </td>
-            <td>{{ e.currency }}</td>
+            <td class="text-center"><span class="badge badge-secondary">{{ e.currency or 'ILS' }}</span></td>
+            <td class="text-center">
+              {% if e.fx_rate_used and e.currency != 'ILS' %}
+                <small class="text-muted">
+                  {{ "%.4f"|format(e.fx_rate_used) }}
+                  {% if e.fx_rate_source %}
+                    {% if e.fx_rate_source == 'online' %}🌐{% elif e.fx_rate_source == 'manual' %}✍️{% else %}⚙️{% endif %}
+                  {% endif %}
+                </small>
+              {% else %}
+                <span class="text-muted">-</span>
+              {% endif %}
+            </td>
             <td class="text-nowrap">{{ e.payment_method or '—' }}</td>
             <td class="text-end">{{ (e.total_paid or 0)|float|round(2)|number_format(2) }}</td>
             <td class="text-end">

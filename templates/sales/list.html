@@ -151,6 +151,8 @@
               <th>التاريخ</th>
               <th>العميل</th>
               <th>الإجمالي</th>
+              <th>العملة</th>
+              <th>سعر الصرف</th>
               <th>مدفوع</th>
               <th>متبقي</th>
               <th>الحالة</th>
@@ -163,11 +165,24 @@
               <td>{{ sale.sale_number }}</td>
               <td>{{ sale.date_iso }}</td>
               <td>{{ sale.customer_name }}</td>
-              <td>{{ sale.total_fmt }} {{ sale.currency }}</td>
-              <td>{{ sale.paid_fmt }} {{ sale.currency }}</td>
+              <td>{{ sale.total_fmt }}</td>
+              <td class="text-center"><span class="badge badge-secondary">{{ sale.currency or 'ILS' }}</span></td>
+              <td class="text-center">
+                {% if sale.fx_rate_used and sale.currency != 'ILS' %}
+                  <small class="text-muted">
+                    {{ "%.4f"|format(sale.fx_rate_used) }}
+                    {% if sale.fx_rate_source %}
+                      {% if sale.fx_rate_source == 'online' %}🌐{% elif sale.fx_rate_source == 'manual' %}✍️{% else %}⚙️{% endif %}
+                    {% endif %}
+                  </small>
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
+              </td>
+              <td>{{ sale.paid_fmt }}</td>
               <td>
                 <span class="badge {{ 'bg-success' if (sale.balance_due or 0) == 0 else 'bg-danger' }}">
-                  {{ sale.balance_fmt }} {{ sale.currency }}
+                  {{ sale.balance_fmt }}
                 </span>
               </td>
               <td><span class="badge {{ sale.status_class }}">{{ sale.status_label }}</span></td>

@@ -1,0 +1,405 @@
+<!-- Shop Sidebar - قائمة جانبية احترافية للمتجر -->
+<aside class="shop-sidebar" id="shopSidebar">
+  <div class="sidebar-header">
+    <h5 class="mb-0">
+      <i class="fas fa-bars me-2"></i>
+      القائمة
+    </h5>
+    <button class="btn-close-sidebar" onclick="toggleShopSidebar()">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+
+  <div class="sidebar-content">
+    
+    <!-- للزوار والعملاء -->
+    <div class="sidebar-section">
+      <h6 class="sidebar-section-title">
+        <i class="fas fa-shopping-bag me-2"></i>
+        التسوق
+      </h6>
+      <ul class="sidebar-menu">
+        <li>
+          <a href="{{ url_for('shop.catalog') }}" class="sidebar-link {% if request.endpoint == 'shop.catalog' %}active{% endif %}">
+            <i class="fas fa-store"></i>
+            <span>كتالوج المنتجات</span>
+            <i class="fas fa-chevron-left ms-auto"></i>
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('shop.cart') }}" class="sidebar-link {% if request.endpoint == 'shop.cart' %}active{% endif %}">
+            <i class="fas fa-shopping-cart"></i>
+            <span>سلة المشتريات</span>
+            <span class="badge bg-danger ms-auto" id="sidebar-cart-count">{{ cart_count|default(0)|int }}</span>
+          </a>
+        </li>
+        {% if current_user.is_authenticated %}
+        <li>
+          <a href="{{ url_for('shop.preorder_list') }}" class="sidebar-link {% if request.endpoint == 'shop.preorder_list' %}active{% endif %}">
+            <i class="fas fa-clipboard-list"></i>
+            <span>طلباتي</span>
+          </a>
+        </li>
+        {% endif %}
+      </ul>
+    </div>
+
+    <!-- للمديرين فقط -->
+    {% set can_manage_shop = has_any('manage_shop','manage_inventory') %}
+    {% set can_view_reports = has_any('view_reports','manage_reports') %}
+    {% set can_view_cards = has_any('manage_payments','view_reports','manage_reports') %}
+    
+    {% if can_manage_shop or can_view_reports or can_view_cards %}
+    <div class="sidebar-section">
+      <h6 class="sidebar-section-title">
+        <i class="fas fa-shield-halved me-2"></i>
+        لوحة الإدارة
+      </h6>
+      <ul class="sidebar-menu">
+        {% if can_manage_shop %}
+        <li>
+          <a href="{{ url_for('shop.admin_products') }}" class="sidebar-link {% if request.endpoint == 'shop.admin_products' %}active{% endif %}">
+            <i class="fas fa-cogs"></i>
+            <span>إدارة المنتجات</span>
+          </a>
+        </li>
+        {% if 'shop.admin_preorders' in current_app.view_functions %}
+        <li>
+          <a href="{{ url_for('shop.admin_preorders') }}" class="sidebar-link">
+            <i class="fas fa-chart-line"></i>
+            <span>تقرير الحجوزات</span>
+          </a>
+        </li>
+        {% endif %}
+        {% endif %}
+        
+        {% if can_view_cards and 'admin_reports.cards' in current_app.view_functions %}
+        <li>
+          <a href="{{ url_for('admin_reports.cards') }}" class="sidebar-link">
+            <i class="fas fa-credit-card"></i>
+            <span>معاملات البطاقات</span>
+          </a>
+        </li>
+        {% endif %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <!-- الحساب -->
+    <div class="sidebar-section">
+      <h6 class="sidebar-section-title">
+        <i class="fas fa-user me-2"></i>
+        حسابي
+      </h6>
+      <ul class="sidebar-menu">
+        {% if current_user.is_authenticated %}
+        <li>
+          <a href="{{ url_for('users_bp.profile') }}" class="sidebar-link">
+            <i class="fas fa-user-circle"></i>
+            <span>الملف الشخصي</span>
+          </a>
+        </li>
+        <li>
+          <a href="#" class="sidebar-link text-danger" onclick="event.preventDefault();document.getElementById('logout-form-sidebar').submit();">
+            <i class="fas fa-sign-out-alt"></i>
+            <span>تسجيل الخروج</span>
+          </a>
+        </li>
+        <form id="logout-form-sidebar" action="{{ url_for('auth.logout') }}" method="POST" style="display:none;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        </form>
+        {% else %}
+        <li>
+          <a href="{{ url_for('auth.login') }}" class="sidebar-link">
+            <i class="fas fa-sign-in-alt"></i>
+            <span>تسجيل الدخول</span>
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('auth.customer_register') }}" class="sidebar-link">
+            <i class="fas fa-user-plus"></i>
+            <span>إنشاء حساب</span>
+          </a>
+        </li>
+        {% endif %}
+      </ul>
+    </div>
+
+    <!-- العودة للنظام الرئيسي -->
+    {% if current_user.is_authenticated and (shop_is_super_admin or has_any('manage_customers', 'manage_service')) %}
+    <div class="sidebar-section">
+      <h6 class="sidebar-section-title">
+        <i class="fas fa-cog me-2"></i>
+        النظام الرئيسي
+      </h6>
+      <ul class="sidebar-menu">
+        <li>
+          <a href="{{ url_for('main.dashboard') }}" class="sidebar-link">
+            <i class="fas fa-tachometer-alt"></i>
+            <span>لوحة التحكم</span>
+            <i class="fas fa-external-link-alt ms-auto text-muted" style="font-size: 12px;"></i>
+          </a>
+        </li>
+      </ul>
+    </div>
+    {% endif %}
+
+  </div>
+
+  <!-- Footer -->
+  <div class="sidebar-footer">
+    <div class="text-center text-muted">
+      <small>
+        <i class="fas fa-store"></i>
+        متجر شركة ازاد
+      </small>
+    </div>
+  </div>
+</aside>
+
+<!-- Overlay للموبايل -->
+<div class="shop-sidebar-overlay" id="shopSidebarOverlay" onclick="toggleShopSidebar()"></div>
+
+<!-- زر فتح Sidebar (موبايل) -->
+<button class="btn-open-sidebar" onclick="toggleShopSidebar()">
+  <i class="fas fa-bars"></i>
+</button>
+
+<style>
+/* ==================== Shop Sidebar ==================== */
+.shop-sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 300px;
+  height: 100vh;
+  background: linear-gradient(180deg, #1a2332 0%, #2d3748 50%, #1a2332 100%);
+  box-shadow: -4px 0 30px rgba(0,0,0,0.3);
+  z-index: 9998;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.shop-sidebar.active {
+  transform: translateX(0);
+}
+
+/* Sidebar Header */
+.sidebar-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+}
+
+.sidebar-header h5 {
+  margin: 0;
+  font-weight: 700;
+}
+
+.btn-close-sidebar {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 5px;
+  transition: transform 0.3s ease;
+}
+
+.btn-close-sidebar:hover {
+  transform: rotate(90deg);
+}
+
+/* Sidebar Content */
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 0;
+}
+
+/* Sidebar Section */
+.sidebar-section {
+  margin-bottom: 25px;
+}
+
+.sidebar-section-title {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 0 20px;
+  margin-bottom: 10px;
+}
+
+/* Sidebar Menu */
+.sidebar-menu {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar-menu li {
+  margin: 4px 10px;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 15px;
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+  border-radius: 10px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.sidebar-link::before {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  width: 4px;
+  background: linear-gradient(180deg, #667eea, #764ba2);
+  transform: scaleY(0);
+  transition: transform 0.3s ease;
+}
+
+.sidebar-link i:first-child {
+  font-size: 18px;
+  width: 24px;
+  text-align: center;
+}
+
+.sidebar-link:hover {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.25), rgba(118, 75, 162, 0.25));
+  color: #ffffff;
+  transform: translateX(-4px);
+}
+
+.sidebar-link:hover::before {
+  transform: scaleY(1);
+}
+
+.sidebar-link.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.sidebar-link.active::before {
+  transform: scaleY(1);
+}
+
+/* Sidebar Footer */
+.sidebar-footer {
+  padding: 15px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  background: rgba(0,0,0,0.2);
+}
+
+/* Overlay */
+.shop-sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 9997;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.shop-sidebar-overlay.active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* زر فتح Sidebar */
+.btn-open-sidebar {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.5);
+  z-index: 9996;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: none; /* مخفي افتراضياً */
+}
+
+.btn-open-sidebar:hover {
+  transform: scale(1.1) rotate(90deg);
+  box-shadow: 0 6px 30px rgba(102, 126, 234, 0.7);
+}
+
+/* إظهار الزر على الشاشات الصغيرة */
+@media (max-width: 991px) {
+  .btn-open-sidebar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* Desktop - دائماً مفتوح */
+@media (min-width: 992px) {
+  .shop-sidebar {
+    transform: translateX(0);
+  }
+  
+  .main-content {
+    margin-right: 300px;
+    transition: margin-right 0.3s ease;
+  }
+}
+
+/* Custom Scrollbar */
+.sidebar-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-content::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.2);
+}
+
+.sidebar-content::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #667eea, #764ba2);
+  border-radius: 10px;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #764ba2, #667eea);
+}
+</style>
+
+<script>
+function toggleShopSidebar() {
+  const sidebar = document.getElementById('shopSidebar');
+  const overlay = document.getElementById('shopSidebarOverlay');
+  
+  if (sidebar && overlay) {
+    sidebar.classList.toggle('active');
+    overlay.classList.toggle('active');
+  }
+}
+</script>
+

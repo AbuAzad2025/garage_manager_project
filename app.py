@@ -764,6 +764,35 @@ def create_app(config_object=Config) -> Flask:
     from cli import register_cli
     register_cli(app)
 
+    # ========== إضافة العملات الافتراضية تلقائياً ==========
+    with app.app_context():
+        try:
+            from models import Currency, CURRENCY_CHOICES
+            
+            # التحقق من وجود عملات في قاعدة البيانات
+            currency_count = Currency.query.count()
+            
+            # إذا لم تكن هناك عملات، أضف العملات الافتراضية
+            if currency_count == 0:
+                symbols = {
+                    'ILS': 'ILS', 'USD': 'USD', 'EUR': 'EUR', 'JOD': 'JOD',
+                    'AED': 'AED', 'SAR': 'SAR', 'EGP': 'EGP', 'GBP': 'GBP'
+                }
+                
+                for code, name in CURRENCY_CHOICES:
+                    currency = Currency(
+                        code=code,
+                        name=name,
+                        symbol=symbols.get(code, code),
+                        decimals=2,
+                        is_active=True
+                    )
+                    db.session.add(currency)
+                
+                db.session.commit()
+                print(f"[INFO] Added {len(CURRENCY_CHOICES)} default currencies")
+        except Exception as e:
+            print(f"[WARNING] Could not seed default currencies: {e}")
 
     return app
 

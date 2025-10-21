@@ -96,7 +96,14 @@
       <div class="d-flex flex-wrap gap-2">
         {% if service.total_amount and service.total_amount > 0 %}
         <a href="{{ url_for('service.add_payment', rid=service.id) }}" class="btn btn-primary fw-bold">
-          <i class="fas fa-cash-register"></i> تسجيل دفعة ({{ '%.2f'|format(service.total_amount) }} ₪)
+          <i class="fas fa-cash-register"></i> تسجيل دفعة ({{ '%.2f'|format(service.total_amount) }} {{ service.currency or '₪' }})
+          {% if service.fx_rate_used and service.currency != 'ILS' %}
+            <br><small class="text-white-50">سعر الصرف: {{ "%.4f"|format(service.fx_rate_used) }}
+            {% if service.fx_rate_source %}
+              {% if service.fx_rate_source == 'online' %}🌐{% elif service.fx_rate_source == 'manual' %}✍️{% else %}⚙️{% endif %}
+            {% endif %}
+            </small>
+          {% endif %}
         </a>
         {% endif %}
         <form class="d-inline" method="post" action="{{ url_for('service.toggle_service', rid=service.id, action='start') }}">

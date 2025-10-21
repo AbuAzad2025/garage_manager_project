@@ -24,26 +24,83 @@
   <!-- بطاقة الفلاتر -->
   <div class="card shadow-sm mb-4">
     <div class="card-header bg-primary text-white">
-      {{ FIELD_LABELS.get("date_range", "نطاق التاريخ") }}
+      <i class="fas fa-calendar-alt"></i> {{ FIELD_LABELS.get("date_range", "نطاق التاريخ") }}
     </div>
     <div class="card-body">
       <form class="row g-3" method="get" action="{{ url_for('reports_bp.sales') }}">
-        <div class="col-md-3">
-          <label class="form-label fw-semibold">{{ FIELD_LABELS.get("start_date", "من") }}</label>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">
+            <i class="fas fa-calendar-check"></i> {{ FIELD_LABELS.get("start_date", "تاريخ البداية") }}
+          </label>
           <input type="date" name="start" value="{{ start or '' }}" class="form-control">
+          <small class="text-muted">اترك فارغاً لعرض جميع المبيعات من البداية</small>
         </div>
-        <div class="col-md-3">
-          <label class="form-label fw-semibold">{{ FIELD_LABELS.get("end_date", "إلى") }}</label>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">
+            <i class="fas fa-calendar-times"></i> {{ FIELD_LABELS.get("end_date", "تاريخ النهاية") }}
+          </label>
           <input type="date" name="end" value="{{ end or '' }}" class="form-control">
+          <small class="text-muted">اترك فارغاً لعرض جميع المبيعات حتى اليوم</small>
         </div>
-        <div class="col-md-3 align-self-end">
-          <button class="btn btn-primary">
-            <i class="fas fa-sync-alt"></i> {{ FIELD_LABELS.get("refresh", "تحديث") }}
+        <div class="col-md-4 align-self-end">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="fas fa-sync-alt"></i> {{ FIELD_LABELS.get("refresh", "تحديث التقرير") }}
           </button>
+          {% if start or end %}
+          <a href="{{ url_for('reports_bp.sales') }}" class="btn btn-outline-secondary w-100 mt-2">
+            <i class="fas fa-times"></i> إلغاء الفلتر
+          </a>
+          {% endif %}
         </div>
       </form>
     </div>
   </div>
+
+  <!-- ملخصات إحصائية -->
+  {% if daily_labels %}
+  {% set avg_daily = (total_revenue / daily_labels|length) if daily_labels else 0 %}
+  {% set max_daily = daily_values|max if daily_values else 0 %}
+  {% set min_daily = daily_values|min if daily_values else 0 %}
+  
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card shadow-sm border-success">
+        <div class="card-body text-center">
+          <div class="text-success mb-2"><i class="fas fa-dollar-sign fa-2x"></i></div>
+          <h5 class="text-success mb-0">{{ "{:,.2f}".format(total_revenue) }}</h5>
+          <small class="text-muted">إجمالي الإيرادات</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card shadow-sm border-primary">
+        <div class="card-body text-center">
+          <div class="text-primary mb-2"><i class="fas fa-calendar-day fa-2x"></i></div>
+          <h5 class="text-primary mb-0">{{ "{:,.2f}".format(avg_daily) }}</h5>
+          <small class="text-muted">متوسط المبيعات اليومية</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card shadow-sm border-info">
+        <div class="card-body text-center">
+          <div class="text-info mb-2"><i class="fas fa-arrow-up fa-2x"></i></div>
+          <h5 class="text-info mb-0">{{ "{:,.2f}".format(max_daily) }}</h5>
+          <small class="text-muted">أعلى يوم مبيعات</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card shadow-sm border-warning">
+        <div class="card-body text-center">
+          <div class="text-warning mb-2"><i class="fas fa-arrow-down fa-2x"></i></div>
+          <h5 class="text-warning mb-0">{{ "{:,.2f}".format(min_daily) }}</h5>
+          <small class="text-muted">أقل يوم مبيعات</small>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
   <!-- جدول المبيعات -->
   <div class="card shadow-sm">

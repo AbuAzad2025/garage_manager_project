@@ -73,184 +73,6 @@
   
   <!-- Enhanced Styles -->
   <style>
-    /* FIX: Dropdown فوق Sidebar */
-    .dropdown-menu,
-    .navbar .dropdown-menu,
-    .main-header .dropdown-menu {
-      z-index: 9999 !important;
-      position: absolute !important;
-    }
-    
-    /* Sidebar - موقع افتراضي على اليسار لمنع الـ flash */
-    .main-sidebar {
-      z-index: 1000 !important;
-      transition: left 0.3s ease, right 0.3s ease, width 0.3s ease;
-      right: auto !important;
-      left: 0 !important;
-      width: 280px !important;
-    }
-    
-    .content-wrapper,
-    .main-footer {
-      margin-left: 280px !important;
-      margin-right: 0 !important;
-      transition: margin-left 0.3s ease, margin-right 0.3s ease;
-    }
-    
-    .main-header.navbar {
-      z-index: 1030 !important;
-      margin-left: 280px !important;
-      margin-right: 0 !important;
-      transition: margin-left 0.3s ease, margin-right 0.3s ease;
-    }
-    
-    /* سيتم override بواسطة JavaScript إذا كان محفوظ على اليمين */
-    body[data-sidebar-position="right"] .main-sidebar {
-      left: auto !important;
-      right: 0 !important;
-    }
-    
-    body[data-sidebar-position="right"] .content-wrapper,
-    body[data-sidebar-position="right"] .main-footer {
-      margin-left: 0 !important;
-      margin-right: 280px !important;
-    }
-    
-    body[data-sidebar-position="right"] .main-header.navbar {
-      margin-left: 0 !important;
-      margin-right: 280px !important;
-    }
-    
-    /* إصلاح Sidebar في RTL */
-    .sidebar {
-      direction: rtl;
-    }
-    
-    .nav-sidebar > .nav-item .nav-icon {
-      margin-left: 0;
-      margin-right: 0.5rem;
-    }
-    
-    /* ==================== RESPONSIVE DESIGN ==================== */
-    
-    /* Mobile (< 576px) */
-    @media (max-width: 575.98px) {
-      .main-sidebar {
-        width: 100% !important;
-        transform: translateX(-100%);
-        transition: transform 0.3s ease;
-      }
-      
-      body.sidebar-open .main-sidebar {
-        transform: translateX(0);
-      }
-      
-      .content-wrapper,
-      .main-footer,
-      .main-header.navbar {
-        margin-left: 0 !important;
-        margin-right: 0 !important;
-      }
-      
-      /* إخفاء بعض العناصر على الموبايل */
-      .breadcrumb {
-        font-size: 12px;
-      }
-      
-      .card {
-        margin-bottom: 15px;
-      }
-    }
-    
-    /* Tablet (576px - 991px) */
-    @media (min-width: 576px) and (max-width: 991.98px) {
-      .main-sidebar {
-        width: 250px !important;
-      }
-      
-      body[data-sidebar-position="left"] .content-wrapper,
-      body[data-sidebar-position="left"] .main-footer,
-      body[data-sidebar-position="left"] .main-header.navbar {
-        margin-left: 250px !important;
-      }
-      
-      body[data-sidebar-position="right"] .content-wrapper,
-      body[data-sidebar-position="right"] .main-footer,
-      body[data-sidebar-position="right"] .main-header.navbar {
-        margin-right: 250px !important;
-      }
-    }
-    
-    /* Desktop (992px - 1399px) */
-    @media (min-width: 992px) and (max-width: 1399.98px) {
-      .main-sidebar {
-        width: 280px !important;
-      }
-      
-      body[data-sidebar-position="left"] .content-wrapper,
-      body[data-sidebar-position="left"] .main-footer,
-      body[data-sidebar-position="left"] .main-header.navbar {
-        margin-left: 280px !important;
-      }
-      
-      body[data-sidebar-position="right"] .content-wrapper,
-      body[data-sidebar-position="right"] .main-footer,
-      body[data-sidebar-position="right"] .main-header.navbar {
-        margin-right: 280px !important;
-      }
-    }
-    
-    /* Large Desktop (1400px - 1919px) */
-    @media (min-width: 1400px) and (max-width: 1919.98px) {
-      .main-sidebar {
-        width: 300px !important;
-      }
-      
-      body[data-sidebar-position="left"] .content-wrapper,
-      body[data-sidebar-position="left"] .main-footer,
-      body[data-sidebar-position="left"] .main-header.navbar {
-        margin-left: 300px !important;
-      }
-      
-      body[data-sidebar-position="right"] .content-wrapper,
-      body[data-sidebar-position="right"] .main-footer,
-      body[data-sidebar-position="right"] .main-header.navbar {
-        margin-right: 300px !important;
-      }
-    }
-    
-    /* Extra Large (TV/4K - >= 1920px) */
-    @media (min-width: 1920px) {
-      .main-sidebar {
-        width: 320px !important;
-      }
-      
-      body[data-sidebar-position="left"] .content-wrapper,
-      body[data-sidebar-position="left"] .main-footer,
-      body[data-sidebar-position="left"] .main-header.navbar {
-        margin-left: 320px !important;
-      }
-      
-      body[data-sidebar-position="right"] .content-wrapper,
-      body[data-sidebar-position="right"] .main-footer,
-      body[data-sidebar-position="right"] .main-header.navbar {
-        margin-right: 320px !important;
-      }
-      
-      .content-wrapper {
-        max-width: 1800px;
-        margin-left: auto;
-        margin-right: auto;
-      }
-    }
-    
-    /* Sidebar Collapse على Mobile */
-    @media (max-width: 991.98px) {
-      body.sidebar-collapse .main-sidebar {
-        transform: translateX(-100%);
-      }
-    }
-    
     /* Enhanced Select2 Styling */
     .select2-container .select2-selection--single {
       height: calc(2.25rem + 2px);
@@ -411,7 +233,7 @@
     }
   </style>
 </head>
-<body class="hold-transition sidebar-mini layout-fixed text-sm layout-navbar-fixed sidebar-collapse-left">
+<body class="hold-transition sidebar-mini layout-fixed text-sm">
 <div class="wrapper">
   {% include 'partials/navbar.html' %}
   {% include 'partials/sidebar.html' %}
@@ -493,7 +315,6 @@
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js" integrity="sha384-/KNQL8Nu5gCHLqwqfQjA689Hhoqgi2S84SNUxC3roTe4EhJ9AfLkp8QiQcU8AMzI" crossorigin="anonymous"></script>
 {% endif %}
 
-<script src="{{ url_for('static', filename='js/fx_utils.js') }}"></script>
 <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 <script src="{{ url_for('static', filename='js/ux-enhancements.js') }}"></script>
@@ -501,29 +322,23 @@
 <script>
 // ========== إدارة التنبيهات التلقائية ==========
 (function() {
-  // إخفاء التنبيهات تلقائياً بعد 10 ثواني فقط لتنبيهات النجاح
+  // إخفاء التنبيهات تلقائياً بعد 5 ثواني
   document.addEventListener('DOMContentLoaded', function() {
     const alerts = document.querySelectorAll('.auto-dismiss-alert');
     
     alerts.forEach(function(alert) {
-      // فقط تنبيهات النجاح تختفي تلقائياً
-      const isSuccess = alert.classList.contains('alert-success');
-      
-      if (isSuccess) {
-        // تأخير 10 ثواني قبل البدء بالإخفاء
+      // تأخير قبل البدء بالإخفاء
+      setTimeout(function() {
+        // إضافة تأثير fade out
+        alert.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+        alert.style.opacity = '0';
+        alert.style.transform = 'translateY(-20px)';
+        
+        // إزالة العنصر بعد انتهاء التأثير
         setTimeout(function() {
-          // إضافة تأثير fade out
-          alert.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-          alert.style.opacity = '0';
-          alert.style.transform = 'translateY(-20px)';
-          
-          // إزالة العنصر بعد انتهاء التأثير
-          setTimeout(function() {
-            alert.remove();
-          }, 500);
-        }, 10000); // 10 ثواني فقط للنجاح
-      }
-      // باقي التنبيهات (تحذير/خطأ/معلومات) تبقى حتى يغلقها المستخدم يدوياً
+          alert.remove();
+        }, 500);
+      }, 5000); // 5 ثواني
     });
   });
   
@@ -534,139 +349,6 @@
     return originalAlert.call(window, message);
   };
 })();
-
-// ========== تبديل موقع Sidebar يمين/يسار ==========
-function toggleSidebarPosition() {
-  const body = document.body;
-  const currentPosition = localStorage.getItem('sidebarPosition') || 'left';
-  const newPosition = currentPosition === 'left' ? 'right' : 'left';
-  
-  console.log('🔄 تبديل Sidebar من', currentPosition, 'إلى', newPosition);
-  
-  // حفظ الموقع الجديد
-  localStorage.setItem('sidebarPosition', newPosition);
-  
-  // تحديث data attribute
-  body.setAttribute('data-sidebar-position', newPosition);
-  
-  // تطبيق التغيير
-  applySidebarPosition(newPosition);
-  
-  // تحديث النص في الزر
-  document.getElementById('sidebar-position-badge').textContent = newPosition === 'left' ? 'يسار' : 'يمين';
-}
-
-function applySidebarPosition(position) {
-  const sidebar = document.querySelector('.main-sidebar');
-  const contentWrapper = document.querySelector('.content-wrapper');
-  const navbar = document.querySelector('.main-header.navbar');
-  const footer = document.querySelector('.main-footer');
-  
-  if (!sidebar) {
-    console.error('❌ Sidebar not found!');
-    return;
-  }
-  
-  // عرض الـ sidebar حسب حجم الشاشة
-  const screenWidth = window.innerWidth;
-  let sidebarWidth = '280px';
-  
-  if (screenWidth < 576) {
-    sidebarWidth = '100%';
-  } else if (screenWidth < 992) {
-    sidebarWidth = '250px';
-  } else if (screenWidth < 1400) {
-    sidebarWidth = '280px';
-  } else if (screenWidth < 1920) {
-    sidebarWidth = '300px';
-  } else {
-    sidebarWidth = '320px';
-  }
-  
-  if (position === 'left') {
-    // وضع على اليسار
-    sidebar.style.setProperty('right', 'auto', 'important');
-    sidebar.style.setProperty('left', '0', 'important');
-    sidebar.style.setProperty('position', 'fixed', 'important');
-    sidebar.style.setProperty('width', sidebarWidth, 'important');
-    
-    if (contentWrapper) {
-      contentWrapper.style.setProperty('margin-left', sidebarWidth, 'important');
-      contentWrapper.style.setProperty('margin-right', '0', 'important');
-    }
-    
-    if (navbar) {
-      navbar.style.setProperty('margin-left', sidebarWidth, 'important');
-      navbar.style.setProperty('margin-right', '0', 'important');
-    }
-    
-    if (footer) {
-      footer.style.setProperty('margin-left', sidebarWidth, 'important');
-      footer.style.setProperty('margin-right', '0', 'important');
-    }
-    
-    console.log('✅ Sidebar على اليسار - العرض:', sidebarWidth);
-  } else {
-    // وضع على اليمين
-    sidebar.style.setProperty('left', 'auto', 'important');
-    sidebar.style.setProperty('right', '0', 'important');
-    sidebar.style.setProperty('position', 'fixed', 'important');
-    sidebar.style.setProperty('width', sidebarWidth, 'important');
-    
-    if (contentWrapper) {
-      contentWrapper.style.setProperty('margin-right', sidebarWidth, 'important');
-      contentWrapper.style.setProperty('margin-left', '0', 'important');
-    }
-    
-    if (navbar) {
-      navbar.style.setProperty('margin-right', sidebarWidth, 'important');
-      navbar.style.setProperty('margin-left', '0', 'important');
-    }
-    
-    if (footer) {
-      footer.style.setProperty('margin-right', sidebarWidth, 'important');
-      footer.style.setProperty('margin-left', '0', 'important');
-    }
-    
-    console.log('✅ Sidebar على اليمين - العرض:', sidebarWidth);
-  }
-  
-  // لوگ للتأكد
-  setTimeout(() => {
-    console.log('🔍 التحقق من الموقع:', {
-      sidebarLeft: sidebar.style.left,
-      sidebarRight: sidebar.style.right,
-      contentMarginLeft: contentWrapper?.style.marginLeft,
-      contentMarginRight: contentWrapper?.style.marginRight
-    });
-  }, 100);
-}
-
-// تطبيق الموقع المحفوظ قبل تحميل الصفحة لمنع الـ flash
-(function() {
-  const savedPosition = localStorage.getItem('sidebarPosition') || 'left';
-  document.body.setAttribute('data-sidebar-position', savedPosition);
-  console.log('⚡ تطبيق سريع للموقع:', savedPosition);
-})();
-
-// تطبيق الموقع المحفوظ عند تحميل الصفحة
-document.addEventListener('DOMContentLoaded', function() {
-  const savedPosition = localStorage.getItem('sidebarPosition') || 'left';
-  console.log('📍 الموقع المحفوظ:', savedPosition);
-  applySidebarPosition(savedPosition);
-  
-  // تحديث النص في الزر
-  const badge = document.getElementById('sidebar-position-badge');
-  if (badge) {
-    badge.textContent = savedPosition === 'left' ? 'يسار' : 'يمين';
-  }
-});
-
-// إعادة الحساب عند تغيير حجم الشاشة
-window.addEventListener('resize', function() {
-  const savedPosition = localStorage.getItem('sidebarPosition') || 'left';
-  applySidebarPosition(savedPosition);
-});
 </script>
 
 {% block scripts %}{% endblock %}

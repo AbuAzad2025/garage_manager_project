@@ -2239,6 +2239,14 @@ class SupplierSettlement(db.Model, TimestampMixin, AuditMixin):
     from_date = db.Column(db.DateTime, nullable=False)
     to_date = db.Column(db.DateTime, nullable=False)
     currency = db.Column(db.String(10), default="ILS", nullable=False)
+    
+    # حقول سعر الصرف
+    fx_rate_used = db.Column(db.Numeric(10, 6))
+    fx_rate_source = db.Column(db.String(20))
+    fx_rate_timestamp = db.Column(db.DateTime)
+    fx_base_currency = db.Column(db.String(10))
+    fx_quote_currency = db.Column(db.String(10))
+    
     status = db.Column(
         sa_str_enum(SupplierSettlementStatus, name="supplier_settlement_status"),
         default=SupplierSettlementStatus.DRAFT.value,
@@ -2936,6 +2944,14 @@ class PartnerSettlement(db.Model, TimestampMixin, AuditMixin):
     from_date = db.Column(db.DateTime, nullable=False, index=True)
     to_date = db.Column(db.DateTime, nullable=False, index=True)
     currency = db.Column(db.String(10), default="ILS", nullable=False)
+    
+    # حقول سعر الصرف
+    fx_rate_used = db.Column(db.Numeric(10, 6))
+    fx_rate_source = db.Column(db.String(20))
+    fx_rate_timestamp = db.Column(db.DateTime)
+    fx_base_currency = db.Column(db.String(10))
+    fx_quote_currency = db.Column(db.String(10))
+    
     status = db.Column(sa_str_enum(PartnerSettlementStatus, name="partner_settlement_status"), default=PartnerSettlementStatus.DRAFT.value, nullable=False, index=True)
     notes = db.Column(db.Text)
     total_gross = db.Column(db.Numeric(12, 2), default=0, nullable=False)
@@ -3924,6 +3940,14 @@ class PreOrder(db.Model, TimestampMixin, AuditMixin):
     notes = db.Column(db.Text)
     payment_method = db.Column(sa_str_enum(PaymentMethod, name='preorder_payment_method'), default=PaymentMethod.CASH.value, nullable=False, server_default=sa_text("'cash'"))
     currency = db.Column(db.String(10), default='ILS', nullable=False, server_default=sa_text("'ILS'"))
+    
+    # حقول سعر الصرف
+    fx_rate_used = db.Column(db.Numeric(10, 6))
+    fx_rate_source = db.Column(db.String(20))
+    fx_rate_timestamp = db.Column(db.DateTime)
+    fx_base_currency = db.Column(db.String(10))
+    fx_quote_currency = db.Column(db.String(10))
+    
     refunded_total = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
     refund_of_id = db.Column(db.Integer, db.ForeignKey('preorders.id', ondelete='SET NULL'), index=True)
     idempotency_key = db.Column(db.String(64), unique=True, index=True)
@@ -4071,6 +4095,14 @@ class Sale(db.Model, TimestampMixin, AuditMixin):
     payment_status = db.Column(sa_str_enum(PaymentProgress, name="sale_payment_progress"), default=PaymentProgress.PENDING.value, nullable=False, index=True)
 
     currency = db.Column(db.String(10), default="ILS", nullable=False)
+    
+    # حقول سعر الصرف
+    fx_rate_used = db.Column(db.Numeric(10, 6))
+    fx_rate_source = db.Column(db.String(20))
+    fx_rate_timestamp = db.Column(db.DateTime)
+    fx_base_currency = db.Column(db.String(10))
+    fx_quote_currency = db.Column(db.String(10))
+    
     shipping_address = db.Column(db.Text)
     billing_address = db.Column(db.Text)
     shipping_cost = db.Column(db.Numeric(10, 2), default=0, nullable=False)
@@ -4416,6 +4448,14 @@ class SaleReturn(db.Model, TimestampMixin, AuditMixin):
     notes = db.Column(db.Text)
     total_amount = db.Column(db.Numeric(12,2), nullable=False, default=0)
     currency = db.Column(db.String(10), nullable=False, default="ILS")
+    
+    # حقول سعر الصرف
+    fx_rate_used = db.Column(db.Numeric(10, 6))
+    fx_rate_source = db.Column(db.String(20))
+    fx_rate_timestamp = db.Column(db.DateTime)
+    fx_base_currency = db.Column(db.String(10))
+    fx_quote_currency = db.Column(db.String(10))
+    
     credit_note_id = db.Column(db.Integer, db.ForeignKey("invoices.id", ondelete="SET NULL"), index=True)
 
     sale = db.relationship("Sale")
@@ -4490,6 +4530,14 @@ class Invoice(db.Model, TimestampMixin):
     refund_of_id = Column(Integer, ForeignKey("invoices.id", ondelete="SET NULL"), index=True)
 
     currency = Column(String(10), default="ILS", nullable=False)
+    
+    # حقول سعر الصرف
+    fx_rate_used = Column(Numeric(10, 6))
+    fx_rate_source = Column(String(20))
+    fx_rate_timestamp = Column(DateTime)
+    fx_base_currency = Column(String(10))
+    fx_quote_currency = Column(String(10))
+    
     total_amount = Column(Numeric(12, 2), nullable=False, default=0)
     tax_amount = Column(Numeric(12, 2), default=0, nullable=False)
     discount_amount = Column(Numeric(12, 2), default=0, nullable=False)
@@ -4633,8 +4681,38 @@ class InvoiceLine(db.Model):
         return taxable + tax_amount
 
 @event.listens_for(Invoice, "before_insert")
+def _invoice_normalize_and_total_insert(mapper, connection, target: "Invoice"):
+    target.currency = ensure_currency(target.currency or "ILS")
+    
+    # حفظ سعر الصرف تلقائياً للفواتير (فقط عند الإنشاء)
+    invoice_currency = target.currency
+    default_currency = "ILS"
+    
+    if invoice_currency != default_currency:
+        try:
+            rate_info = get_fx_rate_with_fallback(invoice_currency, default_currency)
+            if rate_info and rate_info.get('success'):
+                target.fx_rate_used = Decimal(str(rate_info.get('rate', 0)))
+                target.fx_rate_source = rate_info.get('source', 'unknown')
+                target.fx_rate_timestamp = datetime.now(timezone.utc)
+                target.fx_base_currency = invoice_currency
+                target.fx_quote_currency = default_currency
+        except Exception:
+            pass
+    
+    target.total_amount = q(target.total_amount or 0)
+    target.tax_amount = q(target.tax_amount or 0)
+    target.discount_amount = q(target.discount_amount or 0)
+    target.refunded_total = q(target.refunded_total or 0)
+    k = getattr(target, "kind", None)
+    if hasattr(k, "value"):
+        k = k.value
+    target.kind = (k or "INVOICE").upper()
+
+
 @event.listens_for(Invoice, "before_update")
-def _invoice_normalize_and_total(mapper, connection, target: "Invoice"):
+def _invoice_normalize_and_total_update(mapper, connection, target: "Invoice"):
+    # تحديث الحقول فقط، بدون تغيير سعر الصرف
     target.currency = ensure_currency(target.currency or "ILS")
     target.total_amount = q(target.total_amount or 0)
     target.tax_amount = q(target.tax_amount or 0)
@@ -5149,6 +5227,23 @@ def _payment_before_insert(mapper, connection, target: "Payment"):
         if v is not None:
             setattr(target, k, getattr(v, "value", v))
     target.currency = ensure_currency(getattr(target, "currency", None) or "ILS")
+    
+    # حفظ سعر الصرف المستخدم تلقائياً (فقط عند الإنشاء)
+    payment_currency = target.currency
+    default_currency = "ILS"
+    
+    if payment_currency != default_currency:
+        try:
+            rate_info = get_fx_rate_with_fallback(payment_currency, default_currency)
+            if rate_info and rate_info.get('success'):
+                target.fx_rate_used = Decimal(str(rate_info.get('rate', 0)))
+                target.fx_rate_source = rate_info.get('source', 'unknown')
+                target.fx_rate_timestamp = datetime.now(timezone.utc)
+                target.fx_base_currency = payment_currency
+                target.fx_quote_currency = default_currency
+        except Exception:
+            pass
+    
     detected = _payment_detect_entity_type(target)
     if detected:
         target.entity_type = detected
@@ -5756,6 +5851,14 @@ class Shipment(db.Model, TimestampMixin, AuditMixin):
     tracking_number = db.Column(db.String(100), index=True)
     notes = db.Column(db.Text)
     currency = db.Column(db.String(10), default="USD", nullable=False)
+    
+    # حقول سعر الصرف
+    fx_rate_used = db.Column(db.Numeric(10, 6))
+    fx_rate_source = db.Column(db.String(20))
+    fx_rate_timestamp = db.Column(db.DateTime)
+    fx_base_currency = db.Column(db.String(10))
+    fx_quote_currency = db.Column(db.String(10))
+    
     sale_id = db.Column(db.Integer, db.ForeignKey("sales.id"), index=True)
     
     # حقول إضافية للشحنات
@@ -6104,6 +6207,14 @@ class ServiceRequest(db.Model, TimestampMixin, AuditMixin):
     completed_at = db.Column(db.DateTime)
 
     currency = db.Column(db.String(10), nullable=False, default="ILS")
+    
+    # حقول سعر الصرف
+    fx_rate_used = db.Column(db.Numeric(10, 6))
+    fx_rate_source = db.Column(db.String(20))
+    fx_rate_timestamp = db.Column(db.DateTime)
+    fx_base_currency = db.Column(db.String(10))
+    fx_quote_currency = db.Column(db.String(10))
+    
     tax_rate = db.Column(db.Numeric(5, 2), default=0)
     discount_total = db.Column(db.Numeric(12, 2), default=0)
     parts_total = db.Column(db.Numeric(12, 2), default=0)
@@ -6772,6 +6883,15 @@ class OnlinePreOrder(db.Model, TimestampMixin):
 
     prepaid_amount = db.Column(db.Numeric(12, 2), default=0)
     total_amount = db.Column(db.Numeric(12, 2), default=0)
+    currency = db.Column(db.String(10), default='ILS', nullable=False)
+    
+    # حقول سعر الصرف
+    fx_rate_used = db.Column(db.Numeric(10, 6))
+    fx_rate_source = db.Column(db.String(20))
+    fx_rate_timestamp = db.Column(db.DateTime)
+    fx_base_currency = db.Column(db.String(10))
+    fx_quote_currency = db.Column(db.String(10))
+    
     expected_fulfillment = db.Column(db.DateTime)
     actual_fulfillment = db.Column(db.DateTime)
 
@@ -7014,6 +7134,14 @@ class OnlinePayment(db.Model, TimestampMixin):
                          nullable=False, index=True)
     amount = db.Column(db.Numeric(12, 2), nullable=False)
     currency = db.Column(db.String(10), default='ILS', nullable=False)
+    
+    # حقول سعر الصرف
+    fx_rate_used = db.Column(db.Numeric(10, 6))
+    fx_rate_source = db.Column(db.String(20))
+    fx_rate_timestamp = db.Column(db.DateTime)
+    fx_base_currency = db.Column(db.String(10))
+    fx_quote_currency = db.Column(db.String(10))
+    
     method = db.Column(db.String(50))
     gateway = db.Column(db.String(50))
     status = db.Column(sa_str_enum(['PENDING','SUCCESS','FAILED','REFUNDED'], name='online_payment_status'),
@@ -7442,6 +7570,13 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
     date = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
     amount = db.Column(db.Numeric(12, 2), nullable=False)
     currency = db.Column(db.String(10), default="ILS", nullable=False)
+    
+    # حقول سعر الصرف
+    fx_rate_used = db.Column(db.Numeric(10, 6))
+    fx_rate_source = db.Column(db.String(20))
+    fx_rate_timestamp = db.Column(db.DateTime)
+    fx_base_currency = db.Column(db.String(10))
+    fx_quote_currency = db.Column(db.String(10))
 
     type_id = db.Column(db.Integer, db.ForeignKey("expense_types.id", ondelete="RESTRICT"), nullable=False, index=True)
     employee_id = db.Column(db.Integer, db.ForeignKey("employees.id", ondelete="SET NULL"), index=True)
@@ -7654,13 +7789,282 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
 
 
 @event.listens_for(Expense, "before_insert")
+def _expense_normalize_insert(mapper, connection, target: "Expense"):
+    target.payment_method = (target.payment_method or "cash").lower()
+    target.currency = (target.currency or "ILS").upper()
+    
+    # حفظ سعر الصرف تلقائياً للنفقات (فقط عند الإنشاء)
+    expense_currency = target.currency
+    default_currency = "ILS"
+    
+    if expense_currency != default_currency:
+        try:
+            rate_info = get_fx_rate_with_fallback(expense_currency, default_currency)
+            if rate_info and rate_info.get('success'):
+                target.fx_rate_used = Decimal(str(rate_info.get('rate', 0)))
+                target.fx_rate_source = rate_info.get('source', 'unknown')
+                target.fx_rate_timestamp = datetime.now(timezone.utc)
+                target.fx_base_currency = expense_currency
+                target.fx_quote_currency = default_currency
+        except Exception:
+            pass
+    
+    target.payee_type = (target.payee_type or "OTHER").upper()
+    if not target.paid_to:
+        target.paid_to = (target.payee_name or None)
+
+
 @event.listens_for(Expense, "before_update")
-def _expense_normalize(mapper, connection, target: "Expense"):
+def _expense_normalize_update(mapper, connection, target: "Expense"):
+    # تحديث الحقول فقط، بدون تغيير سعر الصرف
     target.payment_method = (target.payment_method or "cash").lower()
     target.currency = (target.currency or "ILS").upper()
     target.payee_type = (target.payee_type or "OTHER").upper()
     if not target.paid_to:
         target.paid_to = (target.payee_name or None)
+
+
+@event.listens_for(PreOrder, "before_insert")
+def _preorder_normalize_insert(mapper, connection, target: "PreOrder"):
+    target.currency = (target.currency or "ILS").upper()
+    
+    # حفظ سعر الصرف تلقائياً للحجوزات (فقط عند الإنشاء)
+    preorder_currency = target.currency
+    default_currency = "ILS"
+    
+    if preorder_currency != default_currency:
+        try:
+            rate_info = get_fx_rate_with_fallback(preorder_currency, default_currency)
+            if rate_info and rate_info.get('success'):
+                target.fx_rate_used = Decimal(str(rate_info.get('rate', 0)))
+                target.fx_rate_source = rate_info.get('source', 'unknown')
+                target.fx_rate_timestamp = datetime.now(timezone.utc)
+                target.fx_base_currency = preorder_currency
+                target.fx_quote_currency = default_currency
+        except Exception:
+            pass
+
+
+@event.listens_for(PreOrder, "before_update")
+def _preorder_normalize_update(mapper, connection, target: "PreOrder"):
+    # تحديث الحقول فقط، بدون تغيير سعر الصرف
+    target.currency = (target.currency or "ILS").upper()
+
+
+@event.listens_for(Sale, "before_insert")
+def _sale_normalize_insert(mapper, connection, target: "Sale"):
+    target.currency = (target.currency or "ILS").upper()
+    
+    # حفظ سعر الصرف تلقائياً للمبيعات (فقط عند الإنشاء)
+    sale_currency = target.currency
+    default_currency = "ILS"
+    
+    if sale_currency != default_currency:
+        try:
+            rate_info = get_fx_rate_with_fallback(sale_currency, default_currency)
+            if rate_info and rate_info.get('success'):
+                target.fx_rate_used = Decimal(str(rate_info.get('rate', 0)))
+                target.fx_rate_source = rate_info.get('source', 'unknown')
+                target.fx_rate_timestamp = datetime.now(timezone.utc)
+                target.fx_base_currency = sale_currency
+                target.fx_quote_currency = default_currency
+        except Exception:
+            pass
+
+
+@event.listens_for(Sale, "before_update")
+def _sale_normalize_update(mapper, connection, target: "Sale"):
+    # تحديث الحقول فقط، بدون تغيير سعر الصرف
+    target.currency = (target.currency or "ILS").upper()
+
+
+@event.listens_for(SaleReturn, "before_insert")
+def _sale_return_normalize_insert(mapper, connection, target: "SaleReturn"):
+    target.currency = (target.currency or "ILS").upper()
+    
+    # حفظ سعر الصرف تلقائياً لمرتجعات المبيعات (فقط عند الإنشاء)
+    return_currency = target.currency
+    default_currency = "ILS"
+    
+    if return_currency != default_currency:
+        try:
+            rate_info = get_fx_rate_with_fallback(return_currency, default_currency)
+            if rate_info and rate_info.get('success'):
+                target.fx_rate_used = Decimal(str(rate_info.get('rate', 0)))
+                target.fx_rate_source = rate_info.get('source', 'unknown')
+                target.fx_rate_timestamp = datetime.now(timezone.utc)
+                target.fx_base_currency = return_currency
+                target.fx_quote_currency = default_currency
+        except Exception:
+            pass
+
+
+@event.listens_for(SaleReturn, "before_update")
+def _sale_return_normalize_update(mapper, connection, target: "SaleReturn"):
+    # تحديث الحقول فقط، بدون تغيير سعر الصرف
+    target.currency = (target.currency or "ILS").upper()
+
+
+@event.listens_for(Shipment, "before_insert")
+def _shipment_normalize_insert(mapper, connection, target: "Shipment"):
+    target.currency = (target.currency or "USD").upper()
+    
+    # حفظ سعر الصرف تلقائياً للشحنات (فقط عند الإنشاء)
+    shipment_currency = target.currency
+    default_currency = "ILS"
+    
+    if shipment_currency != default_currency:
+        try:
+            rate_info = get_fx_rate_with_fallback(shipment_currency, default_currency)
+            if rate_info and rate_info.get('success'):
+                target.fx_rate_used = Decimal(str(rate_info.get('rate', 0)))
+                target.fx_rate_source = rate_info.get('source', 'unknown')
+                target.fx_rate_timestamp = datetime.now(timezone.utc)
+                target.fx_base_currency = shipment_currency
+                target.fx_quote_currency = default_currency
+        except Exception:
+            pass
+
+
+@event.listens_for(Shipment, "before_update")
+def _shipment_normalize_update(mapper, connection, target: "Shipment"):
+    # تحديث الحقول فقط، بدون تغيير سعر الصرف
+    target.currency = (target.currency or "USD").upper()
+
+
+@event.listens_for(ServiceRequest, "before_insert")
+def _service_request_normalize_insert(mapper, connection, target: "ServiceRequest"):
+    target.currency = (target.currency or "ILS").upper()
+    
+    # حفظ سعر الصرف تلقائياً لطلبات الخدمة (فقط عند الإنشاء)
+    service_currency = target.currency
+    default_currency = "ILS"
+    
+    if service_currency != default_currency:
+        try:
+            rate_info = get_fx_rate_with_fallback(service_currency, default_currency)
+            if rate_info and rate_info.get('success'):
+                target.fx_rate_used = Decimal(str(rate_info.get('rate', 0)))
+                target.fx_rate_source = rate_info.get('source', 'unknown')
+                target.fx_rate_timestamp = datetime.now(timezone.utc)
+                target.fx_base_currency = service_currency
+                target.fx_quote_currency = default_currency
+        except Exception:
+            pass
+
+
+@event.listens_for(ServiceRequest, "before_update")
+def _service_request_normalize_update(mapper, connection, target: "ServiceRequest"):
+    # تحديث الحقول فقط، بدون تغيير سعر الصرف
+    target.currency = (target.currency or "ILS").upper()
+
+
+@event.listens_for(OnlinePreOrder, "before_insert")
+def _online_preorder_normalize_insert(mapper, connection, target: "OnlinePreOrder"):
+    target.currency = (target.currency or "ILS").upper()
+    
+    # حفظ سعر الصرف تلقائياً للحجوزات الأونلاين (فقط عند الإنشاء)
+    online_currency = target.currency
+    default_currency = "ILS"
+    
+    if online_currency != default_currency:
+        try:
+            rate_info = get_fx_rate_with_fallback(online_currency, default_currency)
+            if rate_info and rate_info.get('success'):
+                target.fx_rate_used = Decimal(str(rate_info.get('rate', 0)))
+                target.fx_rate_source = rate_info.get('source', 'unknown')
+                target.fx_rate_timestamp = datetime.now(timezone.utc)
+                target.fx_base_currency = online_currency
+                target.fx_quote_currency = default_currency
+        except Exception:
+            pass
+
+
+@event.listens_for(OnlinePreOrder, "before_update")
+def _online_preorder_normalize_update(mapper, connection, target: "OnlinePreOrder"):
+    # تحديث الحقول فقط، بدون تغيير سعر الصرف
+    target.currency = (target.currency or "ILS").upper()
+
+
+@event.listens_for(OnlinePayment, "before_insert")
+def _online_payment_normalize_insert(mapper, connection, target: "OnlinePayment"):
+    target.currency = (target.currency or "ILS").upper()
+    
+    # حفظ سعر الصرف تلقائياً للمدفوعات الأونلاين (فقط عند الإنشاء)
+    payment_currency = target.currency
+    default_currency = "ILS"
+    
+    if payment_currency != default_currency:
+        try:
+            rate_info = get_fx_rate_with_fallback(payment_currency, default_currency)
+            if rate_info and rate_info.get('success'):
+                target.fx_rate_used = Decimal(str(rate_info.get('rate', 0)))
+                target.fx_rate_source = rate_info.get('source', 'unknown')
+                target.fx_rate_timestamp = datetime.now(timezone.utc)
+                target.fx_base_currency = payment_currency
+                target.fx_quote_currency = default_currency
+        except Exception:
+            pass
+
+
+@event.listens_for(OnlinePayment, "before_update")
+def _online_payment_normalize_update(mapper, connection, target: "OnlinePayment"):
+    # تحديث الحقول فقط، بدون تغيير سعر الصرف
+    target.currency = (target.currency or "ILS").upper()
+
+
+@event.listens_for(SupplierSettlement, "before_insert")
+def _supplier_settlement_normalize_insert(mapper, connection, target: "SupplierSettlement"):
+    target.currency = (target.currency or "ILS").upper()
+    
+    # حفظ سعر الصرف تلقائياً لتسويات الموردين (فقط عند الإنشاء)
+    settlement_currency = target.currency
+    default_currency = "ILS"
+    
+    if settlement_currency != default_currency:
+        try:
+            rate_info = get_fx_rate_with_fallback(settlement_currency, default_currency)
+            if rate_info and rate_info.get('success'):
+                target.fx_rate_used = Decimal(str(rate_info.get('rate', 0)))
+                target.fx_rate_source = rate_info.get('source', 'unknown')
+                target.fx_rate_timestamp = datetime.now(timezone.utc)
+                target.fx_base_currency = settlement_currency
+                target.fx_quote_currency = default_currency
+        except Exception:
+            pass
+
+
+@event.listens_for(SupplierSettlement, "before_update")
+def _supplier_settlement_normalize_update(mapper, connection, target: "SupplierSettlement"):
+    # تحديث الحقول فقط، بدون تغيير سعر الصرف
+    target.currency = (target.currency or "ILS").upper()
+
+
+@event.listens_for(PartnerSettlement, "before_insert")
+def _partner_settlement_normalize_insert(mapper, connection, target: "PartnerSettlement"):
+    target.currency = (target.currency or "ILS").upper()
+    
+    # حفظ سعر الصرف تلقائياً لتسويات الشركاء (فقط عند الإنشاء)
+    settlement_currency = target.currency
+    default_currency = "ILS"
+    
+    if settlement_currency != default_currency:
+        try:
+            rate_info = get_fx_rate_with_fallback(settlement_currency, default_currency)
+            if rate_info and rate_info.get('success'):
+                target.fx_rate_used = Decimal(str(rate_info.get('rate', 0)))
+                target.fx_rate_source = rate_info.get('source', 'unknown')
+                target.fx_rate_timestamp = datetime.now(timezone.utc)
+                target.fx_base_currency = settlement_currency
+                target.fx_quote_currency = default_currency
+        except Exception:
+            pass
+
+
+@event.listens_for(PartnerSettlement, "before_update")
+def _partner_settlement_normalize_update(mapper, connection, target: "PartnerSettlement"):
+    # تحديث الحقول فقط، بدون تغيير سعر الصرف
+    target.currency = (target.currency or "ILS").upper()
     m = target.payment_method
     if m != "cheque":
         target.check_number = None
@@ -8420,6 +8824,20 @@ class Check(db.Model, TimestampMixin, AuditMixin):
     amount = Column(Numeric(12, 2), nullable=False)
     currency = Column(String(10), default="ILS", nullable=False)
     
+    # سعر الصرف وقت إصدار الشيك (تاريخ المعاملة)
+    fx_rate_issue = Column(Numeric(10, 6))  # سعر الصرف عند الإصدار
+    fx_rate_issue_source = Column(String(20))  # مصدر السعر (online, manual, default)
+    fx_rate_issue_timestamp = Column(DateTime)  # وقت الحصول على السعر
+    fx_rate_issue_base = Column(String(10))  # العملة الأساسية
+    fx_rate_issue_quote = Column(String(10))  # العملة المقابلة (ILS)
+    
+    # سعر الصرف وقت صرف الشيك (تاريخ الصرف الفعلي)
+    fx_rate_cash = Column(Numeric(10, 6))  # سعر الصرف عند الصرف
+    fx_rate_cash_source = Column(String(20))  # مصدر السعر
+    fx_rate_cash_timestamp = Column(DateTime)  # وقت الصرف الفعلي
+    fx_rate_cash_base = Column(String(10))  # العملة الأساسية
+    fx_rate_cash_quote = Column(String(10))  # العملة المقابلة (ILS)
+    
     # الاتجاه والحالة
     direction = Column(sa_str_enum(PaymentDirection, name="check_direction"), 
                       default=PaymentDirection.IN.value, nullable=False, index=True)
@@ -8571,6 +8989,67 @@ class Check(db.Model, TimestampMixin, AuditMixin):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }
+
+# ==================== Event Listeners للشيكات ====================
+
+@event.listens_for(Check, "before_insert", propagate=True)
+def _check_before_insert(mapper, connection, target: "Check"):
+    """تعيين سعر الصرف وقت إصدار الشيك تلقائياً"""
+    check_currency = getattr(target, "currency", None) or "ILS"
+    default_currency = "ILS"
+    
+    # تعيين سعر الصرف وقت الإصدار فقط إذا كانت العملة مختلفة
+    if check_currency != default_currency:
+        try:
+            rate_info = get_fx_rate_with_fallback(check_currency, default_currency)
+            if rate_info and rate_info.get('success'):
+                target.fx_rate_issue = Decimal(str(rate_info.get('rate', 0)))
+                target.fx_rate_issue_source = rate_info.get('source', 'unknown')
+                target.fx_rate_issue_timestamp = datetime.now(timezone.utc)
+                target.fx_rate_issue_base = check_currency
+                target.fx_rate_issue_quote = default_currency
+        except Exception:
+            pass
+
+
+@event.listens_for(Check, "before_update", propagate=True)
+def _check_before_update(mapper, connection, target: "Check"):
+    """تعيين سعر الصرف وقت صرف الشيك عند تغيير الحالة إلى CASHED"""
+    check_currency = getattr(target, "currency", None) or "ILS"
+    default_currency = "ILS"
+    
+    # الحصول على الحالة السابقة
+    insp = inspect(target)
+    hist = insp.attrs.status.history
+    
+    # إذا تم تغيير الحالة إلى CASHED وكانت العملة مختلفة
+    if hist.has_changes() and target.status == CheckStatus.CASHED.value:
+        if check_currency != default_currency and not target.fx_rate_cash:
+            try:
+                # محاولة الحصول على السعر الأونلاين أولاً
+                try:
+                    online_rate = _fetch_external_fx_rate(check_currency, default_currency, datetime.now(timezone.utc))
+                    if online_rate and online_rate > Decimal("0"):
+                        target.fx_rate_cash = online_rate
+                        target.fx_rate_cash_source = 'online'
+                        target.fx_rate_cash_timestamp = datetime.now(timezone.utc)
+                        target.fx_rate_cash_base = check_currency
+                        target.fx_rate_cash_quote = default_currency
+                        return  # نجح الحصول على السعر الأونلاين
+                except Exception:
+                    pass  # إذا فشل، نستخدم السعر المحلي
+                
+                # إذا فشل الأونلاين، استخدم get_fx_rate_with_fallback
+                rate_info = get_fx_rate_with_fallback(check_currency, default_currency)
+                if rate_info and rate_info.get('success'):
+                    target.fx_rate_cash = Decimal(str(rate_info.get('rate', 0)))
+                    target.fx_rate_cash_source = rate_info.get('source', 'unknown')
+                    target.fx_rate_cash_timestamp = datetime.now(timezone.utc)
+                    target.fx_rate_cash_base = check_currency
+                    target.fx_rate_cash_quote = default_currency
+            except Exception:
+                pass
+
 
 # إضافة العلاقات المطلوبة لحل تحذيرات SQLAlchemy
 # هذه العلاقات مطلوبة لحل التحذيرات المتعلقة بالعلاقات المتداخلة

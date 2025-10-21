@@ -20,6 +20,10 @@
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark sticky-top shadow-sm nav-glow modern-nav">
   <div class="container">
+    <button class="btn btn-link text-white d-lg-none me-2" onclick="toggleShopSidebar()" style="font-size: 24px;">
+      <i class="fas fa-bars"></i>
+    </button>
+    
     <a class="navbar-brand fw-bold" href="{{ url_for('shop.catalog') }}">
       <div class="brand-logo">
         <i class="fas fa-store me-2"></i>
@@ -89,6 +93,9 @@
     </div>
   </div>
 </nav>
+
+{% include 'shop/sidebar.html' %}
+
 <main class="main-content">
   {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}

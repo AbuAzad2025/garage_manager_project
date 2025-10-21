@@ -15,9 +15,6 @@
 {% block content %}
 <!-- رأس الصفحة للطباعة فقط -->
 <div class="print-header-report">
-  <div class="company-logo">
-    <img src="{{ url_for('static', filename='img/azad_logo.png') }}" alt="Logo">
-  </div>
   <div class="company-info">
     <div class="company-name">{{ system_settings.system_name or system_settings.company_name or 'كراج أزاد' }}</div>
     <div class="company-details">

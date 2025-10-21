@@ -257,12 +257,24 @@ document.addEventListener('DOMContentLoaded', function() {
           '<a href="/hard-delete/payment/' + p.id + '" class="btn btn-outline-danger" title="حذف قوي" onclick="return confirm(\'حذف قوي - سيتم حذف جميع البيانات المرتبطة!\')">حذف قوي</a>' +
         '</div>';
       const tr = document.createElement('tr');
-      // حساب المبلغ بالشيكل
+      // حساب المبلغ بالشيكل باستخدام FX Utils
       let amountInILS = p.total_amount;
+      let fxRateDisplay = '-';
+      let fxRateValue = null;
+      
       if (p.currency && p.currency !== 'ILS') {
-        // استخدام سعر الصرف الافتراضي للعرض (يمكن تحسينه لاحقاً)
-        const rates = { 'USD': 3.31, 'EUR': 3.88, 'AED': 0.9, 'JOD': 4.67 };
-        amountInILS = (parseFloat(p.total_amount) * (rates[p.currency] || 1)).toFixed(2);
+        // استخدام سعر الصرف المحفوظ أو الافتراضي
+        if (p.fx_rate_used && parseFloat(p.fx_rate_used) > 0) {
+          fxRateValue = parseFloat(p.fx_rate_used);
+          fxRateDisplay = FXUtils.formatFxRate(fxRateValue, p.fx_rate_source);
+          amountInILS = (parseFloat(p.total_amount) * fxRateValue).toFixed(2);
+        } else {
+          // استخدام سعر افتراضي للعرض فقط (للبيانات القديمة)
+          const rates = { 'USD': 3.31, 'EUR': 3.88, 'AED': 0.9, 'JOD': 4.67 };
+          fxRateValue = rates[p.currency] || 1;
+          fxRateDisplay = FXUtils.formatFxRate(fxRateValue, 'default');
+          amountInILS = (parseFloat(p.total_amount) * fxRateValue).toFixed(2);
+        }
       }
       
       // إنشاء عمود التفاصيل المحسّن
@@ -277,6 +289,7 @@ document.addEventListener('DOMContentLoaded', function() {
         '<td>' + dateOnly + '</td>' +
         '<td class="text-end"><strong>' + fmtAmount(p.total_amount) + '</strong></td>' +
         '<td class="text-center"><span class="badge badge-secondary">' + (p.currency || '') + '</span></td>' +
+        '<td class="text-center"><small>' + fxRateDisplay + '</small></td>' +
         '<td class="text-end"><strong class="text-primary">' + fmtAmount(amountInILS) + ' ₪</strong></td>' +
         '<td>' + (splitsHtml || '<span class="badge badge-info">' + (p.method || '') + '</span>') + '</td>' +
         '<td class="text-center">' + badgeForDirection(p.direction) + '</td>' +
@@ -286,7 +299,7 @@ document.addEventListener('DOMContentLoaded', function() {
       tbody.appendChild(tr);
     });
     const t = document.createElement('tr');
-    t.innerHTML = '<td></td><td class="text-end fw-bold">إجمالي الصفحة</td><td class="fw-bold">' + fmtAmount(pageSum) + '</td><td></td><td class="fw-bold text-primary">' + fmtAmount(pageSumILS) + ' ₪</td><td colspan="5"></td>';
+    t.innerHTML = '<td></td><td class="text-end fw-bold">إجمالي الصفحة</td><td class="fw-bold">' + fmtAmount(pageSum) + '</td><td></td><td></td><td class="fw-bold text-primary">' + fmtAmount(pageSumILS) + ' ₪</td><td colspan="5"></td>';
     tbody.appendChild(t);
   }
   // Event listener لحذف الدفعات

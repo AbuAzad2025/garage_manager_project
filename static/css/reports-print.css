@@ -7,7 +7,15 @@
 /* ══════════════ إعدادات عامة للشاشة ══════════════ */
 .print-header-report,
 .print-footer-report {
-  display: none;
+  display: none !important;
+}
+
+/* إخفاء الشعار تماماً من كل مكان */
+.company-logo,
+.company-logo img,
+.print-header-report .company-logo,
+.print-header-report .company-logo img {
+  display: none !important;
 }
 
 /* ══════════════ إعدادات الطباعة ══════════════ */
@@ -98,20 +106,16 @@
   }
   
   .print-header-report .company-logo {
-    display: table-cell !important;
-    width: 15% !important;
-    vertical-align: middle !important;
-    text-align: center !important;
+    display: none !important;
   }
   
   .print-header-report .company-logo img {
-    max-height: 35px !important;
-    width: auto !important;
+    display: none !important;
   }
   
   .print-header-report .company-info {
     display: table-cell !important;
-    width: 55% !important;
+    width: 100% !important;
     vertical-align: middle !important;
     padding: 0 3mm !important;
   }

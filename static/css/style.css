@@ -132,45 +132,197 @@ body {
 
 .main-sidebar {
   overflow-x:visible;
-  background:linear-gradient(180deg,#2c3e50,#4ca1af);
-  box-shadow:2px 0 10px rgba(0,0,0,0.2);
+  background: linear-gradient(180deg, #1a2332 0%, #2d3748 50%, #1a2332 100%);
+  box-shadow: 0 0 30px rgba(0,0,0,0.4);
+  z-index: 1000 !important;
+  border-left: 1px solid rgba(255,255,255,0.05);
+}
+
+/* تأثير الضوء على الـ sidebar */
+.main-sidebar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 200px;
+  background: radial-gradient(ellipse at top, rgba(102, 126, 234, 0.15), transparent);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Sidebar Content */
+.main-sidebar .sidebar {
+  position: relative;
+  z-index: 1;
+}
+
+/* Custom Scrollbar للـ sidebar */
+.main-sidebar .sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.main-sidebar .sidebar::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.2);
+  border-radius: 10px;
+}
+
+.main-sidebar .sidebar::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #667eea, #764ba2);
+  border-radius: 10px;
+  transition: background 0.3s ease;
+}
+
+.main-sidebar .sidebar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #764ba2, #667eea);
 }
 
 .main-sidebar .nav-link {
-  color:var(--sidebar-link-default);
+  color: rgba(255, 255, 255, 0.85);
   white-space:normal;
   word-break:break-word;
   text-align:right;
-  padding:.6rem 1rem;
-  border-radius:8px;
-  margin:.2rem 0;
-  transition:background-color .3s ease,color .3s ease,transform .3s ease;
-  font-weight:500;
+  padding: 12px 20px;
+  border-radius: 12px;
+  margin: 4px 8px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 500;
+  font-size: 15px;
+  position: relative;
+  overflow: hidden;
 }
+
+.main-sidebar .nav-link::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(180deg, #667eea, #764ba2);
+  transform: scaleY(0);
+  transition: transform 0.3s ease;
+}
+
 .main-sidebar .nav-link .nav-icon {
-  margin-right:.5rem;
-  margin-left:0;
+  margin-right: 12px;
+  margin-left: 0;
+  font-size: 18px;
+  transition: transform 0.3s ease;
 }
-.main-sidebar .nav-link:hover,
+
+.main-sidebar .nav-link:hover {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.25), rgba(118, 75, 162, 0.25));
+  color: #ffffff;
+  transform: translateX(-4px);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.main-sidebar .nav-link:hover::before {
+  transform: scaleY(1);
+}
+
+.main-sidebar .nav-link:hover .nav-icon {
+  transform: scale(1.1) rotate(5deg);
+}
+
 .main-sidebar .nav-link.active {
-  background:var(--sidebar-link-hover-bg);
-  color:var(--sidebar-link-hover);
-  transform:translateX(-4px);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.5);
 }
+
+.main-sidebar .nav-link.active::before {
+  transform: scaleY(1);
+}
+
+.main-sidebar .nav-link.active .nav-icon {
+  transform: scale(1.15);
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+
 .main-sidebar .nav-link:focus {
-  outline:2px solid var(--sidebar-link-focus-border);
-  outline-offset:2px;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.4);
 }
 
 .brand-link {
-  background:linear-gradient(90deg,#1f4037,#99f2c8);
-  text-align:center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  text-align: center;
+  padding: 25px 15px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100px;
 }
-.brand-link .brand-text {
-  color:#fff;
-  font-weight:700;
-  font-size:1.1rem;
-  letter-spacing:.5px;
+
+.brand-link:hover {
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  transform: scale(1.02);
+}
+
+.brand-image {
+  max-width: 70px !important;
+  max-height: 70px !important;
+  width: auto !important;
+  height: auto !important;
+  margin-bottom: 10px !important;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3));
+  transition: transform 0.3s ease;
+}
+
+.brand-link:hover .brand-image {
+  transform: scale(1.1) rotate(5deg);
+}
+
+.brand-text {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  font-size: 17px !important;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  letter-spacing: 0.5px;
+  line-height: 1.4;
+  text-align: center;
+  word-wrap: break-word;
+  max-width: 100%;
+}
+
+/* User Panel */
+.user-panel {
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  padding: 15px 10px !important;
+  margin-bottom: 15px !important;
+}
+
+.user-panel .info a {
+  color: rgba(255, 255, 255, 0.9) !important;
+  font-weight: 600;
+  font-size: 15px;
+  transition: all 0.3s ease;
+}
+
+.user-panel .info a:hover {
+  color: #ffffff !important;
+  text-shadow: 0 0 10px rgba(102, 126, 234, 0.8);
+}
+
+.user-panel .image img {
+  border: 3px solid rgba(102, 126, 234, 0.5);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  transition: all 0.3s ease;
+}
+
+.user-panel .image img:hover {
+  border-color: rgba(102, 126, 234, 1);
+  transform: scale(1.1);
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.6);
 }
 
 .main-header.navbar {
@@ -183,7 +335,7 @@ body {
   background-color:var(--content-bg);
   color:var(--content-text);
   padding-bottom:1rem;
-  transition:background-color .3s ease;
+  transition:background-color .3s ease, margin-left .3s ease, margin-right .3s ease;
 }
 
 .card {
@@ -221,6 +373,7 @@ body {
   font-size:.9rem;
   text-align:center;
   border-top:1px solid rgba(0,0,0,0.1);
+  transition: margin-left 0.3s ease, margin-right 0.3s ease;
 }
 
 .dark-mode {
@@ -783,6 +936,18 @@ a:not(.dropdown-item):hover {
 }
 
 /* Dropdown Items - Override Everything */
+.dropdown-menu {
+  z-index: 9999 !important;
+  position: absolute !important;
+}
+
+.navbar .dropdown-menu,
+.main-header .dropdown-menu,
+.dropdown-menu.show {
+  z-index: 9999 !important;
+  position: absolute !important;
+}
+
 .dropdown-menu .dropdown-item,
 .navbar .dropdown-menu .dropdown-item {
   color: #000000 !important;

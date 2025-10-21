@@ -51,6 +51,17 @@
             <div class="col-md-6">
               <label class="form-label fw-bold">المبلغ</label>
               <p class="form-control-plaintext fw-bold text-primary">{{ "%.2f"|format(payment.total_amount) }} {{ payment.currency }}</p>
+              {% if payment.fx_rate_used and payment.currency != 'ILS' %}
+              <small class="text-muted d-block mt-1">
+                <i class="fas fa-exchange-alt"></i>
+                سعر الصرف: {{ "%.4f"|format(payment.fx_rate_used) }}
+                {% if payment.fx_rate_source %}
+                  {% if payment.fx_rate_source == 'online' %}🌐{% elif payment.fx_rate_source == 'manual' %}✍️{% else %}⚙️{% endif %}
+                {% endif %}
+                <br>
+                المبلغ بالشيكل: <strong class="text-success">{{ "%.2f"|format(payment.total_amount * payment.fx_rate_used) }} ₪</strong>
+              </small>
+              {% endif %}
             </div>
             <div class="col-md-6">
               <label class="form-label fw-bold">الاتجاه</label>

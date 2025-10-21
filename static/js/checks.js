@@ -219,10 +219,36 @@
                 actionButtons += '<button class="btn btn-sm btn-success" onclick="restoreCheck(\'' + (check.id || '') + '\')" title="استعادة"><i class="fas fa-redo"></i></button>';
             }
             
+            // عرض العملة وسعر الصرف
+            var currencyBadge = '<span class="badge badge-secondary">' + (check.currency || 'ILS') + '</span>';
+            var fxRateDisplay = '-';
+            
+            // سعر الصرف وقت الإصدار (إذا كانت العملة مختلفة)
+            if (check.currency && check.currency !== 'ILS' && check.fx_rate_issue) {
+                var fxIcon = '';
+                if (check.fx_rate_issue_source === 'online') fxIcon = '🌐';
+                else if (check.fx_rate_issue_source === 'manual') fxIcon = '✍️';
+                else fxIcon = '⚙️';
+                
+                fxRateDisplay = '<small>' + parseFloat(check.fx_rate_issue).toFixed(4) + ' ' + fxIcon + '</small>';
+                
+                // إذا تم صرف الشيك وهناك سعر صرف مختلف
+                if (check.status === 'CASHED' && check.fx_rate_cash && check.fx_rate_cash !== check.fx_rate_issue) {
+                    var cashIcon = '';
+                    if (check.fx_rate_cash_source === 'online') cashIcon = '🌐';
+                    else if (check.fx_rate_cash_source === 'manual') cashIcon = '✍️';
+                    else cashIcon = '⚙️';
+                    
+                    fxRateDisplay += '<br><small class="text-success"><strong>صرف: ' + parseFloat(check.fx_rate_cash).toFixed(4) + ' ' + cashIcon + '</strong></small>';
+                }
+            }
+            
             allRows += '<tr class="' + rowClass + '">' +
                 '<td>' + (index + 1) + '</td>' +
                 '<td><strong>' + (check.check_number || '-') + '</strong></td>' +
-                '<td><strong>' + formatCurrency(check.amount || 0) + ' ₪</strong></td>' +
+                '<td><strong>' + formatCurrency(check.amount || 0) + '</strong></td>' +
+                '<td class="text-center">' + currencyBadge + '</td>' +
+                '<td class="text-center">' + fxRateDisplay + '</td>' +
                 '<td>' + (check.check_bank || '-') + '</td>' +
                 '<td>' + (check.entity_name || '-') + '</td>' +
                 '<td>' + (check.due_date_formatted || check.check_due_date || '-') + '</td>' +
@@ -307,8 +333,11 @@
                             <table class="table table-bordered table-sm">
                                 <tr><th width="40%">رقم الشيك:</th><td><strong>${check.check_number || '-'}</strong></td></tr>
                                 <tr><th>البنك:</th><td><i class="fas fa-university text-primary"></i> ${check.check_bank || '-'}</td></tr>
-                                <tr><th>المبلغ:</th><td><strong class="text-success" style="font-size: 1.2em;">${formatCurrency(check.amount || 0)} ₪</strong></td></tr>
-                                ${check.currency && check.currency != 'ILS' ? '<tr><th>العملة:</th><td>' + check.currency + '</td></tr>' : ''}
+                                <tr><th>المبلغ:</th><td><strong class="text-success" style="font-size: 1.2em;">${formatCurrency(check.amount || 0)} ${check.currency || 'ILS'}</strong></td></tr>
+                                ${check.currency && check.currency != 'ILS' ? '<tr><th>العملة:</th><td><span class="badge badge-secondary">' + check.currency + '</span></td></tr>' : ''}
+                                ${check.currency && check.currency != 'ILS' && check.fx_rate_issue ? '<tr class="bg-light"><th>💱 سعر الصرف (إصدار):</th><td><strong>' + parseFloat(check.fx_rate_issue).toFixed(4) + '</strong> ' + (check.fx_rate_issue_source === 'online' ? '🌐' : check.fx_rate_issue_source === 'manual' ? '✍️' : '⚙️') + ' <small class="text-muted">(' + (check.fx_rate_issue_timestamp || '-') + ')</small><br><small class="text-info">المبلغ بالشيكل: ' + formatCurrency((check.amount || 0) * (check.fx_rate_issue || 1)) + ' ₪</small></td></tr>' : ''}
+                                ${check.currency && check.currency != 'ILS' && check.status === 'CASHED' && check.fx_rate_cash ? '<tr class="bg-success text-white"><th>💰 سعر الصرف (صرف):</th><td><strong>' + parseFloat(check.fx_rate_cash).toFixed(4) + '</strong> ' + (check.fx_rate_cash_source === 'online' ? '🌐' : check.fx_rate_cash_source === 'manual' ? '✍️' : '⚙️') + ' <small>(' + (check.fx_rate_cash_timestamp || '-') + ')</small><br><small>المبلغ الفعلي: <strong>' + formatCurrency((check.amount || 0) * (check.fx_rate_cash || 1)) + ' ₪</strong></small></td></tr>' : ''}
+                                ${check.currency && check.currency != 'ILS' && check.fx_rate_issue && check.fx_rate_cash && check.fx_rate_cash !== check.fx_rate_issue ? '<tr class="bg-warning"><th>📊 فرق سعر الصرف:</th><td><strong>' + formatCurrency((check.amount || 0) * (check.fx_rate_cash - check.fx_rate_issue)) + ' ₪</strong> ' + ((check.fx_rate_cash > check.fx_rate_issue) ? '<span class="badge badge-success">ربح ✓</span>' : '<span class="badge badge-danger">خسارة ✗</span>') + '</td></tr>' : ''}
                                 <tr><th>تاريخ الاستحقاق:</th><td>${check.due_date_formatted || check.check_due_date || '-'}</td></tr>
                                 ${check.days_until_due ? '<tr><th>الأيام المتبقية:</th><td><span class="badge badge-' + (check.days_until_due < 0 ? 'danger' : check.days_until_due <= 7 ? 'warning' : 'info') + '">' + check.days_until_due + ' يوم</span></td></tr>' : ''}
                             </table>

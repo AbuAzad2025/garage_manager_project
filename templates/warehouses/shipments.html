@@ -58,6 +58,8 @@
         <th>الوجهة</th>
         <th>تاريخ الوصول المتوقع</th>
         <th>الحالة</th>
+        <th>العملة</th>
+        <th>سعر الصرف</th>
         <th class="text-end">الإجمالي</th>
         <th class="text-center">إجراءات</th>
       </tr>
@@ -105,6 +107,23 @@
           { data: 'destination' },
           { data: 'expected_arrival', render: function(d){ return d ? new Date(d).toLocaleString('ar-EG').split(',')[0] : ''; } },
           { data: 'status' },
+          { data: 'currency', className: 'text-center', render: function(d){ return d ? '<span class="badge badge-secondary">' + d + '</span>' : '<span class="badge badge-secondary">ILS</span>'; } },
+          { 
+            data: null, 
+            className: 'text-center',
+            render: function(data, type, row) {
+              if (row.fx_rate_used && row.currency !== 'ILS') {
+                var sourceIcon = '';
+                if (row.fx_rate_source) {
+                  if (row.fx_rate_source === 'online') sourceIcon = '🌐';
+                  else if (row.fx_rate_source === 'manual') sourceIcon = '✍️';
+                  else sourceIcon = '⚙️';
+                }
+                return '<small class="text-muted">' + parseFloat(row.fx_rate_used).toFixed(4) + ' ' + sourceIcon + '</small>';
+              }
+              return '<span class="text-muted">-</span>';
+            }
+          },
           { data: 'total_value', className: 'text-end', render: function(d){ return (Number(d||0)).toFixed(2); } },
           { data: 'actions', className: 'text-center', orderable: false, searchable: false }
         ],

@@ -10,17 +10,44 @@
 {% block report_content %}
 <div class="container-fluid" dir="rtl">
 
-  <div class="mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
-    <h4 class="fw-bold m-0"><i class="fas fa-user-friends"></i> {{ FIELD_LABELS.get("customers", "العملاء") }}</h4>
-    <div class="d-flex gap-2">
-      <button type="button" class="btn btn-outline-primary btn-sm" id="btn-print">
-        <i class="fas fa-print"></i> طباعة
-      </button>
-      <form class="d-flex gap-2" method="get" action="{{ url_for('reports_bp.customers_report') }}">
-        <input type="date" name="start" class="form-control form-control-sm" value="{{ start or '' }}">
-        <input type="date" name="end"   class="form-control form-control-sm" value="{{ end or '' }}">
-        <button class="btn btn-primary btn-sm"><i class="fas fa-sync-alt"></i> تحديث</button>
-        <a class="btn btn-outline-dark btn-sm" href="{{ url_for('reports_bp.customers_report') }}"><i class="fas fa-times"></i></a>
+  <div class="mb-3">
+    <h4 class="fw-bold m-0"><i class="fas fa-user-friends"></i> {{ FIELD_LABELS.get("customers", "تقرير العملاء") }}</h4>
+  </div>
+
+  <!-- فلاتر التقرير -->
+  <div class="card shadow-sm mb-3">
+    <div class="card-header bg-info text-white">
+      <i class="fas fa-filter"></i> فلاتر التقرير
+    </div>
+    <div class="card-body">
+      <form class="row g-3" method="get" action="{{ url_for('reports_bp.customers_report') }}">
+        <div class="col-md-5">
+          <label class="form-label fw-semibold">
+            <i class="fas fa-calendar-check"></i> من تاريخ
+          </label>
+          <input type="date" name="start" class="form-control" value="{{ start or '' }}">
+          <small class="text-muted">اترك فارغاً لعرض جميع المعاملات من البداية</small>
+        </div>
+        <div class="col-md-5">
+          <label class="form-label fw-semibold">
+            <i class="fas fa-calendar-times"></i> إلى تاريخ
+          </label>
+          <input type="date" name="end" class="form-control" value="{{ end or '' }}">
+          <small class="text-muted">اترك فارغاً لعرض جميع المعاملات حتى اليوم</small>
+        </div>
+        <div class="col-md-2 align-self-end">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="fas fa-sync-alt"></i> تحديث
+          </button>
+          {% if start or end %}
+          <a class="btn btn-outline-secondary w-100 mt-2" href="{{ url_for('reports_bp.customers_report') }}">
+            <i class="fas fa-times"></i> إلغاء
+          </a>
+          {% endif %}
+          <button type="button" class="btn btn-outline-primary w-100 mt-2" id="btn-print">
+            <i class="fas fa-print"></i> طباعة
+          </button>
+        </div>
       </form>
     </div>
   </div>
@@ -32,23 +59,41 @@
   {% set avg_invoiced = (sum_invoiced / _n) if _n else 0 %}
 
   <div class="row g-3 mb-3">
-    <div class="col-md-4">
-      <div class="card shadow-sm"><div class="card-body text-center">
-        <div class="text-muted small">{{ FIELD_LABELS.get("total_invoiced", "إجمالي الفواتير/المبيعات/الصيانة") }}</div>
-        <div class="fs-5 fw-bold">{{ "{:,.2f}".format(sum_invoiced or 0) }}</div>
-      </div></div>
+    <div class="col-md-3">
+      <div class="card shadow-sm border-primary">
+        <div class="card-body text-center">
+          <div class="text-primary mb-2"><i class="fas fa-file-invoice-dollar fa-2x"></i></div>
+          <h5 class="text-primary mb-0">{{ "{:,.2f}".format(sum_invoiced or 0) }}</h5>
+          <small class="text-muted">{{ FIELD_LABELS.get("total_invoiced", "إجمالي الفواتير/المبيعات/الصيانة") }}</small>
+        </div>
+      </div>
     </div>
-    <div class="col-md-4">
-      <div class="card shadow-sm"><div class="card-body text-center">
-        <div class="text-muted small">{{ FIELD_LABELS.get("total_paid", "إجمالي المدفوع") }}</div>
-        <div class="fs-5 fw-bold">{{ "{:,.2f}".format(sum_paid or 0) }}</div>
-      </div></div>
+    <div class="col-md-3">
+      <div class="card shadow-sm border-success">
+        <div class="card-body text-center">
+          <div class="text-success mb-2"><i class="fas fa-money-bill-wave fa-2x"></i></div>
+          <h5 class="text-success mb-0">{{ "{:,.2f}".format(sum_paid or 0) }}</h5>
+          <small class="text-muted">{{ FIELD_LABELS.get("total_paid", "إجمالي المدفوع") }}</small>
+        </div>
+      </div>
     </div>
-    <div class="col-md-4">
-      <div class="card shadow-sm"><div class="card-body text-center">
-        <div class="text-muted small">{{ FIELD_LABELS.get("balance", "إجمالي الرصيد") }}</div>
-        <div class="fs-5 fw-bold">{{ "{:,.2f}".format(sum_balance or 0) }}</div>
-      </div></div>
+    <div class="col-md-3">
+      <div class="card shadow-sm border-{{ 'danger' if sum_balance > 0 else 'success' }}">
+        <div class="card-body text-center">
+          <div class="text-{{ 'danger' if sum_balance > 0 else 'success' }} mb-2"><i class="fas fa-balance-scale fa-2x"></i></div>
+          <h5 class="text-{{ 'danger' if sum_balance > 0 else 'success' }} mb-0">{{ "{:,.2f}".format(sum_balance or 0) }}</h5>
+          <small class="text-muted">{{ FIELD_LABELS.get("balance", "إجمالي الرصيد") }}</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card shadow-sm border-info">
+        <div class="card-body text-center">
+          <div class="text-info mb-2"><i class="fas fa-users fa-2x"></i></div>
+          <h5 class="text-info mb-0">{{ _n }}</h5>
+          <small class="text-muted">عدد العملاء</small>
+        </div>
+      </div>
     </div>
   </div>
 
