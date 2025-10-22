@@ -373,8 +373,9 @@ def restore_db():
 @login_required
 def automated_backup_status():
     role_name = str(getattr(getattr(current_user, "role", None), "name", "")).lower()
-    if role_name != "super_admin":
-        return jsonify({"error": "غير مسموح"}), 403
+    if role_name not in ["super_admin", "owner"]:
+        # إرجاع بيانات فارغة بدون خطأ للمستخدمين العاديين
+        return jsonify({"enabled": False, "next_run": None, "schedule": "غير متاح"})
     
     from extensions import scheduler
     jobs = scheduler.get_jobs()

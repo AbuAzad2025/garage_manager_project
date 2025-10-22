@@ -1,13 +1,17 @@
 :root {
-  --primary: #0056b3;
-  --success: #155724;
-  --warning: #856404;
-  --danger: #721c24;
-  --info: #0c5460;
+  --primary: #ff6b6b;
+  --success: #a8e6cf;
+  --warning: #ffa726;
+  --danger: #ff6b6b;
+  --info: #7dd3fc;
   --light: #f8f9fa;
   --dark: #212529;
   --border-radius: 0.5rem;
-  --shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.25);
+  --shadow: 0 4px 15px rgba(255, 107, 107, 0.1);
+  --gradient-primary: linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%);
+  --gradient-success: linear-gradient(135deg, #a8e6cf 0%, #88d8c0 100%);
+  --gradient-info: linear-gradient(135deg, #7dd3fc 0%, #38bdf8 100%);
+  --gradient-warning: linear-gradient(135deg, #ffa726 0%, #ffcc02 100%);
 }
 
 .card-shadow {

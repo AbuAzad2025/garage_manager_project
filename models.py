@@ -1049,24 +1049,31 @@ def _fetch_from_exchangerate_host(base: str, quote: str, at: datetime) -> Decima
 def _save_external_rate(base: str, quote: str, rate: Decimal, at: datetime):
     """حفظ السعر الخارجي في قاعدة البيانات"""
     try:
-        # التحقق من وجود السعر مسبقاً
-        existing = db.session.query(ExchangeRate).filter(
-            ExchangeRate.base_code == base,
-            ExchangeRate.quote_code == quote,
-            ExchangeRate.valid_from == at.date()
-        ).first()
+        # استخدام connection منفصل لتجنب مشاكل flush
+        from sqlalchemy import text as sa_text
         
-        if not existing:
-            external_rate = ExchangeRate(
-                base_code=base,
-                quote_code=quote,
-                rate=rate,
-                valid_from=at,
-                source="External API",
-                is_active=True
+        # التحقق من وجود السعر مسبقاً
+        result = db.session.connection().execute(
+            sa_text("""
+                SELECT id FROM exchange_rates 
+                WHERE base_code = :base 
+                AND quote_code = :quote 
+                AND DATE(valid_from) = DATE(:valid_from)
+                LIMIT 1
+            """),
+            {"base": base, "quote": quote, "valid_from": at}
+        ).fetchone()
+        
+        if not result:
+            # إدراج السعر مباشرة باستخدام SQL
+            db.session.connection().execute(
+                sa_text("""
+                    INSERT INTO exchange_rates 
+                    (base_code, quote_code, rate, valid_from, source, is_active)
+                    VALUES (:base, :quote, :rate, :valid_from, 'External API', 1)
+                """),
+                {"base": base, "quote": quote, "rate": float(rate), "valid_from": at}
             )
-            db.session.add(external_rate)
-            db.session.commit()
     except Exception:
         # في حال فشل الحفظ، لا نريد إيقاف العملية
         pass
@@ -2840,11 +2847,22 @@ def update_partner_balance(partner_id: int, connection=None):
             WHERE p.status = 'COMPLETED'
             AND p.direction = 'OUT'
             AND p.partner_id = :partner_id
+        ),
+        -- نصيب الشريك من المخزون (ProductPartner)
+        inventory_share AS (
+            SELECT COALESCE(SUM(pp.share_amount), 0) as total
+            FROM product_partners pp
+            WHERE pp.partner_id = :partner_id
         )
         SELECT 
-            (SELECT total FROM sales_share) - 
+            -- ✅ الحقوق: نسبة من القطع (مباعة وغير مباعة)
+            (SELECT total FROM sales_share) + 
+            (SELECT total FROM inventory_share) - 
+            -- ❌ الالتزامات: ما لنا عليهم
             (SELECT total FROM sales_to_partner) - 
+            -- ❌ الدفعات الصادرة: ما دفعناه لهم (نخصمها من حقوقهم)
             (SELECT total FROM payments_out) + 
+            -- ✅ الدفعات الواردة: ما دفعوه لنا (نخصمها من التزاماتهم)
             (SELECT total FROM payments_in) + 
             COALESCE((SELECT opening_balance FROM partners WHERE id = :partner_id), 0) as balance
     """)
@@ -2915,13 +2933,27 @@ def update_supplier_balance(supplier_id: int, connection=None):
             FROM exchange_transactions et
             WHERE et.supplier_id = :supplier_id
             AND et.direction IN ('OUT', 'RETURN')
+        ),
+        -- الحجوزات المسبقة للمورد (إذا كان عميلاً)
+        preorders_to_supplier AS (
+            SELECT COALESCE(SUM(p.price * po.quantity * (1 + COALESCE(po.tax_rate, 0) / 100.0)), 0) as total
+            FROM preorders po
+            JOIN products p ON p.id = po.product_id
+            JOIN suppliers sup ON sup.customer_id = po.customer_id
+            WHERE sup.id = :supplier_id
+            AND po.status IN ('CONFIRMED', 'COMPLETED', 'DELIVERED')
         )
         SELECT 
+            -- ✅ الحقوق: قطع التوريد
             (SELECT total FROM exchange_items) - 
+            -- ❌ الالتزامات: المبيعات + الحجوزات + المرتجعات
             (SELECT total FROM sales_to_supplier) - 
+            (SELECT total FROM preorders_to_supplier) - 
+            (SELECT total FROM returns_out) - 
+            -- ❌ الدفعات الصادرة: ما دفعناه لهم (نخصمها من حقوقهم)
             (SELECT total FROM payments_out) + 
-            (SELECT total FROM payments_in) - 
-            (SELECT total FROM returns_out) + 
+            -- ✅ الدفعات الواردة: ما دفعوه لنا (نخصمها من التزاماتهم)
+            (SELECT total FROM payments_in) + 
             COALESCE((SELECT opening_balance FROM suppliers WHERE id = :supplier_id), 0) as balance
     """)
     
@@ -3301,6 +3333,15 @@ class Product(db.Model, TimestampMixin, AuditMixin):
     online_name = Column(String(255))
     online_price = Column(Numeric(12, 2), default=0, server_default=sa_text("0"))
     online_image = Column(String(255))
+    
+    # ✅ حقول العملة وسعر الصرف
+    currency = Column(String(10), default='ILS', nullable=False, server_default=sa_text("'ILS'"))
+    fx_rate_used = Column(Numeric(10, 6))
+    fx_rate_source = Column(String(20))
+    fx_rate_timestamp = Column(DateTime)
+    fx_base_currency = Column(String(10))
+    fx_quote_currency = Column(String(10))
+    
     __table_args__ = (
         CheckConstraint("price >= 0", name="ck_product_price_ge_0"),
         CheckConstraint("purchase_price >= 0", name="ck_product_purchase_ge_0"),
@@ -3346,6 +3387,9 @@ class Product(db.Model, TimestampMixin, AuditMixin):
         self.selling_price = kwargs.pop("selling_price", kwargs.get("price", 0))
         self.notes = kwargs.pop("notes", None)
         super().__init__(**kwargs)
+    @validates('currency')
+    def _v_currency(self, _, v):
+        return ensure_currency(v or 'ILS')
     @validates("sku", "serial_no", "barcode")
     def _v_strip_norm_ids(self, key, v):
         if v is None: return None
@@ -3554,7 +3598,7 @@ def _enforce_single_online_default(mapper, connection, target):
 
 class StockLevel(db.Model, TimestampMixin):
     __tablename__ = 'stock_levels'
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False, index=True)
     warehouse_id = db.Column(db.Integer, db.ForeignKey('warehouses.id'), nullable=False, index=True)
     quantity = db.Column(db.Integer, nullable=False, default=0, server_default=sa_text("0"))
@@ -3564,7 +3608,8 @@ class StockLevel(db.Model, TimestampMixin):
     __table_args__ = (
         db.CheckConstraint('quantity >= 0', name='ck_stock_non_negative'),
         db.CheckConstraint('reserved_quantity >= 0', name='ck_reserved_non_negative'),
-        db.CheckConstraint('(quantity - reserved_quantity) >= 0', name='ck_stock_reserved_leq_qty'),
+        # تم تعطيل هذا القيد لأننا لم نعد نستخدم نظام الحجز
+        # db.CheckConstraint('(quantity - reserved_quantity) >= 0', name='ck_stock_reserved_leq_qty'),
         db.CheckConstraint('(min_stock IS NULL OR min_stock >= 0)', name='ck_min_non_negative'),
         db.CheckConstraint('(max_stock IS NULL OR max_stock >= 0)', name='ck_max_non_negative'),
         db.CheckConstraint('(min_stock IS NULL OR max_stock IS NULL OR max_stock >= min_stock)', name='ck_max_ge_min'),
@@ -4143,7 +4188,8 @@ class Sale(db.Model, TimestampMixin, AuditMixin):
         db.CheckConstraint("shipping_cost >= 0", name="ck_sale_shipping_cost_non_negative"),
         db.CheckConstraint("total_amount >= 0", name="ck_sale_total_amount_non_negative"),
         db.CheckConstraint("total_paid >= 0", name="ck_sale_total_paid_non_negative"),
-        db.CheckConstraint("balance_due >= 0", name="ck_sale_balance_due_non_negative"),
+        # السماح بـ balance_due سالب للمبيعات للموردين/الشركاء
+        # db.CheckConstraint("balance_due >= 0", name="ck_sale_balance_due_non_negative"),
         db.CheckConstraint("refunded_total >= 0", name="ck_sale_refunded_total_non_negative"),
         db.Index("ix_sales_customer_status_date", "customer_id", "status", "sale_date"),
         db.Index("ix_sales_payment_status_date", "payment_status", "sale_date"),
@@ -4231,6 +4277,10 @@ class Sale(db.Model, TimestampMixin, AuditMixin):
             else PaymentProgress.PARTIAL.value if self.total_paid > 0
             else PaymentProgress.PENDING.value
         )
+        
+        # ✅ تأكيد الفاتورة تلقائياً عند إضافة أي دفعة
+        if self.status == SaleStatus.DRAFT.value and self.total_paid > 0:
+            self.status = SaleStatus.CONFIRMED.value
 
     @validates("currency")
     def _v_currency(self, _, v):
@@ -4259,35 +4309,41 @@ def _sale_before_insert_ref(mapper, connection, target: "Sale"):
 @event.listens_for(Sale, "after_update", propagate=True)
 @event.listens_for(Sale, "after_delete", propagate=True)
 def _update_partner_supplier_balance_on_sale(mapper, connection, target: "Sale"):
-    """تحديث رصيد الشريك/المورد عند تغيير المبيعة"""
+    """تحديث رصيد الشريك/المورد عند إنشاء/تعديل/حذف المبيعة"""
     try:
-        if hasattr(target, 'customer_id') and target.customer_id:
-            from sqlalchemy import text as sa_text
-            
-            # البحث عن الشريك المرتبط
-            partner_result = connection.execute(
-                sa_text("SELECT id FROM partners WHERE customer_id = :cid"),
-                {"cid": target.customer_id}
-            ).fetchone()
-            if partner_result:
-                update_partner_balance(partner_result[0], connection)
-            
-            # البحث عن المورد المرتبط
-            supplier_result = connection.execute(
-                sa_text("SELECT id FROM suppliers WHERE customer_id = :cid"),
-                {"cid": target.customer_id}
-            ).fetchone()
-            if supplier_result:
-                update_supplier_balance(supplier_result[0], connection)
+        # التحقق من أن الفاتورة مؤكدة
+        if target.status != SaleStatus.CONFIRMED.value:
+            return
+        
+        # جلب العميل المرتبط بالمبيعة
+        customer_id = getattr(target, "customer_id", None)
+        if not customer_id:
+            return
+        
+        from sqlalchemy import text as sa_text
+        
+        # التحقق من وجود مورد مرتبط بهذا العميل
+        supplier_result = connection.execute(
+            sa_text("SELECT id FROM suppliers WHERE customer_id = :cid"),
+            {"cid": customer_id}
+        ).fetchone()
+        
+        if supplier_result:
+            supplier_id = supplier_result[0]
+            update_supplier_balance(supplier_id, connection)
+        
+        # التحقق من وجود شريك مرتبط بهذا العميل
+        partner_result = connection.execute(
+            sa_text("SELECT id FROM partners WHERE customer_id = :cid"),
+            {"cid": customer_id}
+        ).fetchone()
+        
+        if partner_result:
+            partner_id = partner_result[0]
+            update_partner_balance(partner_id, connection)
+    
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        print(f"⚠️ تحذير: فشل تحديث رصيد الشريك/المورد عند تعديل المبيعة: {e}")
-
-@event.listens_for(Sale, "before_insert")
-@event.listens_for(Sale, "before_update")
-def _sale_ensure_currency(mapper, connection, target: "Sale"):
-    target.currency = ensure_currency(getattr(target, "currency", None) or "ILS")
+        print(f"⚠️ تحذير: فشل تحديث رصيد الشريك/المورد عند تعديل Sale: {e}")
 
 @event.listens_for(Sale, "before_insert")
 @event.listens_for(Sale, "before_update")
@@ -4318,17 +4374,21 @@ def _sale_enforce_status(mapper, connection, target: "Sale"):
 
 @event.listens_for(Sale.status, "set")
 def _reserve_release_on_status_change(target, value, oldvalue, initiator):
+    """
+    تم تعطيل نظام الحجز - الخصم يتم مباشرة عند الدفع
+    """
     newv = getattr(value, "value", value)
     oldv = getattr(oldvalue, "value", oldvalue)
     if newv == SaleStatus.CONFIRMED.value and oldv != SaleStatus.CONFIRMED.value:
+        # التحقق من حد الائتمان فقط
         if target.customer and float(target.customer.credit_limit or 0) > 0:
             cur_bal = float(target.customer.balance or 0)
             new_total = float(getattr(target, "total", None) or getattr(target, "total_amount", 0) or 0)
             if cur_bal + new_total > float(target.customer.credit_limit or 0):
                 raise Exception("تأكيد البيع مرفوض: حد الائتمان للعميل سيتجاوز المسموح.")
-        target.reserve_stock()
-    elif oldv == SaleStatus.CONFIRMED.value and newv != SaleStatus.CONFIRMED.value:
-        target.release_stock()
+        # تم تعطيل: target.reserve_stock()
+    # elif oldv == SaleStatus.CONFIRMED.value and newv != SaleStatus.CONFIRMED.value:
+        # تم تعطيل: target.release_stock()
 
 class SaleLine(db.Model, TimestampMixin):
     __tablename__ = "sale_lines"
@@ -6026,7 +6086,7 @@ def _shipment_before_insert(mapper, connection, target: "Shipment"):
     elif getattr(target, "number", None) and not getattr(target, "shipment_number", None):
         target.shipment_number = target.number
 
-    target.currency = (target.currency or "USD").upper()
+    # تم نقل ضبط العملة إلى _shipment_normalize_insert (السطر 7968)
     if not getattr(target, "date", None) and getattr(target, "shipment_date", None):
         target.date = target.shipment_date
     if not getattr(target, "shipment_date", None) and getattr(target, "date", None):
@@ -6037,7 +6097,7 @@ def _shipment_before_insert(mapper, connection, target: "Shipment"):
 
 @event.listens_for(Shipment, "before_update")
 def _shipment_before_update(mapper, connection, target: "Shipment"):
-    target.currency = (target.currency or "USD").upper()
+    # تم نقل ضبط العملة إلى _shipment_normalize_update (السطر 7989)
     if not getattr(target, "date", None) and getattr(target, "shipment_date", None):
         target.date = target.shipment_date
     if not getattr(target, "shipment_date", None) and getattr(target, "date", None):
@@ -7826,7 +7886,7 @@ def _expense_normalize_update(mapper, connection, target: "Expense"):
 
 @event.listens_for(PreOrder, "before_insert")
 def _preorder_normalize_insert(mapper, connection, target: "PreOrder"):
-    target.currency = (target.currency or "ILS").upper()
+    target.currency = ensure_currency(getattr(target, "currency", None) or "ILS")
     
     # حفظ سعر الصرف تلقائياً للحجوزات (فقط عند الإنشاء)
     preorder_currency = target.currency
@@ -7848,12 +7908,12 @@ def _preorder_normalize_insert(mapper, connection, target: "PreOrder"):
 @event.listens_for(PreOrder, "before_update")
 def _preorder_normalize_update(mapper, connection, target: "PreOrder"):
     # تحديث الحقول فقط، بدون تغيير سعر الصرف
-    target.currency = (target.currency or "ILS").upper()
+    target.currency = ensure_currency(getattr(target, "currency", None) or "ILS")
 
 
 @event.listens_for(Sale, "before_insert")
 def _sale_normalize_insert(mapper, connection, target: "Sale"):
-    target.currency = (target.currency or "ILS").upper()
+    target.currency = ensure_currency(getattr(target, "currency", None) or "ILS")
     
     # حفظ سعر الصرف تلقائياً للمبيعات (فقط عند الإنشاء)
     sale_currency = target.currency
@@ -7875,12 +7935,12 @@ def _sale_normalize_insert(mapper, connection, target: "Sale"):
 @event.listens_for(Sale, "before_update")
 def _sale_normalize_update(mapper, connection, target: "Sale"):
     # تحديث الحقول فقط، بدون تغيير سعر الصرف
-    target.currency = (target.currency or "ILS").upper()
+    target.currency = ensure_currency(getattr(target, "currency", None) or "ILS")
 
 
 @event.listens_for(SaleReturn, "before_insert")
 def _sale_return_normalize_insert(mapper, connection, target: "SaleReturn"):
-    target.currency = (target.currency or "ILS").upper()
+    target.currency = ensure_currency(getattr(target, "currency", None) or "ILS")
     
     # حفظ سعر الصرف تلقائياً لمرتجعات المبيعات (فقط عند الإنشاء)
     return_currency = target.currency
@@ -7902,12 +7962,12 @@ def _sale_return_normalize_insert(mapper, connection, target: "SaleReturn"):
 @event.listens_for(SaleReturn, "before_update")
 def _sale_return_normalize_update(mapper, connection, target: "SaleReturn"):
     # تحديث الحقول فقط، بدون تغيير سعر الصرف
-    target.currency = (target.currency or "ILS").upper()
+    target.currency = ensure_currency(getattr(target, "currency", None) or "ILS")
 
 
 @event.listens_for(Shipment, "before_insert")
 def _shipment_normalize_insert(mapper, connection, target: "Shipment"):
-    target.currency = (target.currency or "USD").upper()
+    target.currency = ensure_currency(getattr(target, "currency", None) or "USD")
     
     # حفظ سعر الصرف تلقائياً للشحنات (فقط عند الإنشاء)
     shipment_currency = target.currency
@@ -7929,7 +7989,7 @@ def _shipment_normalize_insert(mapper, connection, target: "Shipment"):
 @event.listens_for(Shipment, "before_update")
 def _shipment_normalize_update(mapper, connection, target: "Shipment"):
     # تحديث الحقول فقط، بدون تغيير سعر الصرف
-    target.currency = (target.currency or "USD").upper()
+    target.currency = ensure_currency(getattr(target, "currency", None) or "USD")
 
 
 @event.listens_for(ServiceRequest, "before_insert")
@@ -9069,3 +9129,51 @@ Archive.archiver = relationship(
     back_populates="archived_records",
     overlaps="archives,user"
 )
+
+
+# ========================================================================
+# Event Listeners - تحديث أرصدة الشركاء تلقائياً
+# ========================================================================
+
+@event.listens_for(WarehousePartnerShare, 'after_insert')
+@event.listens_for(WarehousePartnerShare, 'after_update')
+@event.listens_for(WarehousePartnerShare, 'after_delete')
+def _update_partner_on_share_change(mapper, connection, target):
+    """
+    تحديث رصيد الشريك عند تغيير نسبته في منتج
+    """
+    try:
+        partner_id = target.partner_id
+        if partner_id:
+            # استخدام connection المتاح بدلاً من إنشاء session جديد
+            update_partner_balance(partner_id, connection=connection)
+    except Exception as e:
+        # تسجيل الخطأ دون إيقاف العملية
+        print(f"Error updating partner balance in listener: {e}")
+
+
+@event.listens_for(ShipmentItem, 'after_insert')
+@event.listens_for(ShipmentItem, 'after_update') 
+@event.listens_for(ShipmentItem, 'after_delete')
+def _update_partner_on_shipment_item_change(mapper, connection, target):
+    """
+    تحديث أرصدة الشركاء المرتبطين بالمنتج عند تغيير بند الشحنة
+    """
+    try:
+        # جلب الشركاء المرتبطين بهذا المنتج
+        if target.product_id:
+            result = connection.execute(
+                sa_text("""
+                    SELECT DISTINCT partner_id 
+                    FROM warehouse_partner_shares 
+                    WHERE product_id = :pid AND partner_id IS NOT NULL
+                """),
+                {"pid": target.product_id}
+            )
+            partner_ids = [row[0] for row in result]
+            
+            # تحديث رصيد كل شريك
+            for partner_id in partner_ids:
+                update_partner_balance(partner_id, connection=connection)
+    except Exception as e:
+        print(f"Error updating partner balance on shipment item change: {e}")

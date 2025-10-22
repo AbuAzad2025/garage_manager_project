@@ -475,7 +475,7 @@ GUIDE_FAQ = {
 7. احفظ واطبع
 
 💡 المخزون يحجز تلقائياً عند الحفظ""",
-        'route': '/sales/create',
+        'route': '/sales/new',
         'related': ['business_operations']
     },
     

@@ -372,7 +372,7 @@
           <i class="fas fa-robot fa-3x text-success mb-3"></i>
           <h5>AI Configuration</h5>
           <p class="text-muted small">إعداد المساعد الذكي</p>
-          <a href="{{ url_for('security.ai_config') }}" class="btn btn-success btn-sm">
+          <a href="{{ url_for('security.ai_control_panel', tab='config') }}" class="btn btn-success btn-sm">
             <i class="fas fa-cog"></i> AI Setup
           </a>
         </div>
@@ -585,7 +585,7 @@
           <i class="fas fa-clipboard-list fa-3x text-white mb-3"></i>
           <h5 class="text-white fw-bold">Audit Trail</h5>
           <p class="text-white-50 small">سجل التدقيق</p>
-          <a href="{{ url_for('security.audit_logs') }}" class="btn btn-light btn-sm">
+          <a href="{{ url_for('security.logs_manager', tab='audit') }}" class="btn btn-light btn-sm">
             <i class="fas fa-history"></i> سجلات
           </a>
         </div>
@@ -642,7 +642,7 @@
           <i class="fas fa-robot fa-3x text-white mb-3"></i>
           <h5 class="text-white fw-bold">المساعد الذكي AI</h5>
           <p class="text-white-50 small">محلي 100%</p>
-          <a href="{{ url_for('security.ai_assistant') }}" class="btn btn-light btn-sm fw-bold">
+          <a href="{{ url_for('security.ai_control_panel', tab='assistant') }}" class="btn btn-light btn-sm fw-bold">
             <i class="fas fa-comments"></i> فتح المساعد
           </a>
         </div>
@@ -819,24 +819,16 @@
       <div class="card border-0 shadow-sm h-100 border-primary">
         <div class="card-body text-center">
           <i class="fas fa-database fa-3x text-primary mb-3"></i>
-          <h5>محرر قاعدة البيانات</h5>
-          <p class="text-muted small">تعديل مباشر</p>
-          <a href="{{ url_for('security.db_editor') }}" class="btn btn-primary btn-sm">
-            <i class="fas fa-edit"></i> محرر
+          <h5>مدير قاعدة البيانات</h5>
+          <p class="text-muted small">تصفح + تحرير + هيكل - 3 في 1</p>
+          <a href="{{ url_for('security.database_manager') }}" class="btn btn-primary btn-sm">
+            <i class="fas fa-database"></i> فتح المدير
           </a>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100 border-success">
-        <div class="card-body text-center">
-          <i class="fas fa-search fa-3x text-success mb-3"></i>
-          <h5>متصفح قاعدة البيانات</h5>
-          <p class="text-muted small">استعراض الجداول</p>
-          <a href="{{ url_for('security.database_browser') }}" class="btn btn-success btn-sm">
-            <i class="fas fa-table"></i> استعراض
-          </a>
+          <div class="mt-2">
+            <a href="{{ url_for('security.database_manager', tab='browse') }}" class="btn btn-sm btn-outline-primary">تصفح</a>
+            <a href="{{ url_for('security.database_manager', tab='edit') }}" class="btn btn-sm btn-outline-success">تحرير</a>
+            <a href="{{ url_for('security.database_manager', tab='schema') }}" class="btn btn-sm btn-outline-warning">هيكل</a>
+          </div>
         </div>
       </div>
     </div>
@@ -844,12 +836,17 @@
     <div class="col-lg-3 col-md-6">
       <div class="card border-0 shadow-sm h-100 border-warning">
         <div class="card-body text-center">
-          <i class="fas fa-robot fa-3x text-warning mb-3"></i>
-          <h5>AI Assistant</h5>
-          <p class="text-muted small">مساعد ذكي</p>
-          <a href="{{ url_for('security.ai_assistant') }}" class="btn btn-warning btn-sm">
-            <i class="fas fa-comments"></i> مساعد
+          <i class="fas fa-clipboard-list fa-3x text-warning mb-3"></i>
+          <h5>مدير السجلات</h5>
+          <p class="text-muted small">تدقيق + نظام + أخطاء - 3 في 1</p>
+          <a href="{{ url_for('security.logs_manager') }}" class="btn btn-warning btn-sm">
+            <i class="fas fa-clipboard-list"></i> فتح المدير
           </a>
+          <div class="mt-2">
+            <a href="{{ url_for('security.logs_manager', tab='audit') }}" class="btn btn-sm btn-outline-danger">تدقيق</a>
+            <a href="{{ url_for('security.logs_manager', tab='system') }}" class="btn btn-sm btn-outline-info">نظام</a>
+            <a href="{{ url_for('security.logs_manager', tab='errors') }}" class="btn btn-sm btn-outline-warning">أخطاء</a>
+          </div>
         </div>
       </div>
     </div>
@@ -857,12 +854,16 @@
     <div class="col-lg-3 col-md-6">
       <div class="card border-0 shadow-sm h-100 border-info">
         <div class="card-body text-center">
-          <i class="fas fa-chart-line fa-3x text-info mb-3"></i>
-          <h5>AI Analytics</h5>
-          <p class="text-muted small">تحليل ذكي</p>
-          <a href="{{ url_for('security.ai_analytics') }}" class="btn btn-info btn-sm">
-            <i class="fas fa-brain"></i> تحليل
+          <i class="fas fa-brain fa-3x text-info mb-3"></i>
+          <h5>لوحة تحكم AI</h5>
+          <p class="text-muted small">مساعد + إعدادات + تحليلات - 6 في 1</p>
+          <a href="{{ url_for('security.ai_control_panel') }}" class="btn btn-info btn-sm">
+            <i class="fas fa-robot"></i> فتح اللوحة
           </a>
+          <div class="mt-2">
+            <a href="{{ url_for('security.ai_control_panel', tab='assistant') }}" class="btn btn-sm btn-outline-primary">مساعد</a>
+            <a href="{{ url_for('security.ai_control_panel', tab='config') }}" class="btn btn-sm btn-outline-success">إعدادات</a>
+          </div>
         </div>
       </div>
     </div>
@@ -886,7 +887,7 @@
             <i class="fas fa-graduation-cap fa-3x text-dark mb-3"></i>
             <h5>AI Training</h5>
             <p class="text-muted small">تدريب الذكاء</p>
-            <a href="{{ url_for('security.ai_training') }}" class="btn btn-dark btn-sm">
+            <a href="{{ url_for('security.ai_control_panel', tab='training') }}" class="btn btn-dark btn-sm">
               <i class="fas fa-chalkboard-teacher"></i> تدريب
             </a>
           </div>

@@ -2993,8 +2993,8 @@ def ai_chat_with_search(message, session_id='default'):
             if last_topic == 'customers':
                 contextual_response += """بعد إضافة العميل، يمكنك:
 1. إضافة سيارته (/customers/<id>/vehicles)
-2. إنشاء طلب صيانة له (/service/create)
-3. عمل فاتورة له (/sales/create)
+2. إنشاء طلب صيانة له (/service/new)
+3. عمل فاتورة له (/sales/new)
 
 ماذا تريد أن تفعل؟"""
             elif last_topic == 'inventory':

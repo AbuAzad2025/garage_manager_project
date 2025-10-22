@@ -156,7 +156,7 @@
 
     <section class="content">
         <div class="container-fluid">
-            <!-- إحصائيات سريعة -->
+            <!-- إحصائيات سريعة - الصف الأول -->
             <div class="row">
                 <div class="col-lg-3 col-md-6">
                     <div class="stat-card position-relative" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
@@ -169,9 +169,27 @@
                     <div class="stat-card position-relative" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
                         <i class="fas fa-tools stat-icon"></i>
                         <h3 id="total-services">0.00 ₪</h3>
-                        <p>إجمالي الخدمات (الصيانة)</p>
+                        <p>الصيانة والخدمات</p>
                     </div>
                 </div>
+                <div class="col-lg-3 col-md-6">
+                    <div class="stat-card position-relative" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                        <i class="fas fa-calendar-check stat-icon"></i>
+                        <h3 id="total-preorders">0.00 ₪</h3>
+                        <p>الحجوزات المسبقة</p>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <div class="stat-card position-relative" style="background: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%);">
+                        <i class="fas fa-warehouse stat-icon"></i>
+                        <h3 id="total-stock">0.00 ₪</h3>
+                        <p>قيمة المخزون</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- صف ثاني للإحصائيات -->
+            <div class="row mt-3">
                 <div class="col-lg-3 col-md-6">
                     <div class="stat-card position-relative" style="background: linear-gradient(135deg, #ff9966 0%, #ff5e62 100%);">
                         <i class="fas fa-boxes stat-icon"></i>
@@ -186,29 +204,18 @@
                         <p>إجمالي النفقات</p>
                     </div>
                 </div>
-            </div>
-
-            <!-- صف ثاني للإحصائيات -->
-            <div class="row mt-3">
-                <div class="col-lg-4 col-md-6">
+                <div class="col-lg-3 col-md-6">
                     <div class="stat-card position-relative" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);">
                         <i class="fas fa-chart-line stat-icon"></i>
                         <h3 id="gross-profit">0.00 ₪</h3>
                         <p>إجمالي الربح</p>
                     </div>
                 </div>
-                <div class="col-lg-4 col-md-6">
+                <div class="col-lg-3 col-md-6">
                     <div class="stat-card position-relative" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
                         <i class="fas fa-hand-holding-usd stat-icon"></i>
                         <h3 id="net-profit">0.00 ₪</h3>
                         <p>صافي الربح</p>
-                    </div>
-                </div>
-                <div class="col-lg-4 col-md-6">
-                    <div class="stat-card position-relative" style="background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);">
-                        <i class="fas fa-percentage stat-icon"></i>
-                        <h3 id="profit-margin">0.00%</h3>
-                        <p>هامش الربح</p>
                     </div>
                 </div>
             </div>
@@ -498,6 +505,8 @@ $(document).ready(function() {
     $('#from-date').val(firstDayOfYear);
     $('#to-date').val(today);
     
+    console.log('📅 التواريخ الافتراضية:', {from: firstDayOfYear, to: today});
+    
     // تحميل البيانات
     loadLedgerData();
     loadAccountsSummary();
@@ -639,12 +648,14 @@ function updateLedgerTable(data) {
 
 function updateStatistics(stats) {
     // الإيرادات
-    $('#total-sales').text(formatCurrency(stats.total_sales) + ' ₪');
+    $('#total-sales').text(formatCurrency(stats.total_sales || 0) + ' ₪');
     $('#total-services').text(formatCurrency(stats.total_services || 0) + ' ₪');
+    $('#total-preorders').text(formatCurrency(stats.total_preorders || 0) + ' ₪');
+    $('#total-stock').text(formatCurrency(stats.total_stock_value || 0) + ' ₪');
     
     // التكاليف
     $('#total-cogs').text(formatCurrency(stats.total_cogs || 0) + ' ₪');
-    $('#total-expenses').text(formatCurrency(stats.total_expenses) + ' ₪');
+    $('#total-expenses').text(formatCurrency(stats.total_expenses || 0) + ' ₪');
     
     // الأرباح
     const grossProfit = stats.total_gross_profit || 0;
@@ -653,7 +664,6 @@ function updateStatistics(stats) {
     
     $('#gross-profit').text(formatCurrency(Math.abs(grossProfit)) + ' ₪');
     $('#net-profit').text(formatCurrency(Math.abs(netProfit)) + ' ₪');
-    $('#profit-margin').text(profitMargin.toFixed(2) + '%');
     
     // تغيير اللون حسب الربح/الخسارة
     const netProfitCard = $('#net-profit').closest('.stat-card');
@@ -1068,7 +1078,8 @@ function getTransactionBadgeClass(type) {
         'expense': 'warning',
         'payment': 'primary',
         'maintenance': 'danger',
-        'service': 'secondary'
+        'service': 'secondary',
+        'opening': 'dark'
     };
     return classes[type] || 'secondary';
 }
@@ -1081,7 +1092,8 @@ function getTransactionDescription(entry) {
         'expense': '📊 مصروف: تنقص الرصيد (دائن)',
         'payment': '💳 دفعة: تحصيل (مدين) أو سداد (دائن)',
         'service': '🔧 صيانة: تزيد الرصيد (مدين)',
-        'maintenance': '🛠️ صيانة: تزيد الرصيد (مدين)'
+        'maintenance': '🛠️ صيانة: تزيد الرصيد (مدين)',
+        'opening': '📦 رصيد افتتاحي: قيمة المخزون'
     };
     
     const baseDesc = descriptions[entry.type] || 'عملية محاسبية';

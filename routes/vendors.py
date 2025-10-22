@@ -255,24 +255,207 @@ def suppliers_statement(supplier_id: int):
         # اسم المنتج للبيان
         prod_name = getattr(p, 'name', 'منتج') if p else 'منتج'
 
+        # جمع تفاصيل المنتج
+        item_detail = {
+            "product": prod_name,
+            "qty": qty,
+            "unit_cost": float(unit_cost),
+            "total": float(amount),
+            "direction": dirv,
+            "tx_id": tx.id
+        }
+        
         # المدين = قيمة التوريد (يزيد ما ندين به للمورد)
         # الدائن = قيمة المرتجع/التسويات (تُخفّض ما ندين به)
         if dirv in {"IN", "PURCHASE", "CONSIGN_IN"}:
             statement = f"توريد {prod_name} - كمية: {qty}"
-            entries.append({"date": d, "type": "PURCHASE", "ref": f"توريد قطع #{tx.id}", "statement": statement, "debit": amount, "credit": Decimal("0.00")})
+            entries.append({
+                "date": d, 
+                "type": "PURCHASE", 
+                "ref": f"توريد قطع #{tx.id}", 
+                "statement": statement, 
+                "debit": amount, 
+                "credit": Decimal("0.00"),
+                "details": [item_detail],
+                "has_details": True
+            })
             total_debit += amount
             row["qty_in"] += qty
             row["val_in"] += amount
         elif dirv in {"OUT", "RETURN", "CONSIGN_OUT"}:
             statement = f"مرتجع {prod_name} - كمية: {qty}"
-            entries.append({"date": d, "type": "RETURN", "ref": f"مرتجع قطع #{tx.id}", "statement": statement, "debit": Decimal("0.00"), "credit": amount})
+            entries.append({
+                "date": d, 
+                "type": "RETURN", 
+                "ref": f"مرتجع قطع #{tx.id}", 
+                "statement": statement, 
+                "debit": Decimal("0.00"), 
+                "credit": amount,
+                "details": [item_detail],
+                "has_details": True
+            })
             total_credit += amount
             row["qty_out"] += qty
             row["val_out"] += amount
         elif dirv in {"SETTLEMENT", "ADJUST"}:
             statement = f"تسوية مخزون {prod_name} - كمية: {qty}"
-            entries.append({"date": d, "type": "SETTLEMENT", "ref": f"تسوية مخزون #{tx.id}", "statement": statement, "debit": Decimal("0.00"), "credit": amount})
+            entries.append({
+                "date": d, 
+                "type": "SETTLEMENT", 
+                "ref": f"تسوية مخزون #{tx.id}", 
+                "statement": statement, 
+                "debit": Decimal("0.00"), 
+                "credit": amount,
+                "details": [item_detail],
+                "has_details": True
+            })
             total_credit += amount
+
+    # المبيعات للمورد (كعميل) — تُسجّل دائن (تُخفّض ما ندين به)
+    sales_data = []
+    if supplier.customer_id:
+        from models import Sale, SaleStatus, SaleLine, Product
+        sale_q = (
+            db.session.query(Sale)
+            .options(joinedload(Sale.lines).joinedload(SaleLine.product))
+            .filter(
+                Sale.customer_id == supplier.customer_id,
+                Sale.status == SaleStatus.CONFIRMED.value,
+            )
+        )
+        if df:
+            sale_q = sale_q.filter(Sale.sale_date >= df)
+        if dt:
+            sale_q = sale_q.filter(Sale.sale_date < dt)
+        
+        for sale in sale_q.all():
+            d = sale.sale_date
+            amt = q2(sale.total_amount or 0)
+            ref = sale.sale_number or f"فاتورة #{sale.id}"
+            
+            # جمع بنود الفاتورة
+            items = []
+            for line in (sale.lines or []):
+                prod_name = line.product.name if line.product else "منتج"
+                items.append({
+                    "product": prod_name,
+                    "qty": line.quantity,
+                    "price": float(line.unit_price or 0),
+                    "total": float(q2(line.quantity * line.unit_price))
+                })
+            
+            statement = f"مبيعات للمورد - {ref}"
+            entries.append({
+                "date": d, 
+                "type": "SALE", 
+                "ref": ref, 
+                "statement": statement, 
+                "debit": Decimal("0.00"), 
+                "credit": amt,
+                "details": items,
+                "has_details": len(items) > 0
+            })
+            total_credit += amt
+            sales_data.append({"ref": ref, "date": d, "amount": amt, "items": items})
+    
+    # الصيانة للمورد (كعميل) — تُسجّل دائن
+    services_data = []
+    if supplier.customer_id:
+        from models import ServiceRequest, ServicePart, ServiceTask
+        service_q = (
+            db.session.query(ServiceRequest)
+            .options(joinedload(ServiceRequest.parts), joinedload(ServiceRequest.tasks))
+            .filter(
+                ServiceRequest.customer_id == supplier.customer_id,
+                ServiceRequest.status == 'COMPLETED',
+            )
+        )
+        if df:
+            service_q = service_q.filter(ServiceRequest.received_at >= df)
+        if dt:
+            service_q = service_q.filter(ServiceRequest.received_at < dt)
+        
+        for service in service_q.all():
+            d = service.received_at
+            amt = q2(service.total_amount or 0)
+            ref = service.service_number or f"صيانة #{service.id}"
+            
+            # جمع قطع الغيار والخدمات
+            items = []
+            for part in (service.parts or []):
+                items.append({
+                    "type": "قطعة",
+                    "name": part.product.name if part.product else "قطعة غيار",
+                    "qty": part.quantity,
+                    "price": float(part.unit_price or 0),
+                    "total": float(q2(part.quantity * part.unit_price))
+                })
+            for task in (service.tasks or []):
+                items.append({
+                    "type": "خدمة",
+                    "name": task.description or "خدمة",
+                    "qty": task.quantity or 1,
+                    "price": float(task.unit_price or 0),
+                    "total": float(q2((task.quantity or 1) * task.unit_price))
+                })
+            
+            statement = f"صيانة للمورد - {ref}"
+            entries.append({
+                "date": d, 
+                "type": "SERVICE", 
+                "ref": ref, 
+                "statement": statement, 
+                "debit": Decimal("0.00"), 
+                "credit": amt,
+                "details": items,
+                "has_details": len(items) > 0
+            })
+            total_credit += amt
+            services_data.append({"ref": ref, "date": d, "amount": amt, "items": items})
+    
+    # الحجوزات المسبقة للمورد (كعميل) — تُسجّل دائن
+    preorders_data = []
+    if supplier.customer_id:
+        from models import PreOrder
+        preorder_q = (
+            db.session.query(PreOrder)
+            .options(joinedload(PreOrder.product))
+            .filter(
+                PreOrder.customer_id == supplier.customer_id,
+                PreOrder.status.in_(['CONFIRMED', 'COMPLETED']),
+            )
+        )
+        if df:
+            preorder_q = preorder_q.filter(PreOrder.preorder_date >= df)
+        if dt:
+            preorder_q = preorder_q.filter(PreOrder.preorder_date < dt)
+        
+        for preorder in preorder_q.all():
+            d = preorder.preorder_date
+            amt = q2(preorder.total_amount or 0)
+            ref = f"حجز #{preorder.id}"
+            prod_name = preorder.product.name if preorder.product else "منتج"
+            
+            items = [{
+                "product": prod_name,
+                "qty": preorder.quantity,
+                "price": float(preorder.unit_price or 0),
+                "total": float(amt)
+            }]
+            
+            statement = f"حجز مسبق للمورد - {ref}"
+            entries.append({
+                "date": d, 
+                "type": "PREORDER", 
+                "ref": ref, 
+                "statement": statement, 
+                "debit": Decimal("0.00"), 
+                "credit": amt,
+                "details": items,
+                "has_details": True
+            })
+            total_credit += amt
+            preorders_data.append({"ref": ref, "date": d, "amount": amt, "items": items})
 
     # الدفعات الخارجة للمورد (OUTGOING) — تُسجّل دائن لأنها تُخفّض ما ندين به
     pay_q = (
@@ -373,6 +556,14 @@ def suppliers_statement(supplier_id: int):
             r["qty_unpaid"] = qty_i
             r["val_unpaid"] = value
 
+    # ✅ إضافة التسوية الذكية للملخص المحاسبي
+    from routes.supplier_settlements import _calculate_smart_supplier_balance
+    balance_data = _calculate_smart_supplier_balance(
+        supplier_id,
+        df if df else datetime(2024, 1, 1),
+        (dt - timedelta(days=1)) if dt else datetime.utcnow()
+    )
+    
     return render_template(
         "vendors/suppliers/statement.html",
         supplier=supplier,
@@ -380,6 +571,7 @@ def suppliers_statement(supplier_id: int):
         total_debit=total_debit,
         total_credit=total_credit,
         balance=balance,
+        balance_data=balance_data,  # ✅ إضافة البيانات المحاسبية
         consignment_value=consignment_value,
         per_product=per_product,
         date_from=df if df else None,
@@ -446,6 +638,57 @@ def partners_statement(partner_id: int):
     if dt:
         dt = dt + timedelta(days=1)
 
+    entries = []
+    total_debit = Decimal("0.00")
+    total_credit = Decimal("0.00")
+    
+    # المبيعات للشريك (كعميل) — تُسجّل دائن
+    if partner.customer_id:
+        from models import Sale, SaleStatus
+        sale_q = (
+            db.session.query(Sale)
+            .filter(
+                Sale.customer_id == partner.customer_id,
+                Sale.status == SaleStatus.CONFIRMED.value,
+            )
+        )
+        if df:
+            sale_q = sale_q.filter(Sale.sale_date >= df)
+        if dt:
+            sale_q = sale_q.filter(Sale.sale_date < dt)
+        
+        for sale in sale_q.all():
+            d = sale.sale_date
+            amt = q2(sale.total_amount or 0)
+            ref = sale.sale_number or f"فاتورة #{sale.id}"
+            statement = f"مبيعات للشريك - {ref}"
+            entries.append({"date": d, "type": "SALE", "ref": ref, "statement": statement, "debit": Decimal("0.00"), "credit": amt})
+            total_credit += amt
+    
+    # الصيانة للشريك (كعميل) — تُسجّل دائن
+    if partner.customer_id:
+        from models import ServiceRequest
+        service_q = (
+            db.session.query(ServiceRequest)
+            .filter(
+                ServiceRequest.customer_id == partner.customer_id,
+                ServiceRequest.status == 'COMPLETED',
+            )
+        )
+        if df:
+            service_q = service_q.filter(ServiceRequest.received_at >= df)
+        if dt:
+            service_q = service_q.filter(ServiceRequest.received_at < dt)
+        
+        for service in service_q.all():
+            d = service.received_at
+            amt = q2(service.total_amount or 0)
+            ref = service.service_number or f"صيانة #{service.id}"
+            statement = f"صيانة للشريك - {ref}"
+            entries.append({"date": d, "type": "SERVICE", "ref": ref, "statement": statement, "debit": Decimal("0.00"), "credit": amt})
+            total_credit += amt
+
+    # الدفعات
     q = (
         db.session.query(Payment)
         .filter(
@@ -457,10 +700,6 @@ def partners_statement(partner_id: int):
         q = q.filter(Payment.payment_date >= df)
     if dt:
         q = q.filter(Payment.payment_date < dt)
-
-    entries = []
-    total_debit = Decimal("0.00")
-    total_credit = Decimal("0.00")
 
     for p in q.all():
         d = p.payment_date
@@ -496,6 +735,14 @@ def partners_statement(partner_id: int):
         c = q2(e["credit"])
         balance += d - c
         out.append({**e, "debit": d, "credit": c, "balance": balance})
+    
+    # ✅ إضافة التسوية الذكية للملخص المحاسبي
+    from routes.partner_settlements import _calculate_smart_partner_balance
+    balance_data = _calculate_smart_partner_balance(
+        partner_id,
+        df if df else datetime(2024, 1, 1),
+        (dt - timedelta(days=1)) if dt else datetime.utcnow()
+    )
 
     return render_template(
         "vendors/partners/statement.html",
@@ -504,6 +751,7 @@ def partners_statement(partner_id: int):
         total_debit=total_debit,
         total_credit=total_credit,
         balance=balance,
+        balance_data=balance_data,  # ✅ إضافة البيانات المحاسبية
         date_from=df if df else None,
         date_to=(dt - timedelta(days=1)) if dt else None,
     )

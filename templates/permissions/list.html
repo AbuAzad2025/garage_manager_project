@@ -168,7 +168,7 @@ $(function(){
         { extend: 'pdfHtml5', text: 'PDF' },
         { extend: 'print', text: 'طباعة' }
       ],
-      language: { url: 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/ar.json' },
+      language: { url: "{{ url_for('static', filename='datatables/Arabic.json') }}" },
       order: [[0, 'asc']],
       pageLength: 25,
       lengthMenu: [[10, 25, 50, -1], ['10', '25', '50', 'الكل']]

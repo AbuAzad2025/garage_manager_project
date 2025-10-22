@@ -90,19 +90,10 @@
     getFABMenuItems() {
       const items = [];
       
-      if (window.location.pathname.includes('/customers')) {
-        items.push('<a href="/customers/create"><i class="fas fa-user-plus"></i> إضافة عميل</a>');
-      } else if (window.location.pathname.includes('/sales')) {
-        items.push('<a href="/sales/create"><i class="fas fa-shopping-cart"></i> مبيعة جديدة</a>');
-      } else if (window.location.pathname.includes('/service')) {
-        items.push('<a href="/service/new"><i class="fas fa-wrench"></i> طلب صيانة</a>');
-      } else if (window.location.pathname.includes('/warehouses')) {
-        items.push('<a href="/warehouses/create"><i class="fas fa-warehouse"></i> مستودع جديد</a>');
-      } else {
-        items.push('<a href="/customers/create"><i class="fas fa-user-plus"></i> عميل جديد</a>');
-        items.push('<a href="/sales/create"><i class="fas fa-shopping-cart"></i> مبيعة جديدة</a>');
-        items.push('<a href="/service/new"><i class="fas fa-wrench"></i> طلب صيانة</a>');
-      }
+      // دائماً أظهر كل الخيارات
+      items.push('<a href="/customers/create"><i class="fas fa-user-plus"></i> عميل جديد</a>');
+      items.push('<a href="/sales/new"><i class="fas fa-shopping-cart"></i> فاتورة جديدة</a>');
+      items.push('<a href="/service/new"><i class="fas fa-wrench"></i> طلب صيانة</a>');
       
       return items.join('');
     },

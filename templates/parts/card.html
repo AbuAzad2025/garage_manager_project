@@ -185,7 +185,7 @@
       if (window.jQuery && $.fn.DataTable) {
         $('#movements-table').DataTable({
           pageLength: 25,
-          language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/Arabic.json' }
+          language: { url: "{{ url_for('static', filename='datatables/Arabic.json') }}" }
         });
       }
     })();

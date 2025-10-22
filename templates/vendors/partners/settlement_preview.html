@@ -316,7 +316,7 @@
                             <tfoot>
                                 <tr class="table-light">
                                     <td colspan="6" class="text-end"><strong>الإجمالي:</strong></td>
-                                    <td class="text-end"><strong class="text-success">{{ "%.2f"|format(balance_data.rights.inventory.total) }}</strong></td>
+                                    <td class="text-end"><strong class="text-success">{{ "%.2f"|format(balance_data.rights.inventory.total_ils if balance_data.rights.inventory.get('total_ils') is not none else balance_data.rights.inventory.total) }}</strong></td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -372,6 +372,60 @@
                                 <tr class="table-light">
                                     <td colspan="8" class="text-end"><strong>الإجمالي:</strong></td>
                                     <td class="text-end"><strong class="text-success">{{ "%.2f"|format(balance_data.rights.sales_share.total_share_ils) }}</strong></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            {# ✅ نصيب الحجوزات المسبقة #}
+            {% if balance_data.rights.preorders_share and balance_data.rights.preorders_share.get('items', [])|length > 0 %}
+            <div class="card settlement-detail-card">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-shopping-bag"></i> نصيب الحجوزات المسبقة
+                        <span class="badge bg-light text-dark">{{ balance_data.rights.preorders_share.count }}</span>
+                    </h5>
+                    <button class="btn btn-sm btn-light no-print" onclick="printTable('preordersShareTable', 'نصيب الحجوزات المسبقة')">
+                        <i class="fas fa-print"></i> طباعة
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover" id="preordersShareTable">
+                            <thead>
+                                <tr>
+                                    <th>رقم الحجز</th>
+                                    <th>التاريخ</th>
+                                    <th>الحالة</th>
+                                    <th class="text-end">الإجمالي</th>
+                                    <th class="text-center">النسبة</th>
+                                    <th class="text-end">النصيب (₪)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in balance_data.rights.preorders_share.get('items', []) %}
+                                <tr>
+                                    <td>#{{ item.preorder_number }}</td>
+                                    <td><small>{{ item.date }}</small></td>
+                                    <td><span class="badge badge-info">{{ item.status }}</span></td>
+                                    <td class="text-end">{{ "%.2f"|format(item.total_amount) }} {{ item.currency }}</td>
+                                    <td class="text-center"><span class="badge badge-primary">{{ "%.1f"|format(item.share_percentage) }}%</span></td>
+                                    <td class="text-end">
+                                        <strong>{{ "%.2f"|format(item.share_amount_ils) }}</strong>
+                                        {% if item.currency != 'ILS' %}
+                                        <br><small class="text-muted">({{ item.currency }}: {{ "%.2f"|format(item.share_amount) }})</small>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr>
+                                    <td colspan="5" class="text-end"><strong>المجموع:</strong></td>
+                                    <td class="text-end"><strong class="text-success">{{ "%.2f"|format(balance_data.rights.preorders_share.total_ils) }}</strong></td>
                                 </tr>
                             </tfoot>
                         </table>

@@ -160,6 +160,7 @@
       .card {
         margin-bottom: 15px;
       }
+      
     }
     
     /* Tablet (576px - 991px) */
@@ -179,6 +180,7 @@
       body[data-sidebar-position="right"] .main-header.navbar {
         margin-right: 250px !important;
       }
+      
     }
     
     /* Desktop (992px - 1399px) */
@@ -198,6 +200,7 @@
       body[data-sidebar-position="right"] .main-header.navbar {
         margin-right: 280px !important;
       }
+      
     }
     
     /* Large Desktop (1400px - 1919px) */
@@ -217,6 +220,7 @@
       body[data-sidebar-position="right"] .main-header.navbar {
         margin-right: 300px !important;
       }
+      
     }
     
     /* Extra Large (TV/4K - >= 1920px) */
@@ -237,12 +241,19 @@
         margin-right: 320px !important;
       }
       
+      
       .content-wrapper {
         max-width: 1800px;
         margin-left: auto;
         margin-right: auto;
       }
     }
+    
+    
+    
+    
+    
+    
     
     /* Sidebar Collapse على Mobile */
     @media (max-width: 991.98px) {
@@ -411,7 +422,7 @@
     }
   </style>
 </head>
-<body class="hold-transition sidebar-mini layout-fixed text-sm layout-navbar-fixed sidebar-collapse-left">
+<body class="hold-transition sidebar-mini layout-fixed text-sm layout-navbar-fixed sidebar-collapse-left {% block body_class %}{% endblock %}">
 <div class="wrapper">
   {% include 'partials/navbar.html' %}
   {% include 'partials/sidebar.html' %}
@@ -582,6 +593,7 @@ function applySidebarPosition(position) {
   } else {
     sidebarWidth = '320px';
   }
+  
   
   if (position === 'left') {
     // وضع على اليسار

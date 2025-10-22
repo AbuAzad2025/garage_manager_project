@@ -473,7 +473,40 @@
         
         // تحديث النموذج
         updateEntityFields();
+        
+        // جلب الجهة المرتبطة (العميل/المورد) للفواتير والصيانة والشحنات
+        if (['SALE', 'INVOICE', 'PREORDER', 'SERVICE', 'SHIPMENT'].includes(entityType.toUpperCase())) {
+          fetchRelatedParty(entityType, entity.id);
+        }
       }
+    }
+    
+    // دالة جلب الجهة المرتبطة (العميل أو المورد)
+    function fetchRelatedParty(entityType, entityId) {
+      fetch(`/payments/api/related-party?entity_type=${entityType}&entity_id=${entityId}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data && data.success) {
+            // ملء حقل العميل المرتبط
+            if (data.customer_id && data.customer_name) {
+              const customerSearchField = document.getElementById('customer_search');
+              const customerIdField = document.getElementById('customer_id');
+              if (customerSearchField) customerSearchField.value = data.customer_name;
+              if (customerIdField) customerIdField.value = data.customer_id;
+            }
+            
+            // ملء حقل المورد المرتبط
+            if (data.supplier_id && data.supplier_name) {
+              const supplierSearchField = document.getElementById('supplier_search');
+              const supplierIdField = document.getElementById('supplier_id');
+              if (supplierSearchField) supplierSearchField.value = data.supplier_name;
+              if (supplierIdField) supplierIdField.value = data.supplier_id;
+            }
+          }
+        })
+        .catch(error => {
+          console.error('خطأ في جلب الجهة المرتبطة:', error);
+        });
     }
     
     function updateEntityFields() {
@@ -612,27 +645,164 @@
       // تهيئة حقول طرق الدفع الديناميكية
       initPaymentMethodFields();
       
+      // دالة إضافة دفعة جزئية
+      function addSplitRow() {
+        console.log('🔵 زر إضافة دفعة جزئية تم الضغط عليه');
+        const container = document.getElementById('splitsContainer');
+        if (!container) {
+          console.error('❌ لم يتم العثور على splitsContainer');
+          return;
+        }
+        console.log('✅ splitsContainer موجود');
+        
+        const currentSplits = container.querySelectorAll('.split-form');
+        const maxSplits = parseInt(container.getAttribute('data-max-splits')) || 3;
+        
+        console.log('📊 عدد الدفعات الحالية:', currentSplits.length, '| الحد الأقصى:', maxSplits);
+        
+        if (currentSplits.length >= maxSplits) {
+          alert('الحد الأقصى للدفعات الجزئية هو ' + maxSplits);
+          console.warn('⚠️ تم الوصول للحد الأقصى');
+          return;
+        }
+        
+        const newIndex = currentSplits.length;
+        console.log('➕ إضافة دفعة جزئية جديدة - الفهرس:', newIndex);
+        const template = currentSplits[0].cloneNode(true);
+        
+        // تحديث الفهرس
+        template.setAttribute('data-index', newIndex);
+        template.querySelector('h5').textContent = 'الدفعة الجزئية #' + (newIndex + 1);
+        
+        // مسح القيم
+        template.querySelectorAll('input, select').forEach(function(input) {
+          if (input.type === 'checkbox') {
+            input.checked = false;
+          } else {
+            input.value = '';
+          }
+          // تحديث الأسماء
+          const name = input.name;
+          if (name) {
+            input.name = name.replace(/splits-\d+/, 'splits-' + newIndex);
+            input.id = input.id.replace(/splits-\d+/, 'splits-' + newIndex);
+          }
+        });
+        
+        // تفعيل زر الحذف
+        const removeBtn = template.querySelector('.remove-split');
+        if (removeBtn) {
+          removeBtn.disabled = false;
+        }
+        
+        // إخفاء التفاصيل
+        const details = template.querySelector('.split-details');
+        if (details) {
+          details.style.display = 'none';
+        }
+        
+        container.appendChild(template);
+        console.log('✅ تم إضافة الدفعة الجزئية بنجاح');
+        
+        // إعادة تهيئة الحقول
+        setTimeout(function() {
+          initPaymentMethodFields();
+          updateSplitSum();
+        }, 100);
+      }
+      
       // مراقبة زر إضافة دفعة جزئية
       const addSplitBtn = document.getElementById('addSplit');
+      console.log('🔍 البحث عن زر addSplit:', addSplitBtn ? 'موجود ✅' : 'غير موجود ❌');
+      
       if (addSplitBtn) {
-        addSplitBtn.addEventListener('click', function() {
-          setTimeout(function() {
-            initPaymentMethodFields();
-          }, 100);
-        });
+        addSplitBtn.addEventListener('click', addSplitRow);
+        console.log('✅ تم ربط الزر بالدالة addSplitRow');
+      } else {
+        console.error('❌ زر addSplit غير موجود في الصفحة!');
       }
+      
+      // دالة حذف دفعة جزئية
+      function removeSplitRow(btn) {
+        const container = document.getElementById('splitsContainer');
+        if (!container) return;
+        
+        const currentSplits = container.querySelectorAll('.split-form');
+        if (currentSplits.length <= 1) {
+          alert('يجب أن تبقى دفعة جزئية واحدة على الأقل');
+          return;
+        }
+        
+        const splitForm = btn.closest('.split-form');
+        if (splitForm) {
+          splitForm.remove();
+          
+          // إعادة ترقيم الدفعات المتبقية
+          const remainingSplits = container.querySelectorAll('.split-form');
+          remainingSplits.forEach(function(split, index) {
+            split.setAttribute('data-index', index);
+            split.querySelector('h5').textContent = 'الدفعة الجزئية #' + (index + 1);
+            
+            // تحديث أسماء الحقول
+            split.querySelectorAll('input, select').forEach(function(input) {
+              const name = input.name;
+              if (name && name.includes('splits-')) {
+                input.name = name.replace(/splits-\d+/, 'splits-' + index);
+                input.id = input.id.replace(/splits-\d+/, 'splits-' + index);
+              }
+            });
+          });
+          
+          updateSplitSum();
+          initPaymentMethodFields();
+        }
+      }
+      
+      // دالة حساب مجموع الدفعات الجزئية
+      function updateSplitSum() {
+        let sum = 0;
+        document.querySelectorAll('.split-form input[name*="amount"]').forEach(function(input) {
+          const val = parseFloat(input.value) || 0;
+          sum += val;
+        });
+        
+        const splitSumEl = document.getElementById('splitSum');
+        if (splitSumEl) {
+          const totalAmount = parseFloat(document.getElementById('total_amount')?.value) || 0;
+          const diff = totalAmount - sum;
+          
+          if (Math.abs(diff) < 0.01) {
+            splitSumEl.innerHTML = '<i class="fas fa-check-circle text-success"></i> مجموع الدفعات الجزئية: <strong>' + sum.toFixed(2) + '</strong> (مطابق)';
+            splitSumEl.className = 'form-text text-success';
+          } else if (diff > 0) {
+            splitSumEl.innerHTML = '<i class="fas fa-exclamation-triangle text-warning"></i> مجموع الدفعات: <strong>' + sum.toFixed(2) + '</strong> | المتبقي: <strong>' + diff.toFixed(2) + '</strong>';
+            splitSumEl.className = 'form-text text-warning';
+          } else {
+            splitSumEl.innerHTML = '<i class="fas fa-times-circle text-danger"></i> مجموع الدفعات: <strong>' + sum.toFixed(2) + '</strong> | الزيادة: <strong>' + Math.abs(diff).toFixed(2) + '</strong>';
+            splitSumEl.className = 'form-text text-danger';
+          }
+        }
+      }
+      
+      // مراقبة التغييرات في مبالغ الدفعات الجزئية
+      document.addEventListener('input', function(e) {
+        if (e.target.name && e.target.name.includes('amount')) {
+          updateSplitSum();
+        }
+      });
       
       // مراقبة أزرار حذف الدفعة الجزئية
       const splitsContainer = document.getElementById('splitsContainer');
       if (splitsContainer) {
         splitsContainer.addEventListener('click', function(e) {
           if (e.target.classList.contains('remove-split')) {
-            setTimeout(function() {
-              initPaymentMethodFields();
-            }, 100);
+            removeSplitRow(e.target);
           }
         });
       }
+      
+      // حساب المجموع عند التحميل
+      updateSplitSum();
     });
     
     // دالة لإظهار/إخفاء حقول طرق الدفع حسب الطريقة المختارة

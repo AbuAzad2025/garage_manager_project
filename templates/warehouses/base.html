@@ -4,6 +4,8 @@
   {% block page_title %}المستودعات{% endblock %} — شركة ازاد
 {% endblock %}
 
+{% block body_class %}warehouses-page{% endblock %}
+
 {% block styles %}
   {{ super() }}
   <meta name="csrf-token" content="{{ csrf_token() }}">

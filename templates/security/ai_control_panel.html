@@ -1,0 +1,596 @@
+{% extends 'base.html' %}
+{% block title %}لوحة تحكم الذكاء الاصطناعي{% endblock %}
+{% block page_title %}🤖 لوحة تحكم الذكاء الاصطناعي{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  {% include 'security/_navigation.html' %}
+  
+  <div class="alert alert-info border-0 shadow-sm">
+    <i class="fas fa-robot"></i>
+    <strong>لوحة تحكم AI الموحدة:</strong> مساعد + إعدادات + تحليلات + تشخيص + تدريب + أنماط
+    <span class="badge bg-success ms-2">6 وحدات في واحدة</span>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+      <h5 class="mb-0"><i class="fas fa-brain"></i> الذكاء الاصطناعي المتقدم</h5>
+    </div>
+    
+    <div class="card-body">
+      
+      <!-- Nav tabs -->
+      <ul class="nav nav-tabs nav-fill mb-4" id="aiTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if active_tab == 'assistant' %}active{% endif %}" 
+                  id="assistant-tab" 
+                  data-toggle="tab" 
+                  data-target="#assistant" 
+                  type="button" 
+                  role="tab">
+            <i class="fas fa-comments"></i> المساعد الذكي
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if active_tab == 'config' %}active{% endif %}" 
+                  id="config-tab" 
+                  data-toggle="tab" 
+                  data-target="#config" 
+                  type="button" 
+                  role="tab">
+            <i class="fas fa-cog"></i> الإعدادات
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if active_tab == 'analytics' %}active{% endif %}" 
+                  id="analytics-tab" 
+                  data-toggle="tab" 
+                  data-target="#analytics" 
+                  type="button" 
+                  role="tab">
+            <i class="fas fa-chart-line"></i> التحليلات
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if active_tab == 'diagnostics' %}active{% endif %}" 
+                  id="diagnostics-tab" 
+                  data-toggle="tab" 
+                  data-target="#diagnostics" 
+                  type="button" 
+                  role="tab">
+            <i class="fas fa-stethoscope"></i> التشخيص
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if active_tab == 'training' %}active{% endif %}" 
+                  id="training-tab" 
+                  data-toggle="tab" 
+                  data-target="#training" 
+                  type="button" 
+                  role="tab">
+            <i class="fas fa-graduation-cap"></i> التدريب
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if active_tab == 'patterns' %}active{% endif %}" 
+                  id="patterns-tab" 
+                  data-toggle="tab" 
+                  data-target="#patterns" 
+                  type="button" 
+                  role="tab">
+            <i class="fas fa-project-diagram"></i> كشف الأنماط
+          </button>
+        </li>
+      </ul>
+
+      <!-- Tab panes -->
+      <div class="tab-content" id="aiTabContent">
+        
+        <!-- تبويب 1: المساعد الذكي -->
+        <div class="tab-pane fade {% if active_tab == 'assistant' %}show active{% endif %}" 
+             id="assistant" 
+             role="tabpanel">
+          
+          <div class="card border-primary">
+            <div class="card-header bg-primary text-white">
+              <i class="fas fa-robot"></i> المساعد الذكي
+            </div>
+            <div class="card-body">
+              
+              <!-- Chat Interface -->
+              <div class="chat-container mb-3" style="height: 400px; overflow-y: auto; background: #f8f9fa; border-radius: 10px; padding: 15px;">
+                <div id="chatMessages">
+                  {% if chat_history %}
+                    {% for msg in chat_history %}
+                    <div class="message {% if msg.role == 'user' %}user-message{% else %}ai-message{% endif %} mb-2 p-3 rounded">
+                      <strong>{% if msg.role == 'user' %}👤 أنت:{% else %}🤖 AI:{% endif %}</strong>
+                      <p class="mb-0 mt-1">{{ msg.content }}</p>
+                    </div>
+                    {% endfor %}
+                  {% endif %}
+                </div>
+              </div>
+              
+              <form method="POST" action="{{ url_for('security.ai_control_panel', tab='assistant') }}">
+                <div class="input-group">
+                  <input type="text" name="query" class="form-control form-control-lg" 
+                         placeholder="اسأل المساعد الذكي..." required>
+                  <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-paper-plane"></i> إرسال
+                  </button>
+                </div>
+              </form>
+              
+            </div>
+          </div>
+          
+        </div>
+        
+        <!-- تبويب 2: الإعدادات -->
+        <div class="tab-pane fade {% if active_tab == 'config' %}show active{% endif %}" 
+             id="config" 
+             role="tabpanel">
+          
+          <form method="POST" action="{{ url_for('security.ai_control_panel', tab='config') }}">
+            <div class="row">
+              <div class="col-md-6">
+                <div class="card mb-3">
+                  <div class="card-header bg-success text-white">
+                    <strong><i class="fas fa-toggle-on"></i> التفعيل</strong>
+                  </div>
+                  <div class="card-body">
+                    <div class="form-check form-switch mb-3">
+                      <input class="form-check-input" type="checkbox" name="ai_enabled" id="ai_enabled" {% if ai_config.enabled %}checked{% endif %}>
+                      <label class="form-check-label" for="ai_enabled">
+                        <strong>تفعيل AI</strong><br>
+                        <small class="text-muted">تشغيل/إيقاف النظام الذكي</small>
+                      </label>
+                    </div>
+                    <div class="form-check form-switch">
+                      <input class="form-check-input" type="checkbox" name="ai_auto_suggestions" id="ai_auto_suggestions" {% if ai_config.auto_suggestions %}checked{% endif %}>
+                      <label class="form-check-label" for="ai_auto_suggestions">
+                        <strong>اقتراحات تلقائية</strong><br>
+                        <small class="text-muted">عرض اقتراحات ذكية تلقائياً</small>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col-md-6">
+                <div class="card mb-3">
+                  <div class="card-header bg-info text-white">
+                    <strong><i class="fas fa-sliders-h"></i> المعاملات</strong>
+                  </div>
+                  <div class="card-body">
+                    <div class="mb-3">
+                      <label class="form-label"><strong>Model</strong></label>
+                      <select name="ai_model" class="form-control">
+                        <option value="gpt-4" {% if ai_config.model == 'gpt-4' %}selected{% endif %}>GPT-4</option>
+                        <option value="gpt-3.5-turbo" {% if ai_config.model == 'gpt-3.5-turbo' %}selected{% endif %}>GPT-3.5 Turbo</option>
+                      </select>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label"><strong>Temperature (0-1)</strong></label>
+                      <input type="number" name="ai_temperature" class="form-control" 
+                             value="{{ ai_config.temperature or 0.7 }}" min="0" max="1" step="0.1">
+                    </div>
+                    <div>
+                      <label class="form-label"><strong>Max Tokens</strong></label>
+                      <input type="number" name="ai_max_tokens" class="form-control" 
+                             value="{{ ai_config.max_tokens or 1000 }}" min="100" max="4000" step="100">
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="d-grid">
+              <button type="submit" class="btn btn-success btn-lg">
+                <i class="fas fa-save"></i> حفظ إعدادات AI
+              </button>
+            </div>
+          </form>
+          
+        </div>
+        
+        <!-- تبويب 3: التحليلات -->
+        <div class="tab-pane fade {% if active_tab == 'analytics' %}show active{% endif %}" 
+             id="analytics" 
+             role="tabpanel">
+          
+          <div class="row">
+            <div class="col-md-3">
+              <div class="card border-primary">
+                <div class="card-body text-center">
+                  <h2 class="text-primary">{{ ai_stats.total_queries }}</h2>
+                  <p class="mb-0">إجمالي الاستعلامات</p>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card border-success">
+                <div class="card-body text-center">
+                  <h2 class="text-success">{{ ai_stats.successful }}</h2>
+                  <p class="mb-0">استعلامات ناجحة</p>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card border-warning">
+                <div class="card-body text-center">
+                  <h2 class="text-warning">{{ ai_stats.avg_response_time }}s</h2>
+                  <p class="mb-0">متوسط زمن الاستجابة</p>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card border-info">
+                <div class="card-body text-center">
+                  <h2 class="text-info">{{ ai_stats.today }}</h2>
+                  <p class="mb-0">استعلامات اليوم</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="card mt-3">
+            <div class="card-header bg-primary text-white">
+              <strong>📊 الاستعلامات الأخيرة</strong>
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>التاريخ</th>
+                      <th>المستخدم</th>
+                      <th>الاستعلام</th>
+                      <th>الحالة</th>
+                      <th>الوقت (ث)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for query in recent_queries %}
+                    <tr>
+                      <td>{{ query.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                      <td><span class="badge bg-info">{{ query.user.username }}</span></td>
+                      <td>{{ query.query[:50] }}...</td>
+                      <td>
+                        {% if query.success %}
+                        <span class="badge bg-success">نجح</span>
+                        {% else %}
+                        <span class="badge bg-danger">فشل</span>
+                        {% endif %}
+                      </td>
+                      <td>{{ query.response_time }}</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          
+        </div>
+        
+        <!-- تبويب 4: التشخيص -->
+        <div class="tab-pane fade {% if active_tab == 'diagnostics' %}show active{% endif %}" 
+             id="diagnostics" 
+             role="tabpanel">
+          
+          <div class="row">
+            <div class="col-md-4">
+              <div class="card border-success mb-3">
+                <div class="card-header bg-success text-white">
+                  <strong><i class="fas fa-check-circle"></i> حالة النظام</strong>
+                </div>
+                <div class="card-body">
+                  <div class="mb-2">
+                    <strong>AI Service:</strong>
+                    {% if diagnostics.ai_service_status %}
+                    <span class="badge bg-success">✅ يعمل</span>
+                    {% else %}
+                    <span class="badge bg-danger">❌ معطل</span>
+                    {% endif %}
+                  </div>
+                  <div class="mb-2">
+                    <strong>Database:</strong>
+                    <span class="badge bg-success">✅ متصل</span>
+                  </div>
+                  <div>
+                    <strong>API Key:</strong>
+                    {% if diagnostics.api_key_valid %}
+                    <span class="badge bg-success">✅ صالح</span>
+                    {% else %}
+                    <span class="badge bg-danger">❌ غير صالح</span>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-md-4">
+              <div class="card border-info mb-3">
+                <div class="card-header bg-info text-white">
+                  <strong><i class="fas fa-chart-pie"></i> الإحصائيات</strong>
+                </div>
+                <div class="card-body">
+                  <div class="mb-2">
+                    <strong>معدل النجاح:</strong>
+                    <span class="badge bg-success">{{ diagnostics.success_rate }}%</span>
+                  </div>
+                  <div class="mb-2">
+                    <strong>متوسط الوقت:</strong>
+                    <span class="badge bg-info">{{ diagnostics.avg_time }}s</span>
+                  </div>
+                  <div>
+                    <strong>آخر خطأ:</strong>
+                    <small>{{ diagnostics.last_error or 'لا يوجد' }}</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-md-4">
+              <div class="card border-warning mb-3">
+                <div class="card-header bg-warning text-dark">
+                  <strong><i class="fas fa-exclamation-triangle"></i> تحذيرات</strong>
+                </div>
+                <div class="card-body">
+                  {% if diagnostics.warnings %}
+                    {% for warning in diagnostics.warnings %}
+                    <div class="alert alert-warning py-2 mb-2">
+                      {{ warning }}
+                    </div>
+                    {% endfor %}
+                  {% else %}
+                  <div class="alert alert-success py-2">
+                    ✅ لا توجد تحذيرات
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="card">
+            <div class="card-header bg-dark text-white">
+              <strong>🔍 اختبار AI</strong>
+            </div>
+            <div class="card-body">
+              <form method="POST" action="{{ url_for('security.ai_control_panel', tab='diagnostics') }}">
+                <div class="mb-3">
+                  <label class="form-label"><strong>استعلام تجريبي:</strong></label>
+                  <input type="text" name="test_query" class="form-control" 
+                         placeholder="اكتب سؤالاً لاختبار AI..." value="ما هو إجمالي المبيعات اليوم؟">
+                </div>
+                <button type="submit" class="btn btn-primary">
+                  <i class="fas fa-vial"></i> اختبار الآن
+                </button>
+              </form>
+              
+              {% if test_result %}
+              <div class="alert alert-{{ 'success' if test_result.success else 'danger' }} mt-3">
+                <strong>النتيجة:</strong><br>
+                {{ test_result.response }}
+                <hr>
+                <small>
+                  <strong>الوقت:</strong> {{ test_result.time }}s |
+                  <strong>الرموز:</strong> {{ test_result.tokens }}
+                </small>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+          
+        </div>
+        
+        <!-- تبويب 5: التدريب -->
+        <div class="tab-pane fade {% if active_tab == 'training' %}show active{% endif %}" 
+             id="training" 
+             role="tabpanel">
+          
+          <div class="alert alert-warning">
+            <i class="fas fa-graduation-cap"></i> <strong>تدريب AI:</strong> أضف بيانات وأمثلة لتحسين أداء النظام
+          </div>
+          
+          <form method="POST" action="{{ url_for('security.ai_control_panel', tab='training') }}">
+            <div class="card mb-3">
+              <div class="card-header bg-primary text-white">
+                <strong>إضافة مثال تدريبي</strong>
+              </div>
+              <div class="card-body">
+                <div class="mb-3">
+                  <label class="form-label"><strong>السؤال:</strong></label>
+                  <input type="text" name="training_question" class="form-control" 
+                         placeholder="مثال: كيف أضيف عميل جديد؟">
+                </div>
+                <div class="mb-3">
+                  <label class="form-label"><strong>الجواب:</strong></label>
+                  <textarea name="training_answer" class="form-control" rows="5" 
+                            placeholder="اكتب الجواب الصحيح..."></textarea>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label"><strong>الفئة:</strong></label>
+                  <select name="training_category" class="form-control">
+                    <option value="customers">العملاء</option>
+                    <option value="sales">المبيعات</option>
+                    <option value="service">الصيانة</option>
+                    <option value="inventory">المخزون</option>
+                    <option value="reports">التقارير</option>
+                  </select>
+                </div>
+                <button type="submit" class="btn btn-success">
+                  <i class="fas fa-plus"></i> إضافة مثال
+                </button>
+              </div>
+            </div>
+          </form>
+          
+          <div class="card">
+            <div class="card-header bg-dark text-white">
+              <strong>📚 أمثلة التدريب الحالية ({{ training_examples|length }})</strong>
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-sm">
+                  <thead>
+                    <tr>
+                      <th>السؤال</th>
+                      <th>الفئة</th>
+                      <th>التاريخ</th>
+                      <th>إجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for example in training_examples %}
+                    <tr>
+                      <td>{{ example.question[:60] }}...</td>
+                      <td><span class="badge bg-primary">{{ example.category }}</span></td>
+                      <td>{{ example.created_at.strftime('%Y-%m-%d') }}</td>
+                      <td>
+                        <button class="btn btn-sm btn-danger" 
+                                onclick="if(confirm('حذف؟')) { location.href='{{ url_for('security.delete_training_example', id=example.id) }}'; }">
+                          <i class="fas fa-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          
+        </div>
+        
+        <!-- تبويب 6: كشف الأنماط -->
+        <div class="tab-pane fade {% if active_tab == 'patterns' %}show active{% endif %}" 
+             id="patterns" 
+             role="tabpanel">
+          
+          <div class="alert alert-info">
+            <i class="fas fa-project-diagram"></i> <strong>كشف الأنماط:</strong> تحليل ذكي لسلوك المستخدمين واكتشاف الأنماط
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6">
+              <div class="card mb-3">
+                <div class="card-header bg-primary text-white">
+                  <strong>🔍 أنماط الاستخدام</strong>
+                </div>
+                <div class="card-body">
+                  <canvas id="usagePatterns" height="200"></canvas>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-md-6">
+              <div class="card mb-3">
+                <div class="card-header bg-success text-white">
+                  <strong>⏰ أوقات الذروة</strong>
+                </div>
+                <div class="card-body">
+                  <canvas id="peakTimes" height="200"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="card">
+            <div class="card-header bg-warning text-dark">
+              <strong>⚠️ أنماط مشبوهة مكتشفة</strong>
+            </div>
+            <div class="card-body">
+              {% if suspicious_patterns %}
+              <div class="table-responsive">
+                <table class="table table-striped">
+                  <thead>
+                    <tr>
+                      <th>النمط</th>
+                      <th>الخطورة</th>
+                      <th>التكرار</th>
+                      <th>آخر حدوث</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for pattern in suspicious_patterns %}
+                    <tr>
+                      <td>{{ pattern.description }}</td>
+                      <td>
+                        <span class="badge bg-{{ pattern.severity_class }}">
+                          {{ pattern.severity }}
+                        </span>
+                      </td>
+                      <td>{{ pattern.count }}</td>
+                      <td>{{ pattern.last_occurrence.strftime('%Y-%m-%d %H:%M') }}</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              {% else %}
+              <div class="alert alert-success">
+                ✅ لا توجد أنماط مشبوهة - كل شيء طبيعي
+              </div>
+              {% endif %}
+            </div>
+          </div>
+          
+        </div>
+        
+      </div>
+      
+    </div>
+  </div>
+
+</div>
+
+<style>
+.user-message {
+  background: #e3f2fd;
+  border-left: 4px solid #2196f3;
+}
+.ai-message {
+  background: #f3e5f5;
+  border-left: 4px solid #9c27b0;
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+// تفعيل التبويب من URL
+document.addEventListener('DOMContentLoaded', function() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const tab = urlParams.get('tab');
+  if (tab) {
+    const tabButton = document.getElementById(tab + '-tab');
+    if (tabButton) {
+      $(tabButton).tab('show');
+    }
+  }
+  
+  // رسم البيانات للأنماط
+  {% if active_tab == 'patterns' and pattern_data %}
+  const usageCtx = document.getElementById('usagePatterns');
+  if (usageCtx) {
+    new Chart(usageCtx, {
+      type: 'bar',
+      data: {
+        labels: {{ pattern_data.labels|tojson }},
+        datasets: [{
+          label: 'الاستخدام',
+          data: {{ pattern_data.values|tojson }},
+          backgroundColor: 'rgba(102, 126, 234, 0.7)'
+        }]
+      }
+    });
+  }
+  {% endif %}
+});
+</script>
+
+{% endblock %}
+

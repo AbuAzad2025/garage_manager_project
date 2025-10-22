@@ -1,0 +1,382 @@
+{% extends 'base.html' %}
+{% block title %}مدير قاعدة البيانات الموحد{% endblock %}
+{% block page_title %}🗄️ مدير قاعدة البيانات الموحد{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  {% include 'security/_navigation.html' %}
+  
+  <div class="alert alert-info border-0 shadow-sm">
+    <i class="fas fa-database"></i>
+    <strong>مدير قاعدة البيانات الموحد:</strong> تصفح + تحرير + هيكل الجداول في مكان واحد
+    <span class="badge bg-success ms-2">{{ tables|length }} جدول</span>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0"><i class="fas fa-database"></i> إدارة قاعدة البيانات</h5>
+    </div>
+    
+    <div class="card-body">
+      
+      <!-- Nav tabs -->
+      <ul class="nav nav-tabs nav-fill mb-4" id="dbTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if active_tab == 'browse' %}active{% endif %}" 
+                  id="browse-tab" 
+                  data-toggle="tab" 
+                  data-target="#browse" 
+                  type="button" 
+                  role="tab">
+            <i class="fas fa-search"></i> تصفح الجداول
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if active_tab == 'edit' %}active{% endif %}" 
+                  id="edit-tab" 
+                  data-toggle="tab" 
+                  data-target="#edit" 
+                  type="button" 
+                  role="tab">
+            <i class="fas fa-edit"></i> تحرير البيانات
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if active_tab == 'schema' %}active{% endif %}" 
+                  id="schema-tab" 
+                  data-toggle="tab" 
+                  data-target="#schema" 
+                  type="button" 
+                  role="tab">
+            <i class="fas fa-sitemap"></i> هيكل الجدول
+          </button>
+        </li>
+      </ul>
+
+      <!-- Tab panes -->
+      <div class="tab-content" id="dbTabContent">
+        
+        <!-- تبويب 1: تصفح الجداول -->
+        <div class="tab-pane fade {% if active_tab == 'browse' %}show active{% endif %}" 
+             id="browse" 
+             role="tabpanel">
+          
+          <div class="row">
+            <div class="col-md-3">
+              <div class="card border-primary">
+                <div class="card-header bg-primary text-white">
+                  <strong><i class="fas fa-list"></i> الجداول ({{ tables|length }})</strong>
+                </div>
+                <div class="card-body p-0">
+                  <div class="list-group list-group-flush" style="max-height: 600px; overflow-y: auto;">
+                    {% for table in tables %}
+                    <a href="{{ url_for('security.database_manager', tab='browse', table=table) }}" 
+                       class="list-group-item list-group-item-action {% if selected_table == table %}active{% endif %}">
+                      <i class="fas fa-table"></i> {{ table }}
+                      <span class="badge bg-secondary float-end">{{ table_counts.get(table, 0) }}</span>
+                    </a>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-md-9">
+              {% if selected_table %}
+              <div class="card">
+                <div class="card-header bg-light">
+                  <h6 class="mb-0">
+                    <i class="fas fa-table"></i> {{ selected_table }}
+                    <span class="badge bg-info ms-2">{{ data|length }} صف</span>
+                    <span class="badge bg-success ms-1">{{ columns|length }} عمود</span>
+                  </h6>
+                </div>
+                <div class="card-body p-0">
+                  <div class="table-responsive" style="max-height: 600px;">
+                    <table class="table table-sm table-hover mb-0">
+                      <thead class="table-dark sticky-top">
+                        <tr>
+                          {% for col in columns %}
+                          <th>{{ col }}</th>
+                          {% endfor %}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for row in data %}
+                        <tr>
+                          {% for col in columns %}
+                          <td>{{ row.get(col, '') }}</td>
+                          {% endfor %}
+                        </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+              {% else %}
+              <div class="alert alert-warning">
+                <i class="fas fa-arrow-left"></i> اختر جدولاً من القائمة
+              </div>
+              {% endif %}
+            </div>
+          </div>
+          
+        </div>
+        
+        <!-- تبويب 2: تحرير البيانات -->
+        <div class="tab-pane fade {% if active_tab == 'edit' %}show active{% endif %}" 
+             id="edit" 
+             role="tabpanel">
+          
+          <div class="row">
+            <div class="col-md-3">
+              <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                  <strong><i class="fas fa-list"></i> الجداول</strong>
+                </div>
+                <div class="card-body p-0">
+                  <div class="list-group list-group-flush">
+                    {% for table in tables %}
+                    <a href="{{ url_for('security.database_manager', tab='edit', table=table) }}" 
+                       class="list-group-item list-group-item-action {% if selected_table == table %}active{% endif %}">
+                      <i class="fas fa-table"></i> {{ table }}
+                    </a>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-md-9">
+              {% if selected_table %}
+              <div class="alert alert-success">
+                <i class="fas fa-edit"></i> <strong>تحرير جدول:</strong> {{ selected_table }}
+              </div>
+              
+              <!-- أزرار الإجراءات -->
+              <div class="btn-group mb-3" role="group">
+                <button type="button" class="btn btn-success" data-toggle="modal" data-target="#addColumnModal">
+                  <i class="fas fa-plus"></i> إضافة عمود
+                </button>
+                <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#addRowModal">
+                  <i class="fas fa-plus-circle"></i> إضافة صف
+                </button>
+                <button type="button" class="btn btn-warning" data-toggle="modal" data-target="#renameTableModal">
+                  <i class="fas fa-i-cursor"></i> إعادة تسمية
+                </button>
+              </div>
+              
+              <!-- جدول البيانات -->
+              <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                  <thead class="table-dark">
+                    <tr>
+                      {% for col in columns %}
+                      <th>
+                        {{ col }}
+                        <div class="btn-group btn-group-sm float-end">
+                          <button class="btn btn-sm btn-warning" title="تعديل العمود">
+                            <i class="fas fa-edit"></i>
+                          </button>
+                          <button class="btn btn-sm btn-danger" title="حذف العمود" 
+                                  onclick="if(confirm('حذف العمود {{ col }}?')) { 
+                                    fetch('{{ url_for('security.db_delete_column', table_name=selected_table) }}', {
+                                      method: 'POST',
+                                      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                                      body: 'column={{ col }}'
+                                    }).then(() => location.reload());
+                                  }">
+                            <i class="fas fa-trash"></i>
+                          </button>
+                        </div>
+                      </th>
+                      {% endfor %}
+                      <th>إجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in data[:50] %}
+                    <tr>
+                      {% for col in columns %}
+                      <td contenteditable="true" class="editable-cell" 
+                          data-row-id="{{ row.id }}" 
+                          data-column="{{ col }}">
+                        {{ row.get(col, '') }}
+                      </td>
+                      {% endfor %}
+                      <td>
+                        <button class="btn btn-sm btn-danger" title="حذف"
+                                onclick="if(confirm('حذف هذا السجل?')) {
+                                  fetch('{{ url_for('security.db_delete_row', table_name=selected_table) }}', {
+                                    method: 'POST',
+                                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                                    body: 'row_id={{ row.id }}'
+                                  }).then(() => location.reload());
+                                }">
+                          <i class="fas fa-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              
+              {% if data|length > 50 %}
+              <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> عرض أول 50 سجل من {{ data|length }} سجل
+              </div>
+              {% endif %}
+              
+              {% else %}
+              <div class="alert alert-warning">
+                <i class="fas fa-arrow-left"></i> اختر جدولاً للتحرير
+              </div>
+              {% endif %}
+            </div>
+          </div>
+          
+        </div>
+        
+        <!-- تبويب 3: هيكل الجدول -->
+        <div class="tab-pane fade {% if active_tab == 'schema' %}show active{% endif %}" 
+             id="schema" 
+             role="tabpanel">
+          
+          <div class="row">
+            <div class="col-md-3">
+              <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                  <strong><i class="fas fa-list"></i> الجداول</strong>
+                </div>
+                <div class="card-body p-0">
+                  <div class="list-group list-group-flush">
+                    {% for table in tables %}
+                    <a href="{{ url_for('security.database_manager', tab='schema', table=table) }}" 
+                       class="list-group-item list-group-item-action {% if selected_table == table %}active{% endif %}">
+                      <i class="fas fa-table"></i> {{ table }}
+                    </a>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-md-9">
+              {% if selected_table and table_info %}
+              <div class="card">
+                <div class="card-header bg-warning text-dark">
+                  <h6 class="mb-0">
+                    <i class="fas fa-sitemap"></i> هيكل جدول: {{ selected_table }}
+                  </h6>
+                </div>
+                <div class="card-body">
+                  <div class="table-responsive">
+                    <table class="table table-bordered">
+                      <thead class="table-dark">
+                        <tr>
+                          <th>اسم العمود</th>
+                          <th>النوع</th>
+                          <th>NULL</th>
+                          <th>Key</th>
+                          <th>Default</th>
+                          <th>Extra</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for col in table_info %}
+                        <tr>
+                          <td><strong>{{ col.name }}</strong></td>
+                          <td><span class="badge bg-primary">{{ col.type }}</span></td>
+                          <td>
+                            {% if col.nullable %}
+                            <span class="badge bg-success">YES</span>
+                            {% else %}
+                            <span class="badge bg-danger">NO</span>
+                            {% endif %}
+                          </td>
+                          <td>
+                            {% if col.primary_key %}
+                            <span class="badge bg-warning text-dark">PRI</span>
+                            {% elif col.foreign_keys %}
+                            <span class="badge bg-info">FOR</span>
+                            {% endif %}
+                          </td>
+                          <td>{{ col.default or '-' }}</td>
+                          <td>
+                            {% if col.autoincrement %}
+                            <span class="badge bg-success">auto_increment</span>
+                            {% endif %}
+                          </td>
+                        </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+              {% else %}
+              <div class="alert alert-warning">
+                <i class="fas fa-arrow-left"></i> اختر جدولاً لعرض هيكله
+              </div>
+              {% endif %}
+            </div>
+          </div>
+          
+        </div>
+        
+      </div>
+      
+    </div>
+  </div>
+
+</div>
+
+<script>
+// تفعيل التبويب من URL
+document.addEventListener('DOMContentLoaded', function() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const tab = urlParams.get('tab');
+  if (tab) {
+    const tabButton = document.getElementById(tab + '-tab');
+    if (tabButton) {
+      $(tabButton).tab('show');
+    }
+  }
+});
+
+// حفظ التعديلات عند تغيير الخلايا
+document.querySelectorAll('.editable-cell').forEach(cell => {
+  cell.addEventListener('blur', function() {
+    const rowId = this.dataset.rowId;
+    const column = this.dataset.column;
+    const newValue = this.textContent;
+    
+    // حفظ التعديل
+    fetch('{{ url_for('security.db_update_cell') }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        table: '{{ selected_table }}',
+        row_id: rowId,
+        column: column,
+        value: newValue
+      })
+    }).then(response => {
+      if (response.ok) {
+        this.style.backgroundColor = '#d4edda';
+        setTimeout(() => {
+          this.style.backgroundColor = '';
+        }, 1000);
+      }
+    });
+  });
+});
+</script>
+
+{% endblock %}
+

@@ -142,12 +142,12 @@
   </div>
 </div>
 
-<!-- حاوية الحجز المسبق -->
+<!-- حاوية الحجز المسبق (قطع غيار) -->
 <div class="entity-field-container" data-entity-type="preorder" style="display: {% if etype == 'preorder' %}block{% else %}none{% endif %};">
   <div class="mb-3">
     {% if form.preorder_search is defined %}
       {{ form.preorder_search.label(class="form-label") }}
-      {{ form.preorder_search(class="form-control", placeholder="رقم الحجز", autocomplete="off") }}
+      {{ form.preorder_search(class="form-control", placeholder="رقم الحجز (قطع غيار)", autocomplete="off") }}
       {% for e in form.preorder_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
     {% endif %}
     {% if form.preorder_id is defined %}{{ form.preorder_id(id="preorder_id") }}{% endif %}
@@ -159,6 +159,36 @@
       {{ form.customer_search(class="form-control", placeholder="العميل المرتبط بالحجز", autocomplete="off", readonly=true) }}
     {% endif %}
     {% if form.customer_id is defined %}{{ form.customer_id(id="customer_id") }}{% endif %}
+  </div>
+</div>
+
+<!-- حاوية الحجز المسبق (متجر أونلاين) -->
+<div class="entity-field-container" data-entity-type="preorder_shop" style="display: {% if etype == 'preorder_shop' %}block{% else %}none{% endif %};">
+  <div class="mb-3">
+    <label class="form-label"><i class="fas fa-shopping-cart"></i> رقم الطلب (متجر)</label>
+    <input type="text" name="shop_preorder_number" class="form-control" placeholder="رقم طلب المتجر" autocomplete="off">
+  </div>
+  <div class="mb-3">
+    {% if form.customer_search is defined %}
+      <label class="form-label">العميل المرتبط</label>
+      {{ form.customer_search(class="form-control", placeholder="العميل المرتبط بالطلب", autocomplete="off", readonly=true) }}
+    {% endif %}
+    {% if form.customer_id is defined %}{{ form.customer_id(id="customer_id") }}{% endif %}
+  </div>
+</div>
+
+<!-- حاوية المشتريات -->
+<div class="entity-field-container" data-entity-type="purchase" style="display: {% if etype == 'purchase' %}block{% else %}none{% endif %};">
+  <div class="mb-3">
+    <label class="form-label"><i class="fas fa-shopping-bag"></i> رقم المشتريات</label>
+    <input type="text" name="purchase_number" class="form-control" placeholder="رقم المشتريات" autocomplete="off">
+  </div>
+  <div class="mb-3">
+    {% if form.supplier_search is defined %}
+      <label class="form-label">المورد المرتبط</label>
+      {{ form.supplier_search(class="form-control", placeholder="المورد المرتبط بالمشتريات", autocomplete="off", readonly=true) }}
+    {% endif %}
+    {% if form.supplier_id is defined %}{{ form.supplier_id(id="supplier_id") }}{% endif %}
   </div>
 </div>
 

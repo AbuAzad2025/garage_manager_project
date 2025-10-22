@@ -378,11 +378,14 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
         # 🔵 جانب المدين (ما له علينا - حقوقه)
         # ═══════════════════════════════════════════════════════════
         
-        # 1. نصيبه من المخزون الحالي (من التكلفة)
+        # 1. نصيبه من المخزون الحالي (من التكلفة) ✅
         inventory = _get_partner_inventory(partner_id, date_from, date_to)
         
-        # 2. نصيبه من المبيعات (من سعر البيع)
+        # 2. نصيبه من المبيعات (من سعر البيع) ✅
         sales_share = _get_partner_sales_share(partner_id, date_from, date_to)
+        
+        # ⚠️ الحجوزات المسبقة ليست حق للشريك - هي طلب من العميل/المورد
+        # النصيب يأتي فقط من المنتج عندما يُباع أو يُخزّن (inventory/sales_share)
         
         # 3. دفعات استلمناها منه (IN) - دين علينا له
         payments_from_partner = _get_partner_payments_received(partner_id, partner, date_from, date_to)
@@ -411,7 +414,8 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
         # ═══════════════════════════════════════════════════════════
         
         # حقوق الشريك (ما استحقه من عمله)
-        partner_rights = Decimal(str(inventory.get("total", 0))) + \
+        # ✅ المخزون + نصيب المبيعات فقط
+        partner_rights = Decimal(str(inventory.get("total_ils", 0) if isinstance(inventory, dict) else 0)) + \
                         Decimal(str(sales_share.get("total_share_ils", 0)))
         
         # التزامات الشريك (ما عليه لنا)
@@ -523,10 +527,15 @@ def _calculate_partner_incoming(partner_id: int, date_from: datetime, date_to: d
         ExchangeTransaction.created_at <= date_to
     ).scalar() or 0
     
+    # حصة الشريك من الشحنات
+    shipments_share_data = _get_partner_shipments_share(partner_id, date_from, date_to)
+    shipments_share = shipments_share_data.get("total_ils", 0)
+    
     return {
         "sales_share": float(sales_share),
         "products_given": float(products_given),
-        "total": float(sales_share + products_given)
+        "shipments_share": float(shipments_share),
+        "total": float(sales_share + products_given + shipments_share)
     }
 
 
@@ -1014,6 +1023,7 @@ def _get_partner_inventory(partner_id: int, date_from: datetime, date_to: dateti
     return {
         "items": items,
         "total": float(total),
+        "total_ils": float(total),  # ✅ المخزون مُفترض بالشيكل
         "count": len(items)
     }
 
@@ -1298,6 +1308,138 @@ def _get_payments_to_partner(partner_id: int, partner: Partner, date_from: datet
     
     # ترتيب حسب التاريخ
     items.sort(key=lambda x: x['date'])
+    
+    return {
+        "items": items,
+        "total_ils": float(total_ils),
+        "count": len(items)
+    }
+
+
+def _get_partner_shipments_share(partner_id: int, date_from: datetime, date_to: datetime):
+    """
+    حساب نصيب الشريك من الشحنات
+    """
+    from models import Shipment, ShipmentPartner, ShipmentItem, Product
+    
+    items = []
+    total_ils = Decimal('0.00')
+    
+    # جلب الشحنات التي للشريك نصيب فيها
+    shipments = db.session.query(
+        Shipment.id,
+        Shipment.shipment_number,
+        Shipment.created_at,
+        Shipment.delivered_date,
+        Shipment.total_cost,
+        Shipment.currency,
+        ShipmentPartner.share_percentage,
+        ShipmentPartner.share_amount
+    ).join(
+        ShipmentPartner, ShipmentPartner.shipment_id == Shipment.id
+    ).filter(
+        ShipmentPartner.partner_id == partner_id,
+        Shipment.status.in_(['IN_TRANSIT', 'IN_CUSTOMS', 'ARRIVED', 'DELIVERED']),
+        Shipment.created_at >= date_from,
+        Shipment.created_at <= date_to
+    ).all()
+    
+    for shipment in shipments:
+        sh_id, sh_number, created_at, delivered_date, total_cost, currency, share_pct, share_amount = shipment
+        
+        # تحويل إلى ILS (استخدام تاريخ إنشاء الشحنة)
+        amount_ils = _convert_to_ils(
+            Decimal(str(share_amount or 0)), 
+            currency or 'ILS', 
+            created_at or datetime.utcnow()
+        )
+        total_ils += amount_ils
+        
+        # جلب بنود الشحنة
+        shipment_items = db.session.query(
+            ShipmentItem.product_id,
+            Product.name.label('product_name'),
+            Product.sku,
+            ShipmentItem.quantity,
+            ShipmentItem.landed_unit_cost
+        ).join(
+            Product, Product.id == ShipmentItem.product_id
+        ).filter(
+            ShipmentItem.shipment_id == sh_id
+        ).all()
+        
+        items_details = []
+        for item in shipment_items:
+            items_details.append({
+                "product_name": item.product_name,
+                "sku": item.sku or "",
+                "quantity": float(item.quantity or 0),
+                "unit_cost": float(item.landed_unit_cost or 0),
+                "total": float(Decimal(str(item.quantity or 0)) * Decimal(str(item.landed_unit_cost or 0)))
+            })
+        
+        items.append({
+            "shipment_id": sh_id,
+            "shipment_number": sh_number or f"SHIP-{sh_id}",
+            "date": created_at.strftime("%Y-%m-%d") if created_at else "",
+            "delivered_date": delivered_date.strftime("%Y-%m-%d") if delivered_date else "",
+            "total_cost": float(total_cost or 0),
+            "share_percentage": float(share_pct or 0),
+            "share_amount": float(share_amount or 0),
+            "share_amount_ils": float(amount_ils),
+            "currency": currency or 'ILS',
+            "items": items_details
+        })
+    
+    return {
+        "items": items,
+        "total_ils": float(total_ils),
+        "count": len(items)
+    }
+
+
+def _get_partner_preorders_share(partner_id: int, date_from: datetime, date_to: datetime):
+    """
+    حساب نصيب الشريك من الحجوزات المسبقة
+    """
+    from models import PreOrder
+    
+    items = []
+    total_ils = Decimal('0.00')
+    
+    # جلب الحجوزات المسبقة للشريك
+    preorders = db.session.query(PreOrder).filter(
+        PreOrder.partner_id == partner_id,
+        PreOrder.status.in_(['CONFIRMED', 'COMPLETED', 'DELIVERED']),
+        PreOrder.created_at >= date_from,
+        PreOrder.created_at <= date_to
+    ).all()
+    
+    for po in preorders:
+        # حساب نصيب الشريك (النسبة × الإجمالي)
+        partner_share_pct = float(po.partner_share_percentage or 0)
+        preorder_total = Decimal(str(po.total_amount or 0))
+        share_amount = preorder_total * Decimal(str(partner_share_pct / 100.0))
+        
+        # تحويل إلى ILS
+        amount_ils = _convert_to_ils(
+            share_amount,
+            po.currency or 'ILS',
+            po.created_at or datetime.utcnow()
+        )
+        total_ils += amount_ils
+        
+        items.append({
+            "preorder_id": po.id,
+            "preorder_number": po.preorder_number or f"PO-{po.id}",
+            "date": po.created_at.strftime("%Y-%m-%d") if po.created_at else "",
+            "total_amount": float(preorder_total),
+            "share_percentage": partner_share_pct,
+            "share_amount": float(share_amount),
+            "share_amount_ils": float(amount_ils),
+            "currency": po.currency or 'ILS',
+            "status": po.status
+        })
     
     return {
         "items": items,

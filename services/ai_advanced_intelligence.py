@@ -51,7 +51,7 @@ SYSTEM_WORKFLOWS = {
             '6. اختر طريقة الدفع',
             '7. احفظ وطباعة',
         ],
-        'route': '/sales/create',
+        'route': '/sales/new',
         'permissions': ['manage_sales'],
         'related_models': ['Invoice', 'SaleLine', 'Product', 'Customer', 'Payment'],
     },

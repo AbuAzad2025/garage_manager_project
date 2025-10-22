@@ -53,7 +53,9 @@ def _compute_totals(sh: Shipment) -> Decimal:
     sh.value_before = _q2(items_total)
     extras = _q2(sh.shipping_cost) + _q2(sh.customs) + _q2(sh.vat) + _q2(sh.insurance)
     sh.currency = _norm_currency(sh.currency)
-    return _q2(items_total + extras)
+    total = _q2(items_total + extras)
+    sh.total_cost = total  # ✅ حفظ التكلفة الإجمالية
+    return total
 
 _compute_shipment_totals = _compute_totals
 
@@ -432,6 +434,13 @@ def create_shipment():
             notes=form.notes.data or None,
             currency=_norm_currency(getattr(form, "currency", None) and form.currency.data),
             sale_id=(form.sale_id.data.id if getattr(form, "sale_id", None) and getattr(form.sale_id.data, "id", None) else None),
+            # الحقول الإضافية
+            weight=form.weight.data if hasattr(form, "weight") else None,
+            dimensions=form.dimensions.data if hasattr(form, "dimensions") else None,
+            package_count=form.package_count.data if hasattr(form, "package_count") else None,
+            priority=form.priority.data if hasattr(form, "priority") else None,
+            delivery_method=form.delivery_method.data if hasattr(form, "delivery_method") else None,
+            delivery_instructions=form.delivery_instructions.data if hasattr(form, "delivery_instructions") else None,
         )
 
         db.session.add(sh)
@@ -530,6 +539,13 @@ def create_shipment():
             )
 
         try:
+            # تحديث رصيد الشركاء عند إنشاء الشحنة (إذا كان هناك شركاء)
+            if sh.partners:
+                for shipment_partner in sh.partners:
+                    if shipment_partner.partner_id:
+                        from models import update_partner_balance
+                        update_partner_balance(shipment_partner.partner_id, db.session.connection())
+            
             db.session.commit()
             flash("✅ تم إنشاء الشحنة بنجاح", "success")
             dest_id = sh.destination_id or (dest_obj.id if dest_obj else None)
@@ -546,12 +562,27 @@ def create_shipment():
 @login_required
 # @permission_required("manage_warehouses")  # Commented out
 def edit_shipment(id: int):
-    sh = _sa_get_or_404(Shipment, id, options=[joinedload(Shipment.items), joinedload(Shipment.partners)])
+    sh = _sa_get_or_404(Shipment, id, options=[
+        joinedload(Shipment.items), 
+        joinedload(Shipment.partners),
+        joinedload(Shipment.destination_warehouse)
+    ])
     old_status = (sh.status or "").upper()
     old_items = _items_snapshot(sh)
     form = ShipmentForm(obj=sh)
 
     if request.method == "GET":
+        # تحميل مستودع الوجهة الصحيح - بشكل صريح
+        if sh.destination_id:
+            dest_warehouse = db.session.get(Warehouse, sh.destination_id)
+            if dest_warehouse:
+                # تعيين المستودع بشكل مباشر وصريح
+                form.destination_id.data = dest_warehouse
+                # التأكد من أن القيمة لن تتغير
+                form.destination_id.query = Warehouse.query.filter(
+                    (Warehouse.id == sh.destination_id) | (Warehouse.is_active == True)
+                ).order_by(Warehouse.name)
+        
         form.partners.entries.clear()
         for p in sh.partners:
             form.partners.append_entry({
@@ -613,6 +644,20 @@ def edit_shipment(id: int):
         sh.notes = form.notes.data
         sh.currency = _norm_currency(getattr(form, "currency", None) and form.currency.data)
         sh.sale_id = (form.sale_id.data.id if getattr(form, "sale_id", None) and form.sale_id.data else None)
+        
+        # حفظ الحقول الإضافية
+        if hasattr(form, "weight") and form.weight.data is not None:
+            sh.weight = form.weight.data
+        if hasattr(form, "dimensions") and form.dimensions.data:
+            sh.dimensions = form.dimensions.data
+        if hasattr(form, "package_count") and form.package_count.data:
+            sh.package_count = form.package_count.data
+        if hasattr(form, "priority") and form.priority.data:
+            sh.priority = form.priority.data
+        if hasattr(form, "delivery_method") and form.delivery_method.data:
+            sh.delivery_method = form.delivery_method.data
+        if hasattr(form, "delivery_instructions") and form.delivery_instructions.data:
+            sh.delivery_instructions = form.delivery_instructions.data
 
         sh.partners.clear()
         sh.items.clear()
@@ -717,6 +762,13 @@ def edit_shipment(id: int):
                 _reverse_arrival_items(old_items)
                 _apply_arrival_items(new_items)
 
+            # تحديث رصيد الشركاء عند تحديث الشحنة (إذا كان هناك شركاء)
+            if sh.partners:
+                for shipment_partner in sh.partners:
+                    if shipment_partner.partner_id:
+                        from models import update_partner_balance
+                        update_partner_balance(shipment_partner.partner_id, db.session.connection())
+            
             db.session.commit()
 
             if _wants_json():
@@ -749,6 +801,13 @@ def delete_shipment(id: int):
         if (sh.status or "").upper() == "ARRIVED":
             _reverse_arrival_items(_items_snapshot(sh))
 
+        # تحديث رصيد الشركاء قبل حذف الشحنة (إذا كان هناك شركاء)
+        if sh.partners:
+            for shipment_partner in sh.partners:
+                if shipment_partner.partner_id:
+                    from models import update_partner_balance
+                    update_partner_balance(shipment_partner.partner_id, db.session.connection())
+        
         # تنظيف العلاقات قبل الحذف
         sh.partners.clear()
         sh.items.clear()
@@ -883,6 +942,14 @@ def mark_arrived(id: int):
         sh.status = "ARRIVED"
         sh.actual_arrival = sh.actual_arrival or datetime.utcnow()
         _compute_totals(sh)
+        
+        # تحديث رصيد الشركاء عند وصول الشحنة (إذا كان هناك شركاء)
+        if sh.partners:
+            for shipment_partner in sh.partners:
+                if shipment_partner.partner_id:
+                    from models import update_partner_balance
+                    update_partner_balance(shipment_partner.partner_id, db.session.connection())
+        
         db.session.commit()
         msg = f"✅ تم اعتماد وصول الشحنة {sh.shipment_number or sh.id} وتحديث المخزون"
         if _wants_json():
@@ -910,6 +977,14 @@ def cancel_shipment(id: int):
             
             _reverse_arrival_items(_items_snapshot(sh))
         sh.status = "CANCELLED"
+        
+        # تحديث رصيد الشركاء عند إلغاء الشحنة (إذا كان هناك شركاء)
+        if sh.partners:
+            for shipment_partner in sh.partners:
+                if shipment_partner.partner_id:
+                    from models import update_partner_balance
+                    update_partner_balance(shipment_partner.partner_id, db.session.connection())
+        
         db.session.commit()
         msg = f"⚠️ تم إلغاء الشحنة {sh.shipment_number or sh.id}"
         if _wants_json():
@@ -940,6 +1015,14 @@ def mark_in_transit(id):
                     _ensure_partner_warehouse(item.warehouse_id, sh)
             
             sh.status = "IN_TRANSIT"
+            
+            # تحديث رصيد الشركاء عند وضع الشحنة في الطريق (إذا كان هناك شركاء)
+            if sh.partners:
+                for shipment_partner in sh.partners:
+                    if shipment_partner.partner_id:
+                        from models import update_partner_balance
+                        update_partner_balance(shipment_partner.partner_id, db.session.connection())
+            
             db.session.commit()
             if _wants_json():
                 return jsonify({"ok": True, "message": "marked_in_transit"})
@@ -969,6 +1052,14 @@ def mark_in_customs(id):
                     _ensure_partner_warehouse(item.warehouse_id, sh)
             
             sh.status = "IN_CUSTOMS"
+            
+            # تحديث رصيد الشركاء عند وضع الشحنة في الجمارك (إذا كان هناك شركاء)
+            if sh.partners:
+                for shipment_partner in sh.partners:
+                    if shipment_partner.partner_id:
+                        from models import update_partner_balance
+                        update_partner_balance(shipment_partner.partner_id, db.session.connection())
+            
             db.session.commit()
             if _wants_json():
                 return jsonify({"ok": True, "message": "marked_in_customs"})
@@ -985,6 +1076,19 @@ def mark_in_customs(id):
 @login_required
 # @permission_required("manage_warehouses")  # Commented out
 def mark_delivered(id):
+    """
+    تسليم الشحنة - ترحيل البنود للمستودعات
+    
+    المنطق:
+    1. عند الإنشاء: بنود الشحنة موجودة لكن بكميات وأسعار 0
+    2. عند التسليم: 
+       - تحديث الكميات والأسعار الفعلية
+       - إضافة البنود للمخزون (StockLevel)
+       - توليد باركود لكل بند
+       - تحديث الحالة إلى DELIVERED
+    """
+    from models import StockLevel, Product
+    
     sh = _sa_get_or_404(Shipment, id)
     if (sh.status or "").upper() == "DELIVERED":
         if _wants_json():
@@ -994,20 +1098,138 @@ def mark_delivered(id):
         try:
             # التحقق من المستودعات قبل تسليم الشحنة
             for item in sh.items:
-                if item.warehouse_id:
-                    _ensure_partner_warehouse(item.warehouse_id, sh)
+                if not item.warehouse_id:
+                    raise ValueError(f"❌ البند {item.product.name if item.product else item.id} بدون مستودع")
+                
+                _ensure_partner_warehouse(item.warehouse_id, sh)
+                
+                # التحقق من أن الكمية والسعر تم تحديثهما
+                if not item.quantity or item.quantity <= 0:
+                    raise ValueError(f"❌ البند {item.product.name if item.product else item.id} بدون كمية محددة")
+                
+                if not item.landed_unit_cost or item.landed_unit_cost <= 0:
+                    raise ValueError(f"❌ البند {item.product.name if item.product else item.id} بدون تكلفة نهائية")
+                
+                # إضافة/تحديث المخزون
+                stock = StockLevel.query.filter_by(
+                    product_id=item.product_id,
+                    warehouse_id=item.warehouse_id
+                ).with_for_update().first()
+                
+                if stock:
+                    # تحديث الكمية الموجودة
+                    stock.quantity = int(stock.quantity or 0) + int(item.quantity)
+                else:
+                    # إنشاء سطر مخزون جديد
+                    stock = StockLevel(
+                        product_id=item.product_id,
+                        warehouse_id=item.warehouse_id,
+                        quantity=int(item.quantity),
+                        reserved_quantity=0
+                    )
+                    db.session.add(stock)
+                
+                # توليد باركود للمنتج إذا لم يكن موجوداً
+                product = db.session.get(Product, item.product_id)
+                if product and not product.barcode:
+                    # توليد باركود بسيط: PRD + timestamp + 4 أرقام عشوائية
+                    import random
+                    from datetime import datetime
+                    timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+                    random_digits = str(random.randint(1000, 9999))
+                    product.barcode = f"PRD{timestamp}{random_digits}"
             
+            # حساب التكلفة الإجمالية للشحنة
+            _compute_totals(sh)
+            
+            # توزيع النسب للشركاء (إذا كان هناك شركاء)
+            if sh.partners:
+                from models import ShipmentPartner, ProductPartner
+                
+                for shipment_partner in sh.partners:
+                    # حساب قيمة النسبة بناءً على التكلفة الإجمالية
+                    total_shipment_value = float(sh.total_cost or 0)
+                    partner_share_percentage = float(shipment_partner.share_percentage or 0)
+                    partner_share_amount = total_shipment_value * (partner_share_percentage / 100.0)
+                    
+                    # ✅ تحويل المبلغ لعملة الشريك قبل الحفظ
+                    if shipment_partner.partner_id:
+                        partner = db.session.get(Partner, shipment_partner.partner_id)
+                        if partner and partner.currency and partner.currency != (sh.currency or 'USD'):
+                            # تحويل من عملة الشحنة إلى عملة الشريك
+                            # استخدام دالة تحويل بسيطة
+                            from models import ExchangeRate
+                            rate = ExchangeRate.get_rate(
+                                sh.currency or 'USD',
+                                partner.currency,
+                                sh.delivered_date or datetime.utcnow()
+                            )
+                            if rate:
+                                partner_share_amount = partner_share_amount * float(rate)
+                            else:
+                                # استخدام سعر افتراضي تقريبي
+                                if (sh.currency or 'USD') == 'USD' and partner.currency == 'ILS':
+                                    partner_share_amount = partner_share_amount * 3.65
+                    
+                    # تحديث مبلغ النسبة (بعملة الشريك)
+                    shipment_partner.share_amount = partner_share_amount
+                    
+                    # ✅ ربط البنود بالشريك (ProductPartner)
+                    if partner_share_percentage > 0 and shipment_partner.partner_id:
+                        for item in sh.items:
+                            # التحقق من وجود ربط سابق
+                            existing_link = ProductPartner.query.filter_by(
+                                product_id=item.product_id,
+                                partner_id=shipment_partner.partner_id
+                            ).first()
+                            
+                            # حساب قيمة نصيب الشريك من هذا البند
+                            item_total_value = float(item.quantity or 0) * float(item.landed_unit_cost or 0)
+                            partner_item_amount = item_total_value * (partner_share_percentage / 100.0)
+                            
+                            if existing_link:
+                                # تحديث الربط الموجود (تجميع النسب)
+                                existing_link.share_amount = float(existing_link.share_amount or 0) + partner_item_amount
+                            else:
+                                # إنشاء ربط جديد
+                                new_link = ProductPartner(
+                                    product_id=item.product_id,
+                                    partner_id=shipment_partner.partner_id,
+                                    share_percent=partner_share_percentage,
+                                    share_amount=partner_item_amount,
+                                    notes=f"من الشحنة {sh.shipment_number}"
+                                )
+                                db.session.add(new_link)
+            
+            # تحديث حالة الشحنة
             sh.status = "DELIVERED"
             sh.delivered_date = datetime.utcnow()
+            
             db.session.commit()
+            
+            # ✅ تحديث أرصدة الشركاء بعد حفظ التغييرات
+            if sh.partners:
+                for shipment_partner in sh.partners:
+                    if shipment_partner.partner_id:
+                        from models import update_partner_balance
+                        update_partner_balance(shipment_partner.partner_id, db.session.connection())
+                db.session.commit()
+            
             if _wants_json():
                 return jsonify({"ok": True, "message": "marked_delivered"})
-            flash("✅ تم تسليم الشحنة", "success")
+            flash("✅ تم تسليم الشحنة وترحيل البنود للمستودعات", "success")
+            
+        except ValueError as e:
+            db.session.rollback()
+            if _wants_json():
+                return jsonify({"ok": False, "error": str(e)}), 400
+            flash(f"{e}", "danger")
         except Exception as e:
             db.session.rollback()
             if _wants_json():
                 return jsonify({"ok": False, "error": str(e)}), 500
             flash(f"❌ تعذّر التحديث: {e}", "danger")
+    
     return redirect(url_for("shipments_bp.shipment_detail", id=sh.id))
 
 
@@ -1028,6 +1250,14 @@ def mark_returned(id):
                     _ensure_partner_warehouse(item.warehouse_id, sh)
             
             sh.status = "RETURNED"
+            
+            # تحديث رصيد الشركاء عند إرجاع الشحنة (إذا كان هناك شركاء)
+            if sh.partners:
+                for shipment_partner in sh.partners:
+                    if shipment_partner.partner_id:
+                        from models import update_partner_balance
+                        update_partner_balance(shipment_partner.partner_id, db.session.connection())
+            
             db.session.commit()
             if _wants_json():
                 return jsonify({"ok": True, "message": "marked_returned"})
@@ -1052,6 +1282,14 @@ def update_delivery_attempt(id):
         sh.last_delivery_attempt = datetime.utcnow()
         if data.get("notes"):
             sh.notes = (sh.notes or "") + f"\nمحاولة تسليم #{sh.delivery_attempts}: {data.get('notes')}"
+        
+        # تحديث رصيد الشركاء عند تحديث محاولة التسليم (إذا كان هناك شركاء)
+        if sh.partners:
+            for shipment_partner in sh.partners:
+                if shipment_partner.partner_id:
+                    from models import update_partner_balance
+                    update_partner_balance(shipment_partner.partner_id, db.session.connection())
+        
         db.session.commit()
         if _wants_json():
             return jsonify({"ok": True, "message": "delivery_attempt_updated"})

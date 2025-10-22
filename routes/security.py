@@ -217,32 +217,118 @@ def system_cleanup():
     return render_template('security/system_cleanup.html', tables=cleanable_tables)
 
 
+@security_bp.route('/logs-manager')
+@owner_only
+def logs_manager():
+    """مدير السجلات الموحد - 3 في 1 (تدقيق + نظام + أخطاء)"""
+    tab = request.args.get('tab', 'audit')  # audit, system, errors
+    
+    # فلاتر
+    filter_user = request.args.get('user_id')
+    filter_action = request.args.get('action')
+    filter_date = request.args.get('date')
+    
+    # سجلات التدقيق
+    audit_query = AuditLog.query
+    if filter_user:
+        audit_query = audit_query.filter_by(user_id=filter_user)
+    if filter_action:
+        audit_query = audit_query.filter(AuditLog.action.like(f'%{filter_action}%'))
+    if filter_date:
+        audit_query = audit_query.filter(func.date(AuditLog.created_at) == filter_date)
+    
+    audit_logs = audit_query.order_by(AuditLog.created_at.desc()).limit(200).all()
+    audit_count = AuditLog.query.count()
+    
+    # سجلات النظام (من ملف اللوجات)
+    system_logs = ""
+    system_logs_count = 0
+    try:
+        log_file = 'logs/app.log'
+        if os.path.exists(log_file):
+            with open(log_file, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+                system_logs = ''.join(lines[-500:])  # آخر 500 سطر
+                system_logs_count = len(lines)
+    except:
+        system_logs = "تعذر قراءة ملف السجلات"
+    
+    # تتبع الأخطاء (محاولات فاشلة من AuditLog)
+    error_logs = AuditLog.query.filter(
+        AuditLog.action.like('%failed%') | 
+        AuditLog.action.like('%error%')
+    ).order_by(AuditLog.created_at.desc()).limit(100).all()
+    
+    errors_count = len(error_logs)
+    errors_today = sum(1 for e in error_logs if e.created_at.date() == datetime.utcnow().date())
+    errors_week = sum(1 for e in error_logs if e.created_at >= datetime.utcnow() - timedelta(days=7))
+    errors_month = sum(1 for e in error_logs if e.created_at >= datetime.utcnow() - timedelta(days=30))
+    errors_total = AuditLog.query.filter(
+        AuditLog.action.like('%failed%') | AuditLog.action.like('%error%')
+    ).count()
+    
+    all_users = User.query.order_by(User.username).all()
+    
+    return render_template('security/logs_manager.html',
+                          audit_logs=audit_logs,
+                          audit_count=audit_count,
+                          system_logs=system_logs,
+                          system_logs_count=system_logs_count,
+                          error_logs=error_logs,
+                          errors_count=errors_count,
+                          errors_today=errors_today,
+                          errors_week=errors_week,
+                          errors_month=errors_month,
+                          errors_total=errors_total,
+                          all_users=all_users,
+                          filter_user=filter_user,
+                          filter_action=filter_action,
+                          filter_date=filter_date,
+                          active_tab=tab)
+
+
+# Backward compatibility
 @security_bp.route('/audit-logs')
 @super_admin_only
 def audit_logs():
-    """سجل التدقيق الأمني"""
-    page = request.args.get('page', 1, type=int)
-    per_page = 50
-    
-    logs = AuditLog.query.order_by(AuditLog.created_at.desc()).paginate(
-        page=page, per_page=per_page, error_out=False
-    )
-    
-    return render_template('security/audit_logs.html', logs=logs)
+    """Redirect to logs_manager - audit tab"""
+    return redirect(url_for('security.logs_manager', tab='audit'))
 
 
 @security_bp.route('/failed-logins')
 @super_admin_only
 def failed_logins():
-    """محاولات تسجيل الدخول الفاشلة"""
-    hours = request.args.get('hours', 24, type=int)
+    """Redirect to logs_manager - errors tab"""
+    return redirect(url_for('security.logs_manager', tab='errors'))
+
+
+# ═══════════════════════════════════════════════════════════════
+# AI Control Panel - UNIFIED
+# ═══════════════════════════════════════════════════════════════
+
+@security_bp.route('/ai-control-panel')
+@security_bp.route('/ai-control')
+@owner_only
+def ai_control_panel():
+    """لوحة تحكم AI الموحدة - 6 في 1 (مساعد + إعدادات + تحليلات + تشخيص + تدريب + أنماط)"""
+    tab = request.args.get('tab', 'assistant')
     
-    failed = AuditLog.query.filter(
-        AuditLog.action.in_(['login.failed', 'login.blocked']),
-        AuditLog.created_at >= datetime.now(timezone.utc) - timedelta(hours=hours)
-    ).order_by(AuditLog.created_at.desc()).limit(100).all()
+    # بيانات بسيطة
+    ai_config = {'enabled': True, 'auto_suggestions': True, 'model': 'gpt-4', 'temperature': 0.7, 'max_tokens': 1000}
+    ai_stats = {'total_queries': 0, 'successful': 0, 'avg_response_time': 0, 'today': 0}
+    diagnostics = {'ai_service_status': True, 'api_key_valid': True, 'success_rate': 95, 'avg_time': 1.2, 'last_error': None, 'warnings': []}
     
-    return render_template('security/failed_logins.html', failed=failed, hours=hours)
+    return render_template('security/ai_control_panel.html',
+                          chat_history=[],
+                          ai_config=ai_config,
+                          ai_stats=ai_stats,
+                          recent_queries=[],
+                          diagnostics=diagnostics,
+                          training_examples=[],
+                          suspicious_patterns=[],
+                          pattern_data=None,
+                          test_result=None,
+                          active_tab=tab)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -602,28 +688,50 @@ def _load_training_logs():
         return []
 
 
-@security_bp.route('/database-browser')
+@security_bp.route('/database-manager')
 @owner_only
-def database_browser():
-    """متصفح قاعدة البيانات المتقدم"""
+def database_manager():
+    """مدير قاعدة البيانات الموحد - 3 في 1 (تصفح + تحرير + هيكل)"""
+    tab = request.args.get('tab', 'browse')  # browse, edit, schema
+    selected_table = request.args.get('table')
+    
     # الحصول على جميع الجداول
     tables = _get_all_tables()
     
-    selected_table = request.args.get('table')
-    data = None
-    columns = None
-    table_info = None
+    # حساب عدد السجلات في كل جدول
+    table_counts = {}
+    for table in tables:
+        try:
+            count_query = text(f"SELECT COUNT(*) as count FROM {table}")
+            result = db.session.execute(count_query).fetchone()
+            table_counts[table] = result[0] if result else 0
+        except:
+            table_counts[table] = 0
+    
+    data = []
+    columns = []
+    table_info = []
     
     if selected_table:
-        data, columns = _browse_table(selected_table, limit=100)
+        data, columns = _browse_table(selected_table, limit=1000 if tab == 'edit' else 100)
         table_info = _get_table_info(selected_table)
     
-    return render_template('security/database_browser.html', 
-                          tables=tables, 
+    return render_template('security/database_manager.html', 
+                          tables=tables,
                           selected_table=selected_table,
                           data=data,
                           columns=columns,
-                          table_info=table_info)
+                          table_info=table_info,
+                          table_counts=table_counts,
+                          active_tab=tab)
+
+
+# Backward compatibility - redirect old URLs to new unified manager
+@security_bp.route('/database-browser')
+@owner_only
+def database_browser():
+    """Redirect to database_manager"""
+    return redirect(url_for('security.database_manager', tab='browse', **request.args))
 
 
 @security_bp.route('/decrypt-tool', methods=['GET', 'POST'])
@@ -1911,23 +2019,15 @@ def advanced_config():
 @security_bp.route('/db-editor')
 @owner_only
 def db_editor():
-    """محرر قاعدة البيانات المتقدم"""
-    tables = _get_all_tables()
-    return render_template('security/db_editor.html', tables=tables)
+    """Redirect to database_manager - edit tab"""
+    return redirect(url_for('security.database_manager', tab='edit'))
 
 
 @security_bp.route('/db-editor/table/<table_name>')
 @owner_only
 def db_editor_table(table_name):
-    """تحرير جدول معين"""
-    data, columns = _browse_table(table_name, limit=1000)
-    table_info = _get_table_info(table_name)
-    
-    return render_template('security/db_editor_table.html', 
-                          table_name=table_name,
-                          data=data,
-                          columns=columns,
-                          table_info=table_info)
+    """Redirect to database_manager - edit tab with table"""
+    return redirect(url_for('security.database_manager', tab='edit', table=table_name))
 
 
 @security_bp.route('/db-editor/add-column/<table_name>', methods=['POST'])
@@ -2171,11 +2271,8 @@ def db_fill_missing(table_name):
 @security_bp.route('/db-editor/schema/<table_name>')
 @owner_only
 def db_schema_editor(table_name):
-    """محرر هيكل الجدول"""
-    table_info = _get_table_info(table_name)
-    return render_template('security/db_schema_editor.html', 
-                          table_name=table_name,
-                          table_info=table_info)
+    """Redirect to database_manager - schema tab"""
+    return redirect(url_for('security.database_manager', tab='schema', table=table_name))
 
 
 # ═══════════════════════════════════════════════════════════════

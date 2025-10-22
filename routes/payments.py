@@ -811,14 +811,18 @@ def create_payment():
                     return jsonify(status="error", message=msg), 400
                 flash(msg, "danger")
                 return render_template("payments/form.html", form=form, entity_info=None)
+            # حساب المبلغ الفعلي: إما مجموع الدفعات الجزئية أو المبلغ الكلي
+            actual_amount = tgt_total_dec
             if parsed_splits:
                 sum_splits = _sum_splits_decimal(parsed_splits=parsed_splits)
+                actual_amount = sum_splits  # ✅ المبلغ الفعلي المدفوع
+                # السماح بمجموع أكبر أو أقل من المطلوب - سيُحدث الرصيد تلقائياً
                 if sum_splits != tgt_total_dec:
-                    msg = f"❌ مجموع الدفعات الجزئية لا يساوي المبلغ الكلي. المجموع={int(sum_splits)} المطلوب={int(tgt_total_dec)}"
-                    if _wants_json():
-                        return jsonify(status="error", message=msg), 400
-                    flash(msg, "danger")
-                    return render_template("payments/form.html", form=form, entity_info=None)
+                    diff = sum_splits - tgt_total_dec
+                    if diff > 0:
+                        flash(f"⚠️ تحذير: مجموع الدفعات الجزئية ({int(sum_splits)}) أكبر من المطلوب ({int(tgt_total_dec)}) بمقدار {int(diff)}. سيُحدث الرصيد بالمبلغ المدفوع الفعلي.", "warning")
+                    else:
+                        flash(f"⚠️ تحذير: مجموع الدفعات الجزئية ({int(sum_splits)}) أقل من المطلوب ({int(tgt_total_dec)}) بمقدار {int(abs(diff))}. سيُحدث الرصيد بالمبلغ المدفوع الفعلي.", "warning")
             direction_val = _norm_dir(form.direction.data or request.form.get("direction"))
             if etype == "EXPENSE":
                 direction_val = "OUT"
@@ -872,10 +876,20 @@ def create_payment():
                     ref_text = f"دفعة واردة من {person_name}"
                 else:
                     ref_text = f"دفعة صادرة إلى {person_name}"
+            # منع تعارض القيد: لا نحفظ customer_id/supplier_id إذا كان هناك sale_id أو invoice_id أو entity_id آخر
+            final_customer_id = None
+            final_supplier_id = None
+            
+            if etype == "CUSTOMER":
+                final_customer_id = target_id
+            elif etype == "SUPPLIER":
+                final_supplier_id = target_id
+            # لا نحفظ related_customer_id/related_supplier_id لتجنب تعارض القيد
+            
             payment = Payment(
                 entity_type=etype,
-                customer_id=(target_id if etype == "CUSTOMER" else None),
-                supplier_id=(target_id if etype == "SUPPLIER" else None),
+                customer_id=final_customer_id,
+                supplier_id=final_supplier_id,
                 partner_id=(target_id if etype == "PARTNER" else None),
                 shipment_id=(target_id if etype == "SHIPMENT" else None),
                 expense_id=(target_id if etype == "EXPENSE" else None),
@@ -887,7 +901,7 @@ def create_payment():
                 direction=direction_db,
                 status=form.status.data or PaymentStatus.COMPLETED.value,
                 payment_date=form.payment_date.data,
-                total_amount=q0(tgt_total_dec),
+                total_amount=q0(actual_amount),  # ✅ المبلغ الفعلي المدفوع (مجموع الدفعات الجزئية)
                 currency=ensure_currency(form.currency.data),
                 method=getattr(method_val, "value", method_val),
                 reference=ref_text or None,
@@ -1114,18 +1128,20 @@ def create_expense_payment(exp_id):
             flash(msg, "danger")
             return render_template("payments/form.html", form=form, entity_info=entity_info)
         sum_splits = _sum_splits_decimal(parsed_splits)
+        # السماح بمجموع مختلف - سيُحدث الرصيد حسب المدفوع الفعلي
+        actual_amount_expense = sum_splits if sum_splits > 0 else tgt_total_dec
         if sum_splits != tgt_total_dec:
-            msg = f"❌ مجموع الدفعات الجزئية لا يساوي المبلغ الكلي. المجموع={int(sum_splits)} المطلوب={int(tgt_total_dec)}"
-            if _wants_json():
-                return jsonify(status="error", message=msg), 400
-            flash(msg, "danger")
-            return render_template("payments/form.html", form=form, entity_info=entity_info)
+            diff = sum_splits - tgt_total_dec
+            if diff > 0:
+                flash(f"⚠️ تحذير: مجموع الدفعات ({int(sum_splits)}) أكبر من المطلوب ({int(tgt_total_dec)}) بمقدار {int(diff)}. سيُحدث الرصيد بالمبلغ المدفوع الفعلي.", "warning")
+            else:
+                flash(f"⚠️ تحذير: مجموع الدفعات ({int(sum_splits)}) أقل من المطلوب ({int(tgt_total_dec)}) بمقدار {int(abs(diff))}. سيُحدث الرصيد بالمبلغ المدفوع الفعلي.", "warning")
         method_val = parsed_splits[0].method if parsed_splits else _coerce_method(getattr(form, "method", None).data or "cash").value
         notes_raw = (getattr(form, "note", None).data if hasattr(form, "note") else None) or (getattr(form, "notes", None).data if hasattr(form, "notes") else None) or ""
         payment = Payment(
             entity_type="EXPENSE",
             expense_id=exp.id,
-            total_amount=q0(tgt_total_dec),
+            total_amount=q0(actual_amount_expense),  # ✅ المبلغ الفعلي المدفوع
             currency=ensure_currency(form.currency.data or getattr(exp, "currency", "ILS")),
             method=getattr(method_val, "value", method_val),
             direction=_dir_to_db("OUT"),
@@ -1494,6 +1510,82 @@ def get_entities(entity_type):
             
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@payments_bp.route("/api/related-party", methods=["GET"], endpoint="get_related_party")
+@login_required
+def get_related_party():
+    """API لجلب الجهة المرتبطة (العميل أو المورد) بناءً على الكيان"""
+    entity_type = request.args.get("entity_type", "").strip().upper()
+    entity_id = request.args.get("entity_id", "").strip()
+    
+    if not entity_type or not entity_id:
+        return jsonify({"success": False, "error": "Missing parameters"}), 400
+    
+    try:
+        entity_id = int(entity_id)
+    except ValueError:
+        return jsonify({"success": False, "error": "Invalid entity_id"}), 400
+    
+    try:
+        result = {"success": True}
+        
+        if entity_type == "SALE":
+            sale = db.session.get(Sale, entity_id)
+            if sale and sale.customer_id:
+                customer = db.session.get(Customer, sale.customer_id)
+                if customer:
+                    result["customer_id"] = customer.id
+                    result["customer_name"] = customer.name
+                    
+                    # البحث عن المورد المرتبط بالعميل
+                    supplier = db.session.query(Supplier).filter_by(customer_id=customer.id).first()
+                    if supplier:
+                        result["supplier_id"] = supplier.id
+                        result["supplier_name"] = supplier.name
+        
+        elif entity_type == "INVOICE":
+            invoice = db.session.get(Invoice, entity_id)
+            if invoice and invoice.customer_id:
+                customer = db.session.get(Customer, invoice.customer_id)
+                if customer:
+                    result["customer_id"] = customer.id
+                    result["customer_name"] = customer.name
+                    
+                    # البحث عن المورد المرتبط
+                    supplier = db.session.query(Supplier).filter_by(customer_id=customer.id).first()
+                    if supplier:
+                        result["supplier_id"] = supplier.id
+                        result["supplier_name"] = supplier.name
+        
+        elif entity_type == "SERVICE":
+            service = db.session.get(ServiceRequest, entity_id)
+            if service and service.customer_id:
+                customer = db.session.get(Customer, service.customer_id)
+                if customer:
+                    result["customer_id"] = customer.id
+                    result["customer_name"] = customer.name
+        
+        elif entity_type == "PREORDER":
+            preorder = db.session.get(PreOrder, entity_id)
+            if preorder and preorder.customer_id:
+                customer = db.session.get(Customer, preorder.customer_id)
+                if customer:
+                    result["customer_id"] = customer.id
+                    result["customer_name"] = customer.name
+        
+        elif entity_type == "SHIPMENT":
+            shipment = db.session.get(Shipment, entity_id)
+            if shipment and shipment.supplier_id:
+                supplier = db.session.get(Supplier, shipment.supplier_id)
+                if supplier:
+                    result["supplier_id"] = supplier.id
+                    result["supplier_name"] = supplier.name
+        
+        return jsonify(result)
+    
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @payments_bp.route("/search-entities", methods=["GET"], endpoint="search_entities")

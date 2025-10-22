@@ -1,8 +1,12 @@
 :root {
-  --card-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.25);
+  --card-shadow: 0 4px 15px rgba(255, 107, 107, 0.1);
   --muted: #495057;
   --navbar-offset: 56px;
   --text-dark: #212529;
+  --gradient-primary: linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%);
+  --gradient-success: linear-gradient(135deg, #a8e6cf 0%, #88d8c0 100%);
+  --gradient-info: linear-gradient(135deg, #7dd3fc 0%, #38bdf8 100%);
+  --gradient-warning: linear-gradient(135deg, #ffa726 0%, #ffcc02 100%);
 }
 
 .toolbar-warehouses {
@@ -267,6 +271,78 @@
 
 .content-header .dropdown-menu { max-width: 100%; }
 
+/* تحسين النافبار الفرعي للمستودعات */
+.content-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+  position: relative;
+  z-index: 1001 !important;
+  margin-top: 0 !important;
+  padding-top: 1.5rem !important;
+  border-radius: 0 0 0.5rem 0.5rem;
+}
+
+.content-header h1 {
+  color: #ffffff !important;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  font-weight: 700;
+}
+
+.content-header .breadcrumb {
+  background: transparent !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.content-header .breadcrumb a {
+  color: rgba(255, 255, 255, 0.8) !important;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.content-header .breadcrumb a:hover {
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+/* تأثير الضوء على نافبار المستودعات */
+.content-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+  border-radius: 0 0 0.5rem 0.5rem;
+  pointer-events: none;
+}
+
+/* ضمان عدم تداخل النافبارين */
+.main-header {
+  z-index: 1000 !important;
+}
+
+.content-wrapper {
+  z-index: 999 !important;
+}
+
+/* تحسين خاص لصفحات المستودعات */
+.warehouses-page .content-header {
+  z-index: 1001 !important;
+  margin-top: 0 !important;
+  padding-top: 1.5rem !important;
+}
+
+.warehouses-page .main-header {
+  z-index: 1000 !important;
+}
+
+.warehouses-page .content-wrapper {
+  z-index: 999 !important;
+}
+
 .req { color: #dc3545; margin-inline-start: 0.25rem; }
 input:required, select:required, textarea:required { border-color: #dc3545; }
 .is-required .select2-container .select2-selection { border-color: #dc3545; }
@@ -297,5 +373,24 @@ table.dataTable thead .dt-orderable-asc span.dt-column-order,
 table.dataTable thead .dt-orderable-desc span.dt-column-order {
   right: .35rem;
   left: auto;
+}
+
+/* إخفاء الأعمدة الديناميكية */
+.column-hidden {
+  display: none !important;
+}
+
+/* إظهار الأعمدة عند الحاجة */
+.column-visible {
+  display: table-cell !important;
+}
+
+/* ضمان عمل showColumn/hideColumn مع DataTables */
+.dataTables_wrapper .column-hidden {
+  display: none !important;
+}
+
+.dataTables_wrapper .column-visible {
+  display: table-cell !important;
 }
 

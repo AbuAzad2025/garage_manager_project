@@ -29,6 +29,8 @@ def ledger_index():
 def get_ledger_data():
     """جلب بيانات دفتر الأستاذ من قاعدة البيانات الحقيقية"""
     try:
+        from models import fx_rate
+        
         from_date_str = request.args.get('from_date')
         to_date_str = request.args.get('to_date')
         transaction_type = request.args.get('transaction_type', '').strip()
@@ -39,6 +41,60 @@ def get_ledger_data():
         
         ledger_entries = []
         running_balance = 0.0
+        
+        # 0. المخزون الحالي - يُعرض دائماً بغض النظر عن الفترة
+        if True:  # نعرض المخزون دائماً
+            # حساب قيمة المخزون كقيد افتتاحي
+            total_stock_value = 0.0
+            total_stock_qty = 0
+            
+            # جلب المخزون مجمّع حسب المنتج
+            stock_summary = (
+                db.session.query(
+                    Product.id,
+                    Product.name,
+                    Product.price,
+                    Product.currency,
+                    func.sum(StockLevel.quantity).label('total_qty')
+                )
+                .join(StockLevel, StockLevel.product_id == Product.id)
+                .filter(StockLevel.quantity > 0)
+                .group_by(Product.id, Product.name, Product.price, Product.currency)
+                .all()
+            )
+            
+            for row in stock_summary:
+                qty = float(row.total_qty or 0)
+                price = float(row.price or 0)
+                product_currency = row.currency
+                
+                # تحويل للشيقل - استخدام تاريخ اليوم دائماً
+                if product_currency and product_currency != 'ILS' and price > 0:
+                    try:
+                        rate = fx_rate(product_currency, 'ILS', datetime.utcnow(), raise_on_missing=False)
+                        if rate and rate > 0:
+                            price = float(price * float(rate))
+                    except:
+                        pass
+                
+                total_stock_value += qty * price
+                total_stock_qty += int(qty)
+            
+            if total_stock_value > 0:
+                running_balance += total_stock_value
+                # استخدام التاريخ الأقدم أو اليوم
+                stock_date = from_date.strftime('%Y-%m-%d') if from_date else datetime.utcnow().strftime('%Y-%m-%d')
+                ledger_entries.append({
+                    "id": 0,
+                    "date": stock_date,
+                    "transaction_number": "STOCK-VALUE",
+                    "type": "opening",
+                    "type_ar": "قيمة المخزون",
+                    "description": f"قيمة المخزون الحالي ({total_stock_qty} قطعة من {len(stock_summary)} منتج)",
+                    "debit": total_stock_value,
+                    "credit": 0.0,
+                    "balance": running_balance
+                })
         
         # 1. المبيعات (Sales)
         if not transaction_type or transaction_type == 'sale':
@@ -465,7 +521,65 @@ def get_ledger_data():
                 
                 total_service_costs += qty_used * unit_cost
         
-        # 6. صافي الربح الحقيقي
+        # 6. حساب الحجوزات المسبقة
+        from models import PreOrder
+        
+        preorders_query = PreOrder.query
+        if from_date:
+            preorders_query = preorders_query.filter(PreOrder.created_at >= from_date)
+        if to_date:
+            preorders_query = preorders_query.filter(PreOrder.created_at <= to_date)
+        
+        total_preorders = 0.0
+        for preorder in preorders_query.all():
+            amount = float(preorder.total_amount or 0)
+            preorder_currency = getattr(preorder, 'currency', 'ILS') or 'ILS'
+            if preorder_currency != 'ILS':
+                try:
+                    rate = fx_rate(preorder_currency, 'ILS', preorder.created_at or datetime.utcnow(), raise_on_missing=False)
+                    if rate > 0:
+                        amount = float(amount * float(rate))
+                except Exception as e:
+                    from flask import current_app
+                    current_app.logger.warning(f"⚠️ خطأ في تحويل عملة الحجز المسبق #{preorder.id}: {str(e)}")
+            total_preorders += amount
+        
+        # 7. حساب قيمة المخزون (مجمّع حسب المنتج)
+        total_stock_value_stats = 0.0
+        total_stock_qty_stats = 0
+        
+        stock_summary_stats = (
+            db.session.query(
+                Product.id,
+                Product.name,
+                Product.price,
+                Product.currency,
+                func.sum(StockLevel.quantity).label('total_qty')
+            )
+            .join(StockLevel, StockLevel.product_id == Product.id)
+            .filter(StockLevel.quantity > 0)
+            .group_by(Product.id, Product.name, Product.price, Product.currency)
+            .all()
+        )
+        
+        for row in stock_summary_stats:
+            qty = float(row.total_qty or 0)
+            price = float(row.price or 0)
+            product_currency = row.currency
+            
+            # تحويل للشيقل
+            if product_currency and product_currency != 'ILS' and price > 0:
+                try:
+                    rate = fx_rate(product_currency, 'ILS', datetime.utcnow(), raise_on_missing=False)
+                    if rate and rate > 0:
+                        price = float(price * float(rate))
+                except:
+                    pass
+            
+            total_stock_value_stats += qty * price
+            total_stock_qty_stats += int(qty)
+        
+        # 8. صافي الربح الحقيقي
         gross_profit_sales = total_sales - total_cogs  # ربح المبيعات
         gross_profit_services = total_services - total_service_costs  # ربح الخدمات
         total_gross_profit = gross_profit_sales + gross_profit_services
@@ -483,6 +597,9 @@ def get_ledger_data():
             "total_expenses": total_expenses,
             "net_profit": net_profit,
             "profit_margin": (net_profit / (total_sales + total_services) * 100) if (total_sales + total_services) > 0 else 0,
+            "total_preorders": total_preorders,
+            "total_stock_value": total_stock_value_stats,
+            "total_stock_qty": total_stock_qty_stats,
             "cogs_details": cogs_details,
             "estimated_products_count": len(estimated_products),
             "estimated_products": estimated_products,
@@ -507,6 +624,8 @@ def get_ledger_data():
 def get_accounts_summary():
     """جلب ملخص الحسابات (ميزان المراجعة)"""
     try:
+        from models import fx_rate
+        
         from_date_str = request.args.get('from_date')
         to_date_str = request.args.get('to_date')
         
@@ -706,33 +825,60 @@ def get_accounts_summary():
             "credit_balance": total_payments_out
         })
         
-        # 4. حساب المخزون (بالتكلفة الفعلية)
+        # 4. حساب المخزون مجمّع حسب المنتج
         total_stock_value = 0.0
         total_stock_qty = 0
-        stock_levels = StockLevel.query.filter(StockLevel.quantity > 0).all()
-        for stock in stock_levels:
-            if stock.product:
-                qty = float(stock.quantity or 0)
-                # استخدام purchase_price (تكلفة الشراء) وليس selling_price
-                cost = float(stock.product.purchase_price or stock.product.cost_after_shipping or stock.product.price or 0)
-                total_stock_value += qty * cost
-                total_stock_qty += int(qty)
+        
+        stock_summary = (
+            db.session.query(
+                Product.id,
+                Product.name,
+                Product.price,
+                Product.currency,
+                func.sum(StockLevel.quantity).label('total_qty')
+            )
+            .join(StockLevel, StockLevel.product_id == Product.id)
+            .filter(StockLevel.quantity > 0)
+            .group_by(Product.id, Product.name, Product.price, Product.currency)
+            .all()
+        )
+        
+        for row in stock_summary:
+            qty = float(row.total_qty or 0)
+            price = float(row.price or 0)
+            product_currency = row.currency
+            
+            # تحويل للشيقل - استخدام تاريخ اليوم دائماً
+            if product_currency and product_currency != 'ILS' and price > 0:
+                try:
+                    rate = fx_rate(product_currency, 'ILS', datetime.utcnow(), raise_on_missing=False)
+                    if rate and rate > 0:
+                        price = float(price * float(rate))
+                except:
+                    pass
+            
+            total_stock_value += qty * price
+            total_stock_qty += int(qty)
         
         accounts.append({
             "name": "المخزون",
             "debit_balance": total_stock_value,
             "credit_balance": 0.0,
             "quantity": total_stock_qty,
-            "note": f"قيمة {total_stock_qty} قطعة بالتكلفة الفعلية"
+            "note": f"قيمة {total_stock_qty} قطعة"
         })
         
         return jsonify(accounts)
         
     except Exception as e:
         import traceback
-        print(f"Error in get_accounts_summary: {str(e)}")
+        from flask import current_app
+        error_msg = f"Error in get_accounts_summary: {str(e)}"
+        current_app.logger.error(error_msg)
+        current_app.logger.error(traceback.format_exc())
+        print(error_msg)
         print(traceback.format_exc())
-        return jsonify([]), 500
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 @ledger_bp.route("/receivables-summary", methods=["GET"], endpoint="get_receivables_summary")
 @login_required

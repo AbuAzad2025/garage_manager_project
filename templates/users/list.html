@@ -182,7 +182,7 @@
              "<'row'<'col-sm-12'tr>>" +
              "<'row'<'col-sm-5'i><'col-sm-7'p>>",
         buttons: ['excelHtml5', 'pdfHtml5', 'print'],
-        language: { url: "https://cdn.datatables.net/plug-ins/1.13.8/i18n/ar.json" },
+        language: { url: "{{ url_for('static', filename='datatables/Arabic.json') }}" },
         columnDefs: [{ targets: Array.from({length: cols - (hasActions?1:0)}, (_, i) => i), className: "text-center align-middle" }]
       });
     }

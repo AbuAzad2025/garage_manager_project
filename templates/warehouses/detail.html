@@ -119,11 +119,12 @@
 
     <!-- إحصائيات سريعة -->
     {% set stock_list = stock_levels if stock_levels else [] %}
-    {% set total_products = stock_list|length %}
-    {% set total_quantity = stock_list|sum(attribute='quantity') if stock_list else 0 %}
+    {% set safe_stock_list = stock_list | select | list %}
+    {% set total_products = safe_stock_list|length %}
+    {% set total_quantity = (safe_stock_list | map(attribute='quantity') | select | sum) if safe_stock_list else 0 %}
     {% set low_stock_items = [] %}
-    {% for sl in stock_list %}
-      {% if sl.min_stock and sl.quantity and sl.quantity < sl.min_stock %}
+    {% for sl in safe_stock_list %}
+      {% if sl.min_stock and sl.quantity is not none and sl.quantity < sl.min_stock %}
         {% set _ = low_stock_items.append(sl) %}
       {% endif %}
     {% endfor %}

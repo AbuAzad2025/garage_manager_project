@@ -38,7 +38,7 @@
   --sidebar-link-hover: #ffffff;
   --sidebar-link-hover-bg: rgba(255, 255, 255, 0.15);
   --sidebar-link-focus-border: #00c6ff;
-  --sidebar-bg: linear-gradient(180deg, #2c3e50 0%, #4ca1af 100%);
+  --sidebar-bg: linear-gradient(180deg, #ff6b6b 0%, #ff8e8e 20%, #ffa8a8 40%, #a8e6cf 60%, #88d8c0 80%, #7dd3fc 100%);
   --sidebar-brand-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   
   /* ═══════ 📄 ألوان المحتوى ═══════ */
@@ -80,7 +80,7 @@
   --dark-text-light: #e0e0e0;
   
   /* ═══════ 🔝 Navbar ═══════ */
-  --navbar-bg: linear-gradient(90deg, #1f4037 0%, #99f2c8 100%);
+  --navbar-bg: linear-gradient(180deg, #ff6b6b 0%, #ff8e8e 20%, #ffa8a8 40%, #a8e6cf 60%, #88d8c0 80%, #7dd3fc 100%);
   --navbar-text: #ffffff;
   --navbar-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   
@@ -130,25 +130,360 @@ body {
   transition:background-color .4s ease,color .4s ease;
 }
 
-.main-sidebar {
-  overflow-x:visible;
-  background: linear-gradient(180deg, #1a2332 0%, #2d3748 50%, #1a2332 100%);
-  box-shadow: 0 0 30px rgba(0,0,0,0.4);
-  z-index: 1000 !important;
-  border-left: 1px solid rgba(255,255,255,0.05);
+/* ==================== COMPANY LOGO ENHANCEMENT ==================== */
+
+/* Company Logo - محسّن بحذر */
+.user-panel .image img {
+  width: 65px !important;
+  height: 65px !important;
+  max-width: 65px !important;
+  max-height: 65px !important;
+  border-radius: 50% !important;
+  border: 3px solid transparent !important;
+  background: linear-gradient(135deg, #ff6b6b, #ff8e8e, #ffa8a8, #a8e6cf, #88d8c0) !important;
+  background-clip: padding-box !important;
+  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3) !important;
+  transition: all 0.3s ease !important;
+  object-fit: contain !important;
+  object-position: center !important;
 }
 
-/* تأثير الضوء على الـ sidebar */
+/* Company Logo Hover Effect */
+.user-panel .image img:hover {
+  transform: scale(1.05) !important;
+  box-shadow: 0 6px 20px rgba(255, 107, 107, 0.5) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Company Logo Container */
+.user-panel .image {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  padding: 8px !important;
+}
+
+/* ==================== COMPANY LOGO IN NAVBAR ==================== */
+
+/* Company Logo Link - رابط لوجو الشركة */
+.company-logo-link {
+  display: flex !important;
+  align-items: center !important;
+  text-decoration: none !important;
+  padding: 8px 12px !important;
+  border-radius: 8px !important;
+  transition: all 0.3s ease !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(10px) !important;
+}
+
+.company-logo-link:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+  transform: translateY(-1px) !important;
+  text-decoration: none !important;
+  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Company Logo Image - صورة لوجو الشركة */
+.company-logo {
+  width: 55px !important;
+  height: 55px !important;
+  max-width: 55px !important;
+  max-height: 55px !important;
+  border-radius: 50% !important;
+  border: 3px solid rgba(255, 255, 255, 0.4) !important;
+  margin-left: 10px !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  transition: all 0.3s ease !important;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+.company-logo-link:hover .company-logo {
+  transform: scale(1.1) rotate(5deg) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Company Logo Text - نص لوجو الشركة */
+.company-logo-text {
+  color: #ffffff !important;
+  font-size: 17px !important;
+  font-weight: 800 !important;
+  text-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.5),
+    0 1px 2px rgba(0, 0, 0, 0.8) !important;
+  letter-spacing: 0.6px !important;
+  white-space: nowrap !important;
+  transition: all 0.3s ease !important;
+}
+
+.company-logo-link:hover .company-logo-text {
+  color: #ffffff !important;
+  text-shadow: 
+    0 3px 8px rgba(0, 0, 0, 0.6),
+    0 2px 4px rgba(0, 0, 0, 0.9) !important;
+}
+
+/* ==================== GARAGE LOGO IN SIDEBAR ==================== */
+
+/* Garage Brand Area - منطقة لوجو الكراج */
+.garage-brand-area {
+  padding: 20px 15px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
+  background: linear-gradient(135deg, rgba(255, 107, 107, 0.1), rgba(168, 230, 207, 0.1)) !important;
+  min-height: 120px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Garage Brand Link - رابط لوجو الكراج */
+.garage-brand-link {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-decoration: none !important;
+  padding: 8px !important;
+  border-radius: 8px !important;
+  transition: all 0.3s ease !important;
+}
+
+.garage-brand-link:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  text-decoration: none !important;
+}
+
+/* Garage Brand Image - صورة لوجو الكراج */
+.garage-brand-image {
+  width: 80px !important;
+  height: 80px !important;
+  max-width: 80px !important;
+  max-height: 80px !important;
+  border-radius: 50% !important;
+  border: 4px solid transparent !important;
+  background: linear-gradient(135deg, #ff6b6b, #ff8e8e, #ffa8a8, #a8e6cf, #88d8c0) !important;
+  background-clip: padding-box !important;
+  box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4) !important;
+  transition: all 0.3s ease !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  margin-bottom: 10px !important;
+}
+
+.garage-brand-link:hover .garage-brand-image {
+  transform: scale(1.05) !important;
+  box-shadow: 0 6px 20px rgba(255, 107, 107, 0.5) !important;
+}
+
+/* Garage Brand Text - نص لوجو الكراج */
+.garage-brand-text {
+  color: #ffffff !important;
+  font-size: 15px !important;
+  font-weight: 800 !important;
+  text-align: center !important;
+  text-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.6),
+    0 1px 2px rgba(0, 0, 0, 0.8),
+    0 0 3px rgba(0, 0, 0, 0.5) !important;
+  letter-spacing: 0.5px !important;
+  white-space: nowrap !important;
+  transition: all 0.3s ease !important;
+  line-height: 1.3 !important;
+  max-width: 200px !important;
+}
+
+.garage-brand-link:hover .garage-brand-text {
+  color: #ffffff !important;
+  text-shadow: 
+    0 3px 8px rgba(0, 0, 0, 0.7),
+    0 2px 4px rgba(0, 0, 0, 0.9),
+    0 0 5px rgba(0, 0, 0, 0.6) !important;
+}
+
+.main-sidebar {
+  overflow-x:visible;
+  background: linear-gradient(180deg, #ff6b6b 0%, #ff8e8e 20%, #ffa8a8 40%, #a8e6cf 60%, #88d8c0 80%, #7dd3fc 100%);
+  box-shadow: 0 0 30px rgba(255, 107, 107, 0.3);
+  z-index: 1000 !important;
+  border-left: 1px solid rgba(255,255,255,0.2);
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+/* تأثير الضوء المتدرج للسايدبار */
 .main-sidebar::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 200px;
-  background: radial-gradient(ellipse at top, rgba(102, 126, 234, 0.15), transparent);
+  height: 100%;
+  background: linear-gradient(180deg, 
+    rgba(255, 107, 107, 0.1) 0%, 
+    rgba(255, 142, 142, 0.05) 20%, 
+    rgba(255, 168, 168, 0.05) 40%, 
+    rgba(168, 230, 207, 0.05) 60%, 
+    rgba(136, 216, 192, 0.05) 80%, 
+    rgba(125, 211, 252, 0.1) 100%);
   pointer-events: none;
-  z-index: 0;
+  z-index: 1;
+}
+
+/* تأثير الضوء على الـ navbar */
+.main-header {
+  position: relative;
+  z-index: 1000;
+}
+
+.main-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100%;
+  background: linear-gradient(180deg, 
+    rgba(255, 107, 107, 0.1) 0%, 
+    rgba(255, 142, 142, 0.05) 20%, 
+    rgba(255, 168, 168, 0.05) 40%, 
+    rgba(168, 230, 207, 0.05) 60%, 
+    rgba(136, 216, 192, 0.05) 80%, 
+    rgba(125, 211, 252, 0.1) 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* محتوى الـ navbar */
+.main-header .navbar-brand,
+.main-header .navbar-nav {
+  position: relative;
+  z-index: 2;
+}
+
+/* النافبار الفرعي - يجب أن يكون أعلى من الرئيسي */
+.content-header {
+  position: relative;
+  z-index: 1001 !important;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: #ffffff !important;
+  border-radius: 0 0 0.5rem 0.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.content-header .navbar {
+  z-index: 1002 !important;
+}
+
+.content-header h1 {
+  color: #ffffff !important;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  font-weight: 700;
+}
+
+.content-header .breadcrumb {
+  background: transparent !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.content-header .breadcrumb a {
+  color: rgba(255, 255, 255, 0.8) !important;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.content-header .breadcrumb a:hover {
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+/* تأثيرات انتقالية للتناغم */
+.main-header {
+  transition: all 0.3s ease;
+}
+
+/* ضمان عدم تداخل النافبارين */
+.main-header {
+  position: relative;
+  z-index: 1000;
+}
+
+.content-wrapper {
+  position: relative;
+  z-index: 999;
+}
+
+.content-wrapper .content-header {
+  position: relative;
+  z-index: 1001 !important;
+  margin-top: 0;
+  padding-top: 1rem;
+}
+
+/* تحسين خاص لصفحات المستودعات */
+.warehouses-page .content-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+  position: relative;
+  z-index: 1001 !important;
+}
+
+.warehouses-page .content-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+  border-radius: 0 0 0.5rem 0.5rem;
+  pointer-events: none;
+}
+
+/* ضمان عدم تداخل النافبارين في جميع الصفحات */
+.warehouses-page .main-header {
+  z-index: 1000 !important;
+}
+
+.warehouses-page .content-wrapper {
+  z-index: 999 !important;
+}
+
+.warehouses-page .content-header {
+  z-index: 1001 !important;
+  margin-top: 0 !important;
+  padding-top: 1.5rem !important;
+}
+
+/* ═══════ 📊 إدارة الأعمدة الديناميكية ═══════ */
+.column-hidden {
+  display: none !important;
+}
+
+.column-visible {
+  display: table-cell !important;
+}
+
+/* ضمان عمل showColumn/hideColumn مع DataTables */
+.dataTables_wrapper .column-hidden {
+  display: none !important;
+}
+
+.dataTables_wrapper .column-visible {
+  display: table-cell !important;
+}
+
+/* تأثير hover للتناغم */
+.main-header:hover {
+  box-shadow: 0 4px 20px rgba(255, 107, 107, 0.4);
+}
+
+.main-sidebar:hover {
+  box-shadow: 0 0 40px rgba(255, 107, 107, 0.4);
 }
 
 /* Sidebar Content */
@@ -178,7 +513,7 @@ body {
 }
 
 .main-sidebar .nav-link {
-  color: rgba(255, 255, 255, 0.85);
+  color: #ffffff;
   white-space:normal;
   word-break:break-word;
   text-align:right;
@@ -186,10 +521,15 @@ body {
   border-radius: 12px;
   margin: 4px 8px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  font-weight: 500;
+  font-weight: 700;
   font-size: 15px;
+  text-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.5),
+    0 0 2px rgba(0, 0, 0, 0.6);
   position: relative;
   overflow: hidden;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .main-sidebar .nav-link::before {
@@ -199,7 +539,7 @@ body {
   left: 0;
   width: 4px;
   height: 100%;
-  background: linear-gradient(180deg, #667eea, #764ba2);
+  background: linear-gradient(180deg, #ff6b6b, #ffa8a8);
   transform: scaleY(0);
   transition: transform 0.3s ease;
 }
@@ -209,13 +549,18 @@ body {
   margin-left: 0;
   font-size: 18px;
   transition: transform 0.3s ease;
+  color: #ffffff;
+  text-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.5),
+    0 0 2px rgba(0, 0, 0, 0.6);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
 }
 
 .main-sidebar .nav-link:hover {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.25), rgba(118, 75, 162, 0.25));
+  background: linear-gradient(135deg, rgba(255, 107, 107, 0.2), rgba(255, 168, 168, 0.2)) !important;
   color: #ffffff;
   transform: translateX(-4px);
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3) !important;
 }
 
 .main-sidebar .nav-link:hover::before {
@@ -247,52 +592,6 @@ body {
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.4);
 }
 
-.brand-link {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  text-align: center;
-  padding: 25px 15px;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-  transition: all 0.3s ease;
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 100px;
-}
-
-.brand-link:hover {
-  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-  transform: scale(1.02);
-}
-
-.brand-image {
-  max-width: 70px !important;
-  max-height: 70px !important;
-  width: auto !important;
-  height: auto !important;
-  margin-bottom: 10px !important;
-  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3));
-  transition: transform 0.3s ease;
-}
-
-.brand-link:hover .brand-image {
-  transform: scale(1.1) rotate(5deg);
-}
-
-.brand-text {
-  color: #ffffff !important;
-  font-weight: 700 !important;
-  font-size: 17px !important;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.2);
-  letter-spacing: 0.5px;
-  line-height: 1.4;
-  text-align: center;
-  word-wrap: break-word;
-  max-width: 100%;
-}
 
 /* User Panel */
 .user-panel {
@@ -302,15 +601,21 @@ body {
 }
 
 .user-panel .info a {
-  color: rgba(255, 255, 255, 0.9) !important;
-  font-weight: 600;
-  font-size: 15px;
+  color: #ffffff !important;
+  font-weight: 700;
+  font-size: 16px;
   transition: all 0.3s ease;
+  text-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.5),
+    0 0 2px rgba(0, 0, 0, 0.6);
 }
 
 .user-panel .info a:hover {
   color: #ffffff !important;
-  text-shadow: 0 0 10px rgba(102, 126, 234, 0.8);
+  text-shadow: 
+    0 2px 5px rgba(0, 0, 0, 0.6),
+    0 0 10px rgba(102, 126, 234, 0.8),
+    0 0 3px rgba(0, 0, 0, 0.7);
 }
 
 .user-panel .image img {
@@ -325,12 +630,6 @@ body {
   box-shadow: 0 4px 20px rgba(102, 126, 234, 0.6);
 }
 
-.main-header.navbar {
-  background:var(--navbar-bg);
-  color:var(--navbar-text);
-  border-bottom:none;
-}
-
 .content-wrapper {
   background-color:var(--content-bg);
   color:var(--content-text);
@@ -338,12 +637,6 @@ body {
   transition:background-color .3s ease, margin-left .3s ease, margin-right .3s ease;
 }
 
-.card {
-  border:none;
-  border-radius:12px;
-  overflow:hidden;
-  transition:transform .3s ease,box-shadow .3s ease;
-}
 .card:hover {
   transform:translateY(-6px);
   box-shadow:0 12px 25px rgba(0,0,0,0.15);
@@ -379,9 +672,6 @@ body {
 .dark-mode {
   background:var(--dark-bg)!important;
   color:var(--dark-text)!important;
-}
-.dark-mode .main-sidebar {
-  background:var(--dark-sidebar-bg)!important;
 }
 .dark-mode .content-wrapper {
   background:var(--dark-content-bg)!important;
@@ -462,6 +752,184 @@ button:hover, .btn:hover {
 button:focus, .btn:focus {
   outline:2px solid var(--sidebar-link-focus-border);
   outline-offset:2px;
+}
+
+/* ==================== GRADIENT BUTTONS ==================== */
+.btn-primary {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3) !important;
+  color: #ffffff !important;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #ff5252 0%, #ff7979 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4) !important;
+  color: #ffffff !important;
+}
+
+.btn-success {
+  background: linear-gradient(135deg, #a8e6cf 0%, #88d8c0 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 15px rgba(168, 230, 207, 0.3) !important;
+  color: #ffffff !important;
+}
+
+.btn-success:hover {
+  background: linear-gradient(135deg, #88d8c0 0%, #7dd3fc 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(168, 230, 207, 0.4) !important;
+  color: #ffffff !important;
+}
+
+.btn-info {
+  background: linear-gradient(135deg, #7dd3fc 0%, #38bdf8 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 15px rgba(125, 211, 252, 0.3) !important;
+  color: #ffffff !important;
+}
+
+.btn-info:hover {
+  background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(125, 211, 252, 0.4) !important;
+  color: #ffffff !important;
+}
+
+.btn-warning {
+  background: linear-gradient(135deg, #ffa726 0%, #ffcc02 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 15px rgba(255, 167, 38, 0.3) !important;
+  color: #ffffff !important;
+}
+
+.btn-warning:hover {
+  background: linear-gradient(135deg, #ff9800 0%, #ffc107 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(255, 167, 38, 0.4) !important;
+  color: #ffffff !important;
+}
+
+
+.card:hover {
+  box-shadow: 0 8px 25px rgba(255, 107, 107, 0.2) !important;
+  transform: translateY(-3px) !important;
+}
+
+.card-header {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%) !important;
+  color: #ffffff !important;
+  border-bottom: none !important;
+  font-weight: 600 !important;
+  border-radius: 0.75rem 0.75rem 0 0 !important;
+}
+
+.card-body {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%) !important;
+}
+
+/* Success Cards */
+.card.bg-success, .card-success {
+  background: linear-gradient(135deg, #a8e6cf 0%, #88d8c0 100%) !important;
+  color: #ffffff !important;
+}
+
+/* Info Cards */
+.card.bg-info, .card-info {
+  background: linear-gradient(135deg, #7dd3fc 0%, #38bdf8 100%) !important;
+  color: #ffffff !important;
+}
+
+/* Warning Cards */
+.card.bg-warning, .card-warning {
+  background: linear-gradient(135deg, #ffa726 0%, #ffcc02 100%) !important;
+  color: #ffffff !important;
+}
+
+/* Danger Cards */
+.card.bg-danger, .card-danger {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%) !important;
+  color: #ffffff !important;
+}
+
+/* ==================== ENHANCED BADGES ==================== */
+.badge {
+  border-radius: 0.5rem !important;
+  font-weight: 700 !important;
+  padding: 0.5rem 0.75rem !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* تحسين وضوح نصوص navbar */
+.navbar .badge span {
+  font-weight: 800 !important;
+  text-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.5),
+    0 0 2px rgba(0, 0, 0, 0.7) !important;
+}
+
+.navbar .badge i {
+  text-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 0 1px rgba(0, 0, 0, 0.6) !important;
+}
+
+.badge-primary {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%) !important;
+  color: #ffffff !important;
+}
+
+.badge-success {
+  background: linear-gradient(135deg, #a8e6cf 0%, #88d8c0 100%) !important;
+  color: #ffffff !important;
+}
+
+.badge-info {
+  background: linear-gradient(135deg, #7dd3fc 0%, #38bdf8 100%) !important;
+  color: #ffffff !important;
+}
+
+.badge-warning {
+  background: linear-gradient(135deg, #ffa726 0%, #ffcc02 100%) !important;
+  color: #ffffff !important;
+}
+
+.badge-danger {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%) !important;
+  color: #ffffff !important;
+}
+
+/* ==================== ENHANCED ALERTS ==================== */
+.alert {
+  border: none !important;
+  border-radius: 0.75rem !important;
+  font-weight: 500 !important;
+}
+
+.alert-primary {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%) !important;
+  color: #ffffff !important;
+}
+
+.alert-success {
+  background: linear-gradient(135deg, #a8e6cf 0%, #88d8c0 100%) !important;
+  color: #ffffff !important;
+}
+
+.alert-info {
+  background: linear-gradient(135deg, #7dd3fc 0%, #38bdf8 100%) !important;
+  color: #ffffff !important;
+}
+
+.alert-warning {
+  background: linear-gradient(135deg, #ffa726 0%, #ffcc02 100%) !important;
+  color: #ffffff !important;
+}
+
+.alert-danger {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%) !important;
+  color: #ffffff !important;
 }
 
 .no-print {
@@ -639,11 +1107,6 @@ button:focus, .btn:focus {
   gap: 1rem;
 }
 
-@media (max-width: 768px) {
-  .gap-3 {
-    gap: 0.5rem;
-  }
-}
 
 /* تأثيرات إضافية للبروفايل */
 .profile-header {
@@ -753,12 +1216,6 @@ h1, h2, h3, h4, h5, h6 {
   margin-bottom: 1rem;
 }
 
-/* Enhanced Sidebar Improvements */
-.sidebar {
-  background: var(--sidebar-bg);
-  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-}
-
 .sidebar .brand-link {
   background: var(--sidebar-brand-bg);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -783,14 +1240,6 @@ h1, h2, h3, h4, h5, h6 {
   border-left: 3px solid var(--sidebar-link-focus-border);
 }
 
-/* Enhanced Card System */
-.card {
-  border: none;
-  border-radius: var(--card-border-radius);
-  box-shadow: var(--card-shadow);
-  transition: var(--transition-normal);
-  overflow: hidden;
-}
 
 .card:hover {
   box-shadow: var(--card-shadow-hover);
@@ -809,13 +1258,6 @@ h1, h2, h3, h4, h5, h6 {
   padding: 1.5rem;
 }
 
-.btn {
-  border-radius: var(--border-radius);
-  font-weight: var(--font-weight-medium);
-  transition: var(--transition-normal);
-  border: none;
-  padding: 0.5rem 1rem;
-}
 
 .btn:hover {
   transform: translateY(-1px);
@@ -978,8 +1420,10 @@ a:not(.dropdown-item):hover {
 /* روابط في Navbar */
 .navbar a:not(.dropdown-item) {
   color: #ffffff !important;
-  font-weight: 700 !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  font-weight: 800 !important;
+  text-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.5),
+    0 0 2px rgba(0, 0, 0, 0.6);
 }
 
 /* روابط في Cards */
@@ -1184,6 +1628,10 @@ a:not(.dropdown-item):hover {
 
 /* Enhanced Responsive Design */
 @media (max-width: 768px) {
+  .gap-3 {
+    gap: 0.5rem;
+  }
+  
   .card {
     margin-bottom: 1rem;
   }
@@ -1200,6 +1648,33 @@ a:not(.dropdown-item):hover {
   .btn {
     width: 100%;
     margin-bottom: 0.5rem;
+  }
+  
+  .btn-action-primary,
+  .btn-action-add,
+  .btn-action-save {
+    padding: 0.5rem 1.2rem !important;
+    font-size: 0.9rem !important;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+  }
+  
+  .form-actions .btn {
+    width: 100%;
+  }
+  
+  .actions-container {
+    flex-direction: column;
+  }
+  
+  .actions-container .btn {
+    width: 100%;
+  }
+  
+  .quick-actions-fab {
+    bottom: 5rem;
   }
 }
 
@@ -1730,30 +2205,6 @@ img {
 }
 
 /* تجاوب الأزرار */
-@media (max-width: 768px) {
-  .btn-action-primary,
-  .btn-action-add,
-  .btn-action-save {
-    padding: 0.5rem 1.2rem !important;
-    font-size: 0.9rem !important;
-  }
-  
-  .form-actions {
-    flex-direction: column;
-  }
-  
-  .form-actions .btn {
-    width: 100%;
-  }
-  
-  .actions-container {
-    flex-direction: column;
-  }
-  
-  .actions-container .btn {
-    width: 100%;
-  }
-}
 
 html {
   scroll-behavior: smooth;
@@ -1928,55 +2379,102 @@ tbody tr:hover {
 }
 
 .fab-trigger {
-  width: 60px;
-  height: 60px;
+  width: 65px;
+  height: 65px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 50%, #a8e6cf 100%);
+  border: 3px solid rgba(255, 255, 255, 0.3);
   color: white;
-  font-size: 1.5rem;
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+  font-size: 1.8rem;
+  box-shadow: 
+    0 8px 25px rgba(255, 107, 107, 0.6),
+    0 4px 12px rgba(0, 0, 0, 0.3);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  position: relative;
+  z-index: 1000;
+}
+
+.fab-trigger i {
+  text-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.5),
+    0 1px 2px rgba(0, 0, 0, 0.7);
+  font-weight: 900;
 }
 
 .fab-trigger:hover {
-  transform: scale(1.1) rotate(45deg);
-  box-shadow: 0 12px 35px rgba(102, 126, 234, 0.8);
+  transform: scale(1.15) rotate(90deg);
+  box-shadow: 
+    0 12px 40px rgba(255, 107, 107, 0.8),
+    0 6px 20px rgba(0, 0, 0, 0.4);
+  background: linear-gradient(135deg, #ff8e8e 0%, #ffa8a8 50%, #88d8c0 100%);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.fab-trigger:active {
+  transform: scale(1.05) rotate(90deg);
+  box-shadow: 
+    0 6px 20px rgba(255, 107, 107, 0.6),
+    0 3px 10px rgba(0, 0, 0, 0.3);
 }
 
 .fab-menu {
   position: absolute;
-  bottom: 80px;
+  bottom: 85px;
   left: 0;
-  background: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-  padding: 0.5rem;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border-radius: 12px;
+  box-shadow: 
+    0 8px 30px rgba(255, 107, 107, 0.25),
+    0 4px 15px rgba(0, 0, 0, 0.15);
+  padding: 0.75rem;
   display: none;
-  min-width: 200px;
+  min-width: 220px;
+  border: 2px solid rgba(255, 107, 107, 0.15);
 }
 
 .fab-menu.active {
   display: block;
-  animation: fadeInUp 0.3s ease;
+  animation: fadeInUp 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 
 .fab-menu a {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  color: #495057;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  color: #2d3748;
   text-decoration: none;
-  border-radius: 0.3rem;
-  transition: all 0.2s ease;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 0.5rem;
+  background: transparent;
+}
+
+.fab-menu a:last-child {
+  margin-bottom: 0;
+}
+
+.fab-menu a i {
+  font-size: 1.2rem;
+  color: #ff6b6b;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
 }
 
 .fab-menu a:hover {
-  background: #f8f9fa;
-  color: #667eea;
-  transform: translateX(5px);
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%);
+  color: #ffffff;
+  transform: translateX(8px);
+  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+}
+
+.fab-menu a:hover i {
+  color: #ffffff;
+  transform: scale(1.2) rotate(5deg);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 @keyframes fadeInUp {
@@ -1990,11 +2488,6 @@ tbody tr:hover {
   }
 }
 
-@media (max-width: 768px) {
-  .quick-actions-fab {
-    bottom: 5rem;
-  }
-}
 
 .password-strength {
   margin-top: 0.5rem;

@@ -118,27 +118,96 @@
     </button>
   </div>
 
+  {# ✅ ملخص محاسبي ذكي #}
+  {% if balance_data and balance_data.success %}
+  <div class="alert alert-info mb-4">
+    <h5><i class="fas fa-calculator"></i> الملخص المحاسبي الذكي</h5>
+    <div class="row mt-3">
+      <div class="col-md-3">
+        <strong>🟢 الحقوق:</strong> {{ "%.2f"|format(balance_data.rights.total) }} ₪
+      </div>
+      <div class="col-md-3">
+        <strong>🔴 الالتزامات:</strong> {{ "%.2f"|format(balance_data.obligations.total) }} ₪
+      </div>
+      <div class="col-md-3">
+        <strong>💵 الدفعات:</strong> {{ "%.2f"|format(balance_data.payments.total_settled) }} ₪
+      </div>
+      <div class="col-md-3">
+        <strong>🎯 الرصيد النهائي:</strong> 
+        <span class="fs-5 {{ balance_data.balance.amount > 0 and 'text-success' or balance_data.balance.amount < 0 and 'text-danger' or '' }}">
+          {{ "%.2f"|format(balance_data.balance.amount) }} ₪
+        </span>
+      </div>
+    </div>
+    <small class="text-muted">⚠️ جميع المبالغ محولة إلى الشيكل (ILS)</small>
+  </div>
+  {% endif %}
+  
   <div class="row g-3 mb-4">
     {% set stats = [
       ('إجمالي مدين (مستحق للشريك)', total_debit, 'text-danger', 'fa-arrow-up'),
       ('إجمالي دائن (دفعات للشريك)', total_credit, 'text-success', 'fa-arrow-down'),
       ('الرصيد', balance, balance > 0 and 'text-danger' or balance < 0 and 'text-success' or '', 'fa-balance-scale')
     ] %}
-    {% for label, value, color_class, icon in stats %}
     <div class="col-12 col-md-4">
-      <div class="card shadow-sm h-100">
+      <div class="card shadow-sm h-100 border-success">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-center">
             <div>
-              <div class="text-muted small">{{ label }}</div>
-              <div class="fs-5 fw-bold {{ color_class }}">{{ value|format_currency }}</div>
+              <div class="text-muted small">🟢 حقوق الشريك</div>
+              <div class="fs-5 fw-bold text-success">
+                {% if balance_data and balance_data.success %}
+                  {{ "%.2f"|format(balance_data.rights.total) }} ₪
+                {% else %}
+                  {{ total_debit|format_currency }}
+                {% endif %}
+              </div>
             </div>
-            <i class="fas {{ icon }} fs-4 {{ color_class or 'text-secondary' }}"></i>
+            <i class="fas fa-hand-holding-usd fs-4 text-success"></i>
           </div>
         </div>
       </div>
     </div>
-    {% endfor %}
+    
+    <div class="col-12 col-md-4">
+      <div class="card shadow-sm h-100 border-warning">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="text-muted small">💰 الدفعات</div>
+              <div class="fs-5 fw-bold text-warning">
+                {% if balance_data and balance_data.success %}
+                  {{ "%.2f"|format(balance_data.payments.total_settled) }} ₪
+                {% else %}
+                  {{ total_credit|format_currency }}
+                {% endif %}
+              </div>
+            </div>
+            <i class="fas fa-money-bill-wave fs-4 text-warning"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-12 col-md-4">
+      <div class="card shadow-sm h-100 border-primary">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="text-muted small">🎯 الرصيد النهائي</div>
+              <div class="fs-4 fw-bold {% if balance_data and balance_data.success %}{{ balance_data.balance.amount > 0 and 'text-success' or balance_data.balance.amount < 0 and 'text-danger' or 'text-secondary' }}{% else %}{{ balance > 0 and 'text-danger' or balance < 0 and 'text-success' or '' }}{% endif %}">
+                {% if balance_data and balance_data.success %}
+                  {{ "%.2f"|format(balance_data.balance.amount|abs) }} ₪
+                {% else %}
+                  {{ balance|format_currency }}
+                {% endif %}
+              </div>
+            </div>
+            <i class="fas fa-balance-scale fs-4 text-primary"></i>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   {% set type_labels = {

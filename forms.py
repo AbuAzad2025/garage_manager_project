@@ -1630,9 +1630,10 @@ class PaymentForm(PaymentDetailsMixin, FlaskForm):
 
         sum_splits = Q2(sum(pos_amounts, Decimal('0.00')))
         total_val  = Q2(self.total_amount.data if self.total_amount.data is not None else Decimal('0.00'))
-        if sum_splits != total_val:
-            self.total_amount.errors.append('❌ مجموع الدفعات الجزئية يجب أن يساوي المبلغ الكلي')
-            return False
+        # السماح بمجموع مختلف - سيُحدث الرصيد حسب المدفوع الفعلي
+        # if sum_splits != total_val:
+        #     self.total_amount.errors.append('❌ مجموع الدفعات الجزئية يجب أن يساوي المبلغ الكلي')
+        #     return False
 
         if not (self.method.data or '').strip() and used:
             self.method.data = next(iter(used))
@@ -2064,18 +2065,20 @@ class ShipmentForm(FlaskForm):
     dimensions = StrippedStringField('الأبعاد', validators=[Optional(), Length(max=100)])
     package_count = IntegerField('عدد الطرود', validators=[Optional(), NumberRange(min=1)], default=1)
     priority = SelectField('الأولوية', choices=[
+        ('', 'غير محدد'),
         ('LOW', 'منخفضة'),
         ('NORMAL', 'عادية'),
         ('HIGH', 'عالية'),
         ('URGENT', 'عاجلة'),
-    ], default='NORMAL')
+    ], default='NORMAL', validators=[Optional()])
     delivery_method = SelectField('طريقة التسليم', choices=[
+        ('', 'غير محدد'),
         ('STANDARD', 'عادي'),
         ('EXPRESS', 'سريع'),
         ('OVERNIGHT', 'ليلي'),
         ('SAME_DAY', 'نفس اليوم'),
         ('PICKUP', 'استلام'),
-    ], default='STANDARD')
+    ], default='STANDARD', validators=[Optional()])
     delivery_instructions = TextAreaField('تعليمات التسليم', validators=[Optional(), Length(max=1000)])
     customs_declaration = StrippedStringField('رقم البيان الجمركي', validators=[Optional(), Length(max=100)])
     customs_cleared_date = UnifiedDateTimeField('تاريخ التخليص الجمركي', format='%Y-%m-%d %H:%M', formats=['%Y-%m-%d %H:%M','%Y-%m-%dT%H:%M'], validators=[Optional()], render_kw={'type':'datetime-local','step':'60'})
@@ -3053,18 +3056,9 @@ class SaleForm(FlaskForm):
                     render_kw={'type':'datetime-local', 'step':'60'})
     customer_id = AjaxSelectField('العميل', endpoint='api.search_customers', get_label='name', coerce=int, validators=[DataRequired()])
     seller_id   = AjaxSelectField('البائع',  endpoint='api.search_users',     get_label='username', coerce=int, validators=[DataRequired()])
-    status = SelectField('الحالة', choices=[
-        (SaleStatus.DRAFT.value, 'مسودة'),
-        (SaleStatus.CONFIRMED.value, 'مؤكد'),
-        (SaleStatus.CANCELLED.value, 'ملغي'),
-        (SaleStatus.REFUNDED.value, 'مرتجع')
-    ], default=SaleStatus.DRAFT.value, validators=[DataRequired()])
-    payment_status = SelectField('حالة السداد', choices=[
-        (PaymentProgress.PENDING.value, 'PENDING'),
-        (PaymentProgress.PARTIAL.value, 'PARTIAL'),
-        (PaymentProgress.PAID.value, 'PAID'),
-        (PaymentProgress.REFUNDED.value, 'REFUNDED')
-    ], default=PaymentProgress.PENDING.value, validators=[DataRequired()])
+    # تم حذف حقول الحالة - يتم تعيينها تلقائياً في الروت
+    # status = دائماً CONFIRMED
+    # payment_status = دائماً PENDING عند الإنشاء
 
     currency     = CurrencySelectField('عملة', validators=[DataRequired()])
     tax_rate     = PercentField('ضريبة %', validators=[Optional()])
@@ -3095,8 +3089,9 @@ class SaleForm(FlaskForm):
         sale.customer_id = int(self.customer_id.data) if self.customer_id.data else None
         sale.seller_id   = int(self.seller_id.data) if self.seller_id.data else None
         sale.preorder_id = int(self.preorder_id.data) if self.preorder_id.data else None
-        sale.status = (self.status.data or SaleStatus.DRAFT.value)
-        sale.payment_status = (self.payment_status.data or PaymentProgress.PENDING.value)
+        # الحالة يتم تعيينها تلقائياً في الروت
+        # sale.status = دائماً CONFIRMED
+        # sale.payment_status = دائماً PENDING عند الإنشاء
         sale.currency     = (self.currency.data or 'ILS').upper()
         sale.tax_rate     = self.tax_rate.data or 0
         sale.discount_total = self.discount_total.data or 0

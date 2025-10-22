@@ -165,9 +165,14 @@ def _reserve_stock(sale: Sale) -> None:
             .first()
         )
         if not rec:
+            # إنشاء StockLevel جديد إذا لم يكن موجوداً
             rec = StockLevel(product_id=pid, warehouse_id=wid, quantity=0, reserved_quantity=0)
             db.session.add(rec)
-            db.session.flush()
+            try:
+                db.session.flush()
+            except Exception as e:
+                current_app.logger.error(f"خطأ في إنشاء StockLevel: {str(e)}")
+                raise ValueError(f"لا يمكن حجز المخزون للمنتج {pid} في المستودع {wid}")
         available = int(rec.quantity or 0) - int(rec.reserved_quantity or 0)
         if available < qty:
             raise ValueError(f"الكمية غير متوفرة للمنتج ID={pid} في المخزن {wid}.")
@@ -498,8 +503,9 @@ def create_sale():
         current_app.logger.debug("POST data: %r", request.form.to_dict(flat=False))
     if form.validate_on_submit():
         try:
-            target_status = (form.status.data or "DRAFT").upper()
-            require_stock = (target_status == "CONFIRMED")
+            # دائماً مؤكد - لا حاجة لاختيار الحالة
+            target_status = "CONFIRMED"
+            require_stock = True
             lines_payload, err = _resolve_lines_from_form(form, require_stock=require_stock)
             if err:
                 flash(f"❌ {err}", "danger")
@@ -517,7 +523,8 @@ def create_sale():
                 customer_id=form.customer_id.data,
                 seller_id=form.seller_id.data,
                 sale_date=form.sale_date.data or datetime.utcnow(),
-                status=target_status,
+                status=target_status,  # دائماً CONFIRMED
+                payment_status="PENDING",  # دائماً PENDING عند الإنشاء
                 currency=(form.currency.data or "ILS").upper(),
                 tax_rate=form.tax_rate.data or 0,
                 discount_total=form.discount_total.data or 0,
@@ -529,8 +536,9 @@ def create_sale():
             _safe_generate_number_after_flush(sale)
             _attach_lines(sale, lines_payload)
             db.session.flush()
-            if require_stock:
-                _reserve_stock(sale)
+            # الفاتورة مؤكدة - خصم المخزون مباشرة بدون حجز
+            if require_stock and target_status == "CONFIRMED":
+                _deduct_stock(sale)
             _log(sale, "CREATE", None, sale_to_dict(sale))
             db.session.commit()
             flash("✅ تم إنشاء الفاتورة.", "success")

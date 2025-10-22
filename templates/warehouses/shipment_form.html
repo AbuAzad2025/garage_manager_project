@@ -364,21 +364,67 @@
           {{ render_field(form.status, {'id': form.status.id, 'class': 'form-select'}) }}
         </div>
         
-        <div class="col-md-3">
+        <div class="col-md-4">
+          <label class="form-label">الأولوية</label>
+          {{ render_field(form.priority, {'id': form.priority.id, 'class': 'form-select'}) }}
+        </div>
+        
+        <div class="col-md-4">
+          <label class="form-label">طريقة التسليم</label>
+          {{ render_field(form.delivery_method, {'id': form.delivery_method.id, 'class': 'form-select'}) }}
+        </div>
+      </div>
+      
+      <div class="row mb-3">
+        <div class="col-md-4">
           <label class="form-label">شركة النقل</label>
           {{ render_field(form.carrier, {'id': form.carrier.id, 'class': 'form-control', 'placeholder': 'اسم الناقل'}) }}
         </div>
-        <div class="col-md-3">
+        <div class="col-md-4">
           <label class="form-label">رقم التتبع</label>
           {{ render_field(form.tracking_number, {'id': form.tracking_number.id, 'class': 'form-control', 'placeholder': 'Tracking Number', 'dir': 'ltr'}) }}
         </div>
         {% if form.currency is defined %}
-        <div class="col-md-3">
+        <div class="col-md-4">
           <label class="form-label">العملة</label>
           {{ render_field(form.currency, {'id': form.currency.id, 'class': 'form-select'}) }}
         </div>
         {% endif %}
-        
+      </div>
+      
+      <!-- معلومات الطرود والأبعاد -->
+      <div class="card bg-light mb-3">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="fas fa-box-open"></i> معلومات الطرود والأبعاد</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-3">
+              <label class="form-label">عدد الطرود</label>
+              {{ render_field(form.package_count, {'id': form.package_count.id, 'class': 'form-control', 'type': 'number', 'min': '1'}) }}
+            </div>
+            
+            <div class="col-md-3">
+              <label class="form-label">الوزن (كيلو)</label>
+              {{ render_field(form.weight, {'id': form.weight.id, 'class': 'form-control', 'type': 'number', 'step': '0.001', 'min': '0'}) }}
+            </div>
+            
+            <div class="col-md-6">
+              <label class="form-label">الأبعاد</label>
+              {{ render_field(form.dimensions, {'id': form.dimensions.id, 'class': 'form-control', 'placeholder': 'الطول × العرض × الارتفاع'}) }}
+            </div>
+          </div>
+          
+          <div class="row mt-3">
+            <div class="col-12">
+              <label class="form-label">تعليمات التسليم</label>
+              {{ render_field(form.delivery_instructions, {'id': form.delivery_instructions.id, 'class': 'form-control', 'rows': '2', 'placeholder': 'أي تعليمات خاصة بالتسليم'}) }}
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="row mb-3">
         <div class="col-12">
           <label class="form-label">ملاحظات</label>
           {{ render_field(form.notes, {'id': form.notes.id, 'class': 'form-control', 'rows': '3', 'placeholder': 'أي ملاحظات عامة عن الشحنة'}) }}

@@ -1037,8 +1037,10 @@ def products(id):
     search = (request.args.get("q") or "").strip()
     q = (
         db.session.query(StockLevel)
-        .join(Product, StockLevel.product_id == Product.id)
+        .join(Product, StockLevel.product_id == Product.id, isouter=False)
         .filter(StockLevel.warehouse_id.in_(wh_ids))
+        .filter(StockLevel.product_id.isnot(None))
+        .filter(Product.id.isnot(None))
         .options(joinedload(StockLevel.product))
         .order_by(Product.name.asc())
     )
@@ -1056,6 +1058,9 @@ def products(id):
     rows = q.all()
     pivot = {}
     for sl in rows:
+        # فحص مزدوج للأمان
+        if not sl or not sl.product_id or not sl.product:
+            continue
         pid = sl.product_id
         p = sl.product
         if pid not in pivot:
@@ -3159,3 +3164,217 @@ def download_import_run(run_id: int):
 
     dl = os.path.basename(ir.report_path) if ir.filename in (None, "", "None") else f"{os.path.splitext(ir.filename)[0]}_report.csv"
     return send_file(ir.report_path, as_attachment=True, download_name=dl, mimetype="text/csv; charset=utf-8")
+
+
+# ============================================
+# API endpoints لإدارة الشركاء/الموردين للمنتجات
+# ============================================
+
+@warehouse_bp.route("/api/products/<int:product_id>/partners", methods=["GET"], endpoint="api_product_partners_list")
+@login_required
+def api_product_partners_list(product_id):
+    """جلب قائمة الشركاء المرتبطين بمنتج"""
+    product = _get_or_404(Product, product_id)
+    
+    partners = (
+        db.session.query(ProductPartnerShare, Partner)
+        .join(Partner, ProductPartnerShare.partner_id == Partner.id)
+        .filter(ProductPartnerShare.product_id == product_id)
+        .all()
+    )
+    
+    result = []
+    for pps, partner in partners:
+        result.append({
+            "id": pps.id,
+            "partner_id": partner.id,
+            "partner_name": partner.name,
+            "share_percentage": float(pps.share_percentage or 0),
+        })
+    
+    return jsonify({"success": True, "partners": result})
+
+
+@warehouse_bp.route("/api/products/<int:product_id>/partners", methods=["POST"], endpoint="api_product_partners_add")
+@login_required
+def api_product_partners_add(product_id):
+    """إضافة شريك لمنتج"""
+    product = _get_or_404(Product, product_id)
+    
+    data = request.get_json()
+    partner_id = data.get("partner_id")
+    share_percentage = data.get("share_percentage")
+    
+    if not partner_id:
+        return jsonify({"success": False, "message": "يجب اختيار شريك"}), 400
+    
+    partner = _get_or_404(Partner, partner_id)
+    
+    try:
+        share_pct = Decimal(str(share_percentage or 0))
+        if share_pct < 0 or share_pct > 100:
+            return jsonify({"success": False, "message": "النسبة يجب أن تكون بين 0 و 100"}), 400
+    except (ValueError, InvalidOperation):
+        return jsonify({"success": False, "message": "النسبة غير صالحة"}), 400
+    
+    # التحقق من عدم وجود نفس الشريك مسبقاً
+    existing = ProductPartnerShare.query.filter_by(
+        product_id=product_id,
+        partner_id=partner_id
+    ).first()
+    
+    if existing:
+        return jsonify({"success": False, "message": "هذا الشريك مرتبط بالمنتج مسبقاً"}), 400
+    
+    pps = ProductPartnerShare(
+        product_id=product_id,
+        partner_id=partner_id,
+        share_percentage=share_pct
+    )
+    db.session.add(pps)
+    db.session.commit()
+    
+    return jsonify({
+        "success": True,
+        "message": "تم إضافة الشريك بنجاح",
+        "partner": {
+            "id": pps.id,
+            "partner_id": partner.id,
+            "partner_name": partner.name,
+            "share_percentage": float(pps.share_percentage),
+        }
+    })
+
+
+@warehouse_bp.route("/api/products/<int:product_id>/partners/<int:share_id>", methods=["PUT"], endpoint="api_product_partners_update")
+@login_required
+def api_product_partners_update(product_id, share_id):
+    """تعديل نسبة شريك في منتج"""
+    product = _get_or_404(Product, product_id)
+    pps = _get_or_404(ProductPartnerShare, share_id)
+    
+    if pps.product_id != product_id:
+        return jsonify({"success": False, "message": "خطأ في البيانات"}), 400
+    
+    data = request.get_json()
+    share_percentage = data.get("share_percentage")
+    
+    try:
+        share_pct = Decimal(str(share_percentage or 0))
+        if share_pct < 0 or share_pct > 100:
+            return jsonify({"success": False, "message": "النسبة يجب أن تكون بين 0 و 100"}), 400
+    except (ValueError, InvalidOperation):
+        return jsonify({"success": False, "message": "النسبة غير صالحة"}), 400
+    
+    pps.share_percentage = share_pct
+    db.session.commit()
+    
+    return jsonify({
+        "success": True,
+        "message": "تم تحديث النسبة بنجاح",
+        "partner": {
+            "id": pps.id,
+            "partner_id": pps.partner_id,
+            "partner_name": pps.partner.name if pps.partner else "",
+            "share_percentage": float(pps.share_percentage),
+        }
+    })
+
+
+@warehouse_bp.route("/api/products/<int:product_id>/partners/<int:share_id>", methods=["DELETE"], endpoint="api_product_partners_delete")
+@login_required
+def api_product_partners_delete(product_id, share_id):
+    """حذف ربط شريك من منتج"""
+    product = _get_or_404(Product, product_id)
+    pps = _get_or_404(ProductPartnerShare, share_id)
+    
+    if pps.product_id != product_id:
+        return jsonify({"success": False, "message": "خطأ في البيانات"}), 400
+    
+    db.session.delete(pps)
+    db.session.commit()
+    
+    return jsonify({"success": True, "message": "تم حذف الشريك بنجاح"})
+
+
+@warehouse_bp.route("/api/products/<int:product_id>/suppliers", methods=["GET"], endpoint="api_product_suppliers_list")
+@login_required
+def api_product_suppliers_list(product_id):
+    """جلب قائمة الموردين المرتبطين بمنتج (عبر supplier_id في Product)"""
+    product = _get_or_404(Product, product_id)
+    
+    # المنتج له مورد واحد فقط في الموديل الحالي (supplier_id)
+    result = []
+    if product.supplier_id:
+        # جلب بيانات المورد من قاعدة البيانات
+        supplier = Supplier.query.get(product.supplier_id)
+        if supplier:
+            result.append({
+                "supplier_id": supplier.id,
+                "supplier_name": supplier.name,
+                "purchase_price": float(product.purchase_price or 0),
+            })
+    
+    return jsonify({"success": True, "suppliers": result})
+
+
+@warehouse_bp.route("/api/products/<int:product_id>/suppliers", methods=["POST"], endpoint="api_product_suppliers_update")
+@login_required
+def api_product_suppliers_update(product_id):
+    """تحديث المورد وسعر التكلفة للمنتج"""
+    product = _get_or_404(Product, product_id)
+    
+    data = request.get_json()
+    supplier_id = data.get("supplier_id")
+    purchase_price = data.get("purchase_price")
+    
+    if supplier_id:
+        supplier = _get_or_404(Supplier, supplier_id)
+        product.supplier_id = supplier_id
+    
+    if purchase_price is not None:
+        try:
+            product.purchase_price = Decimal(str(purchase_price))
+        except (ValueError, InvalidOperation):
+            return jsonify({"success": False, "message": "سعر التكلفة غير صالح"}), 400
+    
+    db.session.commit()
+    
+    # جلب اسم المورد إذا كان موجوداً
+    supplier_name = ""
+    if product.supplier_id:
+        supplier = Supplier.query.get(product.supplier_id)
+        if supplier:
+            supplier_name = supplier.name
+    
+    return jsonify({
+        "success": True,
+        "message": "تم تحديث المورد بنجاح",
+        "supplier": {
+            "supplier_id": product.supplier_id,
+            "supplier_name": supplier_name,
+            "purchase_price": float(product.purchase_price or 0),
+        }
+    })
+
+
+@warehouse_bp.route("/api/partners/list", methods=["GET"], endpoint="api_partners_list")
+@login_required
+def api_partners_list():
+    """جلب قائمة جميع الشركاء"""
+    partners = Partner.query.order_by(Partner.name).all()
+    return jsonify({
+        "success": True,
+        "partners": [{"id": p.id, "name": p.name} for p in partners]
+    })
+
+
+@warehouse_bp.route("/api/suppliers/list", methods=["GET"], endpoint="api_suppliers_list")
+@login_required
+def api_suppliers_list():
+    """جلب قائمة جميع الموردين"""
+    suppliers = Supplier.query.order_by(Supplier.name).all()
+    return jsonify({
+        "success": True,
+        "suppliers": [{"id": s.id, "name": s.name} for s in suppliers]
+    })

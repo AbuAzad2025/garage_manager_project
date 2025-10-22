@@ -4,7 +4,7 @@ from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 from werkzeug.exceptions import BadRequest
 from flask import Blueprint, Response, flash, jsonify, render_template, request, current_app, redirect, url_for
-from sqlalchemy.orm import class_mapper
+from sqlalchemy.orm import class_mapper, joinedload
 from sqlalchemy import func, cast, Date, desc, or_
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy import inspect as sa_inspect
@@ -915,22 +915,95 @@ def supplier_detail_report(supplier_id):
     start_date = _parse_date(request.args.get("start"))
     end_date = _parse_date(request.args.get("end"))
 
-    # جميع المدفوعات للمورد
-    payments_query = Payment.query.filter(
+    # جميع الدفعات (OUT و IN)
+    payments_out_query = Payment.query.options(
+        joinedload(Payment.sale)
+    ).filter(
         Payment.supplier_id == supplier_id,
-        Payment.direction == PaymentDirection.OUT.value
+        Payment.direction == PaymentDirection.OUT.value,
+        Payment.status == PaymentStatus.COMPLETED.value
     )
     if start_date:
-        payments_query = payments_query.filter(Payment.payment_date >= start_date)
+        payments_out_query = payments_out_query.filter(Payment.payment_date >= start_date)
     if end_date:
-        payments_query = payments_query.filter(Payment.payment_date <= end_date)
-    payments = payments_query.order_by(Payment.payment_date.desc()).all()
+        payments_out_query = payments_out_query.filter(Payment.payment_date <= end_date)
+    payments_out = payments_out_query.order_by(Payment.payment_date.desc()).all()
+    
+    payments_in_query = Payment.query.options(
+        joinedload(Payment.sale)
+    ).filter(
+        Payment.supplier_id == supplier_id,
+        Payment.direction == PaymentDirection.IN.value,
+        Payment.status == PaymentStatus.COMPLETED.value
+    )
+    if start_date:
+        payments_in_query = payments_in_query.filter(Payment.payment_date >= start_date)
+    if end_date:
+        payments_in_query = payments_in_query.filter(Payment.payment_date <= end_date)
+    payments_in = payments_in_query.order_by(Payment.payment_date.desc()).all()
 
-    # الشحنات - في هذا النظام الشحنات مرتبطة بالشركاء فقط وليس بالموردين
-    shipments = []
+    # حركات التوريد (ExchangeTransaction)
+    from models import ExchangeTransaction
+    exchange_query = ExchangeTransaction.query.options(
+        joinedload(ExchangeTransaction.product)
+    ).filter(
+        ExchangeTransaction.supplier_id == supplier_id
+    )
+    if start_date:
+        exchange_query = exchange_query.filter(ExchangeTransaction.created_at >= start_date)
+    if end_date:
+        exchange_query = exchange_query.filter(ExchangeTransaction.created_at <= end_date)
+    exchange_transactions = exchange_query.order_by(ExchangeTransaction.created_at.desc()).all()
+
+    # المبيعات للمورد (كعميل)
+    sales = []
+    if supplier.customer_id:
+        from models import Sale, SaleStatus, SaleLine
+        sales_query = Sale.query.options(
+            joinedload(Sale.lines).joinedload(SaleLine.product)
+        ).filter(
+            Sale.customer_id == supplier.customer_id,
+            Sale.status == SaleStatus.CONFIRMED.value
+        )
+        if start_date:
+            sales_query = sales_query.filter(Sale.sale_date >= start_date)
+        if end_date:
+            sales_query = sales_query.filter(Sale.sale_date <= end_date)
+        sales = sales_query.order_by(Sale.sale_date.desc()).all()
+
+    # الصيانة للمورد (كعميل)
+    services = []
+    if supplier.customer_id:
+        from models import ServiceRequest, ServicePart, ServiceTask
+        services_query = ServiceRequest.query.options(
+            joinedload(ServiceRequest.parts),
+            joinedload(ServiceRequest.tasks)
+        ).filter(
+            ServiceRequest.customer_id == supplier.customer_id,
+            ServiceRequest.status == 'COMPLETED'
+        )
+        if start_date:
+            services_query = services_query.filter(ServiceRequest.received_at >= start_date)
+        if end_date:
+            services_query = services_query.filter(ServiceRequest.received_at <= end_date)
+        services = services_query.order_by(ServiceRequest.received_at.desc()).all()
+
+    # الحجوزات المسبقة للمورد (كعميل)
+    preorders = []
+    if supplier.customer_id:
+        preorders_query = PreOrder.query.options(
+            joinedload(PreOrder.product)
+        ).filter(
+            PreOrder.customer_id == supplier.customer_id,
+            PreOrder.status.in_(['CONFIRMED', 'COMPLETED'])
+        )
+        if start_date:
+            preorders_query = preorders_query.filter(PreOrder.preorder_date >= start_date)
+        if end_date:
+            preorders_query = preorders_query.filter(PreOrder.preorder_date <= end_date)
+        preorders = preorders_query.order_by(PreOrder.preorder_date.desc()).all()
 
     # جميع المصاريف المتعلقة بالمورد
-    # Expense يستخدم payee_type و payee_entity_id بدلاً من supplier_id مباشرة
     expenses_query = Expense.query.filter(
         Expense.payee_type == 'SUPPLIER',
         Expense.payee_entity_id == supplier_id
@@ -941,10 +1014,37 @@ def supplier_detail_report(supplier_id):
         expenses_query = expenses_query.filter(Expense.date <= end_date)
     expenses = expenses_query.order_by(Expense.date.desc()).all()
 
+    # استخدام التسوية الذكية
+    from routes.supplier_settlements import _calculate_smart_supplier_balance
+    from datetime import datetime
+    
+    date_from = start_date if start_date else datetime(2024, 1, 1)
+    date_to = end_date if end_date else datetime.now()
+    
+    try:
+        balance_data = _calculate_smart_supplier_balance(supplier_id, date_from, date_to)
+    except Exception as e:
+        balance_data = {"success": False, "error": str(e)}
+    
     # حساب الإجماليات
-    total_payments = sum(float(p.total_amount or 0) for p in payments)
-    total_shipments = sum(float(s.total_value or 0) for s in shipments)
-    total_expenses = sum(float(e.amount or 0) for e in expenses)
+    from decimal import Decimal
+    
+    if balance_data and balance_data.get("success"):
+        total_exchange_in = Decimal(str(balance_data.get("rights", {}).get("exchange_items", {}).get("total_value_ils", 0)))
+        total_payments_out = Decimal(str(balance_data.get("payments", {}).get("total_paid", 0)))
+        total_payments_in = Decimal(str(balance_data.get("payments", {}).get("total_received", 0)))
+        total_obligations = Decimal(str(balance_data.get("obligations", {}).get("total", 0)))
+    else:
+        total_payments_out = sum(Decimal(str(p.total_amount or 0)) for p in payments_out)
+        total_payments_in = sum(Decimal(str(p.total_amount or 0)) for p in payments_in)
+        total_exchange_in = sum(Decimal(str((tx.quantity or 0) * (tx.unit_cost or 0))) for tx in exchange_transactions if tx.direction in ['IN', 'PURCHASE', 'CONSIGN_IN'])
+        total_obligations = Decimal('0.00')
+    
+    total_exchange_out = sum(Decimal(str((tx.quantity or 0) * (tx.unit_cost or 0))) for tx in exchange_transactions if tx.direction in ['OUT', 'RETURN', 'CONSIGN_OUT'])
+    total_sales = sum(Decimal(str(s.total_amount or 0)) for s in sales)
+    total_services = sum(Decimal(str(s.total_amount or 0)) for s in services)
+    total_preorders = sum(Decimal(str(p.total_amount or 0)) for p in preorders)
+    total_expenses = sum(Decimal(str(e.amount or 0)) for e in expenses)
 
     # الرصيد الحالي
     current_balance = float(supplier.balance or 0)
@@ -952,12 +1052,23 @@ def supplier_detail_report(supplier_id):
     return render_template(
         "reports/supplier_detail.html",
         supplier=supplier,
-        payments=payments,
-        shipments=shipments,
+        payments_out=payments_out,
+        payments_in=payments_in,
+        exchange_transactions=exchange_transactions,
+        sales=sales,
+        services=services,
+        preorders=preorders,
         expenses=expenses,
-        total_payments=total_payments,
-        total_shipments=total_shipments,
-        total_expenses=total_expenses,
+        balance_data=balance_data,
+        total_payments_out=float(total_payments_out),
+        total_payments_in=float(total_payments_in),
+        total_exchange_in=float(total_exchange_in),
+        total_exchange_out=float(total_exchange_out),
+        total_sales=float(total_sales),
+        total_services=float(total_services),
+        total_preorders=float(total_preorders),
+        total_expenses=float(total_expenses),
+        total_obligations=float(total_obligations),
         current_balance=current_balance,
         start_date=request.args.get("start", ""),
         end_date=request.args.get("end", ""),
@@ -977,67 +1088,163 @@ def partner_detail_report(partner_id):
     start_date = _parse_date(request.args.get("start"))
     end_date = _parse_date(request.args.get("end"))
 
-    # جميع المدفوعات للشريك
-    payments_query = Payment.query.filter(
+    # جميع الدفعات (OUT و IN)
+    payments_out_query = Payment.query.options(
+        joinedload(Payment.sale)
+    ).filter(
         Payment.partner_id == partner_id,
-        Payment.direction == PaymentDirection.OUT.value
+        Payment.direction == PaymentDirection.OUT.value,
+        Payment.status == PaymentStatus.COMPLETED.value
     )
     if start_date:
-        payments_query = payments_query.filter(Payment.payment_date >= start_date)
+        payments_out_query = payments_out_query.filter(Payment.payment_date >= start_date)
     if end_date:
-        payments_query = payments_query.filter(Payment.payment_date <= end_date)
-    payments = payments_query.order_by(Payment.payment_date.desc()).all()
+        payments_out_query = payments_out_query.filter(Payment.payment_date <= end_date)
+    payments_out = payments_out_query.order_by(Payment.payment_date.desc()).all()
+    
+    payments_in_query = Payment.query.options(
+        joinedload(Payment.sale)
+    ).filter(
+        Payment.partner_id == partner_id,
+        Payment.direction == PaymentDirection.IN.value,
+        Payment.status == PaymentStatus.COMPLETED.value
+    )
+    if start_date:
+        payments_in_query = payments_in_query.filter(Payment.payment_date >= start_date)
+    if end_date:
+        payments_in_query = payments_in_query.filter(Payment.payment_date <= end_date)
+    payments_in = payments_in_query.order_by(Payment.payment_date.desc()).all()
 
-    # جميع المبيعات التي شارك فيها الشريك (من خلال PreOrder)
-    preorders_query = PreOrder.query.filter(PreOrder.partner_id == partner_id)
+    # المبيعات للشريك (كعميل)
+    sales = []
+    if partner.customer_id:
+        from models import Sale, SaleStatus, SaleLine
+        sales_query = Sale.query.options(
+            joinedload(Sale.lines).joinedload(SaleLine.product)
+        ).filter(
+            Sale.customer_id == partner.customer_id,
+            Sale.status == SaleStatus.CONFIRMED.value
+        )
+        if start_date:
+            sales_query = sales_query.filter(Sale.sale_date >= start_date)
+        if end_date:
+            sales_query = sales_query.filter(Sale.sale_date <= end_date)
+        sales = sales_query.order_by(Sale.sale_date.desc()).all()
+
+    # الصيانة للشريك (كعميل)
+    services = []
+    if partner.customer_id:
+        from models import ServiceRequest, ServicePart, ServiceTask
+        services_query = ServiceRequest.query.options(
+            joinedload(ServiceRequest.parts),
+            joinedload(ServiceRequest.tasks)
+        ).filter(
+            ServiceRequest.customer_id == partner.customer_id,
+            ServiceRequest.status == 'COMPLETED'
+        )
+        if start_date:
+            services_query = services_query.filter(ServiceRequest.received_at >= start_date)
+        if end_date:
+            services_query = services_query.filter(ServiceRequest.received_at <= end_date)
+        services = services_query.order_by(ServiceRequest.received_at.desc()).all()
+
+    # الحجوزات المسبقة التي شارك فيها الشريك
+    preorders_query = PreOrder.query.options(
+        joinedload(PreOrder.product)
+    ).filter(PreOrder.partner_id == partner_id)
     if start_date:
         preorders_query = preorders_query.filter(PreOrder.created_at >= start_date)
     if end_date:
         preorders_query = preorders_query.filter(PreOrder.created_at <= end_date)
     preorders = preorders_query.order_by(PreOrder.created_at.desc()).all()
 
-    # جميع قطع الغيار في طلبات الصيانة التي شارك فيها الشريك
-    service_parts_query = ServicePart.query.filter(ServicePart.partner_id == partner_id)
+    # قطع الغيار في طلبات الصيانة التي شارك فيها الشريك
+    service_parts_query = ServicePart.query.options(
+        joinedload(ServicePart.part),
+        joinedload(ServicePart.request)
+    ).filter(ServicePart.partner_id == partner_id)
     if start_date:
         service_parts_query = service_parts_query.filter(ServicePart.created_at >= start_date)
     if end_date:
         service_parts_query = service_parts_query.filter(ServicePart.created_at <= end_date)
     service_parts = service_parts_query.order_by(ServicePart.created_at.desc()).all()
 
-    # جميع المبيعات (بدون فلتر partner_id لأن Sale لا يحتوي على هذا الحقل)
-    sales = []
-
     # جميع المصاريف المتعلقة بالشريك
-    expenses_query = Expense.query.filter(Expense.partner_id == partner_id)
+    expenses_query = Expense.query.filter(
+        Expense.payee_type == 'PARTNER',
+        Expense.payee_entity_id == partner_id
+    )
     if start_date:
         expenses_query = expenses_query.filter(Expense.date >= start_date)
     if end_date:
         expenses_query = expenses_query.filter(Expense.date <= end_date)
     expenses = expenses_query.order_by(Expense.date.desc()).all()
+    
+    # ✅ استخدام التسوية الذكية للحصول على بيانات دقيقة
+    from routes.partner_settlements import _calculate_smart_partner_balance
+    from datetime import datetime
+    
+    date_from = start_date if start_date else datetime(2024, 1, 1)
+    date_to = end_date if end_date else datetime.now()
+    
+    try:
+        balance_data = _calculate_smart_partner_balance(partner_id, date_from, date_to)
+    except Exception as e:
+        balance_data = {"success": False, "error": str(e)}
 
-    # حساب الإجماليات
-    total_payments = sum(float(p.total_amount or 0) for p in payments)
-    total_preorders = sum(float(p.total_amount or 0) for p in preorders)
-    total_service_parts = sum(float(sp.quantity * sp.unit_price or 0) for sp in service_parts)
-    total_expenses = sum(float(e.amount or 0) for e in expenses)
+    # حساب الإجماليات من البيانات الذكية
+    from decimal import Decimal
+    
+    if balance_data and balance_data.get("success"):
+        total_inventory = Decimal(str(balance_data.get("rights", {}).get("inventory", {}).get("total_ils", 0)))
+        total_sales_share = Decimal(str(balance_data.get("rights", {}).get("sales", {}).get("total_ils", 0)))
+        total_payments_out = Decimal(str(balance_data.get("payments", {}).get("total_paid", 0)))
+        total_payments_in = Decimal(str(balance_data.get("payments", {}).get("total_received", 0)))
+        total_obligations = Decimal(str(balance_data.get("obligations", {}).get("total", 0)))
+        inventory = balance_data.get("rights", {}).get("inventory", {}).get("items", [])
+    else:
+        # fallback للطريقة القديمة
+        total_payments_out = sum(Decimal(str(p.total_amount or 0)) for p in payments_out)
+        total_payments_in = sum(Decimal(str(p.total_amount or 0)) for p in payments_in)
+        total_inventory = Decimal('0.00')
+        total_sales_share = Decimal('0.00')
+        total_obligations = Decimal('0.00')
+        inventory = []
+    
+    total_sales = sum(Decimal(str(s.total_amount or 0)) for s in sales)
+    total_services = sum(Decimal(str(s.total_amount or 0)) for s in services)
+    total_preorders = sum(Decimal(str(p.total_amount or 0)) for p in preorders)
+    total_service_parts = sum(Decimal(str(sp.quantity * sp.unit_price or 0)) for sp in service_parts)
+    total_expenses = sum(Decimal(str(e.amount or 0)) for e in expenses)
 
     # الرصيد الحالي
     current_balance = float(partner.balance or 0)
 
-    # حساب حصة الشريك من الطلبات المسبقة وقطع الغيار
-    partner_share = (float(partner.share_percentage or 0) / 100) * (total_preorders + total_service_parts) if partner.share_percentage else 0
+    # حساب حصة الشريك
+    partner_share = (float(partner.share_percentage or 0) / 100) * (float(total_preorders) + float(total_service_parts)) if partner.share_percentage else 0
 
     return render_template(
         "reports/partner_detail.html",
         partner=partner,
-        payments=payments,
+        payments_out=payments_out,
+        payments_in=payments_in,
+        sales=sales,
+        services=services,
         preorders=preorders,
         service_parts=service_parts,
         expenses=expenses,
-        total_payments=total_payments,
-        total_preorders=total_preorders,
-        total_service_parts=total_service_parts,
-        total_expenses=total_expenses,
+        inventory=inventory,
+        balance_data=balance_data,  # ✅ إضافة البيانات الذكية
+        total_payments_out=float(total_payments_out),
+        total_payments_in=float(total_payments_in),
+        total_sales=float(total_sales),
+        total_services=float(total_services),
+        total_preorders=float(total_preorders),
+        total_service_parts=float(total_service_parts),
+        total_expenses=float(total_expenses),
+        total_inventory=float(total_inventory),
+        total_sales_share=float(total_sales_share),  # ✅ نصيب المبيعات
+        total_obligations=float(total_obligations),   # ✅ الالتزامات
         partner_share=partner_share,
         current_balance=current_balance,
         start_date=request.args.get("start", ""),
