@@ -761,7 +761,7 @@ def account_statement(customer_id):
     all_payments.sort(key=lambda x: (getattr(x, "payment_date", None) or getattr(x, "created_at", None) or datetime.min, x.id))
     for p in all_payments:
         # توليد البيان للدفعة
-        payment_method = getattr(p, 'payment_method', 'نقداً')
+        payment_method = getattr(p, 'method', 'نقداً')
         notes = getattr(p, 'notes', '') or ''
         
         # معرفة مصدر الدفعة
