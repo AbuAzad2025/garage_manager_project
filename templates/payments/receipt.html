@@ -67,6 +67,9 @@
       <tr><th>الحالة</th><td>{{ _status or '—' }}</td></tr>
       <tr><th>الجهة</th><td>{{ payment.entity_label() or payment.entity_type or '—' }}</td></tr>
       <tr><th>المرجع</th><td>{{ payment.reference or '—' }}</td></tr>
+      {% if payment.receiver_name %}
+      <tr><th>مستلم الدفعة</th><td><strong>{{ payment.receiver_name }}</strong></td></tr>
+      {% endif %}
       <tr><th>ملاحظات</th><td>{{ payment.notes or '—' }}</td></tr>
     </table>
   </div>

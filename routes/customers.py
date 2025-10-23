@@ -696,6 +696,7 @@ def account_statement(customer_id):
             "statement": generate_statement("INVOICE", inv),
             "debit": D(inv.total_amount or 0),
             "credit": D(0),
+            "notes": getattr(inv, 'notes', '') or '',
         })
 
     sales = Sale.query.filter_by(customer_id=customer_id).order_by(Sale.sale_date, Sale.id).all()
@@ -720,6 +721,7 @@ def account_statement(customer_id):
             "debit": D(s.total_amount or 0),
             "credit": D(0),
             "items": items,  # إضافة البنود المباعة
+            "notes": getattr(s, 'notes', '') or '',
         })
 
     services = ServiceRequest.query.filter_by(customer_id=customer_id).order_by(ServiceRequest.completed_at, ServiceRequest.id).all()
@@ -731,6 +733,7 @@ def account_statement(customer_id):
             "statement": generate_statement("SERVICE", srv),
             "debit": D(service_grand_total(srv)),
             "credit": D(0),
+            "notes": getattr(srv, 'notes', '') or '',
         })
 
     preorders = PreOrder.query.filter_by(customer_id=customer_id).order_by(PreOrder.created_at, PreOrder.id).all()
@@ -742,6 +745,7 @@ def account_statement(customer_id):
             "statement": generate_statement("PREORDER", pre),
             "debit": D(pre.total_amount or 0),
             "credit": D(0),
+            "notes": getattr(pre, 'notes', '') or '',
         })
 
     payments_direct = Payment.query.filter_by(customer_id=customer_id).all()
@@ -784,6 +788,7 @@ def account_statement(customer_id):
             "debit": D(0),
             "credit": D(p.total_amount or 0),
             "receiver_name": getattr(p, "receiver_name", None) or "",  # إضافة اسم مستلم الدفعة
+            "notes": notes,  # إضافة الملاحظات
         })
 
     entries.sort(key=lambda x: (x["date"] or datetime.min, x["ref"]))
