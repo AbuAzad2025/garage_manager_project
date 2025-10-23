@@ -86,6 +86,13 @@
           </div>
         </div>
         <div class="form-row">
+          <div class="form-group col-md-12">
+            <label for="{{ form.opening_balance.id }}"><i class="fas fa-balance-scale"></i> الرصيد الافتتاحي (موجب=له، سالب=عليه) <i class="fas fa-info-circle text-info" title="موجب = له علينا، سالب = عليه لنا"></i></label>
+            {{ form.opening_balance(class="form-control form-control-sm" + (' is-invalid' if form.opening_balance.errors else ''), placeholder="0.00", step="0.01") }}
+            {% for e in form.opening_balance.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+        </div>
+        <div class="form-row">
           <div class="form-group col-md-6">
             <label for="{{ form.password.id }}"><i class="fas fa-lock"></i> كلمة المرور <span class="text-danger">*</span></label>
             {{ form.password(class="form-control form-control-sm" + (' is-invalid' if form.password.errors else ''), placeholder="******", autocomplete="new-password") }}
