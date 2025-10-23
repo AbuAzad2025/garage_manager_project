@@ -713,5 +713,14 @@ small.text-muted {
   margin-top: 0.25rem;
   font-size: 0.875em;
 }
+
+/* إصلاح مشكلة backdrop للـ modals */
+.modal {
+  z-index: 1050 !important;
+}
+
+.modal-backdrop {
+  z-index: 1040 !important;
+}
 </style>
 {% endblock %}
