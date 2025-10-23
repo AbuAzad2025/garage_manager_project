@@ -162,8 +162,8 @@
               <td class="text-truncate" title="{{ e.ref }}">{{ e.ref }}</td>
               <td>
                 {{ e.statement }}
-                {% if e.type == 'PAYMENT' and e.receiver_name %}
-                <br><small class="text-muted"><i class="fas fa-user"></i> المستلم: {{ e.receiver_name }}</small>
+                {% if e.type == 'PAYMENT' and e.get('receiver_name') %}
+                <br><small class="text-muted"><i class="fas fa-user"></i> المستلم: {{ e.get('receiver_name') }}</small>
                 {% endif %}
               </td>
               <td class="text-end">{{ e.debit|format_currency }}</td>
@@ -174,7 +174,7 @@
             </tr>
             
             {# عرض البنود المباعة تحت كل عملية بيع #}
-            {% if e.type == 'SALE' and e.items %}
+            {% if e.type == 'SALE' and e.get('items') %}
             <tr class="sale-items-row">
               <td colspan="7" class="p-0">
                 <div class="sale-items-details" style="background-color: #f8f9fa; padding: 10px; margin: 5px;">
@@ -188,7 +188,7 @@
                       </tr>
                     </thead>
                     <tbody>
-                      {% for item in e.items %}
+                      {% for item in e.get('items', []) %}
                       <tr>
                         <td><i class="fas fa-box text-muted"></i> {{ item.name }}</td>
                         <td class="text-center">{{ item.quantity }}</td>
