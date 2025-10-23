@@ -94,12 +94,13 @@
     <div class="card-body">
       <div class="row g-3">
         <div class="col-md-4">
-          <label class="form-label">{{ product_form.category_id.label.text }} <span class="text-muted">(اختياري)</span></label>
+          <label class="form-label">{{ product_form.category_id.label.text }} <span class="text-danger">*</span></label>
           <div class="input-group">
             {{ product_form.category_id(
                  class_="form-control select2",
                  id="category_id",
                  placeholder="اختر الفئة",
+                 required=True,
                  **{'data-url': url_for('api.search_categories')}
                ) }}
             <button type="button" class="btn btn-outline-primary" id="btn-add-category" data-toggle="modal" data-target="#categoryModal">+</button>
