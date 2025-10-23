@@ -1519,6 +1519,7 @@ class PaymentForm(PaymentDetailsMixin, FlaskForm):
 
     splits = FieldList(FormField(SplitEntryForm), min_entries=1, max_entries=3)
 
+    receiver_name = StringField('مستلم الدفعة', validators=[Optional(), Length(max=200)])
     notes = TextAreaField('ملاحظات', validators=[Optional(), Length(max=500)])
     submit = SubmitField('💾 حفظ الدفعة')
 

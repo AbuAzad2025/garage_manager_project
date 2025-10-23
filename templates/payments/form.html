@@ -195,7 +195,7 @@
             <i class="fas fa-file-invoice-dollar"></i> المعلومات الأساسية
           </div>
           <div class="card-body">
-            {% for field in [form.entity_type, form.direction, form.status, form.payment_date, form.total_amount, form.currency, form.method, form.reference, form.receipt_number, form.notes] %}
+            {% for field in [form.entity_type, form.direction, form.status, form.payment_date, form.total_amount, form.currency, form.method, form.reference, form.receipt_number, form.receiver_name, form.notes] %}
               {% if field is not none %}
               <div class="mb-3">
                 {{ field.label(class="form-label") }}

@@ -4933,6 +4933,7 @@ class Payment(db.Model):
     reference = Column(String(100))
     receipt_number = Column(String(50), unique=True, index=True)
     notes = Column(Text)
+    receiver_name = Column(String(200))  # اسم مستلم الدفعة
 
     check_number = Column(String(100))
     check_bank = Column(String(100))

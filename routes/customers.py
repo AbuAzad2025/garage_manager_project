@@ -700,6 +700,18 @@ def account_statement(customer_id):
 
     sales = Sale.query.filter_by(customer_id=customer_id).order_by(Sale.sale_date, Sale.id).all()
     for s in sales:
+        # جلب البنود المباعة
+        sale_lines = getattr(s, 'lines', []) or []
+        items = []
+        for line in sale_lines:
+            product = getattr(line, 'product', None)
+            items.append({
+                'name': getattr(product, 'name', 'منتج') if product else 'منتج',
+                'quantity': getattr(line, 'quantity', 0),
+                'unit_price': D(getattr(line, 'unit_price', 0) or 0),
+                'total': D(getattr(line, 'line_total', 0) or 0)
+            })
+        
         entries.append({
             "date": getattr(s, "sale_date", None) or getattr(s, "created_at", None),
             "type": "SALE",
@@ -707,6 +719,7 @@ def account_statement(customer_id):
             "statement": generate_statement("SALE", s),
             "debit": D(s.total_amount or 0),
             "credit": D(0),
+            "items": items,  # إضافة البنود المباعة
         })
 
     services = ServiceRequest.query.filter_by(customer_id=customer_id).order_by(ServiceRequest.completed_at, ServiceRequest.id).all()
@@ -770,6 +783,7 @@ def account_statement(customer_id):
             "statement": payment_statement,
             "debit": D(0),
             "credit": D(p.total_amount or 0),
+            "receiver_name": getattr(p, "receiver_name", None) or "",  # إضافة اسم مستلم الدفعة
         })
 
     entries.sort(key=lambda x: (x["date"] or datetime.min, x["ref"]))
