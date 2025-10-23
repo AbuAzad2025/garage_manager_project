@@ -453,7 +453,7 @@
   </div>
 </form>
 
-<div class="modal fade" id="categoryModal" tabindex="-1" aria-hidden="true" data-backdrop="static">
+<div class="modal fade" id="categoryModal" tabindex="-1" aria-hidden="true" data-backdrop="false">
   <div class="modal-dialog">
     <form id="create-category-form" class="modal-content" method="post"
           action="{{ url_for('api.create_category') }}"
@@ -475,7 +475,7 @@
   </div>
 </div>
 
-<div class="modal fade" id="equipmentTypeModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="equipmentTypeModal" tabindex="-1" aria-hidden="true" data-backdrop="false">
   <div class="modal-dialog">
     <form id="equipmentTypeForm" class="modal-content" method="post"
           action="{{ url_for('api.create_equipment_type') }}"
