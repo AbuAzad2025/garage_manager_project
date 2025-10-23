@@ -3401,7 +3401,7 @@ class ProductForm(FlaskForm):
     is_digital  = BooleanField('منتج رقمي', default=False)
     is_exchange = BooleanField('قابل للتبادل', default=False)
     vehicle_type_id = AjaxSelectField('نوع المركبة', endpoint='api.search_equipment_types', get_label='name', validators=[Optional()], coerce=int)
-    category_id = AjaxSelectField('الفئة', endpoint='api.search_categories', get_label='name', coerce=int, validators=[DataRequired(message="يجب اختيار فئة للمنتج")], render_kw={'required': True})
+    category_id = AjaxSelectField('الفئة', endpoint='api.search_categories', get_label='name', coerce=int, validators=[Optional()])
     category_name = StrippedStringField('اسم الفئة (نصي)', validators=[Optional(), Length(max=100)])
     supplier_id = AjaxSelectField('المورد الرئيسي', endpoint='api.search_suppliers', get_label='name', validators=[Optional()], coerce=int)
     supplier_international_id = AjaxSelectField('المورد الدولي', endpoint='api.search_suppliers', get_label='name', validators=[Optional()], coerce=int)
@@ -3416,8 +3416,6 @@ class ProductForm(FlaskForm):
 
     def validate(self, extra_validators=None):
         if not super().validate(extra_validators=extra_validators): return False
-        if not self.category_id.data:
-            self.category_id.errors.append("يجب اختيار فئة للمنتج"); return False
         pp, pr, sp, op = self.purchase_price.data, self.price.data, self.selling_price.data, self.online_price.data
         mn, mx = self.min_price.data, self.max_price.data
         if sp is None and pr is not None:
