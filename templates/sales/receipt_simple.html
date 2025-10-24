@@ -29,14 +29,12 @@
   .wrap{overflow-wrap:anywhere;word-break:normal;white-space:normal}
   .num{font-variant-numeric:tabular-nums;text-align:end}
 
-  col.col-idx { width: 6%;  }
-  col.col-item{ width: 36%; }
-  col.col-wh  { width: 10%; }
-  col.col-qty { width: 8%;  }
-  col.col-unit{ width: 14%; }
-  col.col-receiver{ width: 8%;  }
-  col.col-notes { width: 8%;  }
-  col.col-sum { width: 10%; }
+  col.col-item{ width: 40%; }
+  col.col-qty { width: 10%; }
+  col.col-unit{ width: 15%; }
+  col.col-sum { width: 15%; }
+  col.col-receiver{ width: 10%; }
+  col.col-notes { width: 10%; }
 
   .kv th{width:35mm;background:#f5f5f5;color:#333;font-weight:700;white-space:nowrap;border:1px solid #999}
   .kv td{border:1px solid #999}
@@ -50,7 +48,10 @@
     html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .btn,nav,.navbar,.sidebar,.actions,a.no-print{display:none!important}
     a[href]:after{content:""!important}
-    tr,.info-row,.notes-box{break-inside:avoid;page-break-inside:avoid}
+    table{page-break-inside:auto}
+    tr{page-break-inside:avoid;page-break-after:auto}
+    thead{display:table-header-group}
+    tfoot{display:table-footer-group}
   }
 </style>
 {% endblock %}
@@ -67,49 +68,34 @@
   <!-- جدول البنود -->
   <table>
     <colgroup>
-      <col class="col-idx"><col class="col-item"><col class="col-wh"><col class="col-qty">
-      <col class="col-unit"><col class="col-receiver"><col class="col-notes"><col class="col-sum">
+      <col class="col-item"><col class="col-qty"><col class="col-unit">
+      <col class="col-sum"><col class="col-receiver"><col class="col-notes">
     </colgroup>
     <thead>
       <tr>
-        <th>#</th>
         <th>الصنف</th>
-        <th>المخزن</th>
         <th>الكمية</th>
         <th>سعر الوحدة</th>
+        <th>الإجمالي</th>
         <th>المستلم</th>
         <th>ملاحظات</th>
-        <th>الإجمالي</th>
       </tr>
     </thead>
     <tbody>
       {% for item in lines %}
         {% set ln = item.obj %}
         <tr>
-          <td class="num">{{ loop.index }}</td>
           <td class="wrap">{{ ln.product.name if ln.product else '—' }}</td>
-          <td style="text-align:center">{{ ln.warehouse.name if ln.warehouse else '—' }}</td>
           <td class="num">{{ ln.quantity }}</td>
           <td class="num">{{ money_fmt(ln.unit_price) }} {{ sale.currency }}</td>
-          <td style="font-size:10px">{{ ln.line_receiver or '—' }}</td>
-          <td class="wrap" style="font-size:10px">{{ ln.note or '—' }}</td>
           <td class="num">{{ money_fmt(item.line_total) }} {{ sale.currency }}</td>
+          <td style="font-size:7px">{{ ln.line_receiver or '—' }}</td>
+          <td class="wrap" style="font-size:7px">{{ ln.note or '—' }}</td>
         </tr>
       {% endfor %}
     </tbody>
     <tfoot>
-      <tr><td colspan="7" style="text-align:end">المجموع الفرعي:</td><td class="num">{{ money_fmt(subtotal) }} {{ sale.currency }}</td></tr>
-      {% if sale_discount_total and sale_discount_total != 0 %}
-      <tr><td colspan="7" style="text-align:end">خصم إجمالي:</td><td class="num">- {{ money_fmt(sale_discount_total) }} {{ sale.currency }}</td></tr>
-      {% endif %}
-      <tr><td colspan="7" style="text-align:end">بعد الخصم:</td><td class="num">{{ money_fmt(subtotal_after_discount) }} {{ sale.currency }}</td></tr>
-      {% if sale_tax_rate and sale_tax_rate != 0 %}
-      <tr><td colspan="7" style="text-align:end">الضريبة ({{ sale_tax_rate }}%):</td><td class="num">{{ money_fmt(invoice_tax_amount) }} {{ sale.currency }}</td></tr>
-      {% endif %}
-      {% if sale_shipping and sale_shipping != 0 %}
-      <tr><td colspan="7" style="text-align:end">الشحن:</td><td class="num">{{ money_fmt(sale_shipping) }} {{ sale.currency }}</td></tr>
-      {% endif %}
-      <tr><td colspan="7" style="text-align:end"><strong>الإجمالي النهائي:</strong></td><td class="num"><strong>{{ money_fmt(grand_total) }} {{ sale.currency }}</strong></td></tr>
+      <tr><td colspan="5" style="text-align:end"><strong>الإجمالي النهائي:</strong></td><td class="num"><strong>{{ money_fmt(grand_total) }} {{ sale.currency }}</strong></td></tr>
     </tfoot>
   </table>
 
