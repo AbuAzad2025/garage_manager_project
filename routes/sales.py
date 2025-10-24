@@ -643,6 +643,7 @@ def edit_sale(id: int):
             e.unit_price.data = ln.unit_price
             e.discount_rate.data = ln.discount_rate
             e.tax_rate.data = ln.tax_rate
+            e.line_receiver.data = ln.line_receiver if hasattr(ln, 'line_receiver') else None
             e.note.data = ln.note
     if request.method == "POST" and not form.validate_on_submit():
         current_app.logger.warning("Sale form errors (edit): %s", form.errors)
