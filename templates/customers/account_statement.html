@@ -5,102 +5,183 @@
 {% block head_extra %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/statement-print.css') }}">
 <style>
-  /* ضغط التصميم للطباعة فقط */
+  /* ضغط شديد للطباعة - خطوط صغيرة جداً */
   @media print {
-    /* تصغير الخطوط للنصف */
-    body, .content-wrapper {
-      font-size: 7pt !important;
+    /* تصغير كل شيء */
+    * {
+      font-size: 4.5pt !important;
+      line-height: 0.9 !important;
+    }
+    
+    html, body, .content-wrapper {
+      font-size: 4.5pt !important;
+      margin: 0 !important;
+      padding: 0 !important;
     }
     
     .card-header h5 {
-      font-size: 8pt !important;
+      font-size: 5.5pt !important;
+      font-weight: bold !important;
+      margin: 0 !important;
+      padding: 1px !important;
     }
     
-    /* تصغير الجدول */
+    /* الجدول صغير جداً */
     .table {
-      font-size: 6.5pt !important;
-      margin-bottom: 0 !important;
+      font-size: 4pt !important;
+      margin: 0 !important;
+      width: 100% !important;
+      border-collapse: collapse !important;
     }
     
     .table th,
     .table td {
-      padding: 1px 3px !important;
-      line-height: 1.1 !important;
+      padding: 0px 1.5px !important;
+      line-height: 0.9 !important;
+      border: 0.3px solid #000 !important;
+      font-size: 4pt !important;
     }
     
     .table thead th {
-      font-size: 7pt !important;
-      padding: 2px 4px !important;
+      font-size: 4.5pt !important;
+      padding: 0.5px 1.5px !important;
+      font-weight: bold !important;
+      background-color: #f0f0f0 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    
+    .table tfoot th,
+    .table tfoot td {
+      font-size: 4.5pt !important;
+      padding: 1px 2px !important;
       font-weight: bold !important;
     }
     
     .table .badge {
-      font-size: 6pt !important;
-      padding: 1px 3px !important;
+      font-size: 3.5pt !important;
+      padding: 0px 1.5px !important;
     }
     
-    /* تصغير البنود المباعة */
+    /* البنود المباعة أصغر */
     .sale-items-details {
-      padding: 2px !important;
-      margin: 1px !important;
+      padding: 0.5px !important;
+      margin: 0 !important;
+      background-color: #fafafa !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
     }
     
     .sale-items-details table {
-      font-size: 6pt !important;
+      font-size: 3.5pt !important;
     }
     
     .sale-items-details th,
     .sale-items-details td {
-      padding: 1px 2px !important;
+      padding: 0px 1px !important;
+      line-height: 0.9 !important;
+      font-size: 3.5pt !important;
     }
     
-    /* ضغط المسافات */
+    /* المسافات صفر تقريباً */
+    .card {
+      margin: 0 !important;
+      padding: 0 !important;
+      box-shadow: none !important;
+      border: none !important;
+    }
+    
     .card-body {
-      padding: 3px !important;
+      padding: 0.5px !important;
     }
     
     .card-header {
-      padding: 3px 5px !important;
+      padding: 1px 2px !important;
+      background-color: #e0e0e0 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
     }
     
-    .row.g-3 {
-      gap: 2px !important;
+    .row {
+      margin: 0 !important;
     }
     
-    .mb-3, .my-3 {
-      margin-bottom: 3px !important;
+    .col, [class*="col-"] {
+      padding: 0.5px !important;
     }
     
-    .mb-4, .my-4 {
-      margin-bottom: 5px !important;
+    .mb-3, .my-3, .mb-4, .my-4,
+    .mb-2, .my-2 {
+      margin-bottom: 1px !important;
     }
     
-    /* إخفاء العناصر غير الضرورية */
+    /* إخفاء كل ما لا يُطبع */
     .no-print,
     .btn,
-    .breadcrumb {
+    .breadcrumb,
+    nav,
+    .d-flex.flex-wrap.gap-2 {
       display: none !important;
     }
     
-    /* ضغط الكروت */
-    .card {
-      margin-bottom: 5px !important;
-      box-shadow: none !important;
+    /* الأيقونات */
+    .fas, .fab, i {
+      font-size: 4pt !important;
     }
     
-    /* تصغير الأيقونات */
-    .fas, .fab {
-      font-size: 6pt !important;
-    }
-    
-    /* ضغط عرض الصفحة */
+    /* هوامش صفحة صغيرة */
     @page {
-      margin: 0.3cm;
+      margin: 0.15cm !important;
+      size: A4 !important;
     }
     
-    body {
-      margin: 0;
-      padding: 0;
+    /* النصوص الصغيرة */
+    .text-muted,
+    small {
+      font-size: 3.5pt !important;
+    }
+    
+    /* إخفاء الملخص الإحصائي لتوفير المساحة */
+    .row.g-3.mb-4:first-of-type,
+    .row.g-3.mb-4:nth-of-type(2) {
+      display: none !important;
+    }
+    
+    /* header وfooter المطبوع */
+    .print-header-info {
+      font-size: 5pt !important;
+      padding: 1px !important;
+      margin-bottom: 2px !important;
+    }
+    
+    .print-header-info .company-name {
+      font-size: 6pt !important;
+      font-weight: bold !important;
+    }
+    
+    .print-header-info .company-details {
+      font-size: 4pt !important;
+    }
+    
+    .print-header-info .statement-type h2 {
+      font-size: 6pt !important;
+      margin: 0 !important;
+    }
+    
+    .print-header-info .statement-date,
+    .print-header-info .user-info {
+      font-size: 4pt !important;
+    }
+    
+    .print-footer-info {
+      font-size: 3.5pt !important;
+      padding: 0.5px !important;
+    }
+    
+    /* إخفاء الصور للتوفير */
+    .company-logo img {
+      max-height: 15px !important;
+      width: auto !important;
     }
   }
 </style>
