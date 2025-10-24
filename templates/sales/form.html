@@ -109,6 +109,11 @@
                 <label for="discountTotal"><i class="fas fa-tags mr-1"></i> الخصم الإجمالي</label>
                 {{ form.discount_total(class="form-control", id="discountTotal") }}
               </div>
+              
+              <div class="form-group col-span-6">
+                <label for="receiver_name"><i class="fas fa-user-check mr-1"></i> مستلم البضاعة</label>
+                {{ form.receiver_name(class="form-control", id="receiver_name", placeholder="اسم الشخص المستلم (اختياري)") }}
+              </div>
             </div>
 
             <div class="card mb-4">

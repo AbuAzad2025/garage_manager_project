@@ -3066,6 +3066,7 @@ class SaleForm(FlaskForm):
     shipping_address = TextAreaField('عنوان الشحن', validators=[Optional(), Length(max=500)])
     billing_address  = TextAreaField('عنوان الفواتير', validators=[Optional(), Length(max=500)])
     shipping_cost = MoneyField('تكلفة الشحن', validators=[Optional(), NumberRange(min=0)], default=0)
+    receiver_name = StrippedStringField('مستلم البضاعة', validators=[Optional(), Length(max=200)])
     notes        = TextAreaField('ملاحظات', validators=[Optional(), Length(max=500)])
     total_amount = MoneyField('الإجمالي النهائي', validators=[Optional(), NumberRange(min=0)], render_kw={"readonly": True})
     lines        = FieldList(FormField(SaleLineForm), min_entries=1)

@@ -4135,6 +4135,7 @@ class Sale(db.Model, TimestampMixin, AuditMixin):
     tax_rate = db.Column(db.Numeric(5, 2), default=0, nullable=False)
     discount_total = db.Column(db.Numeric(12, 2), default=0, nullable=False)
     notes = db.Column(db.Text)
+    receiver_name = db.Column(db.String(200))  # اسم مستلم البضاعة
 
     status = db.Column(sa_str_enum(SaleStatus, name="sale_status"), default=SaleStatus.DRAFT.value, nullable=False, index=True)
     payment_status = db.Column(sa_str_enum(PaymentProgress, name="sale_payment_progress"), default=PaymentProgress.PENDING.value, nullable=False, index=True)
