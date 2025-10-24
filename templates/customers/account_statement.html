@@ -7,44 +7,52 @@
 <style>
   /* ضغط شديد للطباعة - خطوط صغيرة جداً */
   @media print {
-    /* تصغير كل شيء */
+    /* تصغير كل شيء للحد الأقصى */
     * {
-      font-size: 4.5pt !important;
-      line-height: 0.9 !important;
+      font-size: 3pt !important;
+      line-height: 0.8 !important;
+      margin: 0 !important;
+      padding: 0 !important;
     }
     
     html, body, .content-wrapper {
-      font-size: 4.5pt !important;
+      font-size: 3pt !important;
       margin: 0 !important;
       padding: 0 !important;
     }
     
     .card-header h5 {
-      font-size: 5.5pt !important;
+      font-size: 4pt !important;
       font-weight: bold !important;
       margin: 0 !important;
-      padding: 1px !important;
+      padding: 0.5px !important;
     }
     
     /* الجدول صغير جداً */
-    .table {
-      font-size: 4pt !important;
+    .table,
+    #statementTable {
+      font-size: 3pt !important;
       margin: 0 !important;
       width: 100% !important;
       border-collapse: collapse !important;
     }
     
     .table th,
-    .table td {
-      padding: 0px 1.5px !important;
-      line-height: 0.9 !important;
-      border: 0.3px solid #000 !important;
-      font-size: 4pt !important;
+    .table td,
+    #statementTable th,
+    #statementTable td {
+      padding: 0px 1px !important;
+      line-height: 0.8 !important;
+      border: 0.2px solid #000 !important;
+      font-size: 3pt !important;
+      height: auto !important;
+      min-height: 0 !important;
     }
     
-    .table thead th {
-      font-size: 4.5pt !important;
-      padding: 0.5px 1.5px !important;
+    .table thead th,
+    #statementTable thead th {
+      font-size: 3.5pt !important;
+      padding: 0.5px 1px !important;
       font-weight: bold !important;
       background-color: #f0f0f0 !important;
       -webkit-print-color-adjust: exact !important;
@@ -52,20 +60,27 @@
     }
     
     .table tfoot th,
-    .table tfoot td {
-      font-size: 4.5pt !important;
-      padding: 1px 2px !important;
+    .table tfoot td,
+    #statementTable tfoot th,
+    #statementTable tfoot td {
+      font-size: 3.5pt !important;
+      padding: 0.5px 1px !important;
       font-weight: bold !important;
     }
     
     .table .badge {
-      font-size: 3.5pt !important;
-      padding: 0px 1.5px !important;
+      font-size: 2.5pt !important;
+      padding: 0px 1px !important;
     }
     
     /* البنود المباعة أصغر */
+    .sale-items-row {
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    
     .sale-items-details {
-      padding: 0.5px !important;
+      padding: 0px !important;
       margin: 0 !important;
       background-color: #fafafa !important;
       -webkit-print-color-adjust: exact !important;
@@ -73,17 +88,18 @@
     }
     
     .sale-items-details table {
-      font-size: 3.5pt !important;
+      font-size: 2.5pt !important;
+      margin: 0 !important;
     }
     
     .sale-items-details th,
     .sale-items-details td {
-      padding: 0px 1px !important;
-      line-height: 0.9 !important;
-      font-size: 3.5pt !important;
+      padding: 0px 0.5px !important;
+      line-height: 0.8 !important;
+      font-size: 2.5pt !important;
     }
     
-    /* المسافات صفر تقريباً */
+    /* المسافات صفر تماماً */
     .card {
       margin: 0 !important;
       padding: 0 !important;
@@ -92,27 +108,35 @@
     }
     
     .card-body {
-      padding: 0.5px !important;
+      padding: 0px !important;
     }
     
     .card-header {
-      padding: 1px 2px !important;
+      padding: 0.5px 1px !important;
       background-color: #e0e0e0 !important;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
     }
     
-    .row {
+    .row,
+    .row.g-3 {
       margin: 0 !important;
+      gap: 0 !important;
     }
     
     .col, [class*="col-"] {
-      padding: 0.5px !important;
+      padding: 0px !important;
+      margin: 0 !important;
     }
     
-    .mb-3, .my-3, .mb-4, .my-4,
-    .mb-2, .my-2 {
-      margin-bottom: 1px !important;
+    .mb-1, .mb-2, .mb-3, .mb-4,
+    .my-1, .my-2, .my-3, .my-4,
+    .mt-1, .mt-2, .mt-3, .mt-4 {
+      margin: 0 !important;
+    }
+    
+    .p-0, .p-1, .p-2, .p-3, .p-4 {
+      padding: 0 !important;
     }
     
     /* إخفاء كل ما لا يُطبع */
@@ -142,46 +166,78 @@
     }
     
     /* إخفاء الملخص الإحصائي لتوفير المساحة */
-    .row.g-3.mb-4:first-of-type,
-    .row.g-3.mb-4:nth-of-type(2) {
+    .row.g-3.mb-4,
+    .row.mb-4 {
       display: none !important;
     }
     
     /* header وfooter المطبوع */
     .print-header-info {
-      font-size: 5pt !important;
-      padding: 1px !important;
-      margin-bottom: 2px !important;
+      font-size: 3.5pt !important;
+      padding: 0.5px !important;
+      margin: 0 0 1px 0 !important;
     }
     
     .print-header-info .company-name {
-      font-size: 6pt !important;
+      font-size: 4.5pt !important;
       font-weight: bold !important;
+      margin: 0 !important;
     }
     
     .print-header-info .company-details {
-      font-size: 4pt !important;
+      font-size: 3pt !important;
+      margin: 0 !important;
     }
     
     .print-header-info .statement-type h2 {
-      font-size: 6pt !important;
+      font-size: 4.5pt !important;
       margin: 0 !important;
+      padding: 0 !important;
     }
     
     .print-header-info .statement-date,
     .print-header-info .user-info {
-      font-size: 4pt !important;
+      font-size: 3pt !important;
+      margin: 0 !important;
     }
     
     .print-footer-info {
-      font-size: 3.5pt !important;
-      padding: 0.5px !important;
+      font-size: 2.5pt !important;
+      padding: 0px !important;
+      margin: 0 !important;
     }
     
-    /* إخفاء الصور للتوفير */
+    /* إخفاء الصور */
+    .company-logo,
     .company-logo img {
-      max-height: 15px !important;
-      width: auto !important;
+      display: none !important;
+    }
+    
+    /* ضغط table-responsive */
+    .table-responsive {
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+    
+    /* تصغير النصوص الغامقة */
+    .fw-bold, strong, b {
+      font-size: inherit !important;
+      font-weight: 600 !important;
+    }
+    
+    /* إزالة الألوان للطباعة */
+    .text-danger, .text-success {
+      color: #000 !important;
+    }
+    
+    /* ضغط أي عناصر إضافية */
+    .align-middle {
+      vertical-align: middle !important;
+    }
+    
+    .text-truncate {
+      white-space: normal !important;
+      overflow: visible !important;
     }
   }
 </style>
