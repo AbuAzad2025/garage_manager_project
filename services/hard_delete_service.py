@@ -69,14 +69,12 @@ class HardDeleteService:
             try:
                 related_data = self._collect_customer_related_data(customer_id)
             except Exception as e:
-                print(f"⚠️ تحذير: فشل جمع البيانات المرتبطة: {str(e)}")
                 related_data = {"customer_data": {}, "related_entities": {}}
             
             # 4. تنفيذ العمليات العكسية (بسيط)
             try:
                 reversals = self._reverse_customer_operations(customer_id)
             except Exception as e:
-                print(f"⚠️ تحذير: فشل العمليات العكسية: {str(e)}")
                 reversals = {"stock_reversals": [], "accounting_reversals": [], "balance_reversals": []}
             
             # 5. حذف البيانات
@@ -101,9 +99,6 @@ class HardDeleteService:
             
         except Exception as e:
             db.session.rollback()
-            print(f"❌ خطأ في حذف العميل: {str(e)}")
-            import traceback
-            traceback.print_exc()
             if self.deletion_log:
                 try:
                     self.deletion_log.mark_failed(str(e))
@@ -238,14 +233,12 @@ class HardDeleteService:
             try:
                 related_data = self._collect_supplier_related_data(supplier_id)
             except Exception as e:
-                print(f"⚠️ تحذير: فشل جمع البيانات المرتبطة للمورد: {str(e)}")
                 related_data = {"supplier_data": {}, "related_entities": {}}
             
             # 4. تنفيذ العمليات العكسية (بسيط)
             try:
                 reversals = self._reverse_supplier_operations(supplier_id)
             except Exception as e:
-                print(f"⚠️ تحذير: فشل العمليات العكسية للمورد: {str(e)}")
                 reversals = {"stock_reversals": [], "accounting_reversals": [], "balance_reversals": []}
             
             # 5. حذف البيانات
@@ -270,9 +263,6 @@ class HardDeleteService:
             
         except Exception as e:
             db.session.rollback()
-            print(f"❌ خطأ في حذف المورد: {str(e)}")
-            import traceback
-            traceback.print_exc()
             if self.deletion_log:
                 try:
                     self.deletion_log.mark_failed(str(e))
@@ -304,14 +294,12 @@ class HardDeleteService:
             try:
                 related_data = self._collect_partner_related_data(partner_id)
             except Exception as e:
-                print(f"⚠️ تحذير: فشل جمع البيانات المرتبطة للشريك: {str(e)}")
                 related_data = {"partner_data": {}, "related_entities": {}}
             
             # 4. تنفيذ العمليات العكسية (بسيط)
             try:
                 reversals = self._reverse_partner_operations(partner_id)
             except Exception as e:
-                print(f"⚠️ تحذير: فشل العمليات العكسية للشريك: {str(e)}")
                 reversals = {"stock_reversals": [], "accounting_reversals": [], "balance_reversals": []}
             
             # 5. حذف البيانات
@@ -336,9 +324,6 @@ class HardDeleteService:
             
         except Exception as e:
             db.session.rollback()
-            print(f"❌ خطأ في حذف الشريك: {str(e)}")
-            import traceback
-            traceback.print_exc()
             if self.deletion_log:
                 try:
                     self.deletion_log.mark_failed(str(e))
