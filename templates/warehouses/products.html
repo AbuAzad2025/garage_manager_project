@@ -1,6 +1,10 @@
 {% extends 'warehouses/base.html' %}
 {% block page_title %}عرض المخزون عبر مستودعات محددة{% endblock %}
 
+{% block breadcrumb %}
+  {{ super() }}
+{% endblock %}
+
 {% block head_extra %}
   {{ super() }}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/warehouses.css') }}">
