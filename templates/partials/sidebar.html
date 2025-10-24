@@ -61,6 +61,12 @@
             <p>المبيعات</p>
           </a>
         </li>
+        <li class="nav-item">
+          <a href="{{ url_for('returns.list_returns') }}" class="nav-link {% if request.blueprint == 'returns' %}active{% endif %}">
+            <i class="nav-icon fas fa-undo-alt text-danger"></i>
+            <p>المرتجعات</p>
+          </a>
+        </li>
         {% endif %}
 
         <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->

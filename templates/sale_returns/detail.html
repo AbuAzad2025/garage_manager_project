@@ -1,0 +1,394 @@
+{% extends "base.html" %}
+
+{% block title %}تفاصيل المرتجع #{{ sale_return.id }}{% endblock %}
+
+{% block head_extra %}
+<style>
+.return-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 8px 8px 0 0;
+    margin-bottom: 0;
+}
+
+.status-badge {
+    font-size: 1.1rem;
+    padding: 8px 16px;
+}
+
+.info-card {
+    border-left: 4px solid #667eea;
+}
+
+.items-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.total-row {
+    background-color: #e9ecef;
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-header">
+  <div class="container-fluid">
+    <div class="row mb-2">
+      <div class="col-sm-6">
+        <h1>
+          <i class="fas fa-undo-alt"></i> تفاصيل المرتجع #{{ sale_return.id }}
+        </h1>
+      </div>
+      <div class="col-sm-6">
+        <div class="float-left">
+          <a href="{{ url_for('returns.list_returns') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-right"></i> العودة للقائمة
+          </a>
+          
+          {% if sale_return.status == 'DRAFT' %}
+          <a href="{{ url_for('returns.edit_return', return_id=sale_return.id) }}" 
+             class="btn btn-warning">
+            <i class="fas fa-edit"></i> تعديل
+          </a>
+          
+          <form method="POST" action="{{ url_for('returns.confirm_return', return_id=sale_return.id) }}" 
+                style="display: inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-success" 
+                    onclick="return confirm('هل أنت متأكد من تأكيد هذا المرتجع؟ سيتم إرجاع المخزون.')">
+              <i class="fas fa-check"></i> تأكيد المرتجع
+            </button>
+          </form>
+          
+          <form method="POST" action="{{ url_for('returns.delete_return', return_id=sale_return.id) }}" 
+                style="display: inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-danger" 
+                    onclick="return confirm('هل أنت متأكد من حذف هذا المرتجع؟')">
+              <i class="fas fa-trash"></i> حذف
+            </button>
+          </form>
+          {% endif %}
+          
+          {% if sale_return.status == 'CONFIRMED' %}
+          <form method="POST" action="{{ url_for('returns.cancel_return', return_id=sale_return.id) }}" 
+                style="display: inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-danger" 
+                    onclick="return confirm('هل أنت متأكد من إلغاء هذا المرتجع؟ سيتم عكس المخزون.')">
+              <i class="fas fa-ban"></i> إلغاء المرتجع
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section class="content">
+  <div class="container-fluid">
+    
+    <!-- Header Card -->
+    <div class="card">
+      <div class="return-header">
+        <div class="row">
+          <div class="col-md-8">
+            <h3 class="mb-2">
+              <i class="fas fa-undo-alt"></i> مرتجع بيع #{{ sale_return.id }}
+            </h3>
+            <p class="mb-0">
+              <strong>السبب:</strong> {{ sale_return.reason }}
+            </p>
+          </div>
+          <div class="col-md-4 text-left">
+            {% if sale_return.status == 'DRAFT' %}
+              <span class="status-badge badge badge-warning">
+                <i class="fas fa-pencil-alt"></i> مسودة
+              </span>
+            {% elif sale_return.status == 'CONFIRMED' %}
+              <span class="status-badge badge badge-success">
+                <i class="fas fa-check-circle"></i> مؤكد
+              </span>
+            {% elif sale_return.status == 'CANCELLED' %}
+              <span class="status-badge badge badge-danger">
+                <i class="fas fa-ban"></i> ملغي
+              </span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      
+      <div class="card-body">
+        <div class="row">
+          
+          <!-- معلومات أساسية -->
+          <div class="col-md-6">
+            <div class="card info-card">
+              <div class="card-body">
+                <h5 class="card-title">
+                  <i class="fas fa-info-circle text-primary"></i> معلومات أساسية
+                </h5>
+                <hr>
+                
+                <table class="table table-sm table-borderless">
+                  <tr>
+                    <th width="40%">رقم المرتجع:</th>
+                    <td><strong>#{{ sale_return.id }}</strong></td>
+                  </tr>
+                  <tr>
+                    <th>التاريخ:</th>
+                    <td>{{ sale_return.created_at.strftime('%Y-%m-%d %H:%M') if sale_return.created_at else '-' }}</td>
+                  </tr>
+                  <tr>
+                    <th>العميل:</th>
+                    <td>
+                      {% if sale_return.customer %}
+                      <a href="{{ url_for('customers.view_customer', id=sale_return.customer.id) }}">
+                        {{ sale_return.customer.name }}
+                      </a>
+                      {% else %}
+                      -
+                      {% endif %}
+                    </td>
+                  </tr>
+                  <tr>
+                    <th>البيع الأصلي:</th>
+                    <td>
+                      {% if sale_return.sale %}
+                      <a href="{{ url_for('sales_bp.view_sale', id=sale_return.sale.id) }}">
+                        بيع #{{ sale_return.sale.id }}
+                      </a>
+                      {% else %}
+                      -
+                      {% endif %}
+                    </td>
+                  </tr>
+                  <tr>
+                    <th>المخزن:</th>
+                    <td>
+                      {% if sale_return.warehouse %}
+                      {{ sale_return.warehouse.name }}
+                      {% else %}
+                      -
+                      {% endif %}
+                    </td>
+                  </tr>
+                </table>
+              </div>
+            </div>
+          </div>
+          
+          <!-- معلومات مالية -->
+          <div class="col-md-6">
+            <div class="card info-card">
+              <div class="card-body">
+                <h5 class="card-title">
+                  <i class="fas fa-dollar-sign text-success"></i> معلومات مالية
+                </h5>
+                <hr>
+                
+                <table class="table table-sm table-borderless">
+                  <tr>
+                    <th width="40%">المبلغ الإجمالي:</th>
+                    <td>
+                      <strong class="text-success" style="font-size: 1.3rem;">
+                        {{ '{:,.2f}'.format(sale_return.total_amount or 0) }} {{ sale_return.currency }}
+                      </strong>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th>العملة:</th>
+                    <td>{{ sale_return.currency }}</td>
+                  </tr>
+                  <tr>
+                    <th>عدد الأصناف:</th>
+                    <td>{{ sale_return.lines|length }}</td>
+                  </tr>
+                  {% if sale_return.credit_note %}
+                  <tr>
+                    <th>إشعار دائن:</th>
+                    <td>
+                      <a href="#">
+                        <i class="fas fa-file-invoice"></i> #{{ sale_return.credit_note.id }}
+                      </a>
+                    </td>
+                  </tr>
+                  {% endif %}
+                </table>
+              </div>
+            </div>
+          </div>
+          
+        </div>
+        
+        <!-- ملاحظات -->
+        {% if sale_return.notes %}
+        <div class="row mt-3">
+          <div class="col-12">
+            <div class="alert alert-info">
+              <h6><i class="fas fa-sticky-note"></i> ملاحظات:</h6>
+              <p class="mb-0">{{ sale_return.notes }}</p>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+        
+      </div>
+    </div>
+    
+    <!-- بنود المرتجع -->
+    <div class="card">
+      <div class="card-header bg-primary">
+        <h3 class="card-title">
+          <i class="fas fa-list"></i> بنود المرتجع
+        </h3>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-hover items-table mb-0">
+          <thead>
+            <tr>
+              <th width="5%">#</th>
+              <th width="35%">المنتج</th>
+              <th width="15%">المخزن</th>
+              <th width="10%" class="text-center">الكمية</th>
+              <th width="12%" class="text-left">سعر الوحدة</th>
+              <th width="13%" class="text-left">الإجمالي</th>
+              <th width="10%">ملاحظات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for line in sale_return.lines %}
+            <tr>
+              <td>{{ loop.index }}</td>
+              <td>
+                {% if line.product %}
+                <strong>{{ line.product.name }}</strong><br>
+                <small class="text-muted">
+                  {% if line.product.barcode %}
+                  <i class="fas fa-barcode"></i> {{ line.product.barcode }}
+                  {% endif %}
+                </small>
+                {% else %}
+                <span class="text-danger">منتج محذوف</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if line.warehouse %}
+                {{ line.warehouse.name }}
+                {% else %}
+                -
+                {% endif %}
+              </td>
+              <td class="text-center">
+                <span class="badge badge-info" style="font-size: 1rem;">
+                  {{ line.quantity }}
+                </span>
+              </td>
+              <td class="text-left">
+                {{ '{:,.2f}'.format(line.unit_price) }}
+              </td>
+              <td class="text-left">
+                <strong>{{ '{:,.2f}'.format(line.quantity * line.unit_price) }}</strong>
+              </td>
+              <td>
+                {% if line.notes %}
+                <small>{{ line.notes }}</small>
+                {% else %}
+                -
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="7" class="text-center text-muted">
+                لا توجد بنود
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr class="total-row">
+              <td colspan="5" class="text-left">الإجمالي:</td>
+              <td class="text-left">
+                <strong style="font-size: 1.2rem;">
+                  {{ '{:,.2f}'.format(sale_return.total_amount or 0) }} {{ sale_return.currency }}
+                </strong>
+              </td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+    
+    <!-- Timeline -->
+    {% if sale_return.created_at or sale_return.updated_at %}
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">
+          <i class="fas fa-history"></i> السجل الزمني
+        </h3>
+      </div>
+      <div class="card-body">
+        <div class="timeline">
+          {% if sale_return.created_at %}
+          <div>
+            <i class="fas fa-plus bg-blue"></i>
+            <div class="timeline-item">
+              <span class="time">
+                <i class="fas fa-clock"></i> {{ sale_return.created_at.strftime('%Y-%m-%d %H:%M') }}
+              </span>
+              <h3 class="timeline-header">تم إنشاء المرتجع</h3>
+              <div class="timeline-body">
+                {% if sale_return.created_by_user %}
+                بواسطة: {{ sale_return.created_by_user.username }}
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endif %}
+          
+          {% if sale_return.status == 'CONFIRMED' and sale_return.updated_at %}
+          <div>
+            <i class="fas fa-check bg-green"></i>
+            <div class="timeline-item">
+              <span class="time">
+                <i class="fas fa-clock"></i> {{ sale_return.updated_at.strftime('%Y-%m-%d %H:%M') }}
+              </span>
+              <h3 class="timeline-header">تم تأكيد المرتجع</h3>
+              <div class="timeline-body">
+                تم إرجاع المخزون بنجاح
+              </div>
+            </div>
+          </div>
+          {% endif %}
+          
+          {% if sale_return.status == 'CANCELLED' %}
+          <div>
+            <i class="fas fa-ban bg-red"></i>
+            <div class="timeline-item">
+              <span class="time">
+                <i class="fas fa-clock"></i> {{ sale_return.updated_at.strftime('%Y-%m-%d %H:%M') if sale_return.updated_at else '-' }}
+              </span>
+              <h3 class="timeline-header">تم إلغاء المرتجع</h3>
+            </div>
+          </div>
+          {% endif %}
+          
+          <div>
+            <i class="fas fa-clock bg-gray"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    
+  </div>
+</section>
+{% endblock %}
+

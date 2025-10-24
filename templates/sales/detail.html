@@ -201,6 +201,12 @@
             <i class="fas fa-print mr-1"></i> طباعة الفاتورة
           </a>
 
+          {% if sale.status == 'CONFIRMED' %}
+          <a href="{{ url_for('returns.create_return', sale_id=sale.id) }}" class="btn btn-danger ml-2 mb-2">
+            <i class="fas fa-undo-alt mr-1"></i> إنشاء مرتجع
+          </a>
+          {% endif %}
+
           {% if sale.status == 'DRAFT' %}
           <form method="post"
                 action="{{ url_for('sales_bp.change_status', id=sale.id, status='CONFIRMED') }}"
