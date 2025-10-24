@@ -514,10 +514,10 @@ def create_sale():
                 return render_template("sales/form.html", form=form, title="إنشاء فاتورة جديدة",
                                        products=Product.query.order_by(Product.name).all(),
                                        warehouses=Warehouse.query.order_by(Warehouse.name).all())
-            # لا نغير السعر الذي أدخله المستخدم - نستخدمه كما هو
-            # for d in lines_payload:
-            #     if (d.get("unit_price") or 0) <= 0:
-            #         d["unit_price"] = _resolve_unit_price(d["product_id"], d.get("warehouse_id"))
+            # جلب السعر التلقائي فقط إذا كان 0 أو سالب
+            for d in lines_payload:
+                if (d.get("unit_price") or 0) <= 0:
+                    d["unit_price"] = _resolve_unit_price(d["product_id"], d.get("warehouse_id"))
             if require_stock:
                 pairs = [(d["product_id"], d["warehouse_id"]) for d in lines_payload if d.get("warehouse_id")]
                 _lock_stock_rows(pairs)
@@ -663,10 +663,10 @@ def edit_sale(id: int):
                 return render_template("sales/form.html", form=form, sale=sale, title="تعديل الفاتورة",
                                        products=Product.query.order_by(Product.name).all(),
                                        warehouses=Warehouse.query.order_by(Warehouse.name).all())
-            # لا نغير السعر الذي أدخله المستخدم - نستخدمه كما هو
-            # for d in lines_payload:
-            #     if (d.get("unit_price") or 0) <= 0:
-            #         d["unit_price"] = _resolve_unit_price(d["product_id"], d.get("warehouse_id"))
+            # جلب السعر التلقائي فقط إذا كان 0 أو سالب
+            for d in lines_payload:
+                if (d.get("unit_price") or 0) <= 0:
+                    d["unit_price"] = _resolve_unit_price(d["product_id"], d.get("warehouse_id"))
             if require_stock:
                 pairs = [(d["product_id"], d["warehouse_id"]) for d in lines_payload if d.get("warehouse_id")]
                 _lock_stock_rows(pairs)
