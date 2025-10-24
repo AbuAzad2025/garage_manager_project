@@ -1,35 +1,35 @@
 <div class="table-responsive">
-  <table id="customersTable" class="table table-hover table-bordered table-striped align-middle mb-0 text-center" data-dt-skip="true">
+  <table id="customersTable" class="table table-hover table-bordered table-striped align-middle mb-0 text-center table-mobile-friendly" data-dt-skip="true">
     <thead class="table-primary">
       <tr>
-        <th>#</th>
+        <th class="hide-mobile">#</th>
         <th>الاسم</th>
         <th>الجوال</th>
-        <th>البريد</th>
-        <th>التصنيف</th>
+        <th class="hide-mobile">البريد</th>
+        <th class="hide-mobile">التصنيف</th>
         <th>الرصيد</th>
-        <th>الحالة</th>
-        <th>تاريخ الإنشاء</th>
+        <th class="hide-mobile">الحالة</th>
+        <th class="hide-mobile">تاريخ الإنشاء</th>
         <th>العمليات</th>
       </tr>
     </thead>
     <tbody>
       {% for customer in customers %}
       <tr class="{% if not customer.is_active %}table-secondary{% endif %}">
-        <td>{{ loop.index + (pagination.page - 1) * pagination.per_page }}</td>
+        <td class="hide-mobile">{{ loop.index + (pagination.page - 1) * pagination.per_page }}</td>
         <td class="text-start">
           <a href="{{ url_for('customers_bp.customer_detail', customer_id=customer.id) }}" class="fw-bold text-primary">
             {{ customer.name }}
           </a>
         </td>
         <td>{{ customer.phone or '-' }}</td>
-        <td>{{ customer.email or '-' }}</td>
-        <td>{{ customer.category or '-' }}</td>
+        <td class="hide-mobile">{{ customer.email or '-' }}</td>
+        <td class="hide-mobile">{{ customer.category or '-' }}</td>
         <td class="fw-bold {% if customer.balance_in_ils > 0 %}text-danger{% else %}text-success{% endif %}">
           {{ customer.balance_in_ils|format_currency }} ₪
         </td>
-        <td>{{ customer.is_active|yes_no }}</td>
-        <td>{{ customer.created_at|format_date }}</td>
+        <td class="hide-mobile">{{ customer.is_active|yes_no }}</td>
+        <td class="hide-mobile">{{ customer.created_at|format_date }}</td>
         <td class="text-nowrap">
           <div class="table-actions">
             <a href="{{ url_for('customers_bp.customer_detail', customer_id=customer.id) }}" class="btn btn-action-view btn-action-sm" title="عرض">

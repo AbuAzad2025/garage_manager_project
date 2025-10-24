@@ -1,7 +1,38 @@
 /* ═══════════════════════════════════════════════════════════════════
    📱 Mobile Optimizations for Garage Manager System
    تحسينات النظام للأجهزة المحمولة
+   Version: 2.0
    ═══════════════════════════════════════════════════════════════════ */
+
+/* ═══ 0. Performance Optimizations ═══ */
+
+/* تحسين تحميل الصور */
+img {
+  content-visibility: auto;
+}
+
+/* تحسين الرسوم */
+* {
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+  -webkit-touch-callout: none;
+}
+
+/* تحسين التمرير */
+.content-wrapper,
+.table-responsive,
+.modal-body {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* GPU acceleration */
+.card,
+.btn,
+.nav-link,
+.table {
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
 
 /* ═══ 1. القواعد الأساسية للموبايل ═══ */
 @media (max-width: 768px) {

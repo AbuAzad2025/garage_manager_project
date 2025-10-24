@@ -1,0 +1,68 @@
+{
+  "name": "نظام إدارة الكراج - المهندس الفلسطيني",
+  "short_name": "كراج ازاد",
+  "description": "نظام إدارة شامل للكراج والمعدات الثقيلة",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#667eea",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "/static/img/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/img/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/static/img/screenshot1.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ],
+  "categories": ["business", "productivity", "utilities"],
+  "shortcuts": [
+    {
+      "name": "المبيعات",
+      "short_name": "مبيعات",
+      "description": "إدارة فواتير المبيعات",
+      "url": "/sales",
+      "icons": [{ "src": "/static/img/logo.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "العملاء",
+      "short_name": "عملاء",
+      "description": "إدارة العملاء",
+      "url": "/customers",
+      "icons": [{ "src": "/static/img/logo.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "المخازن",
+      "short_name": "مخازن",
+      "description": "إدارة المستودعات",
+      "url": "/warehouses",
+      "icons": [{ "src": "/static/img/logo.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "الدفعات",
+      "short_name": "دفعات",
+      "description": "إدارة سندات الدفع",
+      "url": "/payments",
+      "icons": [{ "src": "/static/img/logo.png", "sizes": "96x96" }]
+    }
+  ],
+  "prefer_related_applications": false
+}
+

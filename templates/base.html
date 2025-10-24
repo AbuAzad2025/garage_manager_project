@@ -18,13 +18,18 @@
   <meta name="author" content="{{ system_settings.company_name or 'شركة ازاد للأنظمة الذكية' }}">
   <meta name="csrf-token" content="{{ csrf_token() }}">
   
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  
   <!-- Favicon -->
   {% if system_settings.custom_favicon %}
   <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename=system_settings.custom_favicon.replace('static/', '')) }}">
   <link rel="apple-touch-icon" href="{{ url_for('static', filename=system_settings.custom_favicon.replace('static/', '')) }}">
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename=system_settings.custom_favicon.replace('static/', '')) }}">
   {% else %}
   <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
-  <link rel="apple-touch-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/logo.png') }}">
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='img/logo.png') }}">
   {% endif %}
   
   <!-- Fonts -->
@@ -871,7 +876,59 @@ window.addEventListener('resize', function() {
     e.preventDefault();
     deferredPrompt = e;
     console.log('📱 يمكن إضافة التطبيق للشاشة الرئيسية');
+    
+    // عرض زر تثبيت مخصص (اختياري)
+    const installBtn = document.getElementById('install-app-btn');
+    if (installBtn) {
+      installBtn.style.display = 'block';
+      installBtn.addEventListener('click', async () => {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          console.log(`📱 نتيجة التثبيت: ${outcome}`);
+          deferredPrompt = null;
+          installBtn.style.display = 'none';
+        }
+      });
+    }
   });
+  
+  // تسجيل Service Worker
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/static/service-worker.js')
+        .then((registration) => {
+          console.log('✅ Service Worker registered:', registration.scope);
+          
+          // التحقق من التحديثات
+          registration.addEventListener('updatefound', () => {
+            const newWorker = registration.installing;
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                console.log('🔄 تحديث جديد متاح');
+                // يمكن عرض إشعار للمستخدم
+                if (confirm('يتوفر تحديث جديد. هل تريد تحديث الصفحة؟')) {
+                  newWorker.postMessage({ type: 'SKIP_WAITING' });
+                  window.location.reload();
+                }
+              }
+            });
+          });
+        })
+        .catch((error) => {
+          console.error('❌ Service Worker registration failed:', error);
+        });
+    });
+    
+    // إعادة تحميل الصفحة عند تفعيل SW جديد
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
+    });
+  }
   
 })();
 </script>
