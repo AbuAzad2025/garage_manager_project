@@ -20,6 +20,7 @@
     <div class="card-body">
 
       <form id="customer-adv-search" class="row g-3 mb-4" method="get" action="{{ url_for('customers_bp.advanced_filter') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <!-- الرصيد -->
         <div class="col-md-3">
           <label class="form-label fw-bold">رصيد أدنى</label>

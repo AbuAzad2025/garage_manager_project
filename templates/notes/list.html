@@ -74,6 +74,7 @@
 <div class="card mb-4">
   <div class="card-body">
     <form id="filtersForm" class="row g-3" method="get">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <div class="col-md-4">
         <label class="form-label">نوع الكيان</label>
         <select name="entity_type" class="form-select">

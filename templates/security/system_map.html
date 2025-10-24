@@ -41,6 +41,7 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
                     <form method="POST" class="d-inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <input type="hidden" name="action" value="rebuild">
                         <button type="submit" class="btn btn-primary btn-lg">
                             <i class="fas fa-sync-alt"></i> إعادة بناء الخريطة

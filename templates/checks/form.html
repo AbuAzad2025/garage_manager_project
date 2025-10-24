@@ -27,6 +27,7 @@
   <section class="content">
     <div class="container-fluid">
       <form method="POST" id="checkForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <div class="row">
           <!-- القسم الأول: معلومات الشيك الأساسية -->
           <div class="col-md-6">

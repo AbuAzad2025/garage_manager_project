@@ -95,6 +95,7 @@
 <div class="card mb-4 no-print">
   <div class="card-body">
     <form id="inv-form" method="get" class="row g-3 align-items-end" onsubmit="return onSubmitInvForm(event)">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <div class="col-md-5">
         <label class="form-label">اختر المستودعات</label>
         <select name="warehouse_ids" multiple class="form-select" size="6">

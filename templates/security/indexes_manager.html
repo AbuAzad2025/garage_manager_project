@@ -312,6 +312,7 @@
             </div>
             <div class="modal-body">
                 <form id="createIndexForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <input type="hidden" id="createTableName" name="table">
                     
                     <div class="form-group">

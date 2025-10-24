@@ -82,6 +82,7 @@
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
             <form method="GET" class="row g-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="col-md-4">
                     <label for="start" class="form-label">من تاريخ</label>
                     <input type="date" class="form-control" id="start" name="start" value="{{ start_date }}">

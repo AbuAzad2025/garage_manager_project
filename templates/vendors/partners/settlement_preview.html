@@ -155,6 +155,7 @@
             <div class="card mb-3">
                 <div class="card-body">
                     <form method="GET" action="{{ url_for('partner_settlements_bp.partner_settlement', partner_id=partner.id) }}" class="row g-3 align-items-end">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <div class="col-md-4">
                             <label for="date_from" class="form-label"><i class="fas fa-calendar-alt"></i> من تاريخ</label>
                             <input type="date" class="form-control" id="date_from" name="date_from" 

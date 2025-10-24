@@ -17,6 +17,7 @@
 </div>
 
 <form id="shipmentsFilters" class="row g-2 mb-3" autocomplete="off" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
   <div class="col-md-2">
     <label for="fStatus" class="form-label">الحالة</label>
     <select id="fStatus" class="form-select" name="status">

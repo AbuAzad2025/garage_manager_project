@@ -83,6 +83,7 @@
                 <div class="card-body">
                     <!-- فلاتر -->
                     <form method="GET" class="row g-3 mb-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <div class="col-md-3">
                             <label for="status" class="form-label">الحالة</label>
                             <select class="form-select" id="status" name="status">

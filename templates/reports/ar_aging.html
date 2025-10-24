@@ -18,6 +18,7 @@
         <i class="fas fa-print"></i> طباعة
       </button>
       <form class="row g-2 align-items-end" method="get">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <div class="col-auto">
         <label class="form-label">{{ FIELD_LABELS.get("start_date", "من تاريخ") }}</label>
         <input type="date" name="start" value="{{ start or '' }}" class="form-control form-control-sm">
