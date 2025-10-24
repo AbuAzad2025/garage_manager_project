@@ -12,6 +12,60 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/warehouses.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2/css/select2.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
+  <style>
+    /* إصلاح ألوان أزرار navbar المستودعات */
+    .warehouse-nav-buttons .btn {
+      font-weight: 600 !important;
+      border: 1px solid rgba(0,0,0,0.1) !important;
+    }
+    
+    .warehouse-nav-buttons .btn-primary {
+      background-color: #007bff !important;
+      color: #fff !important;
+    }
+    
+    .warehouse-nav-buttons .btn-info {
+      background-color: #17a2b8 !important;
+      color: #fff !important;
+    }
+    
+    .warehouse-nav-buttons .btn-dark {
+      background-color: #343a40 !important;
+      color: #fff !important;
+    }
+    
+    .warehouse-nav-buttons .btn-success {
+      background-color: #28a745 !important;
+      color: #fff !important;
+    }
+    
+    .warehouse-nav-buttons .btn-outline-success {
+      background-color: #fff !important;
+      color: #28a745 !important;
+      border-color: #28a745 !important;
+    }
+    
+    .warehouse-nav-buttons .btn-outline-success:hover {
+      background-color: #28a745 !important;
+      color: #fff !important;
+    }
+    
+    .warehouse-nav-buttons .btn-warning {
+      background-color: #ffc107 !important;
+      color: #212529 !important;
+    }
+    
+    .warehouse-nav-buttons .btn-outline-warning {
+      background-color: #fff !important;
+      color: #ffc107 !important;
+      border-color: #ffc107 !important;
+    }
+    
+    .warehouse-nav-buttons .btn-outline-warning:hover {
+      background-color: #ffc107 !important;
+      color: #212529 !important;
+    }
+  </style>
   {% block dt_styles %}{% endblock %}
 {% endblock %}
 
