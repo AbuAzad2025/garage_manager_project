@@ -2290,7 +2290,10 @@ class ShipmentPaymentForm(PaymentDetailsMixin, FlaskForm):
         m = (self.method.data or '').strip().upper()
         last4 = None
         if m == 'CARD':
-            last4 = self._validate_card_payload(self.card_number.data, self.card_holder.data, self.card_expiry.data)
+            try:
+                last4 = self._validate_card_payload(self.card_number.data, self.card_holder.data, self.card_expiry.data)
+            except ValidationError:
+                last4 = None
         details = self.build_payment_details_json(
             m,
             check_number=self.check_number.data,
@@ -2503,7 +2506,10 @@ class QuickExpenseForm(PaymentDetailsMixin, FlaskForm):
         m = (self.payment_method.data or '').strip().upper()
         last4 = None
         if m == 'CARD':
-            last4 = self._validate_card_payload(self.card_number.data, self.card_holder.data, self.card_expiry.data)
+            try:
+                last4 = self._validate_card_payload(self.card_number.data, self.card_holder.data, self.card_expiry.data)
+            except ValidationError:
+                last4 = None
         return self.build_payment_details_json(
             m,
             check_number=self.check_number.data,
@@ -2647,7 +2653,10 @@ class ExpenseForm(PaymentDetailsMixin, FlaskForm):
         m = (self.payment_method.data or '').strip().upper()
         last4 = None
         if m == 'CARD':
-            last4 = self._validate_card_payload(self.card_number.data, self.card_holder.data, self.card_expiry.data)
+            try:
+                last4 = self._validate_card_payload(self.card_number.data, self.card_holder.data, self.card_expiry.data)
+            except ValidationError:
+                last4 = None
         return self.build_payment_details_json(
             m,
             check_number=self.check_number.data,
