@@ -109,20 +109,27 @@
       {{ form.hidden_tag() }}
       
       <!-- Legend -->
-      <div class="alert alert-info">
-        <h5><i class="fas fa-question-circle"></i> دليل الحقول:</h5>
-        <div class="row">
+      <div class="alert alert-primary">
+        <h5><i class="fas fa-lightbulb"></i> كيفية الاستخدام:</h5>
+        <ol class="mb-2">
+          <li><strong>اختر رقم الفاتورة (البيع)</strong> الذي تريد إرجاع منتجات منه</li>
+          <li>اضغط زر <strong>"تحميل من البيع"</strong> لجلب جميع المنتجات تلقائياً</li>
+          <li>عدّل الكميات حسب ما تم إرجاعه فعلياً</li>
+          <li>اكتب سبب الإرجاع</li>
+          <li>احفظ المرتجع</li>
+        </ol>
+        <div class="row mt-3">
           <div class="col-md-4">
             <strong class="text-danger"><i class="fas fa-exclamation-circle"></i> إجباري:</strong>
-            <small>رقم البيع، العميل، السبب، العملة، المنتج، الكمية، السعر</small>
+            <small>رقم الفاتورة، العميل، السبب، المنتج، الكمية، السعر</small>
           </div>
           <div class="col-md-4">
             <strong class="text-muted"><i class="fas fa-info-circle"></i> اختياري:</strong>
-            <small>المخزن، الملاحظات، ملاحظات المنتج</small>
+            <small>المخزن، الملاحظات</small>
           </div>
           <div class="col-md-4">
-            <strong class="text-success"><i class="fas fa-calculator"></i> تلقائي:</strong>
-            <small>الإجمالي (يُحسب آلياً)</small>
+            <strong class="text-success"><i class="fas fa-magic"></i> تلقائي:</strong>
+            <small>الإجمالي، بيانات العميل والمخزن</small>
           </div>
         </div>
       </div>
@@ -137,7 +144,9 @@
           <div class="row">
             <div class="col-md-6">
               <div class="form-group">
-                {{ form.sale_id.label(class="form-label required") }}
+                <label class="form-label required">
+                  <i class="fas fa-file-invoice"></i> رقم الفاتورة (البيع الأصلي)
+                </label>
                 {{ form.sale_id(class="form-control", id="sale_id") }}
                 {% if form.sale_id.errors %}
                 <div class="invalid-feedback d-block">
@@ -145,8 +154,9 @@
                 </div>
                 {% endif %}
                 <small class="form-text text-info">
-                  <i class="fas fa-info-circle"></i> <strong>إجباري:</strong> اختر البيع الأصلي الذي تريد إرجاعه
-                  <br>💡 يمكنك تحميل جميع البنود من البيع تلقائياً
+                  <i class="fas fa-info-circle"></i> <strong>إجباري:</strong> اختر الفاتورة التي تريد إرجاع منتجات منها
+                  <br>💡 بعد الاختيار، اضغط زر "تحميل من البيع" لجلب جميع المنتجات تلقائياً
+                  <br>✨ <strong>نصيحة:</strong> البيع = الفاتورة الأصلية التي تم بيع المنتجات فيها
                 </small>
               </div>
             </div>
@@ -235,12 +245,20 @@
         </div>
         <div class="card-body">
           
+          <div class="alert alert-success mb-3">
+            <h6><i class="fas fa-magic"></i> <strong>الطريقة الأسهل (موصى بها):</strong></h6>
+            <p class="mb-2">
+              اضغط زر <strong class="text-primary">"تحميل من البيع" ⬆️</strong> (في الأعلى) لجلب جميع المنتجات من الفاتورة الأصلية تلقائياً!
+            </p>
+            <small>💡 سيتم تعبئة جميع المنتجات، الكميات، والأسعار من الفاتورة - ثم عدّل ما تحتاج</small>
+          </div>
+          
           <div class="alert alert-warning mb-3">
-            <i class="fas fa-info-circle"></i> <strong>مهم:</strong>
+            <i class="fas fa-info-circle"></i> <strong>ملاحظات:</strong>
             <ul class="mb-0 mt-2">
               <li>يجب إضافة <strong>منتج واحد على الأقل</strong></li>
-              <li>يمكنك إضافة عدة منتجات بالضغط على "إضافة منتج"</li>
-              <li>إذا اخترت بيع أصلي، اضغط "تحميل من البيع" لجلب جميع البنود تلقائياً</li>
+              <li>المنتجات يُفضل أن تكون من <strong>الفاتورة الأصلية</strong> (استخدم "تحميل من البيع")</li>
+              <li>يمكنك إضافة منتجات يدوياً إذا لزم الأمر</li>
               <li>الإجمالي يُحسب <strong>تلقائياً</strong> (الكمية × السعر)</li>
             </ul>
           </div>
@@ -463,10 +481,14 @@ document.getElementById('sale_id').addEventListener('change', function() {
       if (data.success) {
         // عرض معلومات البيع
         document.getElementById('sale-info-content').innerHTML = `
-          <strong>العميل:</strong> سيتم التحديث تلقائياً<br>
-          <strong>المخزن:</strong> ${data.warehouse_id || 'غير محدد'}<br>
-          <strong>العملة:</strong> ${data.currency}<br>
-          <strong>عدد الأصناف:</strong> ${data.items.length}
+          <strong>📋 تفاصيل الفاتورة الأصلية:</strong><br>
+          <strong>👤 العميل:</strong> سيتم التحديث تلقائياً<br>
+          <strong>🏪 المخزن:</strong> ${data.warehouse_id || 'غير محدد'}<br>
+          <strong>💰 العملة:</strong> ${data.currency}<br>
+          <strong>📦 عدد المنتجات في الفاتورة:</strong> ${data.items.length}<br>
+          <div class="mt-2 p-2 bg-success text-white rounded">
+            <strong>💡 نصيحة:</strong> اضغط زر "تحميل من البيع" لجلب جميع المنتجات تلقائياً!
+          </div>
         `;
         document.getElementById('sale-info-alert').style.display = 'block';
         
@@ -479,6 +501,12 @@ document.getElementById('sale_id').addEventListener('change', function() {
         // إظهار زر التحميل
         document.getElementById('loadFromSaleBtn').style.display = 'inline-block';
         document.getElementById('loadFromSaleBtn').onclick = function() {
+          if (document.querySelectorAll('.line-item').length > 0) {
+            if (!confirm('سيتم حذف المنتجات الحالية وتحميل منتجات الفاتورة. هل تريد المتابعة؟')) {
+              return;
+            }
+          }
+          
           // حذف السطور الحالية
           document.getElementById('lines-container').innerHTML = '';
           lineIndex = 0;
@@ -492,6 +520,9 @@ document.getElementById('sale_id').addEventListener('change', function() {
               unit_price: item.unit_price
             });
           });
+          
+          // رسالة نجاح
+          alert(`✅ تم تحميل ${data.items.length} منتج من الفاتورة بنجاح!\n\nيمكنك الآن تعديل الكميات حسب ما تم إرجاعه فعلياً.`);
         };
       }
     })
