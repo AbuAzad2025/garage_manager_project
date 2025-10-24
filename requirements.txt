@@ -1,3 +1,4 @@
+aiodataloader==0.4.2
 aiohappyeyeballs==2.6.1
 aiohttp==3.12.15
 aiohttp-retry==2.9.1
@@ -54,10 +55,9 @@ Flask-WTF==1.2.1
 fonttools==4.55.0
 forex-python==1.0.0
 frozenlist==1.7.0
-graphene==2.1.9
-graphene-sqlalchemy==2.3.0
-graphql-core==2.3.2
-graphql-relay==2.0.1
+graphene==3.4.3
+graphql-core==3.2.6
+graphql-relay==3.2.0
 greenlet==3.2.4
 gunicorn==21.2.0
 h11==0.16.0
