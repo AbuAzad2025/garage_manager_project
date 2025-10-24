@@ -40,8 +40,8 @@
   col.col-wh  { width: 10%; }
   col.col-qty { width: 8%;  }
   col.col-unit{ width: 14%; }
-  col.col-disc{ width: 8%;  }
-  col.col-tax { width: 8%;  }
+  col.col-receiver{ width: 8%;  }
+  col.col-notes { width: 8%;  }
   col.col-sum { width: 10%; }
 
   .kv th{width:38mm;background:#f8f9fa;color:#555;font-weight:700;white-space:nowrap}
@@ -88,7 +88,7 @@
     <table>
       <colgroup>
         <col class="col-idx"><col class="col-item"><col class="col-wh"><col class="col-qty">
-        <col class="col-unit"><col class="col-disc"><col class="col-tax"><col class="col-sum">
+        <col class="col-unit"><col class="col-receiver"><col class="col-notes"><col class="col-sum">
       </colgroup>
       <thead>
         <tr>
@@ -97,8 +97,8 @@
           <th>المخزن</th>
           <th>الكمية</th>
           <th>سعر الوحدة</th>
-          <th>خصم (%)</th>
-          <th>ضريبة (%)</th>
+          <th>المستلم</th>
+          <th>ملاحظات</th>
           <th>الإجمالي</th>
         </tr>
       </thead>
@@ -107,15 +107,12 @@
           {% set ln = item.obj %}
           <tr>
             <td class="num">{{ loop.index }}</td>
-            <td class="wrap">
-              {{ ln.product.name if ln.product else '—' }}
-              {% if ln.note %}<div class="text-muted" style="font-size:11px">{{ ln.note }}</div>{% endif %}
-            </td>
+            <td class="wrap">{{ ln.product.name if ln.product else '—' }}</td>
             <td style="text-align:center">{{ ln.warehouse.name if ln.warehouse else '—' }}</td>
             <td class="num">{{ ln.quantity }}</td>
             <td class="num">{{ money_fmt(ln.unit_price) }} {{ sale.currency }}</td>
-            <td class="num">{{ ln.discount_rate or 0 }}</td>
-            <td class="num">{{ ln.tax_rate or 0 }}</td>
+            <td style="font-size:11px">{{ ln.line_receiver or '—' }}</td>
+            <td class="wrap" style="font-size:11px">{{ ln.note or '—' }}</td>
             <td class="num">{{ money_fmt(item.line_total) }} {{ sale.currency }}</td>
           </tr>
         {% endfor %}
