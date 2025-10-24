@@ -1,0 +1,226 @@
+═══════════════════════════════════════════════════════════════
+   ملخص التحديثات - Deployment Summary
+═══════════════════════════════════════════════════════════════
+
+📅 التاريخ: 2025-10-24
+🎯 المهمة: تحسينات شاملة على نظام الفواتير والمدفوعات
+
+═══════════════════════════════════════════════════════════════
+   التحديثات المطبقة محلياً (تم Push إلى GitHub):
+═══════════════════════════════════════════════════════════════
+
+1️⃣ إضافة حقول جديدة لبنود الفاتورة (Sale Lines):
+───────────────────────────────────────────────────────────────
+📝 models.py:
+   • line_receiver VARCHAR(200) - مستلم البضاعة لكل بند
+   • note VARCHAR(200) - ملاحظات البند (كان موجوداً)
+
+📝 forms.py (SaleLineForm):
+   • line_receiver - حقل اختياري
+   • note - حقل اختياري
+
+📝 routes/sales.py:
+   • حفظ line_receiver في _attach_lines
+   • حفظ line_receiver في _resolve_lines_from_form
+   • تحميل line_receiver عند تعديل الفاتورة
+
+📝 templates/sales/form.html:
+   • Grid جديد: 7 أعمدة بدلاً من 5
+   • Layout: [#مستودع | منتج | كمية | سعر | مستلم | ملاحظات | إجراءات]
+   • عرض رقم المستودع (#ID) بدلاً من الاسم
+   • تصغير خط المنتج (0.85rem)
+   • تصغير جميع النصوص (0.75rem)
+
+📝 templates/sales/detail.html:
+   • استبدال أعمدة "خصم" و "ضريبة" بـ "المستلم" و "ملاحظات"
+   • عرض receiver_name في معلومات الفاتورة
+
+📝 static/js/sales.js:
+   • عرض رقم المستودع (#ID) بعد الاختيار
+   • تحسين Select2: الاحتفاظ بالقيم عند إعادة التهيئة
+   • إصلاح التكرار عند إضافة بنود جديدة
+
+
+2️⃣ إضافة حقل مستلم البضاعة للفاتورة (Sale):
+───────────────────────────────────────────────────────────────
+📝 models.py:
+   • receiver_name VARCHAR(200)
+
+📝 forms.py (SaleForm):
+   • receiver_name - حقل اختياري
+
+📝 routes/sales.py:
+   • حفظ receiver_name بشكل آمن (hasattr check)
+
+📝 templates/sales/form.html:
+   • حقل receiver_name في الفورم
+
+📝 templates/sales/detail.html:
+   • عرض receiver_name في معلومات الفاتورة
+
+
+3️⃣ تبسيط الفاتورة المبسطة (Simple Invoice):
+───────────────────────────────────────────────────────────────
+📝 templates/sales/receipt_simple.html:
+   • الهيدر: التاريخ فقط
+   • حذف: اسم الشركة، معلومات العميل، كل الهيدرات
+
+
+4️⃣ إصلاح نظام المدفوعات (Payments):
+───────────────────────────────────────────────────────────────
+📝 forms.py (PaymentDetailsMixin):
+   • جعل حقول البطاقة اختيارية بالكامل
+   • card_number اختياري
+   • card_holder اختياري
+   • card_expiry اختياري
+   • التحقق فقط إذا أدخل المستخدم بيانات
+
+
+5️⃣ إصلاحات UI/UX:
+───────────────────────────────────────────────────────────────
+📝 templates/sales/form.html:
+   • تكبير النصوص أولاً ثم تصغيرها (0.75rem نهائياً)
+   • تحسين وضوح النصوص (color: #000, font-weight)
+
+📝 static/js/sales.js:
+   • إصلاح Select2 للصفوف الجديدة
+   • منع التكرار عند النسخ
+
+
+6️⃣ إصلاحات Backend:
+───────────────────────────────────────────────────────────────
+📝 routes/sales.py:
+   • إزالة استخدام form.status (غير موجود)
+   • الحالة دائماً CONFIRMED
+   • حماية receiver_name للتوافق مع PythonAnywhere
+
+
+═══════════════════════════════════════════════════════════════
+   التهجير المطلوب على PythonAnywhere:
+═══════════════════════════════════════════════════════════════
+
+cd ~/garage_manager_project
+git pull origin main
+
+
+# 1. إضافة line_receiver إلى sale_lines
+python3.10 << 'EOF'
+from app import create_app, db
+from sqlalchemy import text
+
+app = create_app()
+with app.app_context():
+    try:
+        result = db.session.execute(text("PRAGMA table_info(sale_lines)")).fetchall()
+        columns = [row[1] for row in result]
+        
+        if 'line_receiver' not in columns:
+            db.session.execute(text(
+                "ALTER TABLE sale_lines ADD COLUMN line_receiver VARCHAR(200)"
+            ))
+            db.session.commit()
+            print('line_receiver added')
+        else:
+            print('line_receiver exists')
+            
+    except Exception as e:
+        print(f'Error: {e}')
+        db.session.rollback()
+EOF
+
+
+# 2. إضافة receiver_name إلى sales (قد يكون موجوداً)
+python3.10 << 'EOF'
+from app import create_app, db
+from sqlalchemy import text
+
+app = create_app()
+with app.app_context():
+    try:
+        result = db.session.execute(text("PRAGMA table_info(sales)")).fetchall()
+        columns = [row[1] for row in result]
+        
+        if 'receiver_name' not in columns:
+            db.session.execute(text(
+                "ALTER TABLE sales ADD COLUMN receiver_name VARCHAR(200)"
+            ))
+            db.session.commit()
+            print('receiver_name added')
+        else:
+            print('receiver_name exists')
+            
+    except Exception as e:
+        print(f'Error: {e}')
+        db.session.rollback()
+EOF
+
+
+# 3. إعادة تحميل التطبيق
+touch /var/www/palkaraj-azad_pythonanywhere_com_wsgi.py
+
+
+# 4. التحقق
+python3.10 << 'EOF'
+from app import create_app, db
+from sqlalchemy import text
+
+app = create_app()
+with app.app_context():
+    for table in ['sales', 'sale_lines']:
+        result = db.session.execute(text(f"PRAGMA table_info({table})")).fetchall()
+        print(f"\nTable: {table}")
+        for row in result:
+            print(f"  {row[1]}")
+EOF
+
+
+═══════════════════════════════════════════════════════════════
+   الملفات المعدّلة (تم رفعها):
+═══════════════════════════════════════════════════════════════
+
+✅ models.py
+✅ forms.py
+✅ routes/sales.py
+✅ templates/sales/form.html
+✅ templates/sales/detail.html
+✅ templates/sales/receipt_simple.html
+✅ static/js/sales.js
+✅ PYTHONANYWHERE_SALE_LINES_MIGRATION.txt (ملف التهجير)
+
+
+═══════════════════════════════════════════════════════════════
+   الحقول الجديدة في قاعدة البيانات:
+═══════════════════════════════════════════════════════════════
+
+📊 جدول sales:
+   • receiver_name VARCHAR(200) - اسم مستلم البضاعة للفاتورة
+
+📊 جدول sale_lines:
+   • line_receiver VARCHAR(200) - مستلم البضاعة لكل بند
+
+
+═══════════════════════════════════════════════════════════════
+   ملخص الميزات الجديدة:
+═══════════════════════════════════════════════════════════════
+
+✅ Grid محسّن: 7 أعمدة
+✅ رقم المستودع (#ID) بدلاً من الاسم
+✅ نصوص مصغّرة (0.75rem) لاحتواء أكبر للبيانات
+✅ حقل مستلم البضاعة (للفاتورة + لكل بند)
+✅ حقل ملاحظات لكل بند
+✅ حقول البطاقة اختيارية (رقم + حامل + تاريخ)
+✅ Simple Invoice مبسّطة (التاريخ فقط)
+✅ إصلاح Select2: عدم التكرار + الاحتفاظ بالقيم
+
+
+═══════════════════════════════════════════════════════════════
+   خطوات التحديث السريعة:
+═══════════════════════════════════════════════════════════════
+
+git pull origin main
+[run migration commands above]
+touch /var/www/palkaraj-azad_pythonanywhere_com_wsgi.py
+
+
+═══════════════════════════════════════════════════════════════
+

@@ -60,8 +60,8 @@
               <th>المخزن</th>
               <th>الكمية</th>
               <th>سعر الوحدة</th>
-              <th>خصم (%)</th>
-              <th>ضريبة (%)</th>
+              <th>المستلم</th>
+              <th>ملاحظات</th>
               <th>الإجمالي</th>
             </tr>
           </thead>
@@ -74,15 +74,15 @@
                 <td>{{ line.warehouse_name }}</td>
                 <td>{{ line.quantity }}</td>
                 <td>{{ num(line.unit_price) }} {{ sale.currency }}</td>
-                <td>{{ line.discount_rate or 0 }}</td>
-                <td>{{ line.tax_rate or 0 }}</td>
+                <td>{{ line.line_receiver or '—' }}</td>
+                <td>{{ line.note or '—' }}</td>
                 <td>{{ line.line_total_fmt }} {{ sale.currency }}</td>
               </tr>
             {% endfor %}
           </tbody>
           <tfoot>
             <tr>
-              <td colspan="7" class="text-right">مجموع البنود (شامل الضريبة لكل بند):</td>
+              <td colspan="7" class="text-right">مجموع البنود:</td>
               <td>{{ num(ns.lines_sum) }} {{ sale.currency }}</td>
             </tr>
 
