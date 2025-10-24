@@ -38,6 +38,9 @@
         <div class="col-md-4"><strong>التاريخ:</strong> {{ sale.date_iso }}</div>
         <div class="col-md-4"><strong>العميل:</strong> {{ sale.customer_name }}</div>
         <div class="col-md-4"><strong>البائع:</strong> {{ sale.seller_name }}</div>
+        {% if sale.receiver_name %}
+        <div class="col-md-4"><strong><i class="fas fa-user-check mr-1"></i> مستلم البضاعة:</strong> {{ sale.receiver_name }}</div>
+        {% endif %}
         <div class="col-md-4"><strong>نسبة الضريبة:</strong> {{ sale.tax_rate or 0 }}%</div>
         <div class="col-md-4"><strong>تكلفة الشحن:</strong> {{ num(sale.shipping_cost) }} {{ sale.currency }}</div>
       </div>
