@@ -1,0 +1,115 @@
+═══════════════════════════════════════════════════════════════
+   التحديث النهائي - PythonAnywhere Deployment
+═══════════════════════════════════════════════════════════════
+
+📅 التاريخ: 2025-10-24
+🎯 المهمة: تحسينات شاملة على نظام الفواتير
+
+═══════════════════════════════════════════════════════════════
+   خطوات التطبيق (نفذها بالترتيب):
+═══════════════════════════════════════════════════════════════
+
+1️⃣ سحب آخر التحديثات:
+────────────────────────────────────────────────────────────────
+cd ~/garage_manager_project
+git pull origin main
+
+
+2️⃣ التهجير - إضافة line_receiver:
+────────────────────────────────────────────────────────────────
+python3.10 << 'EOF'
+from app import create_app, db
+from sqlalchemy import text
+app = create_app()
+with app.app_context():
+    result = db.session.execute(text("PRAGMA table_info(sale_lines)")).fetchall()
+    columns = [row[1] for row in result]
+    if 'line_receiver' not in columns:
+        db.session.execute(text("ALTER TABLE sale_lines ADD COLUMN line_receiver VARCHAR(200)"))
+        db.session.commit()
+        print('Done')
+    else:
+        print('Exists')
+EOF
+
+
+3️⃣ التهجير - إضافة receiver_name:
+────────────────────────────────────────────────────────────────
+python3.10 << 'EOF'
+from app import create_app, db
+from sqlalchemy import text
+app = create_app()
+with app.app_context():
+    result = db.session.execute(text("PRAGMA table_info(sales)")).fetchall()
+    columns = [row[1] for row in result]
+    if 'receiver_name' not in columns:
+        db.session.execute(text("ALTER TABLE sales ADD COLUMN receiver_name VARCHAR(200)"))
+        db.session.commit()
+        print('Done')
+    else:
+        print('Exists')
+EOF
+
+
+4️⃣ إعادة تحميل التطبيق:
+────────────────────────────────────────────────────────────────
+touch /var/www/palkaraj-azad_pythonanywhere_com_wsgi.py
+
+
+═══════════════════════════════════════════════════════════════
+   الميزات الجديدة:
+═══════════════════════════════════════════════════════════════
+
+✅ Grid محسّن: 7 أعمدة [#مستودع | منتج | كمية | سعر | مستلم | ملاحظات | إجراءات]
+✅ المستودع: يعرض #ID بدلاً من الاسم الكامل
+✅ نصوص مصغّرة: 0.75rem للوضوح واحتواء أكبر للبيانات
+✅ حقل مستلم البضاعة: للفاتورة كاملة + لكل بند
+✅ حقل ملاحظات: لكل بند
+✅ حقول البطاقة: اختيارية تماماً (رقم + حامل + تاريخ)
+✅ زر التحويل: بين فاتورة كاملة ومبسطة
+✅ فاتورة مبسطة: التاريخ فقط في الهيدر
+✅ طباعة A4: ضغط تلقائي مهما طالت الفاتورة
+✅ تفاصيل/فاتورة: عرض المستلم والملاحظات بدلاً من خصم/ضريبة
+✅ Select2: عدم التكرار + الاحتفاظ بالقيم عند التعديل
+✅ زر حذف العميل: موجود في صفحة تفاصيل العميل ✅
+
+
+═══════════════════════════════════════════════════════════════
+   الملفات المعدّلة (9 ملفات):
+═══════════════════════════════════════════════════════════════
+
+📝 models.py           → line_receiver + receiver_name
+📝 forms.py            → حقول جديدة + بطاقة اختيارية
+📝 routes/sales.py     → حفظ/تحميل + إصلاح form.status
+📝 templates/sales/form.html         → Grid 7 + 0.75rem + #ID
+📝 templates/sales/detail.html       → مستلم/ملاحظات + زر تحويل
+📝 templates/sales/receipt.html      → مستلم/ملاحظات + A4
+📝 templates/sales/receipt_simple.html → مستلم/ملاحظات + A4 + التاريخ فقط
+📝 static/js/sales.js  → #ID مستودع + Select2 fixes
+
+
+═══════════════════════════════════════════════════════════════
+   التحسينات الرئيسية:
+═══════════════════════════════════════════════════════════════
+
+🎨 تحسينات UI:
+   • نصوص مصغّرة (0.75rem) لاحتواء أكبر
+   • Grid أوسع للكمية والسعر (1.2fr لكل منهما)
+   • خط المنتج أصغر (0.85rem) لعرض الاسم كاملاً
+   • طباعة مضغوطة: 9-10px للفاتورة، 8-9px للمبسطة
+
+🔧 تحسينات Backend:
+   • إصلاح form.status (غير موجود)
+   • حماية receiver_name للتوافق
+   • حفظ line_receiver في كل الأماكن
+   • حقول البطاقة اختيارية في build_payment
+
+📊 تحسينات UX:
+   • زر تحويل بين كاملة/مبسطة
+   • رقم المستودع (#ID) للاختصار
+   • عدم تكرار بنود Select2
+   • الاحتفاظ بالقيم عند التعديل
+
+
+═══════════════════════════════════════════════════════════════
+
