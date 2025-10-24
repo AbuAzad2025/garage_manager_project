@@ -49,26 +49,48 @@
 
   const deleteForm = qs("#deleteForm");
   const modalEl = qs("#deleteModal");
-  const modal = (window.bootstrap && modalEl) ? new bootstrap.Modal(modalEl) : null;
   const confirmBtn = qs("#confirmDelete");
+  
+  // فتح الـ Modal عند الضغط على زر الحذف
   qsa(".delete-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       const urlAttr = btn.getAttribute("data-delete-url");
       const idAttr = btn.getAttribute("data-id");
       const url = urlAttr || (idAttr ? `/customers/${idAttr}/delete` : "");
+      
+      console.log('Delete URL:', url);
+      
       if (deleteForm && url) {
         deleteForm.setAttribute("action", url);
-        if (modal) modal.show();
+        
+        // فتح Modal باستخدام Bootstrap أو jQuery
+        if (window.bootstrap && modalEl) {
+          const modal = new bootstrap.Modal(modalEl);
+          modal.show();
+        } else if (window.jQuery && modalEl) {
+          jQuery(modalEl).modal('show');
+        } else {
+          console.error('Bootstrap/jQuery not loaded');
+        }
       }
     });
   });
-  if (confirmBtn) {
+  
+  // تأكيد الحذف
+  if (confirmBtn && deleteForm) {
     confirmBtn.addEventListener("click", () => {
-      if (!deleteForm) return;
       const action = deleteForm.getAttribute("action") || "";
-      if (!action) return;
+      console.log('Submitting to:', action);
+      
+      if (!action) {
+        alert('خطأ: لا يوجد عنوان للحذف');
+        return;
+      }
+      
       confirmBtn.disabled = true;
-      try { deleteForm.submit(); } finally { setTimeout(() => { confirmBtn.disabled = false; }, 2000); }
+      confirmBtn.textContent = 'جاري الحذف...';
+      
+      deleteForm.submit();
     });
   }
 
