@@ -124,18 +124,8 @@ def create_app(config_object=Config) -> Flask:
     app.config["TEMPLATES_AUTO_RELOAD"] = True
     app.jinja_env.auto_reload = True
     
-    # ========== حد أقصى لحجم الملفات المرفوعة (16 MB) ==========
-    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB
-    # print("تم تعيين الحد الأقصى للملفات: 16 MB")
+    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
-    # ========== Flask-Compress للضغط التلقائي ==========
-    # تعطيل مؤقتاً لحل مشكلة MemoryError
-    # try:
-    #     from flask_compress import Compress
-    #     Compress(app)
-    #     print("✅ Flask-Compress: تم تفعيل ضغط المحتوى")
-    # except ImportError:
-    #     print("⚠️  Flask-Compress غير مثبت")
 
     ensure_runtime_dirs(config_object)
     assert_production_sanity(config_object)
@@ -790,9 +780,8 @@ def create_app(config_object=Config) -> Flask:
                     db.session.add(currency)
                 
                 db.session.commit()
-                print(f"[INFO] Added {len(CURRENCY_CHOICES)} default currencies")
         except Exception as e:
-            print(f"[WARNING] Could not seed default currencies: {e}")
+            pass
 
     return app
 

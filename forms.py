@@ -207,7 +207,6 @@ def enum_choices(enum_cls, labels_map=None, include_blank=True, blank="— اخ�
             else:
                 data = []
     except Exception as e:
-        print(f"خطأ في enum_choices: {e}")
         data = []
     return ([("", blank)] + data) if include_blank else data
 

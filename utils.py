@@ -808,7 +808,7 @@ def clear_cache_pattern(pattern):
     try:
         cache.delete_memoized(pattern)
     except Exception as e:
-        print(f"خطأ في مسح التخزين المؤقت: {e}")
+        pass
 
 def optimize_database_queries():
     """تحسين استعلامات قاعدة البيانات"""
@@ -823,8 +823,8 @@ def optimize_database_queries():
     @event.listens_for(Engine, "after_cursor_execute")
     def receive_after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
         total = time.time() - context._query_start_time
-        if total > 0.1:  # استعلامات بطيئة
-            print(f"استعلام بطيء ({total:.2f}s): {statement[:100]}...")
+        if total > 0.1:
+            pass
 
 def get_performance_metrics():
     """الحصول على مقاييس الأداء"""
@@ -863,7 +863,6 @@ def optimize_system():
         
         return True
     except Exception as e:
-        print(f"خطأ في تحسين النظام: {e}")
         return False
     except Exception:
         pass

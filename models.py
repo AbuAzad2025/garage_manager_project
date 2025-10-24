@@ -3851,7 +3851,7 @@ def _exchange_after_insert(mapper, connection, target: "ExchangeTransaction"):
         try:
             update_supplier_balance(target.supplier_id, connection)
         except Exception as e:
-            print(f"⚠️ تحذير: فشل تحديث رصيد المورد: {e}")
+            pass
 
 @event.listens_for(ExchangeTransaction, "after_update")
 def _exchange_after_update(mapper, connection, target: "ExchangeTransaction"):
@@ -3875,7 +3875,7 @@ def _exchange_after_update(mapper, connection, target: "ExchangeTransaction"):
         try:
             update_supplier_balance(target.supplier_id, connection)
         except Exception as e:
-            print(f"⚠️ تحذير: فشل تحديث رصيد المورد: {e}")
+            pass
 
 @event.listens_for(ExchangeTransaction, "after_delete")
 def _exchange_after_delete(mapper, connection, target: "ExchangeTransaction"):
@@ -3887,7 +3887,7 @@ def _exchange_after_delete(mapper, connection, target: "ExchangeTransaction"):
         try:
             update_supplier_balance(target.supplier_id, connection)
         except Exception as e:
-            print(f"⚠️ تحذير: فشل تحديث رصيد المورد: {e}")
+            pass
 
 def _maybe_post_gl_exchange(connection, tx: "ExchangeTransaction"):
     try:
@@ -4343,7 +4343,7 @@ def _update_partner_supplier_balance_on_sale(mapper, connection, target: "Sale")
             update_partner_balance(partner_id, connection)
     
     except Exception as e:
-        print(f"⚠️ تحذير: فشل تحديث رصيد الشريك/المورد عند تعديل Sale: {e}")
+        pass
 
 @event.listens_for(Sale, "before_insert")
 @event.listens_for(Sale, "before_update")
@@ -4492,7 +4492,7 @@ def _sale_line_touch_sale_total(mapper, connection, target: "SaleLine"):
                     if partner_row[0]:
                         update_partner_balance(partner_row[0], connection)
         except Exception as e:
-            print(f"⚠️ تحذير: فشل تحديث رصيد الشريك عند تعديل SaleLine: {e}")
+            pass
     if sid:
         _recompute_sale_total_amount(connection, int(sid))
 
@@ -5505,9 +5505,7 @@ def _update_partner_supplier_balance_on_payment(mapper, connection, target: "Pay
                     update_supplier_balance(supplier_result[0], connection)
     except Exception as e:
         # لا نريد أن يفشل الـ transaction بسبب تحديث الرصيد
-        import traceback
-        traceback.print_exc()
-        print(f"⚠️ تحذير: فشل تحديث رصيد الشريك/المورد: {e}")
+        pass
 
 @event.listens_for(Payment, "after_insert", propagate=True)
 @event.listens_for(Payment, "after_update", propagate=True)
@@ -9149,8 +9147,7 @@ def _update_partner_on_share_change(mapper, connection, target):
             # استخدام connection المتاح بدلاً من إنشاء session جديد
             update_partner_balance(partner_id, connection=connection)
     except Exception as e:
-        # تسجيل الخطأ دون إيقاف العملية
-        print(f"Error updating partner balance in listener: {e}")
+        pass
 
 
 @event.listens_for(ShipmentItem, 'after_insert')
@@ -9177,4 +9174,4 @@ def _update_partner_on_shipment_item_change(mapper, connection, target):
             for partner_id in partner_ids:
                 update_partner_balance(partner_id, connection=connection)
     except Exception as e:
-        print(f"Error updating partner balance on shipment item change: {e}")
+        pass

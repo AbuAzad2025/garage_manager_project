@@ -12,10 +12,7 @@ def archive_shipment(shipment_id):
     
     try:
         shipment = Shipment.query.get_or_404(shipment_id)
-        print(f"✅ [SHIPMENT ARCHIVE] تم العثور على الشحنة: {shipment.id}")
-        
         reason = request.form.get('reason', 'أرشفة تلقائية')
-        print(f"📝 [SHIPMENT ARCHIVE] سبب الأرشفة: {reason}")
         
         archive = Archive.archive_record(
             record=shipment,
@@ -32,11 +29,6 @@ def archive_shipment(shipment_id):
         return redirect(url_for('shipments_bp.list_shipments'))
         
     except Exception as e:
-        print(f"❌ [SHIPMENT ARCHIVE] خطأ في أرشفة الشحنة: {str(e)}")
-        print(f"❌ [SHIPMENT ARCHIVE] نوع الخطأ: {type(e).__name__}")
-        import traceback
-        print(f"❌ [SHIPMENT ARCHIVE] تفاصيل الخطأ: {traceback.format_exc()}")
-        
         db.session.rollback()
         flash(f'خطأ في أرشفة الشحنة: {str(e)}', 'error')
         return redirect(url_for('shipments_bp.list_shipments'))
@@ -47,10 +39,7 @@ def archive_check(check_id):
     
     try:
         check = Check.query.get_or_404(check_id)
-        print(f"✅ [CHECK ARCHIVE] تم العثور على الشيك: {check.id}")
-        
         reason = request.form.get('reason', 'أرشفة تلقائية')
-        print(f"📝 [CHECK ARCHIVE] سبب الأرشفة: {reason}")
         
         archive = Archive.archive_record(
             record=check,
@@ -67,11 +56,6 @@ def archive_check(check_id):
         return redirect(url_for('checks.index'))
         
     except Exception as e:
-        print(f"❌ [CHECK ARCHIVE] خطأ في أرشفة الشيك: {str(e)}")
-        print(f"❌ [CHECK ARCHIVE] نوع الخطأ: {type(e).__name__}")
-        import traceback
-        print(f"❌ [CHECK ARCHIVE] تفاصيل الخطأ: {traceback.format_exc()}")
-        
         db.session.rollback()
         flash(f'خطأ في أرشفة الشيك: {str(e)}', 'error')
         return redirect(url_for('checks.index'))
