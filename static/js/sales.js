@@ -134,8 +134,14 @@
       const rows = qsa('.sale-line',wrap);
       if(!rows.length){ alert('لا يوجد قالب بند لنسخه.'); return; }
       
-      // نسخ الصف ومسحه فوراً
+      // نسخ الصف
       const clone = rows[rows.length-1].cloneNode(true);
+      
+      // حذف جميع عناصر Select2 المنسوخة (الواجهة المرئية)
+      qsa('.select2-container', clone).forEach(el => el.remove());
+      qsa('.select2-hidden-accessible', clone).forEach(el => {
+        el.classList.remove('select2-hidden-accessible');
+      });
       
       // مسح جميع البيانات من الصف المنسوخ
       clearRow(clone);
