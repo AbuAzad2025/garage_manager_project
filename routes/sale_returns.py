@@ -137,10 +137,19 @@ def create_return(sale_id=None):
             db.session.rollback()
             flash(f'خطأ في إنشاء المرتجع: {str(e)}', 'danger')
     
+    # تحضير choices للـ template
+    products = Product.query.filter_by(is_archived=False).order_by(Product.name).limit(500).all()
+    product_choices = [(p.id, f"{p.name} ({p.barcode or 'بدون باركود'})") for p in products]
+    
+    warehouses = Warehouse.query.filter_by(is_archived=False).order_by(Warehouse.name).all()
+    warehouse_choices = [(w.id, w.name) for w in warehouses]
+    
     return render_template(
         'sale_returns/form.html',
         form=form,
         sale=sale,
+        product_choices=product_choices,
+        warehouse_choices=warehouse_choices,
         title='إنشاء مرتجع جديد'
     )
 
@@ -230,10 +239,19 @@ def edit_return(return_id):
             db.session.rollback()
             flash(f'خطأ في تحديث المرتجع: {str(e)}', 'danger')
     
+    # تحضير choices للـ template
+    products = Product.query.filter_by(is_archived=False).order_by(Product.name).limit(500).all()
+    product_choices = [(p.id, f"{p.name} ({p.barcode or 'بدون باركود'})") for p in products]
+    
+    warehouses = Warehouse.query.filter_by(is_archived=False).order_by(Warehouse.name).all()
+    warehouse_choices = [(w.id, w.name) for w in warehouses]
+    
     return render_template(
         'sale_returns/form.html',
         form=form,
         sale_return=sale_return,
+        product_choices=product_choices,
+        warehouse_choices=warehouse_choices,
         title='تعديل مرتجع'
     )
 

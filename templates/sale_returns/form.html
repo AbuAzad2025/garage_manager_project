@@ -257,8 +257,8 @@
           <label class="form-label required">المنتج</label>
           <select name="lines-__INDEX__-product_id" class="form-control product-select" data-index="__INDEX__" required>
             <option value="">اختر المنتج</option>
-            {% for choice in form.lines.entries[0].product_id.choices if form.lines.entries %}
-            <option value="{{ choice[0] }}">{{ choice[1] }}</option>
+            {% for product_id, product_name in product_choices %}
+            <option value="{{ product_id }}">{{ product_name }}</option>
             {% endfor %}
           </select>
         </div>
@@ -268,8 +268,8 @@
           <label class="form-label">المخزن</label>
           <select name="lines-__INDEX__-warehouse_id" class="form-control">
             <option value="">-</option>
-            {% for choice in form.lines.entries[0].warehouse_id.choices if form.lines.entries %}
-            <option value="{{ choice[0] }}">{{ choice[1] }}</option>
+            {% for warehouse_id, warehouse_name in warehouse_choices %}
+            <option value="{{ warehouse_id }}">{{ warehouse_name }}</option>
             {% endfor %}
           </select>
         </div>
