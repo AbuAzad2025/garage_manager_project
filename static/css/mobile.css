@@ -1,0 +1,656 @@
+/* ═══════════════════════════════════════════════════════════════════
+   📱 Mobile Optimizations for Garage Manager System
+   تحسينات النظام للأجهزة المحمولة
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ═══ 1. القواعد الأساسية للموبايل ═══ */
+@media (max-width: 768px) {
+  
+  /* ═══ HTML و Body ═══ */
+  html {
+    font-size: 14px !important;
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+  }
+  
+  body {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow-x: hidden !important;
+  }
+  
+  /* ═══ تحسين الـ Viewport ═══ */
+  .wrapper {
+    overflow-x: hidden !important;
+  }
+  
+  /* ═══ 2. Navbar - الشريط العلوي ═══ */
+  .main-header.navbar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 1050 !important;
+    padding: 0.5rem !important;
+  }
+  
+  /* إخفاء العناصر غير المهمة في Navbar على الموبايل */
+  .navbar-brand .company-logo-text,
+  .navbar-brand .badge:not(#sidebar-position-badge),
+  .navbar-text {
+    display: none !important;
+  }
+  
+  /* تصغير شعار الشركة */
+  .company-logo {
+    height: 35px !important;
+    width: auto !important;
+  }
+  
+  /* تحسين أزرار Navbar */
+  .navbar-nav .nav-link {
+    padding: 0.5rem !important;
+    font-size: 1.1rem !important;
+  }
+  
+  /* إخفاء أسعار الصرف على الموبايل الصغير */
+  @media (max-width: 576px) {
+    .navbar-brand .badge {
+      font-size: 0.65rem !important;
+      padding: 4px 6px !important;
+    }
+    
+    .navbar-brand .badge span {
+      display: none !important;
+    }
+    
+    .navbar-brand .badge i {
+      margin: 0 !important;
+    }
+  }
+  
+  /* ═══ 3. Sidebar - القائمة الجانبية ═══ */
+  .main-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    z-index: 1040 !important;
+    width: 280px !important;
+    transform: translateX(-100%) !important;
+    transition: transform 0.3s ease-in-out !important;
+  }
+  
+  /* عند فتح Sidebar */
+  body.sidebar-open .main-sidebar {
+    transform: translateX(0) !important;
+  }
+  
+  /* Overlay عند فتح Sidebar */
+  body.sidebar-open::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1039;
+    animation: fadeIn 0.3s ease;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  /* تصغير لوجو الشركة في Sidebar */
+  .garage-brand-image {
+    height: 50px !important;
+    width: auto !important;
+  }
+  
+  .garage-brand-text {
+    font-size: 0.9rem !important;
+    line-height: 1.2 !important;
+  }
+  
+  /* تحسين عناصر القائمة */
+  .nav-sidebar .nav-item {
+    margin-bottom: 0.25rem !important;
+  }
+  
+  .nav-sidebar .nav-link {
+    padding: 0.75rem 1rem !important;
+    font-size: 0.95rem !important;
+  }
+  
+  .nav-sidebar .nav-icon {
+    font-size: 1.1rem !important;
+    width: 25px !important;
+  }
+  
+  /* ═══ 4. Content Wrapper - المحتوى الرئيسي ═══ */
+  .content-wrapper {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    margin-top: 60px !important;
+    padding: 0 !important;
+    min-height: calc(100vh - 60px) !important;
+  }
+  
+  .content-wrapper .content {
+    padding: 0.75rem !important;
+  }
+  
+  /* ═══ 5. البطاقات (Cards) ═══ */
+  .card {
+    margin-bottom: 1rem !important;
+    border-radius: 0.75rem !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+  }
+  
+  .card-header {
+    padding: 0.75rem !important;
+    font-size: 1rem !important;
+  }
+  
+  .card-body {
+    padding: 0.75rem !important;
+  }
+  
+  .card-footer {
+    padding: 0.75rem !important;
+  }
+  
+  /* بطاقات الإحصائيات */
+  .row.g-3 {
+    gap: 0.75rem !important;
+  }
+  
+  .col-lg-3, .col-lg-4, .col-lg-6, .col-md-3, .col-md-4, .col-md-6 {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+  }
+  
+  /* ═══ 6. الجداول (Tables) ═══ */
+  .table-responsive {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    border-radius: 0.5rem !important;
+  }
+  
+  .table {
+    font-size: 0.85rem !important;
+    margin-bottom: 0 !important;
+  }
+  
+  .table thead th {
+    font-size: 0.8rem !important;
+    padding: 0.5rem !important;
+    white-space: nowrap !important;
+    vertical-align: middle !important;
+  }
+  
+  .table tbody td {
+    padding: 0.5rem !important;
+    vertical-align: middle !important;
+  }
+  
+  /* تحويل الجداول إلى بطاقات على الموبايل الصغير */
+  @media (max-width: 576px) {
+    .table-mobile-cards thead {
+      display: none !important;
+    }
+    
+    .table-mobile-cards tbody tr {
+      display: block !important;
+      margin-bottom: 1rem !important;
+      border: 1px solid #dee2e6 !important;
+      border-radius: 0.5rem !important;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+      background: white !important;
+    }
+    
+    .table-mobile-cards tbody td {
+      display: block !important;
+      text-align: right !important;
+      padding: 0.5rem 1rem !important;
+      border: none !important;
+      border-bottom: 1px solid #f0f0f0 !important;
+    }
+    
+    .table-mobile-cards tbody td:last-child {
+      border-bottom: none !important;
+    }
+    
+    .table-mobile-cards tbody td::before {
+      content: attr(data-label);
+      font-weight: bold;
+      display: inline-block;
+      width: 120px;
+      color: #6c757d;
+    }
+  }
+  
+  /* ═══ 7. النماذج (Forms) ═══ */
+  .form-control {
+    font-size: 1rem !important;
+    padding: 0.75rem !important;
+    border-radius: 0.5rem !important;
+    min-height: 44px !important; /* معايير Apple للمس */
+  }
+  
+  .form-label {
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    margin-bottom: 0.5rem !important;
+  }
+  
+  .form-select {
+    font-size: 1rem !important;
+    padding: 0.75rem !important;
+    min-height: 44px !important;
+  }
+  
+  textarea.form-control {
+    min-height: 100px !important;
+  }
+  
+  /* حقول الإدخال في صف واحد */
+  .form-row,
+  .row.g-3 {
+    margin-left: -0.375rem !important;
+    margin-right: -0.375rem !important;
+  }
+  
+  .form-row > [class*="col-"],
+  .row.g-3 > [class*="col-"] {
+    padding-left: 0.375rem !important;
+    padding-right: 0.375rem !important;
+  }
+  
+  /* ═══ 8. الأزرار (Buttons) ═══ */
+  .btn {
+    font-size: 0.95rem !important;
+    padding: 0.65rem 1.25rem !important;
+    border-radius: 0.5rem !important;
+    min-height: 44px !important;
+    font-weight: 600 !important;
+    white-space: nowrap !important;
+  }
+  
+  .btn-sm {
+    font-size: 0.85rem !important;
+    padding: 0.5rem 1rem !important;
+    min-height: 38px !important;
+  }
+  
+  .btn-lg {
+    font-size: 1.1rem !important;
+    padding: 0.75rem 1.5rem !important;
+    min-height: 50px !important;
+  }
+  
+  /* مجموعات الأزرار */
+  .btn-group {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+  
+  .btn-group-actions-end {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+    width: 100% !important;
+  }
+  
+  .btn-group-actions-end .btn {
+    width: 100% !important;
+  }
+  
+  /* ═══ 9. Modal - النوافذ المنبثقة ═══ */
+  .modal-dialog {
+    margin: 0.5rem !important;
+    max-width: calc(100% - 1rem) !important;
+  }
+  
+  .modal-content {
+    border-radius: 1rem !important;
+  }
+  
+  .modal-header {
+    padding: 1rem !important;
+    flex-direction: row-reverse !important;
+  }
+  
+  .modal-body {
+    padding: 1rem !important;
+    max-height: calc(100vh - 200px) !important;
+    overflow-y: auto !important;
+  }
+  
+  .modal-footer {
+    padding: 1rem !important;
+    flex-direction: column !important;
+  }
+  
+  .modal-footer .btn {
+    width: 100% !important;
+    margin: 0 0 0.5rem 0 !important;
+  }
+  
+  /* ═══ 10. Dropdown - القوائم المنسدلة ═══ */
+  .dropdown-menu {
+    font-size: 0.95rem !important;
+    max-width: calc(100vw - 2rem) !important;
+    border-radius: 0.75rem !important;
+  }
+  
+  .dropdown-item {
+    padding: 0.75rem 1rem !important;
+    min-height: 44px !important;
+  }
+  
+  .dropdown-header {
+    font-size: 0.9rem !important;
+    padding: 0.5rem 1rem !important;
+  }
+  
+  /* ═══ 11. Breadcrumb - مسار التنقل ═══ */
+  .breadcrumb {
+    font-size: 0.85rem !important;
+    padding: 0.5rem !important;
+    margin-bottom: 0.75rem !important;
+    flex-wrap: wrap !important;
+  }
+  
+  .breadcrumb-item {
+    display: inline-flex !important;
+  }
+  
+  /* ═══ 12. Pagination - الترقيم ═══ */
+  .pagination {
+    flex-wrap: wrap !important;
+    gap: 0.25rem !important;
+  }
+  
+  .page-link {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.9rem !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+  }
+  
+  /* ═══ 13. Alert - التنبيهات ═══ */
+  .alert {
+    font-size: 0.9rem !important;
+    padding: 0.75rem !important;
+    margin-bottom: 1rem !important;
+    border-radius: 0.75rem !important;
+  }
+  
+  /* ═══ 14. Badge - الشارات ═══ */
+  .badge {
+    font-size: 0.8rem !important;
+    padding: 0.35rem 0.6rem !important;
+    border-radius: 0.5rem !important;
+  }
+  
+  /* ═══ 15. Icons - الأيقونات ═══ */
+  .fas, .far, .fab {
+    font-size: 1.1rem !important;
+  }
+  
+  /* ═══ 16. Dashboard Charts - رسوم بيانية ═══ */
+  .chart-container {
+    position: relative !important;
+    height: 250px !important;
+    width: 100% !important;
+  }
+  
+  canvas {
+    max-height: 250px !important;
+  }
+  
+  /* ═══ 17. Footer ═══ */
+  .main-footer {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding: 1rem !important;
+    font-size: 0.85rem !important;
+    text-align: center !important;
+  }
+  
+  /* ═══ 18. تحسينات خاصة بالصفحات ═══ */
+  
+  /* صفحة المبيعات */
+  .sale-line {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+  
+  .sale-line > div {
+    width: 100% !important;
+  }
+  
+  /* صفحة الشحنات */
+  .shipment-item,
+  .shipment-partner {
+    padding: 1rem !important;
+  }
+  
+  .shipment-item .row,
+  .shipment-partner .row {
+    margin-left: -0.5rem !important;
+    margin-right: -0.5rem !important;
+  }
+  
+  /* صفحة كشف الحساب */
+  .account-statement .table {
+    font-size: 0.75rem !important;
+  }
+  
+  .sale-items-details {
+    padding: 0.5rem !important;
+  }
+  
+  /* ═══ 19. Select2 - القوائم المتقدمة ═══ */
+  .select2-container {
+    width: 100% !important;
+  }
+  
+  .select2-container .select2-selection--single {
+    height: 44px !important;
+    padding: 0.5rem !important;
+  }
+  
+  .select2-container .select2-selection__rendered {
+    line-height: 32px !important;
+  }
+  
+  .select2-container .select2-selection__arrow {
+    height: 42px !important;
+  }
+  
+  .select2-dropdown {
+    font-size: 1rem !important;
+  }
+  
+  .select2-results__option {
+    padding: 0.75rem !important;
+    min-height: 44px !important;
+  }
+  
+  /* ═══ 20. DataTables - جداول البيانات ═══ */
+  .dataTables_wrapper .dataTables_length,
+  .dataTables_wrapper .dataTables_filter,
+  .dataTables_wrapper .dataTables_info,
+  .dataTables_wrapper .dataTables_paginate {
+    font-size: 0.9rem !important;
+  }
+  
+  .dataTables_wrapper .dataTables_filter input {
+    width: 100% !important;
+    margin-top: 0.5rem !important;
+  }
+  
+  /* ═══ 21. تحسينات الطباعة ═══ */
+  @media print {
+    .main-sidebar,
+    .main-header,
+    .main-footer,
+    .no-print {
+      display: none !important;
+    }
+    
+    .content-wrapper {
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    
+    .table {
+      font-size: 10pt !important;
+    }
+  }
+  
+  /* ═══ 22. تحسينات إمكانية الوصول ═══ */
+  
+  /* تكبير منطقة اللمس */
+  a, button, .btn, .nav-link {
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+  
+  /* تباين أفضل للنصوص */
+  .text-muted {
+    color: #6c757d !important;
+    font-weight: 500 !important;
+  }
+  
+  /* ═══ 23. Animations - الحركات ═══ */
+  
+  /* تقليل الحركات على الموبايل */
+  * {
+    animation-duration: 0.2s !important;
+    transition-duration: 0.2s !important;
+  }
+  
+  /* ═══ 24. تحسينات الأداء ═══ */
+  
+  /* تحسين التمرير */
+  .content-wrapper,
+  .modal-body,
+  .table-responsive {
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  /* تحسين الخطوط */
+  * {
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+  }
+  
+  /* ═══ 25. إخفاء عناصر غير ضرورية ═══ */
+  
+  .no-mobile {
+    display: none !important;
+  }
+  
+  /* إخفاء أعمدة معينة في الجداول */
+  .table .hide-mobile {
+    display: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   📱 Landscape Mode - الوضع الأفقي
+   ═══════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) and (orientation: landscape) {
+  .main-header.navbar {
+    padding: 0.25rem !important;
+  }
+  
+  .content-wrapper {
+    margin-top: 50px !important;
+  }
+  
+  .modal-body {
+    max-height: calc(100vh - 150px) !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   📱 Extra Small Devices - أجهزة صغيرة جداً (320px)
+   ═══════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 375px) {
+  html {
+    font-size: 13px !important;
+  }
+  
+  .btn {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.85rem !important;
+  }
+  
+  .card-header {
+    font-size: 0.9rem !important;
+  }
+  
+  .badge {
+    font-size: 0.7rem !important;
+    padding: 0.25rem 0.5rem !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   🔄 تحسينات Touch - تفاعلات اللمس
+   ═══════════════════════════════════════════════════════════════════ */
+
+@media (hover: none) and (pointer: coarse) {
+  /* إزالة hover effects على الأجهزة التي تعمل باللمس */
+  .btn:hover,
+  .nav-link:hover,
+  .dropdown-item:hover {
+    transform: none !important;
+  }
+  
+  /* إضافة تأثير active بدلاً من hover */
+  .btn:active,
+  .nav-link:active,
+  .dropdown-item:active {
+    opacity: 0.8 !important;
+    transform: scale(0.98) !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   🌙 Dark Mode على الموبايل
+   ═══════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) and (prefers-color-scheme: dark) {
+  body {
+    background: #1a1a1a !important;
+    color: #e0e0e0 !important;
+  }
+  
+  .card {
+    background: #2d2d2d !important;
+    color: #e0e0e0 !important;
+  }
+  
+  .table {
+    color: #e0e0e0 !important;
+  }
+  
+  .form-control,
+  .form-select {
+    background: #2d2d2d !important;
+    color: #e0e0e0 !important;
+    border-color: #444 !important;
+  }
+}
+
