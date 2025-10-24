@@ -259,7 +259,7 @@
             <option value="">اختر المنتج</option>
             {% for choice in form.lines.entries[0].product_id.choices if form.lines.entries %}
             <option value="{{ choice[0] }}">{{ choice[1] }}</option>
-            {% endif %}
+            {% endfor %}
           </select>
         </div>
       </div>
@@ -270,7 +270,7 @@
             <option value="">-</option>
             {% for choice in form.lines.entries[0].warehouse_id.choices if form.lines.entries %}
             <option value="{{ choice[0] }}">{{ choice[1] }}</option>
-            {% endif %}
+            {% endfor %}
           </select>
         </div>
       </div>
