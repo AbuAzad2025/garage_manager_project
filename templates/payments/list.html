@@ -30,7 +30,6 @@
 {% endblock %}
 
 {% block content %}
-<div class="content-wrapper">
     <div class="content-header">
         <div class="container-fluid">
             <div class="row mb-2">
@@ -255,8 +254,7 @@
 </div>
 
 <input type="hidden" id="csrf_token" value="{{ csrf_token() }}">
-<div id="vendors-config" data-pay-url="{{ url_for('payments.create_payment') }}"></div>
-{% endblock %}
+<div id="vendors-config" data-pay-url="{{ url_for('payments.create_payment') }}">{% endblock %}
 {% block scripts %}
   <script src="{{ url_for('static', filename='js/payments.js') }}"></script>
   <script src="{{ url_for('static', filename='js/vendors.js') }}"></script>
