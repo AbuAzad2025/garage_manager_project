@@ -108,6 +108,25 @@
     <form method="POST" id="returnForm">
       {{ form.hidden_tag() }}
       
+      <!-- Legend -->
+      <div class="alert alert-info">
+        <h5><i class="fas fa-question-circle"></i> دليل الحقول:</h5>
+        <div class="row">
+          <div class="col-md-4">
+            <strong class="text-danger"><i class="fas fa-exclamation-circle"></i> إجباري:</strong>
+            <small>رقم البيع، العميل، السبب، العملة، المنتج، الكمية، السعر</small>
+          </div>
+          <div class="col-md-4">
+            <strong class="text-muted"><i class="fas fa-info-circle"></i> اختياري:</strong>
+            <small>المخزن، الملاحظات، ملاحظات المنتج</small>
+          </div>
+          <div class="col-md-4">
+            <strong class="text-success"><i class="fas fa-calculator"></i> تلقائي:</strong>
+            <small>الإجمالي (يُحسب آلياً)</small>
+          </div>
+        </div>
+      </div>
+      
       <!-- Basic Information -->
       <div class="card form-card">
         <div class="form-header">
@@ -125,8 +144,9 @@
                   {% for error in form.sale_id.errors %}{{ error }}{% endfor %}
                 </div>
                 {% endif %}
-                <small class="form-text text-muted">
-                  اختر البيع الذي تريد إرجاعه (اختياري إذا كان مرتجع عام)
+                <small class="form-text text-info">
+                  <i class="fas fa-info-circle"></i> <strong>إجباري:</strong> اختر البيع الأصلي الذي تريد إرجاعه
+                  <br>💡 يمكنك تحميل جميع البنود من البيع تلقائياً
                 </small>
               </div>
             </div>
@@ -140,6 +160,10 @@
                   {% for error in form.customer_id.errors %}{{ error }}{% endfor %}
                 </div>
                 {% endif %}
+                <small class="form-text text-info">
+                  <i class="fas fa-info-circle"></i> <strong>إجباري:</strong> العميل الذي قام بالإرجاع
+                  <br>💡 يتم تعبئته تلقائياً عند اختيار البيع
+                </small>
               </div>
             </div>
           </div>
@@ -150,7 +174,8 @@
                 {{ form.warehouse_id.label(class="form-label") }}
                 {{ form.warehouse_id(class="form-control") }}
                 <small class="form-text text-muted">
-                  المخزن الذي سيتم إرجاع البضاعة إليه
+                  <i class="fas fa-warehouse"></i> <strong>اختياري:</strong> المخزن الذي سيتم إرجاع البضاعة إليه
+                  <br>💡 إذا تركته فارغاً، سيتم الإرجاع للمخزن الأصلي
                 </small>
               </div>
             </div>
@@ -159,6 +184,10 @@
               <div class="form-group">
                 {{ form.currency.label(class="form-label required") }}
                 {{ form.currency(class="form-control") }}
+                <small class="form-text text-info">
+                  <i class="fas fa-money-bill"></i> <strong>إجباري:</strong> العملة المستخدمة
+                  <br>💡 يتم تعبئتها تلقائياً من البيع الأصلي
+                </small>
               </div>
             </div>
           </div>
@@ -171,11 +200,18 @@
               {% for error in form.reason.errors %}{{ error }}{% endfor %}
             </div>
             {% endif %}
+            <small class="form-text text-danger">
+              <i class="fas fa-exclamation-circle"></i> <strong>إجباري:</strong> يجب ذكر سبب واضح للمرتجع
+              <br>📝 مثال: منتج تالف، لا يطابق المواصفات، عدم رضا العميل، خطأ في الطلب
+            </small>
           </div>
           
           <div class="form-group">
             {{ form.notes.label(class="form-label") }}
             {{ form.notes(class="form-control") }}
+            <small class="form-text text-muted">
+              <i class="fas fa-sticky-note"></i> <strong>اختياري:</strong> أي ملاحظات إضافية عن المرتجع
+            </small>
           </div>
           
           <!-- Sale Info Alert -->
@@ -199,6 +235,16 @@
         </div>
         <div class="card-body">
           
+          <div class="alert alert-warning mb-3">
+            <i class="fas fa-info-circle"></i> <strong>مهم:</strong>
+            <ul class="mb-0 mt-2">
+              <li>يجب إضافة <strong>منتج واحد على الأقل</strong></li>
+              <li>يمكنك إضافة عدة منتجات بالضغط على "إضافة منتج"</li>
+              <li>إذا اخترت بيع أصلي، اضغط "تحميل من البيع" لجلب جميع البنود تلقائياً</li>
+              <li>الإجمالي يُحسب <strong>تلقائياً</strong> (الكمية × السعر)</li>
+            </ul>
+          </div>
+          
           <div id="lines-container">
             <!-- سيتم إضافة السطور هنا -->
           </div>
@@ -206,6 +252,9 @@
           <button type="button" class="btn btn-primary" id="add-line-btn">
             <i class="fas fa-plus"></i> إضافة منتج
           </button>
+          <small class="text-muted mr-2">
+            <i class="fas fa-mouse-pointer"></i> اضغط هنا لإضافة منتج جديد للمرتجع
+          </small>
           
           <!-- Total Section -->
           <div class="total-section">
@@ -261,6 +310,7 @@
             <option value="{{ product_id }}">{{ product_name }}</option>
             {% endfor %}
           </select>
+          <small class="text-danger"><i class="fas fa-exclamation-circle"></i> إجباري</small>
         </div>
       </div>
       <div class="col-md-2">
@@ -272,6 +322,7 @@
             <option value="{{ warehouse_id }}">{{ warehouse_name }}</option>
             {% endfor %}
           </select>
+          <small class="text-muted"><i class="fas fa-info-circle"></i> اختياري</small>
         </div>
       </div>
       <div class="col-md-2">
@@ -279,6 +330,7 @@
           <label class="form-label required">الكمية</label>
           <input type="number" name="lines-__INDEX__-quantity" class="form-control quantity-input" 
                  data-index="__INDEX__" min="1" value="1" required>
+          <small class="text-danger"><i class="fas fa-exclamation-circle"></i> إجباري</small>
         </div>
       </div>
       <div class="col-md-2">
@@ -286,12 +338,14 @@
           <label class="form-label required">سعر الوحدة</label>
           <input type="number" name="lines-__INDEX__-unit_price" class="form-control price-input" 
                  data-index="__INDEX__" min="0" step="0.01" value="0" required>
+          <small class="text-danger"><i class="fas fa-exclamation-circle"></i> إجباري</small>
         </div>
       </div>
       <div class="col-md-2">
         <div class="form-group">
           <label class="form-label">الإجمالي</label>
           <input type="text" class="form-control line-total" data-index="__INDEX__" readonly value="0.00">
+          <small class="text-success"><i class="fas fa-calculator"></i> تلقائي</small>
         </div>
       </div>
     </div>
@@ -300,6 +354,9 @@
         <div class="form-group mb-0">
           <label class="form-label">ملاحظات</label>
           <input type="text" name="lines-__INDEX__-notes" class="form-control" placeholder="ملاحظات اختيارية">
+          <small class="text-muted">
+            <i class="fas fa-sticky-note"></i> <strong>اختياري:</strong> ملاحظات خاصة بهذا المنتج (مثال: تالف، منتهي الصلاحية، خدش...)
+          </small>
         </div>
       </div>
     </div>
