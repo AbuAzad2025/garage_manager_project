@@ -129,18 +129,27 @@
       transition: margin-left 0.3s ease, margin-right 0.3s ease;
     }
     
-    /* سيتم override بواسطة JavaScript إذا كان محفوظ على اليمين */
+    /* Sidebar على اليسار (افتراضي) */
+    body[data-sidebar-position="left"] .main-sidebar {
+      right: auto !important;
+      left: 0 !important;
+    }
+    
+    body[data-sidebar-position="left"] .content-wrapper,
+    body[data-sidebar-position="left"] .main-footer,
+    body[data-sidebar-position="left"] .main-header.navbar {
+      margin-right: 0 !important;
+      margin-left: 280px !important;
+    }
+    
+    /* Sidebar على اليمين */
     body[data-sidebar-position="right"] .main-sidebar {
       left: auto !important;
       right: 0 !important;
     }
     
     body[data-sidebar-position="right"] .content-wrapper,
-    body[data-sidebar-position="right"] .main-footer {
-      margin-left: 0 !important;
-      margin-right: 280px !important;
-    }
-    
+    body[data-sidebar-position="right"] .main-footer,
     body[data-sidebar-position="right"] .main-header.navbar {
       margin-left: 0 !important;
       margin-right: 280px !important;
@@ -593,88 +602,27 @@ function toggleSidebarPosition() {
 }
 
 function applySidebarPosition(position) {
+  const body = document.body;
   const sidebar = document.querySelector('.main-sidebar');
-  const contentWrapper = document.querySelector('.content-wrapper');
-  const navbar = document.querySelector('.main-header.navbar');
-  const footer = document.querySelector('.main-footer');
   
   if (!sidebar) {
     console.error('❌ Sidebar not found!');
     return;
   }
   
-  // عرض الـ sidebar حسب حجم الشاشة
-  const screenWidth = window.innerWidth;
-  let sidebarWidth = '280px';
+  // تحديث data attribute على body (CSS يتولى الباقي)
+  body.setAttribute('data-sidebar-position', position);
   
-  if (screenWidth < 576) {
-    sidebarWidth = '100%';
-  } else if (screenWidth < 992) {
-    sidebarWidth = '250px';
-  } else if (screenWidth < 1400) {
-    sidebarWidth = '280px';
-  } else if (screenWidth < 1920) {
-    sidebarWidth = '300px';
-  } else {
-    sidebarWidth = '320px';
-  }
-  
-  
-  if (position === 'left') {
-    // وضع على اليسار
-    sidebar.style.setProperty('right', 'auto', 'important');
-    sidebar.style.setProperty('left', '0', 'important');
-    sidebar.style.setProperty('position', 'fixed', 'important');
-    sidebar.style.setProperty('width', sidebarWidth, 'important');
-    
-    if (contentWrapper) {
-      contentWrapper.style.setProperty('margin-left', sidebarWidth, 'important');
-      contentWrapper.style.setProperty('margin-right', '0', 'important');
-    }
-    
-    if (navbar) {
-      navbar.style.setProperty('margin-left', sidebarWidth, 'important');
-      navbar.style.setProperty('margin-right', '0', 'important');
-    }
-    
-    if (footer) {
-      footer.style.setProperty('margin-left', sidebarWidth, 'important');
-      footer.style.setProperty('margin-right', '0', 'important');
-    }
-    
-    console.log('✅ Sidebar على اليسار - العرض:', sidebarWidth);
-  } else {
-    // وضع على اليمين
-    sidebar.style.setProperty('left', 'auto', 'important');
-    sidebar.style.setProperty('right', '0', 'important');
-    sidebar.style.setProperty('position', 'fixed', 'important');
-    sidebar.style.setProperty('width', sidebarWidth, 'important');
-    
-    if (contentWrapper) {
-      contentWrapper.style.setProperty('margin-right', sidebarWidth, 'important');
-      contentWrapper.style.setProperty('margin-left', '0', 'important');
-    }
-    
-    if (navbar) {
-      navbar.style.setProperty('margin-right', sidebarWidth, 'important');
-      navbar.style.setProperty('margin-left', '0', 'important');
-    }
-    
-    if (footer) {
-      footer.style.setProperty('margin-right', sidebarWidth, 'important');
-      footer.style.setProperty('margin-left', '0', 'important');
-    }
-    
-    console.log('✅ Sidebar على اليمين - العرض:', sidebarWidth);
-  }
+  console.log('✅ Sidebar على', position === 'left' ? 'اليسار' : 'اليمين');
   
   // لوگ للتأكد
   setTimeout(() => {
+    const contentWrapper = document.querySelector('.content-wrapper');
+    const computedStyles = window.getComputedStyle(contentWrapper);
     console.log('🔍 التحقق من الموقع:', {
-      sidebarLeft: sidebar.style.left,
-      sidebarRight: sidebar.style.right,
-      contentMarginLeft: contentWrapper?.style.marginLeft,
-      contentMarginRight: contentWrapper?.style.marginRight
+      position: position,
+      contentMarginLeft: computedStyles.marginLeft,
+      contentMarginRight: computedStyles.marginRight
     });
   }, 100);
 }

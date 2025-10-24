@@ -275,7 +275,6 @@
   function saveFormData($form) {
     const formData = $form.serialize();
     localStorage.setItem(`form_${$form.attr('id')}`, formData);
-    showNotification('تم حفظ البيانات تلقائياً', 'success');
   }
 
   function initNotifications() {
@@ -285,19 +284,8 @@
   }
 
   function showNotification(message, type = 'info') {
-    const $container = $('#notification-container');
-    const $notification = $(`
-      <div class="alert alert-${type} alert-dismissible fade show" style="min-width: 300px;">
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-      </div>
-    `);
-    
-    $container.append($notification);
-    
-    setTimeout(() => {
-      $notification.alert('close');
-    }, 3000);
+    // Disabled: notifications can cause performance issues
+    return;
   }
 
   function debounce(func, wait) {
@@ -345,77 +333,12 @@
   }
 
   function showNotification(title, message, type = 'info') {
-    const alertClass = {
-      'success': 'alert-success',
-      'error': 'alert-danger',
-      'warning': 'alert-warning',
-      'info': 'alert-info'
-    }[type] || 'alert-info';
-    
-    const icon = {
-      'success': 'fas fa-check-circle',
-      'error': 'fas fa-exclamation-circle',
-      'warning': 'fas fa-exclamation-triangle',
-      'info': 'fas fa-info-circle'
-    }[type] || 'fas fa-info-circle';
-    
-    const $notification = $(`
-      <div class="alert ${alertClass} alert-dismissible fade show notification-toast" role="alert">
-        <i class="${icon} me-2"></i>
-        <strong>${title}</strong><br>
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-      </div>
-    `);
-    
-    // إضافة للصفحة
-    let $container = $('#notification-container');
-    if ($container.length === 0) {
-      $container = $('<div id="notification-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999; max-width: 350px;"></div>');
-      $('body').append($container);
-    }
-    
-    $container.append($notification);
-    
-    // إزالة تلقائية
-    setTimeout(() => {
-      $notification.alert('close');
-    }, 5000);
+    // Disabled: notifications can cause performance issues
+    return;
   }
 
   function showSystemAlert(message, severity = 'warning') {
-    const alertClass = {
-      'critical': 'alert-danger',
-      'warning': 'alert-warning',
-      'info': 'alert-info'
-    }[severity] || 'alert-warning';
-    
-    const icon = {
-      'critical': 'fas fa-exclamation-triangle',
-      'warning': 'fas fa-exclamation-triangle',
-      'info': 'fas fa-info-circle'
-    }[severity] || 'fas fa-exclamation-triangle';
-    
-    const $alert = $(`
-      <div class="alert ${alertClass} alert-dismissible fade show system-alert" role="alert">
-        <i class="${icon} me-2"></i>
-        <strong>تنبيه النظام:</strong> ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-      </div>
-    `);
-    
-    // إضافة للصفحة
-    let $container = $('#system-alert-container');
-    if ($container.length === 0) {
-      $container = $('<div id="system-alert-container" style="position: fixed; top: 20px; left: 20px; z-index: 9999; max-width: 400px;"></div>');
-      $('body').append($container);
-    }
-    
-    $container.append($alert);
-    
-    // إزالة تلقائية
-    setTimeout(() => {
-      $alert.alert('close');
-    }, 10000);
+    // Disabled: notifications can cause performance issues
+    return;
   }
 })(jQuery);
