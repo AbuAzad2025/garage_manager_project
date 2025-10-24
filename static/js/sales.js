@@ -94,22 +94,34 @@
         el.removeAttribute('value');
       });
       
-      // مسح Select2 بشكل صحيح
+      // مسح Select بشكل كامل - حذف كل الـ options ووضع option فارغ
+      qsa('select',row).forEach(s=>{
+        // حذف كل الخيارات الموجودة
+        s.innerHTML = '';
+        
+        // إضافة option فارغ
+        const emptyOption = document.createElement('option');
+        emptyOption.value = '';
+        emptyOption.textContent = '';
+        s.appendChild(emptyOption);
+        
+        // إعادة تعيين القيمة
+        s.value = '';
+        s.selectedIndex = 0;
+      });
+      
+      // إذا كان Select2 موجود، دمّره وأعد تهيئته
       if(window.jQuery){
         const $ = window.jQuery;
         $(row).find('select').each(function(){
           const $sel = $(this);
-          if($sel.data('select2')){
-            $sel.val(null).trigger('change');
-          } else {
-            this.selectedIndex = 0;
-            this.value = '';
+          try {
+            if($sel.data('select2')){
+              $sel.select2('destroy');
+            }
+          } catch(e) {
+            // تجاهل الأخطاء
           }
-        });
-      } else {
-        qsa('select',row).forEach(s=>{
-          s.selectedIndex = 0;
-          s.value = '';
         });
       }
       
