@@ -301,12 +301,21 @@ class IdempotencyMixin:
 
 class PaymentDetailsMixin:
     def _validate_card_payload(self, number, holder, expiry):
+        # إذا كانت جميع الحقول فارغة، لا نتحقق (اختياري)
         num_raw = re.sub(r"\D+", "", number or "")
+        holder_clean = (holder or "").strip()
+        expiry_clean = (expiry or "").strip()
+        
+        # إذا لم يدخل المستخدم أي معلومات عن البطاقة، نتجاهل التحقق
+        if not (num_raw or holder_clean or expiry_clean):
+            return None
+        
+        # إذا أدخل معلومات جزئية، نتحقق منها
         if not (num_raw and num_raw.isdigit() and utils.luhn_check(num_raw)):
             raise ValidationError("❌ رقم البطاقة غير صالح")
-        if not (holder or "").strip():
+        if not holder_clean:
             raise ValidationError("❌ أدخل اسم حامل البطاقة")
-        if not utils.is_valid_expiry_mm_yy((expiry or "").strip()):
+        if not utils.is_valid_expiry_mm_yy(expiry_clean):
             raise ValidationError("❌ تاريخ الانتهاء غير صالح (MM/YY)")
         return num_raw[-4:]
     def _validate_cheque(self, number, bank, due_date, op_date=None):
@@ -1397,7 +1406,8 @@ class SplitEntryForm(PaymentDetailsMixin, FlaskForm):
                 self._validate_bank(self.bank_transfer_ref.data)
             elif m == 'CARD':
                 last4 = self._validate_card_payload(self.card_number.data, self.card_holder.data, self.card_expiry.data)
-                self.card_number.data = last4
+                if last4:
+                    self.card_number.data = last4
             elif m == 'ONLINE':
                 self._validate_online(self.online_gateway.data, self.online_ref.data)
         except ValidationError as e:
@@ -1718,7 +1728,8 @@ class PaymentForm(PaymentDetailsMixin, FlaskForm):
         elif m == 'CARD':
             try:
                 last4 = self._validate_card_payload(self.card_number.data, self.card_holder.data, self.card_expiry.data)
-                self.card_number.data = last4
+                if last4:
+                    self.card_number.data = last4
                 self.card_cvv.data = None
             except ValidationError as e:
                 msg = str(e)
@@ -2250,7 +2261,8 @@ class ShipmentPaymentForm(PaymentDetailsMixin, FlaskForm):
                 self._validate_bank(self.bank_transfer_ref.data)
             elif m == 'CARD':
                 last4 = self._validate_card_payload(self.card_number.data, self.card_holder.data, self.card_expiry.data)
-                self.card_number.data = last4
+                if last4:
+                    self.card_number.data = last4
             elif m == 'ONLINE':
                 self._validate_online(self.online_gateway.data, self.online_ref.data)
         except ValidationError as e:
@@ -2462,7 +2474,8 @@ class QuickExpenseForm(PaymentDetailsMixin, FlaskForm):
                 self._validate_bank(self.bank_transfer_ref.data)
             elif m == 'CARD':
                 last4 = self._validate_card_payload(self.card_number.data, self.card_holder.data, self.card_expiry.data)
-                self.card_number.data = last4
+                if last4:
+                    self.card_number.data = last4
             elif m == 'ONLINE':
                 self._validate_online(self.online_gateway.data, self.online_ref.data)
         except ValidationError as e:
@@ -2605,7 +2618,8 @@ class ExpenseForm(PaymentDetailsMixin, FlaskForm):
                 self._validate_bank(self.bank_transfer_ref.data)
             elif m == 'CARD':
                 last4 = self._validate_card_payload(self.card_number.data, self.card_holder.data, self.card_expiry.data)
-                self.card_number.data = last4
+                if last4:
+                    self.card_number.data = last4
             elif m == 'ONLINE':
                 self._validate_online(self.online_gateway.data, self.online_ref.data)
         except ValidationError as e:
