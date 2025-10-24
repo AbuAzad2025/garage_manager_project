@@ -59,11 +59,17 @@
 {% block content %}
 <div id="receipt">
   <!-- رأس مبسط: التاريخ فقط -->
-  <div class="simple-header" style="border-bottom:1px solid #ccc;padding-bottom:6px">
+  <div class="simple-header" style="border-bottom:1px solid #ccc;padding-bottom:6px;margin-bottom:10px">
     <div style="font-size:14px;font-weight:700;text-align:center">
       التاريخ: {{ sale.sale_date and sale.sale_date.strftime('%Y-%m-%d') or '—' }}
     </div>
   </div>
+
+  <!-- معلومات العميل -->
+  <table class="kv" style="margin-bottom:10px">
+    <tr><th>اسم العميل</th><td>{{ sale.customer.name if sale.customer else '—' }}</td></tr>
+    <tr><th>هاتف العميل</th><td>{{ sale.customer.phone if sale.customer else '—' }}</td></tr>
+  </table>
 
   <!-- جدول البنود -->
   <table>
@@ -100,18 +106,14 @@
   </table>
 
   <!-- ملاحظات -->
-  <div class="notes-box"><strong>ملاحظات:</strong> {{ sale.notes or '—' }}</div>
-
-  <!-- التوقيعات -->
-  <div class="sign-row">
-    <div class="sign">توقيع البائع<br>{{ sale.seller.username if sale.seller else '________' }}</div>
-    <div class="sign">توقيع العميل<br>__________</div>
-  </div>
+  {% if sale.notes %}
+  <div class="notes-box" style="margin-top:10px"><strong>ملاحظات:</strong> {{ sale.notes }}</div>
+  {% endif %}
 
   <!-- أزرار الطباعة -->
   <div class="text-center mt-3 no-print" style="padding:8px 0">
     <button class="btn btn-dark btn-sm" onclick="window.print()">🖨️ طباعة</button>
-    <a class="btn btn-info btn-sm" href="{{ url_for('sales_bp.sale_receipt', id=sale.id) }}">🎨 النسخة الملونة</a>
+    <a class="btn btn-info btn-sm" href="{{ url_for('sales_bp.sale_receipt', id=sale.id) }}">🎨 فاتورة كاملة</a>
     <a class="btn btn-secondary btn-sm" href="{{ url_for('sales_bp.sale_detail', id=sale.id) }}">↩️ رجوع</a>
   </div>
 </div>
