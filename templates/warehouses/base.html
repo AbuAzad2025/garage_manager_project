@@ -13,57 +13,81 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2/css/select2.min.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
   <style>
-    /* إصلاح ألوان أزرار navbar المستودعات */
+    /* إصلاح ألوان أزرار navbar المستودعات - إلغاء تأثير style.css */
     .warehouse-nav-buttons .btn {
       font-weight: 600 !important;
       border: 1px solid rgba(0,0,0,0.1) !important;
+      background-image: none !important; /* إلغاء التدرجات من style.css */
+      box-shadow: none !important;
+      transform: none !important;
     }
     
-    .warehouse-nav-buttons .btn-primary {
-      background-color: #007bff !important;
+    /* تطبيق الألوان الصحيحة */
+    .warehouse-nav-buttons .btn-primary,
+    .warehouse-nav-buttons a.btn-primary {
+      background: linear-gradient(135deg, #007bff 0%, #0056b3 100%) !important;
       color: #fff !important;
+      border-color: #007bff !important;
     }
     
-    .warehouse-nav-buttons .btn-info {
-      background-color: #17a2b8 !important;
+    .warehouse-nav-buttons .btn-info,
+    .warehouse-nav-buttons a.btn-info {
+      background: linear-gradient(135deg, #17a2b8 0%, #138496 100%) !important;
       color: #fff !important;
+      border-color: #17a2b8 !important;
     }
     
-    .warehouse-nav-buttons .btn-dark {
-      background-color: #343a40 !important;
+    .warehouse-nav-buttons .btn-dark,
+    .warehouse-nav-buttons a.btn-dark {
+      background: linear-gradient(135deg, #343a40 0%, #23272b 100%) !important;
       color: #fff !important;
+      border-color: #343a40 !important;
     }
     
-    .warehouse-nav-buttons .btn-success {
-      background-color: #28a745 !important;
+    .warehouse-nav-buttons .btn-success,
+    .warehouse-nav-buttons a.btn-success {
+      background: linear-gradient(135deg, #28a745 0%, #218838 100%) !important;
       color: #fff !important;
-    }
-    
-    .warehouse-nav-buttons .btn-outline-success {
-      background-color: #fff !important;
-      color: #28a745 !important;
       border-color: #28a745 !important;
     }
     
-    .warehouse-nav-buttons .btn-outline-success:hover {
-      background-color: #28a745 !important;
-      color: #fff !important;
-    }
-    
-    .warehouse-nav-buttons .btn-warning {
-      background-color: #ffc107 !important;
+    .warehouse-nav-buttons .btn-warning,
+    .warehouse-nav-buttons a.btn-warning {
+      background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%) !important;
       color: #212529 !important;
-    }
-    
-    .warehouse-nav-buttons .btn-outline-warning {
-      background-color: #fff !important;
-      color: #ffc107 !important;
       border-color: #ffc107 !important;
     }
     
-    .warehouse-nav-buttons .btn-outline-warning:hover {
-      background-color: #ffc107 !important;
+    .warehouse-nav-buttons .btn-outline-success,
+    .warehouse-nav-buttons a.btn-outline-success {
+      background: #fff !important;
+      color: #28a745 !important;
+      border: 2px solid #28a745 !important;
+    }
+    
+    .warehouse-nav-buttons .btn-outline-success:hover,
+    .warehouse-nav-buttons a.btn-outline-success:hover {
+      background: linear-gradient(135deg, #28a745 0%, #218838 100%) !important;
+      color: #fff !important;
+    }
+    
+    .warehouse-nav-buttons .btn-outline-warning,
+    .warehouse-nav-buttons a.btn-outline-warning {
+      background: #fff !important;
+      color: #ffc107 !important;
+      border: 2px solid #ffc107 !important;
+    }
+    
+    .warehouse-nav-buttons .btn-outline-warning:hover,
+    .warehouse-nav-buttons a.btn-outline-warning:hover {
+      background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%) !important;
       color: #212529 !important;
+    }
+    
+    /* تأثير hover */
+    .warehouse-nav-buttons .btn:hover {
+      transform: translateY(-2px) !important;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
     }
   </style>
   {% block dt_styles %}{% endblock %}
