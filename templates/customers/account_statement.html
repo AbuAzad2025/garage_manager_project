@@ -4,6 +4,134 @@
 
 {% block head_extra %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/statement-print.css') }}">
+<style>
+  /* ضغط التصميم وتصغير الخطوط */
+  .content-wrapper {
+    font-size: 0.75rem !important;
+  }
+  
+  .card-body {
+    padding: 0.5rem !important;
+  }
+  
+  .card-header {
+    padding: 0.5rem 0.75rem !important;
+  }
+  
+  .card-header h5 {
+    font-size: 0.9rem !important;
+    margin: 0 !important;
+  }
+  
+  /* تصغير ملخص الحساب */
+  .row.g-3 {
+    gap: 0.5rem !important;
+  }
+  
+  .card.shadow-sm .card-body {
+    padding: 0.5rem !important;
+  }
+  
+  .card.shadow-sm .text-muted {
+    font-size: 0.65rem !important;
+  }
+  
+  .card.shadow-sm .fs-5 {
+    font-size: 0.9rem !important;
+  }
+  
+  .card.shadow-sm .fs-6 {
+    font-size: 0.75rem !important;
+  }
+  
+  .card.shadow-sm .fs-4 {
+    font-size: 1rem !important;
+  }
+  
+  /* تصغير الجدول */
+  .table {
+    font-size: 0.7rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+  
+  .table th,
+  .table td {
+    padding: 0.25rem 0.4rem !important;
+    line-height: 1.2 !important;
+  }
+  
+  .table thead th {
+    font-size: 0.7rem !important;
+    padding: 0.4rem 0.5rem !important;
+  }
+  
+  .table .badge {
+    font-size: 0.65rem !important;
+    padding: 0.15rem 0.4rem !important;
+  }
+  
+  /* تصغير البنود المباعة */
+  .sale-items-details {
+    padding: 0.4rem !important;
+    margin: 0.2rem !important;
+  }
+  
+  .sale-items-details table {
+    font-size: 0.65rem !important;
+  }
+  
+  .sale-items-details th,
+  .sale-items-details td {
+    padding: 0.2rem 0.3rem !important;
+  }
+  
+  /* تصغير الأزرار */
+  .btn {
+    font-size: 0.7rem !important;
+    padding: 0.3rem 0.6rem !important;
+  }
+  
+  .btn-sm {
+    font-size: 0.65rem !important;
+    padding: 0.25rem 0.5rem !important;
+  }
+  
+  /* تصغير المسافات */
+  .mb-3, .my-3 {
+    margin-bottom: 0.5rem !important;
+  }
+  
+  .mb-4, .my-4 {
+    margin-bottom: 0.75rem !important;
+  }
+  
+  .gap-2 {
+    gap: 0.3rem !important;
+  }
+  
+  /* ضغط breadcrumb */
+  .breadcrumb {
+    padding: 0.4rem 0.8rem !important;
+    margin-bottom: 0.5rem !important;
+    font-size: 0.7rem !important;
+  }
+  
+  /* للطباعة */
+  @media print {
+    body, .content-wrapper {
+      font-size: 8pt !important;
+    }
+    
+    .table {
+      font-size: 7pt !important;
+    }
+    
+    .table th,
+    .table td {
+      padding: 2px 4px !important;
+    }
+  }
+</style>
 {% endblock %}
 
 {% block breadcrumb %}
