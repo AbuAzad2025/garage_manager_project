@@ -315,7 +315,8 @@ class PaymentDetailsMixin:
             raise ValidationError("❌ رقم البطاقة غير صالح")
         if not holder_clean:
             raise ValidationError("❌ أدخل اسم حامل البطاقة")
-        if not utils.is_valid_expiry_mm_yy(expiry_clean):
+        # تاريخ الانتهاء اختياري - نتحقق فقط إذا أدخله المستخدم
+        if expiry_clean and not utils.is_valid_expiry_mm_yy(expiry_clean):
             raise ValidationError("❌ تاريخ الانتهاء غير صالح (MM/YY)")
         return num_raw[-4:]
     def _validate_cheque(self, number, bank, due_date, op_date=None):
