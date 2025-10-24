@@ -4402,7 +4402,8 @@ class SaleLine(db.Model, TimestampMixin):
     unit_price = db.Column(db.Numeric(12, 2), nullable=False)
     discount_rate = db.Column(db.Numeric(5, 2), default=0, nullable=False)
     tax_rate = db.Column(db.Numeric(5, 2), default=0, nullable=False)
-    note = db.Column(db.String(200))
+    line_receiver = db.Column(db.String(200))  # مستلم البضاعة لهذا البند
+    note = db.Column(db.String(200))  # ملاحظات البند
 
     sale = db.relationship("Sale", back_populates="lines")
     product = db.relationship("Product", back_populates="sale_lines")

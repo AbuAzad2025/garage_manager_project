@@ -68,19 +68,21 @@
     /* بنود الفاتورة */
     .sale-line{
       display:grid;
-      grid-template-columns: 2fr 4fr 1fr 1fr 2fr; /* مستودع | منتج | كمية | سعر | إجراءات */
-      grid-gap:8px; align-items:start;
+      grid-template-columns: 0.6fr 2fr 1.2fr 1.2fr 1.5fr 2fr 1fr; /* رقم مستودع | منتج | كمية | سعر | مستلم | ملاحظات | إجراءات */
+      grid-gap:6px; align-items:start;
     }
     @media(max-width:992px){
       .sale-line{grid-template-columns: 1fr 1fr 1fr 1fr;}
-      .sale-line > div:last-child{grid-column:1/-1}
+      .sale-line > div:nth-child(n+5){grid-column:1/-1}
     }
     @media(max-width:576px){
       .sale-line{grid-template-columns:1fr 1fr;}
-      .sale-line > div:last-child{grid-column:1/-1}
+      .sale-line > div:nth-child(n+3){grid-column:1/-1}
     }
     .sale-line .form-control{border-radius:8px}
-    .stock-badge{min-width:64px}
+    .sale-line .product-select{font-size:0.85rem !important}
+    .sale-line input[type="number"]{min-width:80px}
+    .stock-badge{min-width:60px; font-size:0.75rem}
     .totals-table th{background:#f8fafc;font-weight:700;color:#334155}
     .totals-table td,.totals-table th{vertical-align:middle}
     .totals-table .grand{font-size:1.05rem}
@@ -168,11 +170,11 @@
                               class="form-control select2 ajax-select warehouse-select" 
                               required
                               data-endpoint="{{ url_for('api.warehouses') }}"
-                              data-placeholder="اختر المستودع"
+                              data-placeholder="#"
                               data-allow-clear="1">
                         {% if line.warehouse_id.data and sale is defined and sale.lines[loop.index0] is defined %}
                           <option value="{{ sale.lines[loop.index0].warehouse_id }}" selected>
-                            {{ sale.lines[loop.index0].warehouse.name if sale.lines[loop.index0].warehouse else 'مستودع' }}
+                            #{{ sale.lines[loop.index0].warehouse_id }}
                           </option>
                         {% endif %}
                       </select>
@@ -192,18 +194,24 @@
                       </select>
                     </div>
                     <div class="form-group">
-                      {{ line.quantity(class="form-control quantity-input", min="1", step="1", required=True, placeholder="الكمية") }}
+                      {{ line.quantity(class="form-control quantity-input", min="1", step="1", required=True, placeholder="كمية") }}
                     </div>
                     <div class="form-group">
-                      {{ line.unit_price(class="form-control price-input", min="0", step="0.01", required=True, placeholder="السعر") }}
+                      {{ line.unit_price(class="form-control price-input", min="0", step="0.01", required=True, placeholder="سعر") }}
+                    </div>
+                    <div class="form-group">
+                      {{ line.line_receiver(class="form-control", placeholder="مستلم") }}
+                    </div>
+                    <div class="form-group">
+                      {{ line.note(class="form-control", placeholder="ملاحظات") }}
                     </div>
                     <div class="form-group">
                       <div class="d-flex align-items-center justify-content-end">
                         <span class="badge badge-light text-dark stock-badge" title="المتوفر"></span>
-                        <button type="button" class="btn btn-sm btn-outline-danger ml-2 remove-line" title="حذف البند">
+                        <button type="button" class="btn btn-sm btn-outline-danger ml-1 remove-line" title="حذف">
                           <i class="fas fa-trash"></i>
                         </button>
-                        <span class="btn btn-sm btn-outline-secondary ml-2 drag-handle" title="سحب لإعادة الترتيب">
+                        <span class="btn btn-sm btn-outline-secondary ml-1 drag-handle" title="ترتيب">
                           <i class="fas fa-arrows-alt"></i>
                         </span>
                       </div>

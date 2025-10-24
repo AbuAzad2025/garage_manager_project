@@ -57,23 +57,12 @@
 
 {% block content %}
 <div id="receipt">
-  <!-- رأس بسيط جداً -->
-  <div class="simple-header">
-    <h2>المهندس الفلسطيني للمعدات الثقيلة</h2>
-    <p class="subtitle">فاتورة مبيعات</p>
+  <!-- رأس مبسط: التاريخ فقط -->
+  <div class="simple-header" style="border-bottom:1px solid #ccc;padding-bottom:6px">
+    <div style="font-size:14px;font-weight:700;text-align:center">
+      التاريخ: {{ sale.sale_date and sale.sale_date.strftime('%Y-%m-%d') or '—' }}
+    </div>
   </div>
-
-  <!-- معلومات الفاتورة -->
-  <div class="info-row">
-    <div><strong>رقم الفاتورة:</strong> {{ sale.sale_number or sale.id }}</div>
-    <div><strong>التاريخ:</strong> {{ sale.sale_date and sale.sale_date.strftime('%Y-%m-%d') or '—' }}</div>
-  </div>
-
-  <!-- معلومات العميل -->
-  <table class="kv" style="margin-bottom:10px">
-    <tr><th>اسم العميل</th><td>{{ sale.customer.name  if sale.customer else '—' }}</td></tr>
-    <tr><th>هاتف العميل</th><td>{{ sale.customer.phone if sale.customer else '—' }}</td></tr>
-  </table>
 
   <!-- جدول البنود -->
   <table>

@@ -273,6 +273,7 @@ def _attach_lines(sale: Sale, lines_payload: List[Dict[str, Any]]) -> None:
             unit_price=d["unit_price"],
             discount_rate=d.get("discount_rate", 0),
             tax_rate=d.get("tax_rate", 0),
+            line_receiver=d.get("line_receiver"),
             note=d.get("note"),
         ))
     db.session.flush()

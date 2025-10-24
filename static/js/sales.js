@@ -265,7 +265,17 @@
         if ($wh.length) {
           initAjaxSelect($wh, {
             endpoint: () => $wh.data('endpoint') || '/api/warehouses',
-            placeholder: $wh.data('placeholder') || 'اختر المستودع'
+            placeholder: $wh.data('placeholder') || '#'
+          });
+          
+          // عرض رقم المستودع بدلاً من الاسم بعد الاختيار
+          $wh.off('select2:select.warehouseNumber').on('select2:select.warehouseNumber', function(e) {
+            const whId = $(this).val();
+            if(whId){
+              // استبدال النص المعروض برقم المستودع
+              $(this).find('option:selected').text('#' + whId);
+              $(this).next('.select2-container').find('.select2-selection__rendered').text('#' + whId);
+            }
           });
         }
 

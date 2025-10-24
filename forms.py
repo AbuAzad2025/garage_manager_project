@@ -3046,6 +3046,7 @@ class SaleLineForm(FlaskForm):
     unit_price   = MoneyField('سعر الوحدة', validators=[Optional(), NumberRange(min=0)])
     discount_rate= PercentField('خصم %', validators=[Optional()])
     tax_rate     = PercentField('ضريبة %', validators=[Optional()])
+    line_receiver= StrippedStringField('المستلم', validators=[Optional(), Length(max=200)])
     note         = StrippedStringField('ملاحظات', validators=[Optional(), Length(max=200)])
 
 
