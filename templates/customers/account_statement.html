@@ -5,130 +5,102 @@
 {% block head_extra %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/statement-print.css') }}">
 <style>
-  /* ضغط التصميم وتصغير الخطوط */
-  .content-wrapper {
-    font-size: 0.75rem !important;
-  }
-  
-  .card-body {
-    padding: 0.5rem !important;
-  }
-  
-  .card-header {
-    padding: 0.5rem 0.75rem !important;
-  }
-  
-  .card-header h5 {
-    font-size: 0.9rem !important;
-    margin: 0 !important;
-  }
-  
-  /* تصغير ملخص الحساب */
-  .row.g-3 {
-    gap: 0.5rem !important;
-  }
-  
-  .card.shadow-sm .card-body {
-    padding: 0.5rem !important;
-  }
-  
-  .card.shadow-sm .text-muted {
-    font-size: 0.65rem !important;
-  }
-  
-  .card.shadow-sm .fs-5 {
-    font-size: 0.9rem !important;
-  }
-  
-  .card.shadow-sm .fs-6 {
-    font-size: 0.75rem !important;
-  }
-  
-  .card.shadow-sm .fs-4 {
-    font-size: 1rem !important;
-  }
-  
-  /* تصغير الجدول */
-  .table {
-    font-size: 0.7rem !important;
-    margin-bottom: 0.5rem !important;
-  }
-  
-  .table th,
-  .table td {
-    padding: 0.25rem 0.4rem !important;
-    line-height: 1.2 !important;
-  }
-  
-  .table thead th {
-    font-size: 0.7rem !important;
-    padding: 0.4rem 0.5rem !important;
-  }
-  
-  .table .badge {
-    font-size: 0.65rem !important;
-    padding: 0.15rem 0.4rem !important;
-  }
-  
-  /* تصغير البنود المباعة */
-  .sale-items-details {
-    padding: 0.4rem !important;
-    margin: 0.2rem !important;
-  }
-  
-  .sale-items-details table {
-    font-size: 0.65rem !important;
-  }
-  
-  .sale-items-details th,
-  .sale-items-details td {
-    padding: 0.2rem 0.3rem !important;
-  }
-  
-  /* تصغير الأزرار */
-  .btn {
-    font-size: 0.7rem !important;
-    padding: 0.3rem 0.6rem !important;
-  }
-  
-  .btn-sm {
-    font-size: 0.65rem !important;
-    padding: 0.25rem 0.5rem !important;
-  }
-  
-  /* تصغير المسافات */
-  .mb-3, .my-3 {
-    margin-bottom: 0.5rem !important;
-  }
-  
-  .mb-4, .my-4 {
-    margin-bottom: 0.75rem !important;
-  }
-  
-  .gap-2 {
-    gap: 0.3rem !important;
-  }
-  
-  /* ضغط breadcrumb */
-  .breadcrumb {
-    padding: 0.4rem 0.8rem !important;
-    margin-bottom: 0.5rem !important;
-    font-size: 0.7rem !important;
-  }
-  
-  /* للطباعة */
+  /* ضغط التصميم للطباعة فقط */
   @media print {
+    /* تصغير الخطوط للنصف */
     body, .content-wrapper {
+      font-size: 7pt !important;
+    }
+    
+    .card-header h5 {
       font-size: 8pt !important;
     }
     
+    /* تصغير الجدول */
     .table {
-      font-size: 7pt !important;
+      font-size: 6.5pt !important;
+      margin-bottom: 0 !important;
     }
     
     .table th,
     .table td {
+      padding: 1px 3px !important;
+      line-height: 1.1 !important;
+    }
+    
+    .table thead th {
+      font-size: 7pt !important;
       padding: 2px 4px !important;
+      font-weight: bold !important;
+    }
+    
+    .table .badge {
+      font-size: 6pt !important;
+      padding: 1px 3px !important;
+    }
+    
+    /* تصغير البنود المباعة */
+    .sale-items-details {
+      padding: 2px !important;
+      margin: 1px !important;
+    }
+    
+    .sale-items-details table {
+      font-size: 6pt !important;
+    }
+    
+    .sale-items-details th,
+    .sale-items-details td {
+      padding: 1px 2px !important;
+    }
+    
+    /* ضغط المسافات */
+    .card-body {
+      padding: 3px !important;
+    }
+    
+    .card-header {
+      padding: 3px 5px !important;
+    }
+    
+    .row.g-3 {
+      gap: 2px !important;
+    }
+    
+    .mb-3, .my-3 {
+      margin-bottom: 3px !important;
+    }
+    
+    .mb-4, .my-4 {
+      margin-bottom: 5px !important;
+    }
+    
+    /* إخفاء العناصر غير الضرورية */
+    .no-print,
+    .btn,
+    .breadcrumb {
+      display: none !important;
+    }
+    
+    /* ضغط الكروت */
+    .card {
+      margin-bottom: 5px !important;
+      box-shadow: none !important;
+    }
+    
+    /* تصغير الأيقونات */
+    .fas, .fab {
+      font-size: 6pt !important;
+    }
+    
+    /* ضغط عرض الصفحة */
+    @page {
+      margin: 0.3cm;
+    }
+    
+    body {
+      margin: 0;
+      padding: 0;
     }
   }
 </style>
