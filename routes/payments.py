@@ -1270,7 +1270,6 @@ def delete_payment(payment_id: int):
             return jsonify(ok=False, error="delete_failed", message=str(e)), 500
         return make_response("<!doctype html><meta charset='utf-8'><div style='padding:24px;font-family:system-ui,Arial,sans-serif'>تعذّر حذف السند</div>", 500)
 
-@payments_bp.route("/<int:payment_id>/receipt", methods=["GET"], endpoint="view_receipt")
 @payments_bp.route("/<int:payment_id>/receipt", methods=["GET"], endpoint="payment_receipt")
 @login_required
 # @permission_required("manage_payments")  # Commented out
