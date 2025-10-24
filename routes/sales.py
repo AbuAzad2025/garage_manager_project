@@ -253,6 +253,7 @@ def _resolve_lines_from_form(form: SaleForm, require_stock: bool) -> Tuple[List[
             unit_price=float(ln.unit_price.data or 0),
             discount_rate=float(ln.discount_rate.data or 0),
             tax_rate=float(ln.tax_rate.data or 0),
+            line_receiver=(ln.line_receiver.data or "").strip() or None,
             note=(ln.note.data or "").strip() or None,
         )
         lines_payload.append(line_dict)
@@ -513,9 +514,10 @@ def create_sale():
                 return render_template("sales/form.html", form=form, title="إنشاء فاتورة جديدة",
                                        products=Product.query.order_by(Product.name).all(),
                                        warehouses=Warehouse.query.order_by(Warehouse.name).all())
-            for d in lines_payload:
-                if (d.get("unit_price") or 0) <= 0:
-                    d["unit_price"] = _resolve_unit_price(d["product_id"], d.get("warehouse_id"))
+            # لا نغير السعر الذي أدخله المستخدم - نستخدمه كما هو
+            # for d in lines_payload:
+            #     if (d.get("unit_price") or 0) <= 0:
+            #         d["unit_price"] = _resolve_unit_price(d["product_id"], d.get("warehouse_id"))
             if require_stock:
                 pairs = [(d["product_id"], d["warehouse_id"]) for d in lines_payload if d.get("warehouse_id")]
                 _lock_stock_rows(pairs)
@@ -661,9 +663,10 @@ def edit_sale(id: int):
                 return render_template("sales/form.html", form=form, sale=sale, title="تعديل الفاتورة",
                                        products=Product.query.order_by(Product.name).all(),
                                        warehouses=Warehouse.query.order_by(Warehouse.name).all())
-            for d in lines_payload:
-                if (d.get("unit_price") or 0) <= 0:
-                    d["unit_price"] = _resolve_unit_price(d["product_id"], d.get("warehouse_id"))
+            # لا نغير السعر الذي أدخله المستخدم - نستخدمه كما هو
+            # for d in lines_payload:
+            #     if (d.get("unit_price") or 0) <= 0:
+            #         d["unit_price"] = _resolve_unit_price(d["product_id"], d.get("warehouse_id"))
             if require_stock:
                 pairs = [(d["product_id"], d["warehouse_id"]) for d in lines_payload if d.get("warehouse_id")]
                 _lock_stock_rows(pairs)
