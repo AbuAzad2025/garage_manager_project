@@ -1,0 +1,160 @@
+{% extends "base_print.html" %}
+{% block title %}وصل دفع{% endblock %}
+
+{% block head_extra %}
+{% set _size = (request.args.get('s', 'a4')|lower) %}
+{% set _ori  = (request.args.get('o', 'portrait')|lower) %}
+{% set W,H = (148,210) if _size == 'a5' else (210,297) %}
+{% set PW,PH = (H,W) if _ori == 'landscape' else (W,H) %}
+{% set MT = 8 %}{% set MR = 8 %}{% set ML = 8 %}{% set MB = 8 %}
+{% set content_w = PW - (ML + MR) %}
+
+<style>
+  @page { size: {{ PW }}mm {{ PH }}mm; margin: {{ MT }}mm {{ MR }}mm {{ MB }}mm {{ ML }}mm; }
+  @media print { .no-print { display: none !important; } }
+
+  html,body{background:#fff;font-family:"DejaVu Sans","Amiri","Tahoma","Arial",sans-serif;direction:rtl;text-align:right;font-size:12px;line-height:1.4;margin:0;color:#000}
+  #receipt { width: {{ content_w }}mm; margin: 0 auto; }
+
+  .simple-header{text-align:center;margin-bottom:12px;border-bottom:2px solid #333;padding-bottom:8px}
+  .simple-header h2{font-size:18px;font-weight:800;margin:0 0 4px 0}
+  .simple-header .subtitle{font-size:11px;color:#555;margin:0}
+
+  .info-row{display:flex;justify-content:space-between;margin-bottom:10px;font-size:11px}
+  .info-row div{flex:1}
+
+  .kv { width: 100%; border-collapse: collapse; margin-bottom:10px; }
+  .kv th, .kv td { padding: 6px 8px; vertical-align: top; border:1px solid #999; font-size:11px; }
+  .kv th { width: 30%; white-space: nowrap; background:#f5f5f5; color: #333; font-weight:700; }
+  .kv td { width: 70%; }
+  .num { text-align: end; white-space: nowrap; }
+  .wrap { word-break: break-word; }
+
+  table { width: 100%; border-collapse: collapse; margin-bottom:10px; }
+  thead th { background: #f0f0f0; border:1px solid #777; font-size:11px; }
+  td, th { padding: 5px 6px; border: 1px solid #999; font-size:11px; }
+
+  .sign-row { display:flex; gap:14px; margin-top:18px; }
+  .sign { flex:1; border-top: 1px solid #888; padding-top: 10px; text-align: center; min-height:35px; font-size:11px; }
+
+  @media print{
+    html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .btn,nav,.navbar,.sidebar,.actions,a.no-print{display:none!important}
+    a[href]:after{content:""!important}
+    tr,.info-row{break-inside:avoid;page-break-inside:avoid}
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set _receipt_no = payment.receipt_number or payment.payment_number or payment.id %}
+{% set _dir    = ((payment.direction.value if payment.direction and payment.direction.value else payment.direction) or '')|string|upper %}
+{% set _method = (payment.method.value   if payment.method   and payment.method.value   else payment.method) %}
+{% set _status = (payment.status.value   if payment.status   and payment.status.value   else payment.status) %}
+{% set _curr   = payment.currency or '' %}
+
+<div id="receipt">
+  <!-- رأس بسيط جداً -->
+  <div class="simple-header">
+    <h2>المهندس الفلسطيني للمعدات الثقيلة</h2>
+    <p class="subtitle">وصل دفع</p>
+  </div>
+
+  <!-- معلومات الوصل -->
+  <div class="info-row">
+    <div><strong>رقم الوصل:</strong> {{ _receipt_no }}</div>
+    <div><strong>التاريخ:</strong> {{ payment.payment_date and payment.payment_date.strftime('%Y-%m-%d %H:%M') or '—' }}</div>
+  </div>
+
+  <!-- تفاصيل الدفع -->
+  <table class="kv">
+    <tr><th>المبلغ الكلي</th><td class="num"><strong>{{ '%.0f'|format(payment.total_amount or 0) }} {{ _curr }}</strong></td></tr>
+    <tr><th>طريقة الدفع</th><td>{{ _method or '—' }}</td></tr>
+    <tr><th>الاتجاه</th><td>{{ 'وارد' if _dir in ['IN','INCOMING'] else 'صادر' }}</td></tr>
+    <tr><th>الحالة</th><td>{{ _status or '—' }}</td></tr>
+    <tr><th>الجهة</th><td>{{ payment.entity_label() or payment.entity_type or '—' }}</td></tr>
+    <tr><th>المرجع</th><td>{{ payment.reference or '—' }}</td></tr>
+    {% if payment.receiver_name %}
+    <tr><th>مستلم الدفعة</th><td><strong>{{ payment.receiver_name }}</strong></td></tr>
+    {% endif %}
+    <tr><th>ملاحظات</th><td>{{ payment.notes or '—' }}</td></tr>
+  </table>
+
+  <!-- معلومات فاتورة البيع إن وجدت -->
+  {% if sale_info %}
+  <table class="kv">
+    {% set s_curr = sale_info.currency or '' %}
+    <tr><th colspan="2" style="text-align:center;background:#e8e8e8"><strong>فاتورة البيع المرتبطة</strong></th></tr>
+    <tr><th>رقم الفاتورة</th><td>#{{ sale_info.number or '—' }}</td></tr>
+    <tr><th>تاريخ البيع</th><td>{{ sale_info.date or '—' }}</td></tr>
+    <tr><th>الإجمالي</th><td class="num">{{ sale_info.total is not none and ('%.0f'|format(sale_info.total)) or '—' }} {{ s_curr }}</td></tr>
+    <tr><th>المدفوع</th><td class="num">{{ sale_info.paid is not none and ('%.0f'|format(sale_info.paid)) or '—' }} {{ s_curr }}</td></tr>
+    <tr><th>المتبقي</th><td class="num">{{ sale_info.balance is not none and ('%.0f'|format(sale_info.balance)) or '—' }} {{ s_curr }}</td></tr>
+  </table>
+  {% endif %}
+
+  <!-- تفاصيل الدفعات الجزئية -->
+  {% if payment.splits %}
+  <table>
+    <colgroup>
+      <col style="width:50px"><col style="width:160px"><col style="width:120px"><col>
+    </colgroup>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th class="text-end">المبلغ</th>
+        <th>الطريقة</th>
+        <th>تفاصيل</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in payment.splits %}
+        {% set m = ((s.method.value if s.method and s.method.value else s.method) or '')|lower %}
+        {% set d = s.details if s.details is mapping else {} %}
+        <tr>
+          <td class="text-center">{{ loop.index }}</td>
+          <td class="num">{{ '%.0f'|format(s.amount or 0) }} {{ _curr }}</td>
+          <td class="text-center">{{ (m or '—')|upper }}</td>
+          <td class="wrap">
+            {% if m in ['cheque','check'] %}
+              شيك: {{ d.get('check_number','—') }}، بنك: {{ d.get('check_bank','—') }}، استحقاق: {{ d.get('check_due_date') or d.get('due_date') or '—' }}
+            {% elif m in ['bank','transfer','bank_transfer'] %}
+              تحويل: {{ d.get('bank_transfer_ref', d.get('reference','—')) }}
+            {% elif m in ['card','credit'] %}
+              بطاقة: ****{{ d.get('card_last4') or (d.get('card_number','')|string)[-4:] }}، حامل: {{ d.get('card_holder','—') }}، انتهاء: {{ d.get('card_expiry','—') }}
+            {% elif m in ['online','mobile'] %}
+              بوابة: {{ d.get('online_gateway', d.get('gateway','—')) }}، مرجع: {{ d.get('online_ref', d.get('reference','—')) }}
+            {% elif m == 'cash' %}
+              نقداً
+            {% else %}
+              —
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <th colspan="1" class="text-end">المجموع</th>
+        <th class="num">{{ '%.0f'|format((payment.splits | map(attribute='amount') | sum) or 0) }} {{ _curr }}</th>
+        <th colspan="2"></th>
+      </tr>
+    </tfoot>
+  </table>
+  {% endif %}
+
+  <!-- التوقيعات -->
+  <div class="sign-row">
+    <div class="sign">توقيع المستلم</div>
+    <div class="sign">توقيع المسؤول</div>
+  </div>
+
+  <!-- أزرار الطباعة -->
+  <div class="text-center mt-3 no-print" style="padding:8px 0">
+    <button class="btn btn-dark btn-sm" onclick="window.print()">🖨️ طباعة</button>
+    <a class="btn btn-info btn-sm" href="{{ url_for('payments.payment_receipt', payment_id=payment.id) }}">🎨 النسخة الملونة</a>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('payments.download_receipt', payment_id=payment.id) }}">تحميل PDF</a>
+  </div>
+</div>
+{% endblock %}
+

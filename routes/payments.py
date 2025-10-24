@@ -1271,6 +1271,7 @@ def delete_payment(payment_id: int):
         return make_response("<!doctype html><meta charset='utf-8'><div style='padding:24px;font-family:system-ui,Arial,sans-serif'>تعذّر حذف السند</div>", 500)
 
 @payments_bp.route("/<int:payment_id>/receipt", methods=["GET"], endpoint="view_receipt")
+@payments_bp.route("/<int:payment_id>/receipt", methods=["GET"], endpoint="payment_receipt")
 @login_required
 # @permission_required("manage_payments")  # Commented out
 def view_receipt(payment_id: int):
@@ -1282,7 +1283,12 @@ def view_receipt(payment_id: int):
         payload = _serialize_payment_min(payment)
         payload["sale_info"] = sale_info
         return jsonify(payment=payload)
-    return render_template("payments/receipt.html", payment=payment, now=datetime.utcnow(), sale_info=sale_info)
+    
+    # التحقق من نوع القالب (بسيط أو ملون)
+    use_simple = request.args.get('simple', '').strip().lower() in ('1', 'true', 'yes')
+    template_name = "payments/receipt_simple.html" if use_simple else "payments/receipt.html"
+    
+    return render_template(template_name, payment=payment, now=datetime.utcnow(), sale_info=sale_info)
 
 @payments_bp.route("/<int:payment_id>/receipt/download", methods=["GET"], endpoint="download_receipt")
 @login_required

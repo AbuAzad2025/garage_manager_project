@@ -146,6 +146,7 @@
 
   <div class="text-center mt-3 no-print">
     <button class="btn btn-dark" onclick="window.print()">🖨️ طباعة</button>
+    <a class="btn btn-outline-secondary" href="{{ url_for('sales_bp.sale_receipt', id=sale.id, simple=1) }}">📄 النسخة البسيطة</a>
     <a class="btn btn-secondary" href="{{ url_for('sales_bp.sale_detail', id=sale.id) }}">↩️ رجوع</a>
   </div>
 </div>

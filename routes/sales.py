@@ -814,6 +814,7 @@ def change_status(id: int, status: str):
     return redirect(url_for("sales_bp.sale_detail", id=sale.id))
 
 @sales_bp.route("/<int:id>/invoice", methods=["GET"], endpoint="generate_invoice")
+@sales_bp.route("/<int:id>/receipt", methods=["GET"], endpoint="sale_receipt")
 @login_required
 # @permission_required("manage_sales")  # Commented out - function not available
 def generate_invoice(id: int):
@@ -842,8 +843,13 @@ def generate_invoice(id: int):
     subtotal_after_discount = (subtotal - sale_discount_total).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
     invoice_tax_amount = (subtotal_after_discount * sale_tax_rate / Decimal("100")).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
     grand_total = (subtotal_after_discount + invoice_tax_amount + sale_shipping).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
+    
+    # التحقق من نوع القالب (بسيط أو ملون)
+    use_simple = request.args.get('simple', '').strip().lower() in ('1', 'true', 'yes')
+    template_name = "sales/receipt_simple.html" if use_simple else "sales/receipt.html"
+    
     return render_template(
-        "sales/receipt.html",
+        template_name,
         sale=sale,
         lines=lines,
         subtotal=subtotal,

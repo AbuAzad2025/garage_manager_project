@@ -145,7 +145,8 @@
   </div>
 
   <div class="text-center mt-3 no-print">
-    <button class="btn btn-dark" onclick="window.print()">طباعة</button>
+    <button class="btn btn-dark" onclick="window.print()">🖨️ طباعة</button>
+    <a class="btn btn-outline-secondary" href="{{ url_for('payments.payment_receipt', payment_id=payment.id, simple=1) }}">📄 النسخة البسيطة</a>
     <a class="btn btn-outline-secondary" href="{{ url_for('payments.download_receipt', payment_id=payment.id) }}">تحميل PDF</a>
   </div>
 </div>
