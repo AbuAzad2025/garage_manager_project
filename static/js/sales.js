@@ -94,6 +94,21 @@
         el.removeAttribute('value');
       });
       
+      // إذا كان Select2 موجود، دمّره أولاً
+      if(window.jQuery){
+        const $ = window.jQuery;
+        $(row).find('select').each(function(){
+          const $sel = $(this);
+          try {
+            if($sel.data('select2')){
+              $sel.select2('destroy');
+            }
+          } catch(e) {
+            // تجاهل الأخطاء
+          }
+        });
+      }
+      
       // مسح Select بشكل كامل - حذف كل الـ options ووضع option فارغ
       qsa('select',row).forEach(s=>{
         // حذف كل الخيارات الموجودة
@@ -108,22 +123,13 @@
         // إعادة تعيين القيمة
         s.value = '';
         s.selectedIndex = 0;
+        
+        // إزالة أي classes أو attributes متعلقة بـ Select2
+        s.classList.remove('select2-hidden-accessible');
+        s.removeAttribute('data-select2-id');
+        s.removeAttribute('aria-hidden');
+        s.removeAttribute('tabindex');
       });
-      
-      // إذا كان Select2 موجود، دمّره وأعد تهيئته
-      if(window.jQuery){
-        const $ = window.jQuery;
-        $(row).find('select').each(function(){
-          const $sel = $(this);
-          try {
-            if($sel.data('select2')){
-              $sel.select2('destroy');
-            }
-          } catch(e) {
-            // تجاهل الأخطاء
-          }
-        });
-      }
       
       const badge=row.querySelector('.stock-badge'); 
       if(badge) badge.textContent='';
@@ -139,12 +145,12 @@
       
       // حذف جميع عناصر Select2 المنسوخة (الواجهة المرئية)
       qsa('.select2-container', clone).forEach(el => el.remove());
-      qsa('.select2-hidden-accessible', clone).forEach(el => {
-        el.classList.remove('select2-hidden-accessible');
-      });
       
       // مسح جميع البيانات من الصف المنسوخ
       clearRow(clone);
+      
+      // إزالة أي span متبقي من Select2
+      qsa('span[class*="select2"]', clone).forEach(el => el.remove());
       
       // إعادة ترقيم الصف الجديد
       renumberRow(clone, currentMaxIndex()+1);
@@ -152,8 +158,10 @@
       // إضافة الصف
       wrap.appendChild(clone);
       
-      // ربط الأحداث
-      bindRow(clone);
+      // ربط الأحداث بعد تأخير قصير للتأكد من إضافة الصف للـ DOM
+      setTimeout(() => {
+        bindRow(clone);
+      }, 100);
       
       // إعادة حساب الإجماليات
       recalc();
