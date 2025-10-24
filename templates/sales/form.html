@@ -124,12 +124,32 @@
                   {% for line in form.lines %}
                   <div class="sale-line mb-2 p-2 border rounded bg-white" data-index="{{ loop.index0 }}">
                     <div class="form-group">
-                      {{ line.warehouse_id(class="form-control select2 ajax-select warehouse-select", required=True,
-                        **{'data-endpoint': url_for('api.warehouses'),'data-placeholder':'اختر المستودع','data-allow-clear':1}) }}
+                      <select name="{{ line.warehouse_id.name }}" id="{{ line.warehouse_id.id }}" 
+                              class="form-control select2 ajax-select warehouse-select" 
+                              required
+                              data-endpoint="{{ url_for('api.warehouses') }}"
+                              data-placeholder="اختر المستودع"
+                              data-allow-clear="1">
+                        {% if line.warehouse_id.data and sale is defined and sale.lines[loop.index0] is defined %}
+                          <option value="{{ sale.lines[loop.index0].warehouse_id }}" selected>
+                            {{ sale.lines[loop.index0].warehouse.name if sale.lines[loop.index0].warehouse else 'مستودع' }}
+                          </option>
+                        {% endif %}
+                      </select>
                     </div>
                     <div class="form-group">
-                      {{ line.product_id(class="form-control select2 ajax-select product-select", required=True,
-                        **{'data-endpoint': url_for('api.products'),'data-placeholder':'اختر الصنف','data-allow-clear':1}) }}
+                      <select name="{{ line.product_id.name }}" id="{{ line.product_id.id }}"
+                              class="form-control select2 ajax-select product-select" 
+                              required
+                              data-endpoint="{{ url_for('api.products') }}"
+                              data-placeholder="اختر الصنف"
+                              data-allow-clear="1">
+                        {% if line.product_id.data and sale is defined and sale.lines[loop.index0] is defined %}
+                          <option value="{{ sale.lines[loop.index0].product_id }}" selected>
+                            {{ sale.lines[loop.index0].product.name if sale.lines[loop.index0].product else 'منتج' }}
+                          </option>
+                        {% endif %}
+                      </select>
                     </div>
                     <div class="form-group">
                       {{ line.quantity(class="form-control quantity-input", min="1", step="1", required=True, placeholder="الكمية") }}

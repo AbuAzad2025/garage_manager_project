@@ -88,23 +88,56 @@
     }
 
     function clearRow(row){
-      qsa('input[type="number"],input[type="text"]',row).forEach(el=>{ el.value=''; });
-      qsa('select',row).forEach(s=>{
-        s.selectedIndex=0;
-        s.dispatchEvent(new Event('change'));
+      // مسح كل الحقول بشكل صحيح
+      qsa('input[type="number"],input[type="text"]',row).forEach(el=>{ 
+        el.value=''; 
+        el.removeAttribute('value');
       });
-      const badge=row.querySelector('.stock-badge'); if(badge) badge.textContent='';
+      
+      // مسح Select2 بشكل صحيح
+      if(window.jQuery){
+        const $ = window.jQuery;
+        $(row).find('select').each(function(){
+          const $sel = $(this);
+          if($sel.data('select2')){
+            $sel.val(null).trigger('change');
+          } else {
+            this.selectedIndex = 0;
+            this.value = '';
+          }
+        });
+      } else {
+        qsa('select',row).forEach(s=>{
+          s.selectedIndex = 0;
+          s.value = '';
+        });
+      }
+      
+      const badge=row.querySelector('.stock-badge'); 
+      if(badge) badge.textContent='';
       row.dataset.priceManual = '';
     }
 
     function addLine(){
       const rows = qsa('.sale-line',wrap);
       if(!rows.length){ alert('لا يوجد قالب بند لنسخه.'); return; }
+      
+      // نسخ الصف ومسحه فوراً
       const clone = rows[rows.length-1].cloneNode(true);
+      
+      // مسح جميع البيانات من الصف المنسوخ
       clearRow(clone);
+      
+      // إعادة ترقيم الصف الجديد
       renumberRow(clone, currentMaxIndex()+1);
+      
+      // إضافة الصف
       wrap.appendChild(clone);
+      
+      // ربط الأحداث
       bindRow(clone);
+      
+      // إعادة حساب الإجماليات
       recalc();
     }
 
