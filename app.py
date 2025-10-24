@@ -498,7 +498,7 @@ def create_app(config_object=Config) -> Flask:
                 "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com https://cdn.datatables.net; "
                 "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; "
                 "img-src 'self' data: https:; "
-                "connect-src 'self';"
+                "connect-src 'self' https://cdn.jsdelivr.net;"
             )
         if app.config.get('SESSION_COOKIE_SECURE'):
             response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'

@@ -19,9 +19,6 @@
     
     // Enhanced performance optimizations
     initPerformanceOptimizations();
-    
-    // Initialize real-time notifications
-    initSocketNotifications();
   });
 
   function initAll(root) {
@@ -258,9 +255,6 @@
     $(root).find('[data-autosave]').on('input change', debounce(function() {
       saveFormData($(this).closest('form'));
     }, 1000));
-
-    // Enhanced notifications
-    initSocketNotifications();
   }
 
   function performSearch(query, target) {
