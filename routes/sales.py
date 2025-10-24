@@ -650,8 +650,9 @@ def edit_sale(id: int):
             was_confirmed = (sale.status == "CONFIRMED")
             if was_confirmed:
                 _release_stock(sale)
-            target_status = (form.status.data or sale.status or "DRAFT").upper()
-            require_stock = (target_status == "CONFIRMED")
+            # الحالة دائماً CONFIRMED (تم حذف حقل status من الفورم)
+            target_status = "CONFIRMED"
+            require_stock = True
             lines_payload, err = _resolve_lines_from_form(form, require_stock=require_stock)
             if err:
                 if was_confirmed:
