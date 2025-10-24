@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}المرتجعات{% endblock %}
+
+{% block content %}
+<div class="content-header">
+  <div class="container-fluid">
+    <div class="row mb-2">
+      <div class="col-sm-6">
+        <h1>
+          <i class="fas fa-undo-alt"></i> المرتجعات
+        </h1>
+      </div>
+      <div class="col-sm-6">
+        <div class="float-left">
+          <a href="{{ url_for('returns.create_return') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> مرتجع جديد
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section class="content">
+  <div class="container-fluid">
+    
+    <!-- Filters -->
+    <div class="card">
+      <div class="card-body">
+        <form method="GET" class="form-inline">
+          <div class="form-group mr-3">
+            <label class="mr-2">الحالة:</label>
+            <select name="status" class="form-control">
+              <option value="">الكل</option>
+              <option value="DRAFT" {% if current_status == 'DRAFT' %}selected{% endif %}>مسودة</option>
+              <option value="CONFIRMED" {% if current_status == 'CONFIRMED' %}selected{% endif %}>مؤكد</option>
+              <option value="CANCELLED" {% if current_status == 'CANCELLED' %}selected{% endif %}>ملغي</option>
+            </select>
+          </div>
+          
+          <div class="form-group mr-3">
+            <label class="mr-2">العميل:</label>
+            <select name="customer_id" class="form-control">
+              <option value="0">الكل</option>
+              {% for customer in customers %}
+              <option value="{{ customer.id }}" {% if customer.id == current_customer %}selected{% endif %}>
+                {{ customer.name }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          
+          <div class="form-group mr-3">
+            <input type="text" name="search" class="form-control" placeholder="بحث..." 
+                   value="{{ search_term }}">
+          </div>
+          
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-search"></i> بحث
+          </button>
+        </form>
+      </div>
+    </div>
+    
+    <!-- Returns Table -->
+    <div class="card">
+      <div class="card-body table-responsive p-0">
+        <table class="table table-hover text-nowrap">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>التاريخ</th>
+              <th>العميل</th>
+              <th>السبب</th>
+              <th>المبلغ</th>
+              <th>الحالة</th>
+              <th>الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for return in returns %}
+            <tr>
+              <td>{{ return.id }}</td>
+              <td>{{ return.created_at.strftime('%Y-%m-%d %H:%M') if return.created_at else '-' }}</td>
+              <td>{{ return.customer.name if return.customer else '-' }}</td>
+              <td>{{ return.reason }}</td>
+              <td>{{ '{:,.2f}'.format(return.total_amount or 0) }} {{ return.currency }}</td>
+              <td>
+                {% if return.status == 'DRAFT' %}
+                  <span class="badge badge-warning">مسودة</span>
+                {% elif return.status == 'CONFIRMED' %}
+                  <span class="badge badge-success">مؤكد</span>
+                {% elif return.status == 'CANCELLED' %}
+                  <span class="badge badge-danger">ملغي</span>
+                {% endif %}
+              </td>
+              <td>
+                <a href="{{ url_for('returns.view_return', return_id=return.id) }}" 
+                   class="btn btn-sm btn-info">
+                  <i class="fas fa-eye"></i>
+                </a>
+                
+                {% if return.status == 'DRAFT' %}
+                <a href="{{ url_for('returns.edit_return', return_id=return.id) }}" 
+                   class="btn btn-sm btn-warning">
+                  <i class="fas fa-edit"></i>
+                </a>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="7" class="text-center">لا توجد مرتجعات</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      
+      {% if pagination.pages > 1 %}
+      <div class="card-footer clearfix">
+        {{ macros.render_pagination(pagination, 'returns.list_returns') }}
+      </div>
+      {% endif %}
+    </div>
+    
+  </div>
+</section>
+{% endblock %}
+

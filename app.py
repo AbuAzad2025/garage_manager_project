@@ -54,6 +54,7 @@ from routes.security import security_bp
 from routes.advanced_control import advanced_bp
 from routes.archive import archive_bp
 from routes.archive_routes import archive_routes_bp
+from routes.sale_returns import returns_bp
 
 
 # ========== تفعيل Foreign Keys في SQLite ==========
@@ -427,6 +428,7 @@ def create_app(config_object=Config) -> Flask:
         service_bp,
         customers_bp,
         sales_bp,
+        returns_bp,
         notes_bp,
         reports_bp,
         shop_bp,

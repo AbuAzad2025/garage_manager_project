@@ -1,0 +1,377 @@
+"""
+نظام المرتجعات (Sale Returns)
+إدارة مرتجعات البيع بشكل كامل مع إرجاع المخزون
+"""
+
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask_login import login_required, current_user
+from sqlalchemy import or_, func, desc
+from datetime import datetime, timezone
+from decimal import Decimal
+
+from extensions import db
+from models import (
+    SaleReturn, SaleReturnLine, Sale, SaleLine,
+    Customer, Product, Warehouse, User, AuditLog
+)
+from forms import SaleReturnForm, SaleReturnLineForm
+from utils import permission_required
+
+# إنشاء Blueprint
+returns_bp = Blueprint('returns', __name__, url_prefix='/returns')
+
+
+@returns_bp.route('/')
+@login_required
+def list_returns():
+    """قائمة جميع المرتجعات"""
+    
+    # Pagination
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    
+    # Filters
+    status = request.args.get('status', '')
+    customer_id = request.args.get('customer_id', 0, type=int)
+    search = request.args.get('search', '').strip()
+    
+    # Build query
+    query = SaleReturn.query
+    
+    # Apply filters
+    if status and status in ['DRAFT', 'CONFIRMED', 'CANCELLED']:
+        query = query.filter_by(status=status)
+    
+    if customer_id:
+        query = query.filter_by(customer_id=customer_id)
+    
+    if search:
+        query = query.join(Customer).filter(
+            or_(
+                SaleReturn.reason.ilike(f'%{search}%'),
+                SaleReturn.notes.ilike(f'%{search}%'),
+                Customer.name.ilike(f'%{search}%')
+            )
+        )
+    
+    # Sort and paginate
+    query = query.order_by(desc(SaleReturn.created_at))
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    
+    # Get all customers for filter
+    customers = Customer.query.filter_by(is_archived=False).order_by(Customer.name).all()
+    
+    return render_template(
+        'sale_returns/list.html',
+        pagination=pagination,
+        returns=pagination.items,
+        customers=customers,
+        current_status=status,
+        current_customer=customer_id,
+        search_term=search
+    )
+
+
+@returns_bp.route('/create', methods=['GET', 'POST'])
+@returns_bp.route('/create/<int:sale_id>', methods=['GET', 'POST'])
+@login_required
+def create_return(sale_id=None):
+    """إنشاء مرتجع جديد"""
+    
+    form = SaleReturnForm()
+    sale = None
+    
+    # إذا تم تمرير sale_id، حمل بيانات البيع
+    if sale_id:
+        sale = Sale.query.get_or_404(sale_id)
+        
+        if request.method == 'GET':
+            form.sale_id.data = sale.id
+            form.customer_id.data = sale.customer_id
+            form.warehouse_id.data = sale.warehouse_id
+            form.currency.data = sale.currency or 'ILS'
+    
+    if form.validate_on_submit():
+        try:
+            # إنشاء المرتجع
+            sale_return = SaleReturn(
+                sale_id=form.sale_id.data if form.sale_id.data else None,
+                customer_id=form.customer_id.data,
+                warehouse_id=form.warehouse_id.data if form.warehouse_id.data else None,
+                reason=form.reason.data.strip(),
+                notes=form.notes.data.strip() if form.notes.data else None,
+                currency=form.currency.data,
+                status=form.status.data or 'DRAFT'
+            )
+            
+            db.session.add(sale_return)
+            db.session.flush()
+            
+            # إضافة السطور
+            for line_data in form.lines.data:
+                if line_data.get('product_id') and line_data.get('quantity'):
+                    line = SaleReturnLine(
+                        sale_return_id=sale_return.id,
+                        product_id=line_data['product_id'],
+                        warehouse_id=line_data.get('warehouse_id') or sale_return.warehouse_id,
+                        quantity=line_data['quantity'],
+                        unit_price=line_data.get('unit_price', 0),
+                        notes=line_data.get('notes', '').strip() or None
+                    )
+                    db.session.add(line)
+            
+            db.session.commit()
+            
+            # Audit log
+            AuditLog.log_action(
+                action='CREATE',
+                target_type='SaleReturn',
+                target_id=sale_return.id,
+                details=f"مرتجع بيع جديد: {sale_return.reason}"
+            )
+            
+            flash('تم إنشاء المرتجع بنجاح', 'success')
+            return redirect(url_for('returns.view_return', return_id=sale_return.id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'خطأ في إنشاء المرتجع: {str(e)}', 'danger')
+    
+    return render_template(
+        'sale_returns/form.html',
+        form=form,
+        sale=sale,
+        title='إنشاء مرتجع جديد'
+    )
+
+
+@returns_bp.route('/<int:return_id>')
+@login_required
+def view_return(return_id):
+    """عرض تفاصيل مرتجع"""
+    
+    sale_return = SaleReturn.query.get_or_404(return_id)
+    
+    return render_template(
+        'sale_returns/detail.html',
+        sale_return=sale_return
+    )
+
+
+@returns_bp.route('/<int:return_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_return(return_id):
+    """تعديل مرتجع"""
+    
+    sale_return = SaleReturn.query.get_or_404(return_id)
+    
+    # لا يمكن تعديل المرتجعات المؤكدة
+    if sale_return.status == 'CONFIRMED':
+        flash('لا يمكن تعديل مرتجع مؤكد', 'warning')
+        return redirect(url_for('returns.view_return', return_id=return_id))
+    
+    form = SaleReturnForm(obj=sale_return)
+    
+    if request.method == 'GET':
+        # تحميل السطور
+        form.lines.entries.clear()
+        for line in sale_return.lines:
+            line_form = SaleReturnLineForm()
+            line_form.id.data = line.id
+            line_form.product_id.data = line.product_id
+            line_form.warehouse_id.data = line.warehouse_id
+            line_form.quantity.data = line.quantity
+            line_form.unit_price.data = line.unit_price
+            line_form.notes.data = line.notes
+            form.lines.append_entry(line_form)
+    
+    if form.validate_on_submit():
+        try:
+            # تحديث البيانات الأساسية
+            sale_return.sale_id = form.sale_id.data if form.sale_id.data else None
+            sale_return.customer_id = form.customer_id.data
+            sale_return.warehouse_id = form.warehouse_id.data if form.warehouse_id.data else None
+            sale_return.reason = form.reason.data.strip()
+            sale_return.notes = form.notes.data.strip() if form.notes.data else None
+            sale_return.currency = form.currency.data
+            sale_return.status = form.status.data
+            
+            # حذف السطور القديمة
+            for line in sale_return.lines:
+                db.session.delete(line)
+            
+            # إضافة السطور الجديدة
+            for line_data in form.lines.data:
+                if line_data.get('product_id') and line_data.get('quantity'):
+                    line = SaleReturnLine(
+                        sale_return_id=sale_return.id,
+                        product_id=line_data['product_id'],
+                        warehouse_id=line_data.get('warehouse_id') or sale_return.warehouse_id,
+                        quantity=line_data['quantity'],
+                        unit_price=line_data.get('unit_price', 0),
+                        notes=line_data.get('notes', '').strip() or None
+                    )
+                    db.session.add(line)
+            
+            db.session.commit()
+            
+            # Audit log
+            AuditLog.log_action(
+                action='UPDATE',
+                target_type='SaleReturn',
+                target_id=sale_return.id,
+                details=f"تعديل مرتجع: {sale_return.reason}"
+            )
+            
+            flash('تم تحديث المرتجع بنجاح', 'success')
+            return redirect(url_for('returns.view_return', return_id=return_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'خطأ في تحديث المرتجع: {str(e)}', 'danger')
+    
+    return render_template(
+        'sale_returns/form.html',
+        form=form,
+        sale_return=sale_return,
+        title='تعديل مرتجع'
+    )
+
+
+@returns_bp.route('/<int:return_id>/confirm', methods=['POST'])
+@login_required
+def confirm_return(return_id):
+    """تأكيد المرتجع"""
+    
+    sale_return = SaleReturn.query.get_or_404(return_id)
+    
+    if sale_return.status == 'CONFIRMED':
+        flash('المرتجع مؤكد مسبقاً', 'info')
+        return redirect(url_for('returns.view_return', return_id=return_id))
+    
+    if sale_return.status == 'CANCELLED':
+        flash('لا يمكن تأكيد مرتجع ملغي', 'warning')
+        return redirect(url_for('returns.view_return', return_id=return_id))
+    
+    try:
+        sale_return.status = 'CONFIRMED'
+        db.session.commit()
+        
+        # Audit log
+        AuditLog.log_action(
+            action='CONFIRM',
+            target_type='SaleReturn',
+            target_id=sale_return.id,
+            details=f"تأكيد مرتجع #{sale_return.id}"
+        )
+        
+        flash('تم تأكيد المرتجع بنجاح. تم إرجاع المخزون.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'خطأ في تأكيد المرتجع: {str(e)}', 'danger')
+    
+    return redirect(url_for('returns.view_return', return_id=return_id))
+
+
+@returns_bp.route('/<int:return_id>/cancel', methods=['POST'])
+@login_required
+def cancel_return(return_id):
+    """إلغاء المرتجع"""
+    
+    sale_return = SaleReturn.query.get_or_404(return_id)
+    
+    if sale_return.status == 'CANCELLED':
+        flash('المرتجع ملغي مسبقاً', 'info')
+        return redirect(url_for('returns.view_return', return_id=return_id))
+    
+    try:
+        # إذا كان مؤكداً، نحتاج لعكس المخزون
+        if sale_return.status == 'CONFIRMED':
+            # حذف السطور سيعكس المخزون تلقائياً عبر events
+            for line in sale_return.lines[:]:
+                db.session.delete(line)
+        
+        sale_return.status = 'CANCELLED'
+        db.session.commit()
+        
+        # Audit log
+        AuditLog.log_action(
+            action='CANCEL',
+            target_type='SaleReturn',
+            target_id=sale_return.id,
+            details=f"إلغاء مرتجع #{sale_return.id}"
+        )
+        
+        flash('تم إلغاء المرتجع بنجاح', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'خطأ في إلغاء المرتجع: {str(e)}', 'danger')
+    
+    return redirect(url_for('returns.view_return', return_id=return_id))
+
+
+@returns_bp.route('/<int:return_id>/delete', methods=['POST'])
+@login_required
+def delete_return(return_id):
+    """حذف المرتجع"""
+    
+    sale_return = SaleReturn.query.get_or_404(return_id)
+    
+    # فقط المسودات يمكن حذفها
+    if sale_return.status != 'DRAFT':
+        flash('لا يمكن حذف مرتجع مؤكد أو ملغي. استخدم الإلغاء بدلاً من ذلك.', 'warning')
+        return redirect(url_for('returns.view_return', return_id=return_id))
+    
+    try:
+        # Audit log قبل الحذف
+        AuditLog.log_action(
+            action='DELETE',
+            target_type='SaleReturn',
+            target_id=sale_return.id,
+            details=f"حذف مرتجع: {sale_return.reason}"
+        )
+        
+        db.session.delete(sale_return)
+        db.session.commit()
+        
+        flash('تم حذف المرتجع بنجاح', 'success')
+        return redirect(url_for('returns.list_returns'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'خطأ في حذف المرتجع: {str(e)}', 'danger')
+        return redirect(url_for('returns.view_return', return_id=return_id))
+
+
+# ============================================================================
+# API Endpoints
+# ============================================================================
+
+@returns_bp.route('/api/sale/<int:sale_id>/items')
+@login_required
+def get_sale_items(sale_id):
+    """الحصول على بنود البيع لتسهيل إنشاء المرتجع"""
+    
+    sale = Sale.query.get_or_404(sale_id)
+    
+    items = []
+    for line in sale.lines:
+        items.append({
+            'product_id': line.product_id,
+            'product_name': line.product.name if line.product else 'غير معروف',
+            'quantity': line.quantity,
+            'unit_price': float(line.unit_price),
+            'warehouse_id': line.warehouse_id
+        })
+    
+    return jsonify({
+        'success': True,
+        'sale_id': sale.id,
+        'customer_id': sale.customer_id,
+        'warehouse_id': sale.warehouse_id,
+        'currency': sale.currency,
+        'items': items
+    })
+

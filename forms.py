@@ -4411,3 +4411,92 @@ class ExchangeRateForm(FlaskForm):
             return False
         
         return True
+
+
+# ============================================================================
+# نماذج المرتجعات (Sale Returns)
+# ============================================================================
+
+class SaleReturnLineForm(FlaskForm):
+    """نموذج سطر المرتجع"""
+    id = HiddenField()
+    product_id = SelectField('المنتج', validators=[DataRequired()], coerce=int)
+    warehouse_id = SelectField('المخزن', validators=[Optional()], coerce=int)
+    quantity = IntegerField('الكمية', validators=[DataRequired(), NumberRange(min=1)], 
+                           render_kw={"placeholder": "أدخل الكمية"})
+    unit_price = DecimalField('سعر الوحدة', validators=[DataRequired(), NumberRange(min=0)], 
+                             places=2, render_kw={"placeholder": "سعر الوحدة", "step": "0.01"})
+    notes = StringField('ملاحظات', validators=[Optional(), Length(max=200)],
+                       render_kw={"placeholder": "ملاحظات اختيارية"})
+    
+    class Meta:
+        csrf = False
+
+
+class SaleReturnForm(FlaskForm):
+    """نموذج مرتجع البيع"""
+    id = HiddenField()
+    sale_id = SelectField('رقم البيع', validators=[DataRequired()], coerce=int,
+                         render_kw={"placeholder": "اختر البيع للمرتجع"})
+    customer_id = SelectField('العميل', validators=[DataRequired()], coerce=int)
+    warehouse_id = SelectField('المخزن', validators=[Optional()], coerce=int)
+    reason = StringField('سبب المرتجع', validators=[DataRequired(), Length(max=200)],
+                        render_kw={"placeholder": "أدخل سبب المرتجع"})
+    notes = TextAreaField('ملاحظات', validators=[Optional()],
+                         render_kw={"placeholder": "ملاحظات إضافية", "rows": 3})
+    currency = SelectField('العملة', validators=[DataRequired()], 
+                          choices=[('ILS', 'شيكل'), ('USD', 'دولار'), ('JOD', 'دينار'), ('EUR', 'يورو')],
+                          default='ILS')
+    status = SelectField('الحالة', 
+                        choices=[('DRAFT', 'مسودة'), ('CONFIRMED', 'مؤكد'), ('CANCELLED', 'ملغي')],
+                        default='DRAFT')
+    
+    lines = FieldList(FormField(SaleReturnLineForm), min_entries=0)
+    submit = SubmitField('حفظ المرتجع')
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # تحديث خيارات البيع والعملاء
+        try:
+            from models import Sale, Customer, Warehouse, Product
+            
+            # المبيعات النشطة فقط
+            sales = Sale.query.filter_by(status='CONFIRMED').order_by(Sale.id.desc()).limit(100).all()
+            self.sale_id.choices = [(0, 'اختر البيع')] + [(s.id, f"بيع #{s.id} - {s.created_at.strftime('%Y-%m-%d') if s.created_at else ''}") for s in sales]
+            
+            # العملاء
+            customers = Customer.query.filter_by(is_archived=False).order_by(Customer.name).all()
+            self.customer_id.choices = [(0, 'اختر العميل')] + [(c.id, c.name) for c in customers]
+            
+            # المخازن
+            warehouses = Warehouse.query.filter_by(is_archived=False).order_by(Warehouse.name).all()
+            self.warehouse_id.choices = [(0, 'اختياري')] + [(w.id, w.name) for w in warehouses]
+            
+            # المنتجات لكل سطر
+            products = Product.query.filter_by(is_archived=False).order_by(Product.name).limit(500).all()
+            product_choices = [(0, 'اختر المنتج')] + [(p.id, f"{p.name} ({p.barcode or 'بدون باركود'})") for p in products]
+            
+            for line_form in self.lines:
+                line_form.product_id.choices = product_choices
+                line_form.warehouse_id.choices = self.warehouse_id.choices
+                
+        except Exception:
+            pass
+    
+    def validate(self, extra_validators=None):
+        if not super().validate(extra_validators):
+            return False
+        
+        # التحقق من وجود سطور على الأقل
+        if len(self.lines.data) == 0:
+            self.lines.errors.append('يجب إضافة منتج واحد على الأقل')
+            return False
+        
+        # التحقق من أن الكميات موجبة
+        for idx, line in enumerate(self.lines.data):
+            if line.get('quantity', 0) <= 0:
+                self.lines[idx].quantity.errors.append('الكمية يجب أن تكون أكبر من صفر')
+                return False
+        
+        return True
