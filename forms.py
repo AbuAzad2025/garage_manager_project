@@ -4470,11 +4470,11 @@ class SaleReturnForm(FlaskForm):
             self.customer_id.choices = [(0, 'اختر العميل')] + [(c.id, c.name) for c in customers]
             
             # المخازن
-            warehouses = Warehouse.query.filter_by(is_archived=False).order_by(Warehouse.name).all()
+            warehouses = Warehouse.query.filter_by(is_active=True).order_by(Warehouse.name).all()
             self.warehouse_id.choices = [(0, 'اختياري')] + [(w.id, w.name) for w in warehouses]
             
             # المنتجات لكل سطر
-            products = Product.query.filter_by(is_archived=False).order_by(Product.name).limit(500).all()
+            products = Product.query.filter_by(is_active=True).order_by(Product.name).limit(500).all()
             product_choices = [(0, 'اختر المنتج')] + [(p.id, f"{p.name} ({p.barcode or 'بدون باركود'})") for p in products]
             
             for line_form in self.lines:

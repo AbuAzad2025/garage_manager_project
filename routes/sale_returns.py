@@ -138,10 +138,10 @@ def create_return(sale_id=None):
             flash(f'خطأ في إنشاء المرتجع: {str(e)}', 'danger')
     
     # تحضير choices للـ template
-    products = Product.query.filter_by(is_archived=False).order_by(Product.name).limit(500).all()
+    products = Product.query.filter_by(is_active=True).order_by(Product.name).limit(500).all()
     product_choices = [(p.id, f"{p.name} ({p.barcode or 'بدون باركود'})") for p in products]
     
-    warehouses = Warehouse.query.filter_by(is_archived=False).order_by(Warehouse.name).all()
+    warehouses = Warehouse.query.filter_by(is_active=True).order_by(Warehouse.name).all()
     warehouse_choices = [(w.id, w.name) for w in warehouses]
     
     return render_template(
@@ -240,10 +240,10 @@ def edit_return(return_id):
             flash(f'خطأ في تحديث المرتجع: {str(e)}', 'danger')
     
     # تحضير choices للـ template
-    products = Product.query.filter_by(is_archived=False).order_by(Product.name).limit(500).all()
+    products = Product.query.filter_by(is_active=True).order_by(Product.name).limit(500).all()
     product_choices = [(p.id, f"{p.name} ({p.barcode or 'بدون باركود'})") for p in products]
     
-    warehouses = Warehouse.query.filter_by(is_archived=False).order_by(Warehouse.name).all()
+    warehouses = Warehouse.query.filter_by(is_active=True).order_by(Warehouse.name).all()
     warehouse_choices = [(w.id, w.name) for w in warehouses]
     
     return render_template(
