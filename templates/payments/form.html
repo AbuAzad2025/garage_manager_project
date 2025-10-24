@@ -963,6 +963,7 @@
             <i class="fas fa-times"></i> إلغاء
           </button>
           <form method="POST" action="{{ url_for('payments.archive_payment', payment_id=payment.id) }}" style="display: inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="reason" id="hiddenReason">
             <button type="submit" class="btn btn-warning" onclick="document.getElementById('hiddenReason').value = document.getElementById('archiveReason').value;">
               <i class="fas fa-archive"></i> تأكيد الأرشفة

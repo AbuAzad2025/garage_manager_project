@@ -691,6 +691,7 @@
     <div class="modal-dialog modal-lg" role="document">
       <div class="modal-content">
         <form id="partnerForm" method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="modal-header">
             <h5 class="modal-title">إضافة شريك جديد</h5>
             <button type="button" class="close" data-dismiss="modal" aria-label="إغلاق">
@@ -724,6 +725,7 @@
     <div class="modal-dialog modal-lg" role="document">
       <div class="modal-content">
         <form id="productForm" method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="modal-header">
             <h5 class="modal-title">إضافة منتج جديد</h5>
             <button type="button" class="close" data-dismiss="modal" aria-label="إغلاق">
@@ -753,6 +755,7 @@
     <div class="modal-dialog modal-lg" role="document">
       <div class="modal-content">
         <form id="warehouseForm" method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="modal-header">
             <h5 class="modal-title">إضافة مخزن جديد</h5>
             <button type="button" class="close" data-dismiss="modal" aria-label="إغلاق">
