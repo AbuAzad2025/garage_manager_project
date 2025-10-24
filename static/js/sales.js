@@ -178,13 +178,34 @@
     // ----- Select2 helpers -----
     function isSelect2($el){ try{ return !!($el.data('select2') || $el.hasClass('select2-hidden-accessible')); }catch(_){ return false; } }
     function reinitSelect2($el, opts){
+      // الاحتفاظ بالقيمة المحددة مسبقاً
+      const currentVal = $el.val();
+      const selectedOption = currentVal ? $el.find('option:selected').clone() : null;
+      
       try{
         if(isSelect2($el)) $el.off().select2('destroy');
       }catch(_){}
-      $el.empty();
+      
+      // استعادة القيمة المحددة مسبقاً
+      if(selectedOption){
+        $el.empty().append(selectedOption);
+      } else {
+        $el.empty();
+      }
+      
       $el.select2(opts);
+      
+      // تعيين القيمة مرة أخرى
+      if(currentVal){
+        $el.val(currentVal).trigger('change.select2');
+      }
     }
     function initAjaxSelect($el, {endpoint, placeholder}){
+      // الاحتفاظ بالقيمة المحددة مسبقاً
+      const currentVal = $el.val();
+      const hasSelected = currentVal && $el.find('option:selected').length > 0;
+      const selectedOption = hasSelected ? $el.find('option:selected').clone() : null;
+      
       const build = () => ({
         theme: 'bootstrap4',
         width: '100%',
@@ -203,8 +224,26 @@
           processResults: data => ({ results: (data && data.results) ? data.results : data })
         }
       });
-      if(isSelect2($el)) reinitSelect2($el, build());
-      else $el.select2(build());
+      
+      if(isSelect2($el)){
+        try{
+          $el.off().select2('destroy');
+        }catch(_){}
+      }
+      
+      // استعادة القيمة المحددة مسبقاً قبل التهيئة
+      if(selectedOption){
+        $el.empty().append(selectedOption);
+      } else {
+        $el.empty();
+      }
+      
+      $el.select2(build());
+      
+      // تعيين القيمة مرة أخرى
+      if(currentVal){
+        $el.val(currentVal).trigger('change.select2');
+      }
     }
 
     function bindRow(row){
