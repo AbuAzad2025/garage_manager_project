@@ -880,6 +880,283 @@ def get_accounts_summary():
         print(traceback.format_exc())
         return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
+@ledger_bp.route("/receivables-detailed-summary", methods=["GET"], endpoint="get_receivables_detailed_summary")
+@login_required
+# @permission_required("manage_ledger")  # Commented out
+def get_receivables_detailed_summary():
+    """جلب ملخص الذمم التفصيلي مع أعمار الديون"""
+    try:
+        from_date_str = request.args.get('from_date')
+        to_date_str = request.args.get('to_date')
+        
+        from_date = datetime.strptime(from_date_str, '%Y-%m-%d') if from_date_str else None
+        to_date = datetime.strptime(to_date_str, '%Y-%m-%d').replace(hour=23, minute=59, second=59) if to_date_str else None
+        
+        receivables = []
+        today = datetime.utcnow()
+        
+        # 1. العملاء (Customers) مع أعمار الديون
+        from models import fx_rate
+        
+        customers = Customer.query.all()
+        for customer in customers:
+            # حساب المبيعات للعميل
+            sales_query = Sale.query.filter(Sale.customer_id == customer.id)
+            if from_date:
+                sales_query = sales_query.filter(Sale.sale_date >= from_date)
+            if to_date:
+                sales_query = sales_query.filter(Sale.sale_date <= to_date)
+            
+            total_sales = 0.0
+            oldest_sale_date = None
+            
+            for sale in sales_query.all():
+                amount = float(sale.total_amount or 0)
+                if sale.currency and sale.currency != 'ILS':
+                    try:
+                        rate = fx_rate(sale.currency, 'ILS', sale.sale_date, raise_on_missing=False)
+                        if rate > 0:
+                            amount = float(amount * float(rate))
+                    except:
+                        pass
+                total_sales += amount
+                
+                # تسجيل أقدم تاريخ بيع
+                if not oldest_sale_date or sale.sale_date < oldest_sale_date:
+                    oldest_sale_date = sale.sale_date
+            
+            # حساب الدفعات من العميل
+            payments_query = Payment.query.filter(
+                Payment.customer_id == customer.id,
+                Payment.direction == 'IN'
+            )
+            if from_date:
+                payments_query = payments_query.filter(Payment.payment_date >= from_date)
+            if to_date:
+                payments_query = payments_query.filter(Payment.payment_date <= to_date)
+            
+            total_payments = 0.0
+            last_payment_date = None
+            
+            for payment in payments_query.all():
+                amount = float(payment.total_amount or 0)
+                if payment.currency and payment.currency != 'ILS':
+                    try:
+                        rate = fx_rate(payment.currency, 'ILS', payment.payment_date, raise_on_missing=False)
+                        if rate > 0:
+                            amount = float(amount * float(rate))
+                    except:
+                        pass
+                total_payments += amount
+                
+                if not last_payment_date or payment.payment_date > last_payment_date:
+                    last_payment_date = payment.payment_date
+            
+            # حساب عمر الدين
+            days_overdue = 0
+            if total_sales > total_payments and oldest_sale_date:
+                days_overdue = (today - oldest_sale_date).days
+            
+            # آخر حركة
+            last_transaction = last_payment_date if last_payment_date else oldest_sale_date
+            last_transaction_str = last_transaction.strftime('%Y-%m-%d') if last_transaction else None
+            
+            if total_sales > 0 or total_payments > 0:
+                receivables.append({
+                    "name": customer.name,
+                    "type": "customer",
+                    "type_ar": "عميل",
+                    "debit": total_sales,
+                    "credit": total_payments,
+                    "days_overdue": days_overdue,
+                    "last_transaction": last_transaction_str
+                })
+        
+        # 2. الموردين (Suppliers) مع أعمار الديون
+        suppliers = Supplier.query.all()
+        for supplier in suppliers:
+            # حساب المشتريات من المورد (النفقات)
+            expenses_query = Expense.query.filter(
+                Expense.payee_type == 'SUPPLIER',
+                Expense.payee_entity_id == supplier.id
+            )
+            if from_date:
+                expenses_query = expenses_query.filter(Expense.date >= from_date)
+            if to_date:
+                expenses_query = expenses_query.filter(Expense.date <= to_date)
+            
+            total_purchases = 0.0
+            oldest_expense_date = None
+            
+            for expense in expenses_query.all():
+                amount = float(expense.amount or 0)
+                if expense.currency and expense.currency != 'ILS':
+                    try:
+                        rate = fx_rate(expense.currency, 'ILS', expense.date, raise_on_missing=False)
+                        if rate > 0:
+                            amount = float(amount * float(rate))
+                    except:
+                        pass
+                total_purchases += amount
+                
+                if not oldest_expense_date or expense.date < oldest_expense_date:
+                    oldest_expense_date = expense.date
+            
+            # حساب الدفعات للمورد
+            payments_query = Payment.query.filter(
+                Payment.supplier_id == supplier.id,
+                Payment.direction == 'OUT'
+            )
+            if from_date:
+                payments_query = payments_query.filter(Payment.payment_date >= from_date)
+            if to_date:
+                payments_query = payments_query.filter(Payment.payment_date <= to_date)
+            
+            total_payments = 0.0
+            last_payment_date = None
+            
+            for payment in payments_query.all():
+                amount = float(payment.total_amount or 0)
+                if payment.currency and payment.currency != 'ILS':
+                    try:
+                        rate = fx_rate(payment.currency, 'ILS', payment.payment_date, raise_on_missing=False)
+                        if rate > 0:
+                            amount = float(amount * float(rate))
+                    except:
+                        pass
+                total_payments += amount
+                
+                if not last_payment_date or payment.payment_date > last_payment_date:
+                    last_payment_date = payment.payment_date
+            
+            # حساب عمر الدين
+            days_overdue = 0
+            if total_purchases > total_payments and oldest_expense_date:
+                days_overdue = (today - oldest_expense_date).days
+            
+            # آخر حركة
+            last_transaction = last_payment_date if last_payment_date else oldest_expense_date
+            last_transaction_str = last_transaction.strftime('%Y-%m-%d') if last_transaction else None
+            
+            if total_purchases > 0 or total_payments > 0:
+                receivables.append({
+                    "name": supplier.name,
+                    "type": "supplier",
+                    "type_ar": "مورد",
+                    "debit": total_payments,
+                    "credit": total_purchases,
+                    "days_overdue": days_overdue,
+                    "last_transaction": last_transaction_str
+                })
+        
+        # 3. الشركاء (Partners)
+        partners = Partner.query.all()
+        for partner in partners:
+            # حساب النفقات المرتبطة بالشريك
+            expenses_query = Expense.query.filter(
+                Expense.payee_type == 'PARTNER',
+                Expense.payee_entity_id == partner.id
+            )
+            if from_date:
+                expenses_query = expenses_query.filter(Expense.date >= from_date)
+            if to_date:
+                expenses_query = expenses_query.filter(Expense.date <= to_date)
+            
+            total_expenses = 0.0
+            oldest_expense_date = None
+            
+            for expense in expenses_query.all():
+                amount = float(expense.amount or 0)
+                if expense.currency and expense.currency != 'ILS':
+                    try:
+                        rate = fx_rate(expense.currency, 'ILS', expense.date, raise_on_missing=False)
+                        if rate > 0:
+                            amount = float(amount * float(rate))
+                    except:
+                        pass
+                total_expenses += amount
+                
+                if not oldest_expense_date or expense.date < oldest_expense_date:
+                    oldest_expense_date = expense.date
+            
+            # حساب الدفعات من/إلى الشريك
+            payments_in_query = Payment.query.filter(
+                Payment.partner_id == partner.id,
+                Payment.direction == 'IN'
+            )
+            payments_out_query = Payment.query.filter(
+                Payment.partner_id == partner.id,
+                Payment.direction == 'OUT'
+            )
+            
+            if from_date:
+                payments_in_query = payments_in_query.filter(Payment.payment_date >= from_date)
+                payments_out_query = payments_out_query.filter(Payment.payment_date >= from_date)
+            if to_date:
+                payments_in_query = payments_in_query.filter(Payment.payment_date <= to_date)
+                payments_out_query = payments_out_query.filter(Payment.payment_date <= to_date)
+            
+            total_in = 0.0
+            total_out = 0.0
+            last_payment_date = None
+            
+            for payment in payments_in_query.all():
+                amount = float(payment.total_amount or 0)
+                if payment.currency and payment.currency != 'ILS':
+                    try:
+                        rate = fx_rate(payment.currency, 'ILS', payment.payment_date, raise_on_missing=False)
+                        if rate > 0:
+                            amount = float(amount * float(rate))
+                    except:
+                        pass
+                total_in += amount
+                
+                if not last_payment_date or payment.payment_date > last_payment_date:
+                    last_payment_date = payment.payment_date
+            
+            for payment in payments_out_query.all():
+                amount = float(payment.total_amount or 0)
+                if payment.currency and payment.currency != 'ILS':
+                    try:
+                        rate = fx_rate(payment.currency, 'ILS', payment.payment_date, raise_on_missing=False)
+                        if rate > 0:
+                            amount = float(amount * float(rate))
+                    except:
+                        pass
+                total_out += amount
+                
+                if not last_payment_date or payment.payment_date > last_payment_date:
+                    last_payment_date = payment.payment_date
+            
+            # حساب عمر الدين
+            days_overdue = 0
+            balance = (total_in + total_expenses) - total_out
+            if balance > 0 and oldest_expense_date:
+                days_overdue = (today - oldest_expense_date).days
+            
+            # آخر حركة
+            last_transaction = last_payment_date if last_payment_date else oldest_expense_date
+            last_transaction_str = last_transaction.strftime('%Y-%m-%d') if last_transaction else None
+            
+            if total_in > 0 or total_out > 0 or total_expenses > 0:
+                receivables.append({
+                    "name": partner.name,
+                    "type": "partner",
+                    "type_ar": "شريك",
+                    "debit": total_in + total_expenses,
+                    "credit": total_out,
+                    "days_overdue": days_overdue,
+                    "last_transaction": last_transaction_str
+                })
+        
+        return jsonify(receivables)
+        
+    except Exception as e:
+        import traceback
+        print(f"Error in get_receivables_detailed_summary: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify([]), 500
+
 @ledger_bp.route("/receivables-summary", methods=["GET"], endpoint="get_receivables_summary")
 @login_required
 # @permission_required("manage_ledger")  # Commented out

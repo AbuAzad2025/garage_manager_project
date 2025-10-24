@@ -403,9 +403,136 @@
                 </div>
             </div>
 
-            <!-- ملخص الحسابات -->
+            <!-- قائمة الدخل (P&L Statement) -->
             <div class="row">
-                <div class="col-md-6">
+                <div class="col-12">
+                    <div class="card ledger-card">
+                        <div class="card-header" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+                            <h4 class="mb-0">
+                                <i class="fas fa-chart-line"></i>
+                                قائمة الدخل (Profit & Loss Statement)
+                            </h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-bordered" id="pnl-table">
+                                    <tbody>
+                                        <!-- الإيرادات -->
+                                        <tr class="table-success">
+                                            <td colspan="2"><strong><i class="fas fa-plus-circle"></i> الإيرادات (Revenue)</strong></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="pr-5">&nbsp;&nbsp;&nbsp;&nbsp;المبيعات</td>
+                                            <td class="text-end" id="pnl-sales">0.00 ₪</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="pr-5">&nbsp;&nbsp;&nbsp;&nbsp;الخدمات والصيانة</td>
+                                            <td class="text-end" id="pnl-services">0.00 ₪</td>
+                                        </tr>
+                                        <tr class="table-info">
+                                            <td><strong>إجمالي الإيرادات</strong></td>
+                                            <td class="text-end"><strong id="pnl-total-revenue">0.00 ₪</strong></td>
+                                        </tr>
+                                        
+                                        <!-- التكاليف المباشرة -->
+                                        <tr class="table-warning">
+                                            <td colspan="2"><strong><i class="fas fa-minus-circle"></i> التكاليف المباشرة (Cost of Goods Sold)</strong></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="pr-5">&nbsp;&nbsp;&nbsp;&nbsp;تكلفة البضاعة المباعة</td>
+                                            <td class="text-end text-danger" id="pnl-cogs">0.00 ₪</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="pr-5">&nbsp;&nbsp;&nbsp;&nbsp;تكلفة قطع الغيار المستخدمة</td>
+                                            <td class="text-end text-danger" id="pnl-service-costs">0.00 ₪</td>
+                                        </tr>
+                                        <tr class="table-primary">
+                                            <td><strong>إجمالي التكاليف المباشرة</strong></td>
+                                            <td class="text-end text-danger"><strong id="pnl-total-direct-costs">0.00 ₪</strong></td>
+                                        </tr>
+                                        
+                                        <!-- الربح الإجمالي -->
+                                        <tr class="table-success">
+                                            <td><strong style="font-size: 1.1rem;"><i class="fas fa-coins"></i> الربح الإجمالي (Gross Profit)</strong></td>
+                                            <td class="text-end"><strong style="font-size: 1.1rem;" id="pnl-gross-profit">0.00 ₪</strong></td>
+                                        </tr>
+                                        
+                                        <!-- النفقات التشغيلية -->
+                                        <tr class="table-warning">
+                                            <td colspan="2"><strong><i class="fas fa-receipt"></i> النفقات التشغيلية (Operating Expenses)</strong></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="pr-5">&nbsp;&nbsp;&nbsp;&nbsp;المصروفات</td>
+                                            <td class="text-end text-danger" id="pnl-expenses">0.00 ₪</td>
+                                        </tr>
+                                        
+                                        <!-- صافي الربح -->
+                                        <tr class="table-dark">
+                                            <td><strong style="font-size: 1.2rem;"><i class="fas fa-hand-holding-usd"></i> صافي الربح (Net Profit)</strong></td>
+                                            <td class="text-end"><strong style="font-size: 1.2rem;" id="pnl-net-profit">0.00 ₪</strong></td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>هامش الربح الصافي (Net Margin)</strong></td>
+                                            <td class="text-end"><strong id="pnl-margin">0.0%</strong></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- كشف الذمم التفصيلي -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card ledger-card">
+                        <div class="card-header" style="background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); color: white;">
+                            <h4 class="mb-0">
+                                <i class="fas fa-users"></i>
+                                كشف الذمم التفصيلي (Accounts Receivable & Payable)
+                            </h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover" id="receivables-detailed-table">
+                                    <thead>
+                                        <tr>
+                                            <th>الجهة</th>
+                                            <th>النوع</th>
+                                            <th class="text-end">لنا (Debit)</th>
+                                            <th class="text-end">علينا (Credit)</th>
+                                            <th class="text-end">الرصيد</th>
+                                            <th class="text-center">الحالة</th>
+                                            <th class="text-center">آخر حركة</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="receivables-detailed-summary">
+                                        <tr>
+                                            <td colspan="7" class="text-center text-muted">
+                                                <i class="fas fa-spinner fa-spin"></i> جاري التحميل...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                    <tfoot class="bg-light">
+                                        <tr>
+                                            <td colspan="2"><strong>الإجماليات:</strong></td>
+                                            <td class="text-end debit-cell" id="receivables-detailed-total-debit">0.00</td>
+                                            <td class="text-end credit-cell" id="receivables-detailed-total-credit">0.00</td>
+                                            <td class="text-end balance-cell" id="receivables-detailed-net">0.00</td>
+                                            <td colspan="2"></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ميزان المراجعة (اختياري) -->
+            <div class="row">
+                <div class="col-12">
                     <div class="card ledger-card">
                         <div class="card-header ledger-header">
                             <h4 class="mb-0">
@@ -437,45 +564,6 @@
                                             <td class="text-end debit-cell" id="accounts-total-debit">0.00</td>
                                             <td class="text-end credit-cell" id="accounts-total-credit">0.00</td>
                                             <td class="text-end balance-cell" id="accounts-net-balance">0.00</td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card ledger-card">
-                        <div class="card-header ledger-header">
-                            <h4 class="mb-0">
-                                <i class="fas fa-users"></i>
-                                ملخص الذمم (Accounts Receivable/Payable)
-                            </h4>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th>الجهة</th>
-                                            <th class="text-end">لنا (مدين)</th>
-                                            <th class="text-end">علينا (دائن)</th>
-                                            <th class="text-end">الرصيد</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="receivables-summary">
-                                        <tr>
-                                            <td colspan="4" class="text-center text-muted">
-                                                <i class="fas fa-spinner fa-spin"></i> جاري التحميل...
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                    <tfoot class="bg-light">
-                                        <tr>
-                                            <td><strong>الإجماليات:</strong></td>
-                                            <td class="text-end debit-cell" id="receivables-total-debit">0.00</td>
-                                            <td class="text-end credit-cell" id="receivables-total-credit">0.00</td>
-                                            <td class="text-end balance-cell" id="receivables-net">0.00</td>
                                         </tr>
                                     </tfoot>
                                 </table>
@@ -659,6 +747,9 @@ function updateStatistics(stats) {
     const grossProfit = stats.total_gross_profit || 0;
     const netProfit = stats.net_profit || 0;
     const profitMargin = stats.profit_margin || 0;
+    
+    // تحديث قائمة الدخل (P&L)
+    updateProfitAndLoss(stats);
     
     $('#gross-profit').text(formatCurrency(Math.abs(grossProfit)) + ' ₪');
     $('#net-profit').text(formatCurrency(Math.abs(netProfit)) + ' ₪');
@@ -970,16 +1061,16 @@ function loadReceivablesSummary() {
     console.log('Loading receivables summary with:', formData);
     
     $.ajax({
-        url: '{{ url_for("ledger.get_receivables_summary") }}',
+        url: '{{ url_for("ledger.get_receivables_detailed_summary") }}',
         method: 'GET',
         data: formData,
         success: function(response) {
             console.log('Receivables summary received:', response);
-            updateReceivablesSummary(response);
+            updateReceivablesDetailedSummary(response);
         },
         error: function(xhr, status, error) {
             console.error('Error loading receivables summary:', xhr, status, error);
-            $('#receivables-summary').html('<tr><td colspan="4" class="text-center text-danger">خطأ في تحميل البيانات</td></tr>');
+            $('#receivables-detailed-summary').html('<tr><td colspan="7" class="text-center text-danger">خطأ في تحميل البيانات</td></tr>');
         }
     });
 }
@@ -1021,12 +1112,54 @@ function updateAccountsSummary(data) {
     $('#accounts-net-balance').text(formatCurrency(totalDebit - totalCredit));
 }
 
-function updateReceivablesSummary(data) {
-    const tbody = $('#receivables-summary');
+// دالة تحديث قائمة الدخل
+function updateProfitAndLoss(stats) {
+    const sales = stats.total_sales || 0;
+    const services = stats.total_services || 0;
+    const cogs = stats.total_cogs || 0;
+    const serviceCosts = stats.total_service_costs || 0;
+    const expenses = stats.total_expenses || 0;
+    
+    const totalRevenue = sales + services;
+    const totalDirectCosts = cogs + serviceCosts;
+    const grossProfit = totalRevenue - totalDirectCosts;
+    const netProfit = grossProfit - expenses;
+    const margin = totalRevenue > 0 ? (netProfit / totalRevenue * 100) : 0;
+    
+    $('#pnl-sales').text(formatCurrency(sales) + ' ₪');
+    $('#pnl-services').text(formatCurrency(services) + ' ₪');
+    $('#pnl-total-revenue').text(formatCurrency(totalRevenue) + ' ₪');
+    $('#pnl-cogs').text(formatCurrency(cogs) + ' ₪');
+    $('#pnl-service-costs').text(formatCurrency(serviceCosts) + ' ₪');
+    $('#pnl-total-direct-costs').text(formatCurrency(totalDirectCosts) + ' ₪');
+    $('#pnl-expenses').text(formatCurrency(expenses) + ' ₪');
+    
+    // تلوين الربح
+    const grossProfitCell = $('#pnl-gross-profit');
+    const netProfitCell = $('#pnl-net-profit');
+    
+    if (grossProfit < 0) {
+        grossProfitCell.text(formatCurrency(Math.abs(grossProfit)) + ' ₪ (خسارة)').css('color', '#dc3545');
+    } else {
+        grossProfitCell.text(formatCurrency(grossProfit) + ' ₪').css('color', '#28a745');
+    }
+    
+    if (netProfit < 0) {
+        netProfitCell.text(formatCurrency(Math.abs(netProfit)) + ' ₪ (خسارة)').css('color', '#dc3545');
+    } else {
+        netProfitCell.text(formatCurrency(netProfit) + ' ₪').css('color', '#28a745');
+    }
+    
+    $('#pnl-margin').text(margin.toFixed(2) + '%');
+}
+
+// دالة تحديث كشف الذمم التفصيلي
+function updateReceivablesDetailedSummary(data) {
+    const tbody = $('#receivables-detailed-summary');
     tbody.empty();
     
     if (!data || data.length === 0) {
-        tbody.append('<tr><td colspan="4" class="text-center text-muted">لا توجد بيانات</td></tr>');
+        tbody.append('<tr><td colspan="7" class="text-center text-muted">لا توجد بيانات</td></tr>');
         return;
     }
     
@@ -1037,26 +1170,53 @@ function updateReceivablesSummary(data) {
         const debit = parseFloat(entity.debit || 0);
         const credit = parseFloat(entity.credit || 0);
         const balance = debit - credit;
+        const daysOverdue = entity.days_overdue || 0;
         
         totalDebit += debit;
         totalCredit += credit;
         
         const entityIcon = getEntityIcon(entity.type);
         
+        // تحديد حالة الدين
+        let statusBadge = '';
+        let statusClass = '';
+        if (balance > 0) {
+            if (daysOverdue > 90) {
+                statusBadge = '<span class="badge badge-danger">متأخر جداً</span>';
+                statusClass = 'table-danger';
+            } else if (daysOverdue > 30) {
+                statusBadge = '<span class="badge badge-warning">متأخر</span>';
+                statusClass = 'table-warning';
+            } else if (daysOverdue > 0) {
+                statusBadge = '<span class="badge badge-info">مستحق</span>';
+            } else {
+                statusBadge = '<span class="badge badge-success">جيد</span>';
+            }
+        } else if (balance < 0) {
+            statusBadge = '<span class="badge badge-primary">دائن</span>';
+        } else {
+            statusBadge = '<span class="badge badge-secondary">متوازن</span>';
+        }
+        
+        const lastTransactionDate = entity.last_transaction || '—';
+        
         const row = `
-            <tr>
-                <td>${entityIcon} <strong>${entity.name}</strong> <small class="text-muted">(${entity.type_ar})</small></td>
+            <tr class="${statusClass}">
+                <td>${entityIcon} <strong>${entity.name}</strong></td>
+                <td><small class="text-muted">${entity.type_ar}</small></td>
                 <td class="text-end ${debit > 0 ? 'debit-cell' : ''}">${debit > 0 ? formatCurrency(debit) : '—'}</td>
                 <td class="text-end ${credit > 0 ? 'credit-cell' : ''}">${credit > 0 ? formatCurrency(credit) : '—'}</td>
-                <td class="text-end balance-cell">${formatCurrency(balance)}</td>
+                <td class="text-end balance-cell"><strong>${formatCurrency(Math.abs(balance))}</strong></td>
+                <td class="text-center">${statusBadge}</td>
+                <td class="text-center"><small>${lastTransactionDate}</small></td>
             </tr>
         `;
         tbody.append(row);
     });
     
-    $('#receivables-total-debit').text(formatCurrency(totalDebit));
-    $('#receivables-total-credit').text(formatCurrency(totalCredit));
-    $('#receivables-net').text(formatCurrency(totalDebit - totalCredit));
+    $('#receivables-detailed-total-debit').text(formatCurrency(totalDebit));
+    $('#receivables-detailed-total-credit').text(formatCurrency(totalCredit));
+    $('#receivables-detailed-net').text(formatCurrency(totalDebit - totalCredit));
 }
 
 function getEntityIcon(type) {
