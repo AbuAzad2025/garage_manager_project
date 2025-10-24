@@ -52,6 +52,14 @@
   <!-- Mobile Optimizations CSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile.css') }}">
   
+  <!-- Safe Enhancements CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/enhancements.css') }}">
+  
+  <!-- Performance & Event Utilities (loaded early for all pages) -->
+  <script src="{{ url_for('static', filename='js/event-utils.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/performance-utils.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/safe-enhancements.js') }}" defer></script>
+  
   <!-- Dynamic System Colors from Security Settings -->
   {% if system_settings.primary_color %}
   <style>
