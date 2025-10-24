@@ -1,0 +1,306 @@
+══════════════════════════════════════════════════════════════════════
+  تقرير شامل لجميع الـ Endpoints في النظام
+══════════════════════════════════════════════════════════════════════
+
+إجمالي الملفات: 21
+إجمالي الـ Endpoints: 252
+إجمالي الـ Blueprints: 27
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+قائمة جميع الـ Endpoints:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+advanced_control.py:
+  [GET, POST      ] /api-generator
+  [GET, POST      ] /backup-manager
+  [GET, POST      ] /dashboard-links
+  [GET, POST      ] /db-merger
+  [POST           ] /delete-backup/<filename>
+  [GET            ] /download-backup/<filename>
+  [GET            ] /download-cloned-system/<clone_name>
+  [GET            ] /download-mobile-app/<app_name>
+  [GET, POST      ] /feature-flags
+  [GET, POST      ] /licensing
+  [GET, POST      ] /mobile-app-generator
+  [GET, POST      ] /module-manager
+  [GET, POST      ] /multi-tenant
+  [POST           ] /restore-backup/<filename>
+  [GET, POST      ] /system-cloner
+  [GET, POST      ] /system-health
+  [POST           ] /test-db-connection
+  [POST           ] /toggle-auto-backup
+  [GET, POST      ] /version-control
+
+api.py:
+  [GET            ] /archive/<int:archive_id>
+  [DELETE         ] /archive/<int:archive_id>
+  [POST           ] /archive/<int:archive_id>/restore
+  [POST           ] /archive/customer/<int:customer_id>
+  [POST           ] /archive/expense/<int:expense_id>
+  [GET            ] /archive/list
+  [POST           ] /archive/partner/<int:partner_id>
+  [POST           ] /archive/payment/<int:payment_id>
+  [POST           ] /archive/sale/<int:sale_id>
+  [POST           ] /archive/service/<int:service_id>
+  [GET            ] /archive/stats
+  [POST           ] /archive/supplier/<int:supplier_id>
+  [GET            ] /partners
+  [GET            ] /products/<int:product_id>/stock
+  [POST           ] /restore/customer/<int:customer_id>
+  [POST           ] /restore/expense/<int:expense_id>
+  [POST           ] /restore/partner/<int:partner_id>
+  [POST           ] /restore/payment/<int:payment_id>
+  [POST           ] /restore/sale/<int:sale_id>
+  [POST           ] /restore/service/<int:service_id>
+  [POST           ] /restore/supplier/<int:supplier_id>
+  [GET            ] /suppliers
+  [GET            ] /warehouses/<int:warehouse_id>/info
+
+archive.py:
+  [GET            ] /
+  [GET, POST      ] /bulk-archive
+  [POST           ] /delete/<int:archive_id>
+  [GET            ] /export
+  [GET, POST      ] /restore/<int:archive_id>
+  [GET, POST      ] /search
+  [GET            ] /view/<int:archive_id>
+
+archive_routes.py:
+  [POST           ] /checks/archive/<int:check_id>
+  [POST           ] /shipments/archive/<int:shipment_id>
+
+auth.py:
+  [GET, POST      ] /customer_password_reset/<token>
+  [GET, POST      ] /customer_password_reset_request
+  [GET, POST      ] /login
+  [POST           ] /logout
+  [GET, POST      ] /register/customer
+
+checks.py:
+  [GET            ] /
+  [GET            ] /api/alerts
+  [GET            ] /api/check-lifecycle/<int:check_id>/<check_type>
+  [GET            ] /api/checks
+  [GET            ] /api/statistics
+  [POST           ] /api/update-status/<check_id>
+  [POST           ] /delete/<int:check_id>
+  [GET            ] /detail/<int:check_id>
+  [GET, POST      ] /edit/<int:check_id>
+  [GET, POST      ] /new
+  [GET            ] /reports
+
+customers.py:
+  [POST           ] /<int:id>/delete
+  [POST           ] /archive/<int:customer_id>
+  [POST           ] /restore/<int:customer_id>
+
+expenses.py:
+  [POST           ] /archive/<int:expense_id>
+  [POST           ] /restore/<int:expense_id>
+
+hard_delete.py:
+  [POST           ] /api/delete-customer/<int:customer_id>
+  [POST           ] /api/delete-payment/<int:payment_id>
+  [POST           ] /api/delete-sale/<int:sale_id>
+  [POST           ] /api/restore/<int:deletion_id>
+  [GET, POST      ] /customer/<int:customer_id>
+  [GET, POST      ] /expense/<int:expense_id>
+  [GET            ] /logs
+  [GET, POST      ] /partner/<int:partner_id>
+  [GET, POST      ] /payment/<int:payment_id>
+  [GET, POST      ] /restore/<int:deletion_id>
+  [GET, POST      ] /sale/<int:sale_id>
+  [GET, POST      ] /supplier/<int:supplier_id>
+
+health.py:
+  [GET            ] /
+  [GET            ] /live
+  [GET            ] /metrics
+  [GET            ] /ping
+  [GET            ] /ready
+  [GET            ] /status
+
+main.py:
+  [GET            ] /favicon.ico
+
+partner_settlements.py:
+  [POST           ] /<int:partner_id>/settlements/create
+  [GET            ] /<int:partner_id>/settlements/preview
+  [GET            ] /settlements/<int:settlement_id>
+  [POST           ] /settlements/<int:settlement_id>/confirm
+  [GET            ] /unpriced-items
+
+payments.py:
+  [POST           ] /archive/<int:payment_id>
+  [GET            ] /entity-search
+  [POST           ] /restore/<int:payment_id>
+
+report_routes.py:
+  [GET            ] /ap-aging
+  [POST           ] /api/dynamic
+  [GET            ] /api/model_fields
+  [GET            ] /ar-aging
+  [GET            ] /customer-detail/<int:customer_id>
+  [GET, POST      ] /dynamic
+  [GET            ] /export/ap_aging.csv
+  [GET            ] /export/ar_aging.csv
+  [POST           ] /export/dynamic.csv
+  [GET            ] /partner-detail/<int:partner_id>
+  [GET            ] /sales
+  [GET            ] /service-reports
+  [GET            ] /supplier-detail/<int:supplier_id>
+  [GET            ] /top-products
+
+sales.py:
+  [POST           ] /archive/<int:sale_id>
+  [GET            ] /dashboard
+  [POST           ] /quick
+  [POST           ] /restore/<int:sale_id>
+
+security.py:
+  [GET            ] /
+  [GET            ] /activity-timeline
+  [GET            ] /advanced-analytics
+  [GET, POST      ] /advanced-backup
+  [GET, POST      ] /advanced-config
+  [GET            ] /ai-analytics
+  [GET, POST      ] /ai-assistant
+  [GET, POST      ] /ai-config
+  [GET            ] /ai-control
+  [GET            ] /ai-control-panel
+  [GET            ] /ai-diagnostics
+  [GET, POST      ] /ai-training
+  [POST           ] /api/ai-chat
+  [POST           ] /api/indexes/analyze-table
+  [POST           ] /api/indexes/auto-optimize
+  [POST           ] /api/indexes/batch-create
+  [POST           ] /api/indexes/clean-and-rebuild
+  [POST           ] /api/indexes/create
+  [POST           ] /api/indexes/drop
+  [GET            ] /api/live-metrics
+  [GET            ] /audit-logs
+  [GET, POST      ] /block-country
+  [GET, POST      ] /block-ip
+  [POST           ] /block-user/<int:user_id>
+  [GET            ] /blocked-countries
+  [GET            ] /blocked-ips
+  [GET            ] /card-vault
+  [GET, POST      ] /code-editor
+  [GET, POST      ] /dark-mode-settings
+  [GET            ] /data-export
+  [GET            ] /database-browser
+  [GET            ] /database-manager
+  [GET            ] /db-editor
+  [POST           ] /db-editor/add-column/<table_name>
+  [POST           ] /db-editor/add-row/<table_name>
+  [POST           ] /db-editor/bulk-update/<table_name>
+  [POST           ] /db-editor/delete-column/<table_name>
+  [POST           ] /db-editor/delete-row/<table_name>/<row_id>
+  [POST           ] /db-editor/edit-row/<table_name>/<int:row_id>
+  [POST           ] /db-editor/fill-missing/<table_name>
+  [GET            ] /db-editor/schema/<table_name>
+  [GET            ] /db-editor/table/<table_name>
+  [POST           ] /db-editor/update-cell/<table_name>
+  [GET, POST      ] /decrypt-tool
+  [GET, POST      ] /email-manager
+  [GET            ] /emergency-tools
+  [POST           ] /emergency/clear-cache
+  [POST           ] /emergency/kill-sessions
+  [POST           ] /emergency/maintenance-mode
+  [GET            ] /error-tracker
+  [GET            ] /export-table/<table_name>
+  [GET            ] /failed-logins
+  [POST           ] /force-reset-password/<int:user_id>
+  [GET            ] /grafana-setup
+  [POST           ] /impersonate/<int:user_id>
+  [GET, POST      ] /indexes-manager
+  [GET            ] /integration-stats
+  [GET            ] /integrations
+  [GET, POST      ] /invoice-designer
+  [GET            ] /live-monitoring
+  [GET, POST      ] /logo-manager
+  [POST           ] /logs-clear/<log_type>
+  [GET            ] /logs-download/<log_type>
+  [GET            ] /logs-manager
+  [GET            ] /logs-view/<log_type>
+  [GET            ] /logs-viewer
+  [GET            ] /monitoring-dashboard
+  [GET            ] /notifications-center
+  [GET            ] /pattern-detection
+  [GET            ] /performance-monitor
+  [GET, POST      ] /permissions-manager
+  [GET            ] /prometheus-metrics
+  [GET, POST      ] /python-console
+  [POST           ] /save-integration
+  [POST           ] /send-test-message/<integration_type>
+  [GET, POST      ] /settings
+  [GET, POST      ] /sql-console
+  [POST           ] /stop-impersonate
+  [GET, POST      ] /system-branding
+  [GET, POST      ] /system-cleanup
+  [GET, POST      ] /system-constants
+  [GET, POST      ] /system-map
+  [GET, POST      ] /system-settings
+  [GET, POST      ] /table-manager
+  [GET, POST      ] /template-editor
+  [POST           ] /test-integration/<integration_type>
+  [GET, POST      ] /text-editor
+  [GET, POST      ] /theme-editor
+  [POST           ] /toggle-user/<int:user_id>
+  [GET            ] /ultimate-control
+  [POST           ] /unblock-ip/<ip>
+  [GET            ] /user-control
+
+service.py:
+  [GET            ] /
+  [GET            ] /<int:rid>
+  [POST           ] /<int:rid>/<action>
+  [POST           ] /<int:rid>/archive
+  [POST           ] /<int:rid>/delete
+  [POST           ] /<int:rid>/diagnosis
+  [GET, POST      ] /<int:rid>/invoice
+  [POST           ] /<int:rid>/parts/add
+  [GET, POST      ] /<int:rid>/payments/add
+  [GET            ] /<int:rid>/pdf
+  [GET            ] /<int:rid>/receipt
+  [GET            ] /<int:rid>/receipt/download
+  [GET            ] /<int:rid>/report
+  [POST           ] /<int:rid>/tasks/add
+  [GET            ] /analytics
+  [GET            ] /api/requests
+  [POST           ] /archive/<int:service_id>
+  [GET            ] /dashboard
+  [GET            ] /export/csv
+  [GET            ] /list
+  [GET, POST      ] /new
+  [POST           ] /parts/<int:pid>/delete
+  [POST           ] /restore/<int:service_id>
+  [GET            ] /search
+  [POST           ] /tasks/<int:tid>/delete
+
+shipments.py:
+  [POST           ] /<int:id>/mark-delivered
+  [POST           ] /<int:id>/mark-in-customs
+  [POST           ] /<int:id>/mark-in-transit
+  [POST           ] /<int:id>/mark-returned
+  [POST           ] /<int:id>/update-delivery-attempt
+  [GET            ] /data
+
+shop.py:
+  [POST           ] /archive-preorder/<int:preorder_id>
+
+supplier_settlements.py:
+  [POST           ] /<int:supplier_id>/settlements/create
+  [GET            ] /<int:supplier_id>/settlements/preview
+  [POST           ] /exchange-transaction/<int:tx_id>/update-price
+  [GET            ] /settlements/<int:settlement_id>
+  [POST           ] /settlements/<int:settlement_id>/confirm
+  [POST           ] /settlements/<int:settlement_id>/void
+  [GET            ] /unpriced-items
+
+vendors.py:
+  [POST           ] /partners/archive/<int:partner_id>
+  [POST           ] /partners/restore/<int:partner_id>
+  [POST           ] /suppliers/archive/<int:supplier_id>
+  [POST           ] /suppliers/restore/<int:supplier_id>
