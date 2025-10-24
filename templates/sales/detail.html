@@ -200,9 +200,14 @@
             <i class="fas fa-edit mr-1"></i> تعديل
           </a>
 
-          <a href="{{ url_for('sales_bp.generate_invoice', id=sale.id) }}" target="_blank" class="btn btn-info text-white ml-2 mb-2">
-            <i class="fas fa-print mr-1"></i> طباعة الفاتورة
-          </a>
+          <div class="btn-group ml-2 mb-2" role="group">
+            <a href="{{ url_for('sales_bp.generate_invoice', id=sale.id) }}" target="_blank" class="btn btn-info text-white">
+              <i class="fas fa-print mr-1"></i> فاتورة كاملة
+            </a>
+            <a href="{{ url_for('sales_bp.generate_invoice', id=sale.id, simple=1) }}" target="_blank" class="btn btn-outline-info">
+              <i class="fas fa-file-alt mr-1"></i> فاتورة مبسطة
+            </a>
+          </div>
 
           {% if sale.status == 'CONFIRMED' %}
           <a href="{{ url_for('returns.create_return', sale_id=sale.id) }}" class="btn btn-danger ml-2 mb-2">
