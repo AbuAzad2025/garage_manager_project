@@ -523,7 +523,6 @@ def create_sale():
                 customer_id=form.customer_id.data,
                 seller_id=form.seller_id.data,
                 sale_date=form.sale_date.data or datetime.utcnow(),
-                receiver_name=form.receiver_name.data,
                 status=target_status,  # دائماً CONFIRMED
                 payment_status="PENDING",  # دائماً PENDING عند الإنشاء
                 currency=(form.currency.data or "ILS").upper(),
@@ -532,6 +531,9 @@ def create_sale():
                 shipping_cost=form.shipping_cost.data or 0,
                 notes=form.notes.data
             )
+            # إضافة receiver_name بشكل آمن
+            if hasattr(Sale, 'receiver_name'):
+                sale.receiver_name = form.receiver_name.data
             db.session.add(sale)
             db.session.flush()
             _safe_generate_number_after_flush(sale)
@@ -671,7 +673,9 @@ def edit_sale(id: int):
             sale.tax_rate = form.tax_rate.data or 0
             sale.discount_total = form.discount_total.data or 0
             sale.shipping_cost = form.shipping_cost.data or 0
-            sale.receiver_name = form.receiver_name.data
+            # حقل receiver_name - آمن حتى لو مفقود
+            if hasattr(sale, 'receiver_name'):
+                sale.receiver_name = form.receiver_name.data
             sale.notes = form.notes.data
             _attach_lines(sale, lines_payload)
             db.session.flush()
