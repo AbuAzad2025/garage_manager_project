@@ -194,7 +194,9 @@ def list_customers():
                         print(f"⚠️ ERROR: خطأ في تحويل العملة للدفعة #{p.id}: {str(e)}")
                 payments_total += amount
             
-            balance = sales_total - payments_total
+            # إضافة الرصيد الافتتاحي
+            opening_bal = float(customer.opening_balance or 0)
+            balance = opening_bal + sales_total - payments_total
             
             total_sales += float(sales_total)
             total_payments += float(payments_total)
