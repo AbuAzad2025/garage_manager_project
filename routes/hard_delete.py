@@ -22,7 +22,7 @@ def delete_customer(customer_id):
         customer = db.session.get(Customer, customer_id)
         if not customer:
             flash("العميل غير موجود", "error")
-            return redirect(url_for("customers.list_customers"))
+            return redirect(url_for("customers_bp.list_customers"))
         
         # جمع المعلومات المرتبطة
         from models import Sale, Payment, ServiceRequest, Expense, Shipment, ProductSupplierLoan
