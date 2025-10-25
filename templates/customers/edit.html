@@ -87,7 +87,7 @@
         </div>
         <div class="form-row">
           <div class="form-group col-md-12">
-            <label for="{{ form.opening_balance.id }}"><i class="fas fa-balance-scale"></i> الرصيد الافتتاحي (موجب=عليه، سالب=له) <i class="fas fa-info-circle text-info" title="موجب = عليه لنا، سالب = له علينا"></i></label>
+            <label for="{{ form.opening_balance.id }}"><i class="fas fa-balance-scale"></i> الرصيد الافتتاحي (سالب=عليه، موجب=له) <i class="fas fa-info-circle text-info" title="سالب = عليه لنا، موجب = له علينا"></i></label>
             {{ form.opening_balance(class="form-control form-control-sm" + (' is-invalid' if form.opening_balance.errors else ''), placeholder="0.00", step="0.01") }}
             {% for e in form.opening_balance.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>

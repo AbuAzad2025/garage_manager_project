@@ -877,8 +877,8 @@ def account_statement(customer_id):
             "type": "OPENING_BALANCE",
             "ref": "OB-001",
             "statement": "الرصيد الافتتاحي",
-            "debit": opening_balance if opening_balance > 0 else D(0),  # موجب = عليه لنا = مدين
-            "credit": abs(opening_balance) if opening_balance < 0 else D(0),  # سالب = له علينا = دائن
+            "debit": abs(opening_balance) if opening_balance < 0 else D(0),  # سالب = عليه لنا = مدين
+            "credit": opening_balance if opening_balance > 0 else D(0),  # موجب = له علينا = دائن
             "notes": "الرصيد السابق قبل بدء النظام",
         }
         entries.insert(0, opening_entry)

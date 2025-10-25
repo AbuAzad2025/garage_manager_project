@@ -1699,7 +1699,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
     credit_limit = Column(Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
     discount_rate = Column(Numeric(5, 2), default=0, nullable=False, server_default=sa_text("0"))
     currency = Column(String(10), default="ILS", nullable=False, server_default=sa_text("'ILS'"))
-    opening_balance = Column(Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"), comment="الرصيد الافتتاحي (موجب=عليه لنا، سالب=له علينا)")
+    opening_balance = Column(Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"), comment="الرصيد الافتتاحي (سالب=عليه لنا، موجب=له علينا)")
 
     sales = relationship("Sale", back_populates="customer")
     preorders = relationship("PreOrder", back_populates="customer")
@@ -1886,10 +1886,10 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
                 Payment.status == 'COMPLETED'
             ).scalar() or 0)
             
-            # ⚠️ الرصيد الافتتاحي: موجب=عليه لنا (مدين)، سالب=له علينا (دائن)
+            # ⚠️ الرصيد الافتتاحي: سالب=عليه لنا (مدين)، موجب=له علينا (دائن)
             # الرصيد النهائي = opening_balance + مبيعات - دفعات واردة + دفعات صادرة
-            # موجب (11200) = عليه لنا = يزيد الرصيد المدين
-            # سالب (-11200) = له علينا = يقلل الرصيد المدين
+            # سالب (-11200) = عليه لنا = رصيد مدين سالب
+            # موجب (+11200) = له علينا = رصيد دائن موجب
             return ob + sales_total + invoices_total + services_total + preorders_total - payments_in + payments_out
         except Exception as e:
             import sys
