@@ -1347,8 +1347,12 @@ class HardDeleteService:
                 result = self._restore_payment(deletion_log)
             elif deletion_log.deletion_type == DeletionType.EXPENSE.value:
                 result = self._restore_expense(deletion_log)
+            elif deletion_log.deletion_type == 'SUPPLIER':
+                result = self._restore_supplier(deletion_log)
+            elif deletion_log.deletion_type == 'PARTNER':
+                result = self._restore_partner(deletion_log)
             else:
-                return {"success": False, "error": "نوع الحذف غير مدعوم للاستعادة"}
+                return {"success": False, "error": f"نوع الحذف {deletion_log.deletion_type} غير مدعوم للاستعادة"}
             
             if result["success"]:
                 deletion_log.mark_restored(restored_by, notes)
@@ -1516,6 +1520,44 @@ class HardDeleteService:
             
         except Exception as e:
             return {"success": False, "error": f"فشل في استعادة النفقة: {str(e)}"}
+    
+    def _restore_supplier(self, deletion_log: DeletionLog) -> Dict[str, Any]:
+        """استعادة المورد - بسيطة"""
+        try:
+            data = deletion_log.deleted_data
+            if not data:
+                return {"success": False, "error": "بيانات المورد غير متوفرة"}
+            
+            supplier = Supplier(
+                id=data["id"],
+                name=data["name"],
+                phone=data.get("phone"),
+                email=data.get("email"),
+                address=data.get("address")
+            )
+            db.session.add(supplier)
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": f"فشل في استعادة المورد: {str(e)}"}
+    
+    def _restore_partner(self, deletion_log: DeletionLog) -> Dict[str, Any]:
+        """استعادة الشريك - بسيطة"""
+        try:
+            data = deletion_log.deleted_data
+            if not data:
+                return {"success": False, "error": "بيانات الشريك غير متوفرة"}
+            
+            partner = Partner(
+                id=data["id"],
+                name=data["name"],
+                phone_number=data.get("phone_number"),
+                email=data.get("email"),
+                address=data.get("address")
+            )
+            db.session.add(partner)
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": f"فشل في استعادة الشريك: {str(e)}"}
 
     def delete_check(self, check_id: int, deleted_by: int, reason: str = None) -> Dict[str, Any]:
         """حذف قوي للشيك مع العمليات العكسية"""
