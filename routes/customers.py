@@ -162,6 +162,8 @@ def list_customers():
     summary = {
         'total_customers': len(all_customers),
         'total_balance': total_balance,
+        'total_sales': 0.0,  # ✅ إضافة للقالب
+        'total_payments': 0.0,  # ✅ إضافة للقالب
         'customers_with_debt': customers_with_debt,
         'customers_with_credit': customers_with_credit,
         'average_balance': total_balance / len(all_customers) if all_customers else 0
