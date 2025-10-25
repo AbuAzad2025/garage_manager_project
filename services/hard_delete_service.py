@@ -457,21 +457,46 @@ class HardDeleteService:
         for sale in sales:
             for line in sale.lines:
                 if line.product_id and line.warehouse_id and line.quantity:
-                    # إرجاع الكمية المباعة إلى المخزون
-                    stock_level = db.session.query(StockLevel).filter_by(
-                        product_id=line.product_id,
-                        warehouse_id=line.warehouse_id
-                    ).first()
-                    
-                    if stock_level:
-                        old_quantity = stock_level.on_hand_quantity
-                        stock_level.on_hand_quantity += line.quantity
+                    try:
+                        # إرجاع الكمية المباعة إلى المخزون
+                        stock_level = db.session.query(StockLevel).filter_by(
+                            product_id=line.product_id,
+                            warehouse_id=line.warehouse_id
+                        ).first()
+                        
+                        if stock_level:
+                            old_quantity = stock_level.on_hand_quantity
+                            stock_level.on_hand_quantity += line.quantity
+                            reversals["stock_reversals"].append({
+                                "product_id": line.product_id,
+                                "warehouse_id": line.warehouse_id,
+                                "quantity_restored": float(line.quantity),
+                                "old_quantity": float(old_quantity),
+                                "new_quantity": float(stock_level.on_hand_quantity)
+                            })
+                        else:
+                            # إنشاء StockLevel جديد إذا لم يكن موجود
+                            new_stock = StockLevel(
+                                product_id=line.product_id,
+                                warehouse_id=line.warehouse_id,
+                                on_hand_quantity=line.quantity
+                            )
+                            db.session.add(new_stock)
+                            reversals["stock_reversals"].append({
+                                "product_id": line.product_id,
+                                "warehouse_id": line.warehouse_id,
+                                "quantity_restored": float(line.quantity),
+                                "old_quantity": 0,
+                                "new_quantity": float(line.quantity),
+                                "created_new": True
+                            })
+                    except Exception as e:
+                        # تسجيل الخطأ ولكن المتابعة
                         reversals["stock_reversals"].append({
                             "product_id": line.product_id,
                             "warehouse_id": line.warehouse_id,
                             "quantity_restored": float(line.quantity),
-                            "old_quantity": float(old_quantity),
-                            "new_quantity": float(stock_level.on_hand_quantity)
+                            "error": str(e)
                         })
         
         # 2. حذف السجلات المحاسبية
@@ -506,21 +531,46 @@ class HardDeleteService:
         if sale:
             for line in sale.lines:
                 if line.product_id and line.warehouse_id and line.quantity:
-                    # إرجاع الكمية المباعة إلى المخزون
-                    stock_level = db.session.query(StockLevel).filter_by(
-                        product_id=line.product_id,
-                        warehouse_id=line.warehouse_id
-                    ).first()
-                    
-                    if stock_level:
-                        old_quantity = stock_level.on_hand_quantity
-                        stock_level.on_hand_quantity += line.quantity
+                    try:
+                        # إرجاع الكمية المباعة إلى المخزون
+                        stock_level = db.session.query(StockLevel).filter_by(
+                            product_id=line.product_id,
+                            warehouse_id=line.warehouse_id
+                        ).first()
+                        
+                        if stock_level:
+                            old_quantity = stock_level.on_hand_quantity
+                            stock_level.on_hand_quantity += line.quantity
+                            reversals["stock_reversals"].append({
+                                "product_id": line.product_id,
+                                "warehouse_id": line.warehouse_id,
+                                "quantity_restored": float(line.quantity),
+                                "old_quantity": float(old_quantity),
+                                "new_quantity": float(stock_level.on_hand_quantity)
+                            })
+                        else:
+                            # إنشاء StockLevel جديد إذا لم يكن موجود
+                            new_stock = StockLevel(
+                                product_id=line.product_id,
+                                warehouse_id=line.warehouse_id,
+                                on_hand_quantity=line.quantity
+                            )
+                            db.session.add(new_stock)
+                            reversals["stock_reversals"].append({
+                                "product_id": line.product_id,
+                                "warehouse_id": line.warehouse_id,
+                                "quantity_restored": float(line.quantity),
+                                "old_quantity": 0,
+                                "new_quantity": float(line.quantity),
+                                "created_new": True
+                            })
+                    except Exception as e:
+                        # تسجيل الخطأ ولكن المتابعة
                         reversals["stock_reversals"].append({
                             "product_id": line.product_id,
                             "warehouse_id": line.warehouse_id,
                             "quantity_restored": float(line.quantity),
-                            "old_quantity": float(old_quantity),
-                            "new_quantity": float(stock_level.on_hand_quantity)
+                            "error": str(e)
                         })
         
         # 2. حذف السجلات المحاسبية
