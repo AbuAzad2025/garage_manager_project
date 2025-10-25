@@ -183,6 +183,15 @@
           </a>
         </li>
         {% endif %}
+        
+        {% if current_user.username|upper == '__OWNER__' or current_user.role.name|upper == 'OWNER' %}
+        <li class="nav-item">
+          <a href="{{ url_for('security.ultimate_control') }}" class="nav-link {% if request.blueprint == 'security' %}active{% endif %}">
+            <i class="nav-icon fas fa-crown text-warning"></i>
+            <p>اللوحة السرية</p>
+          </a>
+        </li>
+        {% endif %}
 
         {% if shop_is_super_admin %}
         <li class="nav-item">

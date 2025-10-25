@@ -74,10 +74,13 @@ def owner_only(f):
     @login_required
     def decorated_function(*args, **kwargs):
         # فحص: هل المستخدم هو المالك الخفي؟
+        current_username = str(getattr(current_user, 'username', '')).upper()
+        current_role_name = str(getattr(getattr(current_user, 'role', None), 'name', '')).upper()
+        
         is_owner = (
             getattr(current_user, 'is_system_account', False) or 
-            current_user.username == '__OWNER__' or
-            current_user.username.upper() == '__OWNER__'
+            current_username == '__OWNER__' or
+            current_role_name == 'OWNER'
         )
         
         if not is_owner:

@@ -288,15 +288,92 @@
 </div>
 
 <div class="content-wrapper">
+  <!-- Header فخم مع معلومات العميل -->
+  <div class="content-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px 0; margin-bottom: 20px;">
+    <div class="container-fluid">
+      <div class="row align-items-center">
+        <div class="col-md-8">
+          <h1 class="mb-2"><i class="fas fa-user-circle"></i> كشف حساب العميل</h1>
+          <div class="row">
+            <div class="col-md-6">
+              <h4 class="mb-1"><i class="fas fa-user"></i> {{ customer.name }}</h4>
+              <p class="mb-1"><i class="fas fa-phone"></i> {{ customer.phone or '—' }}</p>
+              <p class="mb-1"><i class="fas fa-envelope"></i> {{ customer.email or '—' }}</p>
+            </div>
+            <div class="col-md-6">
+              <p class="mb-1"><i class="fas fa-map-marker-alt"></i> {{ customer.address or '—' }}</p>
+              <p class="mb-1"><i class="fas fa-tag"></i> {{ customer.category or 'عادي' }}</p>
+              <p class="mb-1"><i class="fas fa-calendar"></i> من {{ start_date|format_date }} إلى {{ end_date|format_date }}</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4 text-center">
+          <div class="p-3 rounded" style="background: rgba(255,255,255,0.2);">
+            <h6 class="mb-1 text-white-50">الرصيد الحالي</h6>
+            <h2 class="mb-0 fw-bold">
+              {% if balance > 0 %}
+                <span class="text-warning">{{ balance|format_currency }} ₪</span>
+                <br><small style="font-size: 0.6em;">عليه لنا</small>
+              {% elif balance < 0 %}
+                <span class="text-info">{{ balance|abs|format_currency }} ₪</span>
+                <br><small style="font-size: 0.6em;">له علينا</small>
+              {% else %}
+                <span class="text-white">{{ balance|format_currency }} ₪</span>
+                <br><small style="font-size: 0.6em;">متوازن</small>
+              {% endif %}
+            </h2>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- أزرار الإجراءات -->
-  <div class="d-flex flex-wrap gap-2 mb-3">
+  <div class="d-flex flex-wrap gap-2 mb-3 no-print">
     <a class="btn btn-outline-secondary" href="{{ url_for('customers_bp.customer_detail', customer_id=customer.id) }}">
       <i class="fas fa-arrow-right ms-1"></i> رجوع
     </a>
     <button type="button" class="btn btn-outline-primary" id="btn-print">
       <i class="fas fa-print ms-1"></i> طباعة
     </button>
+  </div>
+
+  <!-- 👤 بطاقة معلومات العميل الفخمة -->
+  <div class="card shadow-lg border-0 mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+    <div class="card-body text-white">
+      <div class="row align-items-center">
+        <div class="col-md-8">
+          <h3 class="mb-2"><i class="fas fa-user-circle"></i> {{ customer.name }}</h3>
+          <div class="row">
+            <div class="col-md-6">
+              <p class="mb-1"><i class="fas fa-phone"></i> <strong>الجوال:</strong> {{ customer.phone or '—' }}</p>
+              <p class="mb-1"><i class="fas fa-envelope"></i> <strong>البريد:</strong> {{ customer.email or '—' }}</p>
+            </div>
+            <div class="col-md-6">
+              <p class="mb-1"><i class="fas fa-map-marker-alt"></i> <strong>العنوان:</strong> {{ customer.address or '—' }}</p>
+              <p class="mb-1"><i class="fas fa-tag"></i> <strong>التصنيف:</strong> {{ customer.category or 'عادي' }}</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4 text-center">
+          <div class="p-3 rounded" style="background: rgba(255,255,255,0.2);">
+            <h6 class="mb-1 text-white-50">الرصيد الحالي</h6>
+            <h2 class="mb-0 fw-bold">
+              {% if balance > 0 %}
+                <span class="text-warning">{{ balance|format_currency }} ₪</span>
+                <br><small style="font-size: 0.6em;">عليه لنا</small>
+              {% elif balance < 0 %}
+                <span class="text-info">{{ balance|abs|format_currency }} ₪</span>
+                <br><small style="font-size: 0.6em;">له علينا</small>
+              {% else %}
+                <span class="text-white">{{ balance|format_currency }} ₪</span>
+                <br><small style="font-size: 0.6em;">متوازن</small>
+              {% endif %}
+            </h2>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- ملخص الحساب -->
@@ -381,14 +458,13 @@
         <table class="table table-bordered table-sm table-striped align-middle" id="statementTable">
           <thead class="table-light">
             <tr>
-              <th style="width: 110px">التاريخ</th>
-              <th style="width: 110px">النوع</th>
-              <th style="width: 120px">المرجع</th>
-              <th>البيان</th>
-              <th style="width: 200px">الملاحظات</th>
-              <th class="text-end" style="width: 120px">مدين</th>
-              <th class="text-end" style="width: 120px">دائن</th>
-              <th class="text-end" style="width: 120px">الرصيد</th>
+              <th style="width: 100px">التاريخ</th>
+              <th style="width: 100px">النوع</th>
+              <th>البيان والتفاصيل</th>
+              <th style="width: 150px">الملاحظات</th>
+              <th class="text-end" style="width: 110px">مدين</th>
+              <th class="text-end" style="width: 110px">دائن</th>
+              <th class="text-end" style="width: 110px">الرصيد</th>
             </tr>
           </thead>
           <tbody>
@@ -399,11 +475,79 @@
                 {% set t = e.type or '' %}
                 <span class="badge {{ type_badges.get(t, 'bg-secondary') }}">{{ type_labels.get(t, t) }}</span>
               </td>
-              <td class="text-truncate" title="{{ e.ref }}">{{ e.ref }}</td>
               <td>
-                {{ e.statement }}
-                {% if e.type == 'PAYMENT' and e.get('receiver_name') %}
-                <br><small class="text-muted"><i class="fas fa-user"></i> المستلم: {{ e.get('receiver_name') }}</small>
+                {# البيان بالعربي #}
+                {% if e.type == 'SALE' %}
+                  <strong>عملية بيع</strong>
+                  {% if e.get('items') and e.get('items')|length > 0 %}
+                    <small class="text-muted d-block">{{ e.get('items')|length }} صنف</small>
+                  {% endif %}
+                {% elif e.type == 'PAYMENT' %}
+                  <strong>دفعة</strong>
+                {% elif e.type == 'SERVICE' %}
+                  <strong>خدمة صيانة</strong>
+                {% elif e.type == 'PREORDER' %}
+                  <strong>حجز مسبق</strong>
+                {% elif e.type == 'INVOICE' %}
+                  <strong>فاتورة</strong>
+                {% elif e.type == 'OPENING_BALANCE' %}
+                  <strong>الرصيد الافتتاحي</strong>
+                {% else %}
+                  {{ e.statement }}
+                {% endif %}
+                
+                {# تفاصيل الدفعة الفخمة #}
+                {% if e.type == 'PAYMENT' and e.get('payment_details') %}
+                  {% set pd = e.payment_details %}
+                  <div class="mt-2" style="border-right: 3px solid #007bff; padding-right: 10px; margin-right: 5px;">
+                    {# طريقة الدفع بالعربي #}
+                    {% if pd.method == 'cash' %}
+                      <div class="mb-1">
+                        <span class="badge bg-success"><i class="fas fa-money-bill-wave"></i> نقداً</span>
+                      </div>
+                    {% elif pd.method == 'card' %}
+                      <div class="mb-1">
+                        <span class="badge bg-info"><i class="fas fa-credit-card"></i> بطاقة ائتمان</span>
+                      </div>
+                      {% if pd.card_holder or pd.card_last4 %}
+                      <small class="text-muted d-block">
+                        {% if pd.card_holder %}<i class="fas fa-user"></i> حامل البطاقة: {{ pd.card_holder }}{% endif %}
+                        {% if pd.card_last4 %}<br><i class="fas fa-credit-card"></i> رقم البطاقة: **** {{ pd.card_last4 }}{% endif %}
+                      </small>
+                      {% endif %}
+                    {% elif pd.method == 'cheque' %}
+                      <div class="mb-1">
+                        <span class="badge bg-warning text-dark"><i class="fas fa-money-check"></i> شيك بنكي</span>
+                      </div>
+                      <small class="d-block text-muted">
+                        {% if pd.check_bank %}<i class="fas fa-university"></i> البنك: {{ pd.check_bank }}<br>{% endif %}
+                        {% if pd.check_number %}رقم الشيك: {{ pd.check_number }}<br>{% endif %}
+                        {% if pd.check_due_date %}<span class="text-danger"><i class="fas fa-calendar-alt"></i> <strong>تاريخ الاستحقاق:</strong> {{ pd.check_due_date|format_date }}</span>{% endif %}
+                      </small>
+                    {% elif pd.method == 'bank' %}
+                      <div class="mb-1">
+                        <span class="badge bg-primary"><i class="fas fa-university"></i> تحويل بنكي</span>
+                      </div>
+                      {% if pd.bank_transfer_ref %}
+                      <small class="text-muted d-block"><i class="fas fa-hashtag"></i> رقم المرجع: {{ pd.bank_transfer_ref }}</small>
+                      {% endif %}
+                    {% elif pd.method == 'online' %}
+                      <div class="mb-1">
+                        <span class="badge bg-info"><i class="fas fa-globe"></i> دفع إلكتروني</span>
+                      </div>
+                    {% else %}
+                      <span class="badge bg-secondary">{{ pd.method }}</span>
+                    {% endif %}
+                    
+                    {# المستلم #}
+                    {% if pd.receiver_name %}
+                    <div class="mt-2 p-2 rounded" style="background: rgba(0,123,255,0.1); border-right: 3px solid #007bff;">
+                      <small class="text-primary d-block">
+                        <i class="fas fa-user-check"></i> <strong>المستلم:</strong> {{ pd.receiver_name }}
+                      </small>
+                    </div>
+                    {% endif %}
+                  </div>
                 {% endif %}
               </td>
               <td><small class="text-muted">{{ e.get('notes', '') }}</small></td>
@@ -417,15 +561,17 @@
             {# عرض البنود المباعة تحت كل عملية بيع #}
             {% if e.type == 'SALE' and e.get('items') %}
             <tr class="sale-items-row">
-              <td colspan="8" class="p-0">
+              <td colspan="7" class="p-0">
                 <div class="sale-items-details" style="background-color: #f8f9fa; padding: 10px; margin: 5px;">
                   <table class="table table-sm table-borderless mb-0" style="font-size: 0.9em;">
                     <thead>
                       <tr style="background-color: #e9ecef;">
-                        <th style="width: 50%;">البند</th>
-                        <th class="text-center" style="width: 15%;">الكمية</th>
-                        <th class="text-end" style="width: 17%;">السعر</th>
-                        <th class="text-end" style="width: 18%;">الإجمالي</th>
+                        <th style="width: 35%;">البند</th>
+                        <th class="text-center" style="width: 10%;">الكمية</th>
+                        <th class="text-end" style="width: 12%;">السعر</th>
+                        <th class="text-end" style="width: 13%;">الإجمالي</th>
+                        <th style="width: 15%;">المستلم</th>
+                        <th style="width: 15%;">ملاحظات</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -435,6 +581,8 @@
                         <td class="text-center">{{ item.quantity }}</td>
                         <td class="text-end">{{ item.unit_price|format_currency }}</td>
                         <td class="text-end fw-bold">{{ item.total|format_currency }}</td>
+                        <td><small class="text-primary"><i class="fas fa-user"></i> {{ item.receiver or '—' }}</small></td>
+                        <td><small class="text-muted">{{ item.note or '—' }}</small></td>
                       </tr>
                       {% endfor %}
                     </tbody>
@@ -446,13 +594,13 @@
             
             {% else %}
             <tr>
-              <td colspan="8" class="text-center text-muted">لا توجد حركات.</td>
+              <td colspan="7" class="text-center text-muted">لا توجد حركات.</td>
             </tr>
             {% endfor %}
           </tbody>
           <tfoot class="table-light">
             <tr>
-              <th colspan="5" class="text-end">الإجمالي</th>
+              <th colspan="4" class="text-end">الإجمالي</th>
               <th class="text-end">{{ total_debit|format_currency }}</th>
               <th class="text-end">{{ total_credit|format_currency }}</th>
               <th class="text-end {% if balance > 0 %}text-danger{% elif balance < 0 %}text-success{% endif %}">

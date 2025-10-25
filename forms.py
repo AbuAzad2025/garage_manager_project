@@ -709,7 +709,29 @@ class UserForm(FlaskForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.role_id.choices = [(r.id, r.name) for r in Role.query.order_by(Role.name).all()]
+        
+        # جلب الأدوار المتاحة حسب صلاحية المستخدم الحالي
+        from flask_login import current_user
+        
+        all_roles = Role.query.order_by(Role.name).all()
+        
+        # إذا كان المستخدم الحالي ليس OWNER، إخفاء دور OWNER
+        current_username = str(getattr(current_user, 'username', '')).upper()
+        current_role_name = str(getattr(getattr(current_user, 'role', None), 'name', '')).upper()
+        
+        is_owner = (
+            getattr(current_user, 'is_system_account', False) or 
+            current_username == '__OWNER__' or
+            current_role_name == 'OWNER'
+        )
+        
+        if is_owner:
+            # المالك يرى كل الأدوار
+            self.role_id.choices = [(r.id, r.name) for r in all_roles]
+        else:
+            # Super Admin وغيره لا يرون Owner
+            self.role_id.choices = [(r.id, r.name) for r in all_roles if r.name.upper() not in ['OWNER']]
+        
         try:
             from flask import request
             self._editing_user_id = request.view_args.get('user_id')

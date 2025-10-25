@@ -784,6 +784,23 @@ def create_app(config_object=Config) -> Flask:
                 db.session.commit()
         except Exception as e:
             pass
+    
+    # ضمان وجود الأدوار الأساسية
+    with app.app_context():
+        try:
+            from models import Role
+            
+            basic_roles = ['Owner', 'super_admin', 'admin', 'staff', 'mechanic', 'registered_customer']
+            
+            for role_name in basic_roles:
+                existing = Role.query.filter_by(name=role_name).first()
+                if not existing:
+                    role = Role(name=role_name)
+                    db.session.add(role)
+            
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
     return app
 

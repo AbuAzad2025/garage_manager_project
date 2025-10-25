@@ -409,12 +409,20 @@ def edit_customer(customer_id):
             cust.credit_limit = form.credit_limit.data or 0
             cust.discount_rate = form.discount_rate.data or 0
             cust.opening_balance = form.opening_balance.data or 0  # ✅ إضافة الرصيد الافتتاحي
-            cust.is_active = form.is_active.data
-            cust.is_online = form.is_online.data
+            cust.is_active = bool(form.is_active.data)  # ✅ تحويل صريح لـ bool
+            cust.is_online = bool(form.is_online.data)  # ✅ تحويل صريح لـ bool
             cust.notes = form.notes.data
+            
+            # طباعة للتأكد من القيمة
+            print(f"🔍 تعديل العميل {cust.name}: is_active={cust.is_active}, form.is_active.data={form.is_active.data}")
+            
             try:
                 log_customer_action(cust, "UPDATE", old, cust.to_dict() if hasattr(cust, "to_dict") else None)
                 db.session.commit()
+                
+                # التأكد من الحفظ
+                db.session.refresh(cust)
+                print(f"✅ تم الحفظ: is_active={cust.is_active}")
             except IntegrityError:
                 db.session.rollback()
                 flash("بريد أو هاتف مكرر (Unique constraint).", "danger")
@@ -667,7 +675,9 @@ def account_statement(customer_id):
                 'name': getattr(product, 'name', 'منتج') if product else 'منتج',
                 'quantity': getattr(line, 'quantity', 0),
                 'unit_price': D(getattr(line, 'unit_price', 0) or 0),
-                'total': D(getattr(line, 'line_total', 0) or 0)
+                'total': D(getattr(line, 'line_total', 0) or 0),
+                'receiver': getattr(line, 'line_receiver', None) or '',  # مستلم البند
+                'note': getattr(line, 'note', None) or ''  # ملاحظات البند
             })
         
         entries.append({
@@ -737,6 +747,18 @@ def account_statement(customer_id):
         if notes:
             payment_statement += f" - {notes[:30]}"
         
+        # تفاصيل الدفعة الكاملة
+        payment_details = {
+            'method': str(getattr(p, 'method', 'نقداً')),
+            'check_number': getattr(p, 'check_number', None),
+            'check_bank': getattr(p, 'check_bank', None),
+            'check_due_date': getattr(p, 'check_due_date', None),
+            'card_holder': getattr(p, 'card_holder', None),
+            'card_last4': getattr(p, 'card_last4', None),
+            'bank_transfer_ref': getattr(p, 'bank_transfer_ref', None),
+            'receiver_name': getattr(p, 'receiver_name', None) or ''
+        }
+        
         entries.append({
             "date": getattr(p, "payment_date", None) or getattr(p, "created_at", None),
             "type": "PAYMENT",
@@ -744,8 +766,8 @@ def account_statement(customer_id):
             "statement": payment_statement,
             "debit": D(0),
             "credit": D(p.total_amount or 0),
-            "receiver_name": getattr(p, "receiver_name", None) or "",  # إضافة اسم مستلم الدفعة
-            "notes": notes,  # إضافة الملاحظات
+            "payment_details": payment_details,  # تفاصيل الدفعة
+            "notes": notes,
         })
 
     # إضافة الرصيد الافتتاحي كأول قيد
