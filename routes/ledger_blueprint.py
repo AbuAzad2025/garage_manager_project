@@ -42,7 +42,44 @@ def get_ledger_data():
         ledger_entries = []
         running_balance = 0.0
         
-        # 0. المخزون الحالي - يُعرض دائماً بغض النظر عن الفترة
+        # 0. الرصيد الافتتاحي لجميع العملاء/الموردين/الشركاء
+        if not transaction_type or transaction_type == 'opening':
+            opening_total = 0.0
+            
+            # جمع الرصيد الافتتاحي للعملاء
+            customers_opening = db.session.query(
+                func.coalesce(func.sum(Customer.opening_balance), 0)
+            ).scalar() or 0
+            opening_total += float(customers_opening)
+            
+            # جمع الرصيد الافتتاحي للموردين
+            suppliers_opening = db.session.query(
+                func.coalesce(func.sum(Supplier.opening_balance), 0)
+            ).scalar() or 0
+            opening_total += float(suppliers_opening)
+            
+            # جمع الرصيد الافتتاحي للشركاء
+            partners_opening = db.session.query(
+                func.coalesce(func.sum(Partner.opening_balance), 0)
+            ).scalar() or 0
+            opening_total += float(partners_opening)
+            
+            if opening_total != 0:
+                running_balance += opening_total
+                opening_date = from_date.strftime('%Y-%m-%d') if from_date else '2024-01-01'
+                ledger_entries.append({
+                    "id": 0,
+                    "date": opening_date,
+                    "transaction_number": "OPENING-BALANCE",
+                    "type": "opening",
+                    "type_ar": "رصيد افتتاحي",
+                    "description": f"الرصيد الافتتاحي الإجمالي (عملاء + موردين + شركاء)",
+                    "debit": opening_total if opening_total > 0 else 0.0,
+                    "credit": abs(opening_total) if opening_total < 0 else 0.0,
+                    "balance": running_balance
+                })
+        
+        # 1. المخزون الحالي - يُعرض دائماً بغض النظر عن الفترة
         if True:  # نعرض المخزون دائماً
             # حساب قيمة المخزون كقيد افتتاحي
             total_stock_value = 0.0
