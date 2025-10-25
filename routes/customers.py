@@ -236,11 +236,27 @@ def customer_analytics(customer_id):
     docs_count = len(invoices) + len(sales) + len(services)
     avg_purchase = (total_purchases / docs_count) if docs_count else D(0)
 
-    payments_direct = Payment.query.filter_by(customer_id=customer_id).all()
-    payments_from_sales = Payment.query.join(Sale, Payment.sale_id == Sale.id).filter(Sale.customer_id == customer_id).all()
-    payments_from_invoices = Payment.query.join(Invoice, Payment.invoice_id == Invoice.id).filter(Invoice.customer_id == customer_id).all()
-    payments_from_services = Payment.query.join(ServiceRequest, Payment.service_id == ServiceRequest.id).filter(ServiceRequest.customer_id == customer_id).all()
-    payments_from_preorders = Payment.query.join(PreOrder, Payment.preorder_id == PreOrder.id).filter(PreOrder.customer_id == customer_id).all()
+    # ✅ فلترة الدفعات: فقط COMPLETED (استبعاد المحذوفة/الملغاة)
+    payments_direct = Payment.query.filter_by(
+        customer_id=customer_id,
+        status='COMPLETED'
+    ).all()
+    payments_from_sales = Payment.query.join(Sale, Payment.sale_id == Sale.id).filter(
+        Sale.customer_id == customer_id,
+        Payment.status == 'COMPLETED'
+    ).all()
+    payments_from_invoices = Payment.query.join(Invoice, Payment.invoice_id == Invoice.id).filter(
+        Invoice.customer_id == customer_id,
+        Payment.status == 'COMPLETED'
+    ).all()
+    payments_from_services = Payment.query.join(ServiceRequest, Payment.service_id == ServiceRequest.id).filter(
+        ServiceRequest.customer_id == customer_id,
+        Payment.status == 'COMPLETED'
+    ).all()
+    payments_from_preorders = Payment.query.join(PreOrder, Payment.preorder_id == PreOrder.id).filter(
+        PreOrder.customer_id == customer_id,
+        Payment.status == 'COMPLETED'
+    ).all()
 
     seen = set()
     all_payments = []
@@ -720,11 +736,27 @@ def account_statement(customer_id):
             "notes": getattr(pre, 'notes', '') or '',
         })
 
-    payments_direct = Payment.query.filter_by(customer_id=customer_id).all()
-    payments_from_sales = Payment.query.join(Sale, Payment.sale_id == Sale.id).filter(Sale.customer_id == customer_id).all()
-    payments_from_invoices = Payment.query.join(Invoice, Payment.invoice_id == Invoice.id).filter(Invoice.customer_id == customer_id).all()
-    payments_from_services = Payment.query.join(ServiceRequest, Payment.service_id == ServiceRequest.id).filter(ServiceRequest.customer_id == customer_id).all()
-    payments_from_preorders = Payment.query.join(PreOrder, Payment.preorder_id == PreOrder.id).filter(PreOrder.customer_id == customer_id).all()
+    # ✅ فلترة الدفعات: فقط COMPLETED (استبعاد المحذوفة/الملغاة)
+    payments_direct = Payment.query.filter_by(
+        customer_id=customer_id,
+        status='COMPLETED'
+    ).all()
+    payments_from_sales = Payment.query.join(Sale, Payment.sale_id == Sale.id).filter(
+        Sale.customer_id == customer_id,
+        Payment.status == 'COMPLETED'
+    ).all()
+    payments_from_invoices = Payment.query.join(Invoice, Payment.invoice_id == Invoice.id).filter(
+        Invoice.customer_id == customer_id,
+        Payment.status == 'COMPLETED'
+    ).all()
+    payments_from_services = Payment.query.join(ServiceRequest, Payment.service_id == ServiceRequest.id).filter(
+        ServiceRequest.customer_id == customer_id,
+        Payment.status == 'COMPLETED'
+    ).all()
+    payments_from_preorders = Payment.query.join(PreOrder, Payment.preorder_id == PreOrder.id).filter(
+        PreOrder.customer_id == customer_id,
+        Payment.status == 'COMPLETED'
+    ).all()
 
     seen = set()
     all_payments = []
