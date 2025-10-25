@@ -4590,13 +4590,132 @@ def _sale_gl_batch_upsert(mapper, connection, target: "Sale"):
             except:
                 pass
         
-        # القيد المحاسبي:
-        # مدين: حسابات العملاء (AR) - العميل أصبح مدين لنا
-        # دائن: الإيرادات (REVENUE) - حققنا إيراد
-        entries = [
-            (GL_ACCOUNTS.get("AR", "1100_AR"), amount_ils, 0),  # مدين
-            (GL_ACCOUNTS.get("REV", "4000_SALES"), 0, amount_ils),  # دائن
-        ]
+        # جلب SaleLines لتحليل نسب الشركاء/الموردين
+        from sqlalchemy import select as sa_select
+        sale_lines = connection.execute(
+            sa_select(
+                SaleLine.id,
+                SaleLine.product_id,
+                SaleLine.warehouse_id,
+                SaleLine.quantity,
+                SaleLine.unit_price,
+                SaleLine.discount_rate,
+                SaleLine.tax_rate
+            ).where(SaleLine.sale_id == target.id)
+        ).fetchall()
+        
+        if not sale_lines:
+            return  # لا توجد بنود
+        
+        # القيد المحاسبي الأساسي
+        entries = []
+        
+        # مدين: حسابات العملاء (AR) - المبلغ الكامل
+        entries.append((GL_ACCOUNTS.get("AR", "1100_AR"), amount_ils, 0))
+        
+        # تحليل كل SaleLine
+        total_revenue_company = 0.0
+        total_revenue_partners = {}  # {partner_id: amount}
+        total_cogs_suppliers = {}    # {supplier_id: amount}
+        
+        for line in sale_lines:
+            line_id, product_id, warehouse_id, qty, unit_price, disc_rate, tax_rate = line
+            
+            # حساب صافي المبلغ للبند
+            gross = float(qty or 0) * float(unit_price or 0)
+            discount = gross * (float(disc_rate or 0) / 100.0)
+            taxable = gross - discount
+            tax = taxable * (float(tax_rate or 0) / 100.0)
+            line_total = taxable + tax
+            
+            # جلب نوع المستودع
+            wh_result = connection.execute(
+                sa_text("SELECT warehouse_type, partner_id, supplier_id, share_percent FROM warehouses WHERE id = :wid"),
+                {"wid": warehouse_id}
+            ).fetchone()
+            
+            if not wh_result:
+                # مستودع غير موجود - نعتبره MAIN
+                total_revenue_company += line_total
+                continue
+            
+            wh_type, wh_partner_id, wh_supplier_id, wh_share_pct = wh_result
+            
+            # تحليل حسب نوع المستودع
+            if wh_type == 'PARTNER':
+                # بضاعة شريك - جلب الشركاء والنسب
+                partners_result = connection.execute(
+                    sa_text("""
+                        SELECT partner_id, share_percent FROM product_partners
+                        WHERE product_id = :pid
+                        UNION
+                        SELECT partner_id, share_percentage FROM warehouse_partner_shares
+                        WHERE product_id = :pid AND warehouse_id = :wid
+                    """),
+                    {"pid": product_id, "wid": warehouse_id}
+                ).fetchall()
+                
+                if partners_result:
+                    # تقسيم الإيراد حسب النسب
+                    total_partner_share = sum(float(p[1] or 0) for p in partners_result)
+                    company_share_pct = 100.0 - total_partner_share
+                    
+                    # نصيب الشركة
+                    if company_share_pct > 0:
+                        total_revenue_company += line_total * (company_share_pct / 100.0)
+                    
+                    # نصيب الشركاء
+                    for partner_id, share_pct in partners_result:
+                        partner_amount = line_total * (float(share_pct or 0) / 100.0)
+                        total_revenue_partners[partner_id] = total_revenue_partners.get(partner_id, 0.0) + partner_amount
+                else:
+                    # لا توجد نسب محددة - نعتبره 100% للشركة
+                    total_revenue_company += line_total
+            
+            elif wh_type == 'EXCHANGE':
+                # بضاعة عهدة - جلب المورد والتكلفة
+                exchange_result = connection.execute(
+                    sa_text("""
+                        SELECT supplier_id, unit_cost
+                        FROM exchange_transactions
+                        WHERE product_id = :pid AND warehouse_id = :wid
+                          AND supplier_id IS NOT NULL
+                        ORDER BY created_at DESC
+                        LIMIT 1
+                    """),
+                    {"pid": product_id, "wid": warehouse_id}
+                ).fetchone()
+                
+                if exchange_result:
+                    supplier_id, unit_cost = exchange_result
+                    cogs_amount = float(qty or 0) * float(unit_cost or 0)
+                    
+                    # الإيراد للشركة
+                    total_revenue_company += line_total
+                    
+                    # COGS للمورد
+                    total_cogs_suppliers[supplier_id] = total_cogs_suppliers.get(supplier_id, 0.0) + cogs_amount
+                else:
+                    # لا توجد معاملات عهدة - نعتبره MAIN
+                    total_revenue_company += line_total
+            
+            else:  # MAIN أو غير محدد
+                total_revenue_company += line_total
+        
+        # دائن: إيرادات الشركة
+        if total_revenue_company > 0:
+            entries.append((GL_ACCOUNTS.get("REV", "4000_SALES"), 0, total_revenue_company))
+        
+        # دائن: حسابات الشركاء (AP)
+        for partner_id, amount in total_revenue_partners.items():
+            if amount > 0:
+                entries.append((GL_ACCOUNTS.get("AP", "2000_AP"), 0, amount))
+        
+        # مدين: COGS + دائن: حسابات الموردين (AP)
+        for supplier_id, cogs in total_cogs_suppliers.items():
+            if cogs > 0:
+                entries.append((GL_ACCOUNTS.get("COGS", "5100_COGS"), cogs, 0))  # مدين
+                entries.append((GL_ACCOUNTS.get("AP", "2000_AP"), 0, cogs))      # دائن
         
         customer_name = target.customer.name if target.customer else "عميل"
         memo = f"فاتورة مبيعات #{target.sale_number or target.id} - {customer_name}"
