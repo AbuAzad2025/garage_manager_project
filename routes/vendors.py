@@ -528,14 +528,14 @@ def suppliers_statement(supplier_id: int):
             "type": "OPENING_BALANCE",
             "ref": "OB-SUP",
             "statement": "الرصيد الافتتاحي",
-            "debit": opening_balance if opening_balance > 0 else Decimal("0.00"),
-            "credit": abs(opening_balance) if opening_balance < 0 else Decimal("0.00"),
+            "debit": abs(opening_balance) if opening_balance < 0 else Decimal("0.00"),  # سالب = عليه = مدين
+            "credit": opening_balance if opening_balance > 0 else Decimal("0.00"),      # موجب = له = دائن
         }
         entries.insert(0, opening_entry)
-        if opening_balance > 0:
-            total_debit += opening_balance
-        else:
-            total_credit += abs(opening_balance)
+        if opening_balance < 0:  # سالب = عليه = مدين
+            total_debit += abs(opening_balance)
+        else:  # موجب = له = دائن
+            total_credit += opening_balance
 
     entries.sort(key=lambda e: (e["date"] or datetime.min, e["type"], e["ref"]))
 
@@ -765,14 +765,14 @@ def partners_statement(partner_id: int):
             "type": "OPENING_BALANCE",
             "ref": "OB-PARTNER",
             "statement": "الرصيد الافتتاحي",
-            "debit": opening_balance if opening_balance > 0 else Decimal("0.00"),
-            "credit": abs(opening_balance) if opening_balance < 0 else Decimal("0.00"),
+            "debit": abs(opening_balance) if opening_balance < 0 else Decimal("0.00"),  # سالب = عليه = مدين
+            "credit": opening_balance if opening_balance > 0 else Decimal("0.00"),      # موجب = له = دائن
         }
         entries.insert(0, opening_entry)
-        if opening_balance > 0:
-            total_debit += opening_balance
-        else:
-            total_credit += abs(opening_balance)
+        if opening_balance < 0:  # سالب = عليه = مدين
+            total_debit += abs(opening_balance)
+        else:  # موجب = له = دائن
+            total_credit += opening_balance
 
     entries.sort(key=lambda e: (e["date"] or datetime.min, e["type"], e["ref"]))
 

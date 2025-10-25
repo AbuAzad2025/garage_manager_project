@@ -65,7 +65,17 @@ def get_ledger_data():
             opening_total += float(partners_opening)
             
             if opening_total != 0:
-                running_balance += opening_total
+                # موجب = له علينا → دائن
+                # سالب = عليه لنا → مدين
+                if opening_total < 0:  # سالب = عليه = مدين
+                    debit_val = abs(opening_total)
+                    credit_val = 0.0
+                    running_balance += abs(opening_total)
+                else:  # موجب = له = دائن
+                    debit_val = 0.0
+                    credit_val = opening_total
+                    running_balance -= opening_total
+                
                 opening_date = from_date.strftime('%Y-%m-%d') if from_date else '2024-01-01'
                 ledger_entries.append({
                     "id": 0,
@@ -74,8 +84,8 @@ def get_ledger_data():
                     "type": "opening",
                     "type_ar": "رصيد افتتاحي",
                     "description": f"الرصيد الافتتاحي الإجمالي (عملاء + موردين + شركاء)",
-                    "debit": opening_total if opening_total > 0 else 0.0,
-                    "credit": abs(opening_total) if opening_total < 0 else 0.0,
+                    "debit": debit_val,
+                    "credit": credit_val,
                     "balance": running_balance
                 })
         

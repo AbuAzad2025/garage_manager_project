@@ -1975,17 +1975,17 @@ def _customer_opening_balance_gl(mapper, connection, target: "Customer"):
             return
         
         # القيد المحاسبي للرصيد الافتتاحي:
-        # إذا موجب (العميل مدين لنا): مدين AR، دائن رأس المال
-        # إذا سالب (نحن مدينون له): مدين رأس المال، دائن AR
-        if opening_balance > 0:
+        # موجب = له علينا: دائن AR، مدين رأس المال
+        # سالب = عليه لنا: مدين AR، دائن رأس المال
+        if opening_balance > 0:  # موجب = له علينا
             entries = [
-                (GL_ACCOUNTS.get("AR", "1100_AR"), abs(opening_balance), 0),
-                ("3000_EQUITY", 0, abs(opening_balance)),
+                ("3000_EQUITY", abs(opening_balance), 0),  # مدين
+                (GL_ACCOUNTS.get("AR", "1100_AR"), 0, abs(opening_balance)),  # دائن
             ]
-        else:
+        else:  # سالب = عليه لنا
             entries = [
-                ("3000_EQUITY", abs(opening_balance), 0),
-                (GL_ACCOUNTS.get("AR", "1100_AR"), 0, abs(opening_balance)),
+                (GL_ACCOUNTS.get("AR", "1100_AR"), abs(opening_balance), 0),  # مدين
+                ("3000_EQUITY", 0, abs(opening_balance)),  # دائن
             ]
         
         memo = f"رصيد افتتاحي - {target.name}"
@@ -2297,17 +2297,17 @@ def _supplier_opening_balance_gl(mapper, connection, target: "Supplier"):
             return
         
         # القيد المحاسبي للرصيد الافتتاحي:
-        # إذا موجب (المورد له علينا): مدين AP، دائن رأس المال
-        # إذا سالب (المورد عليه لنا): مدين رأس المال، دائن AP
-        if opening_balance > 0:
+        # موجب = له علينا: دائن AP، مدين رأس المال
+        # سالب = عليه لنا: مدين AP، دائن رأس المال
+        if opening_balance > 0:  # موجب = له علينا
             entries = [
-                (GL_ACCOUNTS.get("AP", "2000_AP"), abs(opening_balance), 0),
-                ("3000_EQUITY", 0, abs(opening_balance)),
+                ("3000_EQUITY", abs(opening_balance), 0),  # مدين
+                (GL_ACCOUNTS.get("AP", "2000_AP"), 0, abs(opening_balance)),  # دائن
             ]
-        else:
+        else:  # سالب = عليه لنا
             entries = [
-                ("3000_EQUITY", abs(opening_balance), 0),
-                (GL_ACCOUNTS.get("AP", "2000_AP"), 0, abs(opening_balance)),
+                (GL_ACCOUNTS.get("AP", "2000_AP"), abs(opening_balance), 0),  # مدين
+                ("3000_EQUITY", 0, abs(opening_balance)),  # دائن
             ]
         
         memo = f"رصيد افتتاحي - {target.name}"
@@ -2889,17 +2889,17 @@ def _partner_opening_balance_gl(mapper, connection, target: "Partner"):
             return
         
         # القيد المحاسبي للرصيد الافتتاحي:
-        # إذا موجب (الشريك له علينا): مدين AP، دائن رأس المال
-        # إذا سالب (الشريك عليه لنا): مدين رأس المال، دائن AP
-        if opening_balance > 0:
+        # موجب = له علينا: دائن AP، مدين رأس المال
+        # سالب = عليه لنا: مدين AP، دائن رأس المال
+        if opening_balance > 0:  # موجب = له علينا
             entries = [
-                (GL_ACCOUNTS.get("AP", "2000_AP"), abs(opening_balance), 0),
-                ("3000_EQUITY", 0, abs(opening_balance)),
+                ("3000_EQUITY", abs(opening_balance), 0),  # مدين
+                (GL_ACCOUNTS.get("AP", "2000_AP"), 0, abs(opening_balance)),  # دائن
             ]
-        else:
+        else:  # سالب = عليه لنا
             entries = [
-                ("3000_EQUITY", abs(opening_balance), 0),
-                (GL_ACCOUNTS.get("AP", "2000_AP"), 0, abs(opening_balance)),
+                (GL_ACCOUNTS.get("AP", "2000_AP"), abs(opening_balance), 0),  # مدين
+                ("3000_EQUITY", 0, abs(opening_balance)),  # دائن
             ]
         
         memo = f"رصيد افتتاحي - {target.name}"
