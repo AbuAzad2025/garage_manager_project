@@ -25,10 +25,18 @@
         <td>{{ customer.phone or '-' }}</td>
         <td class="hide-mobile">{{ customer.email or '-' }}</td>
         <td class="hide-mobile">{{ customer.category or '-' }}</td>
-        <td class="fw-bold {% if customer.balance_in_ils > 0 %}text-danger{% else %}text-success{% endif %}">
-          {{ customer.balance_in_ils|format_currency }} ₪
+        <td class="fw-bold {% if customer.balance > 0 %}text-danger{% else %}text-success{% endif %}">
+          {{ customer.balance|format_currency }} ₪
         </td>
-        <td class="hide-mobile">{{ customer.is_active|yes_no }}</td>
+        <td class="hide-mobile">
+          {% if customer.is_archived %}
+            <span class="badge bg-secondary">مؤرشف</span>
+          {% elif customer.is_active %}
+            <span class="badge bg-success">نشط</span>
+          {% else %}
+            <span class="badge bg-warning">غير نشط</span>
+          {% endif %}
+        </td>
         <td class="hide-mobile">{{ customer.created_at|format_date }}</td>
         <td class="text-nowrap">
           <div class="table-actions">
