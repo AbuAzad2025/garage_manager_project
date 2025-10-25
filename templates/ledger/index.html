@@ -1466,5 +1466,108 @@ $('#smart-query').on('keypress', function(e) {
         askSmartAssistant();
     }
 });
+
+// عرض تفاصيل القيد المحاسبي
+function viewGLBatchDetails(batchId) {
+    $.ajax({
+        url: `/ledger/batch/${batchId}`,
+        type: 'GET',
+        success: function(response) {
+            if (response.success) {
+                displayBatchDetails(response);
+            } else {
+                showAlert(response.error || 'خطأ في جلب البيانات', 'error');
+            }
+        },
+        error: function() {
+            showAlert('خطأ في الاتصال بالسيرفر', 'error');
+        }
+    });
+}
+
+function displayBatchDetails(data) {
+    const batch = data.batch;
+    const entries = data.entries;
+    
+    let html = `
+        <div class="mb-3">
+            <h6 class="text-primary"><i class="fas fa-file-invoice"></i> معلومات القيد:</h6>
+            <table class="table table-sm table-borderless">
+                <tr><td><strong>الكود:</strong></td><td>${batch.code || '—'}</td></tr>
+                <tr><td><strong>المصدر:</strong></td><td>${batch.source_type} #${batch.source_id}</td></tr>
+                <tr><td><strong>الغرض:</strong></td><td>${batch.purpose || '—'}</td></tr>
+                <tr><td><strong>الوصف:</strong></td><td>${batch.memo || '—'}</td></tr>
+                <tr><td><strong>التاريخ:</strong></td><td>${batch.posted_at || '—'}</td></tr>
+                <tr><td><strong>الحالة:</strong></td><td><span class="badge badge-${batch.status === 'POSTED' ? 'success' : 'warning'}">${batch.status}</span></td></tr>
+            </table>
+        </div>
+        <hr>
+        <h6 class="text-success"><i class="fas fa-list"></i> القيود الفرعية:</h6>
+        <table class="table table-sm table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>الحساب</th>
+                    <th class="text-end">مدين</th>
+                    <th class="text-end">دائن</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    entries.forEach(function(entry) {
+        const debitClass = entry.debit > 0 ? 'text-danger fw-bold' : 'text-muted';
+        const creditClass = entry.credit > 0 ? 'text-success fw-bold' : 'text-muted';
+        
+        html += `
+            <tr>
+                <td>
+                    <strong>${entry.account_code}</strong><br>
+                    <small class="text-muted">${entry.account_name}</small>
+                </td>
+                <td class="text-end ${debitClass}">${entry.debit > 0 ? entry.debit.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ₪' : '—'}</td>
+                <td class="text-end ${creditClass}">${entry.credit > 0 ? entry.credit.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ₪' : '—'}</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+            </tbody>
+            <tfoot class="table-light">
+                <tr>
+                    <td><strong>الإجماليات:</strong></td>
+                    <td class="text-end text-danger fw-bold">${data.total_debit.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ₪</td>
+                    <td class="text-end text-success fw-bold">${data.total_credit.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ₪</td>
+                </tr>
+            </tfoot>
+        </table>
+    `;
+    
+    $('#gl-batch-details-content').html(html);
+    $('#gl-batch-details-modal').modal('show');
+}
 </script>
+
+<!-- Modal لعرض تفاصيل القيد -->
+<div class="modal fade" id="gl-batch-details-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-book"></i> تفاصيل القيد المحاسبي</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="gl-batch-details-content">
+                <div class="text-center">
+                    <i class="fas fa-spinner fa-spin fa-3x text-primary"></i>
+                    <p class="mt-3">جاري التحميل...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">إغلاق</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}

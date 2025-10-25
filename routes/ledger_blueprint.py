@@ -1720,3 +1720,49 @@ def entity_ledger():
         "total_credit": total_cr,
         "lines": items
     })
+
+
+@ledger_bp.route("/batch/<int:batch_id>", methods=["GET"], endpoint="get_batch_details")
+@login_required
+# @permission_required("manage_ledger")  # Commented out
+def get_batch_details(batch_id):
+    """جلب تفاصيل قيد محاسبي (GLBatch + Entries)"""
+    try:
+        # جلب القيد
+        batch = GLBatch.query.get(batch_id)
+        if not batch:
+            return jsonify({"success": False, "error": "القيد غير موجود"}), 404
+        
+        # جلب القيود الفرعية
+        entries = GLEntry.query.filter_by(batch_id=batch_id).all()
+        
+        entries_list = []
+        for entry in entries:
+            account = Account.query.filter_by(code=entry.account).first()
+            entries_list.append({
+                "account_code": entry.account,
+                "account_name": account.name if account else entry.account,
+                "debit": float(entry.debit or 0),
+                "credit": float(entry.credit or 0),
+                "ref": entry.ref
+            })
+        
+        return jsonify({
+            "success": True,
+            "batch": {
+                "id": batch.id,
+                "code": batch.code,
+                "source_type": batch.source_type,
+                "source_id": batch.source_id,
+                "purpose": batch.purpose,
+                "memo": batch.memo,
+                "posted_at": batch.posted_at.isoformat() if batch.posted_at else None,
+                "currency": batch.currency,
+                "status": batch.status
+            },
+            "entries": entries_list,
+            "total_debit": sum(e["debit"] for e in entries_list),
+            "total_credit": sum(e["credit"] for e in entries_list)
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
