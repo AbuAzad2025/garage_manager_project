@@ -1886,11 +1886,14 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
                 Payment.status == 'COMPLETED'
             ).scalar() or 0)
             
-            # ⚠️ الرصيد الافتتاحي: سالب=عليه لنا (مدين)، موجب=له علينا (دائن)
-            # الرصيد النهائي = opening_balance + مبيعات - دفعات واردة + دفعات صادرة
-            # سالب (-11200) = عليه لنا = رصيد مدين سالب
-            # موجب (+11200) = له علينا = رصيد دائن موجب
-            return ob + sales_total + invoices_total + services_total + preorders_total - payments_in + payments_out
+            # 🎯 الرصيد النهائي = رصيد افتتاحي + مبيعات + خدمات + حجوزات - دفعات واردة + دفعات صادرة
+            # سالب (-11200) = عليه لنا (مدين)
+            # موجب (+11200) = له علينا (دائن)
+            total_transactions = sales_total + invoices_total + services_total + preorders_total
+            net_payments = payments_in - payments_out
+            final_balance = ob + total_transactions - net_payments
+            
+            return final_balance
         except Exception as e:
             import sys
             print(f"⚠️ خطأ في حساب رصيد العميل #{self.id}: {e}", file=sys.stderr)
