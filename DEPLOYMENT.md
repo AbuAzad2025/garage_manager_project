@@ -103,9 +103,31 @@ touch /var/www/palkaraj_pythonanywhere_com_wsgi.py
 - `5100_COGS`: تكلفة البضاعة المباعة
 - `5105_COGS_EXCHANGE`: تكلفة بضاعة العهدة المباعة
 
-### 🚀 إنشاء الحسابات على PythonAnywhere:
+### 🚀 إنشاء الحسابات على PythonAnywhere (مرة واحدة فقط):
+
+**الخطوة 1: إصلاح payment_method إذا كانت بحروف كبيرة:**
 ```bash
 cd ~/garage_manager_project
+python3.10 << 'EOF'
+from app import create_app
+from extensions import db
+from sqlalchemy import text
+
+app = create_app()
+with app.app_context():
+    # إصلاح payment_method - تحويل الحروف الكبيرة لصغيرة
+    result = db.session.execute(text("""
+        UPDATE payments 
+        SET method = LOWER(method)
+        WHERE method IN ('CARD', 'BANK', 'CASH', 'CHEQUE', 'ONLINE')
+    """))
+    db.session.commit()
+    print(f'✅ تم إصلاح {result.rowcount} دفعة')
+EOF
+```
+
+**الخطوة 2: إنشاء دليل الحسابات:**
+```bash
 python3.10 << 'EOF'
 from app import create_app
 from models import Account, db
