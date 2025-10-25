@@ -523,7 +523,8 @@ class HardDeleteService:
         reversals = {
             "stock_reversals": [],
             "accounting_reversals": [],
-            "balance_reversals": []
+            "balance_reversals": [],
+            "payments_deleted": []
         }
         
         # 1. إرجاع المخزون من المبيعات
@@ -573,7 +574,7 @@ class HardDeleteService:
                             "error": str(e)
                         })
         
-        # 2. حذف السجلات المحاسبية
+        # 2. حذف السجلات المحاسبية للبيع نفسه
         gl_batches = db.session.query(GLBatch).filter_by(
             source_type="SALE", 
             source_id=sale_id
@@ -583,9 +584,37 @@ class HardDeleteService:
             reversals["accounting_reversals"].append({
                 "batch_id": batch.id,
                 "source_type": batch.source_type,
-                "source_id": batch.source_id
+                "source_id": batch.source_id,
+                "description": "GLBatch للبيع"
             })
             db.session.delete(batch)
+        
+        # 3. حذف السجلات المحاسبية للدفعات المرتبطة بالبيع
+        # جلب جميع الدفعات المرتبطة بهذا البيع
+        related_payments = db.session.query(Payment).filter_by(sale_id=sale_id).all()
+        
+        for payment in related_payments:
+            # حذف GLBatch لكل دفعة
+            payment_gl_batches = db.session.query(GLBatch).filter_by(
+                source_type="PAYMENT",
+                source_id=payment.id
+            ).all()
+            
+            for batch in payment_gl_batches:
+                reversals["accounting_reversals"].append({
+                    "batch_id": batch.id,
+                    "source_type": batch.source_type,
+                    "source_id": batch.source_id,
+                    "description": f"GLBatch للدفعة #{payment.payment_number}"
+                })
+                db.session.delete(batch)
+            
+            # تسجيل الدفعة المحذوفة
+            reversals["payments_deleted"].append({
+                "payment_id": payment.id,
+                "payment_number": payment.payment_number,
+                "amount": float(payment.total_amount or 0)
+            })
         
         return reversals
     
@@ -1768,6 +1797,28 @@ class HardDeleteService:
                             "error": str(e)
                         })
             
+            # حذف السجلات المحاسبية للدفعات المرتبطة بالصيانة
+            accounting_reversals = []
+            service_payments = db.session.query(Payment).filter_by(service_id=service_id).all()
+            for payment in service_payments:
+                # حذف GLBatch لكل دفعة
+                payment_gl_batches = db.session.query(GLBatch).filter_by(
+                    source_type="PAYMENT",
+                    source_id=payment.id
+                ).all()
+                
+                for batch in payment_gl_batches:
+                    accounting_reversals.append({
+                        "batch_id": batch.id,
+                        "source_type": batch.source_type,
+                        "source_id": batch.source_id,
+                        "description": f"GLBatch للدفعة #{payment.payment_number}"
+                    })
+                    db.session.delete(batch)
+            
+            # حذف الدفعات
+            db.session.query(Payment).filter_by(service_id=service_id).delete()
+            
             # حذف البيانات المرتبطة
             ServicePart.query.filter_by(service_id=service_id).delete()
             ServiceTask.query.filter_by(service_id=service_id).delete()
@@ -1779,6 +1830,7 @@ class HardDeleteService:
             deletion_log.status = DeletionStatus.COMPLETED.value
             deletion_log.deleted_at = datetime.utcnow()
             deletion_log.stock_reversals = json.dumps(stock_reversals) if stock_reversals else None
+            deletion_log.accounting_reversals = json.dumps(accounting_reversals) if accounting_reversals else None
             
             db.session.commit()
             
