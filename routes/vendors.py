@@ -513,6 +513,30 @@ def suppliers_statement(supplier_id: int):
             per_product[pid]["qty_paid"] += 1
             per_product[pid]["val_paid"] += amt
 
+    # إضافة الرصيد الافتتاحي كأول قيد
+    opening_balance = Decimal(getattr(supplier, 'opening_balance', 0) or 0)
+    if opening_balance != 0:
+        # تاريخ الرصيد الافتتاحي: تاريخ إنشاء المورد أو أول معاملة
+        opening_date = supplier.created_at
+        if entries:
+            first_entry_date = min((e["date"] for e in entries if e["date"]), default=supplier.created_at)
+            if first_entry_date and first_entry_date < supplier.created_at:
+                opening_date = first_entry_date
+        
+        opening_entry = {
+            "date": opening_date,
+            "type": "OPENING_BALANCE",
+            "ref": "OB-SUP",
+            "statement": "الرصيد الافتتاحي",
+            "debit": opening_balance if opening_balance > 0 else Decimal("0.00"),
+            "credit": abs(opening_balance) if opening_balance < 0 else Decimal("0.00"),
+        }
+        entries.insert(0, opening_entry)
+        if opening_balance > 0:
+            total_debit += opening_balance
+        else:
+            total_credit += abs(opening_balance)
+
     entries.sort(key=lambda e: (e["date"] or datetime.min, e["type"], e["ref"]))
 
     balance = Decimal("0.00")
@@ -725,6 +749,30 @@ def partners_statement(partner_id: int):
                 statement += f" - {notes[:30]}"
             entries.append({"date": d, "type": "PAYMENT_IN", "ref": ref, "statement": statement, "debit": Decimal("0.00"), "credit": amt})
             total_credit += amt
+
+    # إضافة الرصيد الافتتاحي كأول قيد
+    opening_balance = Decimal(getattr(partner, 'opening_balance', 0) or 0)
+    if opening_balance != 0:
+        # تاريخ الرصيد الافتتاحي: تاريخ إنشاء الشريك أو أول معاملة
+        opening_date = partner.created_at
+        if entries:
+            first_entry_date = min((e["date"] for e in entries if e["date"]), default=partner.created_at)
+            if first_entry_date and first_entry_date < partner.created_at:
+                opening_date = first_entry_date
+        
+        opening_entry = {
+            "date": opening_date,
+            "type": "OPENING_BALANCE",
+            "ref": "OB-PARTNER",
+            "statement": "الرصيد الافتتاحي",
+            "debit": opening_balance if opening_balance > 0 else Decimal("0.00"),
+            "credit": abs(opening_balance) if opening_balance < 0 else Decimal("0.00"),
+        }
+        entries.insert(0, opening_entry)
+        if opening_balance > 0:
+            total_debit += opening_balance
+        else:
+            total_credit += abs(opening_balance)
 
     entries.sort(key=lambda e: (e["date"] or datetime.min, e["type"], e["ref"]))
 

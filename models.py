@@ -1965,6 +1965,48 @@ def _customer_normalize(_m, _c, t: Customer):
     t.currency = (t.currency or "ILS").upper()
 
 
+@event.listens_for(Customer, "after_insert")
+@event.listens_for(Customer, "after_update")
+def _customer_opening_balance_gl(mapper, connection, target: "Customer"):
+    """إنشاء/تحديث GLBatch للرصيد الافتتاحي للعميل"""
+    try:
+        opening_balance = float(getattr(target, 'opening_balance', 0) or 0)
+        if opening_balance == 0:
+            return
+        
+        # القيد المحاسبي للرصيد الافتتاحي:
+        # إذا موجب (العميل مدين لنا): مدين AR، دائن رأس المال
+        # إذا سالب (نحن مدينون له): مدين رأس المال، دائن AR
+        if opening_balance > 0:
+            entries = [
+                (GL_ACCOUNTS.get("AR", "1100_AR"), abs(opening_balance), 0),
+                ("3000_EQUITY", 0, abs(opening_balance)),
+            ]
+        else:
+            entries = [
+                ("3000_EQUITY", abs(opening_balance), 0),
+                (GL_ACCOUNTS.get("AR", "1100_AR"), 0, abs(opening_balance)),
+            ]
+        
+        memo = f"رصيد افتتاحي - {target.name}"
+        
+        _gl_upsert_batch_and_entries(
+            connection,
+            source_type="CUSTOMER",
+            source_id=target.id,
+            purpose="OPENING_BALANCE",
+            currency="ILS",
+            memo=memo,
+            entries=entries,
+            ref=f"OB-CUST-{target.id}",
+            entity_type="CUSTOMER",
+            entity_id=target.id
+        )
+    except Exception as e:
+        import sys
+        print(f"⚠️ خطأ في إنشاء GLBatch للرصيد الافتتاحي للعميل #{target.id}: {e}", file=sys.stderr)
+
+
 class Supplier(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = "suppliers"
 
@@ -2243,6 +2285,48 @@ def _supplier_before_insert(_m, _c, t: Supplier):
 def _supplier_before_update(_m, _c, t: Supplier):
     t.email = (t.email or "").strip().lower() or None
     t.currency = (t.currency or "ILS").upper()
+
+
+@event.listens_for(Supplier, "after_insert")
+@event.listens_for(Supplier, "after_update")
+def _supplier_opening_balance_gl(mapper, connection, target: "Supplier"):
+    """إنشاء/تحديث GLBatch للرصيد الافتتاحي للمورد"""
+    try:
+        opening_balance = float(getattr(target, 'opening_balance', 0) or 0)
+        if opening_balance == 0:
+            return
+        
+        # القيد المحاسبي للرصيد الافتتاحي:
+        # إذا موجب (المورد له علينا): مدين AP، دائن رأس المال
+        # إذا سالب (المورد عليه لنا): مدين رأس المال، دائن AP
+        if opening_balance > 0:
+            entries = [
+                (GL_ACCOUNTS.get("AP", "2000_AP"), abs(opening_balance), 0),
+                ("3000_EQUITY", 0, abs(opening_balance)),
+            ]
+        else:
+            entries = [
+                ("3000_EQUITY", abs(opening_balance), 0),
+                (GL_ACCOUNTS.get("AP", "2000_AP"), 0, abs(opening_balance)),
+            ]
+        
+        memo = f"رصيد افتتاحي - {target.name}"
+        
+        _gl_upsert_batch_and_entries(
+            connection,
+            source_type="SUPPLIER",
+            source_id=target.id,
+            purpose="OPENING_BALANCE",
+            currency="ILS",
+            memo=memo,
+            entries=entries,
+            ref=f"OB-SUP-{target.id}",
+            entity_type="SUPPLIER",
+            entity_id=target.id
+        )
+    except Exception as e:
+        import sys
+        print(f"⚠️ خطأ في إنشاء GLBatch للرصيد الافتتاحي للمورد #{target.id}: {e}", file=sys.stderr)
 
 
 class SupplierSettlement(db.Model, TimestampMixin, AuditMixin):
@@ -2793,6 +2877,49 @@ def _partner_before_update(_m, _c, t: Partner):
     t.email = (t.email or "").strip().lower() or None
     t.currency = (t.currency or "ILS").upper()
     t.name = (t.name or "").strip()
+
+
+@event.listens_for(Partner, "after_insert")
+@event.listens_for(Partner, "after_update")
+def _partner_opening_balance_gl(mapper, connection, target: "Partner"):
+    """إنشاء/تحديث GLBatch للرصيد الافتتاحي للشريك"""
+    try:
+        opening_balance = float(getattr(target, 'opening_balance', 0) or 0)
+        if opening_balance == 0:
+            return
+        
+        # القيد المحاسبي للرصيد الافتتاحي:
+        # إذا موجب (الشريك له علينا): مدين AP، دائن رأس المال
+        # إذا سالب (الشريك عليه لنا): مدين رأس المال، دائن AP
+        if opening_balance > 0:
+            entries = [
+                (GL_ACCOUNTS.get("AP", "2000_AP"), abs(opening_balance), 0),
+                ("3000_EQUITY", 0, abs(opening_balance)),
+            ]
+        else:
+            entries = [
+                ("3000_EQUITY", abs(opening_balance), 0),
+                (GL_ACCOUNTS.get("AP", "2000_AP"), 0, abs(opening_balance)),
+            ]
+        
+        memo = f"رصيد افتتاحي - {target.name}"
+        
+        _gl_upsert_batch_and_entries(
+            connection,
+            source_type="PARTNER",
+            source_id=target.id,
+            purpose="OPENING_BALANCE",
+            currency="ILS",
+            memo=memo,
+            entries=entries,
+            ref=f"OB-PARTNER-{target.id}",
+            entity_type="PARTNER",
+            entity_id=target.id
+        )
+    except Exception as e:
+        import sys
+        print(f"⚠️ خطأ في إنشاء GLBatch للرصيد الافتتاحي للشريك #{target.id}: {e}", file=sys.stderr)
+
 
 def update_partner_balance(partner_id: int, connection=None):
     """
@@ -3904,10 +4031,8 @@ def _maybe_post_gl_exchange(connection, tx: "ExchangeTransaction"):
     except Exception:
         cfg = {}
     if not bool(cfg.get("GL_AUTO_POST_ON_EXCHANGE", False)): return
-    try:
-        from accounting import GL_ACCOUNTS, _gl_upsert_batch_and_entries
-    except Exception:
-        return
+    # استخدام الدالة من models.py مباشرة بدلاً من accounting module المفقود
+    # GL_ACCOUNTS و _gl_upsert_batch_and_entries موجودين في نهاية models.py
     inv_acc  = (cfg.get("GL_EXCHANGE_INV_ACCOUNT")  or GL_ACCOUNTS.get("INV_EXCHANGE"))
     cogs_acc = (cfg.get("GL_EXCHANGE_COGS_ACCOUNT") or GL_ACCOUNTS.get("COGS_EXCHANGE"))
     ap_acc   = (cfg.get("GL_EXCHANGE_AP_ACCOUNT")   or GL_ACCOUNTS.get("AP"))
@@ -4398,6 +4523,83 @@ def _reserve_release_on_status_change(target, value, oldvalue, initiator):
         # تم تعطيل: target.reserve_stock()
     # elif oldv == SaleStatus.CONFIRMED.value and newv != SaleStatus.CONFIRMED.value:
         # تم تعطيل: target.release_stock()
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# 📊 Accounting Listeners - إنشاء GLBatch تلقائي للمبيعات
+# ═══════════════════════════════════════════════════════════════════════
+
+@event.listens_for(Sale, "after_insert")
+@event.listens_for(Sale, "after_update")
+def _sale_gl_batch_upsert(mapper, connection, target: "Sale"):
+    """إنشاء/تحديث GLBatch للبيع تلقائياً"""
+    # فقط للمبيعات المؤكدة
+    if target.status != SaleStatus.CONFIRMED.value:
+        return
+    
+    try:
+        from models import fx_rate
+        
+        # تحويل المبلغ للشيقل
+        amount = float(target.total_amount or 0)
+        if amount <= 0:
+            return
+        
+        # تحويل العملة
+        amount_ils = amount
+        if target.currency and target.currency != 'ILS':
+            try:
+                rate = fx_rate(target.currency, 'ILS', target.sale_date or datetime.utcnow(), raise_on_missing=False)
+                if rate and rate > 0:
+                    amount_ils = float(amount * float(rate))
+            except:
+                pass
+        
+        # القيد المحاسبي:
+        # مدين: حسابات العملاء (AR) - العميل أصبح مدين لنا
+        # دائن: الإيرادات (REVENUE) - حققنا إيراد
+        entries = [
+            (GL_ACCOUNTS.get("AR", "1100_AR"), amount_ils, 0),  # مدين
+            (GL_ACCOUNTS.get("REV", "4000_SALES"), 0, amount_ils),  # دائن
+        ]
+        
+        customer_name = target.customer.name if target.customer else "عميل"
+        memo = f"فاتورة مبيعات #{target.sale_number or target.id} - {customer_name}"
+        
+        _gl_upsert_batch_and_entries(
+            connection,
+            source_type="SALE",
+            source_id=target.id,
+            purpose="REVENUE",
+            currency="ILS",
+            memo=memo,
+            entries=entries,
+            ref=target.sale_number or f"SALE-{target.id}",
+            entity_type="CUSTOMER",
+            entity_id=target.customer_id
+        )
+    except Exception as e:
+        # تسجيل الخطأ لكن عدم إيقاف العملية
+        import sys
+        print(f"⚠️ خطأ في إنشاء GLBatch للبيع #{target.id}: {e}", file=sys.stderr)
+
+
+@event.listens_for(Sale, "after_delete")
+def _sale_gl_batch_delete(mapper, connection, target: "Sale"):
+    """حذف GLBatch للبيع عند الحذف"""
+    try:
+        # حذف جميع GLBatch المرتبطة بالبيع
+        connection.execute(
+            sa_text("""
+                DELETE FROM gl_batches
+                WHERE source_type = 'SALE' AND source_id = :sid
+            """),
+            {"sid": target.id}
+        )
+    except Exception as e:
+        import sys
+        print(f"⚠️ خطأ في حذف GLBatch للبيع #{target.id}: {e}", file=sys.stderr)
+
 
 class SaleLine(db.Model, TimestampMixin):
     __tablename__ = "sale_lines"
@@ -5175,6 +5377,108 @@ def _payment_entity_id_for(target: "Payment") -> int:
     if fk:
         return int(getattr(target, fk) or 0)
     return 0
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# 📊 Accounting Listeners - إنشاء GLBatch تلقائي للدفعات
+# ═══════════════════════════════════════════════════════════════════════
+
+@event.listens_for(Payment, "after_insert")
+@event.listens_for(Payment, "after_update")
+def _payment_gl_batch_upsert(mapper, connection, target: "Payment"):
+    """إنشاء/تحديث GLBatch للدفعة تلقائياً"""
+    # فقط للدفعات المكتملة
+    if target.status != PaymentStatus.COMPLETED.value:
+        return
+    
+    try:
+        from models import fx_rate
+        
+        # تحويل المبلغ للشيقل
+        amount = float(target.total_amount or 0)
+        if amount <= 0:
+            return
+        
+        # تحويل العملة
+        amount_ils = amount
+        if target.currency and target.currency != 'ILS':
+            try:
+                rate = fx_rate(target.currency, 'ILS', target.payment_date or datetime.utcnow(), raise_on_missing=False)
+                if rate and rate > 0:
+                    amount_ils = float(amount * float(rate))
+            except:
+                pass
+        
+        # تحديد الحساب النقدي حسب طريقة الدفع
+        cash_account = GL_ACCOUNTS.get("CASH", "1000_CASH")
+        if target.method == PaymentMethod.BANK.value:
+            cash_account = GL_ACCOUNTS.get("BANK", "1010_BANK")
+        elif target.method == PaymentMethod.CARD.value:
+            cash_account = GL_ACCOUNTS.get("CARD", "1020_CARD_CLEARING")
+        
+        # تحديد الحساب الآخر حسب نوع الكيان
+        entity_account = GL_ACCOUNTS.get("AR", "1100_AR")  # افتراضي للعملاء
+        entity_name = "عميل"
+        
+        if target.entity_type == PaymentEntityType.SUPPLIER.value or target.supplier_id:
+            entity_account = GL_ACCOUNTS.get("AP", "2000_AP")
+            entity_name = "مورد"
+        elif target.entity_type == PaymentEntityType.PARTNER.value or target.partner_id:
+            entity_account = GL_ACCOUNTS.get("AP", "2000_AP")  # الشركاء يُعاملون كـ AP
+            entity_name = "شريك"
+        elif target.entity_type == PaymentEntityType.EXPENSE.value or target.expense_id:
+            entity_account = GL_ACCOUNTS.get("EXP", "5000_EXPENSES")
+            entity_name = "مصروف"
+        
+        # القيد المحاسبي حسب الاتجاه:
+        # IN (وارد): مدين النقدية، دائن العميل/المورد
+        # OUT (صادر): مدين العميل/المورد، دائن النقدية
+        if target.direction == PaymentDirection.IN.value:
+            entries = [
+                (cash_account, amount_ils, 0),  # مدين: النقدية
+                (entity_account, 0, amount_ils),  # دائن: العميل/المورد
+            ]
+            memo = f"قبض من {entity_name} - {target.payment_number or target.id}"
+        else:  # OUT
+            entries = [
+                (entity_account, amount_ils, 0),  # مدين: العميل/المورد
+                (cash_account, 0, amount_ils),  # دائن: النقدية
+            ]
+            memo = f"سداد لـ {entity_name} - {target.payment_number or target.id}"
+        
+        _gl_upsert_batch_and_entries(
+            connection,
+            source_type="PAYMENT",
+            source_id=target.id,
+            purpose="PAYMENT",
+            currency="ILS",
+            memo=memo,
+            entries=entries,
+            ref=target.payment_number or f"PMT-{target.id}",
+            entity_type=target.entity_type,
+            entity_id=_payment_entity_id_for(target)
+        )
+    except Exception as e:
+        # تسجيل الخطأ لكن عدم إيقاف العملية
+        import sys
+        print(f"⚠️ خطأ في إنشاء GLBatch للدفعة #{target.id}: {e}", file=sys.stderr)
+
+
+@event.listens_for(Payment, "after_delete")
+def _payment_gl_batch_delete(mapper, connection, target: "Payment"):
+    """حذف GLBatch للدفعة عند الحذف"""
+    try:
+        # حذف جميع GLBatch المرتبطة بالدفعة
+        connection.execute(
+            sa_text("""
+                DELETE FROM gl_batches
+                WHERE source_type = 'PAYMENT' AND source_id = :sid
+            """),
+            {"sid": target.id}
+        )
+    except Exception as e:
+        import sys
+        print(f"⚠️ خطأ في حذف GLBatch للدفعة #{target.id}: {e}", file=sys.stderr)
 
 
 class PaymentSplit(db.Model):
@@ -6173,11 +6477,7 @@ def _gl_on_shipment_arrived(mapper, connection, target: "Shipment"):
     if total <= 0:
         return
 
-    try:
-        from accounting import _gl_upsert_batch_and_entries
-    except Exception:
-        return
-
+    # استخدام الدالة من models.py مباشرة
     currency = (getattr(target, "currency", None) or "USD").upper()
     ref  = str(getattr(target, "shipment_number", None) or target.id)
     memo = f"Shipment {ref} arrived"
@@ -6568,10 +6868,7 @@ def _gl_on_service_complete(mapper, connection, target: "ServiceRequest"):
     total = base + tax
     if total <= 0:
         return
-    try:
-        from accounting import GL_ACCOUNTS, _gl_upsert_batch_and_entries
-    except Exception:
-        return
+    # استخدام الدالة من models.py مباشرة
     entries = [
         (GL_ACCOUNTS["AR"],  float(_Q2(total)),      0.0),
         (GL_ACCOUNTS["VAT"], 0.0,                    float(_Q2(tax))),
@@ -7891,6 +8188,77 @@ def _expense_normalize_update(mapper, connection, target: "Expense"):
     target.payee_type = (target.payee_type or "OTHER").upper()
     if not target.paid_to:
         target.paid_to = (target.payee_name or None)
+
+
+@event.listens_for(Expense, "after_insert")
+@event.listens_for(Expense, "after_update")
+def _expense_gl_batch_upsert(mapper, connection, target: "Expense"):
+    """إنشاء/تحديث GLBatch للمصروف تلقائياً"""
+    try:
+        from models import fx_rate
+        
+        # تحويل المبلغ للشيقل
+        amount = float(target.amount or 0)
+        if amount <= 0:
+            return
+        
+        # تحويل العملة
+        amount_ils = amount
+        if target.currency and target.currency != 'ILS':
+            try:
+                rate = fx_rate(target.currency, 'ILS', target.date or datetime.utcnow(), raise_on_missing=False)
+                if rate and rate > 0:
+                    amount_ils = float(amount * float(rate))
+            except:
+                pass
+        
+        # القيد المحاسبي:
+        # مدين: المصروفات (EXPENSES)
+        # دائن: النقدية (حسب طريقة الدفع)
+        cash_account = GL_ACCOUNTS.get("CASH", "1000_CASH")
+        if target.payment_method == 'bank':
+            cash_account = GL_ACCOUNTS.get("BANK", "1010_BANK")
+        elif target.payment_method == 'card':
+            cash_account = GL_ACCOUNTS.get("CARD", "1020_CARD_CLEARING")
+        
+        entries = [
+            (GL_ACCOUNTS.get("EXP", "5000_EXPENSES"), amount_ils, 0),  # مدين
+            (cash_account, 0, amount_ils),  # دائن
+        ]
+        
+        memo = f"مصروف - {target.description or target.payee_name or 'مصروف عام'}"
+        
+        _gl_upsert_batch_and_entries(
+            connection,
+            source_type="EXPENSE",
+            source_id=target.id,
+            purpose="EXPENSE",
+            currency="ILS",
+            memo=memo,
+            entries=entries,
+            ref=f"EXP-{target.id}",
+            entity_type=target.payee_type,
+            entity_id=target.payee_entity_id
+        )
+    except Exception as e:
+        import sys
+        print(f"⚠️ خطأ في إنشاء GLBatch للمصروف #{target.id}: {e}", file=sys.stderr)
+
+
+@event.listens_for(Expense, "after_delete")
+def _expense_gl_batch_delete(mapper, connection, target: "Expense"):
+    """حذف GLBatch للمصروف عند الحذف"""
+    try:
+        connection.execute(
+            sa_text("""
+                DELETE FROM gl_batches
+                WHERE source_type = 'EXPENSE' AND source_id = :sid
+            """),
+            {"sid": target.id}
+        )
+    except Exception as e:
+        import sys
+        print(f"⚠️ خطأ في حذف GLBatch للمصروف #{target.id}: {e}", file=sys.stderr)
 
 
 @event.listens_for(PreOrder, "before_insert")

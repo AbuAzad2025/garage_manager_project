@@ -375,6 +375,12 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
             return {"success": False, "error": "الشريك غير موجود"}
         
         # ═══════════════════════════════════════════════════════════
+        # 🔵 الرصيد الافتتاحي (الرصيد السابق قبل الفترة)
+        # ═══════════════════════════════════════════════════════════
+        
+        opening_balance = Decimal(str(getattr(partner, 'opening_balance', 0) or 0))
+        
+        # ═══════════════════════════════════════════════════════════
         # 🔵 جانب المدين (ما له علينا - حقوقه)
         # ═══════════════════════════════════════════════════════════
         
@@ -433,10 +439,9 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
         paid_to_partner = Decimal(str(payments_to_partner.get("total_ils", 0)))
         received_from_partner = Decimal(str(payments_from_partner.get("total_ils", 0)))
         
-        # الرصيد النهائي = (حقوقه - التزاماته) - (دفعنا له) + (دفع لنا)
-        # مثال: إذا كان عليه 100 ودفع لنا 60، الرصيد = -100 + 60 = -40 (باقي عليه 40)
-        # مثال: إذا كان له 100 ودفعنا له 60، الرصيد = 100 - 60 = 40 (باقي له 40)
-        balance = net_before_payments - paid_to_partner + received_from_partner
+        # الرصيد النهائي = الرصيد الافتتاحي + (حقوقه - التزاماته) - (دفعنا له) + (دفع لنا)
+        # مثال: رصيد افتتاحي 30 + (له 100 - عليه 20) - دفعنا له 60 + دفع لنا 10 = 60
+        balance = opening_balance + net_before_payments - paid_to_partner + received_from_partner
         
         return {
             "success": True,
@@ -449,6 +454,12 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
             "period": {
                 "from": date_from.isoformat(),
                 "to": date_to.isoformat()
+            },
+            # 🔵 الرصيد الافتتاحي
+            "opening_balance": {
+                "amount": float(opening_balance),
+                "currency": "ILS",
+                "direction": "له علينا" if opening_balance > 0 else "عليه لنا" if opening_balance < 0 else "متوازن"
             },
             # 🟢 حقوق الشريك (ما استحقه من عمله)
             "rights": {
@@ -481,7 +492,7 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
                 "payment_direction": "OUT" if balance > 0 else "IN" if balance < 0 else None,
                 "action": "ندفع له" if balance > 0 else "يدفع لنا" if balance < 0 else "لا شيء",
                 "currency": "ILS",
-                "formula": f"({float(partner_rights):.2f} - {float(partner_obligations):.2f} - {float(paid_to_partner):.2f} + {float(received_from_partner):.2f}) = {float(balance):.2f}"
+                "formula": f"({float(opening_balance):.2f} + {float(partner_rights):.2f} - {float(partner_obligations):.2f} - {float(paid_to_partner):.2f} + {float(received_from_partner):.2f}) = {float(balance):.2f}"
             },
             # معلومات إضافية
             "previous_settlements": _get_previous_partner_settlements(partner_id, date_from),

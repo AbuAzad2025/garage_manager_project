@@ -77,15 +77,97 @@ touch /var/www/palkaraj_pythonanywhere_com_wsgi.py
 
 ---
 
-## 📊 الملخص التقني
-- **الملفات المعدلة**: services/hard_delete_service.py, routes/hard_delete.py, models.py, templates
-- **عدد دوال الحذف**: 8
-- **عدد دوال الاستعادة**: 6
-- **DeletionType Enum**: 10 أنواع
-- **try-except**: شامل في كل عملية
-- **التهجيرات المطلوبة**: لا يوجد ❌
+## 💰 النظام المحاسبي الآلي - Auto Accounting System
+
+### ✅ ما تم تطبيقه:
+1. **GLBatch تلقائي للمبيعات** (`after_insert`, `after_update`, `after_delete`)
+2. **GLBatch تلقائي للدفعات** (`after_insert`, `after_update`, `after_delete`)
+3. **GLBatch تلقائي للمصروفات** (`after_insert`, `after_update`, `after_delete`)
+4. **GLBatch للرصيد الافتتاحي** (عملاء، موردين، شركاء)
+5. **حذف GLBatch تلقائياً** عند الحذف القوي أو العادي
+
+### 📊 دليل الحسابات (Chart of Accounts):
+- `1000_CASH`: النقدية - الصندوق
+- `1010_BANK`: البنك - الحساب الجاري
+- `1020_CARD_CLEARING`: مقاصة البطاقات
+- `1100_AR`: حسابات العملاء - المدينون
+- `1200_INVENTORY`: المخزون
+- `1205_INV_EXCHANGE`: مخزون العهدة
+- `2000_AP`: حسابات الموردين - الدائنون
+- `2100_VAT_PAYABLE`: ضريبة القيمة المضافة
+- `3000_EQUITY`: رأس المال
+- `3100_RETAINED_EARNINGS`: الأرباح المحتجزة
+- `4000_SALES`: إيرادات المبيعات
+- `4100_SERVICE_REVENUE`: إيرادات الصيانة
+- `5000_EXPENSES`: المصروفات العامة
+- `5100_COGS`: تكلفة البضاعة المباعة
+- `5105_COGS_EXCHANGE`: تكلفة بضاعة العهدة المباعة
+
+### 🚀 إنشاء الحسابات على PythonAnywhere:
+```bash
+cd ~/garage_manager_project
+python3.10 << 'EOF'
+from app import create_app
+from models import Account, db
+
+app = create_app()
+with app.app_context():
+    accounts = [
+        {"code": "1000_CASH", "name": "النقدية - الصندوق", "type": "ASSET", "is_active": True},
+        {"code": "1010_BANK", "name": "البنك - الحساب الجاري", "type": "ASSET", "is_active": True},
+        {"code": "1020_CARD_CLEARING", "name": "مقاصة البطاقات", "type": "ASSET", "is_active": True},
+        {"code": "1100_AR", "name": "حسابات العملاء - المدينون", "type": "ASSET", "is_active": True},
+        {"code": "1200_INVENTORY", "name": "المخزون", "type": "ASSET", "is_active": True},
+        {"code": "1205_INV_EXCHANGE", "name": "مخزون العهدة", "type": "ASSET", "is_active": True},
+        {"code": "2000_AP", "name": "حسابات الموردين - الدائنون", "type": "LIABILITY", "is_active": True},
+        {"code": "2100_VAT_PAYABLE", "name": "ضريبة القيمة المضافة", "type": "LIABILITY", "is_active": True},
+        {"code": "3000_EQUITY", "name": "رأس المال", "type": "EQUITY", "is_active": True},
+        {"code": "3100_RETAINED_EARNINGS", "name": "الأرباح المحتجزة", "type": "EQUITY", "is_active": True},
+        {"code": "4000_SALES", "name": "إيرادات المبيعات", "type": "REVENUE", "is_active": True},
+        {"code": "4100_SERVICE_REVENUE", "name": "إيرادات الصيانة", "type": "REVENUE", "is_active": True},
+        {"code": "5000_EXPENSES", "name": "المصروفات العامة", "type": "EXPENSE", "is_active": True},
+        {"code": "5100_COGS", "name": "تكلفة البضاعة المباعة", "type": "EXPENSE", "is_active": True},
+        {"code": "5105_COGS_EXCHANGE", "name": "تكلفة بضاعة العهدة المباعة", "type": "EXPENSE", "is_active": True},
+    ]
+    
+    for acc_data in accounts:
+        existing = Account.query.filter_by(code=acc_data['code']).first()
+        if not existing:
+            acc = Account(**acc_data)
+            db.session.add(acc)
+    
+    db.session.commit()
+    total = Account.query.filter_by(is_active=True).count()
+    print(f'✅ دليل الحسابات جاهز ({total} حساب)')
+EOF
+
+touch /var/www/palkaraj_pythonanywhere_com_wsgi.py
+```
+
+### 🔍 الرصيد الافتتاحي:
+- ✅ يظهر في كشف الحساب (أول سطر)
+- ✅ يظهر في التسويات الذكية
+- ✅ يُنشئ GLBatch تلقائياً
+- ✅ يؤثر على جميع التقارير المحاسبية
 
 ---
 
-**✅ النظام مكتمل وجاهز للنشر!**
+## 📊 الملخص التقني
+- **الملفات المعدلة**: 
+  - `models.py` (+ accounting listeners)
+  - `routes/customers.py` (+ opening_balance في كشف الحساب)
+  - `routes/vendors.py` (+ opening_balance للموردين والشركاء)
+  - `routes/supplier_settlements.py` (+ opening_balance في التسويات)
+  - `routes/partner_settlements.py` (+ opening_balance في التسويات)
+  - `services/hard_delete_service.py` (+ حذف GLBatch للدفعات)
+  - `templates` (+ badges للرصيد الافتتاحي)
+- **Accounting Listeners**: 9 (Sale, Payment, Expense, Customer OB, Supplier OB, Partner OB + موجود مسبقاً: Service, Shipment, Exchange)
+- **GLBatch Auto-Create**: ✅ تلقائي 100%
+- **GLBatch Auto-Update**: ✅ عند التعديل
+- **GLBatch Auto-Delete**: ✅ عند الحذف
+- **التهجيرات المطلوبة**: لا يوجد ❌ (فقط إنشاء دليل الحسابات مرة واحدة)
+
+---
+
+**✅ النظام المحاسبي مكتمل وجاهز للنشر!**
 

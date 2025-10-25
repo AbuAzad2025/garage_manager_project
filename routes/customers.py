@@ -797,6 +797,27 @@ def account_statement(customer_id):
             "notes": notes,  # إضافة الملاحظات
         })
 
+    # إضافة الرصيد الافتتاحي كأول قيد
+    opening_balance = D(getattr(c, 'opening_balance', 0) or 0)
+    if opening_balance != 0:
+        # تاريخ الرصيد الافتتاحي: تاريخ إنشاء العميل أو أول معاملة
+        opening_date = c.created_at
+        if entries:
+            first_entry_date = min((e["date"] for e in entries if e["date"]), default=c.created_at)
+            if first_entry_date and first_entry_date < c.created_at:
+                opening_date = first_entry_date
+        
+        opening_entry = {
+            "date": opening_date,
+            "type": "OPENING_BALANCE",
+            "ref": "OB-001",
+            "statement": "الرصيد الافتتاحي",
+            "debit": opening_balance if opening_balance > 0 else D(0),
+            "credit": abs(opening_balance) if opening_balance < 0 else D(0),
+            "notes": "الرصيد السابق قبل بدء النظام",
+        }
+        entries.insert(0, opening_entry)
+    
     entries.sort(key=lambda x: (x["date"] or datetime.min, x["ref"]))
 
     running = D(0)

@@ -405,6 +405,12 @@ def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, dat
             return {"success": False, "error": "المورد غير موجود"}
         
         # ═══════════════════════════════════════════════════════════
+        # 🔵 الرصيد الافتتاحي (الرصيد السابق قبل الفترة)
+        # ═══════════════════════════════════════════════════════════
+        
+        opening_balance = Decimal(str(getattr(supplier, 'opening_balance', 0) or 0))
+        
+        # ═══════════════════════════════════════════════════════════
         # 🟢 حقوق المورد (ما له علينا - قطع أخذناها منه)
         # ═══════════════════════════════════════════════════════════
         
@@ -457,9 +463,9 @@ def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, dat
         received_from_supplier = Decimal(str(payments_from_supplier.get("total_ils", 0)))
         returns_value = Decimal(str(returns_to_supplier.get("total_value_ils", 0)))
         
-        # الرصيد النهائي = (حقوقه - التزاماته) - (دفعنا له) + (دفع لنا) - (مرتجعات له)
-        # مثال: إذا له 100 ودفعنا 60 ودفع لنا 20، الرصيد = 100 - 60 + 20 = 60
-        balance = net_before_payments - paid_to_supplier + received_from_supplier - returns_value
+        # الرصيد النهائي = الرصيد الافتتاحي + (حقوقه - التزاماته) - (دفعنا له) + (دفع لنا) - (مرتجعات له)
+        # مثال: رصيد افتتاحي 50 + (له 100 - عليه 30) - دفعنا له 60 + دفع لنا 20 = 80
+        balance = opening_balance + net_before_payments - paid_to_supplier + received_from_supplier - returns_value
         
         # القطع غير المسعرة
         unpriced_items = exchange_items.get("unpriced_items", [])
@@ -477,6 +483,12 @@ def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, dat
             "period": {
                 "from": date_from.isoformat(),
                 "to": date_to.isoformat()
+            },
+            # 🔵 الرصيد الافتتاحي
+            "opening_balance": {
+                "amount": float(opening_balance),
+                "currency": "ILS",
+                "direction": "له علينا" if opening_balance > 0 else "عليه لنا" if opening_balance < 0 else "متوازن"
             },
             # 🟢 حقوق المورد
             "rights": {
@@ -509,7 +521,7 @@ def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, dat
                 "payment_direction": "OUT" if balance > 0 else "IN" if balance < 0 else None,
                 "action": "ندفع له" if balance > 0 else "يدفع لنا" if balance < 0 else "لا شيء",
                 "currency": "ILS",
-                "formula": f"({float(supplier_rights):.2f} - {float(supplier_obligations):.2f} - {float(paid_to_supplier):.2f} + {float(received_from_supplier):.2f} - {float(returns_value):.2f}) = {float(balance):.2f}"
+                "formula": f"({float(opening_balance):.2f} + {float(supplier_rights):.2f} - {float(supplier_obligations):.2f} - {float(paid_to_supplier):.2f} + {float(received_from_supplier):.2f} - {float(returns_value):.2f}) = {float(balance):.2f}"
             },
             # معلومات إضافية
             "unpriced_items": unpriced_items,
