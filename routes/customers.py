@@ -140,66 +140,14 @@ def list_customers():
     all_customers = Customer.query.filter(Customer.is_archived == False).all()
     
     total_balance = 0.0
-    total_sales = 0.0
-    total_payments = 0.0
     customers_with_debt = 0
     customers_with_credit = 0
     
     for customer in all_customers:
         try:
-            from models import fx_rate
-            from decimal import Decimal
+            # استخدام customer.balance المحسوب تلقائياً
+            balance = float(customer.balance or 0)
             
-            # حساب المبيعات - تحويل كل عملية للشيقل
-            # نجلب كل المبيعات (نشطة + مؤرشفة) للرصيد المحاسبي الحقيقي
-            sales = Sale.query.filter(Sale.customer_id == customer.id).all()
-            sales_total = 0.0
-            for s in sales:
-                amount = float(s.total_amount or 0)
-                if s.currency and s.currency != 'ILS':
-                    try:
-                        from decimal import Decimal
-                        rate = fx_rate(s.currency, 'ILS', s.sale_date, raise_on_missing=False)
-                        if rate > 0:
-                            amount = float(amount * float(rate))
-                        else:
-                            print(f"⚠️ WARNING: سعر صرف مفقود لـ {s.currency}/ILS في المبيعات #{s.id}")
-                    except ValueError as ve:
-                        print(f"⚠️ ERROR: {str(ve)} - Sale #{s.id}")
-                    except Exception as e:
-                        print(f"⚠️ ERROR: خطأ في تحويل العملة للمبيعات #{s.id}: {str(e)}")
-                sales_total += amount
-            
-            # حساب الدفعات - استخدام fx_rate_used
-            # نجلب كل الدفعات (نشطة + مؤرشفة) للرصيد المحاسبي الحقيقي
-            payments = Payment.query.filter(
-                Payment.customer_id == customer.id,
-                Payment.direction == 'IN'
-            ).all()
-            payments_total = 0.0
-            for p in payments:
-                amount = float(p.total_amount or 0)
-                if p.fx_rate_used:
-                    amount *= float(p.fx_rate_used)
-                elif p.currency and p.currency != 'ILS':
-                    try:
-                        rate = fx_rate(p.currency, 'ILS', p.payment_date, raise_on_missing=False)
-                        if rate > 0:
-                            amount = float(amount * rate)
-                        else:
-                            print(f"⚠️ WARNING: سعر صرف مفقود لـ {p.currency}/ILS في الدفعة #{p.id}")
-                    except ValueError as ve:
-                        print(f"⚠️ ERROR: {str(ve)} - Payment #{p.id}")
-                    except Exception as e:
-                        print(f"⚠️ ERROR: خطأ في تحويل العملة للدفعة #{p.id}: {str(e)}")
-                payments_total += amount
-            
-            # إضافة الرصيد الافتتاحي
-            opening_bal = float(customer.opening_balance or 0)
-            balance = opening_bal + sales_total - payments_total
-            
-            total_sales += float(sales_total)
-            total_payments += float(payments_total)
             total_balance += balance
             
             if balance > 0:
@@ -214,8 +162,6 @@ def list_customers():
     summary = {
         'total_customers': len(all_customers),
         'total_balance': total_balance,
-        'total_sales': total_sales,
-        'total_payments': total_payments,
         'customers_with_debt': customers_with_debt,
         'customers_with_credit': customers_with_credit,
         'average_balance': total_balance / len(all_customers) if all_customers else 0
