@@ -465,21 +465,21 @@ class HardDeleteService:
                         ).first()
                         
                         if stock_level:
-                            old_quantity = stock_level.on_hand_quantity
-                            stock_level.on_hand_quantity += line.quantity
+                            old_quantity = stock_level.quantity
+                            stock_level.quantity += line.quantity
                             reversals["stock_reversals"].append({
                                 "product_id": line.product_id,
                                 "warehouse_id": line.warehouse_id,
                                 "quantity_restored": float(line.quantity),
                                 "old_quantity": float(old_quantity),
-                                "new_quantity": float(stock_level.on_hand_quantity)
+                                "new_quantity": float(stock_level.quantity)
                             })
                         else:
                             # إنشاء StockLevel جديد إذا لم يكن موجود
                             new_stock = StockLevel(
                                 product_id=line.product_id,
                                 warehouse_id=line.warehouse_id,
-                                on_hand_quantity=line.quantity
+                                quantity=line.quantity
                             )
                             db.session.add(new_stock)
                             reversals["stock_reversals"].append({
@@ -539,21 +539,21 @@ class HardDeleteService:
                         ).first()
                         
                         if stock_level:
-                            old_quantity = stock_level.on_hand_quantity
-                            stock_level.on_hand_quantity += line.quantity
+                            old_quantity = stock_level.quantity
+                            stock_level.quantity += line.quantity
                             reversals["stock_reversals"].append({
                                 "product_id": line.product_id,
                                 "warehouse_id": line.warehouse_id,
                                 "quantity_restored": float(line.quantity),
                                 "old_quantity": float(old_quantity),
-                                "new_quantity": float(stock_level.on_hand_quantity)
+                                "new_quantity": float(stock_level.quantity)
                             })
                         else:
                             # إنشاء StockLevel جديد إذا لم يكن موجود
                             new_stock = StockLevel(
                                 product_id=line.product_id,
                                 warehouse_id=line.warehouse_id,
-                                on_hand_quantity=line.quantity
+                                quantity=line.quantity
                             )
                             db.session.add(new_stock)
                             reversals["stock_reversals"].append({
@@ -913,8 +913,8 @@ class HardDeleteService:
                     ).first()
                     
                     if stock_level:
-                        old_quantity = stock_level.on_hand_quantity
-                        stock_level.on_hand_quantity -= item.quantity_received
+                        old_quantity = stock_level.quantity
+                        stock_level.quantity -= item.quantity_received
                         reversals["stock_reversals"].append({
                             "product_id": item.product_id,
                             "warehouse_id": item.warehouse_id,
@@ -1199,7 +1199,7 @@ class HardDeleteService:
                             product_id=line_dict["product_id"]
                         ).first()
                         if stock_level:
-                            stock_level.on_hand_quantity -= line_dict["quantity"]
+                            stock_level.quantity -= line_dict["quantity"]
             
             return {"success": True}
             
@@ -1245,7 +1245,7 @@ class HardDeleteService:
                         warehouse_id=line_dict["warehouse_id"]
                     ).first()
                     if stock_level:
-                        stock_level.on_hand_quantity -= line_dict["quantity"]
+                        stock_level.quantity -= line_dict["quantity"]
             
             return {"success": True}
             
