@@ -25,10 +25,22 @@ def delete_customer(customer_id):
             return redirect(url_for("customers.list_customers"))
         
         # جمع المعلومات المرتبطة
-        from models import Sale, Payment, ServiceRequest, Expense
+        from models import Sale, Payment, ServiceRequest, Expense, Shipment, ProductSupplierLoan
         
         sales_count = db.session.query(Sale).filter_by(customer_id=customer_id).count()
         payments_count = db.session.query(Payment).filter_by(customer_id=customer_id).count()
+        
+        # المنتجات (للموردين)
+        try:
+            from models import Product
+            products_count = db.session.query(Product).filter(
+                or_(
+                    Product.supplier_local_id == customer_id,
+                    Product.supplier_international_id == customer_id
+                )
+            ).count()
+        except:
+            products_count = 0
         
         # طلبات الصيانة
         try:
@@ -573,6 +585,39 @@ def api_restore_deletion(deletion_id):
     return jsonify(result)
 
 
+@hard_delete_bp.route("/check/<int:check_id>", methods=["GET", "POST"])
+@login_required
+# @permission_required("manage_checks")  # Commented out
+def delete_check(check_id):
+    """حذف قوي للشيك"""
+    from models import Check
+    
+    if request.method == "GET":
+        check = db.session.get(Check, check_id)
+        if not check:
+            flash("الشيك غير موجود", "error")
+            return redirect(url_for("checks.index"))
+        
+        return render_template("hard_delete/confirm_check.html", check=check)
+    
+    elif request.method == "POST":
+        reason = request.form.get("reason", "").strip()
+        if not reason:
+            flash("يجب إدخال سبب الحذف", "error")
+            check = db.session.get(Check, check_id)
+            return render_template("hard_delete/confirm_check.html", check=check, error="يجب إدخال سبب الحذف")
+        
+        hard_delete_service = HardDeleteService()
+        result = hard_delete_service.delete_check(check_id, current_user.id, reason)
+        
+        if result.get("success"):
+            flash(f"✅ {result.get('message')} - يمكن الاستعادة من سجل الحذف القوي", "success")
+            return redirect(url_for("checks.index"))
+        else:
+            flash(f"❌ {result.get('error')}", "error")
+            check = db.session.get(Check, check_id)
+            return render_template("hard_delete/confirm_check.html", check=check, error=result.get('error'))
+
 @hard_delete_bp.route("/service/<int:service_id>", methods=["GET", "POST"], endpoint="hard_delete_service")
 @login_required
 # @permission_required("manage_service")  # Commented out
@@ -592,10 +637,10 @@ def hard_delete_service(service_id):
         result = hard_delete_service.delete_service(service_id, current_user.id, reason)
         
         if result.get("success"):
-            flash("تم حذف طلب الصيانة بنجاح", "success")
+            flash("✅ تم حذف طلب الصيانة بنجاح - تم إرجاع قطع الغيار للمخزون", "success")
             return redirect(url_for("service.list_requests"))
         else:
-            flash(f"فشل في حذف طلب الصيانة: {result.get('error', 'خطأ غير معروف')}", "error")
+            flash(f"❌ فشل في حذف طلب الصيانة: {result.get('error', 'خطأ غير معروف')}", "error")
             return render_template("hard_delete/delete_service.html", service=service)
     
     return render_template("hard_delete/delete_service.html", service=service)

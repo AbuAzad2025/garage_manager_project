@@ -55,15 +55,38 @@
                         </div>
                     </div>
                     
-                    <div class="alert alert-info">
-                        <h6><i class="fas fa-info-circle"></i> ما سيتم حذفه:</h6>
-                        <ul class="mb-0">
-                            <li>الشريك وجميع بياناته</li>
-                            <li>جميع المبيعات المرتبطة به</li>
-                            <li>جميع الدفعات المرتبطة به</li>
-                            <li>جميع السجلات المحاسبية المرتبطة</li>
-                            <li>سيتم إرجاع المنتجات للمخزون</li>
-                        </ul>
+                    <div class="alert alert-danger">
+                        <h6><i class="fas fa-exclamation-triangle"></i> تحذير شديد - ما سيتم حذفه:</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>البيانات الأساسية:</strong>
+                                <ul class="mb-0">
+                                    <li>الشريك وجميع بياناته</li>
+                                    <li>✅ العميل المرتبط وجميع قيوده</li>
+                                    <li>حصص الشريك في المنتجات</li>
+                                    <li>حصص الشريك في المستودعات</li>
+                                    <li>حصص الشريك في الشحنات</li>
+                                    <li>جميع المبيعات ({{ sales_count or 0 }})</li>
+                                    <li>جميع الدفعات ({{ payments_count or 0 }})</li>
+                                    <li>الفواتير المرتبطة</li>
+                                    <li>الحجوزات المسبقة</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>العمليات العكسية:</strong>
+                                <ul class="mb-0">
+                                    <li>✅ إرجاع المنتجات للمخزون</li>
+                                    <li>✅ عكس القيود المحاسبية</li>
+                                    <li>✅ حذف جميع الحصص</li>
+                                    <li>✅ تسجيل للاستعادة</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <h6><i class="fas fa-shield-alt"></i> الأمان:</h6>
+                        <p class="mb-0">يمكن استعادة هذه العملية لاحقاً من خلال سجل الحذف القوي.</p>
                     </div>
                     
                     <form method="POST">

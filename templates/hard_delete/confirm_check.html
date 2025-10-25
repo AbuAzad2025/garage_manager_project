@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% block title %}تأكيد حذف الشيك - {{ check.check_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="card-title mb-0">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        تأكيد حذف الشيك
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger">
+                        <h5><i class="fas fa-warning"></i> تحذير: عملية حذف قوي</h5>
+                        <p>هذه العملية ستحذف الشيك وجميع القيود المحاسبية المرتبطة به نهائياً.</p>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>معلومات الشيك</h5>
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>رقم الشيك:</strong></td>
+                                    <td>{{ check.check_number }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>البنك:</strong></td>
+                                    <td>{{ check.check_bank }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>المبلغ:</strong></td>
+                                    <td><span class="badge bg-info">{{ check.amount }} {{ check.currency }}</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>تاريخ الشيك:</strong></td>
+                                    <td>{{ check.check_date.strftime('%Y-%m-%d') if check.check_date else 'غير محدد' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>تاريخ الاستحقاق:</strong></td>
+                                    <td>{{ check.check_due_date.strftime('%Y-%m-%d') if check.check_due_date else 'غير محدد' }}</td>
+                                </tr>
+                                {% if check.status %}
+                                <tr>
+                                    <td><strong>الحالة:</strong></td>
+                                    <td>{{ check.status }}</td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>العمليات العكسية</h5>
+                            <div class="alert alert-info">
+                                <strong>ما سيتم تنفيذه:</strong>
+                                <ul class="mb-0 mt-2">
+                                    <li>✅ حذف الشيك من النظام</li>
+                                    <li>✅ عكس القيود المحاسبية المرتبطة</li>
+                                    <li>✅ تسجيل عملية الحذف للاستعادة</li>
+                                    <li>✅ الحفاظ على توازن الحسابات</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <h6><i class="fas fa-shield-alt"></i> الأمان:</h6>
+                        <p class="mb-0">يمكن استعادة هذه العملية لاحقاً من خلال سجل الحذف القوي.</p>
+                    </div>
+                    
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div class="mb-3">
+                            <label for="reason" class="form-label">
+                                <strong>سبب الحذف <span class="text-danger">*</span></strong>
+                            </label>
+                            <textarea class="form-control" id="reason" name="reason" rows="3" 
+                                      placeholder="أدخل سبب حذف هذا الشيك..." required></textarea>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-bomb"></i> تأكيد الحذف القوي
+                            </button>
+                            <a href="{{ url_for('checks.index') }}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> إلغاء
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

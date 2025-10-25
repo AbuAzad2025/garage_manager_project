@@ -920,7 +920,7 @@ class HardDeleteService:
                             "warehouse_id": item.warehouse_id,
                             "quantity_removed": float(item.quantity_received),
                             "old_quantity": float(old_quantity),
-                            "new_quantity": float(stock_level.on_hand_quantity)
+                            "new_quantity": float(stock_level.quantity)
                         })
         
         # 2. حذف السجلات المحاسبية
@@ -959,14 +959,14 @@ class HardDeleteService:
                     ).first()
                     
                     if stock_level:
-                        old_quantity = stock_level.on_hand_quantity
-                        stock_level.on_hand_quantity += line.quantity
+                        old_quantity = stock_level.quantity
+                        stock_level.quantity += line.quantity
                         reversals["stock_reversals"].append({
                             "product_id": line.product_id,
                             "warehouse_id": line.warehouse_id,
                             "quantity_restored": float(line.quantity),
                             "old_quantity": float(old_quantity),
-                            "new_quantity": float(stock_level.on_hand_quantity)
+                            "new_quantity": float(stock_level.quantity)
                         })
         
         # 2. حذف السجلات المحاسبية
@@ -990,34 +990,245 @@ class HardDeleteService:
     
     def _delete_supplier_data(self, supplier_id: int):
         """حذف بيانات المورد"""
-        from models import Expense
+        from models import Expense, ProductSupplierLoan, SupplierLoanSettlement
         
-        # 1. حذف النفقات المرتبطة بالمورد
-        db.session.query(Expense).filter_by(
-            payee_type='SUPPLIER',
-            payee_entity_id=supplier_id
-        ).delete()
+        # جلب المورد
+        supplier = db.session.get(Supplier, supplier_id)
+        linked_customer_id = supplier.customer_id if supplier else None
         
-        # 2. حذف الدفعات المرتبطة بالمورد
-        db.session.query(Payment).filter_by(supplier_id=supplier_id).delete()
+        # 1. حذف الشحنات (المشتريات) وبنودها وحصص الشركاء
+        try:
+            shipments = db.session.query(Shipment).filter_by(supplier_id=supplier_id).all()
+            for shipment in shipments:
+                # حذف بنود الشحنة
+                try:
+                    db.session.query(ShipmentItem).filter_by(shipment_id=shipment.id).delete()
+                except:
+                    pass
+                # حذف حصص الشركاء في الشحنة
+                try:
+                    from models import ShipmentPartner
+                    db.session.query(ShipmentPartner).filter_by(shipment_id=shipment.id).delete()
+                except:
+                    pass
+                try:
+                    db.session.delete(shipment)
+                except:
+                    pass
+        except:
+            pass
         
-        # 3. حذف المورد
+        # 2. حذف قروض الموردين للمنتجات والتسويات
+        try:
+            loans = db.session.query(ProductSupplierLoan).filter_by(supplier_id=supplier_id).all()
+            for loan in loans:
+                try:
+                    from models import SupplierLoanSettlement
+                    db.session.query(SupplierLoanSettlement).filter_by(loan_id=loan.id).delete()
+                except:
+                    pass
+                try:
+                    db.session.delete(loan)
+                except:
+                    pass
+        except:
+            pass
+        
+        # 3. حذف النفقات المرتبطة بالمورد
+        try:
+            db.session.query(Expense).filter_by(
+                payee_type='SUPPLIER',
+                payee_entity_id=supplier_id
+            ).delete()
+        except:
+            pass
+        
+        # 4. حذف الدفعات المرتبطة بالمورد
+        try:
+            db.session.query(Payment).filter_by(supplier_id=supplier_id).delete()
+        except:
+            pass
+        
+        # 5. حذف الفواتير المرتبطة بالمورد
+        try:
+            from models import Invoice, InvoiceLine
+            invoices = db.session.query(Invoice).filter_by(supplier_id=supplier_id).all()
+            for invoice in invoices:
+                try:
+                    db.session.query(InvoiceLine).filter_by(invoice_id=invoice.id).delete()
+                except:
+                    pass
+                try:
+                    db.session.delete(invoice)
+                except:
+                    pass
+        except:
+            pass
+        
+        # 6. حذف الحجوزات المسبقة للمورد
+        try:
+            from models import PreOrder
+            db.session.query(PreOrder).filter_by(supplier_id=supplier_id).delete()
+        except:
+            pass
+        
+        # 7. حذف العميل المرتبط (إذا موجود)
+        if linked_customer_id:
+            try:
+                # حذف جميع معاملات العميل المرتبط
+                try:
+                    db.session.query(Sale).filter_by(customer_id=linked_customer_id).delete()
+                except:
+                    pass
+                
+                try:
+                    db.session.query(Payment).filter_by(customer_id=linked_customer_id).delete()
+                except:
+                    pass
+                
+                try:
+                    from models import ServiceRequest
+                    db.session.query(ServiceRequest).filter_by(customer_id=linked_customer_id).delete()
+                except:
+                    pass
+                
+                # حذف العميل نفسه
+                try:
+                    db.session.query(Customer).filter_by(id=linked_customer_id).delete()
+                except:
+                    pass
+            except Exception as e:
+                # تسجيل الخطأ لكن المتابعة
+                pass
+        
+        # 8. فك ارتباط المنتجات بالمورد (بدلاً من حذفها)
+        try:
+            db.session.query(Product).filter(
+                Product.supplier_local_id == supplier_id
+            ).update({Product.supplier_local_id: None}, synchronize_session=False)
+        except:
+            pass
+        
+        try:
+            db.session.query(Product).filter(
+                Product.supplier_international_id == supplier_id
+            ).update({Product.supplier_international_id: None}, synchronize_session=False)
+        except:
+            pass
+        
+        # 9. حذف المورد (العملية الأخيرة - يجب أن تنجح)
         db.session.query(Supplier).filter_by(id=supplier_id).delete()
     
     def _delete_partner_data(self, partner_id: int):
         """حذف بيانات الشريك"""
-        from models import Expense
+        from models import Expense, WarehousePartnerShare, ProductPartner
         
-        # 1. حذف النفقات المرتبطة بالشريك
-        db.session.query(Expense).filter_by(
-            payee_type='PARTNER',
-            payee_entity_id=partner_id
-        ).delete()
+        # جلب الشريك
+        partner = db.session.get(Partner, partner_id)
+        linked_customer_id = partner.customer_id if partner else None
         
-        # 2. حذف الدفعات المرتبطة بالشريك
-        db.session.query(Payment).filter_by(partner_id=partner_id).delete()
+        # 1. حذف حصص الشريك في المستودعات والمنتجات
+        try:
+            db.session.query(WarehousePartnerShare).filter_by(partner_id=partner_id).delete()
+        except:
+            pass
         
-        # 3. حذف الشريك
+        # 2. حذف ربط الشريك بالمنتجات
+        try:
+            db.session.query(ProductPartner).filter_by(partner_id=partner_id).delete()
+        except:
+            pass
+        
+        # 3. حذف المبيعات المرتبطة بالشريك
+        try:
+            sales = db.session.query(Sale).filter_by(customer_id=partner_id).all()
+            for sale in sales:
+                try:
+                    db.session.query(SaleLine).filter_by(sale_id=sale.id).delete()
+                except:
+                    pass
+                try:
+                    db.session.delete(sale)
+                except:
+                    pass
+        except:
+            pass
+        
+        # 4. حذف الشريك من حصص الشحنات
+        try:
+            from models import ShipmentPartner
+            db.session.query(ShipmentPartner).filter_by(partner_id=partner_id).delete()
+        except:
+            pass
+        
+        # 5. حذف النفقات المرتبطة بالشريك
+        try:
+            db.session.query(Expense).filter_by(
+                payee_type='PARTNER',
+                payee_entity_id=partner_id
+            ).delete()
+        except:
+            pass
+        
+        # 6. حذف الدفعات المرتبطة بالشريك
+        try:
+            db.session.query(Payment).filter_by(partner_id=partner_id).delete()
+        except:
+            pass
+        
+        # 7. حذف الفواتير المرتبطة بالشريك
+        try:
+            from models import Invoice, InvoiceLine
+            invoices = db.session.query(Invoice).filter_by(partner_id=partner_id).all()
+            for invoice in invoices:
+                try:
+                    db.session.query(InvoiceLine).filter_by(invoice_id=invoice.id).delete()
+                except:
+                    pass
+                try:
+                    db.session.delete(invoice)
+                except:
+                    pass
+        except:
+            pass
+        
+        # 8. حذف الحجوزات المسبقة للشريك
+        try:
+            from models import PreOrder
+            db.session.query(PreOrder).filter_by(partner_id=partner_id).delete()
+        except:
+            pass
+        
+        # 9. حذف العميل المرتبط (إذا موجود)
+        if linked_customer_id:
+            try:
+                # حذف جميع معاملات العميل المرتبط
+                try:
+                    db.session.query(Sale).filter_by(customer_id=linked_customer_id).delete()
+                except:
+                    pass
+                
+                try:
+                    db.session.query(Payment).filter_by(customer_id=linked_customer_id).delete()
+                except:
+                    pass
+                
+                try:
+                    from models import ServiceRequest
+                    db.session.query(ServiceRequest).filter_by(customer_id=linked_customer_id).delete()
+                except:
+                    pass
+                
+                # حذف العميل نفسه
+                try:
+                    db.session.query(Customer).filter_by(id=linked_customer_id).delete()
+                except:
+                    pass
+            except Exception as e:
+                # تسجيل الخطأ لكن المتابعة
+                pass
+        
+        # 10. حذف الشريك
         db.session.query(Partner).filter_by(id=partner_id).delete()
     
     def delete_expense(self, expense_id: int, deleted_by: int, reason: str = None) -> Dict[str, Any]:
@@ -1306,6 +1517,91 @@ class HardDeleteService:
         except Exception as e:
             return {"success": False, "error": f"فشل في استعادة النفقة: {str(e)}"}
 
+    def delete_check(self, check_id: int, deleted_by: int, reason: str = None) -> Dict[str, Any]:
+        """حذف قوي للشيك مع العمليات العكسية"""
+        try:
+            from models import Check
+            
+            # 1. جلب الشيك
+            check = db.session.get(Check, check_id)
+            if not check:
+                return {"success": False, "error": "الشيك غير موجود"}
+            
+            check_number = check.check_number
+            
+            # 2. إنشاء سجل الحذف
+            deletion_log = self.create_deletion_log(
+                deletion_type='CHECK',
+                entity_id=check_id,
+                entity_name=f"شيك {check_number}",
+                deleted_by=deleted_by,
+                reason=reason
+            )
+            
+            # 3. جمع البيانات
+            check_data = {
+                "id": check.id,
+                "check_number": check.check_number,
+                "check_bank": check.check_bank,
+                "amount": float(check.amount or 0),
+                "currency": check.currency,
+                "check_date": check.check_date.isoformat() if check.check_date else None,
+                "check_due_date": check.check_due_date.isoformat() if check.check_due_date else None,
+                "status": check.status if hasattr(check, 'status') else None,
+                "payee_name": check.payee_name if hasattr(check, 'payee_name') else None,
+                "notes": check.notes if hasattr(check, 'notes') else None
+            }
+            
+            # 4. العمليات العكسية: حذف القيود المحاسبية
+            accounting_reversals = []
+            
+            # البحث عن قيود محاسبية مرتبطة بالشيك
+            try:
+                gl_batches = db.session.query(GLBatch).filter(
+                    or_(
+                        and_(GLBatch.source_type == "CHECK", GLBatch.source_id == check_id),
+                        and_(GLBatch.description.like(f'%{check_number}%'))
+                    )
+                ).all()
+                
+                for batch in gl_batches:
+                    accounting_reversals.append({
+                        "batch_id": batch.id,
+                        "source_type": batch.source_type,
+                        "source_id": batch.source_id,
+                        "description": batch.description
+                    })
+                    db.session.delete(batch)
+            except:
+                pass
+            
+            # 5. حذف الشيك
+            db.session.delete(check)
+            
+            # 6. تسجيل اكتمال الحذف
+            deletion_log.status = DeletionStatus.COMPLETED.value
+            deletion_log.deleted_at = datetime.utcnow()
+            deletion_log.deleted_data = json.dumps(check_data)
+            deletion_log.accounting_reversals = json.dumps(accounting_reversals) if accounting_reversals else None
+            
+            db.session.commit()
+            
+            return {
+                "success": True,
+                "message": f"تم حذف الشيك {check_number} بنجاح",
+                "deletion_id": deletion_log.id
+            }
+            
+        except Exception as e:
+            db.session.rollback()
+            if self.deletion_log:
+                try:
+                    self.deletion_log.mark_failed(str(e))
+                    db.session.commit()
+                except:
+                    pass
+            return {"success": False, "error": f"فشل في حذف الشيك: {str(e)}"}
+    
     def delete_service(self, service_id: int, user_id: int, reason: str = None) -> Dict[str, Any]:
         """حذف قوي لطلب صيانة"""
         try:
@@ -1386,6 +1682,50 @@ class HardDeleteService:
                 "tasks": tasks_data
             })
             
+            # العمليات العكسية: إرجاع قطع الغيار للمخزون
+            stock_reversals = []
+            for part in service.parts:
+                if part.product_id and part.warehouse_id and part.quantity:
+                    try:
+                        stock_level = db.session.query(StockLevel).filter_by(
+                            product_id=part.product_id,
+                            warehouse_id=part.warehouse_id
+                        ).first()
+                        
+                        if stock_level:
+                            old_quantity = stock_level.quantity
+                            stock_level.quantity += part.quantity
+                            stock_reversals.append({
+                                "product_id": part.product_id,
+                                "warehouse_id": part.warehouse_id,
+                                "quantity_restored": float(part.quantity),
+                                "old_quantity": float(old_quantity),
+                                "new_quantity": float(stock_level.quantity)
+                            })
+                        else:
+                            # إنشاء StockLevel جديد
+                            new_stock = StockLevel(
+                                product_id=part.product_id,
+                                warehouse_id=part.warehouse_id,
+                                quantity=part.quantity
+                            )
+                            db.session.add(new_stock)
+                            stock_reversals.append({
+                                "product_id": part.product_id,
+                                "warehouse_id": part.warehouse_id,
+                                "quantity_restored": float(part.quantity),
+                                "old_quantity": 0,
+                                "new_quantity": float(part.quantity),
+                                "created_new": True
+                            })
+                    except Exception as e:
+                        stock_reversals.append({
+                            "product_id": part.product_id,
+                            "warehouse_id": part.warehouse_id,
+                            "quantity_restored": float(part.quantity),
+                            "error": str(e)
+                        })
+            
             # حذف البيانات المرتبطة
             ServicePart.query.filter_by(service_id=service_id).delete()
             ServiceTask.query.filter_by(service_id=service_id).delete()
@@ -1393,9 +1733,10 @@ class HardDeleteService:
             # حذف طلب الصيانة
             db.session.delete(service)
             
-            # تحديث حالة سجل الحذف
+            # تحديث حالة سجل الحذف مع العمليات العكسية
             deletion_log.status = DeletionStatus.COMPLETED.value
             deletion_log.deleted_at = datetime.utcnow()
+            deletion_log.stock_reversals = json.dumps(stock_reversals) if stock_reversals else None
             
             db.session.commit()
             

@@ -58,10 +58,13 @@
           </a>
           <form method="POST" action="{{ url_for('checks.delete_check', check_id=check.id) }}" style="display: inline;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-danger" onclick="return confirm('هل أنت متأكد من حذف هذا الشيك؟')">
-              <i class="fas fa-trash"></i> حذف
+            <button type="submit" class="btn btn-warning" onclick="return confirm('هل أنت متأكد من حذف هذا الشيك؟')">
+              <i class="fas fa-trash"></i> حذف عادي
             </button>
           </form>
+          <a href="{{ url_for('hard_delete_bp.delete_check', check_id=check.id) }}" class="btn btn-danger">
+            <i class="fas fa-bomb"></i> حذف قوي
+          </a>
         </div>
       </div>
 

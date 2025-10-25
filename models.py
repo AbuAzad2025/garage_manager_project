@@ -598,6 +598,10 @@ class DeletionType(str, enum.Enum):
     PAYMENT = "PAYMENT"
     PURCHASE = "PURCHASE"
     EXPENSE = "EXPENSE"
+    SERVICE = "SERVICE"
+    CHECK = "CHECK"
+    SHIPMENT = "SHIPMENT"
+    PREORDER = "PREORDER"
 
     @property
     def label(self):
@@ -610,6 +614,10 @@ class DeletionType(str, enum.Enum):
             "PAYMENT": "دفعة",
             "PURCHASE": "مشتريات",
             "EXPENSE": "مصروف",
+            "SERVICE": "طلب صيانة",
+            "CHECK": "شيك",
+            "SHIPMENT": "شحنة",
+            "PREORDER": "حجز مسبق"
         }[self.value]
 
 
