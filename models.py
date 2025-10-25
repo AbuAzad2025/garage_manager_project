@@ -1840,41 +1840,56 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
 
     @hybrid_property
     def balance(self):
-        """الرصيد الحقيقي = الرصيد الافتتاحي + جميع المعاملات - الدفعات"""
+        """الرصيد الحقيقي = الرصيد الافتتاحي + المعاملات - الدفعات"""
         try:
+            from sqlalchemy.orm import object_session
+            session = object_session(self)
+            if not session:
+                return 0.0
+            
             # الرصيد الافتتاحي
             ob = float(self.opening_balance or 0)
             
-            # جميع المبيعات المؤكدة
-            sales_total = sum(float(s.total_amount or 0) for s in self.sales if s.status == SaleStatus.CONFIRMED.value)
+            # المبيعات المؤكدة
+            sales_total = float(session.query(func.coalesce(func.sum(Sale.total_amount), 0)).filter(
+                Sale.customer_id == self.id,
+                Sale.status == 'CONFIRMED'
+            ).scalar() or 0)
             
-            # جميع الفواتير
-            invoices_total = sum(
-                float(i.total_amount or 0) for i in self.invoices 
-                if i.status in [InvoiceStatus.UNPAID.value, InvoiceStatus.PARTIAL.value, InvoiceStatus.PAID.value]
-            )
+            # الفواتير
+            invoices_total = float(session.query(func.coalesce(func.sum(Invoice.total_amount), 0)).filter(
+                Invoice.customer_id == self.id,
+                Invoice.status.in_(['UNPAID', 'PARTIAL', 'PAID'])
+            ).scalar() or 0)
             
-            # جميع الخدمات
-            services_total = sum(float(srv.total_amount or 0) for srv in self.service_requests)
+            # الخدمات
+            services_total = float(session.query(func.coalesce(func.sum(ServiceRequest.total_amount), 0)).filter(
+                ServiceRequest.customer_id == self.id
+            ).scalar() or 0)
             
-            # جميع الحجوزات المسبقة
-            preorders_total = sum(float(p.total_amount or 0) for p in self.preorders)
+            # الحجوزات المسبقة
+            preorders_total = float(session.query(func.coalesce(func.sum(PreOrder.total_amount), 0)).filter(
+                PreOrder.customer_id == self.id
+            ).scalar() or 0)
             
-            # الدفعات الواردة (IN)
-            payments_in = sum(
-                float(p.total_amount or 0) for p in self.payments 
-                if p.direction == PaymentDirection.IN.value and p.status == PaymentStatus.COMPLETED.value
-            )
+            # الدفعات الواردة
+            payments_in = float(session.query(func.coalesce(func.sum(Payment.total_amount), 0)).filter(
+                Payment.customer_id == self.id,
+                Payment.direction == 'IN',
+                Payment.status == 'COMPLETED'
+            ).scalar() or 0)
             
-            # الدفعات الصادرة (OUT) - مرتجعات
-            payments_out = sum(
-                float(p.total_amount or 0) for p in self.payments 
-                if p.direction == PaymentDirection.OUT.value and p.status == PaymentStatus.COMPLETED.value
-            )
+            # الدفعات الصادرة
+            payments_out = float(session.query(func.coalesce(func.sum(Payment.total_amount), 0)).filter(
+                Payment.customer_id == self.id,
+                Payment.direction == 'OUT',
+                Payment.status == 'COMPLETED'
+            ).scalar() or 0)
             
-            # الرصيد = الافتتاحي + المعاملات - الدفعات
             return ob + sales_total + invoices_total + services_total + preorders_total - payments_in + payments_out
-        except Exception:
+        except Exception as e:
+            import sys
+            print(f"⚠️ خطأ في حساب رصيد العميل #{self.id}: {e}", file=sys.stderr)
             return 0.0
 
     @hybrid_property
