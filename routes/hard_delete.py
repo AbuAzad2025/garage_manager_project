@@ -25,15 +25,41 @@ def delete_customer(customer_id):
             return redirect(url_for("customers.list_customers"))
         
         # جمع المعلومات المرتبطة
-        from models import Sale, Payment
+        from models import Sale, Payment, ServiceRequest, Expense
+        
         sales_count = db.session.query(Sale).filter_by(customer_id=customer_id).count()
         payments_count = db.session.query(Payment).filter_by(customer_id=customer_id).count()
+        
+        # طلبات الصيانة
+        try:
+            services_count = db.session.query(ServiceRequest).filter_by(customer_id=customer_id).count()
+        except:
+            services_count = 0
+        
+        # النفقات
+        try:
+            expenses_count = db.session.query(Expense).filter_by(
+                payee_type='CUSTOMER',
+                payee_entity_id=customer_id
+            ).count()
+        except:
+            expenses_count = 0
+        
+        # الحجوزات
+        try:
+            from models import Preorder
+            preorders_count = db.session.query(Preorder).filter_by(customer_id=customer_id).count()
+        except:
+            preorders_count = 0
         
         return render_template(
             "hard_delete/confirm_customer.html",
             customer=customer,
             sales_count=sales_count,
             payments_count=payments_count,
+            services_count=services_count,
+            expenses_count=expenses_count,
+            preorders_count=preorders_count
         )
     
     elif request.method == "POST":
@@ -41,13 +67,40 @@ def delete_customer(customer_id):
         reason = request.form.get("reason", "").strip()
         if not reason:
             flash("يجب إدخال سبب الحذف", "error")
-            from models import Customer, Sale, Payment
+            from models import Customer, Sale, Payment, ServiceRequest, Expense
             customer = db.session.get(Customer, customer_id)
+            
+            # حساب الإحصائيات
+            sales_count = db.session.query(Sale).filter_by(customer_id=customer_id).count()
+            payments_count = db.session.query(Payment).filter_by(customer_id=customer_id).count()
+            
+            try:
+                services_count = db.session.query(ServiceRequest).filter_by(customer_id=customer_id).count()
+            except:
+                services_count = 0
+            
+            try:
+                expenses_count = db.session.query(Expense).filter_by(
+                    payee_type='CUSTOMER',
+                    payee_entity_id=customer_id
+                ).count()
+            except:
+                expenses_count = 0
+            
+            try:
+                from models import Preorder
+                preorders_count = db.session.query(Preorder).filter_by(customer_id=customer_id).count()
+            except:
+                preorders_count = 0
+            
             return render_template(
                 "hard_delete/confirm_customer.html",
                 customer=customer,
-                sales_count=db.session.query(Sale).filter_by(customer_id=customer_id).count(),
-                payments_count=db.session.query(Payment).filter_by(customer_id=customer_id).count(),
+                sales_count=sales_count,
+                payments_count=payments_count,
+                services_count=services_count,
+                expenses_count=expenses_count,
+                preorders_count=preorders_count,
                 error="يجب إدخال سبب الحذف"
             )
         
@@ -56,17 +109,44 @@ def delete_customer(customer_id):
         result = hard_delete_service.delete_customer(customer_id, current_user.id, reason)
         
         if result.get("success"):
-            flash("تم حذف العميل بنجاح", "success")
+            flash(f"✅ {result.get('message')} - يمكن الاستعادة من سجل الحذف القوي", "success")
             return redirect(url_for("customers_bp.list_customers"))
         else:
-            flash(f"فشل في حذف العميل: {result.get('error', 'خطأ غير معروف')}", "error")
-            from models import Customer, Sale, Payment
+            flash(f"❌ فشل في حذف العميل: {result.get('error', 'خطأ غير معروف')}", "error")
+            from models import Customer, Sale, Payment, ServiceRequest, Expense
             customer = db.session.get(Customer, customer_id)
+            
+            # حساب الإحصائيات
+            sales_count = db.session.query(Sale).filter_by(customer_id=customer_id).count()
+            payments_count = db.session.query(Payment).filter_by(customer_id=customer_id).count()
+            
+            try:
+                services_count = db.session.query(ServiceRequest).filter_by(customer_id=customer_id).count()
+            except:
+                services_count = 0
+            
+            try:
+                expenses_count = db.session.query(Expense).filter_by(
+                    payee_type='CUSTOMER',
+                    payee_entity_id=customer_id
+                ).count()
+            except:
+                expenses_count = 0
+            
+            try:
+                from models import Preorder
+                preorders_count = db.session.query(Preorder).filter_by(customer_id=customer_id).count()
+            except:
+                preorders_count = 0
+            
             return render_template(
                 "hard_delete/confirm_customer.html",
                 customer=customer,
-                sales_count=db.session.query(Sale).filter_by(customer_id=customer_id).count(),
-                payments_count=db.session.query(Payment).filter_by(customer_id=customer_id).count(),
+                sales_count=sales_count,
+                payments_count=payments_count,
+                services_count=services_count,
+                expenses_count=expenses_count,
+                preorders_count=preorders_count,
                 error=result.get('error')
             )
 

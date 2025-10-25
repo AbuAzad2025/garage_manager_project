@@ -51,19 +51,43 @@
                                     <td><strong>عدد الدفعات:</strong></td>
                                     <td><span class="badge bg-success">{{ payments_count }}</span></td>
                                 </tr>
+                                <tr>
+                                    <td><strong>الرصيد الحالي:</strong></td>
+                                    <td><span class="badge {{ 'bg-danger' if customer.balance else 'bg-secondary' }}">{{ customer.balance or 0 }} {{ customer.currency }}</span></td>
+                                </tr>
                             </table>
                         </div>
                     </div>
                     
                     <div class="alert alert-info">
-                        <h6><i class="fas fa-info-circle"></i> ما سيتم حذفه:</h6>
-                        <ul class="mb-0">
-                            <li>العميل وجميع بياناته</li>
-                            <li>جميع المبيعات المرتبطة به</li>
-                            <li>جميع الدفعات المرتبطة به</li>
-                            <li>جميع السجلات المحاسبية المرتبطة</li>
-                            <li>سيتم إرجاع المنتجات للمخزون</li>
-                        </ul>
+                        <h6><i class="fas fa-info-circle"></i> العمليات التي سيتم تنفيذها:</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>الحذف:</strong>
+                                <ul class="mb-0">
+                                    <li>العميل وجميع بياناته</li>
+                                    <li>جميع المبيعات ({{ sales_count }}) وبنودها</li>
+                                    <li>جميع الدفعات ({{ payments_count }})</li>
+                                    <li>طلبات الصيانة المرتبطة</li>
+                                    <li>الحجوزات المسبقة</li>
+                                    <li>النفقات المرتبطة</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>العمليات العكسية:</strong>
+                                <ul class="mb-0">
+                                    <li>✅ إرجاع المنتجات المباعة للمخزون</li>
+                                    <li>✅ عكس القيود المحاسبية</li>
+                                    <li>✅ تسجيل عملية الحذف للاستعادة</li>
+                                    <li>✅ الحفاظ على توازن الحسابات</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <h6><i class="fas fa-shield-alt"></i> الأمان:</h6>
+                        <p class="mb-0">يمكن استعادة هذه العملية لاحقاً من خلال سجل الحذف القوي.</p>
                     </div>
                     
                     <form method="POST">

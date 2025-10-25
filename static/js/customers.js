@@ -48,51 +48,48 @@
   });
 
   const deleteForm = qs("#deleteForm");
-  const modalEl = qs("#deleteModal");
-  const confirmBtn = qs("#confirmDelete");
+  const $ = window.jQuery;
   
-  // فتح الـ Modal عند الضغط على زر الحذف
+  // ===== زر الحذف العادي =====
   qsa(".delete-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const urlAttr = btn.getAttribute("data-delete-url");
-      const idAttr = btn.getAttribute("data-id");
-      const url = urlAttr || (idAttr ? `/customers/${idAttr}/delete` : "");
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      const url = btn.getAttribute("data-url") || `/customers/${btn.getAttribute("data-id")}/delete`;
       
-      console.log('Delete URL:', url);
+      console.log('🗑️ حذف عادي - URL:', url);
       
       if (deleteForm && url) {
         deleteForm.setAttribute("action", url);
         
-        // فتح Modal باستخدام Bootstrap أو jQuery
-        if (window.bootstrap && modalEl) {
-          const modal = new bootstrap.Modal(modalEl);
-          modal.show();
-        } else if (window.jQuery && modalEl) {
-          jQuery(modalEl).modal('show');
+        // فتح Modal
+        if ($) {
+          $('#deleteModal').modal('show');
         } else {
-          console.error('Bootstrap/jQuery not loaded');
+          alert('jQuery not loaded');
         }
       }
     });
   });
   
-  // تأكيد الحذف
-  if (confirmBtn && deleteForm) {
-    confirmBtn.addEventListener("click", () => {
+  // تأكيد الحذف العادي
+  const confirmDelete = qs("#confirmDelete");
+  if (confirmDelete && deleteForm) {
+    confirmDelete.addEventListener("click", () => {
       const action = deleteForm.getAttribute("action") || "";
-      console.log('Submitting to:', action);
+      console.log('✅ تأكيد الحذف:', action);
       
       if (!action) {
-        alert('خطأ: لا يوجد عنوان للحذف');
+        alert('خطأ: لا يوجد URL');
         return;
       }
       
-      confirmBtn.disabled = true;
-      confirmBtn.textContent = 'جاري الحذف...';
+      confirmDelete.disabled = true;
+      confirmDelete.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> جاري الحذف...';
       
       deleteForm.submit();
     });
   }
+  
 
   const advForm = qs("#customer-adv-search");
   if (advForm) {

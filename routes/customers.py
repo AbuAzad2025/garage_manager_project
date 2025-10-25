@@ -487,21 +487,27 @@ def edit_customer(customer_id):
 @login_required
 # @permission_required("manage_customers")  # Commented out - function not available
 def delete_customer(id):
+    """حذف عادي - يحذف فقط إذا لا توجد معاملات"""
     customer = db.session.get(Customer, id) or abort(404)
     has_invoices = db.session.query(Invoice.id).filter_by(customer_id=id).first() is not None
     has_payments = db.session.query(Payment.id).filter_by(customer_id=id).first() is not None
+    has_sales = db.session.query(Sale.id).filter_by(customer_id=id).first() is not None
     bal = Decimal(str(getattr(customer, "balance", 0) or 0))
-    if has_invoices or has_payments or bal != Decimal("0"):
-        flash("لا يمكن حذف العميل لأنه مرتبط بحركات مالية أو رصيده غير صفري.", "danger")
+    
+    if has_invoices or has_payments or has_sales or bal != Decimal("0"):
+        flash("❌ لا يمكن حذف العميل لأنه مرتبط بمعاملات أو رصيده غير صفري.", "danger")
         return redirect(url_for("customers_bp.list_customers"))
+    
     try:
+        name = customer.name
         db.session.delete(customer)
         db.session.commit()
-        flash("تم حذف العميل", "success")
+        flash(f"✅ تم حذف العميل: {name}", "success")
     except Exception as e:
         db.session.rollback()
-        flash(f"❌ خطأ أثناء حذف العميل: {e}", "danger")
+        flash(f"❌ خطأ أثناء الحذف: {e}", "danger")
     return redirect(url_for("customers_bp.list_customers"))
+
 
 @customers_bp.route("/import", methods=["GET", "POST"], endpoint="import_customers")
 @login_required

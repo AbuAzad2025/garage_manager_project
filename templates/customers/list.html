@@ -234,19 +234,26 @@
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 </form>
 
-<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog" aria-labelledby="deleteModalLabel" aria-hidden="true">
+<!-- Modal حذف -->
+<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog">
   <div class="modal-dialog modal-dialog-centered" role="document">
     <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="deleteModalLabel">تأكيد الحذف</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="إغلاق">
-          <span aria-hidden="true">&times;</span>
+      <div class="modal-header bg-warning">
+        <h5 class="modal-title">⚠️ تأكيد الحذف</h5>
+        <button type="button" class="close" data-dismiss="modal">
+          <span>&times;</span>
         </button>
       </div>
-      <div class="modal-body">هل أنت متأكد أنك تريد حذف هذا العميل؟</div>
+      <div class="modal-body">
+        <p><strong>هل أنت متأكد من حذف هذا العميل؟</strong></p>
+        <p class="text-muted mb-0">ملاحظة: سيتم الحذف فقط إذا لم يكن له معاملات أو رصيد.</p>
+        <p class="text-info small mt-2">💡 نصيحة: استخدم الأرشفة بدلاً من الحذف للاحتفاظ بالسجلات.</p>
+      </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
-        <button type="button" class="btn btn-danger" id="confirmDelete">حذف</button>
+        <button type="button" class="btn btn-warning" id="confirmDelete">
+          <i class="fas fa-trash mr-1"></i> حذف
+        </button>
       </div>
     </div>
   </div>
