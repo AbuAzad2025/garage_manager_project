@@ -546,31 +546,8 @@
 <script>
 // ========== إدارة التنبيهات التلقائية ==========
 (function() {
-  // إخفاء التنبيهات تلقائياً بعد 10 ثواني فقط لتنبيهات النجاح
-  document.addEventListener('DOMContentLoaded', function() {
-    const alerts = document.querySelectorAll('.auto-dismiss-alert');
-    
-    alerts.forEach(function(alert) {
-      // فقط تنبيهات النجاح تختفي تلقائياً
-      const isSuccess = alert.classList.contains('alert-success');
-      
-      if (isSuccess) {
-        // تأخير 10 ثواني قبل البدء بالإخفاء
-        setTimeout(function() {
-          // إضافة تأثير fade out
-          alert.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-          alert.style.opacity = '0';
-          alert.style.transform = 'translateY(-20px)';
-          
-          // إزالة العنصر بعد انتهاء التأثير
-          setTimeout(function() {
-            alert.remove();
-          }, 500);
-        }, 10000); // 10 ثواني فقط للنجاح
-      }
-      // باقي التنبيهات (تحذير/خطأ/معلومات) تبقى حتى يغلقها المستخدم يدوياً
-    });
-  });
+  // ✅ تعطيل الإخفاء التلقائي - جميع الرسائل ثابتة
+  // المستخدم يغلقها يدوياً بالضغط على × فقط
   
   // منع التنبيهات من التأثير على الأداء
   const originalAlert = window.alert;
