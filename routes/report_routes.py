@@ -602,6 +602,7 @@ def customers_report():
         )
         .filter(Payment.customer_id.isnot(None))
         .filter(Payment.direction == PaymentDirection.IN.value)
+        .filter(Payment.status == 'COMPLETED')  # ✅ فلترة الدفعات المكتملة فقط
         .filter(Payment.status == PaymentStatus.COMPLETED.value)
         .filter(pay_date)
         .group_by(Payment.customer_id)
@@ -857,7 +858,8 @@ def customer_detail_report(customer_id):
     # جميع المدفوعات (نشطة + مؤرشفة للرصيد المحاسبي الحقيقي)
     payments_query = Payment.query.filter(
         Payment.customer_id == customer_id,
-        Payment.direction == PaymentDirection.IN.value
+        Payment.direction == PaymentDirection.IN.value,
+        Payment.status == 'COMPLETED'  # ✅ فلترة الدفعات المكتملة فقط
     )
     if start_date:
         payments_query = payments_query.filter(Payment.payment_date >= start_date)

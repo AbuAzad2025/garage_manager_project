@@ -975,7 +975,8 @@ def get_receivables_detailed_summary():
             # حساب الدفعات من العميل
             payments_query = Payment.query.filter(
                 Payment.customer_id == customer.id,
-                Payment.direction == 'IN'
+                Payment.direction == 'IN',
+                Payment.status == 'COMPLETED'  # ✅ فلترة الدفعات المكتملة فقط
             )
             if from_date:
                 payments_query = payments_query.filter(Payment.payment_date >= from_date)
@@ -1249,7 +1250,8 @@ def get_receivables_summary():
             # حساب الدفعات من العميل
             payments_query = Payment.query.filter(
                 Payment.customer_id == customer.id,
-                Payment.direction == 'IN'
+                Payment.direction == 'IN',
+                Payment.status == 'COMPLETED'  # ✅ فلترة الدفعات المكتملة فقط
             )
             if from_date:
                 payments_query = payments_query.filter(Payment.payment_date >= from_date)

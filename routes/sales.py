@@ -431,7 +431,8 @@ def list_sales():
         # حساب المدفوع
         payments = Payment.query.filter(
             Payment.customer_id == sale.customer_id,
-            Payment.direction == 'IN'
+            Payment.direction == 'IN',
+            Payment.status == 'COMPLETED'  # ✅ فلترة الدفعات المكتملة فقط
         ).all()
         
         paid_for_sale = sum(

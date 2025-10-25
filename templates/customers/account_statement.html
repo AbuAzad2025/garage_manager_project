@@ -483,7 +483,7 @@
                     <small class="text-muted d-block">{{ e.get('items')|length }} صنف</small>
                   {% endif %}
                 {% elif e.type == 'PAYMENT' %}
-                  <strong>دفعة</strong>
+                  <strong>{{ e.statement }}</strong>
                 {% elif e.type == 'SERVICE' %}
                   <strong>خدمة صيانة</strong>
                 {% elif e.type == 'PREORDER' %}

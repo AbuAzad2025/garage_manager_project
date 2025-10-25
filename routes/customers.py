@@ -768,21 +768,66 @@ def account_statement(customer_id):
 
     all_payments.sort(key=lambda x: (getattr(x, "payment_date", None) or getattr(x, "created_at", None) or datetime.min, x.id))
     for p in all_payments:
-        # توليد البيان للدفعة
-        payment_method = getattr(p, 'method', 'نقداً')
-        notes = getattr(p, 'notes', '') or ''
+        # توليد البيان للدفعة بالتفصيل
+        method_raw = str(getattr(p, 'method', 'cash')).lower()
+        method_arabic = {
+            'cash': 'نقداً',
+            'card': 'بطاقة',
+            'cheque': 'شيك',
+            'bank': 'تحويل بنكي',
+            'online': 'إلكتروني'
+        }.get(method_raw, method_raw)
         
-        # معرفة مصدر الدفعة
-        payment_statement = f"سداد {payment_method}"
+        amount = float(getattr(p, 'total_amount', 0) or 0)
+        receiver_name = getattr(p, 'receiver_name', None) or ''
+        
+        # البيان المفصل
+        payment_statement = f"دفعة {method_arabic} بقيمة {amount:,.2f} ₪"
+        
+        # إضافة المستلم
+        if receiver_name:
+            payment_statement += f" - استلم: {receiver_name}"
+        
+        # إضافة تفاصيل الشيك
+        if method_raw == 'cheque':
+            check_number = getattr(p, 'check_number', None)
+            check_bank = getattr(p, 'check_bank', None)
+            check_due_date = getattr(p, 'check_due_date', None)
+            
+            if check_number:
+                payment_statement += f" - رقم الشيك: {check_number}"
+            if check_bank:
+                payment_statement += f" - البنك: {check_bank}"
+            if check_due_date:
+                payment_statement += f" - استحقاق: {check_due_date.strftime('%Y-%m-%d') if hasattr(check_due_date, 'strftime') else check_due_date}"
+        
+        # إضافة تفاصيل البطاقة
+        elif method_raw == 'card':
+            card_holder = getattr(p, 'card_holder', None)
+            card_last4 = getattr(p, 'card_last4', None)
+            if card_holder:
+                payment_statement += f" - حامل البطاقة: {card_holder}"
+            if card_last4:
+                payment_statement += f" - البطاقة: ****{card_last4}"
+        
+        # إضافة تفاصيل التحويل البنكي
+        elif method_raw == 'bank':
+            bank_ref = getattr(p, 'bank_transfer_ref', None)
+            if bank_ref:
+                payment_statement += f" - المرجع: {bank_ref}"
+        
+        # إضافة مصدر الدفعة
         if getattr(p, 'sale_id', None):
-            payment_statement += f" - بيع رقم {getattr(p.sale, 'sale_number', p.sale_id) if hasattr(p, 'sale') else p.sale_id}"
+            payment_statement += f" - من بيع رقم {getattr(p.sale, 'sale_number', p.sale_id) if hasattr(p, 'sale') else p.sale_id}"
         elif getattr(p, 'invoice_id', None):
-            payment_statement += f" - فاتورة رقم {getattr(p.invoice, 'invoice_number', p.invoice_id) if hasattr(p, 'invoice') else p.invoice_id}"
+            payment_statement += f" - من فاتورة رقم {getattr(p.invoice, 'invoice_number', p.invoice_id) if hasattr(p, 'invoice') else p.invoice_id}"
         elif getattr(p, 'service_id', None):
-            payment_statement += f" - صيانة رقم {getattr(p.service, 'service_number', p.service_id) if hasattr(p, 'service') else p.service_id}"
+            payment_statement += f" - من صيانة رقم {getattr(p.service, 'service_number', p.service_id) if hasattr(p, 'service') else p.service_id}"
         
+        # إضافة الملاحظات
+        notes = getattr(p, 'notes', '') or ''
         if notes:
-            payment_statement += f" - {notes[:30]}"
+            payment_statement += f" - {notes[:50]}"
         
         # تفاصيل الدفعة الكاملة
         method_raw = str(getattr(p, 'method', 'cash')).lower()
