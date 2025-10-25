@@ -458,6 +458,7 @@ def edit_customer(customer_id):
             cust.category = form.category.data
             cust.credit_limit = form.credit_limit.data or 0
             cust.discount_rate = form.discount_rate.data or 0
+            cust.opening_balance = form.opening_balance.data or 0  # ✅ إضافة الرصيد الافتتاحي
             cust.is_active = form.is_active.data
             cust.is_online = form.is_online.data
             cust.notes = form.notes.data

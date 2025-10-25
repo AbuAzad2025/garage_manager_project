@@ -906,7 +906,7 @@ class SupplierForm(FlaskForm):
         supplier.email = normalize_email(self.email.data) or None
         supplier.address = (self.address.data or '').strip() or None
         supplier.notes = (self.notes.data or '').strip() or None
-        supplier.balance = self.balance.data or Decimal('0')
+        supplier.opening_balance = self.opening_balance.data or Decimal('0')  # ✅ تصليح
         supplier.payment_terms = (self.payment_terms.data or '').strip() or None
         supplier.currency = (self.currency.data or 'ILS').upper()
         return supplier
@@ -941,7 +941,7 @@ class PartnerForm(FlaskForm):
         partner.phone_number = normalize_phone(self.phone_number.data)
         partner.email = normalize_email(self.email.data) or None
         partner.address = (self.address.data or '').strip() or None
-        partner.balance = self.balance.data or Decimal('0')
+        partner.opening_balance = self.opening_balance.data or Decimal('0')  # ✅ تصليح
         partner.share_percentage = self.share_percentage.data or Decimal('0')
         partner.currency = (self.currency.data or 'ILS').upper()
         partner.notes = (self.notes.data or '').strip() or None
