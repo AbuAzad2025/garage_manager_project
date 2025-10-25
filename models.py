@@ -1872,19 +1872,55 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
                 PreOrder.customer_id == self.id
             ).scalar() or 0)
             
-            # الدفعات الواردة
-            payments_in = float(session.query(func.coalesce(func.sum(Payment.total_amount), 0)).filter(
+            # الدفعات الواردة (مباشرة + من المبيعات + من الفواتير + من الخدمات)
+            payments_in_direct = float(session.query(func.coalesce(func.sum(Payment.total_amount), 0)).filter(
                 Payment.customer_id == self.id,
                 Payment.direction == 'IN',
                 Payment.status == 'COMPLETED'
             ).scalar() or 0)
             
-            # الدفعات الصادرة
-            payments_out = float(session.query(func.coalesce(func.sum(Payment.total_amount), 0)).filter(
+            payments_in_sales = float(session.query(func.coalesce(func.sum(Payment.total_amount), 0)).join(
+                Sale, Payment.sale_id == Sale.id
+            ).filter(
+                Sale.customer_id == self.id,
+                Payment.direction == 'IN',
+                Payment.status == 'COMPLETED'
+            ).scalar() or 0)
+            
+            payments_in_invoices = float(session.query(func.coalesce(func.sum(Payment.total_amount), 0)).join(
+                Invoice, Payment.invoice_id == Invoice.id
+            ).filter(
+                Invoice.customer_id == self.id,
+                Payment.direction == 'IN',
+                Payment.status == 'COMPLETED'
+            ).scalar() or 0)
+            
+            payments_in_services = float(session.query(func.coalesce(func.sum(Payment.total_amount), 0)).join(
+                ServiceRequest, Payment.service_id == ServiceRequest.id
+            ).filter(
+                ServiceRequest.customer_id == self.id,
+                Payment.direction == 'IN',
+                Payment.status == 'COMPLETED'
+            ).scalar() or 0)
+            
+            payments_in = payments_in_direct + payments_in_sales + payments_in_invoices + payments_in_services
+            
+            # الدفعات الصادرة (مباشرة + من المبيعات + من الفواتير + من الخدمات)
+            payments_out_direct = float(session.query(func.coalesce(func.sum(Payment.total_amount), 0)).filter(
                 Payment.customer_id == self.id,
                 Payment.direction == 'OUT',
                 Payment.status == 'COMPLETED'
             ).scalar() or 0)
+            
+            payments_out_sales = float(session.query(func.coalesce(func.sum(Payment.total_amount), 0)).join(
+                Sale, Payment.sale_id == Sale.id
+            ).filter(
+                Sale.customer_id == self.id,
+                Payment.direction == 'OUT',
+                Payment.status == 'COMPLETED'
+            ).scalar() or 0)
+            
+            payments_out = payments_out_direct + payments_out_sales
             
             # 🎯 الرصيد النهائي = رصيد افتتاحي + مبيعات + خدمات + حجوزات - دفعات واردة + دفعات صادرة
             # سالب (-11200) = عليه لنا (مدين)
