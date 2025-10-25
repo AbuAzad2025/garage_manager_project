@@ -26,7 +26,7 @@
         <td class="hide-mobile">{{ customer.email or '-' }}</td>
         <td class="hide-mobile">{{ customer.category or '-' }}</td>
         <td class="fw-bold {% if customer.balance > 0 %}text-danger{% else %}text-success{% endif %}">
-          {{ customer.balance|format_currency }} ₪
+          {{ customer.balance|format_currency }}
         </td>
         <td class="hide-mobile">
           {% if customer.is_archived %}

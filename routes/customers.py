@@ -577,6 +577,11 @@ def export_customer_vcf(customer_id):
 # @permission_required("manage_customers")  # Commented out - function not available
 def account_statement(customer_id):
     c = db.session.get(Customer, customer_id) or abort(404)
+    
+    # ✅ تواريخ الفلترة (افتراضياً: من إنشاء العميل حتى الآن)
+    from datetime import datetime, timedelta
+    start_date = c.created_at or datetime.now() - timedelta(days=365)
+    end_date = datetime.now()
 
     from utils import D, q0
 
@@ -748,8 +753,18 @@ def account_statement(customer_id):
             payment_statement += f" - {notes[:30]}"
         
         # تفاصيل الدفعة الكاملة
+        method_raw = str(getattr(p, 'method', 'cash')).lower()
+        method_arabic = {
+            'cash': 'نقداً',
+            'card': 'بطاقة',
+            'cheque': 'شيك',
+            'bank': 'تحويل بنكي',
+            'online': 'إلكتروني'
+        }.get(method_raw, method_raw)
+        
         payment_details = {
-            'method': str(getattr(p, 'method', 'نقداً')),
+            'method': method_arabic,  # ✅ طريقة الدفع بالعربي
+            'method_raw': method_raw,  # القيمة الأصلية للمقارنة في القالب
             'check_number': getattr(p, 'check_number', None),
             'check_bank': getattr(p, 'check_bank', None),
             'check_due_date': getattr(p, 'check_due_date', None),
@@ -801,6 +816,15 @@ def account_statement(customer_id):
     total_debit = sum(e["debit"] for e in entries)
     total_credit = sum(e["credit"] for e in entries)
     balance = total_debit - total_credit
+    
+    # ✅ استخدام customer.balance من الموديل للتأكد من التطابق
+    actual_balance = float(c.balance or 0)
+    
+    # 🔍 طباعة للفحص
+    print(f"🔍 العميل {c.name}:")
+    print(f"   - كشف الحساب: {balance}")
+    print(f"   - customer.balance: {actual_balance}")
+    print(f"   - الفرق: {abs(float(balance) - actual_balance)}")
 
     return render_template(
         "customers/account_statement.html",
@@ -814,7 +838,10 @@ def account_statement(customer_id):
         total_payments=sum(D(p.total_amount or 0) for p in all_payments),
         total_debit=total_debit,
         total_credit=total_credit,
-        balance=balance,
+        balance=actual_balance,  # ✅ استخدام الرصيد من الموديل
+        statement_balance=balance,  # الرصيد من الكشف للمقارنة
+        start_date=start_date,
+        end_date=end_date,
     )
 
 @customers_bp.route("/advanced_filter", methods=["GET"], endpoint="advanced_filter")

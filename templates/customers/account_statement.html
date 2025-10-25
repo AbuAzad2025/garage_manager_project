@@ -312,13 +312,13 @@
             <h6 class="mb-1 text-white-50">الرصيد الحالي</h6>
             <h2 class="mb-0 fw-bold">
               {% if balance > 0 %}
-                <span class="text-warning">{{ balance|format_currency }} ₪</span>
+                <span class="text-warning">{{ balance|format_currency }}</span>
                 <br><small style="font-size: 0.6em;">عليه لنا</small>
               {% elif balance < 0 %}
-                <span class="text-info">{{ balance|abs|format_currency }} ₪</span>
+                <span class="text-info">{{ balance|abs|format_currency }}</span>
                 <br><small style="font-size: 0.6em;">له علينا</small>
               {% else %}
-                <span class="text-white">{{ balance|format_currency }} ₪</span>
+                <span class="text-white">{{ balance|format_currency }}</span>
                 <br><small style="font-size: 0.6em;">متوازن</small>
               {% endif %}
             </h2>
@@ -360,13 +360,13 @@
             <h6 class="mb-1 text-white-50">الرصيد الحالي</h6>
             <h2 class="mb-0 fw-bold">
               {% if balance > 0 %}
-                <span class="text-warning">{{ balance|format_currency }} ₪</span>
+                <span class="text-warning">{{ balance|format_currency }}</span>
                 <br><small style="font-size: 0.6em;">عليه لنا</small>
               {% elif balance < 0 %}
-                <span class="text-info">{{ balance|abs|format_currency }} ₪</span>
+                <span class="text-info">{{ balance|abs|format_currency }}</span>
                 <br><small style="font-size: 0.6em;">له علينا</small>
               {% else %}
-                <span class="text-white">{{ balance|format_currency }} ₪</span>
+                <span class="text-white">{{ balance|format_currency }}</span>
                 <br><small style="font-size: 0.6em;">متوازن</small>
               {% endif %}
             </h2>
@@ -501,11 +501,11 @@
                   {% set pd = e.payment_details %}
                   <div class="mt-2" style="border-right: 3px solid #007bff; padding-right: 10px; margin-right: 5px;">
                     {# طريقة الدفع بالعربي #}
-                    {% if pd.method == 'cash' %}
+                    {% if pd.method_raw == 'cash' or pd.method == 'نقداً' %}
                       <div class="mb-1">
                         <span class="badge bg-success"><i class="fas fa-money-bill-wave"></i> نقداً</span>
                       </div>
-                    {% elif pd.method == 'card' %}
+                    {% elif pd.method_raw == 'card' or pd.method == 'بطاقة' %}
                       <div class="mb-1">
                         <span class="badge bg-info"><i class="fas fa-credit-card"></i> بطاقة ائتمان</span>
                       </div>
@@ -515,7 +515,7 @@
                         {% if pd.card_last4 %}<br><i class="fas fa-credit-card"></i> رقم البطاقة: **** {{ pd.card_last4 }}{% endif %}
                       </small>
                       {% endif %}
-                    {% elif pd.method == 'cheque' %}
+                    {% elif pd.method_raw == 'cheque' or pd.method == 'شيك' %}
                       <div class="mb-1">
                         <span class="badge bg-warning text-dark"><i class="fas fa-money-check"></i> شيك بنكي</span>
                       </div>
@@ -524,19 +524,19 @@
                         {% if pd.check_number %}رقم الشيك: {{ pd.check_number }}<br>{% endif %}
                         {% if pd.check_due_date %}<span class="text-danger"><i class="fas fa-calendar-alt"></i> <strong>تاريخ الاستحقاق:</strong> {{ pd.check_due_date|format_date }}</span>{% endif %}
                       </small>
-                    {% elif pd.method == 'bank' %}
+                    {% elif pd.method_raw == 'bank' or pd.method == 'تحويل بنكي' %}
                       <div class="mb-1">
                         <span class="badge bg-primary"><i class="fas fa-university"></i> تحويل بنكي</span>
                       </div>
                       {% if pd.bank_transfer_ref %}
                       <small class="text-muted d-block"><i class="fas fa-hashtag"></i> رقم المرجع: {{ pd.bank_transfer_ref }}</small>
                       {% endif %}
-                    {% elif pd.method == 'online' %}
+                    {% elif pd.method_raw == 'online' or pd.method == 'إلكتروني' %}
                       <div class="mb-1">
                         <span class="badge bg-info"><i class="fas fa-globe"></i> دفع إلكتروني</span>
                       </div>
                     {% else %}
-                      <span class="badge bg-secondary">{{ pd.method }}</span>
+                      <span class="badge bg-secondary">{{ pd.method }}</span>  {# ✅ عرض القيمة العربية #}
                     {% endif %}
                     
                     {# المستلم #}
