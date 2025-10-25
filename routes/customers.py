@@ -892,16 +892,7 @@ def account_statement(customer_id):
 
     total_debit = sum(e["debit"] for e in entries)
     total_credit = sum(e["credit"] for e in entries)
-    balance = total_debit - total_credit
-    
-    # ✅ استخدام customer.balance من الموديل للتأكد من التطابق
-    actual_balance = float(c.balance or 0)
-    
-    # 🔍 طباعة للفحص
-    print(f"🔍 العميل {c.name}:")
-    print(f"   - كشف الحساب: {balance}")
-    print(f"   - customer.balance: {actual_balance}")
-    print(f"   - الفرق: {abs(float(balance) - actual_balance)}")
+    balance = total_debit - total_credit  # ✅ الرصيد من كشف الحساب هو الصحيح
 
     return render_template(
         "customers/account_statement.html",
@@ -915,8 +906,7 @@ def account_statement(customer_id):
         total_payments=sum(D(p.total_amount or 0) for p in all_payments),
         total_debit=total_debit,
         total_credit=total_credit,
-        balance=actual_balance,  # ✅ استخدام الرصيد من الموديل
-        statement_balance=balance,  # الرصيد من الكشف للمقارنة
+        balance=balance,  # ✅ الرصيد من كشف الحساب
         start_date=start_date,
         end_date=end_date,
     )
