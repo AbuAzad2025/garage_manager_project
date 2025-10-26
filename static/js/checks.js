@@ -50,6 +50,7 @@
                         overdue: [],
                         cashed: [],
                         returned: [],
+                        bounced: [],  // ✅ إضافة bounced منفصل
                         cancelled: [],
                         archived: []
                     };
@@ -79,20 +80,28 @@
                         }
                         
                         // 🚨 التصنيف مع أولوية للمتأخر
+                        // الأولوية: متأخر > حالة أخرى
                         if (isOverdue && (actualStatus === 'PENDING' || actualStatus === 'DUE_SOON' || actualStatus === 'RESUBMITTED')) {
+                            // ✅ شيك معلق لكن تاريخه فات = متأخر
                             categorized.overdue.push(check);
+                            console.log('🚨 شيك متأخر:', check.check_number, 'أيام:', daysUntilDue);
                         } else if (actualStatus === 'OVERDUE') {
                             categorized.overdue.push(check);
-                        } else if (actualStatus === 'PENDING' || actualStatus === 'DUE_SOON' || actualStatus === 'RESUBMITTED') {
-                            categorized.pending.push(check);
                         } else if (actualStatus === 'CASHED') {
                             categorized.cashed.push(check);
-                        } else if (actualStatus === 'RETURNED' || actualStatus === 'BOUNCED') {
+                        } else if (actualStatus === 'RETURNED') {
                             categorized.returned.push(check);
+                        } else if (actualStatus === 'BOUNCED') {
+                            categorized.bounced.push(check);
                         } else if (actualStatus === 'CANCELLED') {
                             categorized.cancelled.push(check);
                         } else if (actualStatus === 'ARCHIVED') {
                             categorized.archived.push(check);
+                        } else if (actualStatus === 'PENDING' || actualStatus === 'DUE_SOON' || actualStatus === 'RESUBMITTED') {
+                            categorized.pending.push(check);
+                        } else {
+                            // default: معلق
+                            categorized.pending.push(check);
                         }
                     });
                     
@@ -101,6 +110,7 @@
                         overdue: categorized.overdue.length,
                         cashed: categorized.cashed.length,
                         returned: categorized.returned.length,
+                        bounced: categorized.bounced.length,
                         cancelled: categorized.cancelled.length,
                         archived: categorized.archived.length
                     });
@@ -301,8 +311,10 @@
         $('#stat-cashed-count').text(categorized.cashed.length);
         $('#stat-cashed-amount').text(formatCurrency(calcTotal(categorized.cashed)) + ' ₪');
         
-        $('#stat-returned-count').text(categorized.returned.length + categorized.bounced.length);
-        $('#stat-returned-amount').text(formatCurrency(calcTotal(categorized.returned) + calcTotal(categorized.bounced)) + ' ₪');
+        const returnedTotal = (categorized.returned ? categorized.returned.length : 0) + (categorized.bounced ? categorized.bounced.length : 0);
+        const returnedAmount = calcTotal(categorized.returned || []) + calcTotal(categorized.bounced || []);
+        $('#stat-returned-count').text(returnedTotal);
+        $('#stat-returned-amount').text(formatCurrency(returnedAmount) + ' ₪');
         
         $('#stat-overdue-count').text(categorized.overdue.length);
         $('#stat-overdue-amount').text(formatCurrency(calcTotal(categorized.overdue)) + ' ₪');
