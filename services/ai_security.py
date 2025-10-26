@@ -8,7 +8,6 @@ from typing import Dict, Any, List
 import re
 from datetime import datetime, timezone
 
-
 # المعلومات السرية التي يجب حمايتها
 SENSITIVE_KEYWORDS = {
     'passwords': ['password', 'passwd', 'pwd', 'كلمة مرور', 'كلمة السر', 'رمز سري'],
@@ -43,7 +42,6 @@ MANAGER_ALLOWED_TOPICS = [
     'workflows',
 ]
 
-
 def is_owner() -> bool:
     """التحقق من أن المستخدم هو المالك"""
     try:
@@ -68,7 +66,6 @@ def is_owner() -> bool:
     except Exception:
         return False
 
-
 def is_super_admin() -> bool:
     """التحقق من أن المستخدم super admin"""
     try:
@@ -85,7 +82,6 @@ def is_super_admin() -> bool:
         return False
     except Exception:
         return False
-
 
 def is_manager() -> bool:
     """التحقق من أن المستخدم مدير"""
@@ -104,7 +100,6 @@ def is_manager() -> bool:
     except Exception:
         return False
 
-
 def get_user_role_name() -> str:
     """الحصول على اسم دور المستخدم"""
     try:
@@ -115,7 +110,6 @@ def get_user_role_name() -> str:
         return "User"
     except Exception:
         return "Guest"
-
 
 def is_sensitive_query(message: str) -> Dict[str, Any]:
     """فحص إذا كان السؤال يطلب معلومات حساسة"""
@@ -147,7 +141,6 @@ def is_sensitive_query(message: str) -> Dict[str, Any]:
         'requires_manager': is_sensitive and not is_owner_only
     }
 
-
 def filter_sensitive_data(data: Dict[str, Any], user_role: str) -> Dict[str, Any]:
     """تصفية البيانات الحساسة حسب دور المستخدم"""
     if is_owner():
@@ -170,7 +163,6 @@ def filter_sensitive_data(data: Dict[str, Any], user_role: str) -> Dict[str, Any
             filtered[key] = value
     
     return filtered
-
 
 def get_security_response(message: str, sensitivity: Dict[str, Any]) -> str:
     """رد أمني عند طلب معلومات حساسة"""
@@ -198,7 +190,6 @@ def get_security_response(message: str, sensitivity: Dict[str, Any]) -> str:
     
     return ""
 
-
 def log_security_event(message: str, sensitivity: Dict[str, Any], response_type: str):
     """تسجيل حدث أمني"""
     try:
@@ -217,8 +208,7 @@ def log_security_event(message: str, sensitivity: Dict[str, Any], response_type:
         print(f"🔒 Security Event: {log_data}")
         
     except Exception as e:
-        print(f"⚠️ خطأ في تسجيل الحدث الأمني: {e}")
-
+        pass  # خطأ محتمل
 
 def sanitize_response(response: str) -> str:
     """تنظيف الرد من أي معلومات حساسة قد تكون تسربت"""

@@ -6,10 +6,8 @@ from datetime import datetime
 from pathlib import Path
 from flask import current_app
 
-
 SYSTEM_MAP_FILE = 'instance/ai/ai_system_map.json'
 DISCOVERY_LOG_FILE = 'instance/ai/ai_discovery_log.json'
-
 
 def discover_all_routes():
     routes = []
@@ -30,10 +28,9 @@ def discover_all_routes():
             routes.append(route_info)
     
     except Exception as e:
-        print(f"خطأ في اكتشاف Routes: {str(e)}")
+        pass  # خطأ محتمل
     
     return routes
-
 
 def discover_all_templates():
     """فحص جميع القوالب في مجلد templates/"""
@@ -58,10 +55,9 @@ def discover_all_templates():
             templates.append(template_info)
     
     except Exception as e:
-        print(f"خطأ في فحص Templates: {str(e)}")
+        pass  # خطأ محتمل
     
     return templates
-
 
 def link_routes_to_templates(routes, templates):
     """ربط Routes بالـ Templates"""
@@ -102,7 +98,6 @@ def link_routes_to_templates(routes, templates):
     
     return linked
 
-
 def categorize_routes(routes):
     """تصنيف Routes حسب النوع"""
     categories = {
@@ -132,24 +127,20 @@ def categorize_routes(routes):
     
     return categories
 
-
 def build_system_map():
     """بناء خريطة النظام الكاملة"""
     print("\n🔍 بدء اكتشاف النظام...")
     
     # 1. اكتشاف Routes
     routes = discover_all_routes()
-    print(f"✅ تم اكتشاف {len(routes)} مسار")
-    
+
     # 2. اكتشاف Templates
     templates = discover_all_templates()
-    print(f"✅ تم اكتشاف {len(templates)} قالب")
-    
+
     # 3. ربط Routes بـ Templates
     linked_routes = link_routes_to_templates(routes, templates)
     linked_count = sum(1 for r in linked_routes if r['has_template'])
-    print(f"✅ تم ربط {linked_count} مسار بقوالبها")
-    
+
     # 4. تصنيف Routes
     categories = categorize_routes(linked_routes)
     
@@ -181,15 +172,13 @@ def build_system_map():
     
     # 7. تسجيل الحدث
     log_discovery_event('auto_build', len(routes), len(templates))
-    
-    print(f"\n✅ اكتمل بناء خريطة النظام!")
+
     print(f"📊 الإحصائيات:")
     print(f"   • المسارات: {len(routes)}")
     print(f"   • القوالب: {len(templates)}")
     print(f"   • الروابط: {linked_count}")
     
     return system_map
-
 
 def group_templates_by_module(templates):
     """تجميع Templates حسب الوحدة"""
@@ -203,7 +192,6 @@ def group_templates_by_module(templates):
     
     return grouped
 
-
 def extract_blueprints(routes):
     """استخراج قائمة البلوپرنتات"""
     blueprints = set()
@@ -213,7 +201,6 @@ def extract_blueprints(routes):
             blueprints.add(route['blueprint'])
     
     return sorted(list(blueprints))
-
 
 def extract_modules(templates):
     """استخراج قائمة الوحدات من Templates"""
@@ -225,7 +212,6 @@ def extract_modules(templates):
     
     return sorted(list(modules))
 
-
 def save_system_map(system_map):
     """حفظ خريطة النظام"""
     try:
@@ -233,12 +219,9 @@ def save_system_map(system_map):
         
         with open(SYSTEM_MAP_FILE, 'w', encoding='utf-8') as f:
             json.dump(system_map, f, ensure_ascii=False, indent=2)
-        
-        print(f"✅ تم حفظ الخريطة في {SYSTEM_MAP_FILE}")
-    
-    except Exception as e:
-        print(f"⚠️ خطأ في حفظ الخريطة: {str(e)}")
 
+    except Exception as e:
+        pass  # خطأ محتمل
 
 def load_system_map():
     """تحميل خريطة النظام"""
@@ -247,13 +230,12 @@ def load_system_map():
             with open(SYSTEM_MAP_FILE, 'r', encoding='utf-8') as f:
                 return json.load(f)
         else:
-            print("⚠️ خريطة النظام غير موجودة - سيتم إنشاؤها تلقائياً")
+
             return None
     
     except Exception as e:
-        print(f"⚠️ خطأ في تحميل الخريطة: {str(e)}")
+        pass  # خطأ محتمل
         return None
-
 
 def log_discovery_event(event_type, routes_count, templates_count):
     """تسجيل حدث الاستكشاف"""
@@ -279,8 +261,7 @@ def log_discovery_event(event_type, routes_count, templates_count):
             json.dump(logs, f, ensure_ascii=False, indent=2)
     
     except Exception as e:
-        print(f"⚠️ خطأ في تسجيل الحدث: {str(e)}")
-
+        pass  # خطأ محتمل
 
 def find_route_by_keyword(keyword, system_map=None):
     """البحث الذكي عن مسار حسب كلمة مفتاحية - محسّن"""
@@ -346,7 +327,6 @@ def find_route_by_keyword(keyword, system_map=None):
     
     return {'matches': matches[:10], 'keyword': keyword, 'total': len(matches)}
 
-
 def find_template_by_keyword(keyword, system_map=None):
     """البحث عن قالب حسب كلمة مفتاحية"""
     if not system_map:
@@ -363,7 +343,6 @@ def find_template_by_keyword(keyword, system_map=None):
             matches.append(template)
     
     return matches
-
 
 def get_route_suggestions(user_query):
     """اقتراح مسارات بناءً على سؤال المستخدم"""
@@ -413,7 +392,6 @@ def get_route_suggestions(user_query):
     
     return None
 
-
 def auto_discover_if_needed():
     """إعادة الاستكشاف إذا لزم الأمر"""
     if not os.path.exists(SYSTEM_MAP_FILE):
@@ -434,8 +412,5 @@ def auto_discover_if_needed():
     
     return load_system_map()
 
-
 if __name__ == '__main__':
     print("🧪 اختبار نظام الاستكشاف الذاتي...")
-    print("⚠️ يجب تشغيل هذا الملف من داخل Flask context")
-

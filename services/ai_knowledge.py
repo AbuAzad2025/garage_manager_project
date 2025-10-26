@@ -6,10 +6,8 @@ import json
 from pathlib import Path
 from datetime import datetime
 
-
 KNOWLEDGE_CACHE_FILE = 'instance/ai/ai_knowledge_cache.json'
 TRAINING_LOG_FILE = 'instance/ai/ai_training_log.json'
-
 
 class SystemKnowledgeBase:
     
@@ -39,10 +37,9 @@ class SystemKnowledgeBase:
                 with open(KNOWLEDGE_CACHE_FILE, 'r', encoding='utf-8') as f:
                     cached = json.load(f)
                     self.knowledge.update(cached)
-                    print(f"✅ تم تحميل المعرفة من الذاكرة (آخر فهرسة: {self.knowledge.get('last_indexed', 'N/A')})")
+
         except Exception as e:
-            print(f"⚠️ تعذر تحميل الذاكرة: {str(e)}")
-    
+
     def save_to_cache(self):
         """حفظ المعرفة في الذاكرة المستمرة"""
         try:
@@ -52,15 +49,13 @@ class SystemKnowledgeBase:
             
             with open(KNOWLEDGE_CACHE_FILE, 'w', encoding='utf-8') as f:
                 json.dump(self.knowledge, f, ensure_ascii=False, indent=2)
-            
-            print(f"✅ تم حفظ المعرفة في الذاكرة (فهرسة #{self.knowledge['index_count']})")
+
         except Exception as e:
-            print(f"⚠️ تعذر حفظ الذاكرة: {str(e)}")
-    
+
     def index_all_files(self, force_reindex=False):
         """فهرسة كل ملفات النظام مع حفظ مستمر - شاملة 100%"""
         if not force_reindex and self.knowledge.get('last_indexed'):
-            print(f"ℹ️  المعرفة محملة من الذاكرة (آخر فهرسة: {self.knowledge.get('last_indexed')})")
+
             print(f"   استخدم force_reindex=True لإعادة الفهرسة")
             return self.knowledge
         
@@ -90,9 +85,7 @@ class SystemKnowledgeBase:
             len(self.knowledge['javascript']) +
             len(self.knowledge['css'])
         )
-        
-        print(f"✅ فهرسة كاملة: {total_items} عنصر")
-        
+
         # حساب جودة التعلم (Learning Quality Index)
         self.calculate_learning_quality()
         
@@ -158,7 +151,7 @@ class SystemKnowledgeBase:
             print(f"   📈 Learning Quality: {learning_quality:.1f}%")
         
         except Exception as e:
-            print(f"⚠️  خطأ في حساب جودة التعلم: {str(e)}")
+            pass  # خطأ محتمل
     
     def extract_currency_rules(self):
         """استخراج قواعد العملات وسعر الصرف"""
@@ -256,7 +249,7 @@ class SystemKnowledgeBase:
             print(f"   📊 Models: {db_models_count} DB + {enums_count} Enums = {len(self.knowledge['models'])} Total")
             
         except Exception as e:
-            print(f"⚠️  خطأ في فهرسة Models: {str(e)}")
+            pass  # خطأ محتمل
     
     def index_routes(self):
         """فهرسة Routes - فهم المسارات"""
@@ -285,7 +278,7 @@ class SystemKnowledgeBase:
             print(f"   🔗 Routes: {len(self.knowledge['routes'])} ملف")
             
         except Exception as e:
-            print(f"⚠️  خطأ في فهرسة Routes: {str(e)}")
+            pass  # خطأ محتمل
     
     def index_forms(self):
         """فهرسة Forms من forms.py"""
@@ -316,7 +309,7 @@ class SystemKnowledgeBase:
             print(f"   📝 Forms: {len(self.knowledge['forms'])}")
         
         except Exception as e:
-            print(f"⚠️  خطأ في فهرسة Forms: {str(e)}")
+            pass  # خطأ محتمل
     
     def index_all_functions(self):
         """فهرسة جميع الدوال في كل ملفات Python"""
@@ -365,11 +358,9 @@ class SystemKnowledgeBase:
                     
                     self.knowledge['functions'][main_file] = functions[:100]
                     function_count += len(functions)
-            
-            print(f"   ⚙️  Functions: {function_count} دالة")
-        
+
         except Exception as e:
-            print(f"⚠️  خطأ في فهرسة Functions: {str(e)}")
+            pass  # خطأ محتمل
     
     def index_javascript(self):
         """فهرسة ملفات JavaScript"""
@@ -398,7 +389,7 @@ class SystemKnowledgeBase:
             print(f"   📜 JavaScript: {len(self.knowledge['javascript'])} ملف")
         
         except Exception as e:
-            print(f"⚠️  خطأ في فهرسة JavaScript: {str(e)}")
+            pass  # خطأ محتمل
     
     def index_css(self):
         """فهرسة ملفات CSS"""
@@ -425,7 +416,7 @@ class SystemKnowledgeBase:
             print(f"   🎨 CSS: {len(self.knowledge['css'])} ملف")
         
         except Exception as e:
-            print(f"⚠️  خطأ في فهرسة CSS: {str(e)}")
+            pass  # خطأ محتمل
     
     def index_static_files(self):
         """فهرسة الملفات الثابتة (صور، خطوط، إلخ)"""
@@ -481,7 +472,7 @@ class SystemKnowledgeBase:
             print(f"   📁 Static: {total_static} ملف")
         
         except Exception as e:
-            print(f"⚠️  خطأ في فهرسة Static: {str(e)}")
+            pass  # خطأ محتمل
     
     def index_templates(self):
         """فهرسة Templates - فهم الواجهات"""
@@ -502,7 +493,7 @@ class SystemKnowledgeBase:
             print(f"   📄 Templates: {template_count} ملف")
             
         except Exception as e:
-            print(f"⚠️  خطأ في فهرسة Templates: {str(e)}")
+            pass  # خطأ محتمل
     
     def analyze_relationships(self):
         """تحليل العلاقات بين الجداول"""
@@ -606,7 +597,6 @@ class SystemKnowledgeBase:
 """
         return explanation
 
-
 class ErrorAnalyzer:
     """محلل الأخطاء - فهم وتفسير الأخطاء"""
     
@@ -682,10 +672,8 @@ class ErrorAnalyzer:
 {analysis['solution']}
 """
 
-
 _knowledge_base = None
 _error_analyzer = ErrorAnalyzer()
-
 
 def get_knowledge_base():
     """الحصول على قاعدة المعرفة (Singleton)"""
@@ -694,7 +682,6 @@ def get_knowledge_base():
         _knowledge_base = SystemKnowledgeBase()
         _knowledge_base.index_all_files()
     return _knowledge_base
-
 
 def get_local_faq_responses():
     """قاعدة الأسئلة الشائعة - ردود فورية محلية"""
@@ -784,7 +771,6 @@ def get_local_faq_responses():
 • تقييم المنتجات""",
     }
 
-
 def get_local_quick_rules():
     """قواعد الرد السريع المحلي - بدون Groq"""
     return {
@@ -815,11 +801,9 @@ def get_local_quick_rules():
         },
     }
 
-
 def analyze_error(traceback_text):
     """تحليل خطأ"""
     return _error_analyzer.analyze_traceback(traceback_text)
-
 
 def format_error_response(analysis):
     """تنسيق رد الخطأ"""

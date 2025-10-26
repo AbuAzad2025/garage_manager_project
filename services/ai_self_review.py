@@ -5,11 +5,9 @@ import os
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-
 INTERACTIONS_LOG = 'instance/ai/ai_interactions.json'
 SELF_AUDIT_LOG = 'instance/ai/ai_self_audit.json'
 TRAINING_POLICY = 'instance/ai/ai_training_policy.json'
-
 
 def log_interaction(question, answer, confidence, search_results):
     try:
@@ -35,8 +33,6 @@ def log_interaction(question, answer, confidence, search_results):
             json.dump(interactions, f, ensure_ascii=False, indent=2)
         
     except Exception as e:
-        print(f"⚠️ فشل تسجيل التفاعل: {str(e)}")
-
 
 def analyze_recent_interactions(count=100):
     try:
@@ -85,7 +81,6 @@ def analyze_recent_interactions(count=100):
     except Exception as e:
         return {'error': str(e)}
 
-
 def generate_self_audit_report():
     """توليد تقرير المراجعة الذاتية"""
     try:
@@ -122,7 +117,6 @@ def generate_self_audit_report():
     except Exception as e:
         return {'error': str(e)}
 
-
 def load_training_policy():
     """تحميل سياسة التدريب"""
     try:
@@ -132,7 +126,6 @@ def load_training_policy():
         return {}
     except:
         return {}
-
 
 def check_policy_compliance(confidence, has_data):
     """التحقق من الالتزام بالسياسة - محسّن للإجابات الجزئية"""
@@ -160,7 +153,6 @@ def check_policy_compliance(confidence, has_data):
         compliance['violations'].append('لا توجد بيانات كافية للإجابة')
     
     return compliance
-
 
 def get_system_status():
     """الحصول على حالة النظام الشاملة"""

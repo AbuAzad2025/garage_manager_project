@@ -36,13 +36,11 @@ from services.ai_auto_training import (
     init_auto_training
 )
 
-
 _conversation_memory = {}
 _last_audit_time = None
 _groq_failures = []
 _local_fallback_mode = True  # محلي بشكل افتراضي
 _system_state = "LOCAL_ONLY"  # LOCAL_ONLY (افتراضي), HYBRID, API_ONLY
-
 
 def get_system_setting(key, default=''):
     """الحصول على إعداد من قاعدة البيانات"""
@@ -50,9 +48,8 @@ def get_system_setting(key, default=''):
         setting = SystemSettings.query.filter_by(key=key).first()
         return setting.value if setting else default
     except Exception as e:
-        print(f"خطأ في قراءة الإعداد {key}: {str(e)}")
+        pass  # خطأ محتمل
         return default
-
 
 def gather_system_context():
     """جمع بيانات النظام الشاملة - أرقام حقيقية 100%"""
@@ -176,7 +173,7 @@ CPU: {cpu_usage}% | RAM: {memory.percent}%
         return context
         
     except Exception as e:
-        print(f"خطأ في gather_system_context: {str(e)}")
+        pass  # خطأ محتمل
         import traceback
         traceback.print_exc()
         return {
@@ -188,7 +185,6 @@ CPU: {cpu_usage}% | RAM: {memory.percent}%
             'roles': [],
             'current_stats': 'خطأ في جمع الإحصائيات'
         }
-
 
 def get_system_navigation_context():
     """الحصول على سياق التنقل من خريطة النظام"""
@@ -206,7 +202,6 @@ def get_system_navigation_context():
         pass
     return {}
 
-
 def get_data_awareness_context():
     """الحصول على سياق الوعي البنيوي"""
     try:
@@ -222,7 +217,6 @@ def get_data_awareness_context():
     except:
         pass
     return {}
-
 
 def analyze_question_intent(question):
     """تحليل نية السؤال - محسّن مع الأوامر التنفيذية والمحاسبة"""
@@ -308,7 +302,6 @@ def analyze_question_intent(question):
     
     return intent
 
-
 def get_or_create_session_memory(session_id):
     """الحصول على أو إنشاء ذاكرة المحادثة - محسّنة"""
     if session_id not in _conversation_memory:
@@ -325,7 +318,6 @@ def get_or_create_session_memory(session_id):
     
     _conversation_memory[session_id]['last_updated'] = datetime.now(timezone.utc)
     return _conversation_memory[session_id]
-
 
 def add_to_memory(session_id, role, content, context=None):
     """إضافة رسالة للذاكرة - محسّنة مع context"""
@@ -361,7 +353,6 @@ def add_to_memory(session_id, role, content, context=None):
     if len(memory['messages']) > 50:
         memory['messages'] = memory['messages'][-50:]
 
-
 def get_conversation_context(session_id):
     """الحصول على سياق المحادثة الكامل"""
     memory = get_or_create_session_memory(session_id)
@@ -377,7 +368,6 @@ def get_conversation_context(session_id):
         'last_intent': memory.get('last_intent'),
         'recent_topics': memory.get('topics', [])[-5:],
     }
-
 
 def deep_data_analysis(query, context):
     """🔬 تحليل عميق للبيانات - يستنتج ويحلل بذكاء
@@ -535,7 +525,6 @@ def deep_data_analysis(query, context):
     
     return analysis_result
 
-
 def analyze_accounting_data(currency=None):
     """تحليل محاسبي شامل - فهم الأرباح والخسائر والعملات"""
     try:
@@ -582,7 +571,6 @@ def analyze_accounting_data(currency=None):
         
     except Exception as e:
         return {'error': str(e)}
-
 
 def generate_smart_report(intent):
     """توليد تقرير ذكي حسب نية المستخدم - محسّن للمحاسبة"""
@@ -660,7 +648,6 @@ def generate_smart_report(intent):
         
     except Exception as e:
         return {'error': str(e)}
-
 
 def build_system_message(system_context):
     """بناء رسالة النظام الأساسية للـ AI - محسّنة بالمعرفة وتعريف الذات"""
@@ -1064,7 +1051,6 @@ def build_system_message(system_context):
 ═══════════════════════════════════════
 """
 
-
 def search_database_for_query(query):
     """البحث الشامل الذكي في كل قاعدة البيانات - محسّن بالـ Intent Analysis"""
     results = {}
@@ -1442,7 +1428,6 @@ def search_database_for_query(query):
     
     return results
 
-
 def check_groq_health():
     """فحص صحة اتصال Groq وتفعيل Local Fallback إذا لزم الأمر"""
     global _groq_failures, _local_fallback_mode, _system_state
@@ -1465,7 +1450,6 @@ def check_groq_health():
         _system_state = "API_ONLY"
     
     return True
-
 
 def get_system_identity():
     """الحصول على هوية المساعد ووضع التشغيل"""
@@ -1495,7 +1479,6 @@ def get_system_identity():
             'قاعدة البيانات المحلية (SQLAlchemy)'
         ]
     }
-
 
 def get_local_fallback_response(message, search_results):
     """الرد باستخدام المعرفة المحلية فقط - محسّن للذكاء المحلي"""
@@ -1602,7 +1585,6 @@ def get_local_fallback_response(message, search_results):
     except Exception as e:
         return f"⚠️ خطأ في الوضع المحلي: {str(e)}"
 
-
 def log_local_mode_usage():
     """تسجيل استخدام الوضع المحلي"""
     try:
@@ -1633,7 +1615,6 @@ def log_local_mode_usage():
     
     except:
         pass
-
 
 def ai_chat_response(message, search_results=None, session_id='default'):
     """رد AI محسّن مع نتائج البحث والذاكرة والمعرفة"""
@@ -1731,7 +1712,6 @@ def ai_chat_response(message, search_results=None, session_id='default'):
     except Exception as e:
         return f'⚠️ خطأ في قراءة المفاتيح: {str(e)}'
 
-
 def handle_error_question(error_text):
     """معالجة سؤال عن خطأ - تحليل وحل"""
     try:
@@ -1749,7 +1729,6 @@ def handle_error_question(error_text):
             'analysis': None,
             'formatted_response': f'⚠️ لم أستطع تحليل الخطأ: {str(e)}'
         }
-
 
 def validate_search_results(query, search_results):
     """التحقق من البيانات قبل إرسالها للـ AI - Validation Layer"""
@@ -1791,7 +1770,6 @@ def validate_search_results(query, search_results):
     
     return validation
 
-
 def calculate_confidence_score(search_results, validation):
     """حساب درجة الثقة في الرد"""
     score = validation['confidence']
@@ -1806,7 +1784,6 @@ def calculate_confidence_score(search_results, validation):
         score = min(95, score + 5)
     
     return max(0, min(100, score))
-
 
 def handle_navigation_request(message):
     """معالجة طلبات التنقل"""
@@ -1829,7 +1806,6 @@ def handle_navigation_request(message):
     
     except Exception as e:
         return f"⚠️ خطأ في البحث عن الصفحة: {str(e)}"
-
 
 def enhanced_context_understanding(message):
     """🧠 فهم سياقي متقدم - محرك NLP ذكي (ليس قوائم!)
@@ -1883,7 +1859,7 @@ def enhanced_context_understanding(message):
         
     except Exception as e:
         # fallback للطريقة القديمة في حال فشل NLP
-        print(f"⚠️ NLP fallback: {e}")
+
         pass
     
     # الطريقة القديمة (backup فقط)
@@ -2014,7 +1990,6 @@ def enhanced_context_understanding(message):
         context['subintent'] = 'find_page'
     
     return context
-
 
 def local_intelligent_response(message):
     """رد محلي ذكي كامل - فهم شامل للنظام بدون API + حماية أمنية + دليل المستخدم
@@ -2950,7 +2925,6 @@ AR = إجمالي الفواتير - المدفوعات المحصلة
     suggestions = get_question_suggestions('when_unclear')
     return '\n'.join(suggestions)
 
-
 def ai_chat_with_search(message, session_id='default'):
     """رد AI محسّن مع Validation و Self-Review + ذاكرة محادثة"""
     global _last_audit_time
@@ -3121,7 +3095,6 @@ def ai_chat_with_search(message, session_id='default'):
             pass
     
     return response
-
 
 def explain_system_structure():
     """شرح هيكل النظام الكامل"""

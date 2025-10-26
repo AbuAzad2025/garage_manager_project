@@ -13,7 +13,6 @@
 import re
 from typing import Dict, List, Any, Tuple, Optional
 
-
 # ==================== تحليل البنية النحوية ====================
 
 class ArabicSentenceAnalyzer:
@@ -100,7 +99,6 @@ class ArabicSentenceAnalyzer:
             'is_urgent': any(word in text.lower() for word in self.context_words['urgent']),
         }
 
-
 # ==================== فهم المعنى الدلالي ====================
 
 class SemanticUnderstanding:
@@ -173,7 +171,6 @@ class SemanticUnderstanding:
         }
         
         return understanding
-
 
 # ==================== استنتاج النية المتقدم ====================
 
@@ -256,7 +253,6 @@ class AdvancedIntentDetector:
         
         return intent_result
 
-
 # ==================== معالج السياق الذكي ====================
 
 class ContextualProcessor:
@@ -303,7 +299,6 @@ class ContextualProcessor:
             'mentioned_entities': list(self.mentioned_entities),
             'conversation_length': len(self.conversation_history),
         }
-
 
 # ==================== المحرك الرئيسي ====================
 
@@ -367,7 +362,6 @@ class IntelligentNLPEngine:
 """
         return explanation
 
-
 # ==================== الواجهة البسيطة ====================
 
 # نسخة عامة للاستخدام
@@ -379,7 +373,6 @@ def get_nlp_engine():
     if _global_nlp_engine is None:
         _global_nlp_engine = IntelligentNLPEngine()
     return _global_nlp_engine
-
 
 def understand_text(text: str, explain: bool = False) -> Dict[str, Any]:
     """فهم النص بذكاء
@@ -398,7 +391,6 @@ def understand_text(text: str, explain: bool = False) -> Dict[str, Any]:
         print(engine.explain_understanding(result))
     
     return result
-
 
 # ==================== اختبار ====================
 

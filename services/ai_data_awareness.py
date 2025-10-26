@@ -7,10 +7,8 @@ from pathlib import Path
 from sqlalchemy import inspect
 from sqlalchemy.orm import class_mapper
 
-
 DATA_SCHEMA_FILE = 'instance/ai/ai_data_schema.json'
 LEARNING_LOG_FILE = 'instance/ai/ai_learning_log.json'
-
 
 def discover_all_models():
     try:
@@ -33,9 +31,8 @@ def discover_all_models():
         return models
     
     except Exception as e:
-        print(f"⚠️ خطأ في اكتشاف النماذج: {str(e)}")
+        pass  # خطأ محتمل
         return []
-
 
 def analyze_model_structure(model):
     """تحليل بنية نموذج واحد"""
@@ -80,7 +77,6 @@ def analyze_model_structure(model):
             'class_name': model.__name__ if hasattr(model, '__name__') else 'unknown',
             'error': str(e)
         }
-
 
 def build_functional_mapping():
     """بناء خريطة الوعي الوظيفي"""
@@ -159,7 +155,6 @@ def build_functional_mapping():
         }
     }
 
-
 def build_language_mapping():
     """بناء خريطة الترجمة اللغوية"""
     return {
@@ -176,14 +171,11 @@ def build_language_mapping():
         'شركاء': ['partner', 'partnership'],
     }
 
-
 def build_data_schema():
     """بناء خريطة البيانات الكاملة"""
-    print("\n🧠 بدء بناء الوعي البنيوي...")
-    
+
     models = discover_all_models()
-    print(f"✅ تم اكتشاف {len(models)} نموذج")
-    
+
     schema = {
         'generated_at': datetime.now().isoformat(),
         'models_count': len(models),
@@ -214,15 +206,13 @@ def build_data_schema():
     
     save_data_schema(schema)
     log_learning_event('schema_built', len(models))
-    
-    print(f"\n✅ اكتمل بناء الوعي البنيوي!")
+
     print(f"📊 الإحصائيات:")
     print(f"   • الجداول: {len(schema['models'])}")
     print(f"   • الأعمدة: {total_columns}")
     print(f"   • العلاقات: {total_relationships}")
     
     return schema
-
 
 def save_data_schema(schema):
     """حفظ خريطة البيانات"""
@@ -231,12 +221,9 @@ def save_data_schema(schema):
         
         with open(DATA_SCHEMA_FILE, 'w', encoding='utf-8') as f:
             json.dump(schema, f, ensure_ascii=False, indent=2)
-        
-        print(f"✅ تم حفظ الخريطة في {DATA_SCHEMA_FILE}")
-    
-    except Exception as e:
-        print(f"⚠️ خطأ في حفظ الخريطة: {str(e)}")
 
+    except Exception as e:
+        pass  # خطأ محتمل
 
 def load_data_schema():
     """تحميل خريطة البيانات"""
@@ -245,13 +232,12 @@ def load_data_schema():
             with open(DATA_SCHEMA_FILE, 'r', encoding='utf-8') as f:
                 return json.load(f)
         else:
-            print("⚠️ خريطة البيانات غير موجودة - سيتم إنشاؤها تلقائياً")
+
             return None
     
     except Exception as e:
-        print(f"⚠️ خطأ في تحميل الخريطة: {str(e)}")
+        pass  # خطأ محتمل
         return None
-
 
 def log_learning_event(event_type, details):
     """تسجيل حدث التعلم"""
@@ -274,8 +260,7 @@ def log_learning_event(event_type, details):
             json.dump(logs, f, ensure_ascii=False, indent=2)
     
     except Exception as e:
-        print(f"⚠️ خطأ في تسجيل الحدث: {str(e)}")
-
+        pass  # خطأ محتمل
 
 def find_model_by_keyword(keyword):
     """البحث الذكي عن نموذج حسب كلمة مفتاحية - محسّن"""
@@ -355,7 +340,6 @@ def find_model_by_keyword(keyword):
     
     return {'model': best_match, 'keyword': keyword} if best_match else None
 
-
 def auto_build_if_needed():
     """بناء الخريطة إذا لزم الأمر"""
     if not os.path.exists(DATA_SCHEMA_FILE):
@@ -376,9 +360,6 @@ def auto_build_if_needed():
     
     return load_data_schema()
 
-
 if __name__ == '__main__':
     print("🧪 اختبار نظام الوعي البنيوي...")
     schema = build_data_schema()
-    print(f"\n✅ تم بناء خريطة لـ {len(schema['models'])} نموذج")
-

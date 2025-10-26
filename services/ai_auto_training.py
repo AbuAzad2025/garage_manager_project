@@ -5,9 +5,7 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
-
 AUTO_TRAINING_LOG = 'instance/ai/ai_auto_training.json'
-
 
 def should_auto_train():
     try:
@@ -51,7 +49,6 @@ def should_auto_train():
     except:
         return False
 
-
 def execute_silent_training():
     """تنفيذ التدريب الصامت"""
     try:
@@ -70,15 +67,12 @@ def execute_silent_training():
         
         # تسجيل الحدث
         log_auto_training()
-        
-        print("✅ [Auto Training] اكتمل التدريب الصامت")
-        
+
         return True
     
     except Exception as e:
         print(f"❌ [Auto Training] فشل التدريب: {str(e)}")
         return False
-
 
 def log_auto_training():
     """تسجيل حدث التدريب التلقائي"""
@@ -113,8 +107,6 @@ def log_auto_training():
             json.dump(log_entry, f, ensure_ascii=False, indent=2)
     
     except Exception as e:
-        print(f"⚠️  فشل تسجيل التدريب التلقائي: {str(e)}")
-
 
 def init_auto_training():
     """تهيئة نظام التدريب التلقائي (يُستدعى عند بدء النظام)"""
@@ -124,11 +116,8 @@ def init_auto_training():
     except:
         pass
 
-
 if __name__ == '__main__':
     print("🧪 اختبار نظام التدريب التلقائي...")
     if should_auto_train():
-        print("✅ التدريب مطلوب - سيتم التنفيذ...")
-    else:
-        print("ℹ️  لا حاجة للتدريب حالياً")
 
+    else:
