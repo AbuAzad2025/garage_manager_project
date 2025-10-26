@@ -22,225 +22,150 @@ def upgrade():
     التحسين المتوقع: 70-85%
     """
     
+    # استخدام raw SQL مع IF NOT EXISTS لتجنب أخطاء الفهارس الموجودة
+    conn = op.get_bind()
+    
     # ═══════════════════════════════════════════════════════════════
     # 1. Archiving Indexes (أولوية عالية) - 8 indexes
     # ═══════════════════════════════════════════════════════════════
     
     # Customers
-    op.create_index(
-        'ix_customers_archived',
-        'customers',
-        ['is_archived', 'archived_at'],
-        unique=False
-    )
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_customers_archived ON customers (is_archived, archived_at)"
+    ))
     
     # Suppliers
-    op.create_index(
-        'ix_suppliers_archived',
-        'suppliers',
-        ['is_archived', 'archived_at'],
-        unique=False
-    )
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_suppliers_archived ON suppliers (is_archived, archived_at)"
+    ))
     
     # Partners
-    op.create_index(
-        'ix_partners_archived',
-        'partners',
-        ['is_archived', 'archived_at'],
-        unique=False
-    )
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_partners_archived ON partners (is_archived, archived_at)"
+    ))
     
     # Sales
-    op.create_index(
-        'ix_sales_archived',
-        'sales',
-        ['is_archived', 'archived_at'],
-        unique=False
-    )
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_sales_archived ON sales (is_archived, archived_at)"
+    ))
     
     # Payments
-    op.create_index(
-        'ix_payments_archived',
-        'payments',
-        ['is_archived', 'archived_at'],
-        unique=False
-    )
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_payments_archived ON payments (is_archived, archived_at)"
+    ))
     
     # Service Requests
-    op.create_index(
-        'ix_service_requests_archived',
-        'service_requests',
-        ['is_archived', 'archived_at'],
-        unique=False
-    )
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_service_requests_archived ON service_requests (is_archived, archived_at)"
+    ))
     
     # Shipments
-    op.create_index(
-        'ix_shipments_archived',
-        'shipments',
-        ['is_archived', 'archived_at'],
-        unique=False
-    )
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_shipments_archived ON shipments (is_archived, archived_at)"
+    ))
     
     # Expenses
-    op.create_index(
-        'ix_expenses_archived',
-        'expenses',
-        ['is_archived', 'archived_at'],
-        unique=False
-    )
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_expenses_archived ON expenses (is_archived, archived_at)"
+    ))
     
     # ═══════════════════════════════════════════════════════════════
     # 2. Settlement Indexes (أولوية عالية) - 3 indexes
     # ═══════════════════════════════════════════════════════════════
     
     # Expenses - Partner
-    op.create_index(
-        'ix_expenses_partner_date',
-        'expenses',
-        ['partner_id', 'date'],
-        unique=False
-    )
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_expenses_partner_date ON expenses (partner_id, date)"
+    ))
     
     # Expenses - Shipment
-    op.create_index(
-        'ix_expenses_shipment_date',
-        'expenses',
-        ['shipment_id', 'date'],
-        unique=False
-    )
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_expenses_shipment_date ON expenses (shipment_id, date)"
+    ))
     
     # Service Requests - Customer Status Date
-    op.create_index(
-        'ix_service_customer_status_date',
-        'service_requests',
-        ['customer_id', 'status', 'received_at'],
-        unique=False
-    )
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_service_customer_status_date ON service_requests (customer_id, status, received_at)"
+    ))
     
     # ═══════════════════════════════════════════════════════════════
     # 3. Additional Composite Indexes (أولوية متوسطة) - 15 indexes
     # ═══════════════════════════════════════════════════════════════
     
     # Customer Category Active
-    op.create_index(
-        'ix_customers_category_active',
-        'customers',
-        ['category', 'is_active'],
-        unique=False
-    )
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_customers_category_active ON customers (category, is_active)"
+    ))
     
     # Customer Currency Active
-    op.create_index(
-        'ix_customers_currency_active',
-        'customers',
-        ['currency', 'is_active'],
-        unique=False
-    )
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_customers_currency_active ON customers (currency, is_active)"
+    ))
     
     # Service Mechanic Status Date
-    op.create_index(
-        'ix_service_mechanic_status_date',
-        'service_requests',
-        ['mechanic_id', 'status', 'received_at'],
-        unique=False
-    )
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_service_mechanic_status_date ON service_requests (mechanic_id, status, received_at)"
+    ))
     
     # Service Priority Status
-    op.create_index(
-        'ix_service_priority_status',
-        'service_requests',
-        ['priority', 'status'],
-        unique=False
-    )
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_service_priority_status ON service_requests (priority, status)"
+    ))
     
     # Invoice Customer Status Date
-    op.create_index(
-        'ix_invoices_customer_status_date',
-        'invoices',
-        ['customer_id', 'status', 'invoice_date'],
-        unique=False
-    )
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_invoices_customer_status_date ON invoices (customer_id, status, invoice_date)"
+    ))
     
     # Invoice Due Status
-    op.create_index(
-        'ix_invoices_due_status',
-        'invoices',
-        ['due_date', 'status'],
-        unique=False
-    )
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_invoices_due_status ON invoices (due_date, status)"
+    ))
     
     # Invoice Source Customer
-    op.create_index(
-        'ix_invoices_source_customer',
-        'invoices',
-        ['source', 'customer_id'],
-        unique=False
-    )
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_invoices_source_customer ON invoices (source, customer_id)"
+    ))
     
     # Shipment Dest Status Date
-    op.create_index(
-        'ix_shipments_dest_status_date',
-        'shipments',
-        ['destination_id', 'status', 'shipment_date'],
-        unique=False
-    )
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_shipments_dest_status_date ON shipments (destination_id, status, shipment_date)"
+    ))
     
     # GL Batches Source
-    op.create_index(
-        'ix_gl_batches_source_type_id',
-        'gl_batches',
-        ['source_type', 'source_id'],
-        unique=False
-    )
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_gl_batches_source_type_id ON gl_batches (source_type, source_id)"
+    ))
     
     # GL Batches Entity
-    op.create_index(
-        'ix_gl_batches_entity_type_id',
-        'gl_batches',
-        ['entity_type', 'entity_id'],
-        unique=False
-    )
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_gl_batches_entity_type_id ON gl_batches (entity_type, entity_id)"
+    ))
     
     # GL Batches Status Posted
-    op.create_index(
-        'ix_gl_batches_status_posted',
-        'gl_batches',
-        ['status', 'posted_at'],
-        unique=False
-    )
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_gl_batches_status_posted ON gl_batches (status, posted_at)"
+    ))
     
     # Checks Customer Status Date
-    op.create_index(
-        'ix_checks_customer_status_date',
-        'checks',
-        ['customer_id', 'status', 'check_due_date'],
-        unique=False
-    )
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_checks_customer_status_date ON checks (customer_id, status, check_due_date)"
+    ))
     
     # Checks Due Status
-    op.create_index(
-        'ix_checks_due_status',
-        'checks',
-        ['check_due_date', 'status'],
-        unique=False
-    )
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_checks_due_status ON checks (check_due_date, status)"
+    ))
     
     # Archive Type ID Date
-    op.create_index(
-        'ix_archives_type_id_date',
-        'archives',
-        ['record_type', 'record_id', 'archived_at'],
-        unique=False
-    )
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_archives_type_id_date ON archives (record_type, record_id, archived_at)"
+    ))
     
     # Notes Entity Pinned
-    op.create_index(
-        'ix_notes_entity_type_id_pinned',
-        'notes',
-        ['entity_type', 'entity_id', 'is_pinned'],
-        unique=False
-    )
+    conn.execute(sa.text(
+        "CREATE INDEX IF NOT EXISTS ix_notes_entity_type_id_pinned ON notes (entity_type, entity_id, is_pinned)"
+    ))
 
 
 def downgrade():
@@ -248,41 +173,43 @@ def downgrade():
     إزالة فهارس الأداء - Rollback
     """
     
+    conn = op.get_bind()
+    
     # ═══════════════════════════════════════════════════════════════
     # Archiving Indexes
     # ═══════════════════════════════════════════════════════════════
-    op.drop_index('ix_customers_archived', table_name='customers')
-    op.drop_index('ix_suppliers_archived', table_name='suppliers')
-    op.drop_index('ix_partners_archived', table_name='partners')
-    op.drop_index('ix_sales_archived', table_name='sales')
-    op.drop_index('ix_payments_archived', table_name='payments')
-    op.drop_index('ix_service_requests_archived', table_name='service_requests')
-    op.drop_index('ix_shipments_archived', table_name='shipments')
-    op.drop_index('ix_expenses_archived', table_name='expenses')
+    conn.execute(sa.text("DROP INDEX IF EXISTS ix_customers_archived"))
+    conn.execute(sa.text("DROP INDEX IF EXISTS ix_suppliers_archived"))
+    conn.execute(sa.text("DROP INDEX IF EXISTS ix_partners_archived"))
+    conn.execute(sa.text("DROP INDEX IF EXISTS ix_sales_archived"))
+    conn.execute(sa.text("DROP INDEX IF EXISTS ix_payments_archived"))
+    conn.execute(sa.text("DROP INDEX IF EXISTS ix_service_requests_archived"))
+    conn.execute(sa.text("DROP INDEX IF EXISTS ix_shipments_archived"))
+    conn.execute(sa.text("DROP INDEX IF EXISTS ix_expenses_archived"))
     
     # ═══════════════════════════════════════════════════════════════
     # Settlement Indexes
     # ═══════════════════════════════════════════════════════════════
-    op.drop_index('ix_expenses_partner_date', table_name='expenses')
-    op.drop_index('ix_expenses_shipment_date', table_name='expenses')
-    op.drop_index('ix_service_customer_status_date', table_name='service_requests')
+    conn.execute(sa.text("DROP INDEX IF EXISTS ix_expenses_partner_date"))
+    conn.execute(sa.text("DROP INDEX IF EXISTS ix_expenses_shipment_date"))
+    conn.execute(sa.text("DROP INDEX IF EXISTS ix_service_customer_status_date"))
     
     # ═══════════════════════════════════════════════════════════════
     # Composite Indexes
     # ═══════════════════════════════════════════════════════════════
-    op.drop_index('ix_customers_category_active', table_name='customers')
-    op.drop_index('ix_customers_currency_active', table_name='customers')
-    op.drop_index('ix_service_mechanic_status_date', table_name='service_requests')
-    op.drop_index('ix_service_priority_status', table_name='service_requests')
-    op.drop_index('ix_invoices_customer_status_date', table_name='invoices')
-    op.drop_index('ix_invoices_due_status', table_name='invoices')
-    op.drop_index('ix_invoices_source_customer', table_name='invoices')
-    op.drop_index('ix_shipments_dest_status_date', table_name='shipments')
-    op.drop_index('ix_gl_batches_source_type_id', table_name='gl_batches')
-    op.drop_index('ix_gl_batches_entity_type_id', table_name='gl_batches')
-    op.drop_index('ix_gl_batches_status_posted', table_name='gl_batches')
-    op.drop_index('ix_checks_customer_status_date', table_name='checks')
-    op.drop_index('ix_checks_due_status', table_name='checks')
-    op.drop_index('ix_archives_type_id_date', table_name='archives')
-    op.drop_index('ix_notes_entity_type_id_pinned', table_name='notes')
+    conn.execute(sa.text("DROP INDEX IF EXISTS ix_customers_category_active"))
+    conn.execute(sa.text("DROP INDEX IF EXISTS ix_customers_currency_active"))
+    conn.execute(sa.text("DROP INDEX IF EXISTS ix_service_mechanic_status_date"))
+    conn.execute(sa.text("DROP INDEX IF EXISTS ix_service_priority_status"))
+    conn.execute(sa.text("DROP INDEX IF EXISTS ix_invoices_customer_status_date"))
+    conn.execute(sa.text("DROP INDEX IF EXISTS ix_invoices_due_status"))
+    conn.execute(sa.text("DROP INDEX IF EXISTS ix_invoices_source_customer"))
+    conn.execute(sa.text("DROP INDEX IF EXISTS ix_shipments_dest_status_date"))
+    conn.execute(sa.text("DROP INDEX IF EXISTS ix_gl_batches_source_type_id"))
+    conn.execute(sa.text("DROP INDEX IF EXISTS ix_gl_batches_entity_type_id"))
+    conn.execute(sa.text("DROP INDEX IF EXISTS ix_gl_batches_status_posted"))
+    conn.execute(sa.text("DROP INDEX IF EXISTS ix_checks_customer_status_date"))
+    conn.execute(sa.text("DROP INDEX IF EXISTS ix_checks_due_status"))
+    conn.execute(sa.text("DROP INDEX IF EXISTS ix_archives_type_id_date"))
+    conn.execute(sa.text("DROP INDEX IF EXISTS ix_notes_entity_type_id_pinned"))
 
