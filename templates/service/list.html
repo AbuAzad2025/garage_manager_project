@@ -288,11 +288,11 @@
                   <i class="fas fa-print"></i> إيصال
                 </a>
                 {% if s.is_archived %}
-                <button type="button" class="btn btn-success btn-sm" title="استعادة" onclick="console.log('🔘 [TEMPLATE] تم النقر على زر استعادة طلب الصيانة رقم: {{ s.id }}'); restoreService({{ s.id }})">
+                <button type="button" class="btn btn-success btn-sm" title="استعادة" onclick="restoreService({{ s.id }})">
                   <i class="fas fa-undo"></i> استعادة
                 </button>
                 {% else %}
-                <button type="button" class="btn btn-warning btn-sm" title="أرشفة" onclick="console.log('🔘 [TEMPLATE] تم النقر على زر أرشفة طلب الصيانة رقم: {{ s.id }}'); archiveService({{ s.id }})">
+                <button type="button" class="btn btn-warning btn-sm" title="أرشفة" onclick="archiveService({{ s.id }})">
                   <i class="fas fa-archive"></i> أرشفة
                 </button>
                 {% endif %}
@@ -355,11 +355,5 @@
 
 {% block scripts %}
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <!-- DataTables معطّل لأن لدينا Pagination server-side -->
-  <!-- <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script> -->
   <script src="{{ url_for('static', filename='js/service.js') }}"></script>
-  <script>
-    // وظائف الأرشفة متوفرة الآن في archive.js
-    console.log('📋 تم تحميل صفحة طلبات الصيانة - وظائف الأرشفة متوفرة');
-  </script>
 {% endblock %}

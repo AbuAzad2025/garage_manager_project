@@ -717,27 +717,17 @@ def generate_service_receipt_pdf(service_request):
 @login_required
 # @permission_required('manage_service')  # Commented out - function not available
 def archive_service(service_id):
-    
     try:
-        from models import Archive
-        
         service = ServiceRequest.query.get_or_404(service_id)
-        print(f"✅ [SERVICE ARCHIVE] تم العثور على طلب الصيانة: {service.service_number}")
-        
         reason = request.form.get('reason', 'أرشفة تلقائية')
-        print(f"📝 [SERVICE ARCHIVE] سبب الأرشفة: {reason}")
         
         utils.archive_record(service, reason, current_user.id)
         flash(f'تم أرشفة طلب الصيانة رقم {service_id} بنجاح', 'success')
         return redirect(url_for('service.list_requests'))
         
     except Exception as e:
-        print(f"❌ [SERVICE ARCHIVE] خطأ في أرشفة طلب الصيانة: {str(e)}")
-        print(f"❌ [SERVICE ARCHIVE] نوع الخطأ: {type(e).__name__}")
-        import traceback
-        print(f"❌ [SERVICE ARCHIVE] تفاصيل الخطأ: {traceback.format_exc()}")
-        
         db.session.rollback()
+        current_app.logger.error(f"Service archive error: {str(e)}")
         flash(f'خطأ في أرشفة طلب الصيانة: {str(e)}', 'error')
         return redirect(url_for('service.list_requests'))
 
@@ -745,10 +735,8 @@ def archive_service(service_id):
 @login_required
 # @permission_required('manage_service')  # Commented out - function not available
 def restore_service(service_id):
-    
     try:
         service = ServiceRequest.query.get_or_404(service_id)
-        print(f"✅ [SERVICE RESTORE] تم العثور على طلب الصيانة: {service.service_number}")
         
         if not service.is_archived:
             flash('طلب الصيانة غير مؤرشف', 'warning')
@@ -766,11 +754,7 @@ def restore_service(service_id):
         return redirect(url_for('service.list_requests'))
         
     except Exception as e:
-        print(f"❌ [SERVICE RESTORE] خطأ في استعادة طلب الصيانة: {str(e)}")
-        print(f"❌ [SERVICE RESTORE] نوع الخطأ: {type(e).__name__}")
-        import traceback
-        print(f"❌ [SERVICE RESTORE] تفاصيل الخطأ: {traceback.format_exc()}")
-        
         db.session.rollback()
+        current_app.logger.error(f"Service restore error: {str(e)}")
         flash(f'خطأ في استعادة طلب الصيانة: {str(e)}', 'error')
         return redirect(url_for('service.list_requests'))

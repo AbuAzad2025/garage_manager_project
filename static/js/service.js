@@ -93,7 +93,6 @@
       confirmButtonColor: '#dc3545'
     }).then(function (res) {
       if (!res.isConfirmed) return;
-      // TODO: إضافة route الحذف الجماعي
       Swal.fire({
         icon: 'info',
         title: 'قيد التطوير',
@@ -358,7 +357,7 @@
             }
           });
         } catch (e) {
-          console.warn('Failed to restore form data:', e);
+          // تجاهل أخطاء الاستعادة
         }
       }
       
