@@ -68,7 +68,7 @@ table th,
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   🧾 الفواتير والإيصالات
+   🧾 الفواتير والإيصالات - أرقام الفواتير فقط
    ═══════════════════════════════════════════════════════════════════ */
 
 .invoice-number,
@@ -77,7 +77,8 @@ table th,
 .payment-number,
 .check-number {
     direction: ltr !important;
-    unicode-bidi: bidi-override !important;
+    unicode-bidi: embed !important;
+    display: inline-block !important;
     font-variant-numeric: lining-nums !important;
     font-family: 'Courier New', monospace !important;
 }
@@ -93,8 +94,7 @@ table th,
 input[type="tel"],
 input[type="number"] {
     direction: ltr !important;
-    unicode-bidi: bidi-override !important;
-    text-align: left !important;
+    unicode-bidi: embed !important;
     font-variant-numeric: lining-nums !important;
 }
 
@@ -105,10 +105,10 @@ input[type="number"] {
 .chart-number,
 .stat-number,
 .metric-value,
-.badge,
 .label-number {
     direction: ltr !important;
-    unicode-bidi: bidi-override !important;
+    unicode-bidi: embed !important;
+    display: inline-block !important;
     font-variant-numeric: lining-nums !important;
 }
 
@@ -130,7 +130,6 @@ input[id*="cost"],
 input[id*="balance"],
 input[id*="total"] {
     direction: ltr !important;
-    text-align: left !important;
     font-variant-numeric: lining-nums !important;
 }
 
@@ -140,7 +139,8 @@ input[id*="total"] {
 
 .big-number {
     direction: ltr !important;
-    unicode-bidi: bidi-override !important;
+    unicode-bidi: embed !important;
+    display: inline-block !important;
     font-size: 2rem !important;
     font-weight: bold !important;
     font-variant-numeric: lining-nums tabular-nums !important;
@@ -169,26 +169,23 @@ input[id*="total"] {
     .amount,
     .price,
     .balance,
-    .total,
-    table td,
-    table th {
+    .total {
         direction: ltr !important;
-        unicode-bidi: bidi-override !important;
+        unicode-bidi: embed !important;
+        display: inline-block !important;
         font-variant-numeric: lining-nums !important;
     }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   ✅ ضمان الأرقام الإنجليزية في AdminLTE
+   ✅ ضمان الأرقام الإنجليزية في AdminLTE - الأرقام فقط
    ═══════════════════════════════════════════════════════════════════ */
 
 .info-box-number,
-.info-box-text,
-.small-box h3,
-.small-box p,
-.direct-chat-timestamp {
+.small-box h3 {
     direction: ltr !important;
-    unicode-bidi: bidi-override !important;
+    unicode-bidi: embed !important;
+    display: inline-block !important;
     font-variant-numeric: lining-nums !important;
 }
 
@@ -202,10 +199,10 @@ html[lang="ar"] .number {
     -webkit-locale: "en-US" !important;
 }
 
-/* فرض الأرقام الغربية */
-body {
+/* فرض الأرقام الغربية - معطّل لأنه كان يؤثر على النصوص العربية */
+/* body {
     --webkit-locale: "en-US";
     font-feature-settings: "lnum" 1;
-}
+} */
 
 
