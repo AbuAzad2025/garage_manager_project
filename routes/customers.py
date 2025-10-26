@@ -366,6 +366,8 @@ def create_customer():
         category=form.category.data,
         credit_limit=form.credit_limit.data or 0,
         discount_rate=form.discount_rate.data or 0,
+        currency=form.currency.data,  # ✅ إضافة العملة
+        opening_balance=form.opening_balance.data or 0,  # ✅ إضافة الرصيد الافتتاحي
         is_active=form.is_active.data,
         is_online=form.is_online.data,
         notes=form.notes.data,
@@ -424,6 +426,7 @@ def edit_customer(customer_id):
             cust.category = form.category.data
             cust.credit_limit = form.credit_limit.data or 0
             cust.discount_rate = form.discount_rate.data or 0
+            cust.currency = form.currency.data  # ✅ إضافة العملة
             cust.opening_balance = form.opening_balance.data or 0  # ✅ إضافة الرصيد الافتتاحي
             cust.is_active = bool(form.is_active.data)  # ✅ تحويل صريح لـ bool
             cust.is_online = bool(form.is_online.data)  # ✅ تحويل صريح لـ bool
