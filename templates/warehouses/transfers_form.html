@@ -383,7 +383,7 @@
         showStockInfo(selectedProductName, currentStock);
         checkQuantity();
       } catch (error) {
-        console.error('خطأ في جلب معلومات المخزون:', error);
+
         showNotification('فشل في جلب معلومات المخزون', 'warning');
       }
     });
@@ -467,7 +467,7 @@
         return data.warehouse_type;
       }
     } catch (error) {
-      console.error('خطأ في جلب نوع المستودع:', error);
+
     }
     
     return null;

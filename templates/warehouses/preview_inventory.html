@@ -479,12 +479,12 @@
               try {
                 dt.columns.adjust().draw(false);
               } catch(e) {
-                console.warn('DataTables adjust warning:', e);
+
               }
             }, 100);
           }
         } catch(e) {
-          console.warn('DataTables warning:', e);
+
         }
         
         if (wrapper) wrapper.scrollLeft = 0;
@@ -598,7 +598,7 @@ if (window.jQuery && $.fn.DataTable) {
       try {
         dt.columns.adjust().draw(false);
       } catch(e) {
-        console.warn('DataTables adjust error:', e);
+
       }
     }, 150);
   });
@@ -608,7 +608,7 @@ if (window.jQuery && $.fn.DataTable) {
       try {
         dt.columns.adjust().draw(false);
       } catch(e) {
-        console.warn('DataTables adjust error:', e);
+
       }
     }, 150);
   });

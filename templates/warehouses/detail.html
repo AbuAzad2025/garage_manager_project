@@ -621,7 +621,6 @@
           </div>
         </div>
 
-
       </div>
     </div>
 
@@ -665,22 +664,15 @@
     async function fetchStockInfo(productId, warehouseId) {
       try {
         const url = `/api/products/${productId}/stock?warehouse_id=${warehouseId}`;
-        console.log('🌐 API Request:', url);
-        
         const response = await fetch(url);
-        console.log('📡 API Response Status:', response.status);
-        
         if (!response.ok) {
           const errorText = await response.text();
-          console.error('❌ API Error Response:', errorText);
           throw new Error('فشل في جلب البيانات');
         }
         
         const data = await response.json();
-        console.log('✅ API Data:', data);
         return data;
       } catch (error) {
-        console.error('❌ خطأ في جلب معلومات المخزون:', error);
         return null;
       }
     }
@@ -717,11 +709,8 @@
           // إنشاء option جديد للمستودع الحالي
           const newOption = new Option('{{ warehouse.name }}', {{ warehouse.id }}, true, true);
           $('#transfer-source').append(newOption).trigger('change');
-          
-          console.log('✅ تم تعيين المستودع المصدر: {{ warehouse.name }} (ID: {{ warehouse.id }})');
-          console.log('📌 المستودع الحالي:', $('#transfer-source').val());
+
         } else {
-          console.warn('⚠️ عنصر #transfer-source غير موجود');
         }
       }, 1000);
     });
@@ -758,7 +747,6 @@
           return data.warehouse_type;
         }
       } catch (error) {
-        console.error('خطأ في جلب نوع المستودع:', error);
       }
       
       return null;
@@ -768,12 +756,8 @@
     $('#transfer-product').on('change select2:select', async function() {
       const productId = $(this).val();
       const sourceId = $('#transfer-source').val();
-      
-      console.log('🔍 تم اختيار المنتج:', productId, 'من المستودع:', sourceId);
-      
       if (!productId || !sourceId) {
         $('#transfer-stock-info').addClass('d-none');
-        console.warn('⚠️ المنتج أو المستودع المصدر غير محدد');
         return;
       }
       
@@ -854,22 +838,14 @@
     }
     
     async function updateTransferStockInfo(productId, sourceId) {
-      console.log('📦 جلب معلومات المخزون للمنتج:', productId, 'من المستودع:', sourceId);
-      
       const data = await fetchStockInfo(productId, sourceId);
-      
-      console.log('📊 بيانات المخزون المستلمة:', data);
-      
       if (data && data.success) {
         stockData.transfer = data;
         $('#transfer-product-name').text(data.product_name);
         $('#transfer-available-qty').text(data.stock_quantity || 0);
         $('#transfer-stock-info').removeClass('d-none');
         checkTransferQuantity();
-        
-        console.log('✅ تم عرض الكمية المتاحة:', data.stock_quantity);
       } else {
-        console.error('❌ فشل في جلب معلومات المخزون');
         $('#transfer-stock-info').addClass('d-none');
       }
     }
@@ -894,8 +870,6 @@
     
     // ========== تحديد نوع المستودع وإظهار/إخفاء الحقول ==========
     const warehouseType = '{% if warehouse.warehouse_type.value %}{{ warehouse.warehouse_type.value }}{% else %}{{ warehouse.warehouse_type }}{% endif %}';
-    console.log('🏭 نوع المستودع الحالي:', warehouseType);
-    
     function updateExchangeFormFields() {
       // إخفاء كل الحقول الديناميكية أولاً
       $('#partner-field-group, #supplier-field-group').hide();
@@ -905,15 +879,12 @@
         // مستودع شريك ← إظهار حقل الشريك
         $('#partner-field-group').show();
         $('#exchange-partner').prop('required', true);
-        console.log('✅ [Exchange] مستودع شريك - حقل الشريك مفعّل');
       } else if (warehouseType === 'EXCHANGE') {
         // مستودع تبادل ← إظهار حقل المورد
         $('#supplier-field-group').show();
         $('#exchange-supplier').prop('required', true);
-        console.log('✅ [Exchange] مستودع تبادل - حقل المورد مفعّل');
       } else {
         // مستودع رئيسي/أونلاين/ملكية كاملة ← لا حقول إضافية
-        console.log('ℹ️ [Exchange] مستودع عادي - لا حقول شريك/مورد');
       }
     }
     
@@ -925,30 +896,18 @@
     // دعم select2 و change للمنتج
     $('#exchange-product').on('change select2:select', async function() {
       const productId = $(this).val();
-      
-      console.log('🔍 [Exchange] تم اختيار المنتج:', productId);
-      
       if (!productId) {
         $('#exchange-stock-info').addClass('d-none');
-        console.warn('⚠️ [Exchange] لم يتم اختيار منتج');
         return;
       }
-      
-      console.log('📦 [Exchange] جلب معلومات المخزون للمنتج:', productId);
       const data = await fetchStockInfo(productId, {{ warehouse.id }});
-      
-      console.log('📊 [Exchange] البيانات المستلمة:', data);
-      
       if (data && data.success) {
         stockData.exchange = data;
         $('#exchange-product-name').text(data.product_name);
         $('#exchange-current-qty').text(data.stock_quantity || 0);
         $('#exchange-stock-info').removeClass('d-none');
         checkExchangeQuantity();
-        
-        console.log('✅ [Exchange] تم عرض الكمية الحالية:', data.stock_quantity);
       } else {
-        console.error('❌ [Exchange] فشل في جلب معلومات المخزون');
         $('#exchange-stock-info').addClass('d-none');
       }
     });
@@ -960,22 +919,16 @@
       const requestedQty = parseInt($('#exchange-quantity-input').val()) || 0;
       const currentQty = stockData.exchange.stock_quantity || 0;
       const direction = $('#exchange-direction').val();
-      
-      console.log(`🔍 [Exchange] تحقق: الكمية=${requestedQty}, المتاح=${currentQty}, الاتجاه=${direction}`);
-      
       // تحذير عند الصادر (OUT) أو التسوية للأسفل
       if (direction === 'OUT' && requestedQty > currentQty) {
         $('#exchange-warning').removeClass('d-none').text(`⚠️ تحذير: الكمية المطلوبة (${requestedQty}) أكبر من المتاح (${currentQty})! سيؤدي لرصيد سالب!`);
         $('#exchange-quantity-input').addClass('border-warning');
-        console.warn(`⚠️ [Exchange] تحذير: محاولة خصم ${requestedQty} من رصيد ${currentQty}`);
       } else if (direction === 'ADJUSTMENT' && requestedQty > currentQty + 100) {
         $('#exchange-warning').removeClass('d-none').text(`ℹ️ ملاحظة: التسوية ستضيف ${requestedQty - currentQty} قطعة للمخزون`);
         $('#exchange-quantity-input').removeClass('border-warning').addClass('border-info');
-        console.info(`ℹ️ [Exchange] تسوية كبيرة: من ${currentQty} إلى ${requestedQty}`);
       } else {
         $('#exchange-warning').addClass('d-none');
         $('#exchange-quantity-input').removeClass('border-warning border-info');
-        console.log('✅ [Exchange] الكمية مقبولة');
       }
     }
     
@@ -1019,7 +972,6 @@
       })
       .catch(error => {
         showNotification('حدث خطأ أثناء تحديث المخزون', 'error');
-        console.error('Error:', error);
       });
     }
     
@@ -1043,7 +995,6 @@
         })
         .catch(error => {
           showNotification('حدث خطأ أثناء توليد الباركودات', 'error');
-          console.error('Error:', error);
         });
       }
     };
@@ -1162,26 +1113,18 @@
     $('#exchange-form').on('submit', function(e) {
       e.preventDefault();
       const form = $(this);
-      
-      console.log('📤 [Exchange] بدء إرسال نموذج العملية');
-      
       // التحقق من الحقول
       const productId = $('#exchange-product').val();
       const quantity = parseInt($('#exchange-quantity-input').val()) || 0;
       const direction = $('#exchange-direction').val();
       const currentQty = stockData.exchange.stock_quantity || 0;
-      
-      console.log(`📋 [Exchange] بيانات النموذج: المنتج=${productId}, الكمية=${quantity}, الاتجاه=${direction}, المتاح=${currentQty}`);
-      
       if (!productId) {
         showNotification('الرجاء اختيار المنتج', 'error');
-        console.error('❌ [Exchange] المنتج غير محدد');
         return false;
       }
       
       if (quantity <= 0) {
         showNotification('الرجاء إدخال كمية صحيحة', 'error');
-        console.error('❌ [Exchange] الكمية غير صحيحة:', quantity);
         return false;
       }
       
@@ -1190,63 +1133,48 @@
         const partnerId = $('#exchange-partner').val();
         if (!partnerId) {
           showNotification('⚠️ مستودع شريك: يجب اختيار الشريك!', 'error');
-          console.error('❌ [Exchange] مستودع PARTNER يتطلب partner_id');
           $('#exchange-partner').focus();
           return false;
         }
-        console.log('✅ [Exchange] Partner validation passed:', partnerId);
       } else if (warehouseType === 'EXCHANGE') {
         const supplierId = $('#exchange-supplier').val();
         if (!supplierId) {
           showNotification('⚠️ مستودع تبادل: يجب اختيار المورد/التاجر!', 'error');
-          console.error('❌ [Exchange] مستودع EXCHANGE يتطلب supplier_id');
           $('#exchange-supplier').focus();
           return false;
         }
-        console.log('✅ [Exchange] Supplier validation passed:', supplierId);
       }
       
       // تحذير خاص للصادر
       if (direction === 'OUT' && quantity > currentQty) {
-        console.warn(`⚠️ [Exchange] محاولة خصم ${quantity} من ${currentQty} (سيكون الرصيد: ${currentQty - quantity})`);
+
         if (!confirm(`⚠️ تحذير!\nصادر: ${quantity}\nالمتاح حالياً: ${currentQty}\nالنتيجة: ${currentQty - quantity} (سالب!)\n\nهل تريد المتابعة؟`)) {
-          console.log('🚫 [Exchange] تم إلغاء العملية من قبل المستخدم');
           return false;
         }
       } else {
         const directionText = direction === 'IN' ? 'وارد' : direction === 'OUT' ? 'صادر' : 'تسوية';
         if (!confirm(`تأكيد تسجيل العملية؟\nالعملية: ${directionText}\nالكمية: ${quantity}`)) {
-          console.log('🚫 [Exchange] تم إلغاء العملية من قبل المستخدم');
           return false;
         }
       }
-      
-      console.log('🌐 [Exchange] إرسال البيانات للخادم...');
-      
       $.ajax({
         url: form.attr('action'),
         method: 'POST',
         data: form.serialize(),
         success: function(response) {
-          console.log('📡 [Exchange] استجابة الخادم:', response);
-          
           if (response.success) {
             showNotification('تم تسجيل العملية بنجاح', 'success');
-            console.log('✅ [Exchange] العملية نجحت!');
             setTimeout(() => location.reload(), 1000);
           } else {
             showNotification('خطأ: ' + (response.error || 'فشلت العملية'), 'error');
-            console.error('❌ [Exchange] فشلت العملية:', response.error);
           }
         },
         error: function(xhr) {
-          console.error('❌ [Exchange] خطأ في الاتصال:', xhr.status, xhr.responseText);
           showNotification('حدث خطأ أثناء تسجيل العملية', 'error');
         }
       });
     });
-    
-    
+
     // ========== Notification Helper ==========
     function showNotification(message, type = 'info') {
       if (typeof Swal !== 'undefined') {

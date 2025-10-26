@@ -428,11 +428,6 @@
     var bodyCols = dataRows.first().find('td').length;
     
     if (headerCols !== bodyCols) {
-      console.error('Shipments table: column count mismatch', {
-        header: headerCols, 
-        body: bodyCols,
-        message: 'يرجى التحقق من بنية الجدول في detail.html'
-      });
       return;
     }
     
@@ -449,7 +444,6 @@
         }
       });
     } catch (e) {
-      console.error('Shipments DataTable initialization failed:', e);
     }
   }
 
@@ -494,10 +488,6 @@
     var bodyCols = dataRows.first().find('td').length;
     
     if (headerCols !== bodyCols) {
-      console.error('Inventory table: column count mismatch', {
-        header: headerCols,
-        body: bodyCols
-      });
       return;
     }
     
@@ -515,7 +505,6 @@
         }
       });
     } catch (e) {
-      console.error('Inventory DataTable initialization failed:', e);
     }
   }
 

@@ -757,118 +757,83 @@ function productsURL(){
       var warehouseTypePromise = null;
       
       function getWarehouseType() {
-        console.log('🏢 [getWarehouseType-1] بدء جلب نوع المستودع');
-        console.log('🏢 [getWarehouseType-2] cachedWarehouseType:', cachedWarehouseType);
-        console.log('🏢 [getWarehouseType-3] warehouseTypePromise:', !!warehouseTypePromise);
-        
         // إذا كان لدينا نوع محفوظ، استخدمه
         if (cachedWarehouseType && !warehouseTypePromise) {
-          console.log('✅ [getWarehouseType-4] استخدام النوع المحفوظ:', cachedWarehouseType);
           updateColumnsByWarehouseType();
           return Promise.resolve(cachedWarehouseType);
         }
         
         // إذا كان هناك طلب قيد التنفيذ، انتظره
         if (warehouseTypePromise) {
-          console.log('⏳ [getWarehouseType-5] انتظار طلب سابق...');
           return warehouseTypePromise;
         }
         
         var activeWarehouseId = document.getElementById('products-table').dataset.activeWarehouseId;
-        console.log('🏢 [getWarehouseType-6] activeWarehouseId الافتراضي:', activeWarehouseId);
-        
         // إن وُجد مستودع واحد محدد في الفلتر، استخدمه للاستعلام عن نوع المستودع
         var sel=document.querySelector('#filter-form select[name="warehouse_ids"]');
         if(sel){
           var chosen=[]; var opts=sel.options;
           for(var i=0;i<opts.length;i++){ if(opts[i].selected){ chosen.push(opts[i].value); } }
-          console.log('🏢 [getWarehouseType-7] المستودعات المختارة:', chosen);
           if(chosen.length===1){ 
             activeWarehouseId = chosen[0]; 
-            console.log('🏢 [getWarehouseType-8] استخدام مستودع واحد:', activeWarehouseId);
           }
         }
         
         if (activeWarehouseId) {
-          console.log('📡 [getWarehouseType-9] جلب معلومات المستودع من API...');
           warehouseTypePromise = fetch('/warehouses/api/warehouse-info?id=' + activeWarehouseId, {
             headers: {'X-Requested-With': 'XMLHttpRequest'},
             credentials: 'same-origin'
           })
           .then(r => {
-            console.log('📥 [getWarehouseType-10] استلام رد API، الحالة:', r.status);
             if (!r.ok) {
               throw new Error('HTTP ' + r.status + ': ' + r.statusText);
             }
             return r.json();
           })
           .then(data => {
-            console.log('📦 [getWarehouseType-11] بيانات API:', data);
             cachedWarehouseType = data.type || 'MAIN';
             warehouseTypePromise = null;
-            console.log('✅ [getWarehouseType-12] تم حفظ النوع:', cachedWarehouseType);
             updateColumnsByWarehouseType();
             return cachedWarehouseType;
           })
           .catch(e => {
-            console.error('❌ [getWarehouseType-13] فشل في جلب نوع المستودع:', e);
             cachedWarehouseType = 'MAIN';
             warehouseTypePromise = null;
-            console.log('⚠️ [getWarehouseType-14] استخدام النوع الافتراضي: MAIN');
             updateColumnsByWarehouseType();
             return 'MAIN';
           });
           return warehouseTypePromise;
         } else {
-          console.warn('⚠️ [getWarehouseType-15] لا يوجد معرف مستودع نشط');
           cachedWarehouseType = 'MAIN';
           updateColumnsByWarehouseType();
           return Promise.resolve('MAIN');
         }
       }
-      
-      
-      
+
       function updateColumnsByWarehouseType() {
         var warehouseType = cachedWarehouseType || 'MAIN';
-        console.log('🔄 [updateColumns-1] تحديث الأعمدة حسب نوع المستودع:', warehouseType);
-        console.log('🔄 [updateColumns-2] cachedWarehouseType:', cachedWarehouseType);
-        
         var partnersBtn = document.querySelector('[onclick="toggleColumn(\'partners\')"]');
         var suppliersBtn = document.querySelector('[onclick="toggleColumn(\'suppliers\')"]');
-        
-        console.log('🔍 [updateColumns-3] وجود زر الشركاء:', !!partnersBtn);
-        console.log('🔍 [updateColumns-4] وجود زر الموردين:', !!suppliersBtn);
-        
         if (!partnersBtn || !suppliersBtn) {
-          console.warn('⚠️ [updateColumns-5] أزرار الشركاء/الموردين غير موجودة');
           return;
         }
         
         // إخفاء جميع الأعمدة أولاً
-        console.log('🔧 [updateColumns-6] إخفاء جميع الأعمدة أولاً...');
         hideColumn('partners');
         hideColumn('suppliers');
-        console.log('✅ [updateColumns-7] تم إخفاء كل الأعمدة');
-        
         // إظهار الأعمدة المناسبة حسب نوع المستودع
         if (warehouseType === 'PARTNER') {
           // مستودع الشركاء: إظهار الشركاء فقط
-          console.log('🔧 [updateColumns-8] مستودع PARTNER - إظهار الشركاء...');
           showColumn('partners');
-          console.log('✅ [updateColumns-9] تم إظهار عمود الشركاء');
         } 
         else if (warehouseType === 'EXCHANGE') {
           // مستودع التبادل: إظهار الموردين فقط
-          console.log('🔧 [updateColumns-8] مستودع EXCHANGE - إظهار الموردين...');
           showColumn('suppliers');
-          console.log('✅ [updateColumns-9] تم إظهار عمود الموردين');
         } 
         else {
           // المستودعات الأخرى: إخفاء كليهما
-          console.log('✅ [updateColumns-8] مستودع ' + warehouseType + ' - إخفاء كليهما');
         }
-        console.log('🎯 [updateColumns-10] انتهى updateColumnsByWarehouseType()');
+
       }
       
       function formatPartners(partners) {
@@ -952,7 +917,6 @@ function productsURL(){
             }
           });
         } catch (e) {
-          console.error('Products DataTable failed:', e);
         }
       }
 
@@ -993,29 +957,20 @@ function productsURL(){
       }
       
       function loadProducts(){
-        console.log('🚀 [STEP 1] بدء loadProducts()');
-        
+
         if (isLoading) {
-          console.warn('⚠️ جاري التحميل بالفعل، الرجاء الانتظار...');
           return;
         }
         
         // إعادة تعيين cachedWarehouseType عند كل تحميل لضمان التحديث
         cachedWarehouseType = null;
-        console.log('🔄 [STEP 2] تم إعادة تعيين cachedWarehouseType');
-        
         isLoading = true;
         var url=productsURL()+'?'+buildQuery();
-        console.log('🔗 [STEP 3] URL:', url);
-        
         var tbody=document.getElementById('products-body');
         var submitBtn = document.querySelector('#filter-form button[type="submit"]');
-        
-        console.log('🔘 [STEP 4] زر التطبيق موجود؟', !!submitBtn);
         if (submitBtn) {
           submitBtn.disabled = true;
           submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>جاري التحميل...';
-          console.log('⏸️ [STEP 5] تم تعطيل الزر وبدء التحميل');
         }
         
         tbody.innerHTML = '<tr><td colspan="16" class="text-center"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</td></tr>';
@@ -1024,22 +979,18 @@ function productsURL(){
         var timeoutId = setTimeout(function() {
           controller.abort();
         }, 30000);
-        
-        console.log('📡 [STEP 6] بدء جلب البيانات من السيرفر...');
         fetch(url,{
           headers:{'X-Requested-With':'XMLHttpRequest'},
           credentials:'same-origin',
           signal: controller.signal
         })
           .then(function(r){
-            console.log('📥 [STEP 7] استلام رد من السيرفر، الحالة:', r.status);
             if (!r.ok) {
               throw new Error('HTTP ' + r.status + ': ' + r.statusText);
             }
             return r.json();
           })
           .then(function(res){
-            console.log('📦 [STEP 8] تحويل JSON، البيانات:', res);
             var arr = [];
             if (res && res.results) {
               arr = res.results;
@@ -1048,9 +999,6 @@ function productsURL(){
             } else if (Array.isArray(res)) {
               arr = res;
             }
-            
-            console.log('📊 [STEP 9] عدد المنتجات:', arr.length);
-            
             if (res && res.error) {
               throw new Error(res.error);
             }
@@ -1058,41 +1006,27 @@ function productsURL(){
             document.getElementById('products-count').textContent = arr.length;
             
             if (arr.length === 0) {
-              console.log('📭 [STEP 10] لا توجد منتجات');
               tbody.innerHTML = '<tr><td colspan="16" class="text-center text-muted py-4"><i class="fas fa-inbox fa-2x mb-2 d-block"></i>لا توجد منتجات</td></tr>';
               // لا نستخدم return هنا لضمان الوصول إلى finally
             } else {
-            console.log('📋 [STEP 10] بدء معالجة المنتجات...');
-            
             if (arr.length > 200) {
               notify('تحذير: يتم عرض ' + arr.length + ' منتج. قد يكون التحميل بطيئاً.', 'warning');
             }
-            
-            console.log('📈 [STEP 11] تحديث الإحصائيات...');
             updateStatistics(arr);
             
             // تحديث نوع المستودع ثم تحديث الأعمدة
-            console.log('🏢 [STEP 12] جلب نوع المستودع...');
             getWarehouseType().then(function(warehouseType) {
-              console.log('✅ [STEP 13] تم تحديد نوع المستودع:', warehouseType);
-              console.log('🔧 [STEP 14] تحديث الأعمدة حسب النوع...');
               updateColumnsByWarehouseType();
             }).catch(function(error) {
-              console.warn('⚠️ [STEP 13-ERROR] فشل في تحديد نوع المستودع:', error);
               updateColumnsByWarehouseType(); // استدعاء الدالة حتى لو فشل تحديد النوع
             });
-            
-            console.log('📊 [STEP 15] رسم الجدول...');
             if(window.jQuery&&jQuery.fn.DataTable&&DT){
-              console.log('📊 [STEP 16] استخدام DataTable الموجود...');
               DT.clear();
               for(var i=0;i<arr.length;i++){ 
                 DT.row.add( renderRow(arr[i]) ); 
               }
               DT.draw(false);
-              console.log('✅ [STEP 17] تم رسم الجدول بنجاح');
             }else{
-              console.log('📊 [STEP 16] إنشاء جدول جديد...');
               var frag=document.createDocumentFragment();
               for(var j=0;j<arr.length;j++){ 
                 frag.appendChild(renderRow(arr[j])); 
@@ -1100,12 +1034,10 @@ function productsURL(){
               tbody.innerHTML='';
               tbody.appendChild(frag);
               initDT();
-              console.log('✅ [STEP 17] تم إنشاء الجدول بنجاح');
             }
             } // إغلاق else block
           })
           .catch(function(err){
-            console.error('❌ [ERROR] خطأ في تحميل المنتجات:', err);
             if (err.name === 'AbortError') {
               tbody.innerHTML = '<tr><td colspan="16" class="text-center text-danger"><i class="fas fa-clock"></i> انتهت مهلة الطلب</td></tr>';
               notify('انتهت مهلة الطلب', 'warning');
@@ -1120,19 +1052,12 @@ function productsURL(){
           .finally(function(){
             clearTimeout(timeoutId);
             isLoading = false;
-            console.log('🏁 [STEP 18-FINALLY] انتهى تحميل المنتجات - إعادة تفعيل الزر');
-            console.log('🔍 [STEP 19] حالة isLoading:', isLoading);
-            console.log('🔍 [STEP 20] وجود submitBtn:', !!submitBtn);
-            
             if (submitBtn) {
               submitBtn.disabled = false;
               submitBtn.innerHTML = '<i class="fas fa-filter me-1"></i>تطبيق';
-              console.log('✅ [STEP 21] تم إعادة تفعيل الزر - disabled:', submitBtn.disabled);
-              console.log('✅ [STEP 22] نص الزر:', submitBtn.innerHTML);
             } else {
-              console.warn('⚠️ [STEP 21-ERROR] زر التطبيق غير موجود!');
             }
-            console.log('🎉 [STEP 23-END] انتهت عملية loadProducts() بالكامل');
+
           });
       }
 
@@ -1243,7 +1168,6 @@ function productsURL(){
     var currentProductName = '';
     
     function openPartnersModal(productId, productName) {
-      console.log('🔓 [openPartnersModal] فتح مودال الشركاء للمنتج:', productId);
       currentProductId = productId;
       currentProductName = productName;
       document.getElementById('partnersModalLabel').textContent = 'إدارة شركاء: ' + productName;
@@ -1258,7 +1182,6 @@ function productsURL(){
     }
     
     function openSuppliersModal(productId, productName) {
-      console.log('🔓 [openSuppliersModal] فتح مودال الموردين للمنتج:', productId);
       currentProductId = productId;
       currentProductName = productName;
       document.getElementById('suppliersModalLabel').textContent = 'إدارة موردين: ' + productName;
@@ -1273,7 +1196,6 @@ function productsURL(){
     }
     
     function loadPartners(productId) {
-      console.log('🔄 [loadPartners] بدء جلب شركاء المنتج:', productId);
       var tbody = document.getElementById('partnersListBody');
       tbody.innerHTML = '<tr><td colspan="3" class="text-center"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</td></tr>';
       
@@ -1282,24 +1204,19 @@ function productsURL(){
         credentials: 'same-origin'
       })
       .then(r => {
-        console.log('📥 [loadPartners] استلام رد، الحالة:', r.status);
         if (!r.ok) {
           throw new Error('HTTP ' + r.status + ': ' + r.statusText);
         }
         return r.json();
       })
       .then(data => {
-        console.log('📦 [loadPartners] البيانات:', data);
         if (data.success && data.partners) {
           renderPartnersList(data.partners);
-          console.log('✅ [loadPartners] تم تحميل ' + data.partners.length + ' شريك للمنتج');
         } else {
           tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">لا يوجد شركاء مرتبطين</td></tr>';
-          console.warn('⚠️ [loadPartners] لا توجد بيانات');
         }
       })
       .catch(err => {
-        console.error('❌ [loadPartners] خطأ:', err);
         tbody.innerHTML = '<tr><td colspan="3" class="text-center text-danger">خطأ في التحميل: ' + err.message + '</td></tr>';
         notify('فشل تحميل الشركاء: ' + err.message, 'danger');
       });
@@ -1365,7 +1282,6 @@ function productsURL(){
         }
       })
       .catch(err => {
-        console.error('Error updating partner:', err);
         notify('فشل التحديث', 'danger');
       });
     }
@@ -1392,13 +1308,11 @@ function productsURL(){
         }
       })
       .catch(err => {
-        console.error('Error deleting partner:', err);
         notify('فشل الحذف', 'danger');
       });
     }
     
     function loadAvailablePartners() {
-      console.log('🔄 [loadAvailablePartners] بدء جلب قائمة الشركاء...');
       var select = document.getElementById('newPartnerSelect');
       
       fetch('/warehouses/api/partners/list', {
@@ -1406,14 +1320,12 @@ function productsURL(){
         credentials: 'same-origin'
       })
       .then(r => {
-        console.log('📥 [loadAvailablePartners] استلام رد، الحالة:', r.status);
         if (!r.ok) {
           throw new Error('HTTP ' + r.status);
         }
         return r.json();
       })
       .then(data => {
-        console.log('📦 [loadAvailablePartners] البيانات:', data);
         if (data.success && data.partners) {
           select.innerHTML = '<option value="">اختر شريك...</option>';
           data.partners.forEach(function(p) {
@@ -1422,14 +1334,11 @@ function productsURL(){
             option.textContent = p.name;
             select.appendChild(option);
           });
-          console.log('✅ [loadAvailablePartners] تم تحميل ' + data.partners.length + ' شريك');
         } else {
           select.innerHTML = '<option value="">لا يوجد شركاء</option>';
-          console.warn('⚠️ [loadAvailablePartners] لا توجد بيانات');
         }
       })
       .catch(err => {
-        console.error('❌ [loadAvailablePartners] خطأ:', err);
         select.innerHTML = '<option value="">خطأ في التحميل</option>';
         notify('فشل تحميل قائمة الشركاء: ' + err.message, 'danger');
       });
@@ -1476,7 +1385,6 @@ function productsURL(){
         }
       })
       .catch(err => {
-        console.error('Error adding partner:', err);
         notify('فشل الإضافة', 'danger');
       });
     }
@@ -1498,7 +1406,6 @@ function productsURL(){
         }
       })
       .catch(err => {
-        console.error('Error loading suppliers:', err);
         notify('فشل تحميل الموردين: ' + err.message, 'danger');
       });
     }
@@ -1520,7 +1427,6 @@ function productsURL(){
     }
     
     function loadAvailableSuppliers() {
-      console.log('🔄 [loadAvailableSuppliers] بدء جلب قائمة الموردين...');
       var select = document.getElementById('newSupplierSelect');
       
       fetch('/warehouses/api/suppliers/list', {
@@ -1528,14 +1434,12 @@ function productsURL(){
         credentials: 'same-origin'
       })
       .then(r => {
-        console.log('📥 [loadAvailableSuppliers] استلام رد، الحالة:', r.status);
         if (!r.ok) {
           throw new Error('HTTP ' + r.status);
         }
         return r.json();
       })
       .then(data => {
-        console.log('📦 [loadAvailableSuppliers] البيانات:', data);
         if (data.success && data.suppliers) {
           if (select) {
             select.innerHTML = '<option value="">اختر مورد...</option>';
@@ -1545,15 +1449,12 @@ function productsURL(){
               option.textContent = s.name;
               select.appendChild(option);
             });
-            console.log('✅ [loadAvailableSuppliers] تم تحميل ' + data.suppliers.length + ' مورد');
           }
         } else {
           if (select) select.innerHTML = '<option value="">لا يوجد موردين</option>';
-          console.warn('⚠️ [loadAvailableSuppliers] لا توجد بيانات');
         }
       })
       .catch(err => {
-        console.error('❌ [loadAvailableSuppliers] خطأ:', err);
         if (select) select.innerHTML = '<option value="">خطأ في التحميل</option>';
         notify('فشل تحميل قائمة الموردين: ' + err.message, 'danger');
       });
@@ -1595,7 +1496,6 @@ function productsURL(){
         }
       })
       .catch(err => {
-        console.error('Error updating supplier:', err);
         notify('فشل التحديث', 'danger');
       });
     }
