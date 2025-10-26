@@ -30,7 +30,6 @@ try:
     ANTHROPIC_AVAILABLE = True
 except ImportError:
     ANTHROPIC_AVAILABLE = False
-    print("⚠️ Anthropic not installed. Install with: pip install anthropic")
 
 
 def get_database_schema():

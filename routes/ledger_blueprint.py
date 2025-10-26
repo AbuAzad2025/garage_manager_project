@@ -661,8 +661,8 @@ def get_ledger_data():
         
     except Exception as e:
         import traceback
-        print(f"Error in get_ledger_data: {str(e)}")
-        print(traceback.format_exc())
+        current_app.logger.error(f"Error in get_ledger_data: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
         return jsonify({"error": str(e), "data": [], "statistics": {}}), 500
 
 @ledger_bp.route("/accounts-summary", methods=["GET"], endpoint="get_accounts_summary")
@@ -923,8 +923,6 @@ def get_accounts_summary():
         error_msg = f"Error in get_accounts_summary: {str(e)}"
         current_app.logger.error(error_msg)
         current_app.logger.error(traceback.format_exc())
-        print(error_msg)
-        print(traceback.format_exc())
         return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 @ledger_bp.route("/receivables-detailed-summary", methods=["GET"], endpoint="get_receivables_detailed_summary")
@@ -1207,8 +1205,8 @@ def get_receivables_detailed_summary():
         
     except Exception as e:
         import traceback
-        print(f"Error in get_receivables_detailed_summary: {str(e)}")
-        print(traceback.format_exc())
+        current_app.logger.error(f"Error in get_receivables_detailed_summary: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
         return jsonify([]), 500
 
 @ledger_bp.route("/receivables-summary", methods=["GET"], endpoint="get_receivables_summary")
