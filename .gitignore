@@ -88,6 +88,8 @@ htmlcov/
 
 # Documentation
 docs/_build/
+*.md
+!README.md
 
 # OS
 Thumbs.db
