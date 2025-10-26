@@ -362,7 +362,7 @@ def create_customer():
         phone=form.phone.data,
         email=form.email.data or None,  # تحويل الفارغ إلى None
         address=form.address.data,
-        whatsapp=form.whatsapp.data,
+        whatsapp=form.whatsapp.data or form.phone.data,  # إذا فارغ، استخدم رقم الهاتف
         category=form.category.data,
         credit_limit=form.credit_limit.data or 0,
         discount_rate=form.discount_rate.data or 0,
@@ -422,7 +422,7 @@ def edit_customer(customer_id):
             cust.phone = form.phone.data
             cust.email = form.email.data or None  # تحويل الفارغ إلى None
             cust.address = form.address.data
-            cust.whatsapp = form.whatsapp.data
+            cust.whatsapp = form.whatsapp.data or form.phone.data  # إذا فارغ، استخدم رقم الهاتف
             cust.category = form.category.data
             cust.credit_limit = form.credit_limit.data or 0
             cust.discount_rate = form.discount_rate.data or 0

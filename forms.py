@@ -187,7 +187,8 @@ def normalize_phone(v: str | None) -> str | None:
     return s or None
 
 def normalize_email(raw):
-    return (raw or "").strip().lower()
+    result = (raw or "").strip().lower()
+    return result or None  # تحويل الفارغ إلى None لتجنب UNIQUE constraint
 
 def only_digits(s):
     return re.sub(r"\D", "", s or "")
