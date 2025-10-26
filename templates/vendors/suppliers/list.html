@@ -163,12 +163,12 @@
                     <span class="d-none d-lg-inline ms-1">تعديل</span>
                   </a>
                   {% if s.is_archived %}
-                  <button type="button" class="btn btn-sm btn-success d-flex align-items-center" title="استعادة" onclick="console.log('🔘 [TEMPLATE] تم النقر على زر استعادة المورد رقم: {{ s.id }}'); restoreSupplier({{ s.id }})">
+                  <button type="button" class="btn btn-sm btn-success d-flex align-items-center" title="استعادة" onclick="restoreSupplier({{ s.id }})">
                     <i class="fas fa-undo"></i>
                     <span class="d-none d-lg-inline ms-1">استعادة</span>
                   </button>
                   {% else %}
-                  <button type="button" class="btn btn-sm btn-warning d-flex align-items-center" title="أرشفة" onclick="console.log('🔘 [TEMPLATE] تم النقر على زر أرشفة المورد رقم: {{ s.id }}'); archiveSupplier({{ s.id }})">
+                  <button type="button" class="btn btn-sm btn-warning d-flex align-items-center" title="أرشفة" onclick="archiveSupplier({{ s.id }})">
                     <i class="fas fa-archive"></i>
                     <span class="d-none d-lg-inline ms-1">أرشفة</span>
                   </button>
@@ -259,11 +259,7 @@
 <script>
   // حساب ملخصات الموردين - الحل المضمون
   document.addEventListener('DOMContentLoaded', function() {
-    console.log('بدء حساب ملخصات الموردين...');
-    
     const rows = document.querySelectorAll('tbody tr');
-    console.log('عدد صفوف الموردين:', rows.length);
-    
     let totalBalance = 0;
     let totalDebit = 0;
     let totalCredit = 0;
@@ -272,14 +268,10 @@
       const cells = row.querySelectorAll('td');
       if (cells.length >= 6) {
         const balanceText = cells[5].textContent.trim();
-        console.log(`المورد ${index + 1}: ${balanceText}`);
-        
         // استخراج الرقم من النص
         const balanceMatch = balanceText.match(/-?\d+(?:,\d{3})*(?:\.\d{2})?/);
         if (balanceMatch) {
           const balance = parseFloat(balanceMatch[0].replace(/,/g, ''));
-          console.log(`الرصيد المستخرج: ${balance}`);
-          
           totalBalance += balance;
           
           if (balance < 0) {
@@ -291,11 +283,6 @@
       }
     });
     
-    console.log('ملخصات الموردين المحسوبة:');
-    console.log('الرصيد الصافي:', totalBalance);
-    console.log('مستحق دفع:', totalDebit);
-    console.log('مستحق قبض:', totalCredit);
-    
     // تحديث الملخصات
     const totalBalanceEl = document.getElementById('total-balance');
     const totalDebitEl = document.getElementById('total-debit');
@@ -303,18 +290,15 @@
     
     if (totalBalanceEl) {
       totalBalanceEl.textContent = totalBalance.toFixed(2);
-      console.log('تم تحديث الرصيد الصافي:', totalBalanceEl.textContent);
-    }
+      }
     
     if (totalDebitEl) {
       totalDebitEl.textContent = totalDebit.toFixed(2);
-      console.log('تم تحديث مستحق دفع:', totalDebitEl.textContent);
-    }
+      }
     
     if (totalCreditEl) {
       totalCreditEl.textContent = totalCredit.toFixed(2);
-      console.log('تم تحديث مستحق قبض:', totalCreditEl.textContent);
-    }
+      }
   });
   
   // التحقق من القطع غير المسعّرة
@@ -329,7 +313,7 @@
         window.unpricedItems = data.items;
       }
     })
-    .catch(err => console.error('خطأ في جلب القطع غير المسعّرة:', err));
+    .catch(err =>);
 });
 </script>
 
@@ -407,6 +391,5 @@ function showUnpricedModal() {
 
 <script>
   // وظائف الأرشفة متوفرة الآن في archive.js
-  console.log('📋 تم تحميل صفحة الموردين - وظائف الأرشفة متوفرة');
-</script>
+  </script>
 {% endblock %}
