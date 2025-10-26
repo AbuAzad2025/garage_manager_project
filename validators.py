@@ -20,6 +20,7 @@ class Unique:
         data = field.data
         if self.normalizer:
             data = self.normalizer(data)
+            field.data = data  # ✅ تحديث field.data بالقيمة المُعدّلة
         if not data:
             return
 
