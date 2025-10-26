@@ -69,7 +69,6 @@ def execute_silent_training():
         return True
     
     except Exception as e:
-        print(f"❌ [Auto Training] فشل التدريب: {str(e)}")
         return False
 
 def log_auto_training():

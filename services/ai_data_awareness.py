@@ -207,7 +207,6 @@ def build_data_schema():
     save_data_schema(schema)
     log_learning_event('schema_built', len(models))
 
-    print(f"   • الجداول: {len(schema['models'])}")
 
     return schema
 
@@ -349,7 +348,6 @@ def auto_build_if_needed():
         age_days = (datetime.now().timestamp() - file_time) / (3600 * 24)
         
         if age_days > 7:
-            print(f"🔄 الخريطة قديمة ({age_days:.1f} يوم) - سيتم تحديثها...")
             return build_data_schema()
     
     except:

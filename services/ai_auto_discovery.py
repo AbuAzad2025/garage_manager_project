@@ -172,8 +172,6 @@ def build_system_map():
     # 7. تسجيل الحدث
     log_discovery_event('auto_build', len(routes), len(templates))
 
-    print(f"   • المسارات: {len(routes)}")
-    print(f"   • القوالب: {len(templates)}")
 
     return system_map
 
@@ -401,7 +399,6 @@ def auto_discover_if_needed():
         age_hours = (datetime.now().timestamp() - file_time) / 3600
         
         if age_hours > 24:
-            print(f"🔄 الخريطة قديمة ({age_hours:.1f} ساعة) - سيتم تحديثها...")
             return build_system_map()
     
     except:

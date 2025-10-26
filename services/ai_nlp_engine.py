@@ -388,7 +388,6 @@ def understand_text(text: str, explain: bool = False) -> Dict[str, Any]:
     result = engine.process(text)
     
     if explain:
-        print(engine.explain_understanding(result))
     
     return result
 

@@ -58,7 +58,6 @@ class SystemKnowledgeBase:
 
             return self.knowledge
         
-        print("🔍 بدء فهرسة شاملة للنظام (100% Coverage)...")
         
         self.index_models()
         self.index_forms()
@@ -176,7 +175,6 @@ class SystemKnowledgeBase:
         ]
         
         self.knowledge['business_rules'].extend(currency_rules)
-        print(f"   💱 Currency Rules: {len(currency_rules)}")
     
     def index_models(self):
         """فهرسة Models - فهم الجداول - محسّن لاكتشاف كل النماذج"""
@@ -243,7 +241,6 @@ class SystemKnowledgeBase:
                     }
                     db_models_count += 1
             
-            print(f"   📊 Models: {db_models_count} DB + {enums_count} Enums = {len(self.knowledge['models'])} Total")
             
         except Exception as e:
             pass  # خطأ محتمل
@@ -272,7 +269,6 @@ class SystemKnowledgeBase:
                         'routes': [(r[0], r[1]) for r in routes]
                     }
             
-            print(f"   🔗 Routes: {len(self.knowledge['routes'])} ملف")
             
         except Exception as e:
             pass  # خطأ محتمل
@@ -303,7 +299,6 @@ class SystemKnowledgeBase:
                         'file': 'forms.py'
                     }
             
-            print(f"   📝 Forms: {len(self.knowledge['forms'])}")
         
         except Exception as e:
             pass  # خطأ محتمل
@@ -383,7 +378,6 @@ class SystemKnowledgeBase:
                     'file': str(js_file.relative_to(self.base_path))
                 }
             
-            print(f"   📜 JavaScript: {len(self.knowledge['javascript'])} ملف")
         
         except Exception as e:
             pass  # خطأ محتمل
@@ -410,7 +404,6 @@ class SystemKnowledgeBase:
                     'file': str(css_file.relative_to(self.base_path))
                 }
             
-            print(f"   🎨 CSS: {len(self.knowledge['css'])} ملف")
         
         except Exception as e:
             pass  # خطأ محتمل
@@ -502,7 +495,6 @@ class SystemKnowledgeBase:
                     'type': 'one-to-many'  # يمكن تحسينها
                 }
         
-        print(f"   🔗 Relationships: {len(self.knowledge['relationships'])}")
     
     def extract_business_rules(self):
         """استخراج القواعد التشغيلية من الكود"""
@@ -535,7 +527,6 @@ class SystemKnowledgeBase:
         ]
         
         self.knowledge['business_rules'] = business_rules
-        print(f"   📜 Business Rules: {len(business_rules)}")
     
     def find_model_by_name(self, name):
         """البحث عن موديل بالاسم"""
