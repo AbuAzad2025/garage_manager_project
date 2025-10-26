@@ -57,6 +57,10 @@
                     checks.forEach(function(check) {
                         const status = (check.status || '').toUpperCase();
                         
+                        // 🚨 فحص إذا كان متأخر (أولوية قصوى)
+                        const daysUntilDue = check.days_until_due || 0;
+                        const isOverdue = daysUntilDue < 0;
+                        
                         // فحص الملاحظات لاكتشاف التغييرات
                         const notes = (check.notes || '').toLowerCase();
                         let actualStatus = status;
@@ -74,16 +78,18 @@
                             actualStatus = 'ARCHIVED';
                         }
                         
-                        if (actualStatus === 'PENDING' || actualStatus === 'DUE_SOON' || actualStatus === 'RESUBMITTED') {
-                            categorized.pending.push(check);
+                        // 🚨 التصنيف مع أولوية للمتأخر
+                        if (isOverdue && (actualStatus === 'PENDING' || actualStatus === 'DUE_SOON' || actualStatus === 'RESUBMITTED')) {
+                            categorized.overdue.push(check);
                         } else if (actualStatus === 'OVERDUE') {
                             categorized.overdue.push(check);
+                        } else if (actualStatus === 'PENDING' || actualStatus === 'DUE_SOON' || actualStatus === 'RESUBMITTED') {
+                            categorized.pending.push(check);
                         } else if (actualStatus === 'CASHED') {
                             categorized.cashed.push(check);
                         } else if (actualStatus === 'RETURNED' || actualStatus === 'BOUNCED') {
                             categorized.returned.push(check);
                         } else if (actualStatus === 'CANCELLED') {
-                            // الملغاة في تبويب خاص
                             categorized.cancelled.push(check);
                         } else if (actualStatus === 'ARCHIVED') {
                             categorized.archived.push(check);
