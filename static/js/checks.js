@@ -2,10 +2,10 @@
 (function() {
     'use strict';
     
-    console.clear();
-    console.log('%c🔥 CHECKS MODULE v5.0 LOADED (External File)!', 'background: #667eea; color: white; padding: 5px 10px; border-radius: 3px; font-weight: bold;');
-    console.log('✅ jQuery:', typeof jQuery !== 'undefined' ? 'موجود ✓' : 'غير موجود ✗');
-    console.log('✅ $:', typeof $ !== 'undefined' ? 'موجود ✓' : 'غير موجود ✗');
+    // console.clear();
+    // console.log('%c🔥 CHECKS MODULE v5.0 LOADED (External File)!', 'background: #667eea; color: white; padding: 5px 10px; border-radius: 3px; font-weight: bold;');
+    // console.log('✅ jQuery:', typeof jQuery !== 'undefined' ? 'موجود ✓' : 'غير موجود ✗');
+    // console.log('✅ $:', typeof $ !== 'undefined' ? 'موجود ✓' : 'غير موجود ✗');
     
     // دوال مساعدة
     window.formatCurrency = function(number) {
@@ -27,7 +27,7 @@
 
     // جلب وتصنيف الشيكات
     window.loadAndCategorizeChecks = function() {
-        console.log('%c🔄 جلب الشيكات...', 'color: #667eea; font-weight: bold;');
+        // console.log('%c🔄 جلب الشيكات...', 'color: #667eea; font-weight: bold;');
         
         $.ajax({
             url: '/checks/api/checks',
@@ -37,12 +37,12 @@
                 withCredentials: true
             },
             success: function(response) {
-                console.log('%c✅ تم استلام الرد!', 'color: green; font-weight: bold;');
-                console.log('Response:', response);
+                // console.log('%c✅ تم استلام الرد!', 'color: green; font-weight: bold;');
+                // console.log('Response:', response);
                 
                 if (response.success && response.checks) {
                     const checks = response.checks;
-                    console.log('%c📊 عدد الشيكات: ' + checks.length, 'color: blue; font-weight: bold;');
+                    // console.log('%c📊 عدد الشيكات: ' + checks.length, 'color: blue; font-weight: bold;');
                     
                     // تصنيف
                     const categorized = {
@@ -84,7 +84,7 @@
                         if (isOverdue && (actualStatus === 'PENDING' || actualStatus === 'DUE_SOON' || actualStatus === 'RESUBMITTED')) {
                             // ✅ شيك معلق لكن تاريخه فات = متأخر
                             categorized.overdue.push(check);
-                            console.log('🚨 شيك متأخر:', check.check_number, 'أيام:', daysUntilDue);
+                            // console.log('🚨 شيك متأخر:', check.check_number, 'أيام:', daysUntilDue);
                         } else if (actualStatus === 'OVERDUE') {
                             categorized.overdue.push(check);
                         } else if (actualStatus === 'CASHED') {
