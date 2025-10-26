@@ -223,6 +223,9 @@ class StrippedStringField(StringField):
         super().process_formdata(valuelist)
         if isinstance(self.data, str):
             self.data = self.data.strip()
+            # تحويل السلسلة الفارغة إلى None لتجنب UNIQUE constraint errors
+            if not self.data:
+                self.data = None
 
 class MoneyField(DecimalField):
     def process_formdata(self, valuelist):
