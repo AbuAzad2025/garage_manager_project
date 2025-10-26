@@ -360,7 +360,7 @@ def create_customer():
     cust = Customer(
         name=form.name.data,
         phone=form.phone.data,
-        email=form.email.data,
+        email=form.email.data or None,  # تحويل الفارغ إلى None
         address=form.address.data,
         whatsapp=form.whatsapp.data,
         category=form.category.data,
@@ -418,7 +418,7 @@ def edit_customer(customer_id):
                 cust.set_password(form.password.data)
             cust.name = form.name.data
             cust.phone = form.phone.data
-            cust.email = form.email.data
+            cust.email = form.email.data or None  # تحويل الفارغ إلى None
             cust.address = form.address.data
             cust.whatsapp = form.whatsapp.data
             cust.category = form.category.data
