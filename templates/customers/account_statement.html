@@ -308,7 +308,7 @@
     {% set stats = [
       ('إجمالي مدين', total_debit, 'text-danger', 'fa-arrow-down'),
       ('إجمالي دائن', total_credit, 'text-success', 'fa-arrow-up'),
-      ('الرصيد', balance, balance > 0 and 'text-danger' or balance < 0 and 'text-success' or '', 'fa-balance-scale')
+      ('الرصيد', balance, balance < 0 and 'text-danger' or 'text-success', 'fa-balance-scale')
     ] %}
     {% for label, value, color_class, icon in stats %}
     <div class="col-12 col-md-4">

@@ -33,6 +33,7 @@ def log_interaction(question, answer, confidence, search_results):
             json.dump(interactions, f, ensure_ascii=False, indent=2)
         
     except Exception as e:
+        pass
 
 def analyze_recent_interactions(count=100):
     try:

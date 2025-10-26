@@ -407,3 +407,4 @@ def auto_discover_if_needed():
     return load_system_map()
 
 if __name__ == '__main__':
+    pass

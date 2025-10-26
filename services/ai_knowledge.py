@@ -39,7 +39,8 @@ class SystemKnowledgeBase:
                     self.knowledge.update(cached)
 
         except Exception as e:
-
+            pass
+    
     def save_to_cache(self):
         """حفظ المعرفة في الذاكرة المستمرة"""
         try:
@@ -51,11 +52,11 @@ class SystemKnowledgeBase:
                 json.dump(self.knowledge, f, ensure_ascii=False, indent=2)
 
         except Exception as e:
-
+            pass
+    
     def index_all_files(self, force_reindex=False):
         """فهرسة كل ملفات النظام مع حفظ مستمر - شاملة 100%"""
         if not force_reindex and self.knowledge.get('last_indexed'):
-
             return self.knowledge
         
         

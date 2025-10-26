@@ -104,6 +104,7 @@ def log_auto_training():
             json.dump(log_entry, f, ensure_ascii=False, indent=2)
     
     except Exception as e:
+        pass
 
 def init_auto_training():
     """تهيئة نظام التدريب التلقائي (يُستدعى عند بدء النظام)"""
@@ -114,7 +115,7 @@ def init_auto_training():
         pass
 
 if __name__ == '__main__':
-
     if should_auto_train():
-
+        execute_silent_training()
     else:
+        pass
