@@ -1941,9 +1941,10 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
             credit += payments_in  # الدفعات الواردة
             credit -= payments_out  # الدفعات الصادرة تنقص من الدائن
             
-            # الرصيد النهائي = المدين - الدائن
-            # موجب = عليه لنا، سالب = له علينا
-            final_balance = debit - credit
+            # الرصيد النهائي = الدائن - المدين
+            # سالب (-X) = عليه لنا (مدين)
+            # موجب (+X) = له علينا (دائن)
+            final_balance = credit - debit
             
             return final_balance
         except Exception as e:
