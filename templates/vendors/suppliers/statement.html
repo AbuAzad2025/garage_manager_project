@@ -259,8 +259,14 @@
       {% endif %}
     </div>
     <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-2 no-print">
+        <h5 class="mb-0">سجل الحركات</h5>
+        <button class="btn btn-sm btn-primary" onclick="printSupplierStatement()">
+          <i class="fas fa-print"></i> طباعة الكشف
+        </button>
+      </div>
       <div class="table-responsive">
-        <table class="table table-bordered table-sm table-striped align-middle">
+        <table class="table table-bordered table-sm table-striped align-middle" id="supplierStatementTable">
           <thead class="table-light">
             <tr>
               <th style="width: 110px">التاريخ</th>
@@ -428,5 +434,88 @@
   document.getElementById('btn-print')?.addEventListener('click', function () {
     window.print();
   });
+  
+  // دالة طباعة كشف حساب المورد
+  window.printSupplierStatement = function() {
+    const table = document.getElementById('supplierStatementTable');
+    if (!table) return;
+    
+    const printWindow = window.open('', '', 'height=800,width=1000');
+    printWindow.document.write('<html><head><title>كشف حساب - {{ supplier.name }}</title>');
+    printWindow.document.write('<meta charset="UTF-8">');
+    printWindow.document.write('<style>');
+    printWindow.document.write('* { margin: 0; padding: 0; box-sizing: border-box; }');
+    printWindow.document.write('body { font-family: Arial, sans-serif; direction: rtl; padding: 10px; font-size: 8pt; line-height: 1.2; }');
+    printWindow.document.write('h2 { text-align: center; color: #333; margin-bottom: 6px; border-bottom: 2px solid #000; padding-bottom: 4px; font-size: 11pt; }');
+    printWindow.document.write('.supplier-info { border: 1px solid #000; padding: 6px; margin: 8px 0; background-color: #f8f9fa; font-size: 7pt; }');
+    printWindow.document.write('.supplier-info table { width: 100%; border-collapse: collapse; }');
+    printWindow.document.write('.supplier-info td { padding: 2px 4px; border: none; }');
+    printWindow.document.write('.supplier-info strong { font-weight: bold; }');
+    printWindow.document.write('.balance-box { background-color: #e0ffe0; border: 1px solid #000; padding: 3px; margin-top: 3px; font-size: 7pt; }');
+    printWindow.document.write('.balance-box.negative { background-color: #ffe0e0; }');
+    printWindow.document.write('table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 7pt; }');
+    printWindow.document.write('th, td { border: 1px solid #000; padding: 3px 4px; text-align: right; line-height: 1.1; }');
+    printWindow.document.write('th { background-color: #e0e0e0; font-weight: bold; text-align: center; font-size: 7.5pt; }');
+    printWindow.document.write('tfoot th, tfoot td { background-color: #f0f0f0; font-weight: bold; padding: 4px; }');
+    printWindow.document.write('.text-end { text-align: left; }');
+    printWindow.document.write('.footer { text-align: center; font-size: 6pt; color: #666; margin-top: 15px; border-top: 1px solid #ccc; padding-top: 5px; }');
+    printWindow.document.write('@page { margin: 0.8cm; size: A4 portrait; }');
+    printWindow.document.write('</style></head><body>');
+    
+    // الترويسة
+    printWindow.document.write('<h2>كشف حساب مورد</h2>');
+    
+    // معلومات المورد
+    printWindow.document.write('<div class="supplier-info">');
+    printWindow.document.write('<table><tr>');
+    printWindow.document.write('<td style="width: 55%;">');
+    printWindow.document.write('<div><strong>المورد:</strong> {{ supplier.name }}</div>');
+    {% if supplier.phone %}
+    printWindow.document.write('<div><strong>الهاتف:</strong> {{ supplier.phone }}</div>');
+    {% endif %}
+    {% if supplier.email %}
+    printWindow.document.write('<div><strong>البريد:</strong> {{ supplier.email }}</div>');
+    {% endif %}
+    {% if supplier.address %}
+    printWindow.document.write('<div><strong>العنوان:</strong> {{ supplier.address }}</div>');
+    {% endif %}
+    printWindow.document.write('</td>');
+    printWindow.document.write('<td style="width: 45%; border-right: 1px solid #000;">');
+    {% if date_from and date_to %}
+    printWindow.document.write('<div><strong>الفترة:</strong> من {{ date_from.strftime("%Y-%m-%d") }} إلى {{ date_to.strftime("%Y-%m-%d") }}</div>');
+    {% endif %}
+    printWindow.document.write('<div class="balance-box {% if balance < 0 %}negative{% endif %}"><strong>الرصيد الحالي:</strong> {{ balance|format_currency }}');
+    {% if balance > 0 %}
+    printWindow.document.write(' <strong style="color: #dc3545;">(له علينا - مطلوب دفع)</strong>');
+    {% elif balance < 0 %}
+    printWindow.document.write(' <strong style="color: #28a745;">(لنا عليه)</strong>');
+    {% else %}
+    printWindow.document.write(' (متوازن)');
+    {% endif %}
+    printWindow.document.write('</div>');
+    {% if balance_data and balance_data.success %}
+    printWindow.document.write('<div style="font-size: 6pt; margin-top: 2px;"><strong>قطع غير مُسدَّدة:</strong> {{ "%.2f"|format(balance_data.rights.exchange_items.total_value_ils or 0) }} ₪</div>');
+    {% endif %}
+    printWindow.document.write('<div style="font-size: 6pt; margin-top: 2px;"><strong>طُبع:</strong> {{ now()|format_date }}</div>');
+    printWindow.document.write('</td>');
+    printWindow.document.write('</tr></table>');
+    printWindow.document.write('</div>');
+    
+    // الجدول
+    printWindow.document.write(table.outerHTML);
+    
+    // التذييل
+    printWindow.document.write('<div class="footer">');
+    printWindow.document.write('طُبع بتاريخ: ' + new Date().toLocaleString('en-US'));
+    printWindow.document.write('</div>');
+    
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    
+    // انتظر تحميل المحتوى ثم اطبع
+    setTimeout(function() {
+      printWindow.print();
+    }, 250);
+  }
 </script>
 {% endblock %}

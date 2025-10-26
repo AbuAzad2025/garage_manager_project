@@ -138,7 +138,7 @@
           callbacks: {
             label: (ctx) => {
               const v = ctx.parsed.x || 0;
-              return new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(v);
+              return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(v);
             }
           }
         }
@@ -149,7 +149,7 @@
           ticks: {
             callback: (val, i, ticks) => {
               const v = ticks[i]?.value ?? val;
-              return new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(v);
+              return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(v);
             }
           }
         }

@@ -24,7 +24,7 @@
   function formatValue(v, opts = {}) {
     const n = Number(v);
     if (!isFinite(n)) return String(v);
-    const { currency, unit, digits = 2, locale = 'ar-SA' } = opts;
+    const { currency, unit, digits = 2, locale = 'en-US' } = opts;
     try {
       if (currency) return new Intl.NumberFormat(locale, { style: 'currency', currency, maximumFractionDigits: digits }).format(n);
       const str = new Intl.NumberFormat(locale, { maximumFractionDigits: digits }).format(n);

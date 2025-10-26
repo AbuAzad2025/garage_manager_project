@@ -106,7 +106,7 @@
           { data: 'id', width: '60px' },
           { data: 'number' },
           { data: 'destination' },
-          { data: 'expected_arrival', render: function(d){ return d ? new Date(d).toLocaleString('ar-EG').split(',')[0] : ''; } },
+          { data: 'expected_arrival', render: function(d){ return d ? new Date(d).toLocaleString('en-US').split(',')[0] : ''; } },
           { data: 'status' },
           { data: 'currency', className: 'text-center', render: function(d){ return d ? '<span class="badge badge-secondary">' + d + '</span>' : '<span class="badge badge-secondary">ILS</span>'; } },
           { 

@@ -3,84 +3,165 @@
 {% block title %}كشف حساب العميل{% endblock %}
 
 {% block head_extra %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/statement-print.css') }}">
 <style>
-  /* ضغط شديد للطباعة - خطوط صغيرة جداً */
+  /* إخفاء عناصر الطباعة في الشاشة */
+  .print-header-info,
+  .print-customer-info,
+  .print-footer-info {
+    display: none !important;
+  }
+  
+  /* === تنسيق الطباعة === */
   @media print {
-    /* تصغير كل شيء للحد الأقصى */
-    * {
-      font-size: 3pt !important;
-      line-height: 0.8 !important;
+    /* إخفاء عناصر غير ضرورية */
+    .no-print,
+    .btn,
+    .breadcrumb,
+    nav,
+    .main-sidebar,
+    .main-header,
+    .main-footer,
+    .d-flex.gap-2,
+    .card.shadow-sm,
+    .row.g-3 {
+      display: none !important;
+    }
+    
+    /* إظهار عناصر الطباعة */
+    .print-header-info,
+    .print-customer-info,
+    .print-footer-info {
+      display: block !important;
+    }
+    
+    /* الصفحة */
+    @page {
+      margin: 1cm;
+      size: A4 portrait;
+    }
+    
+    body, html {
+      font-size: 7pt !important;
+      line-height: 1 !important;
+      margin: 0;
+      padding: 0;
+    }
+    
+    .content-wrapper {
       margin: 0 !important;
       padding: 0 !important;
+      max-width: 100% !important;
     }
     
-    html, body, .content-wrapper {
-      font-size: 3pt !important;
-      margin: 0 !important;
-      padding: 0 !important;
+    /* ترويسة الطباعة */
+    .print-header-info {
+      display: block !important;
+      margin-bottom: 8px;
+      padding: 8px;
+      border: 2px solid #000;
+      background-color: #f8f9fa !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
     }
     
-    .card-header h5 {
-      font-size: 4pt !important;
-      font-weight: bold !important;
-      margin: 0 !important;
-      padding: 0.5px !important;
+    .print-header-info .company-name {
+      font-size: 10pt !important;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 4px;
     }
     
-    /* الجدول صغير جداً */
+    .print-header-info .statement-type h2 {
+      font-size: 9pt !important;
+      font-weight: bold;
+      text-align: center;
+      margin: 2px 0 4px 0;
+      border-bottom: 1px solid #666;
+      padding-bottom: 2px;
+    }
+    
+    .print-header-info .statement-date,
+    .print-header-info .user-info {
+      font-size: 6pt !important;
+      text-align: center;
+    }
+    
+    /* معلومات العميل للطباعة */
+    .print-customer-info {
+      display: block !important;
+      font-size: 6pt !important;
+      border: 1px solid #000;
+      padding: 5px;
+      margin-bottom: 5px;
+      background-color: #ffffff !important;
+    }
+    
+    .print-customer-info table {
+      width: 100%;
+      font-size: 6pt !important;
+    }
+    
+    .print-customer-info td {
+      padding: 2px 4px;
+      border: none;
+      vertical-align: top;
+    }
+    
+    .print-customer-info strong {
+      font-weight: bold;
+    }
+    
+    /* خلفية الرصيد */
+    .print-customer-info .balance-box {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    
+    /* الجدول الرئيسي - مضغوط */
     .table,
     #statementTable {
-      font-size: 3pt !important;
-      margin: 0 !important;
+      font-size: 5pt !important;
       width: 100% !important;
       border-collapse: collapse !important;
+      margin: 0 !important;
     }
     
     .table th,
     .table td,
     #statementTable th,
     #statementTable td {
-      padding: 0px 1px !important;
-      line-height: 0.8 !important;
-      border: 0.2px solid #000 !important;
-      font-size: 3pt !important;
-      height: auto !important;
-      min-height: 0 !important;
+      padding: 1px 2px !important;
+      line-height: 1 !important;
+      border: 0.5px solid #000 !important;
+      font-size: 5pt !important;
     }
     
     .table thead th,
     #statementTable thead th {
-      font-size: 3.5pt !important;
-      padding: 0.5px 1px !important;
+      font-size: 6pt !important;
+      padding: 2px !important;
       font-weight: bold !important;
-      background-color: #f0f0f0 !important;
+      background-color: #e0e0e0 !important;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
+      text-align: center !important;
     }
     
     .table tfoot th,
     .table tfoot td,
     #statementTable tfoot th,
     #statementTable tfoot td {
-      font-size: 3.5pt !important;
-      padding: 0.5px 1px !important;
+      font-size: 6pt !important;
+      padding: 2px !important;
       font-weight: bold !important;
+      background-color: #f0f0f0 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
     }
     
-    .table .badge {
-      font-size: 2.5pt !important;
-      padding: 0px 1px !important;
-    }
-    
-    /* البنود المباعة أصغر */
-    .sale-items-row {
-      margin: 0 !important;
-      padding: 0 !important;
-    }
-    
+    /* جدول البنود المباعة - أصغر */
     .sale-items-details {
-      padding: 0px !important;
+      padding: 0 !important;
       margin: 0 !important;
       background-color: #fafafa !important;
       -webkit-print-color-adjust: exact !important;
@@ -88,156 +169,22 @@
     }
     
     .sale-items-details table {
-      font-size: 2.5pt !important;
-      margin: 0 !important;
+      font-size: 4pt !important;
+      width: 100% !important;
     }
     
     .sale-items-details th,
     .sale-items-details td {
-      padding: 0px 0.5px !important;
-      line-height: 0.8 !important;
-      font-size: 2.5pt !important;
-    }
-    
-    /* المسافات صفر تماماً */
-    .card {
-      margin: 0 !important;
-      padding: 0 !important;
-      box-shadow: none !important;
-      border: none !important;
-    }
-    
-    .card-body {
-      padding: 0px !important;
-    }
-    
-    .card-header {
-      padding: 0.5px 1px !important;
-      background-color: #e0e0e0 !important;
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-    }
-    
-    .row,
-    .row.g-3 {
-      margin: 0 !important;
-      gap: 0 !important;
-    }
-    
-    .col, [class*="col-"] {
-      padding: 0px !important;
-      margin: 0 !important;
-    }
-    
-    .mb-1, .mb-2, .mb-3, .mb-4,
-    .my-1, .my-2, .my-3, .my-4,
-    .mt-1, .mt-2, .mt-3, .mt-4 {
-      margin: 0 !important;
-    }
-    
-    .p-0, .p-1, .p-2, .p-3, .p-4 {
-      padding: 0 !important;
-    }
-    
-    /* إخفاء كل ما لا يُطبع */
-    .no-print,
-    .btn,
-    .breadcrumb,
-    nav,
-    .d-flex.flex-wrap.gap-2 {
-      display: none !important;
-    }
-    
-    /* الأيقونات */
-    .fas, .fab, i {
+      padding: 1px !important;
       font-size: 4pt !important;
+      line-height: 1 !important;
+      border: 0.5px solid #999 !important;
     }
     
-    /* هوامش صفحة صغيرة */
-    @page {
-      margin: 0.15cm !important;
-      size: A4 !important;
-    }
-    
-    /* النصوص الصغيرة */
-    .text-muted,
-    small {
-      font-size: 3.5pt !important;
-    }
-    
-    /* إخفاء الملخص الإحصائي لتوفير المساحة */
-    .row.g-3.mb-4,
-    .row.mb-4 {
+    /* إخفاء العناصر غير الضرورية */
+    .card-body > .row.g-3,
+    .card.shadow-sm {
       display: none !important;
-    }
-    
-    /* header وfooter المطبوع */
-    .print-header-info {
-      font-size: 3.5pt !important;
-      padding: 0.5px !important;
-      margin: 0 0 1px 0 !important;
-    }
-    
-    .print-header-info .company-name {
-      font-size: 4.5pt !important;
-      font-weight: bold !important;
-      margin: 0 !important;
-    }
-    
-    .print-header-info .company-details {
-      font-size: 3pt !important;
-      margin: 0 !important;
-    }
-    
-    .print-header-info .statement-type h2 {
-      font-size: 4.5pt !important;
-      margin: 0 !important;
-      padding: 0 !important;
-    }
-    
-    .print-header-info .statement-date,
-    .print-header-info .user-info {
-      font-size: 3pt !important;
-      margin: 0 !important;
-    }
-    
-    .print-footer-info {
-      font-size: 2.5pt !important;
-      padding: 0px !important;
-      margin: 0 !important;
-    }
-    
-    /* إخفاء الصور */
-    .company-logo,
-    .company-logo img {
-      display: none !important;
-    }
-    
-    /* ضغط table-responsive */
-    .table-responsive {
-      padding: 0 !important;
-      margin: 0 !important;
-    }
-    
-    /* تصغير النصوص الغامقة */
-    .fw-bold, strong, b {
-      font-size: inherit !important;
-      font-weight: 600 !important;
-    }
-    
-    /* إزالة الألوان للطباعة */
-    .text-danger, .text-success {
-      color: #000 !important;
-    }
-    
-    /* ضغط أي عناصر إضافية */
-    .align-middle {
-      vertical-align: middle !important;
-    }
-    
-    .text-truncate {
-      white-space: normal !important;
-      overflow: visible !important;
     }
   }
 </style>
@@ -256,91 +203,71 @@
 {% block content %}
 <!-- رأس الصفحة للطباعة فقط -->
 <div class="print-header-info">
-  <div class="company-logo">
-    <img src="{{ url_for('static', filename='img/azad_logo.png') }}" alt="Logo">
-  </div>
-  <div class="company-info">
-    <div class="company-name">{{ system_settings.system_name or system_settings.company_name or 'كراج أزاد' }}</div>
-    <div class="company-details">
-      {% if system_settings.COMPANY_ADDRESS %}📍 {{ system_settings.COMPANY_ADDRESS }}{% endif %}
-      {% if system_settings.COMPANY_PHONE %} | 📞 {{ system_settings.COMPANY_PHONE }}{% endif %}<br>
-      {% if system_settings.COMPANY_EMAIL %}📧 {{ system_settings.COMPANY_EMAIL }}{% endif %}
-      {% if system_settings.TAX_NUMBER %} | رقم ضريبي: {{ system_settings.TAX_NUMBER }}{% endif %}
-    </div>
-  </div>
   <div class="statement-type">
     <h2>كشف حساب عميل</h2>
-    <div class="statement-date">📅 {{ now()|format_datetime }}</div>
-    <div class="user-info">👤 {{ current_user.username if current_user.is_authenticated else 'النظام' }}</div>
   </div>
+</div>
+
+<!-- معلومات العميل والرصيد - للطباعة فقط -->
+<div class="print-customer-info">
+  <table style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td style="width: 55%; padding: 4px; vertical-align: top;">
+        <div style="margin-bottom: 3px;">
+          <strong>العميل:</strong> {{ customer.name }}
+        </div>
+        <div>
+          <strong>الجوال:</strong> {{ customer.phone or '—' }}
+          {% if customer.email %} | <strong>البريد:</strong> {{ customer.email }}{% endif %}
+        </div>
+        {% if customer.address %}
+        <div style="margin-top: 2px;">
+          <strong>العنوان:</strong> {{ customer.address }}
+        </div>
+        {% endif %}
+      </td>
+      <td style="width: 45%; padding: 4px; border-right: 1px solid #000; vertical-align: top;">
+        <div style="margin-bottom: 3px;">
+          <strong>الفترة:</strong> من {{ start_date|format_date }} إلى {{ end_date|format_date }}
+        </div>
+        <div class="balance-box" style="margin-bottom: 3px; font-size: 7pt; padding: 3px; background-color: {% if balance > 0 %}#ffe0e0{% elif balance < 0 %}#e0ffe0{% else %}#f0f0f0{% endif %}; border: 1px solid #000; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+          <strong>الرصيد الحالي:</strong> {{ balance|format_currency }}
+          {% if balance > 0 %}
+            <strong style="color: #dc3545;">(عليه لنا)</strong>
+          {% elif balance < 0 %}
+            <strong style="color: #28a745;">(له علينا)</strong>
+          {% else %}
+            (متوازن)
+          {% endif %}
+        </div>
+        <div style="font-size: 5pt;">
+          <strong>طُبع:</strong> {{ now()|format_date }} - {{ current_user.username if current_user.is_authenticated else 'النظام' }}
+        </div>
+      </td>
+    </tr>
+  </table>
 </div>
 
 <!-- تذييل الصفحة للطباعة فقط -->
 <div class="print-footer-info">
-  <div class="footer-line">
-    <strong>{{ system_settings.system_name or system_settings.company_name or 'كراج أزاد' }}</strong>
-  </div>
   <div class="footer-line print-time">
-    طُبع بواسطة: {{ current_user.username if current_user.is_authenticated else 'النظام' }} | 
-    {{ now()|format_datetime }} | 
     صفحة <span class="page-number"></span>
   </div>
 </div>
-
-<div class="content-wrapper">
-  <!-- Header فخم مع معلومات العميل -->
-  <div class="content-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px 0; margin-bottom: 20px;">
-    <div class="container-fluid">
-      <div class="row align-items-center">
-        <div class="col-md-8">
-          <h1 class="mb-2"><i class="fas fa-user-circle"></i> كشف حساب العميل</h1>
-          <div class="row">
-            <div class="col-md-6">
-              <h4 class="mb-1"><i class="fas fa-user"></i> {{ customer.name }}</h4>
-              <p class="mb-1"><i class="fas fa-phone"></i> {{ customer.phone or '—' }}</p>
-              <p class="mb-1"><i class="fas fa-envelope"></i> {{ customer.email or '—' }}</p>
-            </div>
-            <div class="col-md-6">
-              <p class="mb-1"><i class="fas fa-map-marker-alt"></i> {{ customer.address or '—' }}</p>
-              <p class="mb-1"><i class="fas fa-tag"></i> {{ customer.category or 'عادي' }}</p>
-              <p class="mb-1"><i class="fas fa-calendar"></i> من {{ start_date|format_date }} إلى {{ end_date|format_date }}</p>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-4 text-center">
-          <div class="p-3 rounded" style="background: rgba(255,255,255,0.2);">
-            <h6 class="mb-1 text-white-50">الرصيد الحالي</h6>
-            <h2 class="mb-0 fw-bold">
-              {% if balance > 0 %}
-                <span class="text-warning">{{ balance|format_currency }}</span>
-                <br><small style="font-size: 0.6em;">عليه لنا</small>
-              {% elif balance < 0 %}
-                <span class="text-info">{{ balance|abs|format_currency }}</span>
-                <br><small style="font-size: 0.6em;">له علينا</small>
-              {% else %}
-                <span class="text-white">{{ balance|format_currency }}</span>
-                <br><small style="font-size: 0.6em;">متوازن</small>
-              {% endif %}
-            </h2>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- أزرار الإجراءات -->
   <div class="d-flex flex-wrap gap-2 mb-3 no-print">
     <a class="btn btn-outline-secondary" href="{{ url_for('customers_bp.customer_detail', customer_id=customer.id) }}">
       <i class="fas fa-arrow-right ms-1"></i> رجوع
     </a>
-    <button type="button" class="btn btn-outline-primary" id="btn-print">
+    <button type="button" class="btn btn-outline-primary" onclick="window.print()">
       <i class="fas fa-print ms-1"></i> طباعة
     </button>
   </div>
 
-  <!-- 👤 بطاقة معلومات العميل الفخمة -->
-  <div class="card shadow-lg border-0 mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-    <div class="card-body text-white">
+  <!-- 👤 بطاقة معلومات العميل -->
+  <div class="card shadow-sm border mb-4">
+    <div class="card-body">
       <div class="row align-items-center">
         <div class="col-md-8">
           <h3 class="mb-2"><i class="fas fa-user-circle"></i> {{ customer.name }}</h3>
@@ -356,8 +283,8 @@
           </div>
         </div>
         <div class="col-md-4 text-center">
-          <div class="p-3 rounded" style="background: rgba(255,255,255,0.2);">
-            <h6 class="mb-1 text-white-50">الرصيد الحالي</h6>
+          <div class="p-3 rounded border" style="background: #f8f9fa;">
+            <h6 class="mb-1 text-muted">الرصيد الحالي</h6>
             <h2 class="mb-0 fw-bold">
               {% if balance > 0 %}
                 <span class="text-warning">{{ balance|format_currency }}</span>
@@ -451,109 +378,113 @@
       <div class="d-flex justify-content-between align-items-center mb-2 no-print">
         <h5 class="mb-0">سجل الحركات</h5>
         <button class="btn btn-sm btn-primary" onclick="printStatementTable()">
-          <i class="fas fa-print"></i> طباعة الجدول
+          <i class="fas fa-print"></i> طباعة الكشف
         </button>
       </div>
       <div class="table-responsive">
-        <table class="table table-bordered table-sm table-striped align-middle" id="statementTable">
-          <thead class="table-light">
+        <table class="table table-bordered table-sm align-middle" id="statementTable" style="border: 2px solid #dee2e6; border-collapse: collapse;">
+          <thead class="table-light" style="background-color: #f8f9fa;">
             <tr>
-              <th style="width: 100px">التاريخ</th>
-              <th style="width: 100px">النوع</th>
-              <th>البيان والتفاصيل</th>
-              <th style="width: 150px">الملاحظات</th>
-              <th class="text-end" style="width: 110px">مدين</th>
-              <th class="text-end" style="width: 110px">دائن</th>
-              <th class="text-end" style="width: 110px">الرصيد</th>
+              <th style="width: 100px; border: 1px solid #dee2e6; padding: 12px; font-weight: bold; text-align: center;">التاريخ</th>
+              <th style="border: 1px solid #dee2e6; padding: 12px; font-weight: bold; text-align: center;">البيان</th>
+              <th style="width: 180px; border: 1px solid #dee2e6; padding: 12px; font-weight: bold; text-align: center;">ملاحظات</th>
+              <th style="width: 110px; border: 1px solid #dee2e6; padding: 12px; font-weight: bold; text-align: center;">مدين</th>
+              <th style="width: 110px; border: 1px solid #dee2e6; padding: 12px; font-weight: bold; text-align: center;">دائن</th>
+              <th style="width: 110px; border: 1px solid #dee2e6; padding: 12px; font-weight: bold; text-align: center;">الرصيد</th>
             </tr>
           </thead>
           <tbody>
             {% for e in ledger_entries %}
             <tr>
-              <td>{{ e.date|format_date }}</td>
-              <td>
-                {% set t = e.type or '' %}
-                <span class="badge {{ type_badges.get(t, 'bg-secondary') }}">{{ type_labels.get(t, t) }}</span>
-              </td>
-              <td>
-                {# البيان بالعربي #}
-                {% if e.type == 'SALE' %}
-                  <strong>عملية بيع</strong>
-                  {% if e.get('items') and e.get('items')|length > 0 %}
-                    <small class="text-muted d-block">{{ e.get('items')|length }} صنف</small>
+              {# التاريخ #}
+              <td style="border: 1px solid #dee2e6; padding: 8px; text-align: center;">{{ e.date|format_date }}</td>
+              
+              {# البيان الديناميكي #}
+              <td style="border: 1px solid #dee2e6; padding: 8px; text-align: start;">
+                {# للدفعات - دفعة (طريقة) سند قبض - ليج (المستلم) #}
+                {% if e.type == 'PAYMENT' and e.get('payment_details') %}
+                  {% set pd = e.payment_details %}
+                  دفعة
+                  
+                  {# طريقة الدفع - بالعربي بدون ألوان #}
+                  {% set method = pd.method_raw|lower if pd.method_raw else '' %}
+                  {% if method == 'cash' %}
+                    (نقداً)
+                  {% elif method == 'card' %}
+                    (بطاقة)
+                  {% elif method == 'cheque' %}
+                    (شيك
+                    {% if pd.check_number %} #{{ pd.check_number }}{% endif %}
+                    {% if pd.check_due_date %} - {{ pd.check_due_date|format_date }}{% endif %})
+                  {% elif method == 'bank' %}
+                    (تحويل بنكي)
+                  {% elif method == 'online' %}
+                    (إلكتروني)
+                  {% elif pd.method %}
+                    ({{ pd.method }})
+                  {% else %}
+                    (نقداً)
                   {% endif %}
-                {% elif e.type == 'PAYMENT' %}
-                  <div style="font-size: 0.9em;">{{ e.statement }}</div>
-                {% elif e.type == 'SERVICE' %}
-                  <strong>خدمة صيانة</strong>
-                {% elif e.type == 'PREORDER' %}
-                  <strong>حجز مسبق</strong>
+                  
+                  سند قبض
+                  
+                  {# المستلم - إذا موجود #}
+                  {% if pd.receiver_name %}
+                    - لـيـد ({{ pd.receiver_name }})
+                  {% endif %}
+                
+                {# للمبيعات #}
+                {% elif e.type == 'SALE' %}
+                  بيع - عملية بيع
+                  {% if e.get('items') and e.get('items')|length > 0 %}
+                    {{ e.get('items')|length }} صنف
+                  {% endif %}
+                
+                {# للفواتير #}
                 {% elif e.type == 'INVOICE' %}
-                  <strong>فاتورة</strong>
+                  فاتورة بيع
+                  {% if e.ref %}
+                    - {{ e.ref }}
+                  {% endif %}
+                
+                {# للخدمات #}
+                {% elif e.type == 'SERVICE' %}
+                  صيانة - خدمة صيانة
+                
+                {# للحجوزات #}
+                {% elif e.type == 'PREORDER' %}
+                  حجز مسبق
+                  {% if e.ref %}
+                    - {{ e.ref }}
+                  {% endif %}
+                
+                {# الرصيد الافتتاحي #}
                 {% elif e.type == 'OPENING_BALANCE' %}
-                  <strong>الرصيد الافتتاحي</strong>
+                  الرصيد الافتتاحي
+                
+                {# أي نوع آخر #}
                 {% else %}
                   {{ e.statement }}
                 {% endif %}
-                
-                {# تفاصيل الدفعة الفخمة #}
-                {% if e.type == 'PAYMENT' and e.get('payment_details') %}
-                  {% set pd = e.payment_details %}
-                  <div class="mt-2" style="border-right: 3px solid #007bff; padding-right: 10px; margin-right: 5px;">
-                    {# طريقة الدفع بالعربي #}
-                    {% if pd.method_raw == 'cash' or pd.method == 'نقداً' %}
-                      <div class="mb-1">
-                        <span class="badge bg-success"><i class="fas fa-money-bill-wave"></i> نقداً</span>
-                      </div>
-                    {% elif pd.method_raw == 'card' or pd.method == 'بطاقة' %}
-                      <div class="mb-1">
-                        <span class="badge bg-info"><i class="fas fa-credit-card"></i> بطاقة ائتمان</span>
-                      </div>
-                      {% if pd.card_holder or pd.card_last4 %}
-                      <small class="text-muted d-block">
-                        {% if pd.card_holder %}<i class="fas fa-user"></i> حامل البطاقة: {{ pd.card_holder }}{% endif %}
-                        {% if pd.card_last4 %}<br><i class="fas fa-credit-card"></i> رقم البطاقة: **** {{ pd.card_last4 }}{% endif %}
-                      </small>
-                      {% endif %}
-                    {% elif pd.method_raw == 'cheque' or pd.method == 'شيك' %}
-                      <div class="mb-1">
-                        <span class="badge bg-warning text-dark"><i class="fas fa-money-check"></i> شيك بنكي</span>
-                      </div>
-                      <small class="d-block text-muted">
-                        {% if pd.check_bank %}<i class="fas fa-university"></i> البنك: {{ pd.check_bank }}<br>{% endif %}
-                        {% if pd.check_number %}رقم الشيك: {{ pd.check_number }}<br>{% endif %}
-                        {% if pd.check_due_date %}<span class="text-danger"><i class="fas fa-calendar-alt"></i> <strong>تاريخ الاستحقاق:</strong> {{ pd.check_due_date|format_date }}</span>{% endif %}
-                      </small>
-                    {% elif pd.method_raw == 'bank' or pd.method == 'تحويل بنكي' %}
-                      <div class="mb-1">
-                        <span class="badge bg-primary"><i class="fas fa-university"></i> تحويل بنكي</span>
-                      </div>
-                      {% if pd.bank_transfer_ref %}
-                      <small class="text-muted d-block"><i class="fas fa-hashtag"></i> رقم المرجع: {{ pd.bank_transfer_ref }}</small>
-                      {% endif %}
-                    {% elif pd.method_raw == 'online' or pd.method == 'إلكتروني' %}
-                      <div class="mb-1">
-                        <span class="badge bg-info"><i class="fas fa-globe"></i> دفع إلكتروني</span>
-                      </div>
-                    {% else %}
-                      <span class="badge bg-secondary">{{ pd.method }}</span>  {# ✅ عرض القيمة العربية #}
-                    {% endif %}
-                    
-                    {# المستلم #}
-                    {% if pd.receiver_name %}
-                    <div class="mt-2 p-2 rounded" style="background: rgba(0,123,255,0.1); border-right: 3px solid #007bff;">
-                      <small class="text-primary d-block">
-                        <i class="fas fa-user-check"></i> <strong>المستلم:</strong> {{ pd.receiver_name }}
-                      </small>
-                    </div>
-                    {% endif %}
-                  </div>
+              </td>
+              
+              {# الملاحظات #}
+              <td style="border: 1px solid #dee2e6; padding: 8px; text-align: start;">
+                {% if e.notes %}
+                  {{ e.notes[:80] }}{% if e.notes|length > 80 %}...{% endif %}
+                {% else %}
+                  —
                 {% endif %}
               </td>
-              <td><small class="text-muted">{{ e.get('notes', '') }}</small></td>
-              <td class="text-end">{{ e.debit|format_currency }}</td>
-              <td class="text-end">{{ e.credit|format_currency }}</td>
-              <td class="text-end fw-bold {% if e.balance > 0 %}text-danger{% elif e.balance < 0 %}text-success{% endif %}">
+              
+              {# المدين #}
+              <td style="border: 1px solid #dee2e6; padding: 8px; text-align: end; font-weight: 500;">{{ e.debit|format_currency }}</td>
+              
+              {# الدائن #}
+              <td style="border: 1px solid #dee2e6; padding: 8px; text-align: end; font-weight: 500;">{{ e.credit|format_currency }}</td>
+              
+              {# الرصيد #}
+              <td style="border: 1px solid #dee2e6; padding: 8px; text-align: end; font-weight: bold; {% if e.balance > 0 %}color: #dc3545;{% elif e.balance < 0 %}color: #28a745;{% endif %}">
                 {{ e.balance|format_currency }}
               </td>
             </tr>
@@ -561,28 +492,28 @@
             {# عرض البنود المباعة تحت كل عملية بيع #}
             {% if e.type == 'SALE' and e.get('items') %}
             <tr class="sale-items-row">
-              <td colspan="7" class="p-0">
+              <td colspan="6" class="p-0">
                 <div class="sale-items-details" style="background-color: #f8f9fa; padding: 10px; margin: 5px;">
-                  <table class="table table-sm table-borderless mb-0" style="font-size: 0.9em;">
-                    <thead>
-                      <tr style="background-color: #e9ecef;">
-                        <th style="width: 35%;">البند</th>
-                        <th class="text-center" style="width: 10%;">الكمية</th>
-                        <th class="text-end" style="width: 12%;">السعر</th>
-                        <th class="text-end" style="width: 13%;">الإجمالي</th>
-                        <th style="width: 15%;">المستلم</th>
-                        <th style="width: 15%;">ملاحظات</th>
+                  <table class="table table-sm table-bordered mb-0" style="font-size: 0.85em; border: 1px solid #dee2e6;">
+                    <thead style="background-color: #e9ecef;">
+                      <tr>
+                        <th style="width: 35%; border: 1px solid #dee2e6; padding: 8px; text-align: center;">البند</th>
+                        <th style="width: 10%; border: 1px solid #dee2e6; padding: 8px; text-align: center;">الكمية</th>
+                        <th style="width: 12%; border: 1px solid #dee2e6; padding: 8px; text-align: center;">السعر</th>
+                        <th style="width: 13%; border: 1px solid #dee2e6; padding: 8px; text-align: center;">الإجمالي</th>
+                        <th style="width: 15%; border: 1px solid #dee2e6; padding: 8px; text-align: center;">المستلم</th>
+                        <th style="width: 15%; border: 1px solid #dee2e6; padding: 8px; text-align: center;">ملاحظات</th>
                       </tr>
                     </thead>
                     <tbody>
                       {% for item in e.get('items', []) %}
                       <tr>
-                        <td><i class="fas fa-box text-muted"></i> {{ item.name }}</td>
-                        <td class="text-center">{{ item.quantity }}</td>
-                        <td class="text-end">{{ item.unit_price|format_currency }}</td>
-                        <td class="text-end fw-bold">{{ item.total|format_currency }}</td>
-                        <td><small class="text-primary"><i class="fas fa-user"></i> {{ item.receiver or '—' }}</small></td>
-                        <td><small class="text-muted">{{ item.note or '—' }}</small></td>
+                        <td style="border: 1px solid #dee2e6; padding: 6px; text-align: start;">{{ item.name }}</td>
+                        <td style="border: 1px solid #dee2e6; padding: 6px; text-align: center;">{{ item.quantity }}</td>
+                        <td style="border: 1px solid #dee2e6; padding: 6px; text-align: end;">{{ item.unit_price|format_currency }}</td>
+                        <td style="border: 1px solid #dee2e6; padding: 6px; text-align: end; font-weight: 500;">{{ item.total|format_currency }}</td>
+                        <td style="border: 1px solid #dee2e6; padding: 6px; text-align: start;">{{ item.receiver or '—' }}</td>
+                        <td style="border: 1px solid #dee2e6; padding: 6px; text-align: start;">{{ item.note or '—' }}</td>
                       </tr>
                       {% endfor %}
                     </tbody>
@@ -594,16 +525,16 @@
             
             {% else %}
             <tr>
-              <td colspan="7" class="text-center text-muted">لا توجد حركات.</td>
+              <td colspan="6" class="text-center text-muted">لا توجد حركات.</td>
             </tr>
             {% endfor %}
           </tbody>
-          <tfoot class="table-light">
+          <tfoot style="background-color: #f8f9fa;">
             <tr>
-              <th colspan="4" class="text-end">الإجمالي</th>
-              <th class="text-end">{{ total_debit|format_currency }}</th>
-              <th class="text-end">{{ total_credit|format_currency }}</th>
-              <th class="text-end {% if balance > 0 %}text-danger{% elif balance < 0 %}text-success{% endif %}">
+              <th colspan="3" style="border: 1px solid #dee2e6; padding: 12px; text-align: center; font-weight: bold;">الإجمالي</th>
+              <th style="border: 1px solid #dee2e6; padding: 12px; text-align: end; font-weight: bold;">{{ total_debit|format_currency }}</th>
+              <th style="border: 1px solid #dee2e6; padding: 12px; text-align: end; font-weight: bold;">{{ total_credit|format_currency }}</th>
+              <th style="border: 1px solid #dee2e6; padding: 12px; text-align: end; font-weight: bold; {% if balance > 0 %}color: #dc3545;{% elif balance < 0 %}color: #28a745;{% endif %}">
                 {{ balance|format_currency }}
               </th>
             </tr>
@@ -613,15 +544,12 @@
     </div>
   </div>
 </div>
+
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script>
-  document.getElementById('btn-print')?.addEventListener('click', function () {
-    window.print();
-  });
-  
   // DataTables إذا كان الجدول كبير
   {% if ledger_entries|length > 10 %}
   $('#statementTable').DataTable({
@@ -637,30 +565,83 @@
   });
   {% endif %}
   
-  // دالة طباعة الجدول
+  // دالة طباعة كشف الحساب
   window.printStatementTable = function() {
     const table = document.getElementById('statementTable');
     if (!table) return;
     
-    const printWindow = window.open('', '', 'height=600,width=800');
+    const printWindow = window.open('', '', 'height=800,width=1000');
     printWindow.document.write('<html><head><title>كشف حساب - {{ customer.name }}</title>');
+    printWindow.document.write('<meta charset="UTF-8">');
     printWindow.document.write('<style>');
-    printWindow.document.write('body { font-family: Arial, sans-serif; direction: rtl; }');
-    printWindow.document.write('table { width: 100%; border-collapse: collapse; margin: 20px 0; }');
-    printWindow.document.write('th, td { border: 1px solid #ddd; padding: 8px; text-align: right; }');
-    printWindow.document.write('th { background-color: #f8f9fa; font-weight: bold; }');
+    printWindow.document.write('* { margin: 0; padding: 0; box-sizing: border-box; }');
+    printWindow.document.write('body { font-family: Arial, sans-serif; direction: rtl; padding: 10px; font-size: 8pt; line-height: 1.2; }');
+    printWindow.document.write('h2 { text-align: center; color: #333; margin-bottom: 6px; border-bottom: 2px solid #000; padding-bottom: 4px; font-size: 11pt; }');
+    printWindow.document.write('.customer-info { border: 1px solid #000; padding: 6px; margin: 8px 0; background-color: #f8f9fa; font-size: 7pt; }');
+    printWindow.document.write('.customer-info table { width: 100%; border-collapse: collapse; }');
+    printWindow.document.write('.customer-info td { padding: 2px 4px; border: none; }');
+    printWindow.document.write('.customer-info strong { font-weight: bold; }');
+    printWindow.document.write('.balance-box { background-color: #ffe0e0; border: 1px solid #000; padding: 3px; margin-top: 3px; font-size: 7pt; }');
+    printWindow.document.write('table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 7pt; }');
+    printWindow.document.write('th, td { border: 1px solid #000; padding: 3px 4px; text-align: right; line-height: 1.1; }');
+    printWindow.document.write('th { background-color: #e0e0e0; font-weight: bold; text-align: center; font-size: 7.5pt; }');
+    printWindow.document.write('tfoot th, tfoot td { background-color: #f0f0f0; font-weight: bold; padding: 4px; }');
     printWindow.document.write('.text-end { text-align: left; }');
-    printWindow.document.write('h2 { text-align: center; color: #333; margin-bottom: 20px; }');
-    printWindow.document.write('tfoot { background-color: #f8f9fa; font-weight: bold; }');
+    printWindow.document.write('.sale-items-details { background-color: #fafafa; padding: 4px; margin: 2px 0; }');
+    printWindow.document.write('.sale-items-details table { font-size: 6pt; margin: 0; }');
+    printWindow.document.write('.sale-items-details th, .sale-items-details td { padding: 2px 3px; font-size: 6pt; }');
+    printWindow.document.write('.footer { text-align: center; font-size: 6pt; color: #666; margin-top: 15px; border-top: 1px solid #ccc; padding-top: 5px; }');
+    printWindow.document.write('@page { margin: 0.8cm; size: A4 portrait; }');
     printWindow.document.write('</style></head><body>');
-    printWindow.document.write('<h2>كشف حساب - {{ customer.name }}</h2>');
-    printWindow.document.write('<p style="text-align: center;">من {{ from_date }} إلى {{ to_date }}</p>');
+    
+    // الترويسة
+    printWindow.document.write('<h2>كشف حساب عميل</h2>');
+    
+    // معلومات العميل
+    printWindow.document.write('<div class="customer-info">');
+    printWindow.document.write('<table><tr>');
+    printWindow.document.write('<td style="width: 55%;">');
+    printWindow.document.write('<div><strong>العميل:</strong> {{ customer.name }}</div>');
+    {% if customer.phone %}
+    printWindow.document.write('<div><strong>الجوال:</strong> {{ customer.phone }}</div>');
+    {% endif %}
+    {% if customer.email %}
+    printWindow.document.write('<div><strong>البريد:</strong> {{ customer.email }}</div>');
+    {% endif %}
+    printWindow.document.write('</td>');
+    printWindow.document.write('<td style="width: 45%; border-right: 1px solid #000;">');
+    {% if start_date and end_date %}
+    printWindow.document.write('<div><strong>الفترة:</strong> من {{ start_date|format_date }} إلى {{ end_date|format_date }}</div>');
+    {% endif %}
+    printWindow.document.write('<div class="balance-box"><strong>الرصيد الحالي:</strong> {{ balance|format_currency }}');
+    {% if balance > 0 %}
+    printWindow.document.write(' <strong style="color: #dc3545;">(عليه لنا)</strong>');
+    {% elif balance < 0 %}
+    printWindow.document.write(' <strong style="color: #28a745;">(له علينا)</strong>');
+    {% else %}
+    printWindow.document.write(' (متوازن)');
+    {% endif %}
+    printWindow.document.write('</div>');
+    printWindow.document.write('<div style="font-size: 9pt; margin-top: 5px;"><strong>طُبع:</strong> {{ now()|format_date }}</div>');
+    printWindow.document.write('</td>');
+    printWindow.document.write('</tr></table>');
+    printWindow.document.write('</div>');
+    
+    // الجدول
     printWindow.document.write(table.outerHTML);
-    printWindow.document.write('<p style="text-align: center; font-size: 12px; color: #666; margin-top: 30px;">');
-    printWindow.document.write('طُبع بتاريخ: ' + new Date().toLocaleString('ar-EG') + '</p>');
+    
+    // التذييل
+    printWindow.document.write('<div class="footer">');
+    printWindow.document.write('طُبع بتاريخ: ' + new Date().toLocaleString('en-US'));
+    printWindow.document.write('</div>');
+    
     printWindow.document.write('</body></html>');
     printWindow.document.close();
-    printWindow.print();
+    
+    // انتظر تحميل المحتوى ثم اطبع
+    setTimeout(function() {
+      printWindow.print();
+    }, 250);
   }
 </script>
 {% endblock %}

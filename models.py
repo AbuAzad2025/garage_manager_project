@@ -25,6 +25,7 @@ from sqlalchemy import (
     case,
     event,
     func,
+    insert,
     or_,
     select,
     text as sa_text,
@@ -2078,8 +2079,22 @@ def _customer_normalize(_m, _c, t: Customer):
 @event.listens_for(Customer, "after_insert")
 @event.listens_for(Customer, "after_update")
 def _customer_opening_balance_gl(mapper, connection, target: "Customer"):
-    """إنشاء/تحديث GLBatch للرصيد الافتتاحي للعميل"""
+    """
+    إنشاء/تحديث GLBatch للرصيد الافتتاحي للعميل
+    
+    ⚡ محسّن: يفحص إذا تغير opening_balance فعلاً قبل إنشاء GL
+    """
     try:
+        # ⚡ تحسين: فحص التغيير فقط على update
+        if mapper and connection:
+            try:
+                hist = inspect(target).attrs.get('opening_balance')
+                if hist and hasattr(hist, 'history'):
+                    if not hist.history.has_changes():
+                        return  # لم يتغير opening_balance - لا داعي للقيد
+            except:
+                pass  # في حالة after_insert لن يكون هناك history
+        
         opening_balance = float(getattr(target, 'opening_balance', 0) or 0)
         if opening_balance == 0:
             return
@@ -2400,8 +2415,22 @@ def _supplier_before_update(_m, _c, t: Supplier):
 @event.listens_for(Supplier, "after_insert")
 @event.listens_for(Supplier, "after_update")
 def _supplier_opening_balance_gl(mapper, connection, target: "Supplier"):
-    """إنشاء/تحديث GLBatch للرصيد الافتتاحي للمورد"""
+    """
+    إنشاء/تحديث GLBatch للرصيد الافتتاحي للمورد
+    
+    ⚡ محسّن: يفحص إذا تغير opening_balance فعلاً قبل إنشاء GL
+    """
     try:
+        # ⚡ تحسين: فحص التغيير فقط على update
+        if mapper and connection:
+            try:
+                hist = inspect(target).attrs.get('opening_balance')
+                if hist and hasattr(hist, 'history'):
+                    if not hist.history.has_changes():
+                        return  # لم يتغير opening_balance - لا داعي للقيد
+            except:
+                pass  # في حالة after_insert لن يكون هناك history
+        
         opening_balance = float(getattr(target, 'opening_balance', 0) or 0)
         if opening_balance == 0:
             return
@@ -2992,8 +3021,22 @@ def _partner_before_update(_m, _c, t: Partner):
 @event.listens_for(Partner, "after_insert")
 @event.listens_for(Partner, "after_update")
 def _partner_opening_balance_gl(mapper, connection, target: "Partner"):
-    """إنشاء/تحديث GLBatch للرصيد الافتتاحي للشريك"""
+    """
+    إنشاء/تحديث GLBatch للرصيد الافتتاحي للشريك
+    
+    ⚡ محسّن: يفحص إذا تغير opening_balance فعلاً قبل إنشاء GL
+    """
     try:
+        # ⚡ تحسين: فحص التغيير فقط على update
+        if mapper and connection:
+            try:
+                hist = inspect(target).attrs.get('opening_balance')
+                if hist and hasattr(hist, 'history'):
+                    if not hist.history.has_changes():
+                        return  # لم يتغير opening_balance - لا داعي للقيد
+            except:
+                pass  # في حالة after_insert لن يكون هناك history
+        
         opening_balance = float(getattr(target, 'opening_balance', 0) or 0)
         if opening_balance == 0:
             return
@@ -5710,6 +5753,67 @@ def _payment_gl_batch_delete(mapper, connection, target: "Payment"):
         print(f"⚠️ خطأ في حذف GLBatch للدفعة #{target.id}: {e}", file=sys.stderr)
 
 
+@event.listens_for(Payment, "after_insert", propagate=True)
+def _payment_create_check_auto(mapper, connection, target: "Payment"):
+    """✅ إنشاء سجل Check تلقائياً عند إنشاء دفعة بطريقة شيك"""
+    try:
+        # فحص طريقة الدفع
+        method_str = str(getattr(target, 'method', '')).upper()
+        if 'CHECK' not in method_str and 'CHEQUE' not in method_str:
+            return
+        
+        # فحص معلومات الشيك
+        check_number = (getattr(target, 'check_number', None) or '').strip()
+        check_bank = (getattr(target, 'check_bank', None) or '').strip()
+        
+        if not check_number or not check_bank:
+            return
+        
+        # تحويل check_due_date
+        check_due_date = getattr(target, 'check_due_date', None)
+        if not check_due_date:
+            payment_date = getattr(target, 'payment_date', None)
+            check_due_date = payment_date or datetime.now(timezone.utc)
+        
+        # التحقق من created_by_id
+        created_by_id = getattr(target, 'created_by', None)
+        if not created_by_id or created_by_id == 0:
+            # جلب أول مستخدم كـ fallback
+            from models import User
+            first_user_result = connection.execute(
+                sa_text("SELECT id FROM users ORDER BY id LIMIT 1")
+            ).scalar()
+            created_by_id = first_user_result if first_user_result else 1
+        
+        # إنشاء سجل الشيك
+        connection.execute(
+            Check.__table__.insert().values(
+                check_number=check_number,
+                check_bank=check_bank,
+                check_date=getattr(target, 'payment_date', None) or datetime.now(timezone.utc),
+                check_due_date=check_due_date,
+                amount=float(getattr(target, 'total_amount', 0) or 0),
+                currency=(getattr(target, 'currency', None) or 'ILS').upper(),
+                direction=str(getattr(target, 'direction', 'IN')).upper(),
+                status='PENDING',
+                customer_id=getattr(target, 'customer_id', None),
+                supplier_id=getattr(target, 'supplier_id', None),
+                partner_id=getattr(target, 'partner_id', None),
+                reference_number=f"PMT-{target.id}",
+                notes=f"شيك من دفعة رقم {getattr(target, 'payment_number', None) or target.id}",
+                created_by_id=created_by_id,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc)
+            )
+        )
+        
+        import sys
+        print(f"✅ تم إنشاء سجل شيك رقم {check_number} من دفعة #{target.id}", file=sys.stderr)
+    except Exception as e:
+        import sys
+        print(f"⚠️ فشل إنشاء سجل شيك من دفعة #{target.id}: {str(e)}", file=sys.stderr)
+
+
 class PaymentSplit(db.Model):
     __tablename__ = "payment_splits"
 
@@ -5945,6 +6049,100 @@ def _split_before_save(mapper, connection, target: "PaymentSplit"):
         target.details = {}
     else:
         target.details = {k: v for k, v in target.details.items() if v not in (None, "", [])}
+
+
+@event.listens_for(PaymentSplit, "after_insert", propagate=True)
+def _payment_split_create_check_auto(mapper, connection, target: "PaymentSplit"):
+    """✅ إنشاء سجل Check تلقائياً عند إنشاء دفعة جزئية بطريقة شيك"""
+    try:
+        # فحص طريقة الدفع
+        method_str = str(getattr(target, 'method', '')).upper()
+        if 'CHECK' not in method_str and 'CHEQUE' not in method_str:
+            return
+        
+        # جلب معلومات الشيك من details
+        details = getattr(target, 'details', {}) or {}
+        if not isinstance(details, dict):
+            try:
+                import json
+                details = json.loads(details) if isinstance(details, str) else {}
+            except:
+                details = {}
+        
+        check_number = (details.get('check_number', '') or '').strip()
+        check_bank = (details.get('check_bank', '') or '').strip()
+        
+        if not check_number or not check_bank:
+            return
+        
+        # جلب معلومات الدفعة الأصلية
+        payment_row = connection.execute(
+            sa_text("""
+                SELECT id, payment_number, payment_date, currency, direction, 
+                       customer_id, supplier_id, partner_id, created_by
+                FROM payments 
+                WHERE id = :pid
+            """),
+            {"pid": target.payment_id}
+        ).mappings().first()
+        
+        if not payment_row:
+            return
+        
+        # تحويل check_due_date
+        check_due_date_raw = details.get('check_due_date')
+        check_due_date = None
+        
+        if check_due_date_raw:
+            try:
+                if isinstance(check_due_date_raw, str):
+                    from dateutil import parser as date_parser
+                    check_due_date = date_parser.isoparse(check_due_date_raw)
+                else:
+                    check_due_date = check_due_date_raw
+            except:
+                pass
+        
+        if not check_due_date:
+            check_due_date = payment_row['payment_date'] or datetime.now(timezone.utc)
+        
+        # التحقق من created_by_id
+        created_by_id = payment_row['created_by']
+        if not created_by_id or created_by_id == 0:
+            first_user_result = connection.execute(
+                sa_text("SELECT id FROM users ORDER BY id LIMIT 1")
+            ).scalar()
+            created_by_id = first_user_result if first_user_result else 1
+        
+        # إنشاء سجل الشيك
+        connection.execute(
+            Check.__table__.insert().values(
+                check_number=check_number,
+                check_bank=check_bank,
+                check_date=payment_row['payment_date'] or datetime.now(timezone.utc),
+                check_due_date=check_due_date,
+                amount=float(getattr(target, 'amount', 0) or 0),
+                currency=(payment_row['currency'] or 'ILS').upper(),
+                direction=str(payment_row['direction'] or 'IN').upper(),
+                status='PENDING',
+                customer_id=payment_row['customer_id'],
+                supplier_id=payment_row['supplier_id'],
+                partner_id=payment_row['partner_id'],
+                reference_number=f"PMT-SPLIT-{target.id}",
+                notes=f"شيك من دفعة جزئية #{target.id} - دفعة رقم {payment_row['payment_number']}",
+                created_by_id=created_by_id,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc)
+            )
+        )
+        
+        import sys
+        print(f"✅ تم إنشاء سجل شيك رقم {check_number} من دفعة جزئية #{target.id}", file=sys.stderr)
+    except Exception as e:
+        import sys
+        import traceback
+        print(f"⚠️ فشل إنشاء سجل شيك من دفعة جزئية #{target.id}: {str(e)}", file=sys.stderr)
+        print(traceback.format_exc(), file=sys.stderr)
 
 
 # ===== تحديث total_paid و balance_due في Sales تلقائياً =====

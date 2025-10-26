@@ -298,7 +298,7 @@
             beginAtZero: true,
             ticks: {
               precision: 0,
-              callback: (val) => new Intl.NumberFormat('ar').format(val)
+              callback: (val) => new Intl.NumberFormat('en-US').format(val)
             }
           },
           x: {
@@ -313,7 +313,7 @@
           legend: { display: false },
           tooltip: {
             callbacks: {
-              label: (ctx) => new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(ctx.parsed.y || 0)
+              label: (ctx) => new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(ctx.parsed.y || 0)
             }
           }
         }

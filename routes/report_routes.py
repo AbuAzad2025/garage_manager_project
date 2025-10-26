@@ -831,8 +831,12 @@ def customer_detail_report(customer_id):
     start_date = _parse_date(request.args.get("start"))
     end_date = _parse_date(request.args.get("end"))
 
-    # جميع المبيعات
-    sales_query = Sale.query.filter(Sale.customer_id == customer_id)
+    # جميع المبيعات - ⚡ محسّن بـ eager loading
+    sales_query = Sale.query.filter(Sale.customer_id == customer_id).options(
+        joinedload(Sale.lines).joinedload(SaleLine.product),
+        joinedload(Sale.lines).joinedload(SaleLine.warehouse),
+        joinedload(Sale.payments)
+    )
     if start_date:
         sales_query = sales_query.filter(Sale.sale_date >= start_date)
     if end_date:
@@ -847,8 +851,13 @@ def customer_detail_report(customer_id):
         invoices_query = invoices_query.filter(Invoice.invoice_date <= end_date)
     invoices = invoices_query.order_by(Invoice.invoice_date.desc()).all()
 
-    # جميع طلبات الصيانة
-    services_query = ServiceRequest.query.filter(ServiceRequest.customer_id == customer_id)
+    # جميع طلبات الصيانة - ⚡ محسّن بـ eager loading
+    services_query = ServiceRequest.query.filter(ServiceRequest.customer_id == customer_id).options(
+        joinedload(ServiceRequest.parts).joinedload(ServicePart.part),
+        joinedload(ServiceRequest.parts).joinedload(ServicePart.warehouse),
+        joinedload(ServiceRequest.tasks),
+        joinedload(ServiceRequest.payments)
+    )
     if start_date:
         services_query = services_query.filter(ServiceRequest.received_at >= start_date)
     if end_date:

@@ -1,68 +1,317 @@
 {% extends 'base.html' %}
-{% block title %}التحكم بالمستخدمين{% endblock %}
-{% block page_title %}👥 التحكم الكامل بالمستخدمين{% endblock %}
+{% block title %}👑 التحكم الكامل بالمستخدمين{% endblock %}
+{% block page_title %}👑 التحكم الكامل بالمستخدمين - Owner's Control Panel{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
   
   {% include 'security/_navigation.html' %}
   
-  <div class="alert alert-warning">
-    <i class="fas fa-exclamation-triangle"></i> <strong>صلاحيات خارقة:</strong> يمكنك التحكم الكامل بأي مستخدم!
+  {% if session.get('impersonating') %}
+  <div class="alert alert-warning border-0 shadow-sm animate__animated animate__pulse">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <strong>🕵️ تحذير:</strong> أنت الآن تتصفح كمستخدم آخر!
+        <br><small>الحساب الأصلي: <strong>{{ session.get('original_username', 'Owner') }}</strong></small>
+      </div>
+      <form method="POST" action="{{ url_for('security.stop_impersonate') }}" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-sm btn-danger">
+          <i class="fas fa-undo"></i> العودة لحسابك
+        </button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="alert alert-danger border-0 shadow-sm">
+    <i class="fas fa-crown"></i> <strong>صلاحيات خارقة:</strong> سيطرة كاملة على جميع المستخدمين!
+    <div class="mt-2 small">
+      <span class="badge bg-light text-dark">الانتحال</span>
+      <span class="badge bg-light text-dark">إعادة التعيين</span>
+      <span class="badge bg-light text-dark">الحذف</span>
+      <span class="badge bg-light text-dark">عمليات جماعية</span>
+      <span class="badge bg-light text-dark">إحصائيات متقدمة</span>
+    </div>
   </div>
 
-  <div class="card">
+  <!-- إحصائيات سريعة -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-2 col-md-4 col-sm-6">
+      <div class="small-box bg-primary">
+        <div class="inner">
+          <h3>{{ stats.total_users }}</h3>
+          <p>إجمالي المستخدمين</p>
+        </div>
+        <div class="icon"><i class="fas fa-users"></i></div>
+      </div>
+    </div>
+    
+    <div class="col-lg-2 col-md-4 col-sm-6">
+      <div class="small-box bg-success">
+        <div class="inner">
+          <h3>{{ stats.active_users }}</h3>
+          <p>نشطين</p>
+        </div>
+        <div class="icon"><i class="fas fa-user-check"></i></div>
+      </div>
+    </div>
+    
+    <div class="col-lg-2 col-md-4 col-sm-6">
+      <div class="small-box bg-danger">
+        <div class="inner">
+          <h3>{{ stats.inactive_users }}</h3>
+          <p>معطلين</p>
+        </div>
+        <div class="icon"><i class="fas fa-user-times"></i></div>
+      </div>
+    </div>
+    
+    <div class="col-lg-2 col-md-4 col-sm-6">
+      <div class="small-box bg-info">
+        <div class="inner">
+          <h3>{{ stats.online_users }}</h3>
+          <p>متصل الآن</p>
+        </div>
+        <div class="icon"><i class="fas fa-circle text-success"></i></div>
+      </div>
+    </div>
+    
+    <div class="col-lg-2 col-md-4 col-sm-6">
+      <div class="small-box bg-warning">
+        <div class="inner">
+          <h3>{{ stats.system_accounts }}</h3>
+          <p>حسابات النظام</p>
+        </div>
+        <div class="icon"><i class="fas fa-cog"></i></div>
+      </div>
+    </div>
+    
+    <div class="col-lg-2 col-md-4 col-sm-6">
+      <div class="small-box bg-secondary">
+        <div class="inner">
+          <h3>{{ stats.total_operations|default(0) }}</h3>
+          <p>إجمالي العمليات</p>
+        </div>
+        <div class="icon"><i class="fas fa-tasks"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters & Search -->
+  <div class="card shadow-sm mb-3">
     <div class="card-body">
+      <form method="GET" class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label">الحالة</label>
+          <select name="filter" class="form-select" onchange="this.form.submit()">
+            <option value="all" {{ current_filter == 'all' and 'selected' or '' }}>الكل</option>
+            <option value="active" {{ current_filter == 'active' and 'selected' or '' }}>نشطين فقط</option>
+            <option value="inactive" {{ current_filter == 'inactive' and 'selected' or '' }}>معطلين فقط</option>
+            <option value="online" {{ current_filter == 'online' and 'selected' or '' }}>متصلين الآن</option>
+            <option value="system" {{ current_filter == 'system' and 'selected' or '' }}>حسابات النظام</option>
+          </select>
+        </div>
+        
+        <div class="col-md-3">
+          <label class="form-label">الدور</label>
+          <select name="role" class="form-select" onchange="this.form.submit()">
+            <option value="">جميع الأدوار</option>
+            {% for role in all_roles %}
+            <option value="{{ role.name }}" {{ current_role == role.name and 'selected' or '' }}>
+              {{ role.name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        
+        <div class="col-md-4">
+          <label class="form-label">بحث</label>
+          <input type="text" name="search" class="form-control" 
+                 placeholder="اسم المستخدم أو البريد..." 
+                 value="{{ search_query }}">
+        </div>
+        
+        <div class="col-md-2">
+          <label class="form-label">&nbsp;</label>
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-search"></i> بحث
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- جدول المستخدمين المحسّن -->
+  <div class="card shadow-lg">
+    <div class="card-header bg-gradient-primary text-white">
+      <div class="d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-users-cog"></i> قائمة المستخدمين - {{ stats.total_users }} مستخدم</h5>
+        <div class="btn-group">
+          <button class="btn btn-sm btn-primary" onclick="showCreateUser()">
+            <i class="fas fa-user-plus"></i> مستخدم جديد
+          </button>
+          <button class="btn btn-sm btn-light" onclick="exportUsers()">
+            <i class="fas fa-download"></i> Export
+          </button>
+          <button class="btn btn-sm btn-success" onclick="bulkActivate()">
+            <i class="fas fa-check-circle"></i> تفعيل
+          </button>
+          <button class="btn btn-sm btn-warning" onclick="bulkDeactivate()">
+            <i class="fas fa-ban"></i> تعطيل
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="card-body p-0">
       <div class="table-responsive">
-        <table class="table table-hover" id="usersTable">
+        <table class="table table-hover table-striped mb-0" id="usersTable">
           <thead class="table-dark">
             <tr>
-              <th>ID</th>
-              <th>اسم المستخدم</th>
+              <th style="width: 30px;">
+                <input type="checkbox" id="selectAll" onchange="toggleAll(this)">
+              </th>
+              <th style="width: 50px;">ID</th>
+              <th>المستخدم</th>
               <th>البريد</th>
               <th>الدور</th>
               <th>الحالة</th>
-              <th>آخر دخول</th>
-              <th>إجراءات خارقة</th>
+              <th>متصل</th>
+              <th>المبيعات</th>
+              <th>الصيانة</th>
+              <th>المدفوعات</th>
+              <th>آخر نشاط</th>
+              <th style="width: 250px;">إجراءات خارقة</th>
             </tr>
           </thead>
           <tbody>
             {% for user in users %}
-            <tr>
-              <td>{{ user.id }}</td>
-              <td>{{ user.username }}</td>
-              <td>{{ user.email or 'N/A' }}</td>
-              <td><span class="badge bg-info">{{ user.role or 'user' }}</span></td>
+            <tr class="{{ user.is_system_account and 'table-warning' or '' }} {{ user.is_online and 'table-success' or '' }}">
               <td>
-                {% if user.is_active %}
-                <span class="badge bg-success">نشط</span>
-                {% else %}
-                <span class="badge bg-danger">معطل</span>
+                <input type="checkbox" class="user-checkbox" value="{{ user.id }}">
+              </td>
+              <td>
+                <strong>{{ user.id }}</strong>
+                {% if user.is_system_account %}
+                <span class="badge bg-warning text-dark" title="حساب نظام محمي">
+                  <i class="fas fa-lock"></i>
+                </span>
                 {% endif %}
               </td>
-              <td><small>{{ user.last_login.strftime('%Y-%m-%d %H:%M') if user.last_login else 'N/A' }}</small></td>
               <td>
-                <div class="btn-group btn-group-sm">
-                  <!-- تسجيل دخول كهذا المستخدم -->
-                  <form method="POST" action="{{ url_for('security.impersonate_user', user_id=user.id) }}" style="display:inline;" onsubmit="return confirm('🕵️ سجل دخول كـ {{ user.username }}؟');">
+                <div>
+                  <strong>{{ user.username }}</strong>
+                  {% if user.username == '__OWNER__' %}
+                  <span class="badge bg-danger ms-1">المالك</span>
+                  {% endif %}
+                </div>
+                <small class="text-muted">
+                  عدد الدخول: {{ user.login_count|default(0) }}
+                </small>
+              </td>
+              <td>
+                <small>{{ user.email or 'N/A' }}</small>
+                {% if user.last_login_ip %}
+                <br><small class="text-muted">IP: {{ user.last_login_ip }}</small>
+                {% endif %}
+              </td>
+              <td>
+                {% if user.role %}
+                <span class="badge bg-info">{{ user.role.name }}</span>
+                {% else %}
+                <span class="badge bg-secondary">لا يوجد</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if user.is_active %}
+                <span class="badge bg-success">
+                  <i class="fas fa-check-circle"></i> نشط
+                </span>
+                {% else %}
+                <span class="badge bg-danger">
+                  <i class="fas fa-times-circle"></i> معطل
+                </span>
+                {% endif %}
+              </td>
+              <td>
+                {% if user.is_online %}
+                <span class="badge bg-success">
+                  <i class="fas fa-circle"></i> Online
+                </span>
+                {% else %}
+                <span class="badge bg-secondary">
+                  <i class="far fa-circle"></i> Offline
+                </span>
+                {% endif %}
+              </td>
+              <td>
+                <div>
+                  <strong>{{ user.sales_count|default(0) }}</strong>
+                </div>
+                <small class="text-success">
+                  {{ "{:,.2f}".format(user.sales_total|default(0)) }} ₪
+                </small>
+              </td>
+              <td>
+                <strong>{{ user.services_count|default(0) }}</strong>
+              </td>
+              <td>
+                <strong>{{ user.payments_count|default(0) }}</strong>
+              </td>
+              <td>
+                {% if user.last_activity_time %}
+                <small title="{{ user.last_activity_time }}">
+                  {{ user.last_activity_time.strftime('%Y-%m-%d %H:%M') }}
+                </small>
+                <br><small class="text-muted">{{ user.last_activity_desc[:30] }}</small>
+                {% else %}
+                <small class="text-muted">لا يوجد</small>
+                {% endif %}
+              </td>
+              <td>
+                <div class="btn-group btn-group-sm" role="group">
+                  <!-- عرض التفاصيل -->
+                  <button class="btn btn-primary" onclick="viewUserDetails({{ user.id }})" title="التفاصيل الكاملة">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                  
+                  <!-- انتحال الشخصية -->
+                  {% if user.id != current_user.id %}
+                  <form method="POST" action="{{ url_for('security.impersonate_user', user_id=user.id) }}" 
+                        style="display:inline;" 
+                        onsubmit="return confirm('🕵️ هل تريد تسجيل الدخول كـ {{ user.username }}؟\n\nستتمكن من رؤية كل شيء كما يراه هذا المستخدم.');">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn btn-warning" title="تسجيل الدخول كـ {{ user.username }}">
+                    <button type="submit" class="btn btn-warning" title="انتحال شخصية {{ user.username }}">
                       <i class="fas fa-user-secret"></i>
                     </button>
                   </form>
+                  {% endif %}
+                  
+                  <!-- إعادة تعيين كلمة المرور -->
+                  <button class="btn btn-info" onclick="resetPassword({{ user.id }}, '{{ user.username }}')" title="إعادة تعيين كلمة المرور">
+                    <i class="fas fa-key"></i>
+                  </button>
                   
                   <!-- تفعيل/تعطيل -->
-                  <form method="POST" action="{{ url_for('security.toggle_user_status', user_id=user.id) }}" style="display:inline;">
+                  {% if user.id != current_user.id %}
+                  <form method="POST" action="{{ url_for('security.toggle_user_status', user_id=user.id) }}" 
+                        style="display:inline;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn btn-{{ user.is_active and 'danger' or 'success' }}">
+                    <button type="submit" class="btn btn-{{ user.is_active and 'danger' or 'success' }}" 
+                            title="{{ user.is_active and 'تعطيل' or 'تفعيل' }}">
                       <i class="fas fa-power-off"></i>
                     </button>
                   </form>
+                  {% endif %}
                   
-                  <!-- إعادة تعيين كلمة المرور -->
-                  <button class="btn btn-info" onclick="resetPassword({{ user.id }}, '{{ user.username }}')">
-                    <i class="fas fa-key"></i>
+                  <!-- حذف -->
+                  {% if user.id != current_user.id and not user.is_system_account %}
+                  <button class="btn btn-dark" onclick="deleteUser({{ user.id }}, '{{ user.username }}')" title="حذف نهائي">
+                    <i class="fas fa-trash-alt"></i>
                   </button>
+                  {% endif %}
                 </div>
               </td>
             </tr>
@@ -75,26 +324,151 @@
 
 </div>
 
-<!-- Modal لإعادة تعيين كلمة المرور -->
+<!-- Modal: تفاصيل المستخدم -->
+<div class="modal fade" id="userDetailsModal" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title"><i class="fas fa-user"></i> تفاصيل المستخدم الكاملة</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="userDetailsContent">
+        <div class="text-center py-5">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">جاري التحميل...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: إعادة تعيين كلمة المرور -->
 <div class="modal fade" id="resetPasswordModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
       <form method="POST" id="resetPasswordForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="modal-header bg-warning">
-          <h5 class="modal-title">إعادة تعيين كلمة المرور</h5>
+          <h5 class="modal-title"><i class="fas fa-key"></i> إعادة تعيين كلمة المرور</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i> سيتم إرسال كلمة المرور الجديدة للمستخدم عبر البريد الإلكتروني
+          </div>
           <p>المستخدم: <strong id="resetUsername"></strong></p>
           <div class="mb-3">
             <label class="form-label">كلمة المرور الجديدة</label>
-            <input type="text" name="new_password" class="form-control" value="123456" required>
+            <div class="input-group">
+              <input type="text" name="new_password" id="newPassword" class="form-control" value="" required>
+              <button type="button" class="btn btn-outline-secondary" onclick="generatePassword()">
+                <i class="fas fa-random"></i> توليد
+              </button>
+            </div>
+            <small class="text-muted">اترك فارغاً لتوليد تلقائي، أو أدخل كلمة مرور مخصصة</small>
           </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-          <button type="submit" class="btn btn-warning">إعادة تعيين</button>
+          <button type="submit" class="btn btn-warning">
+            <i class="fas fa-check"></i> تأكيد الإعادة
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: حذف مستخدم -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" id="deleteUserForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title"><i class="fas fa-trash-alt"></i> حذف المستخدم</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle"></i> <strong>تحذير:</strong> هذا الإجراء خطير ولا يمكن التراجع عنه!
+          </div>
+          <p>هل أنت متأكد من حذف المستخدم: <strong id="deleteUsername"></strong>؟</p>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="confirmDelete" required>
+            <label class="form-check-label" for="confirmDelete">
+              نعم، أنا متأكد من الحذف النهائي
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+          <button type="submit" class="btn btn-danger">
+            <i class="fas fa-trash-alt"></i> حذف نهائي
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: إنشاء مستخدم جديد -->
+<div class="modal fade" id="createUserModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('security.create_user') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title"><i class="fas fa-user-plus"></i> إنشاء مستخدم جديد</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">اسم المستخدم <span class="text-danger">*</span></label>
+            <input type="text" name="username" class="form-control" required 
+                   pattern="[a-zA-Z0-9_]{3,50}" 
+                   title="3-50 حرف (حروف إنجليزية وأرقام و _ فقط)">
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">البريد الإلكتروني <span class="text-danger">*</span></label>
+            <input type="email" name="email" class="form-control" required>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">كلمة المرور</label>
+            <div class="input-group">
+              <input type="text" name="password" id="createPassword" class="form-control" 
+                     value="" placeholder="اترك فارغاً لـ 123456">
+              <button type="button" class="btn btn-outline-secondary" onclick="generateCreatePassword()">
+                <i class="fas fa-random"></i> توليد
+              </button>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">الدور</label>
+            <select name="role_id" class="form-select">
+              <option value="">بدون دور</option>
+              {% for role in all_roles %}
+              <option value="{{ role.id }}">{{ role.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="is_active" value="1" id="createActive" checked>
+            <label class="form-check-label" for="createActive">
+              تفعيل الحساب فوراً
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-check"></i> إنشاء المستخدم
+          </button>
         </div>
       </form>
     </div>
@@ -102,18 +476,234 @@
 </div>
 
 <script>
+// تفعيل DataTable
+$(document).ready(function() {
+  $('#usersTable').DataTable({
+    order: [[1, 'asc']],
+    pageLength: 25,
+    language: {
+      url: '/static/datatables/Arabic.json'
+    },
+    dom: 'Bfrtip',
+    buttons: [
+      'copy', 'csv', 'excel', 'pdf', 'print'
+    ]
+  });
+});
+
+// Toggle All Checkboxes
+function toggleAll(source) {
+  const checkboxes = document.querySelectorAll('.user-checkbox');
+  checkboxes.forEach(cb => cb.checked = source.checked);
+}
+
+// Export Users
+function exportUsers() {
+  const table = $('#usersTable').DataTable();
+  table.button('.buttons-csv').trigger();
+}
+
+// Bulk Activate
+function bulkActivate() {
+  const selected = getSelectedUsers();
+  if (selected.length === 0) {
+    alert('⚠️ الرجاء اختيار مستخدم واحد على الأقل');
+    return;
+  }
+  if (confirm(`✅ تفعيل ${selected.length} مستخدم؟`)) {
+    bulkOperation('activate', selected);
+  }
+}
+
+// Bulk Deactivate
+function bulkDeactivate() {
+  const selected = getSelectedUsers();
+  if (selected.length === 0) {
+    alert('⚠️ الرجاء اختيار مستخدم واحد على الأقل');
+    return;
+  }
+  if (confirm(`❌ تعطيل ${selected.length} مستخدم؟`)) {
+    bulkOperation('deactivate', selected);
+  }
+}
+
+// Get Selected Users
+function getSelectedUsers() {
+  const checkboxes = document.querySelectorAll('.user-checkbox:checked');
+  return Array.from(checkboxes).map(cb => cb.value);
+}
+
+// Bulk Operation
+function bulkOperation(operation, userIds) {
+  fetch('/security/api/users/bulk-operation', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': '{{ csrf_token() }}'
+    },
+    body: JSON.stringify({
+      operation: operation,
+      user_ids: userIds
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      alert(`✅ ${data.message}`);
+      location.reload();
+    } else {
+      alert(`❌ ${data.error}`);
+    }
+  })
+  .catch(err => alert('❌ حدث خطأ: ' + err));
+}
+
+// عرض تفاصيل المستخدم
+function viewUserDetails(userId) {
+  const modal = new bootstrap.Modal(document.getElementById('userDetailsModal'));
+  modal.show();
+  
+  fetch(`/security/api/users/${userId}/details`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        document.getElementById('userDetailsContent').innerHTML = renderUserDetails(data.user);
+      } else {
+        document.getElementById('userDetailsContent').innerHTML = `
+          <div class="alert alert-danger">❌ ${data.error}</div>
+        `;
+      }
+    })
+    .catch(err => {
+      document.getElementById('userDetailsContent').innerHTML = `
+        <div class="alert alert-danger">❌ حدث خطأ: ${err}</div>
+      `;
+    });
+}
+
+// Render User Details
+function renderUserDetails(user) {
+  return `
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header bg-primary text-white">
+            <i class="fas fa-info-circle"></i> معلومات أساسية
+          </div>
+          <div class="card-body">
+            <table class="table table-sm">
+              <tr><th>ID:</th><td>${user.id}</td></tr>
+              <tr><th>اسم المستخدم:</th><td><strong>${user.username}</strong></td></tr>
+              <tr><th>البريد:</th><td>${user.email || 'N/A'}</td></tr>
+              <tr><th>الدور:</th><td><span class="badge bg-info">${user.role || 'N/A'}</span></td></tr>
+              <tr><th>الحالة:</th><td>${user.is_active ? '<span class="badge bg-success">نشط</span>' : '<span class="badge bg-danger">معطل</span>'}</td></tr>
+              <tr><th>حساب نظام:</th><td>${user.is_system_account ? '<span class="badge bg-warning">نعم</span>' : 'لا'}</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header bg-success text-white">
+            <i class="fas fa-chart-line"></i> إحصائيات الأداء
+          </div>
+          <div class="card-body">
+            <table class="table table-sm">
+              <tr><th>عدد المبيعات:</th><td><strong>${user.sales_count}</strong></td></tr>
+              <tr><th>إجمالي المبيعات:</th><td><strong class="text-success">${parseFloat(user.sales_total).toLocaleString('en-US', {minimumFractionDigits: 2})} ₪</strong></td></tr>
+              <tr><th>طلبات الصيانة:</th><td>${user.services_count}</td></tr>
+              <tr><th>المدفوعات المُنشأة:</th><td>${user.payments_count}</td></tr>
+              <tr><th>إجمالي العمليات:</th><td><strong>${user.sales_count + user.services_count + user.payments_count}</strong></td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header bg-info text-white">
+            <i class="fas fa-clock"></i> سجل الدخول
+          </div>
+          <div class="card-body">
+            <table class="table table-sm">
+              <tr><th>آخر دخول:</th><td>${user.last_login || 'N/A'}</td></tr>
+              <tr><th>آخر نشاط:</th><td>${user.last_seen || 'N/A'}</td></tr>
+              <tr><th>عدد مرات الدخول:</th><td>${user.login_count}</td></tr>
+              <tr><th>آخر IP:</th><td><code>${user.last_login_ip || 'N/A'}</code></td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header bg-warning text-dark">
+            <i class="fas fa-history"></i> آخر الأنشطة (10)
+          </div>
+          <div class="card-body">
+            <div id="recentActivities" style="max-height: 200px; overflow-y: auto;">
+              <div class="text-center py-3">
+                <div class="spinner-border spinner-border-sm" role="status"></div>
+                <span class="ms-2">جاري التحميل...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// إعادة تعيين كلمة المرور
 function resetPassword(userId, username) {
   document.getElementById('resetUsername').textContent = username;
   document.getElementById('resetPasswordForm').action = `/security/force-reset-password/${userId}`;
+  document.getElementById('newPassword').value = generateRandomPassword();
   new bootstrap.Modal(document.getElementById('resetPasswordModal')).show();
 }
 
-$(document).ready(function() {
-  $('#usersTable').DataTable({
-    order: [[0, 'asc']],
-    pageLength: 25
-  });
-});
-</script>
-{% endblock %}
+// توليد كلمة مرور عشوائية
+function generatePassword() {
+  document.getElementById('newPassword').value = generateRandomPassword();
+}
 
+function generateRandomPassword() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
+  let password = '';
+  for (let i = 0; i < 12; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+}
+
+// إظهار نافذة إنشاء مستخدم
+function showCreateUser() {
+  document.getElementById('createPassword').value = generateRandomPassword();
+  new bootstrap.Modal(document.getElementById('createUserModal')).show();
+}
+
+// توليد كلمة مرور لإنشاء مستخدم
+function generateCreatePassword() {
+  document.getElementById('createPassword').value = generateRandomPassword();
+}
+
+// حذف مستخدم
+function deleteUser(userId, username) {
+  document.getElementById('deleteUsername').textContent = username;
+  document.getElementById('deleteUserForm').action = `/security/delete-user/${userId}`;
+  document.getElementById('confirmDelete').checked = false;
+  new bootstrap.Modal(document.getElementById('deleteUserModal')).show();
+}
+</script>
+
+<style>
+.table-success {
+  background-color: rgba(25, 135, 84, 0.1) !important;
+}
+.table-warning {
+  background-color: rgba(255, 193, 7, 0.1) !important;
+}
+</style>
+
+{% endblock %}

@@ -185,7 +185,7 @@
   function normDecimalInput(v){
     if(v==null) return "";
     return String(v)
-      .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+      .replace(/[٠-٩]/g, d => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)])
       .replace(/[٬،]/g, ',')
       .replace(/[٫]/g, '.')
       .replace(',', '.')

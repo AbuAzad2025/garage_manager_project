@@ -529,179 +529,34 @@ def get_checks():
             
             current_app.logger.info(f"📊 Payments بدون splits: {len(checks)} شيك حتى الآن")
             
-            # معالجة الدفعات الجزئية (PaymentSplit)
-            # ⚠️ PaymentSplit.method هو enum، نستخدم == PaymentMethod.CHEQUE مباشرة
-            payment_splits = PaymentSplit.query.filter(
-                PaymentSplit.method == PaymentMethod.CHEQUE
-            ).all()
+            # ✅ معالجة الدفعات الجزئية (PaymentSplit) - تم تعطيلها مؤقتاً
+            # السبب: Event listener في models.py ينشئ Check تلقائياً من PaymentSplit
+            # لذلك سنجلب الشيكات من Check table مباشرة بدلاً من PaymentSplit
+            # payment_splits = PaymentSplit.query.filter(
+            #     PaymentSplit.method == PaymentMethod.CHEQUE
+            # ).all()
             
-            current_app.logger.info(f"📊 PaymentSplits (CHEQUE): {len(payment_splits)}")
-            
-            for split in payment_splits:
-                payment = split.payment
-                if not payment:
-                    continue
-                
-                    # استخراج معلومات الشيك من details
-                    details = split.details or {}
-                    check_number = details.get('check_number', '')
-                    check_bank = details.get('check_bank', '')
-                    check_due_date_str = details.get('check_due_date', '')
-                    
-                    if not check_due_date_str:
-                        continue
-                    
-                    try:
-                        if isinstance(check_due_date_str, str):
-                            check_due_date = datetime.fromisoformat(check_due_date_str).date()
-                        elif isinstance(check_due_date_str, datetime):
-                            check_due_date = check_due_date_str.date()
-                        else:
-                            check_due_date = check_due_date_str
-                    except:
-                        continue
-                    
-                    days_until_due = (check_due_date - today).days
-                    
-                    # تحديد الحالة
-                    if payment.status == PaymentStatus.COMPLETED.value:
-                        check_status = 'CASHED'
-                        status_ar = 'تم الصرف'
-                        badge_color = 'success'
-                    elif payment.status == PaymentStatus.FAILED.value:
-                        notes_lower = (payment.notes or '').lower()
-                        if 'مرتجع' in notes_lower or 'returned' in notes_lower:
-                            check_status = 'RETURNED'
-                            status_ar = 'مرتجع'
-                            badge_color = 'warning'
-                        else:
-                            check_status = 'BOUNCED'
-                            status_ar = 'مرفوض'
-                            badge_color = 'danger'
-                    elif payment.status == PaymentStatus.CANCELLED.value:
-                        check_status = 'CANCELLED'
-                        status_ar = 'ملغي'
-                        badge_color = 'secondary'
-                    elif days_until_due < 0:
-                        check_status = 'OVERDUE'
-                        status_ar = 'متأخر'
-                        badge_color = 'danger'
-                    elif days_until_due <= 7:
-                        check_status = 'due_soon'
-                        status_ar = 'قريب الاستحقاق'
-                        badge_color = 'warning'
-                    else:
-                        check_status = 'PENDING'
-                        status_ar = 'معلق'
-                        badge_color = 'info'
-                    
-                    # تحديد نوع الشيك
-                    is_incoming = payment.direction == PaymentDirection.IN.value
-                    
-                    # ⭐ ربط ذكي بالجهة من الدفعة الأصلية
-                    entity_name = ''
-                    entity_link = ''
-                    entity_type = ''
-                    drawer_name = ''
-                    payee_name = ''
-                    
-                    if payment.customer:
-                        entity_name = payment.customer.name
-                        entity_link = f'/customers/{payment.customer.id}'
-                        entity_type = 'عميل'
-                        # إذا وارد: العميل هو الساحب، نحن المستفيد
-                        if is_incoming:
-                            drawer_name = payment.customer.name
-                            payee_name = 'شركتنا'
-                        else:
-                            drawer_name = 'شركتنا'
-                            payee_name = payment.customer.name
-                            
-                    elif payment.supplier:
-                        entity_name = payment.supplier.name
-                        entity_link = f'/vendors/{payment.supplier.id}'
-                        entity_type = 'مورد'
-                        # إذا صادر: نحن الساحب، المورد المستفيد
-                        if is_incoming:
-                            drawer_name = payment.supplier.name
-                            payee_name = 'شركتنا'
-                        else:
-                            drawer_name = 'شركتنا'
-                            payee_name = payment.supplier.name
-                            
-                    elif payment.partner:
-                        entity_name = payment.partner.name
-                        entity_link = f'/partners/{payment.partner.id}'
-                        entity_type = 'شريك'
-                        if is_incoming:
-                            drawer_name = payment.partner.name
-                            payee_name = 'شركتنا'
-                        else:
-                            drawer_name = 'شركتنا'
-                            payee_name = payment.partner.name
-                    
-                    # تجنب التكرار
-                    check_key = f"split-{split.id}"
-                    if check_key in check_ids:
-                        continue
-                    check_ids.add(check_key)
-                    
-                    checks.append({
-                        'id': f"split-{split.id}",
-                        'payment_id': payment.id,
-                        'split_id': split.id,
-                        'type': 'payment_split',
-                        'source': 'دفعة جزئية',
-                        'source_badge': 'info',
-                        'check_number': check_number,
-                        'check_bank': check_bank,
-                        'check_due_date': check_due_date.strftime('%Y-%m-%d'),
-                        'due_date_formatted': check_due_date.strftime('%d/%m/%Y'),
-                        'amount': float(split.amount or 0),
-                        'currency': payment.currency or 'ILS',
-                        'fx_rate_issue': float(payment.fx_rate_used) if payment.fx_rate_used else None,
-                        'fx_rate_issue_source': payment.fx_rate_source,
-                        'fx_rate_issue_timestamp': payment.fx_rate_timestamp.strftime('%Y-%m-%d %H:%M') if payment.fx_rate_timestamp else None,
-                        'fx_rate_cash': None,
-                        'fx_rate_cash_source': None,
-                        'fx_rate_cash_timestamp': None,
-                        'direction': 'وارد' if is_incoming else 'صادر',
-                        'direction_en': 'in' if is_incoming else 'out',
-                        'is_incoming': is_incoming,
-                        'status': check_status,
-                        'status_ar': status_ar,
-                        'badge_color': badge_color,
-                        'days_until_due': days_until_due,
-                        'entity_name': entity_name,
-                        'entity_type': entity_type,
-                        'entity_link': entity_link,
-                    'drawer_name': drawer_name,
-                    'payee_name': payee_name,
-                        'notes': payment.notes or '',
-                        'created_at': payment.payment_date.strftime('%Y-%m-%d') if payment.payment_date else '',
-                    'receipt_number': payment.payment_number or '',
-                    'reference': payment.reference or ''
-                    })
+            current_app.logger.info(f"📊 تم تخطي PaymentSplits - سيتم جلبها من Check table")
         
         # 2. جلب الشيكات من Expense
         if not source_filter or source_filter in ['all', 'expense']:
             expense_checks = Expense.query.filter(
                 Expense.payment_method == 'cheque'
             )
-        
-        if from_date:
-            try:
-                from_dt = datetime.strptime(from_date, '%Y-%m-%d')
-                expense_checks = expense_checks.filter(Expense.check_due_date >= from_dt)
-            except:
-                pass
-        
-        if to_date:
-            try:
-                to_dt = datetime.strptime(to_date, '%Y-%m-%d')
-                expense_checks = expense_checks.filter(Expense.check_due_date <= to_dt)
-            except:
-                pass
+            
+            if from_date:
+                try:
+                    from_dt = datetime.strptime(from_date, '%Y-%m-%d')
+                    expense_checks = expense_checks.filter(Expense.check_due_date >= from_dt)
+                except:
+                    pass
+            
+            if to_date:
+                try:
+                    to_dt = datetime.strptime(to_date, '%Y-%m-%d')
+                    expense_checks = expense_checks.filter(Expense.check_due_date <= to_dt)
+                except:
+                    pass
             
             # معالجة شيكات Expense
             for expense in expense_checks.all():

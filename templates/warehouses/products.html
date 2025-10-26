@@ -676,7 +676,7 @@
       // ملاحظة: دالة notify تم تعريفها في بداية السكريبت وتصديرها لـ window.notify
 
       function toStr(v){return v==null?'':String(v)}
-      function fmt(n){if(n==null||n==='')return '';var x=Number(n);if(!isFinite(x))return String(n);return x.toLocaleString('ar-EG',{minimumFractionDigits:0,maximumFractionDigits:2})}
+      function fmt(n){if(n==null||n==='')return '';var x=Number(n);if(!isFinite(x))return String(n);return x.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:2})}
 
       function buildQuery(){
         var q=document.getElementById('q').value||'';

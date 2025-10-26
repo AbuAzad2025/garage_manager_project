@@ -2840,10 +2840,43 @@ def preorder_create():
                 method=form.payment_method.data or "cash",
                 reference=f"Preorder {preorder.reference}",
                 notes=f"دفعة عربون لحجز {preorder.product.name if preorder.product else ''} (كود: {preorder.reference})",
+                check_number=form.check_number.data if hasattr(form, 'check_number') else None,
+                check_bank=form.check_bank.data if hasattr(form, 'check_bank') else None,
+                check_due_date=form.check_due_date.data if hasattr(form, 'check_due_date') else None,
             )
             db.session.add(pay)
             try:
                 db.session.commit()
+                
+                # ✅ إنشاء سجل Check تلقائياً إذا كانت طريقة الدفع شيك
+                try:
+                    from models import Check
+                    payment_method_lower = (form.payment_method.data or "cash").lower()
+                    if payment_method_lower in ['check', 'cheque']:
+                        if pay.check_number and pay.check_bank:
+                            check = Check(
+                                check_number=pay.check_number,
+                                check_bank=pay.check_bank,
+                                check_date=pay.payment_date or datetime.utcnow(),
+                                check_due_date=pay.check_due_date or pay.payment_date or datetime.utcnow(),
+                                amount=pay.total_amount,
+                                currency=pay.currency or 'ILS',
+                                direction='IN',  # دفعة عربون واردة
+                                status='PENDING',
+                                customer_id=preorder.customer_id,
+                                supplier_id=preorder.supplier_id,
+                                partner_id=preorder.partner_id,
+                                reference_number=f"PREORDER-{preorder.id}",
+                                notes=f"شيك من عربون حجز رقم {preorder.reference}",
+                                created_by_id=current_user.id if current_user.is_authenticated else None
+                            )
+                            db.session.add(check)
+                            db.session.commit()
+                            current_app.logger.info(f"✅ تم إنشاء سجل شيك رقم {check.check_number} من حجز رقم {preorder.id}")
+                except Exception as e:
+                    current_app.logger.warning(f"⚠️ فشل إنشاء سجل شيك من حجز {preorder.id}: {str(e)}")
+                    db.session.rollback()
+                
                 flash("تم إنشاء الحجز وتسجيل العربون", "success")
             except SQLAlchemyError as e:
                 db.session.rollback()

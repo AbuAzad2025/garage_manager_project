@@ -304,7 +304,7 @@ function updateDateTime() {
         }).format(now);
         
         // استبدال الأرقام العربية بإنجليزية إن وجدت
-        const hijriEnglish = hijriDate.replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+        const hijriEnglish = hijriDate.replace(/[٠-٩]/g, (d) => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)]);
         
         document.getElementById('current-date-hijri').textContent = hijriEnglish;
     } catch (e) {

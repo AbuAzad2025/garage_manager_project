@@ -98,124 +98,24 @@ super_admin_only = owner_only
 @security_bp.route('/')
 @owner_only
 def index():
-    """
-    👑 لوحة التحكم الأمنية الرئيسية - Owner's Security Dashboard
-    
-    📋 الوصف:
-        الصفحة الرئيسية للوحدة السرية - محدودة للمالك فقط
-        
-    📤 Response:
-        HTML: templates/security/index.html
-        
-    🎯 الوظائف:
-        ✅ إحصائيات الأمان الشاملة
-        ✅ المستخدمين (إجمالي/نشطين/محظورين/متصلين)
-        ✅ IPs & Countries المحظورة
-        ✅ محاولات فشل الدخول (24h)
-        ✅ الأنشطة المشبوهة
-        ✅ صحة النظام
-        ✅ روابط سريعة لجميع الأدوات
-    
-    📊 Quick Links:
-        - Ultimate Control (37+ أداة)
-        - User Control (إدارة مستخدمين)
-        - Database Manager (3 in 1)
-        - SQL Console
-        - Logs Viewer (6 أنواع)
-        - Indexes Manager (115+ فهرس)
-    
-    🔒 Security:
-        - Owner only (@owner_only)
-        - حتى Super Admin لا يستطيع الدخول
-    """
-    from datetime import datetime, timedelta, timezone
-    
-    # إحصائيات المستخدمين
-    total_users = User.query.count()
-    active_users = User.query.filter_by(is_active=True).count()
-    blocked_users = User.query.filter_by(is_active=False).count()
-    system_accounts = User.query.filter_by(is_system_account=True).count()
-    
-    # المتصلين الآن (آخر 15 دقيقة)
-    threshold = datetime.now(timezone.utc) - timedelta(minutes=15)
-    online_users = User.query.filter(User.last_seen >= threshold).count()
-    
-    # محاولات فشل الدخول (آخر 24 ساعة)
-    day_ago = datetime.now(timezone.utc) - timedelta(hours=24)
-    from models import AuthAudit, AuthEvent
-    failed_logins_24h = AuthAudit.query.filter(
-        AuthAudit.event == AuthEvent.LOGIN_FAILED.value,
-        AuthAudit.created_at >= day_ago
-    ).count()
-    
-    # Blocked IPs & Countries
-    blocked_ips = _get_blocked_ips_count() if callable(locals().get('_get_blocked_ips_count')) else 0
-    blocked_countries = _get_blocked_countries_count() if callable(locals().get('_get_blocked_countries_count')) else 0
-    
-    # أنشطة مشبوهة (محاولات فاشلة متكررة من نفس IP >= 5)
-    suspicious_activities = 0
-    try:
-        suspicious_activities = db.session.query(
-            func.count(AuthAudit.ip_address)
-        ).filter(
-            AuthAudit.event == AuthEvent.LOGIN_FAILED.value,
-            AuthAudit.created_at >= day_ago
-        ).group_by(AuthAudit.ip_address).having(
-            func.count(AuthAudit.ip_address) >= 5
-        ).count()
-    except:
-        pass
-    
-    # حجم قاعدة البيانات
-    db_size = "N/A"
-    try:
-        import os
-        db_path = os.path.join(current_app.root_path, 'instance', 'app.db')
-        if os.path.exists(db_path):
-            size_bytes = os.path.getsize(db_path)
-            if size_bytes < 1024 * 1024:
-                db_size = f"{size_bytes / 1024:.1f} KB"
-            else:
-                db_size = f"{size_bytes / (1024 * 1024):.1f} MB"
-    except:
-        pass
-    
-    # صحة النظام
-    system_health = "ممتاز"
-    if failed_logins_24h > 50:
-        system_health = "تحذير"
-    elif failed_logins_24h > 100:
-        system_health = "خطر"
-    
+    """لوحة التحكم الأمنية الرئيسية - للمالك فقط"""
+    # إحصائيات أمنية
     stats = {
-        'total_users': total_users,
-        'active_users': active_users,
-        'blocked_users': blocked_users,
-        'system_accounts': system_accounts,
-        'online_users': online_users,
-        'blocked_ips': blocked_ips,
-        'blocked_countries': blocked_countries,
-        'failed_logins_24h': failed_logins_24h,
-        'suspicious_activities': suspicious_activities,
-        'db_size': db_size,
-        'system_health': system_health,
-        'active_sessions': online_users,
-        'total_services': 40,
+        'total_users': User.query.count(),
+        'active_users': User.query.filter_by(is_active=True).count(),
+        'blocked_users': User.query.filter_by(is_active=False).count(),
+        'blocked_ips': _get_blocked_ips_count(),
+        'blocked_countries': _get_blocked_countries_count(),
+        'failed_logins_24h': _get_failed_logins_count(hours=24),
+        'suspicious_activities': _get_suspicious_activities_count(hours=24),
         'system_version': 'v5.0.0',
         'total_modules': '40+',
         'total_apis': 133,
-        'total_indexes': 115  # تحديث: كان 89، الآن 115 بعد إضافة 26
+        'total_indexes': 89
     }
     
     # آخر الأنشطة المشبوهة
-    recent_suspicious = []
-    try:
-        recent_suspicious = AuthAudit.query.filter(
-            AuthAudit.event == AuthEvent.LOGIN_FAILED.value,
-            AuthAudit.created_at >= day_ago
-        ).order_by(AuthAudit.created_at.desc()).limit(10).all()
-    except:
-        pass
+    recent_suspicious = _get_recent_suspicious_activities(limit=10)
     
     return render_template('security/index.html', stats=stats, recent=recent_suspicious)
 
@@ -794,43 +694,7 @@ def _load_training_logs():
 @security_bp.route('/database-manager')
 @owner_only
 def database_manager():
-    """
-    🗄️ مدير قاعدة البيانات الموحد - Unified Database Manager
-    
-    📋 الوصف:
-        محرر شامل 3 في 1 يجمع (Browse + Edit + Schema)
-    
-    📥 Parameters:
-        - tab (str): browse|edit|schema (default: browse)
-        - table (str): اسم الجدول للعمل عليه (optional)
-        - limit (int): عدد السجلات (default: 100 browse, 1000 edit)
-    
-    📤 Response:
-        HTML: templates/security/database_manager.html
-        
-    🎯 الوظائف:
-        ✅ Browse: تصفح جميع الجداول + البيانات
-        ✅ Edit: تحرير مباشر للبيانات
-        ✅ Schema: عرض الهيكل + الفهارس + العلاقات
-    
-    🔗 Related APIs:
-        - POST /db-editor/add-column/<table>
-        - POST /db-editor/update-cell/<table>
-        - POST /db-editor/edit-row/<table>/<id>
-        - POST /db-editor/delete-row/<table>/<id>
-        - POST /db-editor/add-row/<table>
-        - POST /db-editor/bulk-update/<table>
-    
-    💡 Usage Examples:
-        /database-manager?tab=browse
-        /database-manager?tab=edit&table=customers&limit=50
-        /database-manager?tab=schema&table=sales
-    
-    🔒 Security:
-        - Owner only (@owner_only)
-        - Full audit trail
-        - CSRF protection on all operations
-    """
+    """مدير قاعدة البيانات الموحد - 3 في 1 (تصفح + تحرير + هيكل)"""
     tab = request.args.get('tab', 'browse')  # browse, edit, schema
     selected_table = request.args.get('table')
     
@@ -865,8 +729,12 @@ def database_manager():
                           active_tab=tab)
 
 
-# ✅ database-browser REMOVED - use /database-manager?tab=browse instead
-# Removed for cleanup - was just a redirect
+# Backward compatibility - redirect old URLs to new unified manager
+@security_bp.route('/database-browser')
+@owner_only
+def database_browser():
+    """Redirect to database_manager"""
+    return redirect(url_for('security.database_manager', tab='browse', **request.args))
 
 
 @security_bp.route('/decrypt-tool', methods=['GET', 'POST'])
@@ -1097,48 +965,10 @@ def card_vault():
 
 
 @security_bp.route('/code-editor', methods=['GET', 'POST'])
-@security_bp.route('/theme-editor', methods=['GET', 'POST'])  # Alias
+@security_bp.route('/theme-editor', methods=['GET', 'POST'])  # Backward compatibility
 @owner_only
 def theme_editor():
-    """
-    🎨 محرر الملفات الموحد - Unified File Editor
-    
-    📋 الوصف:
-        محرر شامل 3 في 1 (CSS + HTML Templates + System Settings)
-    
-    📥 Parameters:
-        - type (str): css|html|text (default: css)
-        - file (str): اسم الملف للـ CSS (optional)
-        - template (str): مسار القالب للـ HTML (optional)
-        - key (str): مفتاح الإعداد للـ text (optional)
-    
-    📤 Response:
-        HTML: templates/security/theme_editor.html
-        
-    🎯 الوظائف:
-        ✅ CSS: تحرير ملفات الأنماط (static/css/*.css)
-        ✅ HTML: تحرير قوالب Jinja2 (templates/**/*.html)
-        ✅ Text: تحرير System Settings (key-value pairs)
-    
-    💾 العمليات المدعومة:
-        - عرض شجرة الملفات/القوالب
-        - تحرير محتوى الملفات
-        - حفظ التغييرات
-        - معاينة مباشرة (للـ CSS)
-        - Syntax highlighting
-    
-    💡 Usage Examples:
-        /theme-editor?type=css&file=style.css
-        /theme-editor?type=html&template=base.html
-        /theme-editor?type=text&key=company_name
-        /code-editor  ← نفس الوظيفة (alias)
-    
-    🔒 Security:
-        - Owner only
-        - Path traversal protection (..)
-        - File extension validation
-        - UTF-8 encoding enforced
-    """
+    """محرر الكود الموحد - 3 في 1 (CSS + HTML + النصوص)"""
     import os
     from models import SystemSettings
     
@@ -1254,8 +1084,11 @@ def theme_editor():
                          active_tab=editor_type)
 
 
-# ✅ text-editor REMOVED - use /theme-editor?type=text instead
-# Removed for cleanup - was just a redirect
+@security_bp.route('/text-editor', methods=['GET', 'POST'])
+@owner_only
+def text_editor():
+    """إعادة توجيه لمحرر الكود الموحد - تبويب النصوص"""
+    return redirect(url_for('security.theme_editor', type='text'))
 
 
 @security_bp.route('/logo-manager', methods=['GET', 'POST'])
@@ -1300,43 +1133,17 @@ def logo_manager():
     return render_template('security/logo_manager.html', logos=logos)
 
 
-# ✅ template-editor REMOVED - use /theme-editor?type=html instead
-# Removed for cleanup - was just a redirect
+@security_bp.route('/template-editor', methods=['GET', 'POST'])
+@owner_only
+def template_editor():
+    """إعادة توجيه لمحرر الكود الموحد - تبويب HTML"""
+    return redirect(url_for('security.theme_editor', type='html'))
 
 
 @security_bp.route('/table-manager', methods=['GET', 'POST'])
 @owner_only
 def table_manager():
-    """
-    📊 مدير الجداول - Simple Table Manager
-    
-    📋 الوصف:
-        عرض بسيط وسريع لهيكل الجداول (Read-Only)
-        مختلف عن database-manager (لا يوجد تعديل)
-    
-    📥 Parameters:
-        - table (str): اسم الجدول (optional)
-    
-    📤 Response:
-        HTML: templates/security/table_manager.html
-        
-    🎯 الوظائف:
-        ✅ قائمة جميع الجداول
-        ✅ عرض الأعمدة والأنواع
-        ✅ عينة من البيانات (10 صفوف فقط)
-        ✅ إحصائيات بسيطة
-    
-    💡 Usage:
-        /table-manager
-        /table-manager?table=customers
-    
-    🔒 Security:
-        - Owner only
-        - Read-only (لا توجد عمليات تحرير)
-    
-    📝 Note:
-        للتحرير الكامل استخدم /database-manager?tab=edit
-    """
+    """مدير الجداول - إنشاء وتعديل الجداول"""
     tables = db.engine.table_names() if hasattr(db.engine, 'table_names') else []
     
     if not tables:
@@ -1628,139 +1435,9 @@ def live_monitoring():
 @security_bp.route('/user-control')
 @owner_only
 def user_control():
-    """
-    👑 التحكم الكامل بالمستخدمين - Owner's User Management Panel
-    
-    📋 الوصف:
-        لوحة تحكم شاملة ومتقدمة لإدارة جميع المستخدمين
-        
-    📤 Response:
-        HTML: templates/security/user_control.html
-        
-    🎯 الوظائف:
-        ✅ عرض جميع المستخدمين (مع النظام المخفي)
-        ✅ إحصائيات متقدمة لكل مستخدم
-        ✅ Impersonation (انتحال الشخصية)
-        ✅ إعادة تعيين كلمات المرور
-        ✅ تفعيل/تعطيل الحسابات
-        ✅ حذف المستخدمين (حذف آمن)
-        ✅ عمليات جماعية (Bulk operations)
-        ✅ تاريخ النشاطات لكل مستخدم
-        ✅ تحليلات الأداء
-        ✅ فلاتر متقدمة
-        ✅ Export to CSV/Excel
-    
-    📊 الإحصائيات المعروضة:
-        - إجمالي المستخدمين
-        - نشطين / معطلين
-        - متصلين الآن
-        - آخر نشاط
-        - عدد المبيعات / العمليات لكل مستخدم
-        - معدل النجاح
-        - الأخطاء
-    
-    🔒 Security:
-        - Owner only (المالك فقط)
-        - Full audit trail لكل عملية
-        - حماية من الحذف الذاتي
-        - تأكيد على العمليات الخطيرة
-    
-    💡 Usage:
-        /user-control
-        /user-control?filter=active|inactive|online
-        /user-control?role=<role_name>
-        /user-control?search=<username>
-    """
-    from sqlalchemy import func, or_
-    from models import Sale, Payment, ServiceRequest, AuditLog
-    
-    # Filters
-    status_filter = request.args.get('filter', 'all')  # all, active, inactive, online, system
-    role_filter = request.args.get('role')
-    search_query = request.args.get('search', '').strip()
-    
-    # Base query مع eager loading
-    query = User.query.options(
-        db.joinedload(User.role)
-    )
-    
-    # تطبيق الفلاتر
-    if status_filter == 'active':
-        query = query.filter(User.is_active == True)
-    elif status_filter == 'inactive':
-        query = query.filter(User.is_active == False)
-    elif status_filter == 'system':
-        query = query.filter(User.is_system_account == True)
-    elif status_filter == 'online':
-        # متصل خلال آخر 15 دقيقة
-        from datetime import datetime, timedelta, timezone
-        threshold = datetime.now(timezone.utc) - timedelta(minutes=15)
-        query = query.filter(User.last_seen >= threshold)
-    
-    if role_filter:
-        query = query.join(User.role).filter(User.role.has(name=role_filter))
-    
-    if search_query:
-        query = query.filter(
-            or_(
-                User.username.ilike(f'%{search_query}%'),
-                User.email.ilike(f'%{search_query}%')
-            )
-        )
-    
-    users = query.order_by(User.is_system_account.desc(), User.id.asc()).all()
-    
-    # حساب إحصائيات متقدمة لكل مستخدم
-    for user in users:
-        # عدد المبيعات
-        user.sales_count = Sale.query.filter_by(seller_id=user.id).count()
-        user.sales_total = db.session.query(
-            func.coalesce(func.sum(Sale.total_amount), 0)
-        ).filter(Sale.seller_id == user.id).scalar() or 0
-        
-        # عدد طلبات الصيانة
-        user.services_count = ServiceRequest.query.filter_by(mechanic_id=user.id).count()
-        
-        # عدد المدفوعات
-        user.payments_count = Payment.query.filter_by(created_by=user.id).count()
-        
-        # آخر نشاط
-        last_audit = AuditLog.query.filter_by(user_id=user.id).order_by(
-            AuditLog.created_at.desc()
-        ).first()
-        user.last_activity_desc = last_audit.action if last_audit else 'لا يوجد'
-        user.last_activity_time = last_audit.created_at if last_audit else None
-        
-        # حالة الاتصال
-        if user.last_seen:
-            from datetime import datetime, timedelta, timezone
-            threshold = datetime.now(timezone.utc) - timedelta(minutes=15)
-            user.is_online = user.last_seen >= threshold
-        else:
-            user.is_online = False
-    
-    # إحصائيات عامة
-    stats = {
-        'total_users': len(users),
-        'active_users': len([u for u in users if u.is_active]),
-        'inactive_users': len([u for u in users if not u.is_active]),
-        'online_users': len([u for u in users if u.is_online]),
-        'system_accounts': len([u for u in users if u.is_system_account]),
-        'total_sales': sum(u.sales_total for u in users),
-        'total_operations': sum(u.sales_count + u.services_count + u.payments_count for u in users)
-    }
-    
-    # جميع الأدوار
-    from models import Role
-    all_roles = Role.query.order_by(Role.name).all()
-    
-    return render_template('security/user_control.html', 
-                         users=users,
-                         stats=stats,
-                         all_roles=all_roles,
-                         current_filter=status_filter,
-                         current_role=role_filter,
-                         search_query=search_query)
+    """التحكم الكامل بالمستخدمين"""
+    users = User.query.order_by(User.id).all()
+    return render_template('security/user_control.html', users=users)
 
 
 @security_bp.route('/impersonate/<int:user_id>', methods=['POST'])
@@ -1839,487 +1516,22 @@ def force_reset_password(user_id):
 
 
 @security_bp.route('/toggle-user/<int:user_id>', methods=['POST'])
-@security_bp.route('/toggle_user_status/<int:user_id>', methods=['POST'])  # Alias
 @owner_only
 def toggle_user_status(user_id):
-    """
-    🔄 تفعيل/تعطيل مستخدم - Toggle User Status
-    
-    📋 الوصف:
-        تبديل حالة المستخدم (نشط ↔ معطل)
-    
-    📥 Parameters:
-        - user_id (int): معرّف المستخدم
-    
-    🔒 Security:
-        - Owner only
-        - Audit logging
-        - حماية من تعطيل الذات
-    """
+    """تفعيل/تعطيل مستخدم"""
     user = User.query.get_or_404(user_id)
-    
-    # حماية من تعطيل المالك لنفسه
-    if user.id == current_user.id:
-        flash('⚠️ لا يمكنك تعطيل حسابك الخاص!', 'warning')
-        return redirect(url_for('security.user_control'))
-    
-    old_status = user.is_active
     user.is_active = not user.is_active
-    
-    # Audit log
-    try:
-        log = AuditLog(
-            user_id=current_user.id,
-            action=f'security.toggle_user_status',
-            table_name='users',
-            record_id=user.id,
-            old_data=json.dumps({'is_active': old_status}, ensure_ascii=False),
-            new_data=json.dumps({'is_active': user.is_active}, ensure_ascii=False),
-            note=f'Owner toggled user {user.username} status',
-            ip_address=request.remote_addr
-        )
-        db.session.add(log)
-    except:
-        pass
-    
     db.session.commit()
     
     status = 'مفعل' if user.is_active else 'معطل'
-    flash(f'✅ المستخدم {user.username} الآن {status}', 'success')
-    return redirect(url_for('security.user_control'))
-
-
-@security_bp.route('/delete-user/<int:user_id>', methods=['POST'])
-@owner_only
-def delete_user(user_id):
-    """
-    🗑️ حذف مستخدم نهائياً - Permanent User Deletion
-    
-    📋 الوصف:
-        حذف نهائي للمستخدم من قاعدة البيانات
-    
-    📥 Parameters:
-        - user_id (int): معرّف المستخدم
-    
-    ⚠️ Warning:
-        - عملية خطيرة ولا يمكن التراجع عنها
-        - يجب استخدام Hard Delete للحفاظ على السجلات
-    
-    🔒 Security:
-        - Owner only
-        - حماية من الحذف الذاتي
-        - حماية حسابات النظام
-        - Full audit trail
-    """
-    user = User.query.get_or_404(user_id)
-    
-    # حماية من الحذف الذاتي
-    if user.id == current_user.id:
-        flash('⚠️ لا يمكنك حذف حسابك الخاص!', 'danger')
-        return redirect(url_for('security.user_control'))
-    
-    # حماية حسابات النظام
-    if user.is_system_account:
-        flash('🔒 حسابات النظام محمية من الحذف!', 'danger')
-        return redirect(url_for('security.user_control'))
-    
-    username = user.username
-    
-    # Audit log قبل الحذف
-    try:
-        log = AuditLog(
-            user_id=current_user.id,
-            action='security.delete_user',
-            table_name='users',
-            record_id=user.id,
-            old_data=json.dumps({
-                'username': user.username,
-                'email': user.email,
-                'role': user.role.name if user.role else None
-            }, ensure_ascii=False),
-            note=f'Owner deleted user: {username}',
-            ip_address=request.remote_addr
-        )
-        db.session.add(log)
-        db.session.commit()
-    except:
-        pass
-    
-    # الحذف
-    try:
-        db.session.delete(user)
-        db.session.commit()
-        flash(f'✅ تم حذف المستخدم {username} نهائياً', 'success')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'❌ خطأ في الحذف: {str(e)}', 'danger')
-    
-    return redirect(url_for('security.user_control'))
-
-
-@security_bp.route('/api/users/<int:user_id>/details')
-@owner_only
-def api_user_details(user_id):
-    """
-    📊 API - الحصول على تفاصيل مستخدم كاملة
-    
-    📥 Parameters:
-        - user_id (int): معرّف المستخدم
-    
-    📤 Response:
-        JSON: {
-            success: true/false,
-            user: {معلومات المستخدم الكاملة},
-            error: رسالة الخطأ (إن وُجد)
-        }
-    """
-    from models import Sale, Payment, ServiceRequest, AuditLog
-    
-    try:
-        user = User.query.options(db.joinedload(User.role)).get_or_404(user_id)
-        
-        # إحصائيات
-        sales_count = Sale.query.filter_by(seller_id=user.id).count()
-        sales_total = db.session.query(
-            func.coalesce(func.sum(Sale.total_amount), 0)
-        ).filter(Sale.seller_id == user.id).scalar() or 0
-        
-        services_count = ServiceRequest.query.filter_by(mechanic_id=user.id).count()
-        payments_count = Payment.query.filter_by(created_by=user.id).count()
-        
-        # آخر الأنشطة
-        recent_activities = AuditLog.query.filter_by(user_id=user.id).order_by(
-            AuditLog.created_at.desc()
-        ).limit(10).all()
-        
-        user_data = {
-            'id': user.id,
-            'username': user.username,
-            'email': user.email,
-            'role': user.role.name if user.role else None,
-            'is_active': user.is_active,
-            'is_system_account': user.is_system_account,
-            'last_login': user.last_login.isoformat() if user.last_login else None,
-            'last_seen': user.last_seen.isoformat() if user.last_seen else None,
-            'login_count': user.login_count,
-            'last_login_ip': user.last_login_ip,
-            'sales_count': sales_count,
-            'sales_total': float(sales_total),
-            'services_count': services_count,
-            'payments_count': payments_count,
-            'recent_activities': [
-                {
-                    'action': a.action,
-                    'created_at': a.created_at.isoformat() if a.created_at else None,
-                    'note': a.note
-                }
-                for a in recent_activities
-            ]
-        }
-        
-        return jsonify({'success': True, 'user': user_data})
-        
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@security_bp.route('/api/users/bulk-operation', methods=['POST'])
-@owner_only
-def api_users_bulk_operation():
-    """
-    ⚡ API - عمليات جماعية على المستخدمين
-    
-    📥 Parameters (JSON):
-        - operation (str): activate|deactivate|delete
-        - user_ids (list): قائمة معرّفات المستخدمين
-    
-    📤 Response:
-        JSON: {
-            success: true/false,
-            message: رسالة النجاح,
-            affected: عدد المستخدمين المتأثرين,
-            error: رسالة الخطأ (إن وُجد)
-        }
-    """
-    try:
-        data = request.get_json()
-        operation = data.get('operation')
-        user_ids = data.get('user_ids', [])
-        
-        if not user_ids:
-            return jsonify({'success': False, 'error': 'لم يتم تحديد أي مستخدمين'}), 400
-        
-        # حماية من العمليات على المالك
-        user_ids = [int(uid) for uid in user_ids if int(uid) != current_user.id]
-        
-        if operation == 'activate':
-            User.query.filter(User.id.in_(user_ids)).update(
-                {'is_active': True}, synchronize_session=False
-            )
-            message = f'تم تفعيل {len(user_ids)} مستخدم'
-            
-        elif operation == 'deactivate':
-            User.query.filter(User.id.in_(user_ids)).update(
-                {'is_active': False}, synchronize_session=False
-            )
-            message = f'تم تعطيل {len(user_ids)} مستخدم'
-            
-        elif operation == 'delete':
-            # حماية حسابات النظام
-            User.query.filter(
-                User.id.in_(user_ids),
-                User.is_system_account == False
-            ).delete(synchronize_session=False)
-            message = f'تم حذف {len(user_ids)} مستخدم'
-            
-        else:
-            return jsonify({'success': False, 'error': 'عملية غير معروفة'}), 400
-        
-        # Audit log
-        try:
-            log = AuditLog(
-                user_id=current_user.id,
-                action=f'security.bulk_{operation}',
-                table_name='users',
-                note=f'Owner performed bulk {operation} on {len(user_ids)} users',
-                ip_address=request.remote_addr
-            )
-            db.session.add(log)
-        except:
-            pass
-        
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': message,
-            'affected': len(user_ids)
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@security_bp.route('/api/users/<int:user_id>/activity-history')
-@owner_only
-def api_user_activity_history(user_id):
-    """
-    📜 API - سجل نشاطات المستخدم الكامل
-    
-    📥 Parameters:
-        - user_id (int): معرّف المستخدم
-        - limit (int): عدد السجلات (default: 50)
-    
-    📤 Response:
-        JSON: { success, activities: [...], total }
-    """
-    try:
-        limit = request.args.get('limit', 50, type=int)
-        
-        activities = AuditLog.query.filter_by(user_id=user_id).order_by(
-            AuditLog.created_at.desc()
-        ).limit(limit).all()
-        
-        activities_data = [
-            {
-                'id': a.id,
-                'action': a.action,
-                'table_name': a.table_name,
-                'record_id': a.record_id,
-                'note': a.note,
-                'ip_address': a.ip_address,
-                'created_at': a.created_at.isoformat() if a.created_at else None
-            }
-            for a in activities
-        ]
-        
-        total_count = AuditLog.query.filter_by(user_id=user_id).count()
-        
-        return jsonify({
-            'success': True,
-            'activities': activities_data,
-            'total': total_count,
-            'showing': len(activities_data)
-        })
-        
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@security_bp.route('/create-user', methods=['POST'])
-@owner_only
-def create_user():
-    """
-    ➕ إنشاء مستخدم جديد - Create New User
-    
-    📋 الوصف:
-        إنشاء مستخدم جديد مباشرة من لوحة التحكم
-    
-    📥 Parameters (POST):
-        - username (str): اسم المستخدم (unique)
-        - email (str): البريد الإلكتروني (unique)
-        - password (str): كلمة المرور
-        - role_id (int): الدور
-        - is_active (bool): الحالة
-    
-    🔒 Security:
-        - Owner only
-        - Validation على جميع الحقول
-        - Audit logging
-    """
-    try:
-        username = request.form.get('username', '').strip()
-        email = request.form.get('email', '').strip()
-        password = request.form.get('password', '123456')
-        role_id = request.form.get('role_id', type=int)
-        is_active = request.form.get('is_active') == '1'
-        
-        if not username or not email:
-            flash('❌ اسم المستخدم والبريد مطلوبان', 'danger')
-            return redirect(url_for('security.user_control'))
-        
-        # التحقق من عدم التكرار
-        existing = User.query.filter(
-            (User.username == username) | (User.email == email)
-        ).first()
-        
-        if existing:
-            flash('❌ اسم المستخدم أو البريد موجود بالفعل', 'danger')
-            return redirect(url_for('security.user_control'))
-        
-        # إنشاء المستخدم
-        from werkzeug.security import generate_password_hash
-        
-        new_user = User(
-            username=username,
-            email=email,
-            password_hash=generate_password_hash(password),
-            role_id=role_id,
-            is_active=is_active
-        )
-        
-        db.session.add(new_user)
-        db.session.flush()
-        
-        # Audit log
-        log = AuditLog(
-            user_id=current_user.id,
-            action='security.create_user',
-            table_name='users',
-            record_id=new_user.id,
-            new_data=json.dumps({
-                'username': username,
-                'email': email,
-                'role_id': role_id
-            }, ensure_ascii=False),
-            note=f'Owner created new user: {username}',
-            ip_address=request.remote_addr
-        )
-        db.session.add(log)
-        db.session.commit()
-        
-        flash(f'✅ تم إنشاء المستخدم {username} بنجاح', 'success')
-        
-    except Exception as e:
-        db.session.rollback()
-        flash(f'❌ خطأ: {str(e)}', 'danger')
-    
-    return redirect(url_for('security.user_control'))
-
-
-@security_bp.route('/update-user-role/<int:user_id>', methods=['POST'])
-@owner_only
-def update_user_role(user_id):
-    """
-    🎭 تحديث دور المستخدم - Update User Role
-    
-    📋 الوصف:
-        تغيير دور/صلاحيات المستخدم
-    
-    📥 Parameters:
-        - user_id (int): معرّف المستخدم
-        - role_id (int): الدور الجديد
-    
-    🔒 Security:
-        - Owner only
-        - حماية المالك
-        - Audit logging
-    """
-    user = User.query.get_or_404(user_id)
-    
-    if user.is_system_account:
-        flash('🔒 لا يمكن تغيير دور حسابات النظام', 'warning')
-        return redirect(url_for('security.user_control'))
-    
-    old_role_id = user.role_id
-    new_role_id = request.form.get('role_id', type=int)
-    
-    user.role_id = new_role_id
-    
-    # Audit log
-    try:
-        from models import Role
-        old_role = Role.query.get(old_role_id) if old_role_id else None
-        new_role = Role.query.get(new_role_id) if new_role_id else None
-        
-        log = AuditLog(
-            user_id=current_user.id,
-            action='security.update_user_role',
-            table_name='users',
-            record_id=user.id,
-            old_data=json.dumps({'role': old_role.name if old_role else None}, ensure_ascii=False),
-            new_data=json.dumps({'role': new_role.name if new_role else None}, ensure_ascii=False),
-            note=f'Owner changed role for {user.username}',
-            ip_address=request.remote_addr
-        )
-        db.session.add(log)
-    except:
-        pass
-    
-    db.session.commit()
-    flash(f'✅ تم تحديث دور {user.username}', 'success')
+    flash(f'المستخدم {user.username} الآن {status}', 'success')
     return redirect(url_for('security.user_control'))
 
 
 @security_bp.route('/sql-console', methods=['GET', 'POST'])
 @owner_only
 def sql_console():
-    """
-    💻 وحدة SQL التفاعلية - Interactive SQL Console
-    
-    📋 الوصف:
-        تنفيذ استعلامات SQL مباشرة على قاعدة البيانات
-    
-    📥 Parameters (POST):
-        - query (str): استعلام SQL للتنفيذ
-        - format (str): json|html|csv (default: html)
-    
-    📤 Response:
-        HTML: templates/security/sql_console.html
-        JSON: نتائج الاستعلام (if format=json)
-        
-    🎯 الوظائف:
-        ✅ SELECT - استعلامات القراءة
-        ✅ INSERT - إضافة بيانات
-        ✅ UPDATE - تحديث بيانات
-        ✅ DELETE - حذف بيانات (مع تأكيد)
-        ✅ CREATE/ALTER/DROP - DDL operations
-        ✅ حفظ الاستعلامات المفضلة
-        ✅ عرض النتائج بجدول
-        ✅ Export to CSV/JSON
-    
-    ⚠️ Security:
-        - Owner only (خطير جداً!)
-        - تأكيد إضافي على DELETE/DROP
-        - Audit logging لكل استعلام
-        - تحذيرات للعمليات الخطيرة
-    
-    💡 Usage:
-        GET  /sql-console
-        POST /sql-console
-             query=SELECT * FROM customers LIMIT 10
-    """
+    """وحدة تنفيذ SQL مباشرة"""
     result = None
     error = None
     
@@ -2807,16 +2019,19 @@ def advanced_config():
 # DATABASE EDITOR - ADVANCED
 # ═══════════════════════════════════════════════════════════════
 
-# ✅ db-editor REMOVED - use /database-manager?tab=edit instead
-# Removed for cleanup - was just a redirect
+@security_bp.route('/db-editor')
+@owner_only
+def db_editor():
+    """Redirect to database_manager - edit tab"""
+    return redirect(url_for('security.database_manager', tab='edit'))
 
 
-# ✅ db-editor/table REMOVED - use /database-manager?tab=edit&table=<name> instead
-# Removed for cleanup - was just a redirect
+@security_bp.route('/db-editor/table/<table_name>')
+@owner_only
+def db_editor_table(table_name):
+    """Redirect to database_manager - edit tab with table"""
+    return redirect(url_for('security.database_manager', tab='edit', table=table_name))
 
-# ═══════════════════════════════════════════════════════════════
-# DATABASE EDITOR APIs - ACTIVE (يُحتفظ بها جميعاً)
-# ═══════════════════════════════════════════════════════════════
 
 @security_bp.route('/db-editor/add-column/<table_name>', methods=['POST'])
 @owner_only
@@ -4138,51 +3353,7 @@ def api_live_metrics():
 @security_bp.route('/indexes-manager', methods=['GET', 'POST'])
 @owner_only
 def indexes_manager():
-    """
-    ⚡ إدارة الفهارس - Advanced Indexes Manager
-    
-    📋 الوصف:
-        إدارة شاملة لجميع فهارس قاعدة البيانات (89+ فهرس)
-    
-    📤 Response:
-        HTML: templates/security/indexes_manager.html
-        
-    🎯 الوظائف:
-        ✅ عرض جميع الفهارس لكل جدول
-        ✅ إحصائيات الفهارس
-        ✅ إنشاء فهارس جديدة
-        ✅ حذف فهارس
-        ✅ Auto-optimization (تحسين تلقائي)
-        ✅ تحليل الجداول (ANALYZE)
-        ✅ اقتراحات ذكية للفهارس
-    
-    📊 Statistics:
-        - إجمالي الفهارس: 89+
-        - فهارس لكل جدول
-        - Unique indexes
-        - Composite indexes
-        - حجم الفهارس
-    
-    🔗 Related APIs:
-        - POST /api/indexes/create
-        - POST /api/indexes/drop
-        - POST /api/indexes/auto-optimize
-        - POST /api/indexes/clean-and-rebuild
-        - POST /api/indexes/analyze-table
-    
-    💡 Usage:
-        /indexes-manager
-    
-    🔒 Security:
-        - Owner only
-        - Audit logging
-        - تأكيد قبل الحذف
-    
-    ⚡ Performance Impact:
-        - تسريع الاستعلامات: 10x - 100x
-        - تحسين JOIN operations
-        - تحسين WHERE clauses
-    """
+    """إدارة الفهارس - 89 فهرس احترافي - Indexes Manager"""
     from sqlalchemy import inspect
     
     inspector = inspect(db.engine)

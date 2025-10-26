@@ -167,46 +167,70 @@ socketio = SocketIO(cors_allowed_origins="*", logger=False, engineio_logger=Fals
 
 # نظام الإشعارات الفورية
 def send_notification(user_id: int, notification_type: str, title: str, message: str, data: dict = None):
-    """إرسال إشعار فوري للمستخدم"""
-    try:
-        notification = {
-            "type": notification_type,
-            "title": title,
-            "message": message,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "data": data or {}
-        }
-        socketio.emit('notification', notification, room=f'user_{user_id}')
-    except Exception as e:
-        logging.getLogger(__name__).error(f"Failed to send notification: {e}")
+    """
+    إرسال إشعار فوري للمستخدم
+    
+    ⚠️ معطّل: كان يسبب تعليق في النظام
+    """
+    # ❌ معطّل مؤقتاً - كان يسبب مشاكل أداء
+    return
+    
+    # الكود القديم (معطّل):
+    # try:
+    #     notification = {
+    #         "type": notification_type,
+    #         "title": title,
+    #         "message": message,
+    #         "timestamp": datetime.now(timezone.utc).isoformat(),
+    #         "data": data or {}
+    #     }
+    #     socketio.emit('notification', notification, room=f'user_{user_id}')
+    # except Exception as e:
+    #     logging.getLogger(__name__).error(f"Failed to send notification: {e}")
 
 def send_broadcast_notification(notification_type: str, title: str, message: str, data: dict = None):
-    """إرسال إشعار عام لجميع المستخدمين"""
-    try:
-        notification = {
-            "type": notification_type,
-            "title": title,
-            "message": message,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "data": data or {}
-        }
-        socketio.emit('broadcast_notification', notification)
-    except Exception as e:
-        logging.getLogger(__name__).error(f"Failed to send broadcast notification: {e}")
+    """
+    إرسال إشعار عام لجميع المستخدمين
+    
+    ⚠️ معطّل: كان يسبب تعليق في النظام
+    """
+    # ❌ معطّل مؤقتاً - كان يسبب مشاكل أداء
+    return
+    
+    # الكود القديم (معطّل):
+    # try:
+    #     notification = {
+    #         "type": notification_type,
+    #         "title": title,
+    #         "message": message,
+    #         "timestamp": datetime.now(timezone.utc).isoformat(),
+    #         "data": data or {}
+    #     }
+    #     socketio.emit('broadcast_notification', notification)
+    # except Exception as e:
+    #     logging.getLogger(__name__).error(f"Failed to send broadcast notification: {e}")
 
 def send_system_alert(alert_type: str, message: str, severity: str = "warning"):
-    """إرسال تنبيه نظام"""
-    try:
-        alert = {
-            "type": "system_alert",
-            "alert_type": alert_type,
-            "message": message,
-            "severity": severity,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-        socketio.emit('system_alert', alert)
-    except Exception as e:
-        logging.getLogger(__name__).error(f"Failed to send system alert: {e}")
+    """
+    إرسال تنبيه نظام
+    
+    ⚠️ معطّل: كان يسبب تعليق في النظام
+    """
+    # ❌ معطّل مؤقتاً - كان يسبب مشاكل أداء
+    return
+    
+    # الكود القديم (معطّل):
+    # try:
+    #     alert = {
+    #         "type": "system_alert",
+    #         "alert_type": alert_type,
+    #         "message": message,
+    #         "severity": severity,
+    #         "timestamp": datetime.now(timezone.utc).isoformat()
+    #     }
+    #     socketio.emit('system_alert', alert)
+    # except Exception as e:
+    #     logging.getLogger(__name__).error(f"Failed to send system alert: {e}")
 cache = Cache()
 
 

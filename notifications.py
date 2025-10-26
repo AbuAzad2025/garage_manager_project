@@ -231,16 +231,25 @@ class NotificationManager:
 
 
 def send_realtime_notification(notification: Notification):
-    """إرسال الإشعار في الوقت الفعلي"""
-    try:
-        if notification.user_id:
-            # إشعار لمستخدم محدد
-            socketio.emit('notification', notification.to_dict(), room=f'user_{notification.user_id}')
-        else:
-            # إشعار عام لجميع المستخدمين
-            socketio.emit('notification', notification.to_dict(), broadcast=True)
-    except Exception as e:
-        logging.error(f"Error sending realtime notification: {e}")
+    """
+    إرسال الإشعار في الوقت الفعلي
+    
+    ⚠️ معطّل: كان يسبب تعليق في النظام (خاصة مع المساعد الذكي)
+    الإشعارات تُحفظ في قاعدة البيانات فقط بدون إرسال فوري
+    """
+    # ❌ معطّل مؤقتاً - كان يسبب مشاكل
+    return
+    
+    # الكود القديم (معطّل):
+    # try:
+    #     if notification.user_id:
+    #         # إشعار لمستخدم محدد
+    #         socketio.emit('notification', notification.to_dict(), room=f'user_{notification.user_id}')
+    #     else:
+    #         # إشعار عام لجميع المستخدمين
+    #         socketio.emit('notification', notification.to_dict(), broadcast=True)
+    # except Exception as e:
+    #     logging.error(f"Error sending realtime notification: {e}")
 
 
 @socketio.on('join_user_room')

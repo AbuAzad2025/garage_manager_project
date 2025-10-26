@@ -153,7 +153,7 @@
 
     dom.print.onclick = function () {
       var w = window.open("", "printWin");
-      var now = new Date().toLocaleString();
+      var now = new Date().toLocaleString('en-US');
       var methodText = dom.method.options[dom.method.selectedIndex].text;
       var dirText = (dom.direction.dataset.dir || dir) === "IN" ? "وارد" : "صادر";
       var html =

@@ -155,7 +155,7 @@
       var revenueData = {{ revenue|tojson }};
 
       function kfmt(n){ // آلاف/فواصل
-        try { return (n||0).toLocaleString('ar-EG'); } catch(e){ return n; }
+        try { return (n||0).toLocaleString('en-US'); } catch(e){ return n; }
       }
 
       var ctx1 = document.getElementById('salesCountChart');

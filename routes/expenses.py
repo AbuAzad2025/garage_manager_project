@@ -392,32 +392,40 @@ def add():
         try:
             db.session.commit()
             
-            # إنشاء سجل Check تلقائياً إذا كانت طريقة الدفع شيك
+            # ✅ إنشاء سجل Check تلقائياً إذا كانت طريقة الدفع شيك
             try:
                 from models import Check
                 from flask_login import current_user
                 
                 if exp.payment_method and exp.payment_method.lower() in ['check', 'cheque']:
-                    if exp.check_number and exp.check_bank:
+                    check_number = (exp.check_number or '').strip()
+                    check_bank = (exp.check_bank or '').strip()
+                    
+                    if not check_number or not check_bank:
+                        current_app.logger.warning(f"⚠️ مصروف {exp.id} بطريقة شيك لكن بدون رقم شيك أو بنك")
+                    else:
+                        # تحويل check_due_date من date إلى datetime إذا لزم الأمر
+                        check_due_date = exp.check_due_date
+                        if check_due_date and isinstance(check_due_date, date) and not isinstance(check_due_date, datetime):
+                            check_due_date = datetime.combine(check_due_date, datetime.min.time())
+                        elif not check_due_date:
+                            check_due_date = exp.date or datetime.utcnow()
+                        
                         # إنشاء سجل الشيك
                         check = Check(
-                            check_number=exp.check_number,
-                            check_bank=exp.check_bank,
+                            check_number=check_number,
+                            check_bank=check_bank,
                             check_date=exp.date or datetime.utcnow(),
-                            check_due_date=exp.check_due_date or exp.date or datetime.utcnow(),
+                            check_due_date=check_due_date,
                             amount=exp.amount,
                             currency=exp.currency or 'ILS',
                             direction='OUT',  # المصروفات دائماً صادرة
-                            status='PENDING',  # حالة افتراضية
-                            # ربط بالموظف/المورد/الشريك إن وجد
+                            status='PENDING',
                             supplier_id=getattr(exp, 'supplier_id', None),
                             partner_id=getattr(exp, 'partner_id', None),
-                            # معلومات الربط
                             reference_number=f"EXP-{exp.id}",
                             notes=f"شيك من مصروف رقم {exp.id} - {exp.description[:50] if exp.description else 'مصروف'}",
-                            # معلومات المستفيد
                             payee_name=exp.payee_name or exp.paid_to or exp.beneficiary_name,
-                            # معلومات المستخدم
                             created_by_id=current_user.id if current_user.is_authenticated else None
                         )
                         db.session.add(check)
@@ -425,8 +433,10 @@ def add():
                         current_app.logger.info(f"✅ تم إنشاء سجل شيك رقم {check.check_number} من مصروف رقم {exp.id}")
             except Exception as e:
                 # في حالة فشل إنشاء الشيك، لا نُفشل المصروف
-                current_app.logger.warning(f"⚠️ فشل إنشاء سجل شيك من مصروف {exp.id}: {str(e)}")
-                db.session.rollback()
+                current_app.logger.error(f"❌ فشل إنشاء سجل شيك من مصروف {exp.id}: {str(e)}")
+                import traceback
+                current_app.logger.error(traceback.format_exc())
+                # لا نعمل rollback لأن المصروف تم حفظه مسبقاً
                 # إعادة commit للمصروف فقط
                 db.session.commit()
             

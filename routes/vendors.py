@@ -666,11 +666,12 @@ def partners_statement(partner_id: int):
     total_debit = Decimal("0.00")
     total_credit = Decimal("0.00")
     
-    # المبيعات للشريك (كعميل) — تُسجّل دائن
+    # المبيعات للشريك (كعميل) — تُسجّل دائن - ⚡ محسّن
     if partner.customer_id:
         from models import Sale, SaleStatus
         sale_q = (
             db.session.query(Sale)
+            .options(joinedload(Sale.lines))
             .filter(
                 Sale.customer_id == partner.customer_id,
                 Sale.status == SaleStatus.CONFIRMED.value,
@@ -689,11 +690,12 @@ def partners_statement(partner_id: int):
             entries.append({"date": d, "type": "SALE", "ref": ref, "statement": statement, "debit": Decimal("0.00"), "credit": amt})
             total_credit += amt
     
-    # الصيانة للشريك (كعميل) — تُسجّل دائن
+    # الصيانة للشريك (كعميل) — تُسجّل دائن - ⚡ محسّن
     if partner.customer_id:
         from models import ServiceRequest
         service_q = (
             db.session.query(ServiceRequest)
+            .options(joinedload(ServiceRequest.parts), joinedload(ServiceRequest.tasks))
             .filter(
                 ServiceRequest.customer_id == partner.customer_id,
                 ServiceRequest.status == 'COMPLETED',

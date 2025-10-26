@@ -768,8 +768,13 @@ def account_statement(customer_id):
 
     all_payments.sort(key=lambda x: (getattr(x, "payment_date", None) or getattr(x, "created_at", None) or datetime.min, x.id))
     for p in all_payments:
-        # توليد البيان للدفعة - بسيط وواضح
-        method_raw = str(getattr(p, 'method', 'cash')).lower()
+        # توليد البيان للدفعة - محسّن وواضح
+        # استخراج القيمة من enum إذا كان enum
+        method_value = getattr(p, 'method', 'cash')
+        if hasattr(method_value, 'value'):
+            method_value = method_value.value
+        method_raw = str(method_value).lower()
+        
         method_arabic = {
             'cash': 'نقداً',
             'card': 'بطاقة',
@@ -780,26 +785,29 @@ def account_statement(customer_id):
         
         amount = float(getattr(p, 'total_amount', 0) or 0)
         receiver_name = getattr(p, 'receiver_name', None) or ''
+        receipt_number = getattr(p, 'receipt_number', None) or getattr(p, 'payment_number', None) or ''
+        check_number = getattr(p, 'check_number', None) if method_raw == 'cheque' else None
+        check_due_date = getattr(p, 'check_due_date', None) if method_raw == 'cheque' else None
         
-        # بيان بسيط: دفعة نقداً
-        payment_statement = f"دفعة {method_arabic}"
-        
-        # ملاحظات إن وجدت
+        # ملاحظات
         notes = getattr(p, 'notes', '') or ''
-        if notes:
-            payment_statement += f" - {notes[:30]}"
         
         payment_details = {
             'method': method_arabic,  # ✅ طريقة الدفع بالعربي
             'method_raw': method_raw,  # القيمة الأصلية للمقارنة في القالب
-            'check_number': getattr(p, 'check_number', None),
+            'check_number': check_number,
             'check_bank': getattr(p, 'check_bank', None),
-            'check_due_date': getattr(p, 'check_due_date', None),
+            'check_due_date': check_due_date,
             'card_holder': getattr(p, 'card_holder', None),
             'card_last4': getattr(p, 'card_last4', None),
             'bank_transfer_ref': getattr(p, 'bank_transfer_ref', None),
-            'receiver_name': getattr(p, 'receiver_name', None) or ''
+            'receiver_name': receiver_name
         }
+        
+        # البيان (سيتم بناؤه ديناميكياً في القالب)
+        payment_statement = f"سند قبض - {method_arabic}"
+        if receiver_name:
+            payment_statement += f" - لـيـد ({receiver_name})"
         
         entries.append({
             "date": getattr(p, "payment_date", None) or getattr(p, "created_at", None),
