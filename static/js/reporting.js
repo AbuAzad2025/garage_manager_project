@@ -62,7 +62,7 @@
     const bodyCols = dataRows.first().find('td').length;
     
     if (headerCols !== bodyCols) {
-      console.error('Report table: column mismatch', {header: headerCols, body: bodyCols});
+
       return;
     }
     
@@ -84,7 +84,7 @@
         }
       });
     } catch (e) {
-      console.error('Report DataTable initialization failed:', e);
+
     }
   }
 
@@ -282,7 +282,7 @@
       saveState();
     } catch (e) {
       alert("حدث خطأ أثناء جلب التقرير: " + e.message);
-      console.error(e);
+
     } finally {
       showLoading(false);
     }

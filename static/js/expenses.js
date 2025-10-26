@@ -311,7 +311,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const bodyCols = dataRows.first().find('td').length;
       
       if (headerCols !== bodyCols) {
-        console.error('Table column mismatch:', tableEl.id, {header: headerCols, body: bodyCols});
+
         return;
       }
       
@@ -348,7 +348,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.addEventListener('shown.bs.tab', () => api.columns.adjust());
         document.addEventListener('shown.bs.collapse', () => api.columns.adjust());
       } catch (e) {
-        console.error('Table initialization failed:', tableEl.id, e);
+
       }
     }
 

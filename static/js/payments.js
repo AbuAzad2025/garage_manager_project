@@ -508,7 +508,7 @@ function initSmartSearch() {
             showResults(data);
           })
           .catch(error => {
-            console.error('خطأ في البحث:', error);
+
             hideResults();
           });
       }, 300);
@@ -660,7 +660,7 @@ document.addEventListener('click', async function (e) {
       alert('خطأ في أرشفة الدفعة');
     }
   } catch (error) {
-    console.error('Error archiving payment:', error);
+
     alert('خطأ في أرشفة الدفعة');
   }
 });

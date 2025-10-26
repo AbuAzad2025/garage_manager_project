@@ -65,10 +65,7 @@
       const bodyCols = dataRows.first().find('td').length;
       
       if (headerCols !== bodyCols) {
-        console.error('DataTable column mismatch:', $tbl.attr('id'), {
-          header: headerCols,
-          body: bodyCols
-        });
+
         return;
       }
 
@@ -105,7 +102,7 @@
           columnDefs: noSortIdx.length ? [{ orderable: false, targets: noSortIdx }] : []
         });
       } catch (e) {
-        console.error('DataTable initialization failed:', e, $tbl);
+
       }
     });
   }
@@ -307,7 +304,7 @@
     socketNotificationsInitialized = true;
     
     if (typeof io === 'undefined') {
-      console.warn('Socket.IO not loaded, notifications disabled');
+
       return;
     }
 

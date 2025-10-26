@@ -1,5 +1,5 @@
 (function () {
-  if (window.__CUSTOMERS_INIT__) { console.log("customers.js already loaded, skipping..."); return; }
+  if (window.__CUSTOMERS_INIT__) {return; }
   window.__CUSTOMERS_INIT__ = true;
 
   "use strict";
@@ -15,7 +15,6 @@
   };
   const showToast = (msg, level = "info") => {
     if (typeof window.showNotification === "function") return window.showNotification(msg, level);
-    try { (level === "danger" ? console.error : console.log)(msg); } catch (_) {}
     if (!window.showNotification) alert(msg);
   };
   const clearFieldErrors = (form) => {
@@ -137,7 +136,7 @@
     const bodyCols = dataRows.first().find('td').length;
     
     if (headerCols !== bodyCols) {
-      console.error('Customers table: column mismatch', {header: headerCols, body: bodyCols});
+
       return;
     }
     
@@ -157,7 +156,7 @@
           columnDefs: [{ orderable: false, targets: [lastCol] }]
         });
     } catch (e) {
-      console.error('Customers DataTable initialization failed:', e);
+
     }
   }
 
@@ -232,7 +231,7 @@
         const rt = form.querySelector('input[name="return_to"]')?.value || "";
         if (rt) window.location.href = rt;
       } catch (err) {
-        console.error(err);
+
         showToast("خطأ بالشبكة أو السيرفر", "danger");
       }
     });

@@ -407,14 +407,14 @@
           const onlineImageField = document.querySelector('input[name="online_image"]');
           if (onlineImageField) {
             onlineImageField.value = url;
-            console.log('تم تحديث حقل صورة الأونلاين:', url);
+
             // إضافة تأثير بصري
             onlineImageField.style.backgroundColor = '#d4edda';
             setTimeout(() => {
               onlineImageField.style.backgroundColor = '';
             }, 2000);
           } else {
-            console.log('لم يتم العثور على حقل صورة الأونلاين');
+
           }
           
           // حفظ صورة الأونلاين فوراً في قاعدة البيانات
@@ -431,14 +431,14 @@
             });
             
             if (saveResponse.ok) {
-              console.log('✅ تم حفظ صورة الأونلاين في قاعدة البيانات');
+
               setStatus('✅ تم رفع وحفظ صورة الأونلاين بنجاح!');
             } else {
-              console.log('⚠️ تم رفع صورة الأونلاين لكن فشل الحفظ في قاعدة البيانات');
+
               setStatus('✅ تم رفع صورة الأونلاين! ⚠️ تأكد من الضغط على "حفظ" لحفظ التغييرات.');
             }
           } catch (saveError) {
-            console.log('⚠️ خطأ في حفظ صورة الأونلاين:', saveError);
+
             setStatus('✅ تم رفع صورة الأونلاين! ⚠️ تأكد من الضغط على "حفظ" لحفظ التغييرات.');
           }
         } catch {
@@ -624,14 +624,14 @@
             const imageField = document.querySelector('input[name="image"]');
             if (imageField) {
               imageField.value = url;
-              console.log('تم تحديث حقل الصورة الرئيسية:', url);
+
               // إضافة تأثير بصري
               imageField.style.backgroundColor = '#d4edda';
               setTimeout(() => {
                 imageField.style.backgroundColor = '';
               }, 2000);
             } else {
-              console.log('لم يتم العثور على حقل الصورة الرئيسية');
+
             }
             
             // حفظ الصورة فوراً في قاعدة البيانات
@@ -648,14 +648,14 @@
               });
               
               if (saveResponse.ok) {
-                console.log('✅ تم حفظ الصورة في قاعدة البيانات');
+
                 alert('✅ تم رفع وحفظ صورة المنتج بنجاح!');
               } else {
-                console.log('⚠️ تم رفع الصورة لكن فشل الحفظ في قاعدة البيانات');
+
                 alert('✅ تم رفع الصورة! ⚠️ تأكد من الضغط على "حفظ" لحفظ التغييرات.');
               }
             } catch (saveError) {
-              console.log('⚠️ خطأ في حفظ الصورة:', saveError);
+
               alert('✅ تم رفع الصورة! ⚠️ تأكد من الضغط على "حفظ" لحفظ التغييرات.');
             }
             

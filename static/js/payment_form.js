@@ -362,7 +362,7 @@ function initSmartSearch() {
             showResults(data);
           })
           .catch(error => {
-            console.error('خطأ في البحث:', error);
+
             hideResults();
           });
       }, 300);
