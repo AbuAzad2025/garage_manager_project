@@ -108,6 +108,22 @@
                     $('#badge-archived').text(categorized.archived.length);
                     $('#badge-all').text(checks.length);
                     
+                    // 🚨 تحديث تحذير الشيكات المتأخرة
+                    if (categorized.overdue.length > 0) {
+                        const overdueTotal = categorized.overdue.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
+                        $('#overdue-count-alert').text(categorized.overdue.length);
+                        $('#overdue-amount-alert').text(formatCurrency(overdueTotal) + ' ₪');
+                        $('#overdue-alert').fadeIn(500);
+                        
+                        // تمييز بارز لتبويب المتأخرة
+                        $('a[href="#tab-overdue"]').addClass('blink-red');
+                        
+                        console.log('%c🚨 يوجد ' + categorized.overdue.length + ' شيك متأخر!', 'background: red; color: white; padding: 5px 10px; font-weight: bold; font-size: 14px;');
+                    } else {
+                        $('#overdue-alert').fadeOut(300);
+                        $('a[href="#tab-overdue"]').removeClass('blink-red');
+                    }
+                    
                     // ملء الجداول
                     console.log('%c📋 ملء الجداول...', 'color: purple; font-weight: bold;');
                     
@@ -571,6 +587,17 @@
             }
         });
     }
+    
+    // 🚨 عرض تبويب الشيكات المتأخرة
+    window.showOverdueTab = function() {
+        $('.nav-link[data-toggle="pill"]').removeClass('active');
+        $('.nav-link[href="#tab-overdue"]').addClass('active');
+        $('.tab-pane').removeClass('active show');
+        $('#tab-overdue').addClass('active show');
+        
+        // scroll للأعلى
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
     
     // عند تحميل الصفحة
     $(document).ready(function() {
