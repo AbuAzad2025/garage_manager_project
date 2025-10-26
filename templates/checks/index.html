@@ -597,5 +597,46 @@
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="{{ url_for('static', filename='js/checks.js') }}?v={{ range(1000, 9999) | random }}"></script>
+<script src="{{ url_for('static', filename='js/checks.js') }}?v={{ range(10000, 99999) | random }}"></script>
+
+<script>
+// 🔥 فرض تحديث البطاقات بألوان واضحة
+$(document).ready(function() {
+    // تطبيق الألوان مباشرة بـ jQuery لضمان العرض
+    setTimeout(function() {
+        // البطاقة 1: آجلة - بنفسجي
+        $('.col-lg-3:eq(0) .card').css({
+            'background': 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            'color': 'white'
+        });
+        
+        // البطاقة 2: مسحوبة - أخضر
+        $('.col-lg-3:eq(1) .card').css({
+            'background': 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+            'color': 'white'
+        });
+        
+        // البطاقة 3: مرتجعة - وردي
+        $('.col-lg-3:eq(2) .card').css({
+            'background': 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+            'color': 'white'
+        });
+        
+        // البطاقة 4: متأخرة - أحمر ناري
+        $('.col-lg-3:eq(3) .card').css({
+            'background': 'linear-gradient(135deg, #ff4444 0%, #cc0000 100%)',
+            'color': 'white',
+            'box-shadow': '0 8px 25px rgba(220, 53, 69, 0.5)'
+        });
+        
+        // فرض النص أبيض
+        $('.col-lg-3 .card h6, .col-lg-3 .card h3, .col-lg-3 .card small').css({
+            'color': 'white !important',
+            'text-shadow': '2px 2px 4px rgba(0,0,0,0.3)'
+        });
+        
+        console.log('✅ تم تطبيق الألوان مباشرة!');
+    }, 100);
+});
+</script>
 {% endblock %}
