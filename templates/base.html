@@ -32,10 +32,17 @@
   <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='img/logo.png') }}">
   {% endif %}
   
-  <!-- Fonts -->
+  <!-- Fonts - Local Fallback -->
+  <style>
+    /* استخدام الخطوط المحلية كـ fallback */
+    body {
+      font-family: 'Tajawal', 'Arial', 'Segoe UI', 'Tahoma', sans-serif;
+    }
+  </style>
+  <!-- Google Fonts - Optional -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   
   <!-- CSS Libraries -->
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/fontawesome-free/css/all.min.css') }}">

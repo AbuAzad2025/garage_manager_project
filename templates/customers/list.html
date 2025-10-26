@@ -230,104 +230,27 @@
   </div>
 </div>
 
-<form id="deleteForm" method="post">
+<form id="deleteForm" method="post" style="display:none;">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 </form>
-
-<!-- Modal حذف -->
-<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog">
-  <div class="modal-dialog modal-dialog-centered" role="document">
-    <div class="modal-content">
-      <div class="modal-header bg-warning">
-        <h5 class="modal-title">⚠️ تأكيد الحذف</h5>
-        <button type="button" class="close" data-dismiss="modal">
-          <span>&times;</span>
-        </button>
-      </div>
-      <div class="modal-body">
-        <p><strong>هل أنت متأكد من حذف هذا العميل؟</strong></p>
-        <p class="text-muted mb-0">ملاحظة: سيتم الحذف فقط إذا لم يكن له معاملات أو رصيد.</p>
-        <p class="text-info small mt-2">💡 نصيحة: استخدم الأرشفة بدلاً من الحذف للاحتفاظ بالسجلات.</p>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
-        <button type="button" class="btn btn-warning" id="confirmDelete">
-          <i class="fas fa-trash mr-1"></i> حذف
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
 
 {% endblock %}
 
 {% block scripts %}
   {{ super() }}
-  <script src="{{ url_for('static', filename='js/customers.js') }}"></script>
   <script>
-    // حساب الملخصات - الحل المضمون
-    document.addEventListener('DOMContentLoaded', function() {
-      console.log('بدء حساب الملخصات...');
-      
-      const rows = document.querySelectorAll('tbody tr');
-      console.log('عدد الصفوف:', rows.length);
-      
-      let totalBalance = 0;
-      let totalDebit = 0;
-      let totalCredit = 0;
-      
-      rows.forEach((row, index) => {
-        const cells = row.querySelectorAll('td');
-        if (cells.length >= 6) {
-          const balanceText = cells[5].textContent.trim();
-          console.log(`الصف ${index + 1}: ${balanceText}`);
-          
-          // استخراج الرقم من النص
-          const balanceMatch = balanceText.match(/-?\d+(?:,\d{3})*(?:\.\d{2})?/);
-          if (balanceMatch) {
-            const balance = parseFloat(balanceMatch[0].replace(/,/g, ''));
-            console.log(`الرصيد المستخرج: ${balance}`);
-            
-            totalBalance += balance;
-            
-            if (balance < 0) {
-              totalDebit += Math.abs(balance);
-            } else {
-              totalCredit += balance;
-            }
-          }
+    // ===== حذف بسيط - confirm فقط =====
+    $(document).ready(function() {
+      $('.delete-btn').off('click').on('click', function(e) {
+        e.preventDefault();
+        var customerId = $(this).data('id');
+        var url = '/customers/' + customerId + '/delete';
+        
+        if (confirm('هل أنت متأكد من حذف هذا العميل؟\n\nملاحظة: سيتم الحذف فقط إذا لم يكن له معاملات أو رصيد.')) {
+          $('#deleteForm').attr('action', url).submit();
         }
       });
-      
-      console.log('المجاميع المحسوبة:');
-      console.log('الرصيد الصافي:', totalBalance);
-      console.log('مستحق دفع:', totalDebit);
-      console.log('مستحق قبض:', totalCredit);
-      
-      // تحديث الملخصات
-      const totalBalanceEl = document.getElementById('total-balance');
-      const totalDebitEl = document.getElementById('total-debit');
-      const totalCreditEl = document.getElementById('total-credit');
-      
-      if (totalBalanceEl) {
-        totalBalanceEl.textContent = totalBalance.toFixed(2);
-        console.log('تم تحديث الرصيد الصافي:', totalBalanceEl.textContent);
-      }
-      
-      if (totalDebitEl) {
-        totalDebitEl.textContent = totalDebit.toFixed(2);
-        console.log('تم تحديث مستحق دفع:', totalDebitEl.textContent);
-      }
-      
-      if (totalCreditEl) {
-        totalCreditEl.textContent = totalCredit.toFixed(2);
-        console.log('تم تحديث مستحق قبض:', totalCreditEl.textContent);
-      }
     });
   </script>
-  
-  <script>
-    // وظائف الأرشفة متوفرة الآن في archive.js
-    console.log('📋 تم تحميل صفحة العملاء - وظائف الأرشفة متوفرة');
-  </script>
+  <script src="{{ url_for('static', filename='js/customers.js') }}"></script>
 {% endblock %}

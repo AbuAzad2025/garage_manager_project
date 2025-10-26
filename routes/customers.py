@@ -468,14 +468,12 @@ def delete_customer(id):
     """حذف عادي - يحذف فقط إذا لا توجد معاملات"""
     customer = db.session.get(Customer, id) or abort(404)
     
-    # ✅ فحص سريع للعلاقات (بدون حساب الرصيد الثقيل)
+    # ✅ فحص سريع للعلاقات
     has_invoices = db.session.query(Invoice.id).filter_by(customer_id=id).first() is not None
     has_payments = db.session.query(Payment.id).filter_by(customer_id=id).first() is not None
     has_sales = db.session.query(Sale.id).filter_by(customer_id=id).first() is not None
     has_services = db.session.query(ServiceRequest.id).filter_by(customer_id=id).first() is not None
     has_preorders = db.session.query(PreOrder.id).filter_by(customer_id=id).first() is not None
-    
-    # ✅ فحص الرصيد الافتتاحي فقط (سريع)
     has_opening_balance = (customer.opening_balance and float(customer.opening_balance) != 0)
     
     if has_invoices or has_payments or has_sales or has_services or has_preorders or has_opening_balance:
@@ -490,6 +488,7 @@ def delete_customer(id):
     except Exception as e:
         db.session.rollback()
         flash(f"❌ خطأ أثناء الحذف: {e}", "danger")
+    
     return redirect(url_for("customers_bp.list_customers"))
 
 

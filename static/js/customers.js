@@ -47,49 +47,7 @@
     });
   });
 
-  const deleteForm = qs("#deleteForm");
-  const $ = window.jQuery;
-  
-  // ===== زر الحذف العادي =====
-  qsa(".delete-btn").forEach(btn => {
-    btn.addEventListener("click", (e) => {
-      e.preventDefault();
-      const url = btn.getAttribute("data-url") || `/customers/${btn.getAttribute("data-id")}/delete`;
-      
-      console.log('🗑️ حذف عادي - URL:', url);
-      
-      if (deleteForm && url) {
-        deleteForm.setAttribute("action", url);
-        
-        // فتح Modal
-        if ($) {
-          $('#deleteModal').modal('show');
-        } else {
-          alert('jQuery not loaded');
-        }
-      }
-    });
-  });
-  
-  // تأكيد الحذف العادي
-  const confirmDelete = qs("#confirmDelete");
-  if (confirmDelete && deleteForm) {
-    confirmDelete.addEventListener("click", () => {
-      const action = deleteForm.getAttribute("action") || "";
-      console.log('✅ تأكيد الحذف:', action);
-      
-      if (!action) {
-        alert('خطأ: لا يوجد URL');
-        return;
-      }
-      
-      confirmDelete.disabled = true;
-      confirmDelete.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> جاري الحذف...';
-      
-      deleteForm.submit();
-    });
-  }
-  
+  // حذف العملاء يعمل من القوالب مباشرة (list.html & detail.html)
 
   const advForm = qs("#customer-adv-search");
   if (advForm) {
