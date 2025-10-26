@@ -1875,11 +1875,12 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
             ).scalar() or 0)
             
             # الدفعات الواردة (مباشرة + من المبيعات + من الفواتير + من الخدمات)
-            # ✅ فقط COMPLETED - نستبعد BOUNCED/FAILED لأنها ملغاة
+            # ✅ COMPLETED + PENDING (الشيكات المعلقة تُحسب)
+            # ❌ نستبعد BOUNCED/FAILED/CANCELLED (ملغاة)
             payments_in_direct = float(session.query(func.coalesce(func.sum(Payment.total_amount), 0)).filter(
                 Payment.customer_id == self.id,
                 Payment.direction == 'IN',
-                Payment.status == 'COMPLETED'
+                Payment.status.in_(['COMPLETED', 'PENDING'])
             ).scalar() or 0)
             
             payments_in_sales = float(session.query(func.coalesce(func.sum(Payment.total_amount), 0)).join(
@@ -1887,7 +1888,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
             ).filter(
                 Sale.customer_id == self.id,
                 Payment.direction == 'IN',
-                Payment.status == 'COMPLETED'
+                Payment.status.in_(['COMPLETED', 'PENDING'])
             ).scalar() or 0)
             
             payments_in_invoices = float(session.query(func.coalesce(func.sum(Payment.total_amount), 0)).join(
@@ -1895,7 +1896,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
             ).filter(
                 Invoice.customer_id == self.id,
                 Payment.direction == 'IN',
-                Payment.status == 'COMPLETED'
+                Payment.status.in_(['COMPLETED', 'PENDING'])
             ).scalar() or 0)
             
             payments_in_services = float(session.query(func.coalesce(func.sum(Payment.total_amount), 0)).join(
@@ -1903,7 +1904,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
             ).filter(
                 ServiceRequest.customer_id == self.id,
                 Payment.direction == 'IN',
-                Payment.status == 'COMPLETED'
+                Payment.status.in_(['COMPLETED', 'PENDING'])
             ).scalar() or 0)
             
             payments_in = payments_in_direct + payments_in_sales + payments_in_invoices + payments_in_services
@@ -1912,7 +1913,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
             payments_out_direct = float(session.query(func.coalesce(func.sum(Payment.total_amount), 0)).filter(
                 Payment.customer_id == self.id,
                 Payment.direction == 'OUT',
-                Payment.status == 'COMPLETED'
+                Payment.status.in_(['COMPLETED', 'PENDING'])
             ).scalar() or 0)
             
             payments_out_sales = float(session.query(func.coalesce(func.sum(Payment.total_amount), 0)).join(
@@ -1920,7 +1921,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
             ).filter(
                 Sale.customer_id == self.id,
                 Payment.direction == 'OUT',
-                Payment.status == 'COMPLETED'
+                Payment.status.in_(['COMPLETED', 'PENDING'])
             ).scalar() or 0)
             
             payments_out = payments_out_direct + payments_out_sales
@@ -5662,8 +5663,9 @@ def _payment_entity_id_for(target: "Payment") -> int:
 def _payment_gl_batch_upsert(mapper, connection, target: "Payment"):
     """إنشاء/تحديث GLBatch للدفعة تلقائياً"""
     # ✅ التعامل مع الحالات المختلفة:
-    # COMPLETED → إنشاء قيد محاسبي عادي
-    # BOUNCED/FAILED → حذف القيد (إن وُجد) لأن الدفعة ملغاة
+    # PENDING (شيك معلق) → قيد: شيكات تحت التحصيل ↔ AR
+    # COMPLETED → قيد: بنك/صندوق ↔ AR (للنقد) أو تحديث الشيك (للشيك)
+    # BOUNCED/FAILED → حذف القيد (إلغاء)
     
     # إذا الدفعة ملغاة أو مرفوضة، حذف أي GLBatch موجود
     if target.status in [PaymentStatus.FAILED.value, PaymentStatus.BOUNCED.value, PaymentStatus.CANCELLED.value]:
@@ -5679,9 +5681,14 @@ def _payment_gl_batch_upsert(mapper, connection, target: "Payment"):
             pass
         return
     
-    # فقط للدفعات المكتملة
-    if target.status != PaymentStatus.COMPLETED.value:
+    # ✅ للشيكات المعلقة: إنشاء قيد في "شيكات تحت التحصيل"
+    # للدفعات المكتملة: إنشاء قيد عادي في البنك/الصندوق
+    if target.status not in [PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]:
         return
+    
+    # ✅ فحص إذا كانت شيك معلق
+    is_pending_check = (target.status == PaymentStatus.PENDING.value and 
+                       target.method == PaymentMethod.CHEQUE.value)
     
     try:
         from models import fx_rate
@@ -5701,12 +5708,21 @@ def _payment_gl_batch_upsert(mapper, connection, target: "Payment"):
             except:
                 pass
         
-        # تحديد الحساب النقدي حسب طريقة الدفع
-        cash_account = GL_ACCOUNTS.get("CASH", "1000_CASH")
-        if target.method == PaymentMethod.BANK.value:
+        # تحديد الحساب النقدي حسب طريقة الدفع والحالة
+        # ✅ للشيكات المعلقة: استخدام "شيكات تحت التحصيل" (وارد) أو "شيكات مستحقة" (صادر)
+        # ✅ للدفعات المكتملة: استخدام البنك/الصندوق
+        if is_pending_check:
+            # تحديد حسب الاتجاه
+            if target.direction == PaymentDirection.IN.value:
+                cash_account = "1150_CHEQUES_RECEIVABLE"  # شيكات تحت التحصيل (أصل)
+            else:
+                cash_account = "2150_CHEQUES_PAYABLE"  # شيكات مستحقة الدفع (خصم)
+        elif target.method == PaymentMethod.BANK.value:
             cash_account = GL_ACCOUNTS.get("BANK", "1010_BANK")
         elif target.method == PaymentMethod.CARD.value:
             cash_account = GL_ACCOUNTS.get("CARD", "1020_CARD_CLEARING")
+        else:
+            cash_account = GL_ACCOUNTS.get("CASH", "1000_CASH")
         
         # تحديد الحساب الآخر حسب نوع الكيان
         entity_account = GL_ACCOUNTS.get("AR", "1100_AR")  # افتراضي للعملاء
@@ -5723,20 +5739,26 @@ def _payment_gl_batch_upsert(mapper, connection, target: "Payment"):
             entity_name = "مصروف"
         
         # القيد المحاسبي حسب الاتجاه:
-        # IN (وارد): مدين النقدية، دائن العميل/المورد
-        # OUT (صادر): مدين العميل/المورد، دائن النقدية
+        # IN (وارد): مدين النقدية/الشيكات، دائن العميل/المورد
+        # OUT (صادر): مدين العميل/المورد، دائن النقدية/الشيكات
         if target.direction == PaymentDirection.IN.value:
             entries = [
-                (cash_account, amount_ils, 0),  # مدين: النقدية
+                (cash_account, amount_ils, 0),  # مدين: النقدية أو شيكات تحت التحصيل
                 (entity_account, 0, amount_ils),  # دائن: العميل/المورد
             ]
-            memo = f"قبض من {entity_name} - {target.payment_number or target.id}"
+            if is_pending_check:
+                memo = f"شيك معلق من {entity_name} - {target.check_number or target.payment_number or target.id}"
+            else:
+                memo = f"قبض من {entity_name} - {target.payment_number or target.id}"
         else:  # OUT
             entries = [
                 (entity_account, amount_ils, 0),  # مدين: العميل/المورد
-                (cash_account, 0, amount_ils),  # دائن: النقدية
+                (cash_account, 0, amount_ils),  # دائن: النقدية أو شيكات مستحقة
             ]
-            memo = f"سداد لـ {entity_name} - {target.payment_number or target.id}"
+            if is_pending_check:
+                memo = f"شيك صادر لـ {entity_name} - {target.check_number or target.payment_number or target.id}"
+            else:
+                memo = f"سداد لـ {entity_name} - {target.payment_number or target.id}"
         
         _gl_upsert_batch_and_entries(
             connection,

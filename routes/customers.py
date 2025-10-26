@@ -739,9 +739,10 @@ def account_statement(customer_id):
             "notes": getattr(pre, 'notes', '') or '',
         })
 
-    # ✅ فلترة الدفعات: COMPLETED + الشيكات المرتدة (BOUNCED/FAILED)
-    # الشيكات المرتدة يجب أن تظهر لأنها تؤثر على الرصيد!
-    payment_statuses = ['COMPLETED', 'BOUNCED', 'FAILED', 'REJECTED']
+    # ✅ فلترة الدفعات: COMPLETED + PENDING + الشيكات المرتدة (BOUNCED/FAILED)
+    # PENDING: الشيكات المعلقة تُحسب في الرصيد (حسب العرف المحلي)
+    # BOUNCED/FAILED: الشيكات المرتدة تظهر لتوثيق عكس القيد
+    payment_statuses = ['COMPLETED', 'PENDING', 'BOUNCED', 'FAILED', 'REJECTED']
     
     payments_direct = Payment.query.filter(
         Payment.customer_id == customer_id,
@@ -781,6 +782,7 @@ def account_statement(customer_id):
         # فحص حالة الدفعة
         payment_status = getattr(p, 'status', 'COMPLETED')
         is_bounced = payment_status in ['BOUNCED', 'FAILED', 'REJECTED']
+        is_pending = payment_status == 'PENDING'
         
         # توليد البيان للدفعة - محسّن وواضح
         # استخراج القيمة من enum إذا كان enum
@@ -817,7 +819,8 @@ def account_statement(customer_id):
             'bank_transfer_ref': getattr(p, 'bank_transfer_ref', None),
             'receiver_name': receiver_name,
             'status': payment_status,
-            'is_bounced': is_bounced
+            'is_bounced': is_bounced,
+            'is_pending': is_pending
         }
         
         # البيان (سيتم بناؤه ديناميكياً في القالب)
@@ -825,20 +828,26 @@ def account_statement(customer_id):
             payment_statement = f"❌ شيك مرفوض - {method_arabic}"
             if check_number:
                 payment_statement += f" #{check_number}"
+        elif is_pending and method_raw == 'cheque':
+            payment_statement = f"⏳ شيك معلق - {method_arabic}"
+            if check_number:
+                payment_statement += f" #{check_number}"
         else:
             payment_statement = f"سند قبض - {method_arabic}"
         if receiver_name and not is_bounced:
             payment_statement += f" - لـيـد ({receiver_name})"
         
-        # ✅ الدفعات الناجحة = دائن (تخفيض الرصيد)
+        # ✅ الدفعات الناجحة/المعلقة = دائن (تخفيض الرصيد)
         # ❌ الشيكات المرتدة = مدين (زيادة الرصيد - إلغاء الدفعة)
+        entry_type = "CHECK_BOUNCED" if is_bounced else ("CHECK_PENDING" if is_pending and method_raw == 'cheque' else "PAYMENT")
+        
         entries.append({
             "date": getattr(p, "payment_date", None) or getattr(p, "created_at", None),
-            "type": "CHECK_BOUNCED" if is_bounced else "PAYMENT",
+            "type": entry_type,
             "ref": getattr(p, "payment_number", None) or getattr(p, "receipt_number", None) or f"PMT-{p.id}",
             "statement": payment_statement,
             "debit": D(p.total_amount or 0) if is_bounced else D(0),  # المرتد = مدين
-            "credit": D(0) if is_bounced else D(p.total_amount or 0),  # الناجح = دائن
+            "credit": D(0) if is_bounced else D(p.total_amount or 0),  # الناجح/المعلق = دائن
             "payment_details": payment_details,  # تفاصيل الدفعة
             "notes": notes,
         })

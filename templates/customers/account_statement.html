@@ -402,12 +402,15 @@
               {# البيان الديناميكي #}
               <td style="border: 1px solid #dee2e6; padding: 8px; text-align: start;">
                 {# للدفعات - دفعة (طريقة) سند قبض - ليج (المستلم) #}
-                {% if (e.type == 'PAYMENT' or e.type == 'CHECK_BOUNCED') and e.get('payment_details') %}
+                {% if (e.type == 'PAYMENT' or e.type == 'CHECK_BOUNCED' or e.type == 'CHECK_PENDING') and e.get('payment_details') %}
                   {% set pd = e.payment_details %}
                   
                   {# إذا كان شيك مرتد #}
                   {% if e.type == 'CHECK_BOUNCED' %}
                     <span class="badge bg-danger"><i class="fas fa-ban"></i> شيك مرفوض</span>
+                  {# إذا كان شيك معلق #}
+                  {% elif e.type == 'CHECK_PENDING' %}
+                    <span class="badge bg-warning text-dark"><i class="fas fa-clock"></i> شيك معلق</span>
                   {% else %}
                     دفعة
                   {% endif %}
@@ -445,6 +448,9 @@
                   {# إذا مرتد، إضافة تنبيه #}
                   {% if e.type == 'CHECK_BOUNCED' %}
                     <br><span class="text-danger"><strong>⚠️ تم إلغاء الدفعة وإرجاع المبلغ للرصيد</strong></span>
+                  {# إذا معلق، إضافة ملاحظة #}
+                  {% elif e.type == 'CHECK_PENDING' %}
+                    <br><span class="text-warning"><strong>⏳ في انتظار الصرف من البنك</strong></span>
                   {% endif %}
                 
                 {# للمبيعات #}
