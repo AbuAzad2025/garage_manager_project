@@ -266,23 +266,19 @@ function makeEditable(cell) {
   const rowId = cell.dataset.rowId;
   const column = cell.dataset.column;
   const currentValue = cell.dataset.value || cell.textContent.trim();
-  
-  console.log('Double click detected:', {rowId, column, currentValue});
-  
+
   if (column === 'id') {
-    console.log('Cannot edit ID column');
+
     return;
   }
   
   if (!rowId) {
-    console.log('No row identifier found, trying alternative approach...');
+
     // محاولة استخدام القيمة نفسها كمفتاح
     const alternativeId = currentValue;
     cell.dataset.rowId = alternativeId;
   }
-  
-  console.log('Making cell editable...');
-  
+
   // حفظ القيمة الأصلية
   cell.dataset.originalValue = currentValue;
   
@@ -340,7 +336,7 @@ function makeEditable(cell) {
         restoreCell(cell, currentValue);
       }
     } catch (error) {
-      console.error('Error updating cell:', error);
+
       alert('خطأ في الاتصال بالخادم');
       restoreCell(cell, currentValue);
     }
@@ -416,12 +412,11 @@ function deleteColumn(columnName) {
 document.addEventListener('DOMContentLoaded', function() {
   const editableCells = document.querySelectorAll('.editable-td[ondblclick]');
   if (editableCells.length > 0) {
-    console.log(`✅ ${editableCells.length} خلية قابلة للتعديل. انقر مرتين على أي خلية للتعديل!`);
+
   }
   
   // إضافة تلميح للأعمدة
-  console.log('💡 انقر على الزر الأحمر (X) في header أي عمود لحذفه');
-  console.log('💡 انقر على زر الحذف الأحمر في الصف لحذف الصف كاملاً');
+
 });
 </script>
 {% endblock %}

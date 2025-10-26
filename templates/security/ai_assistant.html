@@ -177,8 +177,7 @@ document.getElementById('chatForm').addEventListener('submit', async (e) => {
         <br><small>تأكد من تفعيل مفتاح في <a href="{{ url_for('security.ai_config') }}" class="alert-link">إدارة المفاتيح</a></small>
       </div>`;
     chatMessages.scrollTop = chatMessages.scrollHeight;
-    
-    console.error('AI Error:', err);
+
   }
 });
 </script>

@@ -185,7 +185,7 @@ function loadLiveMetrics() {
       }
     })
     .catch(err => {
-      console.error('Error loading metrics:', err);
+
       // استخدام البيانات التجريبية في حالة الخطأ
       document.getElementById('avg-response-time').textContent = '48ms';
       document.getElementById('active-users').textContent = '42';
