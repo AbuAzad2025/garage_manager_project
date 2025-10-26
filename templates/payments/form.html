@@ -369,7 +369,7 @@
             }
           })
           .catch(error => {
-            console.error('خطأ في البحث:', error);
+
             // إظهار رسالة خطأ للمستخدم
             const searchField = document.querySelector(`input[name="${entityType.toLowerCase()}_search"]`);
             if (searchField) {
@@ -503,7 +503,7 @@
           }
         })
         .catch(error => {
-          console.error('خطأ في جلب الجهة المرتبطة:', error);
+
         });
     }
     
@@ -544,7 +544,7 @@
           }
         })
         .catch(error => {
-          console.error('خطأ في تحميل الحقول:', error);
+
           entityFieldsContainer.innerHTML = '<div class="alert alert-danger">خطأ في تحميل الحقول: ' + error.message + '</div>';
         });
     }
@@ -572,39 +572,36 @@
     function updateEntityFields() {
       const entityTypeSelect = document.querySelector('select[name="entity_type"]');
       if (!entityTypeSelect) {
-        console.log('⚠️ لم يتم العثور على حقل entity_type');
+
         return;
       }
       
       const selectedType = entityTypeSelect.value.toLowerCase();
-      console.log('✅ نوع الجهة المختار:', selectedType);
-      
+
       const entityFieldsContainer = document.getElementById('entityFields');
       if (!entityFieldsContainer) {
-        console.log('⚠️ لم يتم العثور على entityFields container');
+
         return;
       }
       
       // إخفاء جميع الحقول أولاً
       const allContainers = entityFieldsContainer.querySelectorAll('.entity-field-container');
-      console.log('📦 عدد الحاويات الموجودة:', allContainers.length);
-      
+
       allContainers.forEach(container => {
         container.style.display = 'none';
-        console.log('🔒 إخفاء حاوية:', container.getAttribute('data-entity-type'));
+
       });
       
       // إظهار الحقول المناسبة
       const targetContainer = entityFieldsContainer.querySelector(`[data-entity-type="${selectedType}"]`);
       if (targetContainer) {
         targetContainer.style.display = 'block';
-        console.log('✅ إظهار حاوية:', selectedType);
+
       } else {
-        console.log('⚠️ لم يتم العثور على حاوية لنوع:', selectedType);
-        
+
         // محاولة البحث بدون toLowerCase
         const allTypes = Array.from(allContainers).map(c => c.getAttribute('data-entity-type'));
-        console.log('📋 الأنواع المتاحة:', allTypes);
+
       }
       
       // إعادة تهيئة البحث الذكي للحقول الجديدة
@@ -645,27 +642,24 @@
       
       // دالة إضافة دفعة جزئية
       function addSplitRow() {
-        console.log('🔵 زر إضافة دفعة جزئية تم الضغط عليه');
+
         const container = document.getElementById('splitsContainer');
         if (!container) {
-          console.error('❌ لم يتم العثور على splitsContainer');
+
           return;
         }
-        console.log('✅ splitsContainer موجود');
-        
+
         const currentSplits = container.querySelectorAll('.split-form');
         const maxSplits = parseInt(container.getAttribute('data-max-splits')) || 3;
-        
-        console.log('📊 عدد الدفعات الحالية:', currentSplits.length, '| الحد الأقصى:', maxSplits);
-        
+
         if (currentSplits.length >= maxSplits) {
           alert('الحد الأقصى للدفعات الجزئية هو ' + maxSplits);
-          console.warn('⚠️ تم الوصول للحد الأقصى');
+
           return;
         }
         
         const newIndex = currentSplits.length;
-        console.log('➕ إضافة دفعة جزئية جديدة - الفهرس:', newIndex);
+
         const template = currentSplits[0].cloneNode(true);
         
         // تحديث الفهرس
@@ -700,8 +694,7 @@
         }
         
         container.appendChild(template);
-        console.log('✅ تم إضافة الدفعة الجزئية بنجاح');
-        
+
         // إعادة تهيئة الحقول
         setTimeout(function() {
           initPaymentMethodFields();
@@ -711,13 +704,12 @@
       
       // مراقبة زر إضافة دفعة جزئية
       const addSplitBtn = document.getElementById('addSplit');
-      console.log('🔍 البحث عن زر addSplit:', addSplitBtn ? 'موجود ✅' : 'غير موجود ❌');
-      
+
       if (addSplitBtn) {
         addSplitBtn.addEventListener('click', addSplitRow);
-        console.log('✅ تم ربط الزر بالدالة addSplitRow');
+
       } else {
-        console.error('❌ زر addSplit غير موجود في الصفحة!');
+
       }
       
       // دالة حذف دفعة جزئية
