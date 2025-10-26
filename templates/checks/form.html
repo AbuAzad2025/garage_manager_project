@@ -327,7 +327,7 @@
 document.addEventListener('DOMContentLoaded', function() {
   // تأكد من تحميل jQuery و Select2
   if (typeof jQuery === 'undefined' || typeof $.fn.select2 === 'undefined') {
-    console.error('jQuery أو Select2 غير محمل');
+
     return;
   }
 
@@ -357,8 +357,7 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // التحكم في عرض قوائم الجهات
   entityType.addEventListener('change', function() {
-    console.log('نوع الجهة المختار:', this.value);
-    
+
     // إخفاء جميع القوائم وإلغاء تفعيل Select2
     try {
       if (typeof $.fn.select2 !== 'undefined') {
@@ -368,7 +367,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     } catch(e) {
       // تجاهل الأخطاء إذا لم يكن select2 مهيأ
-      console.log('تحذير: خطأ في destroy select2:', e.message);
+
     }
     
     customerSelect.style.display = 'none';
@@ -381,19 +380,19 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('partner_id').value = '';
     
     if (this.value === 'customer') {
-      console.log('عرض قائمة العملاء');
+
       customerSelect.style.display = 'block';
       setTimeout(function() {
         initSelect2('#customer_id', 'ابحث عن عميل...');
       }, 100);
     } else if (this.value === 'supplier') {
-      console.log('عرض قائمة الموردين');
+
       supplierSelect.style.display = 'block';
       setTimeout(function() {
         initSelect2('#supplier_id', 'ابحث عن مورد...');
       }, 100);
     } else if (this.value === 'partner') {
-      console.log('عرض قائمة الشركاء');
+
       partnerSelect.style.display = 'block';
       setTimeout(function() {
         initSelect2('#partner_id', 'ابحث عن شريك...');

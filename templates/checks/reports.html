@@ -304,8 +304,7 @@ canvas {
 <script>
 // 🔥 فرض إظهار جميع العناصر ورسم الـ Charts
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🔥 تحميل صفحة التقارير...');
-    
+
     // فرض إظهار الجداول
     document.querySelectorAll('.table-responsive').forEach(function(el) {
         el.style.setProperty('display', 'block', 'important');
@@ -327,14 +326,12 @@ document.addEventListener('DOMContentLoaded', function() {
         el.style.setProperty('display', 'block', 'important');
         el.style.setProperty('visibility', 'visible', 'important');
     });
-    
-    console.log('✅ تم فرض إظهار جميع العناصر في التقارير');
-    
+
     // رسم بياني للحالات
     setTimeout(function() {
         const statusCanvas = document.getElementById('statusChart');
         if (statusCanvas) {
-            console.log('📊 رسم بياني الحالات...');
+
             const statusCtx = statusCanvas.getContext('2d');
             const statusChart = new Chart(statusCtx, {
                 type: 'doughnut',
@@ -359,15 +356,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             });
-            console.log('✅ تم رسم بياني الحالات');
+
         } else {
-            console.error('❌ لم يتم العثور على statusChart canvas');
+
         }
         
         // رسم بياني للاتجاه
         const directionCanvas = document.getElementById('directionChart');
         if (directionCanvas) {
-            console.log('📊 رسم بياني الاتجاه...');
+
             const directionCtx = directionCanvas.getContext('2d');
             const directionChart = new Chart(directionCtx, {
                 type: 'pie',
@@ -392,9 +389,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             });
-            console.log('✅ تم رسم بياني الاتجاه');
+
         } else {
-            console.error('❌ لم يتم العثور على directionChart canvas');
+
         }
     }, 500);
 });

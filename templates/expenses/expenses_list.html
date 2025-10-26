@@ -246,11 +246,11 @@
                 {% if current_user.has_permission('manage_expenses') %}
                   <a href="{{ url_for('expenses_bp.edit', exp_id=e.id) }}" class="btn btn-sm btn-warning" title="تعديل"><i class="fas fa-edit"></i></a>
                   {% if e.is_archived %}
-                  <button type="button" class="btn btn-action-restore btn-action-sm" title="استعادة" onclick="console.log('🔘 [TEMPLATE] تم النقر على زر استعادة النفقة رقم: {{ e.id }}'); restoreExpense({{ e.id }})">
+                  <button type="button" class="btn btn-action-restore btn-action-sm" title="استعادة" onclick="restoreExpense({{ e.id }})">
                     <i class="fas fa-undo"></i>
                   </button>
                   {% else %}
-                  <button type="button" class="btn btn-action-archive btn-action-sm" title="أرشفة" onclick="console.log('🔘 [TEMPLATE] تم النقر على زر أرشفة النفقة رقم: {{ e.id }}'); archiveExpense({{ e.id }})">
+                  <button type="button" class="btn btn-action-archive btn-action-sm" title="أرشفة" onclick="archiveExpense({{ e.id }})">
                     <i class="fas fa-archive"></i>
                   </button>
                   {% endif %}
@@ -286,6 +286,6 @@
 <script src="{{ url_for('static', filename='js/expenses.js') }}"></script>
 <script>
   // وظائف الأرشفة متوفرة الآن في archive.js
-  console.log('📋 تم تحميل صفحة النفقات - وظائف الأرشفة متوفرة');
+
 </script>
 {% endblock %}
