@@ -1685,8 +1685,8 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
     id = Column(Integer, primary_key=True)
     name = Column(String(100), nullable=False)
     phone = Column(String(20), unique=True, nullable=False)
-    whatsapp = Column(String(20), nullable=False)
-    email = Column(String(120), unique=True, nullable=False)
+    whatsapp = Column(String(20), nullable=True)  # ✅ يسمح بـ NULL
+    email = Column(String(120), unique=True, nullable=True)  # ✅ يسمح بـ NULL
     address = Column(String(200))
     password_hash = Column(String(128))
     category = Column(String(20), default="عادي")
@@ -1741,7 +1741,8 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
 
     @validates("email")
     def _v_email(self, _, v):
-        return (v or "").strip().lower()
+        result = (v or "").strip().lower()
+        return result or None  # ✅ تحويل الفارغ إلى None
 
     @validates("name", "address", "notes")
     def _v_strip(self, _, v):
