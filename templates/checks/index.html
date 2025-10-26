@@ -325,51 +325,51 @@
                 </button>
             </div>
             
-            <!-- إحصائيات سريعة - ألوان واضحة ومتباينة -->
+            <!-- إحصائيات سريعة - ألوان مباشرة -->
             <div class="row mb-4 g-3">
-                <!-- بطاقة 1: آجلة - بنفسجي قوي -->
+                <!-- بطاقة 1: آجلة - بنفسجي -->
                 <div class="col-lg-3 col-md-6">
-                    <div class="stat-card stat-pending">
+                    <div class="card border-0 shadow-lg" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <h6 class="stat-title">شيكات آجلة (معلقة)</h6>
-                                    <h3 class="stat-number" id="stat-pending-count">0</h3>
-                                    <small class="stat-amount" id="stat-pending-amount">0.00 ₪</small>
+                                    <h6 class="mb-1" style="color: white; font-weight: 600;">شيكات آجلة (معلقة)</h6>
+                                    <h3 class="mb-0 fw-bold" id="stat-pending-count" style="color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">0</h3>
+                                    <small id="stat-pending-amount" style="color: white; opacity: 0.9;">0.00 ₪</small>
                                 </div>
-                                <i class="fas fa-clock stat-icon"></i>
+                                <i class="fas fa-clock fa-2x" style="opacity: 0.4; color: white;"></i>
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <!-- بطاقة 2: مسحوبة - أخضر قوي -->
+                <!-- بطاقة 2: مسحوبة - أخضر -->
                 <div class="col-lg-3 col-md-6">
-                    <div class="stat-card stat-cashed">
+                    <div class="card border-0 shadow-lg" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <h6 class="stat-title">شيكات مسحوبة</h6>
-                                    <h3 class="stat-number" id="stat-cashed-count">0</h3>
-                                    <small class="stat-amount" id="stat-cashed-amount">0.00 ₪</small>
+                                    <h6 class="mb-1" style="color: white; font-weight: 600;">شيكات مسحوبة</h6>
+                                    <h3 class="mb-0 fw-bold" id="stat-cashed-count" style="color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">0</h3>
+                                    <small id="stat-cashed-amount" style="color: white; opacity: 0.9;">0.00 ₪</small>
                                 </div>
-                                <i class="fas fa-check-circle stat-icon"></i>
+                                <i class="fas fa-check-circle fa-2x" style="opacity: 0.4; color: white;"></i>
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <!-- بطاقة 3: مرتجعة - وردي قوي -->
+                <!-- بطاقة 3: مرتجعة - وردي -->
                 <div class="col-lg-3 col-md-6">
-                    <div class="stat-card stat-returned">
+                    <div class="card border-0 shadow-lg" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <h6 class="stat-title">شيكات مرتجعة</h6>
-                                    <h3 class="stat-number" id="stat-returned-count">0</h3>
-                                    <small class="stat-amount" id="stat-returned-amount">0.00 ₪</small>
+                                    <h6 class="mb-1" style="color: white; font-weight: 600;">شيكات مرتجعة</h6>
+                                    <h3 class="mb-0 fw-bold" id="stat-returned-count" style="color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">0</h3>
+                                    <small id="stat-returned-amount" style="color: white; opacity: 0.9;">0.00 ₪</small>
                                 </div>
-                                <i class="fas fa-undo stat-icon"></i>
+                                <i class="fas fa-undo fa-2x" style="opacity: 0.4; color: white;"></i>
                             </div>
                         </div>
                     </div>
@@ -377,15 +377,15 @@
                 
                 <!-- بطاقة 4: متأخرة - أحمر ناري -->
                 <div class="col-lg-3 col-md-6">
-                    <div class="stat-card stat-overdue">
+                    <div class="card border-0 shadow-lg" style="background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%); color: white; animation: glow-red 2s ease-in-out infinite;">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <h6 class="stat-title">🚨 شيكات متأخرة</h6>
-                                    <h3 class="stat-number" id="stat-overdue-count" style="font-size: 2.5rem;">0</h3>
-                                    <small class="stat-amount" id="stat-overdue-amount">0.00 ₪</small>
+                                    <h6 class="mb-1" style="color: white; font-weight: 700;">🚨 شيكات متأخرة</h6>
+                                    <h3 class="mb-0 fw-bold" id="stat-overdue-count" style="color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.4); font-size: 2.5rem;">0</h3>
+                                    <small id="stat-overdue-amount" style="color: white; opacity: 0.95;">0.00 ₪</small>
                                 </div>
-                                <i class="fas fa-exclamation-triangle stat-icon animated-pulse"></i>
+                                <i class="fas fa-exclamation-triangle fa-2x animated-pulse" style="opacity: 0.5; color: white;"></i>
                             </div>
                         </div>
                     </div>
