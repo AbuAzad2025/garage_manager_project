@@ -2062,20 +2062,15 @@ def archive_payment(payment_id):
         from models import Archive
         
         payment = Payment.query.get_or_404(payment_id)
-        print(f"✅ [PAYMENT ARCHIVE] تم العثور على الدفعة: {payment.id}")
         
         reason = request.form.get('reason', 'أرشفة تلقائية')
-        print(f"📝 [PAYMENT ARCHIVE] سبب الأرشفة: {reason}")
         
         utils.archive_record(payment, reason, current_user.id)
         flash(f'تم أرشفة الدفعة رقم {payment.id} بنجاح', 'success')
         return redirect(url_for('payments.index'))
         
     except Exception as e:
-        print(f"❌ [PAYMENT ARCHIVE] خطأ في أرشفة الدفعة: {str(e)}")
-        print(f"❌ [PAYMENT ARCHIVE] نوع الخطأ: {type(e).__name__}")
         import traceback
-        print(f"❌ [PAYMENT ARCHIVE] تفاصيل الخطأ: {traceback.format_exc()}")
         
         db.session.rollback()
         flash(f'خطأ في أرشفة الدفعة: {str(e)}', 'error')
@@ -2088,7 +2083,6 @@ def restore_payment(payment_id):
     
     try:
         payment = Payment.query.get_or_404(payment_id)
-        print(f"✅ [PAYMENT RESTORE] تم العثور على الدفعة: {payment.payment_number}")
         
         if not payment.is_archived:
             flash('الدفعة غير مؤرشفة', 'warning')
@@ -2102,19 +2096,14 @@ def restore_payment(payment_id):
         ).first()
         
         if archive:
-            print(f"✅ [PAYMENT RESTORE] تم العثور على الأرشيف: {archive.id}")
             utils.restore_record(archive.id)
-            print(f"✅ [PAYMENT RESTORE] تم استعادة الدفعة بنجاح")
         
         flash(f'تم استعادة الدفعة رقم {payment_id} بنجاح', 'success')
         print(f"🎉 [PAYMENT RESTORE] تمت العملية بنجاح - إعادة توجيه...")
         return redirect(url_for('payments.index'))
         
     except Exception as e:
-        print(f"❌ [PAYMENT RESTORE] خطأ في استعادة الدفعة: {str(e)}")
-        print(f"❌ [PAYMENT RESTORE] نوع الخطأ: {type(e).__name__}")
         import traceback
-        print(f"❌ [PAYMENT RESTORE] تفاصيل الخطأ: {traceback.format_exc()}")
         
         db.session.rollback()
         flash(f'خطأ في استعادة الدفعة: {str(e)}', 'error')

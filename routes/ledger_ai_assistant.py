@@ -24,7 +24,6 @@ try:
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
-    print("⚠️ OpenAI not installed. Install with: pip install openai")
 
 try:
     import anthropic
@@ -595,12 +594,9 @@ def analyze_query(query, from_date, to_date):
     
     if ai_answer:
         # إذا نجح AI، استخدم إجابته
-        print("✅ Using AI (GPT-4 or Claude)")
         return ai_answer, ai_details
     
     # إذا لم يتوفر AI، استخدم المحلل الذكي المحسّن (مجاني 100%)
-    print("💡 Using advanced free analyzer (no API key needed)")
-    
     # تطبيع النص - إزالة الهمزات والتشكيل
     def normalize_text(text):
         """تطبيع النص العربي لفهم أفضل"""

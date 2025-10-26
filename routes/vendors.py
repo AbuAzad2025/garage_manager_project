@@ -1260,20 +1260,15 @@ def archive_supplier(supplier_id):
         from models import Archive
         
         supplier = Supplier.query.get_or_404(supplier_id)
-        print(f"✅ [SUPPLIER ARCHIVE] تم العثور على المورد: {supplier.name}")
         
         reason = request.form.get('reason', 'أرشفة تلقائية')
-        print(f"📝 [SUPPLIER ARCHIVE] سبب الأرشفة: {reason}")
         
         utils.archive_record(supplier, reason, current_user.id)
         flash(f'تم أرشفة المورد {supplier.name} بنجاح', 'success')
         return redirect(url_for('vendors_bp.suppliers_list'))
         
     except Exception as e:
-        print(f"❌ [SUPPLIER ARCHIVE] خطأ في أرشفة المورد: {str(e)}")
-        print(f"❌ [SUPPLIER ARCHIVE] نوع الخطأ: {type(e).__name__}")
         import traceback
-        print(f"❌ [SUPPLIER ARCHIVE] تفاصيل الخطأ: {traceback.format_exc()}")
         
         db.session.rollback()
         flash(f'خطأ في أرشفة المورد: {str(e)}', 'error')
@@ -1289,10 +1284,8 @@ def archive_partner(partner_id):
         from models import Archive
         
         partner = Partner.query.get_or_404(partner_id)
-        print(f"✅ [PARTNER ARCHIVE] تم العثور على الشريك: {partner.name}")
         
         reason = request.form.get('reason', 'أرشفة تلقائية')
-        print(f"📝 [PARTNER ARCHIVE] سبب الأرشفة: {reason}")
         
         utils.archive_record(partner, reason, current_user.id)
         
@@ -1301,10 +1294,7 @@ def archive_partner(partner_id):
         return redirect(url_for('vendors_bp.partners_list'))
         
     except Exception as e:
-        print(f"❌ [PARTNER ARCHIVE] خطأ في أرشفة الشريك: {str(e)}")
-        print(f"❌ [PARTNER ARCHIVE] نوع الخطأ: {type(e).__name__}")
         import traceback
-        print(f"❌ [PARTNER ARCHIVE] تفاصيل الخطأ: {traceback.format_exc()}")
         
         db.session.rollback()
         flash(f'خطأ في أرشفة الشريك: {str(e)}', 'error')
@@ -1318,7 +1308,6 @@ def restore_supplier(supplier_id):
     
     try:
         supplier = Supplier.query.get_or_404(supplier_id)
-        print(f"✅ [SUPPLIER RESTORE] تم العثور على المورد: {supplier.name}")
         
         if not supplier.is_archived:
             flash('المورد غير مؤرشف', 'warning')
@@ -1332,19 +1321,14 @@ def restore_supplier(supplier_id):
         ).first()
         
         if archive:
-            print(f"✅ [SUPPLIER RESTORE] تم العثور على الأرشيف: {archive.id}")
             utils.restore_record(archive.id)
-            print(f"✅ [SUPPLIER RESTORE] تم استعادة المورد بنجاح")
         
         flash(f'تم استعادة المورد {supplier.name} بنجاح', 'success')
         print(f"🎉 [SUPPLIER RESTORE] تمت العملية بنجاح - إعادة توجيه...")
         return redirect(url_for('vendors_bp.suppliers_list'))
         
     except Exception as e:
-        print(f"❌ [SUPPLIER RESTORE] خطأ في استعادة المورد: {str(e)}")
-        print(f"❌ [SUPPLIER RESTORE] نوع الخطأ: {type(e).__name__}")
         import traceback
-        print(f"❌ [SUPPLIER RESTORE] تفاصيل الخطأ: {traceback.format_exc()}")
         
         db.session.rollback()
         flash(f'خطأ في استعادة المورد: {str(e)}', 'error')
@@ -1358,7 +1342,6 @@ def restore_partner(partner_id):
     
     try:
         partner = Partner.query.get_or_404(partner_id)
-        print(f"✅ [PARTNER RESTORE] تم العثور على الشريك: {partner.name}")
         
         if not partner.is_archived:
             flash('الشريك غير مؤرشف', 'warning')
@@ -1372,19 +1355,14 @@ def restore_partner(partner_id):
         ).first()
         
         if archive:
-            print(f"✅ [PARTNER RESTORE] تم العثور على الأرشيف: {archive.id}")
             utils.restore_record(archive.id)
-            print(f"✅ [PARTNER RESTORE] تم استعادة الشريك بنجاح")
         
         flash(f'تم استعادة الشريك {partner.name} بنجاح', 'success')
         print(f"🎉 [PARTNER RESTORE] تمت العملية بنجاح - إعادة توجيه...")
         return redirect(url_for('vendors_bp.partners_list'))
         
     except Exception as e:
-        print(f"❌ [PARTNER RESTORE] خطأ في استعادة الشريك: {str(e)}")
-        print(f"❌ [PARTNER RESTORE] نوع الخطأ: {type(e).__name__}")
         import traceback
-        print(f"❌ [PARTNER RESTORE] تفاصيل الخطأ: {traceback.format_exc()}")
         
         db.session.rollback()
         flash(f'خطأ في استعادة الشريك: {str(e)}', 'error')

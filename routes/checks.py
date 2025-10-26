@@ -33,7 +33,7 @@ def _check_before_delete(mapper, connection, target):
             )
         )
     except Exception as e:
-        print(f"❌ خطأ في حذف القيود المحاسبية للشيك {target.id}: {str(e)}")
+        current_app.logger.error(f"خطأ في حذف القيود المحاسبية للشيك {target.id}: {str(e)}")
 
 
 @event.listens_for(Payment, 'before_delete')
@@ -48,7 +48,7 @@ def _payment_check_before_delete(mapper, connection, target):
                 )
             )
     except Exception as e:
-        print(f"❌ خطأ في حذف القيود المحاسبية للدفعة {target.id}: {str(e)}")
+        current_app.logger.error(f"خطأ في حذف القيود المحاسبية للدفعة {target.id}: {str(e)}")
 
 
 @event.listens_for(GLBatch, 'before_delete')
@@ -74,7 +74,7 @@ def _glbatch_before_delete(mapper, connection, target):
                 )
             )
     except Exception as e:
-        print(f"❌ خطأ في إلغاء الشيك عند حذف القيد: {str(e)}")
+        current_app.logger.error(f"خطأ في إلغاء الشيك عند حذف القيد: {str(e)}")
 
 
 def ensure_check_accounts():

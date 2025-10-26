@@ -885,20 +885,15 @@ def archive_sale(sale_id):
         from models import Archive
         
         sale = Sale.query.get_or_404(sale_id)
-        print(f"✅ [SALE ARCHIVE] تم العثور على المبيعة: {sale.sale_number}")
         
         reason = request.form.get('reason', 'أرشفة تلقائية')
-        print(f"📝 [SALE ARCHIVE] سبب الأرشفة: {reason}")
         
         utils.archive_record(sale, reason, current_user.id)
         flash(f'تم أرشفة المبيعة رقم {sale_id} بنجاح', 'success')
         return redirect(url_for('sales_bp.list_sales'))
         
     except Exception as e:
-        print(f"❌ [SALE ARCHIVE] خطأ في أرشفة المبيعة: {str(e)}")
-        print(f"❌ [SALE ARCHIVE] نوع الخطأ: {type(e).__name__}")
         import traceback
-        print(f"❌ [SALE ARCHIVE] تفاصيل الخطأ: {traceback.format_exc()}")
         
         db.session.rollback()
         flash(f'خطأ في أرشفة المبيعة: {str(e)}', 'error')
@@ -913,7 +908,6 @@ def restore_sale(sale_id):
     
     try:
         sale = Sale.query.get_or_404(sale_id)
-        print(f"✅ [SALE RESTORE] تم العثور على المبيعة: {sale.id}")
         
         if not sale.is_archived:
             flash('المبيعة غير مؤرشفة', 'warning')
@@ -927,19 +921,14 @@ def restore_sale(sale_id):
         ).first()
         
         if archive:
-            print(f"✅ [SALE RESTORE] تم العثور على الأرشيف: {archive.id}")
             utils.restore_record(archive.id)
-            print(f"✅ [SALE RESTORE] تم استعادة المبيعة بنجاح")
         
         flash(f'تم استعادة المبيعة رقم {sale_id} بنجاح', 'success')
         print(f"🎉 [SALE RESTORE] تمت العملية بنجاح - إعادة توجيه...")
         return redirect(url_for('sales_bp.list_sales'))
         
     except Exception as e:
-        print(f"❌ [SALE RESTORE] خطأ في استعادة المبيعة: {str(e)}")
-        print(f"❌ [SALE RESTORE] نوع الخطأ: {type(e).__name__}")
         import traceback
-        print(f"❌ [SALE RESTORE] تفاصيل الخطأ: {traceback.format_exc()}")
         
         db.session.rollback()
         flash(f'خطأ في استعادة المبيعة: {str(e)}', 'error')

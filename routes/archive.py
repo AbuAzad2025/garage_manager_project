@@ -158,12 +158,10 @@ def restore_archive(archive_id):
     if request.method == 'POST':
         try:
             restored_record = utils.restore_record(archive_id)
-            print(f"✅ [RESTORE] تم استعادة السجل بنجاح")
             flash(f'تم استعادة السجل رقم {restored_record.id} بنجاح', 'success')
             return redirect(url_for('archive.index'))
             
         except Exception as e:
-            print(f"❌ [RESTORE] خطأ في استعادة السجل: {str(e)}")
             flash(f'خطأ في استعادة السجل: {str(e)}', 'error')
     
     return render_template('archive/restore.html', archive=archive)

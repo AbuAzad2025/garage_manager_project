@@ -156,7 +156,6 @@ def list_customers():
                 customers_with_credit += 1
                 
         except Exception as e:
-            print(f"Error calculating customer {customer.id} balance: {str(e)}")
             pass
     
     summary = {
@@ -432,16 +431,12 @@ def edit_customer(customer_id):
             cust.is_online = bool(form.is_online.data)  # ✅ تحويل صريح لـ bool
             cust.notes = form.notes.data
             
-            # طباعة للتأكد من القيمة
-            print(f"🔍 تعديل العميل {cust.name}: is_active={cust.is_active}, form.is_active.data={form.is_active.data}")
-            
             try:
                 log_customer_action(cust, "UPDATE", old, cust.to_dict() if hasattr(cust, "to_dict") else None)
                 db.session.commit()
                 
                 # التأكد من الحفظ
                 db.session.refresh(cust)
-                print(f"✅ تم الحفظ: is_active={cust.is_active}")
             except IntegrityError:
                 db.session.rollback()
                 flash("بريد أو هاتف مكرر (Unique constraint).", "danger")
@@ -1024,20 +1019,15 @@ def archive_customer(customer_id):
         from models import Archive
         
         customer = Customer.query.get_or_404(customer_id)
-        print(f"✅ [CUSTOMER ARCHIVE] تم العثور على العميل: {customer.name}")
         
         reason = request.form.get('reason', 'أرشفة تلقائية')
-        print(f"📝 [CUSTOMER ARCHIVE] سبب الأرشفة: {reason}")
         
         utils.archive_record(customer, reason, current_user.id)
         flash(f'تم أرشفة العميل {customer.name} بنجاح', 'success')
         return redirect(url_for('customers_bp.list_customers'))
         
     except Exception as e:
-        print(f"❌ [CUSTOMER ARCHIVE] خطأ في أرشفة العميل: {str(e)}")
-        print(f"❌ [CUSTOMER ARCHIVE] نوع الخطأ: {type(e).__name__}")
         import traceback
-        print(f"❌ [CUSTOMER ARCHIVE] تفاصيل الخطأ: {traceback.format_exc()}")
         
         db.session.rollback()
         flash(f'خطأ في أرشفة العميل: {str(e)}', 'error')
@@ -1050,7 +1040,6 @@ def restore_customer(customer_id):
     
     try:
         customer = Customer.query.get_or_404(customer_id)
-        print(f"✅ [CUSTOMER RESTORE] تم العثور على العميل: {customer.name}")
         
         if not customer.is_archived:
             flash('العميل غير مؤرشف', 'warning')
@@ -1068,10 +1057,7 @@ def restore_customer(customer_id):
         return redirect(url_for('customers_bp.list_customers'))
         
     except Exception as e:
-        print(f"❌ [CUSTOMER RESTORE] خطأ في استعادة العميل: {str(e)}")
-        print(f"❌ [CUSTOMER RESTORE] نوع الخطأ: {type(e).__name__}")
         import traceback
-        print(f"❌ [CUSTOMER RESTORE] تفاصيل الخطأ: {traceback.format_exc()}")
         
         db.session.rollback()
         flash(f'خطأ في استعادة العميل: {str(e)}', 'error')

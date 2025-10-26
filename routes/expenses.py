@@ -659,20 +659,15 @@ def archive_expense(expense_id):
         from models import Archive
         
         expense = Expense.query.get_or_404(expense_id)
-        print(f"✅ [EXPENSE ARCHIVE] تم العثور على النفقة: {expense.id}")
         
         reason = request.form.get('reason', 'أرشفة تلقائية')
-        print(f"📝 [EXPENSE ARCHIVE] سبب الأرشفة: {reason}")
         
         utils.archive_record(expense, reason, current_user.id)
         flash(f'تم أرشفة النفقة رقم {expense.id} بنجاح', 'success')
         return redirect(url_for('expenses_bp.list_expenses'))
         
     except Exception as e:
-        print(f"❌ [EXPENSE ARCHIVE] خطأ في أرشفة النفقة: {str(e)}")
-        print(f"❌ [EXPENSE ARCHIVE] نوع الخطأ: {type(e).__name__}")
         import traceback
-        print(f"❌ [EXPENSE ARCHIVE] تفاصيل الخطأ: {traceback.format_exc()}")
         
         db.session.rollback()
         flash(f'خطأ في أرشفة النفقة: {str(e)}', 'error')
@@ -686,7 +681,6 @@ def restore_expense(expense_id):
     
     try:
         expense = Expense.query.get_or_404(expense_id)
-        print(f"✅ [EXPENSE RESTORE] تم العثور على النفقة: {expense.id}")
         
         if not expense.is_archived:
             flash('النفقة غير مؤرشفة', 'warning')
@@ -700,19 +694,14 @@ def restore_expense(expense_id):
         ).first()
         
         if archive:
-            print(f"✅ [EXPENSE RESTORE] تم العثور على الأرشيف: {archive.id}")
             utils.restore_record(archive.id)
-            print(f"✅ [EXPENSE RESTORE] تم استعادة النفقة بنجاح")
         
         flash(f'تم استعادة النفقة رقم {expense_id} بنجاح', 'success')
         print(f"🎉 [EXPENSE RESTORE] تمت العملية بنجاح - إعادة توجيه...")
         return redirect(url_for('expenses_bp.list_expenses'))
         
     except Exception as e:
-        print(f"❌ [EXPENSE RESTORE] خطأ في استعادة النفقة: {str(e)}")
-        print(f"❌ [EXPENSE RESTORE] نوع الخطأ: {type(e).__name__}")
         import traceback
-        print(f"❌ [EXPENSE RESTORE] تفاصيل الخطأ: {traceback.format_exc()}")
         
         db.session.rollback()
         flash(f'خطأ في استعادة النفقة: {str(e)}', 'error')
