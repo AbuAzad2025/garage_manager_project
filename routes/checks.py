@@ -1068,6 +1068,12 @@ def update_check_status(check_id):
                 # فقط إذا كانت الحالة الحالية PENDING
                 if check.status == PaymentStatus.PENDING:
                     check.status = PaymentStatus.COMPLETED
+            elif new_status in ['BOUNCED', 'RETURNED']:
+                # ✅ شيك مرفوض/مرتد - تحديث حالة الدفعة إلى FAILED
+                check.status = PaymentStatus.FAILED
+            elif new_status == 'RESUBMITTED':
+                # ✅ إعادة تقديم - تحديث حالة الدفعة إلى PENDING
+                check.status = PaymentStatus.PENDING
             elif new_status == 'CANCELLED':
                 # فقط إذا كانت الحالة الحالية PENDING
                 if check.status == PaymentStatus.PENDING:

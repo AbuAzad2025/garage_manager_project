@@ -402,9 +402,15 @@
               {# البيان الديناميكي #}
               <td style="border: 1px solid #dee2e6; padding: 8px; text-align: start;">
                 {# للدفعات - دفعة (طريقة) سند قبض - ليج (المستلم) #}
-                {% if e.type == 'PAYMENT' and e.get('payment_details') %}
+                {% if (e.type == 'PAYMENT' or e.type == 'CHECK_BOUNCED') and e.get('payment_details') %}
                   {% set pd = e.payment_details %}
-                  دفعة
+                  
+                  {# إذا كان شيك مرتد #}
+                  {% if e.type == 'CHECK_BOUNCED' %}
+                    <span class="badge bg-danger"><i class="fas fa-ban"></i> شيك مرفوض</span>
+                  {% else %}
+                    دفعة
+                  {% endif %}
                   
                   {# طريقة الدفع - بالعربي بدون ألوان #}
                   {% set method = pd.method_raw|lower if pd.method_raw else '' %}
@@ -415,7 +421,8 @@
                   {% elif method == 'cheque' %}
                     (شيك
                     {% if pd.check_number %} #{{ pd.check_number }}{% endif %}
-                    {% if pd.check_due_date %} - {{ pd.check_due_date|format_date }}{% endif %})
+                    {% if pd.check_due_date %} - استحقاق: {{ pd.check_due_date|format_date }}{% endif %}
+                    {% if pd.check_bank %} - {{ pd.check_bank }}{% endif %})
                   {% elif method == 'bank' %}
                     (تحويل بنكي)
                   {% elif method == 'online' %}
@@ -426,11 +433,18 @@
                     (نقداً)
                   {% endif %}
                   
-                  سند قبض
+                  {% if e.type != 'CHECK_BOUNCED' %}
+                    سند قبض
+                  {% endif %}
                   
                   {# المستلم - إذا موجود #}
                   {% if pd.receiver_name %}
                     - لـيـد ({{ pd.receiver_name }})
+                  {% endif %}
+                  
+                  {# إذا مرتد، إضافة تنبيه #}
+                  {% if e.type == 'CHECK_BOUNCED' %}
+                    <br><span class="text-danger"><strong>⚠️ تم إلغاء الدفعة وإرجاع المبلغ للرصيد</strong></span>
                   {% endif %}
                 
                 {# للمبيعات #}

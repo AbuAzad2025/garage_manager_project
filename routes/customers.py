@@ -739,26 +739,33 @@ def account_statement(customer_id):
             "notes": getattr(pre, 'notes', '') or '',
         })
 
-    # ✅ فلترة الدفعات: فقط COMPLETED (استبعاد المحذوفة/الملغاة)
-    payments_direct = Payment.query.filter_by(
-        customer_id=customer_id,
-        status='COMPLETED'
+    # ✅ فلترة الدفعات: COMPLETED + الشيكات المرتدة (BOUNCED/FAILED)
+    # الشيكات المرتدة يجب أن تظهر لأنها تؤثر على الرصيد!
+    payment_statuses = ['COMPLETED', 'BOUNCED', 'FAILED', 'REJECTED']
+    
+    payments_direct = Payment.query.filter(
+        Payment.customer_id == customer_id,
+        Payment.status.in_(payment_statuses)
     ).all()
+    
     payments_from_sales = Payment.query.join(Sale, Payment.sale_id == Sale.id).filter(
         Sale.customer_id == customer_id,
-        Payment.status == 'COMPLETED'
+        Payment.status.in_(payment_statuses)
     ).all()
+    
     payments_from_invoices = Payment.query.join(Invoice, Payment.invoice_id == Invoice.id).filter(
         Invoice.customer_id == customer_id,
-        Payment.status == 'COMPLETED'
+        Payment.status.in_(payment_statuses)
     ).all()
+    
     payments_from_services = Payment.query.join(ServiceRequest, Payment.service_id == ServiceRequest.id).filter(
         ServiceRequest.customer_id == customer_id,
-        Payment.status == 'COMPLETED'
+        Payment.status.in_(payment_statuses)
     ).all()
+    
     payments_from_preorders = Payment.query.join(PreOrder, Payment.preorder_id == PreOrder.id).filter(
         PreOrder.customer_id == customer_id,
-        Payment.status == 'COMPLETED'
+        Payment.status.in_(payment_statuses)
     ).all()
 
     seen = set()
@@ -771,6 +778,10 @@ def account_statement(customer_id):
 
     all_payments.sort(key=lambda x: (getattr(x, "payment_date", None) or getattr(x, "created_at", None) or datetime.min, x.id))
     for p in all_payments:
+        # فحص حالة الدفعة
+        payment_status = getattr(p, 'status', 'COMPLETED')
+        is_bounced = payment_status in ['BOUNCED', 'FAILED', 'REJECTED']
+        
         # توليد البيان للدفعة - محسّن وواضح
         # استخراج القيمة من enum إذا كان enum
         method_value = getattr(p, 'method', 'cash')
@@ -804,21 +815,30 @@ def account_statement(customer_id):
             'card_holder': getattr(p, 'card_holder', None),
             'card_last4': getattr(p, 'card_last4', None),
             'bank_transfer_ref': getattr(p, 'bank_transfer_ref', None),
-            'receiver_name': receiver_name
+            'receiver_name': receiver_name,
+            'status': payment_status,
+            'is_bounced': is_bounced
         }
         
         # البيان (سيتم بناؤه ديناميكياً في القالب)
-        payment_statement = f"سند قبض - {method_arabic}"
-        if receiver_name:
+        if is_bounced:
+            payment_statement = f"❌ شيك مرفوض - {method_arabic}"
+            if check_number:
+                payment_statement += f" #{check_number}"
+        else:
+            payment_statement = f"سند قبض - {method_arabic}"
+        if receiver_name and not is_bounced:
             payment_statement += f" - لـيـد ({receiver_name})"
         
+        # ✅ الدفعات الناجحة = دائن (تخفيض الرصيد)
+        # ❌ الشيكات المرتدة = مدين (زيادة الرصيد - إلغاء الدفعة)
         entries.append({
             "date": getattr(p, "payment_date", None) or getattr(p, "created_at", None),
-            "type": "PAYMENT",
+            "type": "CHECK_BOUNCED" if is_bounced else "PAYMENT",
             "ref": getattr(p, "payment_number", None) or getattr(p, "receipt_number", None) or f"PMT-{p.id}",
             "statement": payment_statement,
-            "debit": D(0),
-            "credit": D(p.total_amount or 0),
+            "debit": D(p.total_amount or 0) if is_bounced else D(0),  # المرتد = مدين
+            "credit": D(0) if is_bounced else D(p.total_amount or 0),  # الناجح = دائن
             "payment_details": payment_details,  # تفاصيل الدفعة
             "notes": notes,
         })

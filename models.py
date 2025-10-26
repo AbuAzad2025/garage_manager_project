@@ -1875,6 +1875,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
             ).scalar() or 0)
             
             # الدفعات الواردة (مباشرة + من المبيعات + من الفواتير + من الخدمات)
+            # ✅ فقط COMPLETED - نستبعد BOUNCED/FAILED لأنها ملغاة
             payments_in_direct = float(session.query(func.coalesce(func.sum(Payment.total_amount), 0)).filter(
                 Payment.customer_id == self.id,
                 Payment.direction == 'IN',
@@ -5660,6 +5661,24 @@ def _payment_entity_id_for(target: "Payment") -> int:
 @event.listens_for(Payment, "after_update")
 def _payment_gl_batch_upsert(mapper, connection, target: "Payment"):
     """إنشاء/تحديث GLBatch للدفعة تلقائياً"""
+    # ✅ التعامل مع الحالات المختلفة:
+    # COMPLETED → إنشاء قيد محاسبي عادي
+    # BOUNCED/FAILED → حذف القيد (إن وُجد) لأن الدفعة ملغاة
+    
+    # إذا الدفعة ملغاة أو مرفوضة، حذف أي GLBatch موجود
+    if target.status in [PaymentStatus.FAILED.value, PaymentStatus.BOUNCED.value, PaymentStatus.CANCELLED.value]:
+        try:
+            connection.execute(
+                sa_text("""
+                    DELETE FROM gl_batches
+                    WHERE source_type = 'PAYMENT' AND source_id = :sid
+                """),
+                {"sid": target.id}
+            )
+        except:
+            pass
+        return
+    
     # فقط للدفعات المكتملة
     if target.status != PaymentStatus.COMPLETED.value:
         return
