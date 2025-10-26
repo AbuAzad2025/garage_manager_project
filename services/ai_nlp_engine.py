@@ -395,8 +395,7 @@ def understand_text(text: str, explain: bool = False) -> Dict[str, Any]:
 # ==================== اختبار ====================
 
 if __name__ == '__main__':
-    print("🧪 اختبار محرك NLP الذكي...\n")
-    
+
     test_questions = [
         "كم عدد العملاء؟",
         "وكم منهم دفعوا؟",  # سؤال متابعة
@@ -407,7 +406,5 @@ if __name__ == '__main__':
     ]
     
     for q in test_questions:
-        print(f"\n{'='*60}")
-        result = understand_text(q, explain=True)
-        print(f"{'='*60}\n")
 
+        result = understand_text(q, explain=True)

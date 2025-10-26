@@ -205,8 +205,7 @@ def log_security_event(message: str, sensitivity: Dict[str, Any], response_type:
         }
         
         # يمكن حفظها في ملف أو قاعدة بيانات
-        print(f"🔒 Security Event: {log_data}")
-        
+
     except Exception as e:
         pass  # خطأ محتمل
 

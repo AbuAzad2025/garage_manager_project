@@ -129,8 +129,7 @@ def categorize_routes(routes):
 
 def build_system_map():
     """بناء خريطة النظام الكاملة"""
-    print("\n🔍 بدء اكتشاف النظام...")
-    
+
     # 1. اكتشاف Routes
     routes = discover_all_routes()
 
@@ -173,11 +172,9 @@ def build_system_map():
     # 7. تسجيل الحدث
     log_discovery_event('auto_build', len(routes), len(templates))
 
-    print(f"📊 الإحصائيات:")
     print(f"   • المسارات: {len(routes)}")
     print(f"   • القوالب: {len(templates)}")
-    print(f"   • الروابط: {linked_count}")
-    
+
     return system_map
 
 def group_templates_by_module(templates):
@@ -395,7 +392,7 @@ def get_route_suggestions(user_query):
 def auto_discover_if_needed():
     """إعادة الاستكشاف إذا لزم الأمر"""
     if not os.path.exists(SYSTEM_MAP_FILE):
-        print("🔄 لم يتم العثور على خريطة النظام - سيتم إنشاؤها...")
+
         return build_system_map()
     
     # فحص إذا كانت الخريطة قديمة (أكثر من 24 ساعة)
@@ -413,4 +410,3 @@ def auto_discover_if_needed():
     return load_system_map()
 
 if __name__ == '__main__':
-    print("🧪 اختبار نظام الاستكشاف الذاتي...")

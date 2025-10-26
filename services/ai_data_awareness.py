@@ -207,11 +207,8 @@ def build_data_schema():
     save_data_schema(schema)
     log_learning_event('schema_built', len(models))
 
-    print(f"📊 الإحصائيات:")
     print(f"   • الجداول: {len(schema['models'])}")
-    print(f"   • الأعمدة: {total_columns}")
-    print(f"   • العلاقات: {total_relationships}")
-    
+
     return schema
 
 def save_data_schema(schema):
@@ -343,7 +340,7 @@ def find_model_by_keyword(keyword):
 def auto_build_if_needed():
     """بناء الخريطة إذا لزم الأمر"""
     if not os.path.exists(DATA_SCHEMA_FILE):
-        print("🔄 لم يتم العثور على خريطة البيانات - سيتم إنشاؤها...")
+
         return build_data_schema()
     
     # فحص إذا كانت الخريطة قديمة (أكثر من 7 أيام)
@@ -361,5 +358,5 @@ def auto_build_if_needed():
     return load_data_schema()
 
 if __name__ == '__main__':
-    print("🧪 اختبار نظام الوعي البنيوي...")
+
     schema = build_data_schema()

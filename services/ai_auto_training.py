@@ -55,9 +55,7 @@ def execute_silent_training():
         from services.ai_knowledge import get_knowledge_base
         from services.ai_auto_discovery import build_system_map
         from services.ai_data_awareness import build_data_schema
-        
-        print("\n🤖 [Auto Training] بدء التدريب الصامت...")
-        
+
         # تنفيذ التدريب
         kb = get_knowledge_base()
         kb.index_all_files(force_reindex=True)
@@ -117,7 +115,7 @@ def init_auto_training():
         pass
 
 if __name__ == '__main__':
-    print("🧪 اختبار نظام التدريب التلقائي...")
+
     if should_auto_train():
 
     else:

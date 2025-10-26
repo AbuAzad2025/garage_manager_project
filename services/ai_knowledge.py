@@ -56,7 +56,6 @@ class SystemKnowledgeBase:
         """فهرسة كل ملفات النظام مع حفظ مستمر - شاملة 100%"""
         if not force_reindex and self.knowledge.get('last_indexed'):
 
-            print(f"   استخدم force_reindex=True لإعادة الفهرسة")
             return self.knowledge
         
         print("🔍 بدء فهرسة شاملة للنظام (100% Coverage)...")
@@ -147,9 +146,7 @@ class SystemKnowledgeBase:
                 'tables_with_data': tables_with_data,
                 'total_critical_tables': total_critical_tables
             }
-            
-            print(f"   📈 Learning Quality: {learning_quality:.1f}%")
-        
+
         except Exception as e:
             pass  # خطأ محتمل
     
@@ -469,8 +466,7 @@ class SystemKnowledgeBase:
             }
             
             total_static = len(file_types['images']) + len(file_types['fonts']) + len(file_types['data'])
-            print(f"   📁 Static: {total_static} ملف")
-        
+
         except Exception as e:
             pass  # خطأ محتمل
     
@@ -489,9 +485,7 @@ class SystemKnowledgeBase:
                 
                 self.knowledge['templates'][module_name].append(template_file.name)
                 template_count += 1
-            
-            print(f"   📄 Templates: {template_count} ملف")
-            
+
         except Exception as e:
             pass  # خطأ محتمل
     
