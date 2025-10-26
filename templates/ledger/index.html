@@ -590,9 +590,7 @@ $(document).ready(function() {
     // تعيين من بداية السنة إلى اليوم
     $('#from-date').val(firstDayOfYear);
     $('#to-date').val(today);
-    
-    console.log('📅 التواريخ الافتراضية:', {from: firstDayOfYear, to: today});
-    
+
     // تحميل البيانات
     loadLedgerData();
     loadAccountsSummary();
@@ -609,26 +607,25 @@ $(document).ready(function() {
 
 function loadLedgerData() {
     const formData = $('#filter-form').serialize();
-    console.log('Loading ledger data with:', formData);
-    
+
     $.ajax({
         url: '{{ url_for("ledger.get_ledger_data") }}',
         method: 'GET',
         data: formData,
         success: function(response) {
-            console.log('Ledger data received:', response);
+
             updateLedgerTable(response.data);
             updateStatistics(response.statistics);
         },
         error: function(xhr, status, error) {
-            console.error('Error loading ledger data:', xhr, status, error);
+
             showAlert('خطأ في تحميل البيانات', 'error');
         }
     });
 }
 
 function updateLedgerTable(data) {
-    console.log('Updating ledger table with', data.length, 'entries');
+
     const tbody = $('#ledger-table tbody');
     tbody.empty();
     
@@ -787,9 +784,7 @@ function updateStatistics(stats) {
     // عرض أزرار القطع غير المسعرة
     const estimatedCount = stats.estimated_products_count || 0;
     const noCostCount = stats.products_without_cost_count || 0;
-    
-    console.log('📊 منتجات مقدرة:', estimatedCount, 'بدون تكلفة:', noCostCount);
-    
+
     if (estimatedCount > 0 || noCostCount > 0) {
         $('#cost-warnings').show();
         
@@ -798,7 +793,7 @@ function updateStatistics(stats) {
             $('#estimated-count').text(estimatedCount);
             // حفظ البيانات لعرضها لاحقاً
             window.estimatedProducts = stats.estimated_products || [];
-            console.log('✅ زر المنتجات المقدرة ظاهر');
+
         } else {
             $('#btn-show-estimated').hide();
         }
@@ -807,13 +802,13 @@ function updateStatistics(stats) {
             $('#btn-show-no-cost').show();
             $('#no-cost-count').text(noCostCount);
             window.productsWithoutCost = stats.products_without_cost || [];
-            console.log('✅ زر المنتجات بدون تكلفة ظاهر');
+
         } else {
             $('#btn-show-no-cost').hide();
         }
     } else {
         $('#cost-warnings').hide();
-        console.log('ℹ️ لا توجد منتجات غير مسعرة');
+
     }
 }
 
@@ -993,7 +988,7 @@ function saveSingleCost(productId) {
             }
         },
         error: function(xhr) {
-            console.error('Error saving cost:', xhr);
+
             Swal.fire('خطأ', 'حدث خطأ أثناء حفظ التكلفة', 'error');
         }
     });
@@ -1030,7 +1025,7 @@ function saveAllCosts(type) {
             return response;
         },
         error: function(xhr) {
-            console.error('Error saving costs:', xhr);
+
             Swal.showValidationMessage('حدث خطأ أثناء حفظ التكاليف');
             return false;
         }
@@ -1039,18 +1034,17 @@ function saveAllCosts(type) {
 
 function loadAccountsSummary() {
     const formData = $('#filter-form').serialize();
-    console.log('Loading accounts summary with:', formData);
-    
+
     $.ajax({
         url: '{{ url_for("ledger.get_accounts_summary") }}',
         method: 'GET',
         data: formData,
         success: function(response) {
-            console.log('Accounts summary received:', response);
+
             updateAccountsSummary(response);
         },
         error: function(xhr, status, error) {
-            console.error('Error loading accounts summary:', xhr, status, error);
+
             $('#accounts-summary').html('<tr><td colspan="4" class="text-center text-danger">خطأ في تحميل البيانات</td></tr>');
         }
     });
@@ -1058,25 +1052,24 @@ function loadAccountsSummary() {
 
 function loadReceivablesSummary() {
     const formData = $('#filter-form').serialize();
-    console.log('Loading receivables summary with:', formData);
-    
+
     $.ajax({
         url: '{{ url_for("ledger.get_receivables_detailed_summary") }}',
         method: 'GET',
         data: formData,
         success: function(response) {
-            console.log('Receivables summary received:', response);
+
             updateReceivablesDetailedSummary(response);
         },
         error: function(xhr, status, error) {
-            console.error('Error loading receivables summary:', xhr, status, error);
+
             $('#receivables-detailed-summary').html('<tr><td colspan="7" class="text-center text-danger">خطأ في تحميل البيانات</td></tr>');
         }
     });
 }
 
 function updateAccountsSummary(data) {
-    console.log('Updating accounts summary with', data ? data.length : 0, 'accounts');
+
     const tbody = $('#accounts-summary');
     tbody.empty();
     
@@ -1309,14 +1302,7 @@ function printLedger() {
 function forceShowPricingAlert() {
     const estimatedCount = window.estimatedProducts ? window.estimatedProducts.length : 0;
     const noCostCount = window.productsWithoutCost ? window.productsWithoutCost.length : 0;
-    
-    console.log('🔍 فحص التسعير:', {
-        estimated: estimatedCount,
-        noCost: noCostCount,
-        estimatedData: window.estimatedProducts,
-        noCostData: window.productsWithoutCost
-    });
-    
+
     if (estimatedCount > 0 && noCostCount > 0) {
         Swal.fire({
             title: '⚠️ اختر نوع المنتجات',
