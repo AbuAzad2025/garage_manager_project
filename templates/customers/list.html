@@ -257,6 +257,12 @@
       </div>
     </div>
   </div>
+</div>
+
+<!-- Form للحذف العادي -->
+<form id="deleteForm" method="POST" style="display: none;">
+  {{ form.csrf_token }}
+</form>
 
 {% endblock %}
 
