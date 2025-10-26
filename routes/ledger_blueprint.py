@@ -145,7 +145,7 @@ def get_ledger_data():
         
         # 1. المبيعات (Sales)
         if not transaction_type or transaction_type == 'sale':
-            sales_query = Sale.query
+            sales_query = Sale.query.filter(Sale.status == 'CONFIRMED')
             if from_date:
                 sales_query = sales_query.filter(Sale.sale_date >= from_date)
             if to_date:
@@ -224,7 +224,7 @@ def get_ledger_data():
         
         # 3. الدفعات (Payments)
         if not transaction_type or transaction_type == 'payment':
-            payments_query = Payment.query
+            payments_query = Payment.query.filter(Payment.status == 'COMPLETED')
             if from_date:
                 payments_query = payments_query.filter(Payment.payment_date >= from_date)
             if to_date:
@@ -343,7 +343,7 @@ def get_ledger_data():
         from models import fx_rate
         
         # 1. إجمالي المبيعات
-        sales_query = Sale.query
+        sales_query = Sale.query.filter(Sale.status == 'CONFIRMED')
         if from_date:
             sales_query = sales_query.filter(Sale.sale_date >= from_date)
         if to_date:
@@ -948,7 +948,10 @@ def get_receivables_detailed_summary():
         customers = Customer.query.all()
         for customer in customers:
             # حساب المبيعات للعميل
-            sales_query = Sale.query.filter(Sale.customer_id == customer.id)
+            sales_query = Sale.query.filter(
+                Sale.customer_id == customer.id,
+                Sale.status == 'CONFIRMED'
+            )
             if from_date:
                 sales_query = sales_query.filter(Sale.sale_date >= from_date)
             if to_date:
@@ -1053,7 +1056,8 @@ def get_receivables_detailed_summary():
             # حساب الدفعات للمورد
             payments_query = Payment.query.filter(
                 Payment.supplier_id == supplier.id,
-                Payment.direction == 'OUT'
+                Payment.direction == 'OUT',
+                Payment.status == 'COMPLETED'
             )
             if from_date:
                 payments_query = payments_query.filter(Payment.payment_date >= from_date)
@@ -1130,11 +1134,13 @@ def get_receivables_detailed_summary():
             # حساب الدفعات من/إلى الشريك
             payments_in_query = Payment.query.filter(
                 Payment.partner_id == partner.id,
-                Payment.direction == 'IN'
+                Payment.direction == 'IN',
+                Payment.status == 'COMPLETED'
             )
             payments_out_query = Payment.query.filter(
                 Payment.partner_id == partner.id,
-                Payment.direction == 'OUT'
+                Payment.direction == 'OUT',
+                Payment.status == 'COMPLETED'
             )
             
             if from_date:
@@ -1225,7 +1231,10 @@ def get_receivables_summary():
         customers = Customer.query.all()
         for customer in customers:
             # حساب المبيعات للعميل
-            sales_query = Sale.query.filter(Sale.customer_id == customer.id)
+            sales_query = Sale.query.filter(
+                Sale.customer_id == customer.id,
+                Sale.status == 'CONFIRMED'
+            )
             if from_date:
                 sales_query = sales_query.filter(Sale.sale_date >= from_date)
             if to_date:
@@ -1315,7 +1324,8 @@ def get_receivables_summary():
             # حساب الدفعات للمورد
             payments_query = Payment.query.filter(
                 Payment.supplier_id == supplier.id,
-                Payment.direction == 'OUT'
+                Payment.direction == 'OUT',
+                Payment.status == 'COMPLETED'
             )
             if from_date:
                 payments_query = payments_query.filter(Payment.payment_date >= from_date)
