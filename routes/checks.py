@@ -1214,7 +1214,7 @@ def update_check_status(check_id):
 @login_required
 def get_alerts():
     """
-    API للحصول على التنبيهات
+    API للحصول على التنبيهات - محسّن لجلب من جميع المصادر
     """
     try:
         today = datetime.utcnow().date()
@@ -1222,16 +1222,55 @@ def get_alerts():
         
         alerts = []
         
-        # 1. الشيكات المتأخرة
-        overdue_checks = Payment.query.filter(
+        # 🚨 1. الشيكات المتأخرة من جدول Check (الأولوية)
+        overdue_manual_checks = Check.query.filter(
             and_(
-                Payment.method == PaymentMethod.CHEQUE.value,
-                Payment.status == PaymentStatus.PENDING.value,
-                Payment.check_due_date < datetime.utcnow()
+                Check.status == CheckStatus.PENDING.value,
+                Check.check_due_date < datetime.utcnow()
             )
         ).all()
         
-        for check in overdue_checks:
+        for check in overdue_manual_checks:
+            entity_name = ''
+            if check.customer:
+                entity_name = check.customer.name
+            elif check.supplier:
+                entity_name = check.supplier.name
+            elif check.partner:
+                entity_name = check.partner.name
+            else:
+                entity_name = check.drawer_name or check.payee_name or 'غير محدد'
+            
+            direction_ar = 'وارد' if check.direction == PaymentDirection.IN.value else 'صادر'
+            days_overdue = (today - check.check_due_date.date()).days
+            
+            alerts.append({
+                'type': 'overdue',
+                'severity': 'danger',
+                'icon': 'fas fa-exclamation-triangle',
+                'title': f'🚨 شيك متأخر {days_overdue} يوم - {check.check_number}',
+                'message': f'شيك {direction_ar} من {entity_name} - {check.amount:,.2f} {check.currency} - البنك: {check.check_bank}',
+                'link': '/checks',
+                'amount': float(check.amount),
+                'currency': check.currency,
+                'days_overdue': days_overdue
+            })
+        
+        # 2. الشيكات المتأخرة من Payment (للتوافق مع القديم)
+        overdue_payment_checks = Payment.query.filter(
+            and_(
+                Payment.method == PaymentMethod.CHEQUE.value,
+                Payment.status == PaymentStatus.PENDING.value,
+                Payment.check_due_date < datetime.utcnow(),
+                Payment.check_number.isnot(None)
+            )
+        ).all()
+        
+        for check in overdue_payment_checks:
+            # تجنب التكرار - إذا موجود في Check table
+            if Check.query.filter_by(reference_number=f'PMT-{check.id}').first():
+                continue
+            
             entity_name = ''
             if check.customer:
                 entity_name = check.customer.name
