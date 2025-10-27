@@ -1068,7 +1068,7 @@ def _get_services_to_supplier(supplier_id: int, date_from: datetime, date_to: da
         ServiceRequest.customer_id == supplier.customer_id,
         ServiceRequest.received_at >= date_from,
         ServiceRequest.received_at <= date_to,
-        ServiceRequest.status == 'COMPLETED'
+        ServiceRequest.status == ServiceStatus.COMPLETED.value
     ).order_by(ServiceRequest.received_at).all()
     
     items = []

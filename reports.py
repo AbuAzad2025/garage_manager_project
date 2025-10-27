@@ -588,7 +588,7 @@ def ar_aging_report(start_date=None, end_date=None):
             ref_date_expr.label("ref_date"),
         )
         .filter(Invoice.customer_id.isnot(None))
-        .filter(~Invoice.status.in_([InvoiceStatus.CANCELLED.value, InvoiceStatus.REFUNDED.value]))
+        .filter(Invoice.cancelled_at.is_(None))  # فقط الفواتير غير الملغاة
         .filter(cast(ref_date_expr, Date) <= as_of)
         .subquery()
     )
@@ -663,7 +663,7 @@ def ap_aging_report(start_date=None, end_date=None):
             ref_date_expr.label("ref_date"),
         )
         .filter(Invoice.supplier_id.isnot(None))
-        .filter(~Invoice.status.in_([InvoiceStatus.CANCELLED.value, InvoiceStatus.REFUNDED.value]))
+        .filter(Invoice.cancelled_at.is_(None))  # فقط الفواتير غير الملغاة
         .filter(cast(ref_date_expr, Date) <= as_of)
         .subquery()
     )

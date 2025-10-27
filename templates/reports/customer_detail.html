@@ -174,9 +174,16 @@
                             <td>{{ invoice.invoice_number or invoice.id }}</td>
                             <td>{{ invoice.invoice_date.strftime('%Y-%m-%d') if invoice.invoice_date else 'غير محدد' }}</td>
                             <td>
-                                <span class="badge bg-{% if invoice.status == 'PAID' %}success{% elif invoice.status == 'PARTIAL' %}warning{% else %}danger{% endif %}">
-                                    {{ invoice.status }}
-                                </span>
+                                {# status محسوب تلقائياً من total_paid و cancelled_at #}
+                                {% if invoice.cancelled_at %}
+                                    <span class="badge bg-dark">ملغاة</span>
+                                {% elif invoice.status == 'PAID' %}
+                                    <span class="badge bg-success">مدفوعة</span>
+                                {% elif invoice.status == 'PARTIAL' %}
+                                    <span class="badge bg-warning">مدفوعة جزئياً</span>
+                                {% else %}
+                                    <span class="badge bg-danger">غير مدفوعة</span>
+                                {% endif %}
                             </td>
                             <td>{{ invoice.total_amount|format_currency }}</td>
                             <td>{{ invoice.total_paid|format_currency }}</td>

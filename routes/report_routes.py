@@ -16,7 +16,7 @@ import inspect as pyinspect
 
 from models import (
     Customer, Supplier, Partner, Product, Warehouse, StockLevel, Expense,
-    OnlinePreOrder, OnlinePayment, OnlineCart, Sale, SaleStatus, ServiceRequest, InvoiceStatus, Invoice, Payment,
+    OnlinePreOrder, OnlinePayment, OnlineCart, Sale, SaleStatus, ServiceRequest, ServiceStatus, InvoiceStatus, Invoice, Payment,
     Shipment, PaymentDirection, PaymentStatus, PaymentSplit, PreOrder, ServicePart, ServiceTask
 )
 reports_bp = Blueprint('reports_bp', __name__, url_prefix='/reports')
@@ -555,11 +555,7 @@ def customers_report():
             func.coalesce(func.sum(Invoice.total_amount), 0).label("total")
         )
         .filter(Invoice.customer_id.isnot(None))
-        .filter(Invoice.status.in_([
-            InvoiceStatus.UNPAID.value,
-            InvoiceStatus.PARTIAL.value,
-            InvoiceStatus.PAID.value,
-        ]))
+        .filter(Invoice.cancelled_at.is_(None))  # فقط الفواتير غير الملغاة
         .filter(inv_date)
         .group_by(Invoice.customer_id)
         .subquery()
@@ -602,8 +598,7 @@ def customers_report():
         )
         .filter(Payment.customer_id.isnot(None))
         .filter(Payment.direction == PaymentDirection.IN.value)
-        .filter(Payment.status == 'COMPLETED')  # ✅ فلترة الدفعات المكتملة فقط
-        .filter(Payment.status == PaymentStatus.COMPLETED.value)
+        .filter(Payment.status == PaymentStatus.COMPLETED.value)  # ✅ فلترة الدفعات المكتملة فقط
         .filter(pay_date)
         .group_by(Payment.customer_id)
         .subquery()
@@ -868,7 +863,7 @@ def customer_detail_report(customer_id):
     payments_query = Payment.query.filter(
         Payment.customer_id == customer_id,
         Payment.direction == PaymentDirection.IN.value,
-        Payment.status == 'COMPLETED'  # ✅ فلترة الدفعات المكتملة فقط
+        Payment.status == PaymentStatus.COMPLETED.value  # ✅ فلترة الدفعات المكتملة فقط
     )
     if start_date:
         payments_query = payments_query.filter(Payment.payment_date >= start_date)
@@ -991,7 +986,7 @@ def supplier_detail_report(supplier_id):
             joinedload(ServiceRequest.tasks)
         ).filter(
             ServiceRequest.customer_id == supplier.customer_id,
-            ServiceRequest.status == 'COMPLETED'
+            ServiceRequest.status == ServiceStatus.COMPLETED.value
         )
         if start_date:
             services_query = services_query.filter(ServiceRequest.received_at >= start_date)
@@ -1151,7 +1146,7 @@ def partner_detail_report(partner_id):
             joinedload(ServiceRequest.tasks)
         ).filter(
             ServiceRequest.customer_id == partner.customer_id,
-            ServiceRequest.status == 'COMPLETED'
+            ServiceRequest.status == ServiceStatus.COMPLETED.value
         )
         if start_date:
             services_query = services_query.filter(ServiceRequest.received_at >= start_date)

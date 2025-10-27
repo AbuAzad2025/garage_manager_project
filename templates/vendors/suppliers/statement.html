@@ -234,6 +234,8 @@
     'PURCHASE': 'توريد/شراء',
     'RETURN': 'مرتجع للمورد',
     'PAYMENT': 'دفعة للمورد',
+    'CHECK_PENDING': 'شيك معلق',
+    'CHECK_BOUNCED': 'شيك مرتد',
     'SETTLEMENT': 'تسوية',
     'OPENING_BALANCE': 'رصيد افتتاحي'
   } %}
@@ -241,6 +243,8 @@
     'PURCHASE': 'bg-primary',
     'RETURN': 'bg-warning text-dark',
     'PAYMENT': 'bg-success',
+    'CHECK_PENDING': 'bg-warning text-dark',
+    'CHECK_BOUNCED': 'bg-danger',
     'SETTLEMENT': 'bg-info',
     'OPENING_BALANCE': 'bg-purple text-white'
   } %}
@@ -287,7 +291,32 @@
                 <span class="badge {{ type_badges.get(t, 'bg-secondary') }}">{{ type_labels.get(t, t) }}</span>
               </td>
               <td class="text-truncate" title="{{ e.ref }}">{{ e.ref }}</td>
-              <td class="text-truncate" title="{{ e.statement }}">{{ e.statement or '-' }}</td>
+              <td title="{{ e.statement }}">
+                {% if (e.type == 'PAYMENT' or e.type == 'CHECK_BOUNCED' or e.type == 'CHECK_PENDING') and e.get('payment_details') %}
+                  {% set pd = e.payment_details %}
+                  
+                  {# Badge حالة الشيك #}
+                  {% if e.type == 'CHECK_BOUNCED' %}
+                    <span class="badge bg-danger"><i class="fas fa-ban"></i> شيك مرفوض</span>
+                  {% elif e.type == 'CHECK_PENDING' %}
+                    <span class="badge bg-warning text-dark"><i class="fas fa-clock"></i> شيك معلق</span>
+                  {% endif %}
+                  
+                  {# البيان الأساسي #}
+                  <div class="small">
+                    {{ e.statement }}
+                    
+                    {# تفاصيل الشيك #}
+                    {% if pd.method_raw == 'cheque' %}
+                      {% if pd.check_number %}<br>رقم: <strong>{{ pd.check_number }}</strong>{% endif %}
+                      {% if pd.check_bank %} - {{ pd.check_bank }}{% endif %}
+                      {% if pd.check_due_date %}<br>استحقاق: {{ pd.check_due_date|format_date }}{% endif %}
+                    {% endif %}
+                  </div>
+                {% else %}
+                  {{ e.statement or '-' }}
+                {% endif %}
+              </td>
               <td class="text-end">{{ e.debit|format_currency }}</td>
               <td class="text-end">{{ e.credit|format_currency }}</td>
               <td class="text-end fw-bold {% if e.balance > 0 %}text-danger{% elif e.balance < 0 %}text-success{% endif %}">

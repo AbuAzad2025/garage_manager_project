@@ -3217,7 +3217,9 @@ class InvoiceForm(FlaskForm):
     preorder_id = AjaxSelectField("الطلب المسبق", coerce=int, allow_blank=True)
 
     source  = SelectField("المصدر", choices=[(e.value, e.value) for e in InvoiceSource], validators=[DataRequired()])
-    status  = SelectField("الحالة", choices=[(e.value, e.value) for e in InvoiceStatus], validators=[DataRequired()])
+    kind    = SelectField("النوع", choices=[("INVOICE", "فاتورة"), ("CREDIT_NOTE", "إشعار دائن")], default="INVOICE", validators=[DataRequired()])
+    # status تم حذفه - يُحسب تلقائياً من total_paid و cancelled_at
+    
     # تحويل العملة لحقل موحّد
     currency = CurrencySelectField("العملة", default="ILS", validators=[DataRequired()])
 
@@ -3227,6 +3229,10 @@ class InvoiceForm(FlaskForm):
 
     notes  = TextAreaField("ملاحظات", validators=[Optional()])
     terms  = TextAreaField("الشروط", validators=[Optional()])
+    
+    # حقول الإلغاء (للعرض فقط - يتم التحديث من خلال invoice.cancel())
+    cancelled_at   = UnifiedDateTimeField("تاريخ الإلغاء", validators=[Optional()], render_kw={"readonly": True})
+    cancel_reason  = StringField("سبب الإلغاء", validators=[Optional(), Length(max=200)], render_kw={"readonly": True})
 
     lines = FieldList(FormField(InvoiceLineForm), min_entries=1)
     submit = SubmitField("حفظ")

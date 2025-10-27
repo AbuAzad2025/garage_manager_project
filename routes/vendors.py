@@ -28,6 +28,7 @@ from models import (
     SaleLine,
     ServicePart,
     ServiceRequest,
+    ServiceStatus,
 )
 
 class CSRFProtectForm(FlaskForm):
@@ -367,7 +368,7 @@ def suppliers_statement(supplier_id: int):
             .options(joinedload(ServiceRequest.parts), joinedload(ServiceRequest.tasks))
             .filter(
                 ServiceRequest.customer_id == supplier.customer_id,
-                ServiceRequest.status == 'COMPLETED',
+                ServiceRequest.status == ServiceStatus.COMPLETED.value,
             )
         )
         if df:
@@ -462,7 +463,7 @@ def suppliers_statement(supplier_id: int):
         db.session.query(Payment)
         .filter(
             Payment.supplier_id == supplier.id,
-            Payment.status == PaymentStatus.COMPLETED.value,
+            Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
             Payment.direction == PaymentDirection.OUT.value,
         )
     )
@@ -475,14 +476,69 @@ def suppliers_statement(supplier_id: int):
         d = pmt.payment_date
         amt = q2(pmt.total_amount)
         ref = pmt.reference or f"دفعة #{pmt.id}"
-        # توليد البيان للدفعة
-        payment_method = getattr(pmt, 'payment_method', 'نقداً')
+        
+        # فحص حالة الدفعة
+        payment_status = getattr(pmt, 'status', 'COMPLETED')
+        is_bounced = payment_status in ['BOUNCED', 'FAILED', 'REJECTED']
+        is_pending = payment_status == 'PENDING'
+        
+        # استخراج طريقة الدفع
+        method_value = getattr(pmt, 'method', 'cash')
+        if hasattr(method_value, 'value'):
+            method_value = method_value.value
+        method_raw = str(method_value).lower()
+        
+        method_arabic = {
+            'cash': 'نقداً',
+            'card': 'بطاقة',
+            'cheque': 'شيك',
+            'bank': 'تحويل بنكي',
+            'online': 'إلكتروني'
+        }.get(method_raw, method_raw)
+        
+        # تفاصيل الدفعة
+        payment_details = {
+            'method': method_arabic,
+            'method_raw': method_raw,
+            'check_number': getattr(pmt, 'check_number', None) if method_raw == 'cheque' else None,
+            'check_bank': getattr(pmt, 'check_bank', None),
+            'check_due_date': getattr(pmt, 'check_due_date', None) if method_raw == 'cheque' else None,
+            'receiver_name': getattr(pmt, 'receiver_name', None) or '',
+            'status': payment_status,
+            'is_bounced': is_bounced,
+            'is_pending': is_pending
+        }
+        
+        # البيان
         notes = getattr(pmt, 'notes', '') or ''
-        statement = f"سداد {payment_method} للمورد"
+        if is_bounced:
+            statement = f"❌ شيك مرفوض - {method_arabic}"
+        elif is_pending and method_raw == 'cheque':
+            statement = f"⏳ شيك معلق - {method_arabic}"
+        else:
+            statement = f"سداد {method_arabic} للمورد"
+        
         if notes:
             statement += f" - {notes[:30]}"
-        entries.append({"date": d, "type": "PAYMENT", "ref": ref, "statement": statement, "debit": Decimal("0.00"), "credit": amt})
-        total_credit += amt
+        
+        # القيد المحاسبي
+        entry_type = "CHECK_BOUNCED" if is_bounced else ("CHECK_PENDING" if is_pending and method_raw == 'cheque' else "PAYMENT")
+        
+        entries.append({
+            "date": d,
+            "type": entry_type,
+            "ref": ref,
+            "statement": statement,
+            "debit": amt if is_bounced else Decimal("0.00"),  # المرتد = مدين
+            "credit": Decimal("0.00") if is_bounced else amt,  # الناجح = دائن
+            "payment_details": payment_details,
+            "notes": notes
+        })
+        
+        if is_bounced:
+            total_debit += amt
+        else:
+            total_credit += amt
 
     # تسويات القروض مع المورد — دائن أيضًا (تُخفّض الالتزام)
     stl_q = (
@@ -698,7 +754,7 @@ def partners_statement(partner_id: int):
             .options(joinedload(ServiceRequest.parts), joinedload(ServiceRequest.tasks))
             .filter(
                 ServiceRequest.customer_id == partner.customer_id,
-                ServiceRequest.status == 'COMPLETED',
+                ServiceRequest.status == ServiceStatus.COMPLETED.value,
             )
         )
         if df:
@@ -719,7 +775,7 @@ def partners_statement(partner_id: int):
         db.session.query(Payment)
         .filter(
             Payment.partner_id == partner.id,
-            Payment.status == PaymentStatus.COMPLETED.value,
+            Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
         )
     )
     if df:
@@ -733,24 +789,99 @@ def partners_statement(partner_id: int):
         ref = p.reference or f"سند #{p.id}"
         dirv = getattr(p, "direction", None)
         
-        # توليد البيان للدفعة
-        payment_method = getattr(p, 'payment_method', 'نقداً')
+        # فحص حالة الدفعة
+        payment_status = getattr(p, 'status', 'COMPLETED')
+        is_bounced = payment_status in ['BOUNCED', 'FAILED', 'REJECTED']
+        is_pending = payment_status == 'PENDING'
+        
+        # استخراج طريقة الدفع
+        method_value = getattr(p, 'method', 'cash')
+        if hasattr(method_value, 'value'):
+            method_value = method_value.value
+        method_raw = str(method_value).lower()
+        
+        method_arabic = {
+            'cash': 'نقداً',
+            'card': 'بطاقة',
+            'cheque': 'شيك',
+            'bank': 'تحويل بنكي',
+            'online': 'إلكتروني'
+        }.get(method_raw, method_raw)
+        
+        # تفاصيل الدفعة
+        payment_details = {
+            'method': method_arabic,
+            'method_raw': method_raw,
+            'check_number': getattr(p, 'check_number', None) if method_raw == 'cheque' else None,
+            'check_bank': getattr(p, 'check_bank', None),
+            'check_due_date': getattr(p, 'check_due_date', None) if method_raw == 'cheque' else None,
+            'receiver_name': getattr(p, 'receiver_name', None) or '',
+            'status': payment_status,
+            'is_bounced': is_bounced,
+            'is_pending': is_pending
+        }
+        
+        # البيان
         notes = getattr(p, 'notes', '') or ''
         
         # OUT => مدين (خارج منا للشريك)
         # IN => دائن (وارد منا من الشريك)
         if dirv == PaymentDirection.OUT.value:
-            statement = f"سداد {payment_method} للشريك"
+            if is_bounced:
+                statement = f"❌ شيك مرفوض - {method_arabic} للشريك"
+            elif is_pending and method_raw == 'cheque':
+                statement = f"⏳ شيك معلق - {method_arabic} للشريك"
+            else:
+                statement = f"سداد {method_arabic} للشريك"
+            
             if notes:
                 statement += f" - {notes[:30]}"
-            entries.append({"date": d, "type": "PAYMENT_OUT", "ref": ref, "statement": statement, "debit": amt, "credit": Decimal("0.00")})
-            total_debit += amt
+            
+            entry_type = "CHECK_BOUNCED" if is_bounced else ("CHECK_PENDING" if is_pending and method_raw == 'cheque' else "PAYMENT_OUT")
+            
+            entries.append({
+                "date": d,
+                "type": entry_type,
+                "ref": ref,
+                "statement": statement,
+                "debit": Decimal("0.00") if is_bounced else amt,  # المرتد يُعكس
+                "credit": amt if is_bounced else Decimal("0.00"),
+                "payment_details": payment_details,
+                "notes": notes
+            })
+            
+            if is_bounced:
+                total_credit += amt
+            else:
+                total_debit += amt
         else:
-            statement = f"قبض {payment_method} من الشريك"
+            if is_bounced:
+                statement = f"❌ شيك مرفوض - {method_arabic} من الشريك"
+            elif is_pending and method_raw == 'cheque':
+                statement = f"⏳ شيك معلق - {method_arabic} من الشريك"
+            else:
+                statement = f"قبض {method_arabic} من الشريك"
+            
             if notes:
                 statement += f" - {notes[:30]}"
-            entries.append({"date": d, "type": "PAYMENT_IN", "ref": ref, "statement": statement, "debit": Decimal("0.00"), "credit": amt})
-            total_credit += amt
+            
+            entry_type = "CHECK_BOUNCED" if is_bounced else ("CHECK_PENDING" if is_pending and method_raw == 'cheque' else "PAYMENT_IN")
+            
+            entries.append({
+                "date": d,
+                "type": entry_type,
+                "ref": ref,
+                "statement": statement,
+                "debit": amt if is_bounced else Decimal("0.00"),
+                "credit": Decimal("0.00") if is_bounced else amt,
+                "payment_details": payment_details,
+                "notes": notes
+            })
+            
+            if is_bounced:
+                total_debit += amt
+            else:
+                total_credit += amt
 
     # إضافة الرصيد الافتتاحي كأول قيد
     opening_balance = Decimal(getattr(partner, 'opening_balance', 0) or 0)
@@ -1185,7 +1316,7 @@ def _calculate_payments_to_supplier(supplier_id: int, date_from: datetime, date_
     amount = db.session.query(func.sum(Payment.total_amount)).filter(
         Payment.supplier_id == supplier_id,
         Payment.direction == "OUT",
-        Payment.status == "COMPLETED",
+        Payment.status.in_(["COMPLETED", "PENDING"]),
         Payment.payment_date >= date_from,
         Payment.payment_date <= date_to
     ).scalar() or 0
@@ -1197,7 +1328,7 @@ def _calculate_payments_from_supplier(supplier_id: int, date_from: datetime, dat
     amount = db.session.query(func.sum(Payment.total_amount)).filter(
         Payment.supplier_id == supplier_id,
         Payment.direction == "INCOMING",
-        Payment.status == "COMPLETED",
+        Payment.status.in_(["COMPLETED", "PENDING"]),
         Payment.payment_date >= date_from,
         Payment.payment_date <= date_to
     ).scalar() or 0
@@ -1209,7 +1340,7 @@ def _calculate_payments_to_partner(partner_id: int, date_from: datetime, date_to
     amount = db.session.query(func.sum(Payment.total_amount)).filter(
         Payment.partner_id == partner_id,
         Payment.direction == "OUT",
-        Payment.status == "COMPLETED",
+        Payment.status.in_(["COMPLETED", "PENDING"]),
         Payment.payment_date >= date_from,
         Payment.payment_date <= date_to
     ).scalar() or 0
@@ -1221,7 +1352,7 @@ def _calculate_payments_from_partner(partner_id: int, date_from: datetime, date_
     amount = db.session.query(func.sum(Payment.total_amount)).filter(
         Payment.partner_id == partner_id,
         Payment.direction == "INCOMING",
-        Payment.status == "COMPLETED",
+        Payment.status.in_(["COMPLETED", "PENDING"]),
         Payment.payment_date >= date_from,
         Payment.payment_date <= date_to
     ).scalar() or 0

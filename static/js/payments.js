@@ -290,7 +290,7 @@ document.addEventListener('DOMContentLoaded', function() {
         '<td class="text-end"><strong>' + fmtAmount(p.total_amount) + '</strong></td>' +
         '<td class="text-center"><span class="badge badge-secondary">' + (p.currency || '') + '</span></td>' +
         '<td class="text-center"><small>' + fxRateDisplay + '</small></td>' +
-        '<td class="text-end"><strong class="text-primary">' + fmtAmount(amountInILS) + ' ₪</strong></td>' +
+        '<td class="text-end"><strong style="color: #0056b3;">' + fmtAmount(amountInILS) + ' ₪</strong></td>' +
         '<td>' + (splitsHtml || '<span class="badge badge-info">' + (p.method || '') + '</span>') + '</td>' +
         '<td class="text-center">' + badgeForDirection(p.direction) + '</td>' +
         '<td class="text-center">' + badgeForStatus(p.status) + '</td>' +
@@ -299,7 +299,7 @@ document.addEventListener('DOMContentLoaded', function() {
       tbody.appendChild(tr);
     });
     const t = document.createElement('tr');
-    t.innerHTML = '<td></td><td class="text-end fw-bold">إجمالي الصفحة</td><td class="fw-bold">' + fmtAmount(pageSum) + '</td><td></td><td></td><td class="fw-bold text-primary">' + fmtAmount(pageSumILS) + ' ₪</td><td colspan="5"></td>';
+    t.innerHTML = '<td></td><td class="text-end fw-bold">إجمالي الصفحة</td><td class="fw-bold">' + fmtAmount(pageSum) + '</td><td></td><td></td><td class="fw-bold" style="color: #0056b3;">' + fmtAmount(pageSumILS) + ' ₪</td><td colspan="5"></td>';
     tbody.appendChild(t);
   }
   // Event listener لحذف الدفعات

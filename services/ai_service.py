@@ -1411,8 +1411,22 @@ def search_database_for_query(query):
                 
                 if invoices_count > 0:
                     total_invoices_amount = db.session.query(func.sum(Invoice.total_amount)).scalar() or 0
-                    paid_invoices = Invoice.query.filter_by(status='PAID').count()
-                    unpaid_invoices = Invoice.query.filter(Invoice.status.in_(['UNPAID', 'PARTIALLY_PAID'])).count()
+                    
+                    # ✅ status محسوب تلقائياً - نستخدم total_paid للفلترة
+                    from sqlalchemy import and_
+                    paid_invoices = Invoice.query.filter(
+                        and_(
+                            Invoice.total_paid >= Invoice.total_amount,
+                            Invoice.cancelled_at.is_(None)
+                        )
+                    ).count()
+                    
+                    unpaid_invoices = Invoice.query.filter(
+                        and_(
+                            Invoice.total_paid < Invoice.total_amount,
+                            Invoice.cancelled_at.is_(None)
+                        )
+                    ).count()
                     
                     results['invoices_stats'] = {
                         'count': invoices_count,

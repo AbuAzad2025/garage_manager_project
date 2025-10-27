@@ -1858,20 +1858,28 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
                 Sale.status == 'CONFIRMED'
             ).scalar() or 0)
             
-            # الفواتير
+            # الفواتير (كل الفواتير غير الملغاة)
             invoices_total = float(session.query(func.coalesce(func.sum(Invoice.total_amount), 0)).filter(
                 Invoice.customer_id == self.id,
-                Invoice.status.in_(['UNPAID', 'PARTIAL', 'PAID'])
+                Invoice.cancelled_at.is_(None)  # فقط الفواتير غير الملغاة
             ).scalar() or 0)
             
             # الخدمات
-            services_total = float(session.query(func.coalesce(func.sum(ServiceRequest.total_amount), 0)).filter(
+            services_total = float(session.query(func.coalesce(func.sum(ServiceRequest.total_cost), 0)).filter(
                 ServiceRequest.customer_id == self.id
             ).scalar() or 0)
             
-            # الحجوزات المسبقة
-            preorders_total = float(session.query(func.coalesce(func.sum(PreOrder.total_amount), 0)).filter(
-                PreOrder.customer_id == self.id
+            # الحجوزات المسبقة (محسوب من السعر × الكمية)
+            preorders = session.query(PreOrder).filter(
+                PreOrder.customer_id == self.id,
+                PreOrder.status != 'CANCELLED'
+            ).all()
+            preorders_total = sum(float(p.total_amount or 0) for p in preorders)
+            
+            # الطلبات الأونلاين
+            online_orders_total = float(session.query(func.coalesce(func.sum(OnlinePreOrder.total_amount), 0)).filter(
+                OnlinePreOrder.customer_id == self.id,
+                OnlinePreOrder.payment_status != 'CANCELLED'
             ).scalar() or 0)
             
             # الدفعات الواردة (مباشرة + من المبيعات + من الفواتير + من الخدمات)
@@ -1935,8 +1943,8 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
             debit = 0.0
             if ob < 0:  # رصيد افتتاحي سالب = عليه لنا
                 debit += abs(ob)
-            # المبيعات والفواتير والخدمات والحجوزات
-            debit += sales_total + invoices_total + services_total + preorders_total
+            # المبيعات والفواتير والخدمات والحجوزات والطلبات الأونلاين
+            debit += sales_total + invoices_total + services_total + preorders_total + online_orders_total
             
             # الدائن (Credit): ما له علينا
             credit = 0.0
@@ -3123,7 +3131,7 @@ def update_partner_balance(partner_id: int, connection=None):
             FROM payments p
             LEFT JOIN sales s ON s.id = p.sale_id
             LEFT JOIN partners par ON par.customer_id = s.customer_id
-            WHERE p.status = 'COMPLETED'
+            WHERE p.status IN ('COMPLETED', 'PENDING')
             AND p.direction = 'IN'
             AND (
                 p.partner_id = :partner_id
@@ -3135,7 +3143,7 @@ def update_partner_balance(partner_id: int, connection=None):
         payments_out AS (
             SELECT COALESCE(SUM(p.total_amount), 0) as total
             FROM payments p
-            WHERE p.status = 'COMPLETED'
+            WHERE p.status IN ('COMPLETED', 'PENDING')
             AND p.direction = 'OUT'
             AND p.partner_id = :partner_id
         ),
@@ -3202,7 +3210,7 @@ def update_supplier_balance(supplier_id: int, connection=None):
             FROM payments p
             LEFT JOIN sales s ON s.id = p.sale_id
             LEFT JOIN suppliers sup ON sup.customer_id = s.customer_id
-            WHERE p.status = 'COMPLETED'
+            WHERE p.status IN ('COMPLETED', 'PENDING')
             AND p.direction = 'IN'
             AND (
                 p.supplier_id = :supplier_id
@@ -3214,7 +3222,7 @@ def update_supplier_balance(supplier_id: int, connection=None):
         payments_out AS (
             SELECT COALESCE(SUM(p.total_amount), 0) as total
             FROM payments p
-            WHERE p.status = 'COMPLETED'
+            WHERE p.status IN ('COMPLETED', 'PENDING')
             AND p.direction = 'OUT'
             AND p.supplier_id = :supplier_id
         ),
@@ -4390,6 +4398,70 @@ def _preorder_before_update(mapper, connection, target):
         allowed = _ALLOWED_PREORDER_TRANSITIONS.get(o, set())
         if n not in allowed: raise ValueError("preorder.invalid_status_transition")
 
+# ===== إنشاء قيود GL تلقائية للحجوزات =====
+@event.listens_for(PreOrder, "after_insert")
+@event.listens_for(PreOrder, "after_update")
+def _preorder_gl_batch_upsert(mapper, connection, target: "PreOrder"):
+    """إنشاء/تحديث GLBatch للحجز المسبق تلقائياً - قيد مزدوج احترافي"""
+    
+    # إذا الحجز ملغى، حذف أي GLBatch موجود
+    if target.cancelled_at:
+        try:
+            connection.execute(
+                sa_text("""
+                    DELETE FROM gl_batches
+                    WHERE source_type = 'PREORDER' AND source_id = :sid
+                """),
+                {"sid": target.id}
+            )
+        except:
+            pass
+        return
+    
+    # التحقق من وجود مبلغ
+    amount = float(target.total_amount or 0)
+    if amount <= 0:
+        return
+    
+    try:
+        from models import fx_rate
+        
+        # تحويل العملة للشيقل
+        amount_ils = amount
+        if target.currency and target.currency != 'ILS':
+            try:
+                rate = fx_rate(target.currency, 'ILS', target.preorder_date or datetime.utcnow(), raise_on_missing=False)
+                if rate and rate > 0:
+                    amount_ils = float(amount * float(rate))
+            except:
+                pass
+        
+        # القيد المحاسبي للحجز المسبق:
+        # مدين: حساب العملاء (AR)
+        # دائن: حساب الدفعات المقدمة (ADVANCE_PAYMENTS)
+        entries = [
+            (GL_ACCOUNTS.get("AR", "1100_AR"), amount_ils, 0),  # مدين: حساب العملاء
+            (GL_ACCOUNTS.get("ADVANCE", "2300_ADVANCE_PAYMENTS"), 0, amount_ils),  # دائن: الدفعات المقدمة
+        ]
+        
+        memo = f"حجز مسبق - {target.reference or target.id}"
+        
+        _gl_upsert_batch_and_entries(
+            connection,
+            source_type="PREORDER",
+            source_id=target.id,
+            purpose="PREORDER",
+            currency="ILS",
+            memo=memo,
+            entries=entries,
+            ref=target.reference or f"PRE-{target.id}",
+            entity_type="CUSTOMER" if target.customer_id else "SUPPLIER",
+            entity_id=target.customer_id or target.supplier_id
+        )
+    except Exception as e:
+        import sys
+        print(f"⚠️ خطأ في إنشاء GLBatch للحجز #{target.id}: {e}", file=sys.stderr)
+
 @event.listens_for(PreOrder, "after_update")
 def _preorder_reservation_flow(mapper, connection, target: "PreOrder"):
     hist = inspect(target); h = hist.attrs['status'].history
@@ -4982,6 +5054,28 @@ def _sale_line_touch_sale_total(mapper, connection, target: "SaleLine"):
             pass
     if sid:
         _recompute_sale_total_amount(connection, int(sid))
+        
+        # إنشاء/تحديث GLBatch للمبيعة بعد تحديث المجموع
+        sale_data = connection.execute(
+            sa_text("""
+                SELECT id, sale_number, total_amount, status, customer_id, currency
+                FROM sales WHERE id = :id
+            """),
+            {"id": sid}
+        ).first()
+        
+        if sale_data and sale_data[2] > 0 and sale_data[3] == 'CONFIRMED':  # total > 0 and CONFIRMED
+            # استدعاء _sale_gl_batch_upsert يدوياً
+            from models import Sale as SaleModel
+            sale_obj = SaleModel()
+            sale_obj.id = sale_data[0]
+            sale_obj.sale_number = sale_data[1]
+            sale_obj.total_amount = sale_data[2]
+            sale_obj.status = sale_data[3]
+            sale_obj.customer_id = sale_data[4]
+            sale_obj.currency = sale_data[5]
+            
+            _sale_gl_batch_upsert(None, connection, sale_obj)
 
 class SaleReturn(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = "sale_returns"
@@ -5070,7 +5164,7 @@ class Invoice(db.Model, TimestampMixin):
     preorder_id = Column(Integer, ForeignKey("preorders.id"), index=True)
 
     source = Column(sa_str_enum(InvoiceSource, name="invoice_source"), default=InvoiceSource.MANUAL.value, nullable=False, index=True)
-    status = Column(sa_str_enum(InvoiceStatus, name="invoice_status"), default=InvoiceStatus.UNPAID.value, nullable=False, index=True)
+    # status تم حذفه - يُحسب تلقائياً من total_paid (انظر @property status أدناه)
     kind = Column(sa_str_enum(["INVOICE", "CREDIT_NOTE"], name="invoice_kind"), default="INVOICE", nullable=False, index=True)
 
     credit_for_id = Column(Integer, ForeignKey("invoices.id", ondelete="SET NULL"), index=True)
@@ -5116,7 +5210,7 @@ class Invoice(db.Model, TimestampMixin):
 
     __table_args__ = ()
 
-    @validates("source", "status", "kind")
+    @validates("source", "kind")
     def _uppercase_enum(self, key, value):
         return getattr(value, "value", value).upper() if value else value
 
@@ -5166,6 +5260,27 @@ class Invoice(db.Model, TimestampMixin):
     def balance_due(self):
         return float(q(self.total_amount or 0) - q(self.total_paid or 0))
 
+    @property
+    def status(self):
+        """
+        حالة الفاتورة - محسوبة تلقائياً من total_paid
+        UNPAID: غير مدفوعة (total_paid = 0)
+        PARTIAL: مدفوعة جزئياً (0 < total_paid < total_amount)
+        PAID: مدفوعة كاملاً (total_paid >= total_amount)
+        """
+        if self.cancelled_at:
+            return 'CANCELLED'
+        
+        total = float(self.total_amount or 0)
+        paid = float(self.total_paid or 0)
+        
+        if paid == 0:
+            return 'UNPAID'
+        elif paid >= total:
+            return 'PAID'
+        else:
+            return 'PARTIAL'
+
     @hybrid_property
     def refundable_amount(self):
         return float(q(self.total_amount or 0) - q(self.refunded_total or 0))
@@ -5180,20 +5295,10 @@ class Invoice(db.Model, TimestampMixin):
         self.cancelled_at = datetime.now(timezone.utc)
         self.cancelled_by = by_user_id
         self.cancel_reason = (reason or None)
-        self.status = InvoiceStatus.CANCELLED.value
+        # status سيُحسب تلقائياً = CANCELLED (لأن cancelled_at موجود)
 
-    def update_status(self):
-        if self.cancelled_at:
-            self.status = InvoiceStatus.CANCELLED.value
-        elif q(self.refunded_total or 0) >= q(self.total_amount or 0) and q(self.total_amount or 0) > 0:
-            self.status = InvoiceStatus.REFUNDED.value
-        elif q(self.balance_due) <= 0:
-            self.status = InvoiceStatus.PAID.value
-        elif q(self.total_paid) > 0:
-            self.status = InvoiceStatus.PARTIAL.value
-        else:
-            self.status = InvoiceStatus.UNPAID.value
-
+    # update_status تم حذفها - status الآن محسوب تلقائياً
+    
     def __repr__(self):
         return f"<Invoice {self.invoice_number}>"
 
@@ -5269,25 +5374,36 @@ def _invoice_normalize_and_total_update(mapper, connection, target: "Invoice"):
     if hasattr(k, "value"):
         k = k.value
     target.kind = (k or "INVOICE").upper()
-    s = getattr(target, "status", None)
-    if hasattr(s, "value"):
-        s = s.value
-    target.status = (s or InvoiceStatus.UNPAID.value).upper()
+    # ملاحظة: status الآن property محسوب تلقائياً - لا حاجة لتحديثه
     src = getattr(target, "source", None)
     if hasattr(src, "value"):
         src = src.value
     target.source = (src or InvoiceSource.MANUAL.value).upper()
 
 def _recompute_invoice_totals(connection, invoice_id: int):
-    gross_before_disc = func.coalesce(func.sum(InvoiceLine.quantity * InvoiceLine.unit_price), 0.0)
-    disc_amount = func.coalesce(func.sum((InvoiceLine.quantity * InvoiceLine.unit_price) * (func.coalesce(InvoiceLine.discount, 0) / 100.0)), 0.0)
-    taxable = gross_before_disc - disc_amount
-    tax = func.coalesce(
-        func.sum(((InvoiceLine.quantity * InvoiceLine.unit_price) * (1 - (func.coalesce(InvoiceLine.discount, 0) / 100.0))) * (func.coalesce(InvoiceLine.tax_rate, 0) / 100.0)),
-        0.0,
-    )
-    total_expr = taxable + tax
-    connection.execute(update(Invoice).where(Invoice.id == invoice_id).values(total_amount=total_expr, tax_amount=tax, discount_amount=disc_amount))
+    """إعادة حساب مجاميع الفاتورة من بنودها - بدون cartesian product"""
+    from sqlalchemy import select
+    
+    # حساب المجاميع من البنود باستخدام subquery
+    totals = connection.execute(
+        select(
+            func.coalesce(func.sum(InvoiceLine.quantity * InvoiceLine.unit_price), 0.0).label('gross'),
+            func.coalesce(func.sum((InvoiceLine.quantity * InvoiceLine.unit_price) * (func.coalesce(InvoiceLine.discount, 0) / 100.0)), 0.0).label('disc'),
+            func.coalesce(func.sum(((InvoiceLine.quantity * InvoiceLine.unit_price) * (1 - (func.coalesce(InvoiceLine.discount, 0) / 100.0))) * (func.coalesce(InvoiceLine.tax_rate, 0) / 100.0)), 0.0).label('tax')
+        ).where(InvoiceLine.invoice_id == invoice_id)
+    ).first()
+    
+    if totals:
+        gross, disc, tax = totals
+        taxable = gross - disc
+        total = taxable + tax
+        
+        # تحديث الفاتورة
+        connection.execute(
+            update(Invoice)
+            .where(Invoice.id == invoice_id)
+            .values(total_amount=total, tax_amount=tax, discount_amount=disc)
+        )
 
 @event.listens_for(Invoice, "after_insert")
 @event.listens_for(Invoice, "after_update")
@@ -5295,12 +5411,160 @@ def _inv_touch_totals(mapper, connection, target: "Invoice"):
     if target.id:
         _recompute_invoice_totals(connection, int(target.id))
 
+# ===== إنشاء قيود GL تلقائية للفواتير =====
+@event.listens_for(Invoice, "after_insert")
+@event.listens_for(Invoice, "after_update")
+def _invoice_gl_batch_upsert(mapper, connection, target: "Invoice"):
+    """إنشاء/تحديث GLBatch للفاتورة تلقائياً - قيد مزدوج احترافي"""
+    
+    # إذا الفاتورة ملغاة، حذف أي GLBatch موجود
+    if target.cancelled_at:
+        try:
+            connection.execute(
+                sa_text("""
+                    DELETE FROM gl_batches
+                    WHERE source_type = 'INVOICE' AND source_id = :sid
+                """),
+                {"sid": target.id}
+            )
+        except:
+            pass
+        return
+    
+    # التحقق من وجود مبلغ
+    amount = float(target.total_amount or 0)
+    if amount <= 0:
+        return
+    
+    try:
+        from models import fx_rate
+        
+        # تحويل العملة للشيقل
+        amount_ils = amount
+        if target.currency and target.currency != 'ILS':
+            try:
+                rate = fx_rate(target.currency, 'ILS', target.invoice_date or datetime.utcnow(), raise_on_missing=False)
+                if rate and rate > 0:
+                    amount_ils = float(amount * float(rate))
+            except:
+                pass
+        
+        # تحديد نوع الكيان والحساب
+        entity_type = "CUSTOMER"
+        entity_id = target.customer_id
+        ar_account = GL_ACCOUNTS.get("AR", "1100_AR")
+        
+        if target.supplier_id:
+            entity_type = "SUPPLIER"
+            entity_id = target.supplier_id
+            ar_account = GL_ACCOUNTS.get("AP", "2000_AP")
+        elif target.partner_id:
+            entity_type = "PARTNER"
+            entity_id = target.partner_id
+            ar_account = GL_ACCOUNTS.get("AP", "2000_AP")
+        
+        # القيد المحاسبي للفاتورة:
+        # مدين: حساب العملاء/الموردين (AR/AP)
+        # دائن: حساب المبيعات/المشتريات (SALES/PURCHASES)
+        
+        if entity_type == "CUSTOMER":
+            # فاتورة بيع للعميل
+            entries = [
+                (ar_account, amount_ils, 0),  # مدين: حساب العملاء
+                (GL_ACCOUNTS.get("REV", "4000_SALES"), 0, amount_ils),  # دائن: المبيعات
+            ]
+            memo = f"فاتورة بيع - {target.invoice_number}"
+        else:
+            # فاتورة شراء من المورد/الشريك
+            entries = [
+                (GL_ACCOUNTS.get("PURCHASES", "5100_PURCHASES"), amount_ils, 0),  # مدين: المشتريات
+                (ar_account, 0, amount_ils),  # دائن: حساب الموردين
+            ]
+            memo = f"فاتورة شراء - {target.invoice_number}"
+        
+        _gl_upsert_batch_and_entries(
+            connection,
+            source_type="INVOICE",
+            source_id=target.id,
+            purpose="INVOICE",
+            currency="ILS",
+            memo=memo,
+            entries=entries,
+            ref=target.invoice_number,
+            entity_type=entity_type,
+            entity_id=entity_id
+        )
+    except Exception as e:
+        import sys
+        print(f"⚠️ خطأ في إنشاء GLBatch للفاتورة #{target.id}: {e}", file=sys.stderr)
+
 @event.listens_for(InvoiceLine, "after_insert")
 @event.listens_for(InvoiceLine, "after_update")
 @event.listens_for(InvoiceLine, "after_delete")
 def _inv_line_touch_invoice(mapper, connection, target: "InvoiceLine"):
+    """عند تعديل بنود الفاتورة: إعادة حساب المجموع + إنشاء GLBatch"""
     if target.invoice_id:
-        _recompute_invoice_totals(connection, int(target.invoice_id))
+        invoice_id = int(target.invoice_id)
+        
+        # 1. إعادة حساب المجموع
+        _recompute_invoice_totals(connection, invoice_id)
+        
+        # 2. إنشاء/تحديث GLBatch
+        # قراءة الفاتورة من DB مباشرة بعد التحديث
+        inv_data = connection.execute(
+            sa_text("""
+                SELECT id, invoice_number, total_amount, cancelled_at, 
+                       customer_id, supplier_id, partner_id, currency, 
+                       fx_rate_used, invoice_date
+                FROM invoices WHERE id = :id
+            """),
+            {"id": invoice_id}
+        ).first()
+        
+        if inv_data and inv_data[2] > 0 and not inv_data[3]:  # total > 0 and not cancelled
+            # تحديد نوع الكيان
+            entity_type = "CUSTOMER"
+            entity_id = inv_data[4]  # customer_id
+            ar_account = "1100_AR"
+            
+            if inv_data[5]:  # supplier_id
+                entity_type = "SUPPLIER"
+                entity_id = inv_data[5]
+                ar_account = "2000_AP"
+            elif inv_data[6]:  # partner_id
+                entity_type = "PARTNER"
+                entity_id = inv_data[6]
+                ar_account = "2000_AP"
+            
+            # المبلغ
+            amount_ils = float(inv_data[2])  # total_amount
+            
+            # القيد المحاسبي
+            if entity_type == "CUSTOMER":
+                entries = [
+                    (ar_account, amount_ils, 0),  # مدين: AR
+                    ("4000_SALES", 0, amount_ils),  # دائن: Sales
+                ]
+                memo = f"فاتورة بيع - {inv_data[1]}"
+            else:
+                entries = [
+                    ("5100_PURCHASES", amount_ils, 0),  # مدين: Purchases
+                    (ar_account, 0, amount_ils),  # دائن: AP
+                ]
+                memo = f"فاتورة شراء - {inv_data[1]}"
+            
+            _gl_upsert_batch_and_entries(
+                connection,
+                source_type="INVOICE",
+                source_id=invoice_id,
+                purpose="INVOICE",
+                currency="ILS",
+                memo=memo,
+                entries=entries,
+                ref=inv_data[1],
+                entity_type=entity_type,
+                entity_id=entity_id
+            )
 
 class ProductSupplierLoan(db.Model, TimestampMixin):
     __tablename__ = 'product_supplier_loans'
@@ -5488,7 +5752,7 @@ class Payment(db.Model):
             (CASE WHEN invoice_id IS NOT NULL THEN 1 ELSE 0 END) +
             (CASE WHEN preorder_id IS NOT NULL THEN 1 ELSE 0 END) +
             (CASE WHEN service_id IS NOT NULL THEN 1 ELSE 0 END)
-        ) = 1""", name="ck_payment_one_target"),
+        ) <= 1""", name="ck_payment_one_target"),
         db.Index("ix_pay_sale_status_dir", "sale_id", "status", "direction"),
         db.Index("ix_pay_inv_status_dir", "invoice_id", "status", "direction"),
         db.Index("ix_pay_supplier_status_dir", "supplier_id", "status", "direction"),
@@ -5630,7 +5894,7 @@ def _payment_detect_entity_type(target: "Payment") -> str | None:
 _ALLOWED_TRANSITIONS = {
     "PENDING": {"COMPLETED", "FAILED", "CANCELLED"},
     "COMPLETED": {"REFUNDED"},
-    "FAILED": set(),
+    "FAILED": {"PENDING"},  # ✅ السماح بإعادة تقديم شيك مرفوض
     "CANCELLED": set(),
     "REFUNDED": set(),
 }
@@ -5668,7 +5932,7 @@ def _payment_gl_batch_upsert(mapper, connection, target: "Payment"):
     # BOUNCED/FAILED → حذف القيد (إلغاء)
     
     # إذا الدفعة ملغاة أو مرفوضة، حذف أي GLBatch موجود
-    if target.status in [PaymentStatus.FAILED.value, PaymentStatus.BOUNCED.value, PaymentStatus.CANCELLED.value]:
+    if target.status in [PaymentStatus.FAILED.value, PaymentStatus.CANCELLED.value]:
         try:
             connection.execute(
                 sa_text("""
@@ -6300,57 +6564,8 @@ def _update_sale_on_payment_change(mapper, connection, target: "Payment"):
 
 
 # ===== تحديث total_paid و balance_due في Invoices تلقائياً =====
-def _update_invoice_payment_totals(connection, invoice_id):
-    """تحديث total_paid و balance_due في جدول Invoices"""
-    if not invoice_id:
-        return
-    
-    # حساب total_paid من جدول Payments
-    total_paid_result = connection.execute(
-        sa_text("""
-            SELECT COALESCE(SUM(total_amount), 0) 
-            FROM payments 
-            WHERE invoice_id = :invoice_id 
-              AND direction = 'IN'
-              AND status = 'COMPLETED'
-        """),
-        {"invoice_id": invoice_id}
-    ).scalar() or 0
-    
-    # جلب total_amount من Invoice
-    invoice_total = connection.execute(
-        sa_text("SELECT total_amount FROM invoices WHERE id = :invoice_id"),
-        {"invoice_id": invoice_id}
-    ).scalar() or 0
-    
-    # حساب balance_due
-    balance_due = float(invoice_total) - float(total_paid_result)
-    balance_due = max(0, balance_due)
-    
-    # تحديث الحقول في جدول Invoices
-    connection.execute(
-        sa_text("""
-            UPDATE invoices 
-            SET total_paid = :total_paid,
-                balance_due = :balance_due,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = :invoice_id
-        """),
-        {
-            "invoice_id": invoice_id,
-            "total_paid": float(total_paid_result),
-            "balance_due": balance_due
-        }
-    )
-
-
-@event.listens_for(Payment, "after_insert", propagate=True)
-@event.listens_for(Payment, "after_update", propagate=True)
-@event.listens_for(Payment, "after_delete", propagate=True)
-def _update_invoice_on_payment_change(mapper, connection, target: "Payment"):
-    """تحديث total_paid و balance_due في Invoice عند تغيير Payment"""
-    if hasattr(target, 'invoice_id') and target.invoice_id:
-        _update_invoice_payment_totals(connection, target.invoice_id)
+# ملاحظة: جدول invoices لا يحتوي على أعمدة total_paid و balance_due
+# لذلك تم تعطيل التحديث التلقائي للفواتير عند تغيير الدفعات
 
 
 def _avg_cost_until(product_id: int, supplier_id: int, as_of: datetime) -> Decimal:
@@ -7302,28 +7517,64 @@ def _set_completed_at_on_status_change(target, value, oldvalue, initiator):
     if newv == ServiceStatus.COMPLETED.value and not target.completed_at:
         target.completed_at = datetime.now(timezone.utc)
 
+# ===== إنشاء قيود GL تلقائية للصيانة =====
+@event.listens_for(ServiceRequest, "after_insert")
+@event.listens_for(ServiceRequest, "after_update")
+def _service_gl_batch_upsert(mapper, connection, target: "ServiceRequest"):
+    """إنشاء/تحديث GLBatch للصيانة تلقائياً - قيد مزدوج احترافي"""
+    
+    # إذا الصيانة لها فاتورة منفصلة، لا ننشئ قيد (الفاتورة ستنشئه)
+    if target.invoice:
+        return
+    
+    # التحقق من وجود مبلغ
+    amount = float(target.total_cost or 0)
+    if amount <= 0:
+        return
+    
+    try:
+        from models import fx_rate
+        
+        # تحويل العملة للشيقل
+        amount_ils = amount
+        if target.currency and target.currency != 'ILS':
+            try:
+                rate = fx_rate(target.currency, 'ILS', target.received_at or datetime.utcnow(), raise_on_missing=False)
+                if rate and rate > 0:
+                    amount_ils = float(amount * float(rate))
+            except:
+                pass
+        
+        # القيد المحاسبي للصيانة:
+        # مدين: حساب العملاء (AR)
+        # دائن: حساب إيرادات الخدمات (SERVICE_REVENUE)
+        entries = [
+            (GL_ACCOUNTS.get("AR", "1100_AR"), amount_ils, 0),  # مدين: حساب العملاء
+            (GL_ACCOUNTS.get("SERVICE_REV", "4100_SERVICE_REVENUE"), 0, amount_ils),  # دائن: إيرادات الخدمات
+        ]
+        
+        memo = f"صيانة - {target.service_number or target.id}"
+        
+        _gl_upsert_batch_and_entries(
+            connection,
+            source_type="SERVICE",
+            source_id=target.id,
+            purpose="SERVICE",
+            currency="ILS",
+            memo=memo,
+            entries=entries,
+            ref=target.service_number or f"SRV-{target.id}",
+            entity_type="CUSTOMER",
+            entity_id=target.customer_id
+        )
+    except Exception as e:
+        import sys
+        print(f"⚠️ خطأ في إنشاء GLBatch للصيانة #{target.id}: {e}", file=sys.stderr)
+
 @event.listens_for(ServiceRequest, "after_update")
 def _gl_on_service_complete(mapper, connection, target: "ServiceRequest"):
-    try:
-        hist = inspect(target).attrs.status.history
-        changed = hist.has_changes()
-        oldv = getattr(hist.deleted[0], "value", hist.deleted[0]) if hist.deleted else None
-        newv = getattr(hist.added[0], "value", hist.added[0]) if hist.added else getattr(target, "status", None)
-    except Exception:
-        changed = True
-        oldv = None
-        newv = getattr(target, "status", None)
-    if not changed or newv != ServiceStatus.COMPLETED.value or oldv == ServiceStatus.COMPLETED.value:
-        return
-    if getattr(target, "invoice_id", None):
-        return
-    cfg = {}
-    try:
-        cfg = current_app.config
-    except Exception:
-        pass
-    if not bool(cfg.get("GL_AUTO_POST_ON_SERVICE_COMPLETE", False)):
-        return
+    # تم تعطيل هذا - الآن القيد يُنشأ مباشرة عند إنشاء الصيانة
+    return
     parts = _D(getattr(target, "parts_total", 0) or 0)
     labor = _D(getattr(target, "labor_total", 0) or 0)
     discount = _D(getattr(target, "discount_total", 0) or 0)
@@ -7852,6 +8103,58 @@ def _op_before_insert(mapper, connection, target: 'OnlinePreOrder'):
 def _op_before_update(mapper, connection, target: 'OnlinePreOrder'):
     target.update_totals_and_status()
 
+
+# ===== إنشاء قيود GL تلقائية للطلبات الأونلاين =====
+@event.listens_for(OnlinePreOrder, "after_insert")
+@event.listens_for(OnlinePreOrder, "after_update")
+def _online_preorder_gl_batch_upsert(mapper, connection, target: "OnlinePreOrder"):
+    """إنشاء/تحديث GLBatch للطلب الأونلاين تلقائياً"""
+    
+    # إذا الطلب ملغى، حذف أي GLBatch موجود
+    if target.payment_status == 'CANCELLED':
+        try:
+            connection.execute(
+                sa_text("""
+                    DELETE FROM gl_batches
+                    WHERE source_type = 'ONLINE_ORDER' AND source_id = :sid
+                """),
+                {"sid": target.id}
+            )
+        except:
+            pass
+        return
+    
+    # التحقق من وجود مبلغ
+    amount = float(target.total_amount or 0)
+    if amount <= 0:
+        return
+    
+    try:
+        # القيد المحاسبي للطلب الأونلاين:
+        # مدين: 1100_AR (حساب العملاء)
+        # دائن: 2300_ADVANCE_PAYMENTS (دفعات مقدمة)
+        entries = [
+            (GL_ACCOUNTS.get("AR", "1100_AR"), amount, 0),
+            (GL_ACCOUNTS.get("ADVANCE", "2300_ADVANCE_PAYMENTS"), 0, amount),
+        ]
+        
+        memo = f"طلب أونلاين - {target.order_number or target.id}"
+        
+        _gl_upsert_batch_and_entries(
+            connection,
+            source_type="ONLINE_ORDER",
+            source_id=target.id,
+            purpose="ONLINE_ORDER",
+            currency="ILS",
+            memo=memo,
+            entries=entries,
+            ref=target.order_number or f"ONL-{target.id}",
+            entity_type="CUSTOMER",
+            entity_id=target.customer_id
+        )
+    except Exception as e:
+        import sys
+        print(f"⚠️ خطأ في إنشاء GLBatch للطلب الأونلاين #{target.id}: {e}", file=sys.stderr)
 
 @event.listens_for(OnlinePreOrder, "after_update")
 def _op_reservation_flow(mapper, connection, target: "OnlinePreOrder"):
@@ -8784,6 +9087,47 @@ def _sale_normalize_update(mapper, connection, target: "Sale"):
     target.currency = ensure_currency(getattr(target, "currency", None) or "ILS")
 
 
+# ===== إنشاء قيود GL تلقائية لمرتجعات المبيعات =====
+@event.listens_for(SaleReturn, "after_insert")
+@event.listens_for(SaleReturn, "after_update")
+def _sale_return_gl_batch_upsert(mapper, connection, target: "SaleReturn"):
+    """إنشاء/تحديث GLBatch لمرتجع المبيعات تلقائياً"""
+    
+    # فقط للمرتجعات المؤكدة
+    if target.status != 'CONFIRMED':
+        return
+    
+    amount = float(target.total_amount or 0)
+    if amount <= 0:
+        return
+    
+    try:
+        # القيد المحاسبي للمرتجع (عكس البيع):
+        # مدين: 4000_SALES (إرجاع من المبيعات)
+        # دائن: 1100_AR (تخفيض ذمم العميل)
+        entries = [
+            (GL_ACCOUNTS.get("REV", "4000_SALES"), amount, 0),  # مدين: المبيعات (سالب)
+            (GL_ACCOUNTS.get("AR", "1100_AR"), 0, amount),  # دائن: حساب العملاء
+        ]
+        
+        memo = f"مرتجع مبيعات - {target.id}"
+        
+        _gl_upsert_batch_and_entries(
+            connection,
+            source_type="SALE_RETURN",
+            source_id=target.id,
+            purpose="RETURN",
+            currency="ILS",
+            memo=memo,
+            entries=entries,
+            ref=f"RET-{target.id}",
+            entity_type="CUSTOMER",
+            entity_id=target.customer_id
+        )
+    except Exception as e:
+        import sys
+        print(f"⚠️ خطأ في إنشاء GLBatch للمرتجع #{target.id}: {e}", file=sys.stderr)
+
 @event.listens_for(SaleReturn, "before_insert")
 def _sale_return_normalize_insert(mapper, connection, target: "SaleReturn"):
     target.currency = ensure_currency(getattr(target, "currency", None) or "ILS")
@@ -9332,14 +9676,23 @@ def _gl_upsert_batch_and_entries(
         raise ValueError("unbalanced or zero batch")
 
     accs = [r[0] for r in rows]
-    found = connection.execute(
-        select(func.count(Account.code)).where(
+    found_codes = connection.execute(
+        select(Account.code).where(
             Account.code.in_(accs),
             Account.is_active.is_(True)
         )
-    ).scalar() or 0
-    if int(found) != len(set(accs)):
-        raise ValueError("invalid or inactive account(s)")
+    ).scalars().all()
+    
+    found_set = set(found_codes)
+    required_set = set(accs)
+    
+    if found_set != required_set:
+        missing = required_set - found_set
+        import sys
+        print(f"⚠️ حسابات مفقودة: {missing}", file=sys.stderr)
+        print(f"⚠️ حسابات مطلوبة: {required_set}", file=sys.stderr)
+        print(f"⚠️ حسابات موجودة: {found_set}", file=sys.stderr)
+        raise ValueError(f"invalid or inactive account(s): {missing}")
 
     posted_exists = connection.execute(
         sa_text("""

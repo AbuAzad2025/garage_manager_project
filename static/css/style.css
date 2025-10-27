@@ -1202,6 +1202,55 @@ button:focus, .btn:focus {
 
 /* Enhanced System Improvements */
 
+/* ═══════ 🔧 إصلاح ألوان النصوص - لون النص فقط بدون خلفية ═══════ */
+.text-primary {
+  color: #0056b3 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.text-success {
+  color: #28a745 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.text-danger {
+  color: #dc3545 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.text-warning {
+  color: #ffc107 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.text-info {
+  color: #17a2b8 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.text-secondary {
+  color: #6c757d !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.text-dark {
+  color: #343a40 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.text-muted {
+  color: #6c757d !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
 /* Enhanced Typography */
 body {
   font-family: var(--font-family-ar);

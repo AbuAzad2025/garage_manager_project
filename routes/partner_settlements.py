@@ -1078,7 +1078,7 @@ def _get_partner_sales_share(partner_id: int, date_from: datetime, date_to: date
         ServicePart.partner_id == partner_id,
         ServiceRequest.received_at >= date_from,
         ServiceRequest.received_at <= date_to,
-        ServiceRequest.status == 'COMPLETED'
+        ServiceRequest.status == ServiceStatus.COMPLETED.value
     ).all()
     
     for item in service_sales:
@@ -1685,7 +1685,7 @@ def _get_partner_service_fees(partner_id: int, partner: Partner, date_from: date
         ServiceRequest.customer_id == partner.customer_id,
         ServiceRequest.received_at >= date_from,
         ServiceRequest.received_at <= date_to,
-        ServiceRequest.status == 'COMPLETED'
+        ServiceRequest.status == ServiceStatus.COMPLETED.value
     ).order_by(ServiceRequest.received_at).all()
     
     items = []

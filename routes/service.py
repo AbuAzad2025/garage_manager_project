@@ -621,7 +621,7 @@ def analytics():
     # إحصائيات شاملة
     total_requests = ServiceRequest.query.count()
     completed_this_month = ServiceRequest.query.filter(
-        ServiceRequest.status == 'COMPLETED',
+        ServiceRequest.status == ServiceStatus.COMPLETED.value,
         ServiceRequest.completed_at >= datetime.now().replace(day=1)
     ).count()
     
@@ -632,7 +632,7 @@ def analytics():
             func.julianday(ServiceRequest.received_at)
         )
     ).filter(
-        ServiceRequest.status == 'COMPLETED',
+        ServiceRequest.status == ServiceStatus.COMPLETED.value,
         ServiceRequest.completed_at.isnot(None)
     ).scalar() or 0
     
@@ -651,7 +651,7 @@ def analytics():
         'new': ServiceRequest.query.filter(ServiceRequest.received_at >= week_ago).count(),
         'completed': ServiceRequest.query.filter(
             ServiceRequest.completed_at >= week_ago,
-            ServiceRequest.status == 'COMPLETED'
+            ServiceRequest.status == ServiceStatus.COMPLETED.value
         ).count(),
         'in_progress': ServiceRequest.query.filter(
             ServiceRequest.status == 'IN_PROGRESS'

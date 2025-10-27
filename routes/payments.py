@@ -1550,7 +1550,14 @@ def get_entities(entity_type):
             } for s in entities])
             
         elif entity_type == "INVOICE":
-            query = Invoice.query.filter_by(status="UNPAID")
+            # ✅ status محسوب تلقائياً - نستخدم total_paid للفلترة على الفواتير غير المدفوعة
+            from sqlalchemy import and_
+            query = Invoice.query.filter(
+                and_(
+                    Invoice.total_paid == 0,
+                    Invoice.cancelled_at.is_(None)
+                )
+            )
             if search:
                 query = query.join(Customer).filter(
                     or_(
