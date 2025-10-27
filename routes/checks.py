@@ -1338,7 +1338,7 @@ def get_alerts():
             })
         
         # ترتيب: المتأخر أولاً، ثم حسب تاريخ الاستحقاق
-        alerts.sort(key=lambda x: (x['type'] != 'overdue', x['days']))
+        alerts.sort(key=lambda x: (x['type'] != 'overdue', x.get('days', x.get('days_overdue', 0))))
         
         return jsonify({
             'success': True,
