@@ -9,7 +9,7 @@
  🚀 الطريقة السريعة (نسخ ولصق كامل)
 ═══════════════════════════════════════════════════════════════════
 
-cd ~/garage_manager_project/garage_manager && \
+cd ~/garage_manager_project && \
 cp instance/garage_manager.db instance/garage_manager_backup_$(date +%Y%m%d_%H%M%S).db && \
 git pull origin main && \
 python3.10 -m flask db upgrade && \
@@ -27,7 +27,7 @@ echo "╚═══════════════════════�
 ═══════════════════════════════════════════════════════════════════
 
 # 1️⃣ الانتقال للمجلد
-cd ~/garage_manager_project/garage_manager
+cd ~/garage_manager_project
 
 # 2️⃣ عمل Backup
 cp instance/garage_manager.db instance/garage_manager_backup_$(date +%Y%m%d_%H%M%S).db
@@ -72,7 +72,7 @@ EOF
 ═══════════════════════════════════════════════════════════════════
 
 # استعادة آخر نسخة احتياطية
-cd ~/garage_manager_project/garage_manager
+cd ~/garage_manager_project
 cp instance/garage_manager_backup_*.db instance/garage_manager.db
 touch /var/www/palkaraj_pythonanywhere_com_wsgi.py
 echo "✅ تم استعادة النسخة الاحتياطية!"

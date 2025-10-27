@@ -10,11 +10,11 @@ echo ""
 
 # 1. التأكد من المسار
 echo "📁 التحقق من المسار..."
-if [ ! -d "~/garage_manager_project/garage_manager" ]; then
+if [ ! -d "~/garage_manager_project" ]; then
     echo "❌ خطأ: المسار غير موجود!"
     exit 1
 fi
-cd ~/garage_manager_project/garage_manager || exit 1
+cd ~/garage_manager_project || exit 1
 echo "✅ المسار صحيح"
 echo ""
 
