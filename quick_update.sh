@@ -20,9 +20,9 @@ echo ""
 
 # 2. عمل Backup
 echo "💾 إنشاء نسخة احتياطية..."
-BACKUP_FILE="instance/garage_manager_backup_$(date +%Y%m%d_%H%M%S).db"
-if [ -f "instance/garage_manager.db" ]; then
-    cp instance/garage_manager.db "$BACKUP_FILE"
+BACKUP_FILE="instance/app_backup_$(date +%Y%m%d_%H%M%S).db"
+if [ -f "instance/app.db" ]; then
+    cp instance/app.db "$BACKUP_FILE"
     echo "✅ تم إنشاء النسخة الاحتياطية: $BACKUP_FILE"
 else
     echo "⚠️  لم يتم العثور على قاعدة البيانات (أول تشغيل؟)"

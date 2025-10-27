@@ -10,7 +10,7 @@
 ═══════════════════════════════════════════════════════════════════
 
 cd ~/garage_manager_project && \
-cp instance/garage_manager.db instance/garage_manager_backup_$(date +%Y%m%d_%H%M%S).db && \
+cp instance/app.db instance/app_backup_$(date +%Y%m%d_%H%M%S).db && \
 git pull origin main && \
 python3.10 -m flask db upgrade && \
 touch /var/www/palkaraj_pythonanywhere_com_wsgi.py && \
@@ -30,7 +30,7 @@ echo "╚═══════════════════════�
 cd ~/garage_manager_project
 
 # 2️⃣ عمل Backup
-cp instance/garage_manager.db instance/garage_manager_backup_$(date +%Y%m%d_%H%M%S).db
+cp instance/app.db instance/app_backup_$(date +%Y%m%d_%H%M%S).db
 
 # 3️⃣ سحب التحديثات
 git pull origin main
@@ -73,7 +73,7 @@ EOF
 
 # استعادة آخر نسخة احتياطية
 cd ~/garage_manager_project
-cp instance/garage_manager_backup_*.db instance/garage_manager.db
+cp instance/app_backup_*.db instance/app.db
 touch /var/www/palkaraj_pythonanywhere_com_wsgi.py
 echo "✅ تم استعادة النسخة الاحتياطية!"
 
