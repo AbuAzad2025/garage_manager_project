@@ -73,8 +73,6 @@
                         if (isOverdue && (actualStatus === 'PENDING' || actualStatus === 'DUE_SOON' || actualStatus === 'RESUBMITTED')) {
                             // ✅ شيك معلق لكن تاريخه فات = متأخر
                             categorized.overdue.push(check);
-                            //} else if (actualStatus === 'OVERDUE') {
-                            categorized.overdue.push(check);
                         } else if (actualStatus === 'CASHED') {
                             categorized.cashed.push(check);
                         } else if (actualStatus === 'RETURNED') {
@@ -146,9 +144,6 @@
                     
                     // تحديث الإحصائيات
                     updateStats(categorized);
-                } else {
-
-                }
             },
             error: function(xhr, status, error) {
                 showNotification('فشل جلب الشيكات', 'danger');
