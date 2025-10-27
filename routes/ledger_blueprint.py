@@ -224,7 +224,10 @@ def get_ledger_data():
         
         # 3. الدفعات (Payments)
         if not transaction_type or transaction_type == 'payment':
-            payments_query = Payment.query.filter(Payment.status == 'COMPLETED')
+            # ✅ إضافة الشيكات المعطلة والمرتدة للتوثيق
+            payments_query = Payment.query.filter(
+                Payment.status.in_(['COMPLETED', 'PENDING', 'BOUNCED', 'FAILED', 'REJECTED'])
+            )
             if from_date:
                 payments_query = payments_query.filter(Payment.payment_date >= from_date)
             if to_date:
@@ -232,6 +235,11 @@ def get_ledger_data():
             
             for payment in payments_query.order_by(Payment.payment_date).all():
                 from models import fx_rate as get_fx_rate
+                
+                # ✅ فحص حالة الدفعة
+                payment_status = getattr(payment, 'status', 'COMPLETED')
+                is_bounced = payment_status in ['BOUNCED', 'FAILED', 'REJECTED']
+                is_pending = payment_status == 'PENDING'
                 
                 # استخدام fx_rate_used إذا كان موجوداً، وإلا حساب السعر
                 amount = float(payment.total_amount or 0)
@@ -249,8 +257,19 @@ def get_ledger_data():
                         from flask import current_app
                         current_app.logger.error(f"❌ خطأ في تحويل العملة للدفعة #{payment.id}: {str(e)}")
                 
-                # تحديد الاتجاه
-                if payment.direction == 'OUT':
+                # تحديد الاتجاه - الشيكات المرتدة تعكس القيد
+                if is_bounced:
+                    # الشيك المرتد = زي increase في الرصيد للمدين (نفس الفاتورة/البيع)
+                    # يعتمد على الاتجاه الأصلي
+                    if payment.direction == 'OUT':
+                        debit = amount  # عكس: كان دائن، صار مدين
+                        credit = 0.0
+                        running_balance += debit
+                    else:
+                        credit = amount  # عكس: كان مدين، صار دائن
+                        debit = 0.0
+                        running_balance -= credit
+                elif payment.direction == 'OUT':
                     credit = amount
                     debit = 0.0
                     running_balance -= credit
@@ -259,6 +278,7 @@ def get_ledger_data():
                     credit = 0.0
                     running_balance += debit
                 
+                # ✅ تحديد اسم الكيان
                 entity_name = "غير محدد"
                 if payment.customer:
                     entity_name = payment.customer.name
@@ -267,16 +287,84 @@ def get_ledger_data():
                 elif payment.partner:
                     entity_name = payment.partner.name
                 
+                # ✅ بناء الوصف مع تفاصيل الشيك
+                method_value = getattr(payment, 'method', 'cash')
+                if hasattr(method_value, 'value'):
+                    method_value = method_value.value
+                method_raw = str(method_value).lower()
+                
+                description_parts = [f"دفعة - {entity_name}"]
+                
+                # ✅ إضافة تفاصيل الشيك
+                if method_raw == 'cheque':
+                    check_number = getattr(payment, 'check_number', None)
+                    check_bank = getattr(payment, 'check_bank', None)
+                    check_due_date = getattr(payment, 'check_due_date', None)
+                    
+                    if check_number:
+                        description_parts.append(f"شيك #{check_number}")
+                    else:
+                        description_parts.append("شيك")
+                    
+                    if check_bank:
+                        description_parts.append(f"- {check_bank}")
+                    
+                    if check_due_date:
+                        from datetime import datetime
+                        if isinstance(check_due_date, datetime):
+                            check_due_date_str = check_due_date.strftime('%Y-%m-%d')
+                        else:
+                            check_due_date_str = str(check_due_date)
+                        description_parts.append(f"استحقاق: {check_due_date_str}")
+                    
+                    # ✅ إضافة حالة الشيك
+                    if is_bounced:
+                        description_parts.append("- ❌ مرتد")
+                    elif is_pending:
+                        description_parts.append("- ⏳ معلق")
+                else:
+                    # ✅ طريقة الدفع بالعربي
+                    method_arabic = {
+                        'cash': 'نقداً',
+                        'card': 'بطاقة',
+                        'bank': 'تحويل بنكي',
+                        'online': 'إلكتروني'
+                    }.get(method_raw, method_raw)
+                    description_parts.append(f"({method_arabic})")
+                
+                if payment.reference:
+                    description_parts.append(f"- {payment.reference}")
+                
+                description = " ".join(description_parts)
+                
+                # ✅ تحديد نوع القيد حسب الحالة
+                if is_bounced:
+                    entry_type = "check_bounced"
+                    type_ar = "شيك مرتد"
+                elif is_pending and method_raw == 'cheque':
+                    entry_type = "check_pending"
+                    type_ar = "شيك معلق"
+                else:
+                    entry_type = "payment"
+                    type_ar = "دفعة"
+                
                 ledger_entries.append({
                     "id": payment.id,
                     "date": payment.payment_date.strftime('%Y-%m-%d'),
                     "transaction_number": f"PAY-{payment.id}",
-                    "type": "payment",
-                    "type_ar": "دفعة",
-                    "description": f"دفعة - {entity_name} - {payment.reference or ''}",
+                    "type": entry_type,
+                    "type_ar": type_ar,
+                    "description": description,
                     "debit": debit,
                     "credit": credit,
-                    "balance": running_balance
+                    "balance": running_balance,
+                    "payment_details": {
+                        "method": method_raw,
+                        "check_number": getattr(payment, 'check_number', None),
+                        "check_bank": getattr(payment, 'check_bank', None),
+                        "check_due_date": getattr(payment, 'check_due_date', None),
+                        "status": payment_status
+                    }
                 })
         
         # 4. الصيانة (Service Requests)

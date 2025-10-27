@@ -1228,6 +1228,8 @@ function getTransactionBadgeClass(type) {
         'purchase': 'info',
         'expense': 'warning',
         'payment': 'primary',
+        'check_pending': 'warning text-dark',
+        'check_bounced': 'danger',
         'maintenance': 'danger',
         'service': 'secondary',
         'opening': 'dark'
@@ -1236,21 +1238,46 @@ function getTransactionBadgeClass(type) {
 }
 
 function getTransactionDescription(entry) {
-    // إضافة وصف بسيط وواضح لكل نوع معاملة
-    const descriptions = {
-        'sale': '💰 مبيعات: تزيد الرصيد (مدين)',
-        'purchase': '🛒 مشتريات: تنقص الرصيد (دائن)',
-        'expense': '📊 مصروف: تنقص الرصيد (دائن)',
-        'payment': '💳 دفعة: تحصيل (مدين) أو سداد (دائن)',
-        'service': '🔧 صيانة: تزيد الرصيد (مدين)',
-        'maintenance': '🛠️ صيانة: تزيد الرصيد (مدين)',
-        'opening': '📦 رصيد افتتاحي: قيمة المخزون'
-    };
+    // ✅ بناء الوصف التفصيلي مع معلومات الشيك
+    let descriptionHtml = entry.description || 'عملية محاسبية';
     
-    const baseDesc = descriptions[entry.type] || 'عملية محاسبية';
+    // ✅ إضافة تفاصيل الشيك إذا كان موجوداً
+    if (entry.payment_details && entry.payment_details.method === 'cheque') {
+        const pd = entry.payment_details;
+        let checkInfo = '<div class="mt-2 p-2 bg-light rounded" style="border-right: 3px solid #007bff;">';
+        
+        if (pd.check_number) {
+            checkInfo += `<strong><i class="fas fa-file-invoice-dollar"></i> رقم الشيك: ${pd.check_number}</strong><br>`;
+        }
+        
+        if (pd.check_bank) {
+            checkInfo += `<i class="fas fa-university"></i> البنك: ${pd.check_bank}<br>`;
+        }
+        
+        if (pd.check_due_date) {
+            const dueDate = new Date(pd.check_due_date);
+            const daysUntilDue = Math.ceil((dueDate - new Date()) / (1000 * 60 * 60 * 24));
+            let statusBadge = '';
+            if (entry.type === 'check_bounced') {
+                statusBadge = '<span class="badge bg-danger">❌ مرتد</span>';
+            } else if (entry.type === 'check_pending') {
+                statusBadge = '<span class="badge bg-warning text-dark">⏳ معلق</span>';
+            } else if (daysUntilDue < 0) {
+                statusBadge = '<span class="badge bg-danger">⚠️ متأخر ' + Math.abs(daysUntilDue) + ' يوم</span>';
+            } else if (daysUntilDue <= 3) {
+                statusBadge = '<span class="badge bg-warning text-dark">📅 قريب الاستحقاق (' + daysUntilDue + ' أيام)</span>';
+            } else {
+                statusBadge = '<span class="badge bg-success">✓ صالح (' + daysUntilDue + ' يوم)</span>';
+            }
+            checkInfo += `<i class="fas fa-calendar-alt"></i> تاريخ الاستحقاق: ${dueDate.toLocaleDateString('ar-SA')} ${statusBadge}`;
+        }
+        
+        checkInfo += '</div>';
+        descriptionHtml += checkInfo;
+    }
     
     // إضافة ملخص سريع
-    let summary = `<div class="small text-muted mt-1">`;
+    let summary = `<div class="small text-muted mt-2">`;
     if (entry.debit > 0) {
         summary += `<i class="fas fa-arrow-up text-success"></i> مدين: ${formatCurrency(entry.debit)}`;
     }
@@ -1262,10 +1289,7 @@ function getTransactionDescription(entry) {
     
     return `
         <div>
-            ${entry.description}
-            <small class="text-muted d-block" style="font-size: 0.85em;">
-                ${baseDesc}
-            </small>
+            ${descriptionHtml}
             ${summary}
         </div>
     `;
