@@ -15,8 +15,8 @@ def check_old_data():
         
         # 1. فحص الفواتير
         total_invoices = Invoice.query.count()
-        invoices_with_gl = db.session.query(func.count(func.distinct(GLBatch.invoice_id)))\
-            .filter(GLBatch.invoice_id.isnot(None)).scalar() or 0
+        invoices_with_gl = db.session.query(func.count(func.distinct(GLBatch.source_id)))\
+            .filter(GLBatch.source_type == 'Invoice').scalar() or 0
         invoices_without_gl = total_invoices - invoices_with_gl
         
         print(f"📄 الفواتير:")
@@ -27,8 +27,8 @@ def check_old_data():
         
         # 2. فحص المبيعات
         total_sales = Sale.query.count()
-        sales_with_gl = db.session.query(func.count(func.distinct(GLBatch.sale_id)))\
-            .filter(GLBatch.sale_id.isnot(None)).scalar() or 0
+        sales_with_gl = db.session.query(func.count(func.distinct(GLBatch.source_id)))\
+            .filter(GLBatch.source_type == 'Sale').scalar() or 0
         sales_without_gl = total_sales - sales_with_gl
         
         print(f"🛒 المبيعات:")
@@ -39,8 +39,8 @@ def check_old_data():
         
         # 3. فحص الدفعات
         total_payments = Payment.query.count()
-        payments_with_gl = db.session.query(func.count(func.distinct(GLBatch.payment_id)))\
-            .filter(GLBatch.payment_id.isnot(None)).scalar() or 0
+        payments_with_gl = db.session.query(func.count(func.distinct(GLBatch.source_id)))\
+            .filter(GLBatch.source_type == 'Payment').scalar() or 0
         payments_without_gl = total_payments - payments_with_gl
         
         print(f"💰 الدفعات:")
