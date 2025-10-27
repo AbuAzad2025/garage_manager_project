@@ -27,6 +27,9 @@ def upgrade():
     """
     op.execute('PRAGMA foreign_keys=OFF;')
     
+    # حذف الـ backup القديم إن وُجد (من محاولة فاشلة سابقة)
+    op.execute('DROP TABLE IF EXISTS payments_backup;')
+    
     # نسخ كامل البيانات
     op.execute('CREATE TABLE payments_backup AS SELECT * FROM payments;')
     
