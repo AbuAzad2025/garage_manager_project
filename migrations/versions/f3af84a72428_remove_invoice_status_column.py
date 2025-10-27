@@ -28,6 +28,11 @@ def upgrade():
     
     # الخطوة 0.5: حذف أي جداول مؤقتة من محاولات سابقة
     op.execute('DROP TABLE IF EXISTS invoices_new;')
+    op.execute('DROP TABLE IF EXISTS payments_backup_temp;')
+    
+    # الخطوة 0.6: حفظ جدول payments (مهم جداً!)
+    # لأن حذف invoices سيحذف payments بسبب CASCADE
+    op.execute('CREATE TABLE payments_backup_temp AS SELECT * FROM payments;')
     
     # الخطوة 1: حذف الفهارس التي تستخدم status
     op.execute('DROP INDEX IF EXISTS ix_invoices_customer_status_date;')
@@ -112,7 +117,14 @@ def upgrade():
     # الخطوة 5: إعادة تسمية الجدول الجديد
     op.execute('ALTER TABLE invoices_new RENAME TO invoices;')
     
-    # الخطوة 6: إعادة إنشاء الفهارس (بدون status)
+    # الخطوة 6: استعادة جدول payments (مهم جداً!)
+    # حذف payments الحالية (قد تكون فارغة أو تالفة بعد حذف invoices)
+    op.execute('DELETE FROM payments;')
+    # استعادة payments من النسخة الاحتياطية
+    op.execute('INSERT INTO payments SELECT * FROM payments_backup_temp;')
+    op.execute('DROP TABLE payments_backup_temp;')
+    
+    # الخطوة 7: إعادة إنشاء الفهارس (بدون status)
     op.execute('CREATE INDEX ix_invoices_invoice_number ON invoices (invoice_number);')
     op.execute('CREATE INDEX ix_invoices_invoice_date ON invoices (invoice_date);')
     op.execute('CREATE INDEX ix_invoices_due_date ON invoices (due_date);')
@@ -126,7 +138,7 @@ def upgrade():
     op.execute('CREATE INDEX ix_invoices_kind ON invoices (kind);')
     op.execute('CREATE INDEX ix_invoices_cancelled_at ON invoices (cancelled_at);')
     
-    # الخطوة 7: إعادة تفعيل FOREIGN KEY constraints
+    # الخطوة 8: إعادة تفعيل FOREIGN KEY constraints
     op.execute('PRAGMA foreign_keys=ON;')
 
 
