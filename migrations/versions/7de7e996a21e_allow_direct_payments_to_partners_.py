@@ -113,7 +113,7 @@ def upgrade():
         );
     ''')
     
-    # نسخ البيانات بنفس الترتيب
+    # نسخ البيانات (بدون created_at و updated_at لأنها غير موجودة في الجدول القديم)
     op.execute('''
         INSERT INTO payments (
             id, payment_number, payment_date, subtotal, tax_rate, tax_amount,
@@ -124,7 +124,7 @@ def upgrade():
             card_last4, bank_transfer_ref, created_by, customer_id, supplier_id,
             partner_id, shipment_id, expense_id, loan_settlement_id, sale_id,
             invoice_id, preorder_id, service_id, refund_of_id, idempotency_key,
-            is_archived, archived_at, archived_by, archive_reason, created_at, updated_at
+            is_archived, archived_at, archived_by, archive_reason
         )
         SELECT 
             id, payment_number, payment_date, subtotal, tax_rate, tax_amount,
@@ -135,7 +135,7 @@ def upgrade():
             card_last4, bank_transfer_ref, created_by, customer_id, supplier_id,
             partner_id, shipment_id, expense_id, loan_settlement_id, sale_id,
             invoice_id, preorder_id, service_id, refund_of_id, idempotency_key,
-            is_archived, archived_at, archived_by, archive_reason, created_at, updated_at
+            is_archived, archived_at, archived_by, archive_reason
         FROM payments_backup;
     ''')
     
