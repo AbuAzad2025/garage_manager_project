@@ -263,6 +263,19 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   function updateRelatedFields() {
+    // Debug: فحص العناصر
+    console.log('🔍 Debug:', {
+      typeSelect: !!typeSelect,
+      employeeField: !!employeeField,
+      periodFields: !!periodFields,
+      utilityField: !!utilityField,
+      warehouseField: !!warehouseField,
+      shipmentField: !!shipmentField,
+      partnerField: !!partnerField,
+      beneficiaryField: !!beneficiaryField,
+      stockField: !!stockField
+    });
+    
     // ✅ إخفاء وتعطيل كل الحقول أولاً
     [employeeField, periodFields, utilityField, warehouseField, shipmentField, 
      partnerField, beneficiaryField, stockField].forEach(f => {
