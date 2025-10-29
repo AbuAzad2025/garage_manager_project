@@ -1471,6 +1471,10 @@ def _get_partner_preorders_prepaid(partner_id: int, partner: Partner, date_from:
     if not partner.customer_id:
         return {"items": [], "total_ils": 0.0, "count": 0}
     
+    # Debug
+    import sys
+    print(f"DEBUG: partner_id={partner_id}, customer_id={partner.customer_id}, date_from={date_from}, date_to={date_to}", file=sys.stderr)
+    
     # جلب الحجوزات المسبقة للعميل المرتبط بالشريك (جميع الحالات)
     preorders = db.session.query(PreOrder).filter(
         PreOrder.customer_id == partner.customer_id,
@@ -1478,6 +1482,8 @@ def _get_partner_preorders_prepaid(partner_id: int, partner: Partner, date_from:
         PreOrder.preorder_date >= date_from,
         PreOrder.preorder_date <= date_to
     ).order_by(PreOrder.preorder_date).all()
+    
+    print(f"DEBUG: Found {len(preorders)} preorders with prepaid amount", file=sys.stderr)
     
     items = []
     total_ils = Decimal('0.00')
