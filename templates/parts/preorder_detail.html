@@ -129,6 +129,21 @@
         </form>
         {% endif %}
 
+      {% else %}
+        
+        {# الحجز منفّذ - عرض زر الأرشيف #}
+        {% if preorder.status == 'FULFILLED' %}
+          {% if preorder.sale %}
+          <a href="{{ url_for('sales_bp.sale_detail', id=preorder.sale.id) }}" class="btn btn-primary">
+            <i class="fas fa-file-invoice me-1"></i> عرض تفاصيل المبيعة #{{ preorder.sale.id }}
+          </a>
+          {% else %}
+          <a href="{{ url_for('sales_bp.list_sales') }}" class="btn btn-outline-info">
+            <i class="fas fa-file-invoice me-1"></i> عرض جميع المبيعات
+          </a>
+          {% endif %}
+        {% endif %}
+
       {% endif %}
       <a class="btn btn-secondary" href="{{ url_for('warehouse_bp.preorders_list') }}"><i class="fas fa-arrow-right me-1"></i> رجوع</a>
     </div>
