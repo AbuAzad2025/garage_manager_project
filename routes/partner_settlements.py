@@ -390,11 +390,11 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
         # 2. نصيبه من المبيعات (من سعر البيع) ✅
         sales_share = _get_partner_sales_share(partner_id, date_from, date_to)
         
-        # 3. أرصدة الحجوزات المسبقة (العربون المدفوع)
-        preorders_prepaid = _get_partner_preorders_prepaid(partner_id, partner, date_from, date_to)
-        
-        # 4. دفعات دفعها لنا (IN) - تُنقص من مديونيته (تُضاف للرصيد)
+        # 3. دفعات دفعها لنا (IN) - تُنقص من مديونيته (تُضاف للرصيد)
         payments_from_partner = _get_partner_payments_received(partner_id, partner, date_from, date_to)
+        
+        # 4. أرصدة الحجوزات المسبقة (العربون المدفوع) - تُحسب كدفعة واردة
+        preorders_prepaid = _get_partner_preorders_prepaid(partner_id, partner, date_from, date_to)
         
         # ═══════════════════════════════════════════════════════════
         # 🔴 جانب الدائن (ما عليه لنا - حقوقنا)
@@ -420,10 +420,9 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
         # ═══════════════════════════════════════════════════════════
         
         # حقوق الشريك (ما استحقه من عمله)
-        # ✅ المخزون + نصيب المبيعات + أرصدة الحجوزات المسبقة
+        # ✅ المخزون + نصيب المبيعات فقط
         partner_rights = Decimal(str(inventory.get("total_ils", 0) if isinstance(inventory, dict) else 0)) + \
-                        Decimal(str(sales_share.get("total_share_ils", 0))) + \
-                        Decimal(str(preorders_prepaid.get("total_ils", 0)))
+                        Decimal(str(sales_share.get("total_share_ils", 0)))
         
         # التزامات الشريك (ما عليه لنا)
         partner_obligations = Decimal(str(sales_to_partner.get("total_ils", 0))) + \
@@ -438,7 +437,8 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
         # - دفعات واردة (IN): دفع لنا → تُنقص من مديونيته (تُضاف للرصيد إذا كان سالب)
         # - دفعات صادرة (OUT): دفعنا له → تُنقص من حقوقنا عليه (تُطرح من الرصيد)
         paid_to_partner = Decimal(str(payments_to_partner.get("total_ils", 0)))
-        received_from_partner = Decimal(str(payments_from_partner.get("total_ils", 0)))
+        received_from_partner = Decimal(str(payments_from_partner.get("total_ils", 0))) + \
+                               Decimal(str(preorders_prepaid.get("total_ils", 0)))
         
         # الرصيد النهائي = الرصيد الافتتاحي + (حقوقه - التزاماته) - (دفعنا له) + (دفع لنا)
         # مثال: رصيد افتتاحي 30 + (له 100 - عليه 20) - دفعنا له 60 + دفع لنا 10 = 60
@@ -466,7 +466,6 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
             "rights": {
                 "inventory": inventory,
                 "sales_share": sales_share,
-                "preorders_prepaid": preorders_prepaid,
                 "total": float(partner_rights)
             },
             # 🔴 التزامات الشريك (ما عليه لنا)
@@ -477,10 +476,11 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
                 "expenses": {"total_ils": float(expenses_deducted or 0)},
                 "total": float(partner_obligations)
             },
-            # 💰 الدفعات المسددة (كلها تُخصم من الرصيد)
+            # 💰 الدفعات المسددة
             "payments": {
                 "paid_to_partner": payments_to_partner,  # OUT - دفعنا له
                 "received_from_partner": payments_from_partner,  # IN - دفع لنا
+                "preorders_prepaid": preorders_prepaid,  # IN - أرصدة الحجوزات (دفعة واردة)
                 "total_paid": float(paid_to_partner),
                 "total_received": float(received_from_partner),
                 "total_settled": float(paid_to_partner + received_from_partner)
