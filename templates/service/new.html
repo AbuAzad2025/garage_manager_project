@@ -163,36 +163,35 @@
   </form>
 </div>
 
-<div class="modal fade" id="equipmentTypeModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <form class="modal-content" id="equipmentTypeForm">
-      <div class="modal-header">
-        <h5 class="modal-title">إضافة نوع معدة/مركبة</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="إغلاق">
-          <span aria-hidden="true">&times;</span>
-        </button>
-      </div>
-      <div class="modal-body">
+<div id="equipmentTypeModal" class="custom-modal" style="display:none;">
+  <div class="custom-modal-overlay"></div>
+  <div class="custom-modal-content">
+    <div class="custom-modal-header">
+      <h5>إضافة نوع معدة/مركبة</h5>
+      <button type="button" class="custom-modal-close" id="closeModalBtn">&times;</button>
+    </div>
+    <form id="equipmentTypeForm">
+      <div class="custom-modal-body">
         <div class="mb-2">
-          <label class="form-label">الاسم *</label>
+          <label>الاسم *</label>
           <input type="text" class="form-control" id="et_name" required>
         </div>
         <div class="mb-2">
-          <label class="form-label">الموديل</label>
+          <label>الموديل</label>
           <input type="text" class="form-control" id="et_model">
         </div>
         <div class="mb-2">
-          <label class="form-label">الفئة</label>
+          <label>الفئة</label>
           <input type="text" class="form-control" id="et_category">
         </div>
         <div class="mb-2">
-          <label class="form-label">وصف</label>
+          <label>وصف</label>
           <textarea class="form-control" id="et_notes" rows="2"></textarea>
         </div>
       </div>
-      <div class="modal-footer">
-        <button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> حفظ وإختيار</button>
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
+      <div class="custom-modal-footer">
+        <button type="submit" class="btn btn-primary">حفظ</button>
+        <button type="button" class="btn btn-secondary" id="cancelModalBtn">إلغاء</button>
       </div>
     </form>
   </div>
@@ -200,6 +199,15 @@
 
 <style>
   @media print { .btn, .breadcrumb, .page-header { display:none!important; } }
+  .custom-modal{position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999}
+  .custom-modal-overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5)}
+  .custom-modal-content{position:relative;width:500px;max-width:90%;margin:50px auto;background:#fff;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.3);z-index:10000}
+  .custom-modal-header{padding:15px;border-bottom:1px solid #ddd;display:flex;justify-content:space-between;align-items:center}
+  .custom-modal-header h5{margin:0;font-size:18px}
+  .custom-modal-close{background:none;border:none;font-size:24px;cursor:pointer;padding:0;width:30px;height:30px}
+  .custom-modal-body{padding:20px}
+  .custom-modal-footer{padding:15px;border-top:1px solid #ddd;text-align:left}
+  .custom-modal-footer .btn{margin-left:5px}
 </style>
 {% endblock %}
 
@@ -209,7 +217,8 @@
   <script src="{{ url_for('static', filename='js/service.js') }}"></script>
   <script>
     $(function () {
-      $('.select2').each(function(){
+      // تهيئة Select2 للعناصر خارج الـ modal فقط
+      $('.select2').not('#equipmentTypeModal .select2').each(function(){
         const ep = $(this).data('endpoint');
         if (ep) {
           $(this).select2({
@@ -227,7 +236,17 @@
         }
       });
 
-      $('#addTypeBtn').on('click', () => { $('#equipmentTypeModal').modal('show'); });
+      $('#addTypeBtn').on('click', function(e) {
+        e.preventDefault();
+        $('#equipmentTypeModal').show();
+        $('#et_name').focus();
+      });
+      
+      $('#closeModalBtn, #cancelModalBtn, .custom-modal-overlay').on('click', function() {
+        $('#equipmentTypeModal').hide();
+        $('#equipmentTypeForm')[0].reset();
+      });
+      
       $('#equipmentTypeForm').on('submit', async function(e){
         e.preventDefault();
         const btn = $(this).find('[type="submit"]')[0];
@@ -250,9 +269,10 @@
           const $type = $('#vehicleTypeSelect');
           const opt = new Option(data.text, data.id, true, true);
           $type.append(opt).trigger('change');
-          $('#equipmentTypeModal').modal('hide');
+          $('#equipmentTypeModal').hide();
+          $('#equipmentTypeForm')[0].reset();
         } catch (err) {
-          alert(err.message || 'تعذّر إنشاء النوع');
+          alert(err.message || 'خطأ: ' + err.message);
         } finally {
           if (btn) btn.disabled = false;
         }
