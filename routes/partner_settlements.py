@@ -7,7 +7,7 @@ from sqlalchemy import and_
 from sqlalchemy.exc import SQLAlchemyError
 from extensions import db
 import utils
-from models import Partner, PaymentDirection, PaymentMethod, PartnerSettlement, PartnerSettlementStatus, build_partner_settlement_draft, AuditLog, SaleStatus
+from models import Partner, PaymentDirection, PaymentMethod, PartnerSettlement, PartnerSettlementStatus, build_partner_settlement_draft, AuditLog, SaleStatus, ServiceStatus
 import json
 
 partner_settlements_bp = Blueprint("partner_settlements_bp", __name__, url_prefix="/partners")
