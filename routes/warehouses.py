@@ -2962,8 +2962,8 @@ def preorder_convert_to_sale(preorder_id):
         
         sl.quantity = available - qty
         
-        # لا نحدث حالة الحجز هنا - سيتحدث بعد الدفع الكامل
-        # preorder.status = "FULFILLED"  # سيُحدث عند اكتمال الدفع
+        # ✅ تحديث حالة الحجز إلى منفذ فوراً لأن الكمية تم خصمها من المخزون
+        preorder.status = "FULFILLED"
         
         db.session.commit()
         
