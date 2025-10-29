@@ -64,7 +64,7 @@
               <option value="">— جميع الموظفين —</option>
               {% for emp in employees %}
                 <option value="{{ emp.id }}" {% if selected_employee_id == emp.id %}selected{% endif %}>
-                  {{ emp.username }}
+                  {{ emp.name }}{% if emp.position %} - {{ emp.position }}{% endif %}
                 </option>
               {% endfor %}
             </select>

@@ -725,8 +725,8 @@ def expenses_report():
         emp_values.append(v)
     
     # جلب قائمة الموظفين للفلتر
-    from models import User
-    employees = User.query.filter_by(is_active=True).order_by(User.username).all()
+    from models import Employee
+    employees = Employee.query.order_by(Employee.name).all()
     
     return render_template(
         "reports/expenses.html",
