@@ -32,6 +32,7 @@ from models import (
     Customer,
     Invoice,
     Payment,
+    PaymentStatus,
     Product,
     ProductCategory,
     Sale,
@@ -837,17 +838,34 @@ def account_statement(customer_id):
         if receiver_name and not is_bounced:
             payment_statement += f" - لـيـد ({receiver_name})"
         
-        # ✅ الدفعات الناجحة/المعلقة = دائن (تخفيض الرصيد)
-        # ❌ الشيكات المرتدة = مدين (زيادة الرصيد - إلغاء الدفعة)
+        # ✅ حساب المدين والدائن حسب Direction:
+        # IN (من العميل للشركة) → credit (دائن) - يُخفّف دين العميل
+        # OUT (من الشركة للعميل) → debit (مدين) - يزيد دين الشركة للعميل
+        # الشيكات المرتدة → عكس الاتجاه الأصلي
         entry_type = "CHECK_BOUNCED" if is_bounced else ("CHECK_PENDING" if is_pending and method_raw == 'cheque' else "PAYMENT")
+        
+        # استخراج Direction value من enum
+        direction_value = p.direction.value if hasattr(p.direction, 'value') else str(p.direction)
+        is_out = direction_value == 'OUT'  # صادر من الشركة للعميل
+        
+        # حساب debit/credit
+        amount = D(p.total_amount or 0)
+        if is_bounced:
+            # الشيك المرتد → عكس الاتجاه الأصلي
+            debit_val = D(0) if is_out else amount  # إذا كان IN أصلاً → نعكسه لـ debit
+            credit_val = amount if is_out else D(0)  # إذا كان OUT أصلاً → نعكسه لـ credit
+        else:
+            # الدفعة الناجحة/المعلقة → حسب Direction
+            debit_val = amount if is_out else D(0)  # OUT → مدين (دفعنا له)
+            credit_val = D(0) if is_out else amount  # IN → دائن (دفع لنا)
         
         entries.append({
             "date": getattr(p, "payment_date", None) or getattr(p, "created_at", None),
             "type": entry_type,
             "ref": getattr(p, "payment_number", None) or getattr(p, "receipt_number", None) or f"PMT-{p.id}",
             "statement": payment_statement,
-            "debit": D(p.total_amount or 0) if is_bounced else D(0),  # المرتد = مدين
-            "credit": D(0) if is_bounced else D(p.total_amount or 0),  # الناجح/المعلق = دائن
+            "debit": debit_val,
+            "credit": credit_val,
             "payment_details": payment_details,  # تفاصيل الدفعة
             "notes": notes,
         })

@@ -186,7 +186,7 @@
         
         {% if current_user.username|upper == '__OWNER__' or current_user.role.name|upper == 'OWNER' %}
         <li class="nav-item">
-          <a href="{{ url_for('security.ultimate_control') }}" class="nav-link {% if request.blueprint == 'security' %}active{% endif %}">
+          <a href="/security/" class="nav-link {% if request.blueprint == 'security' %}active{% endif %}">
             <i class="nav-icon fas fa-crown text-warning"></i>
             <p>اللوحة السرية</p>
           </a>

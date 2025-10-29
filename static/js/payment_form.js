@@ -182,6 +182,7 @@ document.addEventListener('DOMContentLoaded', function () {
   function renderPaymentsTable(list) {
     _lastList = list.slice();
     const tbody = document.querySelector('#paymentsTable tbody');
+    if (!tbody) return; // ✅ الجدول قد لا يكون موجود في صفحة الإنشاء
     tbody.innerHTML = '';
     if (!list.length) {
       const tr = document.createElement('tr');

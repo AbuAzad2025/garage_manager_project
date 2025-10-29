@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>التحقق المحاسبي - نظام إدارة المرآب</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .check-card {
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+        .check-card:hover {
+            transform: translateY(-3px);
+        }
+        .status-pass { color: #28a745; }
+        .status-fail { color: #dc3545; }
+        .status-warning { color: #ffc107; }
+        .status-info { color: #17a2b8; }
+        .check-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        .health-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 10px;
+        }
+        .health-green { background-color: #28a745; }
+        .health-yellow { background-color: #ffc107; }
+        .health-red { background-color: #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 d-md-block bg-dark sidebar">
+                <div class="position-sticky pt-3">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="/security/ledger-control">
+                                <i class="fas fa-tachometer-alt me-2"></i>
+                                لوحة التحكم
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="/reports/financial">
+                                <i class="fas fa-chart-line me-2"></i>
+                                التقارير المالية
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white active" href="/validation/accounting">
+                                <i class="fas fa-check-circle me-2"></i>
+                                التحقق المحاسبي
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="/docs/accounting">
+                                <i class="fas fa-book me-2"></i>
+                                التوثيق المحاسبي
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">
+                        <i class="fas fa-check-circle text-success me-2"></i>
+                        التحقق المحاسبي
+                    </h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <button type="button" class="btn btn-outline-secondary" onclick="runAllChecks()">
+                            <i class="fas fa-play me-1"></i>
+                            تشغيل جميع الفحوصات
+                        </button>
+                    </div>
+                </div>
+
+                <!-- System Health Status -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-heartbeat me-2"></i>
+                                    حالة النظام المحاسبي
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="systemHealth" class="text-center">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">جاري الفحص...</span>
+                                    </div>
+                                    <p class="mt-2">جاري فحص حالة النظام...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Validation Checks -->
+                <div class="row">
+                    <div class="col-md-6 col-lg-3 mb-4">
+                        <div class="card check-card h-100" onclick="runCheck('balance-check')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-balance-scale check-icon text-primary"></i>
+                                <h5 class="card-title">فحص التوازن</h5>
+                                <p class="card-text">Balance Check</p>
+                                <small class="text-muted">التحقق من توازن القيود المحاسبية</small>
+                                <div id="balance-check-status" class="mt-2">
+                                    <span class="health-indicator health-yellow"></span>
+                                    <small>لم يتم الفحص</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-3 mb-4">
+                        <div class="card check-card h-100" onclick="runCheck('account-consistency')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-list-check check-icon text-info"></i>
+                                <h5 class="card-title">اتساق الحسابات</h5>
+                                <p class="card-text">Account Consistency</p>
+                                <small class="text-muted">فحص الحسابات المستخدمة والموجودة</small>
+                                <div id="account-consistency-status" class="mt-2">
+                                    <span class="health-indicator health-yellow"></span>
+                                    <small>لم يتم الفحص</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-3 mb-4">
+                        <div class="card check-card h-100" onclick="runCheck('entity-balance-verification')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-users check-icon text-success"></i>
+                                <h5 class="card-title">التحقق من الأرصدة</h5>
+                                <p class="card-text">Balance Verification</p>
+                                <small class="text-muted">مقارنة أرصدة الكيانات مع GL</small>
+                                <div id="entity-balance-verification-status" class="mt-2">
+                                    <span class="health-indicator health-yellow"></span>
+                                    <small>لم يتم الفحص</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-3 mb-4">
+                        <div class="card check-card h-100" onclick="runCheck('transaction-integrity')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-shield-alt check-icon text-warning"></i>
+                                <h5 class="card-title">تكامل المعاملات</h5>
+                                <p class="card-text">Transaction Integrity</p>
+                                <small class="text-muted">فحص المعاملات بدون قيود محاسبية</small>
+                                <div id="transaction-integrity-status" class="mt-2">
+                                    <span class="health-indicator health-yellow"></span>
+                                    <small>لم يتم الفحص</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Checks -->
+                <div class="row">
+                    <div class="col-md-6 col-lg-3 mb-4">
+                        <div class="card check-card h-100" onclick="runCheck('periodic-audit')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-clipboard-check check-icon text-secondary"></i>
+                                <h5 class="card-title">مراجعة دورية</h5>
+                                <p class="card-text">Periodic Audit</p>
+                                <small class="text-muted">مراجعة شاملة للنظام</small>
+                                <div id="periodic-audit-status" class="mt-2">
+                                    <span class="health-indicator health-yellow"></span>
+                                    <small>لم يتم الفحص</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-3 mb-4">
+                        <div class="card check-card h-100" onclick="fixUnbalancedBatches()">
+                            <div class="card-body text-center">
+                                <i class="fas fa-tools check-icon text-danger"></i>
+                                <h5 class="card-title">إصلاح القيود</h5>
+                                <p class="card-text">Fix Unbalanced</p>
+                                <small class="text-muted">إصلاح القيود غير المتوازنة</small>
+                                <div id="fix-unbalanced-status" class="mt-2">
+                                    <span class="health-indicator health-yellow"></span>
+                                    <small>جاهز للإصلاح</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Check Results -->
+                <div id="checkResults" class="mt-4" style="display: none;">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 id="checkTitle">نتائج الفحص</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="checkContent">
+                                <!-- Check results will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loading Spinner -->
+                <div id="loadingSpinner" class="text-center mt-4" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">جاري الفحص...</span>
+                    </div>
+                    <p class="mt-2">جاري تشغيل الفحص...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Run specific check
+        function runCheck(checkType) {
+            showLoading();
+            
+            fetch(`/validation/accounting/${checkType}`)
+                .then(response => response.json())
+                .then(data => {
+                    hideLoading();
+                    if (data.success) {
+                        displayCheckResults(checkType, data);
+                        updateCheckStatus(checkType, data);
+                    } else {
+                        showError(data.error);
+                    }
+                })
+                .catch(error => {
+                    hideLoading();
+                    showError('حدث خطأ في تشغيل الفحص: ' + error.message);
+                });
+        }
+
+        // Run all checks
+        function runAllChecks() {
+            const checks = ['balance-check', 'account-consistency', 'entity-balance-verification', 'transaction-integrity', 'periodic-audit'];
+            
+            checks.forEach((check, index) => {
+                setTimeout(() => {
+                    runCheck(check);
+                }, index * 1000); // Run checks with 1 second delay
+            });
+        }
+
+        // Fix unbalanced batches
+        function fixUnbalancedBatches() {
+            if (!confirm('هل أنت متأكد من إصلاح القيود غير المتوازنة؟')) {
+                return;
+            }
+            
+            showLoading();
+            
+            fetch('/validation/accounting/fix-unbalanced-batches', {
+                method: 'POST'
+            })
+                .then(response => response.json())
+                .then(data => {
+                    hideLoading();
+                    if (data.success) {
+                        displayFixResults(data);
+                        updateFixStatus(data);
+                    } else {
+                        showError(data.error);
+                    }
+                })
+                .catch(error => {
+                    hideLoading();
+                    showError('حدث خطأ في الإصلاح: ' + error.message);
+                });
+        }
+
+        // Display check results
+        function displayCheckResults(checkType, data) {
+            const checkResults = document.getElementById('checkResults');
+            const checkTitle = document.getElementById('checkTitle');
+            const checkContent = document.getElementById('checkContent');
+            
+            let title = '';
+            let content = '';
+            
+            switch(checkType) {
+                case 'balance-check':
+                    title = 'فحص توازن القيود المحاسبية';
+                    content = generateBalanceCheckHTML(data);
+                    break;
+                case 'account-consistency':
+                    title = 'فحص اتساق الحسابات';
+                    content = generateAccountConsistencyHTML(data);
+                    break;
+                case 'entity-balance-verification':
+                    title = 'التحقق من أرصدة الكيانات';
+                    content = generateEntityBalanceVerificationHTML(data);
+                    break;
+                case 'transaction-integrity':
+                    title = 'فحص تكامل المعاملات';
+                    content = generateTransactionIntegrityHTML(data);
+                    break;
+                case 'periodic-audit':
+                    title = 'المراجعة الدورية';
+                    content = generatePeriodicAuditHTML(data);
+                    break;
+            }
+            
+            checkTitle.textContent = title;
+            checkContent.innerHTML = content;
+            checkResults.style.display = 'block';
+            
+            // Scroll to results
+            checkResults.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Generate HTML for Balance Check
+        function generateBalanceCheckHTML(data) {
+            const summary = data.summary;
+            const statusClass = summary.balance_status === 'BALANCED' ? 'success' : 'danger';
+            
+            return `
+                <div class="alert alert-${statusClass}">
+                    <i class="fas fa-${summary.balance_status === 'BALANCED' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+                    <strong>حالة التوازن: ${summary.balance_status === 'BALANCED' ? 'متوازن' : 'غير متوازن'}</strong>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>إحصائيات القيود</h6>
+                        <table class="table table-striped">
+                            <tr><td>إجمالي القيود</td><td class="text-end">${summary.total_batches}</td></tr>
+                            <tr><td>القيود غير المتوازنة</td><td class="text-end">${summary.unbalanced_batches}</td></tr>
+                            <tr><td>نسبة التوازن</td><td class="text-end">${((summary.total_batches - summary.unbalanced_batches) / summary.total_batches * 100).toFixed(1)}%</td></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>القيود غير المتوازنة</h6>
+                        ${data.unbalanced_batches.length > 0 ? `
+                            <div class="table-responsive" style="max-height: 300px;">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr><th>كود القيد</th><th>المصدر</th><th>الفرق</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        ${data.unbalanced_batches.map(batch => `
+                                            <tr>
+                                                <td>${batch.batch_code}</td>
+                                                <td>${batch.source_type}</td>
+                                                <td class="text-end">${batch.difference.toFixed(2)} ₪</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ` : '<p class="text-success">لا توجد قيود غير متوازنة ✓</p>'}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Generate HTML for Account Consistency
+        function generateAccountConsistencyHTML(data) {
+            const summary = data.summary;
+            const issues = data.issues;
+            
+            return `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>إحصائيات الحسابات</h6>
+                        <table class="table table-striped">
+                            <tr><td>الحسابات المستخدمة</td><td class="text-end">${summary.total_used_accounts}</td></tr>
+                            <tr><td>الحسابات الموجودة</td><td class="text-end">${summary.total_existing_accounts}</td></tr>
+                            <tr><td>الحسابات المفقودة</td><td class="text-end">${summary.missing_accounts_count}</td></tr>
+                            <tr><td>الحسابات غير المستخدمة</td><td class="text-end">${summary.unused_accounts_count}</td></tr>
+                            <tr><td>الحسابات غير النشطة المستخدمة</td><td class="text-end">${summary.inactive_used_count}</td></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>المشاكل المكتشفة</h6>
+                        ${issues.missing_accounts.length > 0 ? `
+                            <div class="alert alert-danger">
+                                <strong>حسابات مفقودة:</strong>
+                                <ul class="mb-0">
+                                    ${issues.missing_accounts.map(acc => `<li>${acc}</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                        ${issues.inactive_used_accounts.length > 0 ? `
+                            <div class="alert alert-warning">
+                                <strong>حسابات غير نشطة مستخدمة:</strong>
+                                <ul class="mb-0">
+                                    ${issues.inactive_used_accounts.map(acc => `<li>${acc}</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                        ${issues.missing_accounts.length === 0 && issues.inactive_used_accounts.length === 0 ? `
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle me-2"></i>
+                                لا توجد مشاكل في اتساق الحسابات ✓
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Generate HTML for Entity Balance Verification
+        function generateEntityBalanceVerificationHTML(data) {
+            const summary = data.summary;
+            const results = data.verification_results;
+            
+            return `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>ملخص التحقق</h6>
+                        <table class="table table-striped">
+                            <tr><td>إجمالي المفحوصين</td><td class="text-end">${summary.total_checked}</td></tr>
+                            <tr><td>متسق</td><td class="text-end text-success">${summary.consistent}</td></tr>
+                            <tr><td>غير متسق</td><td class="text-end text-danger">${summary.inconsistent}</td></tr>
+                            <tr><td>أخطاء</td><td class="text-end text-warning">${summary.errors}</td></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>نتائج التحقق</h6>
+                        <div class="table-responsive" style="max-height: 300px;">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr><th>الكيان</th><th>الاسم</th><th>GL</th><th>النموذج</th><th>الفرق</th><th>الحالة</th></tr>
+                                </thead>
+                                <tbody>
+                                    ${results.map(result => `
+                                        <tr>
+                                            <td>${result.entity_type}</td>
+                                            <td>${result.entity_name}</td>
+                                            <td class="text-end">${result.gl_balance ? result.gl_balance.toFixed(2) : 'N/A'}</td>
+                                            <td class="text-end">${result.model_balance ? result.model_balance.toFixed(2) : 'N/A'}</td>
+                                            <td class="text-end">${result.difference ? result.difference.toFixed(2) : 'N/A'}</td>
+                                            <td>
+                                                <span class="badge bg-${result.status === 'CONSISTENT' ? 'success' : result.status === 'INCONSISTENT' ? 'danger' : 'warning'}">
+                                                    ${result.status === 'CONSISTENT' ? 'متسق' : result.status === 'INCONSISTENT' ? 'غير متسق' : 'خطأ'}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Generate HTML for Transaction Integrity
+        function generateTransactionIntegrityHTML(data) {
+            const results = data.integrity_results;
+            const overallStatus = data.overall_status;
+            
+            return `
+                <div class="alert alert-${overallStatus === 'HEALTHY' ? 'success' : 'warning'}">
+                    <i class="fas fa-${overallStatus === 'HEALTHY' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+                    <strong>الحالة العامة: ${overallStatus === 'HEALTHY' ? 'سليم' : 'يحتاج انتباه'}</strong>
+                </div>
+                <div class="row">
+                    ${results.map(result => `
+                        <div class="col-md-6 mb-3">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <span class="badge bg-${result.status === 'PASS' ? 'success' : 'danger'} me-2">
+                                            ${result.status === 'PASS' ? 'نجح' : 'فشل'}
+                                        </span>
+                                        ${result.check}
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <p><strong>العدد:</strong> ${result.count}</p>
+                                    ${result.details && result.details.length > 0 ? `
+                                        <div class="table-responsive" style="max-height: 200px;">
+                                            <table class="table table-sm">
+                                                <thead>
+                                                    <tr><th>المعرف</th><th>الرقم</th><th>المبلغ</th><th>التاريخ</th></tr>
+                                                </thead>
+                                                <tbody>
+                                                    ${result.details.slice(0, 10).map(detail => `
+                                                        <tr>
+                                                            <td>${detail.sale_id || detail.payment_id}</td>
+                                                            <td>${detail.sale_number || detail.payment_number}</td>
+                                                            <td class="text-end">${detail.total_amount.toFixed(2)} ₪</td>
+                                                            <td>${detail.sale_date || detail.payment_date}</td>
+                                                        </tr>
+                                                    `).join('')}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // Generate HTML for Periodic Audit
+        function generatePeriodicAuditHTML(data) {
+            const results = data.audit_results;
+            
+            return `
+                <div class="row">
+                    ${results.map(result => `
+                        <div class="col-md-6 mb-3">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">${result.category}</h6>
+                                </div>
+                                <div class="card-body">
+                                    <table class="table table-sm">
+                                        ${Object.entries(result).filter(([key]) => key !== 'category').map(([key, value]) => `
+                                            <tr><td>${key}</td><td class="text-end">${value}</td></tr>
+                                        `).join('')}
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>تاريخ المراجعة:</strong> ${data.audit_date}
+                </div>
+            `;
+        }
+
+        // Display fix results
+        function displayFixResults(data) {
+            const checkResults = document.getElementById('checkResults');
+            const checkTitle = document.getElementById('checkTitle');
+            const checkContent = document.getElementById('checkContent');
+            
+            checkTitle.textContent = 'نتائج إصلاح القيود غير المتوازنة';
+            checkContent.innerHTML = `
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle me-2"></i>
+                    <strong>تم الإصلاح بنجاح!</strong>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>ملخص الإصلاح</h6>
+                        <table class="table table-striped">
+                            <tr><td>القيود المُصلحة</td><td class="text-end">${data.summary.fixed_batches}</td></tr>
+                            <tr><td>القيود غير القابلة للإصلاح</td><td class="text-end">${data.summary.unfixable_batches}</td></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>تفاصيل الإصلاح</h6>
+                        ${data.fixed_batches.length > 0 ? `
+                            <div class="table-responsive" style="max-height: 200px;">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr><th>كود القيد</th><th>الفرق</th><th>مبلغ التصحيح</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        ${data.fixed_batches.map(batch => `
+                                            <tr>
+                                                <td>${batch.batch_code}</td>
+                                                <td class="text-end">${batch.difference.toFixed(2)} ₪</td>
+                                                <td class="text-end">${batch.correction_amount.toFixed(2)} ₪</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ` : '<p class="text-muted">لا توجد قيود مُصلحة</p>'}
+                    </div>
+                </div>
+            `;
+            checkResults.style.display = 'block';
+        }
+
+        // Update check status
+        function updateCheckStatus(checkType, data) {
+            const statusElement = document.getElementById(`${checkType}-status`);
+            const indicator = statusElement.querySelector('.health-indicator');
+            const text = statusElement.querySelector('small');
+            
+            let status = 'yellow';
+            let statusText = 'لم يتم الفحص';
+            
+            if (data.summary) {
+                if (data.summary.balance_status === 'BALANCED' || 
+                    data.summary.consistent > 0 || 
+                    data.overall_status === 'HEALTHY') {
+                    status = 'green';
+                    statusText = 'سليم';
+                } else if (data.summary.unbalanced_batches > 0 || 
+                          data.summary.inconsistent > 0 || 
+                          data.overall_status === 'NEEDS_ATTENTION') {
+                    status = 'red';
+                    statusText = 'يحتاج انتباه';
+                }
+            }
+            
+            indicator.className = `health-indicator health-${status}`;
+            text.textContent = statusText;
+        }
+
+        // Update fix status
+        function updateFixStatus(data) {
+            const statusElement = document.getElementById('fix-unbalanced-status');
+            const indicator = statusElement.querySelector('.health-indicator');
+            const text = statusElement.querySelector('small');
+            
+            if (data.summary.fixed_batches > 0) {
+                indicator.className = 'health-indicator health-green';
+                text.textContent = `تم إصلاح ${data.summary.fixed_batches} قيد`;
+            } else {
+                indicator.className = 'health-indicator health-yellow';
+                text.textContent = 'لا توجد قيود للإصلاح';
+            }
+        }
+
+        // Load system health on page load
+        function loadSystemHealth() {
+            fetch('/reports/financial/validation')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const healthElement = document.getElementById('systemHealth');
+                        const overallStatus = data.overall_status;
+                        
+                        let healthClass = 'success';
+                        let healthIcon = 'check-circle';
+                        let healthText = 'النظام سليم';
+                        
+                        if (overallStatus === 'NEEDS_ATTENTION') {
+                            healthClass = 'warning';
+                            healthIcon = 'exclamation-triangle';
+                            healthText = 'النظام يحتاج انتباه';
+                        } else if (overallStatus === 'ERROR') {
+                            healthClass = 'danger';
+                            healthIcon = 'times-circle';
+                            healthText = 'النظام يحتاج إصلاح فوري';
+                        }
+                        
+                        healthElement.innerHTML = `
+                            <div class="alert alert-${healthClass}">
+                                <i class="fas fa-${healthIcon} me-2"></i>
+                                <strong>${healthText}</strong>
+                            </div>
+                            <div class="row">
+                                ${data.validation_results.map(result => `
+                                    <div class="col-md-6 mb-2">
+                                        <div class="d-flex justify-content-between">
+                                            <span>${result.name}</span>
+                                            <span class="badge bg-${result.status === 'OK' ? 'success' : result.status === 'WARNING' ? 'warning' : 'danger'}">
+                                                ${result.status === 'OK' ? 'سليم' : result.status === 'WARNING' ? 'تحذير' : 'خطأ'}
+                                            </span>
+                                        </div>
+                                        <small class="text-muted">${result.message}</small>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('systemHealth').innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            خطأ في تحميل حالة النظام
+                        </div>
+                    `;
+                });
+        }
+
+        // Utility functions
+        function showLoading() {
+            document.getElementById('loadingSpinner').style.display = 'block';
+            document.getElementById('checkResults').style.display = 'none';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingSpinner').style.display = 'none';
+        }
+
+        function showError(message) {
+            const checkResults = document.getElementById('checkResults');
+            const checkContent = document.getElementById('checkContent');
+            
+            checkContent.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    ${message}
+                </div>
+            `;
+            checkResults.style.display = 'block';
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSystemHealth();
+        });
+    </script>
+</body>
+</html>

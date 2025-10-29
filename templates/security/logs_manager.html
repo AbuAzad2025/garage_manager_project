@@ -164,7 +164,7 @@
           </div>
           
           <div class="mt-3">
-            <form method="POST" action="{{ url_for('security.clear_logs') }}">
+            <form method="POST" action="{{ url_for('security.logs_manager') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
               <button type="submit" class="btn btn-danger" onclick="return confirm('حذف جميع السجلات؟')">
                 <i class="fas fa-trash"></i> مسح السجلات

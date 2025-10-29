@@ -1,0 +1,519 @@
+{% extends "base.html" %}
+
+{% block title %}دليل الحسابات{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- العنوان الرئيسي -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body bg-gradient-primary text-white">
+            <div class="row align-items-center">
+                <div class="col-auto">
+                    <i class="fas fa-book fa-3x opacity-75"></i>
+                </div>
+                <div class="col">
+                    <h2 class="mb-1">📚 دليل الحسابات المحاسبية</h2>
+                    <p class="mb-0 opacity-90">جميع الحسابات المالية في النظام - شرح مبسط</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- شرح مبسط مع أمثلة -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-primary border-0 shadow-sm">
+                <h5 class="mb-3"><i class="fas fa-graduation-cap"></i> شرح مبسط - دليل الحسابات:</h5>
+                <p class="mb-3"><strong>الحسابات المحاسبية</strong> هي مثل "أدراج" في خزانة لتنظيم أموالك. كل "درج" له اسم ورقم:</p>
+                
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="card h-100 border-primary">
+                            <div class="card-body">
+                                <h6 class="text-primary"><i class="fas fa-wallet"></i> 💰 الأصول (ما تملكه)</h6>
+                                <p class="small mb-2">كل شيء عندك له قيمة:</p>
+                                <ul class="small mb-0">
+                                    <li>النقدية في الصندوق والبنك</li>
+                                    <li>البضاعة في المخزن (قطع غيار، إكسسوارات)</li>
+                                    <li>الشيكات اللي بتحصلها من العملاء</li>
+                                    <li>المعدات والأثاث</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card h-100 border-danger">
+                            <div class="card-body">
+                                <h6 class="text-danger"><i class="fas fa-file-invoice-dollar"></i> 📊 الخصوم (ما عليك)</h6>
+                                <p class="small mb-2">كل شيء مطلوب منك:</p>
+                                <ul class="small mb-0">
+                                    <li>الديون للموردين (بضاعة اشتريتها بالآجل)</li>
+                                    <li>الشيكات اللي أعطيتها للموردين</li>
+                                    <li>الضرائب المستحقة</li>
+                                    <li>القروض</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="card h-100 border-secondary">
+                            <div class="card-body">
+                                <h6 class="text-secondary"><i class="fas fa-landmark"></i> 🏦 حقوق الملكية</h6>
+                                <p class="small mb-2">رأس المال:</p>
+                                <ul class="small mb-0">
+                                    <li>رأس المال اللي بديت فيه</li>
+                                    <li>الأرباح المحتجزة</li>
+                                    <li>حصص الشركاء</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="card h-100 border-success">
+                            <div class="card-body">
+                                <h6 class="text-success"><i class="fas fa-arrow-circle-down"></i> 📈 الإيرادات (ما يدخل)</h6>
+                                <p class="small mb-2">الدخل:</p>
+                                <ul class="small mb-0">
+                                    <li>مبيعات البضاعة</li>
+                                    <li>خدمات الصيانة</li>
+                                    <li>أرباح أخرى</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="card h-100 border-warning">
+                            <div class="card-body">
+                                <h6 class="text-warning"><i class="fas fa-arrow-circle-up"></i> 📉 المصاريف (ما يخرج)</h6>
+                                <p class="small mb-2">المصاريف:</p>
+                                <ul class="small mb-0">
+                                    <li>رواتب الموظفين</li>
+                                    <li>إيجار، كهرباء، ماء</li>
+                                    <li>بنزين، صيانة</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-light mt-3 mb-0">
+                    <strong><i class="fas fa-lightbulb text-warning"></i> مثال عملي:</strong>
+                    عندما تبيع بضاعة بـ 1000 ₪:
+                    <ul class="mb-0 mt-2">
+                        <li>✅ <strong>الصندوق (أصل)</strong> يزيد +1000 ₪</li>
+                        <li>✅ <strong>المبيعات (إيراد)</strong> تسجل +1000 ₪</li>
+                        <li>✅ <strong>المخزون (أصل)</strong> ينقص -600 ₪ (قيمة البضاعة)</li>
+                        <li>✅ <strong>تكلفة البضاعة (مصروف)</strong> تسجل +600 ₪</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- إحصائيات سريعة -->
+    <div class="row mb-4">
+        <div class="col-md-2 col-sm-4 col-6 mb-3">
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <h3 class="text-primary mb-0" id="asset-count">0</h3>
+                    <small class="text-muted">الأصول</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 col-6 mb-3">
+            <div class="card border-danger">
+                <div class="card-body text-center">
+                    <h3 class="text-danger mb-0" id="liability-count">0</h3>
+                    <small class="text-muted">الخصوم</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 col-6 mb-3">
+            <div class="card border-secondary">
+                <div class="card-body text-center">
+                    <h3 class="text-secondary mb-0" id="equity-count">0</h3>
+                    <small class="text-muted">حقوق الملكية</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 col-6 mb-3">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <h3 class="text-success mb-0" id="revenue-count">0</h3>
+                    <small class="text-muted">الإيرادات</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 col-6 mb-3">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <h3 class="text-warning mb-0" id="expense-count">0</h3>
+                    <small class="text-muted">المصاريف</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 col-sm-4 col-6 mb-3">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <h3 class="text-info mb-0" id="total-count">0</h3>
+                    <small class="text-muted">المجموع</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- بحث -->
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                <input type="text" class="form-control" id="searchInput" placeholder="ابحث عن حساب...">
+            </div>
+        </div>
+        <div class="col-md-6">
+            <select class="form-select" id="filterType">
+                <option value="all">جميع الأنواع</option>
+                <option value="ASSET">الأصول فقط</option>
+                <option value="LIABILITY">الخصوم فقط</option>
+                <option value="EQUITY">حقوق الملكية فقط</option>
+                <option value="REVENUE">الإيرادات فقط</option>
+                <option value="EXPENSE">المصاريف فقط</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- أزرار الإجراءات -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="btn-group" role="group">
+                <button class="btn btn-outline-primary" onclick="toggleView('grouped')">
+                    <i class="fas fa-layer-group"></i> عرض مجمّع
+                </button>
+                <button class="btn btn-outline-primary" onclick="toggleView('table')">
+                    <i class="fas fa-table"></i> عرض جدول
+                </button>
+                <button class="btn btn-outline-success" onclick="exportToExcel()">
+                    <i class="fas fa-file-excel"></i> تصدير Excel
+                </button>
+                <button class="btn btn-outline-info" onclick="printAccounts()">
+                    <i class="fas fa-print"></i> طباعة
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- قائمة الحسابات -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div id="accountsContainer">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">جارٍ التحميل...</span>
+                    </div>
+                    <p class="mt-2 text-muted">جارٍ تحميل الحسابات...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .account-group {
+        margin-bottom: 2rem;
+    }
+    
+    .account-group-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .account-group-header h4 {
+        margin: 0;
+        font-weight: 600;
+    }
+    
+    .account-group-header .badge {
+        font-size: 0.9rem;
+        padding: 0.4rem 0.8rem;
+    }
+    
+    .account-item {
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 1rem 1.5rem;
+        margin-bottom: 0.75rem;
+        transition: all 0.3s ease;
+        background: white;
+    }
+    
+    .account-item:hover {
+        border-color: #667eea;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        transform: translateX(-3px);
+    }
+    
+    .account-code {
+        font-family: 'Courier New', monospace;
+        font-weight: bold;
+        font-size: 0.95rem;
+        color: #667eea;
+        min-width: 180px;
+        display: inline-block;
+    }
+    
+    .account-name {
+        font-weight: 500;
+        color: #2d3748;
+        font-size: 1rem;
+    }
+    
+    .account-badge {
+        font-size: 0.75rem;
+        padding: 0.3rem 0.7rem;
+        border-radius: 12px;
+    }
+    
+    .badge-ASSET { background: #e3f2fd; color: #1976d2; }
+    .badge-LIABILITY { background: #ffebee; color: #c62828; }
+    .badge-EQUITY { background: #f3e5f5; color: #7b1fa2; }
+    .badge-REVENUE { background: #e8f5e9; color: #388e3c; }
+    .badge-EXPENSE { background: #fff3e0; color: #f57c00; }
+    
+    .account-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        margin-right: 1rem;
+    }
+    
+    .icon-ASSET { background: #e3f2fd; color: #1976d2; }
+    .icon-LIABILITY { background: #ffebee; color: #c62828; }
+    .icon-EQUITY { background: #f3e5f5; color: #7b1fa2; }
+    .icon-REVENUE { background: #e8f5e9; color: #388e3c; }
+    .icon-EXPENSE { background: #fff3e0; color: #f57c00; }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #9e9e9e;
+    }
+    
+    .bg-gradient-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+</style>
+
+<script>
+let allAccounts = [];
+
+// أيقونات حسب النوع
+const typeIcons = {
+    'ASSET': '💰',
+    'LIABILITY': '📊',
+    'EQUITY': '🏦',
+    'REVENUE': '📈',
+    'EXPENSE': '📉'
+};
+
+// شرح مبسط لكل نوع
+const typeDescriptions = {
+    'ASSET': 'الأصول - ما تملكه (نقدية، بضاعة، معدات)',
+    'LIABILITY': 'الخصوم - ما عليك (ديون، شيكات صادرة)',
+    'EQUITY': 'حقوق الملكية - رأس المال والأرباح',
+    'REVENUE': 'الإيرادات - ما يدخل من مبيعات',
+    'EXPENSE': 'المصاريف - ما يخرج (رواتب، إيجار، كهرباء)'
+};
+
+// تحميل الحسابات
+async function loadAccounts() {
+    try {
+        const response = await fetch('/ledger/accounts');
+        const data = await response.json();
+        
+        allAccounts = data.accounts || [];
+        
+        // تحديث الإحصائيات
+        updateStats();
+        
+        // عرض الحسابات
+        displayAccounts(allAccounts);
+        
+    } catch (error) {
+        console.error('خطأ في تحميل الحسابات:', error);
+        document.getElementById('accountsContainer').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle"></i>
+                حدث خطأ في تحميل الحسابات. يرجى المحاولة لاحقاً.
+            </div>
+        `;
+    }
+}
+
+// تحديث الإحصائيات
+function updateStats() {
+    const counts = {
+        ASSET: 0,
+        LIABILITY: 0,
+        EQUITY: 0,
+        REVENUE: 0,
+        EXPENSE: 0
+    };
+    
+    allAccounts.forEach(acc => {
+        if (counts.hasOwnProperty(acc.type)) {
+            counts[acc.type]++;
+        }
+    });
+    
+    document.getElementById('asset-count').textContent = counts.ASSET;
+    document.getElementById('liability-count').textContent = counts.LIABILITY;
+    document.getElementById('equity-count').textContent = counts.EQUITY;
+    document.getElementById('revenue-count').textContent = counts.REVENUE;
+    document.getElementById('expense-count').textContent = counts.EXPENSE;
+    document.getElementById('total-count').textContent = allAccounts.length;
+}
+
+// عرض الحسابات
+function displayAccounts(accounts) {
+    const container = document.getElementById('accountsContainer');
+    
+    if (accounts.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-inbox fa-3x mb-3"></i>
+                <p>لا توجد حسابات لعرضها</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // تجميع حسب النوع
+    const grouped = {};
+    accounts.forEach(acc => {
+        if (!grouped[acc.type]) {
+            grouped[acc.type] = [];
+        }
+        grouped[acc.type].push(acc);
+    });
+    
+    // ترتيب الأنواع
+    const typeOrder = ['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE'];
+    
+    let html = '';
+    
+    typeOrder.forEach(type => {
+        if (grouped[type] && grouped[type].length > 0) {
+            html += `
+                <div class="account-group" data-type="${type}">
+                    <div class="account-group-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h4>
+                                <span class="me-2">${typeIcons[type]}</span>
+                                ${typeDescriptions[type]}
+                            </h4>
+                            <span class="badge bg-white text-dark">${grouped[type].length} حساب</span>
+                        </div>
+                    </div>
+                    <div class="account-list">
+            `;
+            
+            grouped[type].forEach(acc => {
+                html += `
+                    <div class="account-item" data-code="${acc.code}" data-name="${acc.name}">
+                        <div class="d-flex align-items-center">
+                            <div class="account-icon icon-${acc.type}">
+                                ${typeIcons[acc.type]}
+                            </div>
+                            <div class="flex-grow-1">
+                                <div>
+                                    <span class="account-code">${acc.code}</span>
+                                    <span class="account-name">${acc.name}</span>
+                                </div>
+                            </div>
+                            <span class="account-badge badge-${acc.type}">${acc.type}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                </div>
+            `;
+        }
+    });
+    
+    container.innerHTML = html;
+}
+
+// البحث والفلترة
+function filterAccounts() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const filterType = document.getElementById('filterType').value;
+    
+    let filtered = allAccounts;
+    
+    // فلترة حسب النوع
+    if (filterType !== 'all') {
+        filtered = filtered.filter(acc => acc.type === filterType);
+    }
+    
+    // فلترة حسب البحث
+    if (searchTerm) {
+        filtered = filtered.filter(acc => 
+            acc.code.toLowerCase().includes(searchTerm) ||
+            acc.name.toLowerCase().includes(searchTerm)
+        );
+    }
+    
+    displayAccounts(filtered);
+}
+
+// تبديل طريقة العرض
+let currentView = 'grouped';
+function toggleView(viewType) {
+    currentView = viewType;
+    displayAccounts(allAccounts);
+}
+
+// تصدير إلى Excel
+function exportToExcel() {
+    let csv = 'الرمز,الاسم,النوع\n';
+    allAccounts.forEach(acc => {
+        csv += `${acc.code},"${acc.name}",${acc.type}\n`;
+    });
+    
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `دليل_الحسابات_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+}
+
+// طباعة
+function printAccounts() {
+    window.print();
+}
+
+// الأحداث
+document.addEventListener('DOMContentLoaded', function() {
+    loadAccounts();
+    
+    document.getElementById('searchInput').addEventListener('input', filterAccounts);
+    document.getElementById('filterType').addEventListener('change', filterAccounts);
+});
+</script>
+{% endblock %}
+

@@ -41,6 +41,10 @@ from routes.barcode import bp_barcode
 from routes.partner_settlements import partner_settlements_bp
 from routes.supplier_settlements import supplier_settlements_bp
 from routes.ledger_blueprint import ledger_bp
+from routes.ledger_control import ledger_control_bp
+from routes.financial_reports import financial_reports_bp
+from routes.accounting_validation import accounting_validation_bp
+from routes.accounting_docs import accounting_docs_bp
 from routes.ledger_ai_assistant import ai_assistant_bp
 from routes.barcode_scanner import barcode_scanner_bp
 from routes.currencies import currencies_bp
@@ -449,6 +453,7 @@ def create_app(config_object=Config) -> Flask:
         currencies_bp,
         hard_delete_bp,
         barcode_scanner_bp,
+        ledger_control_bp,
         ai_assistant_bp,
         user_guide_bp,
         other_systems_bp,
@@ -459,6 +464,9 @@ def create_app(config_object=Config) -> Flask:
         advanced_bp,
         archive_bp,
         archive_routes_bp,
+        financial_reports_bp,
+        accounting_validation_bp,
+        accounting_docs_bp,
     ]
     for bp in BLUEPRINTS:
         app.register_blueprint(bp)

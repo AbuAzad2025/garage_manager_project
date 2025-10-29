@@ -1,37 +1,0 @@
-{% extends 'base.html' %}
-{% block title %}محرر Schema قاعدة البيانات{% endblock %}
-{% block page_title %}🗄️ محرر Schema قاعدة البيانات{% endblock %}
-
-{% block content %}
-<div class="container-fluid">
-  
-  {% include 'security/_navigation.html' %}
-  
-  <div class="alert alert-danger">
-    <i class="fas fa-exclamation-triangle"></i>
-    <strong>تحذير:</strong> تعديل Schema قاعدة البيانات قد يؤدي لفقدان البيانات! تأكد من عمل نسخة احتياطية أولاً.
-  </div>
-
-  <div class="card">
-    <div class="card-header">
-      <h3 class="card-title">Schema Viewer & Editor</h3>
-    </div>
-    <div class="card-body">
-      <p class="text-muted">هذه الصفحة قيد التطوير...</p>
-      
-      <div class="row">
-        <div class="col-md-12">
-          <h5>الجداول المتاحة:</h5>
-          <ul>
-            {% for table in tables %}
-            <li>{{ table }}</li>
-            {% endfor %}
-          </ul>
-        </div>
-      </div>
-    </div>
-  </div>
-
-</div>
-{% endblock %}
-

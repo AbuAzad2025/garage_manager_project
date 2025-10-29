@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>التوثيق المحاسبي - نظام إدارة المرآب</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .doc-card {
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+        .doc-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .doc-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        .doc-content {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 2rem;
+        }
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 1rem;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 d-md-block bg-dark sidebar">
+                <div class="position-sticky pt-3">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="/security/ledger-control">
+                                <i class="fas fa-tachometer-alt me-2"></i>
+                                لوحة التحكم
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="/reports/financial">
+                                <i class="fas fa-chart-line me-2"></i>
+                                التقارير المالية
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="/validation/accounting">
+                                <i class="fas fa-check-circle me-2"></i>
+                                التحقق المحاسبي
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white active" href="/docs/accounting">
+                                <i class="fas fa-book me-2"></i>
+                                التوثيق المحاسبي
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">
+                        <i class="fas fa-book text-info me-2"></i>
+                        التوثيق المحاسبي
+                    </h1>
+                </div>
+
+                <!-- Documentation Cards -->
+                <div class="row">
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card doc-card h-100" onclick="loadDoc('chart-of-accounts')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-list-ol doc-icon text-primary"></i>
+                                <h5 class="card-title">دليل الحسابات</h5>
+                                <p class="card-text">Chart of Accounts</p>
+                                <small class="text-muted">هيكل الحسابات المحاسبية الكامل</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card doc-card h-100" onclick="loadDoc('accounting-standards')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-balance-scale doc-icon text-success"></i>
+                                <h5 class="card-title">معايير المحاسبة</h5>
+                                <p class="card-text">Accounting Standards</p>
+                                <small class="text-muted">القواعد والمعايير المحاسبية</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card doc-card h-100" onclick="loadDoc('audit-policies')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-clipboard-check doc-icon text-warning"></i>
+                                <h5 class="card-title">سياسات المراجعة</h5>
+                                <p class="card-text">Audit Policies</p>
+                                <small class="text-muted">إجراءات الفحص والمراجعة</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card doc-card h-100" onclick="loadDoc('correction-procedures')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-tools doc-icon text-danger"></i>
+                                <h5 class="card-title">إجراءات الإصلاح</h5>
+                                <p class="card-text">Correction Procedures</p>
+                                <small class="text-muted">كيفية إصلاح الأخطاء المحاسبية</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card doc-card h-100" onclick="loadDoc('gl-accounts-reference')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-book-open doc-icon text-info"></i>
+                                <h5 class="card-title">مرجع حسابات GL</h5>
+                                <p class="card-text">GL Accounts Reference</p>
+                                <small class="text-muted">دليل استخدام حسابات دفتر الأستاذ</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card doc-card h-100" onclick="loadDoc('system-health-guide')">
+                            <div class="card-body text-center">
+                                <i class="fas fa-heartbeat doc-icon text-secondary"></i>
+                                <h5 class="card-title">دليل صحة النظام</h5>
+                                <p class="card-text">System Health Guide</p>
+                                <small class="text-muted">مؤشرات وإرشادات صحة النظام</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Documentation Content -->
+                <div id="docContent" class="mt-4" style="display: none;">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 id="docTitle">التوثيق</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="docBody">
+                                <!-- Documentation content will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Loading Spinner -->
+                <div id="loadingSpinner" class="text-center mt-4" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">جاري التحميل...</span>
+                    </div>
+                    <p class="mt-2">جاري تحميل التوثيق...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Load documentation
+        function loadDoc(docType) {
+            showLoading();
+            
+            fetch(`/docs/accounting/${docType}`)
+                .then(response => response.json())
+                .then(data => {
+                    hideLoading();
+                    if (data.success) {
+                        displayDoc(docType, data);
+                    } else {
+                        showError(data.error);
+                    }
+                })
+                .catch(error => {
+                    hideLoading();
+                    showError('حدث خطأ في تحميل التوثيق: ' + error.message);
+                });
+        }
+
+        // Display documentation
+        function displayDoc(docType, data) {
+            const docContent = document.getElementById('docContent');
+            const docTitle = document.getElementById('docTitle');
+            const docBody = document.getElementById('docBody');
+            
+            let title = '';
+            let content = '';
+            
+            switch(docType) {
+                case 'chart-of-accounts':
+                    title = 'دليل الحسابات المحاسبية';
+                    content = generateChartOfAccountsHTML(data);
+                    break;
+                case 'accounting-standards':
+                    title = 'معايير المحاسبة';
+                    content = generateAccountingStandardsHTML(data);
+                    break;
+                case 'audit-policies':
+                    title = 'سياسات المراجعة';
+                    content = generateAuditPoliciesHTML(data);
+                    break;
+                case 'correction-procedures':
+                    title = 'إجراءات الإصلاح';
+                    content = generateCorrectionProceduresHTML(data);
+                    break;
+                case 'gl-accounts-reference':
+                    title = 'مرجع حسابات GL';
+                    content = generateGLAccountsReferenceHTML(data);
+                    break;
+                case 'system-health-guide':
+                    title = 'دليل صحة النظام';
+                    content = generateSystemHealthGuideHTML(data);
+                    break;
+            }
+            
+            docTitle.textContent = title;
+            docBody.innerHTML = content;
+            docContent.style.display = 'block';
+            
+            // Scroll to content
+            docContent.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Generate Chart of Accounts HTML
+        function generateChartOfAccountsHTML(data) {
+            const accountStructure = data.account_structure;
+            const accountsByType = data.accounts_by_type;
+            const stats = data.stats;
+            
+            return `
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="alert alert-info">
+                            <h6>هيكل الحسابات</h6>
+                            <ul class="mb-0">
+                                ${Object.entries(accountStructure).map(([code, name]) => `
+                                    <li><strong>${code}:</strong> ${name}</li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <h6>إحصائيات الحسابات</h6>
+                        <table class="table table-sm table-striped">
+                            <tr><td>إجمالي الحسابات</td><td class="text-end">${stats.total_accounts}</td></tr>
+                            <tr><td>الحسابات النشطة</td><td class="text-end">${stats.active_accounts}</td></tr>
+                            <tr><td>الحسابات غير النشطة</td><td class="text-end">${stats.inactive_accounts}</td></tr>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    ${Object.entries(accountsByType).map(([type, accounts]) => `
+                        <div class="col-md-6 mb-3">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">${type} (${accounts.length})</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive" style="max-height: 300px;">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr><th>الكود</th><th>الاسم</th><th>الحالة</th></tr>
+                                            </thead>
+                                            <tbody>
+                                                ${accounts.map(acc => `
+                                                    <tr>
+                                                        <td>${acc.code}</td>
+                                                        <td>${acc.name}</td>
+                                                        <td>
+                                                            <span class="badge bg-${acc.is_active ? 'success' : 'secondary'}">
+                                                                ${acc.is_active ? 'نشط' : 'غير نشط'}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                `).join('')}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // Generate Accounting Standards HTML
+        function generateAccountingStandardsHTML(data) {
+            const standards = data.standards;
+            
+            return `
+                <div class="row">
+                    ${Object.entries(standards).map(([key, standard]) => `
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100">
+                                <div class="card-header">
+                                    <h6 class="mb-0">${standard.title}</h6>
+                                </div>
+                                <div class="card-body">
+                                    ${typeof standard === 'object' ? `
+                                        ${Object.entries(standard).filter(([k]) => k !== 'title').map(([k, v]) => `
+                                            <div class="mb-2">
+                                                <strong>${k}:</strong>
+                                                <div class="doc-content mt-1">
+                                                    ${typeof v === 'string' ? v : JSON.stringify(v, null, 2)}
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    ` : `
+                                        <div class="doc-content">${standard}</div>
+                                    `}
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // Generate Audit Policies HTML
+        function generateAuditPoliciesHTML(data) {
+            const policies = data.policies;
+            
+            return `
+                <div class="row">
+                    ${Object.entries(policies).map(([key, policy]) => `
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-check-circle text-success me-2"></i>
+                                        ${policy.title}
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    ${policy.checks ? `
+                                        <h6>الفحوصات:</h6>
+                                        <ul>
+                                            ${policy.checks.map(check => `<li>${check}</li>`).join('')}
+                                        </ul>
+                                    ` : ''}
+                                    ${policy.procedures ? `
+                                        <h6>الإجراءات:</h6>
+                                        <ul>
+                                            ${policy.procedures.map(proc => `<li>${proc}</li>`).join('')}
+                                        </ul>
+                                    ` : ''}
+                                    ${policy.frequency ? `
+                                        <div class="alert alert-info mt-2">
+                                            <strong>التكرار:</strong> ${policy.frequency}
+                                        </div>
+                                    ` : ''}
+                                    ${policy.responsible ? `
+                                        <div class="alert alert-warning mt-2">
+                                            <strong>المسؤول:</strong> ${policy.responsible}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // Generate Correction Procedures HTML
+        function generateCorrectionProceduresHTML(data) {
+            const procedures = data.procedures;
+            
+            return `
+                <div class="row">
+                    ${Object.entries(procedures).map(([key, procedure]) => `
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-tools text-danger me-2"></i>
+                                        ${procedure.title}
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    ${procedure.steps ? `
+                                        <h6>الخطوات:</h6>
+                                        <ol>
+                                            ${procedure.steps.map(step => `<li>${step}</li>`).join('')}
+                                        </ol>
+                                    ` : ''}
+                                    ${procedure.auto_fix ? `
+                                        <div class="alert alert-success mt-2">
+                                            <i class="fas fa-magic me-2"></i>
+                                            <strong>الإصلاح التلقائي:</strong> ${procedure.auto_fix}
+                                        </div>
+                                    ` : ''}
+                                    ${procedure.manual_fix ? `
+                                        <div class="alert alert-warning mt-2">
+                                            <i class="fas fa-hand-paper me-2"></i>
+                                            <strong>الإصلاح اليدوي:</strong> ${procedure.manual_fix}
+                                        </div>
+                                    ` : ''}
+                                    ${typeof procedure === 'string' ? `
+                                        <div class="doc-content">${procedure}</div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // Generate GL Accounts Reference HTML
+        function generateGLAccountsReferenceHTML(data) {
+            const basicAccounts = data.basic_gl_accounts;
+            const accountsByCategory = data.accounts_by_category;
+            
+            return `
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">حسابات GL الأساسية</h6>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-striped">
+                                    ${Object.entries(basicAccounts).map(([key, value]) => `
+                                        <tr>
+                                            <td><strong>${key}</strong></td>
+                                            <td>${value}</td>
+                                        </tr>
+                                    `).join('')}
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    ${Object.entries(accountsByCategory).map(([category, accounts]) => `
+                        <div class="col-md-6 mb-3">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">${category.toUpperCase()} (${accounts.length})</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive" style="max-height: 300px;">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr><th>الكود</th><th>الاسم</th><th>الاستخدام</th></tr>
+                                            </thead>
+                                            <tbody>
+                                                ${accounts.map(acc => `
+                                                    <tr>
+                                                        <td>${acc.code}</td>
+                                                        <td>${acc.name}</td>
+                                                        <td class="text-end">${acc.usage_count || 0}</td>
+                                                    </tr>
+                                                `).join('')}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // Generate System Health Guide HTML
+        function generateSystemHealthGuideHTML(data) {
+            const healthGuide = data.health_guide;
+            
+            return `
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <h5>مؤشرات صحة النظام</h5>
+                    </div>
+                    ${Object.entries(healthGuide.indicators).map(([level, indicator]) => `
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-header bg-${level === 'green' ? 'success' : level === 'yellow' ? 'warning' : 'danger'} text-white">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-circle me-2"></i>
+                                        ${indicator.description}
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <h6>الشروط:</h6>
+                                    <ul>
+                                        ${indicator.conditions.map(condition => `<li>${condition}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <h5>مهام الصيانة</h5>
+                    </div>
+                    ${Object.entries(healthGuide.maintenance_tasks).map(([period, tasks]) => `
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-calendar-alt me-2"></i>
+                                        ${period === 'daily' ? 'يومياً' : period === 'weekly' ? 'أسبوعياً' : 'شهرياً'}
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <ul>
+                                        ${tasks.map(task => `<li>${task}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-question-circle me-2"></i>
+                                    استكشاف الأخطاء وإصلاحها
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-striped">
+                                    ${Object.entries(healthGuide.troubleshooting).map(([problem, solution]) => `
+                                        <tr>
+                                            <td><strong>${problem}</strong></td>
+                                            <td>${solution}</td>
+                                        </tr>
+                                    `).join('')}
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Utility functions
+        function showLoading() {
+            document.getElementById('loadingSpinner').style.display = 'block';
+            document.getElementById('docContent').style.display = 'none';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingSpinner').style.display = 'none';
+        }
+
+        function showError(message) {
+            const docContent = document.getElementById('docContent');
+            const docBody = document.getElementById('docBody');
+            
+            docBody.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    ${message}
+                </div>
+            `;
+            docContent.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
+

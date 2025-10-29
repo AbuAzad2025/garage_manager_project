@@ -3,105 +3,470 @@
 
 {% block head_extra %}
 <style>
-/* تحسين تباين الألوان والتصميم */
+/* 🎨 Modern Gradient Design - تصميم عصري */
+
+/* Page Background */
+.content-wrapper {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%) !important;
+}
+
+/* Payment Cards - تدرجات عصرية */
 .payment-form-card {
-    border-radius: 12px;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
-    margin-bottom: 20px;
-    border: none;
+    border-radius: 20px !important;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.12) !important;
+    margin-bottom: 25px;
+    border: none !important;
+    background: white;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease !important;
 }
 
-.payment-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+.payment-form-card:hover {
+    transform: translateY(-5px) !important;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.18) !important;
+}
+
+/* Card Headers - تدرجات مختلفة لكل قسم */
+/* الصف الأول: 3 cards */
+/* نوع المعاملة */
+form .row:nth-of-type(1) .col-md-4:nth-child(1) .card-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+}
+
+/* المبلغ والتاريخ */
+form .row:nth-of-type(1) .col-md-4:nth-child(2) .card-header {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important;
+}
+
+/* تفاصيل إضافية */
+form .row:nth-of-type(1) .col-md-4:nth-child(3) .card-header {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+}
+
+/* الصف الثاني: الجهة المرتبطة والدفعات الجزئية */
+/* الجهة المرتبطة */
+form .row:nth-of-type(2) .col-md-6:nth-child(1) .card-header {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+}
+
+/* الدفعات الجزئية */
+form .row:nth-of-type(2) .col-md-6:nth-child(2) .card-header {
+    background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%) !important;
+    color: #2c3e50 !important;
+}
+
+/* الصف الثالث: ملاحظات */
+form .row:nth-of-type(3) .card-header {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%) !important;
+}
+
+/* تحسين زر إضافة دفعة جزئية */
+#addSplit {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    border: none !important;
     color: white !important;
-    padding: 20px;
-    border-radius: 12px 12px 0 0;
-}
-
-.form-label {
-    color: #343a40 !important;
     font-weight: 600 !important;
-    margin-bottom: 8px !important;
-    font-size: 0.9rem;
+    padding: 10px 25px !important;
+    border-radius: 10px !important;
+    transition: all 0.3s ease !important;
 }
 
+#addSplit:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3) !important;
+}
+
+.card-header {
+    color: white !important;
+    font-weight: 700 !important;
+    font-size: 1.1rem !important;
+    border-radius: 20px 20px 0 0 !important;
+    padding: 18px 25px !important;
+    border: none !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+}
+
+.card-header i {
+    font-size: 1.4rem !important;
+    opacity: 0.95;
+}
+
+.card-body {
+    padding: 25px !important;
+    overflow: visible !important;
+}
+
+/* Form Labels - أوضح وأجمل */
+.form-label {
+    color: #2c3e50 !important;
+    font-weight: 700 !important;
+    margin-bottom: 10px !important;
+    font-size: 0.95rem !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+
+/* Required Fields - الحقول الإجبارية */
+.required-field {
+    position: relative !important;
+}
+
+.required-field i {
+    margin-left: 6px !important;
+}
+
+.required-field .text-danger {
+    font-size: 1.1rem !important;
+    margin-right: 4px !important;
+}
+
+/* Optional Fields - الحقول الاختيارية */
+.optional-field i {
+    margin-left: 6px !important;
+}
+
+.optional-field .badge {
+    padding: 3px 8px !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+}
+
+/* Help Text - النصوص المساعدة */
+.form-text {
+    font-size: 0.85rem !important;
+    color: #6c757d !important;
+    margin-top: 6px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+
+.form-text i {
+    color: #667eea !important;
+}
+
+/* Amount Input - حقل المبلغ */
+.amount-input {
+    font-size: 1.2rem !important;
+    font-weight: 700 !important;
+    text-align: center !important;
+    color: #11998e !important;
+}
+
+/* Form Controls - عصرية ومريحة */
 .form-control, .form-select {
-    border: 2px solid #e0e0e0 !important;
-    border-radius: 8px !important;
-    padding: 10px 15px !important;
-    transition: all 0.3s !important;
-    color: #343a40 !important;
+    border: 2px solid #e8ecf1 !important;
+    border-radius: 12px !important;
+    padding: 12px 18px !important;
+    transition: all 0.3s ease !important;
+    color: #2c3e50 !important;
     font-weight: 500 !important;
+    font-size: 0.95rem !important;
+    background: #f8f9fa !important;
 }
 
 .form-control:focus, .form-select:focus {
     border-color: #667eea !important;
-    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25) !important;
+    background: white !important;
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1) !important;
+    transform: scale(1.01) !important;
 }
 
-.card-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-    color: white !important;
-    font-weight: 600 !important;
-    border-radius: 12px 12px 0 0 !important;
-    padding: 15px 20px !important;
-}
-
+/* Split Forms - تصميم كارت أنيق */
 .split-form {
-    background: #f8f9fa;
-    border: 2px solid #dee2e6 !important;
-    border-radius: 12px !important;
+    background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%) !important;
+    border: 2px solid #e0e7ff !important;
+    border-radius: 16px !important;
     padding: 20px !important;
-    margin-bottom: 15px !important;
+    margin-bottom: 18px !important;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.06) !important;
+    transition: all 0.3s ease !important;
+}
+
+.split-form:hover {
+    border-color: #667eea !important;
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.15) !important;
 }
 
 .split-form h5 {
     color: #667eea !important;
-    font-weight: 700 !important;
-    margin-bottom: 15px !important;
+    font-weight: 800 !important;
+    font-size: 1.05rem !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
 }
 
+.split-form h5 i {
+    color: #667eea !important;
+}
+
+/* Buttons - أزرار عصرية */
 .btn-success {
-    background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%) !important;
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important;
     border: none !important;
-    font-weight: 600 !important;
-    padding: 12px 30px !important;
-    border-radius: 8px !important;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
+    font-weight: 700 !important;
+    padding: 14px 35px !important;
+    border-radius: 12px !important;
+    box-shadow: 0 6px 20px rgba(17, 153, 142, 0.3) !important;
+    transition: all 0.3s ease !important;
+    font-size: 1.05rem !important;
 }
 
 .btn-success:hover {
-    transform: translateY(-2px) !important;
-    box-shadow: 0 6px 12px rgba(0,0,0,0.15) !important;
+    transform: translateY(-3px) scale(1.02) !important;
+    box-shadow: 0 10px 25px rgba(17, 153, 142, 0.4) !important;
 }
 
 .btn-danger {
     background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%) !important;
     border: none !important;
-    font-weight: 600 !important;
+    font-weight: 700 !important;
+    border-radius: 10px !important;
+    transition: all 0.3s ease !important;
+}
+
+.btn-danger:hover {
+    transform: scale(1.05) !important;
+    box-shadow: 0 5px 15px rgba(255, 107, 107, 0.3) !important;
 }
 
 .btn-secondary {
-    background: linear-gradient(135deg, #bdc3c7 0%, #2c3e50 100%) !important;
+    background: linear-gradient(135deg, #868f96 0%, #596164 100%) !important;
     border: none !important;
     font-weight: 600 !important;
+    border-radius: 10px !important;
 }
 
+/* Entity Info Card */
 .entity-info-card {
-    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
-    border: 2px solid #2196f3;
-    border-radius: 12px;
+    background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%) !important;
+    border: 3px solid #00bcd4 !important;
+    border-radius: 16px !important;
+    box-shadow: 0 6px 20px rgba(0, 188, 212, 0.2) !important;
 }
 
 .entity-info-card .card-header {
-    background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%) !important;
+    background: linear-gradient(135deg, #00bcd4 0%, #0097a7 100%) !important;
 }
 
 #splitSum {
     color: #667eea !important;
-    font-weight: 600 !important;
-    font-size: 0.9rem;
+    font-weight: 700 !important;
+    font-size: 1rem !important;
+    margin-top: 8px !important;
+    padding: 8px 12px !important;
+    background: linear-gradient(135deg, #e8eaf6 0%, #c5cae9 100%) !important;
+    border-radius: 8px !important;
+    display: inline-block !important;
 }
+
+/* Badges - عصرية */
+.badge {
+    padding: 8px 16px !important;
+    border-radius: 20px !important;
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+}
+
+.badge-info {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+    border: none !important;
+}
+
+.badge-success {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important;
+}
+
+.badge-danger {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%) !important;
+}
+
+.badge-warning {
+    background: linear-gradient(135deg, #f7b733 0%, #fc4a1a 100%) !important;
+}
+
+/* Alerts - تصميم حديث */
+.alert {
+    border-radius: 12px !important;
+    border: none !important;
+    padding: 15px 20px !important;
+    font-weight: 500 !important;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08) !important;
+}
+
+.alert-danger {
+    background: linear-gradient(135deg, #ffe0e0 0%, #ffd0d0 100%) !important;
+    color: #d32f2f !important;
+}
+
+.alert-warning {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffe4a3 100%) !important;
+    color: #856404 !important;
+}
+
+.alert-info {
+    background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%) !important;
+    color: #0c5460 !important;
+}
+
+.alert-success {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%) !important;
+    color: #155724 !important;
+}
+
+/* Input Groups - عصري */
+.input-group {
+    border-radius: 12px !important;
+    overflow: hidden !important;
+}
+
+.input-group .btn {
+    border-radius: 0 12px 12px 0 !important;
+    padding: 12px 20px !important;
+    font-weight: 600 !important;
+}
+
+/* Search Results - قائمة البحث الذكية */
+.search-results {
+    position: absolute !important;
+    top: calc(100% + 5px) !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-height: 500px !important; /* ✅ زيادة المساحة من 350 إلى 500 */
+    overflow-y: auto !important;
+    z-index: 9999 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 40px rgba(102, 126, 234, 0.35) !important;
+    border: 3px solid #667eea !important;
+    background: white !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Dropdown Toggle Button - زر السهم */
+.dropdown-toggle-btn {
+    border-left: none !important;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+    color: #495057 !important;
+    font-size: 0.9rem !important;
+    padding: 0.5rem 1rem !important;
+    transition: all 0.3s ease !important;
+    border: 1px solid #ced4da !important;
+}
+
+.dropdown-toggle-btn:hover {
+    background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%) !important;
+    color: #667eea !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(102, 126, 234, 0.2);
+}
+
+.dropdown-toggle-btn:active {
+    transform: translateY(0);
+}
+
+.dropdown-toggle-btn i {
+    transition: transform 0.3s ease;
+}
+
+.dropdown-toggle-btn:hover i {
+    transform: rotate(180deg);
+}
+
+/* Search Dropdown Field */
+.search-dropdown-field {
+    border-right: none !important;
+}
+
+/* إخفاء الإشعارات المزعجة في صفحة الدفعات */
+.toast,
+.toastr,
+[class*="toast-"],
+[class*="notification-"],
+.alert-toast,
+.swal2-container {
+    display: none !important;
+}
+
+/* ضمان positioning صحيح */
+.entity-field-container {
+    position: relative !important;
+    z-index: 1 !important;
+    overflow: visible !important; /* ✅ ضمان عدم قطع القائمة */
+}
+
+.entity-field-container .input-group {
+    position: relative !important;
+    z-index: 1 !important;
+    overflow: visible !important; /* ✅ ضمان عدم قطع القائمة */
+}
+
+/* ✅ التأكد من أن الـ card يسمح للقائمة بالظهور */
+.payment-form-card {
+    overflow: visible !important;
+}
+
+.payment-form-card .card-body {
+    overflow: visible !important;
+}
+
+.search-results .list-group-item {
+    border: none !important;
+    border-bottom: 1px solid #f0f0f0 !important;
+    padding: 8px 12px !important; /* ✅ مضغوط - عشان نشوف بنود أكثر */
+    transition: all 0.25s ease !important;
+    background: transparent !important; /* ✅ بدون خلفية - النص واضح */
+}
+
+/* ✅ إزالة الخلفية من النصوص داخل القائمة */
+.search-results .text-primary,
+.search-results .fw-bold,
+.search-results .list-group-item div,
+.search-results .list-group-item span {
+    background: transparent !important;
+    background-color: transparent !important;
+}
+
+.search-results .list-group-item:hover {
+    background: linear-gradient(135deg, #f8f9ff 0%, #ededff 100%) !important;
+    transform: translateX(-3px) !important; /* ✅ حركة أقل */
+    padding-right: 15px !important; /* ✅ padding أقل */
+    cursor: pointer !important;
+}
+
+.search-results .list-group-item:last-child {
+    border-bottom: none !important;
+}
+
+/* Input Fields للبحث */
+input[name$="_search"] {
+    border: 2px solid #e8ecf1 !important;
+    transition: all 0.3s ease !important;
+}
+
+input[name$="_search"]:focus {
+    border-color: #667eea !important;
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1) !important;
+}
+
+input[name$="_search"]::placeholder {
+    color: #adb5bd !important;
+    font-style: italic !important;
+}
+
+/* Page Title */
+h2, h3, h4 {
+    color: #2c3e50 !important;
+    font-weight: 700 !important;
+}
+
+/* تم حذف Animation لتجنب المشاكل */
 </style>
 {% endblock %}
 
@@ -188,62 +553,245 @@
     {% endif %}
 
     <div class="row">
-      <div class="col-md-6">
+      <!-- Card 1: نوع المعاملة والجهة -->
+      <div class="col-md-4">
         <div class="card mb-4 payment-form-card">
           <div class="card-header">
-            <i class="fas fa-file-invoice-dollar"></i> المعلومات الأساسية
+            <i class="fas fa-tags"></i> نوع المعاملة
           </div>
           <div class="card-body">
-            {% for field in [form.entity_type, form.direction, form.status, form.payment_date, form.total_amount, form.currency, form.method, form.reference, form.receipt_number, form.receiver_name, form.notes] %}
-              {% if field is not none %}
-              <div class="mb-3">
-                {{ field.label(class="form-label") }}
-                {% if field.type in ["SelectField", "QuerySelectField"] %}
-                  {{ field(class="form-select") }}
-                {% elif field.name == "payment_date" %}
-                  {% set _pd = field.data %}
-                  {% set _val = (_pd if _pd is string else (_pd.strftime("%Y-%m-%dT%H:%M") if _pd else "")) %}
-                  {{ field(type="datetime-local", class="form-control", value=_val) }}
-                {% elif field.type == "TextAreaField" %}
-                  {{ field(class="form-control") }}
-                {% else %}
-                  {% if field.name == "total_amount" %}
-                    {{ field(class="form-control", step="1", min="0") }}
-                  {% else %}
-                    {{ field(class="form-control") }}
-                  {% endif %}
-                {% endif %}
-                {% if field.name == 'total_amount' %}
-                  <div id="splitSum" class="form-text"></div>
-                {% endif %}
-                {% for e in field.errors %}
-                  <div class="text-danger small">{{ e }}</div>
-                {% endfor %}
-              </div>
-              {% endif %}
-            {% endfor %}
+            
+            <!-- نوع الجهة - إجباري -->
+            {% if form.entity_type is not none %}
+            <div class="mb-4">
+              <label class="form-label required-field">
+                <i class="fas fa-building text-primary"></i>
+                {{ form.entity_type.label.text }}
+                <span class="text-danger fw-bold">*</span>
+              </label>
+              {{ form.entity_type(class="form-select") }}
+              <small class="form-text text-muted">
+                <i class="fas fa-info-circle"></i> اختر نوع الجهة التي تتعامل معها
+              </small>
+              {% for e in form.entity_type.errors %}
+                <div class="text-danger small mt-1">{{ e }}</div>
+              {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- الاتجاه - إجباري -->
+            {% if form.direction is not none %}
+            <div class="mb-4">
+              <label class="form-label required-field">
+                <i class="fas fa-exchange-alt text-success"></i>
+                {{ form.direction.label.text }}
+                <span class="text-danger fw-bold">*</span>
+              </label>
+              {{ form.direction(class="form-select") }}
+              <small class="form-text text-muted">
+                <i class="fas fa-info-circle"></i> وارد (قبض منهم) أو صادر (دفع لهم)
+              </small>
+              {% for e in form.direction.errors %}
+                <div class="text-danger small mt-1">{{ e }}</div>
+              {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- الحالة - إجباري -->
+            {% if form.status is not none %}
+            <div class="mb-4">
+              <label class="form-label required-field">
+                <i class="fas fa-check-circle text-info"></i>
+                {{ form.status.label.text }}
+                <span class="text-danger fw-bold">*</span>
+              </label>
+              {{ form.status(class="form-select") }}
+              <small class="form-text text-muted">
+                <i class="fas fa-info-circle"></i> حالة الدفعة (مكتملة، معلقة، إلخ)
+              </small>
+              {% for e in form.status.errors %}
+                <div class="text-danger small mt-1">{{ e }}</div>
+              {% endfor %}
+            </div>
+            {% endif %}
+
           </div>
         </div>
       </div>
 
-      <div class="col-md-6">
+      <!-- Card 2: المبلغ والتاريخ -->
+      <div class="col-md-4">
         <div class="card mb-4 payment-form-card">
           <div class="card-header">
-            <i class="fas fa-user-tie"></i> الجهة المرتبطة
+            <i class="fas fa-money-bill-wave"></i> المبلغ والتاريخ
           </div>
-          <div class="card-body" id="entityFields">
-            {% include "payments/_entity_fields.html" %}
+          <div class="card-body">
+            
+            <!-- المبلغ الإجمالي - إجباري -->
+            {% if form.total_amount is not none %}
+            <div class="mb-4">
+              <label class="form-label required-field">
+                <i class="fas fa-dollar-sign text-success"></i>
+                {{ form.total_amount.label.text }}
+                <span class="text-danger fw-bold">*</span>
+              </label>
+              {{ form.total_amount(class="form-control amount-input", step="1", min="0", placeholder="0") }}
+              <div id="splitSum" class="form-text"></div>
+              <small class="form-text text-muted">
+                <i class="fas fa-info-circle"></i> المبلغ الكلي للدفعة بالأرقام
+              </small>
+              {% for e in form.total_amount.errors %}
+                <div class="text-danger small mt-1">{{ e }}</div>
+              {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- العملة - إجباري -->
+            {% if form.currency is not none %}
+            <div class="mb-4">
+              <label class="form-label required-field">
+                <i class="fas fa-coins text-warning"></i>
+                {{ form.currency.label.text }}
+                <span class="text-danger fw-bold">*</span>
+              </label>
+              {{ form.currency(class="form-select") }}
+              <small class="form-text text-muted">
+                <i class="fas fa-info-circle"></i> عملة الدفع (شيكل، دولار، دينار)
+              </small>
+              {% for e in form.currency.errors %}
+                <div class="text-danger small mt-1">{{ e }}</div>
+              {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- تاريخ الدفعة - إجباري -->
+            {% if form.payment_date is not none %}
+            <div class="mb-4">
+              <label class="form-label required-field">
+                <i class="fas fa-calendar-alt text-primary"></i>
+                {{ form.payment_date.label.text }}
+                <span class="text-danger fw-bold">*</span>
+              </label>
+              {% set _pd = form.payment_date.data %}
+              {% set _val = (_pd if _pd is string else (_pd.strftime("%Y-%m-%dT%H:%M") if _pd else "")) %}
+              {{ form.payment_date(type="datetime-local", class="form-control", value=_val) }}
+              <small class="form-text text-muted">
+                <i class="fas fa-info-circle"></i> تاريخ ووقت تنفيذ الدفعة
+              </small>
+              {% for e in form.payment_date.errors %}
+                <div class="text-danger small mt-1">{{ e }}</div>
+              {% endfor %}
+            </div>
+            {% endif %}
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: تفاصيل إضافية -->
+      <div class="col-md-4">
+        <div class="card mb-4 payment-form-card">
+          <div class="card-header">
+            <i class="fas fa-info-circle"></i> تفاصيل إضافية
+          </div>
+          <div class="card-body">
+            
+            <!-- طريقة الدفع - مخفي (يُستخرج من الدفعات الجزئية) -->
+            {% if form.method is not none %}
+            <div class="mb-4" style="display: none;">
+              {{ form.method(class="form-select", value="cash") }}
+            </div>
+            {% endif %}
+
+            <!-- رقم المرجع - اختياري -->
+            {% if form.reference is not none %}
+            <div class="mb-4">
+              <label class="form-label optional-field">
+                <i class="fas fa-hashtag text-secondary"></i>
+                {{ form.reference.label.text }}
+                <span class="badge bg-secondary ms-1" style="font-size: 0.7rem;">اختياري</span>
+              </label>
+              {{ form.reference(class="form-control", placeholder="مثال: INV-2024-001") }}
+              <small class="form-text text-muted">
+                <i class="fas fa-info-circle"></i> رقم فاتورة أو مرجع خارجي
+              </small>
+              {% for e in form.reference.errors %}
+                <div class="text-danger small mt-1">{{ e }}</div>
+              {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- رقم الإيصال - اختياري -->
+            {% if form.receipt_number is not none %}
+            <div class="mb-4">
+              <label class="form-label optional-field">
+                <i class="fas fa-receipt text-secondary"></i>
+                {{ form.receipt_number.label.text }}
+                <span class="badge bg-secondary ms-1" style="font-size: 0.7rem;">اختياري</span>
+              </label>
+              {{ form.receipt_number(class="form-control", placeholder="مثال: RCP-001") }}
+              <small class="form-text text-muted">
+                <i class="fas fa-info-circle"></i> رقم إيصال داخلي للتوثيق
+              </small>
+              {% for e in form.receipt_number.errors %}
+                <div class="text-danger small mt-1">{{ e }}</div>
+              {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- اسم المستلم - اختياري -->
+            {% if form.receiver_name is not none %}
+            <div class="mb-4">
+              <label class="form-label optional-field">
+                <i class="fas fa-user text-secondary"></i>
+                {{ form.receiver_name.label.text }}
+                <span class="badge bg-secondary ms-1" style="font-size: 0.7rem;">اختياري</span>
+              </label>
+              {{ form.receiver_name(class="form-control", placeholder="اسم الشخص المستلم") }}
+              <small class="form-text text-muted">
+                <i class="fas fa-info-circle"></i> اسم الشخص الذي استلم المبلغ
+              </small>
+              {% for e in form.receiver_name.errors %}
+                <div class="text-danger small mt-1">{{ e }}</div>
+              {% endfor %}
+            </div>
+            {% endif %}
+
           </div>
         </div>
       </div>
     </div>
 
-    <div class="card mb-4 payment-form-card">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="fas fa-layer-group"></i> الدفعات الجزئية</span>
-        <small class="badge badge-info">بحد أقصى 3 طرق دفع</small>
+    <!-- الصف الثاني: الجهة المرتبطة والدفعات الجزئية -->
+    <div class="row">
+      <!-- Card 4: الجهة المرتبطة -->
+      <div class="col-md-6">
+        <div class="card mb-4 payment-form-card">
+          <div class="card-header">
+            <i class="fas fa-user-tie"></i> الجهة المرتبطة
+            <span class="text-danger fw-bold ms-2">* مطلوب</span>
+          </div>
+          <div class="card-body" id="entityFields">
+            {% include "payments/_entity_fields.html" %}
+            <small class="form-text text-muted d-block mt-2">
+              <i class="fas fa-info-circle"></i> اختر الجهة التي تتعامل معها (عميل، مورد، شريك، إلخ)
+            </small>
+          </div>
+        </div>
       </div>
-      <div class="card-body">
+
+      <!-- Card 5: الدفعات الجزئية -->
+      <div class="col-md-6">
+        <div class="card mb-4 payment-form-card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-layer-group"></i> طرق الدفع</span>
+            <small class="badge badge-info">بحد أقصى 3 طرق دفع</small>
+          </div>
+          <div class="card-body">
+            <div class="alert alert-info mb-3" style="border-radius: 10px; padding: 12px;">
+              <i class="fas fa-lightbulb"></i>
+              <strong>ملاحظة:</strong> اختر طريقة الدفع والمبلغ لكل جزء. يمكنك دمج أكثر من طريقة (مثل: نقد + شيك).
+            </div>
         {% if form.splits and form.splits.errors %}
           <div class="alert alert-danger py-2">
             {% for err in form.splits.errors %}
@@ -255,21 +803,40 @@
         <div id="splitsContainer" data-max-splits="3">
           {% for split in form.splits %}
           <div class="split-form border p-3 mb-3 rounded" data-index="{{ loop.index0 }}">
-            <h5>الدفعة الجزئية #{{ loop.index }}</h5>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h5 class="mb-0">
+                <i class="fas fa-credit-card me-2"></i>
+                طريقة الدفع #{{ loop.index }}
+              </h5>
+              <button type="button" class="btn btn-danger btn-sm remove-split" {% if loop.first %}disabled{% endif %}>
+                <i class="fas fa-trash me-1"></i>حذف
+              </button>
+            </div>
 
             <div class="row gy-2">
-              <div class="col-md-4">
-                {{ split.method.label(class="form-label") }}
+              <div class="col-md-6">
+                <label class="form-label required-field">
+                  <i class="fas fa-wallet text-primary"></i>
+                  {{ split.method.label.text }}
+                  <span class="text-danger fw-bold">*</span>
+                </label>
                 {{ split.method(class="form-select split-method") }}
-                {% for e in split.method.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                <small class="form-text text-muted">
+                  <i class="fas fa-info-circle"></i> كيف ستدفع هذا الجزء
+                </small>
+                {% for e in split.method.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
               </div>
-              <div class="col-md-4">
-                {{ split.amount.label(class="form-label") }}
-                {{ split.amount(class="form-control", step="1", min="0") }}
-                {% for e in split.amount.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-              </div>
-              <div class="col-md-4 d-flex align-items-end">
-                <button type="button" class="btn btn-danger remove-split" {% if loop.first %}disabled{% endif %}>حذف</button>
+              <div class="col-md-6">
+                <label class="form-label required-field">
+                  <i class="fas fa-dollar-sign text-success"></i>
+                  {{ split.amount.label.text }}
+                  <span class="text-danger fw-bold">*</span>
+                </label>
+                {{ split.amount(class="form-control amount-input", step="1", min="0", placeholder="0") }}
+                <small class="form-text text-muted">
+                  <i class="fas fa-info-circle"></i> المبلغ بهذه الطريقة
+                </small>
+                {% for e in split.amount.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
               </div>
             </div>
 
@@ -310,26 +877,70 @@
           {% endfor %}
         </div>
 
-        <button type="button" id="addSplit" class="btn btn-secondary">+ إضافة دفعة جزئية</button>
+        <button type="button" id="addSplit" class="btn btn-secondary">
+          <i class="fas fa-plus-circle me-1"></i> إضافة طريقة دفع أخرى
+        </button>
+        <small class="form-text text-muted d-block mt-2">
+          <i class="fas fa-info-circle"></i> إذا كانت الدفعة بأكثر من طريقة، اضغط هنا لإضافة طريقة ثانية أو ثالثة
+        </small>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="card payment-form-card">
-      <div class="card-body text-center">
-        <button type="submit" class="btn btn-success btn-lg">
-          <i class="fas fa-save"></i> حفظ الدفعة
-        </button>
+    <!-- Card 6: ملاحظات - صف كامل -->
+    {% if form.notes is not none %}
+    <div class="row">
+      <div class="col-12">
+        <div class="card mb-4 payment-form-card">
+          <div class="card-header">
+            <i class="fas fa-sticky-note"></i> ملاحظات إضافية
+            <span class="badge bg-secondary ms-2" style="font-size: 0.8rem;">اختياري</span>
+          </div>
+          <div class="card-body">
+            {{ form.notes(class="form-control", rows="3", placeholder="أي ملاحظات أو تفاصيل إضافية...") }}
+            <small class="form-text text-muted">
+              <i class="fas fa-info-circle"></i> أي معلومات أو ملاحظات تريد إضافتها للتوضيح
+            </small>
+            {% for e in form.notes.errors %}
+              <div class="text-danger small mt-1">{{ e }}</div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- أزرار التحكم -->
+    <div class="card payment-form-card" style="border: none; box-shadow: none; background: transparent;">
+      <div class="card-body text-center" style="padding: 30px 0;">
+        <div class="d-flex justify-content-center align-items-center gap-3">
+          <button type="button" id="submitPaymentBtn" class="btn btn-success btn-lg px-5 py-3">
+            <i class="fas fa-save me-2"></i>
+            <span class="fw-bold">حفظ الدفعة</span>
+          </button>
+          <a href="{{ url_for('payments.index') }}" class="btn btn-secondary btn-lg px-5 py-3">
+            <i class="fas fa-times me-2"></i>
+            <span class="fw-bold">إلغاء</span>
+          </a>
+        </div>
+        <small class="text-muted d-block mt-3">
+          <i class="fas fa-info-circle"></i>
+          تأكد من ملء جميع الحقول الإجبارية (*) قبل الحفظ
+        </small>
         {% if payment %}
-        <button type="button" class="btn btn-warning btn-lg" data-toggle="modal" data-target="#archiveModal">
-          <i class="fas fa-archive"></i> أرشفة الدفعة
-        </button>
+        <div class="mt-3">
+          <button type="button" class="btn btn-warning btn-lg px-4 py-2" data-toggle="modal" data-target="#archiveModal">
+            <i class="fas fa-archive me-2"></i> أرشفة الدفعة
+          </button>
+        </div>
         {% endif %}
-        <a href="{{ url_for('payments.index') }}" class="btn btn-secondary btn-lg">
-          <i class="fas fa-times"></i> إلغاء
-        </a>
       </div>
     </div>
   </form>
+
+  <!-- 🔔 Modal تأكيد الدفعة -->
+  <!-- ✅ لا مودال - استخدام confirm() بسيط -->
 
         </div>
     </section>
@@ -344,6 +955,8 @@
     let searchTimeout = {};
     
     function searchEntities(entityType, searchTerm) {
+      console.log(`🔍 بحث عن ${entityType}: "${searchTerm}"`);
+      
       if (!searchTerm || searchTerm.length < 2) {
         hideEntityResults(entityType);
         return;
@@ -351,10 +964,10 @@
       
       clearTimeout(searchTimeout[entityType]);
       searchTimeout[entityType] = setTimeout(() => {
+        console.log(`📡 جلب نتائج ${entityType}...`);
         fetch(`/payments/api/entities/${entityType}?search=${encodeURIComponent(searchTerm)}`)
           .then(response => {
             if (response.status === 302 || response.status === 401) {
-              // المستخدم لم يسجل دخول بعد
               hideEntityResults(entityType);
               return;
             }
@@ -364,8 +977,9 @@
             return response.json();
           })
           .then(data => {
-            if (data) {
-              showEntityResults(entityType, data);
+            if (data && data.success && data.results) {
+              console.log(`✅ وجد ${data.results.length} نتيجة`);
+              showEntityResults(entityType, data.results);
             }
           })
           .catch(error => {
@@ -383,66 +997,84 @@
     }
     
     function showEntityResults(entityType, entities) {
+      console.log(`📋 showEntityResults: ${entityType}, ${entities.length} نتيجة`);
+      
       const searchField = document.querySelector(`input[name="${entityType.toLowerCase()}_search"]`);
-      if (!searchField) return;
+      if (!searchField) {
+        console.error(`❌ لم يتم العثور على searchField: ${entityType.toLowerCase()}_search`);
+        return;
+      }
+      
+      console.log(`✅ وُجد searchField: ${searchField.name}`);
       
       // إزالة النتائج السابقة
       hideEntityResults(entityType);
       
       if (entities.length === 0) {
+        console.log('⚠️ لا توجد نتائج');
         return;
       }
       
-      // إنشاء قائمة النتائج
+      // إنشاء قائمة النتائج - تصميم عصري
       const resultsDiv = document.createElement('div');
-      resultsDiv.className = 'entity-search-results';
+      resultsDiv.className = 'search-results list-group';
       resultsDiv.id = `${entityType.toLowerCase()}_results`;
-      resultsDiv.style.cssText = `
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        background: white;
-        border: 1px solid #ddd;
-        border-top: none;
-        max-height: 200px;
-        overflow-y: auto;
-        z-index: 1000;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-      `;
+      // لا نضع inline styles - نستخدم CSS classes فقط
+      console.log(`🎨 تم إنشاء resultsDiv بـ class: ${resultsDiv.className}`);
       
       entities.forEach(entity => {
         const item = document.createElement('div');
-        item.className = 'entity-result-item';
-        item.style.cssText = `
-          padding: 8px 12px;
-          cursor: pointer;
-          border-bottom: 1px solid #eee;
-        `;
+        item.className = 'list-group-item list-group-item-action';
         item.innerHTML = `
-          <div class="fw-bold">${entity.name || entity.display}</div>
-          ${entity.phone ? `<small class="text-muted">${entity.phone}</small>` : ''}
-          ${entity.email ? `<small class="text-muted">${entity.email}</small>` : ''}
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-bold text-primary">
+                <i class="fas fa-user-circle me-1"></i>
+                ${entity.name || entity.display}
+              </div>
+              ${entity.phone ? `<small class="text-muted"><i class="fas fa-phone me-1"></i>${entity.phone}</small>` : ''}
+              ${entity.email ? `<small class="text-muted d-block"><i class="fas fa-envelope me-1"></i>${entity.email}</small>` : ''}
+              ${entity.balance !== undefined ? `<small class="badge bg-info mt-1">الرصيد: ${parseFloat(entity.balance).toFixed(0)}</small>` : ''}
+            </div>
+            <i class="fas fa-check-circle text-success"></i>
+          </div>
         `;
         
         item.addEventListener('click', () => {
           selectEntity(entityType, entity);
-        });
-        
-        item.addEventListener('mouseenter', () => {
-          item.style.backgroundColor = '#f8f9fa';
-        });
-        
-        item.addEventListener('mouseleave', () => {
-          item.style.backgroundColor = 'white';
+          hideEntityResults(entityType);
         });
         
         resultsDiv.appendChild(item);
       });
       
-      // إدراج النتائج
-      searchField.parentNode.style.position = 'relative';
-      searchField.parentNode.appendChild(resultsDiv);
+      // ✅ إدراج النتائج بعد input-group (خارجها!) لتجنب overflow
+      const inputGroup = searchField.closest('.input-group');
+      const entityContainer = searchField.closest('.entity-field-container');
+      
+      console.log(`🔍 inputGroup: ${inputGroup ? 'موجود' : 'مفقود'}`);
+      console.log(`🔍 entityContainer: ${entityContainer ? 'موجود' : 'مفقود'}`);
+      
+      if (entityContainer && inputGroup) {
+        // جعل entityContainer relative positioning
+        entityContainer.style.position = 'relative';
+        entityContainer.style.overflow = 'visible';
+        entityContainer.style.zIndex = '10';
+        
+        // إضافة القائمة بعد input-group (ليس داخلها!)
+        if (inputGroup.nextSibling) {
+          entityContainer.insertBefore(resultsDiv, inputGroup.nextSibling);
+        } else {
+          entityContainer.appendChild(resultsDiv);
+        }
+        
+        console.log(`✅ تم إضافة القائمة للـ DOM (بعد input-group)`);
+        console.log(`📊 resultsDiv في DOM: ${document.getElementById(resultsDiv.id) ? 'نعم ✅' : 'لا ❌'}`);
+        console.log(`🎨 resultsDiv display: ${window.getComputedStyle(resultsDiv).display}`);
+        console.log(`🎨 resultsDiv z-index: ${window.getComputedStyle(resultsDiv).zIndex}`);
+      } else {
+        console.error(`❌ لم يتم العثور على containers`);
+      }
     }
     
     function hideEntityResults(entityType) {
@@ -507,76 +1139,12 @@
         });
     }
     
-    function updateEntityFields() {
-      const entityType = document.querySelector('select[name="entity_type"]');
-      if (!entityType) return;
-      
-      const selectedType = entityType.value;
-      const entityFieldsContainer = document.getElementById('entityFields');
-      
-      if (!selectedType) {
-        entityFieldsContainer.innerHTML = '<div class="text-muted">اختر نوع الجهة لرؤية الحقول المناسبة</div>';
-        return;
-      }
-      
-      // إظهار مؤشر التحميل
-      entityFieldsContainer.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> جاري تحميل الحقول...</div>';
-      
-      // جلب الحقول المناسبة عبر AJAX
-      fetch(`/payments/entity-fields?type=${selectedType.toLowerCase()}`)
-        .then(response => {
-          if (response.status === 302 || response.status === 401) {
-            // المستخدم لم يسجل دخول بعد
-            entityFieldsContainer.innerHTML = '<div class="alert alert-warning">يجب تسجيل الدخول أولاً</div>';
-            return;
-          }
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
-          return response.text();
-        })
-        .then(html => {
-          if (html) {
-            entityFieldsContainer.innerHTML = html;
-            
-            // تحديث الفلاتر الذكية للحقول الجديدة
-            updateSmartFilters(selectedType);
-          }
-        })
-        .catch(error => {
-
-          entityFieldsContainer.innerHTML = '<div class="alert alert-danger">خطأ في تحميل الحقول: ' + error.message + '</div>';
-        });
-    }
-    
-    function updateSmartFilters(entityType) {
-      // تحديث الفلاتر الذكية حسب نوع الجهة
-      const searchFields = document.querySelectorAll('input[name$="_search"]');
-      searchFields.forEach(field => {
-        const fieldName = field.name;
-        const expectedEntityType = fieldName.replace('_search', '').toUpperCase();
-        
-        if (expectedEntityType === entityType) {
-          // إزالة المستمعين السابقين
-          field.removeEventListener('keyup', searchEntities);
-          
-          // تفعيل البحث الذكي لهذا الحقل
-          field.addEventListener('keyup', function() {
-            searchEntities(entityType, this.value);
-          });
-        }
-      });
-    }
-    
-    // دالة تحديث حقول الجهة حسب النوع المختار
+    // ✅ دالة تحديث حقول الجهة حسب النوع المختار (موحّدة ومحسّنة)
     function updateEntityFields() {
       const entityTypeSelect = document.querySelector('select[name="entity_type"]');
-      if (!entityTypeSelect) {
-
-        return;
-      }
+      if (!entityTypeSelect) return;
       
-      const selectedType = entityTypeSelect.value.toLowerCase();
+      const selectedType = entityTypeSelect.value.toUpperCase();
 
       const entityFieldsContainer = document.getElementById('entityFields');
       if (!entityFieldsContainer) {
@@ -593,24 +1161,83 @@
       });
       
       // إظهار الحقول المناسبة
-      const targetContainer = entityFieldsContainer.querySelector(`[data-entity-type="${selectedType}"]`);
+      const targetContainer = entityFieldsContainer.querySelector(`[data-entity-type="${selectedType.toLowerCase()}"]`);
       if (targetContainer) {
         targetContainer.style.display = 'block';
-
-      } else {
-
-        // محاولة البحث بدون toLowerCase
-        const allTypes = Array.from(allContainers).map(c => c.getAttribute('data-entity-type'));
-
       }
       
-      // إعادة تهيئة البحث الذكي للحقول الجديدة
+      // ✅ تفعيل البحث الذكي للحقول الجديدة
       setTimeout(function() {
-        if (typeof initSmartSearch === 'function') {
-          smartSearchInitialized = false;
-          initSmartSearch();
-        }
+        attachSearchListeners();
       }, 100);
+    }
+    
+    // ✅ دالة ربط event listeners للبحث الذكي
+    function attachSearchListeners() {
+      const searchFields = document.querySelectorAll('input[name$="_search"]');
+      searchFields.forEach(field => {
+        // إزالة المستمعين القدامى عن طريق استنساخ العنصر
+        const newField = field.cloneNode(true);
+        field.parentNode.replaceChild(newField, field);
+        
+        // إضافة مستمع للبحث
+        newField.addEventListener('input', function() {
+          const entityType = newField.name.replace('_search', '').toUpperCase();
+          searchEntities(entityType, this.value);
+        });
+        
+        // إضافة مستمع للتركيز (لإعادة عرض النتائج)
+        newField.addEventListener('focus', function() {
+          const val = this.value.trim();
+          if (val.length >= 2) {
+            const entityType = newField.name.replace('_search', '').toUpperCase();
+            searchEntities(entityType, val);
+          }
+        });
+        
+        console.log(`✅ تم تفعيل البحث الذكي لـ: ${newField.name}`);
+      });
+      
+      // ✅ إضافة listeners لأزرار السهم
+      const dropdownBtns = document.querySelectorAll('.dropdown-toggle-btn');
+      dropdownBtns.forEach(btn => {
+        const entityType = btn.getAttribute('data-entity');
+        if (entityType) {
+          // إزالة listener القديم
+          const newBtn = btn.cloneNode(true);
+          btn.parentNode.replaceChild(newBtn, btn);
+          
+          // إضافة listener جديد
+          newBtn.addEventListener('click', function() {
+            console.log(`🔽 السهم: عرض كل ${entityType}`);
+            loadAllEntities(entityType.toUpperCase());
+          });
+        }
+      });
+    }
+    
+    // 🔽 وظيفة جديدة: تحميل كل الكيانات عند الضغط على السهم
+    async function loadAllEntities(entityType) {
+      try {
+        // ✅ استخدام نفس الـ endpoint الموجود في searchEntities
+        const url = `/payments/api/entities/${entityType}?search=`;
+        
+        console.log(`📡 جلب كل ${entityType}...`);
+        const res = await fetch(url);
+        
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        
+        const data = await res.json();
+        
+        if (data.success && data.results) {
+          console.log(`✅ وجد ${data.results.length} نتيجة`);
+          showEntityResults(entityType, data.results);
+        }
+      } catch (err) {
+        console.error(`❌ خطأ في تحميل ${entityType}:`, err);
+      }
     }
     
     // تهيئة الحقول عند تحميل الصفحة
@@ -628,6 +1255,39 @@
       setTimeout(function() {
         updateEntityFields();
         updateDirectionOptions(); // تحديث خيارات الاتجاه أيضاً
+        attachSearchListeners(); // ✅ تفعيل البحث الذكي
+        
+        // ✅ ملء النموذج من query parameters (للدفع السريع من القوائم)
+        const urlParams = new URLSearchParams(window.location.search);
+        const entityType = urlParams.get('entity_type');
+        const entityId = urlParams.get('entity_id');
+        const entityName = urlParams.get('entity_name');
+        
+        if (entityType && entityId && entityName) {
+          console.log('🎯 ملء تلقائي:', entityType, entityId, entityName);
+          
+          // تعيين نوع الجهة
+          if (entityTypeSelect) {
+            entityTypeSelect.value = entityType;
+            entityTypeSelect.dispatchEvent(new Event('change'));
+          }
+          
+          // تأخير قليل لضمان تحديث الحقول
+          setTimeout(function() {
+            // ملء حقل البحث والـ ID
+            const searchField = document.getElementById(entityType.toLowerCase() + '_search');
+            const idField = document.getElementById(entityType.toLowerCase() + '_id');
+            
+            if (searchField) {
+              searchField.value = entityName;
+              console.log('✅ ملء حقل البحث:', entityName);
+            }
+            if (idField) {
+              idField.value = entityId;
+              console.log('✅ تعيين ID:', entityId);
+            }
+          }, 200);
+        }
       }, 100);
       }
       
@@ -909,6 +1569,61 @@
         allResults.forEach(result => result.remove());
       }
     });
+    
+    // ✅ تأكيد بسيط قبل الإرسال - بدون مودال معقد!
+    const submitBtn = document.getElementById('submitPaymentBtn');
+    const paymentForm = document.getElementById('paymentForm'); // ✅ استخدام ID محدد
+    
+    if (submitBtn && paymentForm) {
+      submitBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        // جمع البيانات
+        const direction = document.querySelector('select[name="direction"]')?.value || '';
+        const directionText = direction === 'IN' ? 'وارد (إلينا)' : direction === 'OUT' ? 'صادر (مننا)' : 'غير محدد';
+        const entityType = document.querySelector('select[name="entity_type"]')?.value || '';
+        const currency = document.querySelector('select[name="currency"]')?.value || 'ILS';
+        
+        // ✅ المبلغ = مجموع الدفعات الجزئية دائماً (هذا المبلغ الفعلي!)
+        let totalAmount = 0;
+        const splitAmounts = document.querySelectorAll('input[name^="splits-"][name$="-amount"]');
+        splitAmounts.forEach(input => {
+          totalAmount += parseFloat(input.value || 0);
+        });
+        
+        // ✅ إذا لم توجد دفعات جزئية، استخدم total_amount
+        if (totalAmount === 0) {
+          totalAmount = parseFloat(document.querySelector('input[name="total_amount"]')?.value || 0);
+        }
+        
+        // اسم الجهة
+        let entityName = 'غير محدد';
+        if (entityType === 'CUSTOMER') entityName = document.getElementById('customer_search')?.value || 'عميل';
+        else if (entityType === 'SUPPLIER') entityName = document.getElementById('supplier_search')?.value || 'مورد';
+        else if (entityType === 'PARTNER') entityName = document.getElementById('partner_search')?.value || 'شريك';
+        else if (entityType === 'MISCELLANEOUS') entityName = 'متفرقات';
+        else if (entityType === 'OTHER') entityName = 'أخرى';
+        else if (entityType === 'EXPENSE') entityName = 'مصروف';
+        else entityName = entityType;
+        
+        // ✅ رسالة تأكيد بسيطة
+        const message = `هل أنت متأكد من حفظ هذه الدفعة؟\n\n` +
+                       `📌 الاتجاه: ${directionText}\n` +
+                       `👤 الجهة: ${entityName}\n` +
+                       `💰 المبلغ المدفوع فعلياً: ${totalAmount.toFixed(2)} ${currency}`;
+        
+        if (confirm(message)) {
+          console.log('✅ تم التأكيد - إرسال النموذج...');
+          console.log('📤 Form action:', paymentForm.action);
+          console.log('📤 Form method:', paymentForm.method);
+          paymentForm.submit();
+        } else {
+          console.log('❌ تم الإلغاء');
+        }
+      });
+    } else {
+      console.error('❌ لم يتم العثور على submitBtn أو paymentForm!');
+    }
   </script>
   
   <!-- تحميل ملف JavaScript للدفعات -->

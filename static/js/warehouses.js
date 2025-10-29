@@ -2,14 +2,7 @@
   if (window.__WAREHOUSES_INIT__) return;
   window.__WAREHOUSES_INIT__ = true;
 
-  function getCSRFToken() {
-    var meta = document.querySelector('meta[name="csrf-token"]');
-    if (meta && meta.content) return meta.content;
-    var input = document.querySelector('input[name="csrf_token"]');
-    if (input && input.value) return input.value;
-    var m = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
-    return m ? decodeURIComponent(m[1]) : null;
-  }
+  // ✅ getCSRFToken نُقلت إلى csrf-utils.js (global)
 
   function showNotification(message, type) {
     type = type || 'info';

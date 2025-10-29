@@ -683,28 +683,27 @@ def get_checks():
                 # تحديد الحالة
                 status_info = CHECK_STATUS.get(check.status, {'ar': check.status, 'color': 'secondary'})
                 
-                # تحديد الجهة
-                entity_name = ''
-                entity_type = ''
+                # ✅ تحديد الجهة باستخدام entity_name property
+                entity_name = check.entity_name  # ✅ استخدام property من Model
+                entity_type_code = check.entity_type  # customer/supplier/partner/None
                 entity_link = ''
-                if check.customer:
-                    entity_name = check.customer.name
+                entity_type = ''
+                
+                if entity_type_code == 'customer':
                     entity_type = 'عميل'
-                    entity_link = f'/customers/{check.customer.id}'
-                elif check.supplier:
-                    entity_name = check.supplier.name
+                    entity_link = f'/customers/{check.entity_id}'
+                elif entity_type_code == 'supplier':
                     entity_type = 'مورد'
-                    entity_link = f'/vendors/{check.supplier.id}'
-                elif check.partner:
-                    entity_name = check.partner.name
+                    entity_link = f'/vendors/suppliers/{check.entity_id}'
+                elif entity_type_code == 'partner':
                     entity_type = 'شريك'
-                    entity_link = f'/partners/{check.partner.id}'
-                elif check.direction == PaymentDirection.IN.value:
-                    entity_name = check.drawer_name or 'غير محدد'
-                    entity_type = 'ساحب'
+                    entity_link = f'/vendors/partners/{check.entity_id}'
                 else:
-                    entity_name = check.payee_name or 'غير محدد'
-                    entity_type = 'مستفيد'
+                    # شيك يدوي بدون ربط
+                    if check.direction == PaymentDirection.IN.value:
+                        entity_type = 'ساحب'
+                    else:
+                        entity_type = 'مستفيد'
                 
                 # تجنب التكرار
                 check_key = f"check-{check.id}"
@@ -792,6 +791,16 @@ def get_statistics():
             )
         ).scalar() or 0
         
+        # ✅ إضافة المبلغ الإجمالي للشيكات المتأخرة الواردة
+        incoming_overdue_amount = db.session.query(db.func.sum(Payment.total_amount)).filter(
+            and_(
+                Payment.method == PaymentMethod.CHEQUE.value,
+                Payment.direction == PaymentDirection.IN.value,
+                Payment.status == PaymentStatus.PENDING.value,
+                Payment.check_due_date < datetime.utcnow()
+            )
+        ).scalar() or 0
+        
         incoming_this_week = db.session.query(db.func.count(Payment.id)).filter(
             and_(
                 Payment.method == PaymentMethod.CHEQUE.value,
@@ -811,6 +820,16 @@ def get_statistics():
         ).scalar() or 0
         
         outgoing_overdue = db.session.query(db.func.count(Payment.id)).filter(
+            and_(
+                Payment.method == PaymentMethod.CHEQUE.value,
+                Payment.direction == PaymentDirection.OUT.value,
+                Payment.status == PaymentStatus.PENDING.value,
+                Payment.check_due_date < datetime.utcnow()
+            )
+        ).scalar() or 0
+        
+        # ✅ إضافة المبلغ الإجمالي للشيكات المتأخرة الصادرة
+        outgoing_overdue_amount = db.session.query(db.func.sum(Payment.total_amount)).filter(
             and_(
                 Payment.method == PaymentMethod.CHEQUE.value,
                 Payment.direction == PaymentDirection.OUT.value,
@@ -845,6 +864,15 @@ def get_statistics():
             )
         ).scalar() or 0
         
+        # ✅ إضافة المبلغ الإجمالي للنفقات المتأخرة
+        expense_overdue_amount = db.session.query(db.func.sum(Expense.amount)).filter(
+            and_(
+                Expense.payment_method == 'cheque',
+                Expense.check_due_date < datetime.utcnow(),
+                or_(Expense.is_paid == False, Expense.is_paid.is_(None))
+            )
+        ).scalar() or 0
+        
         expense_this_week = db.session.query(db.func.count(Expense.id)).filter(
             and_(
                 Expense.payment_method == 'cheque',
@@ -856,6 +884,7 @@ def get_statistics():
         # إجمالي الصادر
         total_outgoing_value = float(outgoing_total or 0) + float(expense_total or 0)
         total_outgoing_overdue = outgoing_overdue + expense_overdue
+        total_outgoing_overdue_amount = float(outgoing_overdue_amount or 0) + float(expense_overdue_amount or 0)
         total_outgoing_this_week = outgoing_this_week + expense_this_week
         
         return jsonify({
@@ -864,11 +893,13 @@ def get_statistics():
                 'incoming': {
                     'total_amount': float(incoming_total or 0),
                     'overdue_count': incoming_overdue,
+                    'overdue_amount': float(incoming_overdue_amount or 0),  # ✅ إضافة المبلغ المتأخر
                     'this_week_count': incoming_this_week
                 },
                 'outgoing': {
                     'total_amount': total_outgoing_value,
                     'overdue_count': total_outgoing_overdue,
+                    'overdue_amount': total_outgoing_overdue_amount,  # ✅ إضافة المبلغ المتأخر
                     'this_week_count': total_outgoing_this_week
                 }
             }
@@ -1247,19 +1278,26 @@ def get_alerts():
             else:
                 entity_name = check.drawer_name or check.payee_name or 'غير محدد'
             
-            direction_ar = 'وارد' if check.direction == PaymentDirection.IN.value else 'صادر'
+            # ✅ المنطق الصحيح: دفعة OUT → صادر لـ، دفعة IN → وارد من
+            is_incoming = check.direction == PaymentDirection.IN.value
+            if is_incoming:
+                direction_text = f'وارد من {entity_name}'
+            else:
+                direction_text = f'صادر لـ {entity_name}'
+            
             days_overdue = (today - check.check_due_date.date()).days
             
             alerts.append({
                 'type': 'overdue',
                 'severity': 'danger',
                 'icon': 'fas fa-exclamation-triangle',
-                'title': f'🚨 شيك متأخر {days_overdue} يوم - {check.check_number}',
-                'message': f'شيك {direction_ar} من {entity_name} - {check.amount:,.2f} {check.currency} - البنك: {check.check_bank}',
+                'title': f'🚨 شيك متأخر {days_overdue} يوم',
+                'message': f'شيك {direction_text} - رقم: {check.check_number} - المبلغ: {float(check.amount):,.2f} {check.currency}',
                 'link': '/checks',
                 'amount': float(check.amount),
                 'currency': check.currency,
-                'days_overdue': days_overdue
+                'days_overdue': days_overdue,
+                'check_number': check.check_number
             })
         
         # 2. الشيكات المتأخرة من Payment (للتوافق مع القديم)
@@ -1284,16 +1322,24 @@ def get_alerts():
                 entity_name = check.supplier.name
             elif check.partner:
                 entity_name = check.partner.name
+            else:
+                entity_name = 'غير محدد'
             
-            direction_ar = 'وارد' if check.direction == PaymentDirection.IN.value else 'صادر'
             days_overdue = (today - check.check_due_date.date()).days
+            
+            # ✅ المنطق الصحيح: دفعة OUT → صادر لـ، دفعة IN → وارد من
+            is_incoming = check.direction == PaymentDirection.IN.value
+            if is_incoming:
+                direction_text = f'وارد من {entity_name}'
+            else:
+                direction_text = f'صادر لـ {entity_name}'
             
             alerts.append({
                 'type': 'overdue',
                 'severity': 'danger',
                 'icon': 'fas fa-exclamation-circle',
-                'title': f'شيك {direction_ar} متأخر',
-                'message': f'شيك رقم {check.check_number} من {entity_name} متأخر {days_overdue} يوم',
+                'title': f'🚨 شيك متأخر {days_overdue} يوم',
+                'message': f'شيك {direction_text} - رقم: {check.check_number} - المبلغ: {float(check.total_amount or 0):,.2f} {check.currency}',
                 'amount': float(check.total_amount or 0),
                 'currency': check.currency,
                 'check_number': check.check_number,
@@ -1319,16 +1365,24 @@ def get_alerts():
                 entity_name = check.supplier.name
             elif check.partner:
                 entity_name = check.partner.name
+            else:
+                entity_name = 'غير محدد'
             
-            direction_ar = 'وارد' if check.direction == PaymentDirection.IN.value else 'صادر'
             days_until = (check.check_due_date.date() - today).days
+            
+            # ✅ المنطق الصحيح: دفعة OUT → صادر لـ، دفعة IN → وارد من
+            is_incoming = check.direction == PaymentDirection.IN.value
+            if is_incoming:
+                direction_text = f'وارد من {entity_name}'
+            else:
+                direction_text = f'صادر لـ {entity_name}'
             
             alerts.append({
                 'type': 'due_soon',
                 'severity': 'warning',
                 'icon': 'fas fa-clock',
-                'title': f'شيك {direction_ar} قريب الاستحقاق',
-                'message': f'شيك رقم {check.check_number} من {entity_name} يستحق خلال {days_until} يوم',
+                'title': f'⚠️ شيك قريب الاستحقاق',
+                'message': f'شيك {direction_text} - رقم: {check.check_number} - يستحق خلال {days_until} يوم - المبلغ: {float(check.total_amount or 0):,.2f} {check.currency}',
                 'amount': float(check.total_amount or 0),
                 'currency': check.currency,
                 'check_number': check.check_number,

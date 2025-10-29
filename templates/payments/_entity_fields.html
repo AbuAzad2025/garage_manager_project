@@ -1,46 +1,91 @@
 {% set etype_raw = form.entity_type.data or request.args.get('type') or request.args.get('entity_type') or '' %}
 {% set etype = etype_raw | lower %}
 
-<!-- حاوية العميل -->
-<div class="entity-field-container" data-entity-type="customer" style="display: {% if etype == 'customer' %}block{% else %}none{% endif %};">
-  {% if form.customer_search is defined %}
-    {{ form.customer_search.label(class="form-label") }}
-    <div class="input-group">
-      {{ form.customer_search(class="form-control", placeholder="اكتب اسم/هاتف العميل", autocomplete="off") }}
-      <a class="btn btn-outline-primary" href="{{ url_for('customers_bp.create_form') }}" target="_blank">➕ عميل جديد</a>
-    </div>
-    {% for e in form.customer_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-  {% endif %}
+<!-- ✅ Hidden Fields - خارج الـ containers لضمان الإرسال مع الفورم -->
+<div style="display: none;">
   {% if form.customer_id is defined %}{{ form.customer_id(id="customer_id") }}{% endif %}
+  {% if form.supplier_id is defined %}{{ form.supplier_id(id="supplier_id") }}{% endif %}
+  {% if form.partner_id is defined %}{{ form.partner_id(id="partner_id") }}{% endif %}
+  {% if form.shipment_id is defined %}{{ form.shipment_id(id="shipment_id") }}{% endif %}
+  {% if form.expense_id is defined %}{{ form.expense_id(id="expense_id") }}{% endif %}
+  {% if form.loan_settlement_id is defined %}{{ form.loan_settlement_id(id="loan_settlement_id") }}{% endif %}
+  {% if form.sale_id is defined %}{{ form.sale_id(id="sale_id") }}{% endif %}
+  {% if form.invoice_id is defined %}{{ form.invoice_id(id="invoice_id") }}{% endif %}
+  {% if form.preorder_id is defined %}{{ form.preorder_id(id="preorder_id") }}{% endif %}
+  {% if form.service_id is defined %}{{ form.service_id(id="service_id") }}{% endif %}
   {% if form.entity_id is defined %}{{ form.entity_id(id="entity_id") }}{% endif %}
 </div>
+
+<!-- حاوية العميل -->
+    <div class="entity-field-container" data-entity-type="customer" style="display: {% if etype == 'customer' %}block{% else %}none{% endif %};">
+      {% if form.customer_search is defined %}
+        <label class="form-label required-field">
+          <i class="fas fa-user-circle text-primary"></i>
+          {{ form.customer_search.label.text }}
+          <span class="text-danger fw-bold">*</span>
+        </label>
+        <div class="input-group" style="position: relative;">
+          {{ form.customer_search(class="form-control search-dropdown-field", placeholder="🔍 ابحث أو اختر عميل...", autocomplete="off", id="customer_search") }}
+          <button type="button" class="btn btn-outline-secondary dropdown-toggle-btn" data-entity="customer">
+            <i class="fas fa-chevron-down"></i>
+          </button>
+          <a class="btn btn-outline-primary" href="{{ url_for('customers_bp.create_form') }}" target="_blank">
+            <i class="fas fa-plus me-1"></i>عميل جديد
+          </a>
+        </div>
+        <small class="form-text text-muted">
+          <i class="fas fa-info-circle"></i> اكتب للبحث أو اضغط السهم لعرض الكل
+        </small>
+        {% for e in form.customer_search.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+      {% endif %}
+    </div>
 
 <!-- حاوية المورد -->
 <div class="entity-field-container" data-entity-type="supplier" style="display: {% if etype == 'supplier' %}block{% else %}none{% endif %};">
   {% if form.supplier_search is defined %}
-    {{ form.supplier_search.label(class="form-label") }}
-    <div class="input-group">
-      {{ form.supplier_search(class="form-control", placeholder="اكتب اسم/هاتف المورد/التاجر", autocomplete="off") }}
-      <a class="btn btn-outline-primary" href="{{ url_for('vendors_bp.suppliers_create') }}" target="_blank">➕ مورد جديد</a>
+    <label class="form-label required-field">
+      <i class="fas fa-truck text-success"></i>
+      {{ form.supplier_search.label.text }}
+      <span class="text-danger fw-bold">*</span>
+    </label>
+    <div class="input-group" style="position: relative;">
+      {{ form.supplier_search(class="form-control search-dropdown-field", placeholder="🔍 ابحث أو اختر مورد...", autocomplete="off", id="supplier_search") }}
+      <button type="button" class="btn btn-outline-secondary dropdown-toggle-btn" data-entity="supplier">
+        <i class="fas fa-chevron-down"></i>
+      </button>
+      <a class="btn btn-outline-primary" href="{{ url_for('vendors_bp.suppliers_create') }}" target="_blank">
+        <i class="fas fa-plus me-1"></i>مورد جديد
+      </a>
     </div>
-    {% for e in form.supplier_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    <small class="form-text text-muted">
+      <i class="fas fa-info-circle"></i> اكتب للبحث أو اضغط السهم لعرض الكل
+    </small>
+    {% for e in form.supplier_search.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
   {% endif %}
-  {% if form.supplier_id is defined %}{{ form.supplier_id(id="supplier_id") }}{% endif %}
-  {% if form.entity_id is defined %}{{ form.entity_id(id="entity_id") }}{% endif %}
 </div>
 
 <!-- حاوية الشريك -->
 <div class="entity-field-container" data-entity-type="partner" style="display: {% if etype == 'partner' %}block{% else %}none{% endif %};">
   {% if form.partner_search is defined %}
-    {{ form.partner_search.label(class="form-label") }}
-    <div class="input-group">
-      {{ form.partner_search(class="form-control", placeholder="اكتب اسم/هاتف الشريك", autocomplete="off") }}
-      <a class="btn btn-outline-primary" href="{{ url_for('vendors_bp.partners_create') }}" target="_blank">➕ شريك جديد</a>
+    <label class="form-label required-field">
+      <i class="fas fa-handshake text-warning"></i>
+      {{ form.partner_search.label.text }}
+      <span class="text-danger fw-bold">*</span>
+    </label>
+    <div class="input-group" style="position: relative;">
+      {{ form.partner_search(class="form-control search-dropdown-field", placeholder="🔍 ابحث أو اختر شريك...", autocomplete="off", id="partner_search") }}
+      <button type="button" class="btn btn-outline-secondary dropdown-toggle-btn" data-entity="partner">
+        <i class="fas fa-chevron-down"></i>
+      </button>
+      <a class="btn btn-outline-primary" href="{{ url_for('vendors_bp.partners_create') }}" target="_blank">
+        <i class="fas fa-plus me-1"></i>شريك جديد
+      </a>
     </div>
-    {% for e in form.partner_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    <small class="form-text text-muted">
+      <i class="fas fa-info-circle"></i> اكتب للبحث أو اضغط السهم لعرض الكل
+    </small>
+    {% for e in form.partner_search.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
   {% endif %}
-  {% if form.partner_id is defined %}{{ form.partner_id(id="partner_id") }}{% endif %}
-  {% if form.entity_id is defined %}{{ form.entity_id(id="entity_id") }}{% endif %}
 </div>
 
 <!-- حاوية البيع -->
@@ -50,14 +95,11 @@
     {{ form.sale_search(class="form-control", placeholder="رقم البيع", autocomplete="off") }}
     {% for e in form.sale_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
   {% endif %}
-  {% if form.sale_id is defined %}{{ form.sale_id(id="sale_id") }}{% endif %}
-  {% if form.entity_id is defined %}{{ form.entity_id(id="entity_id") }}{% endif %}
   <div class="mb-3">
     {% if form.customer_search is defined %}
       <label class="form-label">العميل المرتبط</label>
       {{ form.customer_search(class="form-control", placeholder="العميل المرتبط بالبيع", autocomplete="off", readonly=true) }}
     {% endif %}
-    {% if form.customer_id is defined %}{{ form.customer_id(id="customer_id") }}{% endif %}
   </div>
 </div>
 
@@ -69,15 +111,12 @@
       {{ form.service_search(class="form-control", placeholder="رقم الصيانة", autocomplete="off") }}
       {% for e in form.service_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
     {% endif %}
-    {% if form.service_id is defined %}{{ form.service_id(id="service_id") }}{% endif %}
-    {% if form.entity_id is defined %}{{ form.entity_id(id="entity_id") }}{% endif %}
   </div>
   <div class="mb-3">
     {% if form.customer_search is defined %}
       <label class="form-label">العميل المرتبط</label>
       {{ form.customer_search(class="form-control", placeholder="العميل المرتبط بالصيانة", autocomplete="off", readonly=true) }}
     {% endif %}
-    {% if form.customer_id is defined %}{{ form.customer_id(id="customer_id") }}{% endif %}
   </div>
 </div>
 
@@ -89,15 +128,12 @@
       {{ form.shipment_search(class="form-control", placeholder="رقم الشحنة", autocomplete="off") }}
       {% for e in form.shipment_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
     {% endif %}
-    {% if form.shipment_id is defined %}{{ form.shipment_id(id="shipment_id") }}{% endif %}
-    {% if form.entity_id is defined %}{{ form.entity_id(id="entity_id") }}{% endif %}
   </div>
   <div class="mb-3">
     {% if form.supplier_search is defined %}
       <label class="form-label">المورد المرتبط</label>
       {{ form.supplier_search(class="form-control", placeholder="المورد المرتبط بالشحنة", autocomplete="off", readonly=true) }}
     {% endif %}
-    {% if form.supplier_id is defined %}{{ form.supplier_id(id="supplier_id") }}{% endif %}
   </div>
 </div>
 
@@ -109,15 +145,12 @@
       {{ form.expense_search(class="form-control", placeholder="رقم المصروف", autocomplete="off") }}
       {% for e in form.expense_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
     {% endif %}
-    {% if form.expense_id is defined %}{{ form.expense_id(id="expense_id") }}{% endif %}
-    {% if form.entity_id is defined %}{{ form.entity_id(id="entity_id") }}{% endif %}
   </div>
   <div class="mb-3">
     {% if form.supplier_search is defined %}
       <label class="form-label">المورد أو الموظف</label>
       {{ form.supplier_search(class="form-control", placeholder="المورد/الموظف المرتبط بالمصروف", autocomplete="off") }}
     {% endif %}
-    {% if form.supplier_id is defined %}{{ form.supplier_id(id="supplier_id") }}{% endif %}
     {% if form.employee_id is defined %}{{ form.employee_id(id="employee_id") }}{% endif %}
   </div>
 </div>
@@ -130,15 +163,12 @@
       {{ form.loan_settlement_search(class="form-control", placeholder="رقم التسوية", autocomplete="off") }}
       {% for e in form.loan_settlement_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
     {% endif %}
-    {% if form.loan_settlement_id is defined %}{{ form.loan_settlement_id(id="loan_settlement_id") }}{% endif %}
-    {% if form.entity_id is defined %}{{ form.entity_id(id="entity_id") }}{% endif %}
   </div>
   <div class="mb-3">
     {% if form.supplier_search is defined %}
       <label class="form-label">المورد المرتبط</label>
       {{ form.supplier_search(class="form-control", placeholder="المورد المرتبط بالتسوية", autocomplete="off", readonly=true) }}
     {% endif %}
-    {% if form.supplier_id is defined %}{{ form.supplier_id(id="supplier_id") }}{% endif %}
   </div>
 </div>
 
@@ -150,15 +180,12 @@
       {{ form.preorder_search(class="form-control", placeholder="رقم الحجز (قطع غيار)", autocomplete="off") }}
       {% for e in form.preorder_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
     {% endif %}
-    {% if form.preorder_id is defined %}{{ form.preorder_id(id="preorder_id") }}{% endif %}
-    {% if form.entity_id is defined %}{{ form.entity_id(id="entity_id") }}{% endif %}
   </div>
   <div class="mb-3">
     {% if form.customer_search is defined %}
       <label class="form-label">العميل المرتبط</label>
       {{ form.customer_search(class="form-control", placeholder="العميل المرتبط بالحجز", autocomplete="off", readonly=true) }}
     {% endif %}
-    {% if form.customer_id is defined %}{{ form.customer_id(id="customer_id") }}{% endif %}
   </div>
 </div>
 
@@ -173,7 +200,6 @@
       <label class="form-label">العميل المرتبط</label>
       {{ form.customer_search(class="form-control", placeholder="العميل المرتبط بالطلب", autocomplete="off", readonly=true) }}
     {% endif %}
-    {% if form.customer_id is defined %}{{ form.customer_id(id="customer_id") }}{% endif %}
   </div>
 </div>
 
@@ -188,7 +214,6 @@
       <label class="form-label">المورد المرتبط</label>
       {{ form.supplier_search(class="form-control", placeholder="المورد المرتبط بالمشتريات", autocomplete="off", readonly=true) }}
     {% endif %}
-    {% if form.supplier_id is defined %}{{ form.supplier_id(id="supplier_id") }}{% endif %}
   </div>
 </div>
 
@@ -200,15 +225,12 @@
       {{ form.invoice_search(class="form-control", placeholder="رقم الفاتورة", autocomplete="off") }}
       {% for e in form.invoice_search.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
     {% endif %}
-    {% if form.invoice_id is defined %}{{ form.invoice_id(id="invoice_id") }}{% endif %}
-    {% if form.entity_id is defined %}{{ form.entity_id(id="entity_id") }}{% endif %}
   </div>
   <div class="mb-3">
     {% if form.customer_search is defined %}
       <label class="form-label">العميل المرتبط</label>
       {{ form.customer_search(class="form-control", placeholder="العميل المرتبط بالفاتورة", autocomplete="off", readonly=true) }}
     {% endif %}
-    {% if form.customer_id is defined %}{{ form.customer_id(id="customer_id") }}{% endif %}
   </div>
 </div>
 

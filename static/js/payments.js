@@ -51,29 +51,7 @@ document.addEventListener('DOMContentLoaded', function() {
     el.addEventListener('change', debouncedReload, { passive: true });
     if (el.tagName === 'INPUT') el.addEventListener('input', debouncedReload, { passive: true });
   });
-  function normalizeEntity(val) {
-    if (!val) return '';
-    const k = val.toString().toLowerCase();
-    return ENTITY_ENUM[k] || val.toString().toUpperCase();
-  }
-  function normalizeMethod(v) {
-    v = String(v || '').trim();
-    if (!v) return '';
-    return v.replace(/\s+/g,'_').replace(/-/g,'_').toUpperCase();
-  }
-  function normDir(v) {
-    v = (v || '').toUpperCase();
-    if (v === 'IN') return 'INCOMING';
-    if (v === 'OUT') return 'OUTGOING';
-    return v;
-  }
-  function validDates(start, end) {
-    if (!start || !end) return { start, end };
-    const s = new Date(start), e = new Date(end);
-    if (isNaN(s) || isNaN(e)) return { start, end };
-    if (s.getTime() > e.getTime()) return { start: end, end: start };
-    return { start, end };
-  }
+  // ✅ الدوال نُقلت إلى common-utils.js (normalizeEntity, normalizeMethod, normDir, validDates)
   function currentFilters(page = 1) {
     const raw = {
       entity_type: normalizeEntity(document.querySelector('#filterEntity')?.value || ctx.entity_type || ''),
@@ -121,6 +99,11 @@ document.addEventListener('DOMContentLoaded', function() {
       .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
       .then(function (data) {
         const list = Array.isArray(data.payments) ? data.payments : [];
+        // ✅ حفظ مجموع الصفحة من الباكند
+        _currentPageSum = {
+          sum: data.totals?.page_sum || 0,
+          sumILS: data.totals?.page_sum_ils || 0
+        };
         renderPaymentsTable(list);
         renderPagination(Number(data.total_pages || 1), Number(data.current_page || 1));
         renderTotals(data.totals || null);
@@ -138,94 +121,15 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!tbody) return;
     if (is) tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm me-2"></div>جارِ التحميل…</td></tr>';
   }
-  function badgeForDirection(dir) {
-    const v = String(dir || '').toUpperCase();
-    return (v === 'IN' || v === 'INCOMING') ? '<span class="badge bg-success">وارد</span>' : '<span class="badge bg-danger">صادر</span>';
-  }
-  function badgeForStatus(st) {
-    const s = String(st || '');
-    const cls = s === 'COMPLETED' ? 'bg-success' : s === 'PENDING' ? 'bg-warning text-dark' : s === 'FAILED' ? 'bg-danger' : 'bg-secondary';
-    const txt = AR_STATUS[s] || s || '';
-    return '<span class="badge ' + cls + '">' + txt + '</span>';
-  }
-  function toNumber(s) {
-    s = String(s || '')
-      .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
-      .replace(/[٬،\s]/g, '')
-      .replace(',', '.');
-    const n = parseFloat(s);
-    return isNaN(n) ? 0 : n;
-  }
-  function fmtAmount(v) { 
-    const num = toNumber(v);
-    return num.toLocaleString('en-US', { 
-      minimumFractionDigits: 2, 
-      maximumFractionDigits: 2 
-    });
-  }
-  function deriveEntityLabel(p) {
-    if (p.entity_display) return p.entity_display;
-    
-    // إنشاء تسمية ذكية مع تفاصيل
-    let label = '';
-    let icon = '';
-    let badgeClass = 'badge-secondary';
-    
-    if (p.customer_id) {
-      icon = '<i class="fas fa-user text-primary"></i>';
-      label = 'عميل #' + p.customer_id;
-      badgeClass = 'badge-primary';
-    } else if (p.supplier_id) {
-      icon = '<i class="fas fa-truck text-info"></i>';
-      label = 'مورد #' + p.supplier_id;
-      badgeClass = 'badge-info';
-    } else if (p.partner_id) {
-      icon = '<i class="fas fa-handshake text-success"></i>';
-      label = 'شريك #' + p.partner_id;
-      badgeClass = 'badge-success';
-    } else if (p.sale_id) {
-      icon = '<i class="fas fa-shopping-cart text-warning"></i>';
-      label = 'فاتورة مبيعات #' + p.sale_id;
-      badgeClass = 'badge-warning';
-    } else if (p.service_id) {
-      icon = '<i class="fas fa-wrench text-danger"></i>';
-      label = 'صيانة مركبة #' + p.service_id;
-      badgeClass = 'badge-danger';
-    } else if (p.expense_id) {
-      icon = '<i class="fas fa-receipt text-secondary"></i>';
-      label = 'مصروف #' + p.expense_id;
-      badgeClass = 'badge-secondary';
-    } else if (p.shipment_id) {
-      icon = '<i class="fas fa-shipping-fast text-primary"></i>';
-      label = 'شحنة #' + p.shipment_id;
-      badgeClass = 'badge-primary';
-    } else if (p.preorder_id) {
-      icon = '<i class="fas fa-calendar-check text-info"></i>';
-      label = 'طلب مسبق #' + p.preorder_id;
-      badgeClass = 'badge-info';
-    } else if (p.loan_settlement_id) {
-      icon = '<i class="fas fa-balance-scale text-warning"></i>';
-      label = 'تسوية قرض #' + p.loan_settlement_id;
-      badgeClass = 'badge-warning';
-    } else if (p.invoice_id) {
-      icon = '<i class="fas fa-file-invoice text-success"></i>';
-      label = 'فاتورة #' + p.invoice_id;
-      badgeClass = 'badge-success';
-    } else {
-      return p.entity_type || '';
-    }
-    
-    // إضافة المرجع إذا كان موجوداً
-    let details = '';
-    if (p.reference) {
-      details = '<br><small class="text-muted">' + p.reference + '</small>';
-    }
-    
-    return icon + ' <span class="badge ' + badgeClass + '">' + label + '</span>' + details;
-  }
+  // ✅ جميع دوال العرض نُقلت إلى common-utils.js:
+  // badgeForDirection, badgeForStatus, toNumber, fmtAmount, deriveEntityLabel, 
+  // normalizeEntity, normalizeMethod, normDir, validDates
+  let _currentPageSum = {sum: 0, sumILS: 0}; // ✅ سيتم ملؤها من الباكند
+  
   function renderPaymentsTable(list) {
     _lastList = list.slice();
     const tbody = document.querySelector('#paymentsTable tbody');
+    if (!tbody) return; // ✅ الجدول قد لا يكون موجود في بعض الصفحات
     tbody.innerHTML = '';
     if (!list.length) {
       const tr = document.createElement('tr');
@@ -233,22 +137,12 @@ document.addEventListener('DOMContentLoaded', function() {
       tbody.appendChild(tr);
       return;
     }
-    let pageSum = 0;
-    let pageSumILS = 0; // مجموع الصفحة بالشيكل
+    // ✅ لا نحسب pageSum هنا - الباكند يرسلها في data.totals.page_sum
     list.forEach(function (p) {
       const splitsHtml = (p.splits || []).map(function (s) {
         return '<span class="badge bg-secondary me-1">' + String((s.method || '')).toUpperCase() + ': ' + fmtAmount(s.amount) + ' ' + (p.currency || '') + '</span>';
       }).join(' ');
       const dateOnly = (p.payment_date || '').split('T')[0] || '';
-      pageSum += toNumber(p.total_amount);
-      
-      // حساب المبلغ بالشيكل للمجموع
-      let amountInILSForSum = p.total_amount;
-      if (p.currency && p.currency !== 'ILS') {
-        const rates = { 'USD': 3.31, 'EUR': 3.88, 'AED': 0.9, 'JOD': 4.67 };
-        amountInILSForSum = (parseFloat(p.total_amount) * (rates[p.currency] || 1)).toFixed(2);
-      }
-      pageSumILS += parseFloat(amountInILSForSum);
       const actions =
         '<div class="btn-group btn-group-sm" role="group">' +
           '<a href="/payments/' + p.id + '" class="btn btn-info">عرض</a>' +
@@ -257,23 +151,15 @@ document.addEventListener('DOMContentLoaded', function() {
           '<a href="/hard-delete/payment/' + p.id + '" class="btn btn-outline-danger" title="حذف قوي" onclick="return confirm(\'حذف قوي - سيتم حذف جميع البيانات المرتبطة!\')">حذف قوي</a>' +
         '</div>';
       const tr = document.createElement('tr');
-      // حساب المبلغ بالشيكل باستخدام FX Utils
-      let amountInILS = p.total_amount;
+      // ✅ استخدام amountInILS من الباكند (سيتم إضافته لاحقاً)
+      let amountInILS = p.amount_in_ils || p.total_amount; // fallback للبيانات القديمة
       let fxRateDisplay = '-';
-      let fxRateValue = null;
       
       if (p.currency && p.currency !== 'ILS') {
-        // استخدام سعر الصرف المحفوظ أو الافتراضي
         if (p.fx_rate_used && parseFloat(p.fx_rate_used) > 0) {
-          fxRateValue = parseFloat(p.fx_rate_used);
-          fxRateDisplay = FXUtils.formatFxRate(fxRateValue, p.fx_rate_source);
-          amountInILS = (parseFloat(p.total_amount) * fxRateValue).toFixed(2);
+          fxRateDisplay = FXUtils.formatFxRate(parseFloat(p.fx_rate_used), p.fx_rate_source);
         } else {
-          // استخدام سعر افتراضي للعرض فقط (للبيانات القديمة)
-          const rates = { 'USD': 3.31, 'EUR': 3.88, 'AED': 0.9, 'JOD': 4.67 };
-          fxRateValue = rates[p.currency] || 1;
-          fxRateDisplay = FXUtils.formatFxRate(fxRateValue, 'default');
-          amountInILS = (parseFloat(p.total_amount) * fxRateValue).toFixed(2);
+          fxRateDisplay = FXUtils.formatFxRate(1, 'default');
         }
       }
       
@@ -298,8 +184,9 @@ document.addEventListener('DOMContentLoaded', function() {
         '<td>' + actions + '</td>';
       tbody.appendChild(tr);
     });
+    // ✅ استخدام مجموع الصفحة من الباكند
     const t = document.createElement('tr');
-    t.innerHTML = '<td></td><td class="text-end fw-bold">إجمالي الصفحة</td><td class="fw-bold">' + fmtAmount(pageSum) + '</td><td></td><td></td><td class="fw-bold" style="color: #0056b3;">' + fmtAmount(pageSumILS) + ' ₪</td><td colspan="5"></td>';
+    t.innerHTML = '<td></td><td class="text-end fw-bold">إجمالي الصفحة</td><td class="fw-bold">' + fmtAmount(_currentPageSum.sum) + '</td><td></td><td></td><td class="fw-bold" style="color: #0056b3;">' + fmtAmount(_currentPageSum.sumILS) + ' ₪</td><td colspan="5"></td>';
     tbody.appendChild(t);
   }
   // Event listener لحذف الدفعات

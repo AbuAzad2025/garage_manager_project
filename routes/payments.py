@@ -243,11 +243,25 @@ def _serialize_split(s):
     }
 
 def _serialize_payment_min(p, *, full=False):
+    # ✅ حساب المبلغ بالشيكل في الباكند
+    amount_in_ils = float(p.total_amount or 0)
+    if p.currency and p.currency != 'ILS':
+        try:
+            from models import convert_amount
+            amount_in_ils = float(convert_amount(p.total_amount, p.currency, 'ILS', p.payment_date))
+        except:
+            # fallback: استخدام fx_rate_used المحفوظ
+            if p.fx_rate_used and p.fx_rate_used > 0:
+                amount_in_ils = float(p.total_amount or 0) * float(p.fx_rate_used)
+    
     d = {
         "id": p.id,
         "payment_date": (p.payment_date.isoformat() if getattr(p, "payment_date", None) else None),
         "total_amount": int(q0(getattr(p, "total_amount", 0) or 0)),
         "currency": getattr(p, "currency", "ILS") or "ILS",
+        "amount_in_ils": amount_in_ils,  # ✅ إضافة المبلغ بالشيكل من الباكند
+        "fx_rate_used": float(p.fx_rate_used) if p.fx_rate_used else None,
+        "fx_rate_source": p.fx_rate_source if hasattr(p, 'fx_rate_source') else None,
         "method": (getattr(getattr(p, "method", None), "value", getattr(p, "method", "")) or ""),
         "direction": (getattr(getattr(p, "direction", None), "value", getattr(p, "direction", "")) or ""),
         "status": (getattr(getattr(p, "status", None), "value", getattr(p, "status", "")) or ""),
@@ -504,13 +518,37 @@ def index():
             "total_paid": int(ti)
         }
     if _wants_json():
+        # حساب مجموع الصفحة الحالية (page sum) في الباكند
+        page_sum = 0.0
+        page_sum_ils = 0.0
+        for p in pagination.items:
+            page_sum += float(p.total_amount or 0)
+            # تحويل للشيكل
+            if p.currency == 'ILS':
+                page_sum_ils += float(p.total_amount or 0)
+            else:
+                try:
+                    from models import convert_amount
+                    converted = float(convert_amount(p.total_amount, p.currency, 'ILS', p.payment_date))
+                    page_sum_ils += converted
+                except:
+                    pass
+        
         return jsonify({
             "payments": [_serialize_payment(p, full=False) for p in pagination.items],
             "total_pages": pagination.pages,
             "current_page": pagination.page,
             "total_items": pagination.total,
             "currency": None,
-            "totals_by_currency": totals_by_currency
+            "totals_by_currency": totals_by_currency,
+            "totals": {
+                "total_incoming": total_incoming_ils,
+                "total_outgoing": total_outgoing_ils,
+                "net_total": net_total_ils,
+                "grand_total": grand_total_ils,
+                "page_sum": page_sum,
+                "page_sum_ils": page_sum_ils
+            }
         })
     return render_template(
         "payments/list.html",
@@ -537,18 +575,7 @@ def create_payment():
         return getattr(f, "data", None) if f is not None else None
     if request.method == "GET":
         form.payment_date.data = datetime.utcnow()
-        try:
-            tokens = list(session.get("pmt_tokens") or [])
-            if len(tokens) > 50:
-                tokens = tokens[-30:]
-            tok = uuid.uuid4().hex
-            tokens.append(tok)
-            session["pmt_tokens"] = tokens
-            if hasattr(form, "request_token"):
-                form.request_token.data = tok
-        except Exception:
-            if hasattr(form, "request_token"):
-                form.request_token.data = None
+        # ✅ تم إلغاء Request Token لتحسين UX - الاعتماد على CSRF + Idempotency فقط
         raw_et = (request.args.get("entity_type") or "").strip().upper()
         if raw_et == "SHIPMENT_CUSTOMS":
             raw_et = "SHIPMENT"
@@ -744,17 +771,7 @@ def create_payment():
         if not form.status.data:
             form.status.data = PaymentStatus.COMPLETED.value
     if request.method == "POST":
-        req_tok = (request.form.get("request_token") or "").strip()
-        tokens = set(session.get("pmt_tokens") or [])
-        if req_tok and (req_tok in tokens):
-            tokens.remove(req_tok)
-            session["pmt_tokens"] = list(tokens)
-        else:
-            msg = "تم استلام هذه العملية مسبقًا أو انتهت صلاحية الجلسة."
-            if _wants_json():
-                return jsonify(status="error", message=msg), 409
-            flash(msg, "warning")
-            return redirect(url_for(".index"))
+        # ✅ تم إلغاء Request Token validation - الاعتماد على CSRF + Idempotency فقط
         raw_dir = request.form.get("direction")
         if raw_dir:
             form.direction.data = _norm_dir(raw_dir)
@@ -772,7 +789,8 @@ def create_payment():
             etype = (form.entity_type.data or "").upper()
             field_name = getattr(form, "_entity_field_map", {}).get(etype)
             target_id = getattr(form, field_name).data if field_name and hasattr(form, field_name) else None
-            if etype and field_name and not target_id:
+            # ✅ متفرقات وأخرى لا يحتاجون target_id
+            if etype and field_name and not target_id and etype not in ("MISCELLANEOUS", "OTHER", "EXPENSE"):
                 msg = "نوع الجهة محدد بدون رقم مرجع."
                 if _wants_json():
                     return jsonify(status="error", message=msg), 400
@@ -827,7 +845,13 @@ def create_payment():
             if etype == "EXPENSE":
                 direction_val = "OUT"
             direction_db = _dir_to_db(direction_val)
-            method_val = parsed_splits[0].method if parsed_splits else _coerce_method(getattr(form, "method", None).data or "cash").value
+            # ✅ استخراج method من الدفعات الجزئية (الأولوية) أو default
+            if parsed_splits:
+                method_val = parsed_splits[0].method
+            else:
+                # إذا ما كان في splits، نستخدم form.method أو default
+                form_method = getattr(form, "method", None)
+                method_val = _coerce_method(form_method.data if form_method and form_method.data else "cash").value
             notes_raw = (_fd(getattr(form, "note", None)) or _fd(getattr(form, "notes", None)) or "")
             related_customer_id = None
             related_supplier_id = None
@@ -1489,47 +1513,65 @@ def get_entities(entity_type):
                     )
                 )
             entities = query.order_by(Customer.name).limit(limit).all()
-            return jsonify([{
-                "id": c.id,
-                "name": c.name,
-                "phone": c.phone,
-                "email": c.email,
-                "display": f"{c.name} - {c.phone}"
-            } for c in entities])
+            return jsonify({
+                "success": True,
+                "results": [{
+                    "id": c.id,
+                    "name": c.name,
+                    "phone": c.phone,
+                    "email": c.email,
+                    "display": f"{c.name} - {c.phone}",
+                    "balance": float(c.balance or 0)
+                } for c in entities]
+            })
             
         elif entity_type == "SUPPLIER":
-            query = Supplier.query.filter_by(is_active=True)
+            query = Supplier.query.filter_by(is_archived=False)  # ✅ Supplier عنده is_archived مش is_active
             if search:
+                # ✅ استخدام func.coalesce للتعامل مع null
                 query = query.filter(
                     or_(
                         Supplier.name.ilike(f"%{search}%"),
-                        Supplier.email.ilike(f"%{search}%")
+                        func.coalesce(Supplier.phone, '').ilike(f"%{search}%"),
+                        func.coalesce(Supplier.email, '').ilike(f"%{search}%")
                     )
                 )
             entities = query.order_by(Supplier.name).limit(limit).all()
-            return jsonify([{
-                "id": s.id,
-                "name": s.name,
-                "email": s.email,
-                "display": f"{s.name} - {s.email}"
-            } for s in entities])
+            return jsonify({
+                "success": True,
+                "results": [{
+                    "id": s.id,
+                    "name": s.name,
+                    "phone": s.phone,
+                    "email": s.email,
+                    "display": f"{s.name} - {s.phone if s.phone else (s.email if s.email else '')}",
+                    "balance": float(s.balance or 0)
+                } for s in entities]
+            })
             
         elif entity_type == "PARTNER":
-            query = Partner.query.filter_by(is_active=True)
+            query = Partner.query.filter_by(is_archived=False)  # ✅ Partner عنده is_archived مش is_active
             if search:
+                # ✅ Partner عنده phone_number (مش phone) + استخدام coalesce للتعامل مع null
                 query = query.filter(
                     or_(
                         Partner.name.ilike(f"%{search}%"),
-                        Partner.email.ilike(f"%{search}%")
+                        func.coalesce(Partner.phone_number, '').ilike(f"%{search}%"),
+                        func.coalesce(Partner.email, '').ilike(f"%{search}%")
                     )
                 )
             entities = query.order_by(Partner.name).limit(limit).all()
-            return jsonify([{
-                "id": p.id,
-                "name": p.name,
-                "email": p.email,
-                "display": f"{p.name} - {p.email}"
-            } for p in entities])
+            return jsonify({
+                "success": True,
+                "results": [{
+                    "id": p.id,
+                    "name": p.name,
+                    "phone": p.phone_number,  # ✅ phone_number
+                    "email": p.email,
+                    "display": f"{p.name} - {p.phone_number if p.phone_number else (p.email if p.email else '')}",
+                    "balance": float(p.balance or 0)
+                } for p in entities]
+            })
             
         elif entity_type == "SALE":
             query = Sale.query.filter_by(status="CONFIRMED")
@@ -1541,13 +1583,16 @@ def get_entities(entity_type):
                     )
                 )
             entities = query.order_by(Sale.sale_date.desc()).limit(limit).all()
-            return jsonify([{
-                "id": s.id,
-                "sale_number": s.sale_number,
-                "customer_name": s.customer.name if s.customer else "غير محدد",
-                "total_amount": float(s.total_amount or 0),
-                "display": f"{s.sale_number} - {s.customer.name if s.customer else 'غير محدد'}"
-            } for s in entities])
+            return jsonify({
+                "success": True,
+                "results": [{
+                    "id": s.id,
+                    "sale_number": s.sale_number,
+                    "customer_name": s.customer.name if s.customer else "غير محدد",
+                    "total_amount": float(s.total_amount or 0),
+                    "display": f"{s.sale_number} - {s.customer.name if s.customer else 'غير محدد'}"
+                } for s in entities]
+            })
             
         elif entity_type == "INVOICE":
             # ✅ status محسوب تلقائياً - نستخدم total_paid للفلترة على الفواتير غير المدفوعة
@@ -1566,19 +1611,22 @@ def get_entities(entity_type):
                     )
                 )
             entities = query.order_by(Invoice.invoice_date.desc()).limit(limit).all()
-            return jsonify([{
-                "id": i.id,
-                "invoice_number": i.invoice_number,
-                "customer_name": i.customer.name if i.customer else "غير محدد",
-                "total_amount": float(i.total_amount or 0),
-                "display": f"{i.invoice_number} - {i.customer.name if i.customer else 'غير محدد'}"
-            } for i in entities])
+            return jsonify({
+                "success": True,
+                "results": [{
+                    "id": i.id,
+                    "invoice_number": i.invoice_number,
+                    "customer_name": i.customer.name if i.customer else "غير محدد",
+                    "total_amount": float(i.total_amount or 0),
+                    "display": f"{i.invoice_number} - {i.customer.name if i.customer else 'غير محدد'}"
+                } for i in entities]
+            })
             
         else:
-            return jsonify([])
+            return jsonify({"success": False, "results": [], "message": "نوع جهة غير مدعوم"})
             
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"success": False, "error": str(e), "results": []}), 500
 
 
 @payments_bp.route("/api/related-party", methods=["GET"], endpoint="get_related_party")

@@ -132,20 +132,11 @@
                   <i class="fas fa-calculator"></i>
                   <span class="d-none d-lg-inline ms-1">تسوية ذكية</span>
                 </a>
-                {% if s.balance and s.balance > 0 %}
-                <a href="{{ url_for('payments.create_payment', 
-                                   entity_type='SUPPLIER', 
-                                   entity_id=s.id,
-                                   amount=s.balance,
-                                   currency=s.currency if s.currency else 'ILS',
-                                   reference='دفع لمورد: ' ~ s.name,
-                                   notes='دفع مستحقات المورد: ' ~ s.name ~ ((' - هاتف: ' ~ s.phone) if s.phone else ''),
-                                   supplier_id=s.id) }}"
-                   class="btn btn-sm btn-primary d-flex align-items-center" title="دفع ({{ '%.2f'|format(s.balance) }} ₪)">
-                  <i class="fas fa-coins"></i>
+                <a href="{{ url_for('payments.create_payment') }}?entity_type=SUPPLIER&entity_id={{ s.id }}&entity_name={{ s.name|urlencode }}"
+                   class="btn btn-sm btn-primary d-flex align-items-center" title="إضافة دفعة">
+                  <i class="fas fa-money-bill-wave"></i>
                   <span class="d-none d-lg-inline ms-1">دفع</span>
                 </a>
-                {% endif %}
                 <a href="{{ url_for('vendors_bp.suppliers_statement', supplier_id=s.id) }}"
                    class="btn btn-sm btn-warning d-flex align-items-center" title="كشف حساب مبسط">
                   <i class="fas fa-file-invoice"></i>
@@ -257,48 +248,29 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/vendors.js') }}"></script>
 <script>
-  // حساب ملخصات الموردين - الحل المضمون
+  // ✅ استخدام الملخصات من الباكند مباشرة (السياسة 0.1)
   document.addEventListener('DOMContentLoaded', function() {
-    const rows = document.querySelectorAll('tbody tr');
-    let totalBalance = 0;
-    let totalDebit = 0;
-    let totalCredit = 0;
+    // ✅ البيانات محسوبة في الباكند - نعرضها فقط
+    const totalBalance = {{ summary.total_balance|default(0) }};
+    const totalDebit = {{ summary.total_debit|default(0) }};
+    const totalCredit = {{ summary.total_credit|default(0) }};
     
-    rows.forEach((row, index) => {
-      const cells = row.querySelectorAll('td');
-      if (cells.length >= 6) {
-        const balanceText = cells[5].textContent.trim();
-        // استخراج الرقم من النص
-        const balanceMatch = balanceText.match(/-?\d+(?:,\d{3})*(?:\.\d{2})?/);
-        if (balanceMatch) {
-          const balance = parseFloat(balanceMatch[0].replace(/,/g, ''));
-          totalBalance += balance;
-          
-          if (balance < 0) {
-            totalDebit += Math.abs(balance);
-          } else {
-            totalCredit += balance;
-          }
-        }
-      }
-    });
-    
-    // تحديث الملخصات
+    // عرض الملخصات من الباكند
     const totalBalanceEl = document.getElementById('total-balance');
     const totalDebitEl = document.getElementById('total-debit');
     const totalCreditEl = document.getElementById('total-credit');
     
     if (totalBalanceEl) {
       totalBalanceEl.textContent = totalBalance.toFixed(2);
-      }
+    }
     
     if (totalDebitEl) {
       totalDebitEl.textContent = totalDebit.toFixed(2);
-      }
+    }
     
     if (totalCreditEl) {
       totalCreditEl.textContent = totalCredit.toFixed(2);
-      }
+    }
   });
   
   // التحقق من القطع غير المسعّرة

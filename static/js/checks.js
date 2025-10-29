@@ -101,10 +101,10 @@
                     $('#badge-all').text(checks.length);
                     
                     // 🚨 تحديث تحذير الشيكات المتأخرة
+                    // ✅ سيتم استخدام الإحصائيات من الباكند في loadStatistics()
                     if (categorized.overdue.length > 0) {
-                        const overdueTotal = categorized.overdue.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
                         $('#overdue-count-alert').text(categorized.overdue.length);
-                        $('#overdue-amount-alert').text(formatCurrency(overdueTotal) + ' ₪');
+                        // المبلغ سيتم ملؤه من loadStatistics()
                         $('#overdue-alert').fadeIn(500);
                         
                         // تمييز بارز لتبويب المتأخرة
@@ -276,18 +276,31 @@
         $('#stat-returned-count').text(returnedTotal);
         $('#stat-returned-amount').text(formatCurrency(returnedAmount) + ' ₪');
         
-        $('#stat-overdue-count').text(categorized.overdue.length);
-        $('#stat-overdue-amount').text(formatCurrency(calcTotal(categorized.overdue)) + ' ₪');
+        // ✅ سيتم ملؤها من loadStatistics() من الباكند
+        // $('#stat-overdue-count').text(categorized.overdue.length);
+        // $('#stat-overdue-amount').text(formatCurrency(calcTotal(categorized.overdue)) + ' ₪');
 
     };
     
-    // تحميل الإحصائيات
+    // ✅ تحميل الإحصائيات من الباكند
     window.loadStatistics = function() {
-
         $.get('/checks/api/statistics', function(response) {
-            if (response.success) {
-
+            if (response.success && response.statistics) {
+                const stats = response.statistics;
+                
+                // تحديث المبلغ المتأخر في التحذير
+                if (stats.incoming && stats.incoming.overdue_amount) {
+                    $('#overdue-amount-alert').text(formatCurrency(stats.incoming.overdue_amount) + ' ₪');
+                }
+                
+                // تحديث الإحصائيات العامة
+                if (stats.incoming) {
+                    $('#stat-overdue-count').text(stats.incoming.overdue_count || 0);
+                    $('#stat-overdue-amount').text(formatCurrency(stats.incoming.overdue_amount || 0) + ' ₪');
+                }
             }
+        }).fail(function() {
+            console.warn('فشل تحميل الإحصائيات من الباكند');
         });
     };
     

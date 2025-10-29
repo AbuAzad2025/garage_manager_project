@@ -455,8 +455,7 @@
                       <td><span class="badge bg-primary">{{ example.category }}</span></td>
                       <td>{{ example.created_at.strftime('%Y-%m-%d') }}</td>
                       <td>
-                        <button class="btn btn-sm btn-danger" 
-                                onclick="if(confirm('حذف؟')) { location.href='{{ url_for('security.delete_training_example', id=example.id) }}'; }">
+                        <button class="btn btn-sm btn-danger" disabled title="قريباً">
                           <i class="fas fa-trash"></i>
                         </button>
                       </td>

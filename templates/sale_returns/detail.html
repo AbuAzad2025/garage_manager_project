@@ -148,7 +148,7 @@
                     <th>العميل:</th>
                     <td>
                       {% if sale_return.customer %}
-                      <a href="{{ url_for('customers.view_customer', id=sale_return.customer.id) }}">
+                      <a href="{{ url_for('customers_bp.customer_detail', id=sale_return.customer.id) }}">
                         {{ sale_return.customer.name }}
                       </a>
                       {% else %}
@@ -160,7 +160,7 @@
                     <th>البيع الأصلي:</th>
                     <td>
                       {% if sale_return.sale %}
-                      <a href="{{ url_for('sales_bp.view_sale', id=sale_return.sale.id) }}">
+                      <a href="{{ url_for('sales_bp.sale_detail', id=sale_return.sale.id) }}">
                         بيع #{{ sale_return.sale.id }}
                       </a>
                       {% else %}

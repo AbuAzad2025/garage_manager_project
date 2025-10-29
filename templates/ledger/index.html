@@ -133,6 +133,54 @@
     border-color: #667eea !important;
     box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25) !important;
 }
+
+/* تحسين Tabs */
+.nav-tabs {
+    border-bottom: 3px solid #667eea !important;
+}
+
+.nav-tabs .nav-link {
+    color: #495057;
+    font-weight: 600;
+    font-size: 1.05rem;
+    padding: 12px 20px;
+    border: none !important;
+    transition: all 0.3s;
+}
+
+.nav-tabs .nav-link:hover {
+    color: #667eea;
+    background-color: #f8f9fa;
+}
+
+.nav-tabs .nav-link.active {
+    color: #667eea !important;
+    background-color: #f8f9fa !important;
+    border-bottom: 3px solid #667eea !important;
+    font-weight: bold;
+}
+
+.nav-tabs .nav-link i {
+    margin-right: 5px;
+}
+
+/* فلاتر سريعة */
+.btn-group-lg .btn {
+    font-size: 1rem;
+    padding: 0.75rem 1.25rem;
+    font-weight: 600;
+}
+
+.btn-group-lg .btn.active {
+    background-color: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+.btn-group-lg .btn:hover:not(.active) {
+    background-color: #f8f9fa;
+    color: #667eea;
+}
 </style>
 {% endblock %}
 
@@ -155,6 +203,54 @@
 
 <section class="content">
     <div class="container-fluid">
+        
+        <!-- Navigation Tabs -->
+        <div class="card">
+            <div class="card-header p-0">
+                <ul class="nav nav-tabs nav-justified" id="ledgerTabs" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active" id="dashboard-tab" data-toggle="tab" href="#dashboard" role="tab">
+                            <i class="fas fa-tachometer-alt"></i> لوحة التحكم
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="ledger-tab" data-toggle="tab" href="#ledger" role="tab">
+                            <i class="fas fa-book"></i> دفتر الأستاذ
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="pnl-tab" data-toggle="tab" href="#pnl" role="tab">
+                            <i class="fas fa-chart-line"></i> قائمة الدخل
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="receivables-tab" data-toggle="tab" href="#receivables" role="tab">
+                            <i class="fas fa-users"></i> الذمم
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="trial-balance-tab" data-toggle="tab" href="#trial-balance" role="tab">
+                            <i class="fas fa-balance-scale"></i> ميزان المراجعة
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="manual-entry-tab" data-toggle="tab" href="#manual-entry" role="tab">
+                            <i class="fas fa-pen-alt"></i> قيد يدوي
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="assistant-tab" data-toggle="tab" href="#assistant" role="tab">
+                            <i class="fas fa-robot"></i> المساعد الذكي
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content" id="ledgerTabContent">
+                    
+                    <!-- Tab 1: Dashboard -->
+                    <div class="tab-pane fade show active" id="dashboard" role="tabpanel">
+                        
             <!-- إحصائيات سريعة - الصف الأول -->
             <div class="row">
                 <div class="col-lg-3 col-md-6">
@@ -188,7 +284,7 @@
             </div>
 
             <!-- صف ثاني للإحصائيات -->
-            <div class="row mt-3">
+            <div class="row mt-3" id="stats-row-2">
                 <div class="col-lg-3 col-md-6">
                     <div class="stat-card position-relative" style="background: linear-gradient(135deg, #ff9966 0%, #ff5e62 100%);">
                         <i class="fas fa-boxes stat-icon"></i>
@@ -215,6 +311,30 @@
                         <i class="fas fa-hand-holding-usd stat-icon"></i>
                         <h3 id="net-profit">0.00 ₪</h3>
                         <p>صافي الربح</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- رسوم بيانية تفاعلية -->
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card ledger-card">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-chart-line"></i> الإيرادات vs المصاريف</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="revenueExpenseChart" height="250"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card ledger-card">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0"><i class="fas fa-chart-pie"></i> توزيع الإيرادات</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="revenueDistributionChart" height="250"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -252,8 +372,34 @@
                 </div>
             </div>
 
-            <!-- فلاتر البحث -->
-            <div class="row">
+            <!-- فلاتر سريعة -->
+            <div class="row mb-3">
+                <div class="col-12">
+                    <div class="btn-group btn-group-lg" role="group">
+                        <button type="button" class="btn btn-outline-primary" onclick="quickFilter('today')">
+                            <i class="fas fa-calendar-day"></i> اليوم
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" onclick="quickFilter('week')">
+                            <i class="fas fa-calendar-week"></i> هذا الأسبوع
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" onclick="quickFilter('month')">
+                            <i class="fas fa-calendar-alt"></i> هذا الشهر
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" onclick="quickFilter('quarter')">
+                            <i class="fas fa-calendar"></i> هذا الربع
+                        </button>
+                        <button type="button" class="btn btn-outline-primary active" onclick="quickFilter('year')">
+                            <i class="fas fa-calendar-check"></i> هذه السنة
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="$('#advanced-filters').slideToggle()">
+                            <i class="fas fa-filter"></i> متقدم
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- فلاتر البحث المتقدمة (مخفية افتراضياً) -->
+            <div class="row" id="advanced-filters" style="display: none;">
                 <div class="col-12">
                     <div class="card ledger-card">
                         <div class="card-header ledger-header">
@@ -311,38 +457,13 @@
                 </div>
             </div>
 
-            <!-- المساعد الذكي -->
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div class="card ledger-card">
-                        <div class="card-header ledger-header">
-                            <h4 class="mb-0">
-                                <i class="fas fa-robot"></i>
-                                المساعد المحاسبي الذكي
-                            </h4>
-                        </div>
-                        <div class="card-body">
-                            <div class="input-group mb-3">
-                                <input type="text" class="form-control form-control-lg" id="smart-query" 
-                                       placeholder="اسأل أي سؤال محاسبي... مثال: من أين جاء رقم المبيعات؟ كم مستحق للموردين؟ ما هو رصيد العميل أحمد؟">
-                                <button class="btn btn-primary btn-lg" type="button" onclick="askSmartAssistant()">
-                                    <i class="fas fa-search"></i> اسأل
-                                </button>
-                            </div>
-                            <div id="smart-answer" class="alert alert-info" style="display: none;">
-                                <div class="d-flex align-items-start">
-                                    <i class="fas fa-robot fa-2x mr-3"></i>
-                                    <div id="answer-content"></div>
-                                </div>
-                            </div>
-                            <div id="smart-loading" class="text-center" style="display: none;">
-                                <i class="fas fa-spinner fa-spin fa-2x"></i>
-                                <p class="mt-2">جاري التحليل...</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <!-- ملاحظة: المساعد الذكي له Tab منفصل (Tab 7) -->
+            <!-- ملاحظة: دفتر الأستاذ له Tab منفصل (Tab 2) -->
+            
+                    </div><!-- End Dashboard Tab -->
+                    
+                    <!-- Tab 2: Ledger Entries -->
+                    <div class="tab-pane fade" id="ledger" role="tabpanel">
 
             <!-- دفتر الأستاذ -->
             <div class="row">
@@ -402,15 +523,21 @@
                     </div>
                 </div>
             </div>
+            
+                    </div><!-- End Ledger Tab -->
+                    
+                    <!-- Tab 3: P&L Statement -->
+                    <div class="tab-pane fade" id="pnl" role="tabpanel">
 
             <!-- قائمة الدخل (P&L Statement) -->
             <div class="row">
-                <div class="col-12">
+                <!-- الجدول -->
+                <div class="col-md-6">
                     <div class="card ledger-card">
                         <div class="card-header" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
                             <h4 class="mb-0">
                                 <i class="fas fa-chart-line"></i>
-                                قائمة الدخل (Profit & Loss Statement)
+                                قائمة الدخل (P&L)
                             </h4>
                         </div>
                         <div class="card-body">
@@ -481,7 +608,24 @@
                         </div>
                     </div>
                 </div>
+                
+                <!-- Waterfall Chart -->
+                <div class="col-md-6">
+                    <div class="card ledger-card">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0"><i class="fas fa-chart-bar"></i> رسم الشلال - تدفق الأرباح</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="waterfallChart" height="400"></canvas>
+                        </div>
+                    </div>
+                </div>
             </div>
+            
+                    </div><!-- End P&L Tab -->
+                    
+                    <!-- Tab 4: Receivables -->
+                    <div class="tab-pane fade" id="receivables" role="tabpanel">
 
             <!-- كشف الذمم التفصيلي -->
             <div class="row">
@@ -529,6 +673,11 @@
                     </div>
                 </div>
             </div>
+            
+                    </div><!-- End Receivables Tab -->
+                    
+                    <!-- Tab 5: Trial Balance -->
+                    <div class="tab-pane fade" id="trial-balance" role="tabpanel">
 
             <!-- ميزان المراجعة (اختياري) -->
             <div class="row">
@@ -572,14 +721,266 @@
                     </div>
                 </div>
             </div>
-        </div>
-    </section>
+            
+                    </div><!-- End Trial Balance Tab -->
+                    
+                    <!-- Tab 6: Manual Entry -->
+                    <div class="tab-pane fade" id="manual-entry" role="tabpanel">
+                        
+            <!-- القيد اليدوي -->
+            <div class="row">
+                <div class="col-12">
+                    <!-- شرح بسيط -->
+                    <div class="alert alert-info border-0 shadow-sm mb-4">
+                        <h5><i class="fas fa-graduation-cap"></i> ما هو القيد اليدوي؟</h5>
+                        <p class="mb-2"><strong>القيد اليدوي</strong> = تسجل حركة مالية يدوياً بدون فاتورة. مثلاً:</p>
+                        <ul class="mb-0">
+                            <li>سحبت 500 ₪ من الصندوق لحسابك الشخصي → <span class="text-muted">(من: الصندوق → إلى: مسحوبات)</span></li>
+                            <li>وضعت 1000 ₪ رأس مال في الصندوق → <span class="text-muted">(من: رأس المال → إلى: الصندوق)</span></li>
+                            <li>دفعت فاتورة كهرباء 200 ₪ نقداً → <span class="text-muted">(من: الصندوق → إلى: مصاريف)</span></li>
+                        </ul>
+                    </div>
+                    
+                    <!-- النموذج -->
+                    <div class="card ledger-card">
+                        <div class="card-header" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+                            <h4 class="mb-0">
+                                <i class="fas fa-pen-alt"></i>
+                                إضافة قيد يدوي جديد
+                            </h4>
+                        </div>
+                        <div class="card-body">
+                            <form id="manual-entry-form">
+                                <div class="row">
+                                    <!-- التاريخ -->
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label"><i class="fas fa-calendar"></i> التاريخ:</label>
+                                        <input type="date" class="form-control form-control-lg" id="me-date" required>
+                                    </div>
+                                    
+                                    <!-- المبلغ -->
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label"><i class="fas fa-money-bill-wave"></i> المبلغ (₪):</label>
+                                        <input type="number" step="0.01" min="0.01" class="form-control form-control-lg" 
+                                               id="me-amount" placeholder="0.00" required>
+                                    </div>
+                                    
+                                    <!-- الوصف -->
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label"><i class="fas fa-comment"></i> الوصف:</label>
+                                        <input type="text" class="form-control form-control-lg" 
+                                               id="me-description" placeholder="مثال: فاتورة كهرباء" required>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mt-3">
+                                    <!-- من حساب (مدين) -->
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label text-danger">
+                                            <i class="fas fa-arrow-up"></i> من حساب (المدين - الحساب اللي راح منه الفلوس):
+                                        </label>
+                                        <select class="form-control form-control-lg" id="me-debit-account" required>
+                                            <option value="">-- اختر الحساب --</option>
+                                            <optgroup label="💰 الأصول (ما تملكه)">
+                                                <option value="1000_CASH">الصندوق النقدي</option>
+                                                <option value="1010_BANK">البنك الحالي</option>
+                                                <option value="1100_AR">العملاء - ذمم مدينة</option>
+                                                <option value="1200_INVENTORY">المخزون</option>
+                                                <option value="1300_CHECKS_RECEIVABLE">شيكات واردة</option>
+                                            </optgroup>
+                                            <optgroup label="📊 الخصوم (ما عليك)">
+                                                <option value="2000_AP">الموردين - ذمم دائنة</option>
+                                                <option value="2100_VAT_PAYABLE">ضريبة القيمة المضافة</option>
+                                                <option value="2150_CHECKS_PAYABLE">شيكات صادرة</option>
+                                            </optgroup>
+                                            <optgroup label="🏦 حقوق الملكية">
+                                                <option value="3000_CAPITAL">رأس المال</option>
+                                                <option value="3300_OWNER_DRAWINGS">مسحوبات شخصية</option>
+                                            </optgroup>
+                                            <optgroup label="📈 الإيرادات (ما يدخل)">
+                                                <option value="4000_SALES">المبيعات</option>
+                                                <option value="4100_SERVICE_REVENUE">إيرادات الخدمات</option>
+                                            </optgroup>
+                                            <optgroup label="📉 المصاريف (ما يخرج)">
+                                                <option value="5000_EXPENSES">المصاريف العامة</option>
+                                                <option value="5110_SALARIES">الرواتب</option>
+                                                <option value="5120_RENT">الإيجار</option>
+                                                <option value="5130_UTILITIES">الكهرباء والماء</option>
+                                                <option value="5170_FUEL">البنزين</option>
+                                            </optgroup>
+                                        </select>
+                                        <small class="text-muted">
+                                            <i class="fas fa-info-circle"></i> مثال: إذا دفعت كهرباء → اختر "الصندوق النقدي"
+                                        </small>
+                                    </div>
+                                    
+                                    <!-- إلى حساب (دائن) -->
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label text-success">
+                                            <i class="fas fa-arrow-down"></i> إلى حساب (الدائن - الحساب اللي راح له الفلوس):
+                                        </label>
+                                        <select class="form-control form-control-lg" id="me-credit-account" required>
+                                            <option value="">-- اختر الحساب --</option>
+                                            <optgroup label="💰 الأصول (ما تملكه)">
+                                                <option value="1000_CASH">الصندوق النقدي</option>
+                                                <option value="1010_BANK">البنك الحالي</option>
+                                                <option value="1100_AR">العملاء - ذمم مدينة</option>
+                                                <option value="1200_INVENTORY">المخزون</option>
+                                                <option value="1300_CHECKS_RECEIVABLE">شيكات واردة</option>
+                                            </optgroup>
+                                            <optgroup label="📊 الخصوم (ما عليك)">
+                                                <option value="2000_AP">الموردين - ذمم دائنة</option>
+                                                <option value="2100_VAT_PAYABLE">ضريبة القيمة المضافة</option>
+                                                <option value="2150_CHECKS_PAYABLE">شيكات صادرة</option>
+                                            </optgroup>
+                                            <optgroup label="🏦 حقوق الملكية">
+                                                <option value="3000_CAPITAL">رأس المال</option>
+                                                <option value="3300_OWNER_DRAWINGS">مسحوبات شخصية</option>
+                                            </optgroup>
+                                            <optgroup label="📈 الإيرادات (ما يدخل)">
+                                                <option value="4000_SALES">المبيعات</option>
+                                                <option value="4100_SERVICE_REVENUE">إيرادات الخدمات</option>
+                                            </optgroup>
+                                            <optgroup label="📉 المصاريف (ما يخرج)">
+                                                <option value="5000_EXPENSES">المصاريف العامة</option>
+                                                <option value="5110_SALARIES">الرواتب</option>
+                                                <option value="5120_RENT">الإيجار</option>
+                                                <option value="5130_UTILITIES">الكهرباء والماء</option>
+                                                <option value="5170_FUEL">البنزين</option>
+                                            </optgroup>
+                                        </select>
+                                        <small class="text-muted">
+                                            <i class="fas fa-info-circle"></i> مثال: إذا دفعت كهرباء → اختر "الكهرباء والماء"
+                                        </small>
+                                    </div>
+                                </div>
+                                
+                                <!-- أزرار الحفظ -->
+                                <div class="row mt-4">
+                                    <div class="col-12 text-center">
+                                        <button type="submit" class="btn btn-success btn-lg px-5">
+                                            <i class="fas fa-save"></i> حفظ القيد
+                                        </button>
+                                        <button type="reset" class="btn btn-secondary btn-lg px-5">
+                                            <i class="fas fa-undo"></i> إعادة تعيين
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- معاينة القيد -->
+                                <div class="row mt-4" id="entry-preview" style="display: none;">
+                                    <div class="col-12">
+                                        <div class="alert alert-light border">
+                                            <h6 class="mb-3"><i class="fas fa-eye"></i> معاينة القيد:</h6>
+                                            <table class="table table-sm table-bordered mb-0">
+                                                <thead class="table-dark">
+                                                    <tr>
+                                                        <th>الحساب</th>
+                                                        <th class="text-end">مدين (منه)</th>
+                                                        <th class="text-end">دائن (له)</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="preview-body">
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- القيود اليدوية السابقة -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card ledger-card">
+                        <div class="card-header bg-secondary text-white">
+                            <h5 class="mb-0"><i class="fas fa-history"></i> القيود اليدوية السابقة</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover" id="manual-entries-table">
+                                    <thead>
+                                        <tr>
+                                            <th>التاريخ</th>
+                                            <th>الوصف</th>
+                                            <th>من حساب</th>
+                                            <th>إلى حساب</th>
+                                            <th class="text-end">المبلغ</th>
+                                            <th>الإجراءات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="manual-entries-tbody">
+                                        <tr>
+                                            <td colspan="6" class="text-center text-muted">
+                                                لا توجد قيود يدوية بعد
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+                    </div><!-- End Manual Entry Tab -->
+                    
+                    <!-- Tab 7: AI Assistant -->
+                    <div class="tab-pane fade" id="assistant" role="tabpanel">
+                        
+            <!-- المساعد الذكي -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card ledger-card">
+                        <div class="card-header ledger-header">
+                            <h4 class="mb-0">
+                                <i class="fas fa-robot"></i>
+                                المساعد المحاسبي الذكي
+                            </h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="input-group mb-3">
+                                <input type="text" class="form-control form-control-lg" id="smart-query" 
+                                       placeholder="اسأل أي سؤال محاسبي... مثال: من أين جاء رقم المبيعات؟ كم مستحق للموردين؟ ما هو رصيد العميل أحمد؟">
+                                <button class="btn btn-primary btn-lg" type="button" onclick="askSmartAssistant()">
+                                    <i class="fas fa-search"></i> اسأل
+                                </button>
+                            </div>
+                            <div id="smart-answer" class="alert alert-info" style="display: none;">
+                                <div class="d-flex align-items-start">
+                                    <i class="fas fa-robot fa-2x mr-3"></i>
+                                    <div id="answer-content"></div>
+                                </div>
+                            </div>
+                            <div id="smart-loading" class="text-center" style="display: none;">
+                                <i class="fas fa-spinner fa-spin fa-2x"></i>
+                                <p class="mt-2">جاري التحليل...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+                    </div><!-- End Assistant Tab -->
+                    
+                </div><!-- End Tab Content -->
+            </div><!-- End Card Body -->
+        </div><!-- End Card -->
+        
+    </div><!-- End Container -->
+</section>
 {% endblock %}
 
 {% block scripts %}
 <!-- SweetAlert2 Library -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+
+<!-- Chart.js Library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <script>
 $(document).ready(function() {
@@ -614,7 +1015,7 @@ function loadLedgerData() {
         data: formData,
         success: function(response) {
 
-            updateLedgerTable(response.data);
+            updateLedgerTable(response.data, response.totals);
             updateStatistics(response.statistics);
         },
         error: function(xhr, status, error) {
@@ -624,7 +1025,7 @@ function loadLedgerData() {
     });
 }
 
-function updateLedgerTable(data) {
+function updateLedgerTable(data, totals) {
 
     const tbody = $('#ledger-table tbody');
     tbody.empty();
@@ -634,12 +1035,7 @@ function updateLedgerTable(data) {
         return;
     }
     
-    let totalDebit = 0;
-    let totalCredit = 0;
-    
     data.forEach(function(entry) {
-        totalDebit += parseFloat(entry.debit || 0);
-        totalCredit += parseFloat(entry.credit || 0);
         
         const debitClass = entry.debit > 0 ? 'debit-cell' : '';
         const creditClass = entry.credit > 0 ? 'credit-cell' : '';
@@ -664,10 +1060,12 @@ function updateLedgerTable(data) {
         tbody.append(row);
     });
     
-    // تحديث الإجماليات
-    $('#total-debit').text(formatCurrency(totalDebit));
-    $('#total-credit').text(formatCurrency(totalCredit));
-    $('#final-balance').text(formatCurrency(totalDebit - totalCredit));
+    // ✅ تحديث الإجماليات من الباكند مباشرة
+    if (totals) {
+        $('#total-debit').text(formatCurrency(totals.total_debit));
+        $('#total-credit').text(formatCurrency(totals.total_credit));
+        $('#final-balance').text(formatCurrency(totals.final_balance));
+    }
     
     // تهيئة DataTables للجداول الطويلة
     if (data.length > 15) {
@@ -729,6 +1127,11 @@ function updateLedgerTable(data) {
     }
 }
 
+// رسوم بيانية Chart.js
+let revenueExpenseChart = null;
+let revenueDistributionChart = null;
+let waterfallChart = null;
+
 function updateStatistics(stats) {
     // الإيرادات
     $('#total-sales').text(formatCurrency(stats.total_sales || 0) + ' ₪');
@@ -747,6 +1150,9 @@ function updateStatistics(stats) {
     
     // تحديث قائمة الدخل (P&L)
     updateProfitAndLoss(stats);
+    
+    // تحديث الرسوم البيانية
+    updateCharts(stats);
     
     $('#gross-profit').text(formatCurrency(Math.abs(grossProfit)) + ' ₪');
     $('#net-profit').text(formatCurrency(Math.abs(netProfit)) + ' ₪');
@@ -1041,7 +1447,7 @@ function loadAccountsSummary() {
         data: formData,
         success: function(response) {
 
-            updateAccountsSummary(response);
+            updateAccountsSummary(response.accounts, response.totals);
         },
         error: function(xhr, status, error) {
 
@@ -1059,7 +1465,7 @@ function loadReceivablesSummary() {
         data: formData,
         success: function(response) {
 
-            updateReceivablesDetailedSummary(response);
+            updateReceivablesDetailedSummary(response.receivables, response.totals);
         },
         error: function(xhr, status, error) {
 
@@ -1068,7 +1474,7 @@ function loadReceivablesSummary() {
     });
 }
 
-function updateAccountsSummary(data) {
+function updateAccountsSummary(data, totals) {
 
     const tbody = $('#accounts-summary');
     tbody.empty();
@@ -1078,16 +1484,10 @@ function updateAccountsSummary(data) {
         return;
     }
     
-    let totalDebit = 0;
-    let totalCredit = 0;
-    
     data.forEach(function(account) {
         const debit = parseFloat(account.debit_balance || 0);
         const credit = parseFloat(account.credit_balance || 0);
         const balance = debit - credit;
-        
-        totalDebit += debit;
-        totalCredit += credit;
         
         const row = `
             <tr>
@@ -1100,24 +1500,29 @@ function updateAccountsSummary(data) {
         tbody.append(row);
     });
     
-    $('#accounts-total-debit').text(formatCurrency(totalDebit));
-    $('#accounts-total-credit').text(formatCurrency(totalCredit));
-    $('#accounts-net-balance').text(formatCurrency(totalDebit - totalCredit));
+    // ✅ استخدام الإجماليات من الباكند
+    if (totals) {
+        $('#accounts-total-debit').text(formatCurrency(totals.total_debit));
+        $('#accounts-total-credit').text(formatCurrency(totals.total_credit));
+        $('#accounts-net-balance').text(formatCurrency(totals.net_balance));
+    }
 }
 
 // دالة تحديث قائمة الدخل
 function updateProfitAndLoss(stats) {
+    // ✅ استخدام الحسابات من الباكند مباشرة - أدق وأأمن!
     const sales = stats.total_sales || 0;
     const services = stats.total_services || 0;
     const cogs = stats.total_cogs || 0;
     const serviceCosts = stats.total_service_costs || 0;
     const expenses = stats.total_expenses || 0;
     
-    const totalRevenue = sales + services;
+    // ✅ الباكند يحسب هذه القيم - لا نحسبها في JavaScript!
+    const totalRevenue = stats.total_revenue || 0;
     const totalDirectCosts = cogs + serviceCosts;
-    const grossProfit = totalRevenue - totalDirectCosts;
-    const netProfit = grossProfit - expenses;
-    const margin = totalRevenue > 0 ? (netProfit / totalRevenue * 100) : 0;
+    const grossProfit = stats.total_gross_profit || 0;
+    const netProfit = stats.net_profit || 0;
+    const margin = stats.profit_margin || 0;
     
     $('#pnl-sales').text(formatCurrency(sales) + ' ₪');
     $('#pnl-services').text(formatCurrency(services) + ' ₪');
@@ -1143,11 +1548,14 @@ function updateProfitAndLoss(stats) {
         netProfitCell.text(formatCurrency(netProfit) + ' ₪').css('color', '#28a745');
     }
     
-    $('#pnl-margin').text(margin.toFixed(2) + '%');
+    $('#pnl-margin').text(formatCurrency(margin) + '%');
+    
+    // تحديث Waterfall Chart
+    updateWaterfallChart(stats);
 }
 
 // دالة تحديث كشف الذمم التفصيلي
-function updateReceivablesDetailedSummary(data) {
+function updateReceivablesDetailedSummary(data, totals) {
     const tbody = $('#receivables-detailed-summary');
     tbody.empty();
     
@@ -1156,17 +1564,11 @@ function updateReceivablesDetailedSummary(data) {
         return;
     }
     
-    let totalDebit = 0;
-    let totalCredit = 0;
-    
     data.forEach(function(entity) {
         const debit = parseFloat(entity.debit || 0);
         const credit = parseFloat(entity.credit || 0);
         const balance = debit - credit;
         const daysOverdue = entity.days_overdue || 0;
-        
-        totalDebit += debit;
-        totalCredit += credit;
         
         const entityIcon = getEntityIcon(entity.type);
         
@@ -1207,9 +1609,12 @@ function updateReceivablesDetailedSummary(data) {
         tbody.append(row);
     });
     
-    $('#receivables-detailed-total-debit').text(formatCurrency(totalDebit));
-    $('#receivables-detailed-total-credit').text(formatCurrency(totalCredit));
-    $('#receivables-detailed-net').text(formatCurrency(totalDebit - totalCredit));
+    // ✅ استخدام الإجماليات من الباكند
+    if (totals) {
+        $('#receivables-detailed-total-debit').text(formatCurrency(totals.total_debit));
+        $('#receivables-detailed-total-credit').text(formatCurrency(totals.total_credit));
+        $('#receivables-detailed-net').text(formatCurrency(totals.net_balance));
+    }
 }
 
 function getEntityIcon(type) {
@@ -1232,7 +1637,7 @@ function getTransactionBadgeClass(type) {
         'check_bounced': 'danger',
         'maintenance': 'danger',
         'service': 'secondary',
-        'opening': 'dark'
+        'manual': 'info',
     };
     return classes[type] || 'secondary';
 }
@@ -1240,6 +1645,20 @@ function getTransactionBadgeClass(type) {
 function getTransactionDescription(entry) {
     // ✅ بناء الوصف التفصيلي مع معلومات الشيك
     let descriptionHtml = entry.description || 'عملية محاسبية';
+    
+    // ✅ إضافة تفاصيل القيد اليدوي إذا كان موجوداً
+    if (entry.type === 'manual' && entry.manual_details) {
+        const md = entry.manual_details;
+        let manualInfo = '<div class="mt-2 p-2 bg-info text-white rounded" style="border-right: 3px solid #17a2b8;">';
+        manualInfo += `<strong><i class="fas fa-edit"></i> قيد يدوي</strong><br>`;
+        manualInfo += `<i class="fas fa-hashtag"></i> رقم القيد: ${md.batch_id}<br>`;
+        manualInfo += `<i class="fas fa-chart-line"></i> الحساب: ${md.account_name} (${md.account_code})<br>`;
+        if (md.ref) {
+            manualInfo += `<i class="fas fa-tag"></i> المرجع: ${md.ref}`;
+        }
+        manualInfo += '</div>';
+        descriptionHtml += manualInfo;
+    }
     
     // ✅ إضافة تفاصيل الشيك إذا كان موجوداً
     if (entry.payment_details && entry.payment_details.method === 'cheque') {
@@ -1314,6 +1733,46 @@ function resetFilters() {
     loadReceivablesSummary();
 }
 
+// فلاتر سريعة
+function quickFilter(period) {
+    const today = new Date();
+    let fromDate, toDate = today;
+    
+    switch(period) {
+        case 'today':
+            fromDate = today;
+            break;
+        case 'week':
+            fromDate = new Date(today);
+            fromDate.setDate(today.getDate() - today.getDay()); // بداية الأسبوع
+            break;
+        case 'month':
+            fromDate = new Date(today.getFullYear(), today.getMonth(), 1);
+            break;
+        case 'quarter':
+            const quarter = Math.floor(today.getMonth() / 3);
+            fromDate = new Date(today.getFullYear(), quarter * 3, 1);
+            break;
+        case 'year':
+            fromDate = new Date(today.getFullYear(), 0, 1);
+            break;
+        default:
+            fromDate = new Date(today.getFullYear(), 0, 1);
+    }
+    
+    $('#from-date').val(fromDate.toISOString().split('T')[0]);
+    $('#to-date').val(toDate.toISOString().split('T')[0]);
+    
+    // تحديث الزر النشط
+    $('.btn-group button').removeClass('active');
+    $(event.target).closest('button').addClass('active');
+    
+    // تحميل البيانات
+    loadLedgerData();
+    loadAccountsSummary();
+    loadReceivablesSummary();
+}
+
 function exportLedger() {
     const formData = $('#filter-form').serialize();
     window.open('{{ url_for("ledger.export_ledger") }}?' + formData, '_blank');
@@ -1373,11 +1832,15 @@ function viewTransaction(type, id) {
             url = '{{ url_for("expenses_bp.detail", exp_id=0) }}'.replace('0', id);
             break;
         case 'payment':
+        case 'check_pending':
+        case 'check_bounced':
+        case 'check_cashed':
+            // الشيكات مرتبطة بـ Payment - عرض صفحة الدفعة
             url = '/payments/' + id;
             break;
-        case 'service':
-        case 'maintenance':
-            url = '/service/requests/' + id;
+        case 'manual':
+            // القيود اليدوية - عرض تفاصيل القيد
+            url = '/ledger/batch/' + id.split('-')[1]; // استخراج batch_id من MANUAL-{batch_id}-{entry_id}
             break;
         default:
             showAlert('لا يمكن عرض تفاصيل هذه العملية', 'error');
@@ -1469,6 +1932,290 @@ function displaySmartAnswer(answer, details) {
     $('#answer-content').html(html);
     $('#smart-answer').show();
 }
+
+// تحديث رسم Waterfall
+function updateWaterfallChart(stats) {
+    const ctx = document.getElementById('waterfallChart');
+    if (!ctx) return;
+    
+    const sales = stats.total_sales || 0;
+    const services = stats.total_services || 0;
+    const cogs = stats.total_cogs || 0;
+    const expenses = stats.total_expenses || 0;
+    
+    const totalRevenue = sales + services;
+    const grossProfit = totalRevenue - cogs;
+    const netProfit = grossProfit - expenses;
+    
+    if (waterfallChart) {
+        waterfallChart.destroy();
+    }
+    
+    // حساب القيم المتراكمة
+    let cumulative = [0, totalRevenue, totalRevenue, grossProfit, grossProfit, netProfit];
+    
+    waterfallChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['البداية', 'الإيرادات', 'التكاليف', 'ربح إجمالي', 'المصاريف', 'ربح صافي'],
+            datasets: [{
+                label: 'التدفق المالي',
+                data: [0, totalRevenue, -cogs, grossProfit, -expenses, netProfit],
+                backgroundColor: [
+                    'rgba(200, 200, 200, 0.5)',
+                    'rgba(40, 167, 69, 0.7)',
+                    'rgba(220, 53, 69, 0.7)',
+                    'rgba(255, 193, 7, 0.7)',
+                    'rgba(220, 53, 69, 0.7)',
+                    netProfit >= 0 ? 'rgba(40, 167, 69, 0.9)' : 'rgba(220, 53, 69, 0.9)'
+                ],
+                borderColor: [
+                    'rgba(200, 200, 200, 1)',
+                    'rgba(40, 167, 69, 1)',
+                    'rgba(220, 53, 69, 1)',
+                    'rgba(255, 193, 7, 1)',
+                    'rgba(220, 53, 69, 1)',
+                    netProfit >= 0 ? 'rgba(40, 167, 69, 1)' : 'rgba(220, 53, 69, 1)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return formatCurrency(Math.abs(context.parsed.y)) + ' ₪';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return formatCurrency(value) + ' ₪';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// تحديث الرسوم البيانية
+function updateCharts(stats) {
+    const sales = stats.total_sales || 0;
+    const services = stats.total_services || 0;
+    const cogs = stats.total_cogs || 0;
+    const expenses = stats.total_expenses || 0;
+    
+    // 1. رسم الإيرادات vs المصاريف (Line Chart)
+    const ctx1 = document.getElementById('revenueExpenseChart');
+    if (ctx1) {
+        if (revenueExpenseChart) {
+            revenueExpenseChart.destroy();
+        }
+        
+        revenueExpenseChart = new Chart(ctx1, {
+            type: 'line',
+            data: {
+                labels: ['المبيعات', 'الخدمات', 'التكلفة', 'المصاريف'],
+                datasets: [{
+                    label: 'الإيرادات',
+                    data: [sales, services, 0, 0],
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4
+                }, {
+                    label: 'المصاريف',
+                    data: [0, 0, cogs, expenses],
+                    borderColor: '#dc3545',
+                    backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            font: { size: 14, weight: 'bold' },
+                            usePointStyle: true
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + formatCurrency(context.parsed.y) + ' ₪';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return formatCurrency(value) + ' ₪';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // 2. توزيع الإيرادات (Pie Chart)
+    const ctx2 = document.getElementById('revenueDistributionChart');
+    if (ctx2) {
+        if (revenueDistributionChart) {
+            revenueDistributionChart.destroy();
+        }
+        
+        revenueDistributionChart = new Chart(ctx2, {
+            type: 'doughnut',
+            data: {
+                labels: ['المبيعات', 'الخدمات', 'الحجوزات'],
+                datasets: [{
+                    data: [sales, services, stats.total_preorders || 0],
+                    backgroundColor: [
+                        'rgba(102, 126, 234, 0.8)',
+                        'rgba(79, 172, 254, 0.8)',
+                        'rgba(250, 112, 154, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(102, 126, 234, 1)',
+                        'rgba(79, 172, 254, 1)',
+                        'rgba(250, 112, 154, 1)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            font: { size: 13 },
+                            padding: 15,
+                            usePointStyle: true
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : 0;
+                                return context.label + ': ' + formatCurrency(context.parsed) + ' ₪ (' + percentage + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+}
+
+// القيد اليدوي - معاينة فورية
+$('#me-debit-account, #me-credit-account, #me-amount').on('change keyup', function() {
+    const debitAccount = $('#me-debit-account option:selected').text();
+    const creditAccount = $('#me-credit-account option:selected').text();
+    const amount = parseFloat($('#me-amount').val()) || 0;
+    
+    if (debitAccount && creditAccount && amount > 0) {
+        $('#preview-body').html(`
+            <tr>
+                <td>${debitAccount}</td>
+                <td class="text-end text-danger"><strong>${formatCurrency(amount)} ₪</strong></td>
+                <td class="text-end">—</td>
+            </tr>
+            <tr>
+                <td>${creditAccount}</td>
+                <td class="text-end">—</td>
+                <td class="text-end text-success"><strong>${formatCurrency(amount)} ₪</strong></td>
+            </tr>
+            <tr class="table-light">
+                <td><strong>المجموع:</strong></td>
+                <td class="text-end text-danger"><strong>${formatCurrency(amount)} ₪</strong></td>
+                <td class="text-end text-success"><strong>${formatCurrency(amount)} ₪</strong></td>
+            </tr>
+        `);
+        $('#entry-preview').slideDown();
+    } else {
+        $('#entry-preview').slideUp();
+    }
+});
+
+// حفظ القيد اليدوي
+$('#manual-entry-form').on('submit', function(e) {
+    e.preventDefault();
+    
+    const data = {
+        date: $('#me-date').val(),
+        amount: parseFloat($('#me-amount').val()),
+        description: $('#me-description').val(),
+        debit_account: $('#me-debit-account').val(),
+        credit_account: $('#me-credit-account').val()
+    };
+    
+    // التحقق
+    if (data.debit_account === data.credit_account) {
+        Swal.fire('خطأ', 'لا يمكن أن يكون الحساب نفسه في الطرفين!', 'error');
+        return;
+    }
+    
+    // حفظ
+    $.ajax({
+        url: '/ledger/manual-entry',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        headers: {
+            'X-CSRFToken': $('meta[name="csrf-token"]').attr('content')
+        },
+        success: function(response) {
+            if (response.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'تم الحفظ!',
+                    text: 'تم حفظ القيد اليدوي بنجاح',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+                
+                // إعادة تعيين النموذج
+                $('#manual-entry-form')[0].reset();
+                $('#entry-preview').slideUp();
+                
+                // إعادة تحميل البيانات
+                loadLedgerData();
+                loadAccountsSummary();
+                
+                // العودة لـ Dashboard
+                $('#dashboard-tab').tab('show');
+            } else {
+                Swal.fire('خطأ', response.error || 'فشل في حفظ القيد', 'error');
+            }
+        },
+        error: function(xhr) {
+            Swal.fire('خطأ', 'حدث خطأ أثناء حفظ القيد', 'error');
+        }
+    });
+});
 
 // Enter key support
 $('#smart-query').on('keypress', function(e) {

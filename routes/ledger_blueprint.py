@@ -1,6 +1,6 @@
 
 from datetime import datetime, timedelta
-from flask import Blueprint, request, jsonify, render_template
+from flask import Blueprint, request, jsonify, render_template, current_app
 from flask_login import login_required
 from flask_wtf.csrf import CSRFProtect
 from sqlalchemy import func, and_, or_, desc
@@ -22,6 +22,135 @@ ledger_bp = Blueprint("ledger", __name__, url_prefix="/ledger")
 def ledger_index():
     """صفحة الدفتر الرئيسية"""
     return render_template("ledger/index.html")
+
+@ledger_bp.route("/chart-of-accounts", methods=["GET"], endpoint="chart_of_accounts")
+@login_required
+def chart_of_accounts():
+    """دليل الحسابات المحاسبية - واجهة مبسطة"""
+    return render_template("ledger/chart_of_accounts.html")
+
+@ledger_bp.route("/accounts", methods=["GET"], endpoint="get_accounts")
+@login_required
+def get_accounts():
+    """API: جلب جميع الحسابات المحاسبية"""
+    try:
+        accounts = Account.query.filter_by(is_active=True).order_by(Account.code).all()
+        
+        accounts_list = []
+        for acc in accounts:
+            accounts_list.append({
+                'id': acc.id,
+                'code': acc.code,
+                'name': acc.name,
+                'type': acc.type,
+                'is_active': acc.is_active
+            })
+        
+        return jsonify({
+            'success': True,
+            'accounts': accounts_list,
+            'total': len(accounts_list)
+        })
+    except Exception as e:
+        current_app.logger.error(f"خطأ في جلب الحسابات: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@ledger_bp.route("/manual-entry", methods=["POST"], endpoint="create_manual_entry")
+@login_required
+def create_manual_entry():
+    """إنشاء قيد يدوي (Manual Journal Entry)"""
+    try:
+        from flask_login import current_user
+        from decimal import Decimal
+        
+        data = request.get_json()
+        
+        # استخراج البيانات
+        entry_date = data.get('date')
+        amount = Decimal(str(data.get('amount', 0)))
+        description = data.get('description', '').strip()
+        debit_account = data.get('debit_account', '').strip()
+        credit_account = data.get('credit_account', '').strip()
+        
+        # التحقق
+        if not all([entry_date, amount, description, debit_account, credit_account]):
+            return jsonify({'success': False, 'error': 'جميع الحقول مطلوبة'}), 400
+        
+        if amount <= 0:
+            return jsonify({'success': False, 'error': 'المبلغ يجب أن يكون أكبر من صفر'}), 400
+        
+        if debit_account == credit_account:
+            return jsonify({'success': False, 'error': 'لا يمكن أن يكون الحساب نفسه في الطرفين'}), 400
+        
+        # التحقق من وجود الحسابات
+        debit_acc = Account.query.filter_by(code=debit_account, is_active=True).first()
+        credit_acc = Account.query.filter_by(code=credit_account, is_active=True).first()
+        
+        if not debit_acc or not credit_acc:
+            return jsonify({'success': False, 'error': 'حساب غير صحيح أو غير نشط'}), 400
+        
+        # إنشاء GLBatch
+        from datetime import datetime
+        posted_at = datetime.strptime(entry_date, '%Y-%m-%d')
+        
+        ref_number = f"MAN-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+        
+        # استخدام timestamp كـ source_id فريد لكل قيد يدوي
+        unique_source_id = int(datetime.now().timestamp() * 1000)
+        
+        batch = GLBatch(
+            source_type='MANUAL',
+            source_id=unique_source_id,
+            purpose='MANUAL_ENTRY',
+            posted_at=posted_at,
+            currency='ILS',
+            memo=description,
+            status='POSTED',
+            entity_type=None,
+            entity_id=None
+        )
+        db.session.add(batch)
+        db.session.flush()
+        
+        # إنشاء GLEntry - المدين
+        entry_debit = GLEntry(
+            batch_id=batch.id,
+            account=debit_account,
+            debit=amount,
+            credit=0,
+            currency='ILS',
+            ref=ref_number
+        )
+        db.session.add(entry_debit)
+        
+        # إنشاء GLEntry - الدائن
+        entry_credit = GLEntry(
+            batch_id=batch.id,
+            account=credit_account,
+            debit=0,
+            credit=amount,
+            currency='ILS',
+            ref=ref_number
+        )
+        db.session.add(entry_credit)
+        
+        db.session.commit()
+        
+        current_app.logger.info(f"✅ تم إنشاء قيد يدوي: {description} - {amount} ₪")
+        
+        return jsonify({
+            'success': True,
+            'message': 'تم حفظ القيد اليدوي بنجاح',
+            'batch_id': batch.id,
+            'batch_code': batch.code
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"❌ خطأ في إنشاء قيد يدوي: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @ledger_bp.route("/data", methods=["GET"], endpoint="get_ledger_data")
 @login_required
@@ -163,10 +292,8 @@ def get_ledger_data():
                         if rate > 0:
                             debit = float(debit * float(rate))
                         else:
-                            from flask import current_app
                             current_app.logger.warning(f"⚠️ سعر صرف مفقود: {sale.currency}/ILS في المبيعات #{sale.id} - استخدام المبلغ الأصلي")
                     except Exception as e:
-                        from flask import current_app
                         current_app.logger.error(f"❌ خطأ في تحويل العملة للمبيعات #{sale.id}: {str(e)}")
                 running_balance += debit
                 
@@ -201,10 +328,8 @@ def get_ledger_data():
                         if rate > 0:
                             credit = float(credit * float(rate))
                         else:
-                            from flask import current_app
                             current_app.logger.warning(f"⚠️ سعر صرف مفقود: {expense.currency}/ILS في المصروف #{expense.id} - استخدام المبلغ الأصلي")
                     except Exception as e:
-                        from flask import current_app
                         current_app.logger.error(f"❌ خطأ في تحويل العملة للمصروف #{expense.id}: {str(e)}")
                 running_balance -= credit
                 
@@ -251,10 +376,8 @@ def get_ledger_data():
                         if rate > 0:
                             amount = float(amount * float(rate))
                         else:
-                            from flask import current_app
                             current_app.logger.warning(f"⚠️ سعر صرف مفقود: {payment.currency}/ILS في الدفعة #{payment.id} - استخدام المبلغ الأصلي")
                     except Exception as e:
-                        from flask import current_app
                         current_app.logger.error(f"❌ خطأ في تحويل العملة للدفعة #{payment.id}: {str(e)}")
                 
                 # تحديد الاتجاه - الشيكات المرتدة تعكس القيد
@@ -310,7 +433,7 @@ def get_ledger_data():
                         description_parts.append(f"- {check_bank}")
                     
                     if check_due_date:
-                        from datetime import datetime
+                        # datetime مستورد في أعلى الملف
                         if isinstance(check_due_date, datetime):
                             check_due_date_str = check_due_date.strftime('%Y-%m-%d')
                         else:
@@ -398,10 +521,8 @@ def get_ledger_data():
                         if rate > 0:
                             debit = float(debit * float(rate))
                         else:
-                            from flask import current_app
                             current_app.logger.warning(f"⚠️ سعر صرف مفقود: {service_currency}/ILS في الخدمة #{service.id}")
                     except Exception as e:
-                        from flask import current_app
                         current_app.logger.error(f"❌ خطأ في تحويل العملة للخدمة #{service.id}: {str(e)}")
                 
                 running_balance += debit
@@ -417,6 +538,49 @@ def get_ledger_data():
                     "credit": 0.0,
                     "balance": running_balance
                 })
+        
+        # 5. القيود اليدوية (Manual Journal Entries)
+        if not transaction_type or transaction_type in ['manual', 'journal']:
+            manual_batches_query = GLBatch.query.filter(GLBatch.source_type == 'MANUAL')
+            if from_date:
+                manual_batches_query = manual_batches_query.filter(GLBatch.posted_at >= from_date)
+            if to_date:
+                manual_batches_query = manual_batches_query.filter(GLBatch.posted_at <= to_date)
+            
+            for batch in manual_batches_query.order_by(GLBatch.posted_at).all():
+                # جلب القيود الفرعية لهذا القيد
+                entries = GLEntry.query.filter_by(batch_id=batch.id).all()
+                
+                for entry in entries:
+                    debit = float(entry.debit or 0)
+                    credit = float(entry.credit or 0)
+                    
+                    if debit > 0:
+                        running_balance += debit
+                    else:
+                        running_balance -= credit
+                    
+                    # جلب اسم الحساب
+                    account = Account.query.filter_by(code=entry.account).first()
+                    account_name = account.name if account else f"حساب {entry.account}"
+                    
+                    ledger_entries.append({
+                        "id": f"MANUAL-{batch.id}-{entry.id}",
+                        "date": batch.posted_at.strftime('%Y-%m-%d'),
+                        "transaction_number": f"MAN-{batch.id}",
+                        "type": "manual",
+                        "type_ar": "قيد يدوي",
+                        "description": f"{batch.memo} - {account_name}",
+                        "debit": debit,
+                        "credit": credit,
+                        "balance": running_balance,
+                        "manual_details": {
+                            "batch_id": batch.id,
+                            "account_code": entry.account,
+                            "account_name": account_name,
+                            "ref": entry.ref
+                        }
+                    })
         
         # ترتيب حسب التاريخ
         ledger_entries.sort(key=lambda x: x['date'])
@@ -446,10 +610,8 @@ def get_ledger_data():
                     if rate > 0:
                         amount = float(amount * float(rate))
                     else:
-                        from flask import current_app
                         current_app.logger.warning(f"⚠️ سعر صرف مفقود في إحصائيات دفتر الأستاذ: {sale.currency}/ILS للبيع #{sale.id}")
                 except Exception as e:
-                    from flask import current_app
                     current_app.logger.error(f"❌ خطأ في تحويل العملة في إحصائيات دفتر الأستاذ للبيع #{sale.id}: {str(e)}")
             total_sales += amount
         
@@ -469,10 +631,8 @@ def get_ledger_data():
                     if rate > 0:
                         amount = float(amount * float(rate))
                     else:
-                        from flask import current_app
                         current_app.logger.warning(f"⚠️ سعر صرف مفقود في إحصائيات دفتر الأستاذ: {expense.currency}/ILS للمصروف #{expense.id}")
                 except Exception as e:
-                    from flask import current_app
                     current_app.logger.error(f"❌ خطأ في تحويل العملة في إحصائيات دفتر الأستاذ للمصروف #{expense.id}: {str(e)}")
             total_expenses += amount
         
@@ -506,10 +666,8 @@ def get_ledger_data():
                     if rate > 0:
                         service_total = float(service_total * float(rate))
                     else:
-                        from flask import current_app
                         current_app.logger.warning(f"⚠️ سعر صرف مفقود في إحصائيات دفتر الأستاذ: {service_currency}/ILS للخدمة #{service.id}")
                 except Exception as e:
-                    from flask import current_app
                     current_app.logger.error(f"❌ خطأ في تحويل العملة في إحصائيات دفتر الأستاذ للخدمة #{service.id}: {str(e)}")
             
             total_services += service_total
@@ -557,7 +715,6 @@ def get_ledger_data():
                     cost_source = "estimated_70%"
                     
                     # تسجيل تحذير
-                    from flask import current_app
                     current_app.logger.warning(
                         f"⚠️ تقدير تكلفة المنتج '{product.name}' (#{product.id}): "
                         f"استخدام 70% من سعر البيع = {unit_cost:.2f} ₪"
@@ -573,7 +730,6 @@ def get_ledger_data():
                     })
                 # 5️⃣ لا يوجد أي سعر - تجاهل المنتج
                 else:
-                    from flask import current_app
                     current_app.logger.error(
                         f"❌ المنتج '{product.name}' (#{product.id}) بدون تكلفة أو سعر - "
                         f"تم تجاهله من حساب COGS"
@@ -626,7 +782,6 @@ def get_ledger_data():
                     unit_cost = float(product.cost_before_shipping)
                 elif product.price and product.price > 0:
                     unit_cost = float(product.price) * 0.70  # 70% من سعر البيع
-                    from flask import current_app
                     current_app.logger.warning(
                         f"⚠️ تقدير تكلفة قطعة الغيار '{product.name}' في الخدمات: "
                         f"70% من سعر البيع = {unit_cost:.2f} ₪"
@@ -641,7 +796,6 @@ def get_ledger_data():
                             'in_service': True
                         })
                 else:
-                    from flask import current_app
                     current_app.logger.error(
                         f"❌ قطعة الغيار '{product.name}' بدون تكلفة - تم تجاهلها من حساب تكاليف الخدمات"
                     )
@@ -675,7 +829,6 @@ def get_ledger_data():
                     if rate > 0:
                         amount = float(amount * float(rate))
                 except Exception as e:
-                    from flask import current_app
                     current_app.logger.warning(f"⚠️ خطأ في تحويل عملة الحجز المسبق #{preorder.id}: {str(e)}")
             total_preorders += amount
         
@@ -742,9 +895,17 @@ def get_ledger_data():
             "products_without_cost": products_without_cost
         }
         
+        # حساب إجماليات البيانات (لدفتر الأستاذ)
+        ledger_totals = {
+            'total_debit': sum([entry['debit'] for entry in ledger_entries]),
+            'total_credit': sum([entry['credit'] for entry in ledger_entries]),
+            'final_balance': ledger_entries[-1]['balance'] if ledger_entries else 0
+        }
+        
         return jsonify({
             "data": ledger_entries,
-            "statistics": statistics
+            "statistics": statistics,
+            "totals": ledger_totals
         })
         
     except Exception as e:
@@ -787,10 +948,8 @@ def get_accounts_summary():
                     if rate > 0:
                         amount = float(amount * float(rate))
                     else:
-                        from flask import current_app
                         current_app.logger.warning(f"⚠️ سعر صرف مفقود في ميزان المراجعة: {sale.currency}/ILS للبيع #{sale.id}")
                 except Exception as e:
-                    from flask import current_app
                     current_app.logger.error(f"❌ خطأ في تحويل العملة في ميزان المراجعة للبيع #{sale.id}: {str(e)}")
             total_sales += amount
         
@@ -829,10 +988,8 @@ def get_accounts_summary():
                     if rate > 0:
                         service_total = float(service_total * float(rate))
                     else:
-                        from flask import current_app
                         current_app.logger.warning(f"⚠️ سعر صرف مفقود في ميزان المراجعة: {service_currency}/ILS للخدمة #{service.id}")
                 except Exception as e:
-                    from flask import current_app
                     current_app.logger.error(f"❌ خطأ في تحويل العملة في ميزان المراجعة للخدمة #{service.id}: {str(e)}")
             
             total_services += service_total
@@ -898,10 +1055,8 @@ def get_accounts_summary():
                     if rate > 0:
                         amount = float(amount * float(rate))
                     else:
-                        from flask import current_app
                         current_app.logger.warning(f"⚠️ سعر صرف مفقود في ميزان المراجعة: {expense.currency}/ILS للمصروف #{expense.id}")
                 except Exception as e:
-                    from flask import current_app
                     current_app.logger.error(f"❌ خطأ في تحويل العملة في ميزان المراجعة للمصروف #{expense.id}: {str(e)}")
             total_expenses += amount
         
@@ -931,10 +1086,8 @@ def get_accounts_summary():
                     if rate > 0:
                         amount = float(amount * float(rate))
                     else:
-                        from flask import current_app
                         current_app.logger.warning(f"⚠️ سعر صرف مفقود في حساب الخزينة: {payment.currency}/ILS للدفعة #{payment.id}")
                 except Exception as e:
-                    from flask import current_app
                     current_app.logger.error(f"❌ خطأ في تحويل العملة في حساب الخزينة للدفعة #{payment.id}: {str(e)}")
             total_payments_in += amount
         
@@ -947,10 +1100,8 @@ def get_accounts_summary():
                     if rate > 0:
                         amount = float(amount * float(rate))
                     else:
-                        from flask import current_app
                         current_app.logger.warning(f"⚠️ سعر صرف مفقود في حساب الخزينة: {payment.currency}/ILS للدفعة #{payment.id}")
                 except Exception as e:
-                    from flask import current_app
                     current_app.logger.error(f"❌ خطأ في تحويل العملة في حساب الخزينة للدفعة #{payment.id}: {str(e)}")
             total_payments_out += amount
         
@@ -1003,11 +1154,20 @@ def get_accounts_summary():
             "note": f"قيمة {total_stock_qty} قطعة"
         })
         
-        return jsonify(accounts)
+        # حساب إجماليات ميزان المراجعة من الباكند
+        accounts_totals = {
+            'total_debit': sum([acc['debit_balance'] for acc in accounts]),
+            'total_credit': sum([acc['credit_balance'] for acc in accounts]),
+            'net_balance': sum([acc['debit_balance'] for acc in accounts]) - sum([acc['credit_balance'] for acc in accounts])
+        }
+        
+        return jsonify({
+            'accounts': accounts,
+            'totals': accounts_totals
+        })
         
     except Exception as e:
         import traceback
-        from flask import current_app
         error_msg = f"Error in get_accounts_summary: {str(e)}"
         current_app.logger.error(error_msg)
         current_app.logger.error(traceback.format_exc())
@@ -1289,7 +1449,17 @@ def get_receivables_detailed_summary():
                     "last_transaction": last_transaction_str
                 })
         
-        return jsonify(receivables)
+        # حساب إجماليات الذمم من الباكند
+        receivables_totals = {
+            'total_debit': sum([r['debit'] for r in receivables]),
+            'total_credit': sum([r['credit'] for r in receivables]),
+            'net_balance': sum([r['debit'] for r in receivables]) - sum([r['credit'] for r in receivables])
+        }
+        
+        return jsonify({
+            'receivables': receivables,
+            'totals': receivables_totals
+        })
         
     except Exception as e:
         import traceback
@@ -1335,10 +1505,8 @@ def get_receivables_summary():
                         if rate > 0:
                             amount = float(amount * float(rate))
                         else:
-                            from flask import current_app
                             current_app.logger.warning(f"⚠️ سعر صرف مفقود في ملخص الذمم: {sale.currency}/ILS للبيع #{sale.id}")
                     except Exception as e:
-                        from flask import current_app
                         current_app.logger.error(f"❌ خطأ في تحويل العملة في ملخص الذمم للبيع #{sale.id}: {str(e)}")
                 total_sales += amount
             
@@ -1362,10 +1530,8 @@ def get_receivables_summary():
                         if rate > 0:
                             amount = float(amount * float(rate))
                         else:
-                            from flask import current_app
                             current_app.logger.warning(f"⚠️ سعر صرف مفقود في ملخص الذمم: {payment.currency}/ILS للدفعة #{payment.id}")
                     except Exception as e:
-                        from flask import current_app
                         current_app.logger.error(f"❌ خطأ في تحويل العملة في ملخص الذمم للدفعة #{payment.id}: {str(e)}")
                 total_payments += amount
             
@@ -1400,10 +1566,8 @@ def get_receivables_summary():
                         if rate > 0:
                             amount = float(amount * float(rate))
                         else:
-                            from flask import current_app
                             current_app.logger.warning(f"⚠️ سعر صرف مفقود في ملخص الذمم (موردين): {expense.currency}/ILS للمصروف #{expense.id}")
                     except Exception as e:
-                        from flask import current_app
                         current_app.logger.error(f"❌ خطأ في تحويل العملة في ملخص الذمم (موردين) للمصروف #{expense.id}: {str(e)}")
                 total_purchases += amount
             
@@ -1427,10 +1591,8 @@ def get_receivables_summary():
                         if rate > 0:
                             amount = float(amount * float(rate))
                         else:
-                            from flask import current_app
                             current_app.logger.warning(f"⚠️ سعر صرف مفقود في ملخص الذمم (موردين): {payment.currency}/ILS للدفعة #{payment.id}")
                     except Exception as e:
-                        from flask import current_app
                         current_app.logger.error(f"❌ خطأ في تحويل العملة في ملخص الذمم (موردين) للدفعة #{payment.id}: {str(e)}")
                 total_payments += amount
             
@@ -1465,10 +1627,8 @@ def get_receivables_summary():
                         if rate > 0:
                             amount = float(amount * float(rate))
                         else:
-                            from flask import current_app
                             current_app.logger.warning(f"⚠️ سعر صرف مفقود في ملخص الذمم (شركاء): {expense.currency}/ILS للمصروف #{expense.id}")
                     except Exception as e:
-                        from flask import current_app
                         current_app.logger.error(f"❌ خطأ في تحويل العملة في ملخص الذمم (شركاء) للمصروف #{expense.id}: {str(e)}")
                 total_expenses += amount
             
@@ -1498,10 +1658,8 @@ def get_receivables_summary():
                         if rate > 0:
                             amount = float(amount * float(rate))
                         else:
-                            from flask import current_app
                             current_app.logger.warning(f"⚠️ سعر صرف مفقود في ملخص الذمم (شركاء): {payment.currency}/ILS للدفعة #{payment.id}")
                     except Exception as e:
-                        from flask import current_app
                         current_app.logger.error(f"❌ خطأ في تحويل العملة في ملخص الذمم (شركاء) للدفعة #{payment.id}: {str(e)}")
                 total_in += amount
             
@@ -1514,10 +1672,8 @@ def get_receivables_summary():
                         if rate > 0:
                             amount = float(amount * float(rate))
                         else:
-                            from flask import current_app
                             current_app.logger.warning(f"⚠️ سعر صرف مفقود في ملخص الذمم (شركاء): {payment.currency}/ILS للدفعة #{payment.id}")
                     except Exception as e:
-                        from flask import current_app
                         current_app.logger.error(f"❌ خطأ في تحويل العملة في ملخص الذمم (شركاء) للدفعة #{payment.id}: {str(e)}")
                 total_out += amount
             

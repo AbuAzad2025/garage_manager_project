@@ -187,28 +187,7 @@ function archivePartner(partnerId) {
     }
 }
 
-// وظيفة مساعدة للحصول على CSRF token
-function getCSRFToken() {
-    // محاولة الحصول على الـ token من meta tag
-    const metaToken = document.querySelector('meta[name="csrf-token"]')?.content;
-    if (metaToken) {
-        return metaToken;
-    }
-    
-    // محاولة الحصول من hidden input في النموذج
-    const hiddenInput = document.querySelector('input[name="csrf_token"]');
-    if (hiddenInput) {
-        return hiddenInput.value;
-    }
-    
-    // إذا لم يتم العثور على token، إرجاع قيمة افتراضية
-    return '';
-}
-
-// إضافة event listeners عند تحميل الصفحة
-document.addEventListener('DOMContentLoaded', function() {
-    // وظائف الأرشفة جاهزة - لا حاجة لـ console logs
-});
+// ✅ getCSRFToken نُقلت إلى csrf-utils.js (global)
 
 // أرشفة الدفعة
 function archivePayment(paymentId) {

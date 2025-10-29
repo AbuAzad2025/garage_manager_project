@@ -61,9 +61,11 @@ def suppliers_list():
         q = q.filter(or_(Supplier.name.ilike(term), Supplier.phone.ilike(term), Supplier.identity_number.ilike(term)))
     suppliers = q.order_by(Supplier.name).all()
     
-    # حساب الملخصات الإجمالية لجميع الموردين
+    # ✅ حساب الملخصات الإجمالية لجميع الموردين في الباكند
     # الآن نستخدم Supplier.balance الذي يتحدث تلقائياً
     total_balance = 0.0
+    total_debit = 0.0  # ✅ المبالغ المستحقة للموردين (موجب)
+    total_credit = 0.0  # ✅ المبالغ المستحقة من الموردين (سالب)
     suppliers_with_debt = 0
     suppliers_with_credit = 0
     
@@ -73,12 +75,16 @@ def suppliers_list():
         
         if balance > 0:
             suppliers_with_debt += 1  # مستحق دفع للمورد (له علينا)
+            total_debit += balance  # ✅ إضافة للمدين
         elif balance < 0:
             suppliers_with_credit += 1  # المورد مدين لنا (عليه لنا)
+            total_credit += abs(balance)  # ✅ إضافة للدائن (قيمة موجبة)
     
     summary = {
         'total_suppliers': len(suppliers),
         'total_balance': total_balance,
+        'total_debit': total_debit,  # ✅ إضافة
+        'total_credit': total_credit,  # ✅ إضافة
         'suppliers_with_debt': suppliers_with_debt,
         'suppliers_with_credit': suppliers_with_credit,
         'average_balance': total_balance / len(suppliers) if suppliers else 0
@@ -458,13 +464,12 @@ def suppliers_statement(supplier_id: int):
             total_credit += amt
             preorders_data.append({"ref": ref, "date": d, "amount": amt, "items": items})
 
-    # الدفعات الخارجة للمورد (OUTGOING) — تُسجّل دائن لأنها تُخفّض ما ندين به
+    # ✅ جميع الدفعات (IN و OUT) للمورد
     pay_q = (
         db.session.query(Payment)
         .filter(
             Payment.supplier_id == supplier.id,
             Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
-            Payment.direction == PaymentDirection.OUT.value,
         )
     )
     if df:
@@ -511,12 +516,26 @@ def suppliers_statement(supplier_id: int):
         
         # البيان
         notes = getattr(pmt, 'notes', '') or ''
-        if is_bounced:
-            statement = f"❌ شيك مرفوض - {method_arabic}"
-        elif is_pending and method_raw == 'cheque':
-            statement = f"⏳ شيك معلق - {method_arabic}"
-        else:
-            statement = f"سداد {method_arabic} للمورد"
+        
+        # ✅ استخراج Direction value
+        direction_value = pmt.direction.value if hasattr(pmt.direction, 'value') else str(pmt.direction)
+        is_out = direction_value == 'OUT'  # من الشركة للمورد
+        
+        # البيان حسب Direction
+        if is_out:
+            if is_bounced:
+                statement = f"❌ شيك مرفوض - {method_arabic} للمورد"
+            elif is_pending and method_raw == 'cheque':
+                statement = f"⏳ شيك معلق - {method_arabic} للمورد"
+            else:
+                statement = f"سداد {method_arabic} للمورد"
+        else:  # IN
+            if is_bounced:
+                statement = f"❌ شيك مرفوض - {method_arabic} من المورد"
+            elif is_pending and method_raw == 'cheque':
+                statement = f"⏳ شيك معلق - {method_arabic} من المورد"
+            else:
+                statement = f"قبض {method_arabic} من المورد"
         
         if notes:
             statement += f" - {notes[:30]}"
@@ -524,21 +543,35 @@ def suppliers_statement(supplier_id: int):
         # القيد المحاسبي
         entry_type = "CHECK_BOUNCED" if is_bounced else ("CHECK_PENDING" if is_pending and method_raw == 'cheque' else "PAYMENT")
         
+        # ✅ حساب debit/credit حسب Direction:
+        # OUT (للمورد) → credit (نخفف ما ندين به له)
+        # IN (من المورد) → debit (يزيد ما يدين به لنا)
+        if is_bounced:
+            # الشيك المرتد → عكس الاتجاه
+            debit_val = Decimal("0.00") if is_out else amt
+            credit_val = amt if is_out else Decimal("0.00")
+        else:
+            # حسب Direction
+            debit_val = Decimal("0.00") if is_out else amt  # IN → مدين
+            credit_val = amt if is_out else Decimal("0.00")  # OUT → دائن
+        
         entries.append({
             "date": d,
             "type": entry_type,
             "ref": ref,
             "statement": statement,
-            "debit": amt if is_bounced else Decimal("0.00"),  # المرتد = مدين
-            "credit": Decimal("0.00") if is_bounced else amt,  # الناجح = دائن
+            "debit": debit_val,
+            "credit": credit_val,
             "payment_details": payment_details,
             "notes": notes
         })
         
         if is_bounced:
-            total_debit += amt
+            total_debit += debit_val
+            total_credit += credit_val
         else:
-            total_credit += amt
+            total_debit += debit_val
+            total_credit += credit_val
 
     # تسويات القروض مع المورد — دائن أيضًا (تُخفّض الالتزام)
     stl_q = (
@@ -670,9 +703,11 @@ def partners_list():
         q = q.filter(or_(Partner.name.ilike(term), Partner.phone_number.ilike(term), Partner.identity_number.ilike(term)))
     partners = q.order_by(Partner.name).all()
     
-    # حساب الملخصات الإجمالية لجميع الشركاء
+    # ✅ حساب الملخصات الإجمالية لجميع الشركاء في الباكند
     # الآن نستخدم Partner.balance الذي يتحدث تلقائياً
     total_balance = 0.0
+    total_debit = 0.0  # ✅ المبالغ المستحقة للشركاء (موجب)
+    total_credit = 0.0  # ✅ المبالغ المستحقة من الشركاء (سالب)
     partners_with_debt = 0
     partners_with_credit = 0
     
@@ -682,12 +717,16 @@ def partners_list():
         
         if balance > 0:
             partners_with_debt += 1  # مستحق دفع للشريك (له علينا)
+            total_debit += balance  # ✅ إضافة للمدين
         elif balance < 0:
             partners_with_credit += 1  # الشريك مدين لنا (عليه لنا)
+            total_credit += abs(balance)  # ✅ إضافة للدائن (قيمة موجبة)
     
     summary = {
         'total_partners': len(partners),
         'total_balance': total_balance,
+        'total_debit': total_debit,  # ✅ إضافة
+        'total_credit': total_credit,  # ✅ إضافة
         'partners_with_debt': partners_with_debt,
         'partners_with_credit': partners_with_credit,
         'average_balance': total_balance / len(partners) if partners else 0

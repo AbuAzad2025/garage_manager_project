@@ -101,9 +101,7 @@
               </td>
               <td>
                 {% if card.order_id %}
-                  <a href="{{ url_for('shop.admin_preorder_details', id=card.order_id) }}" class="btn btn-sm btn-outline-primary">
-                    #{{ card.order_id }}
-                  </a>
+                  <span class="badge bg-primary">#{{ card.order_id }}</span>
                 {% else %}
                   -
                 {% endif %}

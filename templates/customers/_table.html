@@ -46,18 +46,10 @@
             <a href="{{ url_for('customers_bp.edit_customer', customer_id=customer.id) }}" class="btn btn-action-edit btn-action-sm" title="تعديل">
               <i class="fas fa-edit"></i>
             </a>
-            {% if customer.balance and customer.balance > 0 %}
-            <a href="{{ url_for('payments.create_payment', 
-                               entity_type='CUSTOMER', 
-                               entity_id=customer.id,
-                               amount=customer.balance,
-                               currency=customer.currency if customer.currency else 'ILS',
-                               reference='دفع من عميل: ' ~ customer.name,
-                               notes='دفعة من العميل: ' ~ customer.name ~ ((' - هاتف: ' ~ customer.phone) if customer.phone else ''),
-                               customer_id=customer.id) }}" class="btn btn-action-primary btn-action-sm" title="دفع">
-              <i class="fas fa-coins"></i>
+            <a href="{{ url_for('payments.create_payment') }}?entity_type=CUSTOMER&entity_id={{ customer.id }}&entity_name={{ customer.name|urlencode }}" 
+               class="btn btn-action-primary btn-action-sm" title="إضافة دفعة">
+              <i class="fas fa-money-bill-wave"></i>
             </a>
-            {% endif %}
             <a href="{{ url_for('customers_bp.account_statement', customer_id=customer.id) }}" class="btn btn-action-report btn-action-sm" title="كشف">
               <i class="fas fa-file-invoice"></i>
             </a>
