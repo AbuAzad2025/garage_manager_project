@@ -1796,9 +1796,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
             db.session.query(func.coalesce(func.sum(Invoice.total_amount), 0))
             .filter(
                 Invoice.customer_id == self.id,
-                Invoice.status.in_(
-                    [InvoiceStatus.UNPAID.value, InvoiceStatus.PARTIAL.value, InvoiceStatus.PAID.value]
-                ),
+                Invoice.cancelled_at.is_(None),
             )
             .scalar()
             or 0
@@ -1810,11 +1808,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
             select(func.coalesce(func.sum(Invoice.total_amount), 0))
             .where(
                 (Invoice.customer_id == cls.id)
-                & (
-                    Invoice.status.in_(
-                        [InvoiceStatus.UNPAID.value, InvoiceStatus.PARTIAL.value, InvoiceStatus.PAID.value]
-                    )
-                )
+                & (Invoice.cancelled_at.is_(None))
             )
             .scalar_subquery()
         )
@@ -2010,7 +2004,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
             # حساب الفواتير بالشيكل
             invoices = db.session.query(Invoice).filter(
                 Invoice.customer_id == self.id,
-                Invoice.status.in_(["UNPAID", "PARTIAL", "PAID"])
+                Invoice.cancelled_at.is_(None)
             ).all()
             
             total_invoiced_ils = Decimal("0.00")
