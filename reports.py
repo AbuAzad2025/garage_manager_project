@@ -167,11 +167,13 @@ def payment_summary_report_ils(start_date: date = None, end_date: date = None) -
         total_incoming_ils = Decimal("0.00")
         total_outgoing_ils = Decimal("0.00")
         currency_breakdown = {}
+        method_breakdown = {}  # تجميع حسب طريقة الدفع
         
         for payment in payments:
             amount = Decimal(str(payment.total_amount or 0))
             currency = payment.currency or "ILS"
             direction = payment.direction
+            method = payment.method or "UNKNOWN"  # طريقة الدفع
             
             # تحويل للشيكل
             if currency == "ILS":
@@ -213,8 +215,17 @@ def payment_summary_report_ils(start_date: date = None, end_date: date = None) -
                 currency_breakdown[currency]['total_outgoing']
             )
             currency_breakdown[currency]['converted_to_ils'] += amount_ils
+            
+            # تجميع حسب طريقة الدفع
+            if method not in method_breakdown:
+                method_breakdown[method] = Decimal("0.00")
+            method_breakdown[method] += amount_ils
         
         net_balance_ils = total_incoming_ils - total_outgoing_ils
+        
+        # تحويل method_breakdown إلى lists للقالب
+        methods = list(method_breakdown.keys())
+        totals_by_method = [float(method_breakdown[m]) for m in methods]
         
         return {
             'report_type': 'payment_summary_report_ils',
@@ -232,6 +243,8 @@ def payment_summary_report_ils(start_date: date = None, end_date: date = None) -
                 'formatted_net': utils.format_currency_in_ils(net_balance_ils)
             },
             'currency_breakdown': currency_breakdown,
+            'methods': methods,
+            'totals_by_method': totals_by_method,
             'total_payments': len(payments),
             'generated_at': datetime.utcnow()
         }

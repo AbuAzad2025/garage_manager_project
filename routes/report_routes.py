@@ -369,17 +369,41 @@ def sales():
     start = _parse_date(request.args.get("start"))
     end = _parse_date(request.args.get("end"))
     rpt = sales_report_ils(start, end)
-    return render_template("reports/sales.html", **rpt, start=request.args.get("start", ""), end=request.args.get("end", ""), FIELD_LABELS=FIELD_LABELS, MODEL_LABELS=MODEL_LABELS)
+    
+    # تحويل daily_revenue إلى daily_labels و daily_values
+    daily_revenue = rpt.get('daily_revenue', {})
+    daily_labels = sorted(daily_revenue.keys())
+    daily_values = [float(daily_revenue.get(label, 0)) for label in daily_labels]
+    
+    # استخراج total_revenue
+    total_revenue = float(rpt.get('totals', {}).get('total_revenue_ils', 0))
+    
+    return render_template("reports/sales.html", 
+                         daily_labels=daily_labels,
+                         daily_values=daily_values,
+                         total_revenue=total_revenue,
+                         start=request.args.get("start", ""), 
+                         end=request.args.get("end", ""), 
+                         FIELD_LABELS=FIELD_LABELS, 
+                         MODEL_LABELS=MODEL_LABELS)
 
 @reports_bp.route("/payments-summary", methods=["GET"], strict_slashes=False)
 def payments_summary():
     start = _parse_date(request.args.get("start"))
     end = _parse_date(request.args.get("end"))
     rpt = payment_summary_report_ils(start, end)
-    method_labels = {m: METHOD_LABELS_DEFAULT.get(m.upper(), METHOD_LABELS_DEFAULT.get(m, m)) for m in rpt.get("methods", [])}
+    
+    # استخراج البيانات من التقرير
+    methods = rpt.get("methods", [])
+    totals = [float(t) for t in rpt.get("totals_by_method", [])]
+    grand_total = sum(totals)
+    
+    method_labels = {m: METHOD_LABELS_DEFAULT.get(m.upper(), METHOD_LABELS_DEFAULT.get(m, m)) for m in methods}
     return render_template(
         "reports/payments.html",
-        **rpt,
+        methods=methods,
+        totals=totals,
+        grand_total=grand_total,
         METHOD_LABELS=method_labels,
         start=request.args.get("start", ""),
         end=request.args.get("end", ""),
