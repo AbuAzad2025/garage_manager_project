@@ -157,12 +157,9 @@
 
     function buildByWarehouseUrl(tpl, wid) {
       if (!tpl) return '';
-      if (/\[\?&]wid=/.test(tpl)) return tpl.replace(/wid=\d+/i, 'wid=' + String(wid || 0));
-      if (/\/(0|\d+)(?==\/products(?:\/)??$)/.test(tpl)) return tpl.replace(/\/(0|\d+)(?=\/products(?:\/)??$)/, '/' + String(wid || 0));
-      // default: append/update query
-      var u = new URL(tpl, window.location.origin);
-      u.searchParams.set('wid', String(wid || 0));
-      return u.pathname + (u.search ? u.search : '');
+      var w = String(wid || '0');
+      // Expected template: /api/warehouses/0/products
+      return String(tpl).replace(/\/warehouses\/(?:0|\d+)\/products/i, '/warehouses/' + w + '/products');
     }
 
     function reinitProductsForWarehouse(wid) {
