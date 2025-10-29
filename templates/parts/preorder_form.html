@@ -138,6 +138,8 @@
           var term = (params && params.data && params.data.q) || '';
           var wid = $('#warehouseSelect').val() || '0';
           var url = String(epByWh).replace(/\/warehouses\/(?:0|\d+)\/products/i, '/warehouses/' + String(wid) + '/products');
+          // أضف available_only=1 لضمان إظهار المتاح فقط في هذا المخزن
+          if (url.indexOf('?') === -1) url += '?available_only=1'; else url += '&available_only=1';
           return $.ajax({
             url: url,
             dataType: 'json',

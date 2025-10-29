@@ -1386,6 +1386,7 @@ def api_products_by_warehouse(wid: int):
         warehouse_type = None
     
     q = (request.args.get("q") or "").strip()
+    available_only = (request.args.get("available_only") or "1").strip() in ("1","true","yes","on")
     selected_ids = request.args.getlist("warehouse_ids", type=int) or []
     sum_ids = selected_ids or [wid]
     limit = _limit_from_request(200, 1000)
@@ -1396,6 +1397,7 @@ def api_products_by_warehouse(wid: int):
         db.session.query(
             Product,
             SL_curr.quantity.label("qty_curr"),
+            func.coalesce(SL_curr.reserved_quantity, 0).label("res_curr"),
         )
         .outerjoin(
             SL_curr,
@@ -1404,11 +1406,16 @@ def api_products_by_warehouse(wid: int):
     )
 
     if sum_ids:
+        exists_filter = exists().where(
+            (StockLevel.product_id == Product.id) &
+            (StockLevel.warehouse_id.in_(sum_ids))
+        )
+        qry = qry.filter(exists_filter)
+
+    # فقط المتوفر في هذا المخزن (الكمية الصافية > 0)
+    if available_only:
         qry = qry.filter(
-            exists().where(
-                (StockLevel.product_id == Product.id) &
-                (StockLevel.warehouse_id.in_(sum_ids))
-            )
+            (func.coalesce(SL_curr.quantity, 0) - func.coalesce(SL_curr.reserved_quantity, 0)) > 0
         )
 
     if q:
@@ -1514,15 +1521,16 @@ def api_products_by_warehouse(wid: int):
             })
     
     out = []
-    for p, qty_curr in rows:
+    for p, qty_curr, res_curr in rows:
         total_q = totals_map.get(p.id, int(qty_curr or 0))
+        avail_curr = int((qty_curr or 0) - (res_curr or 0))
         partners_data = partners_map.get(p.id, [])
         suppliers_data = suppliers_map.get(p.id, [])
         
         out.append({
             "id": p.id,
             "name": p.name,
-            "text": f"{p.name} (متاح: {total_q})",
+            "text": f"{p.name} (متاح: {avail_curr if available_only else total_q})",
             "sku": p.sku,
             "part_number": getattr(p, "part_number", None),
             "brand": getattr(p, "brand", None),
