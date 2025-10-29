@@ -390,10 +390,10 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
         # 2. نصيبه من المبيعات (من سعر البيع) ✅
         sales_share = _get_partner_sales_share(partner_id, date_from, date_to)
         
-        # ⚠️ الحجوزات المسبقة ليست حق للشريك - هي طلب من العميل/المورد
-        # النصيب يأتي فقط من المنتج عندما يُباع أو يُخزّن (inventory/sales_share)
+        # 3. أرصدة الحجوزات المسبقة (العربون المدفوع)
+        preorders_prepaid = _get_partner_preorders_prepaid(partner_id, partner, date_from, date_to)
         
-        # 3. دفعات دفعها لنا (IN) - تُنقص من مديونيته (تُضاف للرصيد)
+        # 4. دفعات دفعها لنا (IN) - تُنقص من مديونيته (تُضاف للرصيد)
         payments_from_partner = _get_partner_payments_received(partner_id, partner, date_from, date_to)
         
         # ═══════════════════════════════════════════════════════════
@@ -420,9 +420,10 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
         # ═══════════════════════════════════════════════════════════
         
         # حقوق الشريك (ما استحقه من عمله)
-        # ✅ المخزون + نصيب المبيعات فقط
+        # ✅ المخزون + نصيب المبيعات + أرصدة الحجوزات المسبقة
         partner_rights = Decimal(str(inventory.get("total_ils", 0) if isinstance(inventory, dict) else 0)) + \
-                        Decimal(str(sales_share.get("total_share_ils", 0)))
+                        Decimal(str(sales_share.get("total_share_ils", 0))) + \
+                        Decimal(str(preorders_prepaid.get("total_ils", 0)))
         
         # التزامات الشريك (ما عليه لنا)
         partner_obligations = Decimal(str(sales_to_partner.get("total_ils", 0))) + \
@@ -465,6 +466,7 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
             "rights": {
                 "inventory": inventory,
                 "sales_share": sales_share,
+                "preorders_prepaid": preorders_prepaid,
                 "total": float(partner_rights)
             },
             # 🔴 التزامات الشريك (ما عليه لنا)
@@ -1450,6 +1452,54 @@ def _get_partner_preorders_share(partner_id: int, date_from: datetime, date_to: 
             "share_amount_ils": float(amount_ils),
             "currency": po.currency or 'ILS',
             "status": po.status
+        })
+    
+    return {
+        "items": items,
+        "total_ils": float(total_ils),
+        "count": len(items)
+    }
+
+
+def _get_partner_preorders_prepaid(partner_id: int, partner: Partner, date_from: datetime, date_to: datetime):
+    """
+    أرصدة الحجوزات المسبقة (العربون المدفوع) للشريك
+    إذا كان الشريك له عميل مرتبط، نحسب العربون من الحجوزات لذلك العميل
+    """
+    from models import PreOrder, PreOrderStatus
+    
+    if not partner.customer_id:
+        return {"items": [], "total_ils": 0.0, "count": 0}
+    
+    # جلب الحجوزات المسبقة للعميل المرتبط بالشريك
+    preorders = db.session.query(PreOrder).filter(
+        PreOrder.customer_id == partner.customer_id,
+        PreOrder.prepaid_amount > 0,
+        PreOrder.preorder_date >= date_from,
+        PreOrder.preorder_date <= date_to,
+        PreOrder.status.in_([PreOrderStatus.PENDING.value, PreOrderStatus.CONFIRMED.value])
+    ).order_by(PreOrder.preorder_date).all()
+    
+    items = []
+    total_ils = Decimal('0.00')
+    
+    for po in preorders:
+        amount_ils = _convert_to_ils(
+            Decimal(str(po.prepaid_amount or 0)),
+            po.currency or 'ILS',
+            po.preorder_date or datetime.utcnow()
+        )
+        total_ils += amount_ils
+        
+        items.append({
+            "preorder_id": po.id,
+            "reference": po.reference,
+            "date": po.preorder_date.strftime("%Y-%m-%d") if po.preorder_date else "",
+            "amount": float(po.prepaid_amount or 0),
+            "currency": po.currency or 'ILS',
+            "amount_ils": float(amount_ils),
+            "status": po.status,
+            "product": po.product.name if po.product else ""
         })
     
     return {
