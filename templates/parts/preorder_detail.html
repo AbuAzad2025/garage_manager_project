@@ -133,13 +133,17 @@
         
         {# الحجز منفّذ - عرض زر الأرشيف #}
         {% if preorder.status == 'FULFILLED' %}
+          <div class="alert alert-success mb-3">
+            <i class="fas fa-check-circle me-2"></i>
+            <strong>تم تسليم الحجز بنجاح!</strong> تم خصم الكمية من المخزون وإنشاء المبيعة.
+          </div>
           {% if preorder.sale %}
-          <a href="{{ url_for('sales_bp.sale_detail', id=preorder.sale.id) }}" class="btn btn-primary">
-            <i class="fas fa-file-invoice me-1"></i> عرض تفاصيل المبيعة #{{ preorder.sale.id }}
+          <a href="{{ url_for('sales_bp.sale_detail', id=preorder.sale.id) }}" class="btn btn-primary btn-lg">
+            <i class="fas fa-file-invoice me-2"></i> عرض تفاصيل المبيعة #{{ preorder.sale.id }}
           </a>
           {% else %}
-          <a href="{{ url_for('sales_bp.list_sales') }}" class="btn btn-outline-info">
-            <i class="fas fa-file-invoice me-1"></i> عرض جميع المبيعات
+          <a href="{{ url_for('sales_bp.list_sales') }}" class="btn btn-outline-primary btn-lg">
+            <i class="fas fa-file-invoice me-2"></i> عرض جميع المبيعات
           </a>
           {% endif %}
         {% endif %}
