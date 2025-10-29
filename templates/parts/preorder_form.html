@@ -69,6 +69,7 @@
             {{ form.product_id.label(class="form-label") }}
             {{ form.product_id(class="form-select select2", id="productSelect", data_endpoint_by_warehouse="/api/warehouses/0/products", data_placeholder="اختر القطعة") }}
             {% for e in form.product_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            <div id="prodAvail" class="form-text text-muted"></div>
           </div>
           <div class="col-md-6">
             {{ form.warehouse_id.label(class="form-label") }}
@@ -138,8 +139,7 @@
           var term = (params && params.data && params.data.q) || '';
           var wid = $('#warehouseSelect').val() || '0';
           var url = String(epByWh).replace(/\/warehouses\/(?:0|\d+)\/products/i, '/warehouses/' + String(wid) + '/products');
-          // أضف available_only=1 لضمان إظهار المتاح فقط في هذا المخزن
-          if (url.indexOf('?') === -1) url += '?available_only=1'; else url += '&available_only=1';
+          if (!wid || wid === '0') { url = '/api/products'; }
           return $.ajax({
             url: url,
             dataType: 'json',
@@ -206,6 +206,27 @@
 
     var initialWid = $('#warehouseSelect').val();
     if (initialWid) { reinitProductsForWarehouse(initialWid); }
+
+    // عرض المتاح والسعر كما في الفاتورة
+    async function fetchProductInfo(pid, wid){
+      if(!(pid && wid)) return {};
+      try{
+        const res = await fetch(`/api/products/${pid}/info?warehouse_id=${wid}`, { headers: { 'Accept': 'application/json' } });
+        return await res.json();
+      }catch(_){ return {}; }
+    }
+
+    $('#productSelect').on('select2:select', async function(){
+      var pid = $(this).val();
+      var wid = $('#warehouseSelect').val();
+      var info = await fetchProductInfo(pid, wid);
+      var avail = (typeof info.available !== 'undefined') ? info.available : null;
+      var price = (typeof info.price !== 'undefined') ? info.price : null;
+      var parts = [];
+      if (avail !== null) parts.push('متاح: ' + avail);
+      if (price !== null) parts.push('سعر: ' + Number(price).toFixed(2));
+      $('#prodAvail').text(parts.join(' | '));
+    });
 
     if (window.flatpickr) {
       var opts = {
