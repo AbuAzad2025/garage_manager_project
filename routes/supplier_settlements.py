@@ -1374,13 +1374,12 @@ def _get_supplier_preorders_prepaid(supplier_id: int, supplier: Supplier, date_f
     if not supplier.customer_id:
         return {"items": [], "total_ils": 0.0, "count": 0}
     
-    # جلب الحجوزات المسبقة للعميل المرتبط بالمورد
+    # جلب الحجوزات المسبقة للعميل المرتبط بالمورد (جميع الحالات)
     preorders = db.session.query(PreOrder).filter(
         PreOrder.customer_id == supplier.customer_id,
         PreOrder.prepaid_amount > 0,
         PreOrder.preorder_date >= date_from,
-        PreOrder.preorder_date <= date_to,
-        PreOrder.status.in_(['PENDING', 'CONFIRMED'])
+        PreOrder.preorder_date <= date_to
     ).order_by(PreOrder.preorder_date).all()
     
     items = []
