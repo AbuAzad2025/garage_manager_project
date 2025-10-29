@@ -730,15 +730,33 @@ def account_statement(customer_id):
 
     preorders = PreOrder.query.filter_by(customer_id=customer_id).order_by(PreOrder.created_at, PreOrder.id).all()
     for pre in preorders:
+        # العربون يُحسب كدفعة واردة (credit) - حق له
+        prepaid_amount = D(pre.prepaid_amount or 0)
+        total_amount = D(pre.total_amount or 0)
+        remaining_amount = total_amount - prepaid_amount
+        
+        # إضافة الحجز (عليه)
         entries.append({
             "date": pre.created_at,
             "type": "PREORDER",
             "ref": getattr(pre, "order_number", None) or f"PRE-{pre.id}",
             "statement": generate_statement("PREORDER", pre),
-            "debit": D(pre.total_amount or 0),
+            "debit": total_amount,
             "credit": D(0),
             "notes": getattr(pre, 'notes', '') or '',
         })
+        
+        # إضافة العربون (له) - إذا كان العربون > 0
+        if prepaid_amount > 0:
+            entries.append({
+                "date": pre.created_at,
+                "type": "PREPAID",
+                "ref": getattr(pre, "order_number", None) or f"PRE-{pre.id}",
+                "statement": f"عربون حجز {getattr(pre, 'order_number', None) or f'PRE-{pre.id}'}",
+                "debit": D(0),
+                "credit": prepaid_amount,
+                "notes": "عربون مدفوع - حق له",
+            })
 
     # ✅ فلترة الدفعات: COMPLETED + PENDING + الشيكات المرتدة (BOUNCED/FAILED)
     # PENDING: الشيكات المعلقة تُحسب في الرصيد (حسب العرف المحلي)
