@@ -1386,32 +1386,29 @@ def api_products_by_warehouse(wid: int):
         warehouse_type = None
     
     q = (request.args.get("q") or "").strip()
-    available_only = (request.args.get("available_only") or "1").strip() in ("1","true","yes","on")
     selected_ids = request.args.getlist("warehouse_ids", type=int) or []
     sum_ids = selected_ids or [wid]
     limit = _limit_from_request(200, 1000)
 
     SL_curr = aliased(StockLevel)
 
-    # قاعدة موحّدة: المنتجات المرتبطة بسجل مخزون في هذا المستودع فقط
     qry = (
         db.session.query(
             Product,
             SL_curr.quantity.label("qty_curr"),
-            func.coalesce(SL_curr.reserved_quantity, 0).label("res_curr"),
         )
-        .join(
+        .outerjoin(
             SL_curr,
             (SL_curr.product_id == Product.id) & (SL_curr.warehouse_id == wid),
         )
     )
 
-    # لا نستخدم selected_ids هنا؛ نفلتر حصراً على المستودع الحالي
-
-    # فقط المتوفر في هذا المخزن (الكمية الصافية > 0)
-    if available_only:
+    if sum_ids:
         qry = qry.filter(
-            (func.coalesce(SL_curr.quantity, 0) - func.coalesce(SL_curr.reserved_quantity, 0)) > 0
+            exists().where(
+                (StockLevel.product_id == Product.id) &
+                (StockLevel.warehouse_id.in_(sum_ids))
+            )
         )
 
     if q:
@@ -1425,7 +1422,22 @@ def api_products_by_warehouse(wid: int):
 
     rows = qry.order_by(Product.name.asc()).limit(limit).all()
 
-    # حسابات بسيطة على نفس المستودع فقط
+    pid_list = [p.id for p, _ in rows]
+    totals_map = {}
+    if sum_ids and pid_list:
+        trows = (
+            db.session.query(
+                StockLevel.product_id,
+                func.coalesce(func.sum(StockLevel.quantity), 0)
+            )
+            .filter(
+                StockLevel.warehouse_id.in_(sum_ids),
+                StockLevel.product_id.in_(pid_list),
+            )
+            .group_by(StockLevel.product_id)
+            .all()
+        )
+        totals_map = {pid: int(t or 0) for pid, t in trows}
 
     partners_map = {}
     suppliers_map = {}
@@ -1502,15 +1514,15 @@ def api_products_by_warehouse(wid: int):
             })
     
     out = []
-    for p, qty_curr, res_curr in rows:
-        avail_curr = int((qty_curr or 0) - (res_curr or 0))
+    for p, qty_curr in rows:
+        total_q = totals_map.get(p.id, int(qty_curr or 0))
         partners_data = partners_map.get(p.id, [])
         suppliers_data = suppliers_map.get(p.id, [])
         
         out.append({
             "id": p.id,
             "name": p.name,
-            "text": f"{p.name} (متاح: {avail_curr})",
+            "text": f"{p.name} (متاح: {total_q})",
             "sku": p.sku,
             "part_number": getattr(p, "part_number", None),
             "brand": getattr(p, "brand", None),
