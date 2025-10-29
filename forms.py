@@ -1800,7 +1800,7 @@ class PaymentForm(PaymentDetailsMixin, FlaskForm):
         return True
 
 
-class PreOrderForm(FlaskForm):
+class PreOrderForm(PaymentDetailsMixin, FlaskForm):
     reference = StrippedStringField('مرجع الحجز', validators=[Optional(), Length(max=50)])
     preorder_date   = UnifiedDateTimeField('تاريخ الحجز', format='%Y-%m-%d %H:%M', validators=[Optional()], render_kw={'autocomplete': 'off', 'dir': 'ltr'})
     expected_date   = UnifiedDateTimeField('تاريخ التسليم المتوقع', format='%Y-%m-%d %H:%M', validators=[Optional()], render_kw={'autocomplete': 'off', 'dir': 'ltr'})
@@ -1830,6 +1830,17 @@ class PreOrderForm(FlaskForm):
                                          "cheque": "شيك",
                                          "online": "أونلاين"
                                      })
+    
+    # حقول تفاصيل الدفع
+    check_number = StrippedStringField('رقم الشيك', validators=[Optional(), Length(max=100)])
+    check_bank   = StrippedStringField('البنك',     validators=[Optional(), Length(max=100)])
+    check_due_date = DateField('تاريخ الاستحقاق', format='%Y-%m-%d', validators=[Optional()])
+    bank_transfer_ref = StrippedStringField('مرجع التحويل', validators=[Optional(), Length(max=100)])
+    card_number = StrippedStringField('رقم البطاقة', validators=[Optional(), Length(max=19)])
+    card_holder = StrippedStringField('اسم حامل البطاقة', validators=[Optional(), Length(max=120)])
+    card_expiry = StrippedStringField('MM/YY', validators=[Optional(), Length(max=7)])
+    online_gateway = StrippedStringField('بوابة الدفع', validators=[Optional(), Length(max=50)])
+    online_ref     = StrippedStringField('مرجع العملية', validators=[Optional(), Length(max=100)])
 
     notes  = TextAreaField('ملاحظات', validators=[Optional(), Length(max=2000)])
     submit = SubmitField('تأكيد الحجز')

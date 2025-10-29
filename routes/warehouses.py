@@ -2776,42 +2776,11 @@ def preorder_create():
         db.session.add(preorder)
         db.session.flush()
 
-        sl = StockLevel.query.filter_by(product_id=product_id, warehouse_id=warehouse_id).with_for_update(nowait=False).first()
-        if not sl:
-            sl = StockLevel(product_id=product_id, warehouse_id=warehouse_id, quantity=0, reserved_quantity=0)
-            db.session.add(sl)
-            db.session.flush()
-        
-        # التحقق من الكمية المتاحة
-        available = int(sl.quantity or 0) - int(sl.reserved_quantity or 0)
-        if available < qty:
-            flash(f"الكمية المتاحة ({available}) غير كافية! الكمية المطلوبة: {qty}", "danger")
-            return render_template("parts/preorder_form.html", form=form), 200
-        
-        sl.reserved_quantity = int(sl.reserved_quantity or 0) + int(qty)
-
-
         try:
             db.session.commit()
         except IntegrityError as e:
             db.session.rollback()
-            # إعادة حجز الكمية بعد rollback
-            sl = StockLevel.query.filter_by(product_id=product_id, warehouse_id=warehouse_id).first()
-            if not sl:
-                sl = StockLevel(product_id=product_id, warehouse_id=warehouse_id, quantity=0, reserved_quantity=0)
-                db.session.add(sl)
-                db.session.flush()
-            
-            # التحقق من الكمية المتاحة
-            available = int(sl.quantity or 0) - int(sl.reserved_quantity or 0)
-            if available < qty:
-                flash(f"الكمية المتاحة ({available}) غير كافية! الكمية المطلوبة: {qty}", "danger")
-                return render_template("parts/preorder_form.html", form=form), 200
-            
-            sl.reserved_quantity = int(sl.reserved_quantity or 0) + int(qty)
-            
             if "preorders.reference" in str(e).lower() and not user_ref:
-                # المرجع التلقائي مكرر، نولد مرجع جديد
                 preorder.reference = _gen_ref()
                 db.session.add(preorder)
                 try:
@@ -2840,9 +2809,15 @@ def preorder_create():
                 method=form.payment_method.data or "cash",
                 reference=f"Preorder {preorder.reference}",
                 notes=f"دفعة عربون لحجز {preorder.product.name if preorder.product else ''} (كود: {preorder.reference})",
-                check_number=form.check_number.data if hasattr(form, 'check_number') else None,
-                check_bank=form.check_bank.data if hasattr(form, 'check_bank') else None,
-                check_due_date=form.check_due_date.data if hasattr(form, 'check_due_date') else None,
+                check_number=form.check_number.data if hasattr(form, 'check_number') and form.check_number.data else None,
+                check_bank=form.check_bank.data if hasattr(form, 'check_bank') and form.check_bank.data else None,
+                check_due_date=form.check_due_date.data if hasattr(form, 'check_due_date') and form.check_due_date.data else None,
+                bank_transfer_ref=form.bank_transfer_ref.data if hasattr(form, 'bank_transfer_ref') and form.bank_transfer_ref.data else None,
+                card_number=form.card_number.data if hasattr(form, 'card_number') and form.card_number.data else None,
+                card_holder=form.card_holder.data if hasattr(form, 'card_holder') and form.card_holder.data else None,
+                card_expiry=form.card_expiry.data if hasattr(form, 'card_expiry') and form.card_expiry.data else None,
+                online_gateway=form.online_gateway.data if hasattr(form, 'online_gateway') and form.online_gateway.data else None,
+                online_ref=form.online_ref.data if hasattr(form, 'online_ref') and form.online_ref.data else None,
             )
             db.session.add(pay)
             try:

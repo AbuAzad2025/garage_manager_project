@@ -10,6 +10,26 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2/css/select2.min.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css') }}">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+  /* ضمان ظهور قائمة Select2 فوق أي عناصر أخرى */
+  .select2-container .select2-dropdown { z-index: 99999; }
+  .select2-container--bootstrap4 .select2-results__options { max-height: 260px; }
+  
+  /* تحسين مظهر تفاصيل الدفع */
+  #paymentDetails {
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 0.375rem;
+    border: 1px solid #dee2e6;
+  }
+  #paymentDetails .form-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #495057;
+    margin-bottom: 0.25rem;
+  }
+</style>
 {% endblock %}
 
 {% block breadcrumb %}
@@ -28,17 +48,17 @@
 
         <div class="row g-3">
           <div class="col-md-4">
-            {{ form.reference.label(class="form-label") }}
-            {{ form.reference(class="form-control", placeholder="اختياري") }}
+            <label class="form-label" for="{{ form.reference.id }}">{{ form.reference.label.text }}</label>
+            {{ form.reference(class="form-control", id=form.reference.id, placeholder="اختياري") }}
             {% for e in form.reference.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
           </div>
           <div class="col-md-4">
-            {{ form.preorder_date.label(class="form-label") }}
+            <label class="form-label" for="preorder_date">{{ form.preorder_date.label.text }}</label>
             {{ form.preorder_date(class="form-control dtp", id="preorder_date", inputmode="text", autocomplete="off") }}
             {% for e in form.preorder_date.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
           </div>
           <div class="col-md-4">
-            {{ form.expected_date.label(class="form-label") }}
+            <label class="form-label" for="expected_date">{{ form.expected_date.label.text }}</label>
             {{ form.expected_date(class="form-control dtp", id="expected_date", inputmode="text", autocomplete="off") }}
             {% for e in form.expected_date.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
           </div>
@@ -46,14 +66,14 @@
 
         <div class="row g-3 mt-1">
           <div class="col-md-3">
-            {{ form.status.label(class="form-label") }}
-            {{ form.status(class="form-select") }}
+            <label class="form-label" for="{{ form.status.id }}">{{ form.status.label.text }}</label>
+            {{ form.status(class="form-select", id=form.status.id) }}
             {% for e in form.status.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
           </div>
           <div class="col-md-9">
-            {{ form.customer_id.label(class="form-label d-block") }}
+            <label class="form-label d-block" for="{{ form.customer_id.id }}">{{ form.customer_id.label.text }}</label>
             <div class="input-group">
-              {{ form.customer_id(class="form-select select2", id="customerSelect", data_endpoint=url_for('api.search_customers'), data_placeholder="اختر العميل") }}
+              {{ form.customer_id(class="form-select select2", id=form.customer_id.id, data_endpoint=url_for('api.search_customers'), data_placeholder="اختر العميل") }}
               <a href="{{ url_for('customers_bp.create_form', return_to=url_for('warehouse_bp.preorder_create')) }}"
                  class="btn btn-outline-primary" title="إضافة عميل جديد" target="_blank">
                 <i class="fa fa-user-plus"></i>
@@ -66,13 +86,13 @@
 
         <div class="row g-3 mt-1">
           <div class="col-md-6">
-            {{ form.product_id.label(class="form-label") }}
+            <label class="form-label" for="productSelect">{{ form.product_id.label.text }}</label>
             {{ form.product_id(class="form-select select2", id="productSelect", data_endpoint_by_warehouse="/api/warehouses/0/products", data_placeholder="اختر القطعة") }}
             {% for e in form.product_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
             <div id="prodAvail" class="form-text text-muted"></div>
           </div>
           <div class="col-md-6">
-            {{ form.warehouse_id.label(class="form-label") }}
+            <label class="form-label" for="warehouseSelect">{{ form.warehouse_id.label.text }}</label>
             {{ form.warehouse_id(class="form-select select2", id="warehouseSelect", data_endpoint=url_for('api.warehouses'), data_placeholder="اختر المخزن") }}
             {% for e in form.warehouse_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
           </div>
@@ -80,30 +100,81 @@
 
         <div class="row g-3 mt-1">
           <div class="col-md-3">
-            {{ form.quantity.label(class="form-label") }}
-            {{ form.quantity(class="form-control", min="1", step="1", inputmode="numeric", placeholder="1") }}
+            <label class="form-label" for="{{ form.quantity.id }}">{{ form.quantity.label.text }}</label>
+            {{ form.quantity(class="form-control", id=form.quantity.id, min="1", step="1", inputmode="numeric", placeholder="1") }}
             {% for e in form.quantity.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
           </div>
           <div class="col-md-3">
-            {{ form.prepaid_amount.label(class="form-label") }}
-            {{ form.prepaid_amount(class="form-control", min="0", step="0.01", inputmode="decimal", placeholder="0.00") }}
+            <label class="form-label" for="{{ form.prepaid_amount.id }}">{{ form.prepaid_amount.label.text }}</label>
+            {{ form.prepaid_amount(class="form-control", id=form.prepaid_amount.id, min="0", step="0.01", inputmode="decimal", placeholder="0.00") }}
             {% for e in form.prepaid_amount.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
           </div>
           <div class="col-md-3">
-            {{ form.payment_method.label(class="form-label") }}
-            {{ form.payment_method(class="form-select") }}
-            {% for e in form.payment_method.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-          </div>
-          <div class="col-md-3">
-            {{ form.tax_rate.label(class="form-label") }}
-            {{ form.tax_rate(class="form-control", min="0", max="100", step="0.01", inputmode="decimal", placeholder="0") }}
+            <label class="form-label" for="{{ form.tax_rate.id }}">{{ form.tax_rate.label.text }}</label>
+            {{ form.tax_rate(class="form-control", id=form.tax_rate.id, min="0", max="100", step="0.01", inputmode="decimal", placeholder="0") }}
             {% for e in form.tax_rate.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
           </div>
         </div>
 
+        <!-- تفاصيل الدفع -->
+        <div class="row g-3 mt-2">
+          <div class="col-md-4">
+            <label class="form-label" for="{{ form.payment_method.id }}">{{ form.payment_method.label.text }}</label>
+            {{ form.payment_method(class="form-select", id=form.payment_method.id) }}
+            {% for e in form.payment_method.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+          <div id="paymentDetails" class="col-12" style="display:none;">
+            <div class="row g-2">
+              <!-- حقول الشيك -->
+              <div class="col-md-3" data-field="check_number">
+                <label class="form-label" for="{{ form.check_number.id }}">{{ form.check_number.label.text }}</label>
+                {{ form.check_number(class="form-control form-control-sm", id=form.check_number.id, placeholder="رقم الشيك") }}
+              </div>
+              <div class="col-md-3" data-field="check_bank">
+                <label class="form-label" for="{{ form.check_bank.id }}">{{ form.check_bank.label.text }}</label>
+                {{ form.check_bank(class="form-control form-control-sm", id=form.check_bank.id, placeholder="اسم البنك") }}
+              </div>
+              <div class="col-md-3" data-field="check_due_date">
+                <label class="form-label" for="{{ form.check_due_date.id }}">{{ form.check_due_date.label.text }}</label>
+                {{ form.check_due_date(class="form-control form-control-sm", id=form.check_due_date.id, type="date") }}
+              </div>
+              
+              <!-- حقل التحويل البنكي -->
+              <div class="col-md-6" data-field="bank_transfer_ref">
+                <label class="form-label" for="{{ form.bank_transfer_ref.id }}">{{ form.bank_transfer_ref.label.text }}</label>
+                {{ form.bank_transfer_ref(class="form-control form-control-sm", id=form.bank_transfer_ref.id, placeholder="مرجع الحوالة") }}
+              </div>
+              
+              <!-- حقول البطاقة -->
+              <div class="col-md-3" data-field="card_number">
+                <label class="form-label" for="{{ form.card_number.id }}">{{ form.card_number.label.text }}</label>
+                {{ form.card_number(class="form-control form-control-sm", id=form.card_number.id, placeholder="**** ****") }}
+              </div>
+              <div class="col-md-3" data-field="card_holder">
+                <label class="form-label" for="{{ form.card_holder.id }}">{{ form.card_holder.label.text }}</label>
+                {{ form.card_holder(class="form-control form-control-sm", id=form.card_holder.id, placeholder="حامل البطاقة") }}
+              </div>
+              <div class="col-md-3" data-field="card_expiry">
+                <label class="form-label" for="{{ form.card_expiry.id }}">{{ form.card_expiry.label.text }}</label>
+                {{ form.card_expiry(class="form-control form-control-sm", id=form.card_expiry.id, placeholder="MM/YY") }}
+              </div>
+              
+              <!-- حقول الدفع الإلكتروني -->
+              <div class="col-md-6" data-field="online_gateway">
+                <label class="form-label" for="{{ form.online_gateway.id }}">{{ form.online_gateway.label.text }}</label>
+                {{ form.online_gateway(class="form-control form-control-sm", id=form.online_gateway.id, placeholder="البوابة") }}
+              </div>
+              <div class="col-md-6" data-field="online_ref">
+                <label class="form-label" for="{{ form.online_ref.id }}">{{ form.online_ref.label.text }}</label>
+                {{ form.online_ref(class="form-control form-control-sm", id=form.online_ref.id, placeholder="مرجع العملية") }}
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="mt-3">
-          {{ form.notes.label(class="form-label") }}
-          {{ form.notes(class="form-control", rows="2", placeholder="ملاحظات إضافية") }}
+          <label class="form-label" for="{{ form.notes.id }}">{{ form.notes.label.text }}</label>
+          {{ form.notes(class="form-control", id=form.notes.id, rows="2", placeholder="ملاحظات إضافية") }}
           {% for e in form.notes.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
         </div>
 
@@ -130,22 +201,21 @@
       width: '100%',
       theme: 'bootstrap4',
       placeholder: $el.data('placeholder') || 'اختر...',
-      allowClear: true
+      allowClear: true,
+      dropdownParent: $('#preorderForm')
     };
     if (epByWh) {
       // Dynamic per-request URL bound to current warehouse selection
       opts.ajax = {
-        transport: function (params, success, failure) {
-          var term = (params && params.data && params.data.q) || '';
-          var wid = $('#warehouseSelect').val() || '0';
-          var url = String(epByWh).replace(/\/warehouses\/(?:0|\d+)\/products/i, '/warehouses/' + String(wid) + '/products');
-          if (!wid || wid === '0') { url = '/api/products'; }
-          return $.ajax({
-            url: url,
-            dataType: 'json',
-            data: { q: term, limit: 20 },
-          }).then(success).fail(failure);
+        url: function(){
+          var wid = $('#warehouseSelect').val() || '';
+          if (!wid) return '/api/warehouses/0/products';
+          return String(epByWh).replace(/\/warehouses\/(?:0|\d+)\/products/i, '/warehouses/' + String(wid) + '/products');
         },
+        dataType: 'json',
+        delay: 200,
+        headers: { 'Accept': 'application/json' },
+        data: function (params) { return { q: (params && params.term) || '', limit: 50 }; },
         processResults: function (data) {
           var arr = Array.isArray(data) ? data : (data.results || data.data || []);
           return { results: (arr || []).map(function (r) {
@@ -158,12 +228,14 @@
           })};
         }
       };
+      opts.minimumInputLength = 0;
     } else if (ep) {
       opts.ajax = {
         url: ep,
         dataType: 'json',
-        delay: 250,
-        data: function (params) { return { q: params.term || '', limit: 20 }; },
+        delay: 200,
+        headers: { 'Accept': 'application/json' },
+        data: function (params) { return { q: params.term || '', limit: 50 }; },
         processResults: function (data) {
           var arr = Array.isArray(data) ? data : (data.results || data.data || []);
           return { results: (arr || []).map(function (r) {
@@ -176,8 +248,14 @@
           })};
         }
       };
+      opts.minimumInputLength = 0;
     }
     $el.select2(opts);
+    // اجلب نتائج فور فتح القائمة حتى لو term فارغ
+    $el.on('select2:open', function(){
+      var $search = $('.select2-container--open .select2-search__field');
+      if ($search.length && !$search.val()) { $search.trigger('input'); }
+    });
   }
 
   $(function () {
@@ -193,10 +271,35 @@
     function reinitProductsForWarehouse(wid) {
       var $prod = $('#productSelect');
       if (!$prod.length) return;
-      if ($prod.data('select2')) { $prod.select2('destroy'); }
+      try { if ($prod.data('select2')) { $prod.select2('destroy'); } } catch(e) {}
       $prod.val(null).trigger('change');
-      // Keep endpoint_by_warehouse; initSelect2 will use dynamic transport
-      initSelect2($prod);
+      // تهيئة ثابتة تربط مباشرة على راوت المستودع الحالي
+      $prod.select2({
+        dropdownParent: $('#preorderForm'),
+        theme: 'bootstrap4',
+        width: '100%',
+        minimumInputLength: 0,
+        ajax: {
+          url: function(){
+            var w = wid || $('#warehouseSelect').val() || '0';
+            return '/api/warehouses/' + String(w) + '/products';
+          },
+          dataType: 'json', delay: 200,
+          data: function(p){ return { q: (p && p.term) || '', limit: 50 }; },
+          processResults: function(d){
+            var arr = Array.isArray(d) ? d : (d.results || d.data || []);
+            return { results: (arr||[]).map(function(r){
+              if (r.text) return r;
+              var t = r.name || r.text || '';
+              if (r.sku) t += ' • SKU: ' + r.sku;
+              if (r.part_number) t += ' • Part: ' + r.part_number;
+              if (r.barcode) t += ' • Barcode: ' + r.barcode;
+              return { id: r.id, text: t };
+            }) };
+          }
+        }
+      });
+      try { setTimeout(function(){ $prod.select2('open'); }, 80); } catch(e) {}
     }
 
     $('#warehouseSelect').on('change', function(){
@@ -207,6 +310,39 @@
     var initialWid = $('#warehouseSelect').val();
     if (initialWid) { reinitProductsForWarehouse(initialWid); }
 
+    // ✅ تفاصيل طريقة الدفع
+    const paymentMethod = $('#payment_method');
+    const paymentDetails = $('#paymentDetails');
+    
+    function updatePaymentDetails() {
+      const method = paymentMethod.val();
+      paymentDetails.hide();
+      paymentDetails.find('[data-field]').hide();
+      
+      if (method === 'cheque') {
+        paymentDetails.show();
+        ['check_number', 'check_bank', 'check_due_date'].forEach(f => {
+          paymentDetails.find(`[data-field="${f}"]`).show();
+        });
+      } else if (method === 'bank' || method === 'BANK_TRANSFER') {
+        paymentDetails.show();
+        paymentDetails.find('[data-field="bank_transfer_ref"]').show();
+      } else if (method === 'card' || method === 'CARD' || method === 'CREDIT_CARD' || method === 'DEBIT_CARD') {
+        paymentDetails.show();
+        ['card_number', 'card_holder', 'card_expiry'].forEach(f => {
+          paymentDetails.find(`[data-field="${f}"]`).show();
+        });
+      } else if (method === 'online' || method === 'ONLINE') {
+        paymentDetails.show();
+        ['online_gateway', 'online_ref'].forEach(f => {
+          paymentDetails.find(`[data-field="${f}"]`).show();
+        });
+      }
+    }
+    
+    paymentMethod.on('change', updatePaymentDetails);
+    updatePaymentDetails();
+    
     // عرض المتاح والسعر كما في الفاتورة
     async function fetchProductInfo(pid, wid){
       if(!(pid && wid)) return {};
@@ -233,8 +369,8 @@
         enableTime: true,
         time_24hr: true,
         dateFormat: "Y-m-d H:i",
-        altInput: true,
-        altFormat: "d-m-Y H:i",
+        altInput: false,
+        // altFormat: "d-m-Y H:i", // غير ضروري بدون altInput
         allowInput: true,
         locale: flatpickr.l10ns.ar
       };

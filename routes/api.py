@@ -1421,6 +1421,18 @@ def api_products_by_warehouse(wid: int):
         ))
 
     rows = qry.order_by(Product.name.asc()).limit(limit).all()
+    try:
+        current_app.logger.info(
+            "api.warehouse_products",
+            extra={
+                "event": "api.warehouse.products",
+                "wid": wid,
+                "q": q,
+                "count": len(rows),
+            },
+        )
+    except Exception:
+        pass
 
     pid_list = [p.id for p, _ in rows]
     totals_map = {}
