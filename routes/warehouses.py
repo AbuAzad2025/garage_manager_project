@@ -3031,6 +3031,24 @@ def preorder_fulfill(preorder_id):
     return redirect(url_for("warehouse_bp.preorder_detail", preorder_id=preorder_id))
 
 
+@warehouse_bp.route("/preorders/<int:preorder_id>/mark-fulfilled", methods=["POST"], endpoint="preorder_mark_fulfilled")
+@login_required
+def preorder_mark_fulfilled(preorder_id):
+    """تحديث حالة الحجز إلى منفذ يدوياً"""
+    preorder = _get_or_404(PreOrder, preorder_id)
+    if preorder.status == "FULFILLED":
+        flash("هذا الحجز منفذ مسبقاً", "info")
+    else:
+        try:
+            preorder.status = "FULFILLED"
+            db.session.commit()
+            flash("تم تحديث حالة الحجز إلى منفذ", "success")
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            flash(f"فشل تحديث حالة الحجز: {e}", "danger")
+    return redirect(url_for("warehouse_bp.preorder_detail", preorder_id=preorder_id))
+
+
 @warehouse_bp.route("/preorders/<int:preorder_id>/cancel", methods=["POST"], endpoint="preorder_cancel")
 @login_required
 # @permission_required("delete_preorder")  # Commented out

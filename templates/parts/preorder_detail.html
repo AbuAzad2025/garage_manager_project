@@ -129,6 +129,14 @@
         </form>
         {% endif %}
 
+        {# زر تحديث الحالة إلى منفذ (للتحديث اليدوي) #}
+        <form method="post" action="{{ url_for('warehouse_bp.preorder_mark_fulfilled', preorder_id=preorder.id) }}" class="d-inline" onsubmit="return confirm('تمييز الحجز كمنفذ؟ سيتم خصم الكمية من المخزون.');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-outline-success" type="submit" title="تمييز الحجز كمنفذ يدوياً">
+            <i class="fas fa-check-circle me-1"></i> تمييز كمنفذ
+          </button>
+        </form>
+
       {% else %}
         
         {# الحجز منفّذ - عرض زر الأرشيف #}
