@@ -672,14 +672,39 @@ def customers_report():
 def expenses_report():
     start = _parse_date(request.args.get("start"))
     end = _parse_date(request.args.get("end"))
+    
+    # فلاتر إضافية
+    expense_type = request.args.get("type")  # نوع المصروف
+    employee_id = request.args.get("employee_id")  # الموظف
+    warehouse_id = request.args.get("warehouse_id")  # المستودع
+    partner_id = request.args.get("partner_id")  # الشريك
+    is_paid = request.args.get("is_paid")  # حالة الدفع
+    
     q = Expense.query
     if start:
         q = q.filter(Expense.date >= start)
     if end:
         q = q.filter(Expense.date <= end)
+    
+    # تطبيق الفلاتر الإضافية
+    if expense_type:
+        q = q.filter(Expense.type_id == expense_type)
+    if employee_id:
+        q = q.filter(Expense.employee_id == employee_id)
+    if warehouse_id:
+        q = q.filter(Expense.warehouse_id == warehouse_id)
+    if partner_id:
+        q = q.filter(Expense.partner_id == partner_id)
+    if is_paid in ['true', '1']:
+        q = q.filter(Expense.is_paid == True)
+    elif is_paid in ['false', '0']:
+        q = q.filter(Expense.is_paid == False)
+    
     q = q.order_by(Expense.date.desc())
     rows = q.all()
     total = sum(float(e.amount or 0) for e in rows)
+    
+    # تجميع حسب النوع
     type_labels, type_values = [], []
     by_type = {}
     for e in rows:
@@ -688,6 +713,8 @@ def expenses_report():
     for k, v in by_type.items():
         type_labels.append(str(k))
         type_values.append(v)
+    
+    # تجميع حسب الموظف
     emp_labels, emp_values = [], []
     by_emp = {}
     for e in rows:
@@ -696,12 +723,23 @@ def expenses_report():
     for k, v in by_emp.items():
         emp_labels.append(str(k))
         emp_values.append(v)
+    
+    # جلب قائمة الموظفين للفلتر
+    from models import User
+    employees = User.query.filter_by(is_active=True).order_by(User.username).all()
+    
     return render_template(
         "reports/expenses.html",
         data=rows,
         total_amount=total,
         start=request.args.get("start", ""),
         end=request.args.get("end", ""),
+        selected_type=expense_type or "",
+        selected_employee_id=int(employee_id) if employee_id else None,
+        selected_warehouse_id=int(warehouse_id) if warehouse_id else None,
+        selected_partner_id=int(partner_id) if partner_id else None,
+        selected_is_paid=is_paid or "",
+        employees=employees,
         FIELD_LABELS=FIELD_LABELS,
         MODEL_LABELS=MODEL_LABELS,
         type_labels=type_labels,

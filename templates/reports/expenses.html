@@ -21,26 +21,138 @@
 
   <!-- فلاتر -->
   <div class="card shadow-sm mb-4">
-    <div class="card-header bg-primary text-white">
-      {{ FIELD_LABELS.get("date_range", "نطاق التاريخ") }}
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+      <span><i class="fas fa-filter me-2"></i> فلاتر التقرير</span>
+      <button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse">
+        <i class="fas fa-chevron-down"></i>
+      </button>
     </div>
-    <div class="card-body">
-      <form class="row g-3" method="get">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-        <div class="col-md-3">
-          <label class="form-label fw-semibold">{{ FIELD_LABELS.get("start_date", "من") }}</label>
-          <input type="date" name="start" value="{{ start or '' }}" class="form-control">
+    <div class="collapse show" id="filterCollapse">
+      <div class="card-body">
+        <form class="row g-3" method="get">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          
+          <!-- التاريخ -->
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">
+              <i class="fas fa-calendar-check text-primary"></i> {{ FIELD_LABELS.get("start_date", "من تاريخ") }}
+            </label>
+            <input type="date" name="start" value="{{ start or '' }}" class="form-control">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">
+              <i class="fas fa-calendar-times text-primary"></i> {{ FIELD_LABELS.get("end_date", "إلى تاريخ") }}
+            </label>
+            <input type="date" name="end" value="{{ end or '' }}" class="form-control">
+          </div>
+          
+          <!-- نوع المصروف -->
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">
+              <i class="fas fa-tags text-info"></i> نوع المصروف
+            </label>
+            <input type="text" name="type" value="{{ selected_type or '' }}" 
+                   class="form-control" placeholder="أدخل نوع المصروف...">
+          </div>
+          
+          <!-- الموظف -->
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">
+              <i class="fas fa-user-tie text-success"></i> الموظف
+            </label>
+            <select name="employee_id" class="form-select">
+              <option value="">— جميع الموظفين —</option>
+              {% for emp in employees %}
+                <option value="{{ emp.id }}" {% if selected_employee_id == emp.id %}selected{% endif %}>
+                  {{ emp.username }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          
+          <!-- حالة الدفع -->
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">
+              <i class="fas fa-money-bill text-warning"></i> حالة الدفع
+            </label>
+            <select name="is_paid" class="form-select">
+              <option value="">— الكل —</option>
+              <option value="true" {% if selected_is_paid == 'true' %}selected{% endif %}>مدفوع</option>
+              <option value="false" {% if selected_is_paid == 'false' %}selected{% endif %}>غير مدفوع</option>
+            </select>
+          </div>
+          
+          <!-- أزرار -->
+          <div class="col-md-3 align-self-end">
+            <button type="submit" class="btn btn-primary w-100">
+              <i class="fas fa-search"></i> {{ FIELD_LABELS.get("refresh", "تطبيق") }}
+            </button>
+          </div>
+          {% if start or end or selected_type or selected_employee_id or selected_is_paid %}
+          <div class="col-md-3 align-self-end">
+            <a href="{{ url_for('reports_bp.expenses_report') }}" class="btn btn-outline-secondary w-100">
+              <i class="fas fa-times"></i> إلغاء الفلاتر
+            </a>
+          </div>
+          {% endif %}
+        </form>
+      </div>
+    </div>
+  </div>
+  
+  <!-- ملخص الإحصائيات -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card shadow-sm border-primary">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="text-muted small mb-1">إجمالي المصاريف</div>
+              <h4 class="mb-0 text-primary fw-bold">{{ "{:,.2f}".format(total_amount or 0) }} ₪</h4>
+            </div>
+            <div class="display-4 text-primary opacity-25">
+              <i class="fas fa-wallet"></i>
+            </div>
+          </div>
         </div>
-        <div class="col-md-3">
-          <label class="form-label fw-semibold">{{ FIELD_LABELS.get("end_date", "إلى") }}</label>
-          <input type="date" name="end" value="{{ end or '' }}" class="form-control">
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card shadow-sm border-info">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="text-muted small mb-1">عدد السجلات</div>
+              <h4 class="mb-0 text-info fw-bold">{{ data|length }}</h4>
+            </div>
+            <div class="display-4 text-info opacity-25">
+              <i class="fas fa-list"></i>
+            </div>
+          </div>
         </div>
-        <div class="col-md-3 align-self-end">
-          <button class="btn btn-primary">
-            <i class="fas fa-sync-alt"></i> {{ FIELD_LABELS.get("refresh", "تحديث") }}
-          </button>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card shadow-sm border-success">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="text-muted small mb-1">متوسط المصروف</div>
+              <h4 class="mb-0 text-success fw-bold">
+                {% if data|length > 0 %}
+                  {{ "{:,.2f}".format((total_amount or 0) / data|length) }}
+                {% else %}
+                  0.00
+                {% endif %}
+                ₪
+              </h4>
+            </div>
+            <div class="display-4 text-success opacity-25">
+              <i class="fas fa-calculator"></i>
+            </div>
+          </div>
         </div>
-      </form>
+      </div>
     </div>
   </div>
 
