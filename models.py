@@ -367,6 +367,8 @@ class PaymentEntityType(str, enum.Enum):
     INVOICE = "INVOICE"
     PREORDER = "PREORDER"
     SERVICE = "SERVICE"
+    MISCELLANEOUS = "MISCELLANEOUS"  # ✅ متفرقات
+    OTHER = "OTHER"  # ✅ أخرى
 
     @property
     def label(self):
@@ -381,6 +383,8 @@ class PaymentEntityType(str, enum.Enum):
             "INVOICE": "فاتورة",
             "PREORDER": "طلب مسبق",
             "SERVICE": "صيانة",
+            "MISCELLANEOUS": "متفرقات",
+            "OTHER": "أخرى",
         }[self.value]
 
 
@@ -3479,6 +3483,7 @@ class Employee(db.Model, TimestampMixin, AuditMixin):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False, index=True)
     position = db.Column(db.String(100))
+    salary = db.Column(db.Numeric(15, 2), default=0, nullable=True)  # الراتب الشهري
     phone = db.Column(db.String(20))
     email = db.Column(db.String(120), unique=True, index=True, nullable=True)
     bank_name = db.Column(db.String(100))
@@ -5298,7 +5303,7 @@ class Invoice(db.Model, TimestampMixin):
         # status سيُحسب تلقائياً = CANCELLED (لأن cancelled_at موجود)
 
     # update_status تم حذفها - status الآن محسوب تلقائياً
-    
+
     def __repr__(self):
         return f"<Invoice {self.invoice_number}>"
 
@@ -6091,6 +6096,22 @@ def _payment_create_check_auto(mapper, connection, target: "Payment"):
             ).scalar()
             created_by_id = first_user_result if first_user_result else 1
         
+        # ✅ تحديد الجهة المرتبطة (customer/supplier/partner)
+        customer_id = getattr(target, 'customer_id', None)
+        supplier_id = getattr(target, 'supplier_id', None)
+        partner_id = getattr(target, 'partner_id', None)
+        
+        # إذا لم يكن هناك customer_id مباشر، جرّب من Sale
+        if not customer_id and not supplier_id and not partner_id:
+            sale_id = getattr(target, 'sale_id', None)
+            if sale_id:
+                sale_row = connection.execute(
+                    sa_text("SELECT customer_id FROM sales WHERE id = :sid"),
+                    {"sid": sale_id}
+                ).fetchone()
+                if sale_row:
+                    customer_id = sale_row[0]
+        
         # إنشاء سجل الشيك
         connection.execute(
             Check.__table__.insert().values(
@@ -6102,9 +6123,10 @@ def _payment_create_check_auto(mapper, connection, target: "Payment"):
                 currency=(getattr(target, 'currency', None) or 'ILS').upper(),
                 direction=str(getattr(target, 'direction', 'IN')).upper(),
                 status='PENDING',
-                customer_id=getattr(target, 'customer_id', None),
-                supplier_id=getattr(target, 'supplier_id', None),
-                partner_id=getattr(target, 'partner_id', None),
+                payment_id=target.id,  # ✅ ربط الشيك بالدفعة
+                customer_id=customer_id,  # ✅ من Payment أو Sale
+                supplier_id=supplier_id,
+                partner_id=partner_id,
                 reference_number=f"PMT-{target.id}",
                 notes=f"شيك من دفعة رقم {getattr(target, 'payment_number', None) or target.id}",
                 created_by_id=created_by_id,
@@ -6420,6 +6442,27 @@ def _payment_split_create_check_auto(mapper, connection, target: "PaymentSplit")
             ).scalar()
             created_by_id = first_user_result if first_user_result else 1
         
+        # ✅ تحديد الجهة - من Payment أو Sale
+        customer_id = payment_row['customer_id']
+        supplier_id = payment_row['supplier_id']
+        partner_id = payment_row['partner_id']
+        
+        # إذا لم يكن هناك جهة مباشرة، جرّب من Sale
+        if not customer_id and not supplier_id and not partner_id:
+            # البحث عن sale_id في Payment
+            sale_id_row = connection.execute(
+                sa_text("SELECT sale_id FROM payments WHERE id = :pid"),
+                {"pid": target.payment_id}
+            ).fetchone()
+            
+            if sale_id_row and sale_id_row[0]:
+                sale_customer_row = connection.execute(
+                    sa_text("SELECT customer_id FROM sales WHERE id = :sid"),
+                    {"sid": sale_id_row[0]}
+                ).fetchone()
+                if sale_customer_row:
+                    customer_id = sale_customer_row[0]
+        
         # إنشاء سجل الشيك
         connection.execute(
             Check.__table__.insert().values(
@@ -6431,9 +6474,10 @@ def _payment_split_create_check_auto(mapper, connection, target: "PaymentSplit")
                 currency=(payment_row['currency'] or 'ILS').upper(),
                 direction=str(payment_row['direction'] or 'IN').upper(),
                 status='PENDING',
-                customer_id=payment_row['customer_id'],
-                supplier_id=payment_row['supplier_id'],
-                partner_id=payment_row['partner_id'],
+                payment_id=target.payment_id,  # ✅ ربط بالدفعة الأصلية
+                customer_id=customer_id,  # ✅ من Payment أو Sale
+                supplier_id=supplier_id,
+                partner_id=partner_id,
                 reference_number=f"PMT-SPLIT-{target.id}",
                 notes=f"شيك من دفعة جزئية #{target.id} - دفعة رقم {payment_row['payment_number']}",
                 created_by_id=created_by_id,
@@ -10127,6 +10171,9 @@ class Check(db.Model, TimestampMixin, AuditMixin):
     supplier_id = Column(Integer, ForeignKey("suppliers.id", ondelete="SET NULL"), index=True)
     partner_id = Column(Integer, ForeignKey("partners.id", ondelete="SET NULL"), index=True)
     
+    # ✅ الربط بالدفعة (اختياري)
+    payment_id = Column(Integer, ForeignKey("payments.id", ondelete="SET NULL"), index=True)
+    
     # من أنشأ الشيك
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     
@@ -10140,6 +10187,7 @@ class Check(db.Model, TimestampMixin, AuditMixin):
     customer = relationship("Customer", backref="independent_checks")
     supplier = relationship("Supplier", backref="independent_checks")
     partner = relationship("Partner", backref="independent_checks")
+    payment = relationship("Payment", backref="related_check", foreign_keys=[payment_id])
     created_by = relationship("User", backref="checks_created", foreign_keys=[created_by_id])
     archived_by_user = relationship("User", foreign_keys=[archived_by])
     
@@ -10151,6 +10199,68 @@ class Check(db.Model, TimestampMixin, AuditMixin):
     
     def __repr__(self):
         return f"<Check {self.check_number} - {self.check_bank} - {self.amount} {self.currency}>"
+    
+    @property
+    def entity_name(self):
+        """الحصول على اسم العميل/المورد/الشريك المرتبط بالشيك"""
+        # الأولوية: من Payment إذا كان موجوداً
+        if self.payment_id and self.payment:
+            if self.payment.customer:
+                return self.payment.customer.name
+            elif self.payment.supplier:
+                return self.payment.supplier.name
+            elif self.payment.partner:
+                return self.payment.partner.name
+        
+        # إذا لم يكن هناك payment، نأخذ مباشرة
+        if self.customer:
+            return self.customer.name
+        elif self.supplier:
+            return self.supplier.name
+        elif self.partner:
+            return self.partner.name
+        
+        return "غير محدد"
+    
+    @property
+    def entity_type(self):
+        """نوع الكيان المرتبط (عميل/مورد/شريك)"""
+        if self.payment_id and self.payment:
+            if self.payment.customer_id:
+                return "customer"
+            elif self.payment.supplier_id:
+                return "supplier"
+            elif self.payment.partner_id:
+                return "partner"
+        
+        if self.customer_id:
+            return "customer"
+        elif self.supplier_id:
+            return "supplier"
+        elif self.partner_id:
+            return "partner"
+        
+        return None
+    
+    @property
+    def entity_id(self):
+        """ID الكيان المرتبط"""
+        if self.payment_id and self.payment:
+            if self.payment.customer_id:
+                return self.payment.customer_id
+            elif self.payment.supplier_id:
+                return self.payment.supplier_id
+            elif self.payment.partner_id:
+                return self.payment.partner_id
+        
+        if self.customer_id:
+            return self.customer_id
+        elif self.supplier_id:
+            return self.supplier_id
+        elif self.partner_id:
+            return self.partner_id
+        
+        return None
     
     @hybrid_property
     def is_overdue(self):
@@ -10269,6 +10379,51 @@ def _check_before_insert(mapper, connection, target: "Check"):
                 target.fx_rate_issue_quote = default_currency
         except Exception:
             pass
+
+
+@event.listens_for(Check, "after_update", propagate=True)
+def _check_sync_payment_status(mapper, connection, target: "Check"):
+    """✅ مزامنة حالة الدفعة عند تغيير حالة الشيك"""
+    try:
+        # فحص إذا تم تغيير حالة الشيك
+        from sqlalchemy.orm.attributes import get_history
+        history = get_history(target, 'status')
+        
+        if not history.has_changes():
+            return
+        
+        # إذا لم يكن الشيك مرتبطاً بدفعة، لا نفعل شيء
+        payment_id = getattr(target, 'payment_id', None)
+        if not payment_id:
+            return
+        
+        # تحديد حالة الدفعة الجديدة بناءً على حالة الشيك
+        check_status = str(getattr(target, 'status', '')).upper()
+        new_payment_status = None
+        
+        # خريطة التحويل من CheckStatus إلى PaymentStatus
+        if check_status in ['RETURNED', 'BOUNCED']:
+            new_payment_status = 'FAILED'
+        elif check_status == 'PENDING':
+            new_payment_status = 'PENDING'
+        elif check_status == 'CASHED':
+            new_payment_status = 'COMPLETED'
+        elif check_status == 'CANCELLED':
+            new_payment_status = 'CANCELLED'
+        
+        if new_payment_status:
+            # تحديث مباشر لتجاوز validation
+            connection.execute(
+                sa_text("UPDATE payments SET status = :new_status WHERE id = :payment_id"),
+                {"new_status": new_payment_status, "payment_id": payment_id}
+            )
+            
+            import sys
+            print(f"✅ تمت مزامنة حالة الدفعة #{payment_id} مع الشيك #{getattr(target, 'id', '?')} - {check_status} → {new_payment_status}", file=sys.stderr)
+    
+    except Exception as e:
+        import sys
+        print(f"⚠️ خطأ في مزامنة حالة الدفعة للشيك #{getattr(target, 'id', '?')}: {e}", file=sys.stderr)
 
 
 @event.listens_for(Check, "before_update", propagate=True)

@@ -144,7 +144,7 @@ def index():
     day_ago = datetime.now(timezone.utc) - timedelta(hours=24)
     from models import AuthAudit, AuthEvent
     failed_logins_24h = AuthAudit.query.filter(
-        AuthAudit.event == AuthEvent.LOGIN_FAILED.value,
+        AuthAudit.event == AuthEvent.LOGIN_FAIL.value,
         AuthAudit.created_at >= day_ago
     ).count()
     
@@ -158,7 +158,7 @@ def index():
         suspicious_activities = db.session.query(
             func.count(AuthAudit.ip_address)
         ).filter(
-            AuthAudit.event == AuthEvent.LOGIN_FAILED.value,
+            AuthAudit.event == AuthEvent.LOGIN_FAIL.value,
             AuthAudit.created_at >= day_ago
         ).group_by(AuthAudit.ip_address).having(
             func.count(AuthAudit.ip_address) >= 5
@@ -211,7 +211,7 @@ def index():
     recent_suspicious = []
     try:
         recent_suspicious = AuthAudit.query.filter(
-            AuthAudit.event == AuthEvent.LOGIN_FAILED.value,
+            AuthAudit.event == AuthEvent.LOGIN_FAIL.value,
             AuthAudit.created_at >= day_ago
         ).order_by(AuthAudit.created_at.desc()).limit(10).all()
     except:
@@ -1077,6 +1077,13 @@ def ultimate_control():
         'total_permissions': 41
     }
     return render_template('security/ultimate_control.html', stats=stats)
+
+
+@security_bp.route('/ledger-control-old')
+@owner_only
+def ledger_control_old_route():
+    """🔀 Redirect قديم - تحويل إلى blueprint الجديد"""
+    return redirect('/security/ledger-control')
 
 
 @security_bp.route('/card-vault')
@@ -4626,4 +4633,355 @@ def api_batch_create_indexes():
             'success': False,
             'message': f'❌ خطأ: {str(e)}'
         }), 500
+
+
+@security_bp.route('/data-quality-center', methods=['GET', 'POST'])
+@owner_only
+def data_quality_center():
+    """
+    مركز متقدم لفحص وتحسين جودة البيانات
+    يفحص جميع الحقول الإجبارية والاختيارية ويقترح إصلاحات
+    """
+    from models import (
+        Check, Payment, PaymentSplit, Customer, Supplier, Partner,
+        Sale, Invoice, ServiceRequest, Shipment, Expense, Account, GLEntry,
+        PaymentMethod
+    )
+    from datetime import timedelta
+    from decimal import Decimal
+    
+    if request.method == 'GET':
+        # جمع إحصائيات شاملة
+        issues = {
+            'critical': [],
+            'warning': [],
+            'info': []
+        }
+        
+        # فحص الشيكات
+        checks_no_entity = Check.query.filter(
+            Check.customer_id == None,
+            Check.supplier_id == None,
+            Check.partner_id == None
+        ).count()
+        
+        checks_no_bank = Check.query.filter(
+            db.or_(Check.check_bank == None, Check.check_bank == '')
+        ).count()
+        
+        # فحص الدفعات
+        payments_no_bank = Payment.query.filter(
+            Payment.method == PaymentMethod.CHEQUE.value,
+            db.or_(Payment.check_bank == None, Payment.check_bank == '')
+        ).count()
+        
+        payments_no_due_date = Payment.query.filter(
+            Payment.method == PaymentMethod.CHEQUE.value,
+            Payment.check_due_date == None
+        ).count()
+        
+        # فحص الأرصدة
+        customers_null_balance = Customer.query.filter(Customer.balance == None).count()
+        suppliers_null_balance = Supplier.query.filter(Supplier.balance == None).count()
+        partners_null_balance = Partner.query.filter(Partner.balance == None).count()
+        
+        # الإحصائيات العامة
+        total_checks = Check.query.count()
+        total_payments = Payment.query.count()
+        total_customers = Customer.query.count()
+        total_suppliers = Supplier.query.count()
+        total_partners = Partner.query.count()
+        
+        stats = {
+            'checks': {
+                'total': total_checks,
+                'no_entity': checks_no_entity,
+                'no_bank': checks_no_bank
+            },
+            'payments': {
+                'total': total_payments,
+                'no_bank': payments_no_bank,
+                'no_due_date': payments_no_due_date
+            },
+            'balances': {
+                'customers_null': customers_null_balance,
+                'suppliers_null': suppliers_null_balance,
+                'partners_null': partners_null_balance
+            },
+            'entities': {
+                'customers': total_customers,
+                'suppliers': total_suppliers,
+                'partners': total_partners
+            }
+        }
+        
+        total_issues = (checks_no_entity + checks_no_bank + payments_no_bank + 
+                       payments_no_due_date + customers_null_balance + 
+                       suppliers_null_balance + partners_null_balance)
+        
+        return render_template('security/data_quality_center.html',
+                             stats=stats,
+                             total_issues=total_issues)
+    
+    # POST - تنفيذ الإصلاح
+    try:
+        action = request.form.get('action', 'all')
+        fixed_count = 0
+        
+        if action in ['all', 'checks']:
+            # إصلاح الشيكات
+            from datetime import timedelta
+            
+            # ربط الشيكات بالجهات
+            checks_without_entity = Check.query.filter(
+                Check.customer_id == None,
+                Check.supplier_id == None,
+                Check.partner_id == None
+            ).all()
+            
+            for check in checks_without_entity:
+                payment = None
+                
+                if check.reference_number:
+                    if check.reference_number.startswith('PMT-SPLIT-'):
+                        split_id = int(check.reference_number.replace('PMT-SPLIT-', ''))
+                        split = db.session.get(PaymentSplit, split_id)
+                        if split:
+                            payment = split.payment
+                    elif check.reference_number.startswith('PMT-'):
+                        try:
+                            payment_id = int(check.reference_number.replace('PMT-', ''))
+                            payment = db.session.get(Payment, payment_id)
+                        except:
+                            pass
+                
+                if not payment and check.check_number:
+                    payment = Payment.query.filter(
+                        Payment.check_number == check.check_number
+                    ).first()
+                
+                if payment:
+                    if payment.customer_id:
+                        check.customer_id = payment.customer_id
+                        fixed_count += 1
+                    elif payment.supplier_id:
+                        check.supplier_id = payment.supplier_id
+                        fixed_count += 1
+                    elif payment.partner_id:
+                        check.partner_id = payment.partner_id
+                        fixed_count += 1
+                    elif payment.sale_id:
+                        sale = db.session.get(Sale, payment.sale_id)
+                        if sale and sale.customer_id:
+                            check.customer_id = sale.customer_id
+                            fixed_count += 1
+        
+        if action in ['all', 'payments']:
+            # إصلاح الدفعات
+            check_payments = Payment.query.filter(
+                Payment.method == PaymentMethod.CHEQUE.value
+            ).all()
+            
+            for payment in check_payments:
+                if not payment.check_bank:
+                    check_record = Check.query.filter(
+                        Check.reference_number == f'PMT-{payment.id}'
+                    ).first()
+                    if check_record and check_record.check_bank:
+                        payment.check_bank = check_record.check_bank
+                    else:
+                        payment.check_bank = 'غير محدد'
+                    fixed_count += 1
+                
+                if not payment.check_due_date:
+                    check_record = Check.query.filter(
+                        Check.reference_number == f'PMT-{payment.id}'
+                    ).first()
+                    if check_record and check_record.check_due_date:
+                        payment.check_due_date = check_record.check_due_date
+                    else:
+                        payment.check_due_date = (payment.payment_date or datetime.utcnow()) + timedelta(days=30)
+                    fixed_count += 1
+        
+        if action in ['all', 'balances']:
+            # إصلاح الأرصدة NULL
+            for c in Customer.query.filter(Customer.balance == None).all():
+                c.balance = Decimal('0.00')
+                fixed_count += 1
+            
+            for s in Supplier.query.filter(Supplier.balance == None).all():
+                s.balance = Decimal('0.00')
+                fixed_count += 1
+            
+            for p in Partner.query.filter(Partner.balance == None).all():
+                p.balance = Decimal('0.00')
+                fixed_count += 1
+        
+        db.session.commit()
+        
+        utils.log_audit("System", None, "DATA_QUALITY_FIX", 
+                       details=f"تم إصلاح {fixed_count} مشكلة")
+        
+        flash(f'✅ تم إصلاح {fixed_count} مشكلة بنجاح!', 'success')
+        return redirect(url_for('security.data_quality_center'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'❌ خطأ: {str(e)}', 'danger')
+        return redirect(url_for('security.data_quality_center'))
+
+
+@security_bp.route('/advanced-check-linking', methods=['GET', 'POST'])
+@owner_only
+def advanced_check_linking():
+    """
+    ربط متقدم للشيكات بالجهات من خلال تتبع المبيعات والعلاقات
+    يستخدم في حالة حدوث خلل في ربط الشيكات
+    """
+    from models import (
+        Check, Payment, PaymentSplit, Customer, Supplier, Partner,
+        Sale, Invoice, ServiceRequest, Shipment, Expense
+    )
+    
+    if request.method == 'GET':
+        # عرض الصفحة مع إحصائيات
+        checks_without_entity = Check.query.filter(
+            Check.customer_id == None,
+            Check.supplier_id == None,
+            Check.partner_id == None
+        ).count()
+        
+        total_checks = Check.query.count()
+        
+        return render_template('security/advanced_check_linking.html',
+                             checks_without_entity=checks_without_entity,
+                             total_checks=total_checks)
+    
+    # POST - تنفيذ الربط
+    try:
+        fixed_count = 0
+        errors = []
+        
+        checks_without_entity = Check.query.filter(
+            Check.customer_id == None,
+            Check.supplier_id == None,
+            Check.partner_id == None
+        ).all()
+        
+        for check in checks_without_entity:
+            try:
+                payment = None
+                entity_found = False
+                
+                # محاولة البحث من reference_number
+                if check.reference_number:
+                    if check.reference_number.startswith('PMT-SPLIT-'):
+                        split_id = int(check.reference_number.replace('PMT-SPLIT-', ''))
+                        split = db.session.get(PaymentSplit, split_id)
+                        if split:
+                            payment = split.payment
+                    elif check.reference_number.startswith('PMT-'):
+                        try:
+                            payment_id = int(check.reference_number.replace('PMT-', ''))
+                            payment = db.session.get(Payment, payment_id)
+                        except:
+                            pass
+                    elif check.reference_number.startswith('SPLIT-'):
+                        split_id = int(check.reference_number.replace('SPLIT-', ''))
+                        split = db.session.get(PaymentSplit, split_id)
+                        if split:
+                            payment = split.payment
+                
+                # البحث برقم الشيك
+                if not payment and check.check_number:
+                    payment = Payment.query.filter(
+                        Payment.check_number == check.check_number
+                    ).first()
+                
+                # البحث بتاريخ الشيك والمبلغ
+                if not payment and check.amount and check.check_date:
+                    payment = Payment.query.filter(
+                        Payment.total_amount == check.amount,
+                        func.date(Payment.payment_date) == check.check_date.date()
+                    ).first()
+                
+                if payment:
+                    # الجهة المباشرة
+                    if payment.customer_id:
+                        check.customer_id = payment.customer_id
+                        entity_found = True
+                    elif payment.supplier_id:
+                        check.supplier_id = payment.supplier_id
+                        entity_found = True
+                    elif payment.partner_id:
+                        check.partner_id = payment.partner_id
+                        entity_found = True
+                    
+                    # من المبيعة
+                    if not entity_found and payment.sale_id:
+                        sale = db.session.get(Sale, payment.sale_id)
+                        if sale and sale.customer_id:
+                            check.customer_id = sale.customer_id
+                            entity_found = True
+                    
+                    # من الفاتورة
+                    if not entity_found and payment.invoice_id:
+                        invoice = db.session.get(Invoice, payment.invoice_id)
+                        if invoice and invoice.customer_id:
+                            check.customer_id = invoice.customer_id
+                            entity_found = True
+                    
+                    # من الخدمة
+                    if not entity_found and payment.service_id:
+                        service = db.session.get(ServiceRequest, payment.service_id)
+                        if service and service.customer_id:
+                            check.customer_id = service.customer_id
+                            entity_found = True
+                    
+                    # من الشحنة
+                    if not entity_found and payment.shipment_id:
+                        shipment = db.session.get(Shipment, payment.shipment_id)
+                        if shipment and shipment.supplier_id:
+                            check.supplier_id = shipment.supplier_id
+                            entity_found = True
+                    
+                    # من المصروف
+                    if not entity_found and payment.expense_id:
+                        expense = db.session.get(Expense, payment.expense_id)
+                        if expense and expense.supplier_id:
+                            check.supplier_id = expense.supplier_id
+                            entity_found = True
+                    
+                    # تحديث البيانات الأخرى
+                    if entity_found:
+                        if not check.currency:
+                            check.currency = payment.currency or 'ILS'
+                        if not check.direction:
+                            check.direction = payment.direction
+                        if not check.amount or check.amount == 0:
+                            check.amount = payment.total_amount
+                        fixed_count += 1
+                
+                if not entity_found:
+                    errors.append(f"الشيك {check.check_number}")
+                    
+            except Exception as e:
+                errors.append(f"الشيك {check.check_number}: {str(e)}")
+        
+        db.session.commit()
+        
+        # تسجيل في الـ audit
+        utils.log_audit("System", None, "ADVANCED_CHECK_LINKING", 
+                       details=f"تم ربط {fixed_count} شيك")
+        
+        flash(f'✅ تم ربط {fixed_count} شيك بنجاح!', 'success')
+        if errors:
+            flash(f'⚠️ فشل ربط {len(errors)} شيك', 'warning')
+        
+        return redirect(url_for('security.advanced_check_linking'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'❌ خطأ: {str(e)}', 'danger')
+        return redirect(url_for('security.advanced_check_linking'))
 

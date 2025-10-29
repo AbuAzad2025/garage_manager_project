@@ -1508,7 +1508,9 @@ class PaymentForm(PaymentDetailsMixin, FlaskForm):
                                  ("SALE", "بيع"),
                                  ("INVOICE", "فاتورة"),
                                  ("PREORDER", "طلب مسبق"),
-                                 ("SERVICE", "طلب صيانة")
+                                 ("SERVICE", "طلب صيانة"),
+                                 ("MISCELLANEOUS", "متفرقات"),
+                                 ("OTHER", "أخرى")
                              ],
                              validators=[DataRequired()])
 
@@ -2247,7 +2249,7 @@ class ShipmentPaymentForm(PaymentDetailsMixin, FlaskForm):
     shipment_id = AjaxSelectField('الشحنة', endpoint='api.search_shipments', get_label='shipment_number', validators=[DataRequired()], coerce=int)
     total_amount = MoneyField('المبلغ', validators=[DataRequired(), NumberRange(min=0.01)])
     currency = CurrencySelectField('العملة', validators=[DataRequired()])
-    method = SelectField('طريقة الدفع', choices=enum_choices(PaymentMethod, labels_map=METHOD_LABELS_AR, include_blank=False), validators=[DataRequired()], coerce=str, validate_choice=False)
+    method = SelectField('طريقة الدفع', choices=enum_choices(PaymentMethod, labels_map=METHOD_LABELS_AR, include_blank=False), validators=[Optional()], coerce=str, validate_choice=False, default='cash')
     direction = EnumSelectField(
         PaymentDirection,
         label="الاتجاه",
@@ -2413,14 +2415,15 @@ class CustomReportForm(FlaskForm):
 
 
 class EmployeeForm(FlaskForm):
-    name     = StrippedStringField('الاسم', validators=[DataRequired(), Length(max=100)])
-    position = StrippedStringField('الوظيفة', validators=[Optional(), Length(max=100)])
-    phone    = StrippedStringField('الجوال', validators=[Optional(), Length(max=20)])
-    email    = StrippedStringField('البريد', validators=[Optional(), Email(), Length(max=120)])
-    bank_name      = StrippedStringField('البنك', validators=[Optional(), Length(max=100)])
-    account_number = StrippedStringField('رقم الحساب', validators=[Optional(), Length(max=100)])
-    notes    = TextAreaField('ملاحظات', validators=[Optional(), Length(max=1000)])
+    name     = StrippedStringField('الاسم الكامل', validators=[DataRequired(), Length(max=100)])
+    position = StrippedStringField('المسمى الوظيفي', validators=[Optional(), Length(max=100)])
+    salary   = MoneyField('الراتب الشهري', validators=[Optional(), NumberRange(min=0)])
+    phone    = StrippedStringField('رقم الجوال', validators=[Optional(), Length(max=20)])
+    email    = StrippedStringField('البريد الإلكتروني', validators=[Optional(), Email(), Length(max=120)])
+    bank_name      = StrippedStringField('اسم البنك', validators=[Optional(), Length(max=100)])
+    account_number = StrippedStringField('رقم الحساب البنكي', validators=[Optional(), Length(max=100)])
     currency = CurrencySelectField('العملة', validators=[DataRequired()])
+    notes    = TextAreaField('ملاحظات', validators=[Optional(), Length(max=1000)])
     submit   = SubmitField('حفظ الموظف')
 
     def validate_phone(self, field):
@@ -2464,92 +2467,6 @@ class ExpenseTypeForm(FlaskForm):
         obj.description = (self.description.data or "").strip() or None
         obj.is_active = bool(self.is_active.data)
         return obj
-
-
-class QuickExpenseForm(PaymentDetailsMixin, FlaskForm):
-    date   = DateField('التاريخ', validators=[DataRequired()], default=date.today)
-    amount = MoneyField('المبلغ', validators=[DataRequired(), NumberRange(min=0.01)])
-    currency = CurrencySelectField('العملة', validators=[DataRequired()])
-    type_id  = SelectField('نوع المصروف', coerce=int, validators=[DataRequired()])
-    paid_to  = StrippedStringField('الجهة المستفيدة', validators=[Optional(), Length(max=200)])
-
-    payment_method = SelectField(
-        'طريقة الدفع',
-        choices=enum_choices(PaymentMethod, labels_map=METHOD_LABELS_AR, include_blank=False),
-        validators=[DataRequired()],
-        coerce=str, validate_choice=False
-    )
-    check_number    = StrippedStringField('رقم الشيك', validators=[Optional(), Length(max=100)])
-    check_bank      = StrippedStringField('اسم البنك', validators=[Optional(), Length(max=100)])
-    check_due_date  = DateField('تاريخ الاستحقاق', validators=[Optional()])
-    bank_transfer_ref = StrippedStringField('مرجع الحوالة', validators=[Optional(), Length(max=100)])
-    card_number     = StrippedStringField('رقم البطاقة', validators=[Optional(), Length(max=19)])
-    card_holder     = StrippedStringField('اسم حامل البطاقة', validators=[Optional(), Length(max=120)])
-    card_expiry     = StrippedStringField('تاريخ انتهاء البطاقة', validators=[Optional(), Length(max=7)])
-    online_gateway  = StrippedStringField('البوابة الإلكترونية', validators=[Optional(), Length(max=50)])
-    online_ref      = StrippedStringField('مرجع العملية', validators=[Optional(), Length(max=100)])
-    payment_details = TextAreaField('تفاصيل إضافية', validators=[Optional(), Length(max=255)])
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.type_id.choices = [(t.id, t.name) for t in ExpenseType.query.filter_by(is_active=True).order_by(ExpenseType.name).all()]
-
-    def validate(self, extra_validators=None):
-        if not super().validate(extra_validators=extra_validators): return False
-        m = (self.payment_method.data or '').strip().upper()
-        try:
-            if m == 'CHEQUE':
-                self._validate_cheque(self.check_number.data, self.check_bank.data, self.check_due_date.data, op_date=self.date.data)
-            elif m == 'BANK':
-                self._validate_bank(self.bank_transfer_ref.data)
-            elif m == 'CARD':
-                last4 = self._validate_card_payload(self.card_number.data, self.card_holder.data, self.card_expiry.data)
-                if last4:
-                    self.card_number.data = last4
-            elif m == 'ONLINE':
-                self._validate_online(self.online_gateway.data, self.online_ref.data)
-        except ValidationError as e:
-            msg = str(e)
-            if 'شيك' in msg:
-                if 'رقم' in msg: self.check_number.errors.append(msg)
-                elif 'البنك' in msg: self.check_bank.errors.append(msg)
-                else: self.check_due_date.errors.append(msg)
-            elif 'تحويل' in msg:
-                self.bank_transfer_ref.errors.append(msg)
-            elif 'بطاقة' in msg or 'MM/YY' in msg:
-                if 'رقم' in msg: self.card_number.errors.append(msg)
-                elif 'حامل' in msg: self.card_holder.errors.append(msg)
-                else: self.card_expiry.errors.append(msg)
-            elif 'بوابة' in msg or 'مرجع' in msg:
-                if 'بوابة' in msg: self.online_gateway.errors.append(msg)
-                else: self.online_ref.errors.append(msg)
-            else:
-                self.payment_method.errors.append(msg)
-            return False
-        return True
-
-    def build_payment_details(self):
-        m = (self.payment_method.data or '').strip().upper()
-        last4 = None
-        if m == 'CARD':
-            try:
-                last4 = self._validate_card_payload(self.card_number.data, self.card_holder.data, self.card_expiry.data)
-            except ValidationError:
-                last4 = None
-        return self.build_payment_details_json(
-            m,
-            check_number=self.check_number.data,
-            check_bank=self.check_bank.data,
-            check_due_date=self.check_due_date.data,
-            bank_transfer_ref=self.bank_transfer_ref.data,
-            card_last4=last4,
-            card_holder=self.card_holder.data,
-            card_expiry=self.card_expiry.data,
-            online_gateway=self.online_gateway.data,
-            online_ref=self.online_ref.data,
-            extra=self.payment_details.data,
-            card_brand=None
-        )
 
 
 class ExpenseForm(PaymentDetailsMixin, FlaskForm):

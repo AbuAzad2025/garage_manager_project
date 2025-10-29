@@ -10,8 +10,8 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy import or_, and_
 
 from extensions import db
-from forms import EmployeeForm, ExpenseTypeForm, ExpenseForm, QuickExpenseForm
-from models import Employee, ExpenseType, Expense, Shipment, UtilityAccount, StockAdjustment
+from forms import EmployeeForm, ExpenseTypeForm, ExpenseForm
+from models import Employee, ExpenseType, Expense, Shipment, UtilityAccount, StockAdjustment, Partner, Warehouse
 import utils
 from utils import D, q0, archive_record, restore_record
 
@@ -158,7 +158,7 @@ def add_employee():
         db.session.add(e)
         try:
             db.session.commit()
-            flash("✅ تمت إضافة الموظف", "success")
+            flash("✅ تمت إضافة الموظف بنجاح", "success")
             return redirect(url_for("expenses_bp.employees_list"))
         except SQLAlchemyError as err:
             db.session.rollback()
@@ -375,7 +375,15 @@ def detail(exp_id):
 # @permission_required("manage_expenses")  # Commented out
 def add():
     form = ExpenseForm()
+    # ✅ ملء جميع القوائم المنسدلة
     form.type_id.choices = [(t.id, t.name) for t in ExpenseType.query.order_by(ExpenseType.name).all()]
+    form.employee_id.choices = [(0, '-- اختر موظفاً --')] + [(e.id, e.name) for e in Employee.query.order_by(Employee.name).limit(200).all()]
+    form.utility_account_id.choices = [(0, '-- اختر حساب --')] + [(u.id, f"{u.provider} - {u.account_no or u.alias or u.utility_type}") for u in UtilityAccount.query.filter_by(is_active=True).order_by(UtilityAccount.provider).limit(100).all()]
+    form.warehouse_id.choices = [(0, '-- اختر مستودع --')] + [(w.id, w.name) for w in Warehouse.query.filter_by(is_active=True).order_by(Warehouse.name).limit(100).all()]
+    form.shipment_id.choices = [(0, '-- اختر شحنة --')] + [(s.id, f"شحنة #{s.id}") for s in Shipment.query.order_by(Shipment.id.desc()).limit(50).all()]
+    form.partner_id.choices = [(0, '-- اختر شريك --')] + [(p.id, p.name) for p in Partner.query.filter_by(is_archived=False).order_by(Partner.name).limit(100).all()]
+    form.stock_adjustment_id.choices = [(0, '-- اختر تسوية --')] + [(sa.id, f"تسوية #{sa.id}") for sa in StockAdjustment.query.order_by(StockAdjustment.id.desc()).limit(50).all()]
+    
     if form.validate_on_submit():
         exp = Expense()
         if hasattr(form, "apply_to"):
@@ -386,8 +394,19 @@ def add():
                 dt = _to_datetime(form.date.data)
                 if dt:
                     exp.date = dt
-            if not getattr(form.employee_id, "data", None):
+            # ✅ تحويل 0 إلى None للحقول الاختيارية
+            if not getattr(form.employee_id, "data", None) or form.employee_id.data == 0:
                 exp.employee_id = None
+            if not getattr(form, "utility_account_id", None) or form.utility_account_id.data == 0:
+                exp.utility_account_id = None
+            if not getattr(form, "warehouse_id", None) or form.warehouse_id.data == 0:
+                exp.warehouse_id = None
+            if not getattr(form, "shipment_id", None) or form.shipment_id.data == 0:
+                exp.shipment_id = None
+            if not getattr(form, "partner_id", None) or form.partner_id.data == 0:
+                exp.partner_id = None
+            if not getattr(form, "stock_adjustment_id", None) or form.stock_adjustment_id.data == 0:
+                exp.stock_adjustment_id = None
         db.session.add(exp)
         try:
             db.session.commit()
@@ -441,7 +460,7 @@ def add():
                 db.session.commit()
             
             flash("✅ تمت إضافة المصروف", "success")
-            return redirect(url_for("expenses_bp.index"))
+            return redirect(url_for("expenses_bp.list_expenses"))
         except SQLAlchemyError as err:
             db.session.rollback()
             flash(f"❌ خطأ في إضافة المصروف: {err}", "danger")
@@ -453,7 +472,52 @@ def add():
 def edit(exp_id):
     exp = _get_or_404(Expense, exp_id)
     form = ExpenseForm(obj=exp)
+    
+    # ✅ ملء جميع القوائم المنسدلة
     form.type_id.choices = [(t.id, t.name) for t in ExpenseType.query.order_by(ExpenseType.name).all()]
+    
+    # ✅ الموظفين (مع إضافة الموظف الحالي إذا لم يكن في القائمة)
+    employees = Employee.query.order_by(Employee.name).limit(200).all()
+    form.employee_id.choices = [(0, '-- اختر موظفاً --')]
+    if exp.employee_id and exp.employee and exp.employee not in employees:
+        form.employee_id.choices.append((exp.employee.id, f"✓ {exp.employee.name}"))
+    form.employee_id.choices += [(e.id, e.name) for e in employees]
+    
+    # ✅ حسابات المرافق (مع إضافة الحساب الحالي)
+    utilities = UtilityAccount.query.filter_by(is_active=True).order_by(UtilityAccount.provider).limit(100).all()
+    form.utility_account_id.choices = [(0, '-- اختر حساب --')]
+    if exp.utility_account_id and exp.utility_account and exp.utility_account not in utilities:
+        form.utility_account_id.choices.append((exp.utility_account.id, f"✓ {exp.utility_account.provider} - {exp.utility_account.account_no or exp.utility_account.alias}"))
+    form.utility_account_id.choices += [(u.id, f"{u.provider} - {u.account_no or u.alias or u.utility_type}") for u in utilities]
+    
+    # ✅ المستودعات (مع إضافة المستودع الحالي)
+    warehouses = Warehouse.query.filter_by(is_active=True).order_by(Warehouse.name).limit(100).all()
+    form.warehouse_id.choices = [(0, '-- اختر مستودع --')]
+    if exp.warehouse_id and exp.warehouse and exp.warehouse not in warehouses:
+        form.warehouse_id.choices.append((exp.warehouse.id, f"✓ {exp.warehouse.name}"))
+    form.warehouse_id.choices += [(w.id, w.name) for w in warehouses]
+    
+    # ✅ الشحنات (مع إضافة الشحنة الحالية)
+    shipments = Shipment.query.order_by(Shipment.id.desc()).limit(50).all()
+    form.shipment_id.choices = [(0, '-- اختر شحنة --')]
+    if exp.shipment_id and exp.shipment and exp.shipment not in shipments:
+        form.shipment_id.choices.append((exp.shipment.id, f"✓ شحنة #{exp.shipment.id}"))
+    form.shipment_id.choices += [(s.id, f"شحنة #{s.id}") for s in shipments]
+    
+    # ✅ الشركاء (مع إضافة الشريك الحالي)
+    partners = Partner.query.filter_by(is_archived=False).order_by(Partner.name).limit(100).all()
+    form.partner_id.choices = [(0, '-- اختر شريك --')]
+    if exp.partner_id and exp.partner and exp.partner not in partners:
+        form.partner_id.choices.append((exp.partner.id, f"✓ {exp.partner.name}"))
+    form.partner_id.choices += [(p.id, p.name) for p in partners]
+    
+    # ✅ تسويات المخزون (مع إضافة التسوية الحالية)
+    adjustments = StockAdjustment.query.order_by(StockAdjustment.id.desc()).limit(50).all()
+    form.stock_adjustment_id.choices = [(0, '-- اختر تسوية --')]
+    if exp.stock_adjustment_id and exp.stock_adjustment and exp.stock_adjustment not in adjustments:
+        form.stock_adjustment_id.choices.append((exp.stock_adjustment.id, f"✓ تسوية #{exp.stock_adjustment.id}"))
+    form.stock_adjustment_id.choices += [(sa.id, f"تسوية #{sa.id}") for sa in adjustments]
+    
     if form.validate_on_submit():
         if hasattr(form, "apply_to"):
             form.apply_to(exp)
@@ -463,12 +527,23 @@ def edit(exp_id):
                 dt = _to_datetime(form.date.data)
                 if dt:
                     exp.date = dt
-            if not getattr(form, "employee_id", None) or not form.employee_id.data:
+            # ✅ تحويل 0 إلى None للحقول الاختيارية
+            if not getattr(form, "employee_id", None) or not form.employee_id.data or form.employee_id.data == 0:
                 exp.employee_id = None
+            if not getattr(form, "utility_account_id", None) or form.utility_account_id.data == 0:
+                exp.utility_account_id = None
+            if not getattr(form, "warehouse_id", None) or form.warehouse_id.data == 0:
+                exp.warehouse_id = None
+            if not getattr(form, "shipment_id", None) or form.shipment_id.data == 0:
+                exp.shipment_id = None
+            if not getattr(form, "partner_id", None) or form.partner_id.data == 0:
+                exp.partner_id = None
+            if not getattr(form, "stock_adjustment_id", None) or form.stock_adjustment_id.data == 0:
+                exp.stock_adjustment_id = None
         try:
             db.session.commit()
             flash("✅ تم تعديل المصروف", "success")
-            return redirect(url_for("expenses_bp.index"))
+            return redirect(url_for("expenses_bp.list_expenses"))
         except SQLAlchemyError as err:
             db.session.rollback()
             flash(f"❌ خطأ في تعديل المصروف: {err}", "danger")
@@ -486,7 +561,7 @@ def delete(exp_id):
     except SQLAlchemyError as err:
         db.session.rollback()
         flash(f"❌ خطأ في حذف المصروف: {err}", "danger")
-    return redirect(url_for("expenses_bp.index"))
+    return redirect(url_for("expenses_bp.list_expenses"))
 
 @expenses_bp.route("/<int:exp_id>/pay", methods=["GET"], endpoint="pay")
 @login_required
@@ -588,46 +663,6 @@ def export_csv():
         mimetype="text/csv; charset=utf-8",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
-
-@expenses_bp.route('/quick_add', methods=['GET', 'POST'], endpoint='quick_add')
-@login_required
-# @permission_required('manage_expenses')  # Commented out
-def quick_add():
-    form = QuickExpenseForm()
-    form.currency.choices = [
-        ('ILS', 'شيكل إسرائيلي'),
-        ('USD', 'دولار أمريكي'),
-        ('EUR', 'يورو'),
-        ('JOD', 'دينار أردني'),
-        ('AED', 'درهم إماراتي'),
-        ('SAR', 'ريال سعودي'),
-        ('EGP', 'جنيه مصري'),
-        ('GBP', 'جنيه إسترليني')
-    ]
-    form.payment_method.choices = [
-        ('cash', 'نقدي'),
-        ('cheque', 'شيك'),
-        ('bank', 'حوالة بنكية'),
-        ('card', 'بطاقة'),
-        ('online', 'دفع إلكتروني'),
-        ('other', 'أخرى')
-    ]
-    form.type_id.choices = [(t.id, t.name) for t in ExpenseType.query.filter_by(is_active=True).order_by(ExpenseType.name).all()]
-    if form.validate_on_submit():
-        exp = Expense()
-        if hasattr(form, "apply_to"):
-            form.apply_to(exp)
-        else:
-            form.populate_obj(exp)
-            if hasattr(form, "date"):
-                dt = _to_datetime(form.date.data)
-                if dt:
-                    exp.date = dt
-        db.session.add(exp)
-        db.session.commit()
-        flash("✅ تمت إضافة المصروف السريع", "success")
-        return redirect(url_for('expenses_bp.list_expenses'))
-    return render_template('expenses/quick_add.html', form=form)
 
 @expenses_bp.route("/print", methods=["GET"], endpoint="print_list")
 @login_required

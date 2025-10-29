@@ -36,7 +36,6 @@
       {% if current_user.has_permission('manage_expenses') %}
       <div class="d-flex gap-2 flex-wrap">
         <a href="{{ url_for('expenses_bp.create_expense') }}" class="btn btn-action-add"><i class="fas fa-plus"></i> إضافة مصروف</a>
-        <a href="{{ url_for('expenses_bp.quick_add') }}" class="btn btn-warning"><i class="fas fa-bolt"></i> مصروف سريع</a>
         <a href="{{ url_for('expenses_bp.types_list') }}" class="btn btn-outline-secondary"><i class="fas fa-tags"></i> أنواع المصاريف</a>
         <a href="{{ url_for('expenses_bp.employees_list') }}" class="btn btn-outline-secondary"><i class="fas fa-users"></i> الموظفون</a>
       </div>

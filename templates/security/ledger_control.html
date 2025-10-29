@@ -1,0 +1,730 @@
+{% extends 'base.html' %}
+{% block title %}وحدة التحكم - دفتر الأستاذ{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-3">
+    <div class="card shadow">
+        <div class="card-header bg-gradient text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h4 class="mb-0"><i class="fas fa-university me-2"></i>وحدة التحكم الشاملة - دفتر الأستاذ</h4>
+                    <small>إدارة متقدمة للحسابات والقيود المحاسبية</small>
+                </div>
+                <div>
+                    <button class="btn btn-light btn-sm" onclick="window.location.href='/security/'">
+                        <i class="fas fa-arrow-right me-1"></i>العودة
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card-body p-0">
+            <ul class="nav nav-pills nav-fill border-bottom" id="controlTabs" style="background: #f8f9fa;">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#tab-accounts">
+                                <i class="fas fa-list me-1"></i>الحسابات
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#tab-entries">
+                                <i class="fas fa-file me-1"></i>القيود
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#tab-batches">
+                                <i class="fas fa-edit me-1"></i>تحرير القيود
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#tab-tools">
+                                <i class="fas fa-tools me-1"></i>الأدوات
+                            </a>
+                        </li>
+            </ul>
+            
+            <div class="p-3">
+                        <!-- Tab 1: الحسابات -->
+                        <div id="tab-accounts" style="display: block;">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0">الحسابات المحاسبية <span class="badge bg-primary" id="accountsCount">0</span></h5>
+                                <button class="btn btn-success" onclick="showAddAccountModal()">
+                                    <i class="fas fa-plus me-1"></i>إضافة حساب جديد
+                                </button>
+                            </div>
+                            <div style="height: 600px; overflow-y: auto; border: 2px solid #dee2e6; border-radius: 5px; padding: 10px; background: white;">
+                                <table class="table table-striped table-hover table-bordered" id="accountsTable">
+                                    <thead class="table-dark sticky-top">
+                                        <tr>
+                                            <th style="width: 12%;">الكود</th>
+                                            <th style="width: 30%;">الاسم</th>
+                                            <th style="width: 18%;">النوع</th>
+                                            <th style="width: 12%;">الحالة</th>
+                                            <th style="width: 28%;">الإجراءات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody style="background: white;"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Tab 2: القيود -->
+                        <div id="tab-entries" style="display: none;">
+                            <h5 class="mb-3">القيود المحاسبية <span class="badge bg-success" id="entriesCount">0</span></h5>
+                            <div style="height: 600px; overflow-y: auto; border: 2px solid #dee2e6; border-radius: 5px; padding: 10px; background: white;">
+                                <table class="table table-striped table-hover table-bordered" id="entriesTable">
+                                    <thead class="table-dark sticky-top">
+                                        <tr>
+                                            <th>التاريخ</th>
+                                            <th>الكود</th>
+                                            <th>الوصف</th>
+                                            <th>القيود</th>
+                                            <th>الحالة</th>
+                                            <th>الإجراءات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody style="background: white;"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Tab 3: تحرير القيود -->
+                        <div id="tab-batches" style="display: none;">
+                            <h5 class="mb-3">تحرير القيود <span class="badge bg-warning" id="batchesCount">0</span></h5>
+                            <div style="height: 600px; overflow-y: auto; border: 2px solid #dee2e6; border-radius: 5px; padding: 10px; background: white;">
+                                <table class="table table-striped table-hover table-bordered" id="batchesTable">
+                                    <thead class="table-dark sticky-top">
+                                        <tr>
+                                            <th>الكود</th>
+                                            <th>التاريخ</th>
+                                            <th>المصدر</th>
+                                            <th>مدين</th>
+                                            <th>دائن</th>
+                                            <th>الإجراءات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody style="background: white;"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Tab 4: الأدوات -->
+                        <div id="tab-tools" style="display: none;">
+                            <h5 class="mb-3">أدوات دفتر الأستاذ المتقدمة</h5>
+                            
+                            <div class="row">
+                                <!-- أدوات النسخ والفحص -->
+                                <div class="col-md-6 mb-3">
+                                    <div class="card">
+                                        <div class="card-header bg-primary text-white">
+                                            <h6 class="mb-0"><i class="fas fa-cogs me-2"></i>أدوات أساسية</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <button class="btn btn-primary w-100 mb-2" onclick="doBackup()">
+                                                <i class="fas fa-download me-2"></i>نسخ احتياطي
+                                            </button>
+                                            <button class="btn btn-success w-100 mb-2" onclick="doValidate()">
+                                                <i class="fas fa-check me-2"></i>فحص التوازن
+                                            </button>
+                                            <button class="btn btn-warning w-100 mb-2" onclick="openTrialBalance()">
+                                                <i class="fas fa-balance-scale me-2"></i>ميزان المراجعة
+                                            </button>
+                                            <button class="btn btn-danger w-100" onclick="doCleanup()">
+                                                <i class="fas fa-trash me-2"></i>تنظيف القيود الملغاة
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- وظائف متقدمة -->
+                                <div class="col-md-6 mb-3">
+                                    <div class="card">
+                                        <div class="card-header bg-success text-white">
+                                            <h6 class="mb-0"><i class="fas fa-rocket me-2"></i>وظائف متقدمة</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <a href="{{ url_for('security.data_quality_center') }}" class="btn btn-gradient w-100 mb-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: 600;">
+                                                <i class="fas fa-chart-line me-2"></i>مركز جودة البيانات
+                                            </a>
+                                            <button class="btn btn-info w-100 mb-2" onclick="recalculateBalances()">
+                                                <i class="fas fa-calculator me-2"></i>إعادة حساب الأرصدة
+                                            </button>
+                                            <button class="btn btn-primary w-100 mb-2" onclick="syncChecks()">
+                                                <i class="fas fa-sync me-2"></i>مزامنة الشيكات
+                                            </button>
+                                            <a href="{{ url_for('security.advanced_check_linking') }}" class="btn btn-warning w-100 mb-2">
+                                                <i class="fas fa-link me-2"></i>ربط متقدم للشيكات
+                                            </a>
+                                            <button class="btn btn-success w-100 mb-2" onclick="loadStats()">
+                                                <i class="fas fa-chart-bar me-2"></i>إحصائيات شاملة
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- الإحصائيات -->
+                                <div class="col-12">
+                                    <div class="card">
+                                        <div class="card-header bg-info text-white">
+                                            <h6 class="mb-0"><i class="fas fa-chart-line me-2"></i>إحصائيات النظام</h6>
+                                        </div>
+                                        <div class="card-body" id="statsContainer">
+                                            <p class="text-muted text-center">اضغط على "إحصائيات شاملة" لعرض البيانات</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal إضافة حساب -->
+<div class="modal fade" id="addAccountModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-plus me-2"></i>إضافة حساب جديد</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addAccountForm">
+                    <div class="mb-3">
+                        <label class="form-label">الكود <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="code" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">الاسم <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">النوع <span class="text-danger">*</span></label>
+                        <select class="form-select" name="type" required>
+                            <option value="">اختر النوع...</option>
+                            <option value="ASSET">أصول (ASSET)</option>
+                            <option value="LIABILITY">خصوم (LIABILITY)</option>
+                            <option value="EQUITY">حقوق الملكية (EQUITY)</option>
+                            <option value="REVENUE">إيرادات (REVENUE)</option>
+                            <option value="EXPENSE">مصروفات (EXPENSE)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="is_active" checked>
+                            <label class="form-check-label">حساب نشط</label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-success" onclick="saveNewAccount()">
+                    <i class="fas fa-save me-1"></i>حفظ
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal تعديل حساب -->
+<div class="modal fade" id="editAccountModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>تعديل حساب</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editAccountForm">
+                    <input type="hidden" name="account_id" id="edit_account_id">
+                    <div class="mb-3">
+                        <label class="form-label">الكود</label>
+                        <input type="text" class="form-control" name="code" id="edit_code" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">الاسم <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="name" id="edit_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">النوع</label>
+                        <select class="form-select" name="type" id="edit_type" disabled>
+                            <option value="ASSET">أصول (ASSET)</option>
+                            <option value="LIABILITY">خصوم (LIABILITY)</option>
+                            <option value="EQUITY">حقوق الملكية (EQUITY)</option>
+                            <option value="REVENUE">إيرادات (REVENUE)</option>
+                            <option value="EXPENSE">مصروفات (EXPENSE)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="is_active" id="edit_is_active">
+                            <label class="form-check-label">حساب نشط</label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-primary" onclick="saveEditAccount()">
+                    <i class="fas fa-save me-1"></i>حفظ التغييرات
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// الدوال الأساسية
+function loadAccounts() {
+    console.log('🔄 Loading accounts...');
+    var tbody = document.querySelector('#accountsTable tbody');
+    if (!tbody) {
+        console.error('❌ tbody not found');
+        return;
+    }
+    
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center"><div class="spinner-border spinner-border-sm"></div> جاري التحميل...</td></tr>';
+    
+    fetch('/security/ledger-control/accounts')
+        .then(function(r) { 
+            console.log('📡 Response status:', r.status);
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json(); 
+        })
+        .then(function(data) {
+            console.log('📊 Accounts data:', data);
+            tbody.innerHTML = '';
+            
+            if (data.success && data.accounts && data.accounts.length > 0) {
+                console.log('✅ Found ' + data.accounts.length + ' accounts');
+                
+                var html = '';
+                data.accounts.forEach(function(acc) {
+                    var status = acc.is_active ? '<span class="badge bg-success">نشط</span>' : '<span class="badge bg-secondary">غير نشط</span>';
+                    var isActiveVal = acc.is_active ? 'true' : 'false';
+                    html += '<tr>';
+                    html += '<td>' + acc.code + '</td>';
+                    html += '<td>' + acc.name + '</td>';
+                    html += '<td>' + acc.type + '</td>';
+                    html += '<td>' + status + '</td>';
+                    html += '<td>';
+                    html += '<button class="btn btn-sm btn-primary me-1" onclick="showEditAccountModal(' + acc.id + ', \'' + acc.code + '\', \'' + acc.name + '\', \'' + acc.type + '\', ' + isActiveVal + ')"><i class="fas fa-edit"></i> تعديل</button>';
+                    html += '<button class="btn btn-sm btn-danger" onclick="deleteAcc(' + acc.id + ')"><i class="fas fa-trash"></i> حذف</button>';
+                    html += '</td>';
+                    html += '</tr>';
+                });
+                
+                tbody.innerHTML = html;
+                
+                // تحديث العداد
+                var countBadge = document.getElementById('accountsCount');
+                if (countBadge) countBadge.textContent = data.accounts.length;
+                
+                console.log('✅ Loaded ' + data.accounts.length + ' accounts');
+            } else {
+                console.warn('⚠️ No accounts found');
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">لا توجد حسابات</td></tr>';
+            }
+        })
+        .catch(function(e) { 
+            console.error('❌ Error loading accounts:', e); 
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger"><i class="fas fa-exclamation-triangle"></i> خطأ: ' + e.message + '</td></tr>';
+        });
+}
+
+function loadEntries() {
+    console.log('🔄 Loading entries...');
+    var tbody = document.querySelector('#entriesTable tbody');
+    if (!tbody) {
+        console.error('❌ entries tbody not found');
+        return;
+    }
+    
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center"><div class="spinner-border spinner-border-sm"></div> جاري التحميل...</td></tr>';
+    
+    fetch('/security/ledger-control/entries')
+        .then(function(r) { 
+            console.log('📡 Entries response status:', r.status);
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json(); 
+        })
+        .then(function(data) {
+            console.log('📊 Entries data:', data);
+            tbody.innerHTML = '';
+            
+            if (data.success && data.batches && data.batches.length > 0) {
+                console.log('✅ Found ' + data.batches.length + ' entries');
+                
+                var html = '';
+                data.batches.forEach(function(b) {
+                    var date = b.posted_at ? new Date(b.posted_at).toLocaleDateString('ar-SA') : '-';
+                    var statusBadge = '<span class="badge bg-' + (b.status === 'POSTED' ? 'success' : b.status === 'VOID' ? 'danger' : 'warning') + '">' + b.status + '</span>';
+                    html += '<tr><td>' + date + '</td><td>' + (b.code || b.id) + '</td><td>' + (b.memo || '-') + '</td><td>' + (b.entries_count || 0) + '</td><td>' + statusBadge + '</td><td><button class="btn btn-sm btn-danger" onclick="voidBatch(' + b.id + ')"><i class="fas fa-ban"></i></button></td></tr>';
+                });
+                tbody.innerHTML = html;
+                
+                // تحديث العداد
+                var countBadge = document.getElementById('entriesCount');
+                if (countBadge) countBadge.textContent = data.batches.length;
+                
+                console.log('✅ Entries table updated with ' + data.batches.length + ' rows');
+            } else {
+                console.warn('⚠️ No entries found');
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">لا توجد قيود</td></tr>';
+            }
+        })
+        .catch(function(e) { 
+            console.error('❌ Error loading entries:', e); 
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger"><i class="fas fa-exclamation-triangle"></i> خطأ: ' + e.message + '</td></tr>';
+        });
+}
+
+function loadBatches() {
+    console.log('🔄 Loading batches...');
+    var tbody = document.querySelector('#batchesTable tbody');
+    if (!tbody) {
+        console.error('❌ batches tbody not found');
+        return;
+    }
+    
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center"><div class="spinner-border spinner-border-sm"></div> جاري التحميل...</td></tr>';
+    
+    fetch('/security/ledger-control/batches/all')
+        .then(function(r) { 
+            console.log('📡 Batches response status:', r.status);
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json(); 
+        })
+        .then(function(data) {
+            console.log('📊 Batches data:', data);
+            tbody.innerHTML = '';
+            
+            if (data.success && data.batches && data.batches.length > 0) {
+                console.log('✅ Found ' + data.batches.length + ' batches');
+                
+                var html = '';
+                data.batches.forEach(function(b) {
+                    var date = b.posted_at ? new Date(b.posted_at).toLocaleDateString('ar-SA') : '-';
+                    var debit = parseFloat(b.total_debit || 0).toFixed(2);
+                    var credit = parseFloat(b.total_credit || 0).toFixed(2);
+                    var balanced = debit === credit ? '<i class="fas fa-check-circle text-success"></i>' : '<i class="fas fa-exclamation-triangle text-warning"></i>';
+                    html += '<tr><td>' + (b.code || b.id) + '</td><td>' + date + '</td><td>' + b.source_type + '</td><td>' + debit + '</td><td>' + credit + '</td><td>' + balanced + ' <button class="btn btn-sm btn-primary" onclick="editBatch(' + b.id + ')"><i class="fas fa-edit"></i></button></td></tr>';
+                });
+                tbody.innerHTML = html;
+                
+                // تحديث العداد
+                var countBadge = document.getElementById('batchesCount');
+                if (countBadge) countBadge.textContent = data.batches.length;
+                
+                console.log('✅ Batches table updated with ' + data.batches.length + ' rows');
+            } else {
+                console.warn('⚠️ No batches found');
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">لا توجد قيود</td></tr>';
+            }
+        })
+        .catch(function(e) { 
+            console.error('❌ Error loading batches:', e); 
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger"><i class="fas fa-exclamation-triangle"></i> خطأ: ' + e.message + '</td></tr>';
+        });
+}
+
+// الأدوات
+function doBackup() {
+    if (!confirm('إنشاء نسخة احتياطية؟')) return;
+    fetch('/security/ledger-control/backup', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                alert('تم النسخ: ' + data.filename);
+            } else {
+                alert('فشل: ' + data.error);
+            }
+        })
+        .catch(function(e) { alert('خطأ: ' + e.message); });
+}
+
+function doValidate() {
+    fetch('/security/ledger-control/validate')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                if (data.imbalanced_batches && data.imbalanced_batches.length > 0) {
+                    alert('وُجد ' + data.imbalanced_batches.length + ' قيد غير متوازن!');
+                } else {
+                    alert('جميع القيود متوازنة');
+                }
+            }
+        })
+        .catch(function(e) { alert('خطأ'); });
+}
+
+function openTrialBalance() {
+    window.open('/ledger/', '_blank');
+}
+
+function doCleanup() {
+    if (!confirm('حذف القيود الملغاة؟')) return;
+    fetch('/security/ledger-control/cleanup', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                alert('تم حذف ' + data.deleted_count + ' قيد');
+            } else {
+                alert('فشل');
+            }
+        })
+        .catch(function(e) { alert('خطأ'); });
+}
+
+function deleteAcc(id) {
+    if (!confirm('حذف الحساب؟')) return;
+    fetch('/security/ledger-control/accounts/' + id + '/delete', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                loadAccounts();
+            } else {
+                alert(data.error || 'فشل الحذف');
+            }
+        });
+}
+
+function voidBatch(id) {
+    if (!confirm('إلغاء القيد؟')) return;
+    fetch('/security/ledger-control/entries/' + id + '/void', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                loadEntries();
+            } else {
+                alert(data.error || 'فشل الإلغاء');
+            }
+        });
+}
+
+function editBatch(id) {
+    alert('تحرير القيد #' + id + ' (قريباً)');
+}
+
+// إدارة الحسابات
+function showAddAccountModal() {
+    var modal = new bootstrap.Modal(document.getElementById('addAccountModal'));
+    document.getElementById('addAccountForm').reset();
+    modal.show();
+}
+
+function saveNewAccount() {
+    var form = document.getElementById('addAccountForm');
+    var formData = new FormData(form);
+    
+    var data = {
+        code: formData.get('code'),
+        name: formData.get('name'),
+        type: formData.get('type'),
+        is_active: formData.get('is_active') ? true : false
+    };
+    
+    fetch('/security/ledger-control/accounts/create', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(result) {
+        if (result.success) {
+            alert('✅ تم إضافة الحساب بنجاح');
+            bootstrap.Modal.getInstance(document.getElementById('addAccountModal')).hide();
+            loadAccounts();
+        } else {
+            alert('❌ فشل: ' + result.error);
+        }
+    })
+    .catch(function(e) { alert('خطأ: ' + e.message); });
+}
+
+function showEditAccountModal(id, code, name, type, isActive) {
+    document.getElementById('edit_account_id').value = id;
+    document.getElementById('edit_code').value = code;
+    document.getElementById('edit_name').value = name;
+    document.getElementById('edit_type').value = type;
+    document.getElementById('edit_is_active').checked = isActive;
+    
+    var modal = new bootstrap.Modal(document.getElementById('editAccountModal'));
+    modal.show();
+}
+
+function saveEditAccount() {
+    var id = document.getElementById('edit_account_id').value;
+    var name = document.getElementById('edit_name').value;
+    var isActive = document.getElementById('edit_is_active').checked;
+    
+    var data = {
+        name: name,
+        is_active: isActive
+    };
+    
+    fetch('/security/ledger-control/accounts/' + id + '/update', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(result) {
+        if (result.success) {
+            alert('✅ تم تحديث الحساب بنجاح');
+            bootstrap.Modal.getInstance(document.getElementById('editAccountModal')).hide();
+            loadAccounts();
+        } else {
+            alert('❌ فشل: ' + result.error);
+        }
+    })
+    .catch(function(e) { alert('خطأ: ' + e.message); });
+}
+
+// وظائف متقدمة
+function recalculateBalances() {
+    if (!confirm('إعادة حساب جميع الأرصدة؟\nهذه العملية قد تستغرق وقتاً...')) return;
+    
+    fetch('/security/ledger-control/recalculate-balances', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                alert('✅ ' + data.message);
+            } else {
+                alert('❌ فشل: ' + data.error);
+            }
+        })
+        .catch(function(e) { alert('خطأ: ' + e.message); });
+}
+
+function syncChecks() {
+    if (!confirm('مزامنة الدفعات مع الشيكات؟')) return;
+    
+    fetch('/security/ledger-control/sync-checks', { method: 'POST' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                alert('✅ ' + data.message);
+            } else {
+                alert('❌ فشل: ' + data.error);
+            }
+        })
+        .catch(function(e) { alert('خطأ: ' + e.message); });
+}
+
+function loadStats() {
+    var container = document.getElementById('statsContainer');
+    if (!container) return;
+    
+    container.innerHTML = '<div class="text-center"><div class="spinner-border"></div><p>جاري التحميل...</p></div>';
+    
+    fetch('/security/ledger-control/statistics')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                var html = '<div class="row">';
+                
+                // الحسابات
+                html += '<div class="col-md-3"><div class="card bg-primary text-white"><div class="card-body text-center">';
+                html += '<h3>' + data.accounts.total + '</h3><small>إجمالي الحسابات</small>';
+                html += '<hr><p class="mb-0">' + data.accounts.active + ' نشط</p></div></div></div>';
+                
+                // القيود
+                html += '<div class="col-md-3"><div class="card bg-success text-white"><div class="card-body text-center">';
+                html += '<h3>' + data.batches.total + '</h3><small>إجمالي القيود</small>';
+                html += '<hr><p class="mb-0">' + data.batches.posted + ' منشور</p></div></div></div>';
+                
+                // الدفعات
+                html += '<div class="col-md-3"><div class="card bg-info text-white"><div class="card-body text-center">';
+                html += '<h3>' + data.payments.total + '</h3><small>إجمالي الدفعات</small>';
+                html += '<hr><p class="mb-0">' + data.payments.completed + ' مكتملة</p></div></div></div>';
+                
+                // الشيكات
+                html += '<div class="col-md-3"><div class="card bg-warning text-white"><div class="card-body text-center">';
+                html += '<h3>' + data.checks.total + '</h3><small>إجمالي الشيكات</small>';
+                html += '<hr><p class="mb-0">' + data.checks.pending + ' معلقة</p></div></div></div>';
+                
+                html += '</div>';
+                
+                // القيود غير المتوازنة
+                if (data.health.imbalanced_entries > 0) {
+                    html += '<div class="alert alert-warning mt-3"><i class="fas fa-exclamation-triangle me-2"></i>';
+                    html += '<strong>تحذير:</strong> يوجد ' + data.health.imbalanced_entries + ' قيد غير متوازن!</div>';
+                } else {
+                    html += '<div class="alert alert-success mt-3"><i class="fas fa-check-circle me-2"></i>';
+                    html += '<strong>ممتاز:</strong> جميع القيود متوازنة!</div>';
+                }
+                
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = '<div class="alert alert-danger">خطأ: ' + data.error + '</div>';
+            }
+        })
+        .catch(function(e) { 
+            container.innerHTML = '<div class="alert alert-danger">خطأ: ' + e.message + '</div>';
+        });
+}
+
+// التابات
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('✅ DOM loaded - initializing ledger-control');
+    
+    // إخفاء كل التابات ما عدا الأول
+    document.getElementById('tab-accounts').style.display = 'block';
+    document.getElementById('tab-entries').style.display = 'none';
+    document.getElementById('tab-batches').style.display = 'none';
+    document.getElementById('tab-tools').style.display = 'none';
+    
+    // تحميل أول تاب فوراً
+    console.log('⏳ Loading first tab (accounts)...');
+    setTimeout(function() {
+        loadAccounts();
+    }, 100);
+    
+    // تفعيل التابات
+    var tabs = document.querySelectorAll('#controlTabs .nav-link');
+    console.log('📑 Found ' + tabs.length + ' tabs');
+    
+    tabs.forEach(function(tab) {
+        console.log('🔗 Attaching event to tab:', tab.getAttribute('href'));
+        
+        tab.addEventListener('click', function(e) {
+            e.preventDefault();
+            var target = this.getAttribute('href');
+            console.log('📍 Tab clicked:', target);
+            
+            // إزالة active من كل التابات
+            document.querySelectorAll('#controlTabs .nav-link').forEach(function(link) {
+                link.classList.remove('active');
+            });
+            this.classList.add('active');
+            
+            // إخفاء كل التابات
+            document.getElementById('tab-accounts').style.display = 'none';
+            document.getElementById('tab-entries').style.display = 'none';
+            document.getElementById('tab-batches').style.display = 'none';
+            document.getElementById('tab-tools').style.display = 'none';
+            
+            // إظهار التاب المطلوب
+            var targetId = target.replace('#', '');
+            var activePane = document.getElementById(targetId);
+            if (activePane) {
+                activePane.style.display = 'block';
+                console.log('✅ Showing pane:', target);
+            }
+            
+            // تحميل البيانات
+            if (target === '#tab-accounts') {
+                loadAccounts();
+            } else if (target === '#tab-entries') {
+                loadEntries();
+            } else if (target === '#tab-batches') {
+                loadBatches();
+            }
+        });
+    });
+    
+    console.log('✅ Event listeners attached');
+});
+</script>
+{% endblock %}

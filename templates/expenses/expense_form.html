@@ -5,241 +5,387 @@
 <div class="container mt-4" dir="rtl">
   
   <!-- شريط الأدوات -->
-  <div class="card shadow-sm mb-4">
-    <div class="card-header bg-primary text-white">
-      <div class="d-flex align-items-center justify-content-between">
+  <div class="d-flex justify-content-between align-items-center mb-3">
         <h3 class="mb-0">
           <i class="fas fa-{{ is_edit and 'edit' or 'plus' }} me-2"></i>
           {{ is_edit and 'تعديل مصروف' or 'إضافة مصروف جديد' }}
         </h3>
-        <div class="d-flex gap-2">
-          <a href="{{ url_for('expenses_bp.list_expenses') }}" class="btn btn-outline-light">
-            <i class="fas fa-arrow-right me-1"></i> رجوع
-          </a>
-          <a href="{{ url_for('expenses_bp.quick_add') }}" class="btn btn-warning">
-            <i class="fas fa-bolt me-1"></i> مصروف سريع
+    <a href="{{ url_for('expenses_bp.list_expenses') }}" class="btn btn-secondary">
+      <i class="fas fa-arrow-right me-1"></i> رجوع للقائمة
           </a>
         </div>
-      </div>
-    </div>
+
+  <!-- عرض أخطاء النموذج -->
+  {% if form.errors %}
+  <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>أخطاء في النموذج:</h5>
+    <ul class="mb-0">
+      {% for field_name, errors in form.errors.items() %}
+        {% for error in errors %}
+          <li><strong>{{ form[field_name].label.text }}:</strong> {{ error }}</li>
+        {% endfor %}
+      {% endfor %}
+    </ul>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
   </div>
+  {% endif %}
 
   <form method="POST" id="expenseForm" class="needs-validation" novalidate>
     {{ form.hidden_tag() }}
+    <div class="card shadow-sm">
+      <div class="card-body">
     <div class="row g-3">
-      <div class="col-lg-6">
-        <div class="card card-outline card-primary">
-          <div class="card-header"><h5 class="card-title mb-0">📝 البيانات الأساسية</h5></div>
-          <div class="card-body">
-            <div class="mb-3">
-              {{ form.date.label(class="form-label") }}
-              {{ form.date(type="date", class="form-control", id="date") }}
+          
+          <!-- البيانات الأساسية (إجبارية) -->
+          <div class="col-md-3">
+            {{ form.date.label(class="form-label fw-bold text-danger") }}
+            {{ form.date(type="date", class="form-control", id="date", required=true) }}
+            <small class="text-muted">تاريخ المصروف</small>
               {% for e in form.date.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
             </div>
 
-            <div class="mb-3">
-              {{ form.amount.label(class="form-label") }}
-              {{ form.amount(class="form-control", step="0.01", id="amount") }}
-              <small id="amountHelp" class="text-muted d-none">سيتم تعبئة المبلغ تلقائيًا من تسوية المخزون.</small>
+          <div class="col-md-3">
+            {{ form.type_id.label(class="form-label fw-bold text-danger") }}
+            {{ form.type_id(class="form-select", id="type_id", required=true) }}
+            <small class="text-muted">نوع المصروف</small>
+            {% for e in form.type_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="col-md-3">
+            {{ form.amount.label(class="form-label fw-bold text-danger") }}
+            {{ form.amount(class="form-control", step="0.01", id="amount", required=true, placeholder="0.00") }}
+            <small class="text-muted">المبلغ المدفوع</small>
               {% for e in form.amount.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
             </div>
 
-            <div class="mb-3">
-              {{ form.currency.label(class="form-label") }}
-              {{ form.currency(class="form-select", id="currency") }}
+          <div class="col-md-3">
+            {{ form.currency.label(class="form-label fw-bold text-danger") }}
+            {{ form.currency(class="form-select", id="currency", required=true) }}
+            <small class="text-muted">العملة</small>
               {% for e in form.currency.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
             </div>
 
-            <div class="mb-3">
-              {{ form.type_id.label(class="form-label") }}
-              {{ form.type_id(class="form-select", id="type_id") }}
-              {% for e in form.type_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          <!-- الجهة المرتبطة (ديناميكية حسب النوع) -->
+          <div class="col-12"><hr class="my-2"><h6 class="text-muted mb-0"><i class="fas fa-link me-1"></i>الجهة المرتبطة (حسب النوع)</h6></div>
+
+          <div id="employee-field" class="col-md-6">
+            {{ form.employee_id.label(class="form-label fw-bold") }}
+            {{ form.employee_id(class="form-select", id="employee_id") }}
+            <small class="text-muted">للرواتب فقط</small>
+            {% for e in form.employee_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
             </div>
 
-            <div class="mb-3">
-              {{ form.beneficiary_name.label(class="form-label") }}
-              {{ form.beneficiary_name(class="form-control", id="beneficiary_name", placeholder="اسم الجهة المستفيدة") }}
-              {% for e in form.beneficiary_name.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
-              <small class="text-muted">يُستخدم للمتفرقات والجمارك إن لم تكن رواتب/مرافق.</small>
+          <div id="period-fields" class="col-md-6">
+            <label class="form-label fw-bold">فترة الراتب</label>
+            <div class="row g-2">
+              <div class="col-6">
+                {{ form.period_start(type="date", class="form-control form-control-sm", id="period_start", placeholder="من") }}
+              </div>
+              <div class="col-6">
+                {{ form.period_end(type="date", class="form-control form-control-sm", id="period_end", placeholder="إلى") }}
+              </div>
+            </div>
+            <small class="text-muted">للرواتب فقط</small>
+          </div>
+
+          <div id="utility-field" class="col-md-4">
+            {{ form.utility_account_id.label(class="form-label") }}
+            {{ form.utility_account_id(class="form-select form-select-sm", id="utility_account_id") }}
+            <small class="text-muted">للكهرباء/الماء</small>
+          </div>
+
+          <div id="warehouse-field" class="col-md-4">
+            {{ form.warehouse_id.label(class="form-label") }}
+            {{ form.warehouse_id(class="form-select form-select-sm", id="warehouse_id") }}
+            <small class="text-muted">للإيجار/الصيانة</small>
+          </div>
+
+          <div id="shipment-field" class="col-md-4">
+            {{ form.shipment_id.label(class="form-label") }}
+            {{ form.shipment_id(class="form-select form-select-sm", id="shipment_id") }}
+            <small class="text-muted">للمواصلات</small>
+          </div>
+
+          <div id="partner-field" class="col-md-4">
+            {{ form.partner_id.label(class="form-label") }}
+            {{ form.partner_id(class="form-select form-select-sm", id="partner_id") }}
+            <small class="text-muted">للإيجار</small>
+          </div>
+
+          <div id="beneficiary-field" class="col-md-4">
+            {{ form.beneficiary_name.label(class="form-label") }}
+            {{ form.beneficiary_name(class="form-control form-control-sm", id="beneficiary_name", placeholder="اسم المستفيد") }}
+            <small class="text-muted">للأنواع الأخرى</small>
             </div>
 
-            <div class="mb-3">
-              {{ form.paid_to.label(class="form-label") }}
-              {{ form.paid_to(class="form-control", id="paid_to", placeholder="سيُحدَّث تلقائيًا حسب النوع") }}
-              {% for e in form.paid_to.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          <div id="stock-field" class="col-md-4">
+            {{ form.stock_adjustment_id.label(class="form-label") }}
+            {{ form.stock_adjustment_id(class="form-select form-select-sm", id="stock_adjustment_id") }}
+            <small class="text-muted">للصيانة/المخزون</small>
             </div>
 
-            <div class="mb-3">
-              {{ form.payment_method.label(class="form-label") }}
+          <!-- حقول الدفع -->
+          <div class="col-12"><hr class="my-2"><h6 class="text-muted mb-0"><i class="fas fa-money-bill me-1"></i>تفاصيل الدفع</h6></div>
+
+          <div class="col-md-4">
+            {{ form.payment_method.label(class="form-label fw-bold") }}
               {{ form.payment_method(class="form-select", id="payment_method") }}
+            <small class="text-muted">طريقة الدفع</small>
               {% for e in form.payment_method.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
             </div>
 
-            <div id="methodDetails" class="row gy-2" style="display:none;">
-              <div class="col-md-4" data-field="check_number">
+          <div id="methodDetails" class="col-12" style="display:none;">
+            <div class="row g-2">
+              <div class="col-md-3" data-field="check_number">
                 {{ form.check_number.label(class="form-label") }}
                 {{ form.check_number(class="form-control", placeholder="رقم الشيك") }}
-                {% for e in form.check_number.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
               </div>
-              <div class="col-md-4" data-field="check_bank">
+              <div class="col-md-3" data-field="check_bank">
                 {{ form.check_bank.label(class="form-label") }}
                 {{ form.check_bank(class="form-control", placeholder="اسم البنك") }}
-                {% for e in form.check_bank.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
               </div>
-              <div class="col-md-4" data-field="check_due_date">
+              <div class="col-md-3" data-field="check_due_date">
                 {{ form.check_due_date.label(class="form-label") }}
                 {{ form.check_due_date(type="date", class="form-control") }}
-                {% for e in form.check_due_date.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
               </div>
 
-              <div class="col-md-6" data-field="bank_transfer_ref">
+              <div class="col-md-4" data-field="bank_transfer_ref">
                 {{ form.bank_transfer_ref.label(class="form-label") }}
                 {{ form.bank_transfer_ref(class="form-control", placeholder="مرجع الحوالة") }}
-                {% for e in form.bank_transfer_ref.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
               </div>
 
-              <div class="col-md-4" data-field="card_number">
+              <div class="col-md-3" data-field="card_number">
                 {{ form.card_number.label(class="form-label") }}
-                {{ form.card_number(class="form-control", placeholder="**** **** **** ****") }}
-                {% for e in form.card_number.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+                {{ form.card_number(class="form-control", placeholder="**** ****") }}
               </div>
-              <div class="col-md-4" data-field="card_holder">
+              <div class="col-md-3" data-field="card_holder">
                 {{ form.card_holder.label(class="form-label") }}
-                {{ form.card_holder(class="form-control", placeholder="اسم حامل البطاقة") }}
-                {% for e in form.card_holder.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
-              </div>
-              <div class="col-md-4" data-field="card_expiry">
-                {{ form.card_expiry.label(class="form-label") }}
-                {{ form.card_expiry(class="form-control", placeholder="MM/YY") }}
-                {% for e in form.card_expiry.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+                {{ form.card_holder(class="form-control", placeholder="حامل البطاقة") }}
               </div>
 
               <div class="col-md-4" data-field="online_gateway">
                 {{ form.online_gateway.label(class="form-label") }}
-                {{ form.online_gateway(class="form-control", placeholder="البوابة الإلكترونية") }}
-                {% for e in form.online_gateway.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+                {{ form.online_gateway(class="form-control", placeholder="البوابة") }}
               </div>
               <div class="col-md-4" data-field="online_ref">
                 {{ form.online_ref.label(class="form-label") }}
                 {{ form.online_ref(class="form-control", placeholder="مرجع العملية") }}
-                {% for e in form.online_ref.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
-              </div>
-            </div>
-
-            <div class="mb-3">
-              {{ form.payment_details.label(class="form-label") }}
-              {{ form.payment_details(class="form-control") }}
-              {% for e in form.payment_details.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
-            </div>
           </div>
         </div>
       </div>
 
-      <div class="col-lg-6">
-        <div class="card card-outline card-secondary">
-          <div class="card-header"><h5 class="card-title mb-0">🔗 حقول إضافية وربط</h5></div>
-          <div class="card-body">
-            <div id="employee-field" class="mb-3" style="display:none;">
-              {{ form.employee_id.label(class="form-label") }}
-              {{ form.employee_id(class="form-control ajax-select", id="employee_id", **{
-                   "data-endpoint": url_for('api.search_employees'),
-                   "data-placeholder": "اختر موظفًا",
-                   "data-minlen": "1"
-                 }) }}
-              {% for e in form.employee_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
-              <div class="row">
-                <div class="col-md-6 mt-2">
-                  {{ form.period_start.label(class="form-label") }}
-                  {{ form.period_start(type="date", class="form-control", id="period_start") }}
-                </div>
-                <div class="col-md-6 mt-2">
-                  {{ form.period_end.label(class="form-label") }}
-                  {{ form.period_end(type="date", class="form-control", id="period_end") }}
-                </div>
-              </div>
+          <div class="col-md-8">
+            {{ form.payment_details.label(class="form-label") }}
+            {{ form.payment_details(class="form-control", placeholder="ملاحظات الدفع") }}
+            <small class="text-muted">تفاصيل إضافية عن الدفعة</small>
             </div>
 
-            <div class="mb-3">
-              {{ form.shipment_id.label(class="form-label") }}
-              {{ form.shipment_id(class="form-control ajax-select", id="shipment_id", **{
-                   "data-endpoint": url_for('api.shipments'),
-                   "data-placeholder": "اختر شحنة",
-                   "data-minlen": "1"
-                 }) }}
-              {% for e in form.shipment_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
-            </div>
+          <!-- حقول إضافية -->
+          <div class="col-12"><hr class="my-2"><h6 class="text-muted mb-0"><i class="fas fa-info-circle me-1"></i>معلومات إضافية</h6></div>
 
-            <div class="mb-3">
-              {{ form.utility_account_id.label(class="form-label") }}
-              {{ form.utility_account_id(class="form-control ajax-select", id="utility_account_id", **{
-                   "data-endpoint": url_for('api.search_utility_accounts'),
-                   "data-placeholder": "اختر حساب مرافق",
-                   "data-minlen": "1"
-                 }) }}
-              {% for e in form.utility_account_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
-            </div>
-
-            <div class="row">
-              <div class="col-md-6 mb-3">
-                {{ form.warehouse_id.label(class="form-label") }}
-                {{ form.warehouse_id(class="form-control ajax-select", id="warehouse_id", **{
-                     "data-endpoint": url_for('api.search_warehouses'),
-                     "data-placeholder": "اختر مستودعًا",
-                     "data-minlen": "1"
-                   }) }}
-                {% for e in form.warehouse_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
-              </div>
-              <div class="col-md-6 mb-3">
-                {{ form.partner_id.label(class="form-label") }}
-                {{ form.partner_id(class="form-control ajax-select", id="partner_id", **{
-                     "data-endpoint": url_for('api.search_partners'),
-                     "data-placeholder": "اختر شريكًا",
-                     "data-minlen": "1"
-                   }) }}
-                {% for e in form.partner_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
-              </div>
-            </div>
-
-            <div class="mb-3">
-              {{ form.stock_adjustment_id.label(class="form-label") }}
-              {{ form.stock_adjustment_id(class="form-control ajax-select", id="stock_adjustment_id", **{
-                   "data-endpoint": url_for('api.search_stock_adjustments'),
-                   "data-placeholder": "اختر تسوية مخزون",
-                   "data-minlen": "1",
-                   "data-url-template": "/api/stock_adjustments/{id}/total"
-                 }) }}
-              <small class="text-muted d-block mt-1">عند الربط بتسوية مخزون سيتم احتساب المبلغ تلقائيًا.</small>
-              {% for e in form.stock_adjustment_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
-            </div>
-
-            <div class="mb-3">
+          <div class="col-md-4">
               {{ form.tax_invoice_number.label(class="form-label") }}
-              {{ form.tax_invoice_number(class="form-control") }}
-              {% for e in form.tax_invoice_number.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            {{ form.tax_invoice_number(class="form-control", placeholder="رقم الفاتورة الضريبية") }}
+            <small class="text-muted">رقم الفاتورة (اختياري)</small>
             </div>
 
-            <div class="mb-3">
+          <div class="col-md-8">
               {{ form.description.label(class="form-label") }}
-              {{ form.description(class="form-control") }}
-              {% for e in form.description.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            {{ form.description(class="form-control", placeholder="وصف المصروف") }}
+            <small class="text-muted">الوصف التفصيلي</small>
             </div>
 
-            <div class="mb-3">
+          <div class="col-12">
               {{ form.notes.label(class="form-label") }}
-              {{ form.notes(class="form-control") }}
-              {% for e in form.notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
-            </div>
+            {{ form.notes(class="form-control", rows=2, placeholder="ملاحظات إضافية") }}
+            <small class="text-muted">أي ملاحظات أخرى</small>
           </div>
+
         </div>
       </div>
     </div>
 
     <div class="d-flex gap-2 mt-3">
-      <button type="submit" class="btn btn-success">{{ is_edit and '💾 حفظ التعديلات' or '💾 حفظ المصروف' }}</button>
-      <a class="btn btn-outline-secondary" href="{{ url_for('expenses_bp.list_expenses') }}">إلغاء</a>
+      <button type="submit" class="btn btn-success btn-lg">
+        <i class="fas fa-save me-1"></i>
+        {{ is_edit and 'حفظ التعديلات' or 'حفظ المصروف' }}
+      </button>
+      <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('expenses_bp.list_expenses') }}">
+        <i class="fas fa-times me-1"></i>
+        إلغاء
+      </a>
     </div>
   </form>
 </div>
+
+<script>
+// ✅ الجهة المرتبطة الديناميكية حسب نوع المصروف
+document.addEventListener('DOMContentLoaded', function() {
+  const typeSelect = document.getElementById('type_id');
+  const employeeField = document.getElementById('employee-field');
+  const periodFields = document.getElementById('period-fields');
+  const utilityField = document.getElementById('utility-field');
+  const warehouseField = document.getElementById('warehouse-field');
+  const shipmentField = document.getElementById('shipment-field');
+  const partnerField = document.getElementById('partner-field');
+  const beneficiaryField = document.getElementById('beneficiary-field');
+  const stockField = document.getElementById('stock-field');
+  
+  // أنواع المصاريف حسب ID
+  const expenseTypes = {
+    1: 'رواتب',          // employee_id + period
+    2: 'إيجار',          // warehouse_id or partner_id
+    3: 'كهرباء وماء',    // utility_account_id
+    4: 'صيانة',          // warehouse_id
+    5: 'مواصلات',        // shipment_id
+    6: 'اتصالات',        // beneficiary_name
+    7: 'تسويق وإعلان',   // beneficiary_name
+    8: 'مستلزمات مكتبية', // beneficiary_name
+    9: 'ضرائب ورسوم',    // beneficiary_name
+    10: 'تأمينات',       // beneficiary_name
+    11: 'استشارات',      // beneficiary_name
+    12: 'ضيافة',         // beneficiary_name
+    13: 'أخرى'           // beneficiary_name
+  };
+  
+  // ✅ دالة لتعطيل/تفعيل الحقول داخل container
+  function setFieldsDisabled(container, disabled) {
+    if (!container) return;
+    const inputs = container.querySelectorAll('input, select, textarea');
+    inputs.forEach(inp => {
+      if (disabled) {
+        inp.setAttribute('disabled', 'disabled');
+        inp.value = ''; // مسح القيمة
+      } else {
+        inp.removeAttribute('disabled');
+      }
+    });
+  }
+  
+  function updateRelatedFields() {
+    // ✅ إخفاء وتعطيل كل الحقول أولاً
+    [employeeField, periodFields, utilityField, warehouseField, shipmentField, 
+     partnerField, beneficiaryField, stockField].forEach(f => {
+      if (f) {
+        f.style.display = 'none';
+        setFieldsDisabled(f, true); // ✅ تعطيل الحقول المخفية
+      }
+    });
+    
+    const typeId = parseInt(typeSelect.value);
+    console.log('🔄 نوع المصروف:', typeId);
+    
+    // ✅ إظهار وتفعيل الحقول المناسبة فقط
+    switch(typeId) {
+      case 1: // رواتب → موظف + فترة فقط
+        if (employeeField) {
+          employeeField.style.display = 'block';
+          setFieldsDisabled(employeeField, false);
+        }
+        if (periodFields) {
+          periodFields.style.display = 'block';
+          setFieldsDisabled(periodFields, false);
+        }
+        console.log('✅ رواتب: موظف + فترة');
+        break;
+      case 2: // إيجار → مستودع أو شريك
+        if (warehouseField) {
+          warehouseField.style.display = 'block';
+          setFieldsDisabled(warehouseField, false);
+        }
+        if (partnerField) {
+          partnerField.style.display = 'block';
+          setFieldsDisabled(partnerField, false);
+        }
+        console.log('✅ إيجار: مستودع + شريك');
+        break;
+      case 3: // كهرباء وماء → حساب مرافق
+        if (utilityField) {
+          utilityField.style.display = 'block';
+          setFieldsDisabled(utilityField, false);
+        }
+        console.log('✅ كهرباء/ماء: حساب مرافق');
+        break;
+      case 4: // صيانة → مستودع + تسوية
+        if (warehouseField) {
+          warehouseField.style.display = 'block';
+          setFieldsDisabled(warehouseField, false);
+        }
+        if (stockField) {
+          stockField.style.display = 'block';
+          setFieldsDisabled(stockField, false);
+        }
+        console.log('✅ صيانة: مستودع + تسوية');
+        break;
+      case 5: // مواصلات → شحنة
+        if (shipmentField) {
+          shipmentField.style.display = 'block';
+          setFieldsDisabled(shipmentField, false);
+        }
+        console.log('✅ مواصلات: شحنة');
+        break;
+      default: // باقي الأنواع → اسم مستفيد
+        if (beneficiaryField) {
+          beneficiaryField.style.display = 'block';
+          setFieldsDisabled(beneficiaryField, false);
+        }
+        console.log('✅ أخرى: اسم مستفيد');
+    }
+  }
+  
+  typeSelect.addEventListener('change', updateRelatedFields);
+  updateRelatedFields(); // تطبيق عند التحميل
+  
+  // ✅ إزالة الحقول المعطلة قبل الإرسال (لمنع MemoryError)
+  const form = document.getElementById('expenseForm');
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      // إزالة خاصية 'name' من جميع الحقول المعطلة
+      const disabledFields = form.querySelectorAll('input:disabled, select:disabled, textarea:disabled');
+      disabledFields.forEach(field => {
+        field.removeAttribute('name'); // لن يُرسل مع النموذج
+      });
+    });
+  }
+  
+  // ✅ إظهار/إخفاء تفاصيل طريقة الدفع
+  const methodSelect = document.getElementById('payment_method');
+  const methodDetails = document.getElementById('methodDetails');
+  
+  function updateMethodDetails() {
+    const method = methodSelect.value;
+    methodDetails.style.display = 'none';
+    methodDetails.querySelectorAll('[data-field]').forEach(f => f.style.display = 'none');
+    
+    if (method === 'CHEQUE') {
+      methodDetails.style.display = 'block';
+      ['check_number', 'check_bank', 'check_due_date'].forEach(f => {
+        const el = methodDetails.querySelector(`[data-field="${f}"]`);
+        if (el) el.style.display = 'block';
+      });
+    } else if (method === 'BANK_TRANSFER') {
+      methodDetails.style.display = 'block';
+      methodDetails.querySelector('[data-field="bank_transfer_ref"]').style.display = 'block';
+    } else if (method === 'CREDIT_CARD' || method === 'DEBIT_CARD') {
+      methodDetails.style.display = 'block';
+      ['card_number', 'card_holder'].forEach(f => {
+        const el = methodDetails.querySelector(`[data-field="${f}"]`);
+        if (el) el.style.display = 'block';
+      });
+    } else if (method === 'ONLINE') {
+      methodDetails.style.display = 'block';
+      ['online_gateway', 'online_ref'].forEach(f => {
+        const el = methodDetails.querySelector(`[data-field="${f}"]`);
+        if (el) el.style.display = 'block';
+      });
+    }
+  }
+  
+  methodSelect.addEventListener('change', updateMethodDetails);
+  updateMethodDetails();
+});
+</script>
+
 {% endblock %}
 
 {% block scripts %}

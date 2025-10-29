@@ -30,6 +30,16 @@
           </div>
 
           <div class="col-md-4">
+            {{ form.salary.label(class="form-label") }}
+            <div class="input-group">
+              {{ form.salary(class=("form-control is-invalid" if form.salary.errors else "form-control"), placeholder="0.00") }}
+              <span class="input-group-text">₪</span>
+            </div>
+            <small class="form-text text-muted">الراتب الشهري الأساسي</small>
+            {% for e in form.salary.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="col-md-4">
             {{ form.phone.label(class="form-label") }}
             {{ form.phone(class=("form-control is-invalid" if form.phone.errors else "form-control"), placeholder="05xxxxxxxx") }}
             {% for e in form.phone.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}

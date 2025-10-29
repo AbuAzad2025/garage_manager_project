@@ -1,0 +1,384 @@
+{% extends "base.html" %}
+
+{% block title %}مركز جودة البيانات - لوحة الأمان{% endblock %}
+
+{% block extra_css %}
+<style>
+.quality-card {
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.quality-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.stat-box {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 30px;
+    border-radius: 15px;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.stat-number {
+    font-size: 48px;
+    font-weight: 700;
+    margin: 10px 0;
+}
+
+.issue-badge {
+    font-size: 24px;
+    padding: 10px 20px;
+    border-radius: 25px;
+}
+
+.fix-btn {
+    padding: 15px 40px;
+    font-size: 18px;
+    border-radius: 30px;
+    font-weight: 600;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+}
+
+.fix-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+}
+
+.progress-bar-animated {
+    animation: progress-bar-stripes 1s linear infinite;
+}
+
+.category-card {
+    border-left: 4px solid;
+    margin-bottom: 15px;
+}
+
+.category-card.critical { border-left-color: #dc3545; }
+.category-card.warning { border-left-color: #ffc107; }
+.category-card.success { border-left-color: #28a745; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+    <section class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <div class="col-sm-6">
+                    <h1>
+                        <i class="fas fa-chart-line text-primary"></i>
+                        مركز جودة البيانات
+                    </h1>
+                </div>
+                <div class="col-sm-6">
+                    <ol class="breadcrumb float-sm-right">
+                        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+                        <li class="breadcrumb-item">اللوحة السرية</li>
+                        <li class="breadcrumb-item active">مركز جودة البيانات</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="content">
+        <div class="container-fluid">
+            
+            <!-- البطاقة الرئيسية -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="stat-box">
+                        <h2 style="margin: 0; font-weight: 300;">حالة جودة البيانات</h2>
+                        <div class="stat-number">
+                            {% if total_issues == 0 %}
+                                <i class="fas fa-check-circle"></i>
+                            {% else %}
+                                {{ total_issues }}
+                            {% endif %}
+                        </div>
+                        <h4 style="margin: 0; font-weight: 300;">
+                            {% if total_issues == 0 %}
+                                ممتاز! جميع البيانات ذات جودة عالية
+                            {% else %}
+                                مشكلة تحتاج إلى إصلاح
+                            {% endif %}
+                        </h4>
+                    </div>
+                </div>
+            </div>
+
+            <!-- الإحصائيات التفصيلية -->
+            <div class="row">
+                <!-- الشيكات -->
+                <div class="col-md-4">
+                    <div class="card quality-card {% if stats.checks.no_entity > 0 or stats.checks.no_bank > 0 %}category-card warning{% else %}category-card success{% endif %}">
+                        <div class="card-header {% if stats.checks.no_entity > 0 or stats.checks.no_bank > 0 %}bg-warning{% else %}bg-success{% endif %} text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-file-invoice me-2"></i>
+                                الشيكات
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span>إجمالي الشيكات:</span>
+                                <span class="badge bg-primary issue-badge">{{ stats.checks.total }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span>بدون جهة:</span>
+                                <span class="badge {% if stats.checks.no_entity > 0 %}bg-warning{% else %}bg-success{% endif %} issue-badge">
+                                    {{ stats.checks.no_entity }}
+                                </span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>بدون بنك:</span>
+                                <span class="badge {% if stats.checks.no_bank > 0 %}bg-warning{% else %}bg-success{% endif %} issue-badge">
+                                    {{ stats.checks.no_bank }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- الدفعات -->
+                <div class="col-md-4">
+                    <div class="card quality-card {% if stats.payments.no_bank > 0 or stats.payments.no_due_date > 0 %}category-card warning{% else %}category-card success{% endif %}">
+                        <div class="card-header {% if stats.payments.no_bank > 0 or stats.payments.no_due_date > 0 %}bg-warning{% else %}bg-success{% endif %} text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-money-bill-wave me-2"></i>
+                                الدفعات
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span>إجمالي الدفعات:</span>
+                                <span class="badge bg-primary issue-badge">{{ stats.payments.total }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span>شيكات بدون بنك:</span>
+                                <span class="badge {% if stats.payments.no_bank > 0 %}bg-warning{% else %}bg-success{% endif %} issue-badge">
+                                    {{ stats.payments.no_bank }}
+                                </span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>شيكات بدون تاريخ:</span>
+                                <span class="badge {% if stats.payments.no_due_date > 0 %}bg-warning{% else %}bg-success{% endif %} issue-badge">
+                                    {{ stats.payments.no_due_date }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- الأرصدة -->
+                <div class="col-md-4">
+                    <div class="card quality-card {% if stats.balances.customers_null > 0 or stats.balances.suppliers_null > 0 or stats.balances.partners_null > 0 %}category-card warning{% else %}category-card success{% endif %}">
+                        <div class="card-header {% if stats.balances.customers_null > 0 or stats.balances.suppliers_null > 0 or stats.balances.partners_null > 0 %}bg-warning{% else %}bg-success{% endif %} text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-balance-scale me-2"></i>
+                                الأرصدة
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span>عملاء برصيد NULL:</span>
+                                <span class="badge {% if stats.balances.customers_null > 0 %}bg-warning{% else %}bg-success{% endif %} issue-badge">
+                                    {{ stats.balances.customers_null }}
+                                </span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span>موردين برصيد NULL:</span>
+                                <span class="badge {% if stats.balances.suppliers_null > 0 %}bg-warning{% else %}bg-success{% endif %} issue-badge">
+                                    {{ stats.balances.suppliers_null }}
+                                </span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>شركاء برصيد NULL:</span>
+                                <span class="badge {% if stats.balances.partners_null > 0 %}bg-warning{% else %}bg-success{% endif %} issue-badge">
+                                    {{ stats.balances.partners_null }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- أزرار الإصلاح -->
+            {% if total_issues > 0 %}
+            <div class="card quality-card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-magic me-2"></i>
+                        خيارات الإصلاح التلقائي
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>الإصلاح التلقائي الذكي:</strong>
+                        سيقوم النظام بملء الحقول الناقصة من خلال تتبع العلاقات والبيانات المرتبطة.
+                        جميع العمليات آمنة ويتم تسجيلها في سجل التدقيق.
+                    </div>
+
+                    <div class="row text-center">
+                        <div class="col-md-4 mb-3">
+                            <form method="POST" style="display: inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="action" value="checks">
+                                <button type="submit" class="btn btn-warning fix-btn w-100" onclick="return confirm('إصلاح مشاكل الشيكات؟')">
+                                    <i class="fas fa-file-invoice me-2"></i>
+                                    إصلاح الشيكات فقط
+                                </button>
+                            </form>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <form method="POST" style="display: inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="action" value="payments">
+                                <button type="submit" class="btn btn-info fix-btn w-100" onclick="return confirm('إصلاح مشاكل الدفعات؟')">
+                                    <i class="fas fa-money-bill-wave me-2"></i>
+                                    إصلاح الدفعات فقط
+                                </button>
+                            </form>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <form method="POST" style="display: inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="action" value="balances">
+                                <button type="submit" class="btn btn-primary fix-btn w-100" onclick="return confirm('إصلاح مشاكل الأرصدة؟')">
+                                    <i class="fas fa-balance-scale me-2"></i>
+                                    إصلاح الأرصدة فقط
+                                </button>
+                            </form>
+                        </div>
+
+                        <div class="col-12">
+                            <form method="POST" style="display: inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="action" value="all">
+                                <button type="submit" class="btn btn-success fix-btn" style="font-size: 22px; padding: 20px 60px;" onclick="return confirm('هل أنت متأكد من إصلاح جميع المشاكل تلقائياً؟\n\nسيتم:\n• ربط الشيكات بالجهات\n• ملء البنوك المفقودة\n• إضافة تواريخ الاستحقاق\n• تصحيح الأرصدة NULL')">
+                                    <i class="fas fa-magic me-2"></i>
+                                    إصلاح شامل تلقائي لجميع المشاكل
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="card quality-card category-card success">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-check-circle text-success" style="font-size: 80px; margin-bottom: 20px;"></i>
+                    <h3 class="text-success">ممتاز! جميع البيانات ذات جودة عالية</h3>
+                    <p class="text-muted">
+                        جميع الحقول الإجبارية مملوءة بشكل صحيح ولا توجد مشاكل في البيانات.
+                    </p>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- كيفية العمل -->
+            <div class="card quality-card mt-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-graduation-cap me-2"></i>
+                        كيف يعمل الإصلاح التلقائي الذكي؟
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-primary"><i class="fas fa-link me-2"></i>ربط الشيكات بالجهات:</h6>
+                            <ul>
+                                <li>تتبع من <code>reference_number</code> (PMT-X, PMT-SPLIT-X)</li>
+                                <li>البحث برقم الشيك في الدفعات</li>
+                                <li>استخراج الجهة من المبيعات المرتبطة</li>
+                                <li>الربط من الفواتير والخدمات والشحنات</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-success"><i class="fas fa-fill-drip me-2"></i>ملء البيانات الناقصة:</h6>
+                            <ul>
+                                <li>البنوك: من سجلات Check أو قيمة افتراضية</li>
+                                <li>تواريخ الاستحقاق: من Check أو +30 يوم افتراضي</li>
+                                <li>الأرصدة NULL: تعيين 0.00 كقيمة ابتدائية</li>
+                                <li>المزامنة بين Payment و Check</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-success mt-3 mb-0">
+                        <i class="fas fa-shield-alt me-2"></i>
+                        <strong>ضمانات الأمان:</strong>
+                        جميع العمليات آمنة 100%، لا يتم حذف أي بيانات، يتم تسجيل جميع التغييرات في سجل التدقيق (Audit Log).
+                    </div>
+                </div>
+            </div>
+
+            <!-- الإحصائيات التفصيلية -->
+            <div class="card quality-card mt-4 collapsed-card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        إحصائيات تفصيلية للنظام
+                    </h5>
+                    <div class="card-tools">
+                        <button type="button" class="btn btn-tool text-white" data-card-widget="collapse">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 col-6">
+                            <div class="info-box bg-primary">
+                                <span class="info-box-icon"><i class="fas fa-users"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">العملاء</span>
+                                    <span class="info-box-number">{{ stats.entities.customers }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <div class="info-box bg-success">
+                                <span class="info-box-icon"><i class="fas fa-truck"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">الموردين</span>
+                                    <span class="info-box-number">{{ stats.entities.suppliers }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <div class="info-box bg-warning">
+                                <span class="info-box-icon"><i class="fas fa-handshake"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">الشركاء</span>
+                                    <span class="info-box-number">{{ stats.entities.partners }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <div class="info-box bg-info">
+                                <span class="info-box-icon"><i class="fas fa-file-invoice"></i></span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">الشيكات</span>
+                                    <span class="info-box-number">{{ stats.checks.total }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+</div>
+{% endblock %}
+

@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}ربط متقدم للشيكات - لوحة الأمان{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+    <section class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <div class="col-sm-6">
+                    <h1><i class="fas fa-link text-primary"></i> ربط متقدم للشيكات</h1>
+                </div>
+                <div class="col-sm-6">
+                    <ol class="breadcrumb float-sm-right">
+                        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+                        <li class="breadcrumb-item">اللوحة السرية</li>
+                        <li class="breadcrumb-item active">ربط الشيكات</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="content">
+        <div class="container-fluid">
+            
+            <!-- الإحصائيات -->
+            <div class="row">
+                <div class="col-lg-4 col-6">
+                    <div class="small-box bg-info">
+                        <div class="inner">
+                            <h3>{{ total_checks }}</h3>
+                            <p>إجمالي الشيكات</p>
+                        </div>
+                        <div class="icon">
+                            <i class="fas fa-file-invoice"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4 col-6">
+                    <div class="small-box {% if checks_without_entity > 0 %}bg-warning{% else %}bg-success{% endif %}">
+                        <div class="inner">
+                            <h3>{{ checks_without_entity }}</h3>
+                            <p>شيكات بدون جهة</p>
+                        </div>
+                        <div class="icon">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4 col-6">
+                    <div class="small-box bg-success">
+                        <div class="inner">
+                            <h3>{{ ((total_checks - checks_without_entity) / total_checks * 100)|round(1) if total_checks > 0 else 100 }}%</h3>
+                            <p>نسبة الشيكات المربوطة</p>
+                        </div>
+                        <div class="icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- البطاقة الرئيسية -->
+            <div class="card card-primary card-outline">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-magic text-primary"></i> 
+                        ربط متقدم للشيكات بالجهات
+                    </h3>
+                </div>
+                <div class="card-body">
+                    {% if checks_without_entity == 0 %}
+                        <div class="alert alert-success">
+                            <h5><i class="icon fas fa-check-circle"></i> ممتاز!</h5>
+                            جميع الشيكات مربوطة بالجهات الصحيحة. لا حاجة للتنفيذ.
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            <h5><i class="icon fas fa-exclamation-triangle"></i> تنبيه</h5>
+                            يوجد <strong>{{ checks_without_entity }}</strong> شيك بدون جهة مرتبطة.
+                            <br>
+                            <small>يمكنك استخدام الربط المتقدم لتتبع الجهات من خلال المبيعات والفواتير والخدمات.</small>
+                        </div>
+                        
+                        <div class="callout callout-info">
+                            <h5><i class="fas fa-info-circle"></i> كيف يعمل الربط المتقدم؟</h5>
+                            <p>يقوم النظام بالبحث عن الجهة المرتبطة بالشيك من خلال:</p>
+                            <ol>
+                                <li><strong>رقم المرجع (Reference):</strong> ربط مباشر بالدفعة</li>
+                                <li><strong>رقم الشيك:</strong> البحث في جدول الدفعات</li>
+                                <li><strong>المبيعات:</strong> تتبع العميل من المبيعة المرتبطة</li>
+                                <li><strong>الفواتير:</strong> استخراج العميل من الفاتورة</li>
+                                <li><strong>الخدمات:</strong> ربط العميل من الخدمة</li>
+                                <li><strong>الشحنات:</strong> ربط المورد من الشحنة</li>
+                                <li><strong>المصاريف:</strong> تحديد المورد من المصروف</li>
+                            </ol>
+                        </div>
+
+                        <form method="POST" action="{{ url_for('security.advanced_check_linking') }}" id="linkingForm">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            
+                            <div class="text-center py-4">
+                                <button type="submit" class="btn btn-lg btn-success" id="submitBtn">
+                                    <i class="fas fa-play-circle"></i>
+                                    تنفيذ الربط المتقدم
+                                </button>
+                            </div>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- معلومات إضافية -->
+            <div class="card card-secondary collapsed-card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-question-circle"></i>
+                        متى تحتاج لهذه الأداة؟
+                    </h3>
+                    <div class="card-tools">
+                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <ul>
+                        <li><strong>بعد استيراد بيانات قديمة:</strong> إذا قمت باستيراد شيكات من نظام آخر</li>
+                        <li><strong>بعد تحديث النظام:</strong> في حالة إضافة حقول جديدة أو تهجيرات</li>
+                        <li><strong>عند اكتشاف خلل:</strong> إذا لاحظت شيكات بدون جهات في التقارير</li>
+                        <li><strong>صيانة دورية:</strong> يمكن تشغيلها شهرياً للتأكد من سلامة البيانات</li>
+                    </ul>
+                    
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-shield-alt"></i>
+                        <strong>ملاحظة أمان:</strong>
+                        هذه الأداة آمنة تماماً. لا تقوم بحذف أي بيانات، فقط تربط الشيكات بالجهات الصحيحة.
+                        يتم تسجيل جميع العمليات في سجل التدقيق (Audit Log).
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('linkingForm');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    if (form && submitBtn) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (confirm('هل أنت متأكد من تنفيذ الربط المتقدم للشيكات؟\n\nسيتم البحث وربط جميع الشيكات بالجهات الصحيحة.')) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التنفيذ...';
+                form.submit();
+            }
+        });
+    }
+});
+</script>
+
+{% endblock %}
+
