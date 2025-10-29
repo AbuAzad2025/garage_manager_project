@@ -1393,19 +1393,38 @@ def api_products_by_warehouse(wid: int):
 
     SL_curr = aliased(StockLevel)
 
-    qry = (
-        db.session.query(
-            Product,
-            SL_curr.quantity.label("qty_curr"),
-            func.coalesce(SL_curr.reserved_quantity, 0).label("res_curr"),
+    # قاعدة الاستعلام تختلف حسب نوع المستودع
+    if warehouse_type == 'PARTNER' and warehouse and getattr(warehouse, 'partner_id', None):
+        # منتجات الشريك حتى لو لم يكن لها سجل مخزون بعد في هذا المستودع
+        from models import ProductPartner
+        qry = (
+            db.session.query(
+                Product,
+                SL_curr.quantity.label("qty_curr"),
+                func.coalesce(SL_curr.reserved_quantity, 0).label("res_curr"),
+            )
+            .join(ProductPartner, ProductPartner.product_id == Product.id)
+            .filter(ProductPartner.partner_id == warehouse.partner_id)
+            .outerjoin(
+                SL_curr,
+                (SL_curr.product_id == Product.id) & (SL_curr.warehouse_id == wid),
+            )
         )
-        .outerjoin(
-            SL_curr,
-            (SL_curr.product_id == Product.id) & (SL_curr.warehouse_id == wid),
+    else:
+        # المستودعات الأخرى: اعرض ما له وجود/كمية في هذا المستودع
+        qry = (
+            db.session.query(
+                Product,
+                SL_curr.quantity.label("qty_curr"),
+                func.coalesce(SL_curr.reserved_quantity, 0).label("res_curr"),
+            )
+            .outerjoin(
+                SL_curr,
+                (SL_curr.product_id == Product.id) & (SL_curr.warehouse_id == wid),
+            )
         )
-    )
 
-    if sum_ids:
+    if sum_ids and not (warehouse_type == 'PARTNER' and warehouse and getattr(warehouse, 'partner_id', None)):
         exists_filter = exists().where(
             (StockLevel.product_id == Product.id) &
             (StockLevel.warehouse_id.in_(sum_ids))
