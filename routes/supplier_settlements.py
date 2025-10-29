@@ -448,7 +448,10 @@ def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, dat
         # 5. دفع لنا (IN)
         payments_from_supplier = _get_payments_from_supplier(supplier_id, supplier, date_from, date_to)
         
-        # 6. مرتجعات له (OUT في Exchange)
+        # 6. أرصدة الحجوزات المسبقة (العربون) - تُحسب كدفعة واردة
+        preorders_prepaid = _get_supplier_preorders_prepaid(supplier_id, supplier, date_from, date_to)
+        
+        # 7. مرتجعات له (OUT في Exchange)
         returns_to_supplier = _get_returns_to_supplier(supplier_id, date_from, date_to)
         
         # ═══════════════════════════════════════════════════════════
@@ -460,7 +463,8 @@ def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, dat
         
         # الدفعات والمرتجعات
         paid_to_supplier = Decimal(str(payments_to_supplier.get("total_ils", 0)))
-        received_from_supplier = Decimal(str(payments_from_supplier.get("total_ils", 0)))
+        received_from_supplier = Decimal(str(payments_from_supplier.get("total_ils", 0))) + \
+                                 Decimal(str(preorders_prepaid.get("total_ils", 0)))
         returns_value = Decimal(str(returns_to_supplier.get("total_value_ils", 0)))
         
         # الرصيد النهائي = الرصيد الافتتاحي + (حقوقه - التزاماته) - (دفعنا له) + (دفع لنا) - (مرتجعات له)
@@ -506,6 +510,7 @@ def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, dat
             "payments": {
                 "paid_to_supplier": payments_to_supplier,
                 "received_from_supplier": payments_from_supplier,
+                "preorders_prepaid": preorders_prepaid,
                 "returns_to_supplier": returns_to_supplier,
                 "total_paid": float(paid_to_supplier),
                 "total_received": float(received_from_supplier),
@@ -1315,6 +1320,7 @@ def _get_payments_from_supplier(supplier_id: int, supplier, date_from: datetime,
 def _get_supplier_preorders(supplier_id: int, date_from: datetime, date_to: datetime):
     """
     حجوزات مسبقة للمورد (إذا كان عميلاً)
+    تُحسب فقط الإجمالي (عليه)، بدون العربون
     """
     from models import PreOrder, Supplier
     
@@ -1350,6 +1356,53 @@ def _get_supplier_preorders(supplier_id: int, date_from: datetime, date_to: date
             "amount_ils": float(amount_ils),
             "currency": po.currency or 'ILS',
             "status": po.status
+        })
+    
+    return {
+        "items": items,
+        "total_ils": float(total_ils),
+        "count": len(items)
+    }
+
+
+def _get_supplier_preorders_prepaid(supplier_id: int, supplier: Supplier, date_from: datetime, date_to: datetime):
+    """
+    أرصدة الحجوزات المسبقة (العربون) للمورد - تُحسب كدفعة واردة
+    """
+    from models import PreOrder
+    
+    if not supplier.customer_id:
+        return {"items": [], "total_ils": 0.0, "count": 0}
+    
+    # جلب الحجوزات المسبقة للعميل المرتبط بالمورد
+    preorders = db.session.query(PreOrder).filter(
+        PreOrder.customer_id == supplier.customer_id,
+        PreOrder.prepaid_amount > 0,
+        PreOrder.preorder_date >= date_from,
+        PreOrder.preorder_date <= date_to,
+        PreOrder.status.in_(['PENDING', 'CONFIRMED'])
+    ).order_by(PreOrder.preorder_date).all()
+    
+    items = []
+    total_ils = Decimal('0.00')
+    
+    for po in preorders:
+        amount_ils = _convert_to_ils(
+            Decimal(str(po.prepaid_amount or 0)),
+            po.currency or 'ILS',
+            po.preorder_date or datetime.utcnow()
+        )
+        total_ils += amount_ils
+        
+        items.append({
+            "preorder_id": po.id,
+            "reference": po.reference,
+            "date": po.preorder_date.strftime("%Y-%m-%d") if po.preorder_date else "",
+            "amount": float(po.prepaid_amount or 0),
+            "currency": po.currency or 'ILS',
+            "amount_ils": float(amount_ils),
+            "status": po.status,
+            "product": po.product.name if po.product else ""
         })
     
     return {
