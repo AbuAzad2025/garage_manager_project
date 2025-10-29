@@ -124,13 +124,39 @@
 (function () {
   function initSelect2($el) {
     var ep = $el.data('endpoint');
+    var epByWh = $el.data('endpoint_by_warehouse');
     var opts = {
       width: '100%',
       theme: 'bootstrap4',
       placeholder: $el.data('placeholder') || 'اختر...',
       allowClear: true
     };
-    if (ep) {
+    if (epByWh) {
+      // Dynamic per-request URL bound to current warehouse selection
+      opts.ajax = {
+        transport: function (params, success, failure) {
+          var term = (params && params.data && params.data.q) || '';
+          var wid = $('#warehouseSelect').val() || '0';
+          var url = String(epByWh).replace(/\/warehouses\/(?:0|\d+)\/products/i, '/warehouses/' + String(wid) + '/products');
+          return $.ajax({
+            url: url,
+            dataType: 'json',
+            data: { q: term, limit: 20 },
+          }).then(success).fail(failure);
+        },
+        processResults: function (data) {
+          var arr = Array.isArray(data) ? data : (data.results || data.data || []);
+          return { results: (arr || []).map(function (r) {
+            if (r.text) return r;
+            var t = r.name || r.text || '';
+            if (r.sku) t += ' • SKU: ' + r.sku;
+            if (r.part_number) t += ' • Part: ' + r.part_number;
+            if (r.barcode) t += ' • Barcode: ' + r.barcode;
+            return { id: r.id, text: t };
+          })};
+        }
+      };
+    } else if (ep) {
       opts.ajax = {
         url: ep,
         dataType: 'json',
@@ -164,12 +190,10 @@
 
     function reinitProductsForWarehouse(wid) {
       var $prod = $('#productSelect');
-      var tpl = $prod.data('endpoint_by_warehouse');
-      if (!tpl) return;
-      var url = buildByWarehouseUrl(String(tpl), wid);
+      if (!$prod.length) return;
       if ($prod.data('select2')) { $prod.select2('destroy'); }
       $prod.val(null).trigger('change');
-      $prod.data('endpoint', url); // temporarily set as endpoint
+      // Keep endpoint_by_warehouse; initSelect2 will use dynamic transport
       initSelect2($prod);
     }
 
