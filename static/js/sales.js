@@ -326,7 +326,7 @@
 
     function bindAll(){ qsa('.sale-line',wrap).forEach(bindRow); }
 
-    // حسابات
+    // حسابات - نفس منطق الباكند
     function recalc(){
       let sub=0, totalDiscount=0;
       qsa('.sale-line',wrap).forEach(row=>{
@@ -339,8 +339,12 @@
       });
       let globalTax = toNum(qs('#taxRate')?.value); globalTax=Math.max(0,Math.min(100,globalTax));
       const shipping = toNum(qs('#shippingCost')?.value);
-      const taxAmt = sub*(globalTax/100);
-      const total = sub + taxAmt + shipping;
+      const globalDiscount = toNum(qs('#discountTotal')?.value);
+      // نفس منطق الباكند: base = subtotal - discount
+      let base = sub - globalDiscount;
+      if(base < 0) base = 0;
+      const taxAmt = base*(globalTax/100);
+      const total = base + taxAmt + shipping;
       const set=(sel,val)=>{
         const el=qs(sel); if(!el) return;
         const curr = (qs('select[name="currency"]')?.value) || '';
@@ -372,6 +376,7 @@
     if (addBtn) on(addBtn,'click',addLine);
     const taxRate = qs('#taxRate'); if (taxRate) on(taxRate,'input',recalcDebounced);
     const shipping= qs('#shippingCost'); if (shipping) on(shipping,'input',recalcDebounced);
+    const discountTotal= qs('#discountTotal'); if (discountTotal) on(discountTotal,'input',recalcDebounced);
     const currency= qs('select[name="currency"]'); if (currency) on(currency,'change',recalcDebounced);
     recalc();
   })();

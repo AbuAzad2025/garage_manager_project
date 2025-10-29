@@ -158,7 +158,9 @@
           <h5 class="modal-title" id="archiveModalLabel">
             <i class="fas fa-archive"></i> أرشفة طلب الصيانة
           </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          <button type="button" class="close" data-dismiss="modal" aria-label="إغلاق">
+            <span aria-hidden="true">&times;</span>
+          </button>
         </div>
         <form method="POST" action="{{ url_for('service.archive_request', rid=service.id) }}">
           <div class="modal-body">
@@ -185,7 +187,7 @@
             </div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
             <button type="submit" class="btn btn-warning fw-bold">
               <i class="fas fa-archive"></i> أرشفة الطلب
             </button>

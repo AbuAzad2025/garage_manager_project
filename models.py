@@ -1760,7 +1760,8 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
         s = "+" + re.sub(r"\D", "", s[1:]) if s.startswith("+") else re.sub(r"\D", "", s)
         digits = re.sub(r"\D", "", s)
         if len(digits) < 7 or len(digits) > 15:
-            raise ValueError(f"{key} must have 7-15 digits")
+            field_name = "رقم الجوال" if key == "mobile" else "رقم الهاتف"
+            raise ValueError(f"{field_name} يجب أن يكون بين 7 و 15 رقماً")
         return s
 
     @validates("category")
@@ -1779,7 +1780,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
             return 0
         f = float(v)
         if f < 0 or f > 100:
-            raise ValueError("discount_rate must be between 0 and 100")
+            raise ValueError("نسبة الخصم يجب أن تكون بين 0 و 100")
         return v
 
     @validates("credit_limit")
@@ -1787,7 +1788,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
         if v is None:
             return 0
         if float(v) < 0:
-            raise ValueError("credit_limit must be >= 0")
+            raise ValueError("حد الائتمان لا يمكن أن يكون سالباً")
         return v
 
     @hybrid_property
@@ -3706,14 +3707,16 @@ class Product(db.Model, TimestampMixin, AuditMixin):
             return 0 if key in ("price","purchase_price","selling_price","cost_before_shipping","cost_after_shipping","unit_price_before_tax") else None
         if isinstance(v, str): v = v.replace("$","").replace(",","").strip()
         d = Decimal(str(v))
-        if key == "tax_rate" and (d < 0 or d > Decimal("100")): raise ValueError("tax_rate must be between 0 and 100")
-        if d < 0: raise ValueError(f"{key} must be >= 0")
+        if key == "tax_rate" and (d < 0 or d > Decimal("100")): raise ValueError("نسبة الضريبة يجب أن تكون بين 0 و 100")
+        field_names = {"price": "السعر", "cost": "التكلفة", "min_price": "الحد الأدنى للسعر"}
+        if d < 0: raise ValueError(f"{field_names.get(key, key)} لا يمكن أن يكون سالباً")
         return d
     @validates("min_qty","reorder_point","warranty_period")
     def _v_int_nonneg(self, key, v):
         if v in (None,""): return None if key == "reorder_point" else 0
         i = int(v)
-        if i < 0: raise ValueError(f"{key} must be >= 0")
+        field_names = {"min_qty": "الحد الأدنى للكمية", "reorder_point": "نقطة إعادة الطلب", "warranty_period": "فترة الضمان"}
+        if i < 0: raise ValueError(f"{field_names.get(key, key)} لا يمكن أن يكون سالباً")
         return i
     @hybrid_property
     def total_partner_percentage(self):
@@ -3919,12 +3922,12 @@ class StockLevel(db.Model, TimestampMixin):
     @validates('quantity')
     def _v_qty(self, _, v):
         v = int(v or 0)
-        if v < 0: raise ValueError("quantity must be >= 0")
+        if v < 0: raise ValueError("الكمية لا يمكن أن تكون سالبة")
         return v
     @validates('reserved_quantity')
     def _v_reserved_qty(self, _, v):
         v = int(v or 0)
-        if v < 0: raise ValueError("reserved_quantity must be >= 0")
+        if v < 0: raise ValueError("الكمية المحجوزة لا يمكن أن تكون سالبة")
         return v
     @hybrid_property
     def available_quantity(self):
@@ -4651,9 +4654,17 @@ class Sale(db.Model, TimestampMixin, AuditMixin):
     def _v_amounts(self, key, v):
         dv = q(v or 0)
         if key == "tax_rate" and (dv < 0 or dv > 100):
-            raise ValueError("invalid tax_rate")
+            raise ValueError("نسبة الضريبة يجب أن تكون بين 0 و 100")
         if dv < 0:
-            raise ValueError(f"{key} must be >= 0")
+            field_names = {
+                "discount_total": "الخصم",
+                "shipping_cost": "تكلفة الشحن",
+                "total_amount": "المبلغ الإجمالي",
+                "total_paid": "المبلغ المدفوع",
+                "balance_due": "المبلغ المستحق",
+                "refunded_total": "المبلغ المسترد"
+            }
+            raise ValueError(f"{field_names.get(key, key)} لا يمكن أن يكون سالباً")
         return dv
 
     def __repr__(self):
@@ -4717,7 +4728,10 @@ def _compute_total_amount(mapper, connection, target: "Sale"):
     if base < 0:
         base = Decimal("0.00")
     tax = q(base * tax_rate / Decimal("100"))
-    target.total_amount = q(subtotal + tax + shipping - discount)
+    total = base + tax + shipping
+    if total < 0:
+        total = Decimal("0.00")
+    target.total_amount = q(total)
     target.balance_due = q(target.total_amount or 0) - q(target.total_paid or 0)
 
 @event.listens_for(Sale, "before_update")
@@ -5018,8 +5032,17 @@ def _recompute_sale_total_amount(connection, sale_id: int):
     if base < Decimal("0"):
         base = Decimal("0")
     tax = (base * tax_rate / Decimal("100"))
-    total = subtotal + tax + shipping - discount
-    connection.execute(update(Sale).where(Sale.id == sale_id).values(total_amount=total, balance_due=(total - func.coalesce(Sale.total_paid, 0))))
+    total = base + tax + shipping
+    if total < Decimal("0"):
+        total = Decimal("0")
+    connection.execute(
+        update(Sale)
+        .where(Sale.id == sale_id)
+        .values(
+            total_amount=total,
+            balance_due=(total - func.coalesce(Sale.total_paid, 0))
+        )
+    )
 
 @event.listens_for(SaleLine, "after_insert")
 @event.listens_for(SaleLine, "after_update")
@@ -5395,7 +5418,13 @@ def _recompute_invoice_totals(connection, invoice_id: int):
     if totals:
         gross, disc, tax = totals
         taxable = gross - disc
+        # حماية من القيم السالبة - لو الخصم أكبر من الإجمالي
+        if taxable < 0:
+            taxable = 0
         total = taxable + tax
+        # تأكد إن الـ total مش سالب
+        if total < 0:
+            total = 0
         
         # تحديث الفاتورة
         connection.execute(
@@ -5800,11 +5829,14 @@ class Payment(db.Model):
             return None if key in ("subtotal", "tax_rate", "tax_amount") else D("0.00")
         v = q(value)
         if key == "tax_rate" and (v < 0 or v > 100):
-            raise ValueError("invalid tax_rate")
-        if key in ("subtotal", "tax_amount") and v < 0:
-            raise ValueError(f"{key} must be >= 0")
-        if key == "total_amount" and v <= 0:
-            raise ValueError("total_amount must be > 0")
+            raise ValueError("نسبة الضريبة يجب أن تكون بين 0 و 100")
+        if key in ("subtotal", "tax_amount", "total_amount") and v < 0:
+            field_names = {
+                "subtotal": "المجموع الفرعي",
+                "tax_amount": "مبلغ الضريبة",
+                "total_amount": "المبلغ الإجمالي"
+            }
+            raise ValueError(f"{field_names.get(key, key)} لا يمكن أن يكون سالباً")
         return v
 
     @validates("method", "status", "direction", "entity_type")
@@ -7355,7 +7387,18 @@ class ServiceRequest(db.Model, TimestampMixin, AuditMixin):
             return 0 if key in ("estimated_duration", "actual_duration", "warranty_days") else _Q2(0)
         d = _D(v)
         if d < 0:
-            raise ValueError(f"{key} must be >= 0")
+            field_names = {
+                "discount_total": "الخصم الإجمالي",
+                "parts_total": "إجمالي القطع",
+                "labor_total": "إجمالي العمالة",
+                "total_amount": "المبلغ الإجمالي",
+                "total_cost": "التكلفة الإجمالية",
+                "estimated_duration": "المدة المتوقعة",
+                "actual_duration": "المدة الفعلية",
+                "warranty_days": "أيام الضمان",
+                "refunded_total": "المبلغ المسترد"
+            }
+            raise ValueError(f"{field_names.get(key, key)} لا يمكن أن يكون سالباً")
         return int(d) if key in ("estimated_duration", "actual_duration", "warranty_days") else _Q2(d)
 
     @hybrid_property
