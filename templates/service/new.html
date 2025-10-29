@@ -31,9 +31,21 @@
         <h5 class="mb-0"><i class="fas fa-user"></i> معلومات العميل</h5>
       </div>
       <div class="card-body">
+        {% if form.errors %}
+        <div class="alert alert-danger">
+          <div class="fw-bold mb-1">تعذر حفظ الطلب. الرجاء تصحيح الحقول المطلوبة/الخاطئة:</div>
+          <ul class="mb-0">
+            {% for field_name, errs in form.errors.items() %}
+              {% for err in errs %}
+              <li>{{ getattr(form, field_name).label.text if form[field_name] is defined else field_name }}: {{ err }}</li>
+              {% endfor %}
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
         <div class="row">
           <div class="col-md-6 mb-3">
-            {{ form.customer_id.label(class="form-label fw-bold") }}
+            {{ form.customer_id.label(class="form-label fw-bold") }}<span class="text-danger ms-1">*</span>
             <div class="input-group">
               {{ form.customer_id(class="form-select select2", id="customerSelect", data_endpoint=url_for('api.search_customers')) }}
               <a href="{{ url_for('customers_bp.create_form', return_to=url_for('service.create_request')) }}" 
@@ -70,8 +82,9 @@
             {{ form.vehicle_model(class="form-control") }}
           </div>
           <div class="col-md-3 mb-3">
-            {{ form.vehicle_vrn.label(class="form-label fw-bold") }}
+            {{ form.vehicle_vrn.label(class="form-label fw-bold") }}<span class="text-danger ms-1">*</span>
             {{ form.vehicle_vrn(class="form-control") }}
+            {% for e in form.vehicle_vrn.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
           </div>
           <div class="col-md-3 mb-3">
             {{ form.chassis_number.label(class="form-label fw-bold") }}
@@ -104,6 +117,15 @@
           <div class="col-md-4 mb-3">
             {{ form.status.label(class="form-label fw-bold") }}
             {{ form.status(class="form-select") }}
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-4 mb-3">
+            {{ form.currency.label(class="form-label fw-bold") }}<span class="text-danger ms-1">*</span>
+            {{ form.currency(class="form-select") }}
+            {% for e in form.currency.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            <div class="form-text">اختر عملة الطلب، الافتراضي ILS.</div>
           </div>
         </div>
       </div>

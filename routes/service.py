@@ -346,7 +346,13 @@ def create_request():
         if not customer:
             flash("⚠️ العميل غير موجود. الرجاء إضافته.","danger")
             return redirect(url_for("customers_bp.create_form", return_to=url_for("service.create_request")))
-        service=ServiceRequest(service_number=f"SRV-{datetime.utcnow():%Y%m%d%H%M%S}", customer_id=customer.id, vehicle_vrn=form.vehicle_vrn.data, vehicle_type_id=utils._get_id(form.vehicle_type_id.data) if form.vehicle_type_id.data else None, vehicle_model=form.vehicle_model.data, chassis_number=form.chassis_number.data, problem_description=form.problem_description.data, priority=getattr(ServicePriority,(form.priority.data or 'MEDIUM').upper()), estimated_duration=form.estimated_duration.data, status=getattr(ServiceStatus,(form.status.data or 'PENDING').upper()), received_at=datetime.utcnow(), consume_stock=bool(form.consume_stock.data))
+        # Sanitize priority/status to avoid invalid enum values (e.g., 'NEW')
+        _prio_code = (form.priority.data or 'MEDIUM').upper()
+        priority_val = getattr(ServicePriority, _prio_code, ServicePriority.MEDIUM)
+        _stat_code = (form.status.data or 'PENDING').upper()
+        status_val = getattr(ServiceStatus, _stat_code, ServiceStatus.PENDING)
+
+        service=ServiceRequest(service_number=f"SRV-{datetime.utcnow():%Y%m%d%H%M%S}", customer_id=customer.id, vehicle_vrn=form.vehicle_vrn.data, vehicle_type_id=utils._get_id(form.vehicle_type_id.data) if form.vehicle_type_id.data else None, vehicle_model=form.vehicle_model.data, chassis_number=form.chassis_number.data, problem_description=form.problem_description.data, priority=priority_val, estimated_duration=form.estimated_duration.data, status=status_val, received_at=datetime.utcnow(), consume_stock=bool(form.consume_stock.data))
         db.session.add(service)
         try:
             db.session.commit(); log_service_action(service,"CREATE")
