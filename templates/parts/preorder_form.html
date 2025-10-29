@@ -67,7 +67,7 @@
         <div class="row g-3 mt-1">
           <div class="col-md-6">
             {{ form.product_id.label(class="form-label") }}
-            {{ form.product_id(class="form-select select2", id="productSelect", data_endpoint=url_for('api.search_products'), data_endpoint_by_warehouse="/api/warehouses/0/products", data_placeholder="اختر القطعة") }}
+            {{ form.product_id(class="form-select select2", id="productSelect", data_endpoint_by_warehouse="/api/warehouses/0/products", data_placeholder="اختر القطعة") }}
             {% for e in form.product_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
           </div>
           <div class="col-md-6">
