@@ -393,7 +393,7 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
         # ⚠️ الحجوزات المسبقة ليست حق للشريك - هي طلب من العميل/المورد
         # النصيب يأتي فقط من المنتج عندما يُباع أو يُخزّن (inventory/sales_share)
         
-        # 3. دفعات استلمناها منه (IN) - دين علينا له
+        # 3. دفعات دفعها لنا (IN) - تُنقص من مديونيته (تُضاف للرصيد)
         payments_from_partner = _get_partner_payments_received(partner_id, partner, date_from, date_to)
         
         # ═══════════════════════════════════════════════════════════
