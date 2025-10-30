@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}المصاريف / الرواتب / الجمارك{% endblock %}
+{% block title %}المصاريف{% endblock %}
 
 {% block styles %}
 {{ super() }}
@@ -25,11 +25,41 @@
 
   /* منع سحق الأعمدة على الشاشات الصغيرة */
   table.table-sticky{min-width:1200px}
+  
+  /* تحسين النافيجيشن */
+  .expense-nav {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  }
+  
+  .expense-nav .nav-link {
+    color: white;
+    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 0 0.25rem;
+  }
+  
+  .expense-nav .nav-link:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+  }
+  
+  .expense-nav .nav-link.active {
+    background: white;
+    color: #667eea;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4" dir="rtl">
+<div class="container-fluid mt-4" dir="rtl">
   <!-- رأس الطباعة -->
   <div class="print-header d-none d-print-block">
     <h2>نظام أزاد لإدارة الكراج</h2>
@@ -39,17 +69,38 @@
     <h3 class="mt-3">قائمة المصاريف</h3>
   </div>
 
+  <!-- النافيجيشن الجديد -->
+  <nav class="expense-nav no-print">
+    <div class="d-flex justify-content-between align-items-center flex-wrap">
+      <div class="d-flex align-items-center mb-2 mb-md-0">
+        <i class="fas fa-money-bill-wave fa-2x text-white me-3"></i>
+        <h4 class="text-white mb-0 fw-bold">وحدة النفقات</h4>
+      </div>
+      <div class="nav nav-pills" role="tablist">
+        <a class="nav-link active" href="{{ url_for('expenses_bp.list_expenses') }}">
+          <i class="fas fa-receipt me-2"></i>المصاريف
+        </a>
+        <a class="nav-link" href="{{ url_for('expenses_bp.employees_list') }}">
+          <i class="fas fa-users me-2"></i>الموظفون
+        </a>
+        <a class="nav-link" href="{{ url_for('expenses_bp.types_list') }}">
+          <i class="fas fa-tags me-2"></i>أنواع المصاريف
+        </a>
+      </div>
+    </div>
+  </nav>
+
   <div class="card shadow-sm mb-3">
-    <div class="card-header d-flex align-items-center justify-content-between">
-      <h2 class="mb-0"><i class="fas fa-receipt me-2"></i> كل المصاريف</h2>
+    <div class="card-header bg-white d-flex align-items-center justify-content-between">
+      <h2 class="mb-0"><i class="fas fa-receipt me-2 text-primary"></i>قائمة المصاريف</h2>
       <div class="d-flex gap-2 flex-wrap no-print">
         <button class="btn btn-outline-primary" onclick="window.print()">
-          <i class="fas fa-print me-1"></i> طباعة
+          <i class="fas fa-print me-1"></i>طباعة القائمة
         </button>
         {% if current_user.has_permission('manage_expenses') %}
-        <a href="{{ url_for('expenses_bp.create_expense') }}" class="btn btn-action-add"><i class="fas fa-plus"></i> إضافة مصروف</a>
-        <a href="{{ url_for('expenses_bp.types_list') }}" class="btn btn-outline-secondary"><i class="fas fa-tags"></i> أنواع المصاريف</a>
-        <a href="{{ url_for('expenses_bp.employees_list') }}" class="btn btn-outline-secondary"><i class="fas fa-users"></i> الموظفون</a>
+        <a href="{{ url_for('expenses_bp.create_expense') }}" class="btn btn-action-add">
+          <i class="fas fa-plus me-1"></i>إضافة مصروف
+        </a>
         {% endif %}
       </div>
     </div>
@@ -57,7 +108,7 @@
     <div class="card-body">
       <!-- الملخصات المالية -->
       {% if summary %}
-      <div class="row mb-4 g-3">
+      <div class="row mb-4 g-3 no-print">
         <div class="col-lg-3 col-md-6">
           <div class="card border-0 shadow-sm text-white bg-danger h-100">
             <div class="card-body">
@@ -117,7 +168,7 @@
       </div>
       
       <!-- تصنيف النفقات -->
-      <div class="row mb-4">
+      <div class="row mb-4 no-print">
         <div class="col-md-6">
           <div class="card">
             <div class="card-header bg-primary text-white">

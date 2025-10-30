@@ -23,8 +23,18 @@
   .modal,
   .dropdown-menu,
   nav,
-  aside {
+  aside,
+  .expense-nav,
+  .filters,
+  .filter-form,
+  .card-body > .row:first-child,
+  .summary-cards {
     display: none !important;
+  }
+  
+  /* إظهار رأس الطباعة فقط */
+  .print-header {
+    display: block !important;
   }
 
   /* A4 Page Setup */

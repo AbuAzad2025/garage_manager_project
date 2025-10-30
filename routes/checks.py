@@ -773,33 +773,38 @@ def get_statistics():
         week_ahead = today + timedelta(days=7)
         month_ahead = today + timedelta(days=30)
         
-        # 1. الشيكات الواردة
-        incoming_total = db.session.query(db.func.sum(Payment.total_amount)).filter(
+        from decimal import Decimal
+        from models import convert_amount
+        
+        incoming_checks = db.session.query(Payment).filter(
             and_(
                 Payment.method == PaymentMethod.CHEQUE.value,
                 Payment.direction == PaymentDirection.IN.value,
                 Payment.status == PaymentStatus.PENDING.value
             )
-        ).scalar() or 0
+        ).all()
         
-        incoming_overdue = db.session.query(db.func.count(Payment.id)).filter(
-            and_(
-                Payment.method == PaymentMethod.CHEQUE.value,
-                Payment.direction == PaymentDirection.IN.value,
-                Payment.status == PaymentStatus.PENDING.value,
-                Payment.check_due_date < datetime.utcnow()
-            )
-        ).scalar() or 0
+        incoming_total = Decimal('0.00')
+        incoming_overdue = 0
+        incoming_overdue_amount = Decimal('0.00')
         
-        # ✅ إضافة المبلغ الإجمالي للشيكات المتأخرة الواردة
-        incoming_overdue_amount = db.session.query(db.func.sum(Payment.total_amount)).filter(
-            and_(
-                Payment.method == PaymentMethod.CHEQUE.value,
-                Payment.direction == PaymentDirection.IN.value,
-                Payment.status == PaymentStatus.PENDING.value,
-                Payment.check_due_date < datetime.utcnow()
-            )
-        ).scalar() or 0
+        for p in incoming_checks:
+            amt = Decimal(str(p.total_amount or 0))
+            if p.currency == "ILS":
+                amt_ils = amt
+            else:
+                try:
+                    amt_ils = convert_amount(amt, p.currency, "ILS", p.payment_date)
+                except:
+                    amt_ils = Decimal('0.00')
+            
+            incoming_total += amt_ils
+            if p.check_due_date and p.check_due_date < datetime.utcnow():
+                incoming_overdue += 1
+                incoming_overdue_amount += amt_ils
+        
+        incoming_total = float(incoming_total)
+        incoming_overdue_amount = float(incoming_overdue_amount)
         
         incoming_this_week = db.session.query(db.func.count(Payment.id)).filter(
             and_(
@@ -810,33 +815,35 @@ def get_statistics():
             )
         ).scalar() or 0
         
-        # 2. الشيكات الصادرة (من Payment)
-        outgoing_total = db.session.query(db.func.sum(Payment.total_amount)).filter(
+        outgoing_checks = db.session.query(Payment).filter(
             and_(
                 Payment.method == PaymentMethod.CHEQUE.value,
                 Payment.direction == PaymentDirection.OUT.value,
                 Payment.status == PaymentStatus.PENDING.value
             )
-        ).scalar() or 0
+        ).all()
         
-        outgoing_overdue = db.session.query(db.func.count(Payment.id)).filter(
-            and_(
-                Payment.method == PaymentMethod.CHEQUE.value,
-                Payment.direction == PaymentDirection.OUT.value,
-                Payment.status == PaymentStatus.PENDING.value,
-                Payment.check_due_date < datetime.utcnow()
-            )
-        ).scalar() or 0
+        outgoing_total = Decimal('0.00')
+        outgoing_overdue = 0
+        outgoing_overdue_amount = Decimal('0.00')
         
-        # ✅ إضافة المبلغ الإجمالي للشيكات المتأخرة الصادرة
-        outgoing_overdue_amount = db.session.query(db.func.sum(Payment.total_amount)).filter(
-            and_(
-                Payment.method == PaymentMethod.CHEQUE.value,
-                Payment.direction == PaymentDirection.OUT.value,
-                Payment.status == PaymentStatus.PENDING.value,
-                Payment.check_due_date < datetime.utcnow()
-            )
-        ).scalar() or 0
+        for p in outgoing_checks:
+            amt = Decimal(str(p.total_amount or 0))
+            if p.currency == "ILS":
+                amt_ils = amt
+            else:
+                try:
+                    amt_ils = convert_amount(amt, p.currency, "ILS", p.payment_date)
+                except:
+                    amt_ils = Decimal('0.00')
+            
+            outgoing_total += amt_ils
+            if p.check_due_date and p.check_due_date < datetime.utcnow():
+                outgoing_overdue += 1
+                outgoing_overdue_amount += amt_ils
+        
+        outgoing_total = float(outgoing_total)
+        outgoing_overdue_amount = float(outgoing_overdue_amount)
         
         outgoing_this_week = db.session.query(db.func.count(Payment.id)).filter(
             and_(
@@ -847,31 +854,35 @@ def get_statistics():
             )
         ).scalar() or 0
         
-        # 3. الشيكات الصادرة (من Expense)
-        expense_total = db.session.query(db.func.sum(Expense.amount)).filter(
+        expense_checks = db.session.query(Expense).filter(
             and_(
                 Expense.payment_method == 'cheque',
                 Expense.check_due_date.isnot(None),
                 or_(Expense.is_paid == False, Expense.is_paid.is_(None))
             )
-        ).scalar() or 0
+        ).all()
         
-        expense_overdue = db.session.query(db.func.count(Expense.id)).filter(
-            and_(
-                Expense.payment_method == 'cheque',
-                Expense.check_due_date < datetime.utcnow(),
-                or_(Expense.is_paid == False, Expense.is_paid.is_(None))
-            )
-        ).scalar() or 0
+        expense_total = Decimal('0.00')
+        expense_overdue = 0
+        expense_overdue_amount = Decimal('0.00')
         
-        # ✅ إضافة المبلغ الإجمالي للنفقات المتأخرة
-        expense_overdue_amount = db.session.query(db.func.sum(Expense.amount)).filter(
-            and_(
-                Expense.payment_method == 'cheque',
-                Expense.check_due_date < datetime.utcnow(),
-                or_(Expense.is_paid == False, Expense.is_paid.is_(None))
-            )
-        ).scalar() or 0
+        for exp in expense_checks:
+            amt = Decimal(str(exp.amount or 0))
+            if exp.currency == "ILS":
+                amt_ils = amt
+            else:
+                try:
+                    amt_ils = convert_amount(amt, exp.currency, "ILS", exp.date)
+                except:
+                    amt_ils = Decimal('0.00')
+            
+            expense_total += amt_ils
+            if exp.check_due_date and exp.check_due_date < datetime.utcnow():
+                expense_overdue += 1
+                expense_overdue_amount += amt_ils
+        
+        expense_total = float(expense_total)
+        expense_overdue_amount = float(expense_overdue_amount)
         
         expense_this_week = db.session.query(db.func.count(Expense.id)).filter(
             and_(

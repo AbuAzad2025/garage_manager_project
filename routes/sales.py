@@ -288,40 +288,94 @@ def _safe_generate_number_after_flush(sale: Sale) -> None:
 @login_required
 # @permission_required("manage_sales")  # Commented out - function not available
 def dashboard():
+    from decimal import Decimal
+    from models import convert_amount
+    
     total_sales = db.session.query(func.count(Sale.id)).scalar() or 0
-    total_revenue = db.session.query(func.coalesce(func.sum(Sale.total_amount), 0)).scalar() or 0
+    
+    all_sales = db.session.query(Sale).all()
+    total_revenue = Decimal('0.00')
+    for s in all_sales:
+        amt = Decimal(str(s.total_amount or 0))
+        if s.currency == "ILS":
+            total_revenue += amt
+        else:
+            try:
+                total_revenue += convert_amount(amt, s.currency, "ILS", s.sale_date)
+            except:
+                pass
+    total_revenue = float(total_revenue)
+    
     pending_sales = db.session.query(func.count(Sale.id)).filter(Sale.status == "DRAFT").scalar() or 0
-    top_customers = (
-        db.session.query(Customer.name, func.sum(Sale.total_amount).label("spent"))
-        .join(Sale, Sale.customer_id == Customer.id)
-        .group_by(Customer.id)
-        .order_by(desc("spent"))
-        .limit(5).all()
-    )
-    top_products = (
-        db.session.query(
-            Product.name,
-            func.sum(SaleLine.quantity).label("sold"),
-            func.coalesce(func.sum(
-                SaleLine.quantity * SaleLine.unit_price *
-                (1 - func.coalesce(SaleLine.discount_rate, 0) / 100.0)
-            ), 0).label("revenue")
-        )
-        .join(SaleLine, SaleLine.product_id == Product.id)
-        .group_by(Product.id)
-        .order_by(desc("sold"))
-        .limit(5).all()
-    )
-    y = extract("year", Sale.sale_date); m = extract("month", Sale.sale_date)
-    monthly = (
-        db.session.query(y.label("y"), m.label("m"), func.count(Sale.id), func.sum(Sale.total_amount))
-        .group_by(y, m).order_by(y, m).all()
-    )
+    
+    customers = db.session.query(Customer).all()
+    top_customers_data = []
+    for cust in customers:
+        cust_sales = db.session.query(Sale).filter(Sale.customer_id == cust.id).all()
+        spent = Decimal('0.00')
+        for s in cust_sales:
+            amt = Decimal(str(s.total_amount or 0))
+            if s.currency == "ILS":
+                spent += amt
+            else:
+                try:
+                    spent += convert_amount(amt, s.currency, "ILS", s.sale_date)
+                except:
+                    pass
+        if spent > 0:
+            top_customers_data.append((cust.name, float(spent)))
+    top_customers_data.sort(key=lambda x: x[1], reverse=True)
+    top_customers = top_customers_data[:5]
+    
+    products = db.session.query(Product).all()
+    top_products_data = []
+    for prod in products:
+        lines = db.session.query(SaleLine).join(Sale).filter(
+            SaleLine.product_id == prod.id,
+            Sale.status == SaleStatus.CONFIRMED
+        ).all()
+        sold = sum(int(l.quantity or 0) for l in lines)
+        revenue_prod = Decimal('0.00')
+        for l in lines:
+            sale = l.sale
+            line_amt = Decimal(str(l.quantity or 0)) * Decimal(str(l.unit_price or 0)) * (Decimal('1') - Decimal(str(l.discount_rate or 0)) / Decimal('100'))
+            if sale.currency == "ILS":
+                revenue_prod += line_amt
+            else:
+                try:
+                    revenue_prod += convert_amount(line_amt, sale.currency, "ILS", sale.sale_date)
+                except:
+                    pass
+        if sold > 0:
+            top_products_data.append((prod.name, sold, float(revenue_prod)))
+    top_products_data.sort(key=lambda x: x[1], reverse=True)
+    top_products = top_products_data[:5]
+    
+    y = extract("year", Sale.sale_date)
+    m = extract("month", Sale.sale_date)
+    monthly_raw = db.session.query(y.label("y"), m.label("m"), func.count(Sale.id)).group_by(y, m).order_by(y, m).all()
+    
+    monthly_revenue = {}
+    for s in all_sales:
+        if not s.sale_date:
+            continue
+        ym = (s.sale_date.year, s.sale_date.month)
+        if ym not in monthly_revenue:
+            monthly_revenue[ym] = Decimal('0.00')
+        amt = Decimal(str(s.total_amount or 0))
+        if s.currency == "ILS":
+            monthly_revenue[ym] += amt
+        else:
+            try:
+                monthly_revenue[ym] += convert_amount(amt, s.currency, "ILS", s.sale_date)
+            except:
+                pass
+    
     months, counts, revenue = [], [], []
-    for yy, mm, cnt, total in monthly:
+    for yy, mm, cnt in monthly_raw:
         months.append(f"{int(mm)}/{int(yy)}")
         counts.append(int(cnt))
-        revenue.append(float(total or 0))
+        revenue.append(float(monthly_revenue.get((yy, mm), Decimal('0.00'))))
     return render_template("sales/dashboard.html",
                            total_sales=total_sales, total_revenue=total_revenue, pending_sales=pending_sales,
                            top_customers=top_customers, top_products=top_products,

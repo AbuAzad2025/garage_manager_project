@@ -460,15 +460,22 @@ def index():
     net_total_ils = total_incoming_ils - total_outgoing_ils
     
     if currency_param:
-        totals_row = db.session.query(
-            func.coalesce(func.sum(case((and_(Payment.direction == PaymentDirection.IN.value, Payment.status == PaymentStatus.COMPLETED.value), Payment.total_amount), else_=0)), 0).label("total_incoming"),
-            func.coalesce(func.sum(case((and_(Payment.direction == PaymentDirection.OUT.value, Payment.status == PaymentStatus.COMPLETED.value), Payment.total_amount), else_=0)), 0).label("total_outgoing"),
-            func.coalesce(func.sum(Payment.total_amount), 0).label("grand_total")
-        ).filter(Payment.is_archived == False).filter(*filters).one()
-        total_incoming_d = q0(D(totals_row.total_incoming or 0))
-        total_outgoing_d = q0(D(totals_row.total_outgoing or 0))
-        net_total_d = q0(total_incoming_d - total_outgoing_d)
-        grand_total_d = q0(D(totals_row.grand_total or 0))
+        payments_curr = Payment.query.filter(Payment.is_archived == False).filter(*filters).all()
+        total_incoming_d = Decimal('0.00')
+        total_outgoing_d = Decimal('0.00')
+        grand_total_d = Decimal('0.00')
+        
+        for p in payments_curr:
+            if p.currency != currency_param:
+                continue
+            amt = Decimal(str(p.total_amount or 0))
+            grand_total_d += amt
+            if p.direction == PaymentDirection.IN.value and p.status == PaymentStatus.COMPLETED.value:
+                total_incoming_d += amt
+            elif p.direction == PaymentDirection.OUT.value and p.status == PaymentStatus.COMPLETED.value:
+                total_outgoing_d += amt
+        
+        net_total_d = total_incoming_d - total_outgoing_d
         totals_by_currency = {
             ensure_currency(currency_param): {
                 "total_incoming": int(total_incoming_d),

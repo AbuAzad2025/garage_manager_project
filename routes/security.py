@@ -1396,26 +1396,60 @@ def advanced_analytics():
         'monthly_growth': 0,
     }
     
-    revenue_by_day = db.session.query(
-        func.date(Payment.payment_date).label('date'),
-        func.sum(Payment.total_amount).label('total')
-    ).filter(
+    from decimal import Decimal
+    from models import convert_amount
+    
+    payments_month = db.session.query(Payment).filter(
         Payment.direction == 'IN',
         Payment.status == 'COMPLETED',
         Payment.payment_date >= start_of_month
-    ).group_by(func.date(Payment.payment_date)).all()
+    ).all()
     
-    analytics['revenue_trend'] = [{'date': str(r.date), 'amount': float(r.total or 0)} for r in revenue_by_day]
+    revenue_by_day_dict = {}
+    for p in payments_month:
+        dt = p.payment_date.date() if p.payment_date else None
+        if not dt:
+            continue
+        if dt not in revenue_by_day_dict:
+            revenue_by_day_dict[dt] = Decimal('0.00')
+        amt = Decimal(str(p.total_amount or 0))
+        if p.currency == "ILS":
+            revenue_by_day_dict[dt] += amt
+        else:
+            try:
+                revenue_by_day_dict[dt] += convert_amount(amt, p.currency, "ILS", p.payment_date)
+            except:
+                pass
     
-    top_customers = db.session.query(
-        Customer.name,
-        func.sum(Payment.total_amount).label('total')
-    ).join(Payment).filter(
+    analytics['revenue_trend'] = [{'date': str(dt), 'amount': float(rev)} for dt, rev in sorted(revenue_by_day_dict.items())]
+    
+    all_payments_in = db.session.query(Payment).filter(
         Payment.direction == 'IN',
         Payment.status == 'COMPLETED'
-    ).group_by(Customer.id).order_by(func.sum(Payment.total_amount).desc()).limit(10).all()
+    ).all()
     
-    analytics['top_customers'] = [{'name': c.name, 'total': float(c.total or 0)} for c in top_customers]
+    cust_totals = {}
+    for p in all_payments_in:
+        if not p.customer_id:
+            continue
+        if p.customer_id not in cust_totals:
+            cust_totals[p.customer_id] = Decimal('0.00')
+        amt = Decimal(str(p.total_amount or 0))
+        if p.currency == "ILS":
+            cust_totals[p.customer_id] += amt
+        else:
+            try:
+                cust_totals[p.customer_id] += convert_amount(amt, p.currency, "ILS", p.payment_date)
+            except:
+                pass
+    
+    top_customers_data = []
+    for cid, total in cust_totals.items():
+        cust = db.session.get(Customer, cid)
+        if cust:
+            top_customers_data.append({'name': cust.name, 'total': float(total)})
+    top_customers_data.sort(key=lambda x: x['total'], reverse=True)
+    analytics['top_customers'] = top_customers_data[:10]
     
     return render_template('security/advanced_analytics.html', analytics=analytics)
 
@@ -1717,13 +1751,23 @@ def user_control():
     
     users = query.order_by(User.is_system_account.desc(), User.id.asc()).all()
     
-    # حساب إحصائيات متقدمة لكل مستخدم
+    from decimal import Decimal
+    from models import convert_amount
+    
     for user in users:
-        # عدد المبيعات
         user.sales_count = Sale.query.filter_by(seller_id=user.id).count()
-        user.sales_total = db.session.query(
-            func.coalesce(func.sum(Sale.total_amount), 0)
-        ).filter(Sale.seller_id == user.id).scalar() or 0
+        user_sales = db.session.query(Sale).filter(Sale.seller_id == user.id).all()
+        user_sales_total = Decimal('0.00')
+        for s in user_sales:
+            amt = Decimal(str(s.total_amount or 0))
+            if s.currency == "ILS":
+                user_sales_total += amt
+            else:
+                try:
+                    user_sales_total += convert_amount(amt, s.currency, "ILS", s.sale_date)
+                except:
+                    pass
+        user.sales_total = float(user_sales_total)
         
         # عدد طلبات الصيانة
         user.services_count = ServiceRequest.query.filter_by(mechanic_id=user.id).count()

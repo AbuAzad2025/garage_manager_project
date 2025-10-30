@@ -847,17 +847,28 @@ def shipment_detail(id: int):
         ],
     )
 
-    # احسب المبالغ المدفوعة
     try:
-        from models import Payment, PaymentStatus
-        total_paid = (
-            db.session.query(func.coalesce(func.sum(Payment.total_amount), 0.0))
-            .filter(Payment.shipment_id == sh.id, Payment.status == PaymentStatus.COMPLETED.value)
-            .scalar()
-            or 0.0
-        )
+        from models import Payment, PaymentStatus, convert_amount
+        from decimal import Decimal
+        
+        payments = db.session.query(Payment).filter(
+            Payment.shipment_id == sh.id,
+            Payment.status == PaymentStatus.COMPLETED.value
+        ).all()
+        
+        total_paid = Decimal('0.00')
+        for p in payments:
+            amt = Decimal(str(p.total_amount or 0))
+            if p.currency == sh.currency:
+                total_paid += amt
+            else:
+                try:
+                    total_paid += convert_amount(amt, p.currency, sh.currency or "ILS", p.payment_date)
+                except:
+                    pass
+        total_paid = float(total_paid)
     except Exception:
-        total_paid = sum(float(p.total_amount or 0) for p in getattr(sh, "payments", []))
+        total_paid = 0.0
 
     # رسائل تحذيرية بناءً على حالة الشحنة
     alerts = []

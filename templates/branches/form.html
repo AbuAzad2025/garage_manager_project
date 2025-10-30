@@ -44,7 +44,7 @@
             <input type="text" name="city" class="form-control" placeholder="مثال: رام الله" value="{{ branch.city if branch else '' }}">
           </div>
 
-          <div class="col-md-8">
+          <div class="col-md-12">
             <label class="form-label">العنوان</label>
             <input type="text" name="address" class="form-control" placeholder="العنوان الكامل" value="{{ branch.address if branch else '' }}">
           </div>
@@ -53,6 +53,10 @@
             <label class="form-label">الهاتف</label>
             <input type="text" name="phone" class="form-control" placeholder="02-xxxxxxx" value="{{ branch.phone if branch else '' }}">
           </div>
+
+          <!-- حقول GPS مخفية -->
+          <input type="hidden" name="geo_lat" value="{{ branch.geo_lat if branch else '' }}">
+          <input type="hidden" name="geo_lng" value="{{ branch.geo_lng if branch else '' }}">
 
           <div class="col-md-4">
             <label class="form-label">البريد الإلكتروني</label>
@@ -102,6 +106,35 @@
 
         </div>
       </div>
+    </div>
+
+    <!-- بطاقة الموقع GPS -->
+    <div class="card shadow-sm mt-3">
+      <div class="card-header bg-success text-white">
+        <i class="fas fa-map-marked-alt me-1"></i> تحديد الموقع على الخريطة
+        <small class="float-end">اختياري - يساعد في تحديد موقع الفرع بدقة</small>
+      </div>
+      <div class="card-body">
+        <div class="alert alert-info mb-3">
+          <i class="fas fa-info-circle me-2"></i>
+          <strong>كيفية الاستخدام:</strong>
+          <ul class="mb-0 mt-2">
+            <li>🔍 ابحث عن المكان في صندوق البحث</li>
+            <li>📍 انقر على الخريطة لتحديد الموقع</li>
+            <li>🎯 استخدم زر "موقعي الحالي" إذا كنت في الفرع</li>
+            <li>📋 انسخ الموقع أو شاركه مع الآخرين</li>
+          </ul>
+        </div>
+        <div id="location-map" style="height: 450px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);"></div>
+        
+        <!-- عرض الإحداثيات الحالية -->
+        <div class="mt-3 text-center">
+          <span class="badge bg-primary p-2" style="font-size: 14px;" id="coords-display">
+            <i class="fas fa-crosshairs me-1"></i>
+            لم يتم تحديد موقع بعد
+          </span>
+        </div>
+      </div>
 
       <div class="card-footer">
         <div class="d-flex gap-2 justify-content-start">
@@ -116,5 +149,50 @@
   </form>
 
 </div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&libraries=places&language=ar&region=PS"></script>
+<script src="{{ url_for('static', filename='js/gps-location-picker.js') }}"></script>
+<script>
+// تحديث عرض الإحداثيات عند التغيير
+document.addEventListener('DOMContentLoaded', function() {
+    const latInput = document.querySelector('input[name="geo_lat"]');
+    const lngInput = document.querySelector('input[name="geo_lng"]');
+    const coordsDisplay = document.getElementById('coords-display');
+    
+    function updateCoordsDisplay() {
+        const lat = latInput.value;
+        const lng = lngInput.value;
+        
+        if (lat && lng) {
+            coordsDisplay.innerHTML = `
+                <i class="fas fa-map-marker-alt me-1"></i>
+                ${parseFloat(lat).toFixed(6)}, ${parseFloat(lng).toFixed(6)}
+                <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" class="text-white ms-2">
+                    <i class="fas fa-external-link-alt"></i> عرض على Google Maps
+                </a>
+            `;
+            coordsDisplay.className = 'badge bg-success p-2';
+        } else {
+            coordsDisplay.innerHTML = '<i class="fas fa-crosshairs me-1"></i> لم يتم تحديد موقع بعد';
+            coordsDisplay.className = 'badge bg-secondary p-2';
+        }
+    }
+    
+    // عرض القيم الأولية
+    updateCoordsDisplay();
+    
+    // مراقبة التغييرات
+    const observer = new MutationObserver(updateCoordsDisplay);
+    observer.observe(latInput, { attributes: true, attributeFilter: ['value'] });
+    observer.observe(lngInput, { attributes: true, attributeFilter: ['value'] });
+    
+    // مراقبة التغييرات المباشرة
+    setInterval(updateCoordsDisplay, 1000);
+});
+</script>
 {% endblock %}
 

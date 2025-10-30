@@ -1277,27 +1277,8 @@ def _calculate_supplier_incoming(supplier_id: int, date_from: datetime, date_to:
 
 
 def _calculate_supplier_outgoing(supplier_id: int, date_from: datetime, date_to: datetime):
-    """حساب الصادر للمورد"""
-    # المبيعات للمورد (إذا كان عميل أيضاً)
-    sales = db.session.query(func.sum(Sale.total_amount)).filter(
-        Sale.customer_id == supplier_id,  # إذا كان المورد عميل أيضاً
-        Sale.sale_date >= date_from,
-        Sale.sale_date <= date_to
-    ).scalar() or 0
-    
-    # القطع المأخوذة من المورد (ExchangeTransaction مع اتجاه IN)
-    products_taken = db.session.query(func.sum(ExchangeTransaction.quantity * ExchangeTransaction.unit_cost)).filter(
-        ExchangeTransaction.supplier_id == supplier_id,
-        ExchangeTransaction.direction == "IN",
-        ExchangeTransaction.created_at >= date_from,
-        ExchangeTransaction.created_at <= date_to
-    ).scalar() or 0
-    
-    return {
-        "sales": float(sales),
-        "products_taken": float(products_taken),
-        "total": float(sales + products_taken)
-    }
+    from routes.supplier_settlements import _get_sales_to_supplier
+    return _get_sales_to_supplier(supplier_id, date_from, date_to)
 
 
 def _calculate_partner_incoming(partner_id: int, date_from: datetime, date_to: datetime):
@@ -1351,51 +1332,31 @@ def _calculate_partner_outgoing(partner_id: int, date_from: datetime, date_to: d
 
 
 def _calculate_payments_to_supplier(supplier_id: int, date_from: datetime, date_to: datetime):
-    """حساب الدفعات المدفوعة للمورد"""
-    amount = db.session.query(func.sum(Payment.total_amount)).filter(
-        Payment.supplier_id == supplier_id,
-        Payment.direction == "OUT",
-        Payment.status.in_(["COMPLETED", "PENDING"]),
-        Payment.payment_date >= date_from,
-        Payment.payment_date <= date_to
-    ).scalar() or 0
-    return float(amount)
+    from routes.supplier_settlements import _get_payments_to_supplier
+    supplier = db.session.get(Supplier, supplier_id)
+    result = _get_payments_to_supplier(supplier_id, supplier, date_from, date_to)
+    return result.get("total_ils", 0.0)
 
 
 def _calculate_payments_from_supplier(supplier_id: int, date_from: datetime, date_to: datetime):
-    """حساب الدفعات المستلمة من المورد"""
-    amount = db.session.query(func.sum(Payment.total_amount)).filter(
-        Payment.supplier_id == supplier_id,
-        Payment.direction == "INCOMING",
-        Payment.status.in_(["COMPLETED", "PENDING"]),
-        Payment.payment_date >= date_from,
-        Payment.payment_date <= date_to
-    ).scalar() or 0
-    return float(amount)
+    from routes.supplier_settlements import _get_payments_from_supplier
+    supplier = db.session.get(Supplier, supplier_id)
+    result = _get_payments_from_supplier(supplier_id, supplier, date_from, date_to)
+    return result.get("total_ils", 0.0)
 
 
 def _calculate_payments_to_partner(partner_id: int, date_from: datetime, date_to: datetime):
-    """حساب الدفعات المدفوعة للشريك"""
-    amount = db.session.query(func.sum(Payment.total_amount)).filter(
-        Payment.partner_id == partner_id,
-        Payment.direction == "OUT",
-        Payment.status.in_(["COMPLETED", "PENDING"]),
-        Payment.payment_date >= date_from,
-        Payment.payment_date <= date_to
-    ).scalar() or 0
-    return float(amount)
+    from routes.partner_settlements import _get_payments_to_partner
+    partner = db.session.get(Partner, partner_id)
+    result = _get_payments_to_partner(partner_id, partner, date_from, date_to)
+    return result.get("total_ils", 0.0)
 
 
 def _calculate_payments_from_partner(partner_id: int, date_from: datetime, date_to: datetime):
-    """حساب الدفعات المستلمة من الشريك"""
-    amount = db.session.query(func.sum(Payment.total_amount)).filter(
-        Payment.partner_id == partner_id,
-        Payment.direction == "INCOMING",
-        Payment.status.in_(["COMPLETED", "PENDING"]),
-        Payment.payment_date >= date_from,
-        Payment.payment_date <= date_to
-    ).scalar() or 0
-    return float(amount)
+    from routes.partner_settlements import _get_partner_payments_received
+    partner = db.session.get(Partner, partner_id)
+    result = _get_partner_payments_received(partner_id, partner, date_from, date_to)
+    return result.get("total_ils", 0.0)
 
 
 def _get_settlement_recommendation(balance: float, currency: str):
