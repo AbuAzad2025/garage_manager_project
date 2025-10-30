@@ -192,7 +192,8 @@ def saas_manager():
                          stats=stats, 
                          plans=plans,
                          subscriptions=subscriptions,
-                         invoices=invoices)
+                         invoices=invoices,
+                         today=datetime.now().strftime('%Y-%m-%d'))
 
 
 @security_bp.route('/api/saas/plans', methods=['POST'])
@@ -401,6 +402,160 @@ def api_saas_send_reminder(invoice_id):
             'success': True, 
             'message': f'تم إرسال التذكير إلى {customer.email}'
         })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@security_bp.route('/api/customers', methods=['GET'])
+@login_required
+def api_get_customers():
+    """API: جلب قائمة العملاء"""
+    from models import Customer
+    
+    try:
+        customers = Customer.query.filter_by(is_active=True).order_by(Customer.name).limit(500).all()
+        
+        return jsonify([{
+            'id': c.id,
+            'name': c.name,
+            'email': c.email,
+            'phone': c.phone
+        } for c in customers])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+
+@security_bp.route('/api/saas/subscriptions/<int:sub_id>', methods=['GET'])
+@owner_only
+def api_saas_get_subscription(sub_id):
+    """API: جلب تفاصيل اشتراك"""
+    from models import SaaSSubscription, Customer
+    
+    try:
+        sub = SaaSSubscription.query.get_or_404(sub_id)
+        customer = Customer.query.get(sub.customer_id)
+        
+        # حساب الأيام المتبقية
+        days_left = 0
+        if sub.end_date:
+            delta = sub.end_date - datetime.now(timezone.utc).date()
+            days_left = delta.days if delta.days > 0 else 0
+        
+        return jsonify({
+            'success': True,
+            'subscription': {
+                'id': sub.id,
+                'customer_id': sub.customer_id,
+                'customer_name': customer.name if customer else 'عميل محذوف',
+                'plan_id': sub.plan_id,
+                'plan_name': sub.plan.name if sub.plan else 'باقة محذوفة',
+                'price': float(sub.plan.price_monthly) if sub.plan else 0,
+                'status': sub.status,
+                'start_date': sub.start_date.strftime('%Y-%m-%d') if sub.start_date else '',
+                'end_date': sub.end_date.strftime('%Y-%m-%d') if sub.end_date else '',
+                'days_left': days_left
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@security_bp.route('/api/saas/subscriptions/<int:sub_id>', methods=['PUT'])
+@owner_only
+def api_saas_update_subscription(sub_id):
+    """API: تحديث اشتراك"""
+    from models import SaaSSubscription
+    
+    try:
+        sub = SaaSSubscription.query.get_or_404(sub_id)
+        data = request.get_json()
+        
+        if 'status' in data:
+            sub.status = data['status']
+        
+        if 'end_date' in data and data['end_date']:
+            sub.end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date()
+        
+        db.session.commit()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@security_bp.route('/api/saas/invoices/<int:invoice_id>/pdf', methods=['GET'])
+@owner_only
+def api_saas_invoice_pdf(invoice_id):
+    """API: تحميل فاتورة PDF"""
+    from models import SaaSInvoice, SaaSSubscription, Customer
+    from flask import make_response
+    
+    try:
+        invoice = SaaSInvoice.query.get_or_404(invoice_id)
+        subscription = SaaSSubscription.query.get(invoice.subscription_id)
+        customer = Customer.query.get(subscription.customer_id) if subscription else None
+        
+        # إنشاء HTML للفاتورة
+        html_content = f"""
+        <!DOCTYPE html>
+        <html dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <title>فاتورة #{invoice.id}</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; direction: rtl; padding: 20px; }}
+                .header {{ text-align: center; border-bottom: 3px solid #007bff; padding-bottom: 20px; }}
+                .info {{ margin: 20px 0; }}
+                .table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+                .table th, .table td {{ border: 1px solid #ddd; padding: 12px; text-align: right; }}
+                .table th {{ background: #f8f9fa; }}
+                .total {{ font-size: 1.5rem; font-weight: bold; color: #007bff; }}
+                .footer {{ margin-top: 40px; text-align: center; color: #666; }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>فاتورة SaaS</h1>
+                <p>رقم الفاتورة: #{invoice.id}</p>
+            </div>
+            
+            <div class="info">
+                <p><strong>العميل:</strong> {customer.name if customer else 'غير محدد'}</p>
+                <p><strong>البريد:</strong> {customer.email if customer else '-'}</p>
+                <p><strong>الباقة:</strong> {subscription.plan.name if subscription and subscription.plan else '-'}</p>
+                <p><strong>تاريخ الإصدار:</strong> {invoice.created_at.strftime('%Y-%m-%d')}</p>
+                <p><strong>تاريخ الاستحقاق:</strong> {invoice.due_date.strftime('%Y-%m-%d') if invoice.due_date else '-'}</p>
+            </div>
+            
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>البيان</th>
+                        <th>المبلغ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>اشتراك {subscription.plan.name if subscription and subscription.plan else 'SaaS'}</td>
+                        <td class="total">{invoice.currency} {float(invoice.amount):,.2f}</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="footer">
+                <p>شكراً لثقتكم بنا | تم الإنشاء بواسطة SaaS Manager</p>
+                <p>© 2025 Azad Systems</p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        response = make_response(html_content)
+        response.headers['Content-Type'] = 'text/html; charset=utf-8'
+        response.headers['Content-Disposition'] = f'attachment; filename=invoice_{invoice.id}.html'
+        
+        return response
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
 

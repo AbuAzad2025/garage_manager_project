@@ -565,18 +565,15 @@ def get_ledger_data():
                     credit = 0.0
                     running_balance += debit
                 
-                # ✅ تحديد اسم الكيان ونوعه
-                entity_name = "غير محدد"
-                entity_type = ""
-                if payment.customer:
-                    entity_name = payment.customer.name
-                    entity_type = "عميل"
-                elif payment.supplier:
-                    entity_name = payment.supplier.name
-                    entity_type = "مورد"
-                elif payment.partner:
-                    entity_name = payment.partner.name
-                    entity_type = "شريك"
+                # 🧠 استخراج الجهة بذكاء باستخدام الدالة الذكية
+                # إنشاء GLBatch وهمي لاستخدام دالة extract_entity_from_batch
+                temp_batch = GLBatch(
+                    source_type='PAYMENT',
+                    source_id=payment.id,
+                    entity_type=None,
+                    entity_id=None
+                )
+                entity_name, entity_type, _, _ = extract_entity_from_batch(temp_batch)
                 
                 # ✅ بناء الوصف مع تفاصيل الشيك
                 method_value = getattr(payment, 'method', 'cash')

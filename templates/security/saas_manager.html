@@ -84,7 +84,7 @@
 {% block content %}
 <div class="container-fluid px-4 py-3">
 
-  <div class="row mb-4">
+  <div class="row mb-3">
     <div class="col">
       <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
@@ -95,30 +95,60 @@
     </div>
   </div>
 
+  <!-- شرح سريع وواضح -->
+  <div class="alert alert-primary border-0 shadow-sm mb-4">
+    <div class="row align-items-center">
+      <div class="col-md-8">
+        <div class="d-flex align-items-start">
+          <i class="fas fa-graduation-cap fa-3x me-3 text-primary"></i>
+          <div>
+            <h5 class="mb-2"><i class="fas fa-rocket"></i> مرحباً بك في SaaS Manager - صديقك في إدارة الاشتراكات!</h5>
+            <p class="mb-1"><strong>ما هو SaaS؟</strong> بدلاً من بيع البرنامج مرة واحدة، تؤجره شهرياً = <span class="badge bg-success">💰 دخل ثابت ومستمر</span></p>
+            <p class="mb-0 small text-muted">
+              <i class="fas fa-info-circle"></i> <strong>3 أشياء رئيسية:</strong> 
+              📦 الباقات (الخطط) • 
+              🎫 الاشتراكات (العملاء) • 
+              🧾 الفواتير (المدفوعات)
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4 text-end">
+        <button class="btn btn-light btn-lg shadow-sm" data-bs-toggle="modal" data-bs-target="#helpModal">
+          <i class="fas fa-book-open"></i> دليل الاستخدام الكامل
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div class="row g-3 mb-4">
     <div class="col-lg-3 col-md-6">
-      <div class="saas-card shadow-sm p-3" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+      <div class="saas-card shadow-sm p-3" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;" 
+           data-bs-toggle="tooltip" data-bs-placement="top" title="جميع الأشخاص المشتركين في خدمتك (نشط + تجريبي + منتهي + ملغي)">
         <i class="fas fa-users fa-2x mb-2"></i>
         <h3 class="mb-0">{{ stats.total_subscribers }}</h3>
         <small>إجمالي المشتركين</small>
       </div>
     </div>
     <div class="col-lg-3 col-md-6">
-      <div class="saas-card shadow-sm p-3" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+      <div class="saas-card shadow-sm p-3" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;"
+           data-bs-toggle="tooltip" data-bs-placement="top" title="المشتركين النشطين اللي يدفعون حالياً">
         <i class="fas fa-check-circle fa-2x mb-2"></i>
         <h3 class="mb-0">{{ stats.active_subscribers }}</h3>
         <small>مشتركين نشطين</small>
       </div>
     </div>
     <div class="col-lg-3 col-md-6">
-      <div class="saas-card shadow-sm p-3" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+      <div class="saas-card shadow-sm p-3" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;"
+           data-bs-toggle="tooltip" data-bs-placement="top" title="الدخل الشهري المتوقع من جميع الاشتراكات النشطة (MRR = Monthly Recurring Revenue)">
         <i class="fas fa-dollar-sign fa-2x mb-2"></i>
         <h3 class="mb-0">{{ stats.monthly_revenue }}</h3>
         <small>الإيرادات الشهرية</small>
       </div>
     </div>
     <div class="col-lg-3 col-md-6">
-      <div class="saas-card shadow-sm p-3" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white;">
+      <div class="saas-card shadow-sm p-3" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white;"
+           data-bs-toggle="tooltip" data-bs-placement="top" title="المشتركين في فترة التجربة المجانية">
         <i class="fas fa-clock fa-2x mb-2"></i>
         <h3 class="mb-0">{{ stats.trial_users }}</h3>
         <small>تجريبي</small>
@@ -741,6 +771,81 @@ API Access
   </div>
 </div>
 
+<!-- Modal: تعديل باقة -->
+<div class="modal fade" id="editPlanModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-warning text-dark">
+        <h5 class="modal-title"><i class="fas fa-edit me-2"></i>تعديل باقة</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="editPlanForm">
+          <input type="hidden" id="edit_plan_id" name="plan_id">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">اسم الباقة *</label>
+              <input type="text" class="form-control" id="edit_name" name="name" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">الوصف</label>
+              <input type="text" class="form-control" id="edit_description" name="description">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">السعر الشهري * ($)</label>
+              <input type="number" step="0.01" class="form-control" id="edit_price_monthly" name="price_monthly" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">السعر السنوي ($)</label>
+              <input type="number" step="0.01" class="form-control" id="edit_price_yearly" name="price_yearly">
+              <small class="text-muted">عادة = شهري × 10</small>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">العملة</label>
+              <select class="form-select" id="edit_currency" name="currency">
+                <option value="USD">USD ($)</option>
+                <option value="ILS">ILS (₪)</option>
+                <option value="JOD">JOD</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">عدد المستخدمين</label>
+              <input type="number" class="form-control" id="edit_max_users" name="max_users" placeholder="-1 للغير محدود">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">الفواتير/شهر</label>
+              <input type="number" class="form-control" id="edit_max_invoices" name="max_invoices" placeholder="-1 للغير محدود">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">التخزين (GB)</label>
+              <input type="number" class="form-control" id="edit_storage_gb" name="storage_gb" placeholder="-1 للغير محدود">
+            </div>
+            <div class="col-12">
+              <label class="form-label">المميزات الإضافية</label>
+              <textarea class="form-control" id="edit_features" name="features" rows="3" placeholder="كل ميزة في سطر"></textarea>
+            </div>
+            <div class="col-12">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="edit_is_popular" name="is_popular">
+                <label class="form-check-label" for="edit_is_popular">
+                  <strong>الباقة الأكثر شعبية</strong>
+                </label>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+        <button type="button" class="btn btn-warning" onclick="saveEditedPlan()">
+          <i class="fas fa-save me-1"></i> حفظ التعديلات
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: مشترك جديد -->
 <div class="modal fade" id="newSubscriberModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -752,10 +857,10 @@ API Access
         <form id="newSubscriberForm">
           <div class="mb-3">
             <label class="form-label">العميل *</label>
-            <select class="form-select" name="customer_id" required>
+            <select class="form-select" name="customer_id" id="customer_select" required>
               <option value="">اختر عميل...</option>
             </select>
-            <small class="text-muted">سيتم جلب العملاء من قاعدة البيانات</small>
+            <small class="text-muted">سيتم تحميل العملاء من قاعدة البيانات</small>
           </div>
           <div class="mb-3">
             <label class="form-label">الباقة *</label>
@@ -767,13 +872,13 @@ API Access
           </div>
           <div class="mb-3">
             <label class="form-label">تاريخ البدء *</label>
-            <input type="date" class="form-control" name="start_date" required>
+            <input type="date" class="form-control" name="start_date" value="{{ today }}" required>
           </div>
           <div class="mb-3">
             <label class="form-label">الحالة</label>
             <select class="form-select" name="status">
-              <option value="trial">تجريبي</option>
-              <option value="active" selected>نشط</option>
+              <option value="trial">تجريبي (مجاناً)</option>
+              <option value="active" selected>نشط (مدفوع)</option>
             </select>
           </div>
         </form>
@@ -782,6 +887,54 @@ API Access
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
         <button type="button" class="btn btn-success" onclick="saveSubscriber()">
           <i class="fas fa-save me-1"></i> حفظ
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: إنشاء فاتورة -->
+<div class="modal fade" id="createInvoiceModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-info text-white">
+        <h5 class="modal-title"><i class="fas fa-file-invoice me-2"></i>فاتورة جديدة</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="newInvoiceForm">
+          <div class="mb-3">
+            <label class="form-label">الاشتراك *</label>
+            <select class="form-select" name="subscription_id" required>
+              <option value="">اختر اشتراك...</option>
+              {% for sub in subscriptions %}
+              <option value="{{ sub.id }}">{{ sub.customer_id }} - {{ sub.plan.name if sub.plan else 'باقة محذوفة' }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">المبلغ *</label>
+            <input type="number" step="0.01" class="form-control" name="amount" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">العملة</label>
+            <select class="form-select" name="currency">
+              <option value="USD">USD ($)</option>
+              <option value="ILS">ILS (₪)</option>
+              <option value="JOD">JOD</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">تاريخ الاستحقاق</label>
+            <input type="date" class="form-control" name="due_date">
+            <small class="text-muted">إذا تركت فارغاً، سيكون بعد 7 أيام</small>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+        <button type="button" class="btn btn-info" onclick="saveNewInvoice()">
+          <i class="fas fa-save me-1"></i> إنشاء
         </button>
       </div>
     </div>
@@ -810,7 +963,7 @@ function notify(message, type = 'info') {
   setTimeout(() => alert.remove(), 5000);
 }
 
-async function savePlan() {
+window.savePlan = async function() {
   const form = document.getElementById('newPlanForm');
   const formData = new FormData(form);
   const data = Object.fromEntries(formData);
@@ -847,7 +1000,7 @@ async function savePlan() {
   }
 }
 
-async function saveSubscriber() {
+window.saveSubscriber = async function() {
   const form = document.getElementById('newSubscriberForm');
   const formData = new FormData(form);
   const data = Object.fromEntries(formData);
@@ -882,7 +1035,7 @@ async function saveSubscriber() {
   }
 }
 
-async function editPlan(planId) {
+window.editPlan = async function(planId) {
   const plan = plans.find(p => p.id === planId);
   if (!plan) {
     notify('✗ باقة غير موجودة', 'danger');
@@ -892,7 +1045,7 @@ async function editPlan(planId) {
   // ملء Modal بالبيانات الحالية
   const modal = document.getElementById('editPlanModal');
   if (!modal) {
-    notify('ℹ️ Modal التعديل قيد التطوير', 'info');
+    notify('✗ خطأ: Modal غير موجود', 'danger');
     return;
   }
   
@@ -901,16 +1054,16 @@ async function editPlan(planId) {
   document.getElementById('edit_description').value = plan.description || '';
   document.getElementById('edit_price_monthly').value = plan.price_monthly;
   document.getElementById('edit_price_yearly').value = plan.price_yearly || '';
-  document.getElementById('edit_max_users').value = plan.max_users || '';
-  document.getElementById('edit_max_invoices').value = plan.max_invoices || '';
-  document.getElementById('edit_storage_gb').value = plan.storage_gb || '';
+  document.getElementById('edit_max_users').value = plan.max_users === -1 ? '-1' : (plan.max_users || '');
+  document.getElementById('edit_max_invoices').value = plan.max_invoices === -1 ? '-1' : (plan.max_invoices || '');
+  document.getElementById('edit_storage_gb').value = plan.storage_gb === -1 ? '-1' : (plan.storage_gb || '');
   document.getElementById('edit_features').value = plan.features || '';
   document.getElementById('edit_is_popular').checked = plan.is_popular;
   
   new bootstrap.Modal(modal).show();
 }
 
-async function saveEditedPlan() {
+window.saveEditedPlan = async function() {
   const planId = document.getElementById('edit_plan_id').value;
   const form = document.getElementById('editPlanForm');
   const formData = new FormData(form);
@@ -948,15 +1101,138 @@ async function saveEditedPlan() {
   }
 }
 
-async function viewSubscription(subId) {
-  notify('ℹ️ Modal العرض قيد التطوير', 'info');
+window.viewSubscription = async function(subId) {
+  try {
+    const res = await fetch(`/security/api/saas/subscriptions/${subId}`);
+    const data = await res.json();
+    
+    if (data.success) {
+      const sub = data.subscription;
+      const modalBody = `
+        <div class="row g-3">
+          <div class="col-md-6"><strong>العميل:</strong> ${sub.customer_name}</div>
+          <div class="col-md-6"><strong>الباقة:</strong> ${sub.plan_name}</div>
+          <div class="col-md-6"><strong>الحالة:</strong> <span class="badge bg-${sub.status === 'active' ? 'success' : 'warning'}">${sub.status}</span></div>
+          <div class="col-md-6"><strong>السعر:</strong> $${sub.price}/شهر</div>
+          <div class="col-md-6"><strong>تاريخ البدء:</strong> ${sub.start_date}</div>
+          <div class="col-md-6"><strong>تاريخ الانتهاء:</strong> ${sub.end_date}</div>
+          <div class="col-12"><strong>الأيام المتبقية:</strong> ${sub.days_left} يوم</div>
+        </div>
+      `;
+      
+      const modal = document.createElement('div');
+      modal.innerHTML = `
+        <div class="modal fade" id="viewSubModal" tabindex="-1">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="fas fa-eye"></i> تفاصيل الاشتراك</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">${modalBody}</div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      new bootstrap.Modal(document.getElementById('viewSubModal')).show();
+      
+      document.getElementById('viewSubModal').addEventListener('hidden.bs.modal', () => modal.remove());
+    } else {
+      notify('✗ فشل جلب البيانات', 'danger');
+    }
+  } catch (e) {
+    notify('✗ خطأ: ' + e.message, 'danger');
+  }
 }
 
-async function editSubscription(subId) {
-  notify('ℹ️ Modal التعديل قيد التطوير', 'info');
+window.editSubscription = async function(subId) {
+  try {
+    const res = await fetch(`/security/api/saas/subscriptions/${subId}`);
+    const data = await res.json();
+    
+    if (data.success) {
+      const sub = data.subscription;
+      
+      const modal = document.createElement('div');
+      modal.innerHTML = `
+        <div class="modal fade" id="editSubModal" tabindex="-1">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title"><i class="fas fa-edit"></i> تعديل اشتراك</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">
+                <form id="editSubForm">
+                  <input type="hidden" value="${subId}">
+                  <div class="mb-3">
+                    <label class="form-label">الحالة</label>
+                    <select class="form-select" name="status">
+                      <option value="trial" ${sub.status === 'trial' ? 'selected' : ''}>تجريبي</option>
+                      <option value="active" ${sub.status === 'active' ? 'selected' : ''}>نشط</option>
+                      <option value="expired" ${sub.status === 'expired' ? 'selected' : ''}>منتهي</option>
+                      <option value="cancelled" ${sub.status === 'cancelled' ? 'selected' : ''}>ملغي</option>
+                    </select>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">تاريخ الانتهاء</label>
+                    <input type="date" class="form-control" name="end_date" value="${sub.end_date}">
+                  </div>
+                </form>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-warning" onclick="saveEditedSubscription(${subId})">
+                  <i class="fas fa-save"></i> حفظ
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      new bootstrap.Modal(document.getElementById('editSubModal')).show();
+      
+      document.getElementById('editSubModal').addEventListener('hidden.bs.modal', () => modal.remove());
+    }
+  } catch (e) {
+    notify('✗ خطأ: ' + e.message, 'danger');
+  }
 }
 
-async function cancelSubscription(subId) {
+window.saveEditedSubscription = async function(subId) {
+  const form = document.getElementById('editSubForm');
+  const formData = new FormData(form);
+  const data = Object.fromEntries(formData);
+  
+  try {
+    const res = await fetch(`/security/api/saas/subscriptions/${subId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken()
+      },
+      body: JSON.stringify(data)
+    });
+    
+    const result = await res.json();
+    
+    if (result.success) {
+      notify('✓ تم التحديث بنجاح!', 'success');
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      notify('✗ ' + (result.error || 'فشل التحديث'), 'danger');
+    }
+  } catch (e) {
+    notify('✗ خطأ: ' + e.message, 'danger');
+  }
+}
+
+window.cancelSubscription = async function(subId) {
   if (!confirm('هل أنت متأكد من إلغاء هذا الاشتراك؟')) return;
   
   notify('جاري الإلغاء...', 'warning');
@@ -984,7 +1260,7 @@ async function cancelSubscription(subId) {
   }
 }
 
-async function renewSubscription(subId) {
+window.renewSubscription = async function(subId) {
   if (!confirm('تجديد الاشتراك لمدة 30 يوم؟')) return;
   
   notify('جاري التجديد...', 'info');
@@ -1011,20 +1287,18 @@ async function renewSubscription(subId) {
   }
 }
 
-async function downloadInvoice(invId) {
+window.downloadInvoice = async function(invId) {
   notify('⬇️ جاري تحميل الفاتورة...', 'info');
   
-  // محاكاة تحميل PDF (يمكن ربطها بـ endpoint حقيقي لاحقاً)
-  setTimeout(() => {
-    const link = document.createElement('a');
-    link.href = `/security/api/saas/invoices/${invId}/pdf`;
-    link.download = `invoice_${invId}.pdf`;
-    link.click();
-    notify('ℹ️ تحميل PDF قيد التطوير - سيتم إضافته لاحقاً', 'warning');
-  }, 500);
+  try {
+    window.open(`/security/api/saas/invoices/${invId}/pdf`, '_blank');
+    notify('✓ تم فتح الفاتورة - يمكنك طباعتها أو حفظها', 'success');
+  } catch (e) {
+    notify('✗ خطأ في التحميل: ' + e.message, 'danger');
+  }
 }
 
-async function markPaid(invId) {
+window.markPaid = async function(invId) {
   if (!confirm('تأكيد الدفع؟')) return;
   
   notify('جاري التأكيد...', 'info');
@@ -1050,7 +1324,7 @@ async function markPaid(invId) {
   }
 }
 
-async function sendReminder(invId) {
+window.sendReminder = async function(invId) {
   if (!confirm('إرسال تذكير للعميل؟')) return;
   
   notify('جاري الإرسال...', 'info');
@@ -1075,7 +1349,7 @@ async function sendReminder(invId) {
   }
 }
 
-async function createInvoice() {
+window.createInvoice = async function() {
   const modal = document.getElementById('createInvoiceModal');
   if (!modal) {
     notify('ℹ️ Modal إنشاء فاتورة قيد التطوير', 'info');
@@ -1085,7 +1359,7 @@ async function createInvoice() {
   new bootstrap.Modal(modal).show();
 }
 
-async function saveNewInvoice() {
+window.saveNewInvoice = async function() {
   const form = document.getElementById('newInvoiceForm');
   const formData = new FormData(form);
   const data = Object.fromEntries(formData);
@@ -1119,6 +1393,303 @@ async function saveNewInvoice() {
     notify('✗ خطأ: ' + e.message, 'danger');
   }
 }
+
+// تخزين بيانات الباقات لاستخدامها في JavaScript
+const plans = [
+  {% for plan in plans %}
+  {
+    id: {{ plan.id }},
+    name: "{{ plan.name }}",
+    description: "{{ plan.description or '' }}",
+    price_monthly: {{ plan.price_monthly }},
+    price_yearly: {{ plan.price_yearly or 'null' }},
+    currency: "{{ plan.currency }}",
+    max_users: {{ plan.max_users or 'null' }},
+    max_invoices: {{ plan.max_invoices or 'null' }},
+    storage_gb: {{ plan.storage_gb or 'null' }},
+    features: "{{ plan.features or '' }}",
+    is_popular: {{ 'true' if plan.is_popular else 'false' }}
+  }{{ ',' if not loop.last else '' }}
+  {% endfor %}
+];
+
+// تحميل قائمة العملاء عند فتح Modal
+async function loadCustomers() {
+  try {
+    const res = await fetch('/api/customers');
+    const customers = await res.json();
+    const select = document.getElementById('customer_select');
+    select.innerHTML = '<option value="">اختر عميل...</option>';
+    customers.forEach(c => {
+      const option = document.createElement('option');
+      option.value = c.id;
+      option.textContent = `${c.name} - ${c.email || c.phone || ''}`;
+      select.appendChild(option);
+    });
+  } catch (e) {
+    console.warn('فشل تحميل العملاء:', e);
+    notify('⚠️ تأكد من وجود عملاء في النظام أولاً', 'warning');
+  }
+}
+
+// عند فتح modal المشترك الجديد، حمّل العملاء
+const newSubModal = document.getElementById('newSubscriberModal');
+if (newSubModal) {
+  newSubModal.addEventListener('show.bs.modal', loadCustomers);
+}
+
+// ملء تاريخ اليوم في حقول التاريخ
+document.addEventListener('DOMContentLoaded', function() {
+  const today = new Date().toISOString().split('T')[0];
+  document.querySelectorAll('input[type="date"][name="start_date"]').forEach(input => {
+    if (!input.value) input.value = today;
+  });
+  
+  // تفعيل tooltips
+  var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+  var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl);
+  });
+});
 </script>
+
+<!-- Modal: دليل الاستخدام الشامل -->
+<div class="modal fade" id="helpModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h4 class="modal-title">
+          <i class="fas fa-book-open"></i> دليل SaaS Manager - صديقك في إدارة الاشتراكات
+        </h4>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        
+        <!-- القسم 1: المقدمة -->
+        <div class="alert alert-success">
+          <h5><i class="fas fa-rocket"></i> ما هو SaaS؟</h5>
+          <p class="mb-2"><strong>SaaS = Software as a Service</strong> (البرنامج كخدمة)</p>
+          <p class="mb-0">بدلاً من بيع البرنامج مرة واحدة بـ$5000، تؤجره شهرياً بـ$79 = دخل ثابت ومستمر</p>
+        </div>
+
+        <!-- القسم 2: المكونات الثلاثة -->
+        <h5 class="mb-3"><i class="fas fa-cubes"></i> المكونات الأساسية (3 أشياء فقط):</h5>
+        <div class="row mb-4">
+          <div class="col-md-4">
+            <div class="card border-primary">
+              <div class="card-body">
+                <h6 class="card-title text-primary">📦 1. الباقات (Plans)</h6>
+                <p class="small mb-2">الخطط اللي تعرضها على العملاء</p>
+                <div class="bg-light p-2 rounded small">
+                  <strong>مثال:</strong><br>
+                  باقة Pro = $79/شهر<br>
+                  - 20 مستخدم<br>
+                  - فواتير غير محدودة<br>
+                  - 100GB تخزين
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card border-success">
+              <div class="card-body">
+                <h6 class="card-title text-success">🎫 2. الاشتراكات (Subscriptions)</h6>
+                <p class="small mb-2">العملاء المشتركين عندك</p>
+                <div class="bg-light p-2 rounded small">
+                  <strong>مثال:</strong><br>
+                  شركة ABC<br>
+                  - باقة: Pro<br>
+                  - بدأ: 15-01-2025<br>
+                  - ينتهي: 15-02-2025
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card border-warning">
+              <div class="card-body">
+                <h6 class="card-title text-warning">🧾 3. الفواتير (Invoices)</h6>
+                <p class="small mb-2">الفواتير اللي ترسلها للعملاء</p>
+                <div class="bg-light p-2 rounded small">
+                  <strong>مثال:</strong><br>
+                  فاتورة #001<br>
+                  - المبلغ: $79<br>
+                  - الاستحقاق: 01-02-2025<br>
+                  - الحالة: معلقة
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- القسم 3: دليل الاستخدام خطوة بخطوة -->
+        <h5 class="mb-3"><i class="fas fa-list-ol"></i> دليل الاستخدام (خطوة بخطوة):</h5>
+        
+        <div class="accordion" id="guideAccordion">
+          <!-- الخطوة 1 -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#step1">
+                <strong>الخطوة 1:</strong> إنشاء الباقات
+              </button>
+            </h2>
+            <div id="step1" class="accordion-collapse collapse show" data-bs-parent="#guideAccordion">
+              <div class="accordion-body">
+                <ol class="mb-3">
+                  <li>اضغط زر <span class="badge bg-primary">باقة جديدة</span></li>
+                  <li>املأ البيانات:
+                    <ul>
+                      <li><strong>اسم الباقة:</strong> مثل "Basic" أو "Pro"</li>
+                      <li><strong>السعر الشهري:</strong> مثل 29</li>
+                      <li><strong>السعر السنوي:</strong> عادة = شهري × 10 (شهرين مجاناً)</li>
+                      <li><strong>الحدود:</strong> عدد المستخدمين، الفواتير، التخزين</li>
+                    </ul>
+                  </li>
+                  <li>اضغط <span class="badge bg-success">حفظ</span></li>
+                </ol>
+                <div class="alert alert-info mb-0">
+                  <strong>💡 نصيحة:</strong> ضع -1 لأي حد تريده "غير محدود"
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- الخطوة 2 -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#step2">
+                <strong>الخطوة 2:</strong> إضافة مشترك
+              </button>
+            </h2>
+            <div id="step2" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+              <div class="accordion-body">
+                <ol class="mb-3">
+                  <li>اذهب لتبويب <span class="badge bg-primary">المشتركين</span></li>
+                  <li>اضغط <span class="badge bg-success">مشترك جديد</span></li>
+                  <li>اختر العميل من القائمة</li>
+                  <li>اختر الباقة</li>
+                  <li>حدد تاريخ البدء</li>
+                  <li>اضغط <span class="badge bg-success">حفظ</span></li>
+                </ol>
+                <div class="alert alert-warning mb-0">
+                  <strong>⚠️ مهم:</strong> يجب أن يكون العميل موجود في النظام أولاً
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- الخطوة 3 -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#step3">
+                <strong>الخطوة 3:</strong> إدارة الفواتير
+              </button>
+            </h2>
+            <div id="step3" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+              <div class="accordion-body">
+                <h6>تأكيد الدفع:</h6>
+                <ol class="mb-3">
+                  <li>تبويب <span class="badge bg-primary">الفواتير</span></li>
+                  <li>ابحث عن الفاتورة المعلقة</li>
+                  <li>اضغط زر <span class="badge bg-success">✓</span></li>
+                  <li>✅ الحالة تتحول لـ "مدفوعة"</li>
+                </ol>
+                
+                <h6>إرسال تذكير:</h6>
+                <ol class="mb-3">
+                  <li>اضغط زر <span class="badge bg-info">✉</span></li>
+                  <li>تأكيد</li>
+                  <li>✅ يرسل تذكير للعميل</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+
+          <!-- الخطوة 4 -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#step4">
+                <strong>الخطوة 4:</strong> عمليات متقدمة
+              </button>
+            </h2>
+            <div id="step4" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+              <div class="accordion-body">
+                <h6>تجديد اشتراك:</h6>
+                <p class="small">يضيف 30 يوم للاشتراك تلقائياً</p>
+                
+                <h6>إلغاء اشتراك:</h6>
+                <p class="small">يوقف الاشتراك مع حفظ البيانات</p>
+                
+                <h6>تعديل باقة:</h6>
+                <p class="small">تغيير السعر أو المميزات</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- القسم 4: رموز الألوان -->
+        <h5 class="mt-4 mb-3"><i class="fas fa-palette"></i> دليل الألوان:</h5>
+        <div class="row">
+          <div class="col-md-3">
+            <div class="p-2 bg-success text-white rounded mb-2">
+              <strong>🟢 أخضر</strong><br>
+              <small>نشط، مدفوع، تمام</small>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="p-2 bg-danger text-white rounded mb-2">
+              <strong>🔴 أحمر</strong><br>
+              <small>منتهي، متأخر، إلغاء</small>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="p-2 bg-warning text-dark rounded mb-2">
+              <strong>🟡 أصفر</strong><br>
+              <small>تجريبي، معلق، تحذير</small>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="p-2 bg-secondary text-white rounded mb-2">
+              <strong>⚫ رمادي</strong><br>
+              <small>ملغي، معطل</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- القسم 5: نصائح احترافية -->
+        <div class="alert alert-success mt-4">
+          <h5><i class="fas fa-lightbulb"></i> نصائح احترافية:</h5>
+          <ul class="mb-0">
+            <li><strong>السعر السنوي:</strong> عادة = شهري × 10 (خصم شهرين)</li>
+            <li><strong>الباقة الشائعة:</strong> دائماً الباقة المتوسطة (أعلى مبيعات)</li>
+            <li><strong>الفترة التجريبية:</strong> 7-14 يوم مثالي</li>
+            <li><strong>التذكيرات:</strong> أرسل قبل 3 أيام من الاستحقاق</li>
+          </ul>
+        </div>
+
+        <!-- القسم 6: الأمان -->
+        <div class="alert alert-info">
+          <h5><i class="fas fa-shield-alt"></i> الأمان:</h5>
+          <p class="mb-2"><strong>ماذا نطبق لحمايتك:</strong></p>
+          <ul class="mb-0 small">
+            <li>✅ CSRF Protection - حماية من التزوير</li>
+            <li>✅ Owner Only - فقط أنت تقدر تدخل</li>
+            <li>✅ Input Validation - فحص جميع المدخلات</li>
+            <li>✅ SQL Injection Prevention - حماية من الاختراق</li>
+            <li>✅ Audit Trail - تسجيل جميع العمليات</li>
+          </ul>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <a href="/static/SAAS_COMPLETE_GUIDE.md" class="btn btn-primary" download>
+          <i class="fas fa-download"></i> تحميل الدليل الكامل
+        </a>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 

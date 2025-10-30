@@ -370,11 +370,14 @@
     
     #ledger-table {
         width: 100% !important;
+        max-width: 100% !important;
         border-collapse: collapse !important;
-        font-size: 5.5pt !important; /* ✅ تصغير أكثر */
+        font-size: 5.5pt !important;
         table-layout: fixed !important;
         page-break-inside: auto;
-        line-height: 1.2 !important;
+        line-height: 1.1 !important; /* ✅ مضغوط أكثر */
+        transform: scale(0.98); /* ✅ تصغير طفيف للجدول بالكامل */
+        transform-origin: top right; /* ✅ من الأعلى لليمين */
     }
     
     /* رأس الجدول */
@@ -431,39 +434,59 @@
         print-color-adjust: exact !important;
     }
     
-    /* تحسين عرض الأعمدة - توزيع مضغوط */
+    /* تحسين عرض الأعمدة - توزيع مضغوط للغاية */
     #ledger-table th:nth-child(1),
-    #ledger-table td:nth-child(1) { width: 7% !important; } /* ✅ التاريخ */
+    #ledger-table td:nth-child(1) { 
+        width: 6% !important; /* ✅ التاريخ - مضغوط أكثر */
+        font-size: 5pt !important;
+    }
     
     #ledger-table th:nth-child(2),
-    #ledger-table td:nth-child(2) { width: 8% !important; } /* ✅ رقم العملية */
+    #ledger-table td:nth-child(2) { 
+        width: 7% !important; /* ✅ رقم العملية - مضغوط أكثر */
+        font-size: 5pt !important;
+    }
     
     #ledger-table th:nth-child(3),
-    #ledger-table td:nth-child(3) { width: 7% !important; } /* ✅ النوع */
+    #ledger-table td:nth-child(3) { 
+        width: 6% !important; /* ✅ النوع - مضغوط أكثر */
+        font-size: 5pt !important;
+    }
     
     #ledger-table th:nth-child(4),
     #ledger-table td:nth-child(4) { 
-        width: 13% !important; /* ✅ الجهة المرتبطة */
+        width: 12% !important; /* ✅ الجهة المرتبطة */
         white-space: normal !important;
         word-wrap: break-word !important;
+        font-size: 5.5pt !important;
     }
     
     #ledger-table th:nth-child(5),
     #ledger-table td:nth-child(5) { 
-        width: 28% !important; /* ✅ الوصف - أكبر مساحة للنص الطويل */
+        width: 30% !important; /* ✅ الوصف - أكبر مساحة */
         white-space: normal !important;
         word-wrap: break-word !important;
         overflow-wrap: break-word !important;
+        font-size: 5.5pt !important;
     }
     
     #ledger-table th:nth-child(6),
-    #ledger-table td:nth-child(6) { width: 12% !important; } /* ✅ مدين */
+    #ledger-table td:nth-child(6) { 
+        width: 13% !important; /* ✅ مدين */
+        font-size: 5.5pt !important;
+    }
     
     #ledger-table th:nth-child(7),
-    #ledger-table td:nth-child(7) { width: 12% !important; } /* ✅ دائن */
+    #ledger-table td:nth-child(7) { 
+        width: 13% !important; /* ✅ دائن */
+        font-size: 5.5pt !important;
+    }
     
     #ledger-table th:nth-child(8),
-    #ledger-table td:nth-child(8) { width: 13% !important; } /* ✅ الرصيد */
+    #ledger-table td:nth-child(8) { 
+        width: 13% !important; /* ✅ الرصيد */
+        font-size: 5.5pt !important;
+    }
     
     /* إخفاء عمود الإجراءات */
     #ledger-table th:nth-child(9),
@@ -2737,41 +2760,82 @@ function printLedgerEnhanced() {
     const originalTitle = document.title;
     document.title = `دفتر الأستاذ - ${periodInfo} - ${printDate}`;
     
-    // إظهار رسالة تحضيرية
+    // إظهار رسالة تحضيرية محسّنة
     Swal.fire({
-        title: 'جاري التحضير للطباعة المضغوطة...',
+        title: '🖨️ إعدادات الطباعة المثالية',
         html: `
             <div style="text-align: center;">
-                <i class="fas fa-print fa-3x text-primary mb-3"></i>
-                <p><strong>⚙️ إعدادات الطباعة الموصى بها:</strong></p>
-                <ul style="text-align: right; display: inline-block; font-size: 0.95rem;">
-                    <li>✅ الاتجاه: <strong>أفقي (Landscape)</strong></li>
-                    <li>✅ حجم الورق: <strong>A4</strong></li>
-                    <li>✅ الهوامش: <strong>صغيرة جداً (Minimum)</strong></li>
-                    <li>✅ مقياس الطباعة: <strong>100% أو ملائم للصفحة</strong></li>
-                </ul>
-                <hr style="margin: 10px 0;">
-                <p style="font-size: 0.9rem; color: #28a745;">
-                    <i class="fas fa-check-circle"></i> 
-                    <strong>تم تحسين الجدول:</strong><br>
-                    • جميع الأعمدة ستظهر على A4<br>
-                    • النص الطويل سيلتف داخل الخلايا<br>
-                    • خط صغير مضغوط (5.5pt) لتوفير المساحة
+                <div style="background: #fff3cd; border: 2px solid #ffc107; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+                    <strong style="color: #856404;">⚠️ مهم جداً:</strong><br>
+                    <span style="color: #856404;">تأكد من تطبيق الإعدادات التالية لرؤية كل الأعمدة!</span>
+                </div>
+                
+                <div style="background: #d1ecf1; border: 2px solid #17a2b8; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+                    <p><strong style="color: #0c5460;">⚙️ إعدادات إلزامية:</strong></p>
+                    <ul style="text-align: right; display: inline-block; font-size: 0.9rem; color: #0c5460; list-style: none; padding: 0;">
+                        <li><strong>🔴 الاتجاه: Landscape (أفقي) ← إلزامي!</strong></li>
+                        <li><strong>🔴 الهوامش: Minimum (صغيرة جداً) ← إلزامي!</strong></li>
+                        <li>🟡 حجم الورق: A4</li>
+                        <li>🟡 المقياس: 95-100%</li>
+                    </ul>
+                </div>
+                
+                <div style="background: #d4edda; border: 2px solid #28a745; padding: 10px; border-radius: 5px;">
+                    <p style="color: #155724; margin: 5px 0;">
+                        <i class="fas fa-check-circle"></i> 
+                        <strong>التحسينات المطبقة:</strong>
+                    </p>
+                    <ul style="text-align: right; display: inline-block; font-size: 0.85rem; color: #155724; list-style: none; padding: 0;">
+                        <li>✅ 8 أعمدة على A4</li>
+                        <li>✅ خط مضغوط (5-5.5pt)</li>
+                        <li>✅ word-wrap للنص الطويل</li>
+                        <li>✅ تصغير تلقائي 98%</li>
+                    </ul>
+                </div>
+                
+                <p style="font-size: 0.85rem; color: #666; margin-top: 10px;">
+                    💡 بعد الضغط على "طباعة"، تحقق من Preview قبل الطباعة!
                 </p>
             </div>
         `,
-        icon: 'info',
+        icon: 'warning',
+        iconColor: '#ffc107',
         showConfirmButton: true,
-        confirmButtonText: '🖨️ طباعة الآن',
+        confirmButtonText: '🖨️ فهمت، طباعة الآن!',
         showCancelButton: true,
         cancelButtonText: 'إلغاء',
-        timer: 4000,
-        timerProgressBar: true,
-        width: '500px'
+        confirmButtonColor: '#28a745',
+        cancelButtonColor: '#dc3545',
+        width: '550px',
+        showClass: {
+            popup: 'animate__animated animate__fadeInDown'
+        }
     }).then((result) => {
-        if (result.isConfirmed || result.dismiss === Swal.DismissReason.timer) {
+        if (result.isConfirmed) {
             // تنفيذ الطباعة
             window.print();
+            
+            // رسالة بعد الطباعة
+            setTimeout(() => {
+                Swal.fire({
+                    title: 'تحقق من Preview!',
+                    html: `
+                        <p>تأكد من:</p>
+                        <ul style="text-align: right; display: inline-block;">
+                            <li>✅ جميع الأعمدة (8) ظاهرة</li>
+                            <li>✅ الاتجاه أفقي (Landscape)</li>
+                            <li>✅ الهوامش صغيرة (Minimum)</li>
+                        </ul>
+                        <p style="color: #dc3545; font-weight: bold;">
+                            إذا لم تظهر كل الأعمدة، اضبط المقياس إلى 95% أو أقل!
+                        </p>
+                    `,
+                    icon: 'info',
+                    timer: 5000,
+                    timerProgressBar: true,
+                    showConfirmButton: false
+                });
+            }, 500);
             
             // استعادة العنوان الأصلي
             setTimeout(() => {
