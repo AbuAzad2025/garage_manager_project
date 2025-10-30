@@ -112,7 +112,7 @@
                 </div>
               </div>
               
-              <form method="POST" action="{{ url_for('security.ai_control_panel', tab='assistant') }}">
+              <form method="POST" action="{{ url_for('security.ai_hub', tab='assistant') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="input-group">
                   <input type="text" name="query" class="form-control form-control-lg" 
@@ -133,7 +133,7 @@
              id="config" 
              role="tabpanel">
           
-          <form method="POST" action="{{ url_for('security.ai_control_panel', tab='config') }}">
+          <form method="POST" action="{{ url_for('security.ai_hub', tab='config') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="row">
               <div class="col-md-6">
@@ -362,7 +362,7 @@
               <strong>🔍 اختبار AI</strong>
             </div>
             <div class="card-body">
-              <form method="POST" action="{{ url_for('security.ai_control_panel', tab='diagnostics') }}">
+              <form method="POST" action="{{ url_for('security.ai_hub', tab='diagnostics') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="mb-3">
                   <label class="form-label"><strong>استعلام تجريبي:</strong></label>
@@ -399,7 +399,7 @@
             <i class="fas fa-graduation-cap"></i> <strong>تدريب AI:</strong> أضف بيانات وأمثلة لتحسين أداء النظام
           </div>
           
-          <form method="POST" action="{{ url_for('security.ai_control_panel', tab='training') }}">
+          <form method="POST" action="{{ url_for('security.ai_hub', tab='training') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="card mb-3">
               <div class="card-header bg-primary text-white">

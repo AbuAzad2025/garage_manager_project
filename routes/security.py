@@ -553,43 +553,8 @@ def ai_assistant():
 @security_bp.route('/ai-diagnostics')
 @owner_only
 def ai_diagnostics():
-    """واجهة التشخيص الذاتي للمساعد الذكي"""
-    from services.ai_data_awareness import load_data_schema, auto_build_if_needed
-    from services.ai_auto_discovery import load_system_map
-    from services.ai_self_review import analyze_recent_interactions, get_system_status
-    import os
-    
-    # تحميل البيانات
-    data_schema = auto_build_if_needed()
-    system_map = load_system_map()
-    interactions_analysis = analyze_recent_interactions(100)
-    system_status = get_system_status()
-    
-    diagnostics = {
-        'data_awareness': {
-            'status': 'active' if data_schema else 'inactive',
-            'tables_known': data_schema['statistics']['total_tables'] if data_schema else 0,
-            'columns_known': data_schema['statistics']['total_columns'] if data_schema else 0,
-            'relationships_known': data_schema['statistics']['total_relationships'] if data_schema else 0,
-            'functional_modules': len(data_schema['functional_mapping']) if data_schema else 0,
-        },
-        'navigation_awareness': {
-            'status': 'active' if system_map else 'inactive',
-            'routes_known': system_map['statistics']['total_routes'] if system_map else 0,
-            'templates_known': system_map['statistics']['total_templates'] if system_map else 0,
-            'blueprints_known': len(system_map['blueprints']) if system_map else 0,
-        },
-        'performance': {
-            'total_interactions': interactions_analysis.get('total', 0),
-            'avg_confidence': interactions_analysis.get('avg_confidence', 0),
-            'quality_score': interactions_analysis.get('quality_score', 'N/A'),
-            'weak_count': interactions_analysis.get('weak_count', 0),
-            'weak_areas': interactions_analysis.get('weak_areas', []),
-        },
-        'system_health': system_status.get('health', 'unknown'),
-    }
-    
-    return render_template('security/ai_diagnostics.html', diagnostics=diagnostics)
+    """Redirect to AI Hub - Diagnostics Tab"""
+    return redirect(url_for('security.ai_hub', tab='diagnostics'))
 
 
 @security_bp.route('/system-map', methods=['GET', 'POST'])
@@ -636,6 +601,8 @@ def system_map():
 @security_bp.route('/ai-training', methods=['GET', 'POST'])
 @owner_only
 def ai_training():
+    """Redirect to AI Hub - Training Tab"""
+    return redirect(url_for('security.ai_hub', tab='training'))
     """تدريب المساعد الذكي - للمالك فقط"""
     """واجهة التدريب الشامل - نظام الوعي الذاتي الكامل"""
     from services.ai_knowledge import get_knowledge_base, KNOWLEDGE_CACHE_FILE, TRAINING_LOG_FILE
@@ -984,6 +951,8 @@ def decrypt_tool():
 @security_bp.route('/ai-analytics')
 @owner_only
 def ai_analytics():
+    """Redirect to AI Hub - Analytics Tab"""
+    return redirect(url_for('security.ai_hub', tab='analytics'))
     """تحليلات ذكاء اصطناعي متقدمة"""
     # تحليلات AI
     analytics = {
@@ -1061,6 +1030,8 @@ def notifications_center():
 @security_bp.route('/ai-config', methods=['GET', 'POST'])
 @owner_only
 def ai_config():
+    """Redirect to AI Hub - Config Tab"""
+    return redirect(url_for('security.ai_hub', tab='config'))
     """إعدادات AI - Groq API Keys - للمالك فقط"""
     """تكوين AI للمساعد الذكي - دعم مفاتيح متعددة"""
     if request.method == 'POST':

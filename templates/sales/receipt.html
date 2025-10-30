@@ -122,6 +122,14 @@
   </div>
 
   <div class="box"><strong>ملاحظات:</strong> {{ sale.notes or '—' }}</div>
+  
+  {% if sale.fx_rate_used and sale.fx_rate_used > 0 and sale.currency != 'ILS' %}
+  <div class="box" style="background:#e3f2fd; border:1px solid #2196f3; border-radius:8px;">
+    <strong>💱 سعر الصرف المستخدم:</strong> 
+    1 {{ sale.currency }} = {{ "%.4f"|format(sale.fx_rate_used) }} ILS
+    <small style="color:#666;">({{ sale.fx_rate_source or 'تلقائي' }} - {{ sale.fx_rate_timestamp.strftime('%Y-%m-%d') if sale.fx_rate_timestamp else 'اليوم' }})</small>
+  </div>
+  {% endif %}
 
   <div class="sign-row">
     <div class="sign">توقيع البائع<br><br>{{ sale.seller.username if sale.seller else '________' }}</div>

@@ -136,6 +136,10 @@
               <div class="form-group col-span-4">
                 <label for="currency"><i class="fas fa-dollar-sign mr-1"></i> العملة <span class="text-danger">*</span></label>
                 {{ form.currency(class="form-control", id="currency") }}
+                <div class="alert alert-warning mt-2 mb-0 py-2 px-3" style="font-size:0.85rem; border-radius:8px; border-left:4px solid #ffc107;">
+                  <i class="fas fa-exclamation-triangle"></i> <strong>انتبه:</strong>
+                  تحقق من عملة كل منتج! التحويل يتم تلقائياً حسب سعر الصرف.
+                </div>
               </div>
 
               <div class="form-group col-span-4">
@@ -270,6 +274,10 @@
                   <tr class="table-success">
                     <th class="text-right font-weight-bold"><i class="fas fa-equals mr-1"></i> الإجمالي النهائي:</th>
                     <td id="totalAmount" class="font-weight-bold text-right grand">0.00 {{ form.currency.data }}</td>
+                  </tr>
+                  <tr id="fxRateRow" style="display:none;" class="table-info">
+                    <th class="text-right"><i class="fas fa-exchange-alt mr-1"></i> سعر الصرف المستخدم:</th>
+                    <td id="fxRateInfo" class="text-right small"></td>
                   </tr>
                 </table>
               </div>

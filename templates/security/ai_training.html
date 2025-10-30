@@ -1,232 +1,0 @@
-{% extends 'base.html' %}
-
-{% block title %}تدريب المساعد الذكي - AI Training{% endblock %}
-
-{% block content %}
-{% include 'security/_navigation.html' %}
-
-<div class="container-fluid py-4">
-  <div class="row mb-4">
-    <div class="col-12">
-      <h2 class="text-primary">
-        <i class="fas fa-graduation-cap"></i> تدريب المساعد الذكي
-        <span class="badge bg-success">Owner Only</span>
-      </h2>
-      <p class="text-muted">إدارة الذاكرة المعرفية وإعادة فهرسة النظام</p>
-    </div>
-  </div>
-
-  <div class="row g-4">
-    <div class="col-lg-6">
-      <div class="card border-primary">
-        <div class="card-header bg-primary text-white">
-          <h5 class="mb-0"><i class="fas fa-brain"></i> حالة الذاكرة المعرفية</h5>
-        </div>
-        <div class="card-body">
-          <table class="table table-borderless">
-            <tr>
-              <th width="40%">📊 عدد الموديلات:</th>
-              <td><strong class="text-primary">{{ structure['models_count'] }}</strong></td>
-            </tr>
-            <tr>
-              <th>🔗 عدد المسارات:</th>
-              <td><strong class="text-info">{{ structure['routes_count'] }}</strong></td>
-            </tr>
-            <tr>
-              <th>📄 عدد الواجهات:</th>
-              <td><strong class="text-success">{{ structure['templates_count'] }}</strong></td>
-            </tr>
-            <tr>
-              <th>🤝 عدد العلاقات:</th>
-              <td><strong class="text-warning">{{ structure['relationships_count'] }}</strong></td>
-            </tr>
-            <tr>
-              <th>📜 القواعد التشغيلية:</th>
-              <td><strong class="text-danger">{{ structure['business_rules_count'] }}</strong></td>
-            </tr>
-            <tr>
-              <th>📅 آخر فهرسة:</th>
-              <td>
-                {% if last_indexed != 'لم يتم الفهرسة بعد' %}
-                  {{ last_indexed[:19] }}
-                {% else %}
-                  <span class="text-muted">{{ last_indexed }}</span>
-                {% endif %}
-              </td>
-            </tr>
-            <tr>
-              <th>🔄 عدد مرات الفهرسة:</th>
-              <td><span class="badge bg-secondary">{{ index_count }}</span></td>
-            </tr>
-            <tr>
-              <th>💾 الذاكرة المستمرة:</th>
-              <td>
-                {% if cache_exists %}
-                  <span class="badge bg-success"><i class="fas fa-check"></i> موجودة</span>
-                {% else %}
-                  <span class="badge bg-warning"><i class="fas fa-times"></i> غير موجودة</span>
-                {% endif %}
-              </td>
-            </tr>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-lg-6">
-      <div class="card border-warning">
-        <div class="card-header bg-warning text-dark">
-          <h5 class="mb-0"><i class="fas fa-tools"></i> أدوات التدريب</h5>
-        </div>
-        <div class="card-body">
-          <div class="d-grid gap-3">
-            <form method="POST" onsubmit="return confirm('🧠 سيتم التدريب الشامل (Discovery + Profiling + Tests). قد يستغرق دقيقة. المتابعة؟');">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <input type="hidden" name="action" value="comprehensive_training">
-              <button type="submit" class="btn btn-gradient-primary btn-lg w-100 shadow">
-                <i class="fas fa-brain"></i> تدريب شامل (Comprehensive Training)
-              </button>
-              <small class="text-success d-block mt-2">
-                <strong>يشمل:</strong> Auto Discovery • Data Profiling • Knowledge Update • Self Tests • Performance Analysis
-              </small>
-            </form>
-            
-            <hr>
-            
-            <form method="POST" onsubmit="return confirm('⚠️ سيتم إعادة فهرسة كل النظام. المتابعة؟');">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <input type="hidden" name="action" value="reindex">
-              <button type="submit" class="btn btn-success btn-lg w-100">
-                <i class="fas fa-sync-alt"></i> إعادة الفهرسة الشاملة
-              </button>
-              <small class="text-muted d-block mt-2">
-                يفهرس كل Models, Routes, Templates والعلاقات بينها
-              </small>
-            </form>
-
-            <form method="POST" onsubmit="return confirm('⚠️ سيتم حذف الذاكرة المستمرة. متأكد؟');">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <input type="hidden" name="action" value="clear_cache">
-              <button type="submit" class="btn btn-danger btn-lg w-100">
-                <i class="fas fa-trash"></i> حذف الذاكرة المستمرة
-              </button>
-              <small class="text-muted d-block mt-2">
-                يحذف الذاكرة المحفوظة ويبدأ من جديد
-              </small>
-            </form>
-
-            <a href="{{ url_for('security.ai_assistant') }}" class="btn btn-primary btn-lg w-100">
-              <i class="fas fa-robot"></i> افتح المساعد الذكي
-            </a>
-
-            <a href="{{ url_for('security.ai_config') }}" class="btn btn-info btn-lg w-100">
-              <i class="fas fa-key"></i> إدارة المفاتيح
-            </a>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="row mt-4">
-    <div class="col-12">
-      <div class="card border-info">
-        <div class="card-header bg-info text-white">
-          <h5 class="mb-0"><i class="fas fa-history"></i> سجل التدريب (آخر 10 أحداث)</h5>
-        </div>
-        <div class="card-body">
-          {% if training_logs %}
-          <div class="table-responsive">
-            <table class="table table-hover table-sm">
-              <thead class="table-light">
-                <tr>
-                  <th width="5%">#</th>
-                  <th width="25%">الحدث</th>
-                  <th width="20%">المستخدم</th>
-                  <th width="25%">التاريخ</th>
-                  <th width="25%">الوقت</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for log in training_logs|reverse %}
-                  {% if log is mapping %}
-                <tr>
-                  <td>{{ loop.index }}</td>
-                  <td>
-                    {% if log.get('event') == 'manual_reindex' %}
-                      <span class="badge bg-success">إعادة فهرسة</span>
-                    {% elif log.get('event') == 'clear_cache' %}
-                      <span class="badge bg-danger">حذف ذاكرة</span>
-                    {% elif log.get('event') == 'comprehensive_training' %}
-                      <span class="badge bg-primary">تدريب شامل</span>
-                    {% else %}
-                      {{ log.get('event', 'N/A') }}
-                    {% endif %}
-                  </td>
-                  <td>User ID: {{ log.get('user_id', 'N/A') }}</td>
-                  <td>
-                    {% set ts = log.get('timestamp', '') %}
-                    {{ ts[:10] if ts else 'N/A' }}
-                  </td>
-                  <td>
-                    {% set ts = log.get('timestamp', '') %}
-                    {{ ts[11:19] if ts and ts|length > 19 else 'N/A' }}
-                  </td>
-                </tr>
-                  {% endif %}
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-          {% else %}
-          <div class="alert alert-info">
-            <i class="fas fa-info-circle"></i> لا توجد أحداث تدريب حتى الآن
-          </div>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="row mt-4">
-    <div class="col-12">
-      <div class="card border-success">
-        <div class="card-header bg-success text-white">
-          <h5 class="mb-0"><i class="fas fa-lightbulb"></i> معلومات التدريب</h5>
-        </div>
-        <div class="card-body">
-          <h6 class="text-primary">📚 ماذا يفعل التدريب؟</h6>
-          <ul>
-            <li><strong>الفهرسة الشاملة:</strong> تحليل كل ملفات النظام (Models, Routes, Templates)</li>
-            <li><strong>استخراج العلاقات:</strong> فهم العلاقات بين الجداول والوحدات</li>
-            <li><strong>القواعد التشغيلية:</strong> استخراج القواعد والشروط من الكود</li>
-            <li><strong>قواعد المحاسبة:</strong> العملات وأسعار الصرف والتحويلات</li>
-            <li><strong>الذاكرة المستمرة:</strong> حفظ المعرفة بين الجلسات (لا يعيد الفهرسة كل مرة)</li>
-          </ul>
-
-          <hr>
-
-          <h6 class="text-warning">⚙️ متى تعيد الفهرسة؟</h6>
-          <ul>
-            <li>بعد إضافة Models أو Routes جديدة</li>
-            <li>بعد تعديل بنية قاعدة البيانات</li>
-            <li>بعد إضافة وحدات جديدة</li>
-            <li>إذا لاحظت أخطاء في إجابات المساعد</li>
-          </ul>
-
-          <hr>
-
-          <h6 class="text-danger">🔒 الأمان:</h6>
-          <p>
-            <i class="fas fa-shield-alt"></i> واجهة التدريب محمية - Owner فقط<br>
-            <i class="fas fa-save"></i> الذاكرة محفوظة في: <code>instance/ai_knowledge_cache.json</code><br>
-            <i class="fas fa-clock"></i> سجل التدريب: <code>instance/ai_training_log.json</code>
-          </p>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-{% endblock %}
-

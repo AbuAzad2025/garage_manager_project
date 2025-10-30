@@ -299,6 +299,7 @@
                 priceInp.value=toNum(info.price).toFixed(2);
                 if(info.original_currency && info.original_currency !== info.target_currency){
                   console.log(`💱 تحويل: ${info.original_price} ${info.original_currency} → ${info.price} ${info.target_currency}`);
+                  updateFxRateDisplay(info);
                 }
                 recalc();
               }
@@ -327,6 +328,38 @@
       const data = await fetchProductInfo(pid,wid,targetCurrency);
       const avail = Number.isFinite(+data.available)? +data.available : null;
       badge.textContent = (avail===null?'':'متاح: '+avail);
+    }
+    
+    const fxRatesUsed = new Map();
+    
+    function updateFxRateDisplay(info){
+      if(!info || !info.original_currency || !info.target_currency) return;
+      if(info.original_currency === info.target_currency) return;
+      
+      const key = `${info.original_currency}/${info.target_currency}`;
+      const rate = info.price / info.original_price;
+      fxRatesUsed.set(key, rate.toFixed(4));
+      
+      const fxRow = qs('#fxRateRow');
+      const fxInfo = qs('#fxRateInfo');
+      if(!fxRow || !fxInfo) return;
+      
+      const entries = Array.from(fxRatesUsed.entries());
+      if(entries.length > 0){
+        const ratesHtml = entries.map(([pair, rate]) => 
+          `<span class="badge bg-info me-1">${pair} = ${rate}</span>`
+        ).join(' ');
+        fxInfo.innerHTML = ratesHtml;
+        fxRow.style.display = '';
+      } else {
+        fxRow.style.display = 'none';
+      }
+    }
+    
+    function clearFxRateDisplay(){
+      fxRatesUsed.clear();
+      const fxRow = qs('#fxRateRow');
+      if(fxRow) fxRow.style.display = 'none';
     }
 
     function bindAll(){ qsa('.sale-line',wrap).forEach(bindRow); }
@@ -388,6 +421,8 @@
         const newCurrency = currency.value || 'ILS';
         console.log('🔄 تغيير العملة إلى:', newCurrency);
         
+        clearFxRateDisplay();
+        
         // إعادة تحويل أسعار كل البنود
         const rows = qsa('.sale-line', wrap);
         for (const row of rows) {
@@ -403,7 +438,10 @@
               const info = await fetchProductInfo(pid, wid, newCurrency);
               if (info && toNum(info.price) > 0) {
                 priceInp.value = toNum(info.price).toFixed(2);
-                console.log(`  💱 تحديث السعر: ${info.original_price} ${info.original_currency} → ${info.price} ${info.target_currency}`);
+                if(info.original_currency && info.original_currency !== info.target_currency){
+                  console.log(`  💱 تحديث السعر: ${info.original_price} ${info.original_currency} → ${info.price} ${info.target_currency}`);
+                  updateFxRateDisplay(info);
+                }
               }
             } catch (e) {
               console.error('خطأ في تحديث السعر:', e);

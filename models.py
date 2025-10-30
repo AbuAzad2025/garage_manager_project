@@ -4937,6 +4937,22 @@ def _sale_before_insert_ref(mapper, connection, target: "Sale"):
         prefix = datetime.now(timezone.utc).strftime("SAL%Y%m%d")
         count = connection.execute(sa_text("SELECT COUNT(*) FROM sales WHERE sale_number LIKE :pfx"), {"pfx": f"{prefix}-%"}).scalar() or 0
         target.sale_number = f"{prefix}-{count+1:04d}"
+    
+    # حفظ سعر الصرف تلقائياً للمبيعات (فقط عند الإنشاء)
+    sale_currency = target.currency or "ILS"
+    default_currency = "ILS"
+    
+    if sale_currency != default_currency:
+        try:
+            rate_info = get_fx_rate_with_fallback(sale_currency, default_currency)
+            if rate_info and rate_info.get('success'):
+                target.fx_rate_used = Decimal(str(rate_info.get('rate', 0)))
+                target.fx_rate_source = rate_info.get('source', 'unknown')
+                target.fx_rate_timestamp = datetime.now(timezone.utc)
+                target.fx_base_currency = sale_currency
+                target.fx_quote_currency = default_currency
+        except Exception:
+            pass
 
 @event.listens_for(Sale, "after_insert", propagate=True)
 @event.listens_for(Sale, "after_update", propagate=True)

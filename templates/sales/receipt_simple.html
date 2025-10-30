@@ -109,6 +109,15 @@
   {% if sale.notes %}
   <div class="notes-box" style="margin-top:10px"><strong>ملاحظات:</strong> {{ sale.notes }}</div>
   {% endif %}
+  
+  <!-- سعر الصرف (إذا وُجد تحويل) -->
+  {% if sale.fx_rate_used and sale.fx_rate_used > 0 and sale.currency != 'ILS' %}
+  <div style="margin-top:8px; padding:6px; border:1px dashed #999; background:#f8f9fa; font-size:10px;">
+    <strong>💱 سعر الصرف:</strong> 
+    1 {{ sale.currency }} = {{ "%.4f"|format(sale.fx_rate_used) }} ILS
+    <span style="color:#666;">({{ sale.fx_rate_source or 'تلقائي' }})</span>
+  </div>
+  {% endif %}
 
   <!-- أزرار الطباعة -->
   <div class="text-center mt-3 no-print" style="padding:8px 0">
