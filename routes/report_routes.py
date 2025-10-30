@@ -674,10 +674,10 @@ def expenses_report():
     end = _parse_date(request.args.get("end"))
     
     # فلاتر إضافية
-    expense_type = request.args.get("type")  # نوع المصروف
-    employee_id = request.args.get("employee_id")  # الموظف
-    warehouse_id = request.args.get("warehouse_id")  # المستودع
-    partner_id = request.args.get("partner_id")  # الشريك
+    expense_type = (request.args.get("type") or "").strip()  # نوع المصروف (id أو اسم)
+    employee_id = request.args.get("employee_id")  # الموظف (Employee.id)
+    warehouse_id = request.args.get("warehouse_id")  # المستودع (Warehouse.id)
+    partner_id = request.args.get("partner_id")  # الشريك (Partner.id)
     is_paid = request.args.get("is_paid")  # حالة الدفع
     
     q = Expense.query
@@ -688,13 +688,28 @@ def expenses_report():
     
     # تطبيق الفلاتر الإضافية
     if expense_type:
-        q = q.filter(Expense.type_id == expense_type)
+        # دعم الفلترة بالمعرّف أو الاسم
+        from models import ExpenseType as _ET
+        try:
+            et_id = int(expense_type)
+            q = q.filter(Expense.type_id == et_id)
+        except Exception:
+            q = q.join(_ET, Expense.type_id == _ET.id).filter(_ET.name.ilike(f"%{expense_type}%"))
     if employee_id:
-        q = q.filter(Expense.employee_id == employee_id)
+        try:
+            q = q.filter(Expense.employee_id == int(employee_id))
+        except Exception:
+            pass
     if warehouse_id:
-        q = q.filter(Expense.warehouse_id == warehouse_id)
+        try:
+            q = q.filter(Expense.warehouse_id == int(warehouse_id))
+        except Exception:
+            pass
     if partner_id:
-        q = q.filter(Expense.partner_id == partner_id)
+        try:
+            q = q.filter(Expense.partner_id == int(partner_id))
+        except Exception:
+            pass
     if is_paid in ['true', '1']:
         q = q.filter(Expense.is_paid == True)
     elif is_paid in ['false', '0']:
@@ -724,9 +739,12 @@ def expenses_report():
         emp_labels.append(str(k))
         emp_values.append(v)
     
-    # جلب قائمة الموظفين للفلتر
-    from models import Employee
+    # جلب قوائم للفلاتر
+    from models import Employee, Warehouse, Partner, ExpenseType
     employees = Employee.query.order_by(Employee.name).all()
+    warehouses = Warehouse.query.order_by(Warehouse.name).all()
+    partners = Partner.query.order_by(Partner.name).all()
+    expense_types = ExpenseType.query.filter_by(is_active=True).order_by(ExpenseType.name).all()
     
     return render_template(
         "reports/expenses.html",
@@ -740,6 +758,9 @@ def expenses_report():
         selected_partner_id=int(partner_id) if partner_id else None,
         selected_is_paid=is_paid or "",
         employees=employees,
+        warehouses=warehouses,
+        partners=partners,
+        expense_types=expense_types,
         FIELD_LABELS=FIELD_LABELS,
         MODEL_LABELS=MODEL_LABELS,
         type_labels=type_labels,

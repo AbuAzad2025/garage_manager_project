@@ -51,8 +51,12 @@
             <label class="form-label fw-semibold">
               <i class="fas fa-tags text-info"></i> نوع المصروف
             </label>
-            <input type="text" name="type" value="{{ selected_type or '' }}" 
-                   class="form-control" placeholder="أدخل نوع المصروف...">
+            <select name="type" class="form-select">
+              <option value="">— جميع الأنواع —</option>
+              {% for t in expense_types %}
+                <option value="{{ t.id }}" {% if selected_type|string == t.id|string %}selected{% endif %}>{{ t.name }}</option>
+              {% endfor %}
+            </select>
           </div>
           
           <!-- الموظف -->
@@ -79,6 +83,32 @@
               <option value="">— الكل —</option>
               <option value="true" {% if selected_is_paid == 'true' %}selected{% endif %}>مدفوع</option>
               <option value="false" {% if selected_is_paid == 'false' %}selected{% endif %}>غير مدفوع</option>
+            </select>
+          </div>
+
+          <!-- المستودع -->
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">
+              <i class="fas fa-warehouse text-secondary"></i> المستودع
+            </label>
+            <select name="warehouse_id" class="form-select">
+              <option value="">— جميع المستودعات —</option>
+              {% for w in warehouses %}
+                <option value="{{ w.id }}" {% if selected_warehouse_id == w.id %}selected{% endif %}>{{ w.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- الشريك -->
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">
+              <i class="fas fa-handshake text-secondary"></i> الشريك
+            </label>
+            <select name="partner_id" class="form-select">
+              <option value="">— جميع الشركاء —</option>
+              {% for p in partners %}
+                <option value="{{ p.id }}" {% if selected_partner_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+              {% endfor %}
             </select>
           </div>
           
@@ -213,12 +243,12 @@
                 <tr>
                   <td>{{ e.id }}</td>
                   <td>{{ e.date }}</td>
-                  <td>{{ e.type_id }}</td>
+                  <td>{{ e.type.name if e.type else e.type_id }}</td>
                   <td class="text-end">{{ "{:,.2f}".format(e.amount or 0) }}</td>
                   <td>{{ e.currency or "—" }}</td>
-                  <td>{{ e.employee_id or "—" }}</td>
-                  <td>{{ e.warehouse_id or "—" }}</td>
-                  <td>{{ e.partner_id or "—" }}</td>
+                  <td>{{ e.employee.name if e.employee else "—" }}</td>
+                  <td>{{ e.warehouse.name if e.warehouse else "—" }}</td>
+                  <td>{{ e.partner.name if e.partner else "—" }}</td>
                   <td>{{ e.desc or "—" }}</td>
                   <td>{{ "نعم" if e.is_paid else "لا" }}</td>
                 </tr>
