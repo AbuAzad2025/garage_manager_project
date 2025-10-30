@@ -157,6 +157,40 @@ def dashboard():
                 today_outgoing += amt_ils
         except:
             pass
+    
+    # 3️⃣ إضافة المصاريف اليومية (صادر)
+    today_expenses = Expense.query.filter(
+        Expense.date >= day_start_dt.date(),
+        Expense.date < day_end_dt.date(),
+    ).all()
+    
+    for expense in today_expenses:
+        try:
+            amt = Decimal(str(expense.amount or 0))
+            
+            if expense.currency == "ILS":
+                today_outgoing += amt
+            else:
+                today_outgoing += convert_amount(amt, expense.currency, "ILS", expense.date)
+        except:
+            pass
+    
+    # 4️⃣ إضافة فواتير الموردين المستحقة (صادر)
+    today_invoices = Invoice.query.filter(
+        Invoice.date >= day_start_dt.date(),
+        Invoice.date < day_end_dt.date(),
+    ).all()
+    
+    for invoice in today_invoices:
+        try:
+            amt = Decimal(str(invoice.total_amount or 0))
+            
+            if invoice.currency == "ILS":
+                today_outgoing += amt
+            else:
+                today_outgoing += convert_amount(amt, invoice.currency, "ILS", invoice.date)
+        except:
+            pass
 
     today_net = float(today_incoming - today_outgoing)
     today_incoming = float(today_incoming)
@@ -202,6 +236,40 @@ def dashboard():
                 week_incoming += amt_ils
             else:
                 week_outgoing += amt_ils
+        except:
+            pass
+    
+    # المصاريف الأسبوعية (صادر)
+    week_expenses = Expense.query.filter(
+        Expense.date >= week_start_dt.date(),
+        Expense.date < week_end_dt.date(),
+    ).all()
+    
+    for expense in week_expenses:
+        try:
+            amt = Decimal(str(expense.amount or 0))
+            
+            if expense.currency == "ILS":
+                week_outgoing += amt
+            else:
+                week_outgoing += convert_amount(amt, expense.currency, "ILS", expense.date)
+        except:
+            pass
+    
+    # الفواتير الأسبوعية (صادر)
+    week_invoices = Invoice.query.filter(
+        Invoice.date >= week_start_dt.date(),
+        Invoice.date < week_end_dt.date(),
+    ).all()
+    
+    for invoice in week_invoices:
+        try:
+            amt = Decimal(str(invoice.total_amount or 0))
+            
+            if invoice.currency == "ILS":
+                week_outgoing += amt
+            else:
+                week_outgoing += convert_amount(amt, invoice.currency, "ILS", invoice.date)
         except:
             pass
 
