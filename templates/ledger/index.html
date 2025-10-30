@@ -4,6 +4,39 @@
 
 {% block head_extra %}
 <style>
+/* تمديد الصفحة على كامل العرض */
+.content {
+    padding-left: 5px !important;
+    padding-right: 5px !important;
+}
+
+.container-fluid {
+    max-width: 100% !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+}
+
+/* جعل الجدول يتمدد بشكل كامل */
+.table-responsive {
+    overflow-x: auto;
+    width: 100%;
+}
+
+#ledger-table {
+    width: 100%;
+    min-width: 1200px;
+    font-size: 0.9rem;
+}
+
+/* تقليل padding في card-body */
+.card-body {
+    padding: 15px 10px !important;
+}
+
+.card {
+    margin-bottom: 10px;
+}
+
 /* تحسين تباين الألوان */
 .ledger-card {
     border-radius: 12px;
@@ -488,17 +521,17 @@
                         </div>
                         <div class="card-body">
                             <div class="table-responsive">
-                                <table class="table table-bordered table-hover" id="ledger-table">
-                                    <thead>
+                                <table class="table table-bordered table-hover table-sm" id="ledger-table">
+                                    <thead class="table-light">
                                         <tr>
-                                            <th style="width: 100px;">التاريخ</th>
-                                            <th style="width: 120px;">رقم القيد</th>
-                                            <th style="width: 150px;">نوع العملية</th>
+                                            <th style="width: 90px;">التاريخ</th>
+                                            <th style="width: 100px;">رقم القيد</th>
+                                            <th style="width: 130px;">نوع العملية</th>
                                             <th>البيان</th>
-                                            <th style="width: 130px;" class="text-end">المدين (منه)</th>
-                                            <th style="width: 130px;" class="text-end">الدائن (له)</th>
-                                            <th style="width: 130px;" class="text-end">الرصيد</th>
-                                            <th style="width: 100px;">الإجراءات</th>
+                                            <th style="width: 110px;" class="text-end">المدين (منه)</th>
+                                            <th style="width: 110px;" class="text-end">الدائن (له)</th>
+                                            <th style="width: 110px;" class="text-end">الرصيد</th>
+                                            <th style="width: 90px;">الإجراءات</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -542,7 +575,7 @@
                         </div>
                         <div class="card-body">
                             <div class="table-responsive">
-                                <table class="table table-bordered" id="pnl-table">
+                                <table class="table table-bordered table-sm" id="pnl-table">
                                     <tbody>
                                         <!-- الإيرادات -->
                                         <tr class="table-success">
@@ -639,7 +672,7 @@
                         </div>
                         <div class="card-body">
                             <div class="table-responsive">
-                                <table class="table table-bordered table-hover" id="receivables-detailed-table">
+                                <table class="table table-bordered table-hover table-sm" id="receivables-detailed-table">
                                     <thead>
                                         <tr>
                                             <th>الجهة</th>
@@ -901,7 +934,7 @@
                         </div>
                         <div class="card-body">
                             <div class="table-responsive">
-                                <table class="table table-bordered table-hover" id="manual-entries-table">
+                                <table class="table table-bordered table-hover table-sm" id="manual-entries-table">
                                     <thead>
                                         <tr>
                                             <th>التاريخ</th>
