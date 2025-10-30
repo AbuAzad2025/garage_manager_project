@@ -25,12 +25,12 @@
           {% for task in service.tasks %}
             {% set line = task.line_total
                           if task.line_total is not none
-                          else ((task.quantity or 0) * (task.unit_price or 0) * (1 - (task.discount or 0)/100)) %}
+                          else ((task.quantity or 0) * (task.unit_price or 0) - (task.discount or 0)) %}
             <tr>
               <td>
                 <strong>{{ task.description or '—' }}</strong>
                 {% if task.discount and task.discount > 0 %}
-                <br><small class="text-warning">خصم: {{ '%.1f'|format(task.discount) }}%</small>
+                <br><small class="text-warning">خصم: {{ '%.2f'|format(task.discount) }} ₪</small>
                 {% endif %}
               </td>
               <td>
@@ -117,8 +117,8 @@
           <input class="form-control" type="number" name="unit_price" min="0" step="0.01" value="0" placeholder="0.00">
         </div>
         <div class="col-md-3">
-          <label class="form-label fw-bold"><i class="fas fa-percent"></i> خصم %</label>
-          <input class="form-control" type="number" name="discount" min="0" max="100" step="0.01" value="0" placeholder="0.00">
+          <label class="form-label fw-bold"><i class="fas fa-tag"></i> الخصم (₪)</label>
+          <input class="form-control" type="number" name="discount" min="0" max="999999" step="0.01" value="0" placeholder="مبلغ الخصم">
         </div>
         <div class="col-md-3">
           <label class="form-label fw-bold"><i class="fas fa-receipt"></i> ضريبة %</label>

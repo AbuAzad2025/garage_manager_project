@@ -4,7 +4,7 @@
 {% block page_title %}المصاريف{% endblock %}
 
 {% block breadcrumb %}
-<li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">الرئيسية</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
 <li class="breadcrumb-item active">المصاريف</li>
 {% endblock %}
 
@@ -40,6 +40,7 @@
     padding: 1.5rem;
     margin-bottom: 1.5rem;
     box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    direction: rtl;
   }
   
   .expense-nav .nav-link {
@@ -50,6 +51,7 @@
     transition: all 0.3s ease;
     background: rgba(255, 255, 255, 0.1);
     margin: 0 0.25rem;
+    text-align: center;
   }
   
   .expense-nav .nav-link:hover {
@@ -61,6 +63,15 @@
     background: white;
     color: #667eea;
     box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  }
+  
+  /* تكيّف الـ tabs مع اتجاه الـ sidebar */
+  body[data-sidebar-position="right"] .expense-nav {
+    direction: ltr;
+  }
+  
+  body[data-sidebar-position="left"] .expense-nav {
+    direction: rtl;
   }
 </style>
 {% endblock %}

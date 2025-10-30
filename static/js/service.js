@@ -159,20 +159,13 @@
     $hint.text('المتاح في المخزن: ' + (available == null ? '-' : available));
   }
 
+  // تم إلغاء حسابات الخصم التلقائية - الآن الخصم مبلغ صحيح
   function recalcPriceFromDiscount($scope) {
-    var $price = $scope.find('input[name="unit_price"]');
-    var $disc  = $scope.find('input[name="discount"]');
-    var base   = toNum($price.data('basePrice'));
-    var d      = toNum($disc.val());
-    if (base > 0) { var p = base * (1 - (d / 100)); $price.val(round2(p)); }
+    // لا حاجة لإعادة حساب السعر - الخصم مبلغ مباشر
   }
 
   function recalcDiscountFromPrice($scope) {
-    var $price = $scope.find('input[name="unit_price"]');
-    var $disc  = $scope.find('input[name="discount"]');
-    var base   = toNum($price.data('basePrice'));
-    var p      = toNum($price.val());
-    if (base > 0) { var d = ((base - p) / base) * 100; $disc.val(round2(d)); }
+    // لا حاجة لإعادة حساب الخصم - الخصم مبلغ مباشر
   }
 
   function setQueryParam(url, key, val) {
@@ -291,7 +284,7 @@
       $('#parts-list').append(tpl);
       var $row = $('#parts-list .part-line').last();
       $row.find('.select2').each(function () { var $el = $(this); if ($el.data('bound')) return; var ep = $el.attr('data-endpoint'); if (ep) initSelect2Ajax($el, ep); $el.data('bound', true); });
-      var $d = $row.find('input[name="discount"]'); if ($d.length) { $d.attr('min','-100').attr('max','100'); }
+      var $d = $row.find('input[name="discount"]'); if ($d.length) { $d.attr('min','0').attr('max','999999').attr('step','0.01').attr('placeholder','مبلغ الخصم'); }
       bindWarehouseProductCascade($row);
       $row.on('input change', 'input[name="discount"]', function () { recalcPriceFromDiscount($row); });
       $row.on('input change', 'input[name="unit_price"]', function () { recalcDiscountFromPrice($row); });

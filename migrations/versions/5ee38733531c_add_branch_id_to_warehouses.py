@@ -1,7 +1,7 @@
 """add_branch_id_to_warehouses
 
 Revision ID: 5ee38733531c
-Revises: expense_types_seed_002
+Revises: manager_employee_001
 Create Date: 2025-10-30 10:32:21.567869
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '5ee38733531c'
-down_revision = 'expense_types_seed_002'
+down_revision = 'manager_employee_001'
 branch_labels = None
 depends_on = None
 

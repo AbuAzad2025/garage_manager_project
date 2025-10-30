@@ -4,8 +4,8 @@
 {% block page_title %}كشف حساب الموظف - {{ employee.name }}{% endblock %}
 
 {% block breadcrumb %}
-<li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">الرئيسية</a></li>
-<li class="breadcrumb-item"><a href="{{ url_for('expenses_bp.expenses_list') }}">النفقات</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('expenses_bp.list_expenses') }}">النفقات</a></li>
 <li class="breadcrumb-item"><a href="{{ url_for('expenses_bp.employees_list') }}">الموظفون</a></li>
 <li class="breadcrumb-item active">كشف الحساب</li>
 {% endblock %}

@@ -472,12 +472,13 @@ def detail(exp_id):
 @login_required
 # @permission_required("manage_expenses")  # Commented out
 def add():
+    from models import Branch, Site
+    
     form = ExpenseForm()
     # ✅ ملء جميع القوائم المنسدلة
     _types = ExpenseType.query.filter_by(is_active=True).order_by(ExpenseType.name).all()
     form.type_id.choices = [(t.id, t.name) for t in _types]
     try:
-        from models import Branch, Site
         form.branch_id.choices = [(b.id, f"{b.code} - {b.name}") for b in Branch.query.filter_by(is_active=True).order_by(Branch.name).all()]
         form.site_id.choices = [(0, '-- بدون موقع --')] + [
             (s.id, f"{s.code} - {s.name}") for s in Site.query.filter_by(is_active=True).order_by(Site.name).all()
@@ -570,7 +571,7 @@ def add():
             
             # ✅ معالجة ذكية للسلف: إنشاء أقساط إن طُلب
             try:
-                from models import EmployeeAdvanceInstallment, ExpenseType
+                from models import EmployeeAdvanceInstallment
                 from dateutil.relativedelta import relativedelta
                 
                 etype = ExpenseType.query.get(exp.type_id) if exp.type_id else None
@@ -672,17 +673,27 @@ def add():
         except SQLAlchemyError as err:
             db.session.rollback()
             flash(f"❌ خطأ في إضافة المصروف: {err}", "danger")
-    return render_template("expenses/expense_form.html", form=form, is_edit=False)
+    
+    # تمرير metadata للقالب
+    return render_template("expenses/expense_form.html", 
+                         form=form, 
+                         is_edit=False,
+                         types_meta=types_meta,
+                         _types=_types)
 
 @expenses_bp.route("/edit/<int:exp_id>", methods=["GET", "POST"], endpoint="edit")
 @login_required
 # @permission_required("manage_expenses")  # Commented out
 def edit(exp_id):
+    from models import Branch, Site
+    
     exp = _get_or_404(Expense, exp_id)
     form = ExpenseForm(obj=exp)
     
     # ✅ ملء جميع القوائم المنسدلة
-    form.type_id.choices = [(t.id, t.name) for t in ExpenseType.query.order_by(ExpenseType.name).all()]
+    _types = ExpenseType.query.order_by(ExpenseType.name).all()
+    form.type_id.choices = [(t.id, t.name) for t in _types]
+    types_meta = {t.id: (t.fields_meta or {}) for t in _types}
     
     # ✅ الموظفين (مع إضافة الموظف الحالي إذا لم يكن في القائمة)
     employees = Employee.query.order_by(Employee.name).limit(200).all()
@@ -755,7 +766,13 @@ def edit(exp_id):
         except SQLAlchemyError as err:
             db.session.rollback()
             flash(f"❌ خطأ في تعديل المصروف: {err}", "danger")
-    return render_template("expenses/expense_form.html", form=form, is_edit=True)
+    
+    # تمرير metadata للقالب
+    return render_template("expenses/expense_form.html", 
+                         form=form, 
+                         is_edit=True,
+                         types_meta=types_meta,
+                         _types=_types)
 
 @expenses_bp.route("/delete/<int:exp_id>", methods=["POST"], endpoint="delete")
 @login_required

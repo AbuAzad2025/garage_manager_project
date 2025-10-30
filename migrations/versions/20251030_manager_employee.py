@@ -1,7 +1,7 @@
 """إضافة manager_employee_id للفروع والمواقع
 
 Revision ID: manager_employee_001
-Revises: branches_sites_multibranch
+Revises: expense_types_seed_002
 Create Date: 2025-10-30 11:00:00
 
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 # revision identifiers
 revision = 'manager_employee_001'
-down_revision = 'branches_sites_multibranch'
+down_revision = 'expense_types_seed_002'
 branch_labels = None
 depends_on = None
 

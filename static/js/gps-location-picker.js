@@ -130,15 +130,27 @@ function createGPSButton() {
 
     button.addEventListener('click', function() {
         if (navigator.geolocation) {
+            console.log('🔍 بدء طلب الموقع الجغرافي...');
             button.disabled = true;
             button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>جاري التحديد...';
 
+            // خيارات طلب الموقع
+            const options = {
+                enableHighAccuracy: true,  // دقة عالية
+                timeout: 10000,            // 10 ثواني timeout
+                maximumAge: 0              // عدم استخدام cache
+            };
+            
+            console.log('⚙️ خيارات الطلب:', options);
+
             navigator.geolocation.getCurrentPosition(
                 function(position) {
+                    console.log('✅ تم الحصول على الموقع بنجاح:', position);
                     const pos = {
                         lat: position.coords.latitude,
                         lng: position.coords.longitude
                     };
+                    console.log('📍 الإحداثيات:', pos);
 
                     map.setCenter(pos);
                     map.setZoom(17);
@@ -155,14 +167,52 @@ function createGPSButton() {
                         button.innerHTML = '<i class="fas fa-crosshairs me-1"></i>استخدم موقعي الحالي';
                     }, 2000);
                 },
-                function() {
+                function(error) {
+                    console.error('❌ خطأ في الحصول على الموقع:', error);
+                    console.error('📋 تفاصيل الخطأ:', {
+                        code: error.code,
+                        message: error.message,
+                        PERMISSION_DENIED: error.PERMISSION_DENIED,
+                        POSITION_UNAVAILABLE: error.POSITION_UNAVAILABLE,
+                        TIMEOUT: error.TIMEOUT
+                    });
+                    
                     button.disabled = false;
                     button.innerHTML = '<i class="fas fa-times-circle me-1 text-danger"></i>فشل التحديد';
-                    alert('❌ تعذر الحصول على موقعك. تأكد من تفعيل GPS والسماح للمتصفح بالوصول للموقع.');
+                    
+                    // رسالة خطأ مفصلة حسب نوع الخطأ
+                    let errorMsg = '❌ تعذر الحصول على موقعك.\n\n';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMsg += '🔒 السبب: تم رفض الإذن للوصول للموقع.\n\n';
+                            errorMsg += '✅ الحل:\n';
+                            errorMsg += '1. انقر على أيقونة القفل 🔒 بجانب عنوان الموقع في المتصفح\n';
+                            errorMsg += '2. ابحث عن "الموقع الجغرافي" أو "Location"\n';
+                            errorMsg += '3. اختر "السماح" أو "Allow"\n';
+                            errorMsg += '4. حدّث الصفحة وحاول مرة أخرى';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMsg += '📡 السبب: لا يمكن تحديد الموقع حالياً.\n\n';
+                            errorMsg += '✅ تأكد من:\n';
+                            errorMsg += '- تفعيل GPS في جهازك\n';
+                            errorMsg += '- الاتصال بالإنترنت\n';
+                            errorMsg += '- عدم وجود تطبيقات تمنع الوصول للموقع';
+                            break;
+                        case error.TIMEOUT:
+                            errorMsg += '⏱️ السبب: انتهت مهلة الانتظار.\n\n';
+                            errorMsg += '✅ حاول مرة أخرى أو:\n';
+                            errorMsg += '- تأكد من اتصالك بالإنترنت\n';
+                            errorMsg += '- اذهب لمكان مفتوح لتحسين إشارة GPS';
+                            break;
+                    }
+                    
+                    alert(errorMsg);
+                    
                     setTimeout(() => {
                         button.innerHTML = '<i class="fas fa-crosshairs me-1"></i>استخدم موقعي الحالي';
-                    }, 2000);
-                }
+                    }, 3000);
+                },
+                options  // تمرير الخيارات
             );
         } else {
             alert('❌ المتصفح لا يدعم خدمات الموقع (GPS)');
@@ -377,6 +427,40 @@ function createSearchBox() {
  * تهيئة سريعة من HTML
  */
 document.addEventListener('DOMContentLoaded', function() {
+    // فحص دعم Geolocation
+    if (!navigator.geolocation) {
+        console.error('❌ المتصفح لا يدعم Geolocation API');
+    } else {
+        console.log('✅ المتصفح يدعم Geolocation API');
+        
+        // فحص إذا كان الموقع يعمل على HTTPS أو localhost
+        const isSecure = window.location.protocol === 'https:' || 
+                        window.location.hostname === 'localhost' || 
+                        window.location.hostname === '127.0.0.1';
+        
+        if (!isSecure) {
+            console.warn('⚠️ تحذير: بعض المتصفحات تتطلب HTTPS لاستخدام Geolocation');
+        } else {
+            console.log('✅ البروتوكول آمن (HTTPS أو localhost)');
+        }
+        
+        // اختبار الأذونات (Permissions API)
+        if (navigator.permissions) {
+            navigator.permissions.query({ name: 'geolocation' }).then(function(result) {
+                console.log('🔐 حالة أذونات الموقع:', result.state);
+                if (result.state === 'denied') {
+                    console.error('❌ تم رفض أذونات الموقع مسبقاً');
+                } else if (result.state === 'granted') {
+                    console.log('✅ تم منح أذونات الموقع');
+                } else {
+                    console.log('⏳ لم يتم تحديد أذونات الموقع بعد (سيُسأل المستخدم)');
+                }
+            }).catch(function(error) {
+                console.log('⚠️ لا يمكن فحص أذونات الموقع:', error);
+            });
+        }
+    }
+    
     const mapElement = document.getElementById('location-map');
     if (mapElement) {
         const latInput = document.querySelector('input[name="geo_lat"]');

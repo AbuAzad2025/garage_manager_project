@@ -45,7 +45,7 @@
               </td>
               <td class="text-center">
                 {% if part.discount and part.discount > 0 %}
-                <span class="badge bg-warning">{{ '%.1f'|format((part.discount or 0)|float) }}%</span>
+                <span class="badge bg-warning">{{ '%.2f'|format((part.discount or 0)|float) }} ₪</span>
                 {% else %}
                 <span class="text-muted">—</span>
                 {% endif %}

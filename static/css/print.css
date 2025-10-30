@@ -37,10 +37,10 @@
     display: block !important;
   }
 
-  /* A4 Page Setup */
+  /* A4 Page Setup - طباعة أفقية للجداول العريضة */
   @page {
-    size: A4;
-    margin: 15mm 10mm;
+    size: A4 landscape;
+    margin: 10mm 8mm;
   }
 
   /* تصميم الطباعة */
@@ -90,7 +90,18 @@
     width: 100% !important;
     border-collapse: collapse !important;
     page-break-inside: auto;
-    font-size: 10pt;
+    font-size: 9pt;
+    table-layout: auto !important;
+  }
+  
+  /* إظهار جميع الأعمدة في الطباعة */
+  table th,
+  table td {
+    display: table-cell !important;
+    visibility: visible !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
   }
 
   table thead {
@@ -109,17 +120,28 @@
   table th {
     background-color: #e9ecef !important;
     border: 1px solid #000 !important;
-    padding: 3mm 2mm !important;
+    padding: 2mm 1mm !important;
     font-weight: bold;
     text-align: center !important;
+    font-size: 8pt !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    max-width: none !important;
   }
 
   table td {
     border: 1px solid #dee2e6 !important;
-    padding: 2mm !important;
+    padding: 1.5mm 1mm !important;
     text-align: right !important;
+    font-size: 8pt !important;
+    max-width: none !important;
+  }
+  
+  /* إزالة التقطيع للنصوص الطويلة */
+  table td.text-truncate {
+    max-width: none !important;
+    white-space: normal !important;
+    word-wrap: break-word !important;
   }
 
   /* الصفوف الزوجية */
@@ -258,6 +280,29 @@
     margin: 2mm 0 !important;
   }
 
+  /* إخفاء عمود الإجراءات عند الطباعة */
+  table th:last-child,
+  table td:last-child {
+    display: none !important;
+  }
+  
+  /* إظهار جميع الصفوف */
+  table tbody tr {
+    display: table-row !important;
+  }
+  
+  /* تحسين عرض الجداول الطويلة */
+  .table-responsive {
+    overflow: visible !important;
+  }
+  
+  /* إزالة sticky positioning */
+  table.table-sticky th:last-child,
+  table.table-sticky td:last-child {
+    position: static !important;
+    box-shadow: none !important;
+  }
+  
   /* عرض كامل للطباعة الأفقية */
   @page :landscape {
     size: A4 landscape;
@@ -265,6 +310,18 @@
 
   .print-landscape {
     size: A4 landscape;
+  }
+}
+
+/* نمط خاص للطباعة - تحسين رؤية الجداول */
+@media print {
+  /* ضمان عرض كامل الجدول */
+  .card-body {
+    overflow: visible !important;
+  }
+  
+  .table-responsive {
+    overflow: visible !important;
   }
 }
 

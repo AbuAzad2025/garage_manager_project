@@ -7986,7 +7986,7 @@ class ServicePart(db.Model, TimestampMixin):
     warehouse_id = db.Column(db.Integer, db.ForeignKey('warehouses.id'), nullable=False, index=True)
     quantity = db.Column(db.Integer, nullable=False)
     unit_price = db.Column(db.Numeric(10, 2), nullable=False)
-    discount = db.Column(db.Numeric(5, 2), default=0)
+    discount = db.Column(db.Numeric(12, 2), default=0)  # مبلغ الخصم (وليس نسبة)
     tax_rate = db.Column(db.Numeric(5, 2), default=0)
     note = db.Column(db.String(200))
     notes = db.Column(db.Text)
@@ -8001,7 +8001,7 @@ class ServicePart(db.Model, TimestampMixin):
     __table_args__ = (
         db.CheckConstraint('quantity > 0', name='chk_service_part_qty_positive'),
         db.CheckConstraint('unit_price >= 0', name='chk_service_part_price_non_negative'),
-        db.CheckConstraint('discount >= 0 AND discount <= 100', name='chk_service_part_discount_range'),
+        db.CheckConstraint('discount >= 0', name='chk_service_part_discount_positive'),  # مبلغ موجب
         db.CheckConstraint('tax_rate >= 0 AND tax_rate <= 100', name='chk_service_part_tax_range'),
         db.CheckConstraint('share_percentage >= 0 AND share_percentage <= 100', name='chk_service_part_share_range'),
         db.UniqueConstraint('service_id', 'part_id', 'warehouse_id', name='uq_service_part_unique'),
@@ -8021,11 +8021,11 @@ class ServicePart(db.Model, TimestampMixin):
         if v in (None, ''):
             return 0
         d = _D(v)
-        if key in ('discount', 'tax_rate', 'share_percentage') and (d < 0 or d > _D(100)):
+        if key in ('tax_rate', 'share_percentage') and (d < 0 or d > _D(100)):
             raise ValueError(f"{key} must be between 0 and 100")
-        if key == 'unit_price' and d < 0:
-            raise ValueError("unit_price must be >= 0")
-        return _Q2(d) if key == 'unit_price' else d
+        if key in ('unit_price', 'discount') and d < 0:
+            raise ValueError(f"{key} must be >= 0")
+        return _Q2(d)
 
     @validates('note', 'notes')
     def _v_strip(self, _, v):
@@ -8037,7 +8037,7 @@ class ServicePart(db.Model, TimestampMixin):
 
     @hybrid_property
     def discount_amount(self):
-        return _Q2(_D(self.gross_amount) * (_D(self.discount or 0) / _D(100)))
+        return _Q2(_D(self.discount or 0))  # الخصم مباشرة (مبلغ وليس نسبة)
 
     @hybrid_property
     def taxable_amount(self):
@@ -8092,7 +8092,7 @@ class ServiceTask(db.Model, TimestampMixin):
     description = db.Column(db.String(200), nullable=False)
     quantity = db.Column(db.Integer, default=1)
     unit_price = db.Column(db.Numeric(10, 2), nullable=False)
-    discount = db.Column(db.Numeric(5, 2), default=0)
+    discount = db.Column(db.Numeric(12, 2), default=0)  # مبلغ الخصم (وليس نسبة)
     tax_rate = db.Column(db.Numeric(5, 2), default=0)
     note = db.Column(db.String(200))
 
@@ -8102,7 +8102,7 @@ class ServiceTask(db.Model, TimestampMixin):
     __table_args__ = (
         db.CheckConstraint('quantity > 0', name='chk_service_task_qty_positive'),
         db.CheckConstraint('unit_price >= 0', name='chk_service_task_price_non_negative'),
-        db.CheckConstraint('discount >= 0 AND discount <= 100', name='chk_service_task_discount_range'),
+        db.CheckConstraint('discount >= 0', name='chk_service_task_discount_positive'),  # مبلغ موجب
         db.CheckConstraint('tax_rate >= 0 AND tax_rate <= 100', name='chk_service_task_tax_range'),
         db.CheckConstraint('share_percentage >= 0 AND share_percentage <= 100', name='chk_service_task_share_range'),
         db.Index('ix_service_task_service', 'service_id'),
@@ -8121,11 +8121,11 @@ class ServiceTask(db.Model, TimestampMixin):
         if v in (None, ''):
             return 0
         d = _D(v)
-        if key in ('discount', 'tax_rate', 'share_percentage') and (d < 0 or d > _D(100)):
+        if key in ('tax_rate', 'share_percentage') and (d < 0 or d > _D(100)):
             raise ValueError(f"{key} must be between 0 and 100")
-        if key == 'unit_price' and d < 0:
-            raise ValueError("unit_price must be >= 0")
-        return _Q2(d) if key == 'unit_price' else d
+        if key in ('unit_price', 'discount') and d < 0:
+            raise ValueError(f"{key} must be >= 0")
+        return _Q2(d)
 
     @validates('description', 'note')
     def _v_strip(self, _, v):
@@ -8137,7 +8137,7 @@ class ServiceTask(db.Model, TimestampMixin):
 
     @hybrid_property
     def discount_amount(self):
-        return _Q2(_D(self.gross_amount) * (_D(self.discount or 0) / _D(100)))
+        return _Q2(_D(self.discount or 0))  # الخصم مباشرة (مبلغ وليس نسبة)
 
     @hybrid_property
     def taxable_amount(self):
