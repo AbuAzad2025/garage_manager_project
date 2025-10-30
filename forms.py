@@ -4425,6 +4425,15 @@ class SaleReturnLineForm(FlaskForm):
                            render_kw={"placeholder": "أدخل الكمية"})
     unit_price = DecimalField('سعر الوحدة', validators=[DataRequired(), NumberRange(min=0)], 
                              places=2, render_kw={"placeholder": "سعر الوحدة", "step": "0.01"})
+    condition = SelectField('الحالة', 
+                           choices=[
+                               ('GOOD', '✅ سليم'),
+                               ('DAMAGED', '❌ تالف'),
+                               ('FOR_REPAIR', '🔧 للصيانة'),
+                               ('UNUSABLE', '🚫 غير قابل للاستخدام')
+                           ],
+                           default='GOOD',
+                           validators=[Optional()])
     notes = StringField('ملاحظات', validators=[Optional(), Length(max=200)],
                        render_kw={"placeholder": "ملاحظات اختيارية"})
     

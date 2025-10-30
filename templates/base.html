@@ -451,6 +451,19 @@
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
     
+    /* تجاوز الألوان للداشبورد - أولوية عالية */
+    .card-header[style*="background"] {
+      background: inherit !important;
+    }
+    
+    .card-header[style*="color"] {
+      color: inherit !important;
+    }
+    
+    .card-title[style*="color"] {
+      color: inherit !important;
+    }
+    
     .card-body {
       color: #495057;
     }

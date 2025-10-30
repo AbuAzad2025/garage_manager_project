@@ -5416,6 +5416,14 @@ class SaleReturnLine(db.Model):
     quantity = db.Column(db.Integer, nullable=False)
     unit_price = db.Column(db.Numeric(12,2), nullable=False, default=0)
     notes = db.Column(db.String(200))
+    
+    # حالة المرتجع: سليم، تالف، للصيانة، غير قابل للاستخدام
+    condition = db.Column(
+        sa_str_enum(["GOOD", "DAMAGED", "FOR_REPAIR", "UNUSABLE"], name="return_line_condition"),
+        nullable=False,
+        default="GOOD",
+        index=True
+    )
 
     sale_return = db.relationship("SaleReturn", back_populates="lines")
     product = db.relationship("Product")
@@ -5429,7 +5437,9 @@ class SaleReturnLine(db.Model):
 
 @event.listens_for(SaleReturnLine, "after_insert")
 def _srl_after_insert(mapper, connection, t: "SaleReturnLine"):
-    if t.warehouse_id:
+    # فقط المرتجعات بحالة GOOD تُضاف للمخزون القابل للبيع
+    # الحالات الأخرى (DAMAGED, FOR_REPAIR, UNUSABLE) تُسجّل لكن لا تُعاد للمخزون
+    if t.warehouse_id and (t.condition or 'GOOD') == 'GOOD':
         _apply_stock_delta(connection, t.product_id, t.warehouse_id, +int(t.quantity or 0))
     if t.sale_return_id:
         total = connection.execute(
@@ -5439,7 +5449,8 @@ def _srl_after_insert(mapper, connection, t: "SaleReturnLine"):
 
 @event.listens_for(SaleReturnLine, "after_delete")
 def _srl_after_delete(mapper, connection, t: "SaleReturnLine"):
-    if t.warehouse_id:
+    # عند حذف سطر مرتجع: إذا كان سليماً، نعكس التغيير في المخزون
+    if t.warehouse_id and (t.condition or 'GOOD') == 'GOOD':
         _apply_stock_delta(connection, t.product_id, t.warehouse_id, -int(t.quantity or 0))
     if t.sale_return_id:
         total = connection.execute(

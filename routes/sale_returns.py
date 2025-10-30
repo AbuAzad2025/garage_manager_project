@@ -126,6 +126,7 @@ def create_return(sale_id=None):
                         warehouse_id=line_data.get('warehouse_id') or sale_return.warehouse_id,
                         quantity=line_data['quantity'],
                         unit_price=line_data.get('unit_price', 0),
+                        condition=line_data.get('condition', 'GOOD') or 'GOOD',
                         notes=line_data.get('notes', '').strip() or None
                     )
                     db.session.add(line)
