@@ -883,7 +883,69 @@ async function saveSubscriber() {
 }
 
 async function editPlan(planId) {
-  notify('ℹ️ Modal التعديل قيد التطوير', 'info');
+  const plan = plans.find(p => p.id === planId);
+  if (!plan) {
+    notify('✗ باقة غير موجودة', 'danger');
+    return;
+  }
+  
+  // ملء Modal بالبيانات الحالية
+  const modal = document.getElementById('editPlanModal');
+  if (!modal) {
+    notify('ℹ️ Modal التعديل قيد التطوير', 'info');
+    return;
+  }
+  
+  document.getElementById('edit_plan_id').value = plan.id;
+  document.getElementById('edit_name').value = plan.name;
+  document.getElementById('edit_description').value = plan.description || '';
+  document.getElementById('edit_price_monthly').value = plan.price_monthly;
+  document.getElementById('edit_price_yearly').value = plan.price_yearly || '';
+  document.getElementById('edit_max_users').value = plan.max_users || '';
+  document.getElementById('edit_max_invoices').value = plan.max_invoices || '';
+  document.getElementById('edit_storage_gb').value = plan.storage_gb || '';
+  document.getElementById('edit_features').value = plan.features || '';
+  document.getElementById('edit_is_popular').checked = plan.is_popular;
+  
+  new bootstrap.Modal(modal).show();
+}
+
+async function saveEditedPlan() {
+  const planId = document.getElementById('edit_plan_id').value;
+  const form = document.getElementById('editPlanForm');
+  const formData = new FormData(form);
+  const data = Object.fromEntries(formData);
+  
+  data.is_popular = form.querySelector('[name="is_popular"]').checked;
+  data.price_monthly = parseFloat(data.price_monthly);
+  data.price_yearly = data.price_yearly ? parseFloat(data.price_yearly) : null;
+  data.max_users = data.max_users ? parseInt(data.max_users) : null;
+  data.max_invoices = data.max_invoices ? parseInt(data.max_invoices) : null;
+  data.storage_gb = data.storage_gb ? parseInt(data.storage_gb) : null;
+  
+  notify('جاري الحفظ...', 'info');
+  
+  try {
+    const res = await fetch(`/security/api/saas/plans/${planId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken()
+      },
+      body: JSON.stringify(data)
+    });
+    
+    const result = await res.json();
+    
+    if (result.success) {
+      notify('✓ تم تحديث الباقة بنجاح!', 'success');
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      notify('✗ ' + (result.error || 'فشل التحديث'), 'danger');
+    }
+  } catch (e) {
+    notify('✗ خطأ: ' + e.message, 'danger');
+  }
 }
 
 async function viewSubscription(subId) {
@@ -924,11 +986,42 @@ async function cancelSubscription(subId) {
 
 async function renewSubscription(subId) {
   if (!confirm('تجديد الاشتراك لمدة 30 يوم؟')) return;
-  notify('ℹ️ API التجديد قيد التطوير', 'info');
+  
+  notify('جاري التجديد...', 'info');
+  
+  try {
+    const res = await fetch(`/security/api/saas/subscriptions/${subId}/renew`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken()
+      }
+    });
+    
+    const result = await res.json();
+    
+    if (result.success) {
+      notify('✓ تم تجديد الاشتراك حتى ' + result.new_end_date, 'success');
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      notify('✗ ' + (result.error || 'فشل التجديد'), 'danger');
+    }
+  } catch (e) {
+    notify('✗ خطأ: ' + e.message, 'danger');
+  }
 }
 
 async function downloadInvoice(invId) {
-  notify('ℹ️ تحميل PDF قيد التطوير', 'info');
+  notify('⬇️ جاري تحميل الفاتورة...', 'info');
+  
+  // محاكاة تحميل PDF (يمكن ربطها بـ endpoint حقيقي لاحقاً)
+  setTimeout(() => {
+    const link = document.createElement('a');
+    link.href = `/security/api/saas/invoices/${invId}/pdf`;
+    link.download = `invoice_${invId}.pdf`;
+    link.click();
+    notify('ℹ️ تحميل PDF قيد التطوير - سيتم إضافته لاحقاً', 'warning');
+  }, 500);
 }
 
 async function markPaid(invId) {
@@ -959,11 +1052,72 @@ async function markPaid(invId) {
 
 async function sendReminder(invId) {
   if (!confirm('إرسال تذكير للعميل؟')) return;
-  notify('ℹ️ إرسال Email قيد التطوير', 'info');
+  
+  notify('جاري الإرسال...', 'info');
+  
+  try {
+    const res = await fetch(`/security/api/saas/invoices/${invId}/send-reminder`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': csrfToken()
+      }
+    });
+    
+    const result = await res.json();
+    
+    if (result.success) {
+      notify('✓ ' + (result.message || 'تم إرسال التذكير بنجاح!'), 'success');
+    } else {
+      notify('✗ ' + (result.error || 'فشل الإرسال'), 'danger');
+    }
+  } catch (e) {
+    notify('✗ خطأ: ' + e.message, 'danger');
+  }
 }
 
 async function createInvoice() {
-  notify('ℹ️ Modal إنشاء فاتورة قيد التطوير', 'info');
+  const modal = document.getElementById('createInvoiceModal');
+  if (!modal) {
+    notify('ℹ️ Modal إنشاء فاتورة قيد التطوير', 'info');
+    return;
+  }
+  
+  new bootstrap.Modal(modal).show();
+}
+
+async function saveNewInvoice() {
+  const form = document.getElementById('newInvoiceForm');
+  const formData = new FormData(form);
+  const data = Object.fromEntries(formData);
+  
+  if (!data.subscription_id || !data.amount) {
+    notify('✗ يرجى ملء جميع الحقول المطلوبة', 'warning');
+    return;
+  }
+  
+  notify('جاري الحفظ...', 'info');
+  
+  try {
+    const res = await fetch('/security/api/saas/invoices', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken()
+      },
+      body: JSON.stringify(data)
+    });
+    
+    const result = await res.json();
+    
+    if (result.success) {
+      notify('✓ تم إنشاء الفاتورة بنجاح!', 'success');
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      notify('✗ ' + (result.error || 'فشل الحفظ'), 'danger');
+    }
+  } catch (e) {
+    notify('✗ خطأ: ' + e.message, 'danger');
+  }
 }
 </script>
 {% endblock %}

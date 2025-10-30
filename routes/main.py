@@ -114,13 +114,28 @@ def dashboard():
             except Exception as e:
                 today_revenue += float(sale.total_amount or 0)
 
-    # حساب الدفعات مع تحويل العملات للشيكل
-    today_incoming = 0.0
-    today_outgoing = 0.0
-    week_incoming = 0.0
-    week_outgoing = 0.0
+    # حساب الوارد والصادر - يشمل المبيعات + الدفعات
+    from decimal import Decimal
+    from models import convert_amount
+    
+    today_incoming = Decimal('0.00')
+    today_outgoing = Decimal('0.00')
+    week_incoming = Decimal('0.00')
+    week_outgoing = Decimal('0.00')
 
-    # الدفعات اليومية
+    # 1️⃣ إضافة المبيعات المؤكدة لليوم (وارد)
+    if _has_perm("manage_sales"):
+        for sale in today_sales:
+            amt = Decimal(str(sale.total_amount or 0))
+            if sale.currency == "ILS":
+                today_incoming += amt
+            else:
+                try:
+                    today_incoming += convert_amount(amt, sale.currency, "ILS", sale.sale_date)
+                except:
+                    pass
+    
+    # 2️⃣ إضافة الدفعات اليومية (وارد/صادر)
     today_payments = Payment.query.filter(
         Payment.payment_date >= day_start_dt,
         Payment.payment_date < day_end_dt,
@@ -129,31 +144,44 @@ def dashboard():
 
     for payment in today_payments:
         try:
-            from models import fx_rate
-            from decimal import Decimal
-            amount = float(payment.total_amount or 0)
-
-            # استخدام fx_rate_used إذا كان موجوداً
-            if payment.fx_rate_used:
-                fx_rate_value = float(payment.fx_rate_used) if isinstance(payment.fx_rate_used, Decimal) else payment.fx_rate_used
-                amount *= float(fx_rate_value)
-            elif payment.currency and payment.currency != 'ILS':
-                rate = fx_rate(payment.currency, 'ILS', payment.payment_date, raise_on_missing=False)
-                if rate > 0:
-                    amount = float(amount * float(rate))
+            amt = Decimal(str(payment.total_amount or 0))
+            
+            if payment.currency == "ILS":
+                amt_ils = amt
+            else:
+                amt_ils = convert_amount(amt, payment.currency, "ILS", payment.payment_date)
 
             if payment.direction == PaymentDirection.IN.value:
-                today_incoming += amount
+                today_incoming += amt_ils
             else:
-                today_outgoing += amount
-        except Exception as e:
-            if payment.direction == PaymentDirection.IN.value:
-                today_incoming += float(payment.total_amount or 0)
+                today_outgoing += amt_ils
+        except:
+            pass
+
+    today_net = float(today_incoming - today_outgoing)
+    today_incoming = float(today_incoming)
+    today_outgoing = float(today_outgoing)
+
+    # 3️⃣ حساب الوارد/الصادر الأسبوعي (مبيعات + دفعات)
+    
+    # المبيعات الأسبوعية
+    if _has_perm("manage_sales"):
+        week_sales = Sale.query.filter(
+            Sale.status == "CONFIRMED",
+            Sale.sale_date >= week_start_dt,
+            Sale.sale_date < week_end_dt,
+        ).all()
+        
+        for sale in week_sales:
+            amt = Decimal(str(sale.total_amount or 0))
+            if sale.currency == "ILS":
+                week_incoming += amt
             else:
-                today_outgoing += float(payment.total_amount or 0)
-
-    today_net = today_incoming - today_outgoing
-
+                try:
+                    week_incoming += convert_amount(amt, sale.currency, "ILS", sale.sale_date)
+                except:
+                    pass
+    
     # الدفعات الأسبوعية
     week_payments = Payment.query.filter(
         Payment.payment_date >= week_start_dt,
@@ -163,30 +191,23 @@ def dashboard():
 
     for payment in week_payments:
         try:
-            from models import fx_rate
-            from decimal import Decimal
-            amount = float(payment.total_amount or 0)
-
-            # استخدام fx_rate_used إذا كان موجوداً
-            if payment.fx_rate_used:
-                fx_rate_value = float(payment.fx_rate_used) if isinstance(payment.fx_rate_used, Decimal) else payment.fx_rate_used
-                amount *= float(fx_rate_value)
-            elif payment.currency and payment.currency != 'ILS':
-                rate = fx_rate(payment.currency, 'ILS', payment.payment_date, raise_on_missing=False)
-                if rate > 0:
-                    amount = float(amount * float(rate))
+            amt = Decimal(str(payment.total_amount or 0))
+            
+            if payment.currency == "ILS":
+                amt_ils = amt
+            else:
+                amt_ils = convert_amount(amt, payment.currency, "ILS", payment.payment_date)
 
             if payment.direction == PaymentDirection.IN.value:
-                week_incoming += amount
+                week_incoming += amt_ils
             else:
-                week_outgoing += amount
-        except Exception as e:
-            if payment.direction == PaymentDirection.IN.value:
-                week_incoming += float(payment.total_amount or 0)
-            else:
-                week_outgoing += float(payment.total_amount or 0)
+                week_outgoing += amt_ils
+        except:
+            pass
 
-    week_net = week_incoming - week_outgoing
+    week_net = float(week_incoming - week_outgoing)
+    week_incoming = float(week_incoming)
+    week_outgoing = float(week_outgoing)
 
     # حساب الدفعات اليومية مع تحويل العملات
     from collections import defaultdict

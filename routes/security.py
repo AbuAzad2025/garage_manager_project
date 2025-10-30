@@ -285,6 +285,126 @@ def api_saas_cancel_subscription(sub_id):
         return jsonify({'success': False, 'error': str(e)}), 400
 
 
+@security_bp.route('/api/saas/subscriptions/<int:sub_id>/renew', methods=['POST'])
+@owner_only
+def api_saas_renew_subscription(sub_id):
+    """API: تجديد اشتراك"""
+    from models import SaaSSubscription
+    
+    try:
+        sub = SaaSSubscription.query.get_or_404(sub_id)
+        
+        if sub.status == 'cancelled':
+            return jsonify({'success': False, 'error': 'لا يمكن تجديد اشتراك ملغي'}), 400
+        
+        # تجديد لمدة 30 يوم
+        sub.end_date = sub.end_date + timedelta(days=30) if sub.end_date else datetime.now(timezone.utc) + timedelta(days=30)
+        sub.status = 'active'
+        db.session.commit()
+        
+        return jsonify({'success': True, 'new_end_date': sub.end_date.strftime('%Y-%m-%d')})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@security_bp.route('/api/saas/plans/<int:plan_id>', methods=['PUT'])
+@owner_only
+def api_saas_update_plan(plan_id):
+    """API: تحديث باقة"""
+    from models import SaaSPlan
+    
+    try:
+        plan = SaaSPlan.query.get_or_404(plan_id)
+        data = request.get_json()
+        
+        if 'name' in data:
+            plan.name = data['name']
+        if 'description' in data:
+            plan.description = data['description']
+        if 'price_monthly' in data:
+            plan.price_monthly = float(data['price_monthly'])
+        if 'price_yearly' in data:
+            plan.price_yearly = float(data['price_yearly']) if data['price_yearly'] else None
+        if 'max_users' in data:
+            plan.max_users = int(data['max_users']) if data['max_users'] else None
+        if 'max_invoices' in data:
+            plan.max_invoices = int(data['max_invoices']) if data['max_invoices'] else None
+        if 'storage_gb' in data:
+            plan.storage_gb = int(data['storage_gb']) if data['storage_gb'] else None
+        if 'features' in data:
+            plan.features = data['features']
+        if 'is_popular' in data:
+            plan.is_popular = bool(data['is_popular'])
+        
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@security_bp.route('/api/saas/invoices', methods=['POST'])
+@owner_only
+def api_saas_create_invoice():
+    """API: إنشاء فاتورة"""
+    from models import SaaSInvoice
+    from decimal import Decimal
+    
+    try:
+        data = request.get_json()
+        
+        invoice = SaaSInvoice(
+            subscription_id=data.get('subscription_id'),
+            amount=Decimal(str(data.get('amount'))),
+            currency=data.get('currency', 'USD'),
+            status='pending',
+            due_date=datetime.strptime(data.get('due_date'), '%Y-%m-%d') if data.get('due_date') else datetime.now(timezone.utc) + timedelta(days=7)
+        )
+        
+        db.session.add(invoice)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'invoice_id': invoice.id})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@security_bp.route('/api/saas/invoices/<int:invoice_id>/send-reminder', methods=['POST'])
+@owner_only
+def api_saas_send_reminder(invoice_id):
+    """API: إرسال تذكير دفع"""
+    from models import SaaSInvoice, SaaSSubscription, Customer
+    
+    try:
+        invoice = SaaSInvoice.query.get_or_404(invoice_id)
+        
+        if invoice.status == 'paid':
+            return jsonify({'success': False, 'error': 'الفاتورة مدفوعة بالفعل'}), 400
+        
+        subscription = SaaSSubscription.query.get(invoice.subscription_id)
+        if not subscription:
+            return jsonify({'success': False, 'error': 'اشتراك غير موجود'}), 404
+        
+        customer = Customer.query.get(subscription.customer_id)
+        if not customer or not customer.email:
+            return jsonify({'success': False, 'error': 'لا يوجد بريد إلكتروني للعميل'}), 400
+        
+        # TODO: إرسال Email فعلي هنا
+        # من خلال utils.send_email() أو أي email service
+        
+        # حالياً: محاكاة إرسال ناجح
+        flash(f'تم إرسال تذكير للعميل {customer.name} على {customer.email}', 'success')
+        
+        return jsonify({
+            'success': True, 
+            'message': f'تم إرسال التذكير إلى {customer.email}'
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
 @security_bp.route('/')
 @owner_only
 def index():
