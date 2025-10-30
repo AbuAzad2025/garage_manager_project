@@ -182,7 +182,7 @@ document.addEventListener('DOMContentLoaded', function () {
   function renderPaymentsTable(list) {
     _lastList = list.slice();
     const tbody = document.querySelector('#paymentsTable tbody');
-    if (!tbody) return; // ✅ الجدول قد لا يكون موجود في صفحة الإنشاء
+    if (!tbody) return;
     tbody.innerHTML = '';
     if (!list.length) {
       const tr = document.createElement('tr');
@@ -190,13 +190,17 @@ document.addEventListener('DOMContentLoaded', function () {
       tbody.appendChild(tr);
       return;
     }
-    let pageSum = 0;
+    
+    const currencies = {};
     list.forEach(function (p) {
+      const curr = (p.currency || 'ILS').toUpperCase();
+      if (!currencies[curr]) currencies[curr] = 0;
+      currencies[curr] += toNumber(p.total_amount);
+      
       const splitsHtml = (p.splits || []).map(function (s) {
         return '<span class="badge bg-secondary me-1">' + String((s.method || '')).toUpperCase() + ': ' + fmtAmount(s.amount) + ' ' + (p.currency || '') + '</span>';
       }).join(' ');
       const dateOnly = (p.payment_date || '').split('T')[0] || '';
-      pageSum += toNumber(p.total_amount);
       const tr = document.createElement('tr');
       tr.innerHTML =
         '<td>' + p.id + '</td>' +
@@ -210,9 +214,19 @@ document.addEventListener('DOMContentLoaded', function () {
         '<td><a href="/payments/' + p.id + '" class="btn btn-info btn-sm">عرض</a></td>';
       tbody.appendChild(tr);
     });
-    const t = document.createElement('tr');
-    t.innerHTML = '<td></td><td class="text-end fw-bold">إجمالي الصفحة</td><td class="fw-bold">' + fmtAmount(pageSum) + '</td><td colspan="6"></td>';
-    tbody.appendChild(t);
+    
+    const currKeys = Object.keys(currencies);
+    if (currKeys.length === 1) {
+      const curr = currKeys[0];
+      const t = document.createElement('tr');
+      t.innerHTML = '<td></td><td class="text-end fw-bold">إجمالي الصفحة</td><td class="fw-bold">' + fmtAmount(currencies[curr]) + '</td><td>' + curr + '</td><td colspan="5"></td>';
+      tbody.appendChild(t);
+    } else if (currKeys.length > 1) {
+      const t = document.createElement('tr');
+      const totalsHtml = currKeys.map(c => fmtAmount(currencies[c]) + ' ' + c).join(' + ');
+      t.innerHTML = '<td></td><td class="text-end fw-bold">إجمالي الصفحة</td><td colspan="7" class="fw-bold text-warning">عملات متعددة: ' + totalsHtml + '</td>';
+      tbody.appendChild(t);
+    }
   }
 
   function renderPagination(totalPages, currentPage) {

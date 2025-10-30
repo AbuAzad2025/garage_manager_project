@@ -1,8 +1,16 @@
 {% extends 'base.html' %}
 {% block title %}كشف حساب الموظف - {{ employee.name }}{% endblock %}
 
+{% block page_title %}كشف حساب الموظف - {{ employee.name }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">الرئيسية</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('expenses_bp.expenses_list') }}">النفقات</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('expenses_bp.employees_list') }}">الموظفون</a></li>
+<li class="breadcrumb-item active">كشف الحساب</li>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-4" dir="rtl">
   
   <!-- رأس الصفحة (مخفي عند الطباعة) -->
   <div class="d-flex justify-content-between align-items-center mb-3 no-print">
@@ -250,7 +258,5 @@
     <br>
     <small>نظام أزاد لإدارة الكراج - v5.0.0 Enterprise</small>
   </div>
-
-</div>
 {% endblock %}
 

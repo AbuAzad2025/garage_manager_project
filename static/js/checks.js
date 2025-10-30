@@ -258,23 +258,41 @@
 
     };
     
-    // تحديث الإحصائيات
     window.updateStats = function(categorized) {
 
-        const calcTotal = function(arr) {
-            return arr.reduce(function(sum, c) { return sum + (parseFloat(c.amount) || 0); }, 0);
+        const calcTotalByCurrency = function(arr) {
+            const totals = {};
+            arr.forEach(function(c) {
+                const curr = (c.currency || 'ILS').toUpperCase();
+                if (!totals[curr]) totals[curr] = 0;
+                totals[curr] += parseFloat(c.amount) || 0;
+            });
+            return totals;
         };
         
+        const formatTotals = function(totals) {
+            const keys = Object.keys(totals);
+            if (keys.length === 0) return '0.00 ₪';
+            if (keys.length === 1) {
+                const curr = keys[0];
+                return formatCurrency(totals[curr]) + ' ' + curr;
+            }
+            return keys.map(c => formatCurrency(totals[c]) + ' ' + c).join(' + ');
+        };
+        
+        const pendingTotals = calcTotalByCurrency(categorized.pending);
+        const cashedTotals = calcTotalByCurrency(categorized.cashed);
+        
         $('#stat-pending-count').text(categorized.pending.length);
-        $('#stat-pending-amount').text(formatCurrency(calcTotal(categorized.pending)) + ' ₪');
+        $('#stat-pending-amount').html(formatTotals(pendingTotals));
         
         $('#stat-cashed-count').text(categorized.cashed.length);
-        $('#stat-cashed-amount').text(formatCurrency(calcTotal(categorized.cashed)) + ' ₪');
+        $('#stat-cashed-amount').html(formatTotals(cashedTotals));
         
         const returnedTotal = (categorized.returned ? categorized.returned.length : 0) + (categorized.bounced ? categorized.bounced.length : 0);
-        const returnedAmount = calcTotal(categorized.returned || []) + calcTotal(categorized.bounced || []);
+        const returnedTotals = calcTotalByCurrency((categorized.returned || []).concat(categorized.bounced || []));
         $('#stat-returned-count').text(returnedTotal);
-        $('#stat-returned-amount').text(formatCurrency(returnedAmount) + ' ₪');
+        $('#stat-returned-amount').html(formatTotals(returnedTotals));
         
         // ✅ سيتم ملؤها من loadStatistics() من الباكند
         // $('#stat-overdue-count').text(categorized.overdue.length);

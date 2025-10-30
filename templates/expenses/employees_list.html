@@ -1,6 +1,14 @@
 {% extends 'base.html' %}
 {% block title %}الموظفون{% endblock %}
 
+{% block page_title %}الموظفون{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">الرئيسية</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('expenses_bp.expenses_list') }}">النفقات</a></li>
+<li class="breadcrumb-item active">الموظفون</li>
+{% endblock %}
+
 {% block styles %}
 {{ super() }}
 <style>
@@ -37,7 +45,6 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4" dir="rtl">
   <!-- رأس الطباعة -->
   <div class="print-header d-none d-print-block">
     <h2>نظام أزاد لإدارة الكراج</h2>
@@ -205,7 +212,6 @@
       </table>
     </div>
   </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
