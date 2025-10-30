@@ -576,6 +576,13 @@ def create_sale():
             if require_stock:
                 pairs = [(d["product_id"], d["warehouse_id"]) for d in lines_payload if d.get("warehouse_id")]
                 _lock_stock_rows(pairs)
+            # تنظيف notes من أي قيم غير صحيحة
+            notes_raw = str(form.notes.data or '').strip()
+            if notes_raw in ('[]', '{}', 'null', 'None', ''):
+                notes_clean = None
+            else:
+                notes_clean = notes_raw or None
+            
             sale = Sale(
                 sale_number=None,
                 customer_id=form.customer_id.data,
@@ -587,7 +594,7 @@ def create_sale():
                 tax_rate=form.tax_rate.data or 0,
                 discount_total=form.discount_total.data or 0,
                 shipping_cost=form.shipping_cost.data or 0,
-                notes=form.notes.data
+                notes=notes_clean
             )
             # إضافة receiver_name بشكل آمن
             if hasattr(Sale, 'receiver_name'):
@@ -737,7 +744,12 @@ def edit_sale(id: int):
             # حقل receiver_name - آمن حتى لو مفقود
             if hasattr(sale, 'receiver_name'):
                 sale.receiver_name = form.receiver_name.data
-            sale.notes = form.notes.data
+            # تنظيف notes من أي قيم غير صحيحة
+            notes_raw = str(form.notes.data or '').strip()
+            if notes_raw in ('[]', '{}', 'null', 'None', ''):
+                sale.notes = None
+            else:
+                sale.notes = notes_raw or None
             _attach_lines(sale, lines_payload)
             db.session.flush()
             if require_stock:

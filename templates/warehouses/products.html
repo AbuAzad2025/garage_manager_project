@@ -42,11 +42,157 @@
       .btn-group .btn { font-size: 0.8rem; padding: 0.25rem 0.5rem; }
       .inline-input { min-width: 60px; max-width: 100px; }
     }
+    
+    /* Print Styles */
+    @media print {
+      /* Hide unnecessary elements */
+      .sidebar, .navbar, .breadcrumb, .btn-group, .card-header .d-flex .btn-group,
+      button, .btn, input[type="button"], input[type="submit"], 
+      footer, .footer, #notification-container, .no-print {
+        display: none !important;
+      }
+      
+      /* Reset page margins */
+      @page {
+        size: A4 landscape;
+        margin: 1cm;
+      }
+      
+      body {
+        margin: 0;
+        padding: 10px;
+        font-size: 11pt;
+      }
+      
+      /* Make table full width */
+      .card, .card-body, .table-responsive {
+        box-shadow: none !important;
+        border: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      
+      /* Print header */
+      .card-header {
+        background: white !important;
+        border-bottom: 2px solid #000 !important;
+        padding: 10px 0 !important;
+        margin-bottom: 10px;
+      }
+      
+      .card-header h6 {
+        font-size: 14pt;
+        color: #000 !important;
+      }
+      
+      /* Table styling */
+      table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        page-break-inside: auto;
+      }
+      
+      thead {
+        display: table-header-group;
+        background: #f0f0f0 !important;
+      }
+      
+      tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+      }
+      
+      th, td {
+        border: 1px solid #000 !important;
+        padding: 6px !important;
+        font-size: 10pt !important;
+        text-align: right !important;
+      }
+      
+      th {
+        background: #e0e0e0 !important;
+        font-weight: bold !important;
+        color: #000 !important;
+      }
+      
+      /* Hide inputs, show values */
+      input, select {
+        border: none !important;
+        background: none !important;
+        padding: 0 !important;
+        font-size: 10pt !important;
+      }
+      
+      /* Hide filter form */
+      #filter-form {
+        display: none !important;
+      }
+      
+      /* Hide statistics cards */
+      .stat-card, .row.mb-4:has(.stat-card) {
+        display: none !important;
+      }
+      
+      /* Show print header */
+      .print-header {
+        display: block !important;
+      }
+      
+      /* Sticky column fix for print */
+      .sticky-column {
+        position: static !important;
+        background: white !important;
+      }
+      
+      /* Hide hidden columns in print too */
+      .column-hidden {
+        display: none !important;
+      }
+      
+      /* Add print header */
+      .print-header {
+        text-align: center;
+        margin-bottom: 15px;
+        border-bottom: 2px solid #000;
+        padding-bottom: 10px;
+      }
+      
+      .print-header h2 {
+        margin: 0;
+        font-size: 18pt;
+      }
+      
+      .print-date {
+        font-size: 10pt;
+        color: #666;
+      }
+      
+      /* Page numbers */
+      .page-footer {
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+        text-align: center;
+        font-size: 9pt;
+        border-top: 1px solid #000;
+        padding-top: 5px;
+      }
+    }
   </style>
 {% endblock %}
 
 {% block content %}
 <div id="notification-container"></div>
+
+<!-- Print Header (Only visible when printing) -->
+<div class="print-header d-none d-print-block">
+  <h2>📦 تقرير المخزون - {{ warehouse.name }}</h2>
+  <div class="print-date">
+    <strong>التاريخ:</strong> {{ now().strftime('%Y-%m-%d %H:%M') }} | 
+    <strong>عدد المنتجات:</strong> {{ rows|length }} | 
+    <strong>المستودعات:</strong> {{ whs|map(attribute='name')|join('، ') }}
+  </div>
+</div>
 
 <!-- Statistics Cards -->
 <div class="row mb-4">
@@ -199,6 +345,7 @@
             <th class="text-end"><i class="fas fa-dollar-sign me-1"></i>سعر البيع</th>
             <th class="text-end"><i class="fas fa-cubes me-1"></i>الكمية</th>
             <th class="text-end"><i class="fas fa-calculator me-1"></i>الإجمالي</th>
+            <th class="text-center no-print" style="width: 100px;"><i class="fas fa-cog me-1"></i>إجراءات</th>
           </tr>
         </thead>
         <tbody>
@@ -257,6 +404,16 @@
       </table>
     </div>
   </div>
+</div>
+
+<!-- Print Footer (Only visible when printing) -->
+<div class="page-footer d-none d-print-block">
+  <small>
+    شركة أزاد للأنظمة الذكية | 
+    رام الله - فلسطين 🇵🇸 | 
+    +970-562-150-193 | 
+    ahmed@azad-systems.com
+  </small>
 </div>
 {% endblock %}
 
