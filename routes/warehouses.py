@@ -1227,13 +1227,14 @@ def update_product_inline(warehouse_id, product_id):
     payload = request.get_json(silent=True) or {}
 
     allowed_product_fields = {
-        "name","sku","part_number","brand",
+        "name","sku","part_number","brand","currency",
         "purchase_price","selling_price","price","min_price","max_price","tax_rate",
         "unit","origin_country","warranty_period",
         "is_active","online_price","online_name","online_image",
     }
     decimal_fields = {"purchase_price","selling_price","price","min_price","max_price","tax_rate","online_price"}
     int_fields = {"warranty_period"}
+    string_fields = {"currency"}
 
     updates = {}
     for k, v in payload.items():
@@ -1248,6 +1249,8 @@ def update_product_inline(warehouse_id, product_id):
                     updates[k] = int(v) if v not in (None, "", "None") else None
                 except Exception:
                     return jsonify({"ok": False, "error": f"invalid_int:{k}"}), 400
+            elif k in string_fields:
+                updates[k] = (str(v).strip().upper() if v is not None else "ILS")
             else:
                 updates[k] = (str(v).strip() if v is not None else None)
 
@@ -1313,6 +1316,7 @@ def update_product_inline(warehouse_id, product_id):
                 "part_number": p.part_number,
                 "name": p.name,
                 "brand": p.brand,
+                "currency": getattr(p, "currency", "ILS") or "ILS",
                 "purchase_price": _f(getattr(p, "purchase_price", None)),
                 "selling_price": _f(getattr(p, "selling_price", None)),
                 "price": _f(getattr(p, "price", None)),

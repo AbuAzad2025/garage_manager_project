@@ -14,7 +14,6 @@
     .w-price{min-width:100px;max-width:130px}
     #notification-container{position:fixed;top:20px;right:20px;z-index:2000}
     
-    /* تحسينات الجدول */
     .sticky-column {
       position: sticky;
       left: 0;
@@ -23,170 +22,25 @@
       border-right: 2px solid #dee2e6;
     }
     
-    .table th {
-      white-space: nowrap;
-      font-weight: 600;
-      font-size: 0.9rem;
-    }
+    .table th { white-space: nowrap; font-weight: 600; font-size: 0.9rem; }
+    .table td { vertical-align: middle; font-size: 0.9rem; }
     
-    .table td {
-      vertical-align: middle;
-      font-size: 0.9rem;
-    }
+    .column-hidden { display: none !important; }
     
-    /* أزرار التحكم في الأعمدة */
-    .btn-group .btn {
-      border-radius: 0.375rem;
-      margin: 0 2px;
+    .stat-card {
+      transition: transform 0.2s;
+      border-left: 4px solid;
     }
+    .stat-card:hover { transform: translateY(-2px); }
+    .stat-card.primary { border-left-color: #007bff; }
+    .stat-card.success { border-left-color: #28a745; }
+    .stat-card.warning { border-left-color: #ffc107; }
+    .stat-card.danger { border-left-color: #dc3545; }
     
-    .btn-group .btn.active {
-      background-color: #007bff;
-      color: white;
-      border-color: #007bff;
-    }
-    
-    /* تحسين العرض للشاشات الصغيرة */
     @media (max-width: 768px) {
-      .btn-group {
-        flex-wrap: wrap;
-        gap: 0.25rem;
-      }
-      
-      .btn-group .btn {
-        font-size: 0.8rem;
-        padding: 0.25rem 0.5rem;
-      }
-      
-      .card-header .d-flex {
-        flex-direction: column;
-        align-items: flex-start !important;
-        gap: 1rem;
-      }
-      
-      .card-header .btn-group {
-        width: 100%;
-        justify-content: center;
-      }
-      
-      .table-responsive {
-        font-size: 0.8rem;
-      }
-      
-      .inline-input {
-        min-width: 60px;
-        max-width: 100px;
-      }
-    }
-    
-    @media (max-width: 576px) {
-      .btn-group .btn {
-        font-size: 0.7rem;
-        padding: 0.2rem 0.4rem;
-      }
-      
-      .table th, .table td {
-        padding: 0.3rem;
-      }
-    }
-    
-    /* تحسين الأعمدة المخفية */
-    .column-hidden {
-      display: none !important;
-    }
-    
-    /* تحسين عرض الشركاء والموردين */
-    .partners-list, .suppliers-list {
-      max-width: 200px;
-      font-size: 0.85rem;
-    }
-    
-    .partner-item, .supplier-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0.25rem 0;
-      border-bottom: 1px solid #f0f0f0;
-    }
-    
-    .partner-item:last-child, .supplier-item:last-child {
-      border-bottom: none;
-    }
-    
-    .partner-item .badge, .supplier-item .badge {
-      font-size: 0.7rem;
-      padding: 0.2rem 0.4rem;
-    }
-    
-    /* تحسين الأزرار */
-    .btn-group .btn {
-      transition: all 0.2s ease;
-    }
-    
-    .btn-group .btn:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    /* تحسين زر الطباعة */
-    .btn-success {
-      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-      border: none;
-      box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
-    }
-    
-    .btn-success:hover {
-      background: linear-gradient(135deg, #218838 0%, #1ea085 100%);
-      transform: translateY(-1px);
-      box-shadow: 0 4px 8px rgba(40, 167, 69, 0.4);
-    }
-    
-    .border-left-primary {
-      border-left: 4px solid #007bff !important;
-    }
-    
-    .border-left-success {
-      border-left: 4px solid #28a745 !important;
-    }
-    
-    .border-left-warning {
-      border-left: 4px solid #ffc107 !important;
-    }
-    
-    .border-left-danger {
-      border-left: 4px solid #dc3545 !important;
-    }
-    
-    .text-xs {
-      font-size: 0.7rem;
-      letter-spacing: 0.5px;
-    }
-    
-    .text-gray-800 {
-      color: #5a5c69 !important;
-    }
-    
-    .card.shadow {
-      box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
-    }
-    
-    .card.shadow:hover {
-      box-shadow: 0 0.25rem 2rem 0 rgba(58, 59, 69, 0.25) !important;
-      transform: translateY(-2px);
-      transition: all 0.3s ease;
-    }
-    
-    @keyframes pulse {
-      0%, 100% {
-        opacity: 1;
-      }
-      50% {
-        opacity: 0.7;
-      }
-    }
-    
-    .pulse {
-      animation: pulse 2s ease-in-out infinite;
+      .btn-group { flex-wrap: wrap; gap: 0.25rem; }
+      .btn-group .btn { font-size: 0.8rem; padding: 0.25rem 0.5rem; }
+      .inline-input { min-width: 60px; max-width: 100px; }
     }
   </style>
 {% endblock %}
@@ -194,72 +48,78 @@
 {% block content %}
 <div id="notification-container"></div>
 
+<!-- Statistics Cards -->
 <div class="row mb-4">
   <div class="col-lg-3 col-md-6 mb-3">
-    <div class="card border-left-primary shadow h-100 py-2">
+    <div class="card stat-card primary shadow-sm h-100 py-2">
       <div class="card-body">
-        <div class="row no-gutters align-items-center">
-          <div class="col mr-2">
-            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">إجمالي المنتجات</div>
-            <div class="h5 mb-0 font-weight-bold text-gray-800" id="stat-total-products">0</div>
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <div class="text-uppercase text-primary fw-bold small mb-1">إجمالي المنتجات</div>
+            <div class="h5 mb-0 fw-bold" id="stat-total-products">{{ rows|length }}</div>
           </div>
-          <div class="col-auto">
-            <i class="fas fa-boxes fa-2x text-primary"></i>
-          </div>
+          <i class="fas fa-boxes fa-2x text-primary opacity-50"></i>
         </div>
       </div>
     </div>
   </div>
   
   <div class="col-lg-3 col-md-6 mb-3">
-    <div class="card border-left-success shadow h-100 py-2">
+    <div class="card stat-card success shadow-sm h-100 py-2">
       <div class="card-body">
-        <div class="row no-gutters align-items-center">
-          <div class="col mr-2">
-            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">إجمالي الكمية</div>
-            <div class="h5 mb-0 font-weight-bold text-gray-800" id="stat-total-quantity">0</div>
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <div class="text-uppercase text-success fw-bold small mb-1">إجمالي الكمية</div>
+            <div class="h5 mb-0 fw-bold" id="stat-total-quantity">
+              {% set total_qty = rows|sum(attribute='total')|int %}{{ total_qty }}
+            </div>
           </div>
-          <div class="col-auto">
-            <i class="fas fa-cubes fa-2x text-success"></i>
-          </div>
+          <i class="fas fa-cubes fa-2x text-success opacity-50"></i>
         </div>
       </div>
     </div>
   </div>
   
   <div class="col-lg-3 col-md-6 mb-3">
-    <div class="card border-left-warning shadow h-100 py-2">
+    <div class="card stat-card warning shadow-sm h-100 py-2">
       <div class="card-body">
-        <div class="row no-gutters align-items-center">
-          <div class="col mr-2">
-            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">إجمالي القيمة (ILS)</div>
-            <div class="h5 mb-0 font-weight-bold text-gray-800" id="stat-total-value">0.00</div>
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <div class="text-uppercase text-warning fw-bold small mb-1">إجمالي القيمة (₪)</div>
+            <div class="h5 mb-0 fw-bold" id="stat-total-value">
+              {% set values = [] %}
+              {% for r in rows %}
+                {% set qty = r.total or 0 %}
+                {% set price = r.product.selling_price or r.product.price or 0 %}
+                {% set _ = values.append(qty * price) %}
+              {% endfor %}
+              {{ "%.2f"|format(values|sum) }}
+            </div>
           </div>
-          <div class="col-auto">
-            <i class="fas fa-dollar-sign fa-2x text-warning"></i>
-          </div>
+          <i class="fas fa-dollar-sign fa-2x text-warning opacity-50"></i>
         </div>
       </div>
     </div>
   </div>
   
   <div class="col-lg-3 col-md-6 mb-3">
-    <div class="card border-left-danger shadow h-100 py-2">
+    <div class="card stat-card danger shadow-sm h-100 py-2">
       <div class="card-body">
-        <div class="row no-gutters align-items-center">
-          <div class="col mr-2">
-            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">منتجات نفدت</div>
-            <div class="h5 mb-0 font-weight-bold text-gray-800" id="stat-out-of-stock">0</div>
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <div class="text-uppercase text-danger fw-bold small mb-1">منتجات نفدت</div>
+            <div class="h5 mb-0 fw-bold" id="stat-out-of-stock">
+              {% set out_of_stock = rows|selectattr('total', 'equalto', 0)|list|length %}{{ out_of_stock }}
+            </div>
           </div>
-          <div class="col-auto">
-            <i class="fas fa-exclamation-triangle fa-2x text-danger"></i>
-          </div>
+          <i class="fas fa-exclamation-triangle fa-2x text-danger opacity-50"></i>
         </div>
       </div>
     </div>
   </div>
 </div>
 
+<!-- Filter Form -->
 <div class="card mb-4 shadow-sm">
   <div class="card-body">
     <form id="filter-form" class="row g-3 align-items-end" method="get">
@@ -272,15 +132,16 @@
             <option value="{{ w.id }}" {% if w.id in selected_ids %}selected{% endif %}>{{ w.name }}</option>
           {% endfor %}
         </select>
-        <div class="form-text">
+        <small class="text-muted">
           <i class="fas fa-info-circle me-1"></i>استخدم Ctrl أو ⌘ للاختيار المتعدد
-        </div>
+        </small>
       </div>
       <div class="col-lg-4">
         <label for="q" class="form-label">
           <i class="fas fa-search me-1"></i>بحث
         </label>
-        <input id="q" name="q" type="search" class="form-control" value="{{ request.args.get('q','') }}" placeholder="الاسم أو SKU أو رقم القطعة أو الماركة">
+        <input id="q" name="q" type="search" class="form-control" value="{{ search }}" 
+               placeholder="الاسم أو SKU أو رقم القطعة أو الماركة">
       </div>
       <div class="col-lg-2 d-flex gap-2">
         <button class="btn btn-primary flex-fill" type="submit">
@@ -294,107 +155,105 @@
   </div>
 </div>
 
+<!-- Products Table -->
 <div class="card shadow-sm">
   <div class="card-header bg-light">
-    <div class="d-flex justify-content-between align-items-center">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
       <h6 class="mb-0">
         <i class="fas fa-boxes me-2"></i>قائمة المنتجات
-        <span class="badge bg-primary ms-2" id="products-count">0</span>
+        <span class="badge bg-primary ms-2">{{ rows|length }}</span>
       </h6>
       
-      <!-- أزرار التحكم في الأعمدة -->
       <div class="btn-group btn-group-sm" role="group">
-        <button type="button" class="btn btn-outline-secondary" onclick="toggleColumn('sku')" title="إظهار/إخفاء SKU">
+        <button type="button" class="btn btn-outline-secondary" onclick="toggleColumn('sku')">
           <i class="fas fa-tag"></i> SKU
         </button>
-        <button type="button" class="btn btn-outline-secondary" onclick="toggleColumn('part_number')" title="إظهار/إخفاء رقم القطعة">
+        <button type="button" class="btn btn-outline-secondary" onclick="toggleColumn('part_number')">
           <i class="fas fa-hashtag"></i> رقم القطعة
         </button>
-        <button type="button" class="btn btn-outline-secondary" onclick="toggleColumn('brand')" title="إظهار/إخفاء الماركة">
+        <button type="button" class="btn btn-outline-secondary" onclick="toggleColumn('brand')">
           <i class="fas fa-star"></i> الماركة
         </button>
-        <button type="button" class="btn btn-outline-secondary" onclick="toggleColumn('purchase_price')" title="إظهار/إخفاء سعر الشراء">
-          <i class="fas fa-shopping-cart"></i> سعر الشراء
-        </button>
-        <button type="button" class="btn btn-outline-secondary" onclick="toggleColumn('online_price')" title="إظهار/إخفاء سعر الأونلاين">
-          <i class="fas fa-globe"></i> سعر الأونلاين
-        </button>
-        <button type="button" class="btn btn-outline-secondary" onclick="toggleColumn('partners')" title="إظهار/إخفاء الشركاء">
-          <i class="fas fa-handshake"></i> الشركاء
-        </button>
-        <button type="button" class="btn btn-outline-secondary" onclick="toggleColumn('suppliers')" title="إظهار/إخفاء الموردين">
-          <i class="fas fa-truck"></i> الموردين
-        </button>
-        <button type="button" class="btn btn-outline-secondary" onclick="toggleColumn('created_at')" title="إظهار/إخفاء تاريخ الإضافة">
-          <i class="fas fa-calendar"></i> تاريخ الإضافة
-        </button>
-        <button type="button" class="btn btn-outline-secondary" onclick="toggleColumn('status')" title="إظهار/إخفاء الحالة">
-          <i class="fas fa-info-circle"></i> الحالة
+        <button type="button" class="btn btn-outline-secondary" onclick="toggleColumn('purchase_price')">
+          <i class="fas fa-shopping-cart"></i> التكلفة
         </button>
       </div>
       
-      <!-- زر الطباعة -->
-      <div class="ms-3">
-        <button type="button" class="btn btn-success btn-sm" onclick="printTable()" title="طباعة الجدول">
-          <i class="fas fa-print me-1"></i>طباعة
-        </button>
-      </div>
+      <button type="button" class="btn btn-success btn-sm" onclick="window.print()">
+        <i class="fas fa-print me-1"></i>طباعة
+      </button>
     </div>
   </div>
   
   <div class="card-body p-0">
     <div class="table-responsive">
-      <table class="table table-striped mb-0" id="products-table" data-active-warehouse-id="{{ active_warehouse_id }}">
+      <table class="table table-striped table-hover mb-0" id="products-table">
         <thead class="table-light">
           <tr>
-            <th class="sticky-column">
-              <i class="fas fa-box me-1"></i>القطعة
-            </th>
-            <th class="column-sku column-hidden">
-              <i class="fas fa-tag me-1"></i>SKU
-            </th>
-            <th class="column-part_number column-hidden">
-              <i class="fas fa-hashtag me-1"></i>رقم القطعة
-            </th>
-            <th class="column-brand column-hidden">
-              <i class="fas fa-star me-1"></i>الماركة
-            </th>
-            <th class="text-center column-currency">
-              <i class="fas fa-money-bill me-1"></i>العملة
-            </th>
-            <th class="text-end column-purchase_price">
-              <i class="fas fa-receipt me-1 text-danger"></i>التكلفة
-            </th>
-            <th class="text-end">
-              <i class="fas fa-dollar-sign me-1 text-success"></i>سعر البيع
-            </th>
-            <th class="text-end column-hidden">
-              <i class="fas fa-tag me-1"></i>السعر الأساسي
-            </th>
-            <th class="text-end column-online_price column-hidden">
-              <i class="fas fa-globe me-1"></i>سعر الأونلاين
-            </th>
-            <th class="text-end">
-              <i class="fas fa-cubes me-1"></i>الكمية
-            </th>
-            <th class="text-end">
-              <i class="fas fa-calculator me-1"></i>الإجمالي
-            </th>
-            <th class="column-partners column-hidden">
-              <i class="fas fa-handshake me-1"></i>الشركاء
-            </th>
-            <th class="column-suppliers column-hidden">
-              <i class="fas fa-truck me-1"></i>الموردين
-            </th>
-            <th class="column-created_at column-hidden">
-              <i class="fas fa-calendar me-1"></i>تاريخ الإضافة
-            </th>
-            <th class="column-status column-hidden">
-              <i class="fas fa-info-circle me-1"></i>الحالة
-            </th>
+            <th class="sticky-column"><i class="fas fa-box me-1"></i>القطعة</th>
+            <th class="column-sku column-hidden"><i class="fas fa-tag me-1"></i>SKU</th>
+            <th class="column-part_number column-hidden"><i class="fas fa-hashtag me-1"></i>رقم القطعة</th>
+            <th class="column-brand column-hidden"><i class="fas fa-star me-1"></i>الماركة</th>
+            <th class="text-center"><i class="fas fa-money-bill me-1"></i>العملة</th>
+            <th class="text-end column-purchase_price column-hidden"><i class="fas fa-receipt me-1"></i>التكلفة</th>
+            <th class="text-end"><i class="fas fa-dollar-sign me-1"></i>سعر البيع</th>
+            <th class="text-end"><i class="fas fa-cubes me-1"></i>الكمية</th>
+            <th class="text-end"><i class="fas fa-calculator me-1"></i>الإجمالي</th>
           </tr>
         </thead>
-        <tbody id="products-body"></tbody>
+        <tbody>
+          {% if rows %}
+            {% for r in rows %}
+              {% set p = r.product %}
+              <tr data-id="{{ p.id }}">
+                <td class="sticky-column">
+                  <a href="/warehouses/parts/{{ p.id }}" class="fw-bold text-decoration-none">{{ p.name }}</a>
+                </td>
+                <td class="column-sku column-hidden">
+                  <input class="form-control form-control-sm inline-input" data-field="sku" 
+                         data-id="{{ p.id }}" value="{{ p.sku or '' }}">
+                </td>
+                <td class="column-part_number column-hidden">
+                  <input class="form-control form-control-sm inline-input" data-field="part_number" 
+                         data-id="{{ p.id }}" value="{{ p.part_number or '' }}">
+                </td>
+                <td class="column-brand column-hidden">
+                  <input class="form-control form-control-sm inline-input" data-field="brand" 
+                         data-id="{{ p.id }}" value="{{ p.brand or '' }}">
+                </td>
+                <td class="text-center">
+                  <select class="form-select form-select-sm inline-input" data-field="currency" 
+                          data-id="{{ p.id }}" style="max-width:90px">
+                    <option value="ILS" {% if p.currency=='ILS' %}selected{% endif %}>₪ ILS</option>
+                    <option value="USD" {% if p.currency=='USD' %}selected{% endif %}>$ USD</option>
+                    <option value="EUR" {% if p.currency=='EUR' %}selected{% endif %}>€ EUR</option>
+                    <option value="JOD" {% if p.currency=='JOD' %}selected{% endif %}>د.أ JOD</option>
+                  </select>
+                </td>
+                <td class="text-end column-purchase_price column-hidden">
+                  <input type="number" step="0.01" class="form-control form-control-sm inline-input text-end w-price" 
+                         data-field="purchase_price" data-id="{{ p.id }}" value="{{ p.purchase_price or '' }}">
+                </td>
+                <td class="text-end">
+                  <input type="number" step="0.01" class="form-control form-control-sm inline-input text-end w-price" 
+                         data-field="selling_price" data-id="{{ p.id }}" value="{{ p.selling_price or '' }}">
+                </td>
+                <td class="text-end">
+                  <input type="number" step="1" class="form-control form-control-sm inline-input text-end w-qty" 
+                         data-field="quantity" data-id="{{ p.id }}" value="{{ r.by.get(active_warehouse_id, {}).get('on', 0) }}">
+                </td>
+                <td class="text-end fw-bold">{{ r.total or 0 }}</td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="9" class="text-center text-muted py-4">
+                <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                لا توجد منتجات
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
       </table>
     </div>
   </div>
@@ -405,1223 +264,110 @@
   {{ super() }}
   <script>
     (function(){
-      var DT=null;
-      
-      // دالة الإشعارات
+      // Notification system
       function notify(message, type) {
         type = type || 'info';
-        var container = document.getElementById('notification-container');
-        if (!container) {
-          container = document.createElement('div');
-          container.id = 'notification-container';
-          document.body.appendChild(container);
-        }
+        const container = document.getElementById('notification-container') || 
+          (() => { const c = document.createElement('div'); c.id = 'notification-container'; document.body.appendChild(c); return c; })();
         
-        var alert = document.createElement('div');
-        alert.className = 'alert alert-' + type + ' alert-dismissible fade show';
-        alert.innerHTML = '<strong>' + message + '</strong><button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type} alert-dismissible fade show`;
+        alert.innerHTML = `<strong>${message}</strong><button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
         container.appendChild(alert);
         
-        setTimeout(function() {
-          alert.remove();
-        }, 5000);
+        setTimeout(() => alert.remove(), 5000);
       }
-      
-      // تصدير الدالة للنطاق العام
       window.notify = notify;
       
-      // إدارة الأعمدة
+      // Toggle column visibility
       function toggleColumn(columnName) {
-        const header = document.querySelector(`.column-${columnName}`);
-        const button = document.querySelector(`[onclick="toggleColumn('${columnName}')"]`);
+        const headers = document.querySelectorAll(`.column-${columnName}`);
+        const button = document.querySelector(`[onclick*="toggleColumn('${columnName}')"]`);
         
-        if (header.classList.contains('column-hidden')) {
-          // إظهار العمود
-          header.classList.remove('column-hidden');
-          button.classList.add('active');
-          
-          // إظهار الخلايا في الجدول
-          const cells = document.querySelectorAll(`td.column-${columnName}`);
-          cells.forEach(cell => {
-            cell.classList.remove('column-hidden');
-          });
-          
-          // إذا كان DataTable موجود، إعادة رسم الجدول
-          if (DT) {
-            DT.columns.adjust();
-          }
-        } else {
-          // إخفاء العمود
-          header.classList.add('column-hidden');
-          button.classList.remove('active');
-          
-          // إخفاء الخلايا في الجدول
-          const cells = document.querySelectorAll(`td.column-${columnName}`);
-          cells.forEach(cell => {
-            cell.classList.add('column-hidden');
-          });
-          
-          // إذا كان DataTable موجود، إعادة رسم الجدول
-          if (DT) {
-            DT.columns.adjust();
-          }
-        }
+        headers.forEach(el => el.classList.toggle('column-hidden'));
+        button?.classList.toggle('active');
       }
-      
-      // دوال إظهار وإخفاء الأعمدة
-      function showColumn(columnName) {
-        const header = document.querySelector(`.column-${columnName}`);
-        const button = document.querySelector(`[onclick="toggleColumn('${columnName}')"]`);
-        
-        if (header) {
-          header.classList.remove('column-hidden');
-          const cells = document.querySelectorAll(`td.column-${columnName}`);
-          cells.forEach(cell => {
-            cell.classList.remove('column-hidden');
-          });
-        }
-        
-        if (button) {
-          button.classList.add('active');
-        }
-        
-        if (DT) {
-          DT.columns.adjust();
-        }
-        window.dispatchEvent(new Event('resize'));
-      }
-      
-      function hideColumn(columnName) {
-        const header = document.querySelector(`.column-${columnName}`);
-        const button = document.querySelector(`[onclick="toggleColumn('${columnName}')"]`);
-        
-        if (header) {
-          header.classList.add('column-hidden');
-          const cells = document.querySelectorAll(`td.column-${columnName}`);
-          cells.forEach(cell => {
-            cell.classList.add('column-hidden');
-          });
-        }
-        
-        if (button) {
-          button.classList.remove('active');
-        }
-        
-        if (DT) {
-          DT.columns.adjust();
-        }
-        window.dispatchEvent(new Event('resize'));
-      }
-      
-      // جعل الدوال متاحة عالمياً
       window.toggleColumn = toggleColumn;
-      window.showColumn = showColumn;
-      window.hideColumn = hideColumn;
       
-      // دالة الطباعة
-      function printTable() {
-        var table = document.getElementById('products-table');
-        var rows = table.querySelectorAll('tbody tr:not([style*="display: none"])');
-        if (rows.length === 0) {
-          alert('لا توجد بيانات للطباعة');
-          return;
-        }
-        
-        var rowsPerPage = 25;
-        var estimatedPages = Math.ceil(rows.length / rowsPerPage);
-        
-        var msg = 'سيتم طباعة ' + rows.length + ' منتج';
-        if (estimatedPages > 1) {
-          msg += ' في حوالي ' + estimatedPages + ' صفحة';
-        }
-        
-        if (estimatedPages > 10) {
-          msg = 'تحذير: ' + msg + '\nهل تريد المتابعة؟';
-          if (!confirm(msg)) return;
-        } else if (estimatedPages > 1) {
-          msg += '\nهل تريد المتابعة؟';
-          if (!confirm(msg)) return;
-        }
-        
-        // إنشاء نافذة طباعة
-        var printWindow = window.open('', '_blank');
-        var printContent = generatePrintContent();
-        
-        printWindow.document.write(printContent);
-        printWindow.document.close();
-        printWindow.focus();
-        printWindow.print();
-        printWindow.close();
-      }
-      
-      // إنشاء محتوى الطباعة
-      function generatePrintContent() {
-        var table = document.getElementById('products-table');
-        var visibleColumns = getVisibleColumns();
-        var rows = table.querySelectorAll('tbody tr');
-        
-        var content = `
-          <!DOCTYPE html>
-          <html dir="rtl" lang="ar">
-          <head>
-            <meta charset="UTF-8">
-            <title>قائمة المنتجات - ${new Date().toLocaleDateString('ar-SA')}</title>
-            <style>
-              body { font-family: 'Arial', sans-serif; font-size: 12px; margin: 20px; }
-              .header { text-align: center; margin-bottom: 30px; }
-              .header h1 { color: #333; margin-bottom: 10px; }
-              .header .date { color: #666; }
-              table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-              th, td { border: 1px solid #ddd; padding: 8px; text-align: right; }
-              th { background-color: #f5f5f5; font-weight: bold; }
-              .partners-list, .suppliers-list { font-size: 10px; }
-              .badge { padding: 2px 6px; border-radius: 3px; font-size: 10px; }
-              .bg-info { background-color: #17a2b8; color: white; }
-              .bg-warning { background-color: #ffc107; color: black; }
-              .bg-success { background-color: #28a745; color: white; }
-              .bg-danger { background-color: #dc3545; color: white; }
-              .bg-secondary { background-color: #6c757d; color: white; }
-              @media print {
-                body { margin: 0; }
-                .no-print { display: none; }
-              }
-            </style>
-          </head>
-          <body>
-            <div class="header">
-              <h1>قائمة المنتجات</h1>
-              <div class="date">تاريخ الطباعة: ${new Date().toLocaleDateString('ar-SA')}</div>
-              <div class="date">إجمالي المنتجات: ${rows.length}</div>
-            </div>
-            
-            <table>
-              <thead>
-                <tr>
-                  ${generatePrintHeaders(visibleColumns)}
-                </tr>
-              </thead>
-              <tbody>
-                ${generatePrintRows(rows, visibleColumns)}
-              </tbody>
-            </table>
-          </body>
-          </html>
-        `;
-        
-        return content;
-      }
-      
-      // الحصول على الأعمدة المرئية
-      function getVisibleColumns() {
-        var headers = document.querySelectorAll('#products-table thead th');
-        var visible = [];
-        
-        headers.forEach(function(header, index) {
-          if (header.style.display !== 'none' && !header.classList.contains('column-hidden')) {
-            visible.push({
-              index: index,
-              text: header.textContent.trim(),
-              class: header.className
-            });
-          }
-        });
-        
-        return visible;
-      }
-      
-      // إنشاء رؤوس الطباعة
-      function generatePrintHeaders(visibleColumns) {
-        return visibleColumns.map(col => `<th>${col.text}</th>`).join('');
-      }
-      
-      // إنشاء صفوف الطباعة
-      function generatePrintRows(rows, visibleColumns) {
-        var html = '';
-        
-        rows.forEach(function(row) {
-          var cells = row.querySelectorAll('td');
-          var rowHtml = '<tr>';
-          
-          visibleColumns.forEach(function(col) {
-            var cell = cells[col.index];
-            if (cell) {
-              var cellContent = cell.innerHTML;
-              // تنظيف المحتوى للطباعة
-              cellContent = cellContent.replace(/<input[^>]*>/g, function(match) {
-                var input = document.createElement('div');
-                input.innerHTML = match;
-                var inputEl = input.querySelector('input');
-                return inputEl ? inputEl.value : '';
-              });
-              rowHtml += '<td>' + cellContent + '</td>';
-            }
-          });
-          
-          rowHtml += '</tr>';
-          html += rowHtml;
-        });
-        
-        return html;
-      }
-      
-      // جعل دالة الطباعة متاحة عالمياً
-      window.printTable = printTable;
-
+      // Get CSRF token
       function csrfToken(){
-        var m=document.querySelector('meta[name="csrf-token"]');if(m&&m.content)return m.content;
-        var i=document.querySelector('input[name="csrf_token"]');if(i&&i.value)return i.value;
-        var c=document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);return c?decodeURIComponent(c[1]):null;
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta?.content) return meta.content;
+        const input = document.querySelector('input[name="csrf_token"]');
+        if (input?.value) return input.value;
+        const cookie = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
+        return cookie ? decodeURIComponent(cookie[1]) : null;
       }
       
-      // تصدير الدالة للنطاق العام
-      window.csrfToken = csrfToken;
-
-      // ملاحظة: دالة notify تم تعريفها في بداية السكريبت وتصديرها لـ window.notify
-
-      function toStr(v){return v==null?'':String(v)}
-      function fmt(n){if(n==null||n==='')return '';var x=Number(n);if(!isFinite(x))return String(n);return x.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:2})}
-
-      function buildQuery(){
-        var q=document.getElementById('q').value||'';
-        var sel=document.getElementById('warehouse_ids');
-        var params=['format=json'];
-        if(q)params.push('q='+encodeURIComponent(q));
-        if(sel){
-          for(var i=0;i<sel.options.length;i++){
-            var o=sel.options[i];
-            if(o.selected)params.push('warehouse_ids='+encodeURIComponent(o.value));
-          }
-        }
-        return params.join('&');
-      }
-
-function productsURL(){
-  var aw = document.getElementById('products-table').dataset.activeWarehouseId;
-  // إذا كان هناك مستودع واحد محدد في الفلتر، استخدمه كـ wid للـ API
-  var selected = (function(){
-    var ids=[];
-    var sel=document.querySelector('#filter-form select[name="warehouse_ids"]');
-    if(sel){
-      var opts=sel.options;
-      for(var i=0;i<opts.length;i++){
-        var o=opts[i];
-        if(o.selected){ ids.push(o.value); }
-      }
-    }
-    return ids;
-  })();
-  var wid = (selected && selected.length===1) ? selected[0] : aw;
-  return '/api/warehouses/' + wid + '/products';
-}
-
-      function renderRow(p){
-        var tr=document.createElement('tr');
-        tr.dataset.id=p.id;
-        
-        tr.innerHTML=
-          // العمود الأساسي - القطعة (دائماً مرئي)
-          '<td class="align-middle sticky-column"><a href="/warehouses/parts/'+p.id+'" class="fw-bold text-decoration-none">'+toStr(p.name||p.text)+'</a></td>'+
-          
-          // الأعمدة المخفية افتراضياً
-          '<td class="align-middle column-sku column-hidden"><input class="form-control form-control-sm inline-input" data-field="sku" value="'+toStr(p.sku||'')+'"></td>'+ 
-          '<td class="align-middle column-part_number column-hidden"><input class="form-control form-control-sm inline-input" data-field="part_number" value="'+toStr(p.part_number||'')+'"></td>'+ 
-          '<td class="align-middle column-brand column-hidden"><input class="form-control form-control-sm inline-input" data-field="brand" value="'+toStr(p.brand||'')+'"></td>'+ 
-          
-          // العملة (ظاهرة)
-          '<td class="align-middle text-center column-currency">'+
-            '<select class="form-select form-select-sm inline-input" data-field="currency" style="max-width:90px">'+
-              '<option value="ILS" '+(p.currency==='ILS'?'selected':'')+'>₪ ILS</option>'+
-              '<option value="USD" '+(p.currency==='USD'?'selected':'')+'>$ USD</option>'+
-              '<option value="EUR" '+(p.currency==='EUR'?'selected':'')+'>€ EUR</option>'+
-              '<option value="JOD" '+(p.currency==='JOD'?'selected':'')+'>د.أ JOD</option>'+
-              '<option value="GBP" '+(p.currency==='GBP'?'selected':'')+'>£ GBP</option>'+
-            '</select>'+
-          '</td>'+
-          
-          // التكلفة (ظاهرة)
-          '<td class="align-middle text-end w-price column-purchase_price"><input type="number" step="0.01" class="form-control form-control-sm inline-input text-end" data-field="purchase_price" value="'+toStr(p.purchase_price!=null?p.purchase_price:'')+'"></td>'+ 
-          
-          // الأعمدة المرئية افتراضياً
-          '<td class="align-middle text-end w-price"><input type="number" step="0.01" class="form-control form-control-sm inline-input text-end" data-field="selling_price" value="'+toStr(p.selling_price!=null?p.selling_price:'')+'"></td>'+
-          '<td class="align-middle text-end w-price column-hidden"><input type="number" step="0.01" class="form-control form-control-sm inline-input text-end" data-field="price" value="'+toStr(p.price!=null?p.price:'')+'"></td>'+
-          '<td class="align-middle text-end w-price column-online_price column-hidden"><input type="number" step="0.01" class="form-control form-control-sm inline-input text-end" data-field="online_price" value="'+toStr(p.online_price!=null?p.online_price:'')+'"></td>'+ 
-          '<td class="align-middle text-end w-qty"><input type="number" step="1" class="form-control form-control-sm inline-input text-end" data-field="quantity" value="'+toStr(p.quantity!=null?p.quantity:'0')+'"></td>'+
-          '<td class="align-middle text-end fw-bold" data-role="total_quantity">'+fmt(p.total_quantity||0)+'</td>'+
-          
-          // أعمدة الشركاء والموردين
-          '<td class="align-middle column-partners column-hidden">'+
-            '<div class="partners-list">'+formatPartners(p.partners||[])+'</div>'+
-            '<button class="btn btn-sm btn-outline-primary mt-1" onclick="openPartnersModal('+p.id+', \''+toStr(p.name||p.text).replace(/'/g, "\\'")+'\')" title="إدارة الشركاء">'+
-              '<i class="fas fa-edit"></i>'+
-            '</button>'+
-          '</td>'+
-          '<td class="align-middle column-suppliers column-hidden">'+
-            '<div class="suppliers-list">'+formatSuppliers(p.suppliers||[])+'</div>'+
-            '<button class="btn btn-sm btn-outline-info mt-1" onclick="openSuppliersModal('+p.id+', \''+toStr(p.name||p.text).replace(/'/g, "\\'")+'\')" title="إدارة الموردين">'+
-              '<i class="fas fa-edit"></i>'+
-            '</button>'+
-          '</td>'+
-          
-          // أعمدة إضافية
-          '<td class="align-middle column-created_at column-hidden"><small class="text-muted">'+formatDate(p.created_at)+'</small></td>'+ 
-          '<td class="align-middle column-status column-hidden"><span class="badge '+getStatusBadgeClass(p.status)+'">'+getStatusText(p.status)+'</span></td>'; 
-        return tr;
-      }
-      
-      // تحديد نوع المستودع
-      var cachedWarehouseType = null;
-      var warehouseTypePromise = null;
-      
-      function getWarehouseType() {
-        // إذا كان لدينا نوع محفوظ، استخدمه
-        if (cachedWarehouseType && !warehouseTypePromise) {
-          updateColumnsByWarehouseType();
-          return Promise.resolve(cachedWarehouseType);
-        }
-        
-        // إذا كان هناك طلب قيد التنفيذ، انتظره
-        if (warehouseTypePromise) {
-          return warehouseTypePromise;
-        }
-        
-        var activeWarehouseId = document.getElementById('products-table').dataset.activeWarehouseId;
-        // إن وُجد مستودع واحد محدد في الفلتر، استخدمه للاستعلام عن نوع المستودع
-        var sel=document.querySelector('#filter-form select[name="warehouse_ids"]');
-        if(sel){
-          var chosen=[]; var opts=sel.options;
-          for(var i=0;i<opts.length;i++){ if(opts[i].selected){ chosen.push(opts[i].value); } }
-          if(chosen.length===1){ 
-            activeWarehouseId = chosen[0]; 
-          }
-        }
-        
-        if (activeWarehouseId) {
-          warehouseTypePromise = fetch('/warehouses/api/warehouse-info?id=' + activeWarehouseId, {
-            headers: {'X-Requested-With': 'XMLHttpRequest'},
-            credentials: 'same-origin'
-          })
-          .then(r => {
-            if (!r.ok) {
-              throw new Error('HTTP ' + r.status + ': ' + r.statusText);
-            }
-            return r.json();
-          })
-          .then(data => {
-            cachedWarehouseType = data.type || 'MAIN';
-            warehouseTypePromise = null;
-            updateColumnsByWarehouseType();
-            return cachedWarehouseType;
-          })
-          .catch(e => {
-            cachedWarehouseType = 'MAIN';
-            warehouseTypePromise = null;
-            updateColumnsByWarehouseType();
-            return 'MAIN';
-          });
-          return warehouseTypePromise;
-        } else {
-          cachedWarehouseType = 'MAIN';
-          updateColumnsByWarehouseType();
-          return Promise.resolve('MAIN');
-        }
-      }
-
-      function updateColumnsByWarehouseType() {
-        var warehouseType = cachedWarehouseType || 'MAIN';
-        var partnersBtn = document.querySelector('[onclick="toggleColumn(\'partners\')"]');
-        var suppliersBtn = document.querySelector('[onclick="toggleColumn(\'suppliers\')"]');
-        if (!partnersBtn || !suppliersBtn) {
-          return;
-        }
-        
-        // إخفاء جميع الأعمدة أولاً
-        hideColumn('partners');
-        hideColumn('suppliers');
-        // إظهار الأعمدة المناسبة حسب نوع المستودع
-        if (warehouseType === 'PARTNER') {
-          // مستودع الشركاء: إظهار الشركاء فقط
-          showColumn('partners');
-        } 
-        else if (warehouseType === 'EXCHANGE') {
-          // مستودع التبادل: إظهار الموردين فقط
-          showColumn('suppliers');
-        } 
-        else {
-          // المستودعات الأخرى: إخفاء كليهما
-        }
-
-      }
-      
-      function formatPartners(partners) {
-        if (!Array.isArray(partners) || partners.length === 0) {
-          return '<span class="text-muted small" title="لا يوجد شركاء مُحددين لهذا المنتج">-</span>';
-        }
-        return partners.map(p => 
-          '<div class="partner-item">' +
-            '<span class="fw-bold small">' + toStr(p.name) + '</span>' +
-            '<span class="badge bg-info ms-1 small">' + (p.share_percent || 0) + '%</span>' +
-          '</div>'
-        ).join('');
-      }
-      
-      function formatSuppliers(suppliers) {
-        if (!Array.isArray(suppliers) || suppliers.length === 0) {
-          return '<span class="text-muted small" title="لا يوجد موردين مُحددين لهذا المنتج">-</span>';
-        }
-        return suppliers.map(s => 
-          '<div class="supplier-item">' +
-            '<span class="fw-bold small">' + toStr(s.name) + '</span>' +
-            (s.quantity ? '<span class="badge bg-warning text-dark ms-1 small">' + s.quantity + ' قطعة</span>' : '') +
-          '</div>'
-        ).join('');
-      }
-      
-      // تنسيق التاريخ
-      function formatDate(dateStr) {
-        if (!dateStr) return 'غير محدد';
-        try {
-          var date = new Date(dateStr);
-          return date.toLocaleDateString('ar-SA');
-        } catch (e) {
-          return 'غير صحيح';
-        }
-      }
-      
-      // فئة الحالة
-      function getStatusBadgeClass(status) {
-        switch(status) {
-          case 'active': return 'bg-success';
-          case 'inactive': return 'bg-secondary';
-          case 'out_of_stock': return 'bg-danger';
-          default: return 'bg-info';
-        }
-      }
-      
-      // نص الحالة
-      function getStatusText(status) {
-        switch(status) {
-          case 'active': return 'نشط';
-          case 'inactive': return 'غير نشط';
-          case 'out_of_stock': return 'نفد المخزون';
-          default: return 'غير محدد';
-        }
-      }
-
-      function initDT(){
-        if(!(window.jQuery&&jQuery.fn.DataTable))return;
-        if(DT) return; // تم تهيئته مسبقاً
-        
-        var $table = window.jQuery('#products-table');
-        if (!$table.length) return;
-        
-        // تحقق من وجود بيانات
-        var dataRows = $table.find('tbody tr');
-        if (dataRows.length === 0) return; // لا نهيئ جدول فارغ
+      // Save inline edit
+      async function saveInline(productId, field, value){
+        const url = `/warehouses/{{ active_warehouse_id }}/products/${productId}`;
+        const payload = { [field]: value };
         
         try {
-          DT = $table.DataTable({
-            pageLength: 25,
-            order: [],
-            responsive: true,
-            autoWidth: false,
-            language: { 
-              url: "{{ url_for('static', filename='datatables/Arabic.json') }}",
-              emptyTable: "لا توجد منتجات",
-              info: "عرض _START_ إلى _END_ من أصل _TOTAL_",
-              search: "بحث:",
-              paginate: { first: "الأول", last: "الأخير", next: "التالي", previous: "السابق" }
-            }
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest',
+              'X-CSRFToken': csrfToken() || ''
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(payload)
           });
-        } catch (e) {
-        }
-      }
-
-      var isLoading = false;
-      
-      function updateStatistics(products) {
-        var totalProducts = products.length;
-        var totalQuantity = 0;
-        var totalValue = 0;
-        var outOfStock = 0;
-        
-        products.forEach(function(p) {
-          var qty = parseInt(p.total_quantity || p.quantity || 0);
-          var price = parseFloat(p.price || p.selling_price || 0);
           
-          totalQuantity += qty;
-          totalValue += qty * price;
-          
-          if (qty === 0) {
-            outOfStock++;
+          const data = await res.json();
+          if (!res.ok || data.ok === false) {
+            throw new Error(data?.error || data?.message || 'فشل الحفظ');
           }
-        });
-        
-        document.getElementById('stat-total-products').textContent = totalProducts.toLocaleString('en-US');
-        document.getElementById('stat-total-quantity').textContent = totalQuantity.toLocaleString('en-US');
-        document.getElementById('stat-total-value').textContent = totalValue.toLocaleString('en-US', {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2
-        });
-        document.getElementById('stat-out-of-stock').textContent = outOfStock.toLocaleString('en-US');
-        
-        var outOfStockCard = document.getElementById('stat-out-of-stock').closest('.card');
-        if (outOfStock > 0) {
-          outOfStockCard.classList.add('pulse');
-        } else {
-          outOfStockCard.classList.remove('pulse');
+          return data;
+        } catch(err) {
+          throw err;
         }
       }
       
-      function loadProducts(){
-
-        if (isLoading) {
-          return;
+      // Handle inline editing
+      let saveTimeout = null;
+      document.getElementById('products-table')?.addEventListener('change', async function(e) {
+        const input = e.target;
+        if (!input.classList.contains('inline-input')) return;
+        
+        const productId = input.dataset.id;
+        const field = input.dataset.field;
+        const value = input.value;
+        
+        if (input.dataset.saving === '1') return;
+        input.dataset.saving = '1';
+        input.disabled = true;
+        
+        try {
+          await saveInline(productId, field, value);
+          input.classList.add('border-success');
+          setTimeout(() => input.classList.remove('border-success'), 2000);
+          notify('تم الحفظ', 'success');
+        } catch(err) {
+          input.classList.add('border-danger');
+          setTimeout(() => input.classList.remove('border-danger'), 2000);
+          notify(err.message || 'فشل الحفظ', 'danger');
+        } finally {
+          delete input.dataset.saving;
+          input.disabled = false;
         }
+      });
+      
+      // Handle keyboard shortcuts
+      document.getElementById('products-table')?.addEventListener('keydown', function(e) {
+        if (!e.target.classList.contains('inline-input')) return;
         
-        // إعادة تعيين cachedWarehouseType عند كل تحميل لضمان التحديث
-        cachedWarehouseType = null;
-        isLoading = true;
-        var url=productsURL()+'?'+buildQuery();
-        var tbody=document.getElementById('products-body');
-        var submitBtn = document.querySelector('#filter-form button[type="submit"]');
-        if (submitBtn) {
-          submitBtn.disabled = true;
-          submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>جاري التحميل...';
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          e.target.blur();
+        } else if (e.key === 'Escape') {
+          e.target.value = e.target.defaultValue;
+          e.target.blur();
         }
-        
-        tbody.innerHTML = '<tr><td colspan="16" class="text-center"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</td></tr>';
-        
-        var controller = new AbortController();
-        var timeoutId = setTimeout(function() {
-          controller.abort();
-        }, 30000);
-        fetch(url,{
-          headers:{'X-Requested-With':'XMLHttpRequest'},
-          credentials:'same-origin',
-          signal: controller.signal
-        })
-          .then(function(r){
-            if (!r.ok) {
-              throw new Error('HTTP ' + r.status + ': ' + r.statusText);
-            }
-            return r.json();
-          })
-          .then(function(res){
-            var arr = [];
-            if (res && res.results) {
-              arr = res.results;
-            } else if (res && res.data) {
-              arr = res.data;
-            } else if (Array.isArray(res)) {
-              arr = res;
-            }
-            if (res && res.error) {
-              throw new Error(res.error);
-            }
-            
-            document.getElementById('products-count').textContent = arr.length;
-            
-            if (arr.length === 0) {
-              tbody.innerHTML = '<tr><td colspan="16" class="text-center text-muted py-4"><i class="fas fa-inbox fa-2x mb-2 d-block"></i>لا توجد منتجات</td></tr>';
-              // لا نستخدم return هنا لضمان الوصول إلى finally
-            } else {
-            if (arr.length > 200) {
-              notify('تحذير: يتم عرض ' + arr.length + ' منتج. قد يكون التحميل بطيئاً.', 'warning');
-            }
-            updateStatistics(arr);
-            
-            // تحديث نوع المستودع ثم تحديث الأعمدة
-            getWarehouseType().then(function(warehouseType) {
-              updateColumnsByWarehouseType();
-            }).catch(function(error) {
-              updateColumnsByWarehouseType(); // استدعاء الدالة حتى لو فشل تحديد النوع
-            });
-            if(window.jQuery&&jQuery.fn.DataTable&&DT){
-              DT.clear();
-              for(var i=0;i<arr.length;i++){ 
-                DT.row.add( renderRow(arr[i]) ); 
-              }
-              DT.draw(false);
-            }else{
-              var frag=document.createDocumentFragment();
-              for(var j=0;j<arr.length;j++){ 
-                frag.appendChild(renderRow(arr[j])); 
-              }
-              tbody.innerHTML='';
-              tbody.appendChild(frag);
-              initDT();
-            }
-            } // إغلاق else block
-          })
-          .catch(function(err){
-            if (err.name === 'AbortError') {
-              tbody.innerHTML = '<tr><td colspan="16" class="text-center text-danger"><i class="fas fa-clock"></i> انتهت مهلة الطلب</td></tr>';
-              notify('انتهت مهلة الطلب', 'warning');
-            } else if (err.message && err.message.includes('Failed to fetch')) {
-              tbody.innerHTML = '<tr><td colspan="16" class="text-center text-danger"><i class="fas fa-exclamation-triangle"></i> فشل الاتصال بالسيرفر</td></tr>';
-              notify('فشل الاتصال بالسيرفر', 'danger');
-            } else {
-              tbody.innerHTML = '<tr><td colspan="16" class="text-center text-danger"><i class="fas fa-exclamation-circle"></i> تعذر جلب البيانات: ' + (err.message || err) + '</td></tr>';
-              notify('تعذر جلب البيانات: ' + (err.message || err),'danger');
-            }
-          })
-          .finally(function(){
-            clearTimeout(timeoutId);
-            isLoading = false;
-            if (submitBtn) {
-              submitBtn.disabled = false;
-              submitBtn.innerHTML = '<i class="fas fa-filter me-1"></i>تطبيق';
-            } else {
-            }
-
-          });
-      }
-
-      function saveInline(productId, field, value){
-        var aw=document.getElementById('products-table').dataset.activeWarehouseId;
-        var url='/warehouses/'+aw+'/products/'+productId;
-        var payload={};payload[field]=value;
-        return fetch(url,{
-          method:'POST',
-          headers:{
-            'Content-Type':'application/json',
-            'X-Requested-With':'XMLHttpRequest',
-            'X-CSRFToken':csrfToken()||''
-          },
-          credentials:'same-origin',
-          body:JSON.stringify(payload)
-        }).then(function(res){
-          return res.json().catch(function(){return{}}).then(function(data){
-            if(!res.ok || data.ok===false){
-              var msg=(data&&(data.error||data.message))||'فشل الحفظ';
-              throw new Error(msg);
-            }
-            return data;
-          });
-        });
-      }
-
-      function onEditCommit(e){
-        var input=e.target;
-        if(!input.classList.contains('inline-input'))return;
-        var tr=input.closest('tr');if(!tr)return;
-        var id=tr.dataset.id;
-        var field=input.dataset.field;
-        var val=input.value;
-        var old=input.dataset.oldValue;if(old==null){old=''+val}
-        if(input.dataset.saving==='1')return;
-        input.dataset.saving='1';
-        saveInline(id,field,val).then(function(data){
-          if(field==='quantity'){
-            var tq=tr.querySelector('[data-role="total_quantity"]');
-            if(tq&&typeof data.total_quantity!=='undefined'){tq.textContent=fmt(data.total_quantity)}
-            if(typeof data.quantity!=='undefined'&&data.quantity!==null){
-              var qInput=tr.querySelector('input[data-field="quantity"]');
-              if(qInput)qInput.value=data.quantity;
-            }
-          }
-          if(data&&data.product){
-            var p=data.product;
-            if(typeof p.purchase_price!=='undefined'){tr.querySelector('input[data-field="purchase_price"]').value=p.purchase_price!=null?p.purchase_price:''}
-            if(typeof p.selling_price!=='undefined'){tr.querySelector('input[data-field="selling_price"]').value=p.selling_price!=null?p.selling_price:''}
-            if(typeof p.price!=='undefined'){tr.querySelector('input[data-field="price"]').value=p.price!=null?p.price:''}
-            if(typeof p.online_price!=='undefined'){tr.querySelector('input[data-field="online_price"]').value=p.online_price!=null?p.online_price:''}
-            if(typeof p.sku!=='undefined'){tr.querySelector('input[data-field="sku"]').value=p.sku||''}
-            if(typeof p.part_number!=='undefined'){tr.querySelector('input[data-field="part_number"]').value=p.part_number||''}
-            if(typeof p.brand!=='undefined'){tr.querySelector('input[data-field="brand"]').value=p.brand||''}
-          }
-          input.dataset.oldValue=''+val;
-          notify('تم الحفظ','success');
-        }).catch(function(err){
-          if(old!=null)input.value=old;
-          notify(err&&err.message?err.message:'فشل الحفظ','danger');
-        }).finally(function(){delete input.dataset.saving});
-      }
-
-      function onInputFocus(e){
-        var input=e.target;
-        if(!input.classList.contains('inline-input'))return;
-        input.dataset.oldValue=input.value;
-      }
-
-      function onInputKey(e){
-        if(!e.target.classList.contains('inline-input'))return;
-        if(e.key==='Enter'){e.preventDefault();e.target.blur();}
-        if(e.key==='Escape'){if(e.target.dataset.oldValue!=null)e.target.value=e.target.dataset.oldValue;e.target.blur();}
-      }
-
-      // فحص وجود العناصر قبل إضافة event listeners
-      var filterForm = document.getElementById('filter-form');
-      var productsTable = document.getElementById('products-table');
+      });
       
-      if (filterForm) {
-        filterForm.addEventListener('submit',function(e){e.preventDefault();loadProducts();});
-      }
-      
-      if (productsTable) {
-        productsTable.addEventListener('change',onEditCommit);
-        productsTable.addEventListener('focusin',onInputFocus);
-        productsTable.addEventListener('keydown',onInputKey);
-      }
-
-      // تحديد نوع المستودع أولاً ثم تحميل المنتجات
-      getWarehouseType();
-      loadProducts();
     })();
-    
-    // انتظار تحميل DOM بالكامل
-    document.addEventListener('DOMContentLoaded', function() {
-      // إعادة تحميل المنتجات بعد تحميل DOM
-      if (typeof loadProducts === 'function') {
-        loadProducts();
-      }
-    });
-    
-    // ==============================================================
-    // إدارة الشركاء والموردين
-    // ==============================================================
-    var currentProductId = null;
-    var currentProductName = '';
-    
-    function openPartnersModal(productId, productName) {
-      currentProductId = productId;
-      currentProductName = productName;
-      document.getElementById('partnersModalLabel').textContent = 'إدارة شركاء: ' + productName;
-      
-      // تحميل قائمة الشركاء المتاحين أولاً
-      loadAvailablePartners();
-      // ثم تحميل شركاء المنتج الحاليين
-      loadPartners(productId);
-      
-      var modal = new bootstrap.Modal(document.getElementById('partnersModal'));
-      modal.show();
-    }
-    
-    function openSuppliersModal(productId, productName) {
-      currentProductId = productId;
-      currentProductName = productName;
-      document.getElementById('suppliersModalLabel').textContent = 'إدارة موردين: ' + productName;
-      
-      // تحميل قائمة الموردين المتاحين أولاً
-      loadAvailableSuppliers();
-      // ثم تحميل موردي المنتج الحاليين
-      loadSuppliers(productId);
-      
-      var modal = new bootstrap.Modal(document.getElementById('suppliersModal'));
-      modal.show();
-    }
-    
-    function loadPartners(productId) {
-      var tbody = document.getElementById('partnersListBody');
-      tbody.innerHTML = '<tr><td colspan="3" class="text-center"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</td></tr>';
-      
-      fetch('/warehouses/api/products/' + productId + '/partners', {
-        headers: {'X-Requested-With': 'XMLHttpRequest'},
-        credentials: 'same-origin'
-      })
-      .then(r => {
-        if (!r.ok) {
-          throw new Error('HTTP ' + r.status + ': ' + r.statusText);
-        }
-        return r.json();
-      })
-      .then(data => {
-        if (data.success && data.partners) {
-          renderPartnersList(data.partners);
-        } else {
-          tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">لا يوجد شركاء مرتبطين</td></tr>';
-        }
-      })
-      .catch(err => {
-        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-danger">خطأ في التحميل: ' + err.message + '</td></tr>';
-        notify('فشل تحميل الشركاء: ' + err.message, 'danger');
-      });
-    }
-    
-    function renderPartnersList(partners) {
-      var tbody = document.getElementById('partnersListBody');
-      tbody.innerHTML = '';
-      
-      if (partners.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">لا يوجد شركاء مرتبطين</td></tr>';
-        return;
-      }
-      
-      partners.forEach(function(p) {
-        var tr = document.createElement('tr');
-        tr.innerHTML = 
-          '<td>' + p.partner_name + '</td>' +
-          '<td class="text-center">' +
-            '<input type="number" step="0.01" min="0" max="100" value="' + p.share_percentage + '" ' +
-            'class="form-control form-control-sm d-inline-block" style="width: 80px;" ' +
-            'id="share-' + p.id + '">' +
-          '</td>' +
-          '<td class="text-center">' +
-            '<button class="btn btn-sm btn-success me-1" onclick="updatePartnerShare(' + p.id + ', ' + p.partner_id + ')" title="حفظ">' +
-              '<i class="fas fa-save"></i>' +
-            '</button>' +
-            '<button class="btn btn-sm btn-danger" onclick="deletePartner(' + p.id + ')" title="حذف">' +
-              '<i class="fas fa-trash"></i>' +
-            '</button>' +
-          '</td>';
-        tbody.appendChild(tr);
-      });
-    }
-    
-    function updatePartnerShare(shareId, partnerId) {
-      var shareInput = document.getElementById('share-' + shareId);
-      var shareValue = parseFloat(shareInput.value);
-      
-      if (isNaN(shareValue) || shareValue < 0 || shareValue > 100) {
-        notify('النسبة يجب أن تكون بين 0 و 100', 'danger');
-        return;
-      }
-      
-      fetch('/warehouses/api/products/' + currentProductId + '/partners/' + shareId, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-          'X-CSRFToken': csrfToken() || ''
-        },
-        credentials: 'same-origin',
-        body: JSON.stringify({ share_percentage: shareValue })
-      })
-      .then(r => r.json())
-      .then(data => {
-        if (data.success) {
-          notify('تم تحديث النسبة بنجاح', 'success');
-          loadPartners(currentProductId);
-          loadProducts(); // تحديث الجدول الرئيسي
-        } else {
-          notify(data.message || 'فشل التحديث', 'danger');
-        }
-      })
-      .catch(err => {
-        notify('فشل التحديث', 'danger');
-      });
-    }
-    
-    function deletePartner(shareId) {
-      if (!confirm('هل أنت متأكد من حذف هذا الشريك؟')) return;
-      
-      fetch('/warehouses/api/products/' + currentProductId + '/partners/' + shareId, {
-        method: 'DELETE',
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest',
-          'X-CSRFToken': csrfToken() || ''
-        },
-        credentials: 'same-origin'
-      })
-      .then(r => r.json())
-      .then(data => {
-        if (data.success) {
-          notify('تم حذف الشريك بنجاح', 'success');
-          loadPartners(currentProductId);
-          loadProducts(); // تحديث الجدول الرئيسي
-        } else {
-          notify(data.message || 'فشل الحذف', 'danger');
-        }
-      })
-      .catch(err => {
-        notify('فشل الحذف', 'danger');
-      });
-    }
-    
-    function loadAvailablePartners() {
-      var select = document.getElementById('newPartnerSelect');
-      
-      fetch('/warehouses/api/partners/list', {
-        headers: {'X-Requested-With': 'XMLHttpRequest'},
-        credentials: 'same-origin'
-      })
-      .then(r => {
-        if (!r.ok) {
-          throw new Error('HTTP ' + r.status);
-        }
-        return r.json();
-      })
-      .then(data => {
-        if (data.success && data.partners) {
-          select.innerHTML = '<option value="">اختر شريك...</option>';
-          data.partners.forEach(function(p) {
-            var option = document.createElement('option');
-            option.value = p.id;
-            option.textContent = p.name;
-            select.appendChild(option);
-          });
-        } else {
-          select.innerHTML = '<option value="">لا يوجد شركاء</option>';
-        }
-      })
-      .catch(err => {
-        select.innerHTML = '<option value="">خطأ في التحميل</option>';
-        notify('فشل تحميل قائمة الشركاء: ' + err.message, 'danger');
-      });
-    }
-    
-    function addNewPartner() {
-      var partnerId = document.getElementById('newPartnerSelect').value;
-      var sharePercentage = document.getElementById('newPartnerShare').value;
-      
-      if (!partnerId) {
-        notify('يجب اختيار شريك', 'warning');
-        return;
-      }
-      
-      var shareValue = parseFloat(sharePercentage);
-      if (isNaN(shareValue) || shareValue < 0 || shareValue > 100) {
-        notify('النسبة يجب أن تكون بين 0 و 100', 'danger');
-        return;
-      }
-      
-      fetch('/warehouses/api/products/' + currentProductId + '/partners', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-          'X-CSRFToken': csrfToken() || ''
-        },
-        credentials: 'same-origin',
-        body: JSON.stringify({
-          partner_id: partnerId,
-          share_percentage: shareValue
-        })
-      })
-      .then(r => r.json())
-      .then(data => {
-        if (data.success) {
-          notify('تم إضافة الشريك بنجاح', 'success');
-          document.getElementById('newPartnerSelect').value = '';
-          document.getElementById('newPartnerShare').value = '';
-          loadPartners(currentProductId);
-          loadProducts(); // تحديث الجدول الرئيسي
-        } else {
-          notify(data.message || 'فشل الإضافة', 'danger');
-        }
-      })
-      .catch(err => {
-        notify('فشل الإضافة', 'danger');
-      });
-    }
-    
-    function loadSuppliers(productId) {
-      fetch('/warehouses/api/products/' + productId + '/suppliers', {
-        headers: {'X-Requested-With': 'XMLHttpRequest'},
-        credentials: 'same-origin'
-      })
-      .then(r => {
-        if (!r.ok) {
-          throw new Error('HTTP ' + r.status + ': ' + r.statusText);
-        }
-        return r.json();
-      })
-      .then(data => {
-        if (data.success && data.suppliers) {
-          renderSuppliersList(data.suppliers);
-        }
-      })
-      .catch(err => {
-        notify('فشل تحميل الموردين: ' + err.message, 'danger');
-      });
-    }
-    
-    function renderSuppliersList(suppliers) {
-      var div = document.getElementById('suppliersInfo');
-      
-      if (suppliers.length === 0) {
-        div.innerHTML = '<p class="text-muted">لا يوجد مورد مرتبط</p>';
-        return;
-      }
-      
-      var supplier = suppliers[0]; // مورد واحد فقط
-      div.innerHTML = 
-        '<div class="alert alert-info">' +
-          '<strong>المورد:</strong> ' + supplier.supplier_name + '<br>' +
-          '<strong>سعر التكلفة:</strong> ' + supplier.purchase_price + ' ILS' +
-        '</div>';
-    }
-    
-    function loadAvailableSuppliers() {
-      var select = document.getElementById('newSupplierSelect');
-      
-      fetch('/warehouses/api/suppliers/list', {
-        headers: {'X-Requested-With': 'XMLHttpRequest'},
-        credentials: 'same-origin'
-      })
-      .then(r => {
-        if (!r.ok) {
-          throw new Error('HTTP ' + r.status);
-        }
-        return r.json();
-      })
-      .then(data => {
-        if (data.success && data.suppliers) {
-          if (select) {
-            select.innerHTML = '<option value="">اختر مورد...</option>';
-            data.suppliers.forEach(function(s) {
-              var option = document.createElement('option');
-              option.value = s.id;
-              option.textContent = s.name;
-              select.appendChild(option);
-            });
-          }
-        } else {
-          if (select) select.innerHTML = '<option value="">لا يوجد موردين</option>';
-        }
-      })
-      .catch(err => {
-        if (select) select.innerHTML = '<option value="">خطأ في التحميل</option>';
-        notify('فشل تحميل قائمة الموردين: ' + err.message, 'danger');
-      });
-    }
-    
-    function updateSupplier() {
-      var supplierId = document.getElementById('newSupplierSelect').value;
-      var purchasePrice = document.getElementById('newSupplierPrice').value;
-      
-      if (!supplierId && !purchasePrice) {
-        notify('يجب إدخال مورد أو سعر تكلفة', 'warning');
-        return;
-      }
-      
-      var payload = {};
-      if (supplierId) payload.supplier_id = supplierId;
-      if (purchasePrice) payload.purchase_price = parseFloat(purchasePrice);
-      
-      fetch('/warehouses/api/products/' + currentProductId + '/suppliers', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-          'X-CSRFToken': csrfToken() || ''
-        },
-        credentials: 'same-origin',
-        body: JSON.stringify(payload)
-      })
-      .then(r => r.json())
-      .then(data => {
-        if (data.success) {
-          notify('تم تحديث المورد بنجاح', 'success');
-          document.getElementById('newSupplierSelect').value = '';
-          document.getElementById('newSupplierPrice').value = '';
-          loadSuppliers(currentProductId);
-          loadProducts(); // تحديث الجدول الرئيسي
-        } else {
-          notify(data.message || 'فشل التحديث', 'danger');
-        }
-      })
-      .catch(err => {
-        notify('فشل التحديث', 'danger');
-      });
-    }
-    
-    // ملاحظة: تم نقل استدعاء loadAvailablePartners و loadAvailableSuppliers
-    // إلى دوال openPartnersModal و openSuppliersModal مباشرة لتحسين الأداء
   </script>
-  
-  <!-- مودال إدارة الشركاء -->
-  <div class="modal fade" id="partnersModal" tabindex="-1" aria-labelledby="partnersModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-      <div class="modal-content">
-        <div class="modal-header bg-primary text-white">
-          <h5 class="modal-title" id="partnersModalLabel">إدارة الشركاء</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="إغلاق"></button>
-        </div>
-        <div class="modal-body">
-          <!-- قائمة الشركاء الحاليين -->
-          <h6 class="mb-3"><i class="fas fa-list me-2"></i>الشركاء الحاليين</h6>
-          <div class="table-responsive mb-4">
-            <table class="table table-bordered table-sm">
-              <thead class="table-light">
-                <tr>
-                  <th>الشريك</th>
-                  <th class="text-center">النسبة (%)</th>
-                  <th class="text-center" style="width: 120px;">إجراءات</th>
-                </tr>
-              </thead>
-              <tbody id="partnersListBody">
-                <tr><td colspan="3" class="text-center"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</td></tr>
-              </tbody>
-            </table>
-          </div>
-          
-          <hr>
-          
-          <!-- إضافة شريك جديد -->
-          <h6 class="mb-3"><i class="fas fa-plus me-2"></i>إضافة شريك جديد</h6>
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label for="newPartnerSelect" class="form-label">الشريك</label>
-              <select id="newPartnerSelect" class="form-select">
-                <option value="">جاري التحميل...</option>
-              </select>
-              <small class="text-muted">
-                <a href="/vendors/partners/new" target="_blank"><i class="fas fa-external-link-alt me-1"></i>إنشاء شريك جديد</a>
-              </small>
-            </div>
-            <div class="col-md-4">
-              <label for="newPartnerShare" class="form-label">النسبة (%)</label>
-              <input type="number" step="0.01" min="0" max="100" id="newPartnerShare" class="form-control" placeholder="0.00">
-            </div>
-            <div class="col-md-2 d-flex align-items-end">
-              <button class="btn btn-primary w-100" onclick="addNewPartner()">
-                <i class="fas fa-plus me-1"></i>إضافة
-              </button>
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
-        </div>
-      </div>
-    </div>
-  </div>
-  
-  <!-- مودال إدارة الموردين -->
-  <div class="modal fade" id="suppliersModal" tabindex="-1" aria-labelledby="suppliersModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-      <div class="modal-content">
-        <div class="modal-header bg-info text-white">
-          <h5 class="modal-title" id="suppliersModalLabel">إدارة الموردين</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="إغلاق"></button>
-        </div>
-        <div class="modal-body">
-          <!-- معلومات المورد الحالي -->
-          <h6 class="mb-3"><i class="fas fa-info-circle me-2"></i>المورد الحالي</h6>
-          <div id="suppliersInfo" class="mb-4">
-            <p class="text-center text-muted"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</p>
-          </div>
-          
-          <hr>
-          
-          <!-- تحديث المورد -->
-          <h6 class="mb-3"><i class="fas fa-edit me-2"></i>تحديث المورد</h6>
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label for="newSupplierSelect" class="form-label">المورد</label>
-              <select id="newSupplierSelect" class="form-select">
-                <option value="">جاري التحميل...</option>
-              </select>
-              <small class="text-muted">
-                <a href="/vendors/suppliers/new" target="_blank"><i class="fas fa-external-link-alt me-1"></i>إنشاء مورد جديد</a>
-              </small>
-            </div>
-            <div class="col-md-4">
-              <label for="newSupplierPrice" class="form-label">سعر التكلفة (ILS)</label>
-              <input type="number" step="0.01" min="0" id="newSupplierPrice" class="form-control" placeholder="0.00">
-            </div>
-            <div class="col-md-2 d-flex align-items-end">
-              <button class="btn btn-info w-100" onclick="updateSupplier()">
-                <i class="fas fa-save me-1"></i>تحديث
-              </button>
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
-        </div>
-      </div>
-    </div>
-  </div>
 {% endblock %}
