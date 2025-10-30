@@ -64,15 +64,16 @@
           </div>
 
           <div class="col-md-4">
-            <label class="form-label">مدير الفرع</label>
-            <select name="manager_user_id" class="form-select">
+            <label class="form-label">مدير الفرع (موظف)</label>
+            <select name="manager_employee_id" class="form-select">
               <option value="0">-- بدون مدير --</option>
-              {% for u in users %}
-              <option value="{{ u.id }}" {% if branch and branch.manager_user_id == u.id %}selected{% endif %}>
-                {{ u.username }}
+              {% for emp in employees %}
+              <option value="{{ emp.id }}" {% if branch and branch.manager_employee_id == emp.id %}selected{% endif %}>
+                {{ emp.name }} - {{ emp.position or 'لا يوجد مسمى' }}
               </option>
               {% endfor %}
             </select>
+            <small class="text-muted">اختر مدير الفرع من الموظفين</small>
           </div>
 
           <div class="col-md-4">

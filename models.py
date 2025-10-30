@@ -3372,22 +3372,31 @@ class PartnerSettlement(db.Model, TimestampMixin, AuditMixin):
 
     @hybrid_property
     def total_paid(self):
+        from decimal import Decimal
         ref = f"PartnerSettle:{self.code or ''}"
         if not self.code:
             return 0.0
-        val = (
-            db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
-            .filter(
-                Payment.partner_id == self.partner_id,
-                Payment.status == PaymentStatus.COMPLETED.value,
-                Payment.direction == PaymentDirection.OUT.value,
-                Payment.entity_type == PaymentEntityType.PARTNER.value,
-                Payment.reference == ref,
-            )
-            .scalar()
-            or 0
-        )
-        return float(q(val))
+        
+        payments = db.session.query(Payment).filter(
+            Payment.partner_id == self.partner_id,
+            Payment.status == PaymentStatus.COMPLETED.value,
+            Payment.direction == PaymentDirection.OUT.value,
+            Payment.entity_type == PaymentEntityType.PARTNER.value,
+            Payment.reference == ref
+        ).all()
+        
+        total = Decimal('0.00')
+        settlement_currency = self.currency or "ILS"
+        for p in payments:
+            amt = Decimal(str(p.total_amount or 0))
+            if p.currency == settlement_currency:
+                total += amt
+            else:
+                try:
+                    total += convert_amount(amt, p.currency, settlement_currency, p.payment_date)
+                except:
+                    pass
+        return float(total)
 
     @hybrid_property
     def remaining(self):
@@ -3566,8 +3575,8 @@ class Employee(db.Model, TimestampMixin, AuditMixin):
     site_id = db.Column(db.Integer, db.ForeignKey('sites.id'), nullable=True, index=True)
 
     expenses = relationship("Expense", back_populates="employee", cascade="all, delete-orphan")
-    branch = relationship('Branch', back_populates='employees')
-    site = relationship('Site', back_populates='employees')
+    branch = relationship('Branch', back_populates='employees', foreign_keys=[branch_id])
+    site = relationship('Site', back_populates='employees', foreign_keys=[site_id])
     deductions = relationship('EmployeeDeduction', back_populates='employee', cascade="all, delete-orphan")
     advance_installments = relationship('EmployeeAdvanceInstallment', back_populates='employee', cascade="all, delete-orphan")
 
@@ -3964,6 +3973,7 @@ class Branch(db.Model, TimestampMixin, AuditMixin):
     phone = db.Column(db.String(32))
     email = db.Column(db.String(120))
     manager_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), index=True)
+    manager_employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), index=True)
     timezone = db.Column(db.String(64))
     currency = db.Column(db.String(10), nullable=False, server_default=sa_text("'ILS'"))
     tax_id = db.Column(db.String(64))
@@ -3974,10 +3984,11 @@ class Branch(db.Model, TimestampMixin, AuditMixin):
     archive_reason = db.Column(db.String(200))
 
     manager_user = db.relationship('User', foreign_keys=[manager_user_id])
+    manager_employee = db.relationship('Employee', foreign_keys=[manager_employee_id], post_update=True)
     archived_by_user = db.relationship('User', foreign_keys=[archived_by])
 
     sites = db.relationship('Site', back_populates='branch', cascade="all, delete-orphan")
-    employees = db.relationship('Employee', back_populates='branch')
+    employees = db.relationship('Employee', back_populates='branch', foreign_keys='Employee.branch_id')
     expenses = db.relationship('Expense', back_populates='branch')
     warehouses = db.relationship('Warehouse', back_populates='branch')
 
@@ -3997,6 +4008,7 @@ class Site(db.Model, TimestampMixin, AuditMixin):
     geo_lat = db.Column(db.Numeric(10, 6))
     geo_lng = db.Column(db.Numeric(10, 6))
     manager_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), index=True)
+    manager_employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), index=True)
     notes = db.Column(db.Text)
     is_archived = db.Column(db.Boolean, nullable=False, server_default=sa_text("0"), index=True)
     archived_at = db.Column(db.DateTime, index=True)
@@ -4005,9 +4017,10 @@ class Site(db.Model, TimestampMixin, AuditMixin):
 
     branch = db.relationship('Branch', back_populates='sites')
     manager_user = db.relationship('User', foreign_keys=[manager_user_id])
+    manager_employee = db.relationship('Employee', foreign_keys=[manager_employee_id], post_update=True)
     archived_by_user = db.relationship('User', foreign_keys=[archived_by])
 
-    employees = db.relationship('Employee', back_populates='site')
+    employees = db.relationship('Employee', back_populates='site', foreign_keys='Employee.site_id')
     expenses = db.relationship('Expense', back_populates='site')
 
     def __repr__(self):
@@ -5505,15 +5518,24 @@ class Invoice(db.Model, TimestampMixin):
 
     @hybrid_property
     def total_paid(self):
-        return float(
-            db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
-            .filter(
-                Payment.invoice_id == self.id,
-                Payment.status == PaymentStatus.COMPLETED.value,
-                Payment.direction == PaymentDirection.IN.value,
-            )
-            .scalar() or 0
-        )
+        from decimal import Decimal
+        payments = db.session.query(Payment).filter(
+            Payment.invoice_id == self.id,
+            Payment.status == PaymentStatus.COMPLETED.value,
+            Payment.direction == PaymentDirection.IN.value
+        ).all()
+        total = Decimal('0.00')
+        invoice_currency = self.currency or "ILS"
+        for p in payments:
+            amt = Decimal(str(p.total_amount or 0))
+            if p.currency == invoice_currency:
+                total += amt
+            else:
+                try:
+                    total += convert_amount(amt, p.currency, invoice_currency, p.payment_date)
+                except:
+                    pass
+        return float(total)
 
     @total_paid.expression
     def total_paid(cls):
@@ -7685,7 +7707,24 @@ class ServiceRequest(db.Model, TimestampMixin, AuditMixin):
 
     @hybrid_property
     def total_paid(self):
-        return float(db.session.query(func.coalesce(func.sum(Payment.total_amount), 0)).filter(Payment.service_id == self.id, Payment.status == PaymentStatus.COMPLETED.value, Payment.direction == PaymentDirection.IN.value).scalar() or 0)
+        from decimal import Decimal
+        payments = db.session.query(Payment).filter(
+            Payment.service_id == self.id,
+            Payment.status == PaymentStatus.COMPLETED.value,
+            Payment.direction == PaymentDirection.IN.value
+        ).all()
+        total = Decimal('0.00')
+        service_currency = self.currency or "ILS"
+        for p in payments:
+            amt = Decimal(str(p.total_amount or 0))
+            if p.currency == service_currency:
+                total += amt
+            else:
+                try:
+                    total += convert_amount(amt, p.currency, service_currency, p.payment_date)
+                except:
+                    pass
+        return float(total)
 
     @total_paid.expression
     def total_paid(cls):
@@ -9177,16 +9216,24 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
 
     @hybrid_property
     def total_paid(self):
-        return float(
-            db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
-            .filter(
-                Payment.expense_id == self.id,
-                Payment.status == PaymentStatus.COMPLETED.value,
-                Payment.direction == PaymentDirection.OUT.value,
-            )
-            .scalar()
-            or 0
-        )
+        from decimal import Decimal
+        payments = db.session.query(Payment).filter(
+            Payment.expense_id == self.id,
+            Payment.status == PaymentStatus.COMPLETED.value,
+            Payment.direction == PaymentDirection.OUT.value
+        ).all()
+        total = Decimal('0.00')
+        expense_currency = self.currency or "ILS"
+        for p in payments:
+            amt = Decimal(str(p.total_amount or 0))
+            if p.currency == expense_currency:
+                total += amt
+            else:
+                try:
+                    total += convert_amount(amt, p.currency, expense_currency, p.payment_date)
+                except:
+                    pass
+        return float(total)
 
     @total_paid.expression
     def total_paid(cls):

@@ -94,9 +94,19 @@ def create_branch():
                 is_active=bool(request.form.get('is_active')),
             )
             
-            manager_id = request.form.get('manager_user_id')
-            if manager_id and manager_id != '0':
-                b.manager_user_id = int(manager_id)
+            # حفظ إحداثيات GPS
+            geo_lat = request.form.get('geo_lat', '').strip()
+            geo_lng = request.form.get('geo_lng', '').strip()
+            if geo_lat and geo_lng:
+                try:
+                    b.geo_lat = float(geo_lat)
+                    b.geo_lng = float(geo_lng)
+                except (ValueError, TypeError):
+                    pass
+            
+            manager_employee_id = request.form.get('manager_employee_id')
+            if manager_employee_id and manager_employee_id != '0':
+                b.manager_employee_id = int(manager_employee_id)
             
             db.session.add(b)
             db.session.commit()
@@ -109,8 +119,8 @@ def create_branch():
             db.session.rollback()
             flash(f"❌ خطأ في إنشاء الفرع: {e}", "danger")
     
-    users = User.query.filter_by(is_active=True).order_by(User.username).all()
-    return render_template('branches/form.html', branch=None, users=users)
+    employees = Employee.query.order_by(Employee.name).all()
+    return render_template('branches/form.html', branch=None, employees=employees)
 
 
 @branches_bp.route('/<int:branch_id>/edit', methods=['GET', 'POST'], endpoint='edit_branch')
@@ -124,6 +134,20 @@ def edit_branch(branch_id):
         try:
             b.name = request.form.get('name', '').strip()
             b.code = request.form.get('code', '').strip().upper()
+            
+            # حفظ إحداثيات GPS
+            geo_lat = request.form.get('geo_lat', '').strip()
+            geo_lng = request.form.get('geo_lng', '').strip()
+            if geo_lat and geo_lng:
+                try:
+                    b.geo_lat = float(geo_lat)
+                    b.geo_lng = float(geo_lng)
+                except (ValueError, TypeError):
+                    b.geo_lat = None
+                    b.geo_lng = None
+            else:
+                b.geo_lat = None
+                b.geo_lng = None
             b.address = request.form.get('address', '').strip() or None
             b.city = request.form.get('city', '').strip() or None
             b.phone = request.form.get('phone', '').strip() or None
@@ -133,11 +157,11 @@ def edit_branch(branch_id):
             b.notes = request.form.get('notes', '').strip() or None
             b.is_active = bool(request.form.get('is_active'))
             
-            manager_id = request.form.get('manager_user_id')
-            if manager_id and manager_id != '0':
-                b.manager_user_id = int(manager_id)
+            manager_employee_id = request.form.get('manager_employee_id')
+            if manager_employee_id and manager_employee_id != '0':
+                b.manager_employee_id = int(manager_employee_id)
             else:
-                b.manager_user_id = None
+                b.manager_employee_id = None
             
             db.session.commit()
             flash(f"✅ تم تحديث الفرع: {b.name}", "success")
@@ -149,8 +173,8 @@ def edit_branch(branch_id):
             db.session.rollback()
             flash(f"❌ خطأ في تحديث الفرع: {e}", "danger")
     
-    users = User.query.filter_by(is_active=True).order_by(User.username).all()
-    return render_template('branches/form.html', branch=b, users=users)
+    employees = Employee.query.order_by(Employee.name).all()
+    return render_template('branches/form.html', branch=b, employees=employees)
 
 
 @branches_bp.route('/<int:branch_id>/archive', methods=['POST'], endpoint='archive_branch')
