@@ -382,7 +382,38 @@
     const taxRate = qs('#taxRate'); if (taxRate) on(taxRate,'input',recalcDebounced);
     const shipping= qs('#shippingCost'); if (shipping) on(shipping,'input',recalcDebounced);
     const discountTotal= qs('#discountTotal'); if (discountTotal) on(discountTotal,'input',recalcDebounced);
-    const currency= qs('select[name="currency"]'); if (currency) on(currency,'change',recalcDebounced);
+    const currency= qs('select[name="currency"]');
+    if (currency) {
+      on(currency,'change', async () => {
+        const newCurrency = currency.value || 'ILS';
+        console.log('🔄 تغيير العملة إلى:', newCurrency);
+        
+        // إعادة تحويل أسعار كل البنود
+        const rows = qsa('.sale-line', wrap);
+        for (const row of rows) {
+          const $pd = window.jQuery ? window.jQuery(row).find('select.product-select') : null;
+          const $wh = window.jQuery ? window.jQuery(row).find('select.warehouse-select') : null;
+          const priceInp = row.querySelector('input[name$="-unit_price"]');
+          
+          if ($pd && $pd.val() && $wh && $wh.val() && priceInp && row.dataset.priceManual !== '1') {
+            const pid = +$pd.val();
+            const wid = +$wh.val();
+            
+            try {
+              const info = await fetchProductInfo(pid, wid, newCurrency);
+              if (info && toNum(info.price) > 0) {
+                priceInp.value = toNum(info.price).toFixed(2);
+                console.log(`  💱 تحديث السعر: ${info.original_price} ${info.original_currency} → ${info.price} ${info.target_currency}`);
+              }
+            } catch (e) {
+              console.error('خطأ في تحديث السعر:', e);
+            }
+          }
+        }
+        
+        recalcDebounced();
+      });
+    }
     recalc();
   })();
 })();

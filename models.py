@@ -10898,3 +10898,70 @@ def _update_partner_on_shipment_item_change(mapper, connection, target):
                 update_partner_balance(partner_id, connection=connection)
     except Exception as e:
         pass
+
+
+class SaaSPlan(db.Model, TimestampMixin):
+    __tablename__ = 'saas_plans'
+    
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False, unique=True)
+    description = Column(Text)
+    price_monthly = Column(Numeric(10, 2), nullable=False)
+    price_yearly = Column(Numeric(10, 2))
+    currency = Column(String(10), default='USD', nullable=False)
+    max_users = Column(Integer)
+    max_invoices = Column(Integer)
+    storage_gb = Column(Integer)
+    features = Column(Text)
+    is_active = Column(Boolean, default=True, nullable=False, server_default=sa_text("1"))
+    is_popular = Column(Boolean, default=False, nullable=False, server_default=sa_text("0"))
+    sort_order = Column(Integer, default=0)
+    
+    subscriptions = relationship("SaaSSubscription", back_populates="plan")
+    
+    def __repr__(self):
+        return f"<SaaSPlan {self.name}>"
+
+
+class SaaSSubscription(db.Model, TimestampMixin):
+    __tablename__ = 'saas_subscriptions'
+    
+    id = Column(Integer, primary_key=True)
+    customer_id = Column(Integer, ForeignKey('customers.id'), nullable=False, index=True)
+    plan_id = Column(Integer, ForeignKey('saas_plans.id'), nullable=False, index=True)
+    status = Column(String(20), default='trial', nullable=False)
+    start_date = Column(DateTime, nullable=False)
+    end_date = Column(DateTime)
+    trial_end_date = Column(DateTime)
+    auto_renew = Column(Boolean, default=True, nullable=False, server_default=sa_text("1"))
+    cancelled_at = Column(DateTime)
+    cancelled_by = Column(Integer, ForeignKey('users.id'))
+    cancellation_reason = Column(Text)
+    
+    customer = relationship("Customer", backref="saas_subscriptions")
+    plan = relationship("SaaSPlan", back_populates="subscriptions")
+    cancelled_by_user = relationship("User", foreign_keys=[cancelled_by])
+    invoices = relationship("SaaSInvoice", back_populates="subscription")
+    
+    def __repr__(self):
+        return f"<SaaSSubscription {self.id} - {self.customer.name if self.customer else 'N/A'}>"
+
+
+class SaaSInvoice(db.Model, TimestampMixin):
+    __tablename__ = 'saas_invoices'
+    
+    id = Column(Integer, primary_key=True)
+    invoice_number = Column(String(50), unique=True, nullable=False, index=True)
+    subscription_id = Column(Integer, ForeignKey('saas_subscriptions.id'), nullable=False, index=True)
+    amount = Column(Numeric(10, 2), nullable=False)
+    currency = Column(String(10), default='USD', nullable=False)
+    status = Column(String(20), default='pending', nullable=False)
+    due_date = Column(DateTime)
+    paid_at = Column(DateTime)
+    payment_method = Column(String(50))
+    notes = Column(Text)
+    
+    subscription = relationship("SaaSSubscription", back_populates="invoices")
+    
+    def __repr__(self):
+        return f"<SaaSInvoice {self.invoice_number}>"

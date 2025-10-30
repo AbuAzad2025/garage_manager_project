@@ -95,9 +95,97 @@ def owner_only(f):
 super_admin_only = owner_only
 
 
+@security_bp.route('/dashboard')
+@owner_only
+def dashboard():
+    """
+    🎯 Dashboard الموحد الجديد - النسخة المُحدّثة
+    """
+    from datetime import datetime, timedelta, timezone
+    
+    stats = {
+        'total_users': User.query.count(),
+        'active_users': User.query.filter_by(is_active=True).count(),
+        'blocked_users': User.query.filter_by(is_active=False).count(),
+        'online_users': 0,
+        'blocked_ips': 0,
+        'blocked_countries': 0,
+        'failed_logins_24h': 0,
+        'db_size': 'N/A',
+        'system_health': 'ممتاز'
+    }
+    
+    return render_template('security/dashboard.html', stats=stats)
+
+
+@security_bp.route('/saas-manager')
+@owner_only
+def saas_manager():
+    """
+    🚀 SaaS Manager - إدارة الاشتراكات والفواتير
+    """
+    from models import SaaSPlan, SaaSSubscription, SaaSInvoice
+    from sqlalchemy import func
+    from decimal import Decimal
+    
+    try:
+        plans = SaaSPlan.query.order_by(SaaSPlan.sort_order, SaaSPlan.price_monthly).all()
+    except:
+        plans = []
+    
+    try:
+        subscriptions = SaaSSubscription.query.order_by(SaaSSubscription.created_at.desc()).limit(50).all()
+    except:
+        subscriptions = []
+    
+    try:
+        invoices = SaaSInvoice.query.order_by(SaaSInvoice.created_at.desc()).limit(50).all()
+    except:
+        invoices = []
+    
+    try:
+        total_subscribers = SaaSSubscription.query.count()
+        active_subscribers = SaaSSubscription.query.filter_by(status='active').count()
+        trial_users = SaaSSubscription.query.filter_by(status='trial').count()
+        
+        monthly_revenue = db.session.query(
+            func.sum(SaaSInvoice.amount)
+        ).filter(
+            SaaSInvoice.status == 'paid',
+            SaaSInvoice.created_at >= datetime.now(timezone.utc) - timedelta(days=30)
+        ).scalar() or Decimal('0')
+        
+        stats = {
+            'total_subscribers': total_subscribers,
+            'active_subscribers': active_subscribers,
+            'monthly_revenue': f"${float(monthly_revenue):,.2f}",
+            'trial_users': trial_users
+        }
+    except:
+        stats = {
+            'total_subscribers': 0,
+            'active_subscribers': 0,
+            'monthly_revenue': '$0.00',
+            'trial_users': 0
+        }
+    
+    return render_template('security/saas_manager.html', 
+                         stats=stats, 
+                         plans=plans,
+                         subscriptions=subscriptions,
+                         invoices=invoices)
+
+
 @security_bp.route('/')
 @owner_only
 def index():
+    """Redirect to new unified dashboard"""
+    return redirect(url_for('security.dashboard'))
+
+
+@security_bp.route('/index-old')
+@owner_only
+def index_old():
     """
     👑 لوحة التحكم الأمنية الرئيسية - Owner's Security Dashboard
     
@@ -409,11 +497,20 @@ def failed_logins():
 # AI Control Panel - UNIFIED
 # ═══════════════════════════════════════════════════════════════
 
+@security_bp.route('/ai-hub')
 @security_bp.route('/ai-control-panel')
 @security_bp.route('/ai-control')
 @owner_only
-def ai_control_panel():
-    """لوحة تحكم AI الموحدة - 6 في 1 (مساعد + إعدادات + تحليلات + تشخيص + تدريب + أنماط)"""
+def ai_hub():
+    """
+    🤖 AI Hub الموحد - 6 في 1
+    - المساعد الذكي
+    - الإعدادات
+    - التحليلات
+    - التشخيص
+    - التدريب
+    - الأنماط
+    """
     tab = request.args.get('tab', 'assistant')
     
     # بيانات بسيطة
@@ -421,7 +518,7 @@ def ai_control_panel():
     ai_stats = {'total_queries': 0, 'successful': 0, 'avg_response_time': 0, 'today': 0}
     diagnostics = {'ai_service_status': True, 'api_key_valid': True, 'success_rate': 95, 'avg_time': 1.2, 'last_error': None, 'warnings': []}
     
-    return render_template('security/ai_control_panel.html',
+    return render_template('security/ai_hub.html',
                           chat_history=[],
                           ai_config=ai_config,
                           ai_stats=ai_stats,

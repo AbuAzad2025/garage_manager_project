@@ -525,6 +525,34 @@
       }
       $('#prodAvail').text(parts.join(' | '));
     });
+    
+    // مستمع لتغيير العملة - إعادة تحويل السعر
+    $('select[name="currency"]').on('change', async function(){
+      var newCurrency = $(this).val() || 'ILS';
+      var pid = $('#productSelect').val();
+      var wid = $('#warehouseSelect').val();
+      
+      if (pid && wid) {
+        console.log('🔄 تغيير عملة الحجز إلى:', newCurrency);
+        try {
+          var info = await fetchProductInfo(pid, wid, newCurrency);
+          if (info && info.price > 0) {
+            var parts = [];
+            if (info.available !== null && info.available !== undefined) {
+              parts.push('متاح: ' + info.available);
+            }
+            parts.push('سعر: ' + Number(info.price).toFixed(2) + ' ' + (info.target_currency || newCurrency));
+            if (info.original_currency && info.original_currency !== newCurrency) {
+              parts.push('(أصلي: ' + Number(info.original_price).toFixed(2) + ' ' + info.original_currency + ')');
+              console.log(`  💱 تحويل: ${info.original_price} ${info.original_currency} → ${info.price} ${info.target_currency}`);
+            }
+            $('#prodAvail').text(parts.join(' | '));
+          }
+        } catch (e) {
+          console.error('خطأ في تحديث السعر:', e);
+        }
+      }
+    });
 
     if (window.flatpickr) {
       var opts = {

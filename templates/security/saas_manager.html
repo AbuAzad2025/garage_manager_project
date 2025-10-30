@@ -1,0 +1,563 @@
+{% extends 'base.html' %}
+{% block title %}🚀 إدارة SaaS{% endblock %}
+{% block page_title %}🚀 إدارة SaaS - Subscription & Billing Manager{% endblock %}
+
+{% block head_extra %}
+<style>
+.saas-card {
+  border-radius: 16px;
+  border: none;
+  transition: all 0.3s ease;
+}
+
+.saas-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15) !important;
+}
+
+.plan-card {
+  border-radius: 16px;
+  border: 3px solid transparent;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.plan-card.recommended {
+  border-color: #f5576c;
+  box-shadow: 0 0 30px rgba(245, 87, 108, 0.3);
+}
+
+.plan-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 2rem;
+  text-align: center;
+  border-radius: 13px 13px 0 0;
+}
+
+.plan-header.gold {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.plan-header.silver {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.plan-price {
+  font-size: 3rem;
+  font-weight: 800;
+  margin: 1rem 0;
+}
+
+.plan-price small {
+  font-size: 1rem;
+  opacity: 0.8;
+}
+
+.plan-feature {
+  padding: 0.8rem;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.plan-feature i {
+  color: #28a745;
+}
+
+.subscriber-card {
+  border-left: 4px solid #667eea;
+  border-radius: 8px;
+  padding: 1rem;
+  background: white;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.subscriber-card.active {
+  border-left-color: #28a745;
+}
+
+.subscriber-card.expired {
+  border-left-color: #dc3545;
+}
+
+.status-badge {
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.status-active {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status-expired {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.status-trial {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.revenue-chart {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 2rem;
+  border-radius: 16px;
+  text-align: center;
+}
+
+.revenue-number {
+  font-size: 3rem;
+  font-weight: 800;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+  <div class="row mb-4">
+    <div class="col">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="{{ url_for('security.dashboard') }}"><i class="fas fa-shield-alt"></i> Security</a></li>
+          <li class="breadcrumb-item active">SaaS Manager</li>
+        </ol>
+      </nav>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-lg-3 col-md-6">
+      <div class="saas-card shadow-sm p-3" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+        <i class="fas fa-users fa-2x mb-2"></i>
+        <h3 class="mb-0">{{ stats.total_subscribers or 0 }}</h3>
+        <small>إجمالي المشتركين</small>
+      </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+      <div class="saas-card shadow-sm p-3" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+        <i class="fas fa-check-circle fa-2x mb-2"></i>
+        <h3 class="mb-0">{{ stats.active_subscribers or 0 }}</h3>
+        <small>مشتركين نشطين</small>
+      </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+      <div class="saas-card shadow-sm p-3" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+        <i class="fas fa-dollar-sign fa-2x mb-2"></i>
+        <h3 class="mb-0">{{ stats.monthly_revenue or '0' }}</h3>
+        <small>الإيرادات الشهرية</small>
+      </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+      <div class="saas-card shadow-sm p-3" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white;">
+        <i class="fas fa-clock fa-2x mb-2"></i>
+        <h3 class="mb-0">{{ stats.trial_users or 0 }}</h3>
+        <small>تجريبي</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mb-4">
+    <div class="col">
+      <ul class="nav nav-pills nav-fill" role="tablist">
+        <li class="nav-item">
+          <a class="nav-link active" data-bs-toggle="pill" href="#plans">
+            <i class="fas fa-box me-1"></i> الباقات
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" data-bs-toggle="pill" href="#subscribers">
+            <i class="fas fa-users me-1"></i> المشتركين
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" data-bs-toggle="pill" href="#billing">
+            <i class="fas fa-file-invoice-dollar me-1"></i> الفواتير
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" data-bs-toggle="pill" href="#analytics">
+            <i class="fas fa-chart-line me-1"></i> التحليلات
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" data-bs-toggle="pill" href="#settings">
+            <i class="fas fa-cog me-1"></i> الإعدادات
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="tab-content">
+    
+    <div id="plans" class="tab-pane fade show active">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5><i class="fas fa-layer-group me-2"></i>باقات الاشتراك</h5>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newPlanModal">
+          <i class="fas fa-plus me-1"></i> باقة جديدة
+        </button>
+      </div>
+
+      <div class="row g-4">
+        {% if plans %}
+          {% for plan in plans %}
+          <div class="col-lg-4 col-md-6">
+            <div class="plan-card shadow {% if plan.is_popular %}recommended{% endif %}">
+              <div class="plan-header {% if loop.index == 2 %}gold{% elif loop.index == 1 %}{% else %}silver{% endif %}">
+                {% if plan.is_popular %}<span class="badge bg-white text-dark mb-2">الأكثر شعبية</span>{% endif %}
+                <h4>{{ plan.name }}</h4>
+                <div class="plan-price">{{ plan.currency }}{{ "%.2f"|format(plan.price_monthly) }}<small>/شهر</small></div>
+                <p class="mb-0">{{ plan.description or '' }}</p>
+              </div>
+              <div class="p-3">
+                {% if plan.max_users %}
+                  <div class="plan-feature"><i class="fas fa-check"></i> {% if plan.max_users == -1 %}مستخدمين غير محدود{% else %}{{ plan.max_users }} مستخدم{% endif %}</div>
+                {% endif %}
+                {% if plan.max_invoices %}
+                  <div class="plan-feature"><i class="fas fa-check"></i> {% if plan.max_invoices == -1 %}فواتير غير محدودة{% else %}{{ plan.max_invoices }} فاتورة/شهر{% endif %}</div>
+                {% endif %}
+                {% if plan.storage_gb %}
+                  <div class="plan-feature"><i class="fas fa-check"></i> {% if plan.storage_gb == -1 %}تخزين غير محدود{% else %}{{ plan.storage_gb }} GB تخزين{% endif %}</div>
+                {% endif %}
+                {% if plan.features %}
+                  {% for feature in plan.features.split('\n') %}
+                    {% if feature.strip() %}
+                    <div class="plan-feature"><i class="fas fa-check"></i> {{ feature.strip() }}</div>
+                    {% endif %}
+                  {% endfor %}
+                {% endif %}
+                <div class="d-grid gap-2 mt-3">
+                  <button class="btn btn-outline-primary" onclick="editPlan({{ plan.id }})">تعديل</button>
+                  {% if not plan.is_active %}
+                  <button class="btn btn-outline-success btn-sm" onclick="activatePlan({{ plan.id }})">تفعيل</button>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="col-12">
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle me-2"></i>
+              لا توجد باقات حالياً. اضغط "باقة جديدة" لإنشاء أول باقة.
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div id="subscribers" class="tab-pane fade">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5><i class="fas fa-users me-2"></i>قائمة المشتركين</h5>
+        <div class="input-group" style="max-width: 300px;">
+          <input type="text" class="form-control" placeholder="بحث...">
+          <button class="btn btn-outline-secondary"><i class="fas fa-search"></i></button>
+        </div>
+      </div>
+
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead class="table-light">
+                <tr>
+                  <th>العميل</th>
+                  <th>الباقة</th>
+                  <th>الحالة</th>
+                  <th>تاريخ البدء</th>
+                  <th>تاريخ الانتهاء</th>
+                  <th>الإجراءات</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% if subscriptions %}
+                  {% for sub in subscriptions %}
+                  <tr>
+                    <td>
+                      <div class="d-flex align-items-center gap-2">
+                        <div class="avatar bg-primary text-white rounded-circle" style="width: 40px; height: 40px; line-height: 40px; text-align: center;">
+                          {{ sub.customer.name[0]|upper if sub.customer else '?' }}
+                        </div>
+                        <div>
+                          <strong>{{ sub.customer.name if sub.customer else 'N/A' }}</strong><br>
+                          <small class="text-muted">{{ sub.customer.email if sub.customer else '' }}</small>
+                        </div>
+                      </div>
+                    </td>
+                    <td><span class="badge bg-{% if sub.status == 'active' %}success{% elif sub.status == 'trial' %}warning{% else %}secondary{% endif %}">{{ sub.plan.name if sub.plan else 'N/A' }}</span></td>
+                    <td>
+                      <span class="status-badge status-{{ sub.status }}">
+                        {% if sub.status == 'active' %}نشط
+                        {% elif sub.status == 'trial' %}تجريبي
+                        {% elif sub.status == 'expired' %}منتهي
+                        {% elif sub.status == 'cancelled' %}ملغي
+                        {% else %}{{ sub.status }}{% endif %}
+                      </span>
+                    </td>
+                    <td>{{ sub.start_date.strftime('%Y-%m-%d') if sub.start_date else 'N/A' }}</td>
+                    <td>{{ sub.end_date.strftime('%Y-%m-%d') if sub.end_date else 'N/A' }}</td>
+                    <td>
+                      <button class="btn btn-sm btn-outline-primary" onclick="viewSubscription({{ sub.id }})"><i class="fas fa-eye"></i></button>
+                      <button class="btn btn-sm btn-outline-warning" onclick="editSubscription({{ sub.id }})"><i class="fas fa-edit"></i></button>
+                      {% if sub.status == 'active' %}
+                      <button class="btn btn-sm btn-outline-danger" onclick="cancelSubscription({{ sub.id }})"><i class="fas fa-ban"></i></button>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                {% else %}
+                  <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                      <i class="fas fa-users fa-2x mb-2 d-block"></i>
+                      لا يوجد مشتركين حالياً
+                    </td>
+                  </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="billing" class="tab-pane fade">
+      <h5 class="mb-3"><i class="fas fa-file-invoice-dollar me-2"></i>الفواتير والمدفوعات</h5>
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-striped">
+              <thead class="table-dark">
+                <tr>
+                  <th>رقم الفاتورة</th>
+                  <th>العميل</th>
+                  <th>المبلغ</th>
+                  <th>التاريخ</th>
+                  <th>تاريخ الاستحقاق</th>
+                  <th>الحالة</th>
+                  <th>الإجراءات</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% if invoices %}
+                  {% for inv in invoices %}
+                  <tr>
+                    <td><strong>{{ inv.invoice_number }}</strong></td>
+                    <td>{{ inv.subscription.customer.name if inv.subscription and inv.subscription.customer else 'N/A' }}</td>
+                    <td>{{ inv.currency }}{{ "%.2f"|format(inv.amount) }}</td>
+                    <td>{{ inv.created_at.strftime('%Y-%m-%d') if inv.created_at else 'N/A' }}</td>
+                    <td>{{ inv.due_date.strftime('%Y-%m-%d') if inv.due_date else 'N/A' }}</td>
+                    <td>
+                      <span class="badge bg-{% if inv.status == 'paid' %}success{% elif inv.status == 'pending' %}warning{% elif inv.status == 'overdue' %}danger{% else %}secondary{% endif %}">
+                        {% if inv.status == 'paid' %}مدفوعة
+                        {% elif inv.status == 'pending' %}معلقة
+                        {% elif inv.status == 'overdue' %}متأخرة
+                        {% elif inv.status == 'cancelled' %}ملغاة
+                        {% else %}{{ inv.status }}{% endif %}
+                      </span>
+                    </td>
+                    <td>
+                      <button class="btn btn-sm btn-outline-primary" onclick="downloadInvoice({{ inv.id }})"><i class="fas fa-download"></i> PDF</button>
+                      {% if inv.status == 'pending' %}
+                      <button class="btn btn-sm btn-outline-success" onclick="markPaid({{ inv.id }})"><i class="fas fa-check"></i></button>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                {% else %}
+                  <tr>
+                    <td colspan="7" class="text-center text-muted py-4">
+                      <i class="fas fa-file-invoice fa-2x mb-2 d-block"></i>
+                      لا توجد فواتير حالياً
+                    </td>
+                  </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="analytics" class="tab-pane fade">
+      <h5 class="mb-3"><i class="fas fa-chart-line me-2"></i>تحليلات SaaS</h5>
+      
+      <div class="row g-4">
+        <div class="col-lg-6">
+          <div class="revenue-chart shadow">
+            <h3>الإيرادات الشهرية</h3>
+            <div class="revenue-number">$1,284</div>
+            <p class="mb-0"><i class="fas fa-arrow-up me-1"></i> +23% من الشهر الماضي</p>
+          </div>
+        </div>
+        
+        <div class="col-lg-6">
+          <div class="card shadow-sm">
+            <div class="card-body">
+              <h6><i class="fas fa-chart-pie me-2"></i>توزيع الباقات</h6>
+              <canvas id="plansChart" height="200"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-4 mt-3">
+        <div class="col-lg-12">
+          <div class="card shadow-sm">
+            <div class="card-body">
+              <h6><i class="fas fa-chart-line me-2"></i>نمو المشتركين</h6>
+              <canvas id="growthChart" height="100"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="settings" class="tab-pane fade">
+      <h5 class="mb-3"><i class="fas fa-cog me-2"></i>إعدادات SaaS</h5>
+      
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <form>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">طريقة الدفع الافتراضية</label>
+                <select class="form-select">
+                  <option>Stripe</option>
+                  <option>PayPal</option>
+                  <option>Bank Transfer</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">العملة</label>
+                <select class="form-select">
+                  <option>USD - Dollar</option>
+                  <option>ILS - Shekel</option>
+                  <option>EUR - Euro</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">مدة التجربة (أيام)</label>
+                <input type="number" class="form-control" value="14">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">تجديد تلقائي</label>
+                <div class="form-check form-switch mt-2">
+                  <input class="form-check-input" type="checkbox" checked>
+                  <label class="form-check-label">تفعيل التجديد التلقائي</label>
+                </div>
+              </div>
+              <div class="col-12">
+                <button type="submit" class="btn btn-primary">
+                  <i class="fas fa-save me-1"></i> حفظ الإعدادات
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<div class="modal fade" id="newPlanModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-plus me-2"></i>باقة جديدة</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form>
+          <div class="mb-3">
+            <label class="form-label">اسم الباقة</label>
+            <input type="text" class="form-control" placeholder="مثال: Premium">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">السعر الشهري</label>
+            <input type="number" class="form-control" placeholder="99.00">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">عدد المستخدمين</label>
+            <input type="number" class="form-control" placeholder="10">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">المميزات</label>
+            <textarea class="form-control" rows="4" placeholder="مميزة واحدة في كل سطر"></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+        <button type="button" class="btn btn-primary"><i class="fas fa-save me-1"></i> حفظ</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+function csrfToken(){
+  const meta = document.querySelector('meta[name="csrf-token"]');
+  if (meta?.content) return meta.content;
+  const input = document.querySelector('input[name="csrf_token"]');
+  if (input?.value) return input.value;
+  const cookie = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
+  return cookie ? decodeURIComponent(cookie[1]) : null;
+}
+
+function notify(message, type = 'info') {
+  const alert = document.createElement('div');
+  alert.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+  alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+  alert.innerHTML = `<strong>${message}</strong><button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+  document.body.appendChild(alert);
+  setTimeout(() => alert.remove(), 5000);
+}
+
+async function editPlan(planId) {
+  notify('قريباً...', 'info');
+}
+
+async function activatePlan(planId) {
+  if (!confirm('تفعيل هذه الباقة؟')) return;
+  notify('قريباً...', 'info');
+}
+
+async function viewSubscription(subId) {
+  notify('قريباً...', 'info');
+}
+
+async function editSubscription(subId) {
+  notify('قريباً...', 'info');
+}
+
+async function cancelSubscription(subId) {
+  if (!confirm('هل أنت متأكد من إلغاء هذا الاشتراك؟')) return;
+  notify('قريباً...', 'info');
+}
+
+async function downloadInvoice(invId) {
+  notify('جاري تحميل الفاتورة...', 'info');
+}
+
+async function markPaid(invId) {
+  if (!confirm('تأكيد الدفع؟')) return;
+  notify('قريباً...', 'info');
+}
+</script>
+{% endblock %}
+
