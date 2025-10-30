@@ -241,13 +241,28 @@ def branch_dashboard(branch_id):
         'monthly_expenses': 0.0
     }
     
-    # حساب مصاريف الشهر الحالي
+    # حساب مصاريف الشهر الحالي مع تحويل العملات
     from datetime import datetime, timedelta
+    from decimal import Decimal
+    from models import convert_amount
+    
     start_of_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    monthly_expenses = db.session.query(db.func.sum(Expense.amount)).filter(
+    month_expenses = Expense.query.filter(
         Expense.branch_id == branch_id,
         Expense.date >= start_of_month
-    ).scalar() or 0.0
+    ).all()
+    
+    monthly_expenses = Decimal('0.00')
+    for exp in month_expenses:
+        amt = Decimal(str(exp.amount or 0))
+        if exp.currency == "ILS":
+            monthly_expenses += amt
+        else:
+            try:
+                monthly_expenses += convert_amount(amt, exp.currency, "ILS", exp.date)
+            except:
+                pass
+    
     stats['monthly_expenses'] = float(monthly_expenses)
     
     # قوائم
@@ -412,24 +427,61 @@ def branch_report(branch_id):
     branch = _get_or_404(Branch, branch_id)
     
     # إحصائيات
+    from decimal import Decimal
+    from models import convert_amount
+    
+    # حساب إجمالي المصاريف مع تحويل العملات
+    all_branch_expenses = Expense.query.filter_by(branch_id=branch_id).all()
+    expenses_total_ils = Decimal('0.00')
+    for exp in all_branch_expenses:
+        amt = Decimal(str(exp.amount or 0))
+        if exp.currency == "ILS":
+            expenses_total_ils += amt
+        else:
+            try:
+                expenses_total_ils += convert_amount(amt, exp.currency, "ILS", exp.date)
+            except:
+                pass
+    
     stats = {
         'employees_count': Employee.query.filter_by(branch_id=branch_id).count(),
         'sites_count': Site.query.filter_by(branch_id=branch_id, is_active=True).count(),
         'warehouses_count': Warehouse.query.filter_by(branch_id=branch_id).count(),
-        'expenses_count': Expense.query.filter_by(branch_id=branch_id).count(),
-        'expenses_total': float(db.session.query(func.coalesce(func.sum(Expense.amount), 0)).filter(Expense.branch_id == branch_id).scalar()),
+        'expenses_count': len(all_branch_expenses),
+        'expenses_total': float(expenses_total_ils),
     }
     
     # أعلى 5 نفقات
     top_expenses = Expense.query.filter_by(branch_id=branch_id).order_by(Expense.amount.desc()).limit(5).all()
     
-    # نفقات حسب النوع
+    # نفقات حسب النوع مع تحويل العملات
     from models import ExpenseType
-    expense_by_type = db.session.query(
-        ExpenseType.name,
-        func.count(Expense.id).label('count'),
-        func.sum(Expense.amount).label('total')
-    ).join(Expense).filter(Expense.branch_id == branch_id).group_by(ExpenseType.name).all()
+    from collections import defaultdict
+    
+    expense_types_dict = defaultdict(lambda: {'count': 0, 'total': Decimal('0.00')})
+    
+    for exp in all_branch_expenses:
+        type_name = exp.expense_type.name if exp.expense_type else 'غير محدد'
+        amt = Decimal(str(exp.amount or 0))
+        
+        if exp.currency == "ILS":
+            amt_ils = amt
+        else:
+            try:
+                amt_ils = convert_amount(amt, exp.currency, "ILS", exp.date)
+            except:
+                amt_ils = Decimal('0.00')
+        
+        expense_types_dict[type_name]['count'] += 1
+        expense_types_dict[type_name]['total'] += amt_ils
+    
+    # تحويل للصيغة المتوقعة من التمبلت
+    from collections import namedtuple
+    ExpenseByType = namedtuple('ExpenseByType', ['name', 'count', 'total'])
+    expense_by_type = [
+        ExpenseByType(name=k, count=v['count'], total=float(v['total']))
+        for k, v in expense_types_dict.items()
+    ]
     
     return render_template(
         'branches/report.html',

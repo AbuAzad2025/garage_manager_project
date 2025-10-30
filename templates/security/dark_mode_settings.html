@@ -1,212 +1,0 @@
-{% extends "base.html" %}
-
-{% block title %}إعدادات الوضع الليلي{% endblock %}
-
-{% block content %}
-<div class="container-fluid">
-  {% include 'security/_navigation.html' %}
-
-  <div class="row mb-4">
-    <div class="col-12">
-      <div class="card shadow">
-        <div class="card-header bg-gradient text-white" style="background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);">
-          <h4 class="mb-0">
-            <i class="fas fa-moon"></i> إعدادات الوضع الليلي (Dark Mode)
-            <button type="button" class="btn btn-light btn-sm float-end" id="preview-toggle">
-              <i class="fas fa-eye"></i> معاينة
-            </button>
-          </h4>
-        </div>
-        <div class="card-body">
-          
-          <div class="alert alert-info">
-            <i class="fas fa-info-circle"></i>
-            <strong>ملاحظة:</strong> الوضع الليلي يحسن راحة العين ويوفر طاقة البطارية على شاشات OLED
-          </div>
-
-          <!-- معاينة مباشرة -->
-          <div class="row mb-4">
-            <div class="col-md-6">
-              <div class="card shadow-sm" id="preview-normal">
-                <div class="card-header bg-light">
-                  <h5 class="mb-0">🌞 الوضع العادي</h5>
-                </div>
-                <div class="card-body" style="background: #ffffff; color: #333;">
-                  <h6>عنوان عادي</h6>
-                  <p>هذا نص عادي في الوضع النهاري</p>
-                  <button class="btn btn-primary">زر</button>
-                  <button class="btn btn-secondary">زر</button>
-                </div>
-              </div>
-            </div>
-            <div class="col-md-6">
-              <div class="card shadow-sm" id="preview-dark">
-                <div class="card-header" style="background: #2d3748; color: #fff;">
-                  <h5 class="mb-0">🌙 الوضع الليلي</h5>
-                </div>
-                <div class="card-body" style="background: #1a202c; color: #e2e8f0;">
-                  <h6 style="color: #f7fafc;">عنوان في الوضع الليلي</h6>
-                  <p>هذا نص في الوضع الليلي - مريح للعين</p>
-                  <button class="btn btn-light">زر</button>
-                  <button class="btn btn-secondary">زر</button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- نموذج الإعدادات -->
-          <form method="POST">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-            <div class="row">
-              <div class="col-md-6">
-                <h5 class="mb-3"><i class="fas fa-cog"></i> الإعدادات الأساسية</h5>
-                
-                <div class="form-group mb-3">
-                  <label class="form-label">
-                    <i class="fas fa-toggle-on"></i> تفعيل الوضع الليلي افتراضياً
-                  </label>
-                  <select class="form-control" name="default_mode">
-                    <option value="light">الوضع النهاري (افتراضي)</option>
-                    <option value="dark">الوضع الليلي</option>
-                    <option value="auto">تلقائي (حسب توقيت النظام)</option>
-                  </select>
-                  <small class="form-text text-muted">يمكن للمستخدم التبديل يدوياً في أي وقت</small>
-                </div>
-
-                <div class="form-group mb-3">
-                  <label class="form-label">
-                    <i class="fas fa-clock"></i> جدولة تلقائية
-                  </label>
-                  <div class="row">
-                    <div class="col-md-6">
-                      <label class="small">بداية الوضع الليلي</label>
-                      <input type="time" class="form-control" name="dark_start" value="20:00">
-                    </div>
-                    <div class="col-md-6">
-                      <label class="small">نهاية الوضع الليلي</label>
-                      <input type="time" class="form-control" name="dark_end" value="06:00">
-                    </div>
-                  </div>
-                  <small class="form-text text-muted">سيتم التبديل تلقائياً في الأوقات المحددة</small>
-                </div>
-
-                <div class="form-check form-switch mb-3">
-                  <input class="form-check-input" type="checkbox" id="remember_choice" name="remember_choice" checked>
-                  <label class="form-check-label" for="remember_choice">
-                    تذكر اختيار المستخدم
-                  </label>
-                </div>
-
-                <div class="form-check form-switch mb-3">
-                  <input class="form-check-input" type="checkbox" id="apply_to_all" name="apply_to_all">
-                  <label class="form-check-label" for="apply_to_all">
-                    تطبيق على جميع الصفحات
-                  </label>
-                </div>
-              </div>
-
-              <div class="col-md-6">
-                <h5 class="mb-3"><i class="fas fa-palette"></i> تخصيص الألوان</h5>
-                
-                <div class="form-group mb-3">
-                  <label class="form-label">لون الخلفية الرئيسي</label>
-                  <input type="color" class="form-control form-control-color" name="bg_color" value="#1a202c">
-                </div>
-
-                <div class="form-group mb-3">
-                  <label class="form-label">لون النص</label>
-                  <input type="color" class="form-control form-control-color" name="text_color" value="#e2e8f0">
-                </div>
-
-                <div class="form-group mb-3">
-                  <label class="form-label">لون الكروت</label>
-                  <input type="color" class="form-control form-control-color" name="card_bg" value="#2d3748">
-                </div>
-
-                <div class="form-group mb-3">
-                  <label class="form-label">لون الحدود</label>
-                  <input type="color" class="form-control form-control-color" name="border_color" value="#4a5568">
-                </div>
-
-                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetColors()">
-                  <i class="fas fa-undo"></i> إعادة الألوان الافتراضية
-                </button>
-              </div>
-            </div>
-
-            <hr class="my-4">
-
-            <div class="row">
-              <div class="col-12">
-                <h5 class="mb-3"><i class="fas fa-code"></i> كود CSS المخصص</h5>
-                <div class="form-group">
-                  <label class="form-label">يمكنك إضافة كود CSS إضافي للتخصيص الكامل:</label>
-                  <textarea class="form-control font-monospace" name="custom_css" rows="8" placeholder="body.dark-mode {
-  /* أضف CSS الخاص بك هنا */
-}"></textarea>
-                  <small class="form-text text-muted">سيتم تطبيق هذا الكود عند تفعيل الوضع الليلي</small>
-                </div>
-              </div>
-            </div>
-
-            <hr class="my-4">
-
-            <div class="text-center">
-              <button type="submit" class="btn btn-primary btn-lg">
-                <i class="fas fa-save"></i> حفظ الإعدادات
-              </button>
-              <a href="{{ url_for('security.ultimate_control') }}" class="btn btn-secondary btn-lg">
-                <i class="fas fa-times"></i> إلغاء
-              </a>
-            </div>
-
-          </form>
-
-          <!-- معلومات إضافية -->
-          <div class="card border-info mt-4">
-            <div class="card-header bg-info text-white">
-              <h5 class="mb-0"><i class="fas fa-lightbulb"></i> نصائح وإرشادات</h5>
-            </div>
-            <div class="card-body">
-              <h6>الفوائد:</h6>
-              <ul>
-                <li>✅ راحة للعين في الإضاءة المنخفضة</li>
-                <li>✅ توفير طاقة البطارية على شاشات OLED</li>
-                <li>✅ تجربة مستخدم عصرية ومريحة</li>
-                <li>✅ تقليل إجهاد العين للاستخدام الطويل</li>
-              </ul>
-
-              <h6 class="mt-3">التنفيذ الفني:</h6>
-              <p>يتم حفظ اختيار المستخدم في <code>localStorage</code> ويُطبق تلقائياً عند كل زيارة.</p>
-              <p>يمكن للمستخدم التبديل بين الوضعين باستخدام زر في شريط التنقل.</p>
-            </div>
-          </div>
-
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<script>
-function resetColors() {
-  document.querySelector('[name="bg_color"]').value = '#1a202c';
-  document.querySelector('[name="text_color"]').value = '#e2e8f0';
-  document.querySelector('[name="card_bg"]').value = '#2d3748';
-  document.querySelector('[name="border_color"]').value = '#4a5568';
-}
-
-document.getElementById('preview-toggle').addEventListener('click', function() {
-  const darkPreview = document.getElementById('preview-dark');
-  if (darkPreview.style.display === 'none') {
-    darkPreview.style.display = 'block';
-    this.innerHTML = '<i class="fas fa-eye-slash"></i> إخفاء المعاينة';
-  } else {
-    darkPreview.style.display = 'none';
-    this.innerHTML = '<i class="fas fa-eye"></i> معاينة';
-  }
-});
-</script>
-{% endblock %}
-

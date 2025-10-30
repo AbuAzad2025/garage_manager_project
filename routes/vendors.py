@@ -1252,22 +1252,48 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
 
 
 def _calculate_supplier_incoming(supplier_id: int, date_from: datetime, date_to: datetime):
-    """حساب الوارد من المورد"""
-    # المشتريات (النفقات من نوع مشتريات)
-    purchases = db.session.query(func.sum(Expense.amount)).filter(
+    """حساب الوارد من المورد مع تحويل العملات"""
+    from decimal import Decimal
+    from models import convert_amount
+    
+    # المشتريات (النفقات من نوع مشتريات) - مع تحويل العملات
+    expenses = Expense.query.filter(
         Expense.payee_type == "SUPPLIER",
         Expense.payee_entity_id == supplier_id,
         Expense.date >= date_from,
         Expense.date <= date_to
-    ).scalar() or 0
+    ).all()
+    
+    purchases = Decimal('0.00')
+    for exp in expenses:
+        amt = Decimal(str(exp.amount or 0))
+        if exp.currency == "ILS":
+            purchases += amt
+        else:
+            try:
+                purchases += convert_amount(amt, exp.currency, "ILS", exp.date)
+            except:
+                pass
     
     # القطع المعطاة للمورد (ExchangeTransaction مع اتجاه OUT)
-    products_given = db.session.query(func.sum(ExchangeTransaction.quantity * ExchangeTransaction.unit_cost)).filter(
+    exchanges = ExchangeTransaction.query.filter(
         ExchangeTransaction.supplier_id == supplier_id,
         ExchangeTransaction.direction == "OUT",
         ExchangeTransaction.created_at >= date_from,
         ExchangeTransaction.created_at <= date_to
-    ).scalar() or 0
+    ).all()
+    
+    products_given = Decimal('0.00')
+    for ex in exchanges:
+        amt = Decimal(str(ex.quantity or 0)) * Decimal(str(ex.unit_cost or 0))
+        ex_currency = getattr(ex, 'currency', 'ILS')
+        if ex_currency == "ILS":
+            products_given += amt
+        else:
+            try:
+                products_given += convert_amount(amt, ex_currency, "ILS", ex.created_at)
+            except:
+                pass
     
     return {
         "purchases": float(purchases),
@@ -1282,23 +1308,50 @@ def _calculate_supplier_outgoing(supplier_id: int, date_from: datetime, date_to:
 
 
 def _calculate_partner_incoming(partner_id: int, date_from: datetime, date_to: datetime):
-    """حساب الوارد من الشريك"""
+    """حساب الوارد من الشريك مع تحويل العملات"""
+    from decimal import Decimal
+    from models import convert_amount
+    
     # حصة الشريك من المبيعات (من خلال ServicePart)
-    sales_share = db.session.query(func.sum(ServicePart.quantity * ServicePart.unit_price)).join(
+    service_parts = db.session.query(ServicePart, ServiceRequest).join(
         ServiceRequest, ServiceRequest.id == ServicePart.service_id
     ).filter(
         ServicePart.partner_id == partner_id,
         ServiceRequest.received_at >= date_from,
         ServiceRequest.received_at <= date_to
-    ).scalar() or 0
+    ).all()
+    
+    sales_share = Decimal('0.00')
+    for sp, sr in service_parts:
+        amt = Decimal(str(sp.quantity or 0)) * Decimal(str(sp.unit_price or 0))
+        sr_currency = getattr(sr, 'currency', 'ILS')
+        if sr_currency == "ILS":
+            sales_share += amt
+        else:
+            try:
+                sales_share += convert_amount(amt, sr_currency, "ILS", sr.received_at)
+            except:
+                pass
     
     # القطع المعطاة للشريك
-    products_given = db.session.query(func.sum(ExchangeTransaction.quantity * ExchangeTransaction.unit_cost)).filter(
+    exchanges = ExchangeTransaction.query.filter(
         ExchangeTransaction.partner_id == partner_id,
         ExchangeTransaction.direction == "OUT",
         ExchangeTransaction.created_at >= date_from,
         ExchangeTransaction.created_at <= date_to
-    ).scalar() or 0
+    ).all()
+    
+    products_given = Decimal('0.00')
+    for ex in exchanges:
+        amt = Decimal(str(ex.quantity or 0)) * Decimal(str(ex.unit_cost or 0))
+        ex_currency = getattr(ex, 'currency', 'ILS')
+        if ex_currency == "ILS":
+            products_given += amt
+        else:
+            try:
+                products_given += convert_amount(amt, ex_currency, "ILS", ex.created_at)
+            except:
+                pass
     
     return {
         "sales_share": float(sales_share),
@@ -1308,21 +1361,47 @@ def _calculate_partner_incoming(partner_id: int, date_from: datetime, date_to: d
 
 
 def _calculate_partner_outgoing(partner_id: int, date_from: datetime, date_to: datetime):
-    """حساب الصادر للشريك"""
-    # حصة الشريك من المشتريات
-    purchases_share = db.session.query(func.sum(Expense.amount)).filter(
+    """حساب الصادر للشريك مع تحويل العملات"""
+    from decimal import Decimal
+    from models import convert_amount
+    
+    # حصة الشريك من المشتريات - مع تحويل العملات
+    expenses = Expense.query.filter(
         Expense.partner_id == partner_id,
         Expense.date >= date_from,
         Expense.date <= date_to
-    ).scalar() or 0
+    ).all()
+    
+    purchases_share = Decimal('0.00')
+    for exp in expenses:
+        amt = Decimal(str(exp.amount or 0))
+        if exp.currency == "ILS":
+            purchases_share += amt
+        else:
+            try:
+                purchases_share += convert_amount(amt, exp.currency, "ILS", exp.date)
+            except:
+                pass
     
     # القطع المأخوذة من الشريك
-    products_taken = db.session.query(func.sum(ExchangeTransaction.quantity * ExchangeTransaction.unit_cost)).filter(
+    exchanges = ExchangeTransaction.query.filter(
         ExchangeTransaction.partner_id == partner_id,
         ExchangeTransaction.direction == "IN",
         ExchangeTransaction.created_at >= date_from,
         ExchangeTransaction.created_at <= date_to
-    ).scalar() or 0
+    ).all()
+    
+    products_taken = Decimal('0.00')
+    for ex in exchanges:
+        amt = Decimal(str(ex.quantity or 0)) * Decimal(str(ex.unit_cost or 0))
+        ex_currency = getattr(ex, 'currency', 'ILS')
+        if ex_currency == "ILS":
+            products_taken += amt
+        else:
+            try:
+                products_taken += convert_amount(amt, ex_currency, "ILS", ex.created_at)
+            except:
+                pass
     
     return {
         "purchases_share": float(purchases_share),

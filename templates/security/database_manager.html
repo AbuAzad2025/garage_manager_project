@@ -181,11 +181,13 @@
                             <i class="fas fa-edit"></i>
                           </button>
                           <button class="btn btn-sm btn-danger" title="حذف العمود" 
-                                  onclick="if(confirm('حذف العمود {{ col }}?')) { 
-                                    fetch('{{ url_for('security.db_delete_column', table_name=selected_table) }}', {
+                                  onclick="if(confirm('حذف العمود {{ col }}؟')) { 
+                                    const formData = new FormData();
+                                    formData.append('column', '{{ col }}');
+                                    formData.append('csrf_token', getCsrfToken());
+                                    fetch('/security/db-editor/delete-column/{{ selected_table }}', {
                                       method: 'POST',
-                                      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                                      body: 'column={{ col }}'
+                                      body: formData
                                     }).then(() => location.reload());
                                   }">
                             <i class="fas fa-trash"></i>
@@ -208,11 +210,13 @@
                       {% endfor %}
                       <td>
                         <button class="btn btn-sm btn-danger" title="حذف"
-                                onclick="if(confirm('حذف هذا السجل?')) {
-                                  fetch('{{ url_for('security.db_delete_row', table_name=selected_table) }}', {
+                                onclick="if(confirm('حذف هذا السجل؟')) {
+                                  fetch('/security/db-editor/delete-row/{{ selected_table }}/{{ row.id }}', {
                                     method: 'POST',
-                                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                                    body: 'row_id={{ row.id }}'
+                                    headers: {
+                                      'Content-Type': 'application/x-www-form-urlencoded',
+                                      'X-CSRFToken': getCsrfToken()
+                                    }
                                   }).then(() => location.reload());
                                 }">
                           <i class="fas fa-trash"></i>
@@ -335,6 +339,14 @@
 </div>
 
 <script>
+function getCsrfToken() {
+  const tokenMeta = document.querySelector('meta[name="csrf-token"]');
+  if (tokenMeta) return tokenMeta.getAttribute('content');
+  const tokenInput = document.querySelector('input[name="csrf_token"]');
+  if (tokenInput) return tokenInput.value;
+  return '';
+}
+
 // تفعيل التبويب من URL
 document.addEventListener('DOMContentLoaded', function() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -345,34 +357,56 @@ document.addEventListener('DOMContentLoaded', function() {
       $(tabButton).tab('show');
     }
   }
-});
-
-// حفظ التعديلات عند تغيير الخلايا
-document.querySelectorAll('.editable-cell').forEach(cell => {
-  cell.addEventListener('blur', function() {
-    const rowId = this.dataset.rowId;
-    const column = this.dataset.column;
-    const newValue = this.textContent;
+  
+  // حفظ التعديلات عند تغيير الخلايا
+  document.querySelectorAll('.editable-cell').forEach(cell => {
+    const originalValue = cell.textContent.trim();
+    cell.dataset.originalValue = originalValue;
     
-    // حفظ التعديل
-    fetch('{{ url_for('security.db_update_cell') }}', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        table: '{{ selected_table }}',
-        row_id: rowId,
-        column: column,
-        value: newValue
-      })
-    }).then(response => {
-      if (response.ok) {
-        this.style.backgroundColor = '#d4edda';
+    cell.addEventListener('blur', function() {
+      const rowId = this.dataset.rowId;
+      const column = this.dataset.column;
+      const newValue = this.textContent.trim();
+      
+      if (newValue === this.dataset.originalValue) {
+        return;
+      }
+      
+      // حفظ التعديل
+      fetch('/security/db-editor/update-cell/{{ selected_table }}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCsrfToken()
+        },
+        body: JSON.stringify({
+          row_id: rowId,
+          column: column,
+          value: newValue
+        })
+      }).then(response => response.json()).then(data => {
+        if (data.success) {
+          this.style.backgroundColor = '#d4edda';
+          this.dataset.originalValue = newValue;
+          setTimeout(() => {
+            this.style.backgroundColor = '';
+          }, 1000);
+        } else {
+          this.style.backgroundColor = '#f8d7da';
+          alert('فشل الحفظ: ' + (data.error || 'خطأ غير معروف'));
+          this.textContent = this.dataset.originalValue;
+          setTimeout(() => {
+            this.style.backgroundColor = '';
+          }, 1000);
+        }
+      }).catch(err => {
+        this.style.backgroundColor = '#f8d7da';
+        alert('خطأ: ' + err.message);
+        this.textContent = this.dataset.originalValue;
         setTimeout(() => {
           this.style.backgroundColor = '';
         }, 1000);
-      }
+      });
     });
   });
 });

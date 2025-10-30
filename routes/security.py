@@ -20,6 +20,13 @@ from services.ai_service import (
 security_bp = Blueprint('security', __name__, url_prefix='/security')
 
 
+def make_aware(dt):
+    """تحويل naive datetime إلى aware datetime"""
+    if dt and dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 @security_bp.app_template_global()
 def _get_action_icon(action):
     if not action:
@@ -148,12 +155,24 @@ def saas_manager():
         active_subscribers = SaaSSubscription.query.filter_by(status='active').count()
         trial_users = SaaSSubscription.query.filter_by(status='trial').count()
         
-        monthly_revenue = db.session.query(
-            func.sum(SaaSInvoice.amount)
-        ).filter(
+        # حساب إيرادات SaaS مع تحويل العملات
+        saas_invoices = SaaSInvoice.query.filter(
             SaaSInvoice.status == 'paid',
             SaaSInvoice.created_at >= datetime.now(timezone.utc) - timedelta(days=30)
-        ).scalar() or Decimal('0')
+        ).all()
+        
+        monthly_revenue = Decimal('0.00')
+        for inv in saas_invoices:
+            amt = Decimal(str(inv.amount or 0))
+            inv_currency = getattr(inv, 'currency', 'USD')
+            if inv_currency == 'ILS':
+                monthly_revenue += amt
+            else:
+                try:
+                    from models import convert_amount
+                    monthly_revenue += convert_amount(amt, inv_currency, 'ILS', inv.created_at)
+                except:
+                    monthly_revenue += amt
         
         stats = {
             'total_subscribers': total_subscribers,
@@ -316,7 +335,9 @@ def index_old():
     
     # المتصلين الآن (آخر 15 دقيقة)
     threshold = datetime.now(timezone.utc) - timedelta(minutes=15)
-    online_users = User.query.filter(User.last_seen >= threshold).count()
+    # حساب يدوي لتجنب مشاكل timezone في SQL
+    all_users = User.query.filter(User.last_seen.isnot(None)).all()
+    online_users = sum(1 for u in all_users if make_aware(u.last_seen) >= threshold)
     
     # محاولات فشل الدخول (آخر 24 ساعة)
     day_ago = datetime.now(timezone.utc) - timedelta(hours=24)
@@ -1891,10 +1912,8 @@ def user_control():
     elif status_filter == 'system':
         query = query.filter(User.is_system_account == True)
     elif status_filter == 'online':
-        # متصل خلال آخر 15 دقيقة
-        from datetime import datetime, timedelta, timezone
-        threshold = datetime.now(timezone.utc) - timedelta(minutes=15)
-        query = query.filter(User.last_seen >= threshold)
+        # متصل خلال آخر 15 دقيقة (سيتم الفلترة يدوياً بعد fetch)
+        pass  # التعامل مع timezone issues
     
     if role_filter:
         query = query.join(User.role).filter(User.role.has(name=role_filter))
@@ -1908,6 +1927,11 @@ def user_control():
         )
     
     users = query.order_by(User.is_system_account.desc(), User.id.asc()).all()
+    
+    # فلترة المتصلين الآن إذا لزم الأمر
+    if status_filter == 'online':
+        threshold = datetime.now(timezone.utc) - timedelta(minutes=15)
+        users = [u for u in users if u.last_seen and make_aware(u.last_seen) >= threshold]
     
     from decimal import Decimal
     from models import convert_amount
@@ -1944,7 +1968,11 @@ def user_control():
         if user.last_seen:
             from datetime import datetime, timedelta, timezone
             threshold = datetime.now(timezone.utc) - timedelta(minutes=15)
-            user.is_online = user.last_seen >= threshold
+            # التعامل مع naive/aware datetime
+            last_seen = user.last_seen
+            if last_seen.tzinfo is None:
+                last_seen = last_seen.replace(tzinfo=timezone.utc)
+            user.is_online = last_seen >= threshold
         else:
             user.is_online = False
     
@@ -2189,9 +2217,19 @@ def api_user_details(user_id):
         
         # إحصائيات
         sales_count = Sale.query.filter_by(seller_id=user.id).count()
-        sales_total = db.session.query(
-            func.coalesce(func.sum(Sale.total_amount), 0)
-        ).filter(Sale.seller_id == user.id).scalar() or 0
+        
+        # حساب إجمالي المبيعات مع تحويل العملات
+        user_sales = Sale.query.filter_by(seller_id=user.id).all()
+        sales_total = Decimal('0.00')
+        for s in user_sales:
+            amt = Decimal(str(s.total_amount or 0))
+            if s.currency == "ILS":
+                sales_total += amt
+            else:
+                try:
+                    sales_total += convert_amount(amt, s.currency, "ILS", s.sale_date)
+                except:
+                    pass
         
         services_count = ServiceRequest.query.filter_by(mechanic_id=user.id).count()
         payments_count = Payment.query.filter_by(created_by=user.id).count()
@@ -3037,7 +3075,7 @@ def db_add_column(table_name):
     
     if not column_name:
         flash('اسم العمود مطلوب', 'danger')
-        return redirect(url_for('security.db_editor_table', table_name=table_name))
+        return redirect(url_for('security.database_manager', tab='edit', table=table_name))
     
     try:
         # بناء استعلام ALTER TABLE
@@ -3053,7 +3091,7 @@ def db_add_column(table_name):
         db.session.rollback()
         flash(f'خطأ: {str(e)}', 'danger')
     
-    return redirect(url_for('security.db_editor_table', table_name=table_name))
+    return redirect(url_for('security.database_manager', tab='edit', table=table_name))
 
 
 @security_bp.route('/db-editor/update-cell/<table_name>', methods=['POST'])
@@ -3121,7 +3159,7 @@ def db_edit_row(table_name, row_id):
         db.session.rollback()
         flash(f'خطأ: {str(e)}', 'danger')
     
-    return redirect(url_for('security.db_editor_table', table_name=table_name))
+    return redirect(url_for('security.database_manager', tab='edit', table=table_name))
 
 
 @security_bp.route('/db-editor/delete-row/<table_name>/<row_id>', methods=['POST'])
@@ -3153,7 +3191,7 @@ def db_delete_row(table_name, row_id):
         db.session.rollback()
         flash(f'❌ خطأ في الحذف: {str(e)}', 'danger')
     
-    return redirect(url_for('security.db_editor_table', table_name=table_name))
+    return redirect(url_for('security.database_manager', tab='edit', table=table_name))
 
 @security_bp.route('/db-editor/delete-column/<table_name>', methods=['POST'])
 @owner_only
@@ -3163,13 +3201,13 @@ def db_delete_column(table_name):
     
     if not column_name:
         flash('❌ اسم العمود مطلوب', 'danger')
-        return redirect(url_for('security.db_editor_table', table_name=table_name))
+        return redirect(url_for('security.database_manager', tab='edit', table=table_name))
     
     # حماية من حذف الأعمدة الحرجة
     protected_columns = ['id', 'created_at', 'updated_at']
     if column_name.lower() in protected_columns:
         flash(f'❌ لا يمكن حذف العمود {column_name} (محمي)', 'danger')
-        return redirect(url_for('security.db_editor_table', table_name=table_name))
+        return redirect(url_for('security.database_manager', tab='edit', table=table_name))
     
     try:
         sql = f"ALTER TABLE {table_name} DROP COLUMN {column_name}"
@@ -3180,7 +3218,7 @@ def db_delete_column(table_name):
         db.session.rollback()
         flash(f'❌ خطأ في حذف العمود: {str(e)}', 'danger')
     
-    return redirect(url_for('security.db_editor_table', table_name=table_name))
+    return redirect(url_for('security.database_manager', tab='edit', table=table_name))
 
 
 @security_bp.route('/db-editor/add-row/<table_name>', methods=['POST'])
@@ -3209,7 +3247,7 @@ def db_add_row(table_name):
         db.session.rollback()
         flash(f'خطأ: {str(e)}', 'danger')
     
-    return redirect(url_for('security.db_editor_table', table_name=table_name))
+    return redirect(url_for('security.database_manager', tab='edit', table=table_name))
 
 
 @security_bp.route('/db-editor/bulk-update/<table_name>', methods=['POST'])
@@ -3222,7 +3260,7 @@ def db_bulk_update(table_name):
     
     if not column:
         flash('اسم العمود مطلوب', 'danger')
-        return redirect(url_for('security.db_editor_table', table_name=table_name))
+        return redirect(url_for('security.database_manager', tab='edit', table=table_name))
     
     try:
         if old_value:
@@ -3238,7 +3276,7 @@ def db_bulk_update(table_name):
         db.session.rollback()
         flash(f'خطأ: {str(e)}', 'danger')
     
-    return redirect(url_for('security.db_editor_table', table_name=table_name))
+    return redirect(url_for('security.database_manager', tab='edit', table=table_name))
 
 
 @security_bp.route('/db-editor/fill-missing/<table_name>', methods=['POST'])
@@ -3250,7 +3288,7 @@ def db_fill_missing(table_name):
     
     if not column:
         flash('اسم العمود مطلوب', 'danger')
-        return redirect(url_for('security.db_editor_table', table_name=table_name))
+        return redirect(url_for('security.database_manager', tab='edit', table=table_name))
     
     try:
         sql = f"UPDATE {table_name} SET {column} = '{fill_value}' WHERE {column} IS NULL OR {column} = ''"
@@ -3262,7 +3300,7 @@ def db_fill_missing(table_name):
         db.session.rollback()
         flash(f'خطأ: {str(e)}', 'danger')
     
-    return redirect(url_for('security.db_editor_table', table_name=table_name))
+    return redirect(url_for('security.database_manager', tab='edit', table=table_name))
 
 
 @security_bp.route('/db-editor/schema/<table_name>')
@@ -3826,13 +3864,15 @@ def _kill_all_user_sessions():
 def _get_active_users():
     """الحصول على المستخدمين النشطين"""
     threshold = datetime.now(timezone.utc) - timedelta(minutes=5)
-    return User.query.filter(User.last_seen >= threshold).all()
+    all_users = User.query.filter(User.last_seen.isnot(None)).all()
+    return [u for u in all_users if make_aware(u.last_seen) >= threshold]
 
 
 def _get_users_online():
     """عدد المستخدمين المتصلين"""
     threshold = datetime.now(timezone.utc) - timedelta(minutes=5)
-    return User.query.filter(User.last_seen >= threshold).count()
+    all_users = User.query.filter(User.last_seen.isnot(None)).all()
+    return sum(1 for u in all_users if make_aware(u.last_seen) >= threshold)
 
 
 def _get_system_setting(key, default=None):
@@ -3890,13 +3930,15 @@ def _get_system_health():
 def _get_active_sessions_count():
     """عدد الجلسات النشطة"""
     threshold = datetime.now(timezone.utc) - timedelta(hours=24)
-    return User.query.filter(User.last_login >= threshold).count()
+    all_users = User.query.filter(User.last_login.isnot(None)).all()
+    return sum(1 for u in all_users if make_aware(u.last_login) >= threshold)
 
 
 def _get_online_users_detailed():
     """تفاصيل المستخدمين المتصلين"""
     threshold = datetime.now(timezone.utc) - timedelta(minutes=5)
-    return User.query.filter(User.last_seen >= threshold).all()
+    all_users = User.query.filter(User.last_seen.isnot(None)).all()
+    return [u for u in all_users if make_aware(u.last_seen) >= threshold]
 
 
 def _set_system_setting(key, value):

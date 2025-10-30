@@ -449,22 +449,37 @@ def sales_report(start_date: date | None, end_date: date | None, tz_name: str = 
             filters.append(Sale.sale_date < end_dt_local.replace(tzinfo=None))
     allowed_statuses = (SaleStatus.CONFIRMED.value,)
     excluded_statuses = (SaleStatus.CANCELLED.value, SaleStatus.REFUNDED.value)
-    q = (
-        db.session.query(
-            day_expr.label("day"),
-            func.coalesce(func.sum(Sale.total_amount), 0).label("revenue"),
-        )
-        .filter(*filters)
-        .filter(Sale.status.in_(allowed_statuses))
-        .filter(~Sale.status.in_(excluded_statuses))
-        .group_by("day")
-        .order_by("day")
-    )
-    rows = q.all()
+    
+    # جلب كل المبيعات مع تحويل العملات
+    from models import convert_amount
+    
+    sales = Sale.query.filter(*filters).filter(
+        Sale.status.in_(allowed_statuses),
+        ~Sale.status.in_(excluded_statuses)
+    ).all()
+    
     day_to_sum: dict[str, Decimal] = {}
-    for d, v in rows:
-        key = str(d)
-        day_to_sum[key] = Decimal(str(v or 0))
+    for sale in sales:
+        amt = Decimal(str(sale.total_amount or 0))
+        
+        if sale.currency == "ILS":
+            amt_ils = amt
+        else:
+            try:
+                amt_ils = convert_amount(amt, sale.currency, "ILS", sale.sale_date)
+            except:
+                amt_ils = Decimal('0.00')
+        
+        # تحديد اليوم
+        if sale.sale_date:
+            day_key = sale.sale_date.date().isoformat() if hasattr(sale.sale_date, 'date') else str(sale.sale_date)
+        else:
+            day_key = datetime.now().date().isoformat()
+        
+        if day_key not in day_to_sum:
+            day_to_sum[day_key] = Decimal('0.00')
+        day_to_sum[day_key] += amt_ils
+    
     total = sum(day_to_sum.values(), Decimal("0"))
     labels: list[str] = []
     values: list[float] = []
@@ -500,6 +515,10 @@ def shop_report(start_date: date | None, end_date: date | None):
     )
 
 def payment_summary_report(start_date, end_date):
+    """تقرير ملخص المدفوعات مع تحويل العملات"""
+    from models import convert_amount
+    from collections import defaultdict
+    
     sd = _parse_date_like(start_date) or date.min
     ed = _parse_date_like(end_date) or date.max
     if ed < sd:
@@ -510,33 +529,59 @@ def payment_summary_report(start_date, end_date):
         Payment.direction == PaymentDirection.IN.value,
         cast(ref_date, Date).between(sd, ed),
     ]
-    split_rows = (
-        db.session.query(
-            func.coalesce(cast(PaymentSplit.method, db.String()), "other").label("method"),
-            func.coalesce(func.sum(PaymentSplit.amount), 0).label("total"),
-        )
-        .join(Payment, Payment.id == PaymentSplit.payment_id)
+    
+    # جلب الدفعات مع Splits
+    payments_with_splits = (
+        db.session.query(Payment, PaymentSplit)
+        .join(PaymentSplit, PaymentSplit.payment_id == Payment.id)
         .filter(*base_filters)
-        .group_by(func.coalesce(cast(PaymentSplit.method, db.String()), "other"))
         .all()
     )
-    no_split_rows = (
-        db.session.query(
-            func.coalesce(cast(Payment.method, db.String()), "other").label("method"),
-            func.coalesce(func.sum(Payment.total_amount), 0).label("total"),
-        )
+    
+    # جلب الدفعات بدون Splits
+    payments_no_splits = (
+        db.session.query(Payment)
         .outerjoin(PaymentSplit, PaymentSplit.payment_id == Payment.id)
         .filter(*base_filters)
         .filter(PaymentSplit.id.is_(None))
-        .group_by(func.coalesce(cast(Payment.method, db.String()), "other"))
         .all()
     )
-    agg = {}
-    for r in split_rows + no_split_rows:
-        key = (getattr(r, "method", None) or "other").upper()
-        agg[key] = agg.get(key, 0.0) + float(getattr(r, "total") or 0.0)
+    
+    agg = defaultdict(lambda: Decimal('0.00'))
+    
+    # معالجة الدفعات مع Splits
+    for payment, split in payments_with_splits:
+        method = str(split.method) if split.method else "other"
+        amt = Decimal(str(split.amount or 0))
+        
+        if payment.currency == "ILS":
+            amt_ils = amt
+        else:
+            try:
+                amt_ils = convert_amount(amt, payment.currency, "ILS", payment.payment_date)
+            except:
+                amt_ils = Decimal('0.00')
+        
+        agg[method] += amt_ils
+    
+    # معالجة الدفعات بدون Splits
+    for payment in payments_no_splits:
+        method = str(payment.method) if payment.method else "other"
+        amt = Decimal(str(payment.total_amount or 0))
+        
+        if payment.currency == "ILS":
+            amt_ils = amt
+        else:
+            try:
+                amt_ils = convert_amount(amt, payment.currency, "ILS", payment.payment_date)
+            except:
+                amt_ils = Decimal('0.00')
+        
+        agg[method] += amt_ils
+    
+    # تحويل للصيغة النهائية
     methods = sorted(agg.keys())
-    totals = [round(agg[m], 2) for m in methods]
+    totals = [round(float(agg[m]), 2) for m in methods]
     grand_total = round(sum(totals), 2)
     return {"methods": methods, "totals": totals, "grand_total": grand_total}
 
