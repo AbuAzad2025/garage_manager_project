@@ -1793,15 +1793,22 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
 
     @hybrid_property
     def total_invoiced(self):
-        return float(
-            db.session.query(func.coalesce(func.sum(Invoice.total_amount), 0))
-            .filter(
-                Invoice.customer_id == self.id,
-                Invoice.cancelled_at.is_(None),
-            )
-            .scalar()
-            or 0
-        )
+        from decimal import Decimal, ROUND_HALF_UP
+        invoices = db.session.query(Invoice).filter(
+            Invoice.customer_id == self.id,
+            Invoice.cancelled_at.is_(None)
+        ).all()
+        total = Decimal('0.00')
+        for inv in invoices:
+            amt = Decimal(str(inv.total_amount or 0))
+            if inv.currency == "ILS":
+                total += amt
+            else:
+                try:
+                    total += convert_amount(amt, inv.currency, "ILS", inv.invoice_date)
+                except:
+                    pass
+        return float(total)
 
     @total_invoiced.expression
     def total_invoiced(cls):
@@ -1816,16 +1823,23 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
 
     @hybrid_property
     def total_paid(self):
-        return float(
-            db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
-            .filter(
-                Payment.customer_id == self.id,
-                Payment.direction == PaymentDirection.IN.value,
-                Payment.status == PaymentStatus.COMPLETED.value,
-            )
-            .scalar()
-            or 0
-        )
+        from decimal import Decimal
+        payments = db.session.query(Payment).filter(
+            Payment.customer_id == self.id,
+            Payment.direction == PaymentDirection.IN.value,
+            Payment.status == PaymentStatus.COMPLETED.value
+        ).all()
+        total = Decimal('0.00')
+        for p in payments:
+            amt = Decimal(str(p.total_amount or 0))
+            if p.currency == "ILS":
+                total += amt
+            else:
+                try:
+                    total += convert_amount(amt, p.currency, "ILS", p.payment_date)
+                except:
+                    pass
+        return float(total)
 
     @total_paid.expression
     def total_paid(cls):
@@ -2231,28 +2245,42 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
 
     @hybrid_property
     def total_paid(self):
-        direct = (
-            db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
-            .filter(
-                Payment.supplier_id == self.id,
-                Payment.direction == PaymentDirection.OUT.value,
-                Payment.status == PaymentStatus.COMPLETED.value,
-            )
-            .scalar()
-            or 0
-        )
-        via_loans = (
-            db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
-            .join(SupplierLoanSettlement, SupplierLoanSettlement.id == Payment.loan_settlement_id)
-            .filter(
-                Payment.direction == PaymentDirection.OUT.value,
-                Payment.status == PaymentStatus.COMPLETED.value,
-                SupplierLoanSettlement.supplier_id == self.id,
-            )
-            .scalar()
-            or 0
-        )
-        return q(direct) + q(via_loans)
+        from decimal import Decimal
+        direct_payments = db.session.query(Payment).filter(
+            Payment.supplier_id == self.id,
+            Payment.direction == PaymentDirection.OUT.value,
+            Payment.status == PaymentStatus.COMPLETED.value
+        ).all()
+        direct = Decimal('0.00')
+        for p in direct_payments:
+            amt = Decimal(str(p.total_amount or 0))
+            if p.currency == "ILS":
+                direct += amt
+            else:
+                try:
+                    direct += convert_amount(amt, p.currency, "ILS", p.payment_date)
+                except:
+                    pass
+        
+        via_loans_payments = db.session.query(Payment).join(
+            SupplierLoanSettlement, SupplierLoanSettlement.id == Payment.loan_settlement_id
+        ).filter(
+            Payment.direction == PaymentDirection.OUT.value,
+            Payment.status == PaymentStatus.COMPLETED.value,
+            SupplierLoanSettlement.supplier_id == self.id
+        ).all()
+        via_loans = Decimal('0.00')
+        for p in via_loans_payments:
+            amt = Decimal(str(p.total_amount or 0))
+            if p.currency == "ILS":
+                via_loans += amt
+            else:
+                try:
+                    via_loans += convert_amount(amt, p.currency, "ILS", p.payment_date)
+                except:
+                    pass
+        
+        return float(direct + via_loans)
 
     @total_paid.expression
     def total_paid(cls):
@@ -2871,17 +2899,23 @@ class Partner(db.Model, TimestampMixin, AuditMixin):
 
     @hybrid_property
     def total_paid(self):
-        val = (
-            db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
-            .filter(
-                Payment.partner_id == self.id,
-                Payment.direction == PaymentDirection.OUT.value,
-                Payment.status == PaymentStatus.COMPLETED.value,
-            )
-            .scalar()
-            or 0
-        )
-        return q(val)
+        from decimal import Decimal
+        payments = db.session.query(Payment).filter(
+            Payment.partner_id == self.id,
+            Payment.direction == PaymentDirection.OUT.value,
+            Payment.status == PaymentStatus.COMPLETED.value
+        ).all()
+        total = Decimal('0.00')
+        for p in payments:
+            amt = Decimal(str(p.total_amount or 0))
+            if p.currency == "ILS":
+                total += amt
+            else:
+                try:
+                    total += convert_amount(amt, p.currency, "ILS", p.payment_date)
+                except:
+                    pass
+        return float(total)
 
     @total_paid.expression
     def total_paid(cls):
@@ -3122,192 +3156,189 @@ def _partner_opening_balance_gl(mapper, connection, target: "Partner"):
 
 
 def update_partner_balance(partner_id: int, connection=None):
-    """
-    تحديث رصيد الشريك تلقائياً بناءً على جميع المعاملات
+    from decimal import Decimal, ROUND_HALF_UP
     
-    ⚠️ تحذير: هذه الدالة تجمع المبالغ مباشرة بدون تحويل العملات!
-    للحصول على رصيد دقيق مع تحويل العملات، استخدم:
-    routes.partner_settlements._calculate_smart_partner_balance()
-    """
-    from datetime import datetime
-    from sqlalchemy import text as sa_text
+    partner = db.session.get(Partner, partner_id)
+    if not partner:
+        return 0.0
     
-    # استخدام connection إذا كان متاحاً (داخل event listener)
-    # وإلا استخدام db.session
+    def _to_ils(amt, curr, dt):
+        amt = Decimal(str(amt or 0))
+        if not amt or amt == 0:
+            return Decimal('0.00')
+        curr = (curr or "ILS").strip().upper()
+        if curr == "ILS":
+            return amt.quantize(Decimal("0.01"), ROUND_HALF_UP)
+        try:
+            converted = convert_amount(amt, curr, "ILS", dt)
+            return Decimal(str(converted)).quantize(Decimal("0.01"), ROUND_HALF_UP)
+        except:
+            return Decimal('0.00')
+    
+    ob = _to_ils(partner.opening_balance, partner.currency, None)
+    
+    sales_share_total = Decimal('0.00')
+    sales = db.session.query(Sale).filter(Sale.status == SaleStatus.CONFIRMED).all()
+    for sale in sales:
+        for line in sale.lines:
+            from models import ProductPartner, WarehousePartnerShare
+            pp = db.session.query(ProductPartner).filter(
+                ProductPartner.product_id == line.product_id,
+                ProductPartner.partner_id == partner_id
+            ).first()
+            wps = db.session.query(WarehousePartnerShare).filter(
+                WarehousePartnerShare.product_id == line.product_id,
+                WarehousePartnerShare.partner_id == partner_id
+            ).first()
+            share_pct = Decimal(str((pp.share_percent if pp else 0) or (wps.share_percentage if wps else 0) or 0))
+            if share_pct > 0:
+                line_total = Decimal(str(line.quantity or 0)) * Decimal(str(line.unit_price or 0))
+                line_total_ils = _to_ils(line_total, sale.currency, sale.sale_date)
+                sales_share_total += line_total_ils * (share_pct / Decimal('100'))
+    
+    from models import ProductPartner as PP
+    inventory_shares = db.session.query(PP).filter(PP.partner_id == partner_id).all()
+    inventory_total = sum(_to_ils(inv.share_amount, 'ILS', None) for inv in inventory_shares)
+    
+    sales_to_partner = []
+    if partner.customer_id:
+        sales_to_partner = db.session.query(Sale).filter(
+            Sale.customer_id == partner.customer_id,
+            Sale.status == SaleStatus.CONFIRMED
+        ).all()
+    sales_to_total = sum(_to_ils(s.total_amount, s.currency, s.sale_date) for s in sales_to_partner)
+    
+    services_to_partner = []
+    if partner.customer_id:
+        services_to_partner = db.session.query(ServiceRequest).filter(
+            ServiceRequest.customer_id == partner.customer_id,
+            ServiceRequest.status == ServiceStatus.COMPLETED
+        ).all()
+    services_to_total = sum(_to_ils(srv.total_amount, srv.currency, srv.received_at) for srv in services_to_partner)
+    
+    payments_out = db.session.query(Payment).filter(
+        Payment.partner_id == partner_id,
+        Payment.direction == PaymentDirection.OUT,
+        Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
+    ).all()
+    paid_out = sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in payments_out)
+    
+    payments_in = db.session.query(Payment).filter(
+        Payment.partner_id == partner_id,
+        Payment.direction == PaymentDirection.IN,
+        Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
+    ).all()
+    received_in = sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in payments_in)
+    
+    if partner.customer_id:
+        cust_payments_in = db.session.query(Payment).filter(
+            Payment.customer_id == partner.customer_id,
+            Payment.direction == PaymentDirection.IN,
+            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
+        ).all()
+        received_in += sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in cust_payments_in)
+    
+    balance = ob + sales_share_total + inventory_total - sales_to_total - services_to_total - paid_out + received_in
+    
     if connection is None:
         connection = db.session.connection()
     
-    # حساب الرصيد من جميع المعاملات
-    # هذا استعلام SQL مباشر لتجنب مشاكل الـ circular imports
-    query = sa_text("""
-        WITH partner_data AS (
-            SELECT :partner_id as pid
-        ),
-        -- حقوق الشريك (نصيبه من المبيعات)
-        sales_share AS (
-            SELECT COALESCE(SUM(
-                sl.quantity * sl.unit_price * 
-                COALESCE(pp.share_percent, wps.share_percentage, 0) / 100
-            ), 0) as total
-            FROM sales s
-            JOIN sale_lines sl ON sl.sale_id = s.id
-            JOIN products p ON p.id = sl.product_id
-            LEFT JOIN product_partners pp ON pp.product_id = p.id AND pp.partner_id = :partner_id
-            LEFT JOIN warehouse_partner_shares wps ON wps.product_id = p.id AND wps.partner_id = :partner_id
-            WHERE s.status = 'CONFIRMED'
-            AND (pp.partner_id IS NOT NULL OR wps.partner_id IS NOT NULL)
-        ),
-        -- التزامات الشريك (مبيعات له كعميل)
-        sales_to_partner AS (
-            SELECT COALESCE(SUM(s.total_amount), 0) as total
-            FROM sales s
-            JOIN partners par ON par.customer_id = s.customer_id
-            WHERE par.id = :partner_id
-            AND s.status = 'CONFIRMED'
-        ),
-        -- الدفعات الواردة من الشريك
-        payments_in AS (
-            SELECT COALESCE(SUM(p.total_amount), 0) as total
-            FROM payments p
-            LEFT JOIN sales s ON s.id = p.sale_id
-            LEFT JOIN partners par ON par.customer_id = s.customer_id
-            WHERE p.status IN ('COMPLETED', 'PENDING')
-            AND p.direction = 'IN'
-            AND (
-                p.partner_id = :partner_id
-                OR p.customer_id = (SELECT customer_id FROM partners WHERE id = :partner_id)
-                OR par.id = :partner_id
-            )
-        ),
-        -- الدفعات الصادرة للشريك
-        payments_out AS (
-            SELECT COALESCE(SUM(p.total_amount), 0) as total
-            FROM payments p
-            WHERE p.status IN ('COMPLETED', 'PENDING')
-            AND p.direction = 'OUT'
-            AND p.partner_id = :partner_id
-        ),
-        -- نصيب الشريك من المخزون (ProductPartner)
-        inventory_share AS (
-            SELECT COALESCE(SUM(pp.share_amount), 0) as total
-            FROM product_partners pp
-            WHERE pp.partner_id = :partner_id
-        )
-        SELECT 
-            -- ✅ الحقوق: نسبة من القطع (مباعة وغير مباعة)
-            (SELECT total FROM sales_share) + 
-            (SELECT total FROM inventory_share) - 
-            -- ❌ الالتزامات: ما لنا عليهم
-            (SELECT total FROM sales_to_partner) - 
-            -- ❌ الدفعات الصادرة: ما دفعناه لهم (نخصمها من حقوقهم)
-            (SELECT total FROM payments_out) + 
-            -- ✅ الدفعات الواردة: ما دفعوه لنا (نخصمها من التزاماتهم)
-            (SELECT total FROM payments_in) + 
-            COALESCE((SELECT opening_balance FROM partners WHERE id = :partner_id), 0) as balance
-    """)
-    
-    result = connection.execute(query, {"partner_id": partner_id}).fetchone()
-    balance = float(result[0] if result else 0)
-    
-    # تحديث رصيد الشريك
+    from sqlalchemy import text as sa_text
     update_query = sa_text("UPDATE partners SET balance = :balance WHERE id = :partner_id")
-    connection.execute(update_query, {"balance": balance, "partner_id": partner_id})
+    connection.execute(update_query, {"balance": float(balance), "partner_id": partner_id})
     
-    return balance
+    return float(balance)
 
 def update_supplier_balance(supplier_id: int, connection=None):
-    """
-    تحديث رصيد المورد تلقائياً بناءً على جميع المعاملات
+    from decimal import Decimal, ROUND_HALF_UP
     
-    ⚠️ تحذير: هذه الدالة تجمع المبالغ مباشرة بدون تحويل العملات!
-    للحصول على رصيد دقيق مع تحويل العملات، استخدم:
-    routes.supplier_settlements._calculate_smart_supplier_balance()
-    """
-    from sqlalchemy import text as sa_text
+    supplier = db.session.get(Supplier, supplier_id)
+    if not supplier:
+        return 0.0
+    
+    def _to_ils(amt, curr, dt):
+        amt = Decimal(str(amt or 0))
+        if not amt or amt == 0:
+            return Decimal('0.00')
+        curr = (curr or "ILS").strip().upper()
+        if curr == "ILS":
+            return amt.quantize(Decimal("0.01"), ROUND_HALF_UP)
+        try:
+            converted = convert_amount(amt, curr, "ILS", dt)
+            return Decimal(str(converted)).quantize(Decimal("0.01"), ROUND_HALF_UP)
+        except:
+            return Decimal('0.00')
+    
+    ob = _to_ils(supplier.opening_balance, supplier.currency, None)
+    
+    exchange_in = db.session.query(ExchangeTransaction).filter(
+        ExchangeTransaction.supplier_id == supplier_id,
+        ExchangeTransaction.direction.in_(['IN', 'PURCHASE', 'CONSIGN_IN'])
+    ).all()
+    exchange_total = sum(_to_ils(tx.quantity * (tx.unit_cost or 0), 'ILS', tx.created_at) for tx in exchange_in)
+    
+    sales_to_sup = []
+    if supplier.customer_id:
+        sales_to_sup = db.session.query(Sale).filter(
+            Sale.customer_id == supplier.customer_id,
+            Sale.status == SaleStatus.CONFIRMED
+        ).all()
+    sales_total = sum(_to_ils(s.total_amount, s.currency, s.sale_date) for s in sales_to_sup)
+    
+    services_to_sup = []
+    if supplier.customer_id:
+        services_to_sup = db.session.query(ServiceRequest).filter(
+            ServiceRequest.customer_id == supplier.customer_id,
+            ServiceRequest.status == ServiceStatus.COMPLETED
+        ).all()
+    services_total = sum(_to_ils(srv.total_amount, srv.currency, srv.received_at) for srv in services_to_sup)
+    
+    preorders_to_sup = []
+    if supplier.customer_id:
+        preorders_to_sup = db.session.query(PreOrder).filter(
+            PreOrder.customer_id == supplier.customer_id,
+            PreOrder.status.in_(['CONFIRMED', 'COMPLETED', 'DELIVERED', 'FULFILLED'])
+        ).all()
+    preorders_total = sum(_to_ils(po.total_amount, po.currency, po.preorder_date) for po in preorders_to_sup)
+    
+    payments_out = db.session.query(Payment).filter(
+        Payment.supplier_id == supplier_id,
+        Payment.direction == PaymentDirection.OUT,
+        Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
+    ).all()
+    paid_out = sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in payments_out)
+    
+    payments_in = db.session.query(Payment).filter(
+        Payment.supplier_id == supplier_id,
+        Payment.direction == PaymentDirection.IN,
+        Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
+    ).all()
+    received_in = sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in payments_in)
+    
+    if supplier.customer_id:
+        cust_payments_in = db.session.query(Payment).filter(
+            Payment.customer_id == supplier.customer_id,
+            Payment.direction == PaymentDirection.IN,
+            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
+        ).all()
+        received_in += sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in cust_payments_in)
+    
+    returns = db.session.query(ExchangeTransaction).filter(
+        ExchangeTransaction.supplier_id == supplier_id,
+        ExchangeTransaction.direction.in_(['OUT', 'RETURN'])
+    ).all()
+    returns_total = sum(_to_ils(tx.quantity * (tx.unit_cost or 0), 'ILS', tx.created_at) for tx in returns)
+    
+    balance = ob + exchange_total - sales_total - services_total - preorders_total - paid_out + received_in - returns_total
     
     if connection is None:
         connection = db.session.connection()
     
-    # حساب الرصيد من جميع المعاملات
-    query = sa_text("""
-        WITH supplier_data AS (
-            SELECT :supplier_id as sid
-        ),
-        -- حقوق المورد (قيمة القطع في مستودع التبادل)
-        exchange_items AS (
-            SELECT COALESCE(SUM(et.quantity * et.unit_cost), 0) as total
-            FROM exchange_transactions et
-            WHERE et.supplier_id = :supplier_id
-            AND et.direction IN ('IN', 'PURCHASE', 'CONSIGN_IN')
-        ),
-        -- التزامات المورد (مبيعات له كعميل)
-        sales_to_supplier AS (
-            SELECT COALESCE(SUM(s.total_amount), 0) as total
-            FROM sales s
-            JOIN suppliers sup ON sup.customer_id = s.customer_id
-            WHERE sup.id = :supplier_id
-            AND s.status = 'CONFIRMED'
-        ),
-        -- الدفعات الواردة
-        payments_in AS (
-            SELECT COALESCE(SUM(p.total_amount), 0) as total
-            FROM payments p
-            LEFT JOIN sales s ON s.id = p.sale_id
-            LEFT JOIN suppliers sup ON sup.customer_id = s.customer_id
-            WHERE p.status IN ('COMPLETED', 'PENDING')
-            AND p.direction = 'IN'
-            AND (
-                p.supplier_id = :supplier_id
-                OR p.customer_id = (SELECT customer_id FROM suppliers WHERE id = :supplier_id)
-                OR sup.id = :supplier_id
-            )
-        ),
-        -- الدفعات الصادرة
-        payments_out AS (
-            SELECT COALESCE(SUM(p.total_amount), 0) as total
-            FROM payments p
-            WHERE p.status IN ('COMPLETED', 'PENDING')
-            AND p.direction = 'OUT'
-            AND p.supplier_id = :supplier_id
-        ),
-        -- المرتجعات
-        returns_out AS (
-            SELECT COALESCE(SUM(et.quantity * et.unit_cost), 0) as total
-            FROM exchange_transactions et
-            WHERE et.supplier_id = :supplier_id
-            AND et.direction IN ('OUT', 'RETURN')
-        ),
-        -- الحجوزات المسبقة للمورد (إذا كان عميلاً)
-        preorders_to_supplier AS (
-            SELECT COALESCE(SUM(p.price * po.quantity * (1 + COALESCE(po.tax_rate, 0) / 100.0)), 0) as total
-            FROM preorders po
-            JOIN products p ON p.id = po.product_id
-            JOIN suppliers sup ON sup.customer_id = po.customer_id
-            WHERE sup.id = :supplier_id
-            AND po.status IN ('CONFIRMED', 'COMPLETED', 'DELIVERED')
-        )
-        SELECT 
-            -- ✅ الحقوق: قطع التوريد
-            (SELECT total FROM exchange_items) - 
-            -- ❌ الالتزامات: المبيعات + الحجوزات + المرتجعات
-            (SELECT total FROM sales_to_supplier) - 
-            (SELECT total FROM preorders_to_supplier) - 
-            (SELECT total FROM returns_out) - 
-            -- ❌ الدفعات الصادرة: ما دفعناه لهم (نخصمها من حقوقهم)
-            (SELECT total FROM payments_out) + 
-            -- ✅ الدفعات الواردة: ما دفعوه لنا (نخصمها من التزاماتهم)
-            (SELECT total FROM payments_in) + 
-            COALESCE((SELECT opening_balance FROM suppliers WHERE id = :supplier_id), 0) as balance
-    """)
-    
-    result = connection.execute(query, {"supplier_id": supplier_id}).fetchone()
-    balance = float(result[0] if result else 0)
-    
-    # تحديث رصيد المورد
+    from sqlalchemy import text as sa_text
     update_query = sa_text("UPDATE suppliers SET balance = :balance WHERE id = :supplier_id")
-    connection.execute(update_query, {"balance": balance, "supplier_id": supplier_id})
+    connection.execute(update_query, {"balance": float(balance), "supplier_id": supplier_id})
     
-    return balance
+    return float(balance)
 
 
 class PartnerSettlement(db.Model, TimestampMixin, AuditMixin):
@@ -3557,7 +3588,19 @@ class Employee(db.Model, TimestampMixin, AuditMixin):
 
     @hybrid_property
     def total_expenses(self):
-        return float(db.session.query(func.coalesce(func.sum(Expense.amount), 0)).filter(Expense.employee_id == self.id).scalar())
+        from decimal import Decimal
+        expenses = db.session.query(Expense).filter(Expense.employee_id == self.id).all()
+        total = Decimal('0.00')
+        for exp in expenses:
+            amt = Decimal(str(exp.amount or 0))
+            if exp.currency == "ILS":
+                total += amt
+            else:
+                try:
+                    total += convert_amount(amt, exp.currency, "ILS", exp.date)
+                except:
+                    pass
+        return float(total)
 
     @total_expenses.expression
     def total_expenses(cls):
@@ -3565,16 +3608,23 @@ class Employee(db.Model, TimestampMixin, AuditMixin):
 
     @hybrid_property
     def total_paid(self):
-        return float(
-            db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
-            .join(Expense, Payment.expense_id == Expense.id)
-            .filter(
-                Expense.employee_id == self.id,
-                Payment.status == PaymentStatus.COMPLETED.value,
-                Payment.direction == PaymentDirection.OUT.value,
-            )
-            .scalar()
-        )
+        from decimal import Decimal
+        payments = db.session.query(Payment).join(Expense, Payment.expense_id == Expense.id).filter(
+            Expense.employee_id == self.id,
+            Payment.status == PaymentStatus.COMPLETED.value,
+            Payment.direction == PaymentDirection.OUT.value
+        ).all()
+        total = Decimal('0.00')
+        for p in payments:
+            amt = Decimal(str(p.total_amount or 0))
+            if p.currency == "ILS":
+                total += amt
+            else:
+                try:
+                    total += convert_amount(amt, p.currency, "ILS", p.payment_date)
+                except:
+                    pass
+        return float(total)
 
     @total_paid.expression
     def total_paid(cls):

@@ -561,104 +561,108 @@ def partners_report():
 
 @reports_bp.route("/customers", methods=["GET"], endpoint="customers_report")
 def customers_report():
+    from decimal import Decimal
+    from models import convert_amount
+    
     sd = _parse_date(request.args.get("start"))
     ed = _parse_date(request.args.get("end"))
     if sd and ed and ed < sd:
         sd, ed = ed, sd
     start = sd or date.min
     end = ed or date.max
-    inv_date = cast(Invoice.invoice_date, Date).between(start, end)
-    sale_date = cast(Sale.sale_date, Date).between(start, end)
-    srv_ref_dt = func.coalesce(ServiceRequest.completed_at, ServiceRequest.received_at, ServiceRequest.created_at)
-    srv_date = cast(srv_ref_dt, Date).between(start, end)
-    opre_date = cast(OnlinePreOrder.created_at, Date).between(start, end)
-    pay_date = cast(Payment.payment_date, Date).between(start, end)
-    inv_agg = (
-        db.session.query(
-            Invoice.customer_id.label("cid"),
-            func.coalesce(func.sum(Invoice.total_amount), 0).label("total")
-        )
-        .filter(Invoice.customer_id.isnot(None))
-        .filter(Invoice.cancelled_at.is_(None))  # فقط الفواتير غير الملغاة
-        .filter(inv_date)
-        .group_by(Invoice.customer_id)
-        .subquery()
-    )
-    sale_agg = (
-        db.session.query(
-            Sale.customer_id.label("cid"),
-            func.coalesce(func.sum(Sale.total_amount), 0).label("total")
-        )
-        .filter(Sale.customer_id.isnot(None))
-        .filter(Sale.status == SaleStatus.CONFIRMED)
-        .filter(sale_date)
-        .group_by(Sale.customer_id)
-        .subquery()
-    )
-    srv_agg = (
-        db.session.query(
-            ServiceRequest.customer_id.label("cid"),
-            func.coalesce(func.sum(ServiceRequest.total_amount), 0).label("total")
-        )
-        .filter(ServiceRequest.customer_id.isnot(None))
-        .filter(srv_date)
-        .group_by(ServiceRequest.customer_id)
-        .subquery()
-    )
-    opre_agg = (
-        db.session.query(
-            OnlinePreOrder.customer_id.label("cid"),
-            func.coalesce(func.sum(OnlinePreOrder.total_amount), 0).label("total")
-        )
-        .filter(OnlinePreOrder.customer_id.isnot(None))
-        .filter(opre_date)
-        .group_by(OnlinePreOrder.customer_id)
-        .subquery()
-    )
-    pay_agg = (
-        db.session.query(
-            Payment.customer_id.label("cid"),
-            func.coalesce(func.sum(Payment.total_amount), 0).label("total")
-        )
-        .filter(Payment.customer_id.isnot(None))
-        .filter(Payment.direction == PaymentDirection.IN.value)
-        .filter(Payment.status == PaymentStatus.COMPLETED.value)  # ✅ فلترة الدفعات المكتملة فقط
-        .filter(pay_date)
-        .group_by(Payment.customer_id)
-        .subquery()
-    )
-    q = (
-        db.session.query(
-            Customer.id.label("id"),
-            Customer.name.label("name"),
-            (
-                func.coalesce(inv_agg.c.total, 0) +
-                func.coalesce(sale_agg.c.total, 0) +
-                func.coalesce(srv_agg.c.total, 0) +
-                func.coalesce(opre_agg.c.total, 0)
-            ).label("total_invoiced"),
-            func.coalesce(pay_agg.c.total, 0).label("total_paid"),
-        )
-        .outerjoin(inv_agg, inv_agg.c.cid == Customer.id)
-        .outerjoin(sale_agg, sale_agg.c.cid == Customer.id)
-        .outerjoin(srv_agg,  srv_agg.c.cid  == Customer.id)
-        .outerjoin(opre_agg, opre_agg.c.cid == Customer.id)
-        .outerjoin(pay_agg,  pay_agg.c.cid  == Customer.id)
-        .order_by(desc("total_invoiced"), Customer.name.asc())
-    )
-    rows = q.all()
+    
+    customers = Customer.query.all()
     data = []
-    for r in rows:
-        invoiced = float(r.total_invoiced or 0)
-        paid = float(r.total_paid or 0)
-        balance = invoiced - paid
-        data.append({
-            "id": r.id,
-            "name": r.name,
-            "total_invoiced": invoiced,
-            "total_paid": paid,
-            "balance": balance,
-        })
+    
+    for cust in customers:
+        invoiced_ils = Decimal('0.00')
+        paid_ils = Decimal('0.00')
+        
+        invoices = db.session.query(Invoice).filter(
+            Invoice.customer_id == cust.id,
+            Invoice.cancelled_at.is_(None),
+            cast(Invoice.invoice_date, Date).between(start, end)
+        ).all()
+        for inv in invoices:
+            amt = Decimal(str(inv.total_amount or 0))
+            if inv.currency == "ILS":
+                invoiced_ils += amt
+            else:
+                try:
+                    invoiced_ils += convert_amount(amt, inv.currency, "ILS", inv.invoice_date)
+                except:
+                    pass
+        
+        sales = db.session.query(Sale).filter(
+            Sale.customer_id == cust.id,
+            Sale.status == SaleStatus.CONFIRMED,
+            cast(Sale.sale_date, Date).between(start, end)
+        ).all()
+        for s in sales:
+            amt = Decimal(str(s.total_amount or 0))
+            if s.currency == "ILS":
+                invoiced_ils += amt
+            else:
+                try:
+                    invoiced_ils += convert_amount(amt, s.currency, "ILS", s.sale_date)
+                except:
+                    pass
+        
+        services = db.session.query(ServiceRequest).filter(
+            ServiceRequest.customer_id == cust.id,
+            cast(func.coalesce(ServiceRequest.completed_at, ServiceRequest.received_at, ServiceRequest.created_at), Date).between(start, end)
+        ).all()
+        for srv in services:
+            amt = Decimal(str(srv.total_amount or 0))
+            if srv.currency == "ILS":
+                invoiced_ils += amt
+            else:
+                try:
+                    invoiced_ils += convert_amount(amt, srv.currency, "ILS", srv.received_at)
+                except:
+                    pass
+        
+        online_preorders = db.session.query(OnlinePreOrder).filter(
+            OnlinePreOrder.customer_id == cust.id,
+            cast(OnlinePreOrder.created_at, Date).between(start, end)
+        ).all()
+        for op in online_preorders:
+            amt = Decimal(str(op.total_amount or 0))
+            if op.currency == "ILS":
+                invoiced_ils += amt
+            else:
+                try:
+                    invoiced_ils += convert_amount(amt, op.currency, "ILS", op.created_at)
+                except:
+                    pass
+        
+        payments = db.session.query(Payment).filter(
+            Payment.customer_id == cust.id,
+            Payment.direction == PaymentDirection.IN.value,
+            Payment.status == PaymentStatus.COMPLETED.value,
+            cast(Payment.payment_date, Date).between(start, end)
+        ).all()
+        for p in payments:
+            amt = Decimal(str(p.total_amount or 0))
+            if p.currency == "ILS":
+                paid_ils += amt
+            else:
+                try:
+                    paid_ils += convert_amount(amt, p.currency, "ILS", p.payment_date)
+                except:
+                    pass
+        
+        if invoiced_ils != 0 or paid_ils != 0:
+            data.append({
+                "id": cust.id,
+                "name": cust.name,
+                "total_invoiced": float(invoiced_ils),
+                "total_paid": float(paid_ils),
+                "balance": float(invoiced_ils - paid_ils),
+            })
+    
+    data.sort(key=lambda x: x["total_invoiced"], reverse=True)
+    
     return render_template(
         "reports/customers.html",
         data=data,
