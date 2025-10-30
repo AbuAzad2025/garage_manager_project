@@ -511,14 +511,17 @@ document.getElementById('sale_id').addEventListener('change', function() {
           document.getElementById('lines-container').innerHTML = '';
           lineIndex = 0;
           
-          // إضافة بنود البيع
-          data.items.forEach(item => {
-            addLine({
-              product_id: item.product_id,
-              warehouse_id: item.warehouse_id,
-              quantity: item.quantity,
-              unit_price: item.unit_price
-            });
+          // إضافة بنود البيع (المتاحة للإرجاع فقط)
+          (data.items || []).forEach(item => {
+            const qty = (item.returnable_quantity != null ? item.returnable_quantity : item.quantity) || 0;
+            if (qty > 0) {
+              addLine({
+                product_id: item.product_id,
+                warehouse_id: item.warehouse_id,
+                quantity: qty,
+                unit_price: item.unit_price
+              });
+            }
           });
           
           // رسالة نجاح
@@ -534,6 +537,35 @@ document.getElementById('sale_id').addEventListener('change', function() {
 // تحديث العملة في الإجمالي
 document.querySelector('select[name="currency"]').addEventListener('change', function() {
   document.getElementById('total-currency').textContent = this.value;
+});
+
+// عند تغيير العميل: تصفية قائمة الفواتير لهذا العميل
+document.getElementById('customer_id').addEventListener('change', function() {
+  const customerId = this.value;
+  const saleSelect = document.getElementById('sale_id');
+  if (!customerId || customerId == '0') {
+    return;
+  }
+  fetch(`/returns/api/customer/${customerId}/sales`)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success) return;
+      const prev = saleSelect.value;
+      // أعد بناء الخيارات
+      saleSelect.innerHTML = '';
+      const placeholder = document.createElement('option');
+      placeholder.value = '0';
+      placeholder.textContent = 'اختر البيع';
+      saleSelect.appendChild(placeholder);
+      (data.sales || []).forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = String(s.id);
+        opt.textContent = `بيع #${s.id} - ${s.date || ''}`;
+        saleSelect.appendChild(opt);
+      });
+      // لا نخمن الفاتورة تلقائياً؛ نترك للمستخدم الاختيار
+    })
+    .catch(console.error);
 });
 
 // إضافة سطر واحد عند التحميل إذا لم توجد سطور

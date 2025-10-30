@@ -91,6 +91,16 @@ def create_return(sale_id=None):
             form.warehouse_id.data = sale.warehouse_id
             form.currency.data = sale.currency or 'ILS'
     
+    # تهيئة افتراضي للمخزن من الإعدادات إذا لم يكن هناك بيع محدد
+    if request.method == 'GET' and not sale_id and not (form.warehouse_id.data):
+        try:
+            from models import SystemSettings
+            returns_wh = SystemSettings.get_setting('returns_warehouse_id', None)
+            if returns_wh:
+                form.warehouse_id.data = int(returns_wh)
+        except Exception:
+            pass
+
     if form.validate_on_submit():
         try:
             # إنشاء المرتجع
@@ -373,17 +383,37 @@ def get_sale_items(sale_id):
     """الحصول على بنود البيع لتسهيل إنشاء المرتجع"""
     
     sale = Sale.query.get_or_404(sale_id)
-    
+
+    # احسب الكمية المتاحة للإرجاع = كمية البيع - مجموع المرتجعات المؤكدة لنفس البيع والمنتج
+    # ملاحظة: نحتسب المرتجعات المؤكدة فقط حتى لا تمنع المسودات الإرجاع
+    # تجميع المرتجعات حسب المنتج
+    from sqlalchemy import select
+    from models import SaleReturn, SaleReturnLine
+
+    confirmed_returns = (
+        db.session.query(SaleReturnLine.product_id, func.coalesce(func.sum(SaleReturnLine.quantity), 0).label('returned_qty'))
+        .join(SaleReturn, SaleReturnLine.sale_return_id == SaleReturn.id)
+        .filter(SaleReturn.sale_id == sale.id, SaleReturn.status == 'CONFIRMED')
+        .group_by(SaleReturnLine.product_id)
+        .all()
+    )
+    product_id_to_returned = {pid: int(qty or 0) for pid, qty in confirmed_returns}
+
     items = []
-    for line in sale.lines:
+    for line in (sale.lines or []):
+        original_qty = int(line.quantity or 0)
+        returned_qty = int(product_id_to_returned.get(line.product_id, 0))
+        available_qty = max(0, original_qty - returned_qty)
         items.append({
             'product_id': line.product_id,
             'product_name': line.product.name if line.product else 'غير معروف',
-            'quantity': line.quantity,
-            'unit_price': float(line.unit_price),
-            'warehouse_id': line.warehouse_id
+            'quantity': original_qty,
+            'unit_price': float(line.unit_price or 0),
+            'warehouse_id': line.warehouse_id,
+            'returned_quantity': returned_qty,
+            'returnable_quantity': available_qty
         })
-    
+
     return jsonify({
         'success': True,
         'sale_id': sale.id,
@@ -392,4 +422,27 @@ def get_sale_items(sale_id):
         'currency': sale.currency,
         'items': items
     })
+
+
+@returns_bp.route('/api/customer/<int:customer_id>/sales')
+@login_required
+def get_customer_sales(customer_id: int):
+    """إرجاع آخر المبيعات المؤكدة لعميل محدد لتصفية قائمة الفواتير في المرتجع"""
+    sales = (
+        Sale.query
+        .filter_by(customer_id=customer_id, status='CONFIRMED')
+        .order_by(desc(Sale.id))
+        .limit(100)
+        .all()
+    )
+    data = [
+        {
+            'id': s.id,
+            'date': (s.created_at.strftime('%Y-%m-%d') if getattr(s, 'created_at', None) else ''),
+            'warehouse_id': s.warehouse_id,
+            'currency': s.currency
+        }
+        for s in sales
+    ]
+    return jsonify({'success': True, 'sales': data})
 
