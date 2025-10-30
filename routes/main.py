@@ -179,8 +179,8 @@ def dashboard():
     
     # 4️⃣ إضافة فواتير الموردين المستحقة (صادر)
     today_invoices = Invoice.query.filter(
-        Invoice.date >= day_start_dt.date(),
-        Invoice.date < day_end_dt.date(),
+        Invoice.invoice_date >= day_start_dt,
+        Invoice.invoice_date < day_end_dt,
     ).all()
     
     for invoice in today_invoices:
@@ -190,7 +190,7 @@ def dashboard():
             if invoice.currency == "ILS":
                 today_outgoing += amt
             else:
-                today_outgoing += convert_amount(amt, invoice.currency, "ILS", invoice.date)
+                today_outgoing += convert_amount(amt, invoice.currency, "ILS", invoice.invoice_date)
         except:
             pass
 
@@ -260,8 +260,8 @@ def dashboard():
     
     # الفواتير الأسبوعية (صادر)
     week_invoices = Invoice.query.filter(
-        Invoice.date >= week_start_dt.date(),
-        Invoice.date < week_end_dt.date(),
+        Invoice.invoice_date >= week_start_dt,
+        Invoice.invoice_date < week_end_dt,
     ).all()
     
     for invoice in week_invoices:
@@ -271,7 +271,7 @@ def dashboard():
             if invoice.currency == "ILS":
                 week_outgoing += amt
             else:
-                week_outgoing += convert_amount(amt, invoice.currency, "ILS", invoice.date)
+                week_outgoing += convert_amount(amt, invoice.currency, "ILS", invoice.invoice_date)
         except:
             pass
 

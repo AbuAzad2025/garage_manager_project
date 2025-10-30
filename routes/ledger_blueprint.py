@@ -9,12 +9,152 @@ import utils
 from models import (
     Sale, Expense, Payment, ServiceRequest, 
     Customer, Supplier, Partner,
-    Product, StockLevel, GLBatch, GLEntry, Account
+    Product, StockLevel, GLBatch, GLEntry, Account,
+    Invoice, PreOrder, Shipment, Employee
 )
 
 csrf = CSRFProtect()
 
 ledger_bp = Blueprint("ledger", __name__, url_prefix="/ledger")
+
+
+def extract_entity_from_batch(batch: GLBatch):
+    """
+    🧠 دالة ذكية لاستخراج الجهة المرتبطة من القيد المحاسبي
+    
+    تستخرج الجهة من:
+    1. entity_type و entity_id إذا كانا موجودين
+    2. source_type و source_id للبحث في الجداول الأصلية
+    3. التحليل الذكي للمدفوعات والمبيعات والفواتير
+    
+    Returns:
+        tuple: (entity_name, entity_type_ar, entity_id, entity_type_code)
+    """
+    # محاولة 1: استخدام entity_type و entity_id المباشرة
+    if batch.entity_type and batch.entity_id:
+        entity_type = batch.entity_type.upper()
+        entity_id = batch.entity_id
+        
+        try:
+            if entity_type == 'CUSTOMER':
+                customer = db.session.get(Customer, entity_id)
+                if customer:
+                    return (customer.name, 'عميل', customer.id, 'CUSTOMER')
+            
+            elif entity_type == 'SUPPLIER':
+                supplier = db.session.get(Supplier, entity_id)
+                if supplier:
+                    return (supplier.name, 'مورد', supplier.id, 'SUPPLIER')
+            
+            elif entity_type == 'PARTNER':
+                partner = db.session.get(Partner, entity_id)
+                if partner:
+                    return (partner.name, 'شريك', partner.id, 'PARTNER')
+            
+            elif entity_type == 'EMPLOYEE':
+                employee = db.session.get(Employee, entity_id)
+                if employee:
+                    return (employee.name, 'موظف', employee.id, 'EMPLOYEE')
+        except Exception as e:
+            current_app.logger.warning(f"⚠️ خطأ في استخراج الجهة من entity_type: {e}")
+    
+    # محاولة 2: استخراج من source_type و source_id
+    if batch.source_type and batch.source_id:
+        source_type = batch.source_type.upper()
+        source_id = batch.source_id
+        
+        try:
+            # PAYMENT - استخراج من الدفعة
+            if source_type == 'PAYMENT':
+                payment = db.session.get(Payment, source_id)
+                if payment:
+                    if payment.customer_id:
+                        customer = db.session.get(Customer, payment.customer_id)
+                        if customer:
+                            return (customer.name, 'عميل', customer.id, 'CUSTOMER')
+                    
+                    elif payment.supplier_id:
+                        supplier = db.session.get(Supplier, payment.supplier_id)
+                        if supplier:
+                            return (supplier.name, 'مورد', supplier.id, 'SUPPLIER')
+                    
+                    elif payment.partner_id:
+                        partner = db.session.get(Partner, payment.partner_id)
+                        if partner:
+                            return (partner.name, 'شريك', partner.id, 'PARTNER')
+            
+            # SALE - استخراج من المبيعة
+            elif source_type == 'SALE':
+                sale = db.session.get(Sale, source_id)
+                if sale and sale.customer_id:
+                    customer = db.session.get(Customer, sale.customer_id)
+                    if customer:
+                        return (customer.name, 'عميل', customer.id, 'CUSTOMER')
+            
+            # INVOICE - استخراج من الفاتورة
+            elif source_type == 'INVOICE':
+                invoice = db.session.get(Invoice, source_id)
+                if invoice:
+                    if invoice.customer_id:
+                        customer = db.session.get(Customer, invoice.customer_id)
+                        if customer:
+                            return (customer.name, 'عميل', customer.id, 'CUSTOMER')
+                    elif invoice.supplier_id:
+                        supplier = db.session.get(Supplier, invoice.supplier_id)
+                        if supplier:
+                            return (supplier.name, 'مورد', supplier.id, 'SUPPLIER')
+            
+            # EXPENSE - استخراج من المصروف
+            elif source_type == 'EXPENSE':
+                expense = db.session.get(Expense, source_id)
+                if expense:
+                    if expense.employee_id:
+                        employee = db.session.get(Employee, expense.employee_id)
+                        if employee:
+                            return (employee.name, 'موظف', employee.id, 'EMPLOYEE')
+                    elif expense.partner_id:
+                        partner = db.session.get(Partner, expense.partner_id)
+                        if partner:
+                            return (partner.name, 'شريك', partner.id, 'PARTNER')
+                    elif expense.paid_to:
+                        return (expense.paid_to, 'جهة', None, 'OTHER')
+                    elif expense.payee_name:
+                        return (expense.payee_name, 'جهة', None, 'OTHER')
+            
+            # SERVICE - استخراج من طلب الصيانة
+            elif source_type == 'SERVICE':
+                service = db.session.get(ServiceRequest, source_id)
+                if service and service.customer_id:
+                    customer = db.session.get(Customer, service.customer_id)
+                    if customer:
+                        return (customer.name, 'عميل', customer.id, 'CUSTOMER')
+            
+            # PREORDER - استخراج من الطلب المسبق
+            elif source_type == 'PREORDER':
+                preorder = db.session.get(PreOrder, source_id)
+                if preorder:
+                    if preorder.customer_id:
+                        customer = db.session.get(Customer, preorder.customer_id)
+                        if customer:
+                            return (customer.name, 'عميل', customer.id, 'CUSTOMER')
+                    elif preorder.supplier_id:
+                        supplier = db.session.get(Supplier, preorder.supplier_id)
+                        if supplier:
+                            return (supplier.name, 'مورد', supplier.id, 'SUPPLIER')
+            
+            # SHIPMENT - استخراج من الشحنة
+            elif source_type == 'SHIPMENT':
+                shipment = db.session.get(Shipment, source_id)
+                if shipment and shipment.supplier_id:
+                    supplier = db.session.get(Supplier, shipment.supplier_id)
+                    if supplier:
+                        return (supplier.name, 'مورد', supplier.id, 'SUPPLIER')
+                        
+        except Exception as e:
+            current_app.logger.warning(f"⚠️ خطأ في استخراج الجهة من source_type {source_type}: {e}")
+    
+    # لا توجد جهة مرتبطة
+    return ('—', '', None, None)
 
 @ledger_bp.route("/", methods=["GET"], endpoint="index")
 @login_required
@@ -580,6 +720,9 @@ def get_ledger_data():
                 manual_batches_query = manual_batches_query.filter(GLBatch.posted_at <= to_date)
             
             for batch in manual_batches_query.order_by(GLBatch.posted_at).all():
+                # 🧠 استخراج الجهة المرتبطة بذكاء
+                entity_name, entity_type_ar, entity_id_extracted, entity_type_code = extract_entity_from_batch(batch)
+                
                 # جلب القيود الفرعية لهذا القيد
                 entries = GLEntry.query.filter_by(batch_id=batch.id).all()
                 
@@ -606,8 +749,8 @@ def get_ledger_data():
                         "debit": debit,
                         "credit": credit,
                         "balance": running_balance,
-                        "entity_name": "—",
-                        "entity_type": "",
+                        "entity_name": entity_name,  # ✅ استخدام الجهة المستخرجة بذكاء
+                        "entity_type": entity_type_ar,  # ✅ استخدام نوع الجهة بالعربي
                         "manual_details": {
                             "batch_id": batch.id,
                             "account_code": entry.account,
@@ -1867,6 +2010,16 @@ def account_ledger(account):
             dr = float(r.debit or 0.0)
             cr = float(r.credit or 0.0)
             running += (dr - cr)
+            
+            # 🧠 استخراج الجهة بذكاء من batch
+            batch_obj = GLBatch(
+                source_type=r.source_type,
+                source_id=r.source_id,
+                entity_type=r.entity_type,
+                entity_id=r.entity_id
+            )
+            entity_name, entity_type_ar, _, _ = extract_entity_from_batch(batch_obj)
+            
             lines.append({
                 "date": r.posted_at.isoformat(),
                 "source": f"{r.source_type}:{r.source_id}",
@@ -1875,6 +2028,8 @@ def account_ledger(account):
                 "ref": r.ref,
                 "entity_type": r.entity_type,
                 "entity_id": r.entity_id,
+                "entity_name": entity_name,  # ✅ إضافة اسم الجهة
+                "entity_type_ar": entity_type_ar,  # ✅ إضافة نوع الجهة بالعربي
                 "debit": dr,
                 "credit": cr,
                 "balance": running
@@ -1898,6 +2053,16 @@ def account_ledger(account):
         dr = float(r.debit or 0.0)
         cr = float(r.credit or 0.0)
         running += (dr - cr)
+        
+        # 🧠 استخراج الجهة بذكاء من batch
+        batch_obj = GLBatch(
+            source_type=r.source_type,
+            source_id=r.source_id,
+            entity_type=r.entity_type,
+            entity_id=r.entity_id
+        )
+        entity_name, entity_type_ar, _, _ = extract_entity_from_batch(batch_obj)
+        
         lines.append({
             "date": r.posted_at.isoformat(),
             "source": f"{r.source_type}:{r.source_id}",
@@ -1906,6 +2071,8 @@ def account_ledger(account):
             "ref": r.ref,
             "entity_type": r.entity_type,
             "entity_id": r.entity_id,
+            "entity_name": entity_name,  # ✅ إضافة اسم الجهة
+            "entity_type_ar": entity_type_ar,  # ✅ إضافة نوع الجهة بالعربي
             "debit": dr,
             "credit": cr,
             "balance": running
@@ -1928,6 +2095,21 @@ def entity_ledger():
     eid = request.args.get("entity_id", type=int)
     if not (et and eid):
         return jsonify({"error": "entity_type & entity_id مطلوبان"}), 400
+    
+    # 🧠 الحصول على اسم الجهة
+    entity_name = "—"
+    if et == 'CUSTOMER':
+        customer = db.session.get(Customer, eid)
+        entity_name = customer.name if customer else f"عميل #{eid}"
+    elif et == 'SUPPLIER':
+        supplier = db.session.get(Supplier, eid)
+        entity_name = supplier.name if supplier else f"مورد #{eid}"
+    elif et == 'PARTNER':
+        partner = db.session.get(Partner, eid)
+        entity_name = partner.name if partner else f"شريك #{eid}"
+    elif et == 'EMPLOYEE':
+        employee = db.session.get(Employee, eid)
+        entity_name = employee.name if employee else f"موظف #{eid}"
     base = (db.session.query(
                 GLBatch.posted_at.label("posted_at"),
                 GLBatch.source_type.label("source_type"),
@@ -1973,6 +2155,7 @@ def entity_ledger():
         return jsonify({
             "entity_type": et,
             "entity_id": eid,
+            "entity_name": entity_name,  # ✅ إضافة اسم الجهة
             "from": dfrom.isoformat(),
             "to": (dto - timedelta(microseconds=1)).isoformat(),
             "total_debit": float(total_dr_q.scalar() or 0.0),
@@ -2002,6 +2185,7 @@ def entity_ledger():
     return jsonify({
         "entity_type": et,
         "entity_id": eid,
+        "entity_name": entity_name,  # ✅ إضافة اسم الجهة
         "from": dfrom.isoformat(),
         "to": (dto - timedelta(microseconds=1)).isoformat(),
         "total_debit": total_dr,
@@ -2020,6 +2204,9 @@ def get_batch_details(batch_id):
         batch = GLBatch.query.get(batch_id)
         if not batch:
             return jsonify({"success": False, "error": "القيد غير موجود"}), 404
+        
+        # 🧠 استخراج الجهة المرتبطة بذكاء
+        entity_name, entity_type_ar, entity_id_extracted, entity_type_code = extract_entity_from_batch(batch)
         
         # جلب القيود الفرعية
         entries = GLEntry.query.filter_by(batch_id=batch_id).all()
@@ -2046,7 +2233,11 @@ def get_batch_details(batch_id):
                 "memo": batch.memo,
                 "posted_at": batch.posted_at.isoformat() if batch.posted_at else None,
                 "currency": batch.currency,
-                "status": batch.status
+                "status": batch.status,
+                "entity_name": entity_name,  # ✅ إضافة اسم الجهة
+                "entity_type": entity_type_ar,  # ✅ إضافة نوع الجهة بالعربي
+                "entity_id": entity_id_extracted,  # ✅ إضافة معرف الجهة
+                "entity_type_code": entity_type_code  # ✅ إضافة كود نوع الجهة
             },
             "entries": entries_list,
             "total_debit": sum(e["debit"] for e in entries_list),
