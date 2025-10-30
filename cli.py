@@ -682,6 +682,36 @@ def seed_expenses_demo() -> None:
     except SQLAlchemyError as e:
         db.session.rollback(); raise click.ClickException(f"Commit failed: {e}") from e
 
+@click.command("seed-branches")
+@click.option("--force", is_flag=True)
+@with_appcontext
+def seed_branches(force: bool) -> None:
+    """إنشاء الفرع الرئيسي الافتراضي"""
+    from models import Branch
+    if _is_production() and not force:
+        if not click.confirm("Production environment detected. Continue?", default=False):
+            click.echo("Canceled.")
+            return
+    try:
+        with _begin():
+            # التحقق من وجود الفرع الرئيسي
+            main_branch = Branch.query.filter(func.lower(Branch.code) == 'main').first()
+            if not main_branch:
+                main_branch = Branch(
+                    code='MAIN',
+                    name='الفرع الرئيسي',
+                    is_active=True,
+                    currency='ILS',
+                    timezone='Asia/Jerusalem'
+                )
+                db.session.add(main_branch)
+                click.echo("✅ Created main branch")
+            else:
+                click.echo("ℹ️  Main branch already exists")
+        click.echo("OK: branches seeded.")
+    except SQLAlchemyError as e:
+        db.session.rollback(); raise click.ClickException(f"Commit failed: {e}") from e
+
 @click.command("expense-type")
 @click.option("--name", required=True)
 @click.option("--desc", default="")
@@ -1930,6 +1960,6 @@ def register_cli(app) -> None:
         currency_balance, currency_validate, currency_report, currency_health, currency_update, currency_test,
         create_superadmin,
         optimize_db,
-        seed_employees, seed_salaries, seed_expenses_demo
+        seed_employees, seed_salaries, seed_expenses_demo, seed_branches
     ]
     for cmd in commands: app.cli.add_command(cmd)

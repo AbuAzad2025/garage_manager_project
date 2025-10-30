@@ -193,6 +193,7 @@
               <th>المبلغ</th>
               <th>طريقة الدفع</th>
               <th>ملاحظات</th>
+              <th class="no-print">إجراءات</th>
             </tr>
           </thead>
           <tbody>
@@ -209,6 +210,11 @@
               <td>{{ "%.2f"|format(sal.amount) }} {{ sal.currency }}</td>
               <td>{{ sal.payment_method|upper }}</td>
               <td>{{ sal.description or '—' }}</td>
+              <td class="no-print">
+                <a href="{{ url_for('expenses_bp.salary_receipt', salary_exp_id=sal.id) }}" class="btn btn-sm btn-success" target="_blank" title="طباعة إيصال">
+                  <i class="fas fa-print"></i>
+                </a>
+              </td>
             </tr>
             {% endfor %}
           </tbody>

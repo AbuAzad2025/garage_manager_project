@@ -235,6 +235,51 @@ def employee_statement(emp_id):
         salaries=salaries,
     )
 
+
+@expenses_bp.route("/salary-receipt/<int:salary_exp_id>", methods=["GET"], endpoint="salary_receipt")
+@login_required
+def salary_receipt(salary_exp_id):
+    """إيصال راتب قابل للطباعة - A4 Format"""
+    from models import EmployeeDeduction, EmployeeAdvanceInstallment, ExpenseType
+    from datetime import date
+    
+    salary_expense = _get_or_404(Expense, salary_exp_id, joinedload(Expense.employee), joinedload(Expense.employee, Employee.branch))
+    
+    if not salary_expense.employee:
+        flash("❌ المصروف غير مرتبط بموظف", "danger")
+        return redirect(url_for("expenses_bp.list_expenses"))
+    
+    employee = salary_expense.employee
+    
+    # الخصومات النشطة في تاريخ الراتب
+    sal_date = salary_expense.date.date() if isinstance(salary_expense.date, datetime) else salary_expense.date
+    deductions = EmployeeDeduction.query.filter(
+        EmployeeDeduction.employee_id == employee.id,
+        EmployeeDeduction.is_active == True,
+        EmployeeDeduction.start_date <= sal_date,
+        or_(EmployeeDeduction.end_date.is_(None), EmployeeDeduction.end_date >= sal_date)
+    ).all()
+    
+    # الأقساط المستحقة في شهر الراتب
+    installments_due = []
+    if salary_expense.period_start:
+        month_start = salary_expense.period_start
+        month_end = salary_expense.period_end or month_start
+        installments_due = EmployeeAdvanceInstallment.query.filter(
+            EmployeeAdvanceInstallment.employee_id == employee.id,
+            EmployeeAdvanceInstallment.paid == False,
+            EmployeeAdvanceInstallment.due_date >= month_start,
+            EmployeeAdvanceInstallment.due_date <= month_end
+        ).all()
+    
+    return render_template(
+        "expenses/salary_receipt.html",
+        employee=employee,
+        salary_expense=salary_expense,
+        deductions=deductions,
+        installments_due=installments_due,
+    )
+
 @expenses_bp.route("/employees/delete/<int:emp_id>", methods=["POST"], endpoint="delete_employee")
 @login_required
 # @permission_required("manage_expenses")  # Commented out
