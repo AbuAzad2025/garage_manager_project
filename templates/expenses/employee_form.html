@@ -72,13 +72,15 @@
 
           <div class="col-md-4">
             {{ form.branch_id.label(class="form-label") }}
-            {{ form.branch_id(class=("form-select is-invalid" if form.branch_id.errors else "form-select")) }}
+            {{ form.branch_id(class=("form-select is-invalid" if form.branch_id.errors else "form-select"), **{'data-use-api': 'true'}) }}
+            <small class="text-muted">الفرع التابع له (إلزامي)</small>
             {% for e in form.branch_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
 
           <div class="col-md-4">
             {{ form.site_id.label(class="form-label") }}
-            {{ form.site_id(class=("form-select is-invalid" if form.site_id.errors else "form-select")) }}
+            {{ form.site_id(class=("form-select is-invalid" if form.site_id.errors else "form-select"), disabled=true) }}
+            <small class="text-muted">يُفلتر حسب الفرع</small>
             {% for e in form.site_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
 
@@ -107,4 +109,5 @@
 
 {% block scripts %}
 {{ super() }}
+<script src="{{ url_for('static', filename='js/branch-site-filter.js') }}"></script>
 {% endblock %}

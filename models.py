@@ -1841,97 +1841,134 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
 
     @hybrid_property
     def balance(self):
-        """الرصيد الحقيقي = الرصيد الافتتاحي + المعاملات - الدفعات"""
+        """الرصيد الحقيقي = الرصيد الافتتاحي + المعاملات - الدفعات (مع تحويل العملات)"""
         try:
             from sqlalchemy.orm import object_session
+            from decimal import Decimal
             session = object_session(self)
             if not session:
                 return 0.0
             
-            # الرصيد الافتتاحي
-            ob = float(self.opening_balance or 0)
+            # الرصيد الافتتاحي (مُحوّل إلى ILS)
+            ob = Decimal(str(self.opening_balance or 0))
+            if self.currency != "ILS":
+                try:
+                    ob = convert_amount(ob, self.currency, "ILS")
+                except:
+                    pass  # استخدم القيمة الأصلية إذا فشل التحويل
             
-            # المبيعات المؤكدة
-            sales_total = float(session.query(func.coalesce(func.sum(Sale.total_amount), 0)).filter(
+            # ✅ المبيعات المؤكدة - جلب كل سجل وتحويله
+            sales = session.query(Sale).filter(
                 Sale.customer_id == self.id,
                 Sale.status == 'CONFIRMED'
-            ).scalar() or 0)
+            ).all()
+            sales_total = Decimal('0.00')
+            for s in sales:
+                amt = Decimal(str(s.total_amount or 0))
+                if s.currency == "ILS":
+                    sales_total += amt
+                else:
+                    try:
+                        sales_total += convert_amount(amt, s.currency, "ILS", s.sale_date)
+                    except:
+                        pass  # تجاهل إذا فشل التحويل
             
-            # الفواتير (كل الفواتير غير الملغاة)
-            invoices_total = float(session.query(func.coalesce(func.sum(Invoice.total_amount), 0)).filter(
+            # ✅ الفواتير (كل الفواتير غير الملغاة) - جلب كل سجل وتحويله
+            invoices = session.query(Invoice).filter(
                 Invoice.customer_id == self.id,
-                Invoice.cancelled_at.is_(None)  # فقط الفواتير غير الملغاة
-            ).scalar() or 0)
+                Invoice.cancelled_at.is_(None)
+            ).all()
+            invoices_total = Decimal('0.00')
+            for inv in invoices:
+                amt = Decimal(str(inv.total_amount or 0))
+                if inv.currency == "ILS":
+                    invoices_total += amt
+                else:
+                    try:
+                        invoices_total += convert_amount(amt, inv.currency, "ILS", inv.invoice_date)
+                    except:
+                        pass
             
-            # الخدمات
-            services_total = float(session.query(func.coalesce(func.sum(ServiceRequest.total_cost), 0)).filter(
+            # ✅ الخدمات - جلب كل سجل وتحويله
+            services = session.query(ServiceRequest).filter(
                 ServiceRequest.customer_id == self.id
-            ).scalar() or 0)
+            ).all()
+            services_total = Decimal('0.00')
+            for srv in services:
+                amt = Decimal(str(srv.total_cost or 0))
+                if srv.currency == "ILS":
+                    services_total += amt
+                else:
+                    try:
+                        services_total += convert_amount(amt, srv.currency, "ILS", srv.received_at)
+                    except:
+                        pass
             
-            # الحجوزات المسبقة (محسوب من السعر × الكمية)
+            # ✅ الحجوزات المسبقة - جلب كل سجل وتحويله
             preorders = session.query(PreOrder).filter(
                 PreOrder.customer_id == self.id,
                 PreOrder.status != 'CANCELLED'
             ).all()
-            preorders_total = sum(float(p.total_amount or 0) for p in preorders)
+            preorders_total = Decimal('0.00')
+            for p in preorders:
+                amt = Decimal(str(p.total_amount or 0))
+                if p.currency == "ILS":
+                    preorders_total += amt
+                else:
+                    try:
+                        preorders_total += convert_amount(amt, p.currency, "ILS", p.preorder_date)
+                    except:
+                        pass
             
-            # الطلبات الأونلاين
-            online_orders_total = float(session.query(func.coalesce(func.sum(OnlinePreOrder.total_amount), 0)).filter(
+            # ✅ الطلبات الأونلاين - جلب كل سجل وتحويله
+            online_orders = session.query(OnlinePreOrder).filter(
                 OnlinePreOrder.customer_id == self.id,
                 OnlinePreOrder.payment_status != 'CANCELLED'
-            ).scalar() or 0)
+            ).all()
+            online_orders_total = Decimal('0.00')
+            for oo in online_orders:
+                amt = Decimal(str(oo.total_amount or 0))
+                if oo.currency == "ILS":
+                    online_orders_total += amt
+                else:
+                    try:
+                        online_orders_total += convert_amount(amt, oo.currency, "ILS", oo.created_at)
+                    except:
+                        pass
             
-            # الدفعات الواردة (مباشرة + من المبيعات + من الفواتير + من الخدمات)
-            # ✅ COMPLETED + PENDING (الشيكات المعلقة تُحسب)
-            # ❌ نستبعد BOUNCED/FAILED/CANCELLED (ملغاة)
-            payments_in_direct = float(session.query(func.coalesce(func.sum(Payment.total_amount), 0)).filter(
+            # ✅ الدفعات الواردة - جلب كل سجل وتحويله
+            payments_in_all = session.query(Payment).filter(
                 Payment.customer_id == self.id,
                 Payment.direction == 'IN',
                 Payment.status.in_(['COMPLETED', 'PENDING'])
-            ).scalar() or 0)
+            ).all()
+            payments_in = Decimal('0.00')
+            for p in payments_in_all:
+                amt = Decimal(str(p.total_amount or 0))
+                if p.currency == "ILS":
+                    payments_in += amt
+                else:
+                    try:
+                        payments_in += convert_amount(amt, p.currency, "ILS", p.payment_date)
+                    except:
+                        pass
             
-            payments_in_sales = float(session.query(func.coalesce(func.sum(Payment.total_amount), 0)).join(
-                Sale, Payment.sale_id == Sale.id
-            ).filter(
-                Sale.customer_id == self.id,
-                Payment.direction == 'IN',
-                Payment.status.in_(['COMPLETED', 'PENDING'])
-            ).scalar() or 0)
-            
-            payments_in_invoices = float(session.query(func.coalesce(func.sum(Payment.total_amount), 0)).join(
-                Invoice, Payment.invoice_id == Invoice.id
-            ).filter(
-                Invoice.customer_id == self.id,
-                Payment.direction == 'IN',
-                Payment.status.in_(['COMPLETED', 'PENDING'])
-            ).scalar() or 0)
-            
-            payments_in_services = float(session.query(func.coalesce(func.sum(Payment.total_amount), 0)).join(
-                ServiceRequest, Payment.service_id == ServiceRequest.id
-            ).filter(
-                ServiceRequest.customer_id == self.id,
-                Payment.direction == 'IN',
-                Payment.status.in_(['COMPLETED', 'PENDING'])
-            ).scalar() or 0)
-            
-            payments_in = payments_in_direct + payments_in_sales + payments_in_invoices + payments_in_services
-            
-            # الدفعات الصادرة (مباشرة + من المبيعات + من الفواتير + من الخدمات)
-            payments_out_direct = float(session.query(func.coalesce(func.sum(Payment.total_amount), 0)).filter(
+            # ✅ الدفعات الصادرة - جلب كل سجل وتحويله
+            payments_out_all = session.query(Payment).filter(
                 Payment.customer_id == self.id,
                 Payment.direction == 'OUT',
                 Payment.status.in_(['COMPLETED', 'PENDING'])
-            ).scalar() or 0)
-            
-            payments_out_sales = float(session.query(func.coalesce(func.sum(Payment.total_amount), 0)).join(
-                Sale, Payment.sale_id == Sale.id
-            ).filter(
-                Sale.customer_id == self.id,
-                Payment.direction == 'OUT',
-                Payment.status.in_(['COMPLETED', 'PENDING'])
-            ).scalar() or 0)
-            
-            payments_out = payments_out_direct + payments_out_sales
+            ).all()
+            payments_out = Decimal('0.00')
+            for p in payments_out_all:
+                amt = Decimal(str(p.total_amount or 0))
+                if p.currency == "ILS":
+                    payments_out += amt
+                else:
+                    try:
+                        payments_out += convert_amount(amt, p.currency, "ILS", p.payment_date)
+                    except:
+                        pass
             
             # 🎯 الرصيد النهائي بالطريقة المحاسبية الصحيحة (مدين - دائن)
             # الرصيد الافتتاحي:
@@ -1939,14 +1976,14 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
             #   - إذا موجب (+11200) = له علينا (دائن) → يضاف للدائن
             
             # المدين (Debit): ما عليه لنا
-            debit = 0.0
+            debit = Decimal('0.00')
             if ob < 0:  # رصيد افتتاحي سالب = عليه لنا
                 debit += abs(ob)
             # المبيعات والفواتير والخدمات والحجوزات والطلبات الأونلاين
             debit += sales_total + invoices_total + services_total + preorders_total + online_orders_total
             
             # الدائن (Credit): ما له علينا
-            credit = 0.0
+            credit = Decimal('0.00')
             if ob > 0:  # رصيد افتتاحي موجب = له علينا
                 credit += ob
             credit += payments_in  # الدفعات الواردة
@@ -1957,7 +1994,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
             # موجب (+X) = له علينا (دائن)
             final_balance = credit - debit
             
-            return final_balance
+            return float(final_balance)
         except Exception as e:
             import sys
             print(f"⚠️ خطأ في حساب رصيد العميل #{self.id}: {e}", file=sys.stderr)
@@ -3087,6 +3124,10 @@ def _partner_opening_balance_gl(mapper, connection, target: "Partner"):
 def update_partner_balance(partner_id: int, connection=None):
     """
     تحديث رصيد الشريك تلقائياً بناءً على جميع المعاملات
+    
+    ⚠️ تحذير: هذه الدالة تجمع المبالغ مباشرة بدون تحويل العملات!
+    للحصول على رصيد دقيق مع تحويل العملات، استخدم:
+    routes.partner_settlements._calculate_smart_partner_balance()
     """
     from datetime import datetime
     from sqlalchemy import text as sa_text
@@ -3177,6 +3218,10 @@ def update_partner_balance(partner_id: int, connection=None):
 def update_supplier_balance(supplier_id: int, connection=None):
     """
     تحديث رصيد المورد تلقائياً بناءً على جميع المعاملات
+    
+    ⚠️ تحذير: هذه الدالة تجمع المبالغ مباشرة بدون تحويل العملات!
+    للحصول على رصيد دقيق مع تحويل العملات، استخدم:
+    routes.supplier_settlements._calculate_smart_supplier_balance()
     """
     from sqlalchemy import text as sa_text
     
@@ -9227,20 +9272,48 @@ def _expense_gl_batch_upsert(mapper, connection, target: "Expense"):
                 pass
         
         # القيد المحاسبي:
-        # مدين: المصروفات (EXPENSES)
+        # مدين: حساب المصروف المخصص (من ExpenseType.fields_meta) أو افتراضي
         # دائن: النقدية (حسب طريقة الدفع)
+        
+        # قراءة حساب GL من نوع المصروف
+        expense_account = GL_ACCOUNTS.get("EXP", "5000_EXPENSES")  # افتراضي
+        try:
+            etype_row = connection.execute(
+                select(ExpenseType.fields_meta).where(ExpenseType.id == target.type_id)
+            ).scalar()
+            if etype_row:
+                meta = etype_row if isinstance(etype_row, dict) else {}
+                gl_code = meta.get('gl_account_code', '').strip()
+                if gl_code:
+                    expense_account = gl_code
+        except Exception:
+            pass
+        
         cash_account = GL_ACCOUNTS.get("CASH", "1000_CASH")
         if target.payment_method == 'bank':
             cash_account = GL_ACCOUNTS.get("BANK", "1010_BANK")
         elif target.payment_method == 'card':
             cash_account = GL_ACCOUNTS.get("CARD", "1020_CARD_CLEARING")
+        elif target.payment_method in ('cheque', 'check'):
+            cash_account = "2050_CHECKS_PAYABLE"  # شيكات مستحقة الدفع
         
         entries = [
-            (GL_ACCOUNTS.get("EXP", "5000_EXPENSES"), amount_ils, 0),  # مدين
-            (cash_account, 0, amount_ils),  # دائن
+            (expense_account, amount_ils, 0),  # مدين: حساب المصروف المخصص
+            (cash_account, 0, amount_ils),  # دائن: النقدية/البنك
         ]
         
-        memo = f"مصروف - {target.description or target.payee_name or 'مصروف عام'}"
+        # محاولة قراءة اسم نوع المصروف للـ memo
+        expense_type_name = "مصروف عام"
+        try:
+            etype_name_row = connection.execute(
+                select(ExpenseType.name).where(ExpenseType.id == target.type_id)
+            ).scalar()
+            if etype_name_row:
+                expense_type_name = etype_name_row
+        except Exception:
+            pass
+        
+        memo = f"{expense_type_name} - {target.description or target.payee_name or target.beneficiary_name or ''}"
         
         _gl_upsert_batch_and_entries(
             connection,
