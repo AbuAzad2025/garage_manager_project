@@ -280,6 +280,274 @@
     background-color: #f8f9fa;
     color: #667eea;
 }
+
+/* ============================================
+   🖨️ تحسينات الطباعة - Print Styles
+   ============================================ */
+@media print {
+    /* إعدادات عامة للطباعة */
+    @page {
+        size: A4 landscape; /* اتجاه أفقي لاستيعاب جميع الأعمدة */
+        margin: 10mm 5mm; /* هوامش صغيرة اقتصادية */
+    }
+    
+    /* إخفاء العناصر غير الضرورية */
+    .content-header,
+    .breadcrumb,
+    .card-header .btn,
+    .btn-print,
+    .btn-group,
+    .nav-tabs,
+    .filters-card,
+    .stat-card,
+    #filters-section,
+    #smart-assistant-section,
+    .pagination,
+    button,
+    .no-print,
+    .main-sidebar,
+    .main-header,
+    .content-wrapper > .content-header,
+    footer {
+        display: none !important;
+    }
+    
+    /* إعدادات الصفحة */
+    body {
+        margin: 0 !important;
+        padding: 0 !important;
+        font-size: 8pt !important;
+        background: white !important;
+        color: black !important;
+    }
+    
+    .content-wrapper {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+    }
+    
+    .content {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    
+    .container-fluid {
+        max-width: 100% !important;
+        width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    
+    /* Card للطباعة */
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+        margin: 0 !important;
+        page-break-inside: avoid;
+    }
+    
+    .card-header {
+        background: white !important;
+        color: black !important;
+        border: 1px solid #000 !important;
+        padding: 3mm !important;
+        font-size: 10pt !important;
+        font-weight: bold !important;
+        text-align: center !important;
+    }
+    
+    .card-body {
+        padding: 0 !important;
+    }
+    
+    /* تنسيق الجدول للطباعة */
+    .table-responsive {
+        overflow: visible !important;
+        width: 100% !important;
+    }
+    
+    #ledger-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        font-size: 7pt !important;
+        table-layout: fixed !important;
+        page-break-inside: auto;
+    }
+    
+    /* رأس الجدول */
+    #ledger-table thead {
+        display: table-header-group; /* تكرار الرأس في كل صفحة */
+        background: white !important;
+    }
+    
+    #ledger-table thead th {
+        background: #f0f0f0 !important;
+        color: black !important;
+        border: 1px solid #000 !important;
+        padding: 2mm 1mm !important;
+        font-size: 8pt !important;
+        font-weight: bold !important;
+        text-align: center !important;
+        white-space: nowrap !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    /* خلايا الجدول */
+    #ledger-table tbody td {
+        border: 1px solid #999 !important;
+        padding: 1.5mm 1mm !important;
+        font-size: 7pt !important;
+        color: black !important;
+        background: white !important;
+        page-break-inside: avoid;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    #ledger-table tbody tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+    
+    /* الصف الإجمالي */
+    #ledger-table tfoot td {
+        border: 2px solid #000 !important;
+        padding: 2mm 1mm !important;
+        font-size: 8pt !important;
+        font-weight: bold !important;
+        background: #e0e0e0 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    /* تحسين عرض الأعمدة - توزيع اقتصادي */
+    #ledger-table th:nth-child(1),
+    #ledger-table td:nth-child(1) { width: 8% !important; } /* التاريخ */
+    
+    #ledger-table th:nth-child(2),
+    #ledger-table td:nth-child(2) { width: 10% !important; } /* رقم العملية */
+    
+    #ledger-table th:nth-child(3),
+    #ledger-table td:nth-child(3) { width: 8% !important; } /* النوع */
+    
+    #ledger-table th:nth-child(4),
+    #ledger-table td:nth-child(4) { width: 15% !important; } /* الجهة المرتبطة */
+    
+    #ledger-table th:nth-child(5),
+    #ledger-table td:nth-child(5) { width: 25% !important; } /* الوصف */
+    
+    #ledger-table th:nth-child(6),
+    #ledger-table td:nth-child(6) { width: 11% !important; } /* مدين */
+    
+    #ledger-table th:nth-child(7),
+    #ledger-table td:nth-child(7) { width: 11% !important; } /* دائن */
+    
+    #ledger-table th:nth-child(8),
+    #ledger-table td:nth-child(8) { width: 12% !important; } /* الرصيد */
+    
+    /* إخفاء عمود الإجراءات */
+    #ledger-table th:nth-child(9),
+    #ledger-table td:nth-child(9) {
+        display: none !important;
+    }
+    
+    /* إزالة الألوان الزائدة لتوفير الحبر */
+    .debit-cell,
+    .credit-cell,
+    .balance-cell {
+        background: white !important;
+        color: black !important;
+        font-weight: bold !important;
+    }
+    
+    /* Badge للطباعة */
+    .badge {
+        border: 1px solid #000 !important;
+        background: white !important;
+        color: black !important;
+        padding: 1mm !important;
+        font-size: 6pt !important;
+    }
+    
+    /* عنوان التقرير */
+    .ledger-card::before {
+        content: "دفتر الأستاذ العام - General Ledger";
+        display: block;
+        text-align: center;
+        font-size: 14pt;
+        font-weight: bold;
+        margin-bottom: 3mm;
+        padding: 2mm;
+        border-bottom: 2px solid #000;
+    }
+    
+    /* معلومات الفترة */
+    .card-header::after {
+        content: " | تاريخ الطباعة: " attr(data-print-date);
+        font-size: 8pt;
+        font-weight: normal;
+    }
+    
+    /* منع قطع الصفحات في أماكن غير مناسبة */
+    h1, h2, h3, h4, h5, h6 {
+        page-break-after: avoid;
+    }
+    
+    /* رقم الصفحة */
+    @page {
+        @bottom-right {
+            content: "صفحة " counter(page) " من " counter(pages);
+            font-size: 8pt;
+        }
+        @bottom-left {
+            content: "نظام أزاد لإدارة الكراج";
+            font-size: 8pt;
+        }
+    }
+    
+    /* تحسين طباعة الأرقام */
+    .text-end {
+        text-align: left !important; /* الأرقام من اليسار */
+        direction: ltr !important;
+    }
+    
+    /* منع الطباعة الملونة */
+    * {
+        -webkit-print-color-adjust: economy !important;
+        print-color-adjust: economy !important;
+    }
+    
+    /* فقط الرؤوس والإجماليات بالرمادي */
+    #ledger-table thead th,
+    #ledger-table tfoot td {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+}
+
+/* زر الطباعة المحسّن */
+.btn-print-enhanced {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    z-index: 1050;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    animation: pulse-print 2s infinite;
+}
+
+@keyframes pulse-print {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+@media print {
+    .btn-print-enhanced {
+        display: none !important;
+    }
+}
 </style>
 {% endblock %}
 
@@ -577,8 +845,8 @@
                                 <button class="btn btn-success btn-sm" onclick="exportLedger()">
                                     <i class="fas fa-file-excel"></i> تصدير Excel
                                 </button>
-                                <button class="btn btn-info btn-sm" onclick="printLedger()">
-                                    <i class="fas fa-print"></i> طباعة
+                                <button class="btn btn-info btn-sm" onclick="printLedgerEnhanced()">
+                                    <i class="fas fa-print"></i> طباعة محسّنة
                                 </button>
                                 <button class="btn btn-warning btn-sm" onclick="forceShowPricingAlert()" title="التحقق من تسعير المنتجات">
                                     <i class="fas fa-tags"></i> فحص التسعير
@@ -2429,7 +2697,103 @@ function displayBatchDetails(data) {
     $('#gl-batch-details-content').html(html);
     $('#gl-batch-details-modal').modal('show');
 }
+
+// ====================================
+// 🖨️ دالة الطباعة المحسّنة
+// ====================================
+function printLedgerEnhanced() {
+    // إضافة تاريخ الطباعة للعنوان
+    const printDate = new Date().toLocaleDateString('ar-EG', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+    
+    // إضافة معلومات الفترة إلى العنوان
+    const fromDate = document.getElementById('from_date')?.value || '';
+    const toDate = document.getElementById('to_date')?.value || '';
+    const periodInfo = fromDate && toDate ? 
+        `الفترة: من ${fromDate} إلى ${toDate}` : 
+        'كامل الفترة';
+    
+    // تحديث عنوان الصفحة للطباعة
+    const originalTitle = document.title;
+    document.title = `دفتر الأستاذ - ${periodInfo} - ${printDate}`;
+    
+    // إظهار رسالة تحضيرية
+    Swal.fire({
+        title: 'جاري التحضير للطباعة...',
+        html: `
+            <div style="text-align: center;">
+                <i class="fas fa-print fa-3x text-primary mb-3"></i>
+                <p><strong>إعدادات الطباعة الموصى بها:</strong></p>
+                <ul style="text-align: right; display: inline-block;">
+                    <li>✅ الاتجاه: <strong>أفقي (Landscape)</strong></li>
+                    <li>✅ حجم الورق: <strong>A4</strong></li>
+                    <li>✅ الهوامش: <strong>صغيرة</strong></li>
+                    <li>✅ مقياس الطباعة: <strong>ملائم للصفحة</strong></li>
+                </ul>
+            </div>
+        `,
+        icon: 'info',
+        showConfirmButton: true,
+        confirmButtonText: 'طباعة الآن',
+        showCancelButton: true,
+        cancelButtonText: 'إلغاء',
+        timer: 3000,
+        timerProgressBar: true
+    }).then((result) => {
+        if (result.isConfirmed || result.dismiss === Swal.DismissReason.timer) {
+            // تنفيذ الطباعة
+            window.print();
+            
+            // استعادة العنوان الأصلي
+            setTimeout(() => {
+                document.title = originalTitle;
+            }, 1000);
+        }
+    });
+}
+
+// تصدير Excel محسّن
+function exportLedger() {
+    const table = document.getElementById('ledger-table');
+    if (!table) {
+        Swal.fire('خطأ', 'لم يتم العثور على الجدول', 'error');
+        return;
+    }
+    
+    // استخدام xlsx library إذا كانت متوفرة
+    if (typeof XLSX !== 'undefined') {
+        const wb = XLSX.utils.table_to_book(table, {sheet: 'دفتر الأستاذ'});
+        const today = new Date().toISOString().split('T')[0];
+        XLSX.writeFile(wb, `دفتر_الأستاذ_${today}.xlsx`);
+        
+        Swal.fire({
+            icon: 'success',
+            title: 'تم التصدير بنجاح',
+            text: 'تم تصدير دفتر الأستاذ إلى ملف Excel',
+            timer: 2000,
+            showConfirmButton: false
+        });
+    } else {
+        Swal.fire('خطأ', 'مكتبة التصدير غير متوفرة', 'error');
+    }
+}
+
+// اختصار لوحة المفاتيح للطباعة (Ctrl+P)
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'p') {
+        e.preventDefault();
+        printLedgerEnhanced();
+    }
+});
 </script>
+
+<!-- زر الطباعة العائم المحسّن -->
+<button class="btn btn-primary btn-lg btn-print-enhanced no-print" onclick="printLedgerEnhanced()" title="طباعة دفتر الأستاذ (Ctrl+P)">
+    <i class="fas fa-print fa-lg"></i>
+</button>
 
 <!-- Modal لعرض تفاصيل القيد -->
 <div class="modal fade" id="gl-batch-details-modal" tabindex="-1" role="dialog">
