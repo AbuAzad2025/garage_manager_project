@@ -21,6 +21,8 @@ from models import (
     Payment,
     PaymentDirection,
     PaymentStatus,
+    Expense,
+    Invoice,
 )
 import utils
 from reports import sales_report, ar_aging_report
