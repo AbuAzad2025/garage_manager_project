@@ -1311,7 +1311,7 @@ def api_warehouse_products_stocked(id):
             "sku": p.sku or "",
             "part_number": p.part_number or "",
             "barcode": p.barcode or "",
-            "price": float(p.price or 0),
+            "currency": p.currency or "ILS",
             "quantity": float(sl.quantity or 0),
             "warehouse_id": id,
             "warehouse_name": w.name,

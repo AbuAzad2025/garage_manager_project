@@ -43,6 +43,37 @@
       .inline-input { min-width: 60px; max-width: 100px; }
     }
     
+    /* Save button styling */
+    .save-btn {
+      transition: all 0.3s ease;
+    }
+    
+    .save-btn:hover {
+      transform: scale(1.1);
+    }
+    
+    .save-btn.saving {
+      background-color: #ffc107 !important;
+      border-color: #ffc107 !important;
+    }
+    
+    .save-btn.saved {
+      background-color: #28a745 !important;
+      border-color: #28a745 !important;
+    }
+    
+    .save-btn.error {
+      background-color: #dc3545 !important;
+      border-color: #dc3545 !important;
+    }
+    
+    /* Mark changed inputs */
+    .inline-input.changed {
+      border-color: #ffc107 !important;
+      border-width: 2px !important;
+      background-color: #fff3cd !important;
+    }
+    
     /* Print Styles */
     @media print {
       /* Hide unnecessary elements */
@@ -390,11 +421,19 @@
                          data-field="quantity" data-id="{{ p.id }}" value="{{ r.by.get(active_warehouse_id, {}).get('on', 0) }}">
                 </td>
                 <td class="text-end fw-bold">{{ r.total or 0 }}</td>
+                <td class="text-center no-print">
+                  <button class="btn btn-sm btn-success save-btn" 
+                          data-id="{{ p.id }}" 
+                          onclick="saveProduct({{ p.id }})"
+                          title="حفظ التعديلات">
+                    <i class="fas fa-save"></i>
+                  </button>
+                </td>
               </tr>
             {% endfor %}
           {% else %}
             <tr>
-              <td colspan="9" class="text-center text-muted py-4">
+              <td colspan="10" class="text-center text-muted py-4">
                 <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
                 لا توجد منتجات
               </td>
@@ -456,12 +495,51 @@
         return cookie ? decodeURIComponent(cookie[1]) : null;
       }
       
-      // Save inline edit
-      async function saveInline(productId, field, value){
-        const url = `/warehouses/{{ active_warehouse_id }}/products/${productId}`;
-        const payload = { [field]: value };
+      // Track changes to inputs
+      document.getElementById('products-table')?.addEventListener('input', function(e) {
+        const input = e.target;
+        if (!input.classList.contains('inline-input')) return;
+        
+        // Mark as changed
+        if (!input.dataset.originalValue) {
+          input.dataset.originalValue = input.value;
+        }
+        
+        if (input.value !== input.dataset.originalValue) {
+          input.classList.add('changed');
+        } else {
+          input.classList.remove('changed');
+        }
+      });
+      
+      // Save product function
+      window.saveProduct = async function(productId) {
+        const row = document.querySelector(`tr[data-id="${productId}"]`);
+        if (!row) return;
+        
+        const saveBtn = row.querySelector('.save-btn');
+        const inputs = row.querySelectorAll('.inline-input.changed');
+        
+        if (inputs.length === 0) {
+          notify('لا توجد تعديلات لحفظها', 'info');
+          return;
+        }
+        
+        // Set button to saving state
+        saveBtn.classList.add('saving');
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         
         try {
+          // Collect all changed data
+          const payload = {};
+          inputs.forEach(input => {
+            const field = input.dataset.field;
+            payload[field] = input.value;
+          });
+          
+          // Send to server
+          const url = `/warehouses/{{ active_warehouse_id }}/products/${productId}`;
           const res = await fetch(url, {
             method: 'POST',
             headers: {
@@ -477,40 +555,42 @@
           if (!res.ok || data.ok === false) {
             throw new Error(data?.error || data?.message || 'فشل الحفظ');
           }
-          return data;
+          
+          // Success!
+          inputs.forEach(input => {
+            input.classList.remove('changed');
+            input.dataset.originalValue = input.value;
+          });
+          
+          saveBtn.classList.remove('saving');
+          saveBtn.classList.add('saved');
+          saveBtn.innerHTML = '<i class="fas fa-check"></i>';
+          
+          notify('تم حفظ التعديلات بنجاح ✓', 'success');
+          
+          // Reset button after 2 seconds
+          setTimeout(() => {
+            saveBtn.classList.remove('saved');
+            saveBtn.innerHTML = '<i class="fas fa-save"></i>';
+            saveBtn.disabled = false;
+          }, 2000);
+          
         } catch(err) {
-          throw err;
-        }
-      }
-      
-      // Handle inline editing
-      let saveTimeout = null;
-      document.getElementById('products-table')?.addEventListener('change', async function(e) {
-        const input = e.target;
-        if (!input.classList.contains('inline-input')) return;
-        
-        const productId = input.dataset.id;
-        const field = input.dataset.field;
-        const value = input.value;
-        
-        if (input.dataset.saving === '1') return;
-        input.dataset.saving = '1';
-        input.disabled = true;
-        
-        try {
-          await saveInline(productId, field, value);
-          input.classList.add('border-success');
-          setTimeout(() => input.classList.remove('border-success'), 2000);
-          notify('تم الحفظ', 'success');
-        } catch(err) {
-          input.classList.add('border-danger');
-          setTimeout(() => input.classList.remove('border-danger'), 2000);
+          // Error
+          saveBtn.classList.remove('saving');
+          saveBtn.classList.add('error');
+          saveBtn.innerHTML = '<i class="fas fa-times"></i>';
+          
           notify(err.message || 'فشل الحفظ', 'danger');
-        } finally {
-          delete input.dataset.saving;
-          input.disabled = false;
+          
+          // Reset button after 2 seconds
+          setTimeout(() => {
+            saveBtn.classList.remove('error');
+            saveBtn.innerHTML = '<i class="fas fa-save"></i>';
+            saveBtn.disabled = false;
+          }, 2000);
         }
-      });
+      };
       
       // Handle keyboard shortcuts
       document.getElementById('products-table')?.addEventListener('keydown', function(e) {
@@ -518,11 +598,26 @@
         
         if (e.key === 'Enter') {
           e.preventDefault();
-          e.target.blur();
+          // Find save button in the same row
+          const row = e.target.closest('tr');
+          const saveBtn = row?.querySelector('.save-btn');
+          if (saveBtn) {
+            saveBtn.click();
+          }
         } else if (e.key === 'Escape') {
-          e.target.value = e.target.defaultValue;
-          e.target.blur();
+          const input = e.target;
+          // Reset to original value
+          if (input.dataset.originalValue) {
+            input.value = input.dataset.originalValue;
+            input.classList.remove('changed');
+          }
+          input.blur();
         }
+      });
+      
+      // Initialize original values
+      document.querySelectorAll('.inline-input').forEach(input => {
+        input.dataset.originalValue = input.value;
       });
       
     })();

@@ -294,12 +294,13 @@
             const pid = +$pd.val(); const widNow = +$wh.val();
             const saleCurrency = qs('select[name="currency"]')?.value || 'ILS';
             if (priceInp && row.dataset.priceManual!=='1') {
-              if (typeof data.price!=='undefined') {
-                const p = toNum(data.price);
-                if(p>0){priceInp.value=p.toFixed(2);recalc();}
-              } else {
-                const info=await fetchProductInfo(pid,widNow,saleCurrency);
-                if(info && toNum(info.price)>0){priceInp.value=toNum(info.price).toFixed(2);recalc();}
+              const info=await fetchProductInfo(pid,widNow,saleCurrency);
+              if(info && toNum(info.price)>0){
+                priceInp.value=toNum(info.price).toFixed(2);
+                if(info.original_currency && info.original_currency !== info.target_currency){
+                  console.log(`💱 تحويل: ${info.original_price} ${info.original_currency} → ${info.price} ${info.target_currency}`);
+                }
+                recalc();
               }
             }
             updateAvailability(pid,widNow,row,saleCurrency);
