@@ -157,37 +157,37 @@
     </div>
   </div>
 
-  <ul class="nav nav-pills nav-fill mb-4" role="tablist">
-    <li class="nav-item">
-      <a class="nav-link active" data-bs-toggle="pill" href="#plans">
+  <ul class="nav nav-pills nav-fill mb-4" id="saasTabsList" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="plans-tab" data-bs-toggle="tab" data-bs-target="#plans" type="button" role="tab">
         <i class="fas fa-box me-1"></i> الباقات
-      </a>
+      </button>
     </li>
-    <li class="nav-item">
-      <a class="nav-link" data-bs-toggle="pill" href="#subscribers">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="subscribers-tab" data-bs-toggle="tab" data-bs-target="#subscribers" type="button" role="tab">
         <i class="fas fa-users me-1"></i> المشتركين ({{ subscriptions|length }})
-      </a>
+      </button>
     </li>
-    <li class="nav-item">
-      <a class="nav-link" data-bs-toggle="pill" href="#billing">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="billing-tab" data-bs-toggle="tab" data-bs-target="#billing" type="button" role="tab">
         <i class="fas fa-file-invoice-dollar me-1"></i> الفواتير ({{ invoices|length }})
-      </a>
+      </button>
     </li>
-    <li class="nav-item">
-      <a class="nav-link" data-bs-toggle="pill" href="#analytics">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="analytics-tab" data-bs-toggle="tab" data-bs-target="#analytics" type="button" role="tab">
         <i class="fas fa-chart-line me-1"></i> التحليلات
-      </a>
+      </button>
     </li>
-    <li class="nav-item">
-      <a class="nav-link" data-bs-toggle="pill" href="#settings">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings" type="button" role="tab">
         <i class="fas fa-cog me-1"></i> الإعدادات
-      </a>
+      </button>
     </li>
   </ul>
 
   <div class="tab-content">
     
-    <div id="plans" class="tab-pane fade show active">
+    <div id="plans" class="tab-pane fade show active" role="tabpanel">
       <div class="d-flex justify-content-between align-items-center mb-3">
         <h5><i class="fas fa-layer-group me-2"></i>باقات الاشتراك ({{ plans|length }})</h5>
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newPlanModal">
@@ -267,7 +267,7 @@
       </div>
     </div>
 
-    <div id="subscribers" class="tab-pane fade">
+    <div id="subscribers" class="tab-pane fade" role="tabpanel">
       <div class="d-flex justify-content-between align-items-center mb-3">
         <h5><i class="fas fa-users me-2"></i>قائمة المشتركين ({{ subscriptions|length }})</h5>
         <div class="btn-group">
@@ -362,7 +362,7 @@
       </div>
     </div>
 
-    <div id="billing" class="tab-pane fade">
+    <div id="billing" class="tab-pane fade" role="tabpanel">
       <div class="d-flex justify-content-between align-items-center mb-3">
         <h5><i class="fas fa-file-invoice-dollar me-2"></i>الفواتير والمدفوعات ({{ invoices|length }})</h5>
         <div class="btn-group">
@@ -443,7 +443,7 @@
       </div>
     </div>
 
-    <div id="analytics" class="tab-pane fade">
+    <div id="analytics" class="tab-pane fade" role="tabpanel">
       <h5 class="mb-3"><i class="fas fa-chart-line me-2"></i>تحليلات SaaS المتقدمة</h5>
       
       <div class="row g-4">
@@ -550,7 +550,7 @@
       </div>
     </div>
 
-    <div id="settings" class="tab-pane fade">
+    <div id="settings" class="tab-pane fade" role="tabpanel">
       <h5 class="mb-3"><i class="fas fa-cog me-2"></i>إعدادات SaaS</h5>
       
       <div class="row g-4">
@@ -973,7 +973,7 @@ window.savePlan = async function() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRFToken': csrfToken()
+        'X-CSRFToken': '{{ csrf_token() }}'
       },
       body: JSON.stringify(data)
     });
@@ -1008,7 +1008,7 @@ window.saveSubscriber = async function() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRFToken': csrfToken()
+        'X-CSRFToken': '{{ csrf_token() }}'
       },
       body: JSON.stringify(data)
     });
@@ -1026,32 +1026,30 @@ window.saveSubscriber = async function() {
   }
 }
 
-window.editPlan = async function(planId) {
+window.editPlan = function(planId) {
   const plan = plans.find(p => p.id === planId);
   if (!plan) {
-    notify('✗ باقة غير موجودة', 'danger');
+    alert('باقة غير موجودة');
     return;
   }
   
-  // ملء Modal بالبيانات الحالية
-  const modal = document.getElementById('editPlanModal');
-  if (!modal) {
-    notify('✗ خطأ: Modal غير موجود', 'danger');
-    return;
-  }
-  
+  // ملء الفورم بالبيانات
   document.getElementById('edit_plan_id').value = plan.id;
   document.getElementById('edit_name').value = plan.name;
   document.getElementById('edit_description').value = plan.description || '';
   document.getElementById('edit_price_monthly').value = plan.price_monthly;
   document.getElementById('edit_price_yearly').value = plan.price_yearly || '';
+  document.getElementById('edit_currency').value = plan.currency || 'USD';
   document.getElementById('edit_max_users').value = plan.max_users === -1 ? '-1' : (plan.max_users || '');
   document.getElementById('edit_max_invoices').value = plan.max_invoices === -1 ? '-1' : (plan.max_invoices || '');
   document.getElementById('edit_storage_gb').value = plan.storage_gb === -1 ? '-1' : (plan.storage_gb || '');
   document.getElementById('edit_features').value = plan.features || '';
   document.getElementById('edit_is_popular').checked = plan.is_popular;
   
-  new bootstrap.Modal(modal).show();
+  // فتح الـ Modal بطريقة بسيطة
+  const modalEl = document.getElementById('editPlanModal');
+  const modal = new bootstrap.Modal(modalEl, {backdrop: 'static'});
+  modal.show();
 }
 
 window.saveEditedPlan = async function() {
@@ -1074,7 +1072,7 @@ window.saveEditedPlan = async function() {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRFToken': csrfToken()
+        'X-CSRFToken': '{{ csrf_token() }}'
       },
       body: JSON.stringify(data)
     });
@@ -1099,141 +1097,50 @@ window.viewSubscription = async function(subId) {
     
     if (data.success) {
       const sub = data.subscription;
-      const modalBody = `
-        <div class="row g-3">
-          <div class="col-md-6"><strong>العميل:</strong> ${sub.customer_name}</div>
-          <div class="col-md-6"><strong>الباقة:</strong> ${sub.plan_name}</div>
-          <div class="col-md-6"><strong>الحالة:</strong> <span class="badge bg-${sub.status === 'active' ? 'success' : 'warning'}">${sub.status}</span></div>
-          <div class="col-md-6"><strong>السعر:</strong> $${sub.price}/شهر</div>
-          <div class="col-md-6"><strong>تاريخ البدء:</strong> ${sub.start_date}</div>
-          <div class="col-md-6"><strong>تاريخ الانتهاء:</strong> ${sub.end_date}</div>
-          <div class="col-12"><strong>الأيام المتبقية:</strong> ${sub.days_left} يوم</div>
-        </div>
-      `;
-      
-      const modal = document.createElement('div');
-      modal.innerHTML = `
-        <div class="modal fade" id="viewSubModal" tabindex="-1">
-          <div class="modal-dialog">
-            <div class="modal-content">
-              <div class="modal-header bg-info text-white">
-                <h5 class="modal-title"><i class="fas fa-eye"></i> تفاصيل الاشتراك</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-              </div>
-              <div class="modal-body">${modalBody}</div>
-              <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(modal);
-      new bootstrap.Modal(document.getElementById('viewSubModal')).show();
-      
-      document.getElementById('viewSubModal').addEventListener('hidden.bs.modal', () => modal.remove());
+      alert(`تفاصيل الاشتراك\n\nالعميل: ${sub.customer_name}\nالباقة: ${sub.plan_name}\nالحالة: ${sub.status}\nالسعر: $${sub.price}/شهر\nالبداية: ${sub.start_date}\nالنهاية: ${sub.end_date}\nالأيام المتبقية: ${sub.days_left}`);
     } else {
-      notify('✗ فشل جلب البيانات', 'danger');
+      alert('فشل جلب البيانات');
     }
   } catch (e) {
-    notify('✗ خطأ: ' + e.message, 'danger');
+    alert('خطأ: ' + e.message);
   }
 }
 
 window.editSubscription = async function(subId) {
-  try {
-    const res = await fetch(`/security/api/saas/subscriptions/${subId}`);
-    const data = await res.json();
-    
-    if (data.success) {
-      const sub = data.subscription;
-      
-      const modal = document.createElement('div');
-      modal.innerHTML = `
-        <div class="modal fade" id="editSubModal" tabindex="-1">
-          <div class="modal-dialog">
-            <div class="modal-content">
-              <div class="modal-header bg-warning text-dark">
-                <h5 class="modal-title"><i class="fas fa-edit"></i> تعديل اشتراك</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-              </div>
-              <div class="modal-body">
-                <form id="editSubForm">
-                  <input type="hidden" value="${subId}">
-                  <div class="mb-3">
-                    <label class="form-label">الحالة</label>
-                    <select class="form-select" name="status">
-                      <option value="trial" ${sub.status === 'trial' ? 'selected' : ''}>تجريبي</option>
-                      <option value="active" ${sub.status === 'active' ? 'selected' : ''}>نشط</option>
-                      <option value="expired" ${sub.status === 'expired' ? 'selected' : ''}>منتهي</option>
-                      <option value="cancelled" ${sub.status === 'cancelled' ? 'selected' : ''}>ملغي</option>
-                    </select>
-                  </div>
-                  <div class="mb-3">
-                    <label class="form-label">تاريخ الانتهاء</label>
-                    <input type="date" class="form-control" name="end_date" value="${sub.end_date}">
-                  </div>
-                </form>
-              </div>
-              <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                <button type="button" class="btn btn-warning" onclick="saveEditedSubscription(${subId})">
-                  <i class="fas fa-save"></i> حفظ
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(modal);
-      new bootstrap.Modal(document.getElementById('editSubModal')).show();
-      
-      document.getElementById('editSubModal').addEventListener('hidden.bs.modal', () => modal.remove());
-    }
-  } catch (e) {
-    notify('✗ خطأ: ' + e.message, 'danger');
-  }
-}
-
-window.saveEditedSubscription = async function(subId) {
-  const form = document.getElementById('editSubForm');
-  const formData = new FormData(form);
-  const data = Object.fromEntries(formData);
+  const newDate = prompt('أدخل تاريخ الانتهاء الجديد (YYYY-MM-DD):');
+  if (!newDate) return;
   
   try {
     const res = await fetch(`/security/api/saas/subscriptions/${subId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRFToken': csrfToken()
+        'X-CSRFToken': '{{ csrf_token() }}'
       },
-      body: JSON.stringify(data)
+      body: JSON.stringify({ end_date: newDate })
     });
     
-    const result = await res.json();
-    
-    if (result.success) {
-      notify('✓ تم التحديث بنجاح!', 'success');
-      setTimeout(() => location.reload(), 1500);
+    const data = await res.json();
+    if (data.success) {
+      alert('تم التحديث بنجاح');
+      location.reload();
     } else {
-      notify('✗ ' + (result.error || 'فشل التحديث'), 'danger');
+      alert('خطأ: ' + (data.error || 'فشل التحديث'));
     }
   } catch (e) {
-    notify('✗ خطأ: ' + e.message, 'danger');
+    alert('خطأ: ' + e.message);
   }
 }
 
 window.cancelSubscription = async function(subId) {
   if (!confirm('هل أنت متأكد من إلغاء هذا الاشتراك؟')) return;
   
-  notify('جاري الإلغاء...', 'warning');
-  
   try {
     const res = await fetch(`/security/api/saas/subscriptions/${subId}/cancel`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRFToken': csrfToken()
+        'X-CSRFToken': '{{ csrf_token() }}'
       },
       body: JSON.stringify({ reason: 'طلب من المالك' })
     });
@@ -1241,40 +1148,38 @@ window.cancelSubscription = async function(subId) {
     const result = await res.json();
     
     if (result.success) {
-      notify('✓ تم إلغاء الاشتراك بنجاح!', 'success');
-      setTimeout(() => location.reload(), 1500);
+      alert('تم إلغاء الاشتراك بنجاح');
+      location.reload();
     } else {
-      notify('✗ فشل الإلغاء', 'danger');
+      alert('خطأ: فشل الإلغاء');
     }
   } catch (e) {
-    notify('✗ خطأ: ' + e.message, 'danger');
+    alert('خطأ: ' + e.message);
   }
 }
 
 window.renewSubscription = async function(subId) {
   if (!confirm('تجديد الاشتراك لمدة 30 يوم؟')) return;
   
-  notify('جاري التجديد...', 'info');
-  
   try {
     const res = await fetch(`/security/api/saas/subscriptions/${subId}/renew`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRFToken': csrfToken()
+        'X-CSRFToken': '{{ csrf_token() }}'
       }
     });
     
     const result = await res.json();
     
     if (result.success) {
-      notify('✓ تم تجديد الاشتراك حتى ' + result.new_end_date, 'success');
-      setTimeout(() => location.reload(), 1500);
+      alert('تم تجديد الاشتراك بنجاح');
+      location.reload();
     } else {
-      notify('✗ ' + (result.error || 'فشل التجديد'), 'danger');
+      alert('خطأ: ' + (result.error || 'فشل التجديد'));
     }
   } catch (e) {
-    notify('✗ خطأ: ' + e.message, 'danger');
+    alert('خطأ: ' + e.message);
   }
 }
 
@@ -1292,62 +1197,59 @@ window.downloadInvoice = async function(invId) {
 window.markPaid = async function(invId) {
   if (!confirm('تأكيد الدفع؟')) return;
   
-  notify('جاري التأكيد...', 'info');
-  
   try {
     const res = await fetch(`/security/api/saas/invoices/${invId}/mark-paid`, {
       method: 'POST',
       headers: {
-        'X-CSRFToken': csrfToken()
+        'X-CSRFToken': '{{ csrf_token() }}'
       }
     });
     
     const result = await res.json();
     
     if (result.success) {
-      notify('✓ تم تأكيد الدفع بنجاح!', 'success');
-      setTimeout(() => location.reload(), 1500);
+      alert('تم تأكيد الدفع بنجاح');
+      location.reload();
     } else {
-      notify('✗ فشل التأكيد', 'danger');
+      alert('خطأ: فشل التأكيد');
     }
   } catch (e) {
-    notify('✗ خطأ: ' + e.message, 'danger');
+    alert('خطأ: ' + e.message);
   }
 }
 
 window.sendReminder = async function(invId) {
   if (!confirm('إرسال تذكير للعميل؟')) return;
   
-  notify('جاري الإرسال...', 'info');
-  
   try {
     const res = await fetch(`/security/api/saas/invoices/${invId}/send-reminder`, {
       method: 'POST',
       headers: {
-        'X-CSRFToken': csrfToken()
+        'X-CSRFToken': '{{ csrf_token() }}'
       }
     });
     
     const result = await res.json();
     
     if (result.success) {
-      notify('✓ ' + (result.message || 'تم إرسال التذكير بنجاح!'), 'success');
+      alert(result.message || 'تم إرسال التذكير بنجاح');
     } else {
-      notify('✗ ' + (result.error || 'فشل الإرسال'), 'danger');
+      alert('خطأ: ' + (result.error || 'فشل الإرسال'));
     }
   } catch (e) {
-    notify('✗ خطأ: ' + e.message, 'danger');
+    alert('خطأ: ' + e.message);
   }
 }
 
-window.createInvoice = async function() {
+window.createInvoice = function() {
   const modal = document.getElementById('createInvoiceModal');
   if (!modal) {
-    notify('✗ خطأ: Modal غير موجود', 'danger');
+    alert('خطأ: Modal غير موجود');
     return;
   }
   
-  new bootstrap.Modal(modal).show();
+  const bsModal = new bootstrap.Modal(modal, {backdrop: 'static'});
+  bsModal.show();
 }
 
 window.saveNewInvoice = async function() {
@@ -1356,18 +1258,16 @@ window.saveNewInvoice = async function() {
   const data = Object.fromEntries(formData);
   
   if (!data.subscription_id || !data.amount) {
-    notify('✗ يرجى ملء جميع الحقول المطلوبة', 'warning');
+    alert('يرجى ملء جميع الحقول المطلوبة');
     return;
   }
-  
-  notify('جاري الحفظ...', 'info');
   
   try {
     const res = await fetch('/security/api/saas/invoices', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRFToken': csrfToken()
+        'X-CSRFToken': '{{ csrf_token() }}'
       },
       body: JSON.stringify(data)
     });
@@ -1375,13 +1275,13 @@ window.saveNewInvoice = async function() {
     const result = await res.json();
     
     if (result.success) {
-      notify('✓ تم إنشاء الفاتورة بنجاح!', 'success');
-      setTimeout(() => location.reload(), 1500);
+      alert('تم إنشاء الفاتورة بنجاح');
+      location.reload();
     } else {
-      notify('✗ ' + (result.error || 'فشل الحفظ'), 'danger');
+      alert('خطأ: ' + (result.error || 'فشل الحفظ'));
     }
   } catch (e) {
-    notify('✗ خطأ: ' + e.message, 'danger');
+    alert('خطأ: ' + e.message);
   }
 }
 
@@ -1390,15 +1290,15 @@ const plans = [
   {% for plan in plans %}
   {
     id: {{ plan.id }},
-    name: "{{ plan.name }}",
-    description: "{{ plan.description or '' }}",
+    name: {{ plan.name|tojson }},
+    description: {{ (plan.description or '')|tojson }},
     price_monthly: {{ plan.price_monthly }},
     price_yearly: {{ plan.price_yearly or 'null' }},
-    currency: "{{ plan.currency }}",
+    currency: {{ plan.currency|tojson }},
     max_users: {{ plan.max_users or 'null' }},
     max_invoices: {{ plan.max_invoices or 'null' }},
     storage_gb: {{ plan.storage_gb or 'null' }},
-    features: "{{ plan.features or '' }}",
+    features: {{ (plan.features or '')|tojson }},
     is_popular: {{ 'true' if plan.is_popular else 'false' }}
   }{{ ',' if not loop.last else '' }}
   {% endfor %}

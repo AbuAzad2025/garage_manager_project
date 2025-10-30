@@ -148,7 +148,7 @@
                     <th>العميل:</th>
                     <td>
                       {% if sale_return.customer %}
-                      <a href="{{ url_for('customers_bp.customer_detail', id=sale_return.customer.id) }}">
+                      <a href="{{ url_for('customers_bp.customer_detail', customer_id=sale_return.customer.id) }}">
                         {{ sale_return.customer.name }}
                       </a>
                       {% else %}

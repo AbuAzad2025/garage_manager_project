@@ -546,7 +546,7 @@ body {
 }
 
 /* ===== MODERN CARDS ===== */
-.card {
+.card:not([style]) {
   border: none;
   border-radius: var(--border-radius-lg);
   overflow: hidden;

@@ -134,12 +134,17 @@ def create_return(sale_id=None):
             db.session.commit()
             
             # Audit log
-            AuditLog.log_action(
-                action='CREATE',
-                target_type='SaleReturn',
-                target_id=sale_return.id,
-                details=f"مرتجع بيع جديد: {sale_return.reason}"
-            )
+            try:
+                audit = AuditLog(
+                    model_name='SaleReturn',
+                    record_id=sale_return.id,
+                    action='CREATE',
+                    user_id=current_user.id if current_user.is_authenticated else None
+                )
+                db.session.add(audit)
+                db.session.commit()
+            except Exception:
+                pass  # لا نريد أن يفشل الحفظ بسبب الـ audit log
             
             flash('تم إنشاء المرتجع بنجاح', 'success')
             return redirect(url_for('returns.view_return', return_id=sale_return.id))
@@ -236,12 +241,17 @@ def edit_return(return_id):
             db.session.commit()
             
             # Audit log
-            AuditLog.log_action(
-                action='UPDATE',
-                target_type='SaleReturn',
-                target_id=sale_return.id,
-                details=f"تعديل مرتجع: {sale_return.reason}"
-            )
+            try:
+                audit = AuditLog(
+                    model_name='SaleReturn',
+                    record_id=sale_return.id,
+                    action='UPDATE',
+                    user_id=current_user.id if current_user.is_authenticated else None
+                )
+                db.session.add(audit)
+                db.session.commit()
+            except Exception:
+                pass
             
             flash('تم تحديث المرتجع بنجاح', 'success')
             return redirect(url_for('returns.view_return', return_id=return_id))
@@ -287,12 +297,17 @@ def confirm_return(return_id):
         db.session.commit()
         
         # Audit log
-        AuditLog.log_action(
-            action='CONFIRM',
-            target_type='SaleReturn',
-            target_id=sale_return.id,
-            details=f"تأكيد مرتجع #{sale_return.id}"
-        )
+        try:
+            audit = AuditLog(
+                model_name='SaleReturn',
+                record_id=sale_return.id,
+                action='CONFIRM',
+                user_id=current_user.id if current_user.is_authenticated else None
+            )
+            db.session.add(audit)
+            db.session.commit()
+        except Exception:
+            pass
         
         flash('تم تأكيد المرتجع بنجاح. تم إرجاع المخزون.', 'success')
         
@@ -325,12 +340,17 @@ def cancel_return(return_id):
         db.session.commit()
         
         # Audit log
-        AuditLog.log_action(
-            action='CANCEL',
-            target_type='SaleReturn',
-            target_id=sale_return.id,
-            details=f"إلغاء مرتجع #{sale_return.id}"
-        )
+        try:
+            audit = AuditLog(
+                model_name='SaleReturn',
+                record_id=sale_return.id,
+                action='CANCEL',
+                user_id=current_user.id if current_user.is_authenticated else None
+            )
+            db.session.add(audit)
+            db.session.commit()
+        except Exception:
+            pass
         
         flash('تم إلغاء المرتجع بنجاح', 'success')
         
@@ -355,12 +375,17 @@ def delete_return(return_id):
     
     try:
         # Audit log قبل الحذف
-        AuditLog.log_action(
-            action='DELETE',
-            target_type='SaleReturn',
-            target_id=sale_return.id,
-            details=f"حذف مرتجع: {sale_return.reason}"
-        )
+        try:
+            audit = AuditLog(
+                model_name='SaleReturn',
+                record_id=sale_return.id,
+                action='DELETE',
+                user_id=current_user.id if current_user.is_authenticated else None
+            )
+            db.session.add(audit)
+            db.session.flush()
+        except Exception:
+            pass
         
         db.session.delete(sale_return)
         db.session.commit()
