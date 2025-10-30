@@ -675,11 +675,12 @@ def add():
             flash(f"❌ خطأ في إضافة المصروف: {err}", "danger")
     
     # تمرير metadata للقالب
+    types_list = [{'id': t.id, 'name': t.name, 'code': t.code, 'fields_meta': t.fields_meta} for t in _types]
     return render_template("expenses/expense_form.html", 
                          form=form, 
                          is_edit=False,
                          types_meta=types_meta,
-                         _types=_types)
+                         _types=types_list)
 
 @expenses_bp.route("/edit/<int:exp_id>", methods=["GET", "POST"], endpoint="edit")
 @login_required
@@ -768,11 +769,12 @@ def edit(exp_id):
             flash(f"❌ خطأ في تعديل المصروف: {err}", "danger")
     
     # تمرير metadata للقالب
+    types_list = [{'id': t.id, 'name': t.name, 'code': t.code, 'fields_meta': t.fields_meta} for t in _types]
     return render_template("expenses/expense_form.html", 
                          form=form, 
                          is_edit=True,
                          types_meta=types_meta,
-                         _types=_types)
+                         _types=types_list)
 
 @expenses_bp.route("/delete/<int:exp_id>", methods=["POST"], endpoint="delete")
 @login_required

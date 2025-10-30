@@ -215,7 +215,9 @@ def get_ledger_data():
                     "description": f"الرصيد الافتتاحي الإجمالي (عملاء + موردين + شركاء)",
                     "debit": debit_val,
                     "credit": credit_val,
-                    "balance": running_balance
+                    "balance": running_balance,
+                    "entity_name": "—",
+                    "entity_type": ""
                 })
         
         # 1. المخزون الحالي - يُعرض دائماً بغض النظر عن الفترة
@@ -269,7 +271,9 @@ def get_ledger_data():
                     "description": f"قيمة المخزون الحالي ({total_stock_qty} قطعة من {len(stock_summary)} منتج)",
                     "debit": total_stock_value,
                     "credit": 0.0,
-                    "balance": running_balance
+                    "balance": running_balance,
+                    "entity_name": "—",
+                    "entity_type": ""
                 })
         
         # 1. المبيعات (Sales)
@@ -306,7 +310,9 @@ def get_ledger_data():
                     "description": f"فاتورة مبيعات - {customer_name}",
                     "debit": debit,
                     "credit": 0.0,
-                    "balance": running_balance
+                    "balance": running_balance,
+                    "entity_name": customer_name,
+                    "entity_type": "عميل"
                 })
         
         # 2. المشتريات والنفقات (Expenses)
@@ -335,6 +341,22 @@ def get_ledger_data():
                 
                 exp_type = expense.type.name if expense.type else "مصروف"
                 
+                # تحديد الجهة المرتبطة بالمصروف
+                expense_entity_name = "غير محدد"
+                expense_entity_type = ""
+                if expense.employee:
+                    expense_entity_name = expense.employee.name
+                    expense_entity_type = "موظف"
+                elif expense.supplier:
+                    expense_entity_name = expense.supplier.name
+                    expense_entity_type = "مورد"
+                elif expense.partner:
+                    expense_entity_name = expense.partner.name
+                    expense_entity_type = "شريك"
+                elif expense.payee_name:
+                    expense_entity_name = expense.payee_name
+                    expense_entity_type = "جهة"
+                
                 ledger_entries.append({
                     "id": expense.id,
                     "date": expense.date.strftime('%Y-%m-%d'),
@@ -344,7 +366,9 @@ def get_ledger_data():
                     "description": expense.description or f"مصروف - {exp_type}",
                     "debit": 0.0,
                     "credit": credit,
-                    "balance": running_balance
+                    "balance": running_balance,
+                    "entity_name": expense_entity_name,
+                    "entity_type": expense_entity_type
                 })
         
         # 3. الدفعات (Payments)
@@ -401,14 +425,18 @@ def get_ledger_data():
                     credit = 0.0
                     running_balance += debit
                 
-                # ✅ تحديد اسم الكيان
+                # ✅ تحديد اسم الكيان ونوعه
                 entity_name = "غير محدد"
+                entity_type = ""
                 if payment.customer:
                     entity_name = payment.customer.name
+                    entity_type = "عميل"
                 elif payment.supplier:
                     entity_name = payment.supplier.name
+                    entity_type = "مورد"
                 elif payment.partner:
                     entity_name = payment.partner.name
+                    entity_type = "شريك"
                 
                 # ✅ بناء الوصف مع تفاصيل الشيك
                 method_value = getattr(payment, 'method', 'cash')
@@ -481,6 +509,8 @@ def get_ledger_data():
                     "debit": debit,
                     "credit": credit,
                     "balance": running_balance,
+                    "entity_name": entity_name,
+                    "entity_type": entity_type,
                     "payment_details": {
                         "method": method_raw,
                         "check_number": getattr(payment, 'check_number', None),
@@ -536,7 +566,9 @@ def get_ledger_data():
                     "description": f"صيانة - {customer_name} - قطع: {parts_total:.2f} + عمالة: {labor_total:.2f}",
                     "debit": debit,
                     "credit": 0.0,
-                    "balance": running_balance
+                    "balance": running_balance,
+                    "entity_name": customer_name,
+                    "entity_type": "عميل"
                 })
         
         # 5. القيود اليدوية (Manual Journal Entries)
@@ -574,6 +606,8 @@ def get_ledger_data():
                         "debit": debit,
                         "credit": credit,
                         "balance": running_balance,
+                        "entity_name": "—",
+                        "entity_type": "",
                         "manual_details": {
                             "batch_id": batch.id,
                             "account_code": entry.account,

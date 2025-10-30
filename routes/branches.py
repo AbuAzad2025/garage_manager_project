@@ -298,9 +298,19 @@ def create_site(branch_id):
                 is_active=bool(request.form.get('is_active')),
             )
             
-            manager_id = request.form.get('manager_user_id')
-            if manager_id and manager_id != '0':
-                s.manager_user_id = int(manager_id)
+            # حفظ إحداثيات GPS
+            geo_lat = request.form.get('geo_lat', '').strip()
+            geo_lng = request.form.get('geo_lng', '').strip()
+            if geo_lat and geo_lng:
+                try:
+                    s.geo_lat = float(geo_lat)
+                    s.geo_lng = float(geo_lng)
+                except (ValueError, TypeError):
+                    pass
+            
+            manager_employee_id = request.form.get('manager_employee_id')
+            if manager_employee_id and manager_employee_id != '0':
+                s.manager_employee_id = int(manager_employee_id)
             
             db.session.add(s)
             db.session.commit()
@@ -313,8 +323,8 @@ def create_site(branch_id):
             db.session.rollback()
             flash(f"❌ خطأ في إنشاء الموقع: {e}", "danger")
     
-    users = User.query.filter_by(is_active=True).order_by(User.username).all()
-    return render_template('branches/site_form.html', branch=branch, site=None, users=users)
+    employees = Employee.query.filter_by(branch_id=branch_id).order_by(Employee.name).all()
+    return render_template('branches/site_form.html', branch=branch, site=None, employees=employees)
 
 
 @branches_bp.route('/sites/<int:site_id>/edit', methods=['GET', 'POST'], endpoint='edit_site')
@@ -332,11 +342,25 @@ def edit_site(site_id):
             s.notes = request.form.get('notes', '').strip() or None
             s.is_active = bool(request.form.get('is_active'))
             
-            manager_id = request.form.get('manager_user_id')
-            if manager_id and manager_id != '0':
-                s.manager_user_id = int(manager_id)
+            # حفظ إحداثيات GPS
+            geo_lat = request.form.get('geo_lat', '').strip()
+            geo_lng = request.form.get('geo_lng', '').strip()
+            if geo_lat and geo_lng:
+                try:
+                    s.geo_lat = float(geo_lat)
+                    s.geo_lng = float(geo_lng)
+                except (ValueError, TypeError):
+                    s.geo_lat = None
+                    s.geo_lng = None
             else:
-                s.manager_user_id = None
+                s.geo_lat = None
+                s.geo_lng = None
+            
+            manager_employee_id = request.form.get('manager_employee_id')
+            if manager_employee_id and manager_employee_id != '0':
+                s.manager_employee_id = int(manager_employee_id)
+            else:
+                s.manager_employee_id = None
             
             db.session.commit()
             flash(f"✅ تم تحديث الموقع: {s.name}", "success")
@@ -348,8 +372,8 @@ def edit_site(site_id):
             db.session.rollback()
             flash(f"❌ خطأ في تحديث الموقع: {e}", "danger")
     
-    users = User.query.filter_by(is_active=True).order_by(User.username).all()
-    return render_template('branches/site_form.html', branch=s.branch, site=s, users=users)
+    employees = Employee.query.filter_by(branch_id=s.branch_id).order_by(Employee.name).all()
+    return render_template('branches/site_form.html', branch=s.branch, site=s, employees=employees)
 
 
 @branches_bp.route('/sites/<int:site_id>/archive', methods=['POST'], endpoint='archive_site')

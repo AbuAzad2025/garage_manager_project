@@ -3374,6 +3374,7 @@ class ProductForm(FlaskForm):
     cost_before_shipping = MoneyField('التكلفة قبل الشحن', validators=[Optional(), NumberRange(min=0)])
     cost_after_shipping  = MoneyField('التكلفة بعد الشحن', validators=[Optional(), NumberRange(min=0)])
     unit_price_before_tax= MoneyField('سعر الوحدة قبل الضريبة', validators=[Optional(), NumberRange(min=0)])
+    currency      = CurrencySelectField('العملة', validators=[DataRequired()], default='ILS')
     price         = MoneyField('السعر الأساسي', validators=[DataRequired(), NumberRange(min=0)])
     purchase_price= MoneyField('سعر الشراء', validators=[Optional(), NumberRange(min=0)])
     selling_price = MoneyField('سعر البيع', validators=[Optional(), NumberRange(min=0)])
@@ -3485,6 +3486,7 @@ class ProductForm(FlaskForm):
         p.cost_before_shipping  = self.cost_before_shipping.data or 0
         p.cost_after_shipping   = self.cost_after_shipping.data or 0
         p.unit_price_before_tax = self.unit_price_before_tax.data or 0
+        p.currency       = (self.currency.data or 'ILS').upper()
         base_price = self.price.data
         sell_price = self.selling_price.data or base_price
         if base_price is None and sell_price is not None: base_price = sell_price

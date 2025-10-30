@@ -590,26 +590,27 @@
                                 <table class="table table-bordered table-hover table-sm" id="ledger-table">
                                     <thead class="table-light">
                                         <tr>
-                                            <th style="width: 8%;">التاريخ</th>
-                                            <th style="width: 10%;">رقم القيد</th>
-                                            <th style="width: 12%;">نوع العملية</th>
-                                            <th style="width: 32%;">البيان</th>
-                                            <th style="width: 11%;" class="text-end">المدين (منه)</th>
-                                            <th style="width: 11%;" class="text-end">الدائن (له)</th>
-                                            <th style="width: 11%;" class="text-end">الرصيد</th>
-                                            <th style="width: 5%;">الإجراءات</th>
+                                            <th style="width: 7%;">التاريخ</th>
+                                            <th style="width: 9%;">رقم القيد</th>
+                                            <th style="width: 10%;">نوع العملية</th>
+                                            <th style="width: 13%;">الجهة المرتبطة</th>
+                                            <th style="width: 25%;">البيان</th>
+                                            <th style="width: 10%;" class="text-end">المدين (منه)</th>
+                                            <th style="width: 10%;" class="text-end">الدائن (له)</th>
+                                            <th style="width: 10%;" class="text-end">الرصيد</th>
+                                            <th style="width: 6%;">الإجراءات</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <tr>
-                                            <td colspan="8" class="text-center text-muted py-4">
+                                            <td colspan="9" class="text-center text-muted py-4">
                                                 <i class="fas fa-spinner fa-spin"></i> جاري التحميل...
                                             </td>
                                         </tr>
                                     </tbody>
                                     <tfoot class="bg-light">
                                         <tr>
-                                            <td colspan="4" class="text-end"><strong>الإجماليات:</strong></td>
+                                            <td colspan="5" class="text-end"><strong>الإجماليات:</strong></td>
                                             <td class="text-end debit-cell" id="total-debit">0.00</td>
                                             <td class="text-end credit-cell" id="total-credit">0.00</td>
                                             <td class="text-end balance-cell" id="final-balance">0.00</td>
@@ -1130,7 +1131,7 @@ function updateLedgerTable(data, totals) {
     tbody.empty();
     
     if (!data || data.length === 0) {
-        tbody.append('<tr><td colspan="8" class="text-center text-muted py-4"><i class="fas fa-info-circle"></i> لا توجد قيود محاسبية في الفترة المحددة</td></tr>');
+        tbody.append('<tr><td colspan="9" class="text-center text-muted py-4"><i class="fas fa-info-circle"></i> لا توجد قيود محاسبية في الفترة المحددة</td></tr>');
         return;
     }
     
@@ -1140,11 +1141,38 @@ function updateLedgerTable(data, totals) {
         const creditClass = entry.credit > 0 ? 'credit-cell' : '';
         const balanceClass = 'balance-cell';
         
+        // تحديد اللون والأيقونة حسب نوع الجهة
+        let entityBadge = '';
+        if (entry.entity_name && entry.entity_name !== '—' && entry.entity_name !== 'غير محدد') {
+            let badgeColor = 'secondary';
+            let icon = 'fa-user';
+            if (entry.entity_type === 'عميل') {
+                badgeColor = 'primary';
+                icon = 'fa-user-check';
+            } else if (entry.entity_type === 'مورد') {
+                badgeColor = 'warning';
+                icon = 'fa-truck';
+            } else if (entry.entity_type === 'شريك') {
+                badgeColor = 'info';
+                icon = 'fa-handshake';
+            } else if (entry.entity_type === 'موظف') {
+                badgeColor = 'success';
+                icon = 'fa-user-tie';
+            } else if (entry.entity_type === 'جهة') {
+                badgeColor = 'secondary';
+                icon = 'fa-building';
+            }
+            entityBadge = `<span class="badge bg-${badgeColor}"><i class="fas ${icon} me-1"></i>${entry.entity_name}</span>`;
+        } else {
+            entityBadge = '<span class="text-muted">—</span>';
+        }
+        
         const row = `
             <tr>
                 <td class="text-center">${entry.date}</td>
                 <td class="text-center"><strong>${entry.transaction_number}</strong></td>
                 <td class="text-center"><span class="badge badge-${getTransactionBadgeClass(entry.type)}">${entry.type_ar}</span></td>
+                <td class="text-center">${entityBadge}</td>
                 <td>${getTransactionDescription(entry)}</td>
                 <td class="text-end ${debitClass}">${entry.debit > 0 ? formatCurrency(entry.debit) : '—'}</td>
                 <td class="text-end ${creditClass}">${entry.credit > 0 ? formatCurrency(entry.credit) : '—'}</td>
@@ -1203,8 +1231,8 @@ function updateLedgerTable(data, totals) {
             info: true,
             responsive: true,
             columnDefs: [
-                { targets: [4, 5, 6], className: 'text-end' },
-                { targets: [0, 1, 2, 7], className: 'text-center' }
+                { targets: [5, 6, 7], className: 'text-end' },
+                { targets: [0, 1, 2, 3, 8], className: 'text-center' }
             ],
             footerCallback: function(row, data, start, end, display) {
                 // تحديث الإجماليات في footer
@@ -1214,11 +1242,11 @@ function updateLedgerTable(data, totals) {
                 let pageDebit = 0;
                 let pageCredit = 0;
                 
-                api.column(4, { page: 'current' }).data().each(function(value) {
+                api.column(5, { page: 'current' }).data().each(function(value) {
                     pageDebit += parseFloat(value) || 0;
                 });
                 
-                api.column(5, { page: 'current' }).data().each(function(value) {
+                api.column(6, { page: 'current' }).data().each(function(value) {
                     pageCredit += parseFloat(value) || 0;
                 });
             }

@@ -46,15 +46,16 @@
           <input type="hidden" name="geo_lng" value="{{ site.geo_lng if site else '' }}">
 
           <div class="col-md-6">
-            <label class="form-label">مدير الموقع</label>
-            <select name="manager_user_id" class="form-select">
+            <label class="form-label">مدير الموقع (موظف)</label>
+            <select name="manager_employee_id" class="form-select">
               <option value="0">-- بدون مدير --</option>
-              {% for u in users %}
-              <option value="{{ u.id }}" {% if site and site.manager_user_id == u.id %}selected{% endif %}>
-                {{ u.username }}
+              {% for emp in employees %}
+              <option value="{{ emp.id }}" {% if site and site.manager_employee_id == emp.id %}selected{% endif %}>
+                {{ emp.name }} - {{ emp.position or 'موظف' }}
               </option>
               {% endfor %}
             </select>
+            <small class="text-muted">اختر مدير الموقع من موظفي هذا الفرع</small>
           </div>
 
           <div class="col-md-12">
