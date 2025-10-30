@@ -226,6 +226,41 @@ def restore_branch(branch_id):
     return redirect(url_for('branches_bp.list_branches'))
 
 
+@branches_bp.route('/<int:branch_id>/dashboard', methods=['GET'], endpoint='branch_dashboard')
+@login_required
+@owner_required
+def branch_dashboard(branch_id):
+    """لوحة تحكم متقدمة للفرع"""
+    branch = _get_or_404(Branch, branch_id)
+    
+    # إحصائيات
+    stats = {
+        'employees_count': Employee.query.filter_by(branch_id=branch_id).count(),
+        'sites_count': Site.query.filter_by(branch_id=branch_id).count(),
+        'warehouses_count': Warehouse.query.filter_by(branch_id=branch_id).count(),
+        'monthly_expenses': 0.0
+    }
+    
+    # حساب مصاريف الشهر الحالي
+    from datetime import datetime, timedelta
+    start_of_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    monthly_expenses = db.session.query(db.func.sum(Expense.amount)).filter(
+        Expense.branch_id == branch_id,
+        Expense.date >= start_of_month
+    ).scalar() or 0.0
+    stats['monthly_expenses'] = float(monthly_expenses)
+    
+    # قوائم
+    employees = Employee.query.filter_by(branch_id=branch_id).order_by(Employee.name).all()
+    recent_expenses = Expense.query.filter_by(branch_id=branch_id).order_by(Expense.date.desc()).limit(10).all()
+    
+    return render_template('branches/dashboard.html', 
+                         branch=branch, 
+                         stats=stats,
+                         employees=employees,
+                         recent_expenses=recent_expenses)
+
+
 # ═══════════════════════════════════════════════════════════════
 # إدارة المواقع - Sites Management
 # ═══════════════════════════════════════════════════════════════

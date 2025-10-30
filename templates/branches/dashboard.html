@@ -1,0 +1,313 @@
+{% extends 'base.html' %}
+{% block title %}لوحة تحكم الفرع - {{ branch.name }}{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+  .stat-card {
+    border-radius: 15px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  
+  .stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+  }
+  
+  .chart-container {
+    position: relative;
+    height: 300px;
+  }
+  
+  .branch-info-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+  }
+  
+  .quick-action-btn {
+    padding: 15px 25px;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+  }
+  
+  .quick-action-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4" dir="rtl">
+  
+  <!-- معلومات الفرع -->
+  <div class="branch-info-card no-print">
+    <div class="row align-items-center">
+      <div class="col-md-8">
+        <h1 class="mb-2"><i class="fas fa-code-branch me-2"></i>{{ branch.name }}</h1>
+        <div class="d-flex flex-wrap gap-3 mt-3">
+          <div>
+            <small class="text-white-50">الرمز:</small>
+            <strong class="d-block">{{ branch.code }}</strong>
+          </div>
+          {% if branch.city %}
+          <div>
+            <small class="text-white-50">المدينة:</small>
+            <strong class="d-block"><i class="fas fa-map-marker-alt me-1"></i>{{ branch.city }}</strong>
+          </div>
+          {% endif %}
+          {% if branch.manager_employee %}
+          <div>
+            <small class="text-white-50">المدير:</small>
+            <strong class="d-block"><i class="fas fa-user-tie me-1"></i>{{ branch.manager_employee.name }}</strong>
+          </div>
+          {% endif %}
+          <div>
+            <small class="text-white-50">العملة:</small>
+            <strong class="d-block">{{ branch.currency }}</strong>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4 text-end">
+        <a href="{{ url_for('branches_bp.list_branches') }}" class="btn btn-light me-2">
+          <i class="fas fa-arrow-right me-1"></i>رجوع
+        </a>
+        <a href="{{ url_for('branches_bp.edit_branch', branch_id=branch.id) }}" class="btn btn-warning">
+          <i class="fas fa-edit me-1"></i>تعديل
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- إحصائيات سريعة -->
+  <div class="row g-4 mb-4">
+    <div class="col-md-3">
+      <div class="card stat-card border-0 shadow-sm" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <div class="card-body text-white">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">الموظفين</h6>
+              <h2 class="mb-0 fw-bold">{{ stats.employees_count }}</h2>
+            </div>
+            <i class="fas fa-users fa-3x opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-3">
+      <div class="card stat-card border-0 shadow-sm" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+        <div class="card-body text-white">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">المواقع</h6>
+              <h2 class="mb-0 fw-bold">{{ stats.sites_count }}</h2>
+            </div>
+            <i class="fas fa-map-marker-alt fa-3x opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-3">
+      <div class="card stat-card border-0 shadow-sm" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+        <div class="card-body text-white">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">المستودعات</h6>
+              <h2 class="mb-0 fw-bold">{{ stats.warehouses_count }}</h2>
+            </div>
+            <i class="fas fa-warehouse fa-3x opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-3">
+      <div class="card stat-card border-0 shadow-sm" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+        <div class="card-body text-white">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">النفقات (شهري)</h6>
+              <h2 class="mb-0 fw-bold">{{ stats.monthly_expenses|round(0)|int }}</h2>
+              <small class="opacity-75">{{ branch.currency }}</small>
+            </div>
+            <i class="fas fa-receipt fa-3x opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- إجراءات سريعة -->
+  <div class="card shadow-sm mb-4 no-print">
+    <div class="card-header bg-white">
+      <h5 class="mb-0"><i class="fas fa-bolt me-2 text-warning"></i>إجراءات سريعة</h5>
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <a href="{{ url_for('expenses_bp.add_employee') }}?branch_id={{ branch.id }}" class="quick-action-btn btn btn-outline-primary w-100">
+            <i class="fas fa-user-plus fa-2x d-block mb-2"></i>
+            <strong>إضافة موظف</strong>
+          </a>
+        </div>
+        <div class="col-md-3">
+          <a href="{{ url_for('expenses_bp.create_expense') }}?branch_id={{ branch.id }}" class="quick-action-btn btn btn-outline-success w-100">
+            <i class="fas fa-plus-circle fa-2x d-block mb-2"></i>
+            <strong>إضافة مصروف</strong>
+          </a>
+        </div>
+        <div class="col-md-3">
+          <a href="{{ url_for('branches_bp.create_site', branch_id=branch.id) }}" class="quick-action-btn btn btn-outline-info w-100">
+            <i class="fas fa-map-pin fa-2x d-block mb-2"></i>
+            <strong>إضافة موقع</strong>
+          </a>
+        </div>
+        <div class="col-md-3">
+          <a href="{{ url_for('branches_bp.branch_report', branch_id=branch.id) }}" class="quick-action-btn btn btn-outline-warning w-100">
+            <i class="fas fa-file-chart-line fa-2x d-block mb-2"></i>
+            <strong>تقرير مفصل</strong>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- قائمة الموظفين -->
+    <div class="col-md-6">
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0"><i class="fas fa-users me-2"></i>الموظفين ({{ employees|length }})</h5>
+        </div>
+        <div class="card-body p-0">
+          {% if employees %}
+          <div class="list-group list-group-flush">
+            {% for emp in employees[:10] %}
+            <div class="list-group-item">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <strong>{{ emp.name }}</strong>
+                  <br><small class="text-muted">{{ emp.position or 'موظف' }}</small>
+                </div>
+                <div class="text-end">
+                  <span class="badge bg-success">{{ emp.salary|round(0)|int }} {{ emp.currency }}</span>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+            {% if employees|length > 10 %}
+            <div class="list-group-item text-center">
+              <a href="{{ url_for('expenses_bp.employees_list') }}?branch_id={{ branch.id }}" class="text-decoration-none">
+                عرض الكل ({{ employees|length }}) <i class="fas fa-arrow-left ms-1"></i>
+              </a>
+            </div>
+            {% endif %}
+          </div>
+          {% else %}
+          <div class="text-center py-4 text-muted">
+            <i class="fas fa-users fa-3x mb-3 opacity-25"></i>
+            <p>لا يوجد موظفين في هذا الفرع</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- آخر المصاريف -->
+    <div class="col-md-6">
+      <div class="card shadow-sm">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0"><i class="fas fa-receipt me-2"></i>آخر المصاريف</h5>
+        </div>
+        <div class="card-body p-0">
+          {% if recent_expenses %}
+          <div class="list-group list-group-flush">
+            {% for exp in recent_expenses[:10] %}
+            <div class="list-group-item">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <strong>{{ exp.type.name if exp.type else 'مصروف' }}</strong>
+                  <br><small class="text-muted">{{ exp.date.strftime('%Y-%m-%d') }}</small>
+                </div>
+                <div class="text-end">
+                  <span class="badge bg-danger">{{ exp.amount|round(0)|int }} {{ exp.currency }}</span>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+            {% if recent_expenses|length > 10 %}
+            <div class="list-group-item text-center">
+              <a href="{{ url_for('expenses_bp.expenses_list') }}?branch_id={{ branch.id }}" class="text-decoration-none">
+                عرض الكل <i class="fas fa-arrow-left ms-1"></i>
+              </a>
+            </div>
+            {% endif %}
+          </div>
+          {% else %}
+          <div class="text-center py-4 text-muted">
+            <i class="fas fa-receipt fa-3x mb-3 opacity-25"></i>
+            <p>لا توجد مصاريف في هذا الفرع</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- الموقع GPS -->
+  {% if branch.geo_lat and branch.geo_lng %}
+  <div class="card shadow-sm mt-4">
+    <div class="card-header bg-info text-white">
+      <h5 class="mb-0"><i class="fas fa-map-marked-alt me-2"></i>موقع الفرع على الخريطة</h5>
+    </div>
+    <div class="card-body p-0">
+      <div id="branch-map" style="height: 400px;"></div>
+    </div>
+    <div class="card-footer">
+      <div class="d-flex justify-content-between align-items-center">
+        <span>
+          <i class="fas fa-crosshairs me-2"></i>
+          <strong>الإحداثيات:</strong> {{ branch.geo_lat }}, {{ branch.geo_lng }}
+        </span>
+        <a href="https://www.google.com/maps?q={{ branch.geo_lat }},{{ branch.geo_lng }}" target="_blank" class="btn btn-sm btn-primary">
+          <i class="fas fa-external-link-alt me-1"></i>عرض على Google Maps
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{% if branch.geo_lat and branch.geo_lng %}
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&language=ar&region=PS"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const lat = parseFloat('{{ branch.geo_lat }}');
+    const lng = parseFloat('{{ branch.geo_lng }}');
+    
+    const map = new google.maps.Map(document.getElementById('branch-map'), {
+        center: { lat, lng },
+        zoom: 15,
+        mapTypeId: 'roadmap'
+    });
+    
+    new google.maps.Marker({
+        position: { lat, lng },
+        map: map,
+        title: '{{ branch.name }}',
+        animation: google.maps.Animation.DROP
+    });
+});
+</script>
+{% endif %}
+{% endblock %}
+

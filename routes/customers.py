@@ -312,20 +312,37 @@ def customer_analytics(customer_id):
                 "name": name,
                 "count": count,
                 "total": total,
-                "percentage": (float(total) / float(total_purchases) * 100.0) if total_purchases else 0.0,
+                "percentage": (float(total_ils) / float(total_purchases) * 100.0) if total_purchases else 0.0,
             }
-            for name, count, total in db.session.query(
-                ProductCategory.name.label("name"),
-                func.count(SaleLine.id).label("count"),
-                func.sum(SaleLine.quantity * SaleLine.unit_price).label("total"),
-            )
-            .select_from(SaleLine)
-            .join(Sale, Sale.id == SaleLine.sale_id)
-            .join(Product, Product.id == SaleLine.product_id)
-            .join(ProductCategory, ProductCategory.id == Product.category_id)
-            .filter(Sale.customer_id == customer_id)
-            .group_by(ProductCategory.name)
-            .all()
+            for name, count, total_ils in [
+                (
+                    cat.name,
+                    len(lines_in_cat),
+                    float(sum(
+                        (lambda line: (
+                            Decimal(str(line.quantity or 0)) * Decimal(str(line.unit_price or 0))
+                            if line.sale.currency == "ILS"
+                            else (
+                                convert_amount(
+                                    Decimal(str(line.quantity or 0)) * Decimal(str(line.unit_price or 0)),
+                                    line.sale.currency, "ILS", line.sale.sale_date
+                                ) if line.sale.currency else Decimal('0.00')
+                            )
+                        ))(line)
+                        for line in lines_in_cat
+                    ))
+                )
+                for cat in db.session.query(ProductCategory).all()
+                for lines_in_cat in [
+                    [
+                        line for line in db.session.query(SaleLine).join(Sale).join(Product).filter(
+                            Sale.customer_id == customer_id,
+                            Product.category_id == cat.id
+                        ).all()
+                    ]
+                ]
+                if len(lines_in_cat) > 0
+            ]
         ],
         purchases_months=purchases_months,
         payments_months=payments_months,
