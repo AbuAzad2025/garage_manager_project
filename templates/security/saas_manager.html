@@ -815,10 +815,17 @@ async function savePlan() {
   const formData = new FormData(form);
   const data = Object.fromEntries(formData);
   
+  data.is_popular = form.querySelector('[name="is_popular"]').checked;
+  data.price_monthly = parseFloat(data.price_monthly);
+  data.price_yearly = data.price_yearly ? parseFloat(data.price_yearly) : null;
+  data.max_users = data.max_users ? parseInt(data.max_users) : null;
+  data.max_invoices = data.max_invoices ? parseInt(data.max_invoices) : null;
+  data.storage_gb = data.storage_gb ? parseInt(data.storage_gb) : null;
+  
   notify('جاري الحفظ...', 'info');
   
   try {
-    const res = await fetch('/api/saas/plans', {
+    const res = await fetch('/security/api/saas/plans', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -827,59 +834,136 @@ async function savePlan() {
       body: JSON.stringify(data)
     });
     
-    if (res.ok) {
+    const result = await res.json();
+    
+    if (result.success) {
       notify('✓ تم حفظ الباقة بنجاح!', 'success');
       setTimeout(() => location.reload(), 1500);
     } else {
-      notify('✗ فشل الحفظ', 'danger');
+      notify('✗ ' + (result.error || 'فشل الحفظ'), 'danger');
     }
   } catch (e) {
-    notify('سيتم إضافة API قريباً', 'warning');
+    notify('✗ خطأ: ' + e.message, 'danger');
   }
 }
 
 async function saveSubscriber() {
-  notify('سيتم إضافة API قريباً', 'info');
+  const form = document.getElementById('newSubscriberForm');
+  const formData = new FormData(form);
+  const data = Object.fromEntries(formData);
+  
+  if (!data.customer_id || !data.plan_id || !data.start_date) {
+    notify('✗ يرجى ملء جميع الحقول المطلوبة', 'warning');
+    return;
+  }
+  
+  notify('جاري الحفظ...', 'info');
+  
+  try {
+    const res = await fetch('/security/api/saas/subscriptions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken()
+      },
+      body: JSON.stringify(data)
+    });
+    
+    const result = await res.json();
+    
+    if (result.success) {
+      notify('✓ تم إضافة المشترك بنجاح!', 'success');
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      notify('✗ ' + (result.error || 'فشل الحفظ'), 'danger');
+    }
+  } catch (e) {
+    notify('✗ خطأ: ' + e.message, 'danger');
+  }
 }
 
 async function editPlan(planId) {
-  notify('قريباً...', 'info');
+  notify('ℹ️ Modal التعديل قيد التطوير', 'info');
 }
 
 async function viewSubscription(subId) {
-  notify('قريباً...', 'info');
+  notify('ℹ️ Modal العرض قيد التطوير', 'info');
 }
 
 async function editSubscription(subId) {
-  notify('قريباً...', 'info');
+  notify('ℹ️ Modal التعديل قيد التطوير', 'info');
 }
 
 async function cancelSubscription(subId) {
   if (!confirm('هل أنت متأكد من إلغاء هذا الاشتراك؟')) return;
-  notify('قريباً...', 'warning');
+  
+  notify('جاري الإلغاء...', 'warning');
+  
+  try {
+    const res = await fetch(`/security/api/saas/subscriptions/${subId}/cancel`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken()
+      },
+      body: JSON.stringify({ reason: 'طلب من المالك' })
+    });
+    
+    const result = await res.json();
+    
+    if (result.success) {
+      notify('✓ تم إلغاء الاشتراك بنجاح!', 'success');
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      notify('✗ فشل الإلغاء', 'danger');
+    }
+  } catch (e) {
+    notify('✗ خطأ: ' + e.message, 'danger');
+  }
 }
 
 async function renewSubscription(subId) {
-  if (!confirm('تجديد الاشتراك؟')) return;
-  notify('قريباً...', 'info');
+  if (!confirm('تجديد الاشتراك لمدة 30 يوم؟')) return;
+  notify('ℹ️ API التجديد قيد التطوير', 'info');
 }
 
 async function downloadInvoice(invId) {
-  notify('جاري التحميل...', 'info');
+  notify('ℹ️ تحميل PDF قيد التطوير', 'info');
 }
 
 async function markPaid(invId) {
   if (!confirm('تأكيد الدفع؟')) return;
-  notify('قريباً...', 'success');
+  
+  notify('جاري التأكيد...', 'info');
+  
+  try {
+    const res = await fetch(`/security/api/saas/invoices/${invId}/mark-paid`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': csrfToken()
+      }
+    });
+    
+    const result = await res.json();
+    
+    if (result.success) {
+      notify('✓ تم تأكيد الدفع بنجاح!', 'success');
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      notify('✗ فشل التأكيد', 'danger');
+    }
+  } catch (e) {
+    notify('✗ خطأ: ' + e.message, 'danger');
+  }
 }
 
 async function sendReminder(invId) {
   if (!confirm('إرسال تذكير للعميل؟')) return;
-  notify('سيتم الإرسال...', 'info');
+  notify('ℹ️ إرسال Email قيد التطوير', 'info');
 }
 
 async function createInvoice() {
-  notify('قريباً...', 'info');
+  notify('ℹ️ Modal إنشاء فاتورة قيد التطوير', 'info');
 }
 </script>
 {% endblock %}

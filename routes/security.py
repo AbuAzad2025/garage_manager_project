@@ -176,6 +176,96 @@ def saas_manager():
                          invoices=invoices)
 
 
+@security_bp.route('/api/saas/plans', methods=['POST'])
+@owner_only
+def api_saas_create_plan():
+    """API: إنشاء باقة جديدة"""
+    from models import SaaSPlan
+    
+    try:
+        data = request.get_json()
+        plan = SaaSPlan(
+            name=data.get('name'),
+            description=data.get('description'),
+            price_monthly=data.get('price_monthly'),
+            price_yearly=data.get('price_yearly'),
+            currency=data.get('currency', 'USD'),
+            max_users=data.get('max_users'),
+            max_invoices=data.get('max_invoices'),
+            storage_gb=data.get('storage_gb'),
+            features=data.get('features'),
+            is_popular=data.get('is_popular', False)
+        )
+        db.session.add(plan)
+        db.session.commit()
+        return jsonify({'success': True, 'plan_id': plan.id})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@security_bp.route('/api/saas/subscriptions', methods=['POST'])
+@owner_only
+def api_saas_create_subscription():
+    """API: إنشاء اشتراك جديد"""
+    from models import SaaSSubscription
+    from datetime import datetime, timedelta
+    
+    try:
+        data = request.get_json()
+        start_date = datetime.strptime(data.get('start_date'), '%Y-%m-%d')
+        
+        sub = SaaSSubscription(
+            customer_id=data.get('customer_id'),
+            plan_id=data.get('plan_id'),
+            status=data.get('status', 'trial'),
+            start_date=start_date,
+            end_date=start_date + timedelta(days=30)
+        )
+        db.session.add(sub)
+        db.session.commit()
+        return jsonify({'success': True, 'subscription_id': sub.id})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@security_bp.route('/api/saas/invoices/<int:invoice_id>/mark-paid', methods=['POST'])
+@owner_only
+def api_saas_mark_paid(invoice_id):
+    """API: تأكيد دفع الفاتورة"""
+    from models import SaaSInvoice
+    
+    try:
+        invoice = SaaSInvoice.query.get_or_404(invoice_id)
+        invoice.status = 'paid'
+        invoice.paid_at = datetime.now(timezone.utc)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
+@security_bp.route('/api/saas/subscriptions/<int:sub_id>/cancel', methods=['POST'])
+@owner_only
+def api_saas_cancel_subscription(sub_id):
+    """API: إلغاء اشتراك"""
+    from models import SaaSSubscription
+    
+    try:
+        sub = SaaSSubscription.query.get_or_404(sub_id)
+        sub.status = 'cancelled'
+        sub.cancelled_at = datetime.now(timezone.utc)
+        sub.cancelled_by = current_user.id
+        sub.cancellation_reason = request.get_json().get('reason', 'إلغاء من المالك')
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 400
+
+
 @security_bp.route('/')
 @owner_only
 def index():

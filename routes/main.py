@@ -188,40 +188,37 @@ def dashboard():
 
     week_net = week_incoming - week_outgoing
 
-    pay_rows = (
-        db.session.query(
-            func.date(Payment.payment_date).label("day"),
-            func.coalesce(
-                func.sum(
-                    case(
-                        (Payment.direction == PaymentDirection.IN.value, Payment.total_amount),
-                        else_=0,
-                    )
-                ),
-                0,
-            ).label("incoming"),
-            func.coalesce(
-                func.sum(
-                    case(
-                        (Payment.direction == PaymentDirection.OUT.value, Payment.total_amount),
-                        else_=0,
-                    )
-                ),
-                0,
-            ).label("outgoing"),
-        )
-        .filter(
-            Payment.payment_date >= week_start_dt,
-            Payment.payment_date < week_end_dt,
-            Payment.status == PaymentStatus.COMPLETED.value,
-        )
-        .group_by("day")
-        .order_by("day")
-        .all()
-    )
-    payments_day_labels = [str(r.day) for r in pay_rows]
-    payments_in_values = [float(r.incoming or 0) for r in pay_rows]
-    payments_out_values = [float(r.outgoing or 0) for r in pay_rows]
+    # حساب الدفعات اليومية مع تحويل العملات
+    from collections import defaultdict
+    daily_payments = defaultdict(lambda: {'incoming': Decimal('0.00'), 'outgoing': Decimal('0.00')})
+    
+    all_week_payments = Payment.query.filter(
+        Payment.payment_date >= week_start_dt,
+        Payment.payment_date < week_end_dt,
+        Payment.status == PaymentStatus.COMPLETED.value
+    ).all()
+    
+    for p in all_week_payments:
+        day_key = p.payment_date.date() if p.payment_date else today
+        amt = Decimal(str(p.total_amount or 0))
+        
+        if p.currency == "ILS":
+            amt_ils = amt
+        else:
+            try:
+                from models import convert_amount
+                amt_ils = convert_amount(amt, p.currency, "ILS", p.payment_date)
+            except:
+                amt_ils = Decimal('0.00')
+        
+        if p.direction == PaymentDirection.IN.value:
+            daily_payments[day_key]['incoming'] += amt_ils
+        else:
+            daily_payments[day_key]['outgoing'] += amt_ils
+    
+    payments_day_labels = sorted([str(d) for d in daily_payments.keys()])
+    payments_in_values = [float(daily_payments[datetime.strptime(d, '%Y-%m-%d').date()]['incoming']) for d in payments_day_labels]
+    payments_out_values = [float(daily_payments[datetime.strptime(d, '%Y-%m-%d').date()]['outgoing']) for d in payments_day_labels]
     payments_net_values = [i - o for i, o in zip(payments_in_values, payments_out_values)]
 
     recent_services = []
