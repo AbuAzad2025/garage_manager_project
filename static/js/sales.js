@@ -312,7 +312,8 @@
           $wh.off('change').on('change', () => {
             if ($pd.length) { $pd.val(null).trigger('change'); }
             initProducts();
-            updateAvailability(+($pd.val()),+($wh.val()),row);
+            const saleCurrency = qs('select[name="currency"]')?.value || 'ILS';
+            updateAvailability(+($pd.val()),+($wh.val()),row,saleCurrency);
           });
         }
       });

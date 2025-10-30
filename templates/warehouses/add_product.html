@@ -136,30 +136,29 @@
     </div>
     <div class="card-body">
       <div class="row g-3">
+        <!-- الصف الأول: العملة والأسعار الأساسية -->
         <div class="col-md-3">
-          <label class="form-label">{{ product_form.currency.label.text }} <span class="text-danger">*</span></label>
+          <label class="form-label fw-bold">{{ product_form.currency.label.text }} <span class="text-danger">*</span></label>
           {{ product_form.currency(class_="form-select", id="product_currency", required=True) }}
-          <small class="text-muted"><i class="fas fa-globe text-info"></i> العملة المُستخدمة لكل الأسعار</small>
+          <small class="text-muted"><i class="fas fa-globe text-info"></i> عملة كل الأسعار أدناه</small>
         </div>
         <div class="col-md-3">
-          <label class="form-label">{{ product_form.price.label.text }} <span class="text-danger">*</span></label>
+          <label class="form-label fw-bold text-success">سعر البيع <span class="text-danger">*</span></label>
           <div class="input-group">
             {{ product_form.price(class_="form-control", id="product_price", required=True, placeholder="0.00") }}
-            <span class="input-group-text" id="currency-symbol">₪</span>
+            <span class="input-group-text bg-success text-white" id="currency-symbol">₪</span>
           </div>
-          <small class="text-muted"><i class="fas fa-money-bill-wave text-success"></i> السعر الذي سنبيع به للعملاء</small>
+          <small class="text-muted"><i class="fas fa-money-bill-wave text-success"></i> السعر للعملاء</small>
         </div>
-        <div class="col-md-2">
-          <label class="form-label">{{ stock_form.quantity.label.text }} <span class="text-muted">(اختياري)</span></label>
-          {{ stock_form.quantity(class_="form-control", placeholder="0") }}
-          <small class="text-muted"><i class="fas fa-boxes"></i> عدد القطع المُضافة الآن</small>
+        <div class="col-md-3">
+          <label class="form-label fw-bold text-danger">سعر التكلفة <span class="text-danger">*</span></label>
+          <div class="input-group">
+            {{ product_form.purchase_price(class_="form-control", id="purchase_price", required=True, placeholder="0.00") }}
+            <span class="input-group-text bg-danger text-white" id="cost-currency-symbol">₪</span>
+          </div>
+          <small class="text-muted"><i class="fas fa-receipt text-danger"></i> التكلفة الفعلية (لحساب الأرباح والشركاء)</small>
         </div>
-        <div class="col-md-2">
-          <label class="form-label">{{ product_form.min_qty.label.text }} <span class="text-muted">(اختياري)</span></label>
-          {{ product_form.min_qty(class_="form-control", placeholder="5") }}
-          <small class="text-muted"><i class="fas fa-bell text-warning"></i> تنبيه عند النقص لهذا العدد</small>
-        </div>
-        <div class="col-md-2">
+        <div class="col-md-3">
           <label class="form-label">{{ product_form.tax_rate.label.text }} <span class="text-muted">(اختياري)</span></label>
           <div class="input-group">
             {{ product_form.tax_rate(class_="form-control", placeholder="16") }}
@@ -167,12 +166,34 @@
           </div>
           <small class="text-muted"><i class="fas fa-percent"></i> نسبة الضريبة</small>
         </div>
+        
+        <!-- الصف الثاني: الكمية والمخزون -->
+        <div class="col-md-3">
+          <label class="form-label">{{ stock_form.quantity.label.text }} <span class="text-muted">(اختياري)</span></label>
+          {{ stock_form.quantity(class_="form-control", placeholder="0") }}
+          <small class="text-muted"><i class="fas fa-boxes"></i> عدد القطع المُضافة الآن</small>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">{{ product_form.min_qty.label.text }} <span class="text-muted">(اختياري)</span></label>
+          {{ product_form.min_qty(class_="form-control", placeholder="5") }}
+          <small class="text-muted"><i class="fas fa-bell text-warning"></i> تنبيه عند النقص</small>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">{{ product_form.reorder_point.label.text }} <span class="text-muted">(اختياري)</span></label>
+          {{ product_form.reorder_point(class_="form-control", placeholder="10") }}
+          <small class="text-muted"><i class="fas fa-sync"></i> نقطة إعادة الطلب</small>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">{{ product_form.unit.label.text }} <span class="text-muted">(اختياري)</span></label>
+          {{ product_form.unit(class_="form-control", placeholder="قطعة/كرتون/كجم") }}
+          <small class="text-muted"><i class="fas fa-balance-scale"></i> وحدة القياس</small>
+        </div>
       </div>
       
-      <div class="alert alert-info mt-3 mb-0">
-        <i class="fas fa-info-circle"></i> <strong>ملاحظة:</strong>
-        جميع الأسعار (السعر الأساسي، سعر الشراء، التكلفة، إلخ) ستكون بالعملة المختارة أعلاه.
-        عند البيع بعملة مختلفة، سيتم التحويل تلقائياً.
+      <div class="alert alert-warning mt-3 mb-0">
+        <i class="fas fa-exclamation-triangle"></i> <strong>مهم:</strong>
+        سعر التكلفة يُستخدم لحساب الأرباح ونصيب الشركاء - يجب إدخاله بدقة!
+        عند البيع/الحجز بعملة مختلفة، سيتم التحويل تلقائياً حسب سعر الصرف.
       </div>
     </div>
   </div>
@@ -363,54 +384,80 @@
         <h6 class="text-primary border-bottom pb-2 mb-3"><i class="fas fa-chart-line"></i> تسعير متقدم</h6>
         <div class="row g-3 mb-4">
           <div class="col-md-3">
-            <label class="form-label">{{ product_form.unit_price_before_tax.label.text }}</label>
-            {{ product_form.unit_price_before_tax(class_="form-control", placeholder="0.00") }}
-            <small class="text-muted">يُحسب تلقائياً من السعر والضريبة</small>
+            <label class="form-label">{{ product_form.selling_price.label.text }}</label>
+            <div class="input-group">
+              {{ product_form.selling_price(class_="form-control", placeholder="0.00") }}
+              <span class="input-group-text sell-currency-symbol">₪</span>
+            </div>
+            <small class="text-muted">سعر بيع بديل (اختياري)</small>
           </div>
           <div class="col-md-3">
             <label class="form-label">{{ product_form.min_price.label.text }}</label>
-            {{ product_form.min_price(class_="form-control", placeholder="0.00") }}
+            <div class="input-group">
+              {{ product_form.min_price(class_="form-control", placeholder="0.00") }}
+              <span class="input-group-text min-currency-symbol">₪</span>
+            </div>
             <small class="text-muted">الحد الأدنى للسعر</small>
           </div>
           <div class="col-md-3">
             <label class="form-label">{{ product_form.max_price.label.text }}</label>
-            {{ product_form.max_price(class_="form-control", placeholder="0.00") }}
+            <div class="input-group">
+              {{ product_form.max_price(class_="form-control", placeholder="0.00") }}
+              <span class="input-group-text max-currency-symbol">₪</span>
+            </div>
             <small class="text-muted">الحد الأقصى للسعر</small>
           </div>
           <div class="col-md-3">
+            <label class="form-label">{{ product_form.unit_price_before_tax.label.text }}</label>
+            <div class="input-group">
+              {{ product_form.unit_price_before_tax(class_="form-control", placeholder="0.00") }}
+              <span class="input-group-text unit-currency-symbol">₪</span>
+            </div>
+            <small class="text-muted">قبل الضريبة</small>
+          </div>
+          <div class="col-md-3">
             <label class="form-label">{{ product_form.cost_before_shipping.label.text }}</label>
-            {{ product_form.cost_before_shipping(class_="form-control", placeholder="0.00") }}
+            <div class="input-group">
+              {{ product_form.cost_before_shipping(class_="form-control", placeholder="0.00") }}
+              <span class="input-group-text before-ship-currency">₪</span>
+            </div>
             <small class="text-muted">التكلفة قبل الشحن</small>
           </div>
           <div class="col-md-3">
             <label class="form-label">{{ product_form.cost_after_shipping.label.text }}</label>
-            {{ product_form.cost_after_shipping(class_="form-control", placeholder="0.00") }}
+            <div class="input-group">
+              {{ product_form.cost_after_shipping(class_="form-control", placeholder="0.00") }}
+              <span class="input-group-text after-ship-currency">₪</span>
+            </div>
             <small class="text-muted">التكلفة بعد الشحن</small>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">{{ product_form.online_price.label.text }}</label>
+            <div class="input-group">
+              {{ product_form.online_price(class_="form-control", placeholder="0.00") }}
+              <span class="input-group-text online-currency-symbol">₪</span>
+            </div>
+            <small class="text-muted">سعر المتجر الإلكتروني</small>
           </div>
         </div>
 
         <!-- إدارة مخزون متقدمة -->
         <h6 class="text-primary border-bottom pb-2 mb-3"><i class="fas fa-warehouse"></i> إدارة مخزون متقدمة</h6>
         <div class="row g-3 mb-4">
-          <div class="col-md-3">
+          <div class="col-md-4">
             <label class="form-label">{{ stock_form.reserved_quantity.label.text }}</label>
             {{ stock_form.reserved_quantity(class_="form-control bg-light", placeholder="0", readonly=True) }}
             <small class="text-muted"><i class="fas fa-lock"></i> تُحسب تلقائياً من الحجوزات</small>
           </div>
-          <div class="col-md-3">
+          <div class="col-md-4">
             <label class="form-label">{{ stock_form.min_stock.label.text }}</label>
             {{ stock_form.min_stock(class_="form-control", placeholder="0") }}
             <small class="text-muted">حد أدنى للمخزون</small>
           </div>
-          <div class="col-md-3">
+          <div class="col-md-4">
             <label class="form-label">{{ stock_form.max_stock.label.text }}</label>
             {{ stock_form.max_stock(class_="form-control", placeholder="0") }}
             <small class="text-muted">حد أقصى للمخزون</small>
-          </div>
-          <div class="col-md-3">
-            <label class="form-label">{{ product_form.reorder_point.label.text }}</label>
-            {{ product_form.reorder_point(class_="form-control", placeholder="0") }}
-            <small class="text-muted">نقطة إعادة الطلب</small>
           </div>
         </div>
 
@@ -619,10 +666,32 @@ document.addEventListener('DOMContentLoaded', function() {
   function updateCurrencySymbol() {
     const selectedCurrency = currencySelect.value || 'ILS';
     const symbol = currencySymbols[selectedCurrency] || selectedCurrency;
-    currencySymbol.textContent = symbol;
+    
+    // تحديث كل رموز العملات في الصفحة
+    const symbolElements = [
+      'currency-symbol',
+      'cost-currency-symbol',
+      'sell-currency-symbol',
+      'min-currency-symbol',
+      'max-currency-symbol',
+      'unit-currency-symbol',
+      'before-ship-currency',
+      'after-ship-currency',
+      'online-currency-symbol'
+    ];
+    
+    symbolElements.forEach(function(id) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = symbol;
+    });
+    
+    // تحديث بالـ class أيضاً
+    document.querySelectorAll('.sell-currency-symbol, .min-currency-symbol, .max-currency-symbol, .unit-currency-symbol, .before-ship-currency, .after-ship-currency, .online-currency-symbol').forEach(function(el) {
+      el.textContent = symbol;
+    });
   }
   
-  if (currencySelect && currencySymbol) {
+  if (currencySelect) {
     currencySelect.addEventListener('change', updateCurrencySymbol);
     updateCurrencySymbol();
   }
