@@ -112,6 +112,13 @@ def upgrade_data():
         }
         
         codes_assigned = 0
+        used_codes = set()
+        
+        # جمع الأكواد المستخدمة حالياً
+        for et in ExpenseType.query.all():
+            if et.code:
+                used_codes.add(et.code)
+        
         for etype in types_without_code:
             name_lower = etype.name.lower()
             assigned_code = None
@@ -125,8 +132,17 @@ def upgrade_data():
             if not assigned_code:
                 assigned_code = 'OTHER'
             
-            etype.code = assigned_code
+            # التأكد من عدم التكرار
+            final_code = assigned_code
+            counter = 1
+            while final_code in used_codes:
+                final_code = f"{assigned_code}_{counter}"
+                counter += 1
+            
+            etype.code = final_code
+            used_codes.add(final_code)
             codes_assigned += 1
+            print(f"   → {etype.name}: {final_code}")
         
         db.session.commit()
         print(f"   ✅ تم تعيين أكواد لـ {codes_assigned} نوع مصروف")
